@@ -75,10 +75,6 @@ U_NAMESPACE_BEGIN
  * <li>Dershowitz and Reingold, <i>Calendrical Calculations</i>,
  * Cambridge University Press, 1997</li>
  * 
- * <li>Helmer Aslaksen's
- * <a href="http://www.math.nus.edu.sg/aslaksen/calendar/chinese.shtml">
- * Chinese Calendar page</a></li>
- *
  * <li>The <a href="http://www.tondering.dk/claus/calendar.html">
  * Calendar FAQ</a></li>
  *
@@ -256,7 +252,7 @@ class U_I18N_API ChineseCalendar : public Calendar {
   virtual void computeChineseFields(int32_t days, int32_t gyear,
                  int32_t gmonth, UBool setAllFields);
   virtual int32_t newYear(int32_t gyear) const;
-  virtual void offsetMonth(int32_t newMoon, int32_t dom, int32_t delta);
+  virtual void offsetMonth(int32_t newMoon, int32_t dom, int32_t delta, UErrorCode& status);
   const TimeZone* getChineseCalZoneAstroCalc() const;
 
   // UObject stuff

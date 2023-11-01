@@ -66,7 +66,6 @@ RBBIRuleBuilder::RBBIRuleBuilder(const UnicodeString   &rules,
     fForwardTable       = nullptr;
     fRuleStatusVals     = nullptr;
     fChainRules         = false;
-    fLBCMNoChain        = false;
     fLookAheadHardBreak = false;
     fUSetNodes          = nullptr;
     fRuleStatusVals     = nullptr;

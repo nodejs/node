@@ -444,6 +444,37 @@ public:
     static UnicodeString& U_EXPORT2 getCanonicalID(const UnicodeString& id,
         UnicodeString& canonicalID, UBool& isSystemID, UErrorCode& status);
 
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns the preferred time zone ID in the IANA time zone database for the given time zone ID.
+     * There are two types of preferred IDs. The first type is the one defined in zone.tab file,
+     * such as "America/Los_Angeles". The second types is the one defined for zones not associated
+     * with a specific region, but not defined with "Link" syntax such as "Etc/GMT+10".
+     *
+     * <p>Note: For most of valid time zone IDs, this method returns an ID same as getCanonicalID().
+     * getCanonicalID() is based on canonical time zone IDs defined in Unicode CLDR.
+     * These canonical time zone IDs in CLDR were based on very old version of the time zone database.
+     * In the IANA time zone database, some IDs were updated since then. This API returns a newer
+     * time zone ID. For example, CLDR defines "Asia/Calcutta" as the canonical time zone ID. This
+     * method returns "Asia/Kolkata" instead.
+     * <p> "Etc/Unknown" is a special time zone ID defined by CLDR. There are no corresponding zones
+     * in the IANA time zone database. Therefore, this API returns U_ILLEGAL_ARGUMENT_ERROR when the
+     * input ID is "Etc/Unknown".
+     *
+     * @param id        The input time zone ID.
+     * @param ianaID    Receives the preferred time zone ID in the IANA time zone database. When
+     *                  the given time zone ID is not a known time zone ID, this method sets an
+     *                  invalid (bogus) string.
+     * @param status    Receives the status.  When the given time zone ID is not a known time zone
+     *                  ID, U_ILLEGAL_ARGUMENT_ERROR is set.
+     * @return  A reference to the result.
+     * @draft ICU 74
+     */
+    static UnicodeString& U_EXPORT2 getIanaID(const UnicodeString&id, UnicodeString& ianaID,
+        UErrorCode& status);
+#endif // U_HIDE_DRAFT_API
+
     /**
     * Converts a system time zone ID to an equivalent Windows time zone ID. For example,
     * Windows time zone ID "Pacific Standard Time" is returned for input "America/Los_Angeles".

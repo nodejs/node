@@ -1196,7 +1196,7 @@ doOpenChoice(const char *path, const char *type, const char *name,
                 *p = U_FILE_SEP_CHAR;
             }
 #if defined (UDATA_DEBUG)
-            fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.s);
+            fprintf(stderr, "Changed path from [%s] to [%s]\n", path, altSepPath.data());
 #endif
             path = altSepPath.data();
         }

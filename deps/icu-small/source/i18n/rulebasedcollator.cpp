@@ -32,6 +32,7 @@
 #include "unicode/utf8.h"
 #include "unicode/uversion.h"
 #include "bocsu.h"
+#include "bytesinkutil.h"
 #include "charstr.h"
 #include "cmemory.h"
 #include "collation.h"
@@ -50,6 +51,7 @@
 #include "ucol_imp.h"
 #include "uhash.h"
 #include "uitercollationiterator.h"
+#include "ulocimp.h"
 #include "ustr_imp.h"
 #include "utf16collationiterator.h"
 #include "utf8collationiterator.h"
@@ -1579,8 +1581,12 @@ RuleBasedCollator::internalGetShortDefinitionString(const char *locale,
         appendAttribute(result, 'F', getAttribute(UCOL_FRENCH_COLLATION, errorCode), errorCode);
     }
     // Note: UCOL_HIRAGANA_QUATERNARY_MODE is deprecated and never changes away from default.
-    length = uloc_getKeywordValue(resultLocale, "collation", subtag, UPRV_LENGTHOF(subtag), &errorCode);
-    appendSubtag(result, 'K', subtag, length, errorCode);
+    {
+        CharString collation;
+        CharStringByteSink sink(&collation);
+        ulocimp_getKeywordValue(resultLocale, "collation", sink, &errorCode);
+        appendSubtag(result, 'K', collation.data(), collation.length(), errorCode);
+    }
     length = uloc_getLanguage(resultLocale, subtag, UPRV_LENGTHOF(subtag), &errorCode);
     if (length == 0) {
         appendSubtag(result, 'L', "root", 4, errorCode);

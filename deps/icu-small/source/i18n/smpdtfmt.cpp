@@ -721,19 +721,28 @@ void SimpleDateFormat::construct(EStyle timeStyle,
 
     UnicodeString timePattern;
     if (timeStyle >= kFull && timeStyle <= kShort) {
+        bool hasRgOrHcSubtag = false;
+        // also use DTPG if the locale has the "rg" or "hc" ("hours") subtag-- even if the overriding region
+        // or hour cycle is the same as the one we get by default, we go through the DateTimePatternGenerator
+        UErrorCode dummyErr1 = U_ZERO_ERROR, dummyErr2 = U_ZERO_ERROR;
+        if (locale.getKeywordValue("rg", nullptr, 0, dummyErr1) > 0 || locale.getKeywordValue("hours", nullptr, 0, dummyErr2) > 0) {
+            hasRgOrHcSubtag = true;
+        }
+            
         const char* baseLocID = locale.getBaseName();
         if (baseLocID[0]!=0 && uprv_strcmp(baseLocID,"und")!=0) {
             UErrorCode useStatus = U_ZERO_ERROR;
             Locale baseLoc(baseLocID);
             Locale validLoc(getLocale(ULOC_VALID_LOCALE, useStatus));
-            if (U_SUCCESS(useStatus) && validLoc!=baseLoc) {
-                bool useDTPG = false;
+            if (hasRgOrHcSubtag || (U_SUCCESS(useStatus) && validLoc!=baseLoc)) {
+                bool useDTPG = hasRgOrHcSubtag;
                 const char* baseReg = baseLoc.getCountry(); // empty string if no region
                 if ((baseReg[0]!=0 && uprv_strncmp(baseReg,validLoc.getCountry(),ULOC_COUNTRY_CAPACITY)!=0)
                         || uprv_strncmp(baseLoc.getLanguage(),validLoc.getLanguage(),ULOC_LANG_CAPACITY)!=0) {
                     // use DTPG if
                     // * baseLoc has a region and validLoc does not have the same one (or has none), OR
                     // * validLoc has a different language code than baseLoc
+                    // * the original locale has the rg or hc subtag
                     useDTPG = true;
                 }
                 if (useDTPG) {

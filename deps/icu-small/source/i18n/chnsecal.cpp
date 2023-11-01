@@ -17,6 +17,8 @@
 
 #include "chnsecal.h"
 
+#include <cstdint>
+
 #if !UCONFIG_NO_FORMATTING
 
 #include "umutex.h"
@@ -383,7 +385,7 @@ void ChineseCalendar::add(UCalendarDateFields field, int32_t amount, UErrorCode&
             int32_t day = get(UCAL_JULIAN_DAY, status) - kEpochStartAsJulianDay; // Get local day
             if (U_FAILURE(status)) break;
             int32_t moon = day - dom + 1; // New moon 
-            offsetMonth(moon, dom, amount);
+            offsetMonth(moon, dom, amount, status);
         }
         break;
     default:
@@ -453,7 +455,7 @@ void ChineseCalendar::roll(UCalendarDateFields field, int32_t amount, UErrorCode
             }
 
             if (newM != m) {
-                offsetMonth(moon, dom, newM - m);
+                offsetMonth(moon, dom, newM - m, status);
             }
         }
         break;
@@ -653,9 +655,13 @@ UBool ChineseCalendar::isLeapMonthBetween(int32_t newMoon1, int32_t newMoon2) co
     }
 #endif
 
-    return (newMoon2 >= newMoon1) &&
-        (isLeapMonthBetween(newMoon1, newMoonNear(newMoon2 - SYNODIC_GAP, false)) ||
-         hasNoMajorSolarTerm(newMoon2));
+    while (newMoon2 >= newMoon1) {
+        if (hasNoMajorSolarTerm(newMoon2)) {
+            return true;
+        }
+        newMoon2 = newMoonNear(newMoon2 - SYNODIC_GAP, false);
+    }
+    return false;
 }
 
 /**
@@ -805,12 +811,21 @@ int32_t ChineseCalendar::newYear(int32_t gyear) const {
  * @param dom the 1-based day-of-month of the start position
  * @param delta the number of months to move forward or backward from
  * the start position
+ * @param status The status.
  */
-void ChineseCalendar::offsetMonth(int32_t newMoon, int32_t dom, int32_t delta) {
-    UErrorCode status = U_ZERO_ERROR;
+void ChineseCalendar::offsetMonth(int32_t newMoon, int32_t dom, int32_t delta,
+                                  UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
 
     // Move to the middle of the month before our target month.
-    newMoon += (int32_t) (CalendarAstronomer::SYNODIC_MONTH * (delta - 0.5));
+    double value = newMoon;
+    value += (CalendarAstronomer::SYNODIC_MONTH *
+                          (static_cast<double>(delta) - 0.5));
+    if (value < INT32_MIN || value > INT32_MAX) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
+    newMoon = static_cast<int32_t>(value);
 
     // Search forward to the target month's new moon
     newMoon = newMoonNear(newMoon, true);
@@ -969,10 +984,11 @@ int32_t ChineseCalendar::internalGetMonth() const {
     // months.
     UErrorCode status = U_ZERO_ERROR;
     temp->roll(UCAL_MONTH, internalGet(UCAL_ORDINAL_MONTH), status);
-
+    U_ASSERT(U_SUCCESS(status));
 
     ChineseCalendar *nonConstThis = (ChineseCalendar*)this; // cast away const
     nonConstThis->internalSet(UCAL_IS_LEAP_MONTH, temp->get(UCAL_IS_LEAP_MONTH, status));
+    U_ASSERT(U_SUCCESS(status));
     int32_t month = temp->get(UCAL_MONTH, status);
     U_ASSERT(U_SUCCESS(status));
     nonConstThis->internalSet(UCAL_MONTH, month);

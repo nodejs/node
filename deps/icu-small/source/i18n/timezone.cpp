@@ -1592,6 +1592,22 @@ TimeZone::getCanonicalID(const UnicodeString& id, UnicodeString& canonicalID, UB
 }
 
 UnicodeString&
+TimeZone::getIanaID(const UnicodeString& id, UnicodeString& ianaID, UErrorCode& status)
+{
+    ianaID.remove();
+    if (U_FAILURE(status)) {
+        return ianaID;
+    }
+    if (id.compare(ConstChar16Ptr(UNKNOWN_ZONE_ID), UNKNOWN_ZONE_ID_LENGTH) == 0) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        ianaID.setToBogus();
+    } else {
+        ZoneMeta::getIanaID(id, ianaID, status);
+    }
+    return ianaID;
+}
+
+UnicodeString&
 TimeZone::getWindowsID(const UnicodeString& id, UnicodeString& winid, UErrorCode& status) {
     winid.remove();
     if (U_FAILURE(status)) {

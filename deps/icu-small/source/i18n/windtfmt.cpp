@@ -30,7 +30,10 @@
 #include "unicode/timezone.h"
 #include "unicode/utmscale.h"
 
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cmemory.h"
+#include "ulocimp.h"
 #include "uresimp.h"
 #include "windtfmt.h"
 #include "wintzimpl.h"
@@ -99,10 +102,13 @@ UnicodeString* Win32DateFormat::getTimeDateFormat(const Calendar *cal, const Loc
 static UErrorCode GetEquivalentWindowsLocaleName(const Locale& locale, UnicodeString** buffer)
 {
     UErrorCode status = U_ZERO_ERROR;
-    char asciiBCP47Tag[LOCALE_NAME_MAX_LENGTH] = {};
 
     // Convert from names like "en_CA" and "de_DE@collation=phonebook" to "en-CA" and "de-DE-u-co-phonebk".
-    (void)uloc_toLanguageTag(locale.getName(), asciiBCP47Tag, UPRV_LENGTHOF(asciiBCP47Tag), false, &status);
+    CharString asciiBCP47Tag;
+    {
+        CharStringByteSink sink(&asciiBCP47Tag);
+        ulocimp_toLanguageTag(locale.getName(), sink, false, &status);
+    }
 
     if (U_SUCCESS(status))
     {

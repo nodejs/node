@@ -92,6 +92,11 @@ ulocimp_getKeywordValue(const char* localeID,
                         icu::ByteSink& sink,
                         UErrorCode* status);
 
+U_CAPI void U_EXPORT2
+ulocimp_getParent(const char* localeID,
+                  icu::ByteSink& sink,
+                  UErrorCode* err);
+
 /**
  * Writes a well-formed language tag for this locale ID.
  *
@@ -237,6 +242,7 @@ ulocimp_addLikelySubtags(const char* localeID,
  *
  * @param localeID The locale to minimize
  * @param sink The output sink receiving the maximized locale
+ * @param favorScript favor to keep script if true, region if false.
  * @param err Error information if minimizing the locale failed.  If the length
  * of the localeID and the null-terminator is greater than the maximum allowed size,
  * or the localeId is not well-formed, the error code is U_ILLEGAL_ARGUMENT_ERROR.
@@ -245,6 +251,7 @@ ulocimp_addLikelySubtags(const char* localeID,
 U_CAPI void U_EXPORT2
 ulocimp_minimizeSubtags(const char* localeID,
                         icu::ByteSink& sink,
+                        bool favorScript,
                         UErrorCode* err);
 
 U_CAPI const char * U_EXPORT2
@@ -306,73 +313,5 @@ U_CAPI const char* const* ulocimp_getKnownCanonicalizedLocaleForTest(int32_t* le
 
 // Return true if the value is already canonicalized.
 U_CAPI bool ulocimp_isCanonicalizedLocaleForTest(const char* localeName);
-
-/**
- * A utility class for handling locale IDs that may be longer than ULOC_FULLNAME_CAPACITY.
- * This encompasses all of the logic to allocate a temporary locale ID buffer on the stack,
- * and then, if it's not big enough, reallocate it on the heap and try again.
- *
- * You use it like this:
- * UErrorCode err = U_ZERO_ERROR;
- *
- * PreflightingLocaleIDBuffer tempBuffer;
- * do {
- *     tempBuffer.requestedCapacity = uloc_doSomething(localeID, tempBuffer.getBuffer(), tempBuffer.getCapacity(), &err);
- * } while (tempBuffer.needToTryAgain(&err));
- * if (U_SUCCESS(err)) {
- *     uloc_doSomethingWithTheResult(tempBuffer.getBuffer());
- * }
- */
-class PreflightingLocaleIDBuffer {
-private:
-    char stackBuffer[ULOC_FULLNAME_CAPACITY];
-    char* heapBuffer = nullptr;
-    int32_t capacity = ULOC_FULLNAME_CAPACITY;
-    
-public:
-    int32_t requestedCapacity = ULOC_FULLNAME_CAPACITY;
-
-    // No heap allocation. Use only on the stack.
-    static void* U_EXPORT2 operator new(size_t) noexcept = delete;
-    static void* U_EXPORT2 operator new[](size_t) noexcept = delete;
-#if U_HAVE_PLACEMENT_NEW
-    static void* U_EXPORT2 operator new(size_t, void*) noexcept = delete;
-#endif
-
-    PreflightingLocaleIDBuffer() {}
-    
-    ~PreflightingLocaleIDBuffer() { uprv_free(heapBuffer); }
-    
-    char* getBuffer() {
-        if (heapBuffer == nullptr) {
-            return stackBuffer;
-        } else {
-            return heapBuffer;
-        }
-    }
-    
-    int32_t getCapacity() {
-        return capacity;
-    }
-    
-    bool needToTryAgain(UErrorCode* err) {
-        if (heapBuffer != nullptr) {
-            return false;
-        }
-    
-        if (*err == U_BUFFER_OVERFLOW_ERROR || *err == U_STRING_NOT_TERMINATED_WARNING) {
-            int32_t newCapacity = requestedCapacity + 2;    // one for the terminating null, one just for paranoia
-            heapBuffer = static_cast<char*>(uprv_malloc(newCapacity));
-            if (heapBuffer == nullptr) {
-                *err = U_MEMORY_ALLOCATION_ERROR;
-            } else {
-                *err = U_ZERO_ERROR;
-                capacity = newCapacity;
-            }
-            return U_SUCCESS(*err);
-        }
-        return false;
-    }
-};
 
 #endif

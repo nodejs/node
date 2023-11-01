@@ -1326,14 +1326,23 @@ _appendKeywordsToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool st
                         attrBufLength = 0;
                         for (; i < len; i++) {
                             if (buf[i] != '-') {
-                                attrBuf[attrBufLength++] = buf[i];
+                                if (static_cast<size_t>(attrBufLength) < sizeof(attrBuf)) {
+                                    attrBuf[attrBufLength++] = buf[i];
+                                } else {
+                                    *status = U_ILLEGAL_ARGUMENT_ERROR;
+                                    return;
+                                }
                             } else {
                                 i++;
                                 break;
                             }
                         }
                         if (attrBufLength > 0) {
-                            attrBuf[attrBufLength] = 0;
+                            if (static_cast<size_t>(attrBufLength) < sizeof(attrBuf)) {
+                                attrBuf[attrBufLength] = 0;
+                            } else {
+                                *status = U_STRING_NOT_TERMINATED_WARNING;
+                            }
 
                         } else if (i >= len){
                             break;
@@ -1879,11 +1888,8 @@ static void
 _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool strict, UBool hadPosix, UErrorCode* status) {
     (void)hadPosix;
     char buf[ULOC_FULLNAME_CAPACITY];
-    char tmpAppend[ULOC_FULLNAME_CAPACITY];
     UErrorCode tmpStatus = U_ZERO_ERROR;
     int32_t len, i;
-    int32_t reslen = 0;
-    int32_t capacity = sizeof tmpAppend;
 
     if (U_FAILURE(*status)) {
         return;
@@ -1936,37 +1942,18 @@ _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool 
                     }
 
                     if (writeValue) {
-                        if (reslen < capacity) {
-                            tmpAppend[reslen++] = SEP;
-                        }
+                        sink.Append("-", 1);
 
                         if (firstValue) {
-                            if (reslen < capacity) {
-                                tmpAppend[reslen++] = *PRIVATEUSE_KEY;
-                            }
-
-                            if (reslen < capacity) {
-                                tmpAppend[reslen++] = SEP;
-                            }
-
-                            len = (int32_t)uprv_strlen(PRIVUSE_VARIANT_PREFIX);
-                            if (reslen < capacity) {
-                                uprv_memcpy(tmpAppend + reslen, PRIVUSE_VARIANT_PREFIX, uprv_min(len, capacity - reslen));
-                            }
-                            reslen += len;
-
-                            if (reslen < capacity) {
-                                tmpAppend[reslen++] = SEP;
-                            }
-
+                            sink.Append(PRIVATEUSE_KEY, UPRV_LENGTHOF(PRIVATEUSE_KEY) - 1);
+                            sink.Append("-", 1);
+                            sink.Append(PRIVUSE_VARIANT_PREFIX, UPRV_LENGTHOF(PRIVUSE_VARIANT_PREFIX) - 1);
+                            sink.Append("-", 1);
                             firstValue = false;
                         }
 
                         len = (int32_t)uprv_strlen(pPriv);
-                        if (reslen < capacity) {
-                            uprv_memcpy(tmpAppend + reslen, pPriv, uprv_min(len, capacity - reslen));
-                        }
-                        reslen += len;
+                        sink.Append(pPriv, len);
                     }
                 }
                 /* reset private use starting position */
@@ -1976,15 +1963,6 @@ _appendPrivateuseToLanguageTag(const char* localeID, icu::ByteSink& sink, UBool 
             }
             p++;
         }
-
-        if (U_FAILURE(*status)) {
-            return;
-        }
-    }
-
-    if (U_SUCCESS(*status)) {
-        len = reslen;
-        sink.Append(tmpAppend, len);
     }
 }
 
@@ -2092,12 +2070,13 @@ ultag_parse(const char* tag, int32_t tagLen, int32_t* parsedLen, UErrorCode* sta
             int32_t oldTagLength = tagLen;
             if (tagLen < newTagLength) {
                 uprv_free(tagBuf);
-                tagBuf = (char*)uprv_malloc(newTagLength + 1);
+                // Change t->buf after the free and before return to avoid the second double free in
+                // the destructor of t when t is out of scope.
+                t->buf = tagBuf = (char*)uprv_malloc(newTagLength + 1);
                 if (tagBuf == nullptr) {
                     *status = U_MEMORY_ALLOCATION_ERROR;
                     return nullptr;
                 }
-                t->buf = tagBuf;
                 tagLen = newTagLength;
             }
             parsedLenDelta = checkLegacyLen - replacementLen;
@@ -2646,53 +2625,18 @@ ulocimp_toLanguageTag(const char* localeID,
                       UBool strict,
                       UErrorCode* status) {
     icu::CharString canonical;
-    int32_t reslen;
     UErrorCode tmpStatus = U_ZERO_ERROR;
     UBool hadPosix = false;
     const char* pKeywordStart;
 
     /* Note: uloc_canonicalize returns "en_US_POSIX" for input locale ID "".  See #6835 */
-    int32_t resultCapacity = static_cast<int32_t>(uprv_strlen(localeID));
-    if (resultCapacity > 0) {
-        char* buffer;
-
-        for (;;) {
-            buffer = canonical.getAppendBuffer(
-                    /*minCapacity=*/resultCapacity,
-                    /*desiredCapacityHint=*/resultCapacity,
-                    resultCapacity,
-                    tmpStatus);
-
-            if (U_FAILURE(tmpStatus)) {
-                *status = tmpStatus;
-                return;
-            }
-
-            reslen =
-                uloc_canonicalize(localeID, buffer, resultCapacity, &tmpStatus);
-
-            if (tmpStatus != U_BUFFER_OVERFLOW_ERROR) {
-                break;
-            }
-
-            resultCapacity = reslen;
-            tmpStatus = U_ZERO_ERROR;
-        }
-
-        if (U_FAILURE(tmpStatus)) {
-            *status = U_ILLEGAL_ARGUMENT_ERROR;
-            return;
-        }
-
-        canonical.append(buffer, reslen, tmpStatus);
-        if (tmpStatus == U_STRING_NOT_TERMINATED_WARNING) {
-            tmpStatus = U_ZERO_ERROR;  // Terminators provided by CharString.
-        }
-
-        if (U_FAILURE(tmpStatus)) {
-            *status = tmpStatus;
-            return;
-        }
+    {
+        icu::CharStringByteSink canonicalSink(&canonical);
+        ulocimp_canonicalize(localeID, canonicalSink, &tmpStatus);
+    }
+    if (U_FAILURE(tmpStatus)) {
+        *status = tmpStatus;
+        return;
     }
 
     /* For handling special case - private use only tag */

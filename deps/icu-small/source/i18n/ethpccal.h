@@ -89,7 +89,7 @@ public:
         /** 
          * Constant for &#x1290;&#x1210;&#x1234;, the 12th month of the Ethiopic year. 
          */
-        NEHASSA,
+        NEHASSE,
 
         /** 
          * Constant for &#x1333;&#x1309;&#x121c;&#x1295;, the 13th month of the Ethiopic year. 

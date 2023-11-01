@@ -611,38 +611,12 @@ GregorianCalendar::monthLength(int32_t month, int32_t year) const
 // -------------------------------------
 
 int32_t
-GregorianCalendar::yearLength(int32_t year) const
-{
-    return isLeapYear(year) ? 366 : 365;
-}
-
-// -------------------------------------
-
-int32_t
 GregorianCalendar::yearLength() const
 {
     return isLeapYear(internalGet(UCAL_YEAR)) ? 366 : 365;
 }
 
 // -------------------------------------
-
-/**
-* After adjustments such as add(MONTH), add(YEAR), we don't want the
-* month to jump around.  E.g., we don't want Jan 31 + 1 month to go to Mar
-* 3, we want it to go to Feb 28.  Adjustments which might run into this
-* problem call this method to retain the proper month.
-*/
-void 
-GregorianCalendar::pinDayOfMonth() 
-{
-    int32_t monthLen = monthLength(internalGetMonth());
-    int32_t dom = internalGet(UCAL_DATE);
-    if(dom > monthLen) 
-        set(UCAL_DATE, monthLen);
-}
-
-// -------------------------------------
-
 
 UBool
 GregorianCalendar::validateFields() const

@@ -158,12 +158,13 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
         // We now have a dictionary character. Get the appropriate language object
         // to deal with it.
-        const LanguageBreakEngine *lbe = fBI->getLanguageBreakEngine(c);
+        const LanguageBreakEngine *lbe = fBI->getLanguageBreakEngine(
+            c, fBI->getLocaleID(ULOC_REQUESTED_LOCALE, status));
 
         // Ask the language object if there are any breaks. It will add them to the cache and
         // leave the text pointer on the other side of its range, ready to search for the next one.
         if (lbe != nullptr) {
-            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, fBI->fIsPhraseBreaking, status);
+            foundBreakCount += lbe->findBreaks(text, current, rangeEnd, fBreaks, fBI->fIsPhraseBreaking, status);
         }
 
         // Reload the loop variables for the next go-round

@@ -307,7 +307,7 @@ LSR getMaximalLsrOrUnd(const XLikelySubtags &likelySubtags, const Locale &locale
     if (U_FAILURE(errorCode) || locale.isBogus() || *locale.getName() == 0 /* "und" */) {
         return UND_LSR;
     } else {
-        return likelySubtags.makeMaximizedLsrFrom(locale, errorCode);
+        return likelySubtags.makeMaximizedLsrFrom(locale, false, errorCode);
     }
 }
 
