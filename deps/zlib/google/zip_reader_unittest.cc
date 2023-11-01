@@ -157,7 +157,7 @@ class ZipReaderTest : public PlatformTest {
 
   static base::FilePath GetTestDataDirectory() {
     base::FilePath path;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &path));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path));
     return path.AppendASCII("third_party")
         .AppendASCII("zlib")
         .AppendASCII("google")

@@ -30,7 +30,8 @@ This a list of all the dependencies:
 * [uv][]
 * [uvwasi 0.0.19][]
 * [V8][]
-* [zlib 1.2.13.1-motley-fef5869][]
+* [zlib 1.2.13.1-motley-dfc48fc][]
+* [V8 11.8.172.12][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -304,7 +305,7 @@ See [maintaining-web-assembly][] for more informations.
 high-performance JavaScript and WebAssembly engine, written in C++.
 See [maintaining-V8][] for more informations.
 
-### zlib 1.2.13.1-motley-fef5869
+### zlib 1.2.13.1-motley-dfc48fc
 
 The [zlib](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/zlib)
 dependency lossless data-compression library,
@@ -341,4 +342,4 @@ performance improvements not currently available in standard zlib.
 [uv]: #uv
 [uvwasi 0.0.19]: #uvwasi-0019
 [v8]: #v8
-[zlib 1.2.13.1-motley-fef5869]: #zlib-12131-motley-fef5869
+[zlib 1.2.13.1-motley-dfc48fc]: #zlib-12131-motley-dfc48fc
