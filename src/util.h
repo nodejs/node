@@ -115,7 +115,8 @@ struct AssertionInfo {
 };
 [[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 [[noreturn]] void NODE_EXTERN_PRIVATE Abort();
-void DumpBacktrace(FILE* fp);
+void DumpNativeBacktrace(FILE* fp);
+void DumpJavaScriptBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32

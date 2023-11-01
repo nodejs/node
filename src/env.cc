@@ -1662,7 +1662,8 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
           "actual: %.f, expected: %.f)\n",
           async_id_fields_.GetValue(kExecutionAsyncId),
           expected_async_id);
-  DumpBacktrace(stderr);
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
   fflush(stderr);
   // TODO(joyeecheung): should this exit code be more specific?
   if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);
