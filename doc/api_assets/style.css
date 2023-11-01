@@ -136,7 +136,6 @@ a:link,
 a:active,
 a:visited {
   color: var(--color-links);
-  text-decoration: none;
   border-radius: 2px;
   padding: 1px 3px;
 }
