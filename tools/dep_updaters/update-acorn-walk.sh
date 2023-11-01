@@ -60,6 +60,7 @@ echo "$ git add -A deps/acorn-walk"
 echo "$ git commit -m \"deps: update acorn-walk to $NEW_VERSION\""
 echo ""
 
-# The last line of the script should always print the new version,
-# as we need to add it to $GITHUB_ENV variable.
-echo "NEW_VERSION=$NEW_VERSION"
+# Update the version number on maintaining-dependencies.md
+# and print the new version as the last line of the script as we need
+# to add it to $GITHUB_ENV variable
+finalize_version_update "acorn-walk" "$NEW_VERSION"
