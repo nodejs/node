@@ -328,6 +328,53 @@ static UBool hasEmojiProperty(const BinaryProperty &/*prop*/, UChar32 c, UProper
     return EmojiProps::hasBinaryProperty(c, which);
 }
 
+static UBool isIDSUnaryOperator(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    // New in Unicode 15.1 for just two characters.
+    return 0x2FFE<=c && c<=0x2FFF;
+}
+
+/** Ranges (start/limit pairs) of ID_Compat_Math_Continue (only), from UCD PropList.txt. */
+static constexpr UChar32 ID_COMPAT_MATH_CONTINUE[] = {
+    0x00B2, 0x00B3 + 1,
+    0x00B9, 0x00B9 + 1,
+    0x2070, 0x2070 + 1,
+    0x2074, 0x207E + 1,
+    0x2080, 0x208E + 1
+};
+
+/** ID_Compat_Math_Start characters, from UCD PropList.txt. */
+static constexpr UChar32 ID_COMPAT_MATH_START[] = {
+    0x2202,
+    0x2207,
+    0x221E,
+    0x1D6C1,
+    0x1D6DB,
+    0x1D6FB,
+    0x1D715,
+    0x1D735,
+    0x1D74F,
+    0x1D76F,
+    0x1D789,
+    0x1D7A9,
+    0x1D7C3
+};
+
+static UBool isIDCompatMathStart(const BinaryProperty &/*prop*/, UChar32 c, UProperty /*which*/) {
+    if (c < ID_COMPAT_MATH_START[0]) { return false; }  // fastpath for common scripts
+    for (UChar32 startChar : ID_COMPAT_MATH_START) {
+        if (c == startChar) { return true; }
+    }
+    return false;
+}
+
+static UBool isIDCompatMathContinue(const BinaryProperty &prop, UChar32 c, UProperty /*which*/) {
+    for (int32_t i = 0; i < UPRV_LENGTHOF(ID_COMPAT_MATH_CONTINUE); i += 2) {
+        if (c < ID_COMPAT_MATH_CONTINUE[i]) { return false; }  // below range start
+        if (c < ID_COMPAT_MATH_CONTINUE[i + 1]) { return true; }  // below range limit
+    }
+    return isIDCompatMathStart(prop, c, UCHAR_ID_COMPAT_MATH_START);
+}
+
 static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     /*
      * column and mask values for binary properties from u_getUnicodeProperties().
@@ -409,6 +456,9 @@ static const BinaryProperty binProps[UCHAR_BINARY_LIMIT]={
     { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_TAG_SEQUENCE
     { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI_ZWJ_SEQUENCE
     { UPROPS_SRC_EMOJI, 0, hasEmojiProperty },  // UCHAR_RGI_EMOJI
+    { UPROPS_SRC_IDSU, 0, isIDSUnaryOperator }, // UCHAR_IDS_UNARY_OPERATOR
+    { UPROPS_SRC_ID_COMPAT_MATH, 0, isIDCompatMathStart }, // UCHAR_ID_COMPAT_MATH_START
+    { UPROPS_SRC_ID_COMPAT_MATH, 0, isIDCompatMathContinue }, // UCHAR_ID_COMPAT_MATH_CONTINUE
 };
 
 U_CAPI UBool U_EXPORT2
@@ -759,6 +809,19 @@ uprops_getSource(UProperty which) {
 
 U_CFUNC void U_EXPORT2
 uprops_addPropertyStarts(UPropertySource src, const USetAdder *sa, UErrorCode *pErrorCode) {
+    if (U_FAILURE(*pErrorCode)) { return; }
+    if (src == UPROPS_SRC_ID_COMPAT_MATH) {
+        // range limits
+        for (UChar32 c : ID_COMPAT_MATH_CONTINUE) {
+            sa->add(sa->set, c);
+        }
+        // single characters
+        for (UChar32 c : ID_COMPAT_MATH_START) {
+            sa->add(sa->set, c);
+            sa->add(sa->set, c + 1);
+        }
+        return;
+    }
     if (!ulayout_ensureData(*pErrorCode)) { return; }
     const UCPTrie *trie;
     switch (src) {

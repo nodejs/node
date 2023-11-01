@@ -60,7 +60,7 @@ U_CDECL_BEGIN
  * @see u_getUnicodeVersion
  * @stable ICU 2.0
  */
-#define U_UNICODE_VERSION "15.0"
+#define U_UNICODE_VERSION "15.1"
 
 /**
  * \file
@@ -532,12 +532,33 @@ typedef enum UProperty {
      * @stable ICU 70
      */
     UCHAR_RGI_EMOJI=71,
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Binary property IDS_Unary_Operator.
+     * For programmatic determination of Ideographic Description Sequences.
+     *
+     * @draft ICU 74
+     */
+    UCHAR_IDS_UNARY_OPERATOR=72,
+    /**
+     * Binary property ID_Compat_Math_Start.
+     * Used in mathematical identifier profile in UAX #31.
+     * @draft ICU 74
+     */
+    UCHAR_ID_COMPAT_MATH_START=73,
+    /**
+     * Binary property ID_Compat_Math_Continue.
+     * Used in mathematical identifier profile in UAX #31.
+     * @draft ICU 74
+     */
+    UCHAR_ID_COMPAT_MATH_CONTINUE=74,
+#endif  // U_HIDE_DRAFT_API
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the last constant for binary Unicode properties.
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UCHAR_BINARY_LIMIT=72,
+    UCHAR_BINARY_LIMIT=75,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** Enumerated property Bidi_Class.
@@ -1900,6 +1921,11 @@ enum UBlockCode {
     /** @stable ICU 72 */
     UBLOCK_NAG_MUNDARI = 327, /*[1E4D0]*/
 
+    // New block in Unicode 15.1
+
+    /** @stable ICU 74 */
+    UBLOCK_CJK_UNIFIED_IDEOGRAPHS_EXTENSION_I = 328, /*[2EBF0]*/
+
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal UBlockCode value.
@@ -1907,7 +1933,7 @@ enum UBlockCode {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    UBLOCK_COUNT = 328,
+    UBLOCK_COUNT = 329,
 #endif  // U_HIDE_DEPRECATED_API
 
     /** @stable ICU 2.0 */
@@ -2439,6 +2465,16 @@ typedef enum ULineBreak {
     U_LB_E_MODIFIER = 41,        /*[EM]*/
     /** @stable ICU 58 */
     U_LB_ZWJ = 42,               /*[ZWJ]*/
+    /** @stable ICU 74 */
+    U_LB_AKSARA = 43,            /*[AK]*/
+    /** @stable ICU 74 */
+    U_LB_AKSARA_PREBASE = 44,    /*[AP]*/
+    /** @stable ICU 74 */
+    U_LB_AKSARA_START = 45,      /*[AS]*/
+    /** @stable ICU 74 */
+    U_LB_VIRAMA_FINAL = 46,      /*[VF]*/
+    /** @stable ICU 74 */
+    U_LB_VIRAMA = 47,            /*[VI]*/
 #ifndef U_HIDE_DEPRECATED_API
     /**
      * One more than the highest normal ULineBreak value.
@@ -2446,7 +2482,7 @@ typedef enum ULineBreak {
      *
      * @deprecated ICU 58 The numeric value may change over time, see ICU ticket #12420.
      */
-    U_LB_COUNT = 43
+    U_LB_COUNT = 48
 #endif  // U_HIDE_DEPRECATED_API
 } ULineBreak;
 
