@@ -79,7 +79,17 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack);
+constexpr int kMaxFrameCountForLogging = 10;
+v8::MaybeLocal<v8::StackTrace> GetCurrentStackTrace(
+    v8::Isolate* isolate, int frame_count = kMaxFrameCountForLogging);
+
+enum class StackTracePrefix {
+  kAt,  // "    at "
+  kNumber
+};
+void PrintStackTrace(v8::Isolate* isolate,
+                     v8::Local<v8::StackTrace> stack,
+                     StackTracePrefix prefix = StackTracePrefix::kAt);
 void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
