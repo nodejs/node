@@ -906,6 +906,45 @@ function spawnPromisified(...args) {
   });
 }
 
+function getPrintedStackTrace(stderr) {
+  const lines = stderr.split('\n');
+
+  let state = 'initial';
+  const result = {
+    message: [],
+    nativeStack: [],
+    jsStack: [],
+  };
+  for (let i = 0; i < lines.length; ++i) {
+    const line = lines[i].trim();
+    if (line.length === 0) {
+      continue;  // Skip empty lines.
+    }
+
+    switch (state) {
+      case 'initial':
+        result.message.push(line);
+        if (line.includes('Native stack trace')) {
+          state = 'native-stack';
+        } else {
+          result.message.push(line);
+        }
+        break;
+      case 'native-stack':
+        if (line.includes('JavaScript stack trace')) {
+          state = 'js-stack';
+        } else {
+          result.nativeStack.push(line);
+        }
+        break;
+      case 'js-stack':
+        result.jsStack.push(line);
+        break;
+    }
+  }
+  return result;
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -919,6 +958,7 @@ const common = {
   getArrayBufferViews,
   getBufferSources,
   getCallSite,
+  getPrintedStackTrace,
   getTTYfd,
   hasIntl,
   hasCrypto,
