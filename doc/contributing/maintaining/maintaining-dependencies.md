@@ -28,7 +28,7 @@ This a list of all the dependencies:
 * [openssl 3.0.8][]
 * [postject 1.0.0-alpha.6][]
 * [simdutf 4.0.3][]
-* [undici 5.26.4][]
+* [undici 5.27.0][]
 * [uvwasi 0.0.19][]
 * [V8 11.8.172.12][]
 * [zlib 1.2.13.1-motley-fef5869][]
@@ -345,7 +345,7 @@ performance improvements not currently available in standard zlib.
 [openssl 3.0.8]: #openssl-308
 [postject 1.0.0-alpha.6]: #postject-100-alpha6
 [simdutf 4.0.3]: #simdutf-403
-[undici 5.26.4]: #undici-5264
+[undici 5.27.0]: #undici-5270
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi 0.0.19]: #uvwasi-0019
 [v8 11.8.172.12]: #v8-11817212
