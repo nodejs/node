@@ -622,6 +622,43 @@ global before app code runs:
 node --import 'data:text/javascript,delete globalThis.navigator' app.js
 ```
 
+### `navigator.appCodeName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.appCodeName` read-only property returns "Mozilla".
+
+This property is kept only for compatibility purposes.
+
+### `navigator.appName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.appName` read-only property returns "Netscape".
+
+This property is kept only for compatibility purposes.
+
+### `navigator.appVersion`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.appVersion` read-only property returns the app version
+consisting of the runtime name and major version number.
+
+This property is kept only for compatibility purposes.
+
 ### `navigator.hardwareConcurrency`
 
 <!-- YAML
@@ -637,6 +674,30 @@ logical processors available to the current Node.js instance.
 console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
 ```
 
+### `navigator.product`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.product` read-only property returns "Gecko".
+
+This property is kept only for compatibility purposes.
+
+### `navigator.productSub`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.productSub` read-only property returns "20030107".
+
+This property is kept only for compatibility purposes.
+
 ### `navigator.userAgent`
 
 <!-- YAML
@@ -651,6 +712,30 @@ consisting of the runtime name and major version number.
 ```js
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
+
+### `navigator.vendor`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.vendor` read-only property returns an empty string.
+
+This property is kept only for compatibility purposes.
+
+### `navigator.vendorSub`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.vendorSub` read-only property returns an empty string.
+
+This property is kept only for compatibility purposes.
 
 ## `PerformanceEntry`
 
