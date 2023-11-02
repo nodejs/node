@@ -637,6 +637,21 @@ logical processors available to the current Node.js instance.
 console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
 ```
 
+### `navigator.platform`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.platform` read-only property returns a string identifying the
+platform on which the Node.js instance is running.
+
+```js
+console.log(`This process is running on ${navigator.platform}`);
+```
+
 ### `navigator.userAgent`
 
 <!-- YAML
