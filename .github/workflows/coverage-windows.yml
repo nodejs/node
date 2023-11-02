@@ -51,7 +51,7 @@ jobs:
       - name: Install deps
         run: choco install nasm
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Build
         run: ./vcbuild.bat
       # TODO(bcoe): investigate tests that fail with coverage enabled
@@ -61,11 +61,11 @@ jobs:
         env:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report
-        run: npx c8 report
+        run: npx c8@8.0.1 report
         env:
           NODE_OPTIONS: --max-old-space-size=8192
       - name: Clean tmp
-        run: npx rimraf ./coverage/tmp
+        run: npx rimraf@5.0.5 ./coverage/tmp
       - name: Upload
         uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d  # v3.1.4
         with:

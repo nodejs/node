@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Check commit message
-        run: npx -q core-validate-commit ${{ github.event.after }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
+        run: npx -q core-validate-commit@4.0.0 ${{ github.event.after }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
       - name: Retrieve PR number if possible
         if: env.INVALID_COMMIT_MESSAGE
         run: |

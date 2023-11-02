@@ -32,7 +32,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       - name: Build
         run: NODE=$(command -v node) make doc-only
       - uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32  # v3.1.3
