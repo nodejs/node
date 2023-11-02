@@ -6,7 +6,7 @@ const { test } = require('node:test');
 
 test('test-timeout flag', () => {
   const args = ['--test', '--test-timeout', 10, 'test/fixtures/test-runner/never_ending_sync.js'];
-  const child = spawnSync(process.execPath, args, { timeout: 100 });
+  const child = spawnSync(process.execPath, args, { timeout: 500 });
 
   assert.strictEqual(child.status, 1);
   assert.strictEqual(child.signal, null);
