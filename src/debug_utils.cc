@@ -319,7 +319,7 @@ void DumpNativeBacktrace(FILE* fp) {
 }
 
 void DumpJavaScriptBacktrace(FILE* fp) {
-  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Isolate* isolate = v8::Isolate::TryGetCurrent();
   if (isolate == nullptr) {
     return;
   }
