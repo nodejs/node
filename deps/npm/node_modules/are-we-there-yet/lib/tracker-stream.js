@@ -1,17 +1,28 @@
 'use strict'
-var util = require('util')
-var stream = require('readable-stream')
-var delegate = require('delegates')
-var Tracker = require('./tracker.js')
+const stream = require('readable-stream')
+const delegate = require('delegates')
+const Tracker = require('./tracker.js')
 
-var TrackerStream = module.exports = function (name, size, options) {
-  stream.Transform.call(this, options)
-  this.tracker = new Tracker(name, size)
-  this.name = name
-  this.id = this.tracker.id
-  this.tracker.on('change', delegateChange(this))
+class TrackerStream extends stream.Transform {
+  constructor (name, size, options) {
+    super(options)
+    this.tracker = new Tracker(name, size)
+    this.name = name
+    this.id = this.tracker.id
+    this.tracker.on('change', delegateChange(this))
+  }
+
+  _transform (data, encoding, cb) {
+    this.tracker.completeWork(data.length ? data.length : 1)
+    this.push(data)
+    cb()
+  }
+
+  _flush (cb) {
+    this.tracker.finish()
+    cb()
+  }
 }
-util.inherits(TrackerStream, stream.Transform)
 
 function delegateChange (trackerStream) {
   return function (name, completion, tracker) {
@@ -19,18 +30,9 @@ function delegateChange (trackerStream) {
   }
 }
 
-TrackerStream.prototype._transform = function (data, encoding, cb) {
-  this.tracker.completeWork(data.length ? data.length : 1)
-  this.push(data)
-  cb()
-}
-
-TrackerStream.prototype._flush = function (cb) {
-  this.tracker.finish()
-  cb()
-}
-
 delegate(TrackerStream.prototype, 'tracker')
   .method('completed')
   .method('addWork')
   .method('finish')
+
+module.exports = TrackerStream

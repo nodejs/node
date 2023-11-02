@@ -55,7 +55,7 @@ class VerifySignatures {
     // Didn't find any dependencies that could be verified, e.g. only local
     // deps, missing version, not on a registry etc.
     if (!this.auditedWithKeysCount) {
-      throw new Error('found no dependencies to audit that where installed from ' +
+      throw new Error('found no dependencies to audit that were installed from ' +
                       'a supported registry')
     }
 
