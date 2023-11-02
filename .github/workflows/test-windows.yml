@@ -1,11 +1,11 @@
-name: Build Windows
+name: Test Windows
 
 on:
   pull_request:
     paths-ignore:
       - README.md
       - .github/**
-      - '!.github/workflows/build-windows.yml'
+      - '!.github/workflows/test-windows.yml'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -16,7 +16,7 @@ on:
     paths-ignore:
       - README.md
       - .github/**
-      - '!.github/workflows/build-windows.yml'
+      - '!.github/workflows/test-windows.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -30,13 +30,9 @@ permissions:
   contents: read
 
 jobs:
-  build-windows:
+  test-windows:
     if: github.event.pull_request.draft == false
-    strategy:
-      matrix:
-        windows: [windows-2022]
-      fail-fast: false
-    runs-on: ${{ matrix.windows }}
+    runs-on: windows-2022
     steps:
       - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29  # v4.1.6
         with:
@@ -45,9 +41,17 @@ jobs:
         uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d  # v5.1.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Install deps
-        run: choco install nasm
       - name: Environment Information
         run: npx envinfo
+      - name: Install deps
+        run: choco install nasm
       - name: Build
         run: ./vcbuild.bat
+      - name: Test CI JS
+        run: ./vcbuild.bat release noprojgen nobuild ignore-flaky test-ci-js
+        env:
+          test_ci_args: --mode=release --flaky-tests=dontcare --measure-flakiness 9 -p actions default pummel
+      - name: Test CI Native
+        run: ./vcbuild.bat release noprojgen nobuild ignore-flaky test-ci-native
+        env:
+          test_ci_args: --mode=release --flaky-tests=dontcare --measure-flakiness 9 -p actions addons js-native-api node-api benchmark doctool
