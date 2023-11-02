@@ -32,7 +32,8 @@ proc.once('exit', common.mustCall(() => {
     assert(traces.length > 0);
     let count = 0;
     for (const trace of traces) {
-      if (trace.cat === 'node,node.http' && ['http.server.request', 'http.client.request'].includes(trace.name)) {
+      if (trace.cat === 'node,node.http' &&
+          ['http.server.request', 'http.client.request'].includes(trace.name)) {
         count++;
       }
     }
