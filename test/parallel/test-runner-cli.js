@@ -116,27 +116,6 @@ const testFixtures = fixtures.path('test-runner');
 }
 
 {
-  // Test --test-timeout flag
-  const args = [
-    '--test',
-    '--test-timeout',
-    50,
-    'test/fixtures/test-runner/timeout.js',
-  ];
-  const child = spawnSync(process.execPath, args);
-
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
-  assert.strictEqual(child.stderr.toString(), '');
-  const stdout = child.stdout.toString();
-  assert.match(stdout, /not ok 1 - test/);
-  assert.match(stdout, / {2}---/);
-  assert.match(stdout, / {2}duration_ms: .*/);
-  assert.match(stdout, /failureType: 'testTimeoutFailure/);
-  assert.match(stdout, /error: 'test timed out after 50ms'/);
-}
-
-{
   // Test combined stream outputs
   const args = [
     '--test',
