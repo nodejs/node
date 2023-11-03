@@ -75,7 +75,54 @@ async function runAndBreathe(fn, repeat, waitTime = 20) {
   }
 }
 
+/**
+ * This requires --expose-internals.
+ * This function can be used to check if an object factory leaks or not by
+ * iterating over the heap and count objects with the specified class
+ * (which is checked by looking up the prototype chain).
+ * @param {(i: number) => number} fn The factory receiving iteration count
+ *   and returning number of objects created. The return value should be
+ *   precise otherwise false negatives can be produced.
+ * @param {Function} klass The class whose object is used to count the objects
+ * @param {number} count Number of iterations that this check should be done
+ * @param {number} waitTime Optional breathing time for GC.
+ */
+async function checkIfCollectableByCounting(fn, klass, count, waitTime = 20) {
+  const { internalBinding } = require('internal/test/binding');
+  const { countObjectsWithPrototype } = internalBinding('heap_utils');
+  const { prototype, name } = klass;
+  const initialCount = countObjectsWithPrototype(prototype);
+  console.log(`Initial count of ${name}: ${initialCount}`);
+  let totalCreated = 0;
+  for (let i = 0; i < count; ++i) {
+    const created = await fn(i);
+    totalCreated += created;
+    console.log(`#${i}: created ${created} ${name}, total ${totalCreated}`);
+    await wait(waitTime);  // give GC some breathing room.
+    const currentCount = countObjectsWithPrototype(prototype);
+    const collected = totalCreated - (currentCount - initialCount);
+    console.log(`#${i}: counted ${currentCount} ${name}, collected ${collected}`);
+    if (collected > 0) {
+      console.log(`Detected ${collected} collected ${name}, finish early`);
+      return;
+    }
+  }
+
+  await wait(waitTime);  // give GC some breathing room.
+  const currentCount = countObjectsWithPrototype(prototype);
+  const collected = totalCreated - (currentCount - initialCount);
+  console.log(`Last count: counted ${currentCount} ${name}, collected ${collected}`);
+  // Some objects with the prototype can be collected.
+  if (collected > 0) {
+    console.log(`Detected ${collected} collected ${name}`);
+    return;
+  }
+
+  throw new Error(`${name} cannot be collected`);
+}
+
 module.exports = {
   checkIfCollectable,
   runAndBreathe,
+  checkIfCollectableByCounting,
 };
