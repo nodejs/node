@@ -5,6 +5,9 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/pull/50327
+# Currently there's no reliable way to test it.
+test-diagnostics-channel-memory-leak: SKIP
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/41206
