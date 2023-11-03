@@ -1,6 +1,6 @@
 {
   "name": "libnpmpack",
-  "version": "6.0.2",
+  "version": "6.0.3",
   "description": "Programmatic API for the bits behind npm pack",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -36,8 +36,8 @@
   "bugs": "https://github.com/npm/libnpmpack/issues",
   "homepage": "https://npmjs.com/package/libnpmpack",
   "dependencies": {
-    "@npmcli/arborist": "^7.2.0",
-    "@npmcli/run-script": "^7.0.1",
+    "@npmcli/arborist": "^7.2.1",
+    "@npmcli/run-script": "^7.0.2",
     "npm-package-arg": "^11.0.1",
     "pacote": "^17.0.4"
   },

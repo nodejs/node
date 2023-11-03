@@ -1137,7 +1137,7 @@ Object {
     Array [
       "",
       String(
-        To correct this please trying logging in again with:
+        To correct this please try logging in again with:
             npm login
       ),
     ],

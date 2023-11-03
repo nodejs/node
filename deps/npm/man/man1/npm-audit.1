@@ -1,4 +1,4 @@
-.TH "NPM-AUDIT" "1" "October 2023" "" ""
+.TH "NPM-AUDIT" "1" "November 2023" "" ""
 .SH "NAME"
 \fBnpm-audit\fR - Run a security audit
 .SS "Synopsis"
@@ -78,7 +78,7 @@ Public signing keys are provided at \fBregistry-host.tld/-/npm/v1/keys\fR in the
 Keys response:
 .RS 0
 .IP \(bu 4
-\fBexpires\fR: null or a simplified extended ISO 8601 format: \fBYYYY-MM-DDTHH:mm:ss.sssZ\fR
+\fBexpires\fR: null or a simplified extended \fBISO 8601 format\fR \fI\(lahttps://en.wikipedia.org/wiki/ISO_8601"\(ra\fR: \fBYYYY-MM-DDTHH:mm:ss.sssZ\fR
 .IP \(bu 4
 \fBkeydid\fR: sha256 fingerprint of the public key
 .IP \(bu 4
@@ -90,7 +90,7 @@ Keys response:
 .RE 0
 
 .P
-See this example key's response from the public npm registry.
+See this \fBexample key's response from the public npm registry\fR \fI\(lahttps://registry.npmjs.org/-/npm/v1/keys"\(ra\fR.
 .SS "Audit Endpoints"
 .P
 There are two audit endpoints that npm may use to fetch vulnerability information: the \fBBulk Advisory\fR endpoint and the \fBQuick Audit\fR endpoint.

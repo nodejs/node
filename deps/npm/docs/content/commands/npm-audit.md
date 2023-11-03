@@ -83,13 +83,13 @@ The `sig` is generated using the following template: `${package.name}@${package.
 
 Keys response:
 
-- `expires`: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- `expires`: null or a simplified extended [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601"): `YYYY-MM-DDTHH:mm:ss.sssZ`
 - `keydid`: sha256 fingerprint of the public key
 - `keytype`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `scheme`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `key`: base64 encoded public key
 
-See this <a href="https://registry.npmjs.org/-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>.
+See this [example key's response from the public npm registry](https://registry.npmjs.org/-/npm/v1/keys").
 
 ### Audit Endpoints
 

@@ -83,6 +83,50 @@ t.test('get single arg', async t => {
   )
 })
 
+t.test('get multiple arg', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        version: '1.1.1',
+      }),
+    },
+  })
+
+  await pkg('get', 'name', 'version')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    {
+      name: 'foo',
+      version: '1.1.1',
+    },
+    'should print retrieved package.json field'
+  )
+})
+
+t.test('get multiple arg with empty value', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        author: '',
+      }),
+    },
+  })
+
+  await pkg('get', 'name', 'author')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    {
+      name: 'foo',
+      author: '',
+    },
+    'should print retrieved package.json field regardless of empty value'
+  )
+})
+
 t.test('get nested arg', async t => {
   const { pkg, OUTPUT } = await mockNpm(t, {
     prefixDir: {
