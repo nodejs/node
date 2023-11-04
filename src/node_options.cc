@@ -357,6 +357,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             " (default: current working directory)",
             &EnvironmentOptions::diagnostic_dir,
             kAllowedInEnvvar);
+  AddOption("--disable-global",
+            "remove global variable",
+            &EnvironmentOptions::disable_global,
+            kAllowedInEnvvar);
   AddOption("--dns-result-order",
             "set default value of verbatim in dns.lookup. Options are "
             "'ipv4first' (IPv4 addresses are placed before IPv6 addresses) "
