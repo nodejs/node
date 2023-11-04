@@ -290,6 +290,10 @@
     # Sets -DV8_USE_ZLIB
     'v8_use_zlib%': 1,
 
+    # Enable Sparkplug
+    # Sets -DV8_ENABLE_SPARKPLUG.
+    'v8_enable_sparkplug%': 1,
+
     # Whether custom embedder snapshots may extend (= allocate new objects in)
     # ReadOnlySpace.
     'v8_enable_extensible_ro_snapshot%': 1,
@@ -490,6 +494,9 @@
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],
+      }],
+      ['v8_enable_sparkplug==1', {
+        'defines': ['V8_ENABLE_SPARKPLUG',],
       }],
       ['v8_enable_maglev==1', {
         'defines': ['V8_ENABLE_MAGLEV',],
