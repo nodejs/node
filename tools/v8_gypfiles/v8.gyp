@@ -336,12 +336,12 @@
           'sources': [
             '<(V8_ROOT)/src/builtins/riscv/builtins-riscv.cc',
           ],
-        }],        
+        }],
         ['v8_target_arch=="loong64" or v8_target_arch=="loong64"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/loong64/builtins-loong64.cc',
           ],
-        }],        
+        }],
         ['v8_target_arch=="mips64" or v8_target_arch=="mips64el"', {
           'sources': [
             '<(V8_ROOT)/src/builtins/mips64/builtins-mips64.cc',
@@ -425,6 +425,7 @@
           'variables': {
             'mksnapshot_flags': [
               '--turbo_instruction_scheduling',
+              '--stress-turbo-late-spilling',
               # In cross builds, the snapshot may be generated for both the host and
               # target toolchains.  The same host binary is used to generate both, so
               # mksnapshot needs to know which target OS to use at runtime.  It's weird,
@@ -1124,7 +1125,7 @@
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"riscv64\\".*?sources \\+= ")',
           ],
-        }],        
+        }],
         ['v8_target_arch=="loong64"', {
           'sources': [
             '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_base_without_compiler.*?v8_enable_wasm_gdb_remote_debugging.*?v8_current_cpu == \\"loong64\\".*?sources \\+= ")',
@@ -1141,7 +1142,7 @@
               ],
             }],
           ],
-        }],        
+        }],
         ['OS=="win"', {
           # This will prevent V8's .cc files conflicting with the inspector's
           # .cpp files in the same shard.
