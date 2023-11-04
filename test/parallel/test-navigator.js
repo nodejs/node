@@ -1,10 +1,11 @@
-'use strict';
-
 // Flags: --expose-internals
 
-require('../common');
+'use strict';
+
+const common = require('../common');
 const assert = require('assert');
 const { getNavigatorPlatform } = require('internal/navigator');
+const { execFile } = require('child_process');
 
 const is = {
   number: (value, key) => {
@@ -74,3 +75,48 @@ assert.strictEqual(getNavigatorPlatform({ arch: 'ia32', platform: 'sunos' }), 'S
 assert.strictEqual(getNavigatorPlatform({ arch: 'x64', platform: 'sunos' }), 'SunOS x64');
 assert.strictEqual(getNavigatorPlatform({ arch: 'ppc', platform: 'aix' }), 'AIX');
 assert.strictEqual(getNavigatorPlatform({ arch: 'x64', platform: 'reactos' }), 'Reactos x64');
+
+assert.strictEqual(typeof navigator.language, 'string');
+assert.strictEqual(navigator.language.length !== 0, true);
+
+assert.ok(Array.isArray(navigator.languages));
+assert.strictEqual(navigator.languages.length, 1);
+assert.strictEqual(typeof navigator.languages[0], 'string');
+assert.strictEqual(navigator.languages[0].length !== 0, true);
+
+assert.throws(() => {
+  navigator.languages[0] = 'foo';
+}, new TypeError("Cannot assign to read only property '0' of object '[object Array]'"));
+assert.notStrictEqual(navigator.languages[0], 'foo');
+assert.strictEqual(typeof navigator.languages[0] === 'string', true);
+assert.strictEqual(navigator.languages[0].length !== 0, true);
+
+if (common.hasIntl && common.isWindows === false) {
+  const testLocale = navigator.language === 'de-DE' ?
+    'en-US' :
+    'de-DE';
+  {
+    const env = { ...process.env, LC_ALL: testLocale };
+    execFile(
+      process.execPath,
+      ['--print', `"process.exit(navigator.language === '${testLocale}' ? 0 : 1)"`],
+      { env },
+      common.mustSucceed()
+    );
+  }
+
+  {
+    const env = { ...process.env, LC_ALL: testLocale };
+    execFile(
+      process.execPath,
+      ['--print', `"process.exit(navigator.languages[0] === '${testLocale}' ? 0 : 1)"`],
+      { env },
+      common.mustSucceed()
+    );
+  }
+}
+
+Object.defineProperty(navigator, 'language', { value: 'for-testing' });
+assert.strictEqual(navigator.language, 'for-testing');
+assert.strictEqual(navigator.languages.length, 1);
+assert.strictEqual(navigator.languages[0] !== 'for-testing', true);
