@@ -443,6 +443,32 @@ Affects the default output directory of:
 * [`--heap-prof-dir`][]
 * [`--redirect-warnings`][]
 
+### `--disable-global=name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.2 - Release candidate
+
+Remove specified global variables from the global scope. This flag can be used
+multiple times to remove multiple variables.
+
+Not all global variables can be removed. The currently supported variables are:
+
+<!-- Keep alphabetized -->
+- `CustomEvent`
+- `fetch`; removing this also removes `FormData`, `Headers`, `Request`, and
+  `Response`
+- `navigator`
+- `WebSocket`
+
+```bash
+node --disable-global=CustomEvent --disable-global=navigator \
+  --eval 'console.log(typeof CustomEvent, typeof navigator)'
+undefined undefined
+```
+
 ### `--disable-proto=mode`
 
 <!-- YAML
