@@ -637,6 +637,47 @@ logical processors available to the current Node.js instance.
 console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
 ```
 
+### `navigator.language`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.language` read-only property returns a string representing the
+preferred language of the Node.js instance. The language will be determined by
+the ICU library used by Node.js at runtime based on the
+default language of the operating system.
+
+The value is representing the language version as defined in [RFC 5646][].
+
+The fallback value on builds without ICU is `'en-US'`.
+
+```js
+console.log(`The preferred language of the Node.js instance has the tag '${navigator.language}'`);
+```
+
+### `navigator.languages`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array<string>}
+
+The `navigator.languages` read-only property returns an array of strings
+representing the preferred languages of the Node.js instance.
+By default `navigator.languages` contains only the value of
+`navigator.language`, which will be determined by the ICU library used by
+Node.js at runtime based on the default language of the operating system.
+
+The fallback value on builds without ICU is `['en-US']`.
+
+```js
+console.log(`The preferred languages are '${navigator.languages}'`);
+```
+
 ### `navigator.platform`
 
 <!-- YAML
@@ -1100,6 +1141,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS module]: modules.md
 [ECMAScript module]: esm.md
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
+[RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
 [`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
