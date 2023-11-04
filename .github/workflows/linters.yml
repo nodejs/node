@@ -1,17 +1,6 @@
 name: Linters
 
-on:
-  workflow_call:
-    inputs:
-      branch: main
-      vbranches:
-        - v[0-9]+.x-staging
-        - v[0-9]+.x
-      types:
-        - opened
-        - synchronize
-        - reopened
-        - ready_for_review
+on: [workflow_call]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
