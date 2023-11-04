@@ -38,7 +38,7 @@ jobs:
   run-prerequisites-jobs:
     uses: ./.github/workflows/linters.yml
   build-tarball:
-    needs: linters
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
