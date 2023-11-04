@@ -35,6 +35,8 @@ permissions:
   contents: read
 
 jobs:
+  run-prerequisites-jobs:
+    uses: ./.github/workflows/linters.yml
   build-tarball:
     needs: linters
     if: github.event.pull_request.draft == false
