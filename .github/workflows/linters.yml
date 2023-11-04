@@ -21,8 +21,10 @@ permissions:
   contents: read
 
 jobs:
+  run-prerequisites-jobs:
+    uses: ./.github/workflows/commit-lint.yml
   lint-addon-docs:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +40,7 @@ jobs:
       - name: Lint addon docs
         run: NODE=$(command -v node) make lint-addon-docs
   lint-cpp:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -93,7 +95,7 @@ jobs:
             exit "$EXIT_CODE"
           fi
   lint-js-and-md:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -119,7 +121,7 @@ jobs:
         env:
           NODE_RELEASED_VERSIONS: ${{ steps.get-released-versions.outputs.NODE_RELEASED_VERSIONS }}
   lint-py:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -137,7 +139,7 @@ jobs:
           make lint-py-build
           make lint-py
   lint-yaml:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -156,7 +158,7 @@ jobs:
           make lint-yaml
 
   lint-sh:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -167,7 +169,7 @@ jobs:
       - name: Lint Shell scripts
         run: tools/lint-sh.mjs .
   lint-codeowners:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
@@ -178,7 +180,7 @@ jobs:
         with:
           checks: files,duppatterns
   lint-pr-url:
-    needs: commit-lint
+    needs: run-prerequisites-jobs
     if: ${{ github.event.pull_request }}
     runs-on: ubuntu-latest
     steps:

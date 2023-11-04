@@ -1,6 +1,6 @@
 name: First commit message adheres to guidelines
 
-on: [pull_request]
+on: [workflow_call]
 
 env:
   NODE_VERSION: lts/*
