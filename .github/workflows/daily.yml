@@ -17,7 +17,7 @@ jobs:
     # not working on gcc-8 and gcc-9 see https://github.com/nodejs/node/issues/38570
     container: gcc:11
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
