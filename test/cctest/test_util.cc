@@ -300,7 +300,6 @@ TEST(UtilTest, SPrintF) {
   EXPECT_EQ(SPrintF("%s", with_zero), with_zero);
 }
 
-
 TEST(UtilTest, DumpJavaScriptStackWithNoIsolate) {
   node::DumpJavaScriptBacktrace(stderr);
 }
