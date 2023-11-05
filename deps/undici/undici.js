@@ -495,7 +495,7 @@ var require_util = __commonJS({
     }
     __name(isReadableAborted, "isReadableAborted");
     function destroy(stream2, err) {
-      if (!isStream(stream2) || isDestroyed(stream2)) {
+      if (stream2 == null || !isStream(stream2) || isDestroyed(stream2)) {
         return;
       }
       if (typeof stream2.destroy === "function") {
@@ -6475,10 +6475,26 @@ var require_request2 = __commonJS({
         this.bodyTimeout = bodyTimeout;
         this.throwOnError = throwOnError === true;
         this.method = method;
+        this.abort = null;
         if (body == null) {
           this.body = null;
         } else if (util.isStream(body)) {
           this.body = body;
+          const rState = this.body._readableState;
+          if (!rState || !rState.autoDestroy) {
+            this.endHandler = /* @__PURE__ */ __name(function autoDestroy() {
+              util.destroy(this);
+            }, "autoDestroy");
+            this.body.on("end", this.endHandler);
+          }
+          this.errorHandler = (err) => {
+            if (this.abort) {
+              this.abort(err);
+            } else {
+              this.error = err;
+            }
+          };
+          this.body.on("error", this.errorHandler);
         } else if (util.isBuffer(body)) {
           this.body = body.byteLength ? body : null;
         } else if (ArrayBuffer.isView(body)) {
@@ -6572,7 +6588,12 @@ var require_request2 = __commonJS({
       onConnect(abort) {
         assert(!this.aborted);
         assert(!this.completed);
-        return this[kHandler].onConnect(abort);
+        if (this.error) {
+          abort(this.error);
+        } else {
+          this.abort = abort;
+          return this[kHandler].onConnect(abort);
+        }
       }
       onHeaders(statusCode, headers, resume, statusText) {
         assert(!this.aborted);
@@ -6593,6 +6614,7 @@ var require_request2 = __commonJS({
         return this[kHandler].onUpgrade(statusCode, headers, socket);
       }
       onComplete(trailers) {
+        this.onFinally();
         assert(!this.aborted);
         this.completed = true;
         if (channels.trailers.hasSubscribers) {
@@ -6601,6 +6623,7 @@ var require_request2 = __commonJS({
         return this[kHandler].onComplete(trailers);
       }
       onError(error) {
+        this.onFinally();
         if (channels.error.hasSubscribers) {
           channels.error.publish({ request: this, error });
         }
@@ -6609,6 +6632,16 @@ var require_request2 = __commonJS({
         }
         this.aborted = true;
         return this[kHandler].onError(error);
+      }
+      onFinally() {
+        if (this.errorHandler) {
+          this.body.off("error", this.errorHandler);
+          this.errorHandler = null;
+        }
+        if (this.endHandler) {
+          this.body.off("end", this.endHandler);
+          this.endHandler = null;
+        }
       }
       // TODO: adjust to support H2
       addHeader(key, value) {
@@ -8567,21 +8600,7 @@ var require_client = __commonJS({
         if (client[kRunning] > 0 && (request.upgrade || request.method === "CONNECT")) {
           return;
         }
-        if (util.isStream(request.body) && util.bodyLength(request.body) === 0) {
-          request.body.on(
-            "data",
-            /* istanbul ignore next */
-            function() {
-              assert(false);
-            }
-          ).on("error", function(err) {
-            errorRequest(client, request, err);
-          }).on("end", function() {
-            util.destroy(this);
-          });
-          request.body = null;
-        }
-        if (client[kRunning] > 0 && (util.isStream(request.body) || util.isAsyncIterable(request.body))) {
+        if (client[kRunning] > 0 && util.bodyLength(request.body) !== 0 && (util.isStream(request.body) || util.isAsyncIterable(request.body))) {
           return;
         }
         if (!request.aborted && write(client, request)) {
@@ -8592,6 +8611,10 @@ var require_client = __commonJS({
       }
     }
     __name(_resume, "_resume");
+    function shouldSendContentLength(method) {
+      return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
+    }
+    __name(shouldSendContentLength, "shouldSendContentLength");
     function write(client, request) {
       if (client[kHTTPConnVersion] === "h2") {
         writeH2(client, client[kHTTP2Session], request);
@@ -8602,14 +8625,15 @@ var require_client = __commonJS({
       if (body && typeof body.read === "function") {
         body.read(0);
       }
-      let contentLength = util.bodyLength(body);
+      const bodyLength = util.bodyLength(body);
+      let contentLength = bodyLength;
       if (contentLength === null) {
         contentLength = request.contentLength;
       }
       if (contentLength === 0 && !expectsPayload) {
         contentLength = null;
       }
-      if (request.contentLength !== null && request.contentLength !== contentLength) {
+      if (shouldSendContentLength(method) && contentLength > 0 && request.contentLength !== null && request.contentLength !== contentLength) {
         if (client[kStrictContentLength]) {
           errorRequest(client, request, new RequestContentLengthMismatchError());
           return false;
@@ -8669,7 +8693,7 @@ upgrade: ${upgrade}\r
       if (channels.sendHeaders.hasSubscribers) {
         channels.sendHeaders.publish({ request, headers: header, socket });
       }
-      if (!body) {
+      if (!body || bodyLength === 0) {
         if (contentLength === 0) {
           socket.write(`${header}content-length: 0\r
 \r
@@ -8769,7 +8793,7 @@ upgrade: ${upgrade}\r
       if (contentLength === 0 || !expectsPayload) {
         contentLength = null;
       }
-      if (request.contentLength != null && request.contentLength !== contentLength) {
+      if (shouldSendContentLength(method) && contentLength > 0 && request.contentLength != null && request.contentLength !== contentLength) {
         if (client[kStrictContentLength]) {
           errorRequest(client, request, new RequestContentLengthMismatchError());
           return false;
@@ -9241,7 +9265,7 @@ var require_pool = __commonJS({
             maxCachedSessions,
             allowH2,
             socketPath,
-            timeout: connectTimeout == null ? 1e4 : connectTimeout,
+            timeout: connectTimeout,
             ...util.nodeHasAutoSelectFamily && autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : void 0,
             ...connect
           });
