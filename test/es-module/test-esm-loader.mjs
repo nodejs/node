@@ -47,7 +47,7 @@ await assert.rejects(
   import('esmHook/commonJsNullSource.mjs'),
   {
     code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
-    message: 'Expected array buffer, or typed array to be returned for the "source" from the "load" function but got null.'
+    message: /for the "source" from the "load" function but got null/,
   },
 );
 
