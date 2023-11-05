@@ -53,7 +53,13 @@ fs.writeFile(`${tmpPath}\\test file`, 'Test', common.mustSucceed(() => {
           }));
 }));
 
-// Test Bash (from WSL and Git), if available
+const skipPaths = [
+  // Skip bash from WSL because of
+  // https://github.com/nodejs/node/pull/50519#issuecomment-1791806986
+  'usr\\bin\\bash.exe',
+];
+
+// Test Bash (Git), if available
 cp.exec('where bash', common.mustCall((error, stdout) => {
   if (error) {
     return;
@@ -61,6 +67,8 @@ cp.exec('where bash', common.mustCall((error, stdout) => {
   const lines = stdout.trim().split(/[\r\n]+/g);
   for (let i = 0; i < lines.length; ++i) {
     const bashPath = lines[i].trim();
+    if (skipPaths.some((path) => path.endsWith(bashPath)))
+      continue;
     test(bashPath);
     testCopy(`bash_${i}.exe`, bashPath);
   }
