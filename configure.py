@@ -1771,12 +1771,6 @@ def configure_intl(o):
     attemptdownload = nodedownload.candownload(auto_downloads, "icu")
     for icu in icus:
       url = icu['url']
-      (expectHash, hashAlgo, allAlgos) = nodedownload.findHash(icu)
-      if not expectHash:
-        error(f'''Could not find a hash to verify ICU download.
-          {depFile} may be incorrect.
-          For the entry {url},
-          Expected one of these keys: {' '.join(allAlgos)}''')
       local = url.split('/')[-1]
       targetfile = Path(options.download_path, local)
       if not targetfile.is_file():
@@ -1785,14 +1779,28 @@ def configure_intl(o):
       else:
         print(f'Re-using existing {targetfile}')
       if targetfile.is_file():
-        print(f'Checking file integrity with {hashAlgo}:\r')
-        gotHash = nodedownload.checkHash(targetfile, hashAlgo)
-        print(f'{hashAlgo}:      {gotHash}  {targetfile}')
-        if expectHash == gotHash:
-          return targetfile
-
-        warn(f'Expected: {expectHash}      *MISMATCH*')
-        warn(f'\n ** Corrupted ZIP? Delete {targetfile} to retry download.\n')
+        if "gpg" in icu:
+          key_url = icu['gpg']["key"]
+          sig_url = icu['gpg']["asc"]
+          try:
+            nodedownload.checkGPG(targetfile, key_url, sig_url)
+            return targetfile
+          except Exception as e:
+            warn(e)
+        else:
+          (expectHash, hashAlgo, allAlgos) = nodedownload.findHash(icu)
+          if not expectHash:
+            error(f'''Could not find a hash to verify ICU download.
+              {depFile} may be incorrect.
+              For the entry {url},
+              Expected one of these keys: {' '.join(allAlgos)}''')
+          print(f'Checking file integrity with {hashAlgo}:\r')
+          gotHash = nodedownload.checkHash(targetfile, hashAlgo)
+          print(f'{hashAlgo}:      {gotHash}  {targetfile}')
+          if expectHash == gotHash:
+            return targetfile
+          warn(f'Expected: {expectHash}      *MISMATCH*')
+          warn(f'\n ** Corrupted ZIP? Delete {targetfile} to retry download.\n')
     return None
   icu_config = {
     'variables': {}

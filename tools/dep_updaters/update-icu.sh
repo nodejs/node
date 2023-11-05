@@ -57,6 +57,7 @@ if [ -n "$CHECKSUM" ]; then
     echo "Skipped because checksums do not match."
     exit 0
   fi
+  perl -i -pe "s|\"(md5\|gpg)\": .*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep"
 else
   echo "Checksum not found"
   echo "check with gpg"
@@ -67,10 +68,11 @@ else
   if gpg --verify signature.asc data.tgz; then
     echo "Signature verified"
     rm data.tgz signature.asc KEYS
+    perl -i -pe "s|\"(gpg\|md5)\": .*|\"gpg\": { \"key\": \"$KEY_URL\", \"asc\": \"$NEW_VERSION_TGZ_ASC_URL\" }|" "$TOOLS_DIR/icu/current_ver.dep"
   else
     echo "Skipped because signature verification failed."
     rm data.tgz signature.asc KEYS
-    exit 1
+    exit 0
   fi
 fi
 
@@ -82,7 +84,6 @@ rm -rf "$DEPS_DIR/icu"
 
 perl -i -pe "s|\"url\": .*|\"url\": \"$NEW_VERSION_TGZ_URL\",|" "$TOOLS_DIR/icu/current_ver.dep"
 
-perl -i -pe "s|\"md5\": .*|\"md5\": \"$CHECKSUM\"|" "$TOOLS_DIR/icu/current_ver.dep"
 
 rm -rf out "$DEPS_DIR/icu" "$DEPS_DIR/icu4c*"
 
