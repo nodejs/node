@@ -15,7 +15,7 @@ This a list of all the dependencies:
 * [c-ares 1.20.1][]
 * [cjs-module-lexer 1.2.2][]
 * [corepack][]
-* [googletest 116b7e5][]
+* [googletest b10fad3][]
 * [histogram 0.11.8][]
 * [icu-small 74.1][]
 * [libuv 1.46.0][]
@@ -189,7 +189,7 @@ In practical terms, Corepack will let you use Yarn and pnpm without having to
 install them - just like what currently happens with npm, which is shipped
 by Node.js by default.
 
-### googletest 116b7e5
+### googletest b10fad3
 
 The [googletest](https://github.com/google/googletest) dependency is Google’s
 C++ testing and mocking framework.
@@ -326,7 +326,7 @@ performance improvements not currently available in standard zlib.
 [cjs-module-lexer 1.2.2]: #cjs-module-lexer-122
 [corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
-[googletest 116b7e5]: #googletest-116b7e5
+[googletest b10fad3]: #googletest-b10fad3
 [histogram 0.11.8]: #histogram-0118
 [icu-small 74.1]: #icu-small-741
 [libuv 1.46.0]: #libuv-1460
