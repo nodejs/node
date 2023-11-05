@@ -43,6 +43,14 @@ await assert.rejects(
   { code: 'ERR_INVALID_RETURN_PROPERTY_VALUE' },
 );
 
+await assert.rejects(
+  import('esmHook/commonJsNullSource.mjs'),
+  {
+    code: 'ERR_INVALID_RETURN_PROPERTY_VALUE',
+    message: 'Expected array buffer, or typed array to be returned for the "source" from the "load" function but got null.'
+  },
+);
+
 await import('../fixtures/es-module-loaders/js-as-esm.js')
 .then((parsedModule) => {
   assert.strictEqual(typeof parsedModule, 'object');
