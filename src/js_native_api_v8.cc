@@ -1123,7 +1123,7 @@ napi_status node_api_create_property_key_utf16(napi_env env,
                                  static_cast<int>(length))
           .ToLocalChecked();
 
-  v8impl::JsValueFromV8LocalValue(*result, k);
+  *result = k;
 
   return napi_ok;
 }
