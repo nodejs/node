@@ -1123,7 +1123,7 @@ napi_status node_api_create_property_key_utf16(napi_env env,
                                  static_cast<int>(length))
           .ToLocalChecked();
 
-  *result = k;
+  *result = reinterpret_cast<napi_value__*>(&k);
 
   return napi_ok;
 }
