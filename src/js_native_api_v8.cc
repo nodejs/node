@@ -1110,7 +1110,9 @@ napi_status NAPI_CDECL napi_set_property(napi_env env,
 }
 
 napi_status node_api_create_property_key_utf16(napi_env env,
- const uint16_t* utf16name, size_t length, napi_value* result) {
+                                               const uint16_t* utf16name,
+                                               size_t length,
+                                               napi_value* result) {
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, utf16name);
   v8::Local<v8::Context> context = env->context();
