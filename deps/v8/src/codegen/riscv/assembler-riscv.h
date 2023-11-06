@@ -286,7 +286,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(Address location,
-                                                           Code code,
+                                                           Tagged<Code> code,
                                                            Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
