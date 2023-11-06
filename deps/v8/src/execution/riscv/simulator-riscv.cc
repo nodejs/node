@@ -1781,7 +1781,7 @@ void RiscvDebugger::Debug() {
           sreg_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object obj(value);
+            Tagged<Object> obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
             obj.Print(os);
@@ -1830,7 +1830,7 @@ void RiscvDebugger::Debug() {
           PrintF("  0x%012" PRIxPTR " :  0x%016" REGIx_FORMAT
                  "  %14" REGId_FORMAT " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          Object obj(*cur);
+          Tagged<Object> obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
           if (obj.IsSmi() ||
               IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
@@ -4692,7 +4692,7 @@ bool Simulator::DecodeRvvVS() {
 Builtin Simulator::LookUp(Address pc) {
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    if (builtins_.code(builtin).contains(isolate_, pc)) return builtin;
+    if (builtins_.code(builtin)->contains(isolate_, pc)) return builtin;
   }
   return Builtin::kNoBuiltinId;
 }
@@ -4709,7 +4709,7 @@ void Simulator::DecodeRVIType() {
         if (builtin != Builtin::kNoBuiltinId) {
           auto code = builtins_.code(builtin);
           if ((rs1_reg() != ra || imm12() != 0)) {
-            if ((Address)get_pc() == code.InstructionStart()) {
+            if ((Address)get_pc() == code->instruction_start()) {
               sreg_t arg0 = get_register(a0);
               sreg_t arg1 = get_register(a1);
               sreg_t arg2 = get_register(a2);
