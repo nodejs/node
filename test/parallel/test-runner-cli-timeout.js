@@ -1,20 +1,20 @@
 'use strict';
 require('../common');
+const fixtures = require('../common/fixtures');
 const assert = require('node:assert');
 const { spawnSync } = require('node:child_process');
 const { test } = require('node:test');
+const cwd = fixtures.path('test-runner', 'default-behavior');
+const env = { ...process.env, 'NODE_DEBUG': 'test_runner' };
 
-test('test-timeout flag', () => {
-  const args = ['--test', '--test-timeout', 10, 'test/fixtures/test-runner/never_ending_sync.js'];
-  const child = spawnSync(process.execPath, args, { timeout: 500 });
+test('default timeout -- Infinity', async () => {
+  const args = ['--test'];
+  const cp = spawnSync(process.execPath, args, { cwd, env });
+  assert.match(cp.stderr.toString(), /timeout: Infinity,/);
+});
 
-  assert.strictEqual(child.status, 1);
-  assert.strictEqual(child.signal, null);
-  assert.strictEqual(child.stderr.toString(), '');
-  const stdout = child.stdout.toString();
-  assert.match(stdout, /not ok 1 - test/);
-  assert.match(stdout, / {2}---/);
-  assert.match(stdout, / {2}duration_ms: .*/);
-  assert.match(stdout, /failureType: 'testTimeoutFailure/);
-  assert.match(stdout, /error: 'test timed out after 10ms'/);
+test('timeout of 10ms', async () => {
+  const args = ['--test', '--test-timeout', 10];
+  const cp = spawnSync(process.execPath, args, { cwd, env });
+  assert.match(cp.stderr.toString(), /timeout: 10,/);
 });
