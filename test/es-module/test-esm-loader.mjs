@@ -45,11 +45,11 @@ await assert.rejects(
 
 try {
   await import('esmHook/commonJsNullSource.mjs');
-} catch (e) {
-  assert.strictEqual(e.code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
-  assert(e.message.includes('"source"'));
-  assert(e.message.includes('"load"'));
-  assert(e.message.includes('got null'));
+} catch ({ code, message }) {
+  assert.strictEqual(code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
+  assert.match(message, /"source"/);
+  assert.match(message, /"load"/);
+  assert.match(message, /got null/);
 }
 
 await import('../fixtures/es-module-loaders/js-as-esm.js')
