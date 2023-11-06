@@ -1114,10 +1114,12 @@ napi_status node_api_create_property_key_utf16(napi_env env,
   NAPI_PREAMBLE(env);
   CHECK_ARG(env, utf16name);
   v8::Local<v8::Context> context = env->context();
-  v8::Local<v8::Value> k = v8::String::NewFromTwoByte(
-    context->GetIsolate(),
-    utf16name, v8::NewStringType::kInternalized, static_cast<int>(length))
-    .ToLocalChecked();
+  v8::Local<v8::Value> k =
+      v8::String::NewFromTwoByte(context->GetIsolate(),
+                                 utf16name,
+                                 v8::NewStringType::kInternalized,
+                                 static_cast<int>(length))
+          .ToLocalChecked();
 
   v8impl::JsValueFromV8LocalValue(*result, k);
 
