@@ -2604,6 +2604,13 @@ An attempt was made to call [`stream.pipe()`][] on a [`Writable`][] stream.
 A stream method was called that cannot complete because the stream was
 destroyed using `stream.destroy()`.
 
+<a id="ERR_STREAM_LOCKED"></a>
+
+### `ERR_STREAM_LOCKED`
+
+A stream method was called that cannot complete because the stream was
+locked.
+
 <a id="ERR_STREAM_NULL_VALUES"></a>
 
 ### `ERR_STREAM_NULL_VALUES`

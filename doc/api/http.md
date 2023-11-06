@@ -3187,6 +3187,74 @@ Removes a header that is queued for implicit sending.
 outgoingMessage.removeHeader('Content-Encoding');
 ```
 
+### `outgoingMessage.writeFile(file[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `file` {string|number|URL} file path, URL or descriptor.
+* `options` {Object}
+  * `start` {integer}
+  * `end` {integer} **Default:** `Infinity`
+* `callback` {Function}
+
+Writes a file to the outgoing message without ending. If passed a file
+descriptor then it's the callers responsibility to close it.
+
+`options` can include `start` and `end` values to read a range of bytes from
+the file instead of the entire file. Both `start` and `end` are inclusive and
+start counting at 0, allowed values are in the
+[0, [`Number.MAX_SAFE_INTEGER`][]] range. If `path` is a file descriptor and
+and `start` is omitted or `undefined`, `fs.createReadStream()` reads
+sequentially from the current file position.
+
+If `file` is a file descriptor which points to a character device that
+only supports blocking reads (such as keyboard or sound card), read
+operations do not finish until data is available. This can prevent the
+process from exiting and the response from closing naturally.
+
+This is a low level primitive used for efficiently passing data from a
+file to a response. It is not intended to perform all logic required for
+serving a file. Parsing request and writing response headers, ending
+the response is still left to the user.
+
+Calling `.write(...)` or `.end(...)` on a response while `.writeFile(...)` is
+active will result in a `ERR_STREAM_LOCKED` error.
+
+The only way to abort `writeFile(...)` is by calling `.destroy(...)` on
+the response.
+
+```js
+outgoingMessage.writeFile(
+  myFilePath,
+  { start: 0, end: 20 },
+  (err, bytesWritten) => {
+    if (err) {
+      outgoingMessage.destroy(err);
+    } else {
+      outgoingMessage.end();
+    }
+  },
+);
+```
+
+```js
+outgoingMessage.writeFile(
+  myFileFd,
+  { start: 0, end: 20 },
+  (err, bytesWritten) => {
+    fs.close(myFileFd, (er) => {
+      if (er ?? err) {
+        outgoingMessage.destroy(er ?? err);
+      } else {
+        outgoingMessage.end();
+      }
+    });
+  },
+);
+```
+
 ### `outgoingMessage.setHeader(name, value)`
 
 <!-- YAML
