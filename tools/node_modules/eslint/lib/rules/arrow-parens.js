@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to require parens in arrow function arguments.
  * @author Jxck
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -30,6 +31,8 @@ function hasBlockBody(node) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

@@ -1,6 +1,6 @@
 {
   "name": "@eslint/eslintrc",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "The legacy ESLintRC config file format for ESLint",
   "type": "module",
   "main": "./dist/eslintrc.cjs",
