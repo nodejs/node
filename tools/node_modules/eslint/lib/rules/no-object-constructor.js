@@ -35,10 +35,10 @@ const NODE_TYPES_BY_KEYWORD = {
 };
 
 /*
- * Before an opening parenthesis, `>` (for JSX), and postfix `++` and `--` always trigger ASI;
+ * Before an opening parenthesis, postfix `++` and `--` always trigger ASI;
  * the tokens `:`, `;`, `{` and `=>` don't expect a semicolon, as that would count as an empty statement.
  */
-const PUNCTUATORS = new Set([":", ";", ">", "{", "=>", "++", "--"]);
+const PUNCTUATORS = new Set([":", ";", "{", "=>", "++", "--"]);
 
 /*
  * Statements that can contain an `ExpressionStatement` after a closing parenthesis.

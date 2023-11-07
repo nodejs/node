@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallows or enforces spaces inside of array brackets.
  * @author Jamund Ferguson
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -13,6 +14,8 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

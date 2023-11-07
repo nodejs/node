@@ -11,6 +11,37 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Returns true if the node or any of the objects
+ * to the left of it in the member/call chain is optional.
+ *
+ * e.g. `a?.b`, `a?.b.c`, `a?.()`, `a()?.()`
+ * @param {ASTNode} node The expression to check
+ * @returns {boolean} `true` if there is a short-circuiting optional `?.`
+ * in the same option chain to the left of this call or member expression,
+ * or the node itself is an optional call or member `?.`.
+ */
+function isAfterOptional(node) {
+    let leftNode;
+
+    if (node.type === "MemberExpression") {
+        leftNode = node.object;
+    } else if (node.type === "CallExpression") {
+        leftNode = node.callee;
+    } else {
+        return false;
+    }
+    if (node.optional) {
+        return true;
+    }
+    return isAfterOptional(leftNode);
+}
+
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
@@ -25,10 +56,13 @@ module.exports = {
             url: "https://eslint.org/docs/latest/rules/no-prototype-builtins"
         },
 
+        hasSuggestions: true,
+
         schema: [],
 
         messages: {
-            prototypeBuildIn: "Do not access Object.prototype method '{{prop}}' from target object."
+            prototypeBuildIn: "Do not access Object.prototype method '{{prop}}' from target object.",
+            callObjectPrototype: "Call Object.prototype.{{prop}} explicitly."
         }
     },
 
@@ -59,7 +93,61 @@ module.exports = {
                     messageId: "prototypeBuildIn",
                     loc: callee.property.loc,
                     data: { prop: propName },
-                    node
+                    node,
+                    suggest: [
+                        {
+                            messageId: "callObjectPrototype",
+                            data: { prop: propName },
+                            fix(fixer) {
+                                const sourceCode = context.sourceCode;
+
+                                /*
+                                 * A call after an optional chain (e.g. a?.b.hasOwnProperty(c))
+                                 * must be fixed manually because the call can be short-circuited
+                                 */
+                                if (isAfterOptional(node)) {
+                                    return null;
+                                }
+
+                                /*
+                                 * A call on a ChainExpression (e.g. (a?.hasOwnProperty)(c)) will trigger
+                                 * no-unsafe-optional-chaining which should be fixed before this suggestion
+                                 */
+                                if (node.callee.type === "ChainExpression") {
+                                    return null;
+                                }
+
+                                const objectVariable = astUtils.getVariableByName(sourceCode.getScope(node), "Object");
+
+                                /*
+                                 * We can't use Object if the global Object was shadowed,
+                                 * or Object does not exist in the global scope for some reason
+                                 */
+                                if (!objectVariable || objectVariable.scope.type !== "global" || objectVariable.defs.length > 0) {
+                                    return null;
+                                }
+
+                                let objectText = sourceCode.getText(callee.object);
+
+                                if (astUtils.getPrecedence(callee.object) <= astUtils.getPrecedence({ type: "SequenceExpression" })) {
+                                    objectText = `(${objectText})`;
+                                }
+
+                                const openParenToken = sourceCode.getTokenAfter(
+                                    node.callee,
+                                    astUtils.isOpeningParenToken
+                                );
+                                const isEmptyParameters = node.arguments.length === 0;
+                                const delim = isEmptyParameters ? "" : ", ";
+                                const fixes = [
+                                    fixer.replaceText(callee, `Object.prototype.${propName}.call`),
+                                    fixer.insertTextAfter(openParenToken, objectText + delim)
+                                ];
+
+                                return fixes;
+                            }
+                        }
+                    ]
                 });
             }
         }

@@ -2,6 +2,7 @@
  * @fileoverview A rule to warn against using arrow functions when they could be
  * confused with comparisons
  * @author Jxck <https://github.com/Jxck>
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -28,6 +29,8 @@ function isConditional(node) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "suggestion",
 
         docs: {

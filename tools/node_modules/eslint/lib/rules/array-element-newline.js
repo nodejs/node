@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to enforce line breaks after each array element
  * @author Jan Peer Stöcklmair <https://github.com/JPeer264>
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -14,6 +15,8 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

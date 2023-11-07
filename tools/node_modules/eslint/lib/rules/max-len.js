@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check for max length on a line.
  * @author Matt DuVall <http://www.mattduvall.com>
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -66,6 +67,8 @@ const OPTIONS_OR_INTEGER_SCHEMA = {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

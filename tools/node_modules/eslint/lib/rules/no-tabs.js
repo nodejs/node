@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check for tabs inside a file
  * @author Gyandeep Singh
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -19,6 +20,8 @@ const anyNonWhitespaceRegex = /\S/u;
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

@@ -2,6 +2,7 @@
  * @fileoverview Rule to ensure newline per method call when chaining calls
  * @author Rajendra Patil
  * @author Burak Yigit Kaya
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -15,6 +16,8 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

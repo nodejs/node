@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to enforce spacing before and after keywords.
  * @author Toru Nagashima
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -64,6 +65,8 @@ function isCloseParenOfTemplate(token) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {
