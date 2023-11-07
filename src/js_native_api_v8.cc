@@ -1110,9 +1110,9 @@ napi_status NAPI_CDECL napi_set_property(napi_env env,
 }
 
 napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
-                                                const char16_t* str,
-                                                size_t length,
-                                                napi_value* result) {
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result) {
   return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
     return v8::String::NewFromTwoByte(isolate,
                                       reinterpret_cast<const uint16_t*>(str),
