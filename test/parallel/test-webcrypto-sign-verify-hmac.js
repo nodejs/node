@@ -172,7 +172,7 @@ async function testSign({ hash,
 (async function() {
   const variations = [];
 
-  for(const vector of vectors){
+  for (const vector of vectors) {
     variations.push(testVerify(vector));
     variations.push(testSign(vector));
   }
