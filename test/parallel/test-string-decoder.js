@@ -48,7 +48,7 @@ test('utf-8', Buffer.from('𤭢', 'utf-8'), '𤭢');
 // U+3045 -> E3 81 85
 test(
   'utf-8',
-  Buffer.from([0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30, 0xE3, 0x81, 0x85]),
+  Buffer.from([0xcb, 0xa4, 0x64, 0xe1, 0x8b, 0xa4, 0x30, 0xe3, 0x81, 0x85]),
   '\u02e4\u0064\u12e4\u0030\u3045'
 );
 
@@ -77,8 +77,11 @@ test('utf-8', Buffer.from('CCB8CDB9', 'hex'), '\u0338\u0379');
 
 // V8 has changed their invalid UTF-8 handling, see
 // https://chromium-review.googlesource.com/c/v8/v8/+/671020 for more info.
-test('utf-8', Buffer.from('EDA0B5EDB08D', 'hex'),
-     '\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd');
+test(
+  'utf-8',
+  Buffer.from('EDA0B5EDB08D', 'hex'),
+  '\ufffd\ufffd\ufffd\ufffd\ufffd\ufffd'
+);
 
 // UCS-2
 test('ucs2', Buffer.from('ababc', 'ucs2'), 'ababc');
@@ -101,10 +104,7 @@ assert.strictEqual(decoder.end(), '\ufffd');
 const arrayBufferViewStr = 'String for ArrayBufferView tests\n';
 const inputBuffer = Buffer.from(arrayBufferViewStr.repeat(8), 'utf8');
 for (const expectView of common.getArrayBufferViews(inputBuffer)) {
-  assert.strictEqual(
-    decoder.write(expectView),
-    inputBuffer.toString('utf8')
-  );
+  assert.strictEqual(decoder.write(expectView), inputBuffer.toString('utf8'));
   assert.strictEqual(decoder.end(), '');
 }
 
@@ -117,8 +117,10 @@ assert.strictEqual(decoder.write(Buffer.from('\ufffd')), '\ufffd');
 assert.strictEqual(decoder.end(), '');
 
 decoder = new StringDecoder('utf8');
-assert.strictEqual(decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
-                   '\ufffd\ufffd\ufffd');
+assert.strictEqual(
+  decoder.write(Buffer.from('\ufffd\ufffd\ufffd')),
+  '\ufffd\ufffd\ufffd'
+);
 assert.strictEqual(decoder.end(), '');
 
 decoder = new StringDecoder('utf8');
@@ -173,37 +175,34 @@ assert.strictEqual(decoder.write(Buffer.from('f4', 'hex')), '');
 assert.strictEqual(decoder.write(Buffer.from('bde5', 'hex')), '\ufffd\ufffd');
 assert.strictEqual(decoder.end(), '\ufffd');
 
-assert.throws(
-  () => new StringDecoder(1),
-  {
-    code: 'ERR_UNKNOWN_ENCODING',
-    name: 'TypeError',
-    message: 'Unknown encoding: 1'
-  }
-);
+assert.throws(() => new StringDecoder(1), {
+  code: 'ERR_UNKNOWN_ENCODING',
+  name: 'TypeError',
+  message: 'Unknown encoding: 1',
+});
 
-assert.throws(
-  () => new StringDecoder('test'),
-  {
-    code: 'ERR_UNKNOWN_ENCODING',
-    name: 'TypeError',
-    message: 'Unknown encoding: test'
-  }
-);
+assert.throws(() => new StringDecoder('test'), {
+  code: 'ERR_UNKNOWN_ENCODING',
+  name: 'TypeError',
+  message: 'Unknown encoding: test',
+});
 
-assert.throws(
-  () => new StringDecoder('utf8').write(null),
-  {
-    code: 'ERR_INVALID_ARG_TYPE',
-    name: 'TypeError',
-    message: 'The "buf" argument must be an instance of Buffer, TypedArray,' +
-      ' or DataView. Received null'
-  }
-);
+assert.throws(() => new StringDecoder('utf8').write(null), {
+  code: 'ERR_INVALID_ARG_TYPE',
+  name: 'TypeError',
+  message:
+    'The "buf" argument must be an instance of Buffer, TypedArray,' +
+    ' or DataView. Received null',
+});
 
 if (common.enoughTestMem) {
   assert.throws(
-    () => new StringDecoder().write(Buffer.alloc((process.arch === 'ia32' ? 0x18ffffe8 : 0x1fffffe8) + 1).fill('a')),
+    () =>
+      new StringDecoder().write(
+        Buffer.alloc(
+          (process.arch === 'ia32' ? 0x18ffffe8 : 0x1fffffe8) + 1
+        ).fill('a')
+      ),
     {
       code: 'ERR_STRING_TOO_LONG',
     }
@@ -230,12 +229,12 @@ function test(encoding, input, expected, singleSequence) {
     sequences = [singleSequence];
   }
   const hexNumberRE = /.{2}/g;
-  sequences.forEach((sequence) => {
+  for (const sequence of sequences) {
     const decoder = new StringDecoder(encoding);
     let output = '';
-    sequence.forEach((write) => {
+    for (const write of sequence) {
       output += decoder.write(input.slice(write[0], write[1]));
-    });
+    }
     output += decoder.end();
     if (output !== expected) {
       const message =
@@ -246,7 +245,7 @@ function test(encoding, input, expected, singleSequence) {
         `Full Decoder State: ${inspect(decoder)}`;
       assert.fail(message);
     }
-  });
+  }
 }
 
 // unicodeEscape prints the str contents as unicode escape codes.
