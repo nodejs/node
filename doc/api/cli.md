@@ -2325,7 +2325,6 @@ Node.js options that are allowed are:
 * `--experimental-abortcontroller`
 * `--experimental-default-type`
 * `--experimental-detect-module`
-* `--experimental-global-navigator`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -2361,6 +2360,7 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
+* `--no-experimental-global-navigator`
 * `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
