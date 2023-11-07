@@ -499,6 +499,7 @@ Error: Access to this API has been restricted
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
   permission: 'FileSystemRead'
+  resource: '/home/user/index.js'
 }
 ```
 
