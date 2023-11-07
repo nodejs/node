@@ -4,6 +4,7 @@
  * @author Teddy Katz
  * @author Vitaly Puzrin
  * @author Gyandeep Singh
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -493,6 +494,8 @@ const ELEMENT_LIST_SCHEMA = {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {
