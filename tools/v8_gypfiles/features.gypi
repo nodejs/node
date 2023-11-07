@@ -90,6 +90,11 @@
     # Set to 1 to enable DCHECKs in release builds.
     'dcheck_always_on%': 0,
 
+    # For v18.x, disable SLOW_DCHECKs because they don't compile without
+    # the patches in https://bugs.chromium.org/p/v8/issues/detail?id=12887
+    # if used in constexpr, which can happen in other floated patches.
+    'v8_enable_slow_dchecks%': 0,
+
     # Sets -DV8_ENABLE_FUTURE.
     'v8_enable_future%': 0,
 
