@@ -468,7 +468,7 @@ node --import ./file-that-calls-register.js ./app.js
 
 Using `--import` ensures that the customization hooks are registered before any application code runs, even the entry point.
 
-This feature was contributed by Izaak Schroeder in <https://github.com/nodejs/node/pull/48842> and <https://github.com/nodejs/node/pull/48559>
+This feature was contributed by João Lenon and Jacob Smith in <https://github.com/nodejs/node/pull/46826>, Izaak Schroeder and Jacob Smith in <https://github.com/nodejs/node/pull/48842> and <https://github.com/nodejs/node/pull/48559>
 
 #### Module customization `load` hook can now support CommonJS
 
