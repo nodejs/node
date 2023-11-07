@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to require or disallow newlines between statements
  * @author Toru Nagashima
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -383,6 +384,8 @@ const StatementTypes = {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

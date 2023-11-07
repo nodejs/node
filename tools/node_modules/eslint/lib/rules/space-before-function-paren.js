@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to validate spacing before function paren.
  * @author Mathias Schreck <https://github.com/lo1tuma>
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -17,6 +18,8 @@ const astUtils = require("./utils/ast-utils");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {
