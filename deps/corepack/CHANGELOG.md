@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/nodejs/corepack/compare/v0.22.0...v0.23.0) (2023-11-05)
+
+
+### Features
+
+* update package manager versions ([#325](https://github.com/nodejs/corepack/issues/325)) ([450cd33](https://github.com/nodejs/corepack/commit/450cd332d00d3428f49ed09a4235bd12139931c9))
+
 ## [0.22.0](https://github.com/nodejs/corepack/compare/v0.21.0...v0.22.0) (2023-10-21)
 
 
