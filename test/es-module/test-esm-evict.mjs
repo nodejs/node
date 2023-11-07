@@ -1,7 +1,8 @@
+import '../common/index.mjs';
 import { strictEqual } from 'node:assert';
 import { releaseLoadedModule } from 'node:module';
 
-const specifier = "data:application/javascript,export default globalThis.value;";
+const specifier = 'data:application/javascript,export default globalThis.value;';
 
 globalThis.value = 1;
 const instance1 = await import(specifier);
