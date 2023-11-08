@@ -603,6 +603,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency);
+  AddOption("--test-timeout",
+            "specify test runner timeout",
+            &EnvironmentOptions::test_runner_timeout);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
