@@ -11,11 +11,14 @@ else
   BENCH_LDFLAGS=-lrt
 endif
 
-.PHONY: clean test
+.PHONY: clean test valgrind
 
 test: clean test_base64 benchmark
 	./test_base64
 	./benchmark
+
+valgrind: clean test_base64
+	valgrind --error-exitcode=2 ./test_base64
 
 test_base64: test_base64.c codec_supported.o ../lib/libbase64.o
 	$(CC) $(CFLAGS) -o $@ $^

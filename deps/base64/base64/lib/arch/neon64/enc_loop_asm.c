@@ -160,7 +160,8 @@ enc_loop_neon64 (const uint8_t **s, size_t *slen, uint8_t **o, size_t *olen)
 		// Clobbers.
 		: "v2",  "v3",  "v4",  "v5",
 		  "v8",  "v9",  "v10", "v11",
-		  "v12", "v13", "v14", "v15"
+		  "v12", "v13", "v14", "v15",
+		  "cc", "memory"
 	);
 }
 
