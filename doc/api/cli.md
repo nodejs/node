@@ -1771,6 +1771,15 @@ node --test --test-shard=2/3
 node --test --test-shard=3/3
 ```
 
+### `--test-timeout`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A number of milliseconds the test execution will fail after. If unspecified,
+subtests inherit this value from their parent. The default value is `Infinity`.
+
 ### `--throw-deprecation`
 
 <!-- YAML
