@@ -11,11 +11,25 @@
 #if HAVE_SSE42
 #include <nmmintrin.h>
 
+// Only enable inline assembly on supported compilers and on 64-bit CPUs.
+#ifndef BASE64_SSE42_USE_ASM
+# if (defined(__GNUC__) || defined(__clang__)) && BASE64_WORDSIZE == 64
+#  define BASE64_SSE42_USE_ASM 1
+# else
+#  define BASE64_SSE42_USE_ASM 0
+# endif
+#endif
+
 #include "../ssse3/dec_reshuffle.c"
 #include "../ssse3/dec_loop.c"
-#include "../ssse3/enc_translate.c"
-#include "../ssse3/enc_reshuffle.c"
-#include "../ssse3/enc_loop.c"
+
+#if BASE64_SSE42_USE_ASM
+# include "../ssse3/enc_loop_asm.c"
+#else
+# include "../ssse3/enc_translate.c"
+# include "../ssse3/enc_reshuffle.c"
+# include "../ssse3/enc_loop.c"
+#endif
 
 #endif	// HAVE_SSE42
 

@@ -4,6 +4,7 @@ CFLAGS += -std=c99 -O3 -Wall -Wextra -pedantic
 OBJCOPY ?= objcopy
 
 OBJS = \
+  lib/arch/avx512/codec.o \
   lib/arch/avx2/codec.o \
   lib/arch/generic/codec.o \
   lib/arch/neon32/codec.o \
@@ -16,6 +17,7 @@ OBJS = \
   lib/codec_choose.o \
   lib/tables/tables.o
 
+HAVE_AVX512 = 0
 HAVE_AVX2   = 0
 HAVE_NEON32 = 0
 HAVE_NEON64 = 0
@@ -26,6 +28,9 @@ HAVE_AVX    = 0
 
 # The user should supply compiler flags for the codecs they want to build.
 # Check which codecs we're going to include:
+ifdef AVX512_CFLAGS
+  HAVE_AVX512 = 1
+endif
 ifdef AVX2_CFLAGS
   HAVE_AVX2 = 1
 endif
@@ -64,7 +69,8 @@ lib/libbase64.o: $(OBJS)
 	$(OBJCOPY) --keep-global-symbols=lib/exports.txt $@
 
 lib/config.h:
-	@echo "#define HAVE_AVX2   $(HAVE_AVX2)"    > $@
+	@echo "#define HAVE_AVX512 $(HAVE_AVX512)"  > $@
+	@echo "#define HAVE_AVX2   $(HAVE_AVX2)"   >> $@
 	@echo "#define HAVE_NEON32 $(HAVE_NEON32)" >> $@
 	@echo "#define HAVE_NEON64 $(HAVE_NEON64)" >> $@
 	@echo "#define HAVE_SSSE3  $(HAVE_SSSE3)"  >> $@
@@ -75,6 +81,7 @@ lib/config.h:
 $(OBJS): lib/config.h
 $(OBJS): CFLAGS += -Ilib
 
+lib/arch/avx512/codec.o: CFLAGS += $(AVX512_CFLAGS)
 lib/arch/avx2/codec.o:   CFLAGS += $(AVX2_CFLAGS)
 lib/arch/neon32/codec.o: CFLAGS += $(NEON32_CFLAGS)
 lib/arch/neon64/codec.o: CFLAGS += $(NEON64_CFLAGS)
