@@ -600,7 +600,8 @@ This variable may appear to be global but is not. See [`module`][].
 added: v21.0.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Disable this API with the
+> [`--no-experimental-global-navigator`][] CLI flag.
 
 A partial implementation of the [Navigator API][].
 
@@ -610,17 +611,10 @@ A partial implementation of the [Navigator API][].
 added: v21.0.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Disable this API with the
+> [`--no-experimental-global-navigator`][] CLI flag.
 
 A partial implementation of [`window.navigator`][].
-
-If your app or a dependency uses a check for `navigator` to determine whether it
-is running in a browser, the following can be used to delete the `navigator`
-global before app code runs:
-
-```bash
-node --import 'data:text/javascript,delete globalThis.navigator' app.js
-```
 
 ### `navigator.hardwareConcurrency`
 
@@ -1145,6 +1139,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Web Crypto API]: webcrypto.md
 [`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
+[`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
