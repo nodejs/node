@@ -48,8 +48,14 @@ xcrun notarytool submit \
 
 if [ $? -eq 0 ]; then
   echo "Notarization node-$pkgid.pkg submitted successfully."
-  exit 0
 else
   echo "Notarization node-$pkgid.pkg failed."
   exit 1
+fi
+
+if ! xcrun spctl --assess --type install --context context:primary-signature --ignore-cache --verbose=2 "node-$pkgid.pkg"; then
+  echo "error: Signature will not be accepted by Gatekeeper!" 1>&2
+  exit 1
+else
+  echo "Verification was successful."
 fi
