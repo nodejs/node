@@ -505,10 +505,10 @@ describe('Mock Timers Test Suite', () => {
 
           const finished = await intervalIterator.return();
           assert.deepStrictEqual(finished, { done: true, value: undefined });
-          results.forEach((result) => {
+          for (const result of results) {
             assert.strictEqual(typeof result.value, 'number');
             assert.strictEqual(result.done, false);
-          });
+          }
         });
         it('should tick five times testing a real use case', async (t) => {
           t.mock.timers.enable({ apis: ['setInterval'] });
