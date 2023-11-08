@@ -682,6 +682,7 @@ added: v15.0.0
 
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
+* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} containing {ArrayBuffer}
 
 Using the method and parameters specified by `algorithm` and the keying
