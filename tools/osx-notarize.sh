@@ -48,7 +48,6 @@ xcrun notarytool submit \
 
 if [ $? -eq 0 ]; then
   echo "Notarization node-$pkgid.pkg submitted successfully."
-  exit 0
 else
   echo "Notarization node-$pkgid.pkg failed."
   exit 1
