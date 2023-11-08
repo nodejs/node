@@ -53,3 +53,6 @@ else
   echo "Notarization node-$pkgid.pkg failed."
   exit 1
 fi
+
+xcrun stapler staple "node-$pkgid.pkg"
+echo "Stapler was successful."
