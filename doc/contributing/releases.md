@@ -1018,6 +1018,19 @@ This script will use the promoted builds and changelog to generate the post. Run
   "Set as the latest release".
 * Click on the "Publish release" button.
 
+#### (Temporary) Update the Cloudflare R2 Worker Symlinks
+
+We have adopted Cloudflare R2 and Cloudflare Workers for our
+Release Assets (see <https://github.com/nodejs/build/issues/3461>).
+
+For now, after a release is done, the symlinks need to be updated manually.
+This can be done by simply
+[triggering this GitHub Worfklow](https://github.com/nodejs/release-cloudflare-worker/actions/workflows/update-links.yml).
+
+This workflow should then update the R2 symlinks to match the latest releases.
+
+**Note:** This is a temporary workaround as we automate this process.
+
 ### 19. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
