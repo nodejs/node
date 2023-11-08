@@ -1778,3 +1778,14 @@ unsigned int uv_available_parallelism(void) {
   return (unsigned) rc;
 #endif  /* __linux__ */
 }
+
+int uv_is_file_trusted_by_umci(char * policyFilePath, char * policySignaturePath, int * isFileTrusted) {
+  *isFileTrusted = 0;
+  return 0;
+}
+
+int uv_is_node_umci_on_by_policy() {
+  return 0;
+}
+
+

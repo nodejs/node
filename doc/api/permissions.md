@@ -70,12 +70,20 @@ The policy manifest will be used to enforce constraints on code loaded by
 Node.js.
 
 To mitigate tampering with policy files on disk, an integrity for
-the policy file itself may be provided via `--policy-integrity`.
+the policy file itself may be provided in two ways.
+One, via `--policy-integrity` using a subresource integrity string.
+Or, via `--policy-signature` using a PKCS7 detached signature created with
+a signing key trusted by system code integrity policy.
+
 This allows running `node` and asserting the policy file contents
 even if the file is changed on disk.
 
 ```bash
 node --experimental-policy=policy.json --policy-integrity="sha384-SggXRQHwCG8g+DktYYzxkXRIkTiEYWBHqev0xnpCxYlqMBufKZHAHQM3/boDaI/0" app.js
+```
+
+```bash
+node --experimental-policy=policy.json --policy-signature=policy.json.p7s app.js
 ```
 
 #### Features
@@ -498,8 +506,7 @@ Error: Access to this API has been restricted
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:76:24)
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
-  permission: 'FileSystemRead',
-  resource: '/home/user/index.js'
+  permission: 'FileSystemRead'
 }
 ```
 

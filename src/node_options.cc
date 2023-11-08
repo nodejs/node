@@ -434,6 +434,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_policy_integrity,
             kAllowedInEnvvar);
   Implies("--policy-integrity", "[has_policy_integrity_string]");
+  AddOption("[has_policy_signature]",
+            "",
+            &EnvironmentOptions::has_policy_signature);
+  AddOption("--policy-signature",
+            "ensure the security policy is signed "
+            "by a trusted signer",
+            &EnvironmentOptions::experimental_policy_signature,
+            kAllowedInEnvvar);
+  Implies("--policy-signature", "[has_policy_signature]");
   AddOption("--allow-fs-read",
             "allow permissions to read the filesystem",
             &EnvironmentOptions::allow_fs_read,

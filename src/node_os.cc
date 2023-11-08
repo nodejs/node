@@ -385,6 +385,61 @@ static void GetAvailableParallelism(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(parallelism);
 }
 
+static void IsFileTrustedBySystemCodeIntegrity(
+  const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsString());
+
+  BufferValue manifestPath(env->isolate(), args[0]);
+  if (*manifestPath == nullptr) {
+    CHECK(args[3]->IsObject());
+    env->CollectUVExceptionInfo(
+      args[3],
+      EBADF,
+      "IsFileTrustedBySystemCodeIntegrity");
+
+    return;
+  }
+
+  BufferValue signaturePath(env->isolate(), args[1]);
+  if (*signaturePath == nullptr) {
+    CHECK(args[3]->IsObject());
+    env->CollectUVExceptionInfo(args[3],
+    EBADF,
+    "IsFileTrustedBySystemCodeIntegrity");
+
+    return;
+  }
+
+  int isTrusted = 0;
+  int err = uv_is_file_trusted_by_umci(
+    *manifestPath,
+    *signaturePath,
+    &isTrusted);
+
+  if (err) {
+    CHECK(args[3]->IsObject());
+    env->CollectUVExceptionInfo(
+      args[3],
+      err,
+      "IsFileTrustedBySystemCodeIntegrity");
+
+    return;
+  }
+
+  args.GetReturnValue().Set(isTrusted);
+}
+
+static void IsCIEnforcedByOS(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  bool ret = uv_is_node_umci_on_by_policy();
+
+  args.GetReturnValue().Set(Boolean::New(env->isolate(), ret));
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -404,6 +459,13 @@ void Initialize(Local<Object> target,
   SetMethod(
       context, target, "getAvailableParallelism", GetAvailableParallelism);
   SetMethod(context, target, "getOSInformation", GetOSInformation);
+  SetMethod(context, target, "isCIEnforcedByOS", IsCIEnforcedByOS);
+  SetMethod(
+    context,
+    target,
+    "isFileTrustedBySystemCodeIntegrity",
+    IsFileTrustedBySystemCodeIntegrity);
+
   target
       ->Set(context,
             FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),

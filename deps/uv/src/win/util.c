@@ -73,7 +73,6 @@ static CRITICAL_SECTION process_title_lock;
 /* Frequency of the high-resolution clock. */
 static uint64_t hrtime_frequency_ = 0;
 
-
 /*
  * One-time initialization code for functionality defined in util.c.
  */
@@ -1864,4 +1863,92 @@ int uv__random_rtlgenrandom(void* buf, size_t buflen) {
 
 void uv_sleep(unsigned int msec) {
   Sleep(msec);
+}
+
+int uv_is_file_trusted_by_umci(char * nodePolicyFilePath, char * nodePolicySignatureFilePath, int * isPolicyTrusted) {
+  HRESULT hr = E_FAIL;
+
+  HANDLE hNodePolicyFile = CreateFileA(
+    nodePolicyFilePath,
+    GENERIC_READ,
+    FILE_SHARE_READ,
+    NULL,
+    OPEN_EXISTING,
+    FILE_ATTRIBUTE_NORMAL,
+    NULL
+  );
+
+  HANDLE hSignatureFile = CreateFileA(
+    nodePolicySignatureFilePath,
+    GENERIC_READ,
+    FILE_SHARE_READ,
+    NULL,
+    OPEN_EXISTING,
+    FILE_ATTRIBUTE_NORMAL,
+    NULL
+  );
+
+  WLDP_EXECUTION_POLICY result;
+
+  const GUID wldp_host_other = WLDP_HOST_OTHER;
+  hr = pWldpCanExecuteFileFromDetachedSignature(
+    &wldp_host_other,
+    WLDP_EXECUTION_EVALUATION_OPTION_NONE,
+    hNodePolicyFile,
+    hSignatureFile,
+    NULL,
+    &result
+  );
+
+  *isPolicyTrusted = (result == WLDP_EXECUTION_POLICY_ALLOWED);
+
+  return hr;
+}
+
+int uv_is_node_umci_on_by_policy() {
+  HRESULT hr = E_FAIL;
+  int ret = 0;
+
+  if (pWldpGetApplicationSettingBoolean != NULL)
+  {
+    hr = pWldpGetApplicationSettingBoolean(
+      L"nodejs",
+      L"EnforceCodeIntegrity",
+      &ret
+    );
+
+    if (SUCCEEDED(hr))
+    {
+      return ret;
+    }
+    // E_NOTFOUND
+    else if (hr != 0x80070490) 
+    {
+      return 0;
+    }
+  }
+
+  // WldpQuerySecurityPolicy provides backward compatibility down to Win10
+  if (pWldpQuerySecurityPolicy != NULL)
+  {
+    DECLARE_CONST_UNICODE_STRING(providerName, L"nodejs");
+    DECLARE_CONST_UNICODE_STRING(keyName, L"Settings");
+    DECLARE_CONST_UNICODE_STRING(valueName, L"EnforceCodeIntegrity");
+    WLDP_SECURE_SETTING_VALUE_TYPE valueType = WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
+    ULONG valueSize = sizeof(int);
+
+    hr = pWldpQuerySecurityPolicy(
+              &providerName,
+              &keyName,
+              &valueName,
+              &valueType,
+              &ret,
+              &valueSize);
+
+    if (FAILED(hr))
+    {
+      return 0;
+    }
+  }
+  return ret;
 }

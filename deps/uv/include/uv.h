@@ -1885,6 +1885,9 @@ struct uv_loop_s {
 UV_EXTERN void* uv_loop_get_data(const uv_loop_t*);
 UV_EXTERN void uv_loop_set_data(uv_loop_t*, void* data);
 
+UV_EXTERN int uv_is_file_trusted_by_umci(char*, char*, int*);
+UV_EXTERN int uv_is_node_umci_on_by_policy();
+
 /* Don't export the private CPP symbols. */
 #undef UV_HANDLE_TYPE_PRIVATE
 #undef UV_REQ_TYPE_PRIVATE
