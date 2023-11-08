@@ -7,6 +7,9 @@
       ]
     }
   },
+  "navigation-id.helper.js": {
+    "skip": "This is not a test file."
+  },
   "webtiming-resolution.any.js": {
     "skip": "flaky"
   }
