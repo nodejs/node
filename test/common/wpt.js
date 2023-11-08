@@ -59,10 +59,13 @@ function codeUnitStr(char) {
 }
 
 class ReportResult {
+  #startTime;
+
   constructor(name) {
     this.test = name;
     this.status = 'OK';
     this.subtests = [];
+    this.#startTime = Date.now();
   }
 
   addSubtest(name, status, message) {
@@ -81,6 +84,7 @@ class ReportResult {
 
   finish(status) {
     this.status = status ?? 'OK';
+    this.duration = Date.now() - this.#startTime;
   }
 }
 
