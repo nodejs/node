@@ -59,6 +59,8 @@
 
 # tls/crypto
 
+/doc/api/crypto.md @nodejs/crypto
+/doc/api/webcrypto.md @nodejs/crypto
 /lib/crypto.js @nodejs/crypto
 /lib/internal/crypto/* @nodejs/crypto
 /lib/internal/tls/* @nodejs/crypto @nodejs/net
