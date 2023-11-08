@@ -3,6 +3,10 @@
     "commit": "dbd648158d337580885e70a54f929daf215211a0",
     "path": "common"
   },
+  "compression": {
+    "commit": "c82521cfa587505746a853a24d22589633825b10",
+    "path": "compression"
+  },
   "console": {
     "commit": "767ae354642bee1e4d90b28df4480475b9260e14",
     "path": "console"
