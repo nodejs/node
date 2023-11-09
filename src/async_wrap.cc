@@ -372,8 +372,9 @@ void AsyncWrap::CreatePerContextProperties(Local<Object> target,
                                            Local<Value> unused,
                                            Local<Context> context,
                                            void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+  Isolate* isolate = realm->isolate();
   HandleScope scope(isolate);
 
   PropertyAttribute ReadOnlyDontDelete =
@@ -446,13 +447,16 @@ void AsyncWrap::CreatePerContextProperties(Local<Object> target,
 
 #undef FORCE_SET_TARGET_FIELD
 
-  env->set_async_hooks_init_function(Local<Function>());
-  env->set_async_hooks_before_function(Local<Function>());
-  env->set_async_hooks_after_function(Local<Function>());
-  env->set_async_hooks_destroy_function(Local<Function>());
-  env->set_async_hooks_promise_resolve_function(Local<Function>());
-  env->set_async_hooks_callback_trampoline(Local<Function>());
-  env->set_async_hooks_binding(target);
+  // TODO(legendecas): async hook functions are not realm-aware yet.
+  // This simply avoid overriding principal realm's functions when a
+  // ShadowRealm initializes the binding.
+  realm->set_async_hooks_init_function(Local<Function>());
+  realm->set_async_hooks_before_function(Local<Function>());
+  realm->set_async_hooks_after_function(Local<Function>());
+  realm->set_async_hooks_destroy_function(Local<Function>());
+  realm->set_async_hooks_promise_resolve_function(Local<Function>());
+  realm->set_async_hooks_callback_trampoline(Local<Function>());
+  realm->set_async_hooks_binding(target);
 }
 
 void AsyncWrap::RegisterExternalReferences(
