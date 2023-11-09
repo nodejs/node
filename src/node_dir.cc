@@ -423,26 +423,28 @@ static void OpenDirSync(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(handle->object().As<Value>());
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Environment* env = Environment::GetCurrent(context);
-  Isolate* isolate = env->isolate();
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
 
-  SetMethod(context, target, "opendir", OpenDir);
-  SetMethod(context, target, "opendirSync", OpenDirSync);
+  SetMethod(isolate, target, "opendir", OpenDir);
+  SetMethod(isolate, target, "opendirSync", OpenDirSync);
 
   // Create FunctionTemplate for DirHandle
   Local<FunctionTemplate> dir = NewFunctionTemplate(isolate, DirHandle::New);
-  dir->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  dir->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, dir, "read", DirHandle::Read);
   SetProtoMethod(isolate, dir, "close", DirHandle::Close);
   Local<ObjectTemplate> dirt = dir->InstanceTemplate();
   dirt->SetInternalFieldCount(DirHandle::kInternalFieldCount);
-  SetConstructorFunction(context, target, "DirHandle", dir);
-  env->set_dir_instance_template(dirt);
+  SetConstructorFunction(isolate, target, "DirHandle", dir);
+  isolate_data->set_dir_instance_template(dirt);
 }
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {}
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OpenDir);
@@ -456,6 +458,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir,
+                                    node::fs_dir::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(fs_dir, node::fs_dir::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(fs_dir,
                                 node::fs_dir::RegisterExternalReferences)
