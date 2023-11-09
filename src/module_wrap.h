@@ -10,6 +10,7 @@
 
 namespace node {
 
+class IsolateData;
 class Environment;
 class ExternalReferenceRegistry;
 
@@ -40,10 +41,12 @@ class ModuleWrap : public BaseObject {
     kInternalFieldCount
   };
 
-  static void Initialize(v8::Local<v8::Object> target,
-                         v8::Local<v8::Value> unused,
-                         v8::Local<v8::Context> context,
-                         void* priv);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
+  static void CreatePerContextProperties(v8::Local<v8::Object> target,
+                                         v8::Local<v8::Value> unused,
+                                         v8::Local<v8::Context> context,
+                                         void* priv);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
   static void HostInitializeImportMetaObjectCallback(
       v8::Local<v8::Context> context,
@@ -66,7 +69,7 @@ class ModuleWrap : public BaseObject {
   }
 
  private:
-  ModuleWrap(Environment* env,
+  ModuleWrap(Realm* realm,
              v8::Local<v8::Object> object,
              v8::Local<v8::Module> module,
              v8::Local<v8::String> url,
