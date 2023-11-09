@@ -37,6 +37,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(contextify)                                                                \
   V(encoding_binding)                                                          \
   V(fs)                                                                        \
+  V(fs_dir)                                                                    \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(performance)                                                               \
