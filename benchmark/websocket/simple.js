@@ -43,8 +43,7 @@ function createFrame(data, opcode) {
 }
 
 function main(conf) {
-  const frame = createFrame(Buffer.alloc(conf.size).fill('.'), 1);
-
+  const frame = createFrame(Buffer.alloc(conf.size).fill('.'), conf.useBinary === 'true');
   const server = http.createServer();
   server.on('upgrade', (req, socket) => {
     const key = crypto
@@ -91,10 +90,14 @@ function main(conf) {
   server.listen(8080, () => {
     const ws = new WebSocket('ws://localhost:8080');
 
+    ws.addEventListener('open', () => {
+      bench.start();
+    });
+
     ws.addEventListener('message', (event) => {
       ws.send(event.data);
     });
   });
 
-  bench.start();
+
 }
