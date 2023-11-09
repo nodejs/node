@@ -1654,10 +1654,13 @@ void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
 void AsyncHooks::grow_async_ids_stack() {
   async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
-  env()->async_hooks_binding()->Set(
-      env()->context(),
-      env()->async_ids_stack_string(),
-      async_ids_stack_.GetJSArray()).Check();
+  env()
+      ->principal_realm()
+      ->async_hooks_binding()
+      ->Set(env()->context(),
+            env()->async_ids_stack_string(),
+            async_ids_stack_.GetJSArray())
+      .Check();
 }
 
 void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {

@@ -125,6 +125,10 @@ void AppendExceptionLine(Environment* env,
   inline void THROW_##code(                                                    \
       Environment* env, const char* format, Args&&... args) {                  \
     THROW_##code(env->isolate(), format, std::forward<Args>(args)...);         \
+  }                                                                            \
+  template <typename... Args>                                                  \
+  inline void THROW_##code(Realm* realm, const char* format, Args&&... args) { \
+    THROW_##code(realm->isolate(), format, std::forward<Args>(args)...);       \
   }
 ERRORS_WITH_CODE(V)
 #undef V
