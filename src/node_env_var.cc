@@ -456,7 +456,8 @@ static void EnvDefiner(Local<Name> property,
   }
 }
 
-void CreateEnvProxyTemplate(Isolate* isolate, IsolateData* isolate_data) {
+void CreateEnvProxyTemplate(IsolateData* isolate_data) {
+  Isolate* isolate = isolate_data->isolate();
   HandleScope scope(isolate);
   if (!isolate_data->env_proxy_template().IsEmpty()) return;
   Local<FunctionTemplate> env_proxy_ctor_template =
