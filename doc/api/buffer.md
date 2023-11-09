@@ -3467,14 +3467,16 @@ changes:
   **Default:** [`buf.length`][].
 * Returns: {Buffer}
 
-> Stability: 0 - Deprecated: Use [`buf.subarray`][] instead.
+> Stability: 0 - Deprecated: Instead, use either [`buf.subarray`][] for a
+> mutable view or `Uint8Array.prototype.slice.call(buf, ...)` for a new copy.
 
 Returns a new `Buffer` that references the same memory as the original, but
 offset and cropped by the `start` and `end` indices.
 
-This method is not compatible with the `Uint8Array.prototype.slice()`,
-which is a superclass of `Buffer`. To copy the slice, use
-`Uint8Array.prototype.slice()`.
+Although `Uint8Array` is a superclass of `Buffer`, the `.slice` method
+has different behavior. `Uint8Array.prototype.slice()` makes a copy of
+memory, but `Buffer.prototype.slice()` does not. To copy memory, always
+use `Uint8Array.prototype.slice.call`.
 
 ```mjs
 import { Buffer } from 'node:buffer';
