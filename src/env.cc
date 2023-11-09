@@ -504,6 +504,7 @@ void IsolateData::CreateProperties() {
   binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
+  CreateEnvProxyTemplate(this);
 }
 
 constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
