@@ -3193,7 +3193,9 @@ outgoingMessage.removeHeader('Content-Encoding');
 added: REPLACEME
 -->
 
-* `file` {string|number|URL} file path, URL or descriptor.
+> Stability: 1.1 - Active development.
+
+* `file` {string|URL|number} file path, URL or descriptor.
 * `options` {Object}
   * `start` {integer}
   * `end` {integer} **Default:** `Infinity`
@@ -3205,7 +3207,7 @@ descriptor then it's the callers responsibility to close it.
 `options` can include `start` and `end` values to read a range of bytes from
 the file instead of the entire file. Both `start` and `end` are inclusive and
 start counting at 0, allowed values are in the
-[0, [`Number.MAX_SAFE_INTEGER`][]] range. If `path` is a file descriptor and
+\[0, \[`Number.MAX_SAFE_INTEGER`]\[]] range. If `path` is a file descriptor and
 and `start` is omitted or `undefined`, `fs.createReadStream()` reads
 sequentially from the current file position.
 
@@ -4252,6 +4254,7 @@ Set the maximum number of idle HTTP parsers.
 [`net.Socket`]: net.md#class-netsocket
 [`net.createConnection()`]: net.md#netcreateconnectionoptions-connectlistener
 [`new URL()`]: url.md#new-urlinput-base
+[`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`outgoingMessage.setHeader(name, value)`]: #outgoingmessagesetheadername-value
 [`outgoingMessage.setHeaders()`]: #outgoingmessagesetheadersheaders
 [`outgoingMessage.socket`]: #outgoingmessagesocket
