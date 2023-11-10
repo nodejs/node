@@ -49,22 +49,63 @@ TEST_IMPL(tcp_connect6_error_fault) {
   int r;
   uv_connect_t req;
 
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
   garbage_addr = (const struct sockaddr_in6*) &garbage;
 
   r = uv_tcp_init(uv_default_loop(), &server);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_tcp_connect(&req,
                      &server,
                      (const struct sockaddr*) garbage_addr,
                      connect_cb);
-  ASSERT(r == UV_EINVAL);
+  ASSERT_EQ(r, UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(connect_cb_called == 0);
-  ASSERT(close_cb_called == 1);
+  ASSERT_OK(connect_cb_called);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(tcp_connect6_link_local) {
+  struct sockaddr_in6 addr;
+  uv_connect_t req;
+  uv_tcp_t server;
+
+  if (!can_ipv6())
+    RETURN_SKIP("IPv6 not supported");
+
+#if defined(__QEMU__)
+  /* qemu's sockaddr_in6 translation is broken pre-qemu 8.0.0
+   * when host endianness != guest endiannes.
+   * Fixed in https://github.com/qemu/qemu/commit/44cf6731d6b.
+   */
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif  /* defined(__QEMU__) */
+
+  ASSERT_OK(uv_ip6_addr("fe80::0bad:babe", 1337, &addr));
+  ASSERT_OK(uv_tcp_init(uv_default_loop(), &server));
+
+  /* We're making two shaky assumptions here:
+   * 1. There is a network interface that routes IPv6 link-local traffic, and
+   * 2. There is no firewall rule that blackholes or otherwise hard-kills the
+   *    connection attempt to the address above, i.e., we don't expect the
+   *    connect() system call to fail synchronously.
+   */
+  ASSERT_OK(uv_tcp_connect(&req,
+                           &server,
+                           (struct sockaddr*) &addr,
+                           connect_cb));
+
+  uv_close((uv_handle_t*) &server, NULL);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;

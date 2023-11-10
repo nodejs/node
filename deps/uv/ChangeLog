@@ -1,4 +1,113 @@
-2023.06.30, Version 1.46.0 (Stable)
+2023.11.06, Version 1.47.0 (Stable)
+
+Changes since version 1.46.0:
+
+* test: fix license blurb (Ben Noordhuis)
+
+* linux: fix harmless warn_unused_result warning (Shuduo Sang)
+
+* darwin: fix build warnings (小明)
+
+* linux: don't use io_uring on pre-5.10.186 kernels (Ben Noordhuis)
+
+* fs: fix WTF-8 decoding issue (Jameson Nash)
+
+* test: enable disabled tcp_connect6_error_fault (Ben Noordhuis)
+
+* test: enable disabled fs_link (Ben Noordhuis)
+
+* test: enable disabled spawn_same_stdout_stderr (Ben Noordhuis)
+
+* linux: handle UNAME26 personality (Ben Noordhuis)
+
+* build: move cmake_minimum_required version to 3.9 (Keith Winstein)
+
+* unix: set ipv6 scope id for link-local addresses (Ben Noordhuis)
+
+* unix: match kqueue and epoll code (Trevor Norris)
+
+* win,spawn: allow `%PATH%` to be unset (Kyle Edwards)
+
+* doc: switch to Furo, a more modern Sphinx theme (Saúl Ibarra Corretgé)
+
+* darwin: make TCP_KEEPINTVL and TCP_KEEPCNT available (小明)
+
+* win,fs: avoid winapi macro redefinition (Brad King)
+
+* linux: add missing riscv syscall numbers (michalbiesek)
+
+* doc: fix broken "Shared library" Wikipedia link (Alois Klink)
+
+* unix: get mainline kernel version in Ubuntu (Santiago Gimeno)
+
+* unix: get mainline kernel version in Debian (Ben Noordhuis)
+
+* build: fix qemu install in CI-unix workflow (Santiago Gimeno)
+
+* unix: disable io_uring close on selected kernels (Santiago Gimeno)
+
+* test: skip tests when ipv6 is not available (Santiago Gimeno)
+
+* ibmi: implement ifaddrs, getifaddrs, freeifaddrs (Abdirahim Musse)
+
+* unix: reset signal counters after fork (SmorkalovG)
+
+* win,process: avoid assert after spawning Store app (Jameson Nash)
+
+* unix: remove pread/preadv conditionals (Ben Noordhuis)
+
+* unix: remove pwrite/pwritev conditionals (Ben Noordhuis)
+
+* darwin: remove workaround for data corruption bug (Ben Noordhuis)
+
+* src: default to stream=stderr in handle printer (Ben Noordhuis)
+
+* test: switch to new-style ASSERT_EQ macros (Pleuvens)
+
+* zos: correctly get cpu model in uv_cpu_info() (jolai)
+
+* test: fix get_passwd2 on IBM i (Abdirahim Musse)
+
+* unix: don't malloc on sync uv_fs_read (Ben Noordhuis)
+
+* freebsd: get fs event path with fcntl(F_KINFO) (David Carlier)
+
+* test: switch from ASSERT_* to ASSERT_PTR_* (Pleuvens)
+
+* darwin: workaround apple pthread_cond_wait bug (Julien Roncaglia)
+
+* doc: uv_close should be called after exit callback (Pleuvens)
+
+* test: 192.0.2.0/24 is the actual -TEST-NET-1 (prubel)
+
+* unix: add back preadv/pwritev fallback (Ben Noordhuis)
+
+* unix: rename variable for consistency (Ben Noordhuis)
+
+* unix: merge read/write code into single functions (Ben Noordhuis)
+
+* doc: filename arg to uv_fs_event_cb can be NULL (Ben Noordhuis)
+
+* build,win: we need to link against shell32.lib (Per Allansson)
+
+* unix: no preadv/pwritev workaround if not needed (Jeffrey H. Johnson)
+
+* build: add CI for Windows ARM64 (build only) (Per Allansson)
+
+* linux: disable io_uring on 32 bits arm systems (Ben Noordhuis)
+
+* build: run sanitizers on macos ci (Ben Noordhuis)
+
+* misc: export WTF8 conversion utilities (Jameson Nash)
+
+* build: fix libuv.a file name for cmake (Jameson Nash)
+
+* build: add windows ubsan and clang ci (Matheus Izvekov)
+
+* win: improve accuracy of ProductName between arch (Christian Heimlich)
+
+
+2023.06.30, Version 1.46.0 (Stable), f0bb7e40f0508bedf6fad33769b3f87bb8aedfa6
 
 Changes since version 1.45.0:
 
