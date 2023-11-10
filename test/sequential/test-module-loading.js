@@ -128,7 +128,7 @@ assert.throws(
 
 assert.throws(
   function() { require('../fixtures/packages/unparseable'); },
-  /^SyntaxError: Error parsing/
+  /^Error: Invalid package config/
 );
 
 {
