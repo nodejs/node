@@ -843,6 +843,66 @@ Spawn a new worker process.
 
 This can only be called from the primary process.
 
+```mjs
+import http from 'node:http';
+import cluster from 'node:cluster';
+import os from 'node:os';
+
+const numCPUs = os.cpus().length;
+
+if (cluster.isPrimary) {
+  for (let i = 0; i < numCPUs; i++) {
+    // Workers will be created depending on the CPUs numbers.
+    const worker = cluster.fork();
+
+    // Received messages from the created worker.
+    worker.on('message', (msg) => {
+      console.log(`Received message from worker: ${msg}`);
+    });
+  }
+} else {
+  const server = http.createServer((req, res) => {
+    process.send(process.pid);
+
+    res.writeHead(200);
+    res.end(`Hello World from worker: ${process.pid}`);
+  });
+
+  server.listen(3000, () => {
+    console.log(`Worker ${process.pid} listening on the port 3000`);
+  });
+}
+```
+
+```cjs
+const http = require('node:http');
+const cluster = require('node:cluster');
+const numCPUs = require('node:os').cpus().length;
+
+if (cluster.isPrimary) {
+  for (let i = 0; i < numCPUs; i++) {
+    // Workers will be created depending on the CPUs numbers.
+    const worker = cluster.fork();
+
+    // Received messages from the created worker.
+    worker.on('message', (msg) => {
+      console.log(`Received message from worker: ${msg}`);
+    });
+  }
+} else {
+  const server = http.createServer((req, res) => {
+    process.send(process.pid);
+
+    res.writeHead(200);
+    res.end(`Hello World from worker: ${process.pid}`);
+  });
+
+  server.listen(3000, () => {
+    console.log(`Worker ${process.pid} listening on the port 3000`);
+  });
+}
+```
+
 ## `cluster.isMaster`
 
 <!-- YAML
