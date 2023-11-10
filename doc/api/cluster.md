@@ -830,6 +830,66 @@ finished.
 
 This can only be called from the primary process.
 
+```mjs
+import http from 'node:http';
+import cluster from 'node:cluster';
+import process from 'node:process';
+
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+
+  worker.on('message', (msg) => {
+    if (msg === 'shutdown') {
+      // Workers will be killed once finished the callback will be called.
+      cluster.disconnect(() => {
+        console.log('All workers killed');
+      });
+    }
+  });
+} else {
+  const server = http.createServer((req, res) => {
+    process.send('shutdown');
+
+    res.writeHead(200);
+    res.end(`Hello World from worker: ${process.pid}`);
+  });
+
+  server.listen(3000, () => {
+    console.log(`Worker ${process.pid} listening on the port 3000`);
+  });
+}
+```
+
+```cjs
+const http = require('node:http');
+const cluster = require('node:cluster');
+const process = require('node:process');
+
+if (cluster.isPrimary) {
+  const worker = cluster.fork();
+
+  worker.on('message', (msg) => {
+    if (msg === 'shutdown') {
+      // Workers will be killed once finished the callback will be called.
+      cluster.disconnect(() => {
+        console.log('All workers killed');
+      });
+    }
+  });
+} else {
+  const server = http.createServer((req, res) => {
+    process.send('shutdown');
+
+    res.writeHead(200);
+    res.end(`Hello World from worker: ${process.pid}`);
+  });
+
+  server.listen(3000, () => {
+    console.log(`Worker ${process.pid} listening on the port 3000`);
+  });
+}
+```
+
 ## `cluster.fork([env])`
 
 <!-- YAML
@@ -847,6 +907,7 @@ This can only be called from the primary process.
 import http from 'node:http';
 import cluster from 'node:cluster';
 import os from 'node:os';
+import process from 'node:process';
 
 const numCPUs = os.cpus().length;
 
@@ -878,6 +939,7 @@ if (cluster.isPrimary) {
 const http = require('node:http');
 const cluster = require('node:cluster');
 const numCPUs = require('node:os').cpus().length;
+const process = require('node:process');
 
 if (cluster.isPrimary) {
   for (let i = 0; i < numCPUs; i++) {
