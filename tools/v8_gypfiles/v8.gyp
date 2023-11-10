@@ -1736,7 +1736,12 @@
           ['enable_lto=="true"', {
             'cflags_cc': [ '-fno-lto' ],
           }],
-          ['clang or OS!="win"', {
+          ['(clang or OS!="win") and v8_enable_simulator == 1', {
+              'sources': [
+                '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_asm.cc',
+              ],
+          }],
+          ['(clang or OS!="win") and v8_enable_simulator == 0', {
             'conditions': [
               ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
                 'sources': [
