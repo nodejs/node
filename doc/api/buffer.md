@@ -3475,7 +3475,7 @@ offset and cropped by the `start` and `end` indices.
 
 Although `Uint8Array` is a superclass of `Buffer`, the `.slice` method
 has different behavior. `Uint8Array.prototype.slice()` makes a copy of
-memory, but `Buffer.prototype.slice()` does not. To copy memory, always
+memory, but `Buffer.prototype.slice()` does not. To copy memory,
 use `Uint8Array.prototype.slice.call`.
 
 ```mjs
