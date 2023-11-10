@@ -467,7 +467,7 @@ terminated prematurely (before the response completion).
 added: v0.7.0
 -->
 
-* `response` {http.IncomingMessage}
+* `request` {http.IncomingMessage}
 * `socket` {stream.Duplex}
 * `head` {Buffer}
 
@@ -713,7 +713,7 @@ See also: [`request.setTimeout()`][].
 added: v0.1.94
 -->
 
-* `response` {http.IncomingMessage}
+* `request` {http.IncomingMessage}
 * `socket` {stream.Duplex}
 * `head` {Buffer}
 
