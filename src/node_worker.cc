@@ -445,6 +445,8 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  auto is_internal = args[5];
+  CHECK(is_internal->IsBoolean());
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
@@ -468,9 +470,9 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
     url.append(value.out(), value.length());
   }
 
-  if (!args[5]->IsNullOrUndefined()) {
+  if (!args[6]->IsNullOrUndefined()) {
     Utf8Value value(
-        isolate, args[5]->ToString(env->context()).FromMaybe(Local<String>()));
+        isolate, args[6]->ToString(env->context()).FromMaybe(Local<String>()));
     name.append(value.out(), value.length());
   }
 

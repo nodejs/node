@@ -2,6 +2,7 @@
 // node --loader ./test/fixtures/es-module-loaders/hooks-input.mjs ./test/fixtures/es-modules/json-modules.mjs
 
 import assert from 'assert';
+import { writeSync } from 'fs';
 import { readFile } from 'fs/promises';
 import { fileURLToPath } from 'url';
 
@@ -17,15 +18,12 @@ export async function resolve(specifier, context, next) {
     url = new URL(specifier).href;
     assert.match(specifier, /json-modules\.mjs$/);
     assert.strictEqual(context.parentURL, undefined);
-    assert.deepStrictEqual(context.importAssertions, {
-      __proto__: null,
-    });
+    assert.deepStrictEqual(context.importAssertions, {});
   } else if (resolveCalls === 2) {
     url = new URL(specifier, context.parentURL).href;
     assert.match(specifier, /experimental\.json$/);
     assert.match(context.parentURL, /json-modules\.mjs$/);
     assert.deepStrictEqual(context.importAssertions, {
-      __proto__: null,
       type: 'json',
     });
   }
@@ -45,7 +43,7 @@ export async function resolve(specifier, context, next) {
     shortCircuit: true,
   }
 
-  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
+  writeSync(1, JSON.stringify(returnValue) + '\n'); // For the test to validate when it parses stdout
 
   return returnValue;
 }
@@ -57,14 +55,11 @@ export async function load(url, context, next) {
 
   if (loadCalls === 1) {
     assert.match(url, /json-modules\.mjs$/);
-    assert.deepStrictEqual(context.importAssertions, {
-      __proto__: null,
-    });
+    assert.deepStrictEqual(context.importAssertions, {});
     format = 'module';
   } else if (loadCalls === 2) {
     assert.match(url, /experimental\.json$/);
     assert.deepStrictEqual(context.importAssertions, {
-      __proto__: null,
       type: 'json',
     });
     format = 'json';
@@ -85,7 +80,7 @@ export async function load(url, context, next) {
     shortCircuit: true,
   };
 
-  console.log(JSON.stringify(returnValue)); // For the test to validate when it parses stdout
+  writeSync(1, JSON.stringify(returnValue) + '\n'); // For the test to validate when it parses stdout
 
   return returnValue;
 }
