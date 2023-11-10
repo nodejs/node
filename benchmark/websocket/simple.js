@@ -43,7 +43,7 @@ function createFrame(data, opcode) {
 }
 
 function main(conf) {
-  const frame = createFrame(Buffer.alloc(conf.size).fill('.'), conf.useBinary === 'true');
+  const frame = createFrame(Buffer.alloc(conf.size).fill('.'), conf.useBinary === 'true' ? 2 : 1);
   const server = http.createServer();
   server.on('upgrade', (req, socket) => {
     const key = crypto
@@ -98,6 +98,4 @@ function main(conf) {
       ws.send(event.data);
     });
   });
-
-
 }
