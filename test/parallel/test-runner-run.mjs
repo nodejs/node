@@ -176,6 +176,17 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 
   describe('AbortSignal', () => {
+    it('should accept a signal', async () => {
+      const stream = run({ signal: AbortSignal.timeout(50), files: [
+        fixtures.path('test-runner', 'never_ending_sync.js'),
+        fixtures.path('test-runner', 'never_ending_async.js'),
+      ] });
+      stream.on('test:fail', common.mustCall(2));
+      stream.on('test:pass', common.mustNotCall());
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
     it('should stop watch mode when abortSignal aborts', async () => {
       const controller = new AbortController();
       const result = await run({
