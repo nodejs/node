@@ -419,6 +419,8 @@ For information about the governance of the Node.js project, see
   **Alba Mendez** <<me@alba.sh>> (she/her)
 * [MoLow](https://github.com/MoLow) -
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
+* [MrJithil](https://github.com/MrJithil) -
+  **Jithil P Ponnan** <<jithil@outlook.com>> (he/him)
 * [mscdex](https://github.com/mscdex) -
   **Brian White** <<mscdex@mscdex.net>>
 * [MylesBorins](https://github.com/MylesBorins) -
