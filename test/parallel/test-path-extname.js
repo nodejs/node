@@ -69,7 +69,7 @@ for (const testPath of testPaths) {
       JSON.stringify(expected)}\n  actual=${JSON.stringify(actual)}`;
     if (actual !== expected)
       failures.push(`\n${message}`);
-  };
+  }
   const input = `C:${testPath[0].replace(slashRE, '\\')}`;
   const actual = path.win32.extname(input);
   const message = `path.win32.extname(${JSON.stringify(input)})\n  expect=${
