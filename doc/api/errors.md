@@ -1947,6 +1947,13 @@ for more information.
 
 An invalid HTTP token was supplied.
 
+<a id="ERR_INVALID_IMPORT_MAP"></a>
+
+### `ERR_INVALID_IMPORT_MAP`
+
+An invalid import map file was supplied. This error can throw for a variety
+of conditions which will change the error message for added context.
+
 <a id="ERR_INVALID_IP_ADDRESS"></a>
 
 ### `ERR_INVALID_IP_ADDRESS`

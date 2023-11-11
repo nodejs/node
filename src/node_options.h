@@ -181,6 +181,7 @@ class EnvironmentOptions : public Options {
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
   std::vector<std::string> userland_loaders;
+  std::string import_map_specifier;
   bool verify_base_objects =
 #ifdef DEBUG
       true;

@@ -1,0 +1,16 @@
+{
+  "imports": {
+    "foo": "node_modules/foo/index.mjs"
+  },
+  "scopes": {
+    "node_modules/foo": {
+      "bar": "node_modules/bar/zed.mjs"
+    },
+    "node_modules/bar": {
+      "zed": "node_modules/bar/node_modules/zed/index.mjs"
+    },
+    "node_modules/bar/node_modules/zed": {
+      "zed": "baz.mjs"
+    }
+  }
+}

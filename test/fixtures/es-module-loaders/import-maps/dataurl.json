@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "foo": "data:text/javascript,export default () => 'data'"
+  },
+  "scopes": {}
+}
