@@ -1,0 +1,9 @@
+{
+  "name": "node-biome",
+  "version": "1.0.0",
+  "description": "Formatting JavaScript and JSON files for Node.js core",
+  "license": "MIT",
+  "dependencies": {
+    "@biomejs/biome": "^1.5.3"
+  }
+}

@@ -22,7 +22,6 @@ function findCoverageFileForPid(pid) {
 }
 
 function getTapCoverageFixtureReport() {
-  /* eslint-disable max-len */
   const report = [
     '# start of coverage report',
     '# -------------------------------------------------------------------------------------------------------------------',
@@ -36,7 +35,6 @@ function getTapCoverageFixtureReport() {
     '# -------------------------------------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
-  /* eslint-enable max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
@@ -46,7 +44,6 @@ function getTapCoverageFixtureReport() {
 }
 
 function getSpecCoverageFixtureReport() {
-  /* eslint-disable max-len */
   const report = [
     '\u2139 start of coverage report',
     '\u2139 -------------------------------------------------------------------------------------------------------------------',
@@ -60,7 +57,6 @@ function getSpecCoverageFixtureReport() {
     '\u2139 -------------------------------------------------------------------------------------------------------------------',
     '\u2139 end of coverage report',
   ].join('\n');
-  /* eslint-enable max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');

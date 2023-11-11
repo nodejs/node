@@ -109,6 +109,8 @@ licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/gypi
 addlicense "gypi_to_gn.py" "tools/gypi_to_gn.py" "$licenseText"
 licenseText="$(cat "${rootdir}/tools/node_modules/eslint/LICENSE")"
 addlicense "ESLint" "tools/node_modules/eslint" "$licenseText"
+licenseText="$(curl -sL https://raw.githubusercontent.com/biomejs/biome/HEAD/LICENSE-MIT)"
+addlicense "biome" "tools/biome/node_modules/@biomejs/biome" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/googletest/LICENSE")"
 addlicense "gtest" "deps/googletest" "$licenseText"
 

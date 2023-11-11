@@ -1450,6 +1450,40 @@ FORMAT_CPP_FILES += $(wildcard \
 # and the actual filename is generated so it won't match header guards
 ADDON_DOC_LINT_FLAGS=-whitespace/ending_newline,-build/header_guard
 
+.PHONY: format-js-build
+format-js-build:
+	cd tools/biome && $(call available-node,$(run-npm-ci))
+
+.PHONY: format-js-clean
+.NOTPARALLEL: format-js-clean
+format-js-clean:
+	$(RM) -r tools/biome/node_modules
+
+.PHONY: format-js
+format-js: ## Format JS files
+ifneq ("","$(wildcard tools/biome/node_modules/)")
+	tools/biome/node_modules/.bin/biome \
+		check . \
+		--apply \
+		--changed \
+		--no-errors-on-unmatched
+else
+	$(info Required tooling for JavaScript code formatting is not installed.)
+	$(info To install (requires internet access) run: $$ make format-js-build)
+endif
+
+.PHONY: format-js-check
+format-js-check: ## Format JS files
+ifneq ("","$(wildcard tools/biome/node_modules/)")
+	tools/biome/node_modules/.bin/biome \
+		check . \
+		--changed \
+		--no-errors-on-unmatched
+else
+	$(info Required tooling for JavaScript code formatting is not installed.)
+	$(info To install (requires internet access) run: $$ make format-js-build)
+endif
+
 .PHONY: format-cpp-build
 format-cpp-build:
 	cd tools/clang-format && $(call available-node,$(run-npm-ci))

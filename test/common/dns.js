@@ -40,7 +40,6 @@ function readDomainFromPacket(buffer, offset) {
   }
   // Pointer to another part of the packet.
   assert.strictEqual(length & 0xC0, 0xC0);
-  // eslint-disable-next-line space-infix-ops, space-unary-ops
   const pointeeOffset = buffer.readUInt16BE(offset) &~ 0xC000;
   return {
     nread: 2,

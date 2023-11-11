@@ -17,6 +17,7 @@ on:
           - acorn-walk
           - ada
           - base64
+          - biome
           - brotli
           - c-ares
           - cjs-module-lexer
@@ -85,6 +86,14 @@ jobs:
             label: dependencies
             run: |
               ./tools/dep_updaters/update-base64.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: biome
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-biome.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
