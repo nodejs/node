@@ -348,7 +348,7 @@ For information about the governance of the Node.js project, see
 * [F3n67u](https://github.com/F3n67u) -
   **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [Flarna](https://github.com/Flarna) -
-  **Gerhard Stöbich** <<deb2001-github@yahoo.de>>  (he/they)
+  **Gerhard Stöbich** <<deb2001-github@yahoo.de>> (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
   **Gabriel Schulhof** <<gabrielschulhof@gmail.com>>
 * [gengjiawen](https://github.com/gengjiawen) -
