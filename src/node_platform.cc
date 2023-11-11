@@ -560,7 +560,7 @@ v8::TracingController* NodePlatform::GetTracingController() {
 Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
   return []() {
     fprintf(stderr, "\n");
-    DumpBacktrace(stderr);
+    DumpNativeBacktrace(stderr);
     fflush(stderr);
   };
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,7 +56,7 @@ static int test_encrypt_decrypt(const EVP_CIPHER *cipher)
     BIO_free(outmsgbio);
     CMS_ContentInfo_free(content);
 
-    return testresult;
+    return testresult && TEST_int_eq(ERR_peek_error(), 0);
 }
 
 static int test_encrypt_decrypt_aes_cbc(void)
@@ -286,7 +286,7 @@ static int test_d2i_CMS_bio_NULL(void)
                                   CMS_NO_SIGNER_CERT_VERIFY));
     CMS_ContentInfo_free(cms);
     BIO_free(bio);
-    return ret;
+    return ret && TEST_int_eq(ERR_peek_error(), 0);
 }
 
 static unsigned char *read_all(BIO *bio, long *p_len)

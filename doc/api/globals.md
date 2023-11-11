@@ -600,7 +600,8 @@ This variable may appear to be global but is not. See [`module`][].
 added: v21.0.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Disable this API with the
+> [`--no-experimental-global-navigator`][] CLI flag.
 
 A partial implementation of the [Navigator API][].
 
@@ -610,17 +611,10 @@ A partial implementation of the [Navigator API][].
 added: v21.0.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.1 - Active development. Disable this API with the
+> [`--no-experimental-global-navigator`][] CLI flag.
 
 A partial implementation of [`window.navigator`][].
-
-If your app or a dependency uses a check for `navigator` to determine whether it
-is running in a browser, the following can be used to delete the `navigator`
-global before app code runs:
-
-```bash
-node --import 'data:text/javascript,delete globalThis.navigator' app.js
-```
 
 ### `navigator.hardwareConcurrency`
 
@@ -635,6 +629,62 @@ logical processors available to the current Node.js instance.
 
 ```js
 console.log(`This process is running on ${navigator.hardwareConcurrency} logical processors`);
+```
+
+### `navigator.language`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.language` read-only property returns a string representing the
+preferred language of the Node.js instance. The language will be determined by
+the ICU library used by Node.js at runtime based on the
+default language of the operating system.
+
+The value is representing the language version as defined in [RFC 5646][].
+
+The fallback value on builds without ICU is `'en-US'`.
+
+```js
+console.log(`The preferred language of the Node.js instance has the tag '${navigator.language}'`);
+```
+
+### `navigator.languages`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Array<string>}
+
+The `navigator.languages` read-only property returns an array of strings
+representing the preferred languages of the Node.js instance.
+By default `navigator.languages` contains only the value of
+`navigator.language`, which will be determined by the ICU library used by
+Node.js at runtime based on the default language of the operating system.
+
+The fallback value on builds without ICU is `['en-US']`.
+
+```js
+console.log(`The preferred languages are '${navigator.languages}'`);
+```
+
+### `navigator.platform`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The `navigator.platform` read-only property returns a string identifying the
+platform on which the Node.js instance is running.
+
+```js
+console.log(`This process is running on ${navigator.platform}`);
 ```
 
 ### `navigator.userAgent`
@@ -1085,9 +1135,11 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [CommonJS module]: modules.md
 [ECMAScript module]: esm.md
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
+[RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
 [`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
+[`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy

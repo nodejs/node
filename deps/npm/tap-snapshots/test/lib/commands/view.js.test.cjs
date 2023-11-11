@@ -315,6 +315,10 @@ maintainers[0].name = 'claudia'
 maintainers[1].name = 'isaacs'
 `
 
+exports[`test/lib/commands/view.js TAP specific field names fields with empty values > must match snapshot 1`] = `
+
+`
+
 exports[`test/lib/commands/view.js TAP specific field names maintainers with email > must match snapshot 1`] = `
 maintainers = [
   { name: 'claudia', email: 'c@yellow.com', twitter: 'cyellow' },

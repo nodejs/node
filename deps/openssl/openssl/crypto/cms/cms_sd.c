@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -233,9 +233,9 @@ static int cms_sd_asn1_ctrl(CMS_SignerInfo *si, int cmd)
     int i;
 
     if (EVP_PKEY_is_a(pkey, "DSA") || EVP_PKEY_is_a(pkey, "EC"))
-        return ossl_cms_ecdsa_dsa_sign(si, cmd);
+        return ossl_cms_ecdsa_dsa_sign(si, cmd) > 0;
     else if (EVP_PKEY_is_a(pkey, "RSA") || EVP_PKEY_is_a(pkey, "RSA-PSS"))
-        return ossl_cms_rsa_sign(si, cmd);
+        return ossl_cms_rsa_sign(si, cmd) > 0;
 
     /* Something else? We'll give engines etc a chance to handle this */
     if (pkey->ameth == NULL || pkey->ameth->pkey_ctrl == NULL)
@@ -354,11 +354,16 @@ CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms,
 
     if (md == NULL) {
         int def_nid;
-        if (EVP_PKEY_get_default_digest_nid(pk, &def_nid) <= 0)
+
+        if (EVP_PKEY_get_default_digest_nid(pk, &def_nid) <= 0) {
+            ERR_raise_data(ERR_LIB_CMS, CMS_R_NO_DEFAULT_DIGEST,
+                           "pkey nid=%d", EVP_PKEY_get_id(pk));
             goto err;
+        }
         md = EVP_get_digestbynid(def_nid);
         if (md == NULL) {
-            ERR_raise(ERR_LIB_CMS, CMS_R_NO_DEFAULT_DIGEST);
+            ERR_raise_data(ERR_LIB_CMS, CMS_R_NO_DEFAULT_DIGEST,
+                           "default md nid=%d", def_nid);
             goto err;
         }
     }
@@ -398,8 +403,11 @@ CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms,
         }
     }
 
-    if (!(flags & CMS_KEY_PARAM) && !cms_sd_asn1_ctrl(si, 0))
+    if (!(flags & CMS_KEY_PARAM) && !cms_sd_asn1_ctrl(si, 0)) {
+        ERR_raise_data(ERR_LIB_CMS, CMS_R_UNSUPPORTED_SIGNATURE_ALGORITHM,
+                       "pkey nid=%d", EVP_PKEY_get_id(pk));
         goto err;
+    }
     if (!(flags & CMS_NOATTR)) {
         /*
          * Initialize signed attributes structure so other attributes

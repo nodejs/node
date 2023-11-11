@@ -1681,6 +1681,8 @@ end:
     return testresult;
 }
 
+#if !defined(OPENSSL_NO_TLS1_2) || !defined(OSSL_NO_USABLE_TLS1_3) \
+    || !defined(OPENSSL_NO_DTLS)
 static int execute_cleanse_plaintext(const SSL_METHOD *smeth,
                                      const SSL_METHOD *cmeth,
                                      int min_version, int max_version)
@@ -1702,15 +1704,13 @@ static int execute_cleanse_plaintext(const SSL_METHOD *smeth,
                                        privkey)))
         goto end;
 
-#ifdef OPENSSL_NO_DTLS1_2
-    if (smeth == DTLS_server_method()) {
 # ifdef OPENSSL_NO_DTLS1_2
+    if (smeth == DTLS_server_method()) {
         /* Not supported in the FIPS provider */
         if (is_fips) {
             testresult = 1;
             goto end;
         };
-# endif
         /*
          * Default sigalgs are SHA1 based in <DTLS1.2 which is in security
          * level 0
@@ -1720,7 +1720,7 @@ static int execute_cleanse_plaintext(const SSL_METHOD *smeth,
                                                     "DEFAULT:@SECLEVEL=0")))
             goto end;
     }
-#endif
+# endif
 
     if (!TEST_true(create_ssl_objects(sctx, cctx, &serverssl, &clientssl,
                                       NULL, NULL)))
@@ -1784,6 +1784,10 @@ static int execute_cleanse_plaintext(const SSL_METHOD *smeth,
 
     return testresult;
 }
+#endif /*
+        * !defined(OPENSSL_NO_TLS1_2) || !defined(OSSL_NO_USABLE_TLS1_3)
+        * || !defined(OPENSSL_NO_DTLS)
+        */
 
 static int test_cleanse_plaintext(void)
 {

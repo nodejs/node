@@ -8,9 +8,9 @@ directories to create the Node.js binaries.
 All dependencies are located within the `deps` directory.
 This a list of all the dependencies:
 
-* [acorn 8.10.0][]
+* [acorn 8.11.2][]
 * [ada 2.7.2][]
-* [base64 0.5.0][]
+* [base64 0.5.1][]
 * [brotli 1.0.9][]
 * [c-ares 1.20.1][]
 * [cjs-module-lexer 1.2.2][]
@@ -21,17 +21,17 @@ This a list of all the dependencies:
 * [libuv 1.46.0][]
 * [llhttp 9.1.3][]
 * [minimatch 9.0.3][]
-* [nghttp2 1.57.0][]
+* [nghttp2 1.58.0][]
 * [nghttp3 0.7.0][]
 * [ngtcp2 0.8.1][]
 * [npm 9.6.7][]
 * [openssl 3.0.8][]
 * [postject 1.0.0-alpha.6][]
 * [simdutf 3.2.18][]
-* [undici 5.26.4][]
+* [undici 5.27.0][]
 * [uvwasi 0.0.19][]
 * [V8 11.8.172.12][]
-* [zlib 1.2.13.1-motley-fef5869][]
+* [zlib 1.2.13.1-motley-dfc48fc][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -144,7 +144,7 @@ takes care of npm update, it is maintained by the npm team.
 
 ## Dependency list
 
-### acorn 8.10.0
+### acorn 8.11.2
 
 The [acorn](https://github.com/acornjs/acorn) dependency is a JavaScript parser.
 [acorn-walk](https://github.com/acornjs/acorn/tree/master/acorn-walk) is
@@ -155,7 +155,7 @@ an abstract syntax tree walker for the ESTree format.
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
 
-### base64 0.5.0
+### base64 0.5.1
 
 The [base64](https://github.com/aklomp/base64) dependency is a base64
 stream encoding/decoding library in C99 with SIMD and OpenMP acceleration.
@@ -223,7 +223,7 @@ See [maintaining-http][] for more informations.
 The [minimatch](https://github.com/isaacs/minimatch) dependency is a
 minimal matching utility.
 
-### nghttp2 1.57.0
+### nghttp2 1.58.0
 
 The [nghttp2](https://github.com/nghttp2/nghttp2) dependency is a C library
 implementing HTTP/2 protocol.
@@ -291,7 +291,7 @@ The [postject](https://github.com/nodejs/postject) dependency is used for the
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
 
-### undici 5.26.4
+### undici 5.27.0
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
 written from scratch for Node.js..
@@ -311,16 +311,16 @@ See [maintaining-web-assembly][] for more informations.
 high-performance JavaScript and WebAssembly engine, written in C++.
 See [maintaining-V8][] for more informations.
 
-### zlib 1.2.13.1-motley-fef5869
+### zlib 1.2.13.1-motley-dfc48fc
 
 The [zlib](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/zlib)
 dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
-[acorn 8.10.0]: #acorn-8100
+[acorn 8.11.2]: #acorn-8112
 [ada 2.7.2]: #ada-272
-[base64 0.5.0]: #base64-050
+[base64 0.5.1]: #base64-051
 [brotli 1.0.9]: #brotli-109
 [c-ares 1.20.1]: #c-ares-1201
 [cjs-module-lexer 1.2.2]: #cjs-module-lexer-122
@@ -338,15 +338,15 @@ performance improvements not currently available in standard zlib.
 [maintaining-openssl]: ./maintaining-openssl.md
 [maintaining-web-assembly]: ./maintaining-web-assembly.md
 [minimatch 9.0.3]: #minimatch-903
-[nghttp2 1.57.0]: #nghttp2-1570
+[nghttp2 1.58.0]: #nghttp2-1580
 [nghttp3 0.7.0]: #nghttp3-070
 [ngtcp2 0.8.1]: #ngtcp2-081
 [npm 9.6.7]: #npm-967
 [openssl 3.0.8]: #openssl-308
 [postject 1.0.0-alpha.6]: #postject-100-alpha6
 [simdutf 3.2.18]: #simdutf-3218
-[undici 5.26.4]: #undici-5264
+[undici 5.27.0]: #undici-5270
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi 0.0.19]: #uvwasi-0019
 [v8 11.8.172.12]: #v8-11817212
-[zlib 1.2.13.1-motley-fef5869]: #zlib-12131-motley-fef5869
+[zlib 1.2.13.1-motley-dfc48fc]: #zlib-12131-motley-dfc48fc
