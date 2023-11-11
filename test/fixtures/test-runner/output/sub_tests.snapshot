@@ -1,0 +1,31 @@
+TAP version 13
+# Subtest: parent 1
+    # Subtest: running subtest 1
+    ok 1 - running subtest 1
+      ---
+      duration_ms: *
+      ...
+    # Subtest: skipped subtest 2
+    ok 2 - skipped subtest 2 # SKIP
+      ---
+      duration_ms: *
+      ...
+    # Subtest: mark subtest 3 as todo
+    ok 3 - mark subtest 3 as todo # TODO
+      ---
+      duration_ms: *
+      ...
+    1..3
+ok 1 - parent 1
+  ---
+  duration_ms: *
+  ...
+1..1
+# tests 4
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 1
+# duration_ms *

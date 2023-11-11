@@ -119,3 +119,9 @@ describe('describe only = false, with nested only subtests', { only: false }, co
     test.only('nested test should run', common.mustNotCall());
   }));
 }));
+
+test('only = true, with subtests and test.only', { only: true }, async (t) => {
+  await t.test('skipped subtest 1');
+  await t.test.skip('skipped subtest 2');
+  await t.test.only('running subtest 3');
+});
