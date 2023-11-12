@@ -2203,6 +2203,9 @@ The `produceCachedData` option is deprecated. Use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50687
+    description: Upgraded to a runtime deprecation.
   - version: v11.12.0
     pr-url: https://github.com/nodejs/node/pull/26500
     description: Added support for `--pending-deprecation`.
@@ -2211,7 +2214,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 `process.binding()` is for use by Node.js internal code only.
 
@@ -2604,12 +2607,15 @@ Prefer [`response.socket`][] over [`response.connection`][] and
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50687
+    description: Upgraded to a runtime deprecation.
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29781
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only (supports [`--pending-deprecation`][])
+Type: Runtime
 
 The `process._tickCallback` property was never documented as
 an officially supported API.

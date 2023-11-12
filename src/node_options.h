@@ -188,6 +188,16 @@ class EnvironmentOptions : public Options {
       false;
 #endif  // DEBUG
 
+  // TODO(@jasnell): In preparation for the eventual complete removal of
+  // the deprecated process.binding, this option controls whether or not
+  // process.binding is available. Currently the default is true, making
+  // the deprecated API available, albeit with a runtime deprecation message.
+  // Then, later, we can change the default to false, giving folks the option
+  // to re-enable if they really need it. Then, as the final step, we would
+  // remove the deprecated api entirely, in which case this option becomes
+  // a non-op.
+  bool deprecated_process_binding = true;
+
   bool watch_mode = false;
   bool watch_mode_report_to_parent = false;
   bool watch_mode_preserve_output = false;
