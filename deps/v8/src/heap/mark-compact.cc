@@ -2522,6 +2522,10 @@ class ClearStringTableJobItem final : public ParallelClearingJob::ClearingItem {
                       GCTracer::Scope::MC_CLEAR_STRING_TABLE)) {}
 
   void Run(JobDelegate* delegate) final {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate_);
+
     if (isolate_->OwnsStringTables()) {
       TRACE_GC1_WITH_FLOW(isolate_->heap()->tracer(),
                           GCTracer::Scope::MC_CLEAR_STRING_TABLE,
@@ -4135,6 +4139,11 @@ class PageEvacuationJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(
+        collector_->heap()->isolate());
+
     Evacuator* evacuator = (*evacuators_)[delegate->GetTaskId()].get();
     if (delegate->IsJoiningThread()) {
       TRACE_GC_WITH_FLOW(tracer_, GCTracer::Scope::MC_EVACUATE_COPY_PARALLEL,
@@ -4471,6 +4480,11 @@ class PointersUpdatingJob : public v8::JobTask {
                   tracer_->CurrentEpoch(GCTracer::Scope::MC_EVACUATE)) {}
 
   void Run(JobDelegate* delegate) override {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(
+        collector_->heap()->isolate());
+
     if (delegate->IsJoiningThread()) {
       TRACE_GC_WITH_FLOW(tracer_,
                          GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_PARALLEL,

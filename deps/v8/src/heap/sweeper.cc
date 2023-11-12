@@ -144,6 +144,11 @@ class Sweeper::MajorSweeperJob final : public JobTask {
 
  private:
   void RunImpl(JobDelegate* delegate, bool is_joining_thread) {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(
+        sweeper_->heap_->isolate());
+
     DCHECK(sweeper_->major_sweeping_in_progress());
     const int offset = delegate->GetTaskId();
     DCHECK_LT(offset, concurrent_sweepers.size());
@@ -213,6 +218,11 @@ class Sweeper::MinorSweeperJob final : public JobTask {
         tracer_, sweeper_->GetTracingScope(NEW_SPACE, is_joining_thread),
         is_joining_thread ? ThreadKind::kMain : ThreadKind::kBackground,
         trace_id_, TRACE_EVENT_FLAG_FLOW_IN);
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(
+        sweeper_->heap_->isolate());
+
     if (!concurrent_sweeper.ConcurrentSweepSpace(delegate)) return;
     concurrent_sweeper.ConcurrentSweepPromotedPages(delegate);
   }
