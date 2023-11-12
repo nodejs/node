@@ -225,16 +225,19 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  req_wrap->Dispatch(
+  int err = req_wrap->Dispatch(
       uv_pipe_connect2, &wrap->handle_, *name, name.length(), 0, AfterConnect);
+  if (err) {
+    delete req_wrap;
+  } else {
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
+                                      "connect",
+                                      req_wrap,
+                                      "pipe_path",
+                                      TRACE_STR_COPY(*name));
+  }
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
-                                    "connect",
-                                    req_wrap,
-                                    "pipe_path",
-                                    TRACE_STR_COPY(*name));
-
-  args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
+  args.GetReturnValue().Set(err);
 }
 
 }  // namespace node
