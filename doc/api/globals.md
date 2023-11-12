@@ -634,7 +634,7 @@ console.log(`This process is running on ${navigator.hardwareConcurrency} logical
 ### `navigator.language`
 
 <!-- YAML
-added: REPLACEME
+added: v21.2.0
 -->
 
 * {string}
@@ -655,7 +655,7 @@ console.log(`The preferred language of the Node.js instance has the tag '${navig
 ### `navigator.languages`
 
 <!-- YAML
-added: REPLACEME
+added: v21.2.0
 -->
 
 * {Array<string>}
@@ -675,7 +675,7 @@ console.log(`The preferred languages are '${navigator.languages}'`);
 ### `navigator.platform`
 
 <!-- YAML
-added: REPLACEME
+added: v21.2.0
 -->
 
 * {string}

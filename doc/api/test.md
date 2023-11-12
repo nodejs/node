@@ -1817,7 +1817,7 @@ which is a `MockTimers` instance.
 added:
   - v20.4.0
 changes:
-  - version: REPLACEME
+  - version: v21.2.0
     pr-url: https://github.com/nodejs/node/pull/48638
     description: Updated parameters to be an option object with available APIs
                  and the default initial epoch.
@@ -2303,7 +2303,7 @@ clocks or actual timers outside of the mocking environment.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.2.0
 -->
 
 Sets the current Unix timestamp that will be used as reference for any mocked
