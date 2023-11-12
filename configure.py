@@ -812,6 +812,12 @@ parser.add_argument('--v8-enable-hugepage',
     help='Enable V8 transparent hugepage support. This feature is only '+
          'available on Linux platform.')
 
+parser.add_argument('--v8-enable-maglev',
+    action='store_true',
+    dest='v8_enable_maglev',
+    default=None,
+    help='Enable V8 Maglev compiler. Not available on all platforms.')
+
 parser.add_argument('--v8-enable-short-builtin-calls',
     action='store_true',
     dest='v8_enable_short_builtin_calls',
@@ -1494,6 +1500,7 @@ def configure_v8(o):
   o['variables']['v8_random_seed'] = 0  # Use a random seed for hash tables.
   o['variables']['v8_promise_internal_field_count'] = 1 # Add internal field to promises for async hooks.
   o['variables']['v8_use_siphash'] = 0 if options.without_siphash else 1
+  o['variables']['v8_enable_maglev'] = 1 if options.v8_enable_maglev else 0
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
