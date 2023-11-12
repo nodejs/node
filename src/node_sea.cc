@@ -414,7 +414,9 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   RAIIIsolate raii_isolate(SnapshotBuilder::GetEmbeddedSnapshotData());
   Isolate* isolate = raii_isolate.get();
 
+  v8::Isolate::Scope isolate_scope(isolate);
   HandleScope handle_scope(isolate);
+
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
