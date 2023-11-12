@@ -1199,7 +1199,7 @@ Disable exposition of [CustomEvent Web API][] on the global scope.
 ### `--no-experimental-global-navigator`
 
 <!-- YAML
-added: REPLACEME
+added: v21.2.0
 -->
 
 > Stability: 1 - Experimental
@@ -1784,7 +1784,7 @@ node --test --test-shard=3/3
 ### `--test-timeout`
 
 <!-- YAML
-added: REPLACEME
+added: v21.2.0
 -->
 
 A number of milliseconds the test execution will fail after. If unspecified,
