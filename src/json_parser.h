@@ -24,7 +24,7 @@ class JSONParser {
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now
   // using V8 is good enough.
-  RAIIIsolate isolate_;
+  RAIIIsolateWithoutEntering isolate_;
 
   v8::Global<v8::Context> context_;
   v8::Global<v8::Object> content_;
