@@ -200,6 +200,10 @@ ScavengerCollector::JobTask::JobTask(
 
 void ScavengerCollector::JobTask::Run(JobDelegate* delegate) {
   DCHECK_LT(delegate->GetTaskId(), scavengers_->size());
+  // In case multi-cage pointer compression mode is enabled ensure that
+  // current thread's cage base values are properly initialized.
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(outer_->heap_->isolate());
+
   Scavenger* scavenger = (*scavengers_)[delegate->GetTaskId()].get();
   if (delegate->IsJoiningThread()) {
     TRACE_GC_WITH_FLOW(outer_->heap_->tracer(),
