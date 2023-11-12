@@ -15084,8 +15084,9 @@ std::pair<const char32_t*, char16_t*> arm_convert_utf32_to_utf16(const char32_t*
   return std::make_pair(buf, reinterpret_cast<char16_t*>(utf16_output));
 }
 
-  while(buf + 4 <= end) {
-    uint32x4_t in = vld1q_u32(reinterpret_cast<const uint32_t *>(buf));
+    // Check if no bits set above 16th
+    if(vmaxvq_u32(in) <= 0xFFFF) {
+      uint16x4_t utf16_packed = vmovn_u32(in);
 
 template <endianness big_endian>
 std::pair<result, char16_t*> arm_convert_utf32_to_utf16_with_errors(const char32_t* buf, size_t len, char16_t* utf16_out) {
@@ -15754,99 +15755,6 @@ using namespace simd;
       this->error |= check_multibyte_lengths(input, prev_input, sc);
     }
 
-    template <endianness endian>
-    simdutf_really_inline result convert_with_errors(const char* in, size_t size, char16_t* utf16_output) {
-      size_t pos = 0;
-      char16_t* start{utf16_output};
-      // In the worst case, we have the haswell kernel which can cause an overflow of
-      // 8 bytes when calling convert_masked_utf8_to_utf16. If you skip the last 16 bytes,
-      // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
-      // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
-      // to give us a good margin.
-      size_t leading_byte = 0;
-      size_t margin = size;
-      for(; margin > 0 && leading_byte < 8; margin--) {
-        leading_byte += (int8_t(in[margin-1]) > -65);
-      }
-      // If the input is long enough, then we have that margin-1 is the eight last leading byte.
-      const size_t safety_margin = size - margin + 1; // to avoid overruns!
-      while(pos + 64 + safety_margin <= size) {
-        simd8x64<int8_t> input(reinterpret_cast<const int8_t *>(in + pos));
-        if(input.is_ascii()) {
-          input.store_ascii_as_utf16<endian>(utf16_output);
-          utf16_output += 64;
-          pos += 64;
-        } else {
-          // you might think that a for-loop would work, but under Visual Studio, it is not good enough.
-          static_assert((simd8x64<uint8_t>::NUM_CHUNKS == 2) || (simd8x64<uint8_t>::NUM_CHUNKS == 4),
-              "We support either two or four chunks per 64-byte block.");
-          auto zero = simd8<uint8_t>{uint8_t(0)};
-          if(simd8x64<uint8_t>::NUM_CHUNKS == 2) {
-            this->check_utf8_bytes(input.chunks[0], zero);
-            this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-          } else if(simd8x64<uint8_t>::NUM_CHUNKS == 4) {
-            this->check_utf8_bytes(input.chunks[0], zero);
-            this->check_utf8_bytes(input.chunks[1], input.chunks[0]);
-            this->check_utf8_bytes(input.chunks[2], input.chunks[1]);
-            this->check_utf8_bytes(input.chunks[3], input.chunks[2]);
-          }
-          if (errors()) {
-            // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
-            // with the ability to go back up to pos bytes, and read size-pos bytes forward.
-            result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
-            res.count += pos;
-            return res;
-          }
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1);
-          uint64_t utf8_leading_mask = ~utf8_continuation_mask;
-          uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
-          // We process in blocks of up to 12 bytes except possibly
-          // for fast paths which may process up to 16 bytes. For the
-          // slow path to work, we should have at least 12 input bytes left.
-          size_t max_starting_point = (pos + 64) - 12;
-          // Next loop is going to run at least five times.
-          while(pos < max_starting_point) {
-            // Performance note: our ability to compute 'consumed' and
-            // then shift and recompute is critical. If there is a
-            // latency of, say, 4 cycles on getting 'consumed', then
-            // the inner loop might have a total latency of about 6 cycles.
-            // Yet we process between 6 to 12 inputs bytes, thus we get
-            // a speed limit between 1 cycle/byte and 0.5 cycle/byte
-            // for this section of the code. Hence, there is a limit
-            // to how much we can further increase this latency before
-            // it seriously harms performance.
-            size_t consumed = convert_masked_utf8_to_utf16<endian>(in + pos,
-                            utf8_end_of_code_point_mask, utf16_output);
-            pos += consumed;
-            utf8_end_of_code_point_mask >>= consumed;
-          }
-          // At this point there may remain between 0 and 12 bytes in the
-          // 64-byte block. These bytes will be processed again. So we have an
-          // 80% efficiency (in the worst case). In practice we expect an
-          // 85% to 90% efficiency.
-        }
-      }
-      if(errors()) {
-        // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
-        // with the ability to go back up to pos bytes, and read size-pos bytes forward.
-        result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
-        res.count += pos;
-        return res;
-      }
-      if(pos < size) {
-        // rewind_and_convert_with_errors will seek a potential error from in+pos onward,
-        // with the ability to go back up to pos bytes, and read size-pos bytes forward.
-        result res = scalar::utf8_to_utf16::rewind_and_convert_with_errors<endian>(pos, in + pos, size - pos, utf16_output);
-        if (res.error) {    // In case of error, we want the error position
-          res.count += pos;
-          return res;
-        } else {    // In case of success, we want the number of word written
-          utf16_output += res.count;
-        }
-      }
-      return result(error_code::SUCCESS, utf16_output - start);
-    }
 
     template <endianness endian>
     simdutf_really_inline size_t convert(const char* in, size_t size, char16_t* utf16_output) {
@@ -16029,6 +15937,7 @@ using namespace simd;
 /* end file src/generic/utf8_to_utf16/utf8_to_utf16.h */
 // transcoding from UTF-8 to UTF-32
 /* begin file src/generic/utf8_to_utf32/valid_utf8_to_utf32.h */
+
 
 namespace simdutf {
 namespace arm64 {
@@ -16392,16 +16301,6 @@ simdutf_really_inline size_t count_code_points(const char* in, size_t size) {
     }
     return count + scalar::utf8::count_code_points(in + pos, size - pos);
 }
-} // utf8 namespace
-} // unnamed namespace
-} // namespace arm64
-} // namespace simdutf
-/* end file src/generic/utf8.h */
-/* begin file src/generic/utf16.h */
-namespace simdutf {
-namespace arm64 {
-namespace {
-namespace utf16 {
 
 simdutf_really_inline size_t utf16_length_from_utf8(const char* in, size_t size) {
     size_t pos = 0;
@@ -18711,6 +18610,102 @@ simdutf_warn_unused result implementation::convert_utf8_to_utf16le_with_errors(c
 /* begin file src/icelake/icelake_from_valid_utf8.inl.cpp */
 // file included directly
 
+// File contains conversion procedure from VALID UTF-8 strings.
+
+/*
+    valid_utf8_to_fixed_length converts a valid UTF-8 string into UTF-32.
+
+    The `OUTPUT` template type decides what to do with UTF-32: store
+    it directly or convert into UTF-16 (with AVX512).
+
+    Input:
+    - str           - valid UTF-8 string
+    - len           - string length
+    - out_buffer    - output buffer
+
+    Result:
+    - pair.first    - the first unprocessed input byte
+    - pair.second   - the first unprocessed output word
+*/
+template <endianness big_endian, typename OUTPUT>
+std::pair<const char*, OUTPUT*> valid_utf8_to_fixed_length(const char* str, size_t len, OUTPUT* dwords) {
+    constexpr bool UTF32 = std::is_same<OUTPUT, uint32_t>::value;
+    constexpr bool UTF16 = std::is_same<OUTPUT, char16_t>::value;
+    static_assert(UTF32 or UTF16, "output type has to be uint32_t (for UTF-32) or char16_t (for UTF-16)");
+    static_assert(!(UTF32 and big_endian), "we do not currently support big-endian UTF-32");
+
+    __m512i byteflip = _mm512_setr_epi64(
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809
+        );
+    const char* ptr = str;
+    const char* end = ptr + len;
+
+    OUTPUT* output = dwords;
+    /**
+     * In the main loop, we consume 64 bytes per iteration,
+     * but we access 64 + 4 bytes.
+     * We check for ptr + 64 + 64 <= end because
+     * we want to be do maskless writes without overruns.
+     */
+    while (ptr + 64 + 64 <= end) {
+        const __m512i utf8 = _mm512_loadu_si512((const __m512i*)ptr);
+        const __m512i v_80 = _mm512_set1_epi8(char(0x80));
+        const __mmask64 ascii = _mm512_test_epi8_mask(utf8, v_80);
+        if(ascii == 0) {
+            SIMDUTF_ICELAKE_STORE_ASCII(UTF32, utf8, output)
+            output += 64;
+            ptr += 64;
+            continue;
+        }
+
+        const __m512i lane0 = broadcast_epi128<0>(utf8);
+        const __m512i lane1 = broadcast_epi128<1>(utf8);
+        int valid_count0;
+        __m512i vec0 = expand_and_identify(lane0, lane1, valid_count0);
+        const __m512i lane2 = broadcast_epi128<2>(utf8);
+        int valid_count1;
+        __m512i vec1 = expand_and_identify(lane1, lane2, valid_count1);
+        if(valid_count0 + valid_count1 <= 16) {
+            vec0 = _mm512_mask_expand_epi32(vec0, __mmask16(((1<<valid_count1)-1)<<valid_count0), vec1);
+            valid_count0 += valid_count1;
+            vec0 = expand_utf8_to_utf32(vec0);
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec0, valid_count0, false)
+        } else {
+            vec0 = expand_utf8_to_utf32(vec0);
+            vec1 = expand_utf8_to_utf32(vec1);
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec0, valid_count0, false)
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec1, valid_count1, false)
+        }
+        const __m512i lane3 = broadcast_epi128<3>(utf8);
+        int valid_count2;
+        __m512i vec2 = expand_and_identify(lane2, lane3, valid_count2);
+        uint32_t tmp1;
+        ::memcpy(&tmp1, ptr + 64, sizeof(tmp1));
+        const __m512i lane4 = _mm512_set1_epi32(tmp1);
+        int valid_count3;
+        __m512i vec3 = expand_and_identify(lane3, lane4, valid_count3);
+        if(valid_count2 + valid_count3 <= 16) {
+            vec2 = _mm512_mask_expand_epi32(vec2, __mmask16(((1<<valid_count3)-1)<<valid_count2), vec3);
+            valid_count2 += valid_count3;
+            vec2 = expand_utf8_to_utf32(vec2);
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec2, valid_count2, false)
+        } else {
+            vec2 = expand_utf8_to_utf32(vec2);
+            vec3 = expand_utf8_to_utf32(vec3);
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec2, valid_count2, false)
+            SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec3, valid_count3, false)
+        }
+/* end file src/icelake/icelake_macros.inl.cpp */
+/* begin file src/icelake/icelake_from_valid_utf8.inl.cpp */
+// file included directly
+
 simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf16le(const char* input, size_t size,
     char16_t* utf16_output) const noexcept {
   return utf8_to_utf16::convert_valid<endianness::LITTLE>(input, size,  utf16_output);
@@ -19082,6 +19077,452 @@ simdutf_warn_unused size_t implementation::convert_utf32_to_latin1(const char32_
                 SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec0, valid_count0, true)
                 SIMDUTF_ICELAKE_WRITE_UTF16_OR_UTF32(vec1, valid_count1, true)
             }
+
+            const __m512i lane3 = broadcast_epi128<3>(utf8);
+            SIMDUTF_ICELAKE_TRANSCODE16(lane2, lane3, true)
+
+            ptr += 3*16;
+        }
+        validatedptr += 4*16;
+    }
+    {
+       const __m512i utf8 = _mm512_maskz_loadu_epi8((1ULL<<(end - validatedptr))-1, (const __m512i*)validatedptr);
+       checker.check_next_input(utf8);
+    }
+    checker.check_eof();
+    if(checker.errors()) {
+        return {ptr, output, false}; // We found an error.
+    }
+    return {ptr, output, true};
+}
+/* end file src/icelake/icelake_from_utf8.inl.cpp */
+/* begin file src/icelake/icelake_convert_utf8_to_latin1.inl.cpp */
+// file included directly
+
+// File contains conversion procedure from possibly invalid UTF-8 strings.
+
+// template <bool is_remaining, bool use_masked_store>
+template <bool is_remaining>
+simdutf_really_inline size_t process_block_from_utf8_to_latin1(const char *buf, size_t len,
+                                           char *latin_output, __m512i minus64,
+                                           __m512i one,
+                                           __mmask64 *next_leading_ptr,
+                                           __mmask64 *next_bit6_ptr) {
+  __mmask64 load_mask =
+      is_remaining ? _bzhi_u64(~0ULL, (unsigned int)len) : ~0ULL;
+  __m512i input = _mm512_maskz_loadu_epi8(load_mask, (__m512i *)buf);
+  __mmask64 nonascii = _mm512_movepi8_mask(input);
+
+  if (nonascii == 0) {
+    is_remaining
+        ? _mm512_mask_storeu_epi8((__m512i *)latin_output, load_mask, input)
+        : _mm512_storeu_si512((__m512i *)latin_output, input);
+    return len;
+  }
+
+  __mmask64 leading = _mm512_cmpge_epu8_mask(input, minus64);
+
+  __m512i highbits = _mm512_xor_si512(input, _mm512_set1_epi8(-62));
+  __mmask64 invalid_leading_bytes =
+      _mm512_mask_cmpgt_epu8_mask(leading, highbits, one);
+
+  if (invalid_leading_bytes) {
+    return 0; // Indicates error
+  }
+
+  __mmask64 leading_shift = (leading << 1) | *next_leading_ptr;
+  *next_leading_ptr = leading >> 63;
+
+  if ((nonascii ^ leading) != leading_shift) {
+    return 0; // Indicates error
+  }
+
+  __mmask64 bit6 = _mm512_cmpeq_epi8_mask(highbits, one);
+  input =
+      _mm512_mask_sub_epi8(input, (bit6 << 1) | *next_bit6_ptr, input, minus64);
+  *next_bit6_ptr = bit6 >> 63;
+
+  __mmask64 retain = ~leading & load_mask;
+  __m512i output = _mm512_maskz_compress_epi8(retain, input);
+  int64_t written_out = count_ones(retain);
+  __mmask64 store_mask = (1ULL << written_out) - 1;
+
+  // ***************************
+  //  Possible optimization? (Nick Nuon)
+  //  This commented out line is 5% faster but sadly it'll also write past
+  //  memory bounds for latin1_output: is_remaining ?
+  //  _mm512_mask_storeu_epi8((__m512i *)latin_output, store_mask, output) :
+  //  _mm512_storeu_si512((__m512i *)latin_output, output); I tried using
+  //  _mm512_storeu_si512 and have the next process_block start from the
+  //  "written_out" point but the compiler shuffles memory in such a way that it
+  //  is signifcantly slower...
+  // ****************************
+  _mm512_mask_storeu_epi8((__m512i *)latin_output, store_mask, output);
+
+  return written_out;
+}
+
+size_t utf8_to_latin1_avx512(const char *buf, size_t len, char *latin_output) {
+  char *start = latin_output;
+  size_t pos = 0;
+  __m512i minus64 = _mm512_set1_epi8(-64); // 11111111111 ... 1100 0000
+  __m512i one = _mm512_set1_epi8(1);
+  __mmask64 next_leading = 0;
+  __mmask64 next_bit6 = 0;
+
+  while (pos + 64 <= len) {
+    size_t written = process_block_from_utf8_to_latin1<false>(buf + pos, 64, latin_output, minus64,
+                                          one, &next_leading, &next_bit6);
+    if (written == 0) {
+      return 0; // Indicates error
+    }
+    latin_output += written;
+    pos += 64;
+  }
+
+  if (pos < len) {
+    size_t remaining = len - pos;
+    size_t written =
+        process_block_from_utf8_to_latin1<true>(buf + pos, remaining, latin_output, minus64, one,
+                            &next_leading, &next_bit6);
+    if (written == 0) {
+      return 0; // Indicates error
+    }
+    latin_output += written;
+  }
+
+  return (size_t)(latin_output - start);
+}
+/* end file src/icelake/icelake_convert_utf8_to_latin1.inl.cpp */
+/* begin file src/icelake/icelake_convert_valid_utf8_to_latin1.inl.cpp */
+// file included directly
+
+// File contains conversion procedure from valid UTF-8 strings.
+
+template <bool is_remaining>
+simdutf_really_inline size_t process_valid_block_from_utf8_to_latin1(const char *buf, size_t len,
+                                                 char *latin_output,
+                                                 __m512i minus64, __m512i one,
+                                                 __mmask64 *next_leading_ptr,
+                                                 __mmask64 *next_bit6_ptr) {
+  __mmask64 load_mask =
+      is_remaining ? _bzhi_u64(~0ULL, (unsigned int)len) : ~0ULL;
+  __m512i input = _mm512_maskz_loadu_epi8(load_mask, (__m512i *)buf);
+  __mmask64 nonascii = _mm512_movepi8_mask(input);
+
+  if (nonascii == 0) {
+    is_remaining
+        ? _mm512_mask_storeu_epi8((__m512i *)latin_output, load_mask, input)
+        : _mm512_storeu_si512((__m512i *)latin_output, input);
+    return len;
+  }
+
+  __mmask64 leading = _mm512_cmpge_epu8_mask(input, minus64);
+
+  __m512i highbits = _mm512_xor_si512(input, _mm512_set1_epi8(-62));
+
+  *next_leading_ptr = leading >> 63;
+
+  __mmask64 bit6 = _mm512_cmpeq_epi8_mask(highbits, one);
+  input =
+      _mm512_mask_sub_epi8(input, (bit6 << 1) | *next_bit6_ptr, input, minus64);
+  *next_bit6_ptr = bit6 >> 63;
+
+  __mmask64 retain = ~leading & load_mask;
+  __m512i output = _mm512_maskz_compress_epi8(retain, input);
+  int64_t written_out = count_ones(retain);
+  __mmask64 store_mask = (1ULL << written_out) - 1;
+  // Optimization opportunity: sometimes, masked writes are not needed.
+  _mm512_mask_storeu_epi8((__m512i *)latin_output, store_mask, output);
+  return written_out;
+}
+
+size_t valid_utf8_to_latin1_avx512(const char *buf, size_t len,
+                                   char *latin_output) {
+  char *start = latin_output;
+  size_t pos = 0;
+  __m512i minus64 = _mm512_set1_epi8(-64); // 11111111111 ... 1100 0000
+  __m512i one = _mm512_set1_epi8(1);
+  __mmask64 next_leading = 0;
+  __mmask64 next_bit6 = 0;
+
+  while (pos + 64 <= len) {
+    size_t written = process_valid_block_from_utf8_to_latin1<false>(
+        buf + pos, 64, latin_output, minus64, one, &next_leading, &next_bit6);
+    latin_output += written;
+    pos += 64;
+  }
+
+  if (pos < len) {
+    size_t remaining = len - pos;
+    size_t written =
+        process_valid_block_from_utf8_to_latin1<true>(buf + pos, remaining, latin_output, minus64,
+                                  one, &next_leading, &next_bit6);
+    latin_output += written;
+  }
+
+  return (size_t)(latin_output - start);
+}
+/* end file src/icelake/icelake_convert_valid_utf8_to_latin1.inl.cpp */
+/* begin file src/icelake/icelake_convert_utf16_to_latin1.inl.cpp */
+// file included directly
+template <endianness big_endian>
+size_t icelake_convert_utf16_to_latin1(const char16_t *buf, size_t len,
+                                       char *latin1_output) {
+  const char16_t *end = buf + len;
+  __m512i v_0xFF = _mm512_set1_epi16(0xff);
+  __m512i byteflip = _mm512_setr_epi64(0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809);
+  __m512i shufmask = _mm512_set_epi8(
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38,
+      36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+  while (buf + 32 <= end) {
+    __m512i in = _mm512_loadu_si512((__m512i *)buf);
+    if (big_endian) {
+      in = _mm512_shuffle_epi8(in, byteflip);
+    }
+    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
+      return 0;
+    }
+    _mm256_storeu_si256(
+        (__m256i *)latin1_output,
+        _mm512_castsi512_si256(_mm512_permutexvar_epi8(shufmask, in)));
+    latin1_output += 32;
+    buf += 32;
+  }
+  if (buf < end) {
+    uint32_t mask(uint32_t(1 << (end - buf)) - 1);
+    __m512i in = _mm512_maskz_loadu_epi16(mask, buf);
+    if (big_endian) {
+      in = _mm512_shuffle_epi8(in, byteflip);
+    }
+    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
+      return 0;
+    }
+    _mm256_mask_storeu_epi8(
+        latin1_output, mask,
+        _mm512_castsi512_si256(_mm512_permutexvar_epi8(shufmask, in)));
+  }
+  return len;
+}
+
+template <endianness big_endian>
+std::pair<result, char *>
+icelake_convert_utf16_to_latin1_with_errors(const char16_t *buf, size_t len,
+                                            char *latin1_output) {
+  const char16_t *end = buf + len;
+  const char16_t *start = buf;
+  __m512i byteflip = _mm512_setr_epi64(0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809);
+  __m512i v_0xFF = _mm512_set1_epi16(0xff);
+  __m512i shufmask = _mm512_set_epi8(
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38,
+      36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+  while (buf + 32 <= end) {
+    __m512i in = _mm512_loadu_si512((__m512i *)buf);
+    if (big_endian) {
+      in = _mm512_shuffle_epi8(in, byteflip);
+    }
+    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
+      uint16_t word;
+      while ((word = (big_endian ? scalar::utf16::swap_bytes(uint16_t(*buf))
+                                 : uint16_t(*buf))) <= 0xff) {
+        *latin1_output++ = uint8_t(word);
+        buf++;
+      }
+      return std::make_pair(result(error_code::TOO_LARGE, buf - start),
+                            latin1_output);
+    }
+    _mm256_storeu_si256(
+        (__m256i *)latin1_output,
+        _mm512_castsi512_si256(_mm512_permutexvar_epi8(shufmask, in)));
+    latin1_output += 32;
+    buf += 32;
+  }
+  if (buf < end) {
+    uint32_t mask(uint32_t(1 << (end - buf)) - 1);
+    __m512i in = _mm512_maskz_loadu_epi16(mask, buf);
+    if (big_endian) {
+      in = _mm512_shuffle_epi8(in, byteflip);
+    }
+    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
+
+      uint16_t word;
+      while ((word = (big_endian ? scalar::utf16::swap_bytes(uint16_t(*buf))
+                                 : uint16_t(*buf))) <= 0xff) {
+        *latin1_output++ = uint8_t(word);
+        buf++;
+      }
+      return std::make_pair(result(error_code::TOO_LARGE, buf - start),
+                            latin1_output);
+    }
+    _mm256_mask_storeu_epi8(
+        latin1_output, mask,
+        _mm512_castsi512_si256(_mm512_permutexvar_epi8(shufmask, in)));
+  }
+  return std::make_pair(result(error_code::SUCCESS, len), latin1_output);
+}
+/* end file src/icelake/icelake_convert_utf16_to_latin1.inl.cpp */
+/* begin file src/icelake/icelake_convert_utf16_to_utf8.inl.cpp */
+// file included directly
+
+/**
+ * This function converts the input (inbuf, inlen), assumed to be valid
+ * UTF16 (little endian) into UTF-8 (to outbuf). The number of code units written
+ * is written to 'outlen' and the function reports the number of input word
+ * consumed.
+ */
+template <endianness big_endian>
+size_t utf16_to_utf8_avx512i(const char16_t *inbuf, size_t inlen,
+                               unsigned char *outbuf, size_t *outlen) {
+  __m512i in;
+  __mmask32 inmask = _cvtu32_mask32(0x7fffffff);
+  __m512i byteflip = _mm512_setr_epi64(
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809
+        );
+  const char16_t * const inbuf_orig = inbuf;
+  const unsigned char * const outbuf_orig = outbuf;
+  size_t adjust = 0;
+  int carry = 0;
+
+  while (inlen >= 32) {
+    in = _mm512_loadu_si512(inbuf);
+    if(big_endian) { in = _mm512_shuffle_epi8(in, byteflip); }
+    inlen -= 31;
+  lastiteration:
+    inbuf += 31;
+
+  failiteration:
+    const __mmask32 is234byte = _mm512_mask_cmp_epu16_mask(
+      inmask, in, _mm512_set1_epi16(0x0080), _MM_CMPINT_NLT);
+
+    if (_ktestz_mask32_u8(inmask, is234byte)) {
+      // fast path for ASCII only
+      _mm512_mask_cvtepi16_storeu_epi8(outbuf, inmask, in);
+      outbuf += 31;
+      carry = 0;
+
+      if (inlen < 32) {
+        goto tail;
+      } else {
+        continue;
+      }
+    }
+
+    const __mmask32 is12byte =
+        _mm512_cmp_epu16_mask(in, _mm512_set1_epi16(0x0800), _MM_CMPINT_LT);
+
+    if (_ktestc_mask32_u8(is12byte, inmask)) {
+      // fast path for 1 and 2 byte only
+
+      const __m512i twobytes = _mm512_ternarylogic_epi32(
+          _mm512_slli_epi16(in, 8), _mm512_srli_epi16(in, 6),
+          _mm512_set1_epi16(0x3f3f), 0xa8); // (A|B)&C
+      in = _mm512_mask_add_epi16(in, is234byte, twobytes,
+                                 _mm512_set1_epi16(int16_t(0x80c0)));
+      const __m512i cmpmask =
+          _mm512_mask_blend_epi16(inmask, _mm512_set1_epi16(int16_t(0xffff)),
+                                  _mm512_set1_epi16(0x0800));
+      const __mmask64 smoosh = _mm512_cmp_epu8_mask(in, cmpmask, _MM_CMPINT_NLT);
+      const __m512i out = _mm512_maskz_compress_epi8(smoosh, in);
+      _mm512_mask_storeu_epi8(outbuf, _cvtu64_mask64(_pext_u64(_cvtmask64_u64(smoosh), _cvtmask64_u64(smoosh))),
+                              out);
+      outbuf += 31 + _mm_popcnt_u32(_cvtmask32_u32(is234byte));
+      carry = 0;
+
+      if (inlen < 32) {
+        goto tail;
+      } else {
+        continue;
+      }
+    }
+    __m512i lo = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(in));
+    __m512i hi = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(in, 1));
+
+
+    __m512i taglo = _mm512_set1_epi32(0x8080e000);
+    __m512i taghi = taglo;
+
+    const __m512i fc00masked = _mm512_and_epi32(in, _mm512_set1_epi16(int16_t(0xfc00)));
+    const __mmask32 hisurr = _mm512_mask_cmp_epu16_mask(
+        inmask, fc00masked, _mm512_set1_epi16(int16_t(0xd800)), _MM_CMPINT_EQ);
+    const __mmask32 losurr = _mm512_cmp_epu16_mask(
+        fc00masked, _mm512_set1_epi16(int16_t(0xdc00)), _MM_CMPINT_EQ);
+
+    int carryout = 0;
+    if (!_kortestz_mask32_u8(hisurr, losurr)) {
+      // handle surrogates
+
+      __m512i los = _mm512_alignr_epi32(hi, lo, 1);
+      __m512i his = _mm512_alignr_epi32(lo, hi, 1);
+
+      const __mmask32 hisurrhi = _kshiftri_mask32(hisurr, 16);
+      taglo =
+          _mm512_mask_mov_epi32(taglo,__mmask16(hisurr), _mm512_set1_epi32(0x808080f0));
+      taghi =
+          _mm512_mask_mov_epi32(taghi, __mmask16(hisurrhi), _mm512_set1_epi32(0x808080f0));
+
+      lo = _mm512_mask_slli_epi32(lo, __mmask16(hisurr), lo, 10);
+      hi = _mm512_mask_slli_epi32(hi, __mmask16(hisurrhi), hi, 10);
+      los = _mm512_add_epi32(los, _mm512_set1_epi32(0xfca02400));
+      his = _mm512_add_epi32(his, _mm512_set1_epi32(0xfca02400));
+      lo = _mm512_mask_add_epi32(lo, __mmask16(hisurr), lo, los);
+      hi = _mm512_mask_add_epi32(hi, __mmask16(hisurrhi), hi, his);
+
+      carryout = _cvtu32_mask32(_kshiftri_mask32(hisurr, 30));
+
+      const uint32_t  h = _cvtmask32_u32(hisurr);
+      const uint32_t  l = _cvtmask32_u32(losurr);
+      // check for mismatched surrogates
+      if ((h + h + carry) ^ l) {
+        const uint32_t lonohi = l & ~(h + h + carry);
+        const uint32_t hinolo = h & ~(l >> 1);
+        inlen = _tzcnt_u32(hinolo | lonohi);
+        inmask = __mmask32(0x7fffffff & ((1 << inlen) - 1));
+        in = _mm512_maskz_mov_epi16(inmask, in);
+        adjust = (int)inlen - 31;
+        inlen = 0;
+        goto failiteration;
+      }
+    }
+
+    hi = _mm512_maskz_mov_epi32(_cvtu32_mask16(0x7fff),hi);
+    carry = carryout;
+
+    __m512i mslo =
+        _mm512_multishift_epi64_epi8(_mm512_set1_epi64(0x20262c3200060c12), lo);
+
+    __m512i mshi =
+        _mm512_multishift_epi64_epi8(_mm512_set1_epi64(0x20262c3200060c12), hi);
+
+    const __mmask32 outmask = __mmask32(_kandn_mask64(losurr, inmask));
+    const __mmask64 outmhi = _kshiftri_mask64(outmask, 16);
+
+    const __mmask32 is1byte = __mmask32(_knot_mask64(is234byte));
+    const __mmask64 is1bhi = _kshiftri_mask64(is1byte, 16);
+    const __mmask64 is12bhi = _kshiftri_mask64(is12byte, 16);
+
+    taglo =
+        _mm512_mask_mov_epi32(taglo, __mmask16(is12byte), _mm512_set1_epi32(0x80c00000));
+    taghi =
+        _mm512_mask_mov_epi32(taghi, __mmask16(is12bhi), _mm512_set1_epi32(0x80c00000));
+    __m512i magiclo = _mm512_mask_blend_epi32(__mmask16(outmask), _mm512_set1_epi32(0xffffffff),
+                                      _mm512_set1_epi32(0x00010101));
+    __m512i magichi = _mm512_mask_blend_epi32(__mmask16(outmhi), _mm512_set1_epi32(0xffffffff),
+                                      _mm512_set1_epi32(0x00010101));
 
             const __m512i lane3 = broadcast_epi128<3>(utf8);
             SIMDUTF_ICELAKE_TRANSCODE16(lane2, lane3, true)
@@ -20036,8 +20477,6 @@ simdutf_warn_unused bool implementation::validate_utf8(const char *buf, size_t l
     const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
     if (saturation_bitmask == 0xffffffff) {
       // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
-
-      // Check for illegal surrogate code units
       const __m256i v_d800 = _mm256_set1_epi16((uint16_t)0xd800);
       const __m256i forbidden_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in_16, v_f800), v_d800);
       if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0x0) {
@@ -20516,6 +20955,11 @@ enum block_processing_mode { SIMDUTF_FULL, SIMDUTF_TAIL};
       this->error |= check_special_cases(input, prev1);
     }
 
+    // Pack 32-bit UTF-32 code units to 16-bit UTF-16 code units with unsigned saturation
+    __m256i in_16 = _mm256_packus_epi32(_mm256_and_si256(in, v_7fffffff), _mm256_and_si256(nextin, v_7fffffff));
+    in_16 = _mm256_permute4x64_epi64(in_16, 0b11011000);
+
+    // Try to apply UTF-16 => UTF-8 routine on 256 bits (haswell/avx2_convert_utf16_to_utf8.cpp)
 
     simdutf_really_inline size_t convert(const char* in, size_t size, char* latin1_output) {
       size_t pos = 0;
@@ -20703,58 +21147,21 @@ namespace {
 namespace utf8_to_latin1 {
 using namespace simd;
 
+      // 6. adjust pointers
+      buf += 16;
+      continue;
+    }
+    // Must check for overflow in packing
+    const __m256i saturation_bytemask = _mm256_cmpeq_epi32(_mm256_and_si256(_mm256_or_si256(in, nextin), v_ffff0000), v_0000);
+    const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
+    if (saturation_bitmask == 0xffffffff) {
+      // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
 
-      // Encodings out of range...
-      {
-        // the location of 3-byte sequence start bytes in the input
-        __mmask64 m3 = m34 & (b ^ m4);
-        // code units in Wout corresponding to 3-byte sequences.
-        __mmask32 M3 = __mmask32(_pext_u64(m3 << 2, mend));
-        __m512i mask_08000800 = _mm512_set1_epi32(0x08000800);
-        __mmask32 Msmall800 = _mm512_mask_cmplt_epu16_mask(M3, Wout, mask_08000800);
-        __m512i mask_d800d800 = _mm512_set1_epi32(0xd800d800);
-        __m512i Moutminusd800 = _mm512_sub_epi16(Wout, mask_d800d800);
-        __mmask32 M3s = _mm512_mask_cmplt_epu16_mask(M3, Moutminusd800, mask_08000800);
-        if (_kor_mask32(Msmall800, M3s)) { return false; }
-      }
-      // If the input is long enough, then we have that margin-1 is the eight last leading byte.
-      const size_t safety_margin = size - margin + 1; // to avoid overruns!
-      while(pos + 64 + safety_margin <= size) {
-        simd8x64<int8_t> input(reinterpret_cast<const int8_t *>(in + pos));
-        if(input.is_ascii()) {
-          input.store((int8_t*)latin1_output);
-          latin1_output += 64;
-          pos += 64;
-        } else {
-          // you might think that a for-loop would work, but under Visual Studio, it is not good enough.
-          uint64_t utf8_continuation_mask = input.lt(-65 + 1); // -64 is 1100 0000 in twos complement. Note: in this case, we also have ASCII to account for.
-          uint64_t utf8_leading_mask = ~utf8_continuation_mask;
-          uint64_t utf8_end_of_code_point_mask = utf8_leading_mask>>1;
-          // We process in blocks of up to 12 bytes except possibly
-          // for fast paths which may process up to 16 bytes. For the
-          // slow path to work, we should have at least 12 input bytes left.
-          size_t max_starting_point = (pos + 64) - 12;
-          // Next loop is going to run at least five times.
-          while(pos < max_starting_point) {
-            // Performance note: our ability to compute 'consumed' and
-            // then shift and recompute is critical. If there is a
-            // latency of, say, 4 cycles on getting 'consumed', then
-            // the inner loop might have a total latency of about 6 cycles.
-            // Yet we process between 6 to 12 inputs bytes, thus we get
-            // a speed limit between 1 cycle/byte and 0.5 cycle/byte
-            // for this section of the code. Hence, there is a limit
-            // to how much we can further increase this latency before
-            // it seriously harms performance.
-            size_t consumed = convert_masked_utf8_to_latin1(in + pos,
-                            utf8_end_of_code_point_mask, latin1_output);
-            pos += consumed;
-            utf8_end_of_code_point_mask >>= consumed;
-          }
-          // At this point there may remain between 0 and 12 bytes in the
-          // 64-byte block. These bytes will be processed again. So we have an
-          // 80% efficiency (in the worst case). In practice we expect an
-          // 85% to 90% efficiency.
-        }
+      // Check for illegal surrogate code units
+      const __m256i v_d800 = _mm256_set1_epi16((uint16_t)0xd800);
+      const __m256i forbidden_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in_16, v_f800), v_d800);
+      if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0x0) {
+        return std::make_pair(result(error_code::SURROGATE, buf - start), utf8_output);
       }
       if(pos < size) {
         size_t howmany  = scalar::utf8_to_latin1::convert(in + pos, size - pos, latin1_output);
@@ -20764,20 +21171,40 @@ using namespace simd;
       return latin1_output - start;
     }
 
-  }; 
-}   // utf8_to_latin1 namespace
-}   // unnamed namespace
-}   // namespace arm64
- // namespace simdutf
-/* end file src/generic/utf8_to_latin1/valid_utf8_to_latin1.h */
+      const __m256i dup_even = _mm256_setr_epi16(0x0000, 0x0202, 0x0404, 0x0606,
+                                              0x0808, 0x0a0a, 0x0c0c, 0x0e0e,
+                                              0x0000, 0x0202, 0x0404, 0x0606,
+                                              0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
+
+      /* In this branch we handle three cases:
+        1. [0000|0000|0ccc|cccc] => [0ccc|cccc]                           - single UFT-8 byte
+        2. [0000|0bbb|bbcc|cccc] => [110b|bbbb], [10cc|cccc]              - two UTF-8 bytes
+        3. [aaaa|bbbb|bbcc|cccc] => [1110|aaaa], [10bb|bbbb], [10cc|cccc] - three UTF-8 bytes
+
+        We expand the input word (16-bit) into two code units (32-bit), thus
+        we have room for four bytes. However, we need five distinct bit
+        layouts. Note that the last byte in cases #2 and #3 is the same.
+
+        We precompute byte 1 for case #1 and the common byte for cases #2 & #3
+        in register t2.
 
 // placeholder scalars
 
-//
-// Implementation-specific overrides
-//
-namespace simdutf {
-namespace arm64 {
+        Finally from these two code units we build proper UTF-8 sequence, taking
+        into account the case (i.e, the number of bytes to write).
+      */
+      /**
+       * Given [aaaa|bbbb|bbcc|cccc] our goal is to produce:
+       * t2 => [0ccc|cccc] [10cc|cccc]
+       * s4 => [1110|aaaa] ([110b|bbbb] OR [10bb|bbbb])
+       */
+#define simdutf_vec(x) _mm256_set1_epi16(static_cast<uint16_t>(x))
+      // [aaaa|bbbb|bbcc|cccc] => [bbcc|cccc|bbcc|cccc]
+      const __m256i t0 = _mm256_shuffle_epi8(in_16, dup_even);
+      // [bbcc|cccc|bbcc|cccc] => [00cc|cccc|0bcc|cccc]
+      const __m256i t1 = _mm256_and_si256(t0, simdutf_vec(0b0011111101111111));
+      // [00cc|cccc|0bcc|cccc] => [10cc|cccc|0bcc|cccc]
+      const __m256i t2 = _mm256_or_si256 (t1, simdutf_vec(0b1000000000000000));
 
 simdutf_warn_unused int implementation::detect_encodings(const char * input, size_t length) const noexcept {
   // If there is a BOM, then we trust it.
@@ -20810,13 +21237,34 @@ simdutf_warn_unused int implementation::detect_encodings(const char * input, siz
   }
 }
 
-simdutf_warn_unused bool implementation::validate_utf8(const char *buf, size_t len) const noexcept {
-  return arm64::utf8_validation::generic_validate_utf8(buf,len);
-}
+      // 4. expand code units 16-bit => 32-bit
+      const __m256i out0 = _mm256_unpacklo_epi16(t2, s4);
+      const __m256i out1 = _mm256_unpackhi_epi16(t2, s4);
 
-simdutf_warn_unused result implementation::validate_utf8_with_errors(const char *buf, size_t len) const noexcept {
-  return arm64::utf8_validation::generic_validate_utf8_with_errors(buf,len);
-}
+      // 5. compress 32-bit code units into 1, 2 or 3 bytes -- 2 x shuffle
+      const uint32_t mask = (one_byte_bitmask & 0x55555555) |
+                            (one_or_two_bytes_bitmask & 0xaaaaaaaa);
+      // Due to the wider registers, the following path is less likely to be useful.
+      /*if(mask == 0) {
+        // We only have three-byte code units. Use fast path.
+        const __m256i shuffle = _mm256_setr_epi8(2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1, 2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1);
+        const __m256i utf8_0 = _mm256_shuffle_epi8(out0, shuffle);
+        const __m256i utf8_1 = _mm256_shuffle_epi8(out1, shuffle);
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_0));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_1));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_0,1));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_1,1));
+        utf8_output += 12;
+        buf += 16;
+        continue;
+      }*/
+      const uint8_t mask0 = uint8_t(mask);
+      const uint8_t* row0 = &simdutf::tables::utf16_to_utf8::pack_1_2_3_utf8_bytes[mask0][0];
+      const __m128i shuffle0 = _mm_loadu_si128((__m128i*)(row0 + 1));
+      const __m128i utf8_0 = _mm_shuffle_epi8(_mm256_castsi256_si128(out0), shuffle0);
 
 simdutf_warn_unused bool implementation::validate_ascii(const char *buf, size_t len) const noexcept {
   return arm64::utf8_validation::generic_validate_ascii(buf,len);
@@ -20914,6 +21362,33 @@ simdutf_warn_unused bool implementation::validate_utf16be(const char16_t *buf, s
     }
     return true;
 }
+/* end file src/icelake/icelake_convert_utf32_to_utf8.inl.cpp */
+/* begin file src/icelake/icelake_convert_utf32_to_utf16.inl.cpp */
+// file included directly
+
+// Todo: currently, this is just the haswell code, optimize for icelake kernel.
+template <endianness big_endian>
+std::pair<const char32_t*, char16_t*> avx512_convert_utf32_to_utf16(const char32_t* buf, size_t len, char16_t* utf16_output) {
+  const char32_t* end = buf + len;
+
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  __m256i forbidden_bytemask = _mm256_setzero_si256();
+
+
+  while (buf + 8 + safety_margin <= end) {
+    __m256i in = _mm256_loadu_si256((__m256i*)buf);
+
+    const __m256i v_00000000 = _mm256_setzero_si256();
+    const __m256i v_ffff0000 = _mm256_set1_epi32((int32_t)0xffff0000);
+
+    // no bits set above 16th bit <=> can pack to UTF16 without surrogate pairs
+    const __m256i saturation_bytemask = _mm256_cmpeq_epi32(_mm256_and_si256(in, v_ffff0000), v_00000000);
+    const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
+
+    if (saturation_bitmask == 0xffffffff) {
+      const __m256i v_f800 = _mm256_set1_epi32((uint32_t)0xf800);
+      const __m256i v_d800 = _mm256_set1_epi32((uint32_t)0xd800);
+      forbidden_bytemask = _mm256_or_si256(forbidden_bytemask, _mm256_cmpeq_epi32(_mm256_and_si256(in, v_f800), v_d800));
 
 simdutf_warn_unused result implementation::validate_utf16le_with_errors(const char16_t *buf, size_t len) const noexcept {
     const char16_t *start_buf = buf;
@@ -21012,6 +21487,9 @@ simdutf_warn_unused result implementation::validate_utf16be_with_errors(const ch
     }
     return result(error_code::SUCCESS, len);
 }
+/* end file src/icelake/icelake_convert_utf32_to_utf16.inl.cpp */
+/* begin file src/icelake/icelake_ascii_validation.inl.cpp */
+// file included directly
 
 simdutf_warn_unused bool implementation::validate_utf32(const char32_t *buf, size_t len) const noexcept {
   const char32_t* tail = arm_validate_utf32le(buf, len);
@@ -21021,6 +21499,9 @@ simdutf_warn_unused bool implementation::validate_utf32(const char32_t *buf, siz
     return false;
   }
 }
+/* end file src/icelake/icelake_ascii_validation.inl.cpp */
+/* begin file src/icelake/icelake_utf32_validation.inl.cpp */
+// file included directly
 
 simdutf_warn_unused result implementation::validate_utf32_with_errors(const char32_t *buf, size_t len) const noexcept {
   result res = arm_validate_utf32le_with_errors(buf, len);
@@ -21036,283 +21517,201 @@ simdutf_warn_unused size_t implementation::convert_latin1_to_utf8(const char * b
   std::pair<const char*, char*> ret = arm_convert_latin1_to_utf8(buf, len, utf8_output);
   size_t converted_chars = ret.second - utf8_output;
 
-/*
-    utf32_to_utf16_masked converts `count` lower UTF-32 code units
-    from input `utf32` into UTF-16. It differs from utf32_to_utf16
-    in that it 'masks' the writes.
-
-    Returns how many 16-bit code units were stored.
-
-    byteflip is used for flipping 16-bit code units, and it should be
-        __m512i byteflip = _mm512_setr_epi64(
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809
-        );
-    We pass it to the (always inlined) function to encourage the compiler to
-    keep the value in a (constant) register.
-*/
-template <endianness big_endian>
-simdutf_really_inline size_t utf32_to_utf16_masked(const __m512i byteflip, __m512i utf32, unsigned int count, char16_t* output) {
-
-simdutf_warn_unused size_t implementation::convert_latin1_to_utf16be(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  std::pair<const char*, char16_t*> ret = arm_convert_latin1_to_utf16<endianness::BIG>(buf, len, utf16_output);
-  size_t converted_chars = ret.second - utf16_output;
-  if (ret.first != buf + len) {
-    const size_t scalar_converted_chars = scalar::latin1_to_utf16::convert<endianness::BIG>(
-      ret.first, len - (ret.first - buf), ret.second);
-    converted_chars += scalar_converted_chars;
-  }
-  return converted_chars;
-}
-
-simdutf_warn_unused size_t implementation::convert_latin1_to_utf8(const char * buf, size_t len, char* utf8_output) const noexcept {
-  return icelake::latin1_to_utf8_avx512_start(buf, len, utf8_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_latin1_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  return icelake_convert_latin1_to_utf16<endianness::LITTLE>(buf, len, utf16_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_latin1_to_utf16be(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  return icelake_convert_latin1_to_utf16<endianness::BIG>(buf, len, utf16_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) const noexcept {
-    std::pair<const char*, char32_t*> ret = avx512_convert_latin1_to_utf32(buf, len, utf32_output);
-    if (ret.first == nullptr) { return 0; }
-    size_t converted_chars = ret.second - utf32_output;
-    if (ret.first != buf + len) {
-        const size_t scalar_converted_chars = scalar::latin1_to_utf32::convert(
-                                              ret.first, len - (ret.first - buf), ret.second);
-        if (scalar_converted_chars == 0) { return 0; }
-        converted_chars += scalar_converted_chars;
+    const __m512i standardmax = _mm512_set1_epi32((uint32_t)0x10ffff);
+    const __m512i standardoffsetmax = _mm512_set1_epi32((uint32_t)0xfffff7ff);
+    __m512i is_zero = _mm512_xor_si512(_mm512_max_epu32(currentmax, standardmax), standardmax);
+    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
+      return nullptr;
     }
-    return converted_chars;
+    is_zero = _mm512_xor_si512(_mm512_max_epu32(currentoffsetmax, standardoffsetmax), standardoffsetmax);
+    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
+      return nullptr;
+    }
+
+    return buf;
 }
+/* end file src/icelake/icelake_utf32_validation.inl.cpp */
+/* begin file src/icelake/icelake_convert_latin1_to_utf8.inl.cpp */
+// file included directly
 
-simdutf_warn_unused size_t implementation::convert_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
-  return icelake::utf8_to_latin1_avx512(buf, len, latin1_output);
-}
-
-
-simdutf_warn_unused result implementation::convert_utf8_to_latin1_with_errors(const char* buf, size_t len, char* latin1_output) const noexcept {
-  // Initialize output length and input length counters
-  size_t inlen = 0;
-
-  // First, try to convert as much as possible using the SIMD implementation.
-  inlen = icelake::utf8_to_latin1_avx512(buf, len, latin1_output);
+static inline size_t latin1_to_utf8_avx512_vec(__m512i input, size_t input_len, char *utf8_output, int mask_output) {
+  __mmask64 nonascii = _mm512_movepi8_mask(input);
+  size_t output_size = input_len + (size_t)count_ones(nonascii);
   
-  // If we have completely converted the string
-  if(inlen == len) {
-    return {simdutf::SUCCESS, len};
-  }
+  // Mask to denote whether the byte is a leading byte that is not ascii
+  __mmask64 sixth =
+      _mm512_cmpge_epu8_mask(input, _mm512_set1_epi8(-64)); //binary representation of -64: 1100 0000
   
-  // Else if there are remaining bytes, use the scalar function to process them.
-  // Note: This is assuming scalar::utf8_to_latin1::convert_with_errors is a function that takes 
-  // the input buffer, length, and output buffer, and returns a result object with an error code 
-  // and the number of characters processed.
-  result res = scalar::utf8_to_latin1::convert_with_errors(buf + inlen, len - inlen, latin1_output + inlen);
-  res.count += inlen; // Add the number of characters processed by the SIMD implementation
+  const uint64_t alternate_bits = UINT64_C(0x5555555555555555);
+  uint64_t ascii = ~nonascii;
+  // the bits in ascii are inverted and zeros are interspersed in between them
+  uint64_t maskA = ~_pdep_u64(ascii, alternate_bits);
+  uint64_t maskB = ~_pdep_u64(ascii>>32, alternate_bits);
+  
+  // interleave bytes from top and bottom halves (abcd...ABCD -> aAbBcCdD)
+  __m512i input_interleaved = _mm512_permutexvar_epi8(_mm512_set_epi32(
+    0x3f1f3e1e, 0x3d1d3c1c, 0x3b1b3a1a, 0x39193818,
+    0x37173616, 0x35153414, 0x33133212, 0x31113010,
+    0x2f0f2e0e, 0x2d0d2c0c, 0x2b0b2a0a, 0x29092808,
+    0x27072606, 0x25052404, 0x23032202, 0x21012000
+  ), input);
+  
+  // double size of each byte, and insert the leading byte 1100 0010
 
-  return res;
-}
+/* 
+upscale the bytes to 16-bit value, adding the 0b11000000 leading byte in the process.
+We adjust for the bytes that have their two most significant bits. This takes care of the first 32 bytes, assuming we interleaved the bytes. */
+  __m512i outputA = _mm512_shldi_epi16(input_interleaved, _mm512_set1_epi8(-62), 8); 
+  outputA = _mm512_mask_add_epi16(
+                                  outputA, 
+                                 (__mmask32)sixth, 
+                                  outputA, 
+                                  _mm512_set1_epi16(1 - 0x4000)); // 1- 0x4000 = 1100 0000 0000 0001????
+  
+  // in the second 32-bit half, set first or second option based on whether original input is leading byte (second case) or not (first case)
+  __m512i leadingB = _mm512_mask_blend_epi16(
+                                              (__mmask32)(sixth>>32), 
+                                              _mm512_set1_epi16(0x00c2), // 0000 0000 1101 0010
+                                              _mm512_set1_epi16(0x40c3));// 0100 0000 1100 0011
+  __m512i outputB = _mm512_ternarylogic_epi32(
+                                              input_interleaved, 
+                                              leadingB, 
+                                              _mm512_set1_epi16((short)0xff00), 
+                                              (240 & 170) ^ 204); // (input_interleaved & 0xff00) ^ leadingB
+  
+  // prune redundant bytes
+  outputA = _mm512_maskz_compress_epi8(maskA, outputA);
+  outputB = _mm512_maskz_compress_epi8(maskB, outputB);
+  
+  
+  size_t output_sizeA = (size_t)count_ones((uint32_t)nonascii) + 32;
 
-
-simdutf_warn_unused size_t implementation::convert_valid_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
-  return icelake::valid_utf8_to_latin1_avx512(buf, len, latin1_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_utf8_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  utf8_to_utf16_result ret = fast_avx512_convert_utf8_to_utf16<endianness::LITTLE>(buf, len, utf16_output);
-  if (ret.second == nullptr) {
-    return 0;
-  }
-  return converted_chars;
-}
-
-simdutf_warn_unused size_t implementation::convert_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
-  utf8_to_latin1::validating_transcoder converter;
-  return converter.convert(buf, len, latin1_output);
-}
-
-    {
-        // build surrogate pair code units in 32-bit lanes
-
-simdutf_warn_unused size_t implementation::convert_valid_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
-  return arm64::utf8_to_latin1::convert_valid(buf,len,latin1_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_utf8_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  utf8_to_utf16::validating_transcoder converter;
-  return converter.convert<endianness::LITTLE>(buf, len, utf16_output);
-}
-
-simdutf_warn_unused size_t implementation::convert_utf8_to_utf16be(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  utf8_to_utf16::validating_transcoder converter;
-  return converter.convert<endianness::BIG>(buf, len, utf16_output);
-}
-
-        //    t2 = 8 x [110110aaaaaaaaaa|110111bbbbbbbbbb] -- copy hi word from t1 to t0
-        //         0xba = (t2 and not v_fc00_fc000) or v_d800_dc00
-        const __m512i v_fc00_fc00 = _mm512_set1_epi32(0xfc00fc00);
-        const __m512i v_d800_dc00 = _mm512_set1_epi32(0xd800dc00);
-        const __m512i t3 = _mm512_ternarylogic_epi32(t2, v_fc00_fc00, v_d800_dc00, 0xba);
-        const __m512i t4 = _mm512_mask_blend_epi32(sp_mask, utf32, t3);
-        __m512i t5 = _mm512_ror_epi32(t4, 16);
-        // Here we want to trim all of the upper 16-bit code units from the 2-byte
-        // characters represented as 4-byte values. We can compute it from
-        // sp_mask or the following... It can be more optimized!
-        const  __mmask32 nonzero = _kor_mask32(0xaaaaaaaa,_mm512_cmpneq_epi16_mask(t5, _mm512_setzero_si512()));
-        const  __mmask32 nonzero_masked = _kand_mask32(nonzero, __mmask32((uint64_t(1) << (2*count)) - 1));
-        if(big_endian) { t5 = _mm512_shuffle_epi8(t5, byteflip); }
-        // we deliberately avoid _mm512_mask_compressstoreu_epi16 for portability (zen4)
-        __m512i compressed = _mm512_maskz_compress_epi16(nonzero_masked, t5);
-        _mm512_mask_storeu_epi16(output, (1<<(count + static_cast<unsigned int>(count_ones(sp_mask)))) - 1, compressed);
-        //_mm512_mask_compressstoreu_epi16(output, nonzero_masked, t5);
+  if(mask_output) {
+    if(input_len > 32) { // is the second half of the input vector used?
+      __mmask64 write_mask = _bzhi_u64(~0ULL, (unsigned int)output_sizeA);
+      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputA);
+      utf8_output += output_sizeA;
+      write_mask = _bzhi_u64(~0ULL, (unsigned int)(output_size - output_sizeA));
+      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputB);
+    } else {
+      __mmask64 write_mask = _bzhi_u64(~0ULL, (unsigned int)output_size);
+      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputA);
     }
-
-simdutf_warn_unused result implementation::convert_utf8_to_utf16be_with_errors(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  utf8_to_utf16::validating_transcoder converter;
-  return converter.convert_with_errors<endianness::BIG>(buf, len, utf16_output);
+  } else {
+    _mm512_storeu_si512(utf8_output, outputA);
+    utf8_output += output_sizeA;
+    _mm512_storeu_si512(utf8_output, outputB);
+  }
+  return output_size;
 }
-
-/*
-    utf32_to_utf16 converts `count` lower UTF-32 code units
-    from input `utf32` into UTF-16. It may overflow.
-
-    Returns how many 16-bit code units were stored.
-
-    byteflip is used for flipping 16-bit code units, and it should be
-        __m512i byteflip = _mm512_setr_epi64(
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809
-        );
-    We pass it to the (always inlined) function to encourage the compiler to
-    keep the value in a (constant) register.
-*/
+ 
+static inline size_t latin1_to_utf8_avx512_branch(__m512i input, char *utf8_output) {
+  __mmask64 nonascii = _mm512_movepi8_mask(input);
+  size_t nonascii_count = (size_t)count_ones(nonascii);
+  if(nonascii_count > 0){
+    return latin1_to_utf8_avx512_vec(input, 64, utf8_output, 0);
+  } else {
+    _mm512_storeu_si512(utf8_output, input);
+    return 64 + nonascii_count;}
+}
+ 
+size_t latin1_to_utf8_avx512_start(const char *buf, size_t len, char *utf8_output) {
+  char *start = utf8_output;
+  size_t pos = 0;
+  // if there's at least 128 bytes remaining, we don't need to mask the output
+  for (; pos + 128 <= len; pos += 64) {
+    __m512i input = _mm512_loadu_si512((__m512i *)(buf + pos));
+    utf8_output += latin1_to_utf8_avx512_branch(input, utf8_output);
+  }
+  // in the last 128 bytes, the first 64 may require masking the output
+  if (pos + 64 <= len) {
+    __m512i input = _mm512_loadu_si512((__m512i *)(buf + pos));
+    utf8_output += latin1_to_utf8_avx512_vec(input, 64, utf8_output, 1);
+    pos += 64;
+  }
+  // with the last 64 bytes, the input also needs to be masked
+  if (pos < len) {
+    __mmask64 load_mask = _bzhi_u64(~0ULL, (unsigned int)(len - pos));
+    __m512i input = _mm512_maskz_loadu_epi8(load_mask, (__m512i *)(buf + pos));
+    utf8_output += latin1_to_utf8_avx512_vec(input, len - pos, utf8_output, 1);
+  }
+  return (size_t)(utf8_output - start);
+}
+/* end file src/icelake/icelake_convert_latin1_to_utf8.inl.cpp */
+/* begin file src/icelake/icelake_convert_latin1_to_utf16.inl.cpp */
+// file included directly
 template <endianness big_endian>
-simdutf_really_inline size_t utf32_to_utf16(const __m512i byteflip, __m512i utf32, unsigned int count, char16_t* output) {
-    // check if we have any surrogate pairs
-    const __m512i v_0000_ffff = _mm512_set1_epi32(0x0000ffff);
-    const __mmask16 sp_mask = _mm512_cmpgt_epu32_mask(utf32, v_0000_ffff);
+size_t icelake_convert_latin1_to_utf16(const char *latin1_input, size_t len,
+                                       char16_t *utf16_output) {
+  size_t rounded_len = len & ~0x1F; // Round down to nearest multiple of 32
 
-simdutf_warn_unused result implementation::convert_utf8_to_utf32_with_errors(const char* buf, size_t len, char32_t* utf32_output) const noexcept {
-  utf8_to_utf32::validating_transcoder converter;
-  return converter.convert_with_errors(buf, len, utf32_output);
-}
-
-    {
-        // build surrogate pair code units in 32-bit lanes
-
-simdutf_warn_unused size_t implementation::convert_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  std::pair<const char16_t*, char*> ret = arm_convert_utf16_to_latin1<endianness::LITTLE>(buf, len, latin1_output);
-  if (ret.first == nullptr) { return 0; }
-  size_t saved_bytes = ret.second - latin1_output;
-
-  if (ret.first != buf + len) {
-    const size_t scalar_saved_bytes = scalar::utf16_to_latin1::convert<endianness::LITTLE>(
-                                        ret.first, len - (ret.first - buf), ret.second);
-    if (scalar_saved_bytes == 0) { return 0; }
-    saved_bytes += scalar_saved_bytes;
-  }
-  return saved_bytes;
-}
-
-simdutf_warn_unused size_t implementation::convert_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  std::pair<const char16_t*, char*> ret = arm_convert_utf16_to_latin1<endianness::BIG>(buf, len, latin1_output);
-  if (ret.first == nullptr) { return 0; }
-  size_t saved_bytes = ret.second - latin1_output;
-
-  if (ret.first != buf + len) {
-    const size_t scalar_saved_bytes = scalar::utf16_to_latin1::convert<endianness::BIG>(
-                                        ret.first, len - (ret.first - buf), ret.second);
-    if (scalar_saved_bytes == 0) { return 0; }
-    saved_bytes += scalar_saved_bytes;
-  }
-  return saved_bytes;
-}
-
-simdutf_warn_unused result implementation::convert_utf16le_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  std::pair<result, char*> ret = arm_convert_utf16_to_latin1_with_errors<endianness::LITTLE>(buf, len, latin1_output);
-  if (ret.first.error) { return ret.first; }  // Can return directly since scalar fallback already found correct ret.first.count
-  if (ret.first.count != len) { // All good so far, but not finished
-    result scalar_res = scalar::utf16_to_latin1::convert_with_errors<endianness::LITTLE>(
-                                        buf + ret.first.count, len - ret.first.count, ret.second);
-    if (scalar_res.error) {
-      scalar_res.count += ret.first.count;
-      return scalar_res;
-    } else {
-      ret.second += scalar_res.count;
+  __m512i byteflip = _mm512_setr_epi64(0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
+                                       0x0607040502030001, 0x0e0f0c0d0a0b0809);
+  for (size_t i = 0; i < rounded_len; i += 32) {
+    // Load 32 Latin1 characters into a 256-bit register
+    __m256i in = _mm256_loadu_si256((__m256i *)&latin1_input[i]);
+    // Zero extend each set of 8 Latin1 characters to 32 16-bit integers
+    __m512i out = _mm512_cvtepu8_epi16(in);
+    if (big_endian) {
+      out = _mm512_shuffle_epi8(out, byteflip);
     }
+    // Store the results back to memory
+    _mm512_storeu_si512((__m512i *)&utf16_output[i], out);
   }
-  ret.first.count = ret.second - latin1_output;   // Set count to the number of 8-bit code units written
-  return ret.first;
-}
+  if (rounded_len != len) {
+    uint32_t mask = uint32_t(1 << (len - rounded_len)) - 1;
+    __m256i in = _mm256_maskz_loadu_epi8(mask, latin1_input + rounded_len);
 
-simdutf_warn_unused result implementation::convert_utf16be_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  std::pair<result, char*> ret = arm_convert_utf16_to_latin1_with_errors<endianness::BIG>(buf, len, latin1_output);
-  if (ret.first.error) { return ret.first; }  // Can return directly since scalar fallback already found correct ret.first.count
-  if (ret.first.count != len) { // All good so far, but not finished
-    result scalar_res = scalar::utf16_to_latin1::convert_with_errors<endianness::BIG>(
-                                        buf + ret.first.count, len - ret.first.count, ret.second);
-    if (scalar_res.error) {
-      scalar_res.count += ret.first.count;
-      return scalar_res;
-    } else {
-      ret.second += scalar_res.count;
+    // Zero extend each set of 8 Latin1 characters to 32 16-bit integers
+    __m512i out = _mm512_cvtepu8_epi16(in);
+    if (big_endian) {
+      out = _mm512_shuffle_epi8(out, byteflip);
     }
+    // Store the results back to memory
+    _mm512_mask_storeu_epi16(utf16_output + rounded_len, mask, out);
   }
-  ret.first.count = ret.second - latin1_output;   // Set count to the number of 8-bit code units written
-  return ret.first;
-}
 
-simdutf_warn_unused size_t implementation::convert_valid_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  // optimization opportunity: implement a custom function.
-  return convert_utf16be_to_latin1(buf, len, latin1_output);
+  return len;
 }
+/* end file src/icelake/icelake_convert_latin1_to_utf16.inl.cpp */
+/* begin file src/icelake/icelake_convert_latin1_to_utf32.inl.cpp */
+std::pair<const char*, char32_t*> avx512_convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) {
+    size_t rounded_len = len & ~0xF;  // Round down to nearest multiple of 16
+    
+    for (size_t i = 0; i < rounded_len; i += 16) { 
+        // Load 16 Latin1 characters into a 128-bit register
+        __m128i in = _mm_loadu_si128((__m128i*)&buf[i]);
+        
+        // Zero extend each set of 8 Latin1 characters to 16 32-bit integers using vpmovzxbd
+        __m512i out = _mm512_cvtepu8_epi32(in);
+        
+        // Store the results back to memory
+        _mm512_storeu_si512((__m512i*)&utf32_output[i], out);
+    }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  // optimization opportunity: implement a custom function.
-  return convert_utf16le_to_latin1(buf, len, latin1_output);
+    // Return pointers pointing to where we left off
+    return std::make_pair(buf + rounded_len, utf32_output + rounded_len);
 }
+/* end file src/icelake/icelake_convert_latin1_to_utf32.inl.cpp */
 
-simdutf_warn_unused size_t implementation::convert_utf16le_to_utf8(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
-  std::pair<const char16_t*, char*> ret = arm_convert_utf16_to_utf8<endianness::LITTLE>(buf, len, utf8_output);
-  if (ret.first == nullptr) { return 0; }
-  size_t saved_bytes = ret.second - utf8_output;
-  if (ret.first != buf + len) {
-    const size_t scalar_saved_bytes = scalar::utf16_to_utf8::convert<endianness::LITTLE>(
-                                        ret.first, len - (ret.first - buf), ret.second);
-    if (scalar_saved_bytes == 0) { return 0; }
-    saved_bytes += scalar_saved_bytes;
-  }
-  return saved_bytes;
-}
+
+#include <cstdint>
 
 
 simdutf_warn_unused size_t implementation::convert_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
   return icelake_convert_utf16_to_latin1<endianness::LITTLE>(buf,len,latin1_output);
 }
 
-simdutf_warn_unused size_t implementation::convert_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  return icelake_convert_utf16_to_latin1<endianness::BIG>(buf,len,latin1_output);
-}
-
-simdutf_warn_unused result implementation::convert_utf16le_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  return icelake_convert_utf16_to_latin1_with_errors<endianness::LITTLE>(buf,len,latin1_output).first;
-}
+simdutf_warn_unused int
+implementation::detect_encodings(const char *input,
+                                 size_t length) const noexcept {
+  // If there is a BOM, then we trust it.
+  auto bom_encoding = simdutf::BOM::check_bom(input, length);
+  if(bom_encoding != encoding_type::unspecified) { return bom_encoding; }
+  if (length % 2 == 0) {
+    const char *buf = input;
 
 simdutf_warn_unused result implementation::convert_utf16be_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
   return icelake_convert_utf16_to_latin1_with_errors<endianness::BIG>(buf,len,latin1_output).first;
@@ -21335,18 +21734,13 @@ simdutf_warn_unused size_t implementation::convert_utf16le_to_utf8(const char16_
   return outlen;
 }
 
-simdutf_warn_unused size_t implementation::convert_utf16be_to_utf8(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
-  std::pair<const char16_t*, char*> ret = arm_convert_utf16_to_utf8<endianness::BIG>(buf, len, utf8_output);
-  if (ret.first == nullptr) { return 0; }
-  size_t saved_bytes = ret.second - utf8_output;
-  if (ret.first != buf + len) {
-    const size_t scalar_saved_bytes = scalar::utf16_to_utf8::convert<endianness::BIG>(
-                                        ret.first, len - (ret.first - buf), ret.second);
-    if (scalar_saved_bytes == 0) { return 0; }
-    saved_bytes += scalar_saved_bytes;
-  }
-  return saved_bytes;
-}
+        // Can still be either UTF-16LE or UTF-32 depending on the positions
+        // of the surrogates To be valid UTF-32, a surrogate cannot be in the
+        // two most significant bytes of any 32-bit word. On the other hand, to
+        // be valid UTF-16LE, at least one surrogate must be in the two most
+        // significant bytes of a 32-bit word since they always come in pairs in
+        // UTF-16LE. Note that we always proceed in multiple of 4 before this
+        // point so there is no offset in 32-bit code units.
 
 simdutf_warn_unused result implementation::convert_utf16le_to_utf8_with_errors(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
   // ret.first.count is always the position in the buffer, not the number of code units written even if finished
@@ -21366,23 +21760,19 @@ simdutf_warn_unused result implementation::convert_utf16le_to_utf8_with_errors(c
   return ret.first;
 }
 
-simdutf_warn_unused result implementation::convert_utf16be_to_utf8_with_errors(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
-  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
-  std::pair<result, char*> ret = arm_convert_utf16_to_utf8_with_errors<endianness::BIG>(buf, len, utf8_output);
-  if (ret.first.error) { return ret.first; }  // Can return directly since scalar fallback already found correct ret.first.count
-  if (ret.first.count != len) { // All good so far, but not finished
-    result scalar_res = scalar::utf16_to_utf8::convert_with_errors<endianness::BIG>(
-                                        buf + ret.first.count, len - ret.first.count, ret.second);
-    if (scalar_res.error) {
-      scalar_res.count += ret.first.count;
-      return scalar_res;
-    } else {
-      ret.second += scalar_res.count;
-    }
-  }
-  ret.first.count = ret.second - utf8_output;   // Set count to the number of 8-bit code units written
-  return ret.first;
-}
+          bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
+          if (ends_with_high) {
+            buf +=
+                31 *
+                sizeof(char16_t); // advance only by 31 code units so that we start
+                                  // with the high surrogate on the next round.
+          } else {
+            buf += 32 * sizeof(char16_t);
+          }
+          is_utf16 = validate_utf16le(reinterpret_cast<const char16_t *>(buf),
+                                      (end - buf) / sizeof(char16_t));
+          if (!is_utf16) {
+            return simdutf::encoding_type::unspecified;
 
 simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_utf8(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
   return convert_utf16le_to_utf8(buf, len, utf8_output);
@@ -21562,52 +21952,192 @@ simdutf_warn_unused size_t implementation::convert_utf32_to_utf16be(const char32
   return saved_bytes;
 }
 
-simdutf_warn_unused result implementation::convert_utf32_to_utf16le_with_errors(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
-  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
-  std::pair<result, char16_t*> ret = arm_convert_utf32_to_utf16_with_errors<endianness::LITTLE>(buf, len, utf16_output);
-  if (ret.first.count != len) {
-    result scalar_res = scalar::utf32_to_utf16::convert_with_errors<endianness::LITTLE>(
-                                        buf + ret.first.count, len - ret.first.count, ret.second);
-    if (scalar_res.error) {
-      scalar_res.count += ret.first.count;
-      return scalar_res;
-    } else {
-      ret.second += scalar_res.count;
+    for(;buf + 32 <= end; ) {
+      __m512i in = _mm512_loadu_si512((__m512i*)buf);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+           return false;
+        }
+        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
+        if(ends_with_high) {
+          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+        } else {
+          buf += 32;
+        }
+      } else {
+        buf += 32;
+      }
+    }
+    if(buf < end) {
+      __m512i in = _mm512_maskz_loadu_epi16((1<<(end-buf))-1,(__m512i*)buf);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+           return false;
+        }
+      }
     }
   }
   ret.first.count = ret.second - utf16_output;   // Set count to the number of 8-bit code units written
   return ret.first;
 }
 
-simdutf_warn_unused result implementation::convert_utf32_to_utf16be_with_errors(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
-  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
-  std::pair<result, char16_t*> ret = arm_convert_utf32_to_utf16_with_errors<endianness::BIG>(buf, len, utf16_output);
-  if (ret.first.count != len) {
-    result scalar_res = scalar::utf32_to_utf16::convert_with_errors<endianness::BIG>(
-                                        buf + ret.first.count, len - ret.first.count, ret.second);
-    if (scalar_res.error) {
-      scalar_res.count += ret.first.count;
-      return scalar_res;
-    } else {
-      ret.second += scalar_res.count;
+simdutf_warn_unused bool implementation::validate_utf16be(const char16_t *buf, size_t len) const noexcept {
+   const char16_t *end = buf + len;
+   const __m512i byteflip = _mm512_setr_epi64(
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809
+        );
+    for(;buf + 32 <= end; ) {
+      __m512i in = _mm512_shuffle_epi8(_mm512_loadu_si512((__m512i*)buf), byteflip);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+           return false;
+        }
+        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
+        if(ends_with_high) {
+          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+        } else {
+          buf += 32;
+        }
+      } else {
+        buf += 32;
+      }
+    }
+    if(buf < end) {
+      __m512i in = _mm512_shuffle_epi8(_mm512_maskz_loadu_epi16((1<<(end-buf))-1,(__m512i*)buf), byteflip);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+           return false;
+        }
+      }
     }
   }
   ret.first.count = ret.second - utf16_output;   // Set count to the number of 8-bit code units written
   return ret.first;
 }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf32_to_utf16le(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
-  return convert_utf32_to_utf16le(buf, len, utf16_output);
+simdutf_warn_unused result implementation::validate_utf16le_with_errors(const char16_t *buf, size_t len) const noexcept {
+    const char16_t *start_buf = buf;
+    const char16_t *end = buf + len;
+    for(;buf + 32 <= end; ) {
+      __m512i in = _mm512_loadu_si512((__m512i*)buf);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+          uint32_t extra_low = _tzcnt_u32(lowsurrogates &~(highsurrogates << 1));
+          uint32_t extra_high = _tzcnt_u32(highsurrogates &~(lowsurrogates >> 1));
+          return result(error_code::SURROGATE, (buf - start_buf) + (extra_low < extra_high ? extra_low : extra_high));
+        }
+        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
+        if(ends_with_high) {
+          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+        } else {
+          buf += 32;
+        }
+      } else {
+        buf += 32;
+      }
+    }
+    if(buf < end) {
+      __m512i in = _mm512_maskz_loadu_epi16((1<<(end-buf))-1,(__m512i*)buf);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+          uint32_t extra_low = _tzcnt_u32(lowsurrogates &~(highsurrogates << 1));
+          uint32_t extra_high = _tzcnt_u32(highsurrogates &~(lowsurrogates >> 1));
+          return result(error_code::SURROGATE, (buf - start_buf) + (extra_low < extra_high ? extra_low : extra_high));
+        }
+      }
+    }
+    return result(error_code::SUCCESS, len);
 }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf32_to_utf16be(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
-  return convert_utf32_to_utf16be(buf, len, utf16_output);
-}
-/* end file src/icelake/icelake_utf8_common.inl.cpp */
-/* begin file src/icelake/icelake_macros.inl.cpp */
-
-simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_utf32(const char16_t* buf, size_t len, char32_t* utf32_output) const noexcept {
-  return convert_utf16le_to_utf32(buf, len, utf32_output);
+simdutf_warn_unused result implementation::validate_utf16be_with_errors(const char16_t *buf, size_t len) const noexcept {
+    const char16_t *start_buf = buf;
+    const char16_t *end = buf + len;
+    const __m512i byteflip = _mm512_setr_epi64(
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809,
+            0x0607040502030001,
+            0x0e0f0c0d0a0b0809
+        );
+    for(;buf + 32 <= end; ) {
+      __m512i in = _mm512_shuffle_epi8(_mm512_loadu_si512((__m512i*)buf), byteflip);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+          uint32_t extra_low = _tzcnt_u32(lowsurrogates &~(highsurrogates << 1));
+          uint32_t extra_high = _tzcnt_u32(highsurrogates &~(lowsurrogates >> 1));
+          return result(error_code::SURROGATE, (buf - start_buf) + (extra_low < extra_high ? extra_low : extra_high));
+        }
+        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
+        if(ends_with_high) {
+          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+        } else {
+          buf += 32;
+        }
+      } else {
+        buf += 32;
+      }
+    }
+    if(buf < end) {
+      __m512i in = _mm512_shuffle_epi8(_mm512_maskz_loadu_epi16((1<<(end-buf))-1,(__m512i*)buf), byteflip);
+      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
+      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
+      if(surrogates) {
+        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
+        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
+        // high must be followed by low
+        if ((highsurrogates << 1) != lowsurrogates) {
+          uint32_t extra_low = _tzcnt_u32(lowsurrogates &~(highsurrogates << 1));
+          uint32_t extra_high = _tzcnt_u32(highsurrogates &~(lowsurrogates >> 1));
+          return result(error_code::SURROGATE, (buf - start_buf) + (extra_low < extra_high ? extra_low : extra_high));
+        }
+      }
+    }
+    return result(error_code::SUCCESS, len);
 }
 
 simdutf_warn_unused size_t implementation::convert_valid_utf16be_to_utf32(const char16_t* buf, size_t len, char32_t* utf32_output) const noexcept {
@@ -21687,8 +22217,69 @@ simdutf_warn_unused size_t implementation::latin1_length_from_utf8(const char* b
   return answer + scalar::utf8::count_code_points(reinterpret_cast<const char *>(str + i), length - i);
 }
 
-simdutf_warn_unused size_t implementation::latin1_length_from_utf8(const char* buf, size_t len) const noexcept {
-  return count_utf8(buf,len);
+simdutf_warn_unused size_t implementation::convert_latin1_to_utf8(const char * buf, size_t len, char* utf8_output) const noexcept {
+  return icelake::latin1_to_utf8_avx512_start(buf, len, utf8_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_latin1_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
+  return icelake_convert_latin1_to_utf16<endianness::LITTLE>(buf, len, utf16_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_latin1_to_utf16be(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
+  return icelake_convert_latin1_to_utf16<endianness::BIG>(buf, len, utf16_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) const noexcept {
+    std::pair<const char*, char32_t*> ret = avx512_convert_latin1_to_utf32(buf, len, utf32_output);
+    if (ret.first == nullptr) { return 0; }
+    size_t converted_chars = ret.second - utf32_output;
+    if (ret.first != buf + len) {
+        const size_t scalar_converted_chars = scalar::latin1_to_utf32::convert(
+                                              ret.first, len - (ret.first - buf), ret.second);
+        if (scalar_converted_chars == 0) { return 0; }
+        converted_chars += scalar_converted_chars;
+    }
+    return converted_chars;
+}
+
+simdutf_warn_unused size_t implementation::convert_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake::utf8_to_latin1_avx512(buf, len, latin1_output);
+}
+
+
+simdutf_warn_unused result implementation::convert_utf8_to_latin1_with_errors(const char* buf, size_t len, char* latin1_output) const noexcept {
+  // Initialize output length and input length counters
+  size_t inlen = 0;
+
+  // First, try to convert as much as possible using the SIMD implementation.
+  inlen = icelake::utf8_to_latin1_avx512(buf, len, latin1_output);
+  
+  // If we have completely converted the string
+  if(inlen == len) {
+    return {simdutf::SUCCESS, len};
+  }
+  
+  // Else if there are remaining bytes, use the scalar function to process them.
+  // Note: This is assuming scalar::utf8_to_latin1::convert_with_errors is a function that takes 
+  // the input buffer, length, and output buffer, and returns a result object with an error code 
+  // and the number of characters processed.
+  result res = scalar::utf8_to_latin1::convert_with_errors(buf + inlen, len - inlen, latin1_output + inlen);
+  res.count += inlen; // Add the number of characters processed by the SIMD implementation
+
+  return res;
+}
+
+
+simdutf_warn_unused size_t implementation::convert_valid_utf8_to_latin1(const char* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake::valid_utf8_to_latin1_avx512(buf, len, latin1_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_utf8_to_utf16le(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
+  utf8_to_utf16_result ret = fast_avx512_convert_utf8_to_utf16<endianness::LITTLE>(buf, len, utf16_output);
+  if (ret.second == nullptr) {
+    return 0;
+  }
+  return ret.second - utf16_output;
 }
 
 simdutf_warn_unused size_t implementation::latin1_length_from_utf16(size_t length) const noexcept {
@@ -22077,7 +22668,39 @@ simdutf_really_inline size_t process_valid_block_from_utf8_to_latin1(const char 
 
   __m512i highbits = _mm512_xor_si512(input, _mm512_set1_epi8(-62));
 
-  *next_leading_ptr = leading >> 63;
+
+simdutf_warn_unused size_t implementation::convert_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf16_to_latin1<endianness::LITTLE>(buf,len,latin1_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf16_to_latin1<endianness::BIG>(buf,len,latin1_output);
+}
+
+simdutf_warn_unused result implementation::convert_utf16le_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf16_to_latin1_with_errors<endianness::LITTLE>(buf,len,latin1_output).first;
+}
+
+simdutf_warn_unused result implementation::convert_utf16be_to_latin1_with_errors(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf16_to_latin1_with_errors<endianness::BIG>(buf,len,latin1_output).first;
+}
+
+simdutf_warn_unused size_t implementation::convert_valid_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  // optimization opportunity: implement custom function
+  return convert_utf16be_to_latin1(buf, len, latin1_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
+  // optimization opportunity: implement custom function
+  return convert_utf16le_to_latin1(buf, len, latin1_output);
+}
+
+simdutf_warn_unused size_t implementation::convert_utf16le_to_utf8(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
+  size_t outlen;
+  size_t inlen = utf16_to_utf8_avx512i<endianness::LITTLE>(buf, len, (unsigned char*)utf8_output, &outlen);
+  if(inlen != len) { return 0; }
+  return outlen;
+}
 
   __mmask64 bit6 = _mm512_cmpeq_epi8_mask(highbits, one);
   input =
@@ -22165,49 +22788,18 @@ size_t icelake_convert_utf16_to_latin1(const char16_t *buf, size_t len,
   return len;
 }
 
-template <endianness big_endian>
-std::pair<result, char *>
-icelake_convert_utf16_to_latin1_with_errors(const char16_t *buf, size_t len,
-                                            char *latin1_output) {
-  const char16_t *end = buf + len;
-  const char16_t *start = buf;
-  __m512i byteflip = _mm512_setr_epi64(0x0607040502030001, 0x0e0f0c0d0a0b0809,
-                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
-                                       0x0607040502030001, 0x0e0f0c0d0a0b0809,
-                                       0x0607040502030001, 0x0e0f0c0d0a0b0809);
-  __m512i v_0xFF = _mm512_set1_epi16(0xff);
-  __m512i shufmask = _mm512_set_epi8(
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 62, 60, 58, 56, 54, 52, 50, 48, 46, 44, 42, 40, 38,
-      36, 34, 32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
-  while (buf + 32 <= end) {
-    __m512i in = _mm512_loadu_si512((__m512i *)buf);
-    if (big_endian) {
-      in = _mm512_shuffle_epi8(in, byteflip);
-    }
-    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
-      uint16_t word;
-      while ((word = (big_endian ? scalar::utf16::swap_bytes(uint16_t(*buf))
-                                 : uint16_t(*buf))) <= 0xff) {
-        *latin1_output++ = uint8_t(word);
-        buf++;
-      }
-      return std::make_pair(result(error_code::TOO_LARGE, buf - start),
-                            latin1_output);
-    }
-    _mm256_storeu_si256(
-        (__m256i *)latin1_output,
-        _mm512_castsi512_si256(_mm512_permutexvar_epi8(shufmask, in)));
-    latin1_output += 32;
-    buf += 32;
-  }
-  if (buf < end) {
-    uint32_t mask(uint32_t(1 << (end - buf)) - 1);
-    __m512i in = _mm512_maskz_loadu_epi16(mask, buf);
-    if (big_endian) {
-      in = _mm512_shuffle_epi8(in, byteflip);
-    }
-    if (_mm512_cmpgt_epu16_mask(in, v_0xFF)) {
+simdutf_warn_unused size_t implementation::convert_utf32_to_latin1(const char32_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf32_to_latin1(buf,len,latin1_output);
+}
+
+simdutf_warn_unused result implementation::convert_utf32_to_latin1_with_errors(const char32_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf32_to_latin1_with_errors(buf,len,latin1_output).first;
+}
+
+simdutf_warn_unused size_t implementation::convert_valid_utf32_to_latin1(const char32_t* buf, size_t len, char* latin1_output) const noexcept {
+  return icelake_convert_utf32_to_latin1(buf,len,latin1_output);
+}
+
 
       uint16_t word;
       while ((word = (big_endian ? scalar::utf16::swap_bytes(uint16_t(*buf))
@@ -22226,59 +22818,22 @@ icelake_convert_utf16_to_latin1_with_errors(const char16_t *buf, size_t len,
 }
 /* end file src/haswell/avx2_detect_encodings.cpp */
 
-/* begin file src/haswell/avx2_validate_utf16.cpp */
-/*
-    In UTF-16 code units in range 0xD800 to 0xDFFF have special meaning.
-
-/**
- * This function converts the input (inbuf, inlen), assumed to be valid
- * UTF16 (little endian) into UTF-8 (to outbuf). The number of code units written
- * is written to 'outlen' and the function reports the number of input word
- * consumed.
- */
-template <endianness big_endian>
-size_t utf16_to_utf8_avx512i(const char16_t *inbuf, size_t inlen,
-                               unsigned char *outbuf, size_t *outlen) {
-  __m512i in;
-  __mmask32 inmask = _cvtu32_mask32(0x7fffffff);
-  __m512i byteflip = _mm512_setr_epi64(
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809,
-            0x0607040502030001,
-            0x0e0f0c0d0a0b0809
-        );
-  const char16_t * const inbuf_orig = inbuf;
-  const unsigned char * const outbuf_orig = outbuf;
-  size_t adjust = 0;
-  int carry = 0;
-
-  while (inlen >= 32) {
-    in = _mm512_loadu_si512(inbuf);
-    if(big_endian) { in = _mm512_shuffle_epi8(in, byteflip); }
-    inlen -= 31;
-  lastiteration:
-    inbuf += 31;
-
-  failiteration:
-    const __mmask32 is234byte = _mm512_mask_cmp_epu16_mask(
-      inmask, in, _mm512_set1_epi16(0x0080), _MM_CMPINT_NLT);
-
-    if (_ktestz_mask32_u8(inmask, is234byte)) {
-      // fast path for ASCII only
-      _mm512_mask_cvtepi16_storeu_epi8(outbuf, inmask, in);
-      outbuf += 31;
-      carry = 0;
-
-      if (inlen < 32) {
-        goto tail;
-      } else {
-        continue;
-      }
+simdutf_warn_unused result implementation::convert_utf32_to_utf8_with_errors(const char32_t* buf, size_t len, char* utf8_output) const noexcept {
+  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
+  std::pair<result, char*> ret = icelake::avx512_convert_utf32_to_utf8_with_errors(buf, len, utf8_output);
+  if (ret.first.count != len) {
+    result scalar_res = scalar::utf32_to_utf8::convert_with_errors(
+                                        buf + ret.first.count, len - ret.first.count, ret.second);
+    if (scalar_res.error) {
+      scalar_res.count += ret.first.count;
+      return scalar_res;
+    } else {
+      ret.second += scalar_res.count;
     }
+  }
+  ret.first.count = ret.second - utf8_output;   // Set count to the number of 8-bit code units written
+  return ret.first;
+}
 
       1   0   0   0   0   1   1   0   V = valid masks
       0   1   0   1   0   0   0   0   a = L & (H >> 1)
@@ -22307,63 +22862,39 @@ size_t utf16_to_utf8_avx512i(const char16_t *inbuf, size_t inlen,
       outbuf += 31 + _mm_popcnt_u32(_cvtmask32_u32(is234byte));
       carry = 0;
 
-      if (inlen < 32) {
-        goto tail;
-      } else {
-        continue;
-      }
+simdutf_warn_unused result implementation::convert_utf32_to_utf16le_with_errors(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
+  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
+  std::pair<result, char16_t*> ret = avx512_convert_utf32_to_utf16_with_errors<endianness::LITTLE>(buf, len, utf16_output);
+  if (ret.first.count != len) {
+    result scalar_res = scalar::utf32_to_utf16::convert_with_errors<endianness::LITTLE>(
+                                        buf + ret.first.count, len - ret.first.count, ret.second);
+    if (scalar_res.error) {
+      scalar_res.count += ret.first.count;
+      return scalar_res;
+    } else {
+      ret.second += scalar_res.count;
     }
-    __m512i lo = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(in));
-    __m512i hi = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(in, 1));
+  }
+  ret.first.count = ret.second - utf16_output;   // Set count to the number of 8-bit code units written
+  return ret.first;
+}
 
-
-    __m512i taglo = _mm512_set1_epi32(0x8080e000);
-    __m512i taghi = taglo;
-
-    const __m512i fc00masked = _mm512_and_epi32(in, _mm512_set1_epi16(int16_t(0xfc00)));
-    const __mmask32 hisurr = _mm512_mask_cmp_epu16_mask(
-        inmask, fc00masked, _mm512_set1_epi16(int16_t(0xd800)), _MM_CMPINT_EQ);
-    const __mmask32 losurr = _mm512_cmp_epu16_mask(
-        fc00masked, _mm512_set1_epi16(int16_t(0xdc00)), _MM_CMPINT_EQ);
-
-    int carryout = 0;
-    if (!_kortestz_mask32_u8(hisurr, losurr)) {
-      // handle surrogates
-
-            // V - non-surrogate code units
-            //     V = not surrogates_wordmask
-            const uint32_t V = ~surrogates_bitmask;
-
-      const __mmask32 hisurrhi = _kshiftri_mask32(hisurr, 16);
-      taglo =
-          _mm512_mask_mov_epi32(taglo,__mmask16(hisurr), _mm512_set1_epi32(0x808080f0));
-      taghi =
-          _mm512_mask_mov_epi32(taghi, __mmask16(hisurrhi), _mm512_set1_epi32(0x808080f0));
-
-      lo = _mm512_mask_slli_epi32(lo, __mmask16(hisurr), lo, 10);
-      hi = _mm512_mask_slli_epi32(hi, __mmask16(hisurrhi), hi, 10);
-      los = _mm512_add_epi32(los, _mm512_set1_epi32(0xfca02400));
-      his = _mm512_add_epi32(his, _mm512_set1_epi32(0xfca02400));
-      lo = _mm512_mask_add_epi32(lo, __mmask16(hisurr), lo, los);
-      hi = _mm512_mask_add_epi32(hi, __mmask16(hisurrhi), hi, his);
-
-      carryout = _cvtu32_mask32(_kshiftri_mask32(hisurr, 30));
-
-            if (c == 0xffffffff) {
-                // The whole input register contains valid UTF-16, i.e.,
-                // either single code units or proper surrogate pairs.
-                input += simd16<uint16_t>::ELEMENTS * 2;
-            } else if (c == 0x7fffffff) {
-                // The 31 lower code units of the input register contains valid UTF-16.
-                // The 31 word may be either a low or high surrogate. It the next
-                // iteration we 1) check if the low surrogate is followed by a high
-                // one, 2) reject sole high surrogate.
-                input += simd16<uint16_t>::ELEMENTS * 2 - 1;
-            } else {
-                return nullptr;
-            }
-        }
+simdutf_warn_unused result implementation::convert_utf32_to_utf16be_with_errors(const char32_t* buf, size_t len, char16_t* utf16_output) const noexcept {
+  // ret.first.count is always the position in the buffer, not the number of code units written even if finished
+  std::pair<result, char16_t*> ret = avx512_convert_utf32_to_utf16_with_errors<endianness::BIG>(buf, len, utf16_output);
+  if (ret.first.count != len) {
+    result scalar_res = scalar::utf32_to_utf16::convert_with_errors<endianness::BIG>(
+                                        buf + ret.first.count, len - ret.first.count, ret.second);
+    if (scalar_res.error) {
+      scalar_res.count += ret.first.count;
+      return scalar_res;
+    } else {
+      ret.second += scalar_res.count;
     }
+  }
+  ret.first.count = ret.second - utf16_output;   // Set count to the number of 8-bit code units written
+  return ret.first;
+}
 
     hi = _mm512_maskz_mov_epi32(_cvtu32_mask16(0x7fff),hi);
     carry = carryout;
@@ -22639,39 +23170,78 @@ simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf16le(const c
   return scalar::utf8_to_utf16::convert_valid<endianness::LITTLE>(buf, len, utf16_output);
 }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf16be(const char* buf, size_t len, char16_t* utf16_output) const noexcept {
-  return scalar::utf8_to_utf16::convert_valid<endianness::BIG>(buf, len, utf16_output);
-}
-
-    // Pack 32-bit UTF-32 code units to 16-bit UTF-16 code units with unsigned saturation
-    __m256i in_16 = _mm256_packus_epi32(_mm256_and_si256(in, v_7fffffff), _mm256_and_si256(nextin, v_7fffffff));
-    in_16 = _mm256_permute4x64_epi64(in_16, 0b11011000);
+simdutf_warn_unused size_t implementation::count_utf8(const char * input, size_t length) const noexcept {
+  const uint8_t *str = reinterpret_cast<const uint8_t *>(input);
+  size_t answer =  length / sizeof(__m512i) * sizeof(__m512i); // Number of 512-bit chunks that fits into the length.
+  size_t i = 0;
+  __m512i unrolled_popcount{0}; 
 
 simdutf_warn_unused result implementation::convert_utf8_to_utf32_with_errors(const char* buf, size_t len, char32_t* utf32_output) const noexcept {
   return scalar::utf8_to_utf32::convert_with_errors(buf, len, utf32_output);
 }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf32(const char* input, size_t size,
-    char32_t* utf32_output) const noexcept {
-  return scalar::utf8_to_utf32::convert_valid(input, size,  utf32_output);
+  while (i + sizeof(__m512i) <= length) {
+    size_t iterations = (length - i) / sizeof(__m512i);
+
+    size_t max_i = i + iterations * sizeof(__m512i) - sizeof(__m512i);
+    for (; i + 8*sizeof(__m512i) <= max_i; i += 8*sizeof(__m512i)) {
+        __m512i input1 = _mm512_loadu_si512((const __m512i *)(str + i));
+        __m512i input2 = _mm512_loadu_si512((const __m512i *)(str + i + sizeof(__m512i)));
+        __m512i input3 = _mm512_loadu_si512((const __m512i *)(str + i + 2*sizeof(__m512i)));
+        __m512i input4 = _mm512_loadu_si512((const __m512i *)(str + i + 3*sizeof(__m512i)));
+        __m512i input5 = _mm512_loadu_si512((const __m512i *)(str + i + 4*sizeof(__m512i)));
+        __m512i input6 = _mm512_loadu_si512((const __m512i *)(str + i + 5*sizeof(__m512i)));
+        __m512i input7 = _mm512_loadu_si512((const __m512i *)(str + i + 6*sizeof(__m512i)));
+        __m512i input8 = _mm512_loadu_si512((const __m512i *)(str + i + 7*sizeof(__m512i)));
+
+
+        __mmask64 mask1 = _mm512_cmple_epi8_mask(input1, continuation);
+        __mmask64 mask2 = _mm512_cmple_epi8_mask(input2, continuation);
+        __mmask64 mask3 = _mm512_cmple_epi8_mask(input3, continuation);
+        __mmask64 mask4 = _mm512_cmple_epi8_mask(input4, continuation);
+        __mmask64 mask5 = _mm512_cmple_epi8_mask(input5, continuation);
+        __mmask64 mask6 = _mm512_cmple_epi8_mask(input6, continuation);
+        __mmask64 mask7 = _mm512_cmple_epi8_mask(input7, continuation);
+        __mmask64 mask8 = _mm512_cmple_epi8_mask(input8, continuation);
+
+        __m512i mask_register = _mm512_set_epi64(mask8, mask7, mask6, mask5, mask4, mask3, mask2, mask1);
+
+
+        unrolled_popcount = _mm512_add_epi64(unrolled_popcount, _mm512_popcnt_epi64(mask_register));
+    }
+
+    for (; i <= max_i; i += sizeof(__m512i)) {
+      __m512i more_input = _mm512_loadu_si512((const __m512i *)(str + i));
+      uint64_t continuation_bitmask = static_cast<uint64_t>(_mm512_cmple_epi8_mask(more_input, continuation));
+      answer -= count_ones(continuation_bitmask);
+    }
+  }
+
+  __m256i first_half = _mm512_extracti64x4_epi64(unrolled_popcount, 0);
+  __m256i second_half = _mm512_extracti64x4_epi64(unrolled_popcount, 1);
+  answer -= (size_t)_mm256_extract_epi64(first_half, 0) +
+            (size_t)_mm256_extract_epi64(first_half, 1) +
+            (size_t)_mm256_extract_epi64(first_half, 2) +
+            (size_t)_mm256_extract_epi64(first_half, 3) +
+            (size_t)_mm256_extract_epi64(second_half, 0) +
+            (size_t)_mm256_extract_epi64(second_half, 1) +
+            (size_t)_mm256_extract_epi64(second_half, 2) +
+            (size_t)_mm256_extract_epi64(second_half, 3);
+
+  return answer + scalar::utf8::count_code_points(reinterpret_cast<const char *>(str + i), length - i);
 }
 
-simdutf_warn_unused size_t implementation::convert_utf16le_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  return scalar::utf16_to_latin1::convert<endianness::LITTLE>(buf, len, latin1_output);
+simdutf_warn_unused size_t implementation::latin1_length_from_utf8(const char* buf, size_t len) const noexcept {
+  return count_utf8(buf,len);
 }
 
-simdutf_warn_unused size_t implementation::convert_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  return scalar::utf16_to_latin1::convert<endianness::BIG>(buf, len, latin1_output);
+simdutf_warn_unused size_t implementation::latin1_length_from_utf16(size_t length) const noexcept {
+  return scalar::utf16::latin1_length_from_utf16(length);
 }
 
-/* begin file src/haswell/avx2_convert_latin1_to_utf8.cpp */
-std::pair<const char *, char *> avx2_convert_latin1_to_utf8(const char *latin1_input, size_t len,
-                           char *utf8_output) {
-  const char *end = latin1_input + len;
-  const __m256i v_0000 = _mm256_setzero_si256();
-  const __m256i v_c080 = _mm256_set1_epi16((int16_t)0xc080);
-  const __m256i v_ff80 = _mm256_set1_epi16((int16_t)0xff80);
-  const size_t safety_margin = 12;
+simdutf_warn_unused size_t implementation::latin1_length_from_utf32(size_t length) const noexcept {
+  return scalar::utf32::latin1_length_from_utf32(length);
+}
 
   while (latin1_input + 16 + safety_margin <= end) {
     __m128i in8 = _mm_loadu_si128((__m128i *)latin1_input);
@@ -22814,8 +23384,90 @@ simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_latin1(const
   return scalar::utf16_to_latin1::convert_valid<endianness::LITTLE>(buf, len, latin1_output);
 }
 
-simdutf_warn_unused size_t implementation::convert_valid_utf16be_to_latin1(const char16_t* buf, size_t len, char* latin1_output) const noexcept {
-  return scalar::utf16_to_latin1::convert_valid<endianness::BIG>(buf, len, latin1_output);
+simdutf_warn_unused size_t implementation::utf16_length_from_latin1(size_t length) const noexcept {
+  return scalar::latin1::utf16_length_from_latin1(length);
+}
+
+
+simdutf_warn_unused size_t implementation::utf32_length_from_latin1(size_t length) const noexcept {
+  return scalar::latin1::utf32_length_from_latin1(length);
+}
+
+simdutf_warn_unused size_t implementation::utf8_length_from_latin1(const char * input, size_t length) const noexcept {
+  const uint8_t *str = reinterpret_cast<const uint8_t *>(input);
+  size_t answer = length / sizeof(__m512i) * sizeof(__m512i);
+  size_t i = 0;
+  unsigned char v_0xFF = 0xff;
+  __m512i eight_64bits = _mm512_setzero_si512();
+  while (i + sizeof(__m512i) <= length) {
+    __m512i runner = _mm512_setzero_si512();
+    size_t iterations = (length - i) / sizeof(__m512i);
+    if (iterations > 255) {
+      iterations = 255;
+    }
+    size_t max_i = i + iterations * sizeof(__m512i) - sizeof(__m512i);
+    for (; i + 4*sizeof(__m512i) <= max_i; i += 4*sizeof(__m512i)) {
+            // Load four __m512i vectors
+            __m512i input1 = _mm512_loadu_si512((const __m512i *)(str + i));
+            __m512i input2 = _mm512_loadu_si512((const __m512i *)(str + i + sizeof(__m512i)));
+            __m512i input3 = _mm512_loadu_si512((const __m512i *)(str + i + 2*sizeof(__m512i)));
+            __m512i input4 = _mm512_loadu_si512((const __m512i *)(str + i + 3*sizeof(__m512i)));
+
+            // Generate four masks
+            __mmask64 mask1 = _mm512_cmpgt_epi8_mask(_mm512_setzero_si512(), input1);
+            __mmask64 mask2 = _mm512_cmpgt_epi8_mask(_mm512_setzero_si512(), input2);
+            __mmask64 mask3 = _mm512_cmpgt_epi8_mask(_mm512_setzero_si512(), input3);
+            __mmask64 mask4 = _mm512_cmpgt_epi8_mask(_mm512_setzero_si512(), input4);
+            // Apply the masks and subtract from the runner
+            __m512i not_ascii1 = _mm512_mask_set1_epi8(_mm512_setzero_si512(), mask1, v_0xFF);
+            __m512i not_ascii2 = _mm512_mask_set1_epi8(_mm512_setzero_si512(), mask2, v_0xFF);
+            __m512i not_ascii3 = _mm512_mask_set1_epi8(_mm512_setzero_si512(), mask3, v_0xFF);
+            __m512i not_ascii4 = _mm512_mask_set1_epi8(_mm512_setzero_si512(), mask4, v_0xFF);
+
+            runner = _mm512_sub_epi8(runner, not_ascii1);
+            runner = _mm512_sub_epi8(runner, not_ascii2);
+            runner = _mm512_sub_epi8(runner, not_ascii3);
+            runner = _mm512_sub_epi8(runner, not_ascii4);
+    }
+
+    for (; i <= max_i; i += sizeof(__m512i)) {
+      __m512i more_input = _mm512_loadu_si512((const __m512i *)(str + i));
+
+      __mmask64 mask = _mm512_cmpgt_epi8_mask(_mm512_setzero_si512(), more_input);
+      __m512i not_ascii = _mm512_mask_set1_epi8(_mm512_setzero_si512(), mask, v_0xFF);
+      runner = _mm512_sub_epi8(runner, not_ascii);
+    }
+
+    eight_64bits = _mm512_add_epi64(eight_64bits, _mm512_sad_epu8(runner, _mm512_setzero_si512()));
+  }
+
+  __m256i first_half = _mm512_extracti64x4_epi64(eight_64bits, 0);
+  __m256i second_half = _mm512_extracti64x4_epi64(eight_64bits, 1);
+  answer += (size_t)_mm256_extract_epi64(first_half, 0) +
+            (size_t)_mm256_extract_epi64(first_half, 1) +
+            (size_t)_mm256_extract_epi64(first_half, 2) +
+            (size_t)_mm256_extract_epi64(first_half, 3) +
+            (size_t)_mm256_extract_epi64(second_half, 0) +
+            (size_t)_mm256_extract_epi64(second_half, 1) +
+            (size_t)_mm256_extract_epi64(second_half, 2) +
+            (size_t)_mm256_extract_epi64(second_half, 3);
+  return answer + scalar::latin1::utf8_length_from_latin1(reinterpret_cast<const char *>(str + i), length - i);
+}
+
+simdutf_warn_unused size_t implementation::utf16_length_from_utf8(const char * input, size_t length) const noexcept {
+    size_t pos = 0;
+    size_t count = 0;
+    // This algorithm could no doubt be improved!
+    for(;pos + 64 <= length; pos += 64) {
+      __m512i utf8 = _mm512_loadu_si512((const __m512i*)(input+pos));
+      uint64_t utf8_continuation_mask = _mm512_cmple_epi8_mask(utf8, _mm512_set1_epi8(-65+1));
+      // We count one word for anything that is not a continuation (so
+      // leading bytes).
+      count += 64 - count_ones(utf8_continuation_mask);
+      uint64_t utf8_4byte = _mm512_cmpge_epu8_mask(utf8, _mm512_set1_epi8(int8_t(240)));
+      count += count_ones(utf8_4byte);
+    }
+    return count + scalar::utf8::utf16_length_from_utf8(input + pos, length - pos);
 }
 
 simdutf_warn_unused size_t implementation::convert_utf16le_to_utf8(const char16_t* buf, size_t len, char* utf8_output) const noexcept {
@@ -23104,22 +23756,29 @@ size_t convert_masked_utf8_to_utf32(const char *input,
   return consumed;
 }
 
-/* begin file src/haswell/avx2_convert_utf16_to_latin1.cpp */
-template <endianness big_endian>
-std::pair<const char16_t *, char *>
-avx2_convert_utf16_to_latin1(const char16_t *buf, size_t len,
-                             char *latin1_output) {
-  const char16_t *end = buf + len;
-  while (buf + 16 <= end) {
-    // Load 16 UTF-16 characters into 256-bit AVX2 register
-    __m256i in = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(buf));
+} // namespace icelake
+} // namespace simdutf
 
-    if (!match_system(big_endian)) {
-      const __m256i swap = _mm256_setr_epi8(
-          1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18,
-          21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30);
-      in = _mm256_shuffle_epi8(in, swap);
-    }
+/* begin file src/simdutf/icelake/end.h */
+#if SIMDUTF_CAN_ALWAYS_RUN_ICELAKE
+// nothing needed.
+#else
+SIMDUTF_UNTARGET_REGION
+#endif
+
+
+#if SIMDUTF_GCC11ORMORE // workaround for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105593
+SIMDUTF_POP_DISABLE_WARNINGS
+#endif // end of workaround
+/* end file src/simdutf/icelake/end.h */
+/* end file src/icelake/implementation.cpp */
+#endif
+#if SIMDUTF_IMPLEMENTATION_HASWELL
+/* begin file src/haswell/implementation.cpp */
+
+/* begin file src/simdutf/haswell/begin.h */
+// redefining SIMDUTF_IMPLEMENTATION to "haswell"
+// #define SIMDUTF_IMPLEMENTATION haswell
 
     __m256i high_byte_mask = _mm256_set1_epi16((int16_t)0xFF00);
     if (_mm256_testz_si256(in, high_byte_mask)) {
@@ -23216,9 +23875,129 @@ simdutf_warn_unused size_t implementation::convert_valid_utf32_to_latin1(const c
   return scalar::utf32_to_latin1::convert_valid(buf, len, latin1_output);
 }
 
-    When values are less than 0x0800, it means that a 16-bit code unit
-    can be converted into: 1) single UTF8 byte (when it's an ASCII
-    char) or 2) two UTF8 bytes.
+/* begin file src/haswell/avx2_detect_encodings.cpp */
+template<class checker>
+// len is known to be a multiple of 2 when this is called
+int avx2_detect_encodings(const char * buf, size_t len) {
+    const char* start = buf;
+    const char* end = buf + len;
+
+    bool is_utf8 = true;
+    bool is_utf16 = true;
+    bool is_utf32 = true;
+
+    int out = 0;
+
+    const auto v_d8 = simd8<uint8_t>::splat(0xd8);
+    const auto v_f8 = simd8<uint8_t>::splat(0xf8);
+
+    __m256i currentmax = _mm256_setzero_si256();
+
+    checker check{};
+
+    while(buf + 64 <= end) {
+        __m256i in = _mm256_loadu_si256((__m256i*)buf);
+        __m256i nextin = _mm256_loadu_si256((__m256i*)buf+1);
+
+        const auto u0 = simd16<uint16_t>(in);
+        const auto u1 = simd16<uint16_t>(nextin);
+
+        const auto v0 = u0.shr<8>();
+        const auto v1 = u1.shr<8>();
+
+        const auto in16 = simd16<uint16_t>::pack(v0, v1);
+
+        const auto surrogates_wordmask0 = (in16 & v_f8) == v_d8;
+        uint32_t surrogates_bitmask0 = surrogates_wordmask0.to_bitmask();
+
+        // Check for surrogates
+        if (surrogates_bitmask0 != 0x0) {
+            // Cannot be UTF8
+            is_utf8 = false;
+            // Can still be either UTF-16LE or UTF-32 depending on the positions of the surrogates
+            // To be valid UTF-32, a surrogate cannot be in the two most significant bytes of any 32-bit word.
+            // On the other hand, to be valid UTF-16LE, at least one surrogate must be in the two most significant
+            // bytes of a 32-bit word since they always come in pairs in UTF-16LE.
+            // Note that we always proceed in multiple of 4 before this point so there is no offset in 32-bit code units.
+
+            if ((surrogates_bitmask0 & 0xaaaaaaaa) != 0) {
+                is_utf32 = false;
+                // Code from avx2_validate_utf16le.cpp
+                const char16_t * input = reinterpret_cast<const char16_t*>(buf);
+                const char16_t* end16 = reinterpret_cast<const char16_t*>(start) + len/2;
+
+                const auto v_fc = simd8<uint8_t>::splat(0xfc);
+                const auto v_dc = simd8<uint8_t>::splat(0xdc);
+
+                const uint32_t V0 = ~surrogates_bitmask0;
+
+                const auto    vH0 = (in16 & v_fc) == v_dc;
+                const uint32_t H0 = vH0.to_bitmask();
+
+                const uint32_t L0 = ~H0 & surrogates_bitmask0;
+
+                const uint32_t a0 = L0 & (H0 >> 1);
+                const uint32_t b0 = a0 << 1;
+                const uint32_t c0 = V0 | a0 | b0;
+
+                if (c0 == 0xffffffff) {
+                    input += simd16<uint16_t>::ELEMENTS * 2;
+                } else if (c0 == 0x7fffffff) {
+                    input += simd16<uint16_t>::ELEMENTS * 2 - 1;
+                } else {
+                    return simdutf::encoding_type::unspecified;
+                }
+
+                while (input + simd16<uint16_t>::ELEMENTS * 2 < end16) {
+                    const auto in0 = simd16<uint16_t>(input);
+                    const auto in1 = simd16<uint16_t>(input + simd16<uint16_t>::ELEMENTS);
+
+                    const auto t0 = in0.shr<8>();
+                    const auto t1 = in1.shr<8>();
+
+                    const auto in_16 = simd16<uint16_t>::pack(t0, t1);
+
+                    const auto surrogates_wordmask = (in_16 & v_f8) == v_d8;
+                    const uint32_t surrogates_bitmask = surrogates_wordmask.to_bitmask();
+                    if (surrogates_bitmask == 0x0) {
+                        input += simd16<uint16_t>::ELEMENTS * 2;
+                    } else {
+                        const uint32_t V = ~surrogates_bitmask;
+
+                        const auto    vH = (in_16 & v_fc) == v_dc;
+                        const uint32_t H = vH.to_bitmask();
+
+                        const uint32_t L = ~H & surrogates_bitmask;
+
+                        const uint32_t a = L & (H >> 1);
+
+                        const uint32_t b = a << 1;
+
+                        const uint32_t c = V | a | b;
+
+                        if (c == 0xffffffff) {
+                            input += simd16<uint16_t>::ELEMENTS * 2;
+                        } else if (c == 0x7fffffff) {
+                            input += simd16<uint16_t>::ELEMENTS * 2 - 1;
+                        } else {
+                            return simdutf::encoding_type::unspecified;
+                        }
+                    }
+                }
+            } else {
+                is_utf16 = false;
+                // Check for UTF-32
+                if (len % 4 == 0) {
+                    const char32_t * input = reinterpret_cast<const char32_t*>(buf);
+                    const char32_t* end32 = reinterpret_cast<const char32_t*>(start) + len/4;
+
+                    // Must start checking for surrogates
+                    __m256i currentoffsetmax = _mm256_setzero_si256();
+                    const __m256i offset = _mm256_set1_epi32(0xffff2000);
+                    const __m256i standardoffsetmax = _mm256_set1_epi32(0xfffff7ff);
+
+                    currentmax = _mm256_max_epu32(in, currentmax);
+                    currentmax = _mm256_max_epu32(nextin, currentmax);
 
       // 5. compress 32-bit code units into 1, 2 or 3 bytes -- 2 x shuffle
       const uint32_t mask = (one_byte_bitmask & 0x55555555) |
@@ -23284,9 +24063,9 @@ simdutf_warn_unused result implementation::convert_utf16le_to_utf32_with_errors(
   return scalar::utf16_to_utf32::convert_with_errors<endianness::LITTLE>(buf, len, utf32_output);
 }
 
-simdutf_warn_unused result implementation::convert_utf16be_to_utf32_with_errors(const char16_t* buf, size_t len, char32_t* utf32_output) const noexcept {
-  return scalar::utf16_to_utf32::convert_with_errors<endianness::BIG>(buf, len, utf32_output);
-}
+/* begin file src/haswell/avx2_validate_utf16.cpp */
+/*
+    In UTF-16 code units in range 0xD800 to 0xDFFF have special meaning.
 
 simdutf_warn_unused size_t implementation::convert_valid_utf16le_to_utf32(const char16_t* buf, size_t len, char32_t* utf32_output) const noexcept {
   return scalar::utf16_to_utf32::convert_valid<endianness::LITTLE>(buf, len, utf32_output);
@@ -23316,9 +24095,14 @@ simdutf_warn_unused size_t implementation::latin1_length_from_utf8(const char* b
   return scalar::utf8::latin1_length_from_utf8(buf,len);
 }
 
-simdutf_warn_unused size_t implementation::latin1_length_from_utf16(size_t length) const noexcept {
-  return scalar::utf16::latin1_length_from_utf16(length);
-}
+      1   0   0   0   0   1   1   0   V = valid masks
+      0   1   0   1   0   0   0   0   a = L & (H >> 1)
+      0   0   1   0   1   0   0   0   b = a << 1
+      1   1   1   1   1   1   1   0   c = V | a | b
+                                  ^
+                                  the last bit can be zero, we just consume 7 code units
+                                  and recheck this word in the next iteration
+*/
 
 simdutf_warn_unused size_t implementation::latin1_length_from_utf32(size_t length) const noexcept {
   return length;
@@ -23362,9 +24146,9 @@ simdutf_warn_unused size_t implementation::utf32_length_from_utf16be(const char1
           we have room for four bytes. However, we need five distinct bit
           layouts. Note that the last byte in cases #2 and #3 is the same.
 
-        We expand the input word (16-bit) into two code units (32-bit), thus
-        we have room for four bytes. However, we need five distinct bit
-        layouts. Note that the last byte in cases #2 and #3 is the same.
+            // V - non-surrogate code units
+            //     V = not surrogates_wordmask
+            const uint32_t V = ~surrogates_bitmask;
 
 simdutf_warn_unused size_t implementation::utf8_length_from_utf32(const char32_t * input, size_t length) const noexcept {
   return scalar::utf32::utf8_length_from_utf32(input, length);
@@ -23390,9 +24174,21 @@ simdutf_warn_unused size_t implementation::utf32_length_from_utf8(const char * i
   return scalar::utf8::count_code_points(input, length);
 }
 
-        // 4. expand code units 16-bit => 32-bit
-        const __m256i out0 = _mm256_unpacklo_epi16(t2, s4);
-        const __m256i out1 = _mm256_unpackhi_epi16(t2, s4);
+            if (c == 0xffffffff) {
+                // The whole input register contains valid UTF-16, i.e.,
+                // either single code units or proper surrogate pairs.
+                input += simd16<uint16_t>::ELEMENTS * 2;
+            } else if (c == 0x7fffffff) {
+                // The 31 lower code units of the input register contains valid UTF-16.
+                // The 31 word may be either a low or high surrogate. It the next
+                // iteration we 1) check if the low surrogate is followed by a high
+                // one, 2) reject sole high surrogate.
+                input += simd16<uint16_t>::ELEMENTS * 2 - 1;
+            } else {
+                return nullptr;
+            }
+        }
+    }
 
         // 5. compress 32-bit code units into 1, 2 or 3 bytes -- 2 x shuffle
         const uint32_t mask = (one_byte_bitmask & 0x55555555) |
@@ -23462,15 +24258,9 @@ simdutf_warn_unused size_t implementation::utf32_length_from_utf8(const char * i
 SIMDUTF_TARGET_ICELAKE
 #endif
 
-namespace simdutf {
-namespace arm64 {
-namespace {
-#ifndef SIMDUTF_ICELAKE_H
-#error "icelake.h must be included"
-#endif
-/* begin file src/icelake/icelake_utf8_common.inl.cpp */
-// Common procedures for both validating and non-validating conversions from UTF-8.
-enum block_processing_mode { SIMDUTF_FULL, SIMDUTF_TAIL};
+            // V - non-surrogate code units
+            //     V = not surrogates_wordmask
+            const uint32_t V = ~surrogates_bitmask;
 
 using utf8_to_utf16_result = std::pair<const char*, char16_t*>;
 using utf8_to_utf32_result = std::pair<const char*, uint32_t*>;
@@ -23482,58 +24272,32 @@ using utf8_to_utf32_result = std::pair<const char*, uint32_t*>;
 // file included directly
 
 
-  simdutf_really_inline simd8<uint8_t> check_special_cases(const simd8<uint8_t> input, const simd8<uint8_t> prev1) {
-// Bit 0 = Too Short (lead byte/ASCII followed by lead byte/ASCII)
-// Bit 1 = Too Long (ASCII followed by continuation)
-// Bit 2 = Overlong 3-byte
-// Bit 4 = Surrogate
-// Bit 5 = Overlong 2-byte
-// Bit 7 = Two Continuations
-    constexpr const uint8_t TOO_SHORT   = 1<<0; // 11______ 0_______
-                                                // 11______ 11______
-    constexpr const uint8_t TOO_LONG    = 1<<1; // 0_______ 10______
-    constexpr const uint8_t OVERLONG_3  = 1<<2; // 11100000 100_____
-    constexpr const uint8_t SURROGATE   = 1<<4; // 11101101 101_____
-    constexpr const uint8_t OVERLONG_2  = 1<<5; // 1100000_ 10______
-    constexpr const uint8_t TWO_CONTS   = 1<<7; // 10______ 10______
-    constexpr const uint8_t TOO_LARGE   = 1<<3; // 11110100 1001____
-                                                // 11110100 101_____
-                                                // 11110101 1001____
-                                                // 11110101 101_____
-                                                // 1111011_ 1001____
-                                                // 1111011_ 101_____
-                                                // 11111___ 1001____
-                                                // 11111___ 101_____
-    constexpr const uint8_t TOO_LARGE_1000 = 1<<6;
-                                                // 11110101 1000____
-                                                // 1111011_ 1000____
-                                                // 11111___ 1000____
-    constexpr const uint8_t OVERLONG_4  = 1<<6; // 11110000 1000____
+            if (c == 0xffffffff) {
+                // The whole input register contains valid UTF-16, i.e.,
+                // either single code units or proper surrogate pairs.
+                input += simd16<uint16_t>::ELEMENTS * 2;
+            } else if (c == 0x7fffffff) {
+                // The 31 lower code units of the input register contains valid UTF-16.
+                // The 31 word may be either a low or high surrogate. It the next
+                // iteration we 1) check if the low surrogate is followed by a high
+                // one, 2) reject sole high surrogate.
+                input += simd16<uint16_t>::ELEMENTS * 2 - 1;
+            } else {
+                return result(error_code::SURROGATE, input - start);
+            }
+        }
+    }
 
-    const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
-      // 0_______ ________ <ASCII in byte 1>
-      TOO_LONG, TOO_LONG, TOO_LONG, TOO_LONG,
-      TOO_LONG, TOO_LONG, TOO_LONG, TOO_LONG,
-      // 10______ ________ <continuation in byte 1>
-      TWO_CONTS, TWO_CONTS, TWO_CONTS, TWO_CONTS,
-      // 1100____ ________ <two byte lead in byte 1>
-      TOO_SHORT | OVERLONG_2,
-      // 1101____ ________ <two byte lead in byte 1>
-      TOO_SHORT,
-      // 1110____ ________ <three byte lead in byte 1>
-      TOO_SHORT | OVERLONG_3 | SURROGATE,
-      // 1111____ ________ <four+ byte lead in byte 1>
-      TOO_SHORT | TOO_LARGE | TOO_LARGE_1000 | OVERLONG_4
-    );
-    constexpr const uint8_t CARRY = TOO_SHORT | TOO_LONG | TWO_CONTS; // These all have ____ in byte 1 .
-    const simd8<uint8_t> byte_1_low = (prev1 & 0x0F).lookup_16<uint8_t>(
-      // ____0000 ________
-      CARRY | OVERLONG_3 | OVERLONG_2 | OVERLONG_4,
-      // ____0001 ________
-      CARRY | OVERLONG_2,
-      // ____001_ ________
-      CARRY,
-      CARRY,
+    return result(error_code::SUCCESS, input - start);
+}
+/* end file src/haswell/avx2_validate_utf16.cpp */
+/* begin file src/haswell/avx2_validate_utf32le.cpp */
+/* Returns:
+   - pointer to the last unprocessed character (a scalar fallback should check the rest);
+   - nullptr if an error was detected.
+*/
+const char32_t* avx2_validate_utf32le(const char32_t* input, size_t size) {
+    const char32_t* end = input + size;
 
       // ____0100 ________
       CARRY | TOO_LARGE,
@@ -23696,10 +24460,700 @@ using utf8_to_utf32_result = std::pair<const char*, uint32_t*>;
           // 80% efficiency (in the worst case). In practice we expect an
           // 85% to 90% efficiency.
         }
-      }
-      buf += k;
+        input += 8;
     }
+
+    return result(error_code::SUCCESS, input - start);
+}
+/* end file src/haswell/avx2_validate_utf32le.cpp */
+
+/* begin file src/haswell/avx2_convert_latin1_to_utf8.cpp */
+std::pair<const char *, char *> avx2_convert_latin1_to_utf8(const char *latin1_input, size_t len,
+                           char *utf8_output) {
+  const char *end = latin1_input + len;
+  const __m256i v_0000 = _mm256_setzero_si256();
+  const __m256i v_c080 = _mm256_set1_epi16((int16_t)0xc080);
+  const __m256i v_ff80 = _mm256_set1_epi16((int16_t)0xff80);
+  const size_t safety_margin = 12;
+
+  while (latin1_input + 16 + safety_margin <= end) {
+    __m128i in8 = _mm_loadu_si128((__m128i *)latin1_input);
+    // a single 16-bit UTF-16 word can yield 1, 2 or 3 UTF-8 bytes
+    const __m128i v_80 = _mm_set1_epi8((char)0x80);
+    if (_mm_testz_si128(in8, v_80)) { // ASCII fast path!!!!
+      // 1. store (16 bytes)
+      _mm_storeu_si128((__m128i *)utf8_output, in8);
+      // 2. adjust pointers
+      latin1_input += 16;
+      utf8_output += 16;
+      continue; // we are done for this round!
+    }
+    // We proceed only with the first 16 bytes.
+    const __m256i in = _mm256_cvtepu8_epi16((in8));
+
+    // 1. prepare 2-byte values
+    // input 16-bit word : [0000|0000|aabb|bbbb] x 8
+    // expected output   : [1100|00aa|10bb|bbbb] x 8
+    const __m256i v_1f00 = _mm256_set1_epi16((int16_t)0x1f00);
+    const __m256i v_003f = _mm256_set1_epi16((int16_t)0x003f);
+
+    // t0 = [0000|00aa|bbbb|bb00]
+    const __m256i t0 = _mm256_slli_epi16(in, 2);
+    // t1 = [0000|00aa|0000|0000]
+    const __m256i t1 = _mm256_and_si256(t0, v_1f00);
+    // t2 = [0000|0000|00bb|bbbb]
+    const __m256i t2 = _mm256_and_si256(in, v_003f);
+    // t3 = [000a|aaaa|00bb|bbbb]
+    const __m256i t3 = _mm256_or_si256(t1, t2);
+    // t4 = [1100|00aa|10bb|bbbb]
+    const __m256i t4 = _mm256_or_si256(t3, v_c080);
+
+    // 2. merge ASCII and 2-byte codewords
+
+    // no bits set above 7th bit
+    const __m256i one_byte_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in, v_ff80), v_0000);
+    const uint32_t one_byte_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(one_byte_bytemask));
+
+    const __m256i utf8_unpacked = _mm256_blendv_epi8(t4, in, one_byte_bytemask);
+
+    // 3. prepare bitmask for 8-bit lookup
+    const uint32_t M0 = one_byte_bitmask & 0x55555555;
+    const uint32_t M1 = M0 >> 7;
+    const uint32_t M2 = (M1 | M0) & 0x00ff00ff;
+    // 4. pack the bytes
+
+    const uint8_t *row =
+        &simdutf::tables::utf16_to_utf8::pack_1_2_utf8_bytes[uint8_t(M2)][0];
+    const uint8_t *row_2 =
+        &simdutf::tables::utf16_to_utf8::pack_1_2_utf8_bytes[uint8_t(M2 >> 16)]
+                                                            [0];
+
+    const __m128i shuffle = _mm_loadu_si128((__m128i *)(row + 1));
+    const __m128i shuffle_2 = _mm_loadu_si128((__m128i *)(row_2 + 1));
+
+    const __m256i utf8_packed = _mm256_shuffle_epi8(
+        utf8_unpacked, _mm256_setr_m128i(shuffle, shuffle_2));
+    // 5. store bytes
+    _mm_storeu_si128((__m128i *)utf8_output,
+                     _mm256_castsi256_si128(utf8_packed));
+    utf8_output += row[0];
+    _mm_storeu_si128((__m128i *)utf8_output,
+                     _mm256_extractf128_si256(utf8_packed, 1));
+    utf8_output += row_2[0];
+
+    // 6. adjust pointers
+    latin1_input += 16;
+    continue;
+
+  } // while
+  return std::make_pair(latin1_input, utf8_output);
+}
+/* end file src/haswell/avx2_convert_latin1_to_utf8.cpp */
+/* begin file src/haswell/avx2_convert_latin1_to_utf16.cpp */
+template <endianness big_endian>
+std::pair<const char*, char16_t*> avx2_convert_latin1_to_utf16(const char* latin1_input, size_t len, char16_t* utf16_output) {
+    size_t rounded_len = len & ~0xF; // Round down to nearest multiple of 32
+
+    size_t i = 0;
+    for (; i < rounded_len; i += 16) {
+        // Load 16 bytes from the address (input + i) into a xmm register
+        __m128i xmm0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(latin1_input + i));
+
+        // Zero extend each byte in xmm0 to word and put it in another xmm register
+        __m128i xmm1 = _mm_cvtepu8_epi16(xmm0);
+        
+        // Shift xmm0 to the right by 8 bytes
+        xmm0 = _mm_srli_si128(xmm0, 8);
+        
+        // Zero extend each byte in the shifted xmm0 to word in xmm0
+        xmm0 = _mm_cvtepu8_epi16(xmm0);
+
+        if (big_endian) {
+            const __m128i swap = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+            xmm0 = _mm_shuffle_epi8(xmm0, swap);
+            xmm1 = _mm_shuffle_epi8(xmm1, swap);
+        }
+        
+        // Store the contents of xmm1 into the address pointed by (output + i)
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(utf16_output + i), xmm1);
+        
+        // Store the contents of xmm0 into the address pointed by (output + i + 8)
+        _mm_storeu_si128(reinterpret_cast<__m128i*>(utf16_output + i + 8), xmm0);
+    }
+
+    return std::make_pair(latin1_input + rounded_len, utf16_output + rounded_len);
+
+}
+/* end file src/haswell/avx2_convert_latin1_to_utf16.cpp */
+/* begin file src/haswell/avx2_convert_latin1_to_utf32.cpp */
+std::pair<const char*, char32_t*> avx2_convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) {
+    size_t rounded_len = ((len | 7) ^ 7);  // Round down to nearest multiple of 8
+    
+    for (size_t i = 0; i < rounded_len; i += 8) { 
+        // Load 8 Latin1 characters into a 64-bit register
+        __m128i in = _mm_loadl_epi64((__m128i*)&buf[i]);
+        
+        // Zero extend each set of 8 Latin1 characters to 8 32-bit integers using vpmovzxbd
+        __m256i out = _mm256_cvtepu8_epi32(in);
+        
+        // Store the results back to memory
+        _mm256_storeu_si256((__m256i*)&utf32_output[i], out);
+    }
+
+    // return pointers pointing to where we left off
+    return std::make_pair(buf + rounded_len, utf32_output + rounded_len);
+}
+
+/* end file src/haswell/avx2_convert_latin1_to_utf32.cpp */
+
+/* begin file src/haswell/avx2_convert_utf8_to_utf16.cpp */
+// depends on "tables/utf8_to_utf16_tables.h"
+
+
+// Convert up to 12 bytes from utf8 to utf16 using a mask indicating the
+// end of the code points. Only the least significant 12 bits of the mask
+// are accessed.
+// It returns how many bytes were consumed (up to 12).
+template <endianness big_endian>
+size_t convert_masked_utf8_to_utf16(const char *input,
+                           uint64_t utf8_end_of_code_point_mask,
+                           char16_t *&utf16_output) {
+  // we use an approach where we try to process up to 12 input bytes.
+  // Why 12 input bytes and not 16? Because we are concerned with the size of
+  // the lookup tables. Also 12 is nicely divisible by two and three.
+  //
+  //
+  // Optimization note: our main path below is load-latency dependent. Thus it is maybe
+  // beneficial to have fast paths that depend on branch prediction but have less latency.
+  // This results in more instructions but, potentially, also higher speeds.
+  //
+  // We first try a few fast paths.
+  const __m128i swap = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+  const __m128i in = _mm_loadu_si128((__m128i *)input);
+  const uint16_t input_utf8_end_of_code_point_mask =
+      utf8_end_of_code_point_mask & 0xfff;
+  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
+    // We process the data in chunks of 16 bytes.
+    __m256i ascii = _mm256_cvtepu8_epi16(in);
+    if (big_endian) {
+      const __m256i swap256 = _mm256_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14,
+                                  17, 16, 19, 18, 21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30);
+      ascii = _mm256_shuffle_epi8(ascii, swap256);
+    }
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf16_output), ascii);
+    utf16_output += 16; // We wrote 16 16-bit characters.
+    return 16; // We consumed 16 bytes.
   }
+  if(((utf8_end_of_code_point_mask & 0xffff) == 0xaaaa)) {
+    // We want to take 8 2-byte UTF-8 code units and turn them into 8 2-byte UTF-16 code units.
+    // There is probably a more efficient sequence, but the following might do.
+    const __m128i sh = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi16(0x7f));
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi16(0x1f00));
+    __m128i composed = _mm_or_si128(ascii, _mm_srli_epi16(highbyte, 2));
+    if (big_endian) composed = _mm_shuffle_epi8(composed, swap);
+    _mm_storeu_si128((__m128i *)utf16_output, composed);
+    utf16_output += 8; // We wrote 16 bytes, 8 code points.
+    return 16;
+  }
+  if(input_utf8_end_of_code_point_mask == 0x924) {
+    // We want to take 4 3-byte UTF-8 code units and turn them into 4 2-byte UTF-16 code units.
+    // There is probably a more efficient sequence, but the following might do.
+    const __m128i sh = _mm_setr_epi8(2, 1, 0, -1, 5, 4, 3, -1, 8, 7, 6, -1, 11, 10, 9, -1);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii =
+        _mm_and_si128(perm, _mm_set1_epi32(0x7f)); // 7 or 6 bits
+    const __m128i middlebyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x3f00)); // 5 or 6 bits
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    const __m128i highbyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x0f0000)); // 4 bits
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 4);
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted), highbyte_shifted);
+    __m128i composed_repacked = _mm_packus_epi32(composed, composed);
+    if (big_endian) composed_repacked = _mm_shuffle_epi8(composed_repacked, swap);
+    _mm_storeu_si128((__m128i *)utf16_output, composed_repacked);
+    utf16_output += 4;
+    return 12;
+  }
+
+  const uint8_t idx =
+      simdutf::tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][0];
+  const uint8_t consumed =
+      simdutf::tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][1];
+  if (idx < 64) {
+    // SIX (6) input code-code units
+    // this is a relatively easy scenario
+    // we process SIX (6) input code-code units. The max length in bytes of six code
+    // code units spanning between 1 and 2 bytes each is 12 bytes. On processors
+    // where pdep/pext is fast, we might be able to use a small lookup table.
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)simdutf::tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi16(0x7f));
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi16(0x1f00));
+    __m128i composed = _mm_or_si128(ascii, _mm_srli_epi16(highbyte, 2));
+    if (big_endian) composed = _mm_shuffle_epi8(composed, swap);
+    _mm_storeu_si128((__m128i *)utf16_output, composed);
+    utf16_output += 6; // We wrote 12 bytes, 6 code points. There is a potential overflow of 4 bytes.
+  } else if (idx < 145) {
+    // FOUR (4) input code-code units
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)simdutf::tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii =
+        _mm_and_si128(perm, _mm_set1_epi32(0x7f)); // 7 or 6 bits
+    const __m128i middlebyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x3f00)); // 5 or 6 bits
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    const __m128i highbyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x0f0000)); // 4 bits
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 4);
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted), highbyte_shifted);
+    __m128i composed_repacked = _mm_packus_epi32(composed, composed);
+    if (big_endian) composed_repacked = _mm_shuffle_epi8(composed_repacked, swap);
+    _mm_storeu_si128((__m128i *)utf16_output, composed_repacked);
+    utf16_output += 4; // Here we overflow by 8 bytes.
+  } else if (idx < 209) {
+    // TWO (2) input code-code units
+    //////////////
+    // There might be garbage inputs where a leading byte mascarades as a four-byte
+    // leading byte (by being followed by 3 continuation byte), but is not greater than
+    // 0xf0. This could trigger a buffer overflow if we only counted leading
+    // bytes of the form 0xf0 as generating surrogate pairs, without further UTF-8 validation.
+    // Thus we must be careful to ensure that only leading bytes at least as large as 0xf0 generate surrogate pairs.
+    // We do as at the cost of an extra mask.
+    /////////////
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)simdutf::tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi32(0x7f));
+    const __m128i middlebyte = _mm_and_si128(perm, _mm_set1_epi32(0x3f00));
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    __m128i middlehighbyte = _mm_and_si128(perm, _mm_set1_epi32(0x3f0000));
+    // correct for spurious high bit
+    const __m128i correct =
+        _mm_srli_epi32(_mm_and_si128(perm, _mm_set1_epi32(0x400000)), 1);
+    middlehighbyte = _mm_xor_si128(correct, middlehighbyte);
+    const __m128i middlehighbyte_shifted = _mm_srli_epi32(middlehighbyte, 4);
+    // We deliberately carry the leading four bits in highbyte if they are present,
+    // we remove them later when computing hightenbits.
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi32(0xff000000));
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 6);
+    // When we need to generate a surrogate pair (leading byte > 0xF0), then
+    // the corresponding 32-bit value in 'composed'  will be greater than
+    // > (0xff00000>>6) or > 0x3c00000. This can be used later to identify the
+    // location of the surrogate pairs.
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted),
+                     _mm_or_si128(highbyte_shifted, middlehighbyte_shifted));
+    const __m128i composedminus =
+        _mm_sub_epi32(composed, _mm_set1_epi32(0x10000));
+    const __m128i lowtenbits =
+        _mm_and_si128(composedminus, _mm_set1_epi32(0x3ff));
+    // Notice the 0x3ff mask:
+    const __m128i hightenbits = _mm_and_si128(_mm_srli_epi32(composedminus, 10), _mm_set1_epi32(0x3ff));
+    const __m128i lowtenbitsadd =
+        _mm_add_epi32(lowtenbits, _mm_set1_epi32(0xDC00));
+    const __m128i hightenbitsadd =
+        _mm_add_epi32(hightenbits, _mm_set1_epi32(0xD800));
+    const __m128i lowtenbitsaddshifted = _mm_slli_epi32(lowtenbitsadd, 16);
+    __m128i surrogates =
+        _mm_or_si128(hightenbitsadd, lowtenbitsaddshifted);
+    uint32_t basic_buffer[4];
+    uint32_t basic_buffer_swap[4];
+    if (big_endian) {
+      _mm_storeu_si128((__m128i *)basic_buffer_swap, _mm_shuffle_epi8(composed, swap));
+      surrogates = _mm_shuffle_epi8(surrogates, swap);
+    }
+    _mm_storeu_si128((__m128i *)basic_buffer, composed);
+    uint32_t surrogate_buffer[4];
+    _mm_storeu_si128((__m128i *)surrogate_buffer, surrogates);
+    for (size_t i = 0; i < 3; i++) {
+      if(basic_buffer[i] > 0x3c00000) {
+        utf16_output[0] = uint16_t(surrogate_buffer[i] & 0xffff);
+        utf16_output[1] = uint16_t(surrogate_buffer[i] >> 16);
+        utf16_output += 2;
+      } else  {
+        utf16_output[0] = big_endian ? uint16_t(basic_buffer_swap[i]) : uint16_t(basic_buffer[i]);
+        utf16_output++;
+      }
+    }
+  } else {
+    // here we know that there is an error but we do not handle errors
+  }
+  return consumed;
+}
+/* end file src/haswell/avx2_convert_utf8_to_utf16.cpp */
+/* begin file src/haswell/avx2_convert_utf8_to_utf32.cpp */
+// depends on "tables/utf8_to_utf16_tables.h"
+
+    const __m512i standardmax = _mm512_set1_epi32((uint32_t)0x10ffff);
+    const __m512i standardoffsetmax = _mm512_set1_epi32((uint32_t)0xfffff7ff);
+    __m512i is_zero = _mm512_xor_si512(_mm512_max_epu32(currentmax, standardmax), standardmax);
+    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
+      return nullptr;
+    }
+    is_zero = _mm512_xor_si512(_mm512_max_epu32(currentoffsetmax, standardoffsetmax), standardoffsetmax);
+    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
+      return nullptr;
+    }
+
+// Convert up to 12 bytes from utf8 to utf32 using a mask indicating the
+// end of the code points. Only the least significant 12 bits of the mask
+// are accessed.
+// It returns how many bytes were consumed (up to 12).
+size_t convert_masked_utf8_to_utf32(const char *input,
+                           uint64_t utf8_end_of_code_point_mask,
+                           char32_t *&utf32_output) {
+  // we use an approach where we try to process up to 12 input bytes.
+  // Why 12 input bytes and not 16? Because we are concerned with the size of
+  // the lookup tables. Also 12 is nicely divisible by two and three.
+  //
+  //
+  // Optimization note: our main path below is load-latency dependent. Thus it is maybe
+  // beneficial to have fast paths that depend on branch prediction but have less latency.
+  // This results in more instructions but, potentially, also higher speeds.
+  //
+  // We first try a few fast paths.
+  const __m128i in = _mm_loadu_si128((__m128i *)input);
+  const uint16_t input_utf8_end_of_code_point_mask =
+      utf8_end_of_code_point_mask & 0xfff;
+  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
+    // We process the data in chunks of 16 bytes.
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output), _mm256_cvtepu8_epi32(in));
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output+8), _mm256_cvtepu8_epi32(_mm_srli_si128(in,8)));
+    utf32_output += 16; // We wrote 16 32-bit characters.
+    return 16; // We consumed 16 bytes.
+  }
+  if(((utf8_end_of_code_point_mask & 0xffff) == 0xaaaa)) {
+    // We want to take 8 2-byte UTF-8 code units and turn them into 8 4-byte UTF-32 code units.
+    // There is probably a more efficient sequence, but the following might do.
+    const __m128i sh = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi16(0x7f));
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi16(0x1f00));
+    const __m128i composed = _mm_or_si128(ascii, _mm_srli_epi16(highbyte, 2));
+    _mm256_storeu_si256((__m256i *)utf32_output, _mm256_cvtepu16_epi32(composed));
+    utf32_output += 8; // We wrote 16 bytes, 8 code points.
+    return 16;
+  }
+  if(input_utf8_end_of_code_point_mask == 0x924) {
+    // We want to take 4 3-byte UTF-8 code units and turn them into 4 4-byte UTF-32 code units.
+    // There is probably a more efficient sequence, but the following might do.
+    const __m128i sh = _mm_setr_epi8(2, 1, 0, -1, 5, 4, 3, -1, 8, 7, 6, -1, 11, 10, 9, -1);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii =
+        _mm_and_si128(perm, _mm_set1_epi32(0x7f)); // 7 or 6 bits
+    const __m128i middlebyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x3f00)); // 5 or 6 bits
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    const __m128i highbyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x0f0000)); // 4 bits
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 4);
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted), highbyte_shifted);
+    _mm_storeu_si128((__m128i *)utf32_output, composed);
+    utf32_output += 4;
+    return 12;
+  }
+  /// We do not have a fast path available, so we fallback.
+
+  const uint8_t idx =
+      tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][0];
+  const uint8_t consumed =
+      tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][1];
+  if (idx < 64) {
+    // SIX (6) input code-code units
+    // this is a relatively easy scenario
+    // we process SIX (6) input code-code units. The max length in bytes of six code
+    // code units spanning between 1 and 2 bytes each is 12 bytes. On processors
+    // where pdep/pext is fast, we might be able to use a small lookup table.
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi16(0x7f));
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi16(0x1f00));
+    const __m128i composed = _mm_or_si128(ascii, _mm_srli_epi16(highbyte, 2));
+    _mm256_storeu_si256((__m256i *)utf32_output, _mm256_cvtepu16_epi32(composed));
+    utf32_output += 6; // We wrote 24 bytes, 6 code points. There is a potential
+    // overflow of 32 - 24 = 8 bytes.
+  } else if (idx < 145) {
+    // FOUR (4) input code-code units
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii =
+        _mm_and_si128(perm, _mm_set1_epi32(0x7f)); // 7 or 6 bits
+    const __m128i middlebyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x3f00)); // 5 or 6 bits
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    const __m128i highbyte =
+        _mm_and_si128(perm, _mm_set1_epi32(0x0f0000)); // 4 bits
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 4);
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted), highbyte_shifted);
+    _mm_storeu_si128((__m128i *)utf32_output, composed);
+    utf32_output += 4;
+  } else if (idx < 209) {
+    // TWO (2) input code-code units
+    const __m128i sh =
+        _mm_loadu_si128((const __m128i *)tables::utf8_to_utf16::shufutf8[idx]);
+    const __m128i perm = _mm_shuffle_epi8(in, sh);
+    const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi32(0x7f));
+    const __m128i middlebyte = _mm_and_si128(perm, _mm_set1_epi32(0x3f00));
+    const __m128i middlebyte_shifted = _mm_srli_epi32(middlebyte, 2);
+    __m128i middlehighbyte = _mm_and_si128(perm, _mm_set1_epi32(0x3f0000));
+    // correct for spurious high bit
+    const __m128i correct =
+        _mm_srli_epi32(_mm_and_si128(perm, _mm_set1_epi32(0x400000)), 1);
+    middlehighbyte = _mm_xor_si128(correct, middlehighbyte);
+    const __m128i middlehighbyte_shifted = _mm_srli_epi32(middlehighbyte, 4);
+    const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi32(0x07000000));
+    const __m128i highbyte_shifted = _mm_srli_epi32(highbyte, 6);
+    const __m128i composed =
+        _mm_or_si128(_mm_or_si128(ascii, middlebyte_shifted),
+                     _mm_or_si128(highbyte_shifted, middlehighbyte_shifted));
+    _mm_storeu_si128((__m128i *)utf32_output, composed);
+    utf32_output += 3; // We wrote 3 * 4 bytes, there is a potential overflow of 4 bytes.
+  } else {
+    _mm512_storeu_si512(utf8_output, outputA);
+    utf8_output += output_sizeA;
+    _mm512_storeu_si512(utf8_output, outputB);
+  }
+  return output_size;
+}
+ 
+static inline size_t latin1_to_utf8_avx512_branch(__m512i input, char *utf8_output) {
+  __mmask64 nonascii = _mm512_movepi8_mask(input);
+  size_t nonascii_count = (size_t)count_ones(nonascii);
+  if(nonascii_count > 0){
+    return latin1_to_utf8_avx512_vec(input, 64, utf8_output, 0);
+  } else {
+    _mm512_storeu_si512(utf8_output, input);
+    return 64 + nonascii_count;}
+}
+/* end file src/haswell/avx2_convert_utf8_to_utf32.cpp */
+
+/* begin file src/haswell/avx2_convert_utf16_to_latin1.cpp */
+template <endianness big_endian>
+std::pair<const char16_t *, char *>
+avx2_convert_utf16_to_latin1(const char16_t *buf, size_t len,
+                             char *latin1_output) {
+  const char16_t *end = buf + len;
+  while (buf + 16 <= end) {
+    // Load 16 UTF-16 characters into 256-bit AVX2 register
+    __m256i in = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(buf));
+
+    if (!match_system(big_endian)) {
+      const __m256i swap = _mm256_setr_epi8(
+          1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18,
+          21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30);
+      in = _mm256_shuffle_epi8(in, swap);
+    }
+
+    __m256i high_byte_mask = _mm256_set1_epi16((int16_t)0xFF00);
+    if (_mm256_testz_si256(in, high_byte_mask)) {
+      // Pack 16-bit characters into 8-bit and store in latin1_output
+      __m128i lo = _mm256_extractf128_si256(in, 0);
+      __m128i hi = _mm256_extractf128_si256(in, 1);
+      __m128i latin1_packed_lo = _mm_packus_epi16(lo, lo);
+      __m128i latin1_packed_hi = _mm_packus_epi16(hi, hi);
+      _mm_storel_epi64(reinterpret_cast<__m128i *>(latin1_output),
+                       latin1_packed_lo);
+      _mm_storel_epi64(reinterpret_cast<__m128i *>(latin1_output + 8),
+                       latin1_packed_hi);
+      // Adjust pointers for next iteration
+      buf += 16;
+      latin1_output += 16;
+    } else {
+      return std::make_pair(nullptr, reinterpret_cast<char *>(latin1_output));
+    }
+  } // while
+  return std::make_pair(buf, latin1_output);
+}
+
+template <endianness big_endian>
+std::pair<result, char *>
+avx2_convert_utf16_to_latin1_with_errors(const char16_t *buf, size_t len,
+                                         char *latin1_output) {
+  const char16_t *start = buf;
+  const char16_t *end = buf + len;
+  while (buf + 16 <= end) {
+    __m256i in = _mm256_loadu_si256(reinterpret_cast<const __m256i *>(buf));
+
+    if (!big_endian) {
+      const __m256i swap = _mm256_setr_epi8(
+          1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14, 17, 16, 19, 18,
+          21, 20, 23, 22, 25, 24, 27, 26, 29, 28, 31, 30);
+      in = _mm256_shuffle_epi8(in, swap);
+    }
+
+    __m256i high_byte_mask = _mm256_set1_epi16((int16_t)0xFF00);
+    if (_mm256_testz_si256(in, high_byte_mask)) {
+      __m128i lo = _mm256_extractf128_si256(in, 0);
+      __m128i hi = _mm256_extractf128_si256(in, 1);
+      __m128i latin1_packed_lo = _mm_packus_epi16(lo, lo);
+      __m128i latin1_packed_hi = _mm_packus_epi16(hi, hi);
+      _mm_storel_epi64(reinterpret_cast<__m128i *>(latin1_output),
+                       latin1_packed_lo);
+      _mm_storel_epi64(reinterpret_cast<__m128i *>(latin1_output + 8),
+                       latin1_packed_hi);
+      buf += 16;
+      latin1_output += 16;
+    } else {
+      // Fallback to scalar code for handling errors
+      for (int k = 0; k < 16; k++) {
+        uint16_t word = !match_system(big_endian)
+                            ? scalar::utf16::swap_bytes(buf[k])
+                            : buf[k];
+        if (word <= 0xff) {
+          *latin1_output++ = char(word);
+        } else {
+          return std::make_pair(
+              result{error_code::TOO_LARGE, (size_t)(buf - start + k)},
+              latin1_output);
+        }
+      }
+      buf += 16;
+    }
+  } // while
+  return std::make_pair(result{error_code::SUCCESS, (size_t)(buf - start)},
+                        latin1_output);
+}
+/* end file src/haswell/avx2_convert_utf16_to_latin1.cpp */
+/* begin file src/haswell/avx2_convert_utf16_to_utf8.cpp */
+/*
+    The vectorized algorithm works on single SSE register i.e., it
+    loads eight 16-bit code units.
+
+    We consider three cases:
+    1. an input register contains no surrogates and each value
+       is in range 0x0000 .. 0x07ff.
+    2. an input register contains no surrogates and values are
+       is in range 0x0000 .. 0xffff.
+    3. an input register contains surrogates --- i.e. codepoints
+       can have 16 or 32 bits.
+
+    Ad 1.
+
+    When values are less than 0x0800, it means that a 16-bit code unit
+    can be converted into: 1) single UTF8 byte (when it's an ASCII
+    char) or 2) two UTF8 bytes.
+
+    For this case we do only some shuffle to obtain these 2-byte
+    codes and finally compress the whole SSE register with a single
+    shuffle.
+
+    We need 256-entry lookup table to get a compression pattern
+    and the number of output bytes in the compressed vector register.
+    Each entry occupies 17 bytes.
+
+    Ad 2.
+
+    When values fit in 16-bit code units, but are above 0x07ff, then
+    a single word may produce one, two or three UTF8 bytes.
+
+    We prepare data for all these three cases in two registers.
+    The first register contains lower two UTF8 bytes (used in all
+    cases), while the second one contains just the third byte for
+    the three-UTF8-bytes case.
+
+    Finally these two registers are interleaved forming eight-element
+    array of 32-bit values. The array spans two SSE registers.
+    The bytes from the registers are compressed using two shuffles.
+
+    We need 256-entry lookup table to get a compression pattern
+    and the number of output bytes in the compressed vector register.
+    Each entry occupies 17 bytes.
+
+
+    To summarize:
+    - We need two 256-entry tables that have 8704 bytes in total.
+*/
+
+
+/*
+  Returns a pair: the first unprocessed byte from buf and utf8_output
+  A scalar routing should carry on the conversion of the tail.
+*/
+template <endianness big_endian>
+std::pair<const char16_t*, char*> avx2_convert_utf16_to_utf8(const char16_t* buf, size_t len, char* utf8_output) {
+  const char16_t* end = buf + len;
+  const __m256i v_0000 = _mm256_setzero_si256();
+  const __m256i v_f800 = _mm256_set1_epi16((int16_t)0xf800);
+  const __m256i v_d800 = _mm256_set1_epi16((int16_t)0xd800);
+  const __m256i v_c080 = _mm256_set1_epi16((int16_t)0xc080);
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+
+  while (buf + 16 + safety_margin <= end) {
+    __m256i in = _mm256_loadu_si256((__m256i*)buf);
+    if (big_endian) {
+      out = _mm512_shuffle_epi8(out, byteflip);
+    }
+    // 1. Check if there are any surrogate word in the input chunk.
+    //    We have also deal with situation when there is a surrogate word
+    //    at the end of a chunk.
+    const __m256i surrogates_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in, v_f800), v_d800);
+
+    // bitmask = 0x0000 if there are no surrogates
+    //         = 0xc000 if the last word is a surrogate
+    const uint32_t surrogates_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(surrogates_bytemask));
+    // It might seem like checking for surrogates_bitmask == 0xc000 could help. However,
+    // it is likely an uncommon occurrence.
+    if (surrogates_bitmask == 0x00000000) {
+      // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
+        const __m256i dup_even = _mm256_setr_epi16(0x0000, 0x0202, 0x0404, 0x0606,
+                                                0x0808, 0x0a0a, 0x0c0c, 0x0e0e,
+                                                0x0000, 0x0202, 0x0404, 0x0606,
+                                                0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
+
+  return len;
+}
+/* end file src/icelake/icelake_convert_latin1_to_utf16.inl.cpp */
+/* begin file src/icelake/icelake_convert_latin1_to_utf32.inl.cpp */
+std::pair<const char*, char32_t*> avx512_convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) {
+    size_t rounded_len = len & ~0xF;  // Round down to nearest multiple of 16
+    
+    for (size_t i = 0; i < rounded_len; i += 16) { 
+        // Load 16 Latin1 characters into a 128-bit register
+        __m128i in = _mm_loadu_si128((__m128i*)&buf[i]);
+        
+        // Zero extend each set of 8 Latin1 characters to 16 32-bit integers using vpmovzxbd
+        __m512i out = _mm512_cvtepu8_epi32(in);
+        
+        // Store the results back to memory
+        _mm512_storeu_si512((__m512i*)&utf32_output[i], out);
+    }
+
+          We expand the input word (16-bit) into two code units (32-bit), thus
+          we have room for four bytes. However, we need five distinct bit
+          layouts. Note that the last byte in cases #2 and #3 is the same.
+
+    When values fit in 16-bit code units, but are above 0x07ff, then
+    a single word may produce one, two or three UTF8 bytes.
+
+#include <cstdint>
+
+          Finally from these two code units we build proper UTF-8 sequence, taking
+          into account the case (i.e, the number of bytes to write).
+        */
+        /**
+         * Given [aaaa|bbbb|bbcc|cccc] our goal is to produce:
+         * t2 => [0ccc|cccc] [10cc|cccc]
+         * s4 => [1110|aaaa] ([110b|bbbb] OR [10bb|bbbb])
+         */
+#define simdutf_vec(x) _mm256_set1_epi16(static_cast<uint16_t>(x))
+        // [aaaa|bbbb|bbcc|cccc] => [bbcc|cccc|bbcc|cccc]
+        const __m256i t0 = _mm256_shuffle_epi8(in, dup_even);
+        // [bbcc|cccc|bbcc|cccc] => [00cc|cccc|0bcc|cccc]
+        const __m256i t1 = _mm256_and_si256(t0, simdutf_vec(0b0011111101111111));
+        // [00cc|cccc|0bcc|cccc] => [10cc|cccc|0bcc|cccc]
+        const __m256i t2 = _mm256_or_si256 (t1, simdutf_vec(0b1000000000000000));
+
 
         // 4. expand code units 16-bit => 32-bit
         const __m256i out0 = _mm256_unpacklo_epi16(t2, s4);
@@ -23729,197 +25183,6 @@ using utf8_to_utf32_result = std::pair<const char*, uint32_t*>;
         const uint8_t* row0 = &simdutf::tables::utf16_to_utf8::pack_1_2_3_utf8_bytes[mask0][0];
         const __m128i shuffle0 = _mm_loadu_si128((__m128i*)(row0 + 1));
         const __m128i utf8_0 = _mm_shuffle_epi8(_mm256_castsi256_si128(out0), shuffle0);
-
-const char32_t* validate_utf32(const char32_t* buf, size_t len) {
-    const char32_t* end = len >= 16 ? buf + len - 16 : nullptr;
-
-    const __m512i offset = _mm512_set1_epi32((uint32_t)0xffff2000);
-    __m512i currentmax = _mm512_setzero_si512();
-    __m512i currentoffsetmax = _mm512_setzero_si512();
-
-    while (buf <= end) {
-      __m512i utf32 = _mm512_loadu_si512((const __m512i*)buf);
-      buf += 16;
-      currentoffsetmax = _mm512_max_epu32(_mm512_add_epi32(utf32, offset), currentoffsetmax);
-      currentmax = _mm512_max_epu32(utf32, currentmax);
-    }
-
-    const __m512i standardmax = _mm512_set1_epi32((uint32_t)0x10ffff);
-    const __m512i standardoffsetmax = _mm512_set1_epi32((uint32_t)0xfffff7ff);
-    __m512i is_zero = _mm512_xor_si512(_mm512_max_epu32(currentmax, standardmax), standardmax);
-    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
-      return nullptr;
-    }
-    is_zero = _mm512_xor_si512(_mm512_max_epu32(currentoffsetmax, standardoffsetmax), standardoffsetmax);
-    if (_mm512_test_epi8_mask(is_zero, is_zero) != 0) {
-      return nullptr;
-    }
-
-    return buf;
-}
-/* end file src/icelake/icelake_utf32_validation.inl.cpp */
-/* begin file src/icelake/icelake_convert_latin1_to_utf8.inl.cpp */
-// file included directly
-
-static inline size_t latin1_to_utf8_avx512_vec(__m512i input, size_t input_len, char *utf8_output, int mask_output) {
-  __mmask64 nonascii = _mm512_movepi8_mask(input);
-  size_t output_size = input_len + (size_t)count_ones(nonascii);
-  
-  // Mask to denote whether the byte is a leading byte that is not ascii
-  __mmask64 sixth =
-      _mm512_cmpge_epu8_mask(input, _mm512_set1_epi8(-64)); //binary representation of -64: 1100 0000
-  
-  const uint64_t alternate_bits = UINT64_C(0x5555555555555555);
-  uint64_t ascii = ~nonascii;
-  // the bits in ascii are inverted and zeros are interspersed in between them
-  uint64_t maskA = ~_pdep_u64(ascii, alternate_bits);
-  uint64_t maskB = ~_pdep_u64(ascii>>32, alternate_bits);
-  
-  // interleave bytes from top and bottom halves (abcd...ABCD -> aAbBcCdD)
-  __m512i input_interleaved = _mm512_permutexvar_epi8(_mm512_set_epi32(
-    0x3f1f3e1e, 0x3d1d3c1c, 0x3b1b3a1a, 0x39193818,
-    0x37173616, 0x35153414, 0x33133212, 0x31113010,
-    0x2f0f2e0e, 0x2d0d2c0c, 0x2b0b2a0a, 0x29092808,
-    0x27072606, 0x25052404, 0x23032202, 0x21012000
-  ), input);
-  
-  // double size of each byte, and insert the leading byte 1100 0010
-
-/* 
-upscale the bytes to 16-bit value, adding the 0b11000000 leading byte in the process.
-We adjust for the bytes that have their two most significant bits. This takes care of the first 32 bytes, assuming we interleaved the bytes. */
-  __m512i outputA = _mm512_shldi_epi16(input_interleaved, _mm512_set1_epi8(-62), 8); 
-  outputA = _mm512_mask_add_epi16(
-                                  outputA, 
-                                 (__mmask32)sixth, 
-                                  outputA, 
-                                  _mm512_set1_epi16(1 - 0x4000)); // 1- 0x4000 = 1100 0000 0000 0001????
-  
-  // in the second 32-bit half, set first or second option based on whether original input is leading byte (second case) or not (first case)
-  __m512i leadingB = _mm512_mask_blend_epi16(
-                                              (__mmask32)(sixth>>32), 
-                                              _mm512_set1_epi16(0x00c2), // 0000 0000 1101 0010
-                                              _mm512_set1_epi16(0x40c3));// 0100 0000 1100 0011
-  __m512i outputB = _mm512_ternarylogic_epi32(
-                                              input_interleaved, 
-                                              leadingB, 
-                                              _mm512_set1_epi16((short)0xff00), 
-                                              (240 & 170) ^ 204); // (input_interleaved & 0xff00) ^ leadingB
-  
-  // prune redundant bytes
-  outputA = _mm512_maskz_compress_epi8(maskA, outputA);
-  outputB = _mm512_maskz_compress_epi8(maskB, outputB);
-  
-  
-  size_t output_sizeA = (size_t)count_ones((uint32_t)nonascii) + 32;
-
-  if(mask_output) {
-    if(input_len > 32) { // is the second half of the input vector used?
-      __mmask64 write_mask = _bzhi_u64(~0ULL, (unsigned int)output_sizeA);
-      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputA);
-      utf8_output += output_sizeA;
-      write_mask = _bzhi_u64(~0ULL, (unsigned int)(output_size - output_sizeA));
-      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputB);
-    } else {
-      __mmask64 write_mask = _bzhi_u64(~0ULL, (unsigned int)output_size);
-      _mm512_mask_storeu_epi8(utf8_output, write_mask, outputA);
-    }
-  } else {
-    _mm512_storeu_si512(utf8_output, outputA);
-    utf8_output += output_sizeA;
-    _mm512_storeu_si512(utf8_output, outputB);
-  }
-  return output_size;
-}
- 
-static inline size_t latin1_to_utf8_avx512_branch(__m512i input, char *utf8_output) {
-  __mmask64 nonascii = _mm512_movepi8_mask(input);
-  size_t nonascii_count = (size_t)count_ones(nonascii);
-  if(nonascii_count > 0){
-    return latin1_to_utf8_avx512_vec(input, 64, utf8_output, 0);
-  } else {
-    _mm512_storeu_si512(utf8_output, input);
-    return 64 + nonascii_count;}
-}
-/* end file src/haswell/avx2_convert_utf16_to_utf8.cpp */
-/* begin file src/haswell/avx2_convert_utf16_to_utf32.cpp */
-/*
-    The vectorized algorithm works on single SSE register i.e., it
-    loads eight 16-bit code units.
-
-    We consider three cases:
-    1. an input register contains no surrogates and each value
-       is in range 0x0000 .. 0x07ff.
-    2. an input register contains no surrogates and values are
-       is in range 0x0000 .. 0xffff.
-    3. an input register contains surrogates --- i.e. codepoints
-       can have 16 or 32 bits.
-
-    Ad 1.
-
-    When values are less than 0x0800, it means that a 16-bit code unit
-    can be converted into: 1) single UTF8 byte (when it's an ASCII
-    char) or 2) two UTF8 bytes.
-
-    // Zero extend each set of 8 Latin1 characters to 32 16-bit integers
-    __m512i out = _mm512_cvtepu8_epi16(in);
-    if (big_endian) {
-      out = _mm512_shuffle_epi8(out, byteflip);
-    }
-    // Store the results back to memory
-    _mm512_mask_storeu_epi16(utf16_output + rounded_len, mask, out);
-  }
-
-  return len;
-}
-/* end file src/icelake/icelake_convert_latin1_to_utf16.inl.cpp */
-/* begin file src/icelake/icelake_convert_latin1_to_utf32.inl.cpp */
-std::pair<const char*, char32_t*> avx512_convert_latin1_to_utf32(const char* buf, size_t len, char32_t* utf32_output) {
-    size_t rounded_len = len & ~0xF;  // Round down to nearest multiple of 16
-    
-    for (size_t i = 0; i < rounded_len; i += 16) { 
-        // Load 16 Latin1 characters into a 128-bit register
-        __m128i in = _mm_loadu_si128((__m128i*)&buf[i]);
-        
-        // Zero extend each set of 8 Latin1 characters to 16 32-bit integers using vpmovzxbd
-        __m512i out = _mm512_cvtepu8_epi32(in);
-        
-        // Store the results back to memory
-        _mm512_storeu_si512((__m512i*)&utf32_output[i], out);
-    }
-
-    // Return pointers pointing to where we left off
-    return std::make_pair(buf + rounded_len, utf32_output + rounded_len);
-}
-/* end file src/icelake/icelake_convert_latin1_to_utf32.inl.cpp */
-
-    When values fit in 16-bit code units, but are above 0x07ff, then
-    a single word may produce one, two or three UTF8 bytes.
-
-#include <cstdint>
-
-} // namespace
-} // namespace icelake
-} // namespace simdutf
-/* end file src/generic/utf16.h */
-// transcoding from UTF-8 to Latin 1
-/* begin file src/generic/utf8_to_latin1/utf8_to_latin1.h */
-
-
-namespace simdutf {
-namespace arm64 {
-namespace {
-namespace utf8_to_latin1 {
-using namespace simd;
-
-simdutf_warn_unused int
-implementation::detect_encodings(const char *input,
-                                 size_t length) const noexcept {
-  // If there is a BOM, then we trust it.
-  auto bom_encoding = simdutf::BOM::check_bom(input, length);
-  if(bom_encoding != encoding_type::unspecified) { return bom_encoding; }
-  if (length % 2 == 0) {
-    const char *buf = input;
 
     const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
       // 0_______ ________ <ASCII in byte 1>
@@ -24172,16 +25435,23 @@ avx2_convert_utf32_to_latin1_with_errors(const char32_t *buf, size_t len,
     const size_t rounded_len =
         len & ~0x1F; // Round down to nearest multiple of 32
 
-    __m256i high_bytes_mask = _mm256_set1_epi32(0xFFFFFF00);
-    __m256i shufmask = _mm256_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-                                       -1, 12, 8, 4, 0, -1, -1, -1, -1, -1, -1,
-                                       -1, -1, -1, -1, -1, -1, 12, 8, 4, 0);
+    // bitmask = 0x0000 if there are no surrogates
+    //         = 0xc000 if the last word is a surrogate
+    const uint32_t surrogates_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(surrogates_bytemask));
+    // It might seem like checking for surrogates_bitmask == 0xc000 could help. However,
+    // it is likely an uncommon occurrence.
+    if (surrogates_bitmask == 0x00000000) {
+      // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
+        const __m256i dup_even = _mm256_setr_epi16(0x0000, 0x0202, 0x0404, 0x0606,
+                                                0x0808, 0x0a0a, 0x0c0c, 0x0e0e,
+                                                0x0000, 0x0202, 0x0404, 0x0606,
+                                                0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
 
     const char32_t *start = buf;
 
-    for (size_t i = 0; i < rounded_len; i += 16) {
-        __m256i in1 = _mm256_loadu_si256((__m256i *)buf);
-        __m256i in2 = _mm256_loadu_si256((__m256i *)(buf + 8));
+          We expand the input word (16-bit) into two code units (32-bit), thus
+          we have room for four bytes. However, we need five distinct bit
+          layouts. Note that the last byte in cases #2 and #3 is the same.
 
         __m256i check_combined = _mm256_or_si256(in1, in2);
 
@@ -24201,33 +25471,53 @@ avx2_convert_utf32_to_latin1_with_errors(const char32_t *buf, size_t len,
             __m256i shuffled1 = _mm256_shuffle_epi8(in1, shufmask);
             __m256i shuffled2 = _mm256_shuffle_epi8(in2, shufmask);
 
-            __m256i idx1 = _mm256_set_epi32(-1, -1, -1, -1, -1, -1, 4, 0);
-            __m256i idx2 = _mm256_set_epi32(-1, -1, -1, -1, 4, 0, -1, -1);
-            __m256i reshuffled1 = _mm256_permutevar8x32_epi32(shuffled1, idx1);
-            __m256i reshuffled2 = _mm256_permutevar8x32_epi32(shuffled2, idx2);
+          Finally from these two code units we build proper UTF-8 sequence, taking
+          into account the case (i.e, the number of bytes to write).
+        */
+        /**
+         * Given [aaaa|bbbb|bbcc|cccc] our goal is to produce:
+         * t2 => [0ccc|cccc] [10cc|cccc]
+         * s4 => [1110|aaaa] ([110b|bbbb] OR [10bb|bbbb])
+         */
+#define simdutf_vec(x) _mm256_set1_epi16(static_cast<uint16_t>(x))
+        // [aaaa|bbbb|bbcc|cccc] => [bbcc|cccc|bbcc|cccc]
+        const __m256i t0 = _mm256_shuffle_epi8(in, dup_even);
+        // [bbcc|cccc|bbcc|cccc] => [00cc|cccc|0bcc|cccc]
+        const __m256i t1 = _mm256_and_si256(t0, simdutf_vec(0b0011111101111111));
+        // [00cc|cccc|0bcc|cccc] => [10cc|cccc|0bcc|cccc]
+        const __m256i t2 = _mm256_or_si256 (t1, simdutf_vec(0b1000000000000000));
 
             __m256i result = _mm256_or_si256(reshuffled1, reshuffled2);
             _mm_storeu_si128((__m128i *)latin1_output, _mm256_castsi256_si128(result));
 
-            latin1_output += 16;
-            buf += 16;
-        }
-    }
+        // 4. expand code units 16-bit => 32-bit
+        const __m256i out0 = _mm256_unpacklo_epi16(t2, s4);
+        const __m256i out1 = _mm256_unpackhi_epi16(t2, s4);
 
-    return std::make_pair(result(error_code::SUCCESS, buf - start), latin1_output);
-}
-/* end file src/haswell/avx2_convert_utf32_to_latin1.cpp */
-/* begin file src/haswell/avx2_convert_utf32_to_utf8.cpp */
-std::pair<const char32_t*, char*> avx2_convert_utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output) {
-  const char32_t* end = buf + len;
-  const __m256i v_0000 = _mm256_setzero_si256();
-  const __m256i v_ffff0000 = _mm256_set1_epi32((uint32_t)0xffff0000);
-  const __m256i v_ff80 = _mm256_set1_epi16((uint16_t)0xff80);
-  const __m256i v_f800 = _mm256_set1_epi16((uint16_t)0xf800);
-  const __m256i v_c080 = _mm256_set1_epi16((uint16_t)0xc080);
-  const __m256i v_7fffffff = _mm256_set1_epi32((uint32_t)0x7fffffff);
-  __m256i running_max = _mm256_setzero_si256();
-  __m256i forbidden_bytemask = _mm256_setzero_si256();
+        // 5. compress 32-bit code units into 1, 2 or 3 bytes -- 2 x shuffle
+        const uint32_t mask = (one_byte_bitmask & 0x55555555) |
+                              (one_or_two_bytes_bitmask & 0xaaaaaaaa);
+        // Due to the wider registers, the following path is less likely to be useful.
+        /*if(mask == 0) {
+          // We only have three-byte code units. Use fast path.
+          const __m256i shuffle = _mm256_setr_epi8(2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1, 2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1);
+          const __m256i utf8_0 = _mm256_shuffle_epi8(out0, shuffle);
+          const __m256i utf8_1 = _mm256_shuffle_epi8(out1, shuffle);
+          _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_0));
+          utf8_output += 12;
+          _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_1));
+          utf8_output += 12;
+          _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_0,1));
+          utf8_output += 12;
+          _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_1,1));
+          utf8_output += 12;
+          buf += 16;
+          continue;
+        }*/
+        const uint8_t mask0 = uint8_t(mask);
+        const uint8_t* row0 = &simdutf::tables::utf16_to_utf8::pack_1_2_3_utf8_bytes[mask0][0];
+        const __m128i shuffle0 = _mm_loadu_si128((__m128i*)(row0 + 1));
+        const __m128i utf8_0 = _mm_shuffle_epi8(_mm256_castsi256_si128(out0), shuffle0);
 
   const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
 
@@ -24334,6 +25624,14 @@ std::pair<const char32_t*, char*> avx2_convert_utf32_to_utf8(const char32_t* buf
       }
       return result(error_code::SUCCESS, latin1_output - start);
     }
+  } // while
+  return std::make_pair(result(error_code::SUCCESS, buf - start), utf8_output);
+}
+/* end file src/haswell/avx2_convert_utf16_to_utf8.cpp */
+/* begin file src/haswell/avx2_convert_utf16_to_utf32.cpp */
+/*
+    The vectorized algorithm works on single SSE register i.e., it
+    loads eight 16-bit code units.
 
     simdutf_really_inline bool errors() const {
       return this->error.any_bits_set_anywhere();
@@ -24347,6 +25645,9 @@ std::pair<const char32_t*, char*> avx2_convert_utf32_to_utf8(const char32_t* buf
 /* end file src/generic/utf8_to_latin1/utf8_to_latin1.h */
 /* begin file src/generic/utf8_to_latin1/valid_utf8_to_latin1.h */
 
+    When values are less than 0x0800, it means that a 16-bit code unit
+    can be converted into: 1) single UTF8 byte (when it's an ASCII
+    char) or 2) two UTF8 bytes.
 
 namespace simdutf {
 namespace arm64 {
@@ -24423,10 +25724,8 @@ using namespace simd;
       const __m256i v_d800 = _mm256_set1_epi16((uint16_t)0xd800);
       forbidden_bytemask = _mm256_or_si256(forbidden_bytemask, _mm256_cmpeq_epi16(_mm256_and_si256(in_16, v_f800), v_d800));
 
-      const __m256i dup_even = _mm256_setr_epi16(0x0000, 0x0202, 0x0404, 0x0606,
-                                              0x0808, 0x0a0a, 0x0c0c, 0x0e0e,
-                                              0x0000, 0x0202, 0x0404, 0x0606,
-                                              0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
+    When values fit in 16-bit code units, but are above 0x07ff, then
+    a single word may produce one, two or three UTF8 bytes.
 
       /* In this branch we handle three cases:
         1. [0000|0000|0ccc|cccc] => [0ccc|cccc]                           - single UFT-8 byte
@@ -24502,31 +25801,30 @@ simdutf_warn_unused result implementation::validate_utf8_with_errors(const char 
   return arm64::utf8_validation::generic_validate_utf8_with_errors(buf,len);
 }
 
-simdutf_warn_unused bool implementation::validate_ascii(const char *buf, size_t len) const noexcept {
-  return arm64::utf8_validation::generic_validate_ascii(buf,len);
-}
-
-simdutf_warn_unused result implementation::validate_ascii_with_errors(const char *buf, size_t len) const noexcept {
-  return arm64::utf8_validation::generic_validate_ascii_with_errors(buf,len);
-}
-
-simdutf_warn_unused bool implementation::validate_utf16le(const char16_t *buf, size_t len) const noexcept {
-    const char16_t *end = buf + len;
-
-    for(;buf + 32 <= end; ) {
-      __m512i in = _mm512_loadu_si512((__m512i*)buf);
-      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
-      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
-      if(surrogates) {
-        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
-        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
-        // high must be followed by low
-        if ((highsurrogates << 1) != lowsurrogates) {
-           return false;
-        }
-        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
-        if(ends_with_high) {
-          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+    // bitmask = 0x0000 if there are no surrogates
+    //         = 0xc000 if the last word is a surrogate
+    const uint32_t surrogates_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(surrogates_bytemask));
+    // It might seem like checking for surrogates_bitmask == 0xc000 could help. However,
+    // it is likely an uncommon occurrence.
+    if (surrogates_bitmask == 0x00000000) {
+      // case: we extend all sixteen 16-bit code units to sixteen 32-bit code units
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output), _mm256_cvtepu16_epi32(_mm256_castsi256_si128(in)));
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output + 8), _mm256_cvtepu16_epi32(_mm256_extractf128_si256(in,1)));
+        utf32_output += 16;
+        buf += 16;
+    // surrogate pair(s) in a register
+    } else {
+      // Let us do a scalar fallback.
+      // It may seem wasteful to use scalar code, but being efficient with SIMD
+      // in the presence of surrogate pairs may require non-trivial tables.
+      size_t forward = 15;
+      size_t k = 0;
+      if(size_t(end - buf) < forward + 1) { forward = size_t(end - buf - 1);}
+      for(; k < forward; k++) {
+        uint16_t word = big_endian ? scalar::utf16::swap_bytes(buf[k]) : buf[k];
+        if((word &0xF800 ) != 0xD800) {
+          // No surrogate pair
+          *utf32_output++ = char32_t(word);
         } else {
           buf += 32;
         }
@@ -24599,25 +25897,35 @@ simdutf_warn_unused bool implementation::validate_utf16be(const char16_t *buf, s
     return true;
 }
 
-simdutf_warn_unused result implementation::validate_utf16le_with_errors(const char16_t *buf, size_t len) const noexcept {
-    const char16_t *start_buf = buf;
-    const char16_t *end = buf + len;
-    for(;buf + 32 <= end; ) {
-      __m512i in = _mm512_loadu_si512((__m512i*)buf);
-      __m512i diff = _mm512_sub_epi16(in, _mm512_set1_epi16(uint16_t(0xD800)));
-      __mmask32 surrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0800)));
-      if(surrogates) {
-        __mmask32 highsurrogates = _mm512_cmplt_epu16_mask(diff, _mm512_set1_epi16(uint16_t(0x0400)));
-        __mmask32 lowsurrogates = surrogates ^ highsurrogates;
-        // high must be followed by low
-        if ((highsurrogates << 1) != lowsurrogates) {
-          uint32_t extra_low = _tzcnt_u32(lowsurrogates &~(highsurrogates << 1));
-          uint32_t extra_high = _tzcnt_u32(highsurrogates &~(lowsurrogates >> 1));
-          return result(error_code::SURROGATE, (buf - start_buf) + (extra_low < extra_high ? extra_low : extra_high));
-        }
-        bool ends_with_high = ((highsurrogates & 0x80000000) != 0);
-        if(ends_with_high) {
-          buf += 31; // advance only by 31 code units so that we start with the high surrogate on the next round.
+    // 1. Check if there are any surrogate word in the input chunk.
+    //    We have also deal with situation when there is a surrogate word
+    //    at the end of a chunk.
+    const __m256i surrogates_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in, v_f800), v_d800);
+
+    // bitmask = 0x0000 if there are no surrogates
+    //         = 0xc000 if the last word is a surrogate
+    const uint32_t surrogates_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(surrogates_bytemask));
+    // It might seem like checking for surrogates_bitmask == 0xc000 could help. However,
+    // it is likely an uncommon occurrence.
+    if (surrogates_bitmask == 0x00000000) {
+      // case: we extend all sixteen 16-bit code units to sixteen 32-bit code units
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output), _mm256_cvtepu16_epi32(_mm256_castsi256_si128(in)));
+        _mm256_storeu_si256(reinterpret_cast<__m256i *>(utf32_output + 8), _mm256_cvtepu16_epi32(_mm256_extractf128_si256(in,1)));
+        utf32_output += 16;
+        buf += 16;
+    // surrogate pair(s) in a register
+    } else {
+      // Let us do a scalar fallback.
+      // It may seem wasteful to use scalar code, but being efficient with SIMD
+      // in the presence of surrogate pairs may require non-trivial tables.
+      size_t forward = 15;
+      size_t k = 0;
+      if(size_t(end - buf) < forward + 1) { forward = size_t(end - buf - 1);}
+      for(; k < forward; k++) {
+        uint16_t word = big_endian ? scalar::utf16::swap_bytes(buf[k]) : buf[k];
+        if((word &0xF800 ) != 0xD800) {
+          // No surrogate pair
+          *utf32_output++ = char32_t(word);
         } else {
           buf += 32;
         }
@@ -24642,6 +25950,120 @@ simdutf_warn_unused result implementation::validate_utf16le_with_errors(const ch
     }
     return result(error_code::SUCCESS, len);
 }
+/* end file src/haswell/avx2_convert_utf16_to_utf32.cpp */
+
+/* begin file src/haswell/avx2_convert_utf32_to_latin1.cpp */
+std::pair<const char32_t *, char *>
+avx2_convert_utf32_to_latin1(const char32_t *buf, size_t len,
+                             char *latin1_output) {
+  const size_t rounded_len =
+  len & ~0x1F; // Round down to nearest multiple of 32
+
+  __m256i high_bytes_mask = _mm256_set1_epi32(0xFFFFFF00);
+
+  __m256i shufmask = _mm256_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                                    -1, 12, 8, 4, 0, -1, -1, -1, -1, -1, -1,
+                                    -1, -1, -1, -1, -1, -1, 12, 8, 4, 0);
+
+  for (size_t i = 0; i < rounded_len; i += 16) {
+    __m256i in1 = _mm256_loadu_si256((__m256i *)buf);
+    __m256i in2 = _mm256_loadu_si256((__m256i *)(buf + 8));
+
+    __m256i check_combined = _mm256_or_si256(in1, in2);
+
+    if (!_mm256_testz_si256(check_combined, high_bytes_mask)) {
+      return std::make_pair(nullptr, latin1_output);
+    }
+
+    //Turn UTF32 bytes into latin 1 bytes
+    __m256i shuffled1 = _mm256_shuffle_epi8(in1, shufmask);
+    __m256i shuffled2 = _mm256_shuffle_epi8(in2, shufmask);
+
+    //move Latin1 bytes to their correct spot
+    __m256i idx1 = _mm256_set_epi32(-1, -1,-1,-1,-1,-1,4,0);
+    __m256i idx2 = _mm256_set_epi32(-1, -1,-1,-1,4,0,-1,-1);
+    __m256i reshuffled1 = _mm256_permutevar8x32_epi32(shuffled1, idx1);
+    __m256i reshuffled2 = _mm256_permutevar8x32_epi32(shuffled2, idx2);
+
+    __m256i result = _mm256_or_si256(reshuffled1, reshuffled2);
+    _mm_storeu_si128((__m128i *)latin1_output,
+                     _mm256_castsi256_si128(result));
+
+    latin1_output += 16;
+    buf += 16;
+  }
+
+  return std::make_pair(buf, latin1_output);
+}
+std::pair<result, char *>
+avx2_convert_utf32_to_latin1_with_errors(const char32_t *buf, size_t len,
+                                         char *latin1_output) {
+    const size_t rounded_len =
+        len & ~0x1F; // Round down to nearest multiple of 32
+
+    __m256i high_bytes_mask = _mm256_set1_epi32(0xFFFFFF00);
+    __m256i shufmask = _mm256_set_epi8(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+                                       -1, 12, 8, 4, 0, -1, -1, -1, -1, -1, -1,
+                                       -1, -1, -1, -1, -1, -1, 12, 8, 4, 0);
+
+    const char32_t *start = buf;
+
+    for (size_t i = 0; i < rounded_len; i += 16) {
+        __m256i in1 = _mm256_loadu_si256((__m256i *)buf);
+        __m256i in2 = _mm256_loadu_si256((__m256i *)(buf + 8));
+
+        __m256i check_combined = _mm256_or_si256(in1, in2);
+
+        if (!_mm256_testz_si256(check_combined, high_bytes_mask)) {
+            // Fallback to scalar code for handling errors
+            for (int k = 0; k < 8; k++) {
+                char32_t codepoint = buf[k];
+                if (codepoint <= 0xFF) {
+                    *latin1_output++ = static_cast<char>(codepoint);
+                } else {
+                    return std::make_pair(result(error_code::TOO_LARGE, buf - start + k),
+                                          latin1_output);
+                }
+            }
+            buf += 8;
+        } else {
+            __m256i shuffled1 = _mm256_shuffle_epi8(in1, shufmask);
+            __m256i shuffled2 = _mm256_shuffle_epi8(in2, shufmask);
+
+            __m256i idx1 = _mm256_set_epi32(-1, -1, -1, -1, -1, -1, 4, 0);
+            __m256i idx2 = _mm256_set_epi32(-1, -1, -1, -1, 4, 0, -1, -1);
+            __m256i reshuffled1 = _mm256_permutevar8x32_epi32(shuffled1, idx1);
+            __m256i reshuffled2 = _mm256_permutevar8x32_epi32(shuffled2, idx2);
+
+            __m256i result = _mm256_or_si256(reshuffled1, reshuffled2);
+            _mm_storeu_si128((__m128i *)latin1_output, _mm256_castsi256_si128(result));
+
+            latin1_output += 16;
+            buf += 16;
+        }
+    }
+
+    return std::make_pair(result(error_code::SUCCESS, buf - start), latin1_output);
+}
+/* end file src/haswell/avx2_convert_utf32_to_latin1.cpp */
+/* begin file src/haswell/avx2_convert_utf32_to_utf8.cpp */
+std::pair<const char32_t*, char*> avx2_convert_utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output) {
+  const char32_t* end = buf + len;
+  const __m256i v_0000 = _mm256_setzero_si256();
+  const __m256i v_ffff0000 = _mm256_set1_epi32((uint32_t)0xffff0000);
+  const __m256i v_ff80 = _mm256_set1_epi16((uint16_t)0xff80);
+  const __m256i v_f800 = _mm256_set1_epi16((uint16_t)0xf800);
+  const __m256i v_c080 = _mm256_set1_epi16((uint16_t)0xc080);
+  const __m256i v_7fffffff = _mm256_set1_epi32((uint32_t)0x7fffffff);
+  __m256i running_max = _mm256_setzero_si256();
+  __m256i forbidden_bytemask = _mm256_setzero_si256();
+
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+
+  while (buf + 16 + safety_margin <= end) {
+    __m256i in = _mm256_loadu_si256((__m256i*)buf);
+    __m256i nextin = _mm256_loadu_si256((__m256i*)buf+1);
+    running_max = _mm256_max_epu32(_mm256_max_epu32(in, running_max), nextin);
 
     // Pack 32-bit UTF-32 code units to 16-bit UTF-16 code units with unsigned saturation
     __m256i in_16 = _mm256_packus_epi32(_mm256_and_si256(in, v_7fffffff), _mm256_and_si256(nextin, v_7fffffff));
@@ -24717,8 +26139,6 @@ simdutf_warn_unused size_t implementation::convert_latin1_to_utf32(const char* b
     const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
     if (saturation_bitmask == 0xffffffff) {
       // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
-
-      // Check for illegal surrogate code units
       const __m256i v_d800 = _mm256_set1_epi16((uint16_t)0xd800);
       const __m256i forbidden_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in_16, v_f800), v_d800);
       if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0x0) {
@@ -24933,10 +26353,9 @@ simdutf_warn_unused size_t implementation::convert_utf8_to_utf32(const char* buf
   return converter.convert(buf, len, utf32_output);
 }
 
-simdutf_warn_unused result implementation::convert_utf8_to_utf32_with_errors(const char* buf, size_t len, char32_t* utf32_output) const noexcept {
-  utf8_to_utf32::validating_transcoder converter;
-  return converter.convert_with_errors(buf, len, utf32_output);
-}
+    // Pack 32-bit UTF-32 code units to 16-bit UTF-16 code units with unsigned saturation
+    __m256i in_16 = _mm256_packus_epi32(_mm256_and_si256(in, v_7fffffff), _mm256_and_si256(nextin, v_7fffffff));
+    in_16 = _mm256_permute4x64_epi64(in_16, 0b11011000);
 
 simdutf_warn_unused size_t implementation::convert_valid_utf8_to_utf32(const char* input, size_t size,
     char32_t* utf32_output) const noexcept {
@@ -25013,6 +26432,476 @@ simdutf_warn_unused result implementation::convert_utf16le_to_latin1_with_errors
   ret.first.count = ret.second - latin1_output;   // Set count to the number of 8-bit code units written
   return ret.first;
 }
+
+  return std::make_pair(result(error_code::SUCCESS, buf - start), utf16_output);
+}
+/* end file src/haswell/avx2_convert_utf32_to_utf16.cpp */
+
+/* begin file src/haswell/avx2_convert_utf8_to_latin1.cpp */
+// depends on "tables/utf8_to_utf16_tables.h"
+
+// Convert up to 12 bytes from utf8 to latin1 using a mask indicating the
+// end of the code points. Only the least significant 12 bits of the mask
+// are accessed.
+// It returns how many bytes were consumed (up to 12).
+size_t convert_masked_utf8_to_latin1(const char *input,
+                           uint64_t utf8_end_of_code_point_mask,
+                           char *&latin1_output) {
+  // we use an approach where we try to process up to 12 input bytes.
+  // Why 12 input bytes and not 16? Because we are concerned with the size of
+  // the lookup tables. Also 12 is nicely divisible by two and three.
+  //
+  //
+  // Optimization note: our main path below is load-latency dependent. Thus it is maybe
+  // beneficial to have fast paths that depend on branch prediction but have less latency.
+  // This results in more instructions but, potentially, also higher speeds.
+  //
+  const __m128i in = _mm_loadu_si128((__m128i *)input);
+  const __m128i in_second_half = _mm_loadu_si128((__m128i *)(input + 16));
+
+  const uint16_t input_utf8_end_of_code_point_mask =
+      utf8_end_of_code_point_mask & 0xfff; //we're only processing 12 bytes in case it`s not all ASCII
+
+  if((input_utf8_end_of_code_point_mask & 0xffffffff) == 0xffffffff) {
+    // Load the next 128 bits.
+
+    // Combine the two 128-bit registers into a single 256-bit register.
+    __m256i in_combined = _mm256_set_m128i(in_second_half, in);
+
+    // We process the data in chunks of 32 bytes.
+    _mm256_storeu_si256(reinterpret_cast<__m256i *>(latin1_output), in_combined);
+
+      // 6. adjust pointers
+      buf += 16;
+      continue;
+    }
+    // Must check for overflow in packing
+    const __m256i saturation_bytemask = _mm256_cmpeq_epi32(_mm256_and_si256(_mm256_or_si256(in, nextin), v_ffff0000), v_0000);
+    const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
+    if (saturation_bitmask == 0xffffffff) {
+      // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
+
+      // Check for illegal surrogate code units
+      const __m256i v_d800 = _mm256_set1_epi16((uint16_t)0xd800);
+      const __m256i forbidden_bytemask = _mm256_cmpeq_epi16(_mm256_and_si256(in_16, v_f800), v_d800);
+      if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0x0) {
+        return std::make_pair(result(error_code::SURROGATE, buf - start), utf8_output);
+      }
+
+  if(((utf8_end_of_code_point_mask & 0xffff) == 0xffff)) {
+    // We process the data in chunks of 16 bytes.
+    _mm_storeu_si128(reinterpret_cast<__m128i *>(latin1_output), in);
+    latin1_output += 16; // We wrote 16 characters.
+    return 16; // We consumed 16 bytes.
+  }
+  /// We do not have a fast path available, so we fallback.
+  const uint8_t idx =
+      tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][0];
+  const uint8_t consumed =
+      tables::utf8_to_utf16::utf8bigindex[input_utf8_end_of_code_point_mask][1];
+  // this indicates an invalid input:
+  if(idx >= 64) { return consumed; }
+  // Here we should have (idx < 64), if not, there is a bug in the validation or elsewhere.
+  // SIX (6) input code-code units
+  // this is a relatively easy scenario
+  // we process SIX (6) input code-code units. The max length in bytes of six code
+  // code units spanning between 1 and 2 bytes each is 12 bytes. On processors
+  // where pdep/pext is fast, we might be able to use a small lookup table.
+  const __m128i sh =
+        _mm_loadu_si128((const __m128i *)tables::utf8_to_utf16::shufutf8[idx]);
+  const __m128i perm = _mm_shuffle_epi8(in, sh);
+  const __m128i ascii = _mm_and_si128(perm, _mm_set1_epi16(0x7f));
+  const __m128i highbyte = _mm_and_si128(perm, _mm_set1_epi16(0x1f00));
+  __m128i composed = _mm_or_si128(ascii, _mm_srli_epi16(highbyte, 2));
+  const __m128i latin1_packed = _mm_packus_epi16(composed,composed);
+  // writing 8 bytes even though we only care about the first 6 bytes.
+  // performance note: it would be faster to use _mm_storeu_si128, we should investigate.
+  _mm_storel_epi64((__m128i *)latin1_output, latin1_packed);
+  latin1_output += 6; // We wrote 6 bytes.
+  return consumed;
+}
+/* end file src/haswell/avx2_convert_utf8_to_latin1.cpp */
+
+} // unnamed namespace
+} // namespace haswell
+} // namespace simdutf
+
+/* begin file src/generic/buf_block_reader.h */
+namespace simdutf {
+namespace haswell {
+namespace {
+
+// Walks through a buffer in block-sized increments, loading the last part with spaces
+template<size_t STEP_SIZE>
+struct buf_block_reader {
+public:
+  simdutf_really_inline buf_block_reader(const uint8_t *_buf, size_t _len);
+  simdutf_really_inline size_t block_index();
+  simdutf_really_inline bool has_full_block() const;
+  simdutf_really_inline const uint8_t *full_block() const;
+  /**
+   * Get the last block, padded with spaces.
+   *
+   * There will always be a last block, with at least 1 byte, unless len == 0 (in which case this
+   * function fills the buffer with spaces and returns 0. In particular, if len == STEP_SIZE there
+   * will be 0 full_blocks and 1 remainder block with STEP_SIZE bytes and no spaces for padding.
+   *
+   * @return the number of effective characters in the last block.
+   */
+  simdutf_really_inline size_t get_remainder(uint8_t *dst) const;
+  simdutf_really_inline void advance();
+private:
+  const uint8_t *buf;
+  const size_t len;
+  const size_t lenminusstep;
+  size_t idx;
+};
+
+// Routines to print masks and text for debugging bitmask operations
+simdutf_unused static char * format_input_text_64(const uint8_t *text) {
+  static char *buf = reinterpret_cast<char*>(malloc(sizeof(simd8x64<uint8_t>) + 1));
+  for (size_t i=0; i<sizeof(simd8x64<uint8_t>); i++) {
+    buf[i] = int8_t(text[i]) < ' ' ? '_' : int8_t(text[i]);
+  }
+  buf[sizeof(simd8x64<uint8_t>)] = '\0';
+  return buf;
+}
+
+// Routines to print masks and text for debugging bitmask operations
+simdutf_unused static char * format_input_text(const simd8x64<uint8_t>& in) {
+  static char *buf = reinterpret_cast<char*>(malloc(sizeof(simd8x64<uint8_t>) + 1));
+  in.store(reinterpret_cast<uint8_t*>(buf));
+  for (size_t i=0; i<sizeof(simd8x64<uint8_t>); i++) {
+    if (buf[i] < ' ') { buf[i] = '_'; }
+  }
+  buf[sizeof(simd8x64<uint8_t>)] = '\0';
+  return buf;
+}
+
+        We expand the input word (16-bit) into two code units (32-bit), thus
+        we have room for four bytes. However, we need five distinct bit
+        layouts. Note that the last byte in cases #2 and #3 is the same.
+
+template<size_t STEP_SIZE>
+simdutf_really_inline buf_block_reader<STEP_SIZE>::buf_block_reader(const uint8_t *_buf, size_t _len) : buf{_buf}, len{_len}, lenminusstep{len < STEP_SIZE ? 0 : len - STEP_SIZE}, idx{0} {}
+
+template<size_t STEP_SIZE>
+simdutf_really_inline size_t buf_block_reader<STEP_SIZE>::block_index() { return idx; }
+
+        Finally from these two code units we build proper UTF-8 sequence, taking
+        into account the case (i.e, the number of bytes to write).
+      */
+      /**
+       * Given [aaaa|bbbb|bbcc|cccc] our goal is to produce:
+       * t2 => [0ccc|cccc] [10cc|cccc]
+       * s4 => [1110|aaaa] ([110b|bbbb] OR [10bb|bbbb])
+       */
+#define simdutf_vec(x) _mm256_set1_epi16(static_cast<uint16_t>(x))
+      // [aaaa|bbbb|bbcc|cccc] => [bbcc|cccc|bbcc|cccc]
+      const __m256i t0 = _mm256_shuffle_epi8(in_16, dup_even);
+      // [bbcc|cccc|bbcc|cccc] => [00cc|cccc|0bcc|cccc]
+      const __m256i t1 = _mm256_and_si256(t0, simdutf_vec(0b0011111101111111));
+      // [00cc|cccc|0bcc|cccc] => [10cc|cccc|0bcc|cccc]
+      const __m256i t2 = _mm256_or_si256 (t1, simdutf_vec(0b1000000000000000));
+
+template<size_t STEP_SIZE>
+simdutf_really_inline const uint8_t *buf_block_reader<STEP_SIZE>::full_block() const {
+  return &buf[idx];
+}
+
+      // 4. expand code units 16-bit => 32-bit
+      const __m256i out0 = _mm256_unpacklo_epi16(t2, s4);
+      const __m256i out1 = _mm256_unpackhi_epi16(t2, s4);
+
+      // 5. compress 32-bit code units into 1, 2 or 3 bytes -- 2 x shuffle
+      const uint32_t mask = (one_byte_bitmask & 0x55555555) |
+                            (one_or_two_bytes_bitmask & 0xaaaaaaaa);
+      // Due to the wider registers, the following path is less likely to be useful.
+      /*if(mask == 0) {
+        // We only have three-byte code units. Use fast path.
+        const __m256i shuffle = _mm256_setr_epi8(2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1, 2,3,1,6,7,5,10,11,9,14,15,13,-1,-1,-1,-1);
+        const __m256i utf8_0 = _mm256_shuffle_epi8(out0, shuffle);
+        const __m256i utf8_1 = _mm256_shuffle_epi8(out1, shuffle);
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_0));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_castsi256_si128(utf8_1));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_0,1));
+        utf8_output += 12;
+        _mm_storeu_si128((__m128i*)utf8_output, _mm256_extractf128_si256(utf8_1,1));
+        utf8_output += 12;
+        buf += 16;
+        continue;
+      }*/
+      const uint8_t mask0 = uint8_t(mask);
+      const uint8_t* row0 = &simdutf::tables::utf16_to_utf8::pack_1_2_3_utf8_bytes[mask0][0];
+      const __m128i shuffle0 = _mm_loadu_si128((__m128i*)(row0 + 1));
+      const __m128i utf8_0 = _mm_shuffle_epi8(_mm256_castsi256_si128(out0), shuffle0);
+
+} // unnamed namespace
+} // namespace haswell
+} // namespace simdutf
+/* end file src/generic/buf_block_reader.h */
+/* begin file src/generic/utf8_validation/utf8_lookup4_algorithm.h */
+namespace simdutf {
+namespace haswell {
+namespace {
+namespace utf8_validation {
+
+using namespace simd;
+
+  simdutf_really_inline simd8<uint8_t> check_special_cases(const simd8<uint8_t> input, const simd8<uint8_t> prev1) {
+// Bit 0 = Too Short (lead byte/ASCII followed by lead byte/ASCII)
+// Bit 1 = Too Long (ASCII followed by continuation)
+// Bit 2 = Overlong 3-byte
+// Bit 4 = Surrogate
+// Bit 5 = Overlong 2-byte
+// Bit 7 = Two Continuations
+    constexpr const uint8_t TOO_SHORT   = 1<<0; // 11______ 0_______
+                                                // 11______ 11______
+    constexpr const uint8_t TOO_LONG    = 1<<1; // 0_______ 10______
+    constexpr const uint8_t OVERLONG_3  = 1<<2; // 11100000 100_____
+    constexpr const uint8_t SURROGATE   = 1<<4; // 11101101 101_____
+    constexpr const uint8_t OVERLONG_2  = 1<<5; // 1100000_ 10______
+    constexpr const uint8_t TWO_CONTS   = 1<<7; // 10______ 10______
+    constexpr const uint8_t TOO_LARGE   = 1<<3; // 11110100 1001____
+                                                // 11110100 101_____
+                                                // 11110101 1001____
+                                                // 11110101 101_____
+                                                // 1111011_ 1001____
+                                                // 1111011_ 101_____
+                                                // 11111___ 1001____
+                                                // 11111___ 101_____
+    constexpr const uint8_t TOO_LARGE_1000 = 1<<6;
+                                                // 11110101 1000____
+                                                // 1111011_ 1000____
+                                                // 11111___ 1000____
+    constexpr const uint8_t OVERLONG_4  = 1<<6; // 11110000 1000____
+
+    const simd8<uint8_t> byte_1_high = prev1.shr<4>().lookup_16<uint8_t>(
+      // 0_______ ________ <ASCII in byte 1>
+      TOO_LONG, TOO_LONG, TOO_LONG, TOO_LONG,
+      TOO_LONG, TOO_LONG, TOO_LONG, TOO_LONG,
+      // 10______ ________ <continuation in byte 1>
+      TWO_CONTS, TWO_CONTS, TWO_CONTS, TWO_CONTS,
+      // 1100____ ________ <two byte lead in byte 1>
+      TOO_SHORT | OVERLONG_2,
+      // 1101____ ________ <two byte lead in byte 1>
+      TOO_SHORT,
+      // 1110____ ________ <three byte lead in byte 1>
+      TOO_SHORT | OVERLONG_3 | SURROGATE,
+      // 1111____ ________ <four+ byte lead in byte 1>
+      TOO_SHORT | TOO_LARGE | TOO_LARGE_1000 | OVERLONG_4
+    );
+    constexpr const uint8_t CARRY = TOO_SHORT | TOO_LONG | TWO_CONTS; // These all have ____ in byte 1 .
+    const simd8<uint8_t> byte_1_low = (prev1 & 0x0F).lookup_16<uint8_t>(
+      // ____0000 ________
+      CARRY | OVERLONG_3 | OVERLONG_2 | OVERLONG_4,
+      // ____0001 ________
+      CARRY | OVERLONG_2,
+      // ____001_ ________
+      CARRY,
+      CARRY,
+
+      _mm_storeu_si128((__m128i*)utf8_output, utf8_0);
+      utf8_output += row0[0];
+      _mm_storeu_si128((__m128i*)utf8_output, utf8_1);
+      utf8_output += row1[0];
+      _mm_storeu_si128((__m128i*)utf8_output, utf8_2);
+      utf8_output += row2[0];
+      _mm_storeu_si128((__m128i*)utf8_output, utf8_3);
+      utf8_output += row3[0];
+      buf += 16;
+    } else {
+      // case: at least one 32-bit word is larger than 0xFFFF <=> it will produce four UTF-8 bytes.
+      // Let us do a scalar fallback.
+      // It may seem wasteful to use scalar code, but being efficient with SIMD
+      // may require large, non-trivial tables?
+      size_t forward = 15;
+      size_t k = 0;
+      if(size_t(end - buf) < forward + 1) { forward = size_t(end - buf - 1);}
+      for(; k < forward; k++) {
+        uint32_t word = buf[k];
+        if((word & 0xFFFFFF80)==0) {  // 1-byte (ASCII)
+          *utf8_output++ = char(word);
+        } else if((word & 0xFFFFF800)==0) { // 2-byte
+          *utf8_output++ = char((word>>6) | 0b11000000);
+          *utf8_output++ = char((word & 0b111111) | 0b10000000);
+        } else if((word & 0xFFFF0000 )==0) {  // 3-byte
+          if (word >= 0xD800 && word <= 0xDFFF) { return std::make_pair(result(error_code::SURROGATE, buf - start + k), utf8_output); }
+          *utf8_output++ = char((word>>12) | 0b11100000);
+          *utf8_output++ = char(((word>>6) & 0b111111) | 0b10000000);
+          *utf8_output++ = char((word & 0b111111) | 0b10000000);
+        } else {  // 4-byte
+          if (word > 0x10FFFF) { return std::make_pair(result(error_code::TOO_LARGE, buf - start + k), utf8_output); }
+          *utf8_output++ = char((word>>18) | 0b11110000);
+          *utf8_output++ = char(((word>>12) & 0b111111) | 0b10000000);
+          *utf8_output++ = char(((word>>6) & 0b111111) | 0b10000000);
+          *utf8_output++ = char((word & 0b111111) | 0b10000000);
+        }
+      }
+      buf += k;
+    }
+  } // while
+
+  return std::make_pair(result(error_code::SUCCESS, buf - start), utf8_output);
+}
+/* end file src/haswell/avx2_convert_utf32_to_utf8.cpp */
+/* begin file src/haswell/avx2_convert_utf32_to_utf16.cpp */
+template <endianness big_endian>
+std::pair<const char32_t*, char16_t*> avx2_convert_utf32_to_utf16(const char32_t* buf, size_t len, char16_t* utf16_output) {
+  const char32_t* end = buf + len;
+
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+  __m256i forbidden_bytemask = _mm256_setzero_si256();
+
+
+  while (buf + 8 + safety_margin <= end) {
+    __m256i in = _mm256_loadu_si256((__m256i*)buf);
+
+    const __m256i v_00000000 = _mm256_setzero_si256();
+    const __m256i v_ffff0000 = _mm256_set1_epi32((int32_t)0xffff0000);
+
+    // no bits set above 16th bit <=> can pack to UTF16 without surrogate pairs
+    const __m256i saturation_bytemask = _mm256_cmpeq_epi32(_mm256_and_si256(in, v_ffff0000), v_00000000);
+    const uint32_t saturation_bitmask = static_cast<uint32_t>(_mm256_movemask_epi8(saturation_bytemask));
+
+    if (saturation_bitmask == 0xffffffff) {
+      const __m256i v_f800 = _mm256_set1_epi32((uint32_t)0xf800);
+      const __m256i v_d800 = _mm256_set1_epi32((uint32_t)0xd800);
+      forbidden_bytemask = _mm256_or_si256(forbidden_bytemask, _mm256_cmpeq_epi32(_mm256_and_si256(in, v_f800), v_d800));
+
+      __m128i utf16_packed = _mm_packus_epi32(_mm256_castsi256_si128(in),_mm256_extractf128_si256(in,1));
+      if (big_endian) {
+        const __m128i swap = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+        utf16_packed = _mm_shuffle_epi8(utf16_packed, swap);
+      }
+      _mm_storeu_si128((__m128i*)utf16_output, utf16_packed);
+      utf16_output += 8;
+      buf += 8;
+    } else {
+      size_t forward = 7;
+      size_t k = 0;
+      if(size_t(end - buf) < forward + 1) { forward = size_t(end - buf - 1);}
+      for(; k < forward; k++) {
+        uint32_t word = buf[k];
+        if((word & 0xFFFF0000)==0) {
+          // will not generate a surrogate pair
+          if (word >= 0xD800 && word <= 0xDFFF) { return std::make_pair(nullptr, utf16_output); }
+          *utf16_output++ = big_endian ? char16_t((uint16_t(word) >> 8) | (uint16_t(word) << 8)) : char16_t(word);
+        } else {
+          // will generate a surrogate pair
+          if (word > 0x10FFFF) { return std::make_pair(nullptr, utf16_output); }
+          word -= 0x10000;
+          uint16_t high_surrogate = uint16_t(0xD800 + (word >> 10));
+          uint16_t low_surrogate = uint16_t(0xDC00 + (word & 0x3FF));
+          if (big_endian) {
+            high_surrogate = uint16_t((high_surrogate >> 8) | (high_surrogate << 8));
+            low_surrogate = uint16_t((low_surrogate >> 8) | (low_surrogate << 8));
+          }
+          *utf16_output++ = char16_t(high_surrogate);
+          *utf16_output++ = char16_t(low_surrogate);
+        }
+      }
+      buf += k;
+    }
+  }
+
+  // check for invalid input
+  if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0) { return std::make_pair(nullptr, utf16_output); }
+
+  return std::make_pair(buf, utf16_output);
+}
+
+
+template <endianness big_endian>
+std::pair<result, char16_t*> avx2_convert_utf32_to_utf16_with_errors(const char32_t* buf, size_t len, char16_t* utf16_output) {
+  const char32_t* start = buf;
+  const char32_t* end = buf + len;
+
+  const size_t safety_margin = 12; // to avoid overruns, see issue https://github.com/simdutf/simdutf/issues/92
+
+  //
+  // Return nonzero if there are incomplete multibyte characters at the end of the block:
+  // e.g. if there is a 4-byte character, but it's 3 bytes from the end.
+  //
+  simdutf_really_inline simd8<uint8_t> is_incomplete(const simd8<uint8_t> input) {
+    // If the previous input's last 3 bytes match this, they're too short (they ended at EOF):
+    // ... 1111____ 111_____ 11______
+    static const uint8_t max_array[32] = {
+      255, 255, 255, 255, 255, 255, 255, 255,
+      255, 255, 255, 255, 255, 255, 255, 255,
+      255, 255, 255, 255, 255, 255, 255, 255,
+      255, 255, 255, 255, 255, 0b11110000u-1, 0b11100000u-1, 0b11000000u-1
+    };
+    const simd8<uint8_t> max_value(&max_array[sizeof(max_array)-sizeof(simd8<uint8_t>)]);
+    return input.gt_bits(max_value);
+  }
+
+  struct utf8_checker {
+    // If this is nonzero, there has been a UTF-8 error.
+    simd8<uint8_t> error;
+    // The last input we received
+    simd8<uint8_t> prev_input_block;
+    // Whether the last input we received was incomplete (used for ASCII fast path)
+    simd8<uint8_t> prev_incomplete;
+
+    //
+    // Check whether the current bytes are valid UTF-8.
+    //
+    simdutf_really_inline void check_utf8_bytes(const simd8<uint8_t> input, const simd8<uint8_t> prev_input) {
+      // Flip prev1...prev3 so we can easily determine if they are 2+, 3+ or 4+ lead bytes
+      // (2, 3, 4-byte leads become large positive numbers instead of small negative numbers)
+      simd8<uint8_t> prev1 = input.prev<1>(prev_input);
+      simd8<uint8_t> sc = check_special_cases(input, prev1);
+      this->error |= check_multibyte_lengths(input, prev_input, sc);
+    }
+
+    if (saturation_bitmask == 0xffffffff) {
+      const __m256i v_f800 = _mm256_set1_epi32((uint32_t)0xf800);
+      const __m256i v_d800 = _mm256_set1_epi32((uint32_t)0xd800);
+      const __m256i forbidden_bytemask = _mm256_cmpeq_epi32(_mm256_and_si256(in, v_f800), v_d800);
+      if (static_cast<uint32_t>(_mm256_movemask_epi8(forbidden_bytemask)) != 0x0) {
+        return std::make_pair(result(error_code::SURROGATE, buf - start), utf16_output);
+      }
+
+      __m128i utf16_packed = _mm_packus_epi32(_mm256_castsi256_si128(in),_mm256_extractf128_si256(in,1));
+      if (big_endian) {
+        const __m128i swap = _mm_setr_epi8(1, 0, 3, 2, 5, 4, 7, 6, 9, 8, 11, 10, 13, 12, 15, 14);
+        utf16_packed = _mm_shuffle_epi8(utf16_packed, swap);
+      }
+      _mm_storeu_si128((__m128i*)utf16_output, utf16_packed);
+      utf16_output += 8;
+      buf += 8;
+    } else {
+      size_t forward = 7;
+      size_t k = 0;
+      if(size_t(end - buf) < forward + 1) { forward = size_t(end - buf - 1);}
+      for(; k < forward; k++) {
+        uint32_t word = buf[k];
+        if((word & 0xFFFF0000)==0) {
+          // will not generate a surrogate pair
+          if (word >= 0xD800 && word <= 0xDFFF) { return std::make_pair(result(error_code::SURROGATE, buf - start + k), utf16_output); }
+          *utf16_output++ = big_endian ? char16_t((uint16_t(word) >> 8) | (uint16_t(word) << 8)) : char16_t(word);
+        } else {
+          // will generate a surrogate pair
+          if (word > 0x10FFFF) { return std::make_pair(result(error_code::TOO_LARGE, buf - start + k), utf16_output); }
+          word -= 0x10000;
+          uint16_t high_surrogate = uint16_t(0xD800 + (word >> 10));
+          uint16_t low_surrogate = uint16_t(0xDC00 + (word & 0x3FF));
+          if (big_endian) {
+            high_surrogate = uint16_t((high_surrogate >> 8) | (high_surrogate << 8));
+            low_surrogate = uint16_t((low_surrogate >> 8) | (low_surrogate << 8));
+          }
+          *utf16_output++ = char16_t(high_surrogate);
+          *utf16_output++ = char16_t(low_surrogate);
+        }
+        this->prev_incomplete = is_incomplete(input.chunks[simd8x64<uint8_t>::NUM_CHUNKS-1]);
+        this->prev_input_block = input.chunks[simd8x64<uint8_t>::NUM_CHUNKS-1];
+
+      }
+    }
+  }
 
   return std::make_pair(result(error_code::SUCCESS, buf - start), utf16_output);
 }
