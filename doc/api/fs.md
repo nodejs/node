@@ -180,7 +180,7 @@ longer be used.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version:
@@ -324,7 +324,7 @@ fd.createReadStream({ start: 90, end: 99 });
 <!-- YAML
 added: v16.11.0
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
 -->
@@ -884,7 +884,7 @@ the error raised if the file is not accessible.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
 -->
@@ -1737,7 +1737,7 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version:
@@ -2039,7 +2039,7 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v18.0.0
@@ -2536,7 +2536,7 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50093
     description: The `flush` option is now supported.
   - version: v16.10.0
@@ -4886,7 +4886,7 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
@@ -5128,7 +5128,7 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50095
     description: The `flush` option is now supported.
   - version: v7.0.0
@@ -6181,7 +6181,7 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
-  - version: REPLACEME
+  - version: v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50009
     description: The `flush` option is now supported.
   - version: v19.0.0
