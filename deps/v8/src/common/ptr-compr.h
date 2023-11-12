@@ -55,8 +55,8 @@ class V8HeapCompressionScheme {
  private:
   // These non-inlined accessors to base_ field are used in component builds
   // where cross-component access to thread local variables is not allowed.
-  static Address base_non_inlined();
-  static void set_base_non_inlined(Address base);
+  static V8_EXPORT_PRIVATE Address base_non_inlined();
+  static V8_EXPORT_PRIVATE void set_base_non_inlined(Address base);
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
@@ -155,6 +155,29 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
     base::Memory<V>(p) = value;
   }
 }
+
+// When multi-cage pointer compression mode is enabled this scope object
+// saves current cage's base values and sets them according to given Isolate.
+// For all other configurations this scope object is a no-op.
+class PtrComprCageAccessScope final {
+ public:
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate);
+  V8_INLINE ~PtrComprCageAccessScope();
+#else
+  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
+  V8_INLINE ~PtrComprCageAccessScope() {}
+#endif
+
+ private:
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  const Address cage_base_;
+#ifdef V8_EXTERNAL_CODE_SPACE
+// In case this configuration is necessary the code cage base must be saved too.
+#error Multi-cage pointer compression with external code space is not supported
+#endif  // V8_EXTERNAL_CODE_SPACE
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+};
 
 }  // namespace v8::internal
 

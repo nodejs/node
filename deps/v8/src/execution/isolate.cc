@@ -3933,6 +3933,14 @@ Isolate::~Isolate() {
 
 void Isolate::InitializeThreadLocal() {
   thread_local_top()->Initialize(this);
+#ifdef DEBUG
+  // This method might be called on a thread that's not bound to any Isolate
+  // and thus pointer compression schemes might have cage base value unset.
+  // Read-only roots accessors contain type DCHECKs which require access to
+  // V8 heap in order to check the object type. So, allow heap access here
+  // to let the checks work.
+  i::PtrComprCageAccessScope ptr_compr_cage_access_scope(this);
+#endif  // DEBUG
   clear_pending_exception();
   clear_pending_message();
   clear_scheduled_exception();
