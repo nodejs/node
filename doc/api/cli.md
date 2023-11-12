@@ -646,6 +646,7 @@ and `"` are usable.
 <!-- YAML
 added:
   - v21.0.0
+  - v20.10.0
 -->
 
 > Stability: 1.0 - Early development
@@ -676,6 +677,7 @@ JavaScript.
 <!-- YAML
 added:
   - v21.1.0
+  - v20.10.0
 -->
 
 > Stability: 1.0 - Early development
@@ -851,7 +853,9 @@ Enable experimental WebAssembly module support.
 ### `--experimental-websocket`
 
 <!-- YAML
-added: v21.0.0
+added:
+  - v21.0.0
+  - v20.10.0
 -->
 
 Enable experimental [`WebSocket`][] support.
@@ -1746,7 +1750,9 @@ for more details.
 ### `--test-concurrency`
 
 <!-- YAML
-added: v21.0.0
+added:
+  - v21.0.0
+  - v20.10.0
 -->
 
 The maximum number of test files that the test runner CLI will execute
