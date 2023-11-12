@@ -1777,7 +1777,9 @@ An import attribute is missing, preventing the specified module to be imported.
 ### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
 
 <!-- YAML
-added: v21.0.0
+added:
+  - v21.0.0
+  - v20.10.0
 -->
 
 An import attribute is not supported by this version of Node.js.
