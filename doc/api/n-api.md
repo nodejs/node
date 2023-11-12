@@ -2892,6 +2892,33 @@ life cycle of the JavaScript value.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
+
+#### `node_api_create_property_key_utf16`
+
+<!-- YAML
+added:v21.1.0
+napiVersion: 1
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: A pointer to a buffer containing `UTF-16` encoded characters.
+* `[in] length`: The length of the string in `UTF-16` code units.
+* `[out] result`: A `napi_value` representing a JavaScript `string`.
+Returns napi_ok if the API succeeded.
+
+This API creates a JavaScript `string` value from a `UTF-16` encoded C string. The native `string` may not be copied and must thus exist for the entire life cycle of the JavaScript value.
+
+The JavaScript `string` type is described in Section 6.1.4 of the ECMAScript Language Specification.
+
 #### `napi_create_string_utf16`
 
 <!-- YAML
