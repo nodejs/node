@@ -349,6 +349,8 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 
 void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
+
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -431,6 +433,7 @@ void IsolateData::CreateProperties() {
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
 #define V(PropertyName, StringValue)                                           \

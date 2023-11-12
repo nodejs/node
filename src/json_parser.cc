@@ -17,6 +17,7 @@ bool JSONParser::Parse(const std::string& content) {
   DCHECK(!parsed_);
 
   Isolate* isolate = isolate_.get();
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
 
   Local<Context> context = Context::New(isolate);
@@ -45,6 +46,7 @@ bool JSONParser::Parse(const std::string& content) {
 std::optional<std::string> JSONParser::GetTopLevelStringField(
     std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
 
   Local<Context> context = context_.Get(isolate);
@@ -70,6 +72,7 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
 
 std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
 
   Local<Context> context = context_.Get(isolate);

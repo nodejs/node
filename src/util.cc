@@ -678,7 +678,7 @@ Local<String> UnionBytes::ToStringChecked(Isolate* isolate) const {
   }
 }
 
-RAIIIsolate::RAIIIsolate(const SnapshotData* data)
+RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     : allocator_{ArrayBuffer::Allocator::NewDefaultAllocator()} {
   isolate_ = Isolate::Allocate();
   CHECK_NOT_NULL(isolate_);
@@ -692,9 +692,14 @@ RAIIIsolate::RAIIIsolate(const SnapshotData* data)
   Isolate::Initialize(isolate_, params);
 }
 
-RAIIIsolate::~RAIIIsolate() {
+RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
   per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
   isolate_->Dispose();
 }
+
+RAIIIsolate::RAIIIsolate(const SnapshotData* data)
+    : isolate_{data}, isolate_scope_{isolate_.get()} {}
+
+RAIIIsolate::~RAIIIsolate() {}
 
 }  // namespace node
