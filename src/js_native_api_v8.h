@@ -212,6 +212,12 @@ inline napi_status napi_set_last_error(napi_env env,
     }                                                                          \
   } while (0)
 
+#define CHECK_ENV_NOT_IN_GC(env)                                               \
+  do {                                                                         \
+    CHECK_ENV((env));                                                          \
+    (env)->CheckGCAccess();                                                    \
+  } while (0)
+
 #define CHECK_ARG(env, arg)                                                    \
   RETURN_STATUS_IF_FALSE((env), ((arg) != nullptr), napi_invalid_arg)
 
@@ -227,8 +233,7 @@ inline napi_status napi_set_last_error(napi_env env,
 
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
 #define NAPI_PREAMBLE(env)                                                     \
-  CHECK_ENV((env));                                                            \
-  (env)->CheckGCAccess();                                                      \
+  CHECK_ENV_NOT_IN_GC((env));                                                  \
   RETURN_STATUS_IF_FALSE(                                                      \
       (env), (env)->last_exception.IsEmpty(), napi_pending_exception);         \
   RETURN_STATUS_IF_FALSE((env),                                                \
