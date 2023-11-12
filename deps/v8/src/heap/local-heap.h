@@ -13,6 +13,7 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
+#include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
@@ -348,6 +349,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SetUpSharedMarking();
 
   Heap* heap_;
+  V8_NO_UNIQUE_ADDRESS PtrComprCageAccessScope ptr_compr_cage_access_scope_;
   bool is_main_thread_;
 
   AtomicThreadState state_;

@@ -48,6 +48,7 @@ void LocalHeap::VerifyCurrent() const {
 LocalHeap::LocalHeap(Heap* heap, ThreadKind kind,
                      std::unique_ptr<PersistentHandles> persistent_handles)
     : heap_(heap),
+      ptr_compr_cage_access_scope_(heap->isolate()),
       is_main_thread_(kind == ThreadKind::kMain),
       state_(ThreadState::Parked()),
       allocation_failed_(false),

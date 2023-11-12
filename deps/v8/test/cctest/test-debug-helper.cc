@@ -126,6 +126,7 @@ TEST(GetObjectProperties) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
   LocalContext context;
   // Claim we don't know anything about the heap layout.
@@ -470,6 +471,8 @@ static void FrameIterationCheck(
 THREADED_TEST(GetFrameStack) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
   obj->SetAccessor(v8_str("xxx"), FrameIterationCheck);
@@ -490,6 +493,7 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
   Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
   Factory* factory = isolate->factory();
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);
 
   Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();

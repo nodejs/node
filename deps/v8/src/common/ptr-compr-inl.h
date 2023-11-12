@@ -91,11 +91,16 @@ Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
 template <typename TOnHeapAddress>
 Address V8HeapCompressionScheme::DecompressTagged(TOnHeapAddress on_heap_addr,
                                                   Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  DCHECK_WITH_MSG(cage_base != kNullAddress,
+                  "V8HeapCompressionScheme::base is not initialized for "
+                  "current thread");
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
+#endif  // V8_COMPRESS_POINTERS
   Address result = cage_base + static_cast<Address>(raw_value);
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
   return result;
@@ -191,11 +196,16 @@ Address ExternalCodeCompressionScheme::DecompressTaggedSigned(
 template <typename TOnHeapAddress>
 Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+  DCHECK_WITH_MSG(cage_base != kNullAddress,
+                  "ExternalCodeCompressionScheme::base is not initialized for "
+                  "current thread");
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
+#endif  // V8_COMPRESS_POINTERS
   Address result = cage_base + static_cast<Address>(raw_value);
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
   return result;
@@ -274,6 +284,19 @@ V8_INLINE PtrComprCageBase GetPtrComprCageBase() { return PtrComprCageBase(); }
 V8_INLINE PtrComprCageBase GetPtrComprCageBase(Tagged<HeapObject> object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
+
+#ifdef V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
+
+PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
+    : cage_base_(V8HeapCompressionScheme::base()) {
+  V8HeapCompressionScheme::InitBase(isolate->cage_base());
+}
+
+PtrComprCageAccessScope::~PtrComprCageAccessScope() {
+  V8HeapCompressionScheme::InitBase(cage_base_);
+}
+
+#endif  // V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE
 
 }  // namespace internal
 }  // namespace v8

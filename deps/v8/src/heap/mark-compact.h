@@ -161,6 +161,8 @@ class MarkCompactCollector final {
     return use_background_threads_in_cycle_;
   }
 
+  Heap* heap() { return heap_; }
+
   explicit MarkCompactCollector(Heap* heap);
   ~MarkCompactCollector();
 
