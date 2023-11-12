@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_UTILS_H_
 
 #include <iostream>
+#include <limits>
 #include <tuple>
 
 #include "src/base/logging.h"
