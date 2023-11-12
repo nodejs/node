@@ -8,9 +8,9 @@ directories to create the Node.js binaries.
 All dependencies are located within the `deps` directory.
 This a list of all the dependencies:
 
-* [acorn 8.10.0][]
-* [ada 2.6.0][]
-* [base64 0.5.0][]
+* [acorn 8.11.2][]
+* [ada 2.7.2][]
+* [base64 0.5.1][]
 * [brotli 1.1.0][]
 * [c-ares 1.20.1][]
 * [cjs-module-lexer 1.2.2][]
@@ -318,9 +318,9 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
-[acorn 8.10.0]: #acorn-8100
-[ada 2.6.0]: #ada-260
-[base64 0.5.0]: #base64-050
+[acorn 8.11.2]: #acorn-8112
+[ada 2.7.2]: #ada-272
+[base64 0.5.1]: #base64-051
 [brotli 1.1.0]: #brotli-110
 [c-ares 1.20.1]: #c-ares-1201
 [cjs-module-lexer 1.2.2]: #cjs-module-lexer-122
