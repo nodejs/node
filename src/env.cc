@@ -1804,23 +1804,9 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 }
 
-uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
+template <typename T>
+double to_mb(T bytes) {
+  return static_cast<double>(bytes) / 1024 / 1024;
 }
 
 void Environment::BuildEmbedderGraph(Isolate* isolate,
@@ -1839,83 +1825,106 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   Debug(env,
         DebugCategory::DIAGNOSTICS,
-        "Invoked NearHeapLimitCallback, processing=%d, "
-        "current_limit=%" PRIu64 ", "
-        "initial_limit=%" PRIu64 "\n",
+        "\nInvoked NearHeapLimitCallback, processing=%d, "
+        "current_heap_limit=%d, initial_heap_limit=%d\n",
         env->is_in_heapsnapshot_heap_limit_callback_,
-        static_cast<uint64_t>(current_heap_limit),
-        static_cast<uint64_t>(initial_heap_limit));
+        to_mb(current_heap_limit),
+        to_mb(initial_heap_limit));
 
-  size_t max_young_gen_size = env->isolate_data()->max_young_gen_size;
   size_t young_gen_size = 0;
   size_t old_gen_size = 0;
+  size_t total_size = 0;
 
   HeapSpaceStatistics stats;
   size_t num_heap_spaces = env->isolate()->NumberOfHeapSpaces();
   for (size_t i = 0; i < num_heap_spaces; ++i) {
     env->isolate()->GetHeapSpaceStatistics(&stats, i);
-    if (strcmp(stats.space_name(), "new_space") == 0 ||
-        strcmp(stats.space_name(), "new_large_object_space") == 0) {
-      young_gen_size += stats.space_used_size();
-    } else {
-      old_gen_size += stats.space_used_size();
+    if (strstr(stats.space_name(), "new") != nullptr) {
+      young_gen_size += stats.space_size();
+      // Ignore code spaces for the calculation.
+    } else if (strstr(stats.space_name(), "code") == nullptr) {
+      old_gen_size += stats.space_size();
     }
+    total_size += stats.space_size();
+    Debug(env,
+          DebugCategory::DIAGNOSTICS,
+          "[%s] space_size=%d, space_used_size=%d, space_available_size=%d, "
+          "physical_space_size=%d\n",
+          stats.space_name(),
+          to_mb(stats.space_size()),
+          to_mb(stats.space_used_size()),
+          to_mb(stats.space_available_size()),
+          to_mb(stats.physical_space_size()));
   }
 
   Debug(env,
         DebugCategory::DIAGNOSTICS,
-        "max_young_gen_size=%" PRIu64 ", "
-        "young_gen_size=%" PRIu64 ", "
-        "old_gen_size=%" PRIu64 ", "
-        "total_size=%" PRIu64 "\n",
-        static_cast<uint64_t>(max_young_gen_size),
-        static_cast<uint64_t>(young_gen_size),
-        static_cast<uint64_t>(old_gen_size),
-        static_cast<uint64_t>(young_gen_size + old_gen_size));
+        "young_gen_size=%d, old_gen_size=%d, total_size=%d\n",
+        to_mb(young_gen_size),
+        to_mb(old_gen_size),
+        to_mb(total_size));
 
-  uint64_t available = GuessMemoryAvailableToTheProcess();
-  // TODO(joyeecheung): get a better estimate about the native memory
-  // usage into the overhead, e.g. based on the count of objects.
-  uint64_t estimated_overhead = max_young_gen_size;
-  Debug(env,
-        DebugCategory::DIAGNOSTICS,
-        "Estimated available memory=%" PRIu64 ", "
-        "estimated overhead=%" PRIu64 "\n",
-        static_cast<uint64_t>(available),
-        static_cast<uint64_t>(estimated_overhead));
-
-  // This might be hit when the snapshot is being taken in another
-  // NearHeapLimitCallback invocation.
-  // When taking the snapshot, objects in the young generation may be
-  // promoted to the old generation, result in increased heap usage,
-  // but it should be no more than the young generation size.
-  // Ideally, this should be as small as possible - the heap limit
+  // There are at least two things that can lead to memory overhead
+  // during the heap snapshot generation.
+  // 1. Heap snapshot generation triggers garbage collection for accuracy.
+  //    When objects get promoted from the young generation to the old
+  //    generation, memory usage in the old space can be increased.
+  // 2. V8 calculates and caches the line ends for scripts found in the heap
+  //    in order to produce line/column numbers for the source locations.
+  //    The allocation of these caches also increases the memory usage.
+  // The estimate here is a guess that combines the two factors we've noticed
+  // so far. Ideally, this should be as small as possible - the heap limit
   // can only be restored when the heap usage falls down below the
   // new limit, so in a heap with unbounded growth the isolate
   // may eventually crash with this new limit - effectively raising
   // the heap limit to the new one.
-  size_t new_limit = current_heap_limit + max_young_gen_size;
+  size_t estimated_overhead = young_gen_size + (old_gen_size / 2);
+  // When we are not raising the limit for heap snapshot generation,
+  // it needs to be at least higher than the current heap limit or
+  // V8 would give up and crash. Give it an extra 1MB which should be
+  // enough.
+  size_t minimum_new_limit = current_heap_limit + (1024 * 1024);
+  size_t limit_for_snapshot = current_heap_limit + estimated_overhead;
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "estimated_overhead=%d, limit_for_snapshot=%d, "
+        "minimum_new_limit=%d\n",
+        to_mb(estimated_overhead),
+        to_mb(limit_for_snapshot),
+        to_mb(minimum_new_limit));
+
   if (env->is_in_heapsnapshot_heap_limit_callback_) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
-          "Not generating snapshots in nested callback. "
-          "new_limit=%" PRIu64 "\n",
-          static_cast<uint64_t>(new_limit));
-    return new_limit;
+          "Not generating snapshots in nested callback.");
+    // At this point, the heap limit isn't yet raised properly
+    // because we haven't yet finished heap snapshot generation
+    // and return below. Raise the limit now.
+    return current_heap_limit + estimated_overhead;
   }
+
+  // Skip this check on macOS until
+  // https://github.com/libuv/libuv/issues/3897 is fixed.
+#if !defined(__APPLE__)
+  uint64_t available_memory = uv_get_available_memory();
+
+  Debug(env,
+        DebugCategory::DIAGNOSTICS,
+        "available_memory=%d, estimated_overhead=%d\n",
+        to_mb(available_memory),
+        to_mb(estimated_overhead));
 
   // Estimate whether the snapshot is going to use up all the memory
   // available to the process. If so, just give up to prevent the system
   // from killing the process for a system OOM.
-  if (estimated_overhead > available) {
+  if (estimated_overhead > available_memory) {
     Debug(env,
           DebugCategory::DIAGNOSTICS,
           "Not generating snapshots because it's too risky.\n");
     env->RemoveHeapSnapshotNearHeapLimitCallback(0);
-    // The new limit must be higher than current_heap_limit or V8 might
-    // crash.
-    return new_limit;
+    return minimum_new_limit;
   }
+#endif  // !defined(__APPLE__)
 
   // Take the snapshot synchronously.
   env->is_in_heapsnapshot_heap_limit_callback_ = true;
@@ -1955,10 +1964,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
   env->isolate()->AutomaticallyRestoreInitialHeapLimit(0.95);
 
   env->is_in_heapsnapshot_heap_limit_callback_ = false;
-
-  // The new limit must be higher than current_heap_limit or V8 might
-  // crash.
-  return new_limit;
+  return minimum_new_limit;
 }
 
 inline size_t Environment::SelfSize() const {
