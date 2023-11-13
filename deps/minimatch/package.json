@@ -38,7 +38,8 @@
     "snap": "c8 tap",
     "format": "prettier --write . --loglevel warn",
     "benchmark": "node benchmark/index.js",
-    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts"
+    "typedoc": "typedoc --tsconfig tsconfig-esm.json ./src/*.ts",
+    "node-build": "esbuild ./dist/cjs/index.js --bundle --platform=node --outfile=index.js"
   },
   "prettier": {
     "semi": false,
@@ -62,6 +63,7 @@
     "@types/node": "^18.15.11",
     "@types/tap": "^15.0.8",
     "c8": "^7.12.0",
+    "esbuild": "^0.19.5",
     "eslint-config-prettier": "^8.6.0",
     "mkdirp": "1",
     "prettier": "^2.8.2",
