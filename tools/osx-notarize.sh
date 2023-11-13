@@ -34,15 +34,10 @@ then
     exit 1
 fi
 
-# Submit the package for notarization
-# TODO(@ulisesGascon): refactor to use --keychain-profile
-# when https://github.com/nodejs/build/issues/3385#issuecomment-1729281269 is ready
 echo "Submitting node-$pkgid.pkg for notarization..."
 
 xcrun notarytool submit \
-  --apple-id "$NOTARIZATION_ID" \
-  --password "$NOTARIZATION_PASSWORD" \
-  --team-id "$NOTARIZATION_TEAM_ID" \
+  --keychain-profile "NODE_RELEASE_PROFILE" \
   --wait \
   "node-$pkgid.pkg"
 
