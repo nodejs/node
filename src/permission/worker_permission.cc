@@ -15,7 +15,7 @@ void WorkerPermission::Apply(const std::vector<std::string>& allow,
 }
 
 bool WorkerPermission::is_granted(PermissionScope perm,
-                                  const std::string_view& param) {
+                                  const std::string_view& param) const {
   return deny_all_ == false;
 }
 
