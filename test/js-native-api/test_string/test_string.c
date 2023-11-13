@@ -128,8 +128,8 @@ static napi_status create_property_key_utf16(napi_env env,
   napi_status status = napi_create_string_utf16(env, string, length, result);
 
   if (status != napi_ok) {
-      // Handle necessary operations in case of an error
-      return status;
+    // Handle necessary operations in case of an error
+    return status;
   }
 
   return napi_ok;
