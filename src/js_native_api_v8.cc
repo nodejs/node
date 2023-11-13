@@ -1109,18 +1109,6 @@ napi_status NAPI_CDECL napi_set_property(napi_env env,
   return GET_RETURN_STATUS(env);
 }
 
-napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
-                                                          const char16_t* str,
-                                                          size_t length,
-                                                          napi_value* result) {
-  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
-    return v8::String::NewFromTwoByte(isolate,
-                                      reinterpret_cast<const uint16_t*>(str),
-                                      v8::NewStringType::kInternalized,
-                                      static_cast<int>(length));
-  });
-}
-
 napi_status NAPI_CDECL napi_has_property(napi_env env,
                                          napi_value object,
                                          napi_value key,
@@ -1634,6 +1622,18 @@ node_api_create_external_string_latin1(napi_env env,
             env, str, length, finalize_callback, finalize_hint);
         return v8::String::NewExternalOneByte(isolate, resource);
       });
+}
+
+napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result) {
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromTwoByte(isolate,
+                                      reinterpret_cast<const uint16_t*>(str),
+                                      v8::NewStringType::kInternalized,
+                                      static_cast<int>(length));
+  });
 }
 
 napi_status NAPI_CDECL
