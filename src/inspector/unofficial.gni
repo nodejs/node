@@ -1,9 +1,3 @@
-# Copyright (c) 2013-2019 GitHub Inc.
-# Copyright 2019 the V8 project authors. All rights reserved.
-# Copyright 2023 Microsoft Inc.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
 import("../../node.gni")
 import("$node_v8_path/gni/v8.gni")
 
