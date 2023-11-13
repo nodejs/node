@@ -19,7 +19,13 @@ const functionNames = [
   "transformFromAst",
   "parse",
 ];
-const propertyNames = ["types", "tokTypes", "traverse", "template"];
+const propertyNames = [
+  "buildExternalHelpers",
+  "types",
+  "tokTypes",
+  "traverse",
+  "template",
+];
 
 for (const name of functionNames) {
   exports[name] = function (...args) {

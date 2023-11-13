@@ -11,6 +11,7 @@ const defaultTagOrder = [
       'file',
       'fileoverview',
       'overview',
+      'import',
 
       // Identifying (name, type)
       'typedef',
