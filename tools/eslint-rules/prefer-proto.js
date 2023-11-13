@@ -27,7 +27,7 @@ module.exports = {
   },
   create(context) {
     return {
-      /* eslint max-len: 0 */
+      /* eslint @stylistic/js/max-len: 0 */
       'CallExpression[arguments.length=1]:matches(\
         [callee.type="Identifier"][callee.name="ObjectCreate"],\
         [callee.type="MemberExpression"][callee.object.name="Object"][callee.property.name="create"]\

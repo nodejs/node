@@ -6,13 +6,12 @@ Object.defineProperty(exports, "__esModule", {
 exports.transformFile = void 0;
 exports.transformFileAsync = transformFileAsync;
 exports.transformFileSync = transformFileSync;
-const transformFile = function transformFile(filename, opts, callback) {
+const transformFile = exports.transformFile = function transformFile(filename, opts, callback) {
   if (typeof opts === "function") {
     callback = opts;
   }
   callback(new Error("Transforming files is not supported in browsers"), null);
 };
-exports.transformFile = transformFile;
 function transformFileSync() {
   throw new Error("Transforming files is not supported in browsers");
 }

@@ -11,11 +11,10 @@ function _gensync() {
   };
   return data;
 }
-const ChainFormatter = {
+const ChainFormatter = exports.ChainFormatter = {
   Programmatic: 0,
   Config: 1
 };
-exports.ChainFormatter = ChainFormatter;
 const Formatter = {
   title(type, callerName, filepath) {
     let title = "";
