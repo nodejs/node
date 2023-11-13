@@ -45,8 +45,8 @@ class FSPermission final : public PermissionBase {
         }
 
         // swap prefix
-        unsigned int i = 0;
-        unsigned int prefix_len = prefix.length();
+        size_t i = 0;
+        size_t prefix_len = prefix.length();
         for (; i < child->prefix.length(); ++i) {
           if (i > prefix_len || prefix[i] != child->prefix[i]) {
             std::string parent_prefix = child->prefix.substr(0, i);
@@ -72,7 +72,7 @@ class FSPermission final : public PermissionBase {
         return wildcard_child;
       }
 
-      Node* NextNode(const std::string& path, unsigned int idx) {
+      Node* NextNode(const std::string& path, size_t idx) {
         if (idx >= path.length()) {
           return nullptr;
         }
@@ -83,8 +83,8 @@ class FSPermission final : public PermissionBase {
         }
         auto child = it->second;
         // match prefix
-        unsigned int prefix_len = child->prefix.length();
-        for (unsigned int i = 0; i < path.length(); ++i) {
+        size_t prefix_len = child->prefix.length();
+        for (size_t i = 0; i < path.length(); ++i) {
           if (i >= prefix_len || child->prefix[i] == '*') {
             return child;
           }
