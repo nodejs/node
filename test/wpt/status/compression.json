@@ -22,9 +22,6 @@
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
   },
-  "idlharness.https.any.js": {
-    "skip": "wpt/resources is not as simple to bring up to date"
-  },
   "third_party/pako/pako_inflate.min.js": {
     "skip": "This is not a test file."
   }
