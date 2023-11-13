@@ -2911,7 +2911,7 @@ napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
 * `[in] str`: A pointer to a buffer containing `UTF-16` encoded characters.
 * `[in] length`: The length of the string in `UTF-16` code units.
 * `[out] result`: A `napi_value` representing a JavaScript `string`.
-Returns napi_ok if the API succeeded.
+  Returns napi\_ok if the API succeeded.
 
 This API creates a JavaScript `string` value from a `UTF-16` encoded C string. The native `string` may not be copied and must thus exist for the entire life cycle of the JavaScript value.
 
