@@ -5228,8 +5228,8 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
   for (int i = 0; i < assertion_keys->length(); i++) {
     Handle<String> assertion_key(String::cast(assertion_keys->get(i)), this);
     Handle<Object> assertion_value;
-    if (!JSReceiver::GetProperty(this, import_assertions_object_receiver,
-                                 assertion_key)
+    if (!Object::GetPropertyOrElement(this, import_assertions_object_receiver,
+                                      assertion_key)
              .ToHandle(&assertion_value)) {
       // This can happen if the property has a getter function that throws
       // an error.
