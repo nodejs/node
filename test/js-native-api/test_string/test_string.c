@@ -124,15 +124,15 @@ static napi_status create_property_key_utf16(napi_env env,
                                              const char16_t* string,
                                              size_t length,
                                              napi_value* result) {
-    // Convert UTF-16 string to napi_value
-    napi_status status = napi_create_string_utf16(env, string, length, result);
+  // Convert UTF-16 string to napi_value
+  napi_status status = napi_create_string_utf16(env, string, length, result);
 
-    if (status != napi_ok) {
-        // Handle necessary operations in case of an error
-        return status;
-    }
+  if (status != napi_ok) {
+      // Handle necessary operations in case of an error
+      return status;
+  }
 
-    return napi_ok;
+  return napi_ok;
 }
 
 // strlen for char16_t. Needed in case we're copying a string of length
@@ -235,7 +235,6 @@ static napi_value TestUtf16External(napi_env env, napi_callback_info info) {
                          create_external_utf16,
                          actual_length);
 }
-
 
 static napi_value TestPropertyKeyUtf16(napi_env env, napi_callback_info info) {
   return TestOneByteImpl(env,
