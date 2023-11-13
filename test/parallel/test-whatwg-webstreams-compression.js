@@ -15,6 +15,9 @@ async function test(format) {
   const gzip = new CompressionStream(format);
   const gunzip = new DecompressionStream(format);
 
+  assert.strictEqual(gzip[Symbol.toStringTag], 'CompressionStream');
+  assert.strictEqual(gunzip[Symbol.toStringTag], 'DecompressionStream');
+
   gzip.readable.pipeTo(gunzip.writable).then(common.mustCall());
 
   const reader = gunzip.readable.getReader();
