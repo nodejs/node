@@ -2153,9 +2153,9 @@ The externally maintained libraries used by Node.js are:
 - base64, located at deps/base64/base64/, is licensed as follows:
   """
     Copyright (c) 2005-2007, Nick Galbreath
-    Copyright (c) 2013-2019, Alfred Klomp
-    Copyright (c) 2015-2017, Wojciech Mula
+    Copyright (c) 2015-2018, Wojciech Muła
     Copyright (c) 2016-2017, Matthieu Darbois
+    Copyright (c) 2013-2022, Alfred Klomp
     All rights reserved.
 
     Redistribution and use in source and binary forms, with or without
