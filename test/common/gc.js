@@ -1,5 +1,7 @@
 'use strict';
 
+const wait = require('timers/promises').setTimeout;
+
 // TODO(joyeecheung): merge ongc.js and gcUntil from common/index.js
 // into this.
 
@@ -65,6 +67,15 @@ async function checkIfCollectable(
   createObject();
 }
 
+// Repeat an operation and give GC some breathing room at every iteration.
+async function runAndBreathe(fn, repeat, waitTime = 20) {
+  for (let i = 0; i < repeat; i++) {
+    await fn();
+    await wait(waitTime);
+  }
+}
+
 module.exports = {
   checkIfCollectable,
+  runAndBreathe,
 };
