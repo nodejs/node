@@ -10,7 +10,8 @@ const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 const configs = {
   size: [64, 16 * 1024, 128 * 1024, 1024 * 1024],
   useBinary: ['true', 'false'],
-  roundtrips: [5000, 1000, 100],};
+  roundtrips: [5000, 1000, 100],
+};
 
 const bench = common.createBenchmark(main, configs);
 
