@@ -816,7 +816,7 @@ assert.throws(
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
-             '    // eslint-disable-next-line operator-linebreak\n' +
+             '    // eslint-disable-next-line @stylistic/js/operator-linebreak\n' +
              '    ===\n' +
              '    123 instanceof\n' +
              '        Buffer\n' +
@@ -840,7 +840,7 @@ assert.throws(
     message: 'The expression evaluated to a falsy value:\n\n' +
              '  a(\n' +
              '    (() => \'string\')()\n' +
-             '    // eslint-disable-next-line operator-linebreak\n' +
+             '    // eslint-disable-next-line @stylistic/js/operator-linebreak\n' +
              '    ===\n' +
              '  123 instanceof\n' +
              '        Buffer\n' +
