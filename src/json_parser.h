@@ -6,6 +6,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <unordered_map>
 #include "util.h"
 #include "v8.h"
 
@@ -15,11 +16,13 @@ namespace node {
 // complicates things.
 class JSONParser {
  public:
+  using StringDict = std::unordered_map<std::string, std::string>;
   JSONParser();
   ~JSONParser() = default;
   bool Parse(const std::string& content);
   std::optional<std::string> GetTopLevelStringField(std::string_view field);
   std::optional<bool> GetTopLevelBoolField(std::string_view field);
+  std::optional<StringDict> GetTopLevelStringDict(std::string_view field);
 
  private:
   // We might want a lighter-weight JSON parser for this use case. But for now

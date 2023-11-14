@@ -2401,6 +2401,17 @@ error indicates that the idle loop has failed to stop.
 An attempt was made to use operations that can only be used when building
 V8 startup snapshot even though Node.js isn't building one.
 
+<a id="ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION"></a>
+
+### `ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The operation cannot be performed when it's not in a single-executable
+application.
+
 <a id="ERR_NOT_SUPPORTED_IN_SNAPSHOT"></a>
 
 ### `ERR_NOT_SUPPORTED_IN_SNAPSHOT`
@@ -2546,6 +2557,17 @@ and HTTP/2 `Server` instances.
 The [`server.close()`][] method was called when a `net.Server` was not
 running. This applies to all instances of `net.Server`, including HTTP, HTTPS,
 and HTTP/2 `Server` instances.
+
+<a id="ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND"></a>
+
+### `ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A key was passed to single executable application APIs to identify an asset,
+but no match could be found.
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 
