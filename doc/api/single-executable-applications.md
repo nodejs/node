@@ -178,13 +178,51 @@ The configuration currently reads the following top-level fields:
   "output": "/path/to/write/the/generated/blob.blob",
   "disableExperimentalSEAWarning": true, // Default: false
   "useSnapshot": false,  // Default: false
-  "useCodeCache": true // Default: false
+  "useCodeCache": true, // Default: false
+  "assets": {  // Optional
+    "a.dat": "/path/to/a.dat",
+    "b.txt": "/path/to/b.txt"
+  }
 }
 ```
 
 If the paths are not absolute, Node.js will use the path relative to the
 current working directory. The version of the Node.js binary used to produce
 the blob must be the same as the one to which the blob will be injected.
+
+### Assets
+
+Users can include assets by adding a key-path dictionary to the configuration
+as the `assets` field. At build time, Node.js would read the assets from the
+specified paths and bundle them into the preparation blob. In the generated
+executable, users can retrieve the assets using the [`sea.getAsset()`][] and
+[`sea.getAssetAsBlob()`][] APIs.
+
+```json
+{
+  "main": "/path/to/bundled/script.js",
+  "output": "/path/to/write/the/generated/blob.blob",
+  "assets": {
+    "a.jpg": "/path/to/a.jpg",
+    "b.txt": "/path/to/b.txt"
+  }
+}
+```
+
+The single-executable application can access the assets as follows:
+
+```cjs
+const { getAsset } = require('node:sea');
+// Returns a copy of the data in an ArrayBuffer.
+const image = getAsset('a.jpg');
+// Returns a string decoded from the asset as UTF8.
+const text = getAsset('b.txt', 'utf8');
+// Returns a Blob containing the asset.
+const blob = getAssetAsBlob('a.jpg');
+```
+
+See documentation of the [`sea.getAsset()`][] and [`sea.getAssetAsBlob()`][]
+APIs for more information.
 
 ### Startup snapshot support
 
@@ -229,11 +267,58 @@ execute the script, which would improve the startup performance.
 
 **Note:** `import()` does not work when `useCodeCache` is `true`.
 
-## Notes
+## In the injected main script
 
-### `require(id)` in the injected module is not file based
+### Single-executable application API
 
-`require()` in the injected module is not the same as the [`require()`][]
+The `node:sea` builtin allows interaction with the single-executable application
+from the JavaScript main script embedded into the executable.
+
+#### `sea.isSea()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {boolean} Whether this script is running inside a single-executable
+  application.
+
+### `sea.getAsset(key[, encoding])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This method can be used to retrieve the assets configured to be bundled into the
+single-executable application at build time.
+An error is thrown when no matching asset can be found.
+
+* `key`  {string} the key for the asset in the dictionary specified by the
+  `assets` field in the single-executable application configuration.
+* `encoding` {string} If specified, the asset will be decoded as
+  a string. Any encoding supported by the `TextDecoder` is accepted.
+  If unspecified, an `ArrayBuffer` containing a copy of the asset would be
+  returned instead.
+* Returns: {string|ArrayBuffer}
+
+### `sea.getAssetAsBlob(key[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Similar to [`sea.getAsset()`][], but returns the result in a [`Blob`][].
+An error is thrown when no matching asset can be found.
+
+* `key`  {string} the key for the asset in the dictionary specified by the
+  `assets` field in the single-executable application configuration.
+* `options` {Object}
+  * `type` {string} An optional mime type for the blob.
+* Returns: {Blob}
+
+### `require(id)` in the injected main script is not file based
+
+`require()` in the injected main script is not the same as the [`require()`][]
 available to modules that are not injected. It also does not have any of the
 properties that non-injected [`require()`][] has except [`require.main`][]. It
 can only be used to load built-in modules. Attempting to load a module that can
@@ -250,15 +335,17 @@ const { createRequire } = require('node:module');
 require = createRequire(__filename);
 ```
 
-### `__filename` and `module.filename` in the injected module
+### `__filename` and `module.filename` in the injected main script
 
-The values of `__filename` and `module.filename` in the injected module are
-equal to [`process.execPath`][].
+The values of `__filename` and `module.filename` in the injected main script
+are equal to [`process.execPath`][].
 
-### `__dirname` in the injected module
+### `__dirname` in the injected main script
 
-The value of `__dirname` in the injected module is equal to the directory name
-of [`process.execPath`][].
+The value of `__dirname` in the injected main script is equal to the directory
+name of [`process.execPath`][].
+
+## Notes
 
 ### Single executable application creation process
 
@@ -298,9 +385,12 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
+[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module
+[`sea.getAsset()`]: #seagetassetkey-encoding
+[`sea.getAssetAsBlob()`]: #seagetassetasblobkey-options
 [`v8.startupSnapshot.setDeserializeMainFunction()`]: v8.md#v8startupsnapshotsetdeserializemainfunctioncallback-data
 [`v8.startupSnapshot` API]: v8.md#startup-snapshot-api
 [documentation about startup snapshot support in Node.js]: cli.md#--build-snapshot
