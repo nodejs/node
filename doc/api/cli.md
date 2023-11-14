@@ -543,7 +543,8 @@ Loads environment variables from a file relative to the current directory,
 making them available to applications on `process.env`. The [environment
 variables which configure Node.js][environment_variables], such as `NODE_OPTIONS`,
 are parsed and applied. If the same variable is defined in the environment and
-in the file, the value from the environment takes precedence.
+in the file, the value from the environment takes precedence. A file is silently 
+ignored when it cannot be found.
 
 You can pass multiple `--env-file` arguments. Subsequent files override
 pre-existing variables defined in previous files.
