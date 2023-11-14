@@ -11,16 +11,16 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-JSONParser::JSONParser()
-    : handle_scope_(isolate_.get()),
-      context_(isolate_.get(), Context::New(isolate_.get())),
-      context_scope_(context_.Get(isolate_.get())) {}
+JSONParser::JSONParser() {}
 
 bool JSONParser::Parse(const std::string& content) {
   DCHECK(!parsed_);
 
   Isolate* isolate = isolate_.get();
-  Local<Context> context = context_.Get(isolate);
+  v8::HandleScope handle_scope(isolate);
+
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
 
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
@@ -34,16 +34,24 @@ bool JSONParser::Parse(const std::string& content) {
       !result_value->IsObject()) {
     return false;
   }
+
+  context_.Reset(isolate, context);
   content_.Reset(isolate, result_value.As<Object>());
   parsed_ = true;
+
   return true;
 }
 
 std::optional<std::string> JSONParser::GetTopLevelStringField(
     std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::HandleScope handle_scope(isolate);
+
   Local<Context> context = context_.Get(isolate);
+  Context::Scope context_scope(context);
+
   Local<Object> content_object = content_.Get(isolate);
+
   Local<Value> value;
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
@@ -62,7 +70,11 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
 
 std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::HandleScope handle_scope(isolate);
+
   Local<Context> context = context_.Get(isolate);
+  Context::Scope context_scope(context);
+
   Local<Object> content_object = content_.Get(isolate);
   Local<Value> value;
   bool has_field;
