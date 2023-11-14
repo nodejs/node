@@ -3,7 +3,7 @@
 const common = require('../common.js');
 const crypto = require('crypto');
 const http = require('http');
-const { WebSocket } = require('undici');
+const { WebSocket } = require('../../deps/undici/undici');
 
 const GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
 
