@@ -866,7 +866,9 @@ static ExitCode InitializeNodeWithArgsInternal(
 
     for (const auto& file_path : file_paths) {
       std::string path = cwd + kPathSeparator + file_path;
-      per_process::dotenv_file.ParsePath(path);
+      auto path_exists = per_process::dotenv_file.ParsePath(path);
+
+      if (!path_exists) errors->push_back(file_path + ": not found");
     }
 
     per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);

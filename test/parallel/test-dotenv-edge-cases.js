@@ -34,8 +34,8 @@ describe('.env supports edge cases', () => {
       [ '--env-file=.env', '--eval', code ],
       { cwd: __dirname },
     );
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
+    assert.notStrictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.code, 9);
   });
 
   it('should not override existing environment variables but introduce new vars', async () => {
