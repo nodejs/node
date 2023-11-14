@@ -13,6 +13,7 @@ describe('v8 output', { concurrency: true }, () => {
     .replaceAll(/:\d+/g, ':*')
     .replaceAll('/', '*')
     .replaceAll('*test*', '*')
+    .replaceAll(/.*?\*fixtures\*v8\*/g, '(node:*) V8: *') // Replace entire path before fixtures/v8
     .replaceAll('*fixtures*v8*', '*')
     .replaceAll('node --', '* --');
   }
