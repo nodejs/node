@@ -110,6 +110,19 @@ size_t SeaSerializer::Write(const SeaResource& sea) {
     written_total +=
         WriteStringView(sea.code_cache.value(), StringLogMode::kAddressOnly);
   }
+
+  if (!sea.assets.empty()) {
+    Debug("Write SEA resource assets size %zu\n", sea.assets.size());
+    written_total += WriteArithmetic<size_t>(sea.assets.size());
+    for (auto const& [key, content] : sea.assets) {
+      Debug("Write SEA resource asset %s at %p, size=%zu\n",
+            key,
+            content.data(),
+            content.size());
+      written_total += WriteStringView(key, StringLogMode::kAddressAndContent);
+      written_total += WriteStringView(content, StringLogMode::kAddressOnly);
+    }
+  }
   return written_total;
 }
 
@@ -157,7 +170,22 @@ SeaResource SeaDeserializer::Read() {
           code_cache.data(),
           code_cache.size());
   }
-  return {flags, code_path, code, code_cache};
+
+  std::unordered_map<std::string_view, std::string_view> assets;
+  if (static_cast<bool>(flags & SeaFlags::kIncludeAssets)) {
+    size_t assets_size = ReadArithmetic<size_t>();
+    Debug("Read SEA resource assets size %zu\n", assets_size);
+    for (size_t i = 0; i < assets_size; ++i) {
+      std::string_view key = ReadStringView(StringLogMode::kAddressAndContent);
+      std::string_view content = ReadStringView(StringLogMode::kAddressOnly);
+      Debug("Read SEA resource asset %s at %p, size=%zu\n",
+            key,
+            content.data(),
+            content.size());
+      assets.emplace(key, content);
+    }
+  }
+  return {flags, code_path, code, code_cache, assets};
 }
 
 std::string_view FindSingleExecutableBlob() {
@@ -298,6 +326,7 @@ struct SeaConfig {
   std::string main_path;
   std::string output_path;
   SeaFlags flags = SeaFlags::kDefault;
+  std::unordered_map<std::string, std::string> assets;
 };
 
 std::optional<SeaConfig> ParseSingleExecutableConfig(
@@ -369,6 +398,17 @@ std::optional<SeaConfig> ParseSingleExecutableConfig(
   }
   if (use_code_cache.value()) {
     result.flags |= SeaFlags::kUseCodeCache;
+  }
+
+  auto assets_opt = parser.GetTopLevelStringDict("assets");
+  if (!assets_opt.has_value()) {
+    FPrintF(stderr,
+            "\"assets\" field of %s is not a map of strings\n",
+            config_path);
+    return std::nullopt;
+  } else if (!assets_opt.value().empty()) {
+    result.flags |= SeaFlags::kIncludeAssets;
+    result.assets = std::move(assets_opt.value());
   }
 
   return result;
@@ -468,6 +508,21 @@ std::optional<std::string> GenerateCodeCache(std::string_view main_path,
   return code_cache;
 }
 
+int BuildAssets(const std::unordered_map<std::string, std::string>& config,
+                std::unordered_map<std::string, std::string>* assets) {
+  for (auto const& [key, path] : config) {
+    std::string blob;
+    int r = ReadFileSync(&blob, path.c_str());
+    if (r != 0) {
+      const char* err = uv_strerror(r);
+      FPrintF(stderr, "Cannot read asset %s: %s\n", path.c_str(), err);
+      return r;
+    }
+    assets->emplace(key, std::move(blob));
+  }
+  return 0;
+}
+
 ExitCode GenerateSingleExecutableBlob(
     const SeaConfig& config,
     const std::vector<std::string>& args,
@@ -513,13 +568,22 @@ ExitCode GenerateSingleExecutableBlob(
     }
   }
 
+  std::unordered_map<std::string, std::string> assets;
+  if (!config.assets.empty() && BuildAssets(config.assets, &assets) != 0) {
+    return ExitCode::kGenericUserError;
+  }
+  std::unordered_map<std::string_view, std::string_view> assets_view;
+  for (auto const& [key, content] : assets) {
+    assets_view.emplace(key, content);
+  }
   SeaResource sea{
       config.flags,
       config.main_path,
       builds_snapshot_from_main
           ? std::string_view{snapshot_blob.data(), snapshot_blob.size()}
           : std::string_view{main_script.data(), main_script.size()},
-      optional_sv_code_cache};
+      optional_sv_code_cache,
+      assets_view};
 
   SeaSerializer serializer;
   serializer.Write(sea);
@@ -554,6 +618,29 @@ ExitCode BuildSingleExecutableBlob(const std::string& config_path,
   return ExitCode::kGenericUserError;
 }
 
+void GetAsset(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Utf8Value key(args.GetIsolate(), args[0]);
+  SeaResource sea_resource = FindSingleExecutableResource();
+  if (sea_resource.assets.empty()) {
+    return;
+  }
+  auto it = sea_resource.assets.find(*key);
+  if (it == sea_resource.assets.end()) {
+    return;
+  }
+  // We cast away the constness here, the JS land should ensure that
+  // the data is not mutated.
+  std::unique_ptr<v8::BackingStore> store = ArrayBuffer::NewBackingStore(
+      const_cast<char*>(it->second.data()),
+      it->second.size(),
+      [](void*, size_t, void*) {},
+      nullptr);
+  Local<ArrayBuffer> ab = ArrayBuffer::New(args.GetIsolate(), std::move(store));
+  args.GetReturnValue().Set(ab);
+}
+
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -565,6 +652,7 @@ void Initialize(Local<Object> target,
             IsExperimentalSeaWarningNeeded);
   SetMethod(context, target, "getCodePath", GetCodePath);
   SetMethod(context, target, "getCodeCache", GetCodeCache);
+  SetMethod(context, target, "getAsset", GetAsset);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -572,6 +660,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetCodePath);
   registry->Register(GetCodeCache);
+  registry->Register(GetAsset);
 }
 
 }  // namespace sea
