@@ -452,6 +452,8 @@
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
+      }, {
+        'defines': ['NDEBUG',],
       }],
       ['v8_enable_verify_csa==1', {
         'defines': ['ENABLE_VERIFY_CSA',],
