@@ -12,7 +12,7 @@ const preExecIndex =
   list.findIndex((i) => i.includes('pre_execution'));
 const actual = {
   beforePreExec: new Set(list.slice(0, preExecIndex)),
-  atRunTime: new Set(list.slice(preExecIndex, list.length)),
+  atRunTime: new Set(list.slice(preExecIndex)),
 };
 
 // Currently, we don't add additional builtins to worker snapshots.
