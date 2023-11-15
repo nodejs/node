@@ -93,6 +93,13 @@ const toSpdxItem = (node, { packageType }) => {
     location = node.linksIn.values().next().value.location
   }
 
+  let license = node.package?.license
+  if (license) {
+    if (typeof license === 'object') {
+      license = license.type
+    }
+  }
+
   const pkg = {
     name: node.packageName,
     SPDXID: toSpdxID(node),
@@ -103,7 +110,7 @@ const toSpdxItem = (node, { packageType }) => {
     downloadLocation: (node.isLink ? undefined : node.resolved) || NO_ASSERTION,
     filesAnalyzed: false,
     homepage: node.package?.homepage || NO_ASSERTION,
-    licenseDeclared: node.package?.license || NO_ASSERTION,
+    licenseDeclared: license || NO_ASSERTION,
     externalRefs: [
       {
         referenceCategory: REF_CAT_PACKAGE_MANAGER,
