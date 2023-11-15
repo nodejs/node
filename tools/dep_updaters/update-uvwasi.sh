@@ -54,13 +54,17 @@ log_and_verify_sha256sum "uvwasi" "$UVWASI_ZIP.zip"
 
 echo "Moving existing GYP build file"
 mv "$DEPS_DIR/uvwasi/"*.gyp "$WORKSPACE/"
+
+echo "Moving existing GN build file"
+mv "$DEPS_DIR/uvwasi/"*.gn "$DEPS_DIR/uvwasi/"*.gni "$WORKSPACE/"
+
 rm -rf "$DEPS_DIR/uvwasi/"
 
 echo "Unzipping..."
 unzip "$UVWASI_ZIP.zip" -d "$DEPS_DIR/uvwasi/"
 rm "$UVWASI_ZIP.zip"
 
-mv "$WORKSPACE/"*.gyp "$DEPS_DIR/uvwasi/"
+mv "$WORKSPACE/"*.gyp "$WORKSPACE/"*.gn "$WORKSPACE/"*.gni "$DEPS_DIR/uvwasi/"
 cd "$DEPS_DIR/uvwasi/"
 
 echo "Copying new files to deps folder"
