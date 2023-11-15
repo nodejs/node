@@ -60,12 +60,15 @@ mv "brotli-$NEW_VERSION" "brotli"
 echo "Copying existing gyp file"
 cp "$DEPS_DIR/brotli/brotli.gyp" "$WORKSPACE/brotli"
 
+echo "Copying existing GN files"
+cp "$DEPS_DIR/brotli/"*.gn "$DEPS_DIR/brotli/"*.gni "$WORKSPACE/brotli"
+
 echo "Deleting existing brotli"
 rm -rf "$DEPS_DIR/brotli"
 mkdir "$DEPS_DIR/brotli"
 
 echo "Update c and LICENSE"
-mv "$WORKSPACE/brotli/c" "$WORKSPACE/brotli/LICENSE" "$WORKSPACE/brotli/brotli.gyp" "$DEPS_DIR/brotli"
+mv "$WORKSPACE/brotli/"*.gn "$WORKSPACE/brotli/"*.gni "$WORKSPACE/brotli/c" "$WORKSPACE/brotli/LICENSE" "$WORKSPACE/brotli/brotli.gyp" "$DEPS_DIR/brotli"
 
 # Update the version number on maintaining-dependencies.md
 # and print the new version as the last line of the script as we need
