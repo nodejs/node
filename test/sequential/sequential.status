@@ -47,7 +47,7 @@ test-watch-mode-inspect: PASS, FLAKY
 # https://github.com/nodejs/node/issues/41286
 test-performance-eventloopdelay: PASS, FLAKY
 
-[$arch==ppc]
+[$arch==ppc64]
 # https://github.com/nodejs/node/issues/50740
 test-single-executable-application-empty: PASS, FLAKY
 test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
