@@ -73,7 +73,11 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
-      cwd: tmpdir.path
+      cwd: tmpdir.path,
+      env: {
+        NODE_DEBUG_NATIVE: 'SEA',
+        ...process.env,
+      },
     },
     {
       stderr: /Single executable application is an experimental feature/
@@ -86,6 +90,12 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 
   spawnSyncAndExitWithoutError(
     outputFile,
+    {
+      env: {
+        NODE_DEBUG_NATIVE: 'SEA,MKSNAPSHOT',
+        ...process.env,
+      }
+    },
     {
       trim: true,
       stdout: 'Hello from snapshot',

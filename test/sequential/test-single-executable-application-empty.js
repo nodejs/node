@@ -14,7 +14,7 @@ skipIfSingleExecutableIsNotSupported();
 
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { execFileSync } = require('child_process');
+const { spawnSyncAndExitWithoutError } = require('../common/child_process');
 const assert = require('assert');
 
 const configFile = tmpdir.resolve('sea-config.json');
@@ -31,13 +31,22 @@ writeFileSync(configFile, `
 }
 `);
 
-execFileSync(process.execPath, ['--experimental-sea-config', 'sea-config.json'], {
-  cwd: tmpdir.path
-});
+spawnSyncAndExitWithoutError(
+  process.execPath,
+  ['--experimental-sea-config', 'sea-config.json'],
+  { cwd: tmpdir.path });
 
 assert(existsSync(seaPrepBlob));
 
 copyFileSync(process.execPath, outputFile);
 injectAndCodeSign(outputFile, seaPrepBlob);
 
-execFileSync(outputFile);
+spawnSyncAndExitWithoutError(
+  outputFile,
+  {
+    env: {
+      NODE_DEBUG_NATIVE: 'SEA',
+      ...process.env,
+    }
+  },
+  {});

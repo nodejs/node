@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
 const { readFileSync } = require('fs');
 const {
@@ -42,6 +43,14 @@ function skipIfSingleExecutableIsNotSupported() {
     if (process.arch === 's390x') {
       common.skip('On s390x, postject fails with `memory access out of bounds`.');
     }
+  }
+
+  tmpdir.refresh();
+
+  // The SEA tests involve making a copy of the executable and writing some fixtures
+  // to the tmpdir. To be safe, ensure that at least 120MB disk space is available.
+  if (!tmpdir.hasEnoughSpace(120 * 1024 * 1024)) {
+    common.skip('Available disk space < 120MB');
   }
 }
 
