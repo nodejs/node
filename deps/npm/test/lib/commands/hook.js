@@ -243,7 +243,8 @@ t.test('npm hook ls', async t => {
     'received the correct arguments'
   )
   t.equal(outputs[0][0], 'You have 3 hooks configured.', 'prints the correct header')
-  const out = require('strip-ansi')(outputs[1][0])
+  const { default: stripAnsi } = await import('strip-ansi')
+  const out = stripAnsi(outputs[1][0])
   t.match(out, /semver.*https:\/\/google.com.*\n.*\n.*never triggered/, 'prints package hook')
   t.match(out, /@npmcli.*https:\/\/google.com.*\n.*\n.*triggered just now/, 'prints scope hook')
   t.match(out, /~npm.*https:\/\/google.com.*\n.*\n.*never triggered/, 'prints owner hook')
@@ -292,7 +293,8 @@ t.test('npm hook ls, single result', async t => {
     'received the correct arguments'
   )
   t.equal(outputs[0][0], 'You have one hook configured.', 'prints the correct header')
-  const out = require('strip-ansi')(outputs[1][0])
+  const { default: stripAnsi } = await import('strip-ansi')
+  const out = stripAnsi(outputs[1][0])
   t.match(out, /semver.*https:\/\/google.com.*\n.*\n.*never triggered/, 'prints package hook')
 })
 
