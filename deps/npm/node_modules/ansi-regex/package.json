@@ -1,16 +1,19 @@
 {
 	"name": "ansi-regex",
-	"version": "5.0.1",
+	"version": "6.0.1",
 	"description": "Regular expression for matching ANSI escape codes",
 	"license": "MIT",
 	"repository": "chalk/ansi-regex",
+	"funding": "https://github.com/chalk/ansi-regex?sponsor=1",
 	"author": {
 		"name": "Sindre Sorhus",
 		"email": "sindresorhus@gmail.com",
-		"url": "sindresorhus.com"
+		"url": "https://sindresorhus.com"
 	},
+	"type": "module",
+	"exports": "./index.js",
 	"engines": {
-		"node": ">=8"
+		"node": ">=12"
 	},
 	"scripts": {
 		"test": "xo && ava && tsd",
@@ -48,8 +51,8 @@
 		"pattern"
 	],
 	"devDependencies": {
-		"ava": "^2.4.0",
-		"tsd": "^0.9.0",
-		"xo": "^0.25.3"
+		"ava": "^3.15.0",
+		"tsd": "^0.14.0",
+		"xo": "^0.38.2"
 	}
 }
