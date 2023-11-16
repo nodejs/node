@@ -1,6 +1,6 @@
 'use strict';
 
-var has = require('has');
+var hasOwn = require('hasown');
 
 function specifierIncluded(current, specifier) {
 	var nodeParts = current.split('.');
@@ -65,5 +65,5 @@ function versionIncluded(nodeVersion, specifierValue) {
 var data = require('./core.json');
 
 module.exports = function isCore(x, nodeVersion) {
-	return has(data, x) && versionIncluded(nodeVersion, data[x]);
+	return hasOwn(data, x) && versionIncluded(nodeVersion, data[x]);
 };
