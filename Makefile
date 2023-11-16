@@ -187,11 +187,11 @@ config.gypi: configure configure.py src/node_version.h
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: uninstall
 uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: clean
 .NOTPARALLEL: clean
@@ -388,15 +388,12 @@ ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
 ADDONS_PREREQS := config.gypi \
-	deps/npm/node_modules/node-gyp/package.json tools/build-addons.mjs \
+	deps/npm/node_modules/node-gyp/package.json tools/build_addons.py \
 	deps/uv/include/*.h deps/v8/include/*.h \
 	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
 
 define run_build_addons
-env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
-	npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons.mjs" \
-	"$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
-	$1
+env $(PYTHON) "$$PWD/tools/build_addons.py" --loglevel=$(LOGLEVEL) $1
 touch $2
 endef
 
@@ -1216,7 +1213,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	$(PYTHON) tools/install.py install --headers-only --dest-dir '$(TARNAME)' --prefix '/'
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
