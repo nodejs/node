@@ -6,15 +6,14 @@
 
 using cppnv::env_reader;
 using cppnv::env_pair;
+using cppnv::variable_position;
 using std::string;
 using std::istringstream;
 
 
 
 class DotEnvTest : public EnvironmentTestFixture {
-private:
-  void TearDown() override {
-  }
+
 };
 
 TEST_F(DotEnvTest, ReadDotEnvFile) {
@@ -43,4 +42,49 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EXPECT_TRUE(*env_pairs.at(2)->value->value == "asff");
   EXPECT_TRUE(*env_pairs.at(3)->key->key == "d");
   EXPECT_TRUE(*env_pairs.at(3)->value->value == "e");
+}
+
+TEST_F(DotEnvTest,InterpolateValues) {
+  string interpolate("a1=bc\n"
+"b2=${a1}\n"
+"b3=$ {a1}\n"
+"b4=$ {a1 }\n"
+"b5=$ { a1 }\n"
+"b6=$ { a1}");
+
+  istringstream interpolate_stream(interpolate);
+
+  std::vector<env_pair*> env_pairs;
+
+  env_reader::read_pairs(interpolate_stream, &env_pairs);
+  for (const auto value : env_pairs)
+  {
+    std::cout << *(value->key->key) << " = " << *(value->value->value) << std::endl;
+  }
+
+  for (const auto pair : env_pairs)
+  {
+    for (const variable_position* interpolation : *pair->value->interpolations)
+    {
+      std::cout << pair->value->value->substr(interpolation->variable_start,
+                                              (interpolation->variable_end - interpolation->variable_start) +1) <<
+          std::endl;
+    }
+    env_reader::finalize_value(pair, &env_pairs);
+    std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<std::endl;
+  }
+
+  EXPECT_TRUE(env_pairs.size() == 6);
+  EXPECT_TRUE(*env_pairs.at(0)->key->key == "a1");
+  EXPECT_TRUE(*env_pairs.at(0)->value->value == "bc");
+  EXPECT_TRUE(*env_pairs.at(1)->key->key == "b2");
+  EXPECT_TRUE(*env_pairs.at(1)->value->value == "bc");
+  EXPECT_TRUE(*env_pairs.at(2)->key->key == "b3");
+  EXPECT_TRUE(*env_pairs.at(2)->value->value == "bc");
+  EXPECT_TRUE(*env_pairs.at(3)->key->key == "b4");
+  EXPECT_TRUE(*env_pairs.at(3)->value->value == "bc");
+  EXPECT_TRUE(*env_pairs.at(4)->key->key == "b5");
+  EXPECT_TRUE(*env_pairs.at(4)->value->value == "bc");
+  EXPECT_TRUE(*env_pairs.at(5)->key->key == "b6");
+  EXPECT_TRUE(*env_pairs.at(5)->value->value == "bc");
 }
