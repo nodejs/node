@@ -2,7 +2,7 @@
 
 
 namespace cppnv {
-env_reader::read_result env_reader::read_pair(std::istream& file,
+env_reader::read_result env_reader::read_pair(EnvStream& file,
                                               const env_pair* pair) {
   const auto key_result = read_key(file, pair->key);
 
@@ -54,13 +54,17 @@ env_reader::read_result env_reader::read_pair(std::istream& file,
       } else {
         pair->value->clip_own_buffer(pair->value->value_index);
       }
+      remove_unclosed_interpolation(pair->value);
       return success; //empty key is still success
     case empty:
+      remove_unclosed_interpolation(pair->value);
       return empty;
 
     case fail:
+      remove_unclosed_interpolation(pair->value);
       return fail;
     case end_of_stream_key:
+      remove_unclosed_interpolation(pair->value);
       return end_of_stream_key;
   }
 }
@@ -73,7 +77,7 @@ void env_reader::create_pair(std::string* const buffer, env_pair*& pair) {
   pair->value->value = buffer;
 }
 
-int env_reader::read_pairs(std::istream& file, std::vector<env_pair*>* pairs) {
+int env_reader::read_pairs(EnvStream& file, std::vector<env_pair*>* pairs) {
   int count = 0;
   auto buffer = std::string();
   buffer.resize(100);
@@ -117,7 +121,7 @@ void env_reader::delete_pairs(const std::vector<env_pair*>* pairs) {
   }
 }
 
-int env_reader::read_pairs(std::istream& file,
+int env_reader::read_pairs(EnvStream& file,
                            std::map<std::string, env_pair*>* mapped_pairs) {
   int count = 0;
   auto buffer = std::string();
@@ -160,6 +164,9 @@ env_reader::read_result env_reader::position_of_dollar_last_sign(
 
   while (tmp >= 0) {
     if (value->value->at(tmp) == '$') {
+      if (tmp > 0 && value->value->at(tmp - 1) == '\\') {
+        return fail;
+      }
       break;
     }
     if (value->value->at(tmp) == ' ') {
@@ -179,17 +186,16 @@ env_reader::read_result env_reader::position_of_dollar_last_sign(
  * \param key
  * \return
  */
-env_reader::read_result env_reader::read_key(std::istream& file, env_key* key) {
+env_reader::read_result env_reader::read_key(EnvStream& file, env_key* key) {
   if (!file.good()) {
     return end_of_stream_key;
   }
 
   while (file.good()) {
-    const std::istream::int_type int_ = file.get();
-    if (int_ < 0) {
-      return end_of_stream_key;
+    const auto key_char = file.get();
+    if (key_char < 0) {
+      break;
     }
-    const auto key_char = static_cast<char>(int_);
     if (key_char == '#') {
       return comment_encountered;
     }
@@ -316,6 +322,7 @@ void env_reader::close_variable(env_value* value) {
                                        *value->value,
                                        interpolation->variable_start,
                                        variable_len);
+  interpolation->closed = true;
   value->interpolation_index++;
 }
 
@@ -414,6 +421,7 @@ bool env_reader::read_next_char(env_value* value, const char key_char) {
         if (process_possible_control_character(value, key_char)) {
           return true;
         }
+        add_to_buffer(value, '\\');
       }
     }
   }
@@ -425,13 +433,19 @@ bool env_reader::read_next_char(env_value* value, const char key_char) {
     case '{':
       add_to_buffer(value, key_char);
       if (!value->is_parsing_variable) {
-        open_variable(value);
+        //check to see if it's an escaped '{'
+        if (!is_previous_char_an_escape(value)) {
+          open_variable(value);
+        }
       }
       return true;
     case '}':
       add_to_buffer(value, key_char);
       if (value->is_parsing_variable) {
-        close_variable(value);
+        //check to see if it's an escaped '}'
+        if (!is_previous_char_an_escape(value)) {
+          close_variable(value);
+        }
       }
 
       return true;
@@ -454,7 +468,14 @@ bool env_reader::read_next_char(env_value* value, const char key_char) {
   }
 }
 
-bool env_reader::clear_newline_or_comment(std::istream& file,
+// Used only when checking closed and open variables because the { }  have been added to the buffer
+// it needs to check 2 values back.
+bool env_reader::is_previous_char_an_escape(env_value* value) {
+  return value->value_index > 1 && value->value->at(value->value_index - 2) ==
+         '\\';
+}
+
+bool env_reader::clear_newline_or_comment(EnvStream& file,
                                           env_value* value,
                                           char key_char,
                                           env_reader::read_result& ret_value) {
@@ -475,7 +496,10 @@ bool env_reader::clear_newline_or_comment(std::istream& file,
     }
     char tmp;
     do {
-      tmp = static_cast<char>(file.get());
+      tmp = file.get();
+      if (tmp < 0) {
+        break;
+      }
       if (!file.good()) {
         break;
       }
@@ -484,7 +508,7 @@ bool env_reader::clear_newline_or_comment(std::istream& file,
   return false;
 }
 
-env_reader::read_result env_reader::read_value(std::istream& file,
+env_reader::read_result env_reader::read_value(EnvStream& file,
                                                env_value* value) {
   if (!file.good()) {
     return end_of_stream_value;
@@ -492,12 +516,10 @@ env_reader::read_result env_reader::read_value(std::istream& file,
 
   env_reader::read_result ret_val = success;
   while (file.good()) {
-    const std::istream::int_type int_ = file.get();
-    if (int_ < 0) {
+    char key_char = file.get();
+    if (key_char < 0) {
       break;
     }
-    char key_char = static_cast<char>(int_);
-
     if (clear_newline_or_comment(file, value, key_char, ret_val)) break;
 
     if (read_next_char(value, key_char) && file.good()) {
@@ -505,11 +527,10 @@ env_reader::read_result env_reader::read_value(std::istream& file,
     }
     if (value->triple_double_quoted || value->triple_quoted) {
       do {
-        const std::istream::int_type tmp_int = file.get();
-        if (tmp_int < 0) {
+        key_char = file.get();
+        if (key_char < 0) {
           break;
         }
-        key_char = static_cast<char>(tmp_int);
         if (!file.good()) {
           break;
         }
@@ -524,6 +545,19 @@ env_reader::read_result env_reader::read_value(std::istream& file,
     }
   }
   return success;
+}
+
+void env_reader::remove_unclosed_interpolation(env_value* value) {
+  for (int i = value->interpolation_index - 1; i >= 0; i--) {
+    const variable_position* interpolation = value->interpolations->at(i);
+    if (interpolation->closed) {
+      continue;
+    }
+    value->interpolations->erase(
+        value->interpolations->begin() + value->interpolation_index);
+    delete interpolation;
+    value->interpolation_index--;
+  }
 }
 
 env_reader::finalize_result env_reader::finalize_value(const env_pair* pair,
