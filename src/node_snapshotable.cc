@@ -1075,7 +1075,7 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
 
       if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
         env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
-        printf("Environment = %p\n", env);
+        fprintf(stderr, "Environment = %p\n", env);
       }
 
       // Serialize the native states

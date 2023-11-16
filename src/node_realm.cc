@@ -223,7 +223,7 @@ void Realm::PrintInfoForSnapshot() {
   fprintf(stderr, "BaseObjects of the Realm:\n");
   size_t i = 0;
   ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
+    std::cerr << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
               << "\n";
   });
 
