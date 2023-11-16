@@ -1,5 +1,4 @@
 const t = require('tap')
-const ansiTrim = require('strip-ansi')
 const mockNpm = require('../../fixtures/mock-npm')
 
 const mockOrg = async (t, { orgSize = 1, orgList = {}, ...npmOpts } = {}) => {
@@ -427,7 +426,8 @@ t.test('npm org ls', async t => {
     },
     'receieved the correct args'
   )
-  const out = ansiTrim(outputs[0][0])
+  const { default: stripAnsi } = await import('strip-ansi')
+  const out = stripAnsi(outputs[0][0])
   t.match(out, /one.*developer/, 'contains the developer member')
   t.match(out, /two.*admin/, 'contains the admin member')
   t.match(out, /three.*owner/, 'contains the owner member')
@@ -452,7 +452,8 @@ t.test('npm org ls - user filter', async t => {
     },
     'receieved the correct args'
   )
-  const out = ansiTrim(outputs[0][0])
+  const { default: stripAnsi } = await import('strip-ansi')
+  const out = stripAnsi(outputs[0][0])
   t.match(out, /username.*admin/, 'contains the filtered member')
   t.notMatch(out, /missing.*admin/, 'does not contain other members')
 })
@@ -475,7 +476,8 @@ t.test('npm org ls - user filter, missing user', async t => {
     },
     'receieved the correct args'
   )
-  const out = ansiTrim(outputs[0][0])
+  const { default: stripAnsi } = await import('strip-ansi')
+  const out = stripAnsi(outputs[0][0])
   t.notMatch(out, /username/, 'does not contain the requested member')
   t.notMatch(out, /missing.*admin/, 'does not contain other members')
 })

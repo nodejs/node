@@ -153,10 +153,9 @@ npm command-line interface
 then only packages matching one of the supplied names are removed.</p>
 <p>Extraneous packages are those present in the <code>node_modules</code> folder that are
 not listed as any package's dependency list.</p>
-<p>If the <code>--production</code> flag is specified or the <code>NODE_ENV</code> environment
+<p>If the <code>--omit=dev</code> flag is specified or the <code>NODE_ENV</code> environment
 variable is set to <code>production</code>, this command will remove the packages
-specified in your <code>devDependencies</code>. Setting <code>--no-production</code> will negate
-<code>NODE_ENV</code> being set to <code>production</code>.</p>
+specified in your <code>devDependencies</code>.</p>
 <p>If the <code>--dry-run</code> flag is used then no changes will actually be made.</p>
 <p>If the <code>--json</code> flag is used, then the changes <code>npm prune</code> made (or would
 have made with <code>--dry-run</code>) are printed as a JSON object.</p>

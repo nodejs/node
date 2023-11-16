@@ -32,6 +32,14 @@ npm view ronn@0.3.5 dependencies
 .fi
 .RE
 .P
+By default, \fBnpm view\fR shows data about the current project context (by looking for a \fBpackage.json\fR). To show field data for the current project use a file path (i.e. \fB.\fR):
+.P
+.RS 2
+.nf
+npm view . dependencies
+.fi
+.RE
+.P
 You can view child fields by separating them with a period. To view the git repository URL for the latest version of \fBnpm\fR, you would run the following command:
 .P
 .RS 2

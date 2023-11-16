@@ -662,6 +662,43 @@ t.test('workspaces', async t => {
   )
 })
 
+t.test('single workspace', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: [
+          'packages/*',
+        ],
+      }),
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.2.3',
+          }),
+        },
+      },
+    },
+    config: { workspace: ['packages/a'] },
+  })
+
+  await pkg('get', 'name', 'version')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    { a: { name: 'a', version: '1.0.0' } },
+    'should only return info for one workspace'
+  )
+})
+
 t.test('fix', async t => {
   const { pkg, readPackageJson } = await mockNpm(t, {
     prefixDir: {

@@ -504,3 +504,138 @@ exports[`test/lib/utils/sbom-spdx.js TAP single node - with integrity > must mat
   ]
 }
 `
+
+exports[`test/lib/utils/sbom-spdx.js TAP single node - with license expression > must match snapshot 1`] = `
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "root@1.0.0",
+  "documentNamespace": "docns",
+  "creationInfo": {
+    "created": "2020-01-01T00:00:00.000Z",
+    "creators": [
+      "Tool: npm/cli-10.0.0 "
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-root-1.0.0"
+  ],
+  "packages": [
+    {
+      "name": "root",
+      "SPDXID": "SPDXRef-Package-root-1.0.0",
+      "versionInfo": "1.0.0",
+      "packageFileName": "",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "(MIT OR Apache-2.0)",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/root@1.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}
+`
+
+exports[`test/lib/utils/sbom-spdx.js TAP single node - with license object > must match snapshot 1`] = `
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "root@1.0.0",
+  "documentNamespace": "docns",
+  "creationInfo": {
+    "created": "2020-01-01T00:00:00.000Z",
+    "creators": [
+      "Tool: npm/cli-10.0.0 "
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-root-1.0.0"
+  ],
+  "packages": [
+    {
+      "name": "root",
+      "SPDXID": "SPDXRef-Package-root-1.0.0",
+      "versionInfo": "1.0.0",
+      "packageFileName": "",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/root@1.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}
+`
+
+exports[`test/lib/utils/sbom-spdx.js TAP single node - with single license > must match snapshot 1`] = `
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "root@1.0.0",
+  "documentNamespace": "docns",
+  "creationInfo": {
+    "created": "2020-01-01T00:00:00.000Z",
+    "creators": [
+      "Tool: npm/cli-10.0.0 "
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-root-1.0.0"
+  ],
+  "packages": [
+    {
+      "name": "root",
+      "SPDXID": "SPDXRef-Package-root-1.0.0",
+      "versionInfo": "1.0.0",
+      "packageFileName": "",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "ISC",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/root@1.0.0"
+        }
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
+      "relationshipType": "DESCRIBES"
+    }
+  ]
+}
+`
