@@ -323,6 +323,30 @@ Currently the support for run-time snapshot is experimental in that:
    a report in the [Node.js issue tracker][] and link to it in the
    [tracking issue for user-land snapshots][].
 
+### `--build-snapshot-config`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Specifies the path to a JSON configuration file which configures snapshot
+creation behavior.
+
+The following options are currently supported:
+
+* `builder` {string} Required. Provides the name to the script that is executed
+  before building the snapshot, as if [`--build-snapshot`][] had been passed
+  with `builder` as the main script name.
+* `withoutCodeCache` {boolean} Optional. Including the code cache reduces the
+  time spent on compiling functions included in the snapshot at the expense
+  of a bigger snapshot size and potentially breaking portability of the
+  snapshot.
+
+When using this flag, additional script files provided on the command line will
+not be executed and instead be interpreted as regular command line arguments.
+
 ### `-c`, `--check`
 
 <!-- YAML
@@ -2868,6 +2892,7 @@ done
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-worker`]: #--allow-worker
+[`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-default-type=module`]: #--experimental-default-typetype
