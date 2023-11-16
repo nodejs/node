@@ -232,7 +232,6 @@ There are some other files that touch the build chain. Changes in the following
 files also qualify as affecting the `node` binary:
 
 * `tools/*.py`
-* `tools/build-addons.mjs`
 * `*.gyp`
 * `*.gypi`
 * `configure`

@@ -187,11 +187,11 @@ config.gypi: configure configure.py src/node_version.h
 
 .PHONY: install
 install: all ## Installs node into $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: uninstall
 uninstall: ## Uninstalls node from $PREFIX (default=/usr/local).
-	$(PYTHON) tools/install.py $@ '$(DESTDIR)' '$(PREFIX)'
+	$(PYTHON) tools/install.py $@ --dest-dir '$(DESTDIR)' --prefix '$(PREFIX)'
 
 .PHONY: clean
 .NOTPARALLEL: clean
@@ -379,6 +379,28 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
+# All files that will be included in headers tarball should be listed as deps
+# for generating headers. The list is manually synchronized with install.py.
+ADDONS_HEADERS_PREREQS := tools/install.py \
+	config.gypi common.gypi \
+	$(wildcard deps/openssl/config/*.h) \
+	$(wildcard deps/openssl/openssl/include/openssl/*.h) \
+	$(wildcard deps/uv/include/*.h) \
+	$(wildcard deps/uv/include/*/*.h) \
+	$(wildcard deps/v8/include/*.h) \
+	$(wildcard deps/v8/include/*/*.h) \
+	deps/zlib/zconf.h deps/zlib/zlib.h \
+	src/node.h src/node_api.h src/js_native_api.h src/js_native_api_types.h \
+	src/node_api_types.h src/node_buffer.h src/node_object_wrap.h \
+	src/node_version.h
+
+ADDONS_HEADERS_DIR = out/$(BUILDTYPE)/addons_headers
+
+# Generate node headers which will be used for building addons.
+test/addons/.headersbuildstamp: $(ADDONS_HEADERS_PREREQS)
+	$(PYTHON) tools/install.py install --headers-only --dest-dir '$(ADDONS_HEADERS_DIR)' --prefix '/'
+	@touch $@
+
 ADDONS_BINDING_GYPS := \
 	$(filter-out test/addons/??_*/binding.gyp, \
 		$(wildcard test/addons/*/binding.gyp))
@@ -387,16 +409,11 @@ ADDONS_BINDING_SOURCES := \
 	$(filter-out test/addons/??_*/*.cc, $(wildcard test/addons/*/*.cc)) \
 	$(filter-out test/addons/??_*/*.h, $(wildcard test/addons/*/*.h))
 
-ADDONS_PREREQS := config.gypi \
-	deps/npm/node_modules/node-gyp/package.json tools/build-addons.mjs \
-	deps/uv/include/*.h deps/v8/include/*.h \
-	src/node.h src/node_buffer.h src/node_object_wrap.h src/node_version.h
+ADDONS_PREREQS := test/addons/.headersbuildstamp \
+	deps/npm/node_modules/node-gyp/package.json tools/build_addons.py
 
 define run_build_addons
-env npm_config_loglevel=$(LOGLEVEL) npm_config_nodedir="$$PWD" \
-	npm_config_python="$(PYTHON)" $(NODE) "$$PWD/tools/build-addons.mjs" \
-	"$$PWD/deps/npm/node_modules/node-gyp/bin/node-gyp.js" \
-	$1
+env $(PYTHON) "$$PWD/tools/build_addons.py" --loglevel=$(LOGLEVEL) --headers-dir "$(ADDONS_HEADERS_DIR)" $1
 touch $2
 endef
 
@@ -429,8 +446,7 @@ JS_NATIVE_API_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-js-native-api-tests rule for rationale.
 test/js-native-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(JS_NATIVE_API_BINDING_GYPS) $(JS_NATIVE_API_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h src/js_native_api.h \
-	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
+	src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/js-native-api",$@)
 
 .PHONY: build-js-native-api-tests
@@ -454,8 +470,7 @@ NODE_API_BINDING_SOURCES := \
 # Implicitly depends on $(NODE_EXE), see the build-node-api-tests rule for rationale.
 test/node-api/.buildstamp: $(ADDONS_PREREQS) \
 	$(NODE_API_BINDING_GYPS) $(NODE_API_BINDING_SOURCES) \
-	src/node_api.h src/node_api_types.h src/js_native_api.h \
-	src/js_native_api_types.h src/js_native_api_v8.h src/js_native_api_v8_internals.h
+	src/js_native_api_v8.h src/js_native_api_v8_internals.h
 	@$(call run_build_addons,"$$PWD/test/node-api",$@)
 
 .PHONY: build-node-api-tests
@@ -660,9 +675,10 @@ test-addons: test-build test-js-native-api test-node-api
 .PHONY: test-addons-clean
 .NOTPARALLEL: test-addons-clean
 test-addons-clean:
+	$(RM) -r "$(ADDONS_HEADERS_DIR)"
 	$(RM) -r test/addons/??_*/
 	$(RM) -r test/addons/*/build
-	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp
+	$(RM) test/addons/.buildstamp test/addons/.docbuildstamp test/addons/.headersbuildstamp
 	$(MAKE) test-js-native-api-clean
 	$(MAKE) test-node-api-clean
 
@@ -1216,7 +1232,7 @@ $(TARBALL)-headers: release-only
 		--tag=$(TAG) \
 		--release-urlbase=$(RELEASE_URLBASE) \
 		$(CONFIG_FLAGS) $(BUILD_RELEASE_FLAGS)
-	HEADERS_ONLY=1 $(PYTHON) tools/install.py install '$(TARNAME)' '/'
+	$(PYTHON) tools/install.py install --headers-only --dest-dir '$(TARNAME)' --prefix '/'
 	find $(TARNAME)/ -type l | xargs $(RM)
 	tar -cf $(TARNAME)-headers.tar $(TARNAME)
 	$(RM) -r $(TARNAME)
