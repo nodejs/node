@@ -10,7 +10,22 @@ from concurrent.futures import ThreadPoolExecutor
 
 ROOT_DIR = os.path.abspath(os.path.join(__file__, '..', '..'))
 
-def install_and_rebuild(args, install_args):
+# Run install.py to install headers.
+def generate_headers(headers_dir, install_args):
+  print('Generating headers')
+  subprocess.check_call([
+      sys.executable,
+      os.path.join(ROOT_DIR, 'tools/install.py'),
+      'install',
+      '--silent',
+      '--headers-only',
+      '--prefix', '/',
+      '--dest-dir', headers_dir,
+  ] + install_args)
+
+# Rebuild addons in parallel.
+def rebuild_addons(args):
+  headers_dir = os.path.abspath(args.headers_dir)
   out_dir = os.path.abspath(args.out_dir)
   node_bin = os.path.join(out_dir, 'node')
   if args.is_win:
@@ -21,71 +36,57 @@ def install_and_rebuild(args, install_args):
   else:
     node_gyp = os.path.join(ROOT_DIR, args.node_gyp)
 
-  # Create a temporary directory for node headers.
-  with tempfile.TemporaryDirectory() as headers_dir:
-    # Run install.py to install headers.
-    print('Generating headers')
-    subprocess.check_call([
-        sys.executable,
-        os.path.join(ROOT_DIR, 'tools/install.py'),
-        'install',
-        '--silent',
-        '--headers-only',
-        '--prefix', '/',
-        '--dest-dir', headers_dir,
-    ] + install_args)
+  # Copy node.lib.
+  if args.is_win:
+    node_lib_dir = os.path.join(headers_dir, 'Release')
+    os.makedirs(node_lib_dir)
+    shutil.copy2(os.path.join(args.out_dir, 'node.lib'),
+                 os.path.join(node_lib_dir, 'node.lib'))
 
-    # Copy node.lib.
-    if args.is_win:
-      node_lib_dir = os.path.join(headers_dir, 'Release')
-      os.makedirs(node_lib_dir)
-      shutil.copy2(os.path.join(args.out_dir, 'node.lib'),
-                   os.path.join(node_lib_dir, 'node.lib'))
+  def node_gyp_rebuild(test_dir):
+    print('Building addon in', test_dir)
+    try:
+      process = subprocess.Popen([
+          node_bin,
+          node_gyp,
+          'rebuild',
+          '--directory', test_dir,
+          '--nodedir', headers_dir,
+          '--python', sys.executable,
+          '--loglevel', args.loglevel,
+      ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    def rebuild_addon(test_dir):
-      print('Building addon in', test_dir)
-      try:
-        process = subprocess.Popen([
-            node_bin,
-            node_gyp,
-            'rebuild',
-            '--directory', test_dir,
-            '--nodedir', headers_dir,
-            '--python', sys.executable,
-            '--loglevel', args.loglevel,
-        ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      # We buffer the output and print it out once the process is done in order
+      # to avoid interleaved output from multiple builds running at once.
+      return_code = process.wait()
+      stdout, stderr = process.communicate()
+      if return_code != 0:
+        print(f'Failed to build addon in {test_dir}:')
+        if stdout:
+          print(stdout.decode())
+        if stderr:
+          print(stderr.decode())
 
-        # We buffer the output and print it out once the process is done in order
-        # to avoid interleaved output from multiple builds running at once.
-        return_code = process.wait()
-        stdout, stderr = process.communicate()
-        if return_code != 0:
-          print(f'Failed to build addon in {test_dir}:')
-          if stdout:
-            print(stdout.decode())
-          if stderr:
-            print(stderr.decode())
+    except Exception as e:
+      print(f'Unexpected error when building addon in {test_dir}. Error: {e}')
 
-      except Exception as e:
-        print(f'Unexpected error when building addon in {test_dir}. Error: {e}')
+  test_dirs = []
+  skip_tests = args.skip_tests.split(',')
+  only_tests = args.only_tests.split(',') if args.only_tests else None
+  for child_dir in os.listdir(args.target):
+    full_path = os.path.join(args.target, child_dir)
+    if not os.path.isdir(full_path):
+      continue
+    if 'binding.gyp' not in os.listdir(full_path):
+      continue
+    if child_dir in skip_tests:
+      continue
+    if only_tests and child_dir not in only_tests:
+      continue
+    test_dirs.append(full_path)
 
-    test_dirs = []
-    skip_tests = args.skip_tests.split(',')
-    only_tests = args.only_tests.split(',') if args.only_tests else None
-    for child_dir in os.listdir(args.target):
-      full_path = os.path.join(args.target, child_dir)
-      if not os.path.isdir(full_path):
-        continue
-      if 'binding.gyp' not in os.listdir(full_path):
-        continue
-      if child_dir in skip_tests:
-        continue
-      if only_tests and child_dir not in only_tests:
-        continue
-      test_dirs.append(full_path)
-
-    with ThreadPoolExecutor() as executor:
-      executor.map(rebuild_addon, test_dirs)
+  with ThreadPoolExecutor() as executor:
+    executor.map(node_gyp_rebuild, test_dirs)
 
 def main():
   if sys.platform == 'cygwin':
@@ -94,6 +95,10 @@ def main():
   parser = argparse.ArgumentParser(
       description='Install headers and rebuild child directories')
   parser.add_argument('target', help='target directory to build addons')
+  parser.add_argument('--headers-dir',
+                      help='path to node headers directory, if not specified '
+                           'new headers will be generated for building',
+                      default=None)
   parser.add_argument('--out-dir', help='path to the output directory',
                       default='out/Release')
   parser.add_argument('--loglevel', help='loglevel of node-gyp',
@@ -108,7 +113,17 @@ def main():
                       action='store_true', default=(sys.platform == 'win32'))
   args, unknown_args = parser.parse_known_args()
 
-  install_and_rebuild(args, unknown_args)
+  if args.headers_dir:
+    rebuild_addons(args)
+  else:
+    # When --headers-dir is not specified, generate headers into a temp dir and
+    # build with the new headers.
+    try:
+      args.headers_dir = tempfile.mkdtemp()
+      generate_headers(args.headers_dir, unknown_args)
+      rebuild_addons(args)
+    finally:
+      shutil.rmtree(args.headers_dir)
 
 if __name__ == '__main__':
   main()
