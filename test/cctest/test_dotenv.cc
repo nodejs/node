@@ -4,10 +4,10 @@
 #include "node_test_fixture.h"
 #include "cppnv/EnvReader.h"
 
-using cppnv::env_reader;
-using cppnv::env_pair;
+using cppnv::EnvReader;
+using cppnv::EnvPair;
 using cppnv::EnvStream;
-using cppnv::variable_position;
+using cppnv::VariablePosition;
 using std::string;
 using std::istringstream;
 
@@ -16,7 +16,7 @@ class DotEnvTest : public EnvironmentTestFixture {
 };
 
 TEST_F(DotEnvTest, ReadDotEnvFile) {
-  // std::vector<env_pair*> env_pairs;
+  // std::vector<EnvPair*> env_pairs;
   //
   string basic("a=bc\n"
       "b=cdd\n"
@@ -25,8 +25,8 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
       "b\n");
   EnvStream basic_stream(&basic);
 
-  std::vector<env_pair*> env_pairs;
-  env_reader::read_pairs(basic_stream, &env_pairs);
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(basic_stream, &env_pairs);
   for (const auto value : env_pairs) {
     std::cout << *(value->key->key) << " = " << *(value->value->value) <<
         std::endl;
@@ -41,6 +41,8 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EXPECT_EQ(*env_pairs.at(2)->value->value , "asff");
   EXPECT_EQ(*env_pairs.at(3)->key->key , "d");
   EXPECT_EQ(*env_pairs.at(3)->value->value , "e");
+  EnvReader::delete_pairs(&env_pairs);
+
 }
 
 
@@ -55,15 +57,15 @@ g= \\ \\ \r \\ \\\\b\n)");
 
   EnvStream codes_stream(&codes);
 
-  std::vector<env_pair*> env_pairs;
-  env_reader::read_pairs(codes_stream, &env_pairs);
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
   for (const auto value : env_pairs) {
     std::cout << *(value->key->key) << " = " << *(value->value->value) <<
         std::endl;
   }
 
   for (const auto pair : env_pairs) {
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -83,6 +85,7 @@ g= \\ \\ \r \\ \\\\b\n)");
   EXPECT_EQ(*env_pairs.at(5)->value->value, " \\ \\ \b \\ \\\\t");
   EXPECT_EQ(*env_pairs.at(6)->key->key, "g");
   EXPECT_EQ(*env_pairs.at(6)->value->value, " \\ \\ \r \\ \\\\b\n");
+  EnvReader::delete_pairs(&env_pairs);
 }
 
 TEST_F(DotEnvTest, InterpolateValues) {
@@ -94,16 +97,16 @@ TEST_F(DotEnvTest, InterpolateValues) {
       "b6=$ { a1}");
   EnvStream interpolate_stream(&interpolate);
 
-  std::vector<env_pair*> env_pairs;
+  std::vector<EnvPair*> env_pairs;
 
-  env_reader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(interpolate_stream, &env_pairs);
   for (const auto value : env_pairs) {
     std::cout << *(value->key->key) << " = " << *(value->value->value) <<
         std::endl;
   }
 
   for (const auto pair : env_pairs) {
-    for (const variable_position* interpolation : *pair->value->
+    for (const VariablePosition* interpolation : *pair->value->
          interpolations) {
       std::cout << pair->value->value->substr(interpolation->variable_start,
                                               (interpolation->variable_end -
@@ -111,7 +114,7 @@ TEST_F(DotEnvTest, InterpolateValues) {
                                               1) <<
           std::endl;
     }
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -129,6 +132,7 @@ TEST_F(DotEnvTest, InterpolateValues) {
   EXPECT_EQ(*env_pairs.at(4)->value->value , "bc");
   EXPECT_EQ(*env_pairs.at(5)->key->key , "b6");
   EXPECT_EQ(*env_pairs.at(5)->value->value , "bc");
+  EnvReader::delete_pairs(&env_pairs);
 }
 
 TEST_F(DotEnvTest, InterpolateValuesCircular) {
@@ -138,16 +142,16 @@ TEST_F(DotEnvTest, InterpolateValuesCircular) {
       "b4=$ { b3}");
   EnvStream interpolate_stream(&interpolate);
 
-  std::vector<env_pair*> env_pairs;
+  std::vector<EnvPair*> env_pairs;
 
-  env_reader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(interpolate_stream, &env_pairs);
   for (const auto value : env_pairs) {
     std::cout << *(value->key->key) << " = " << *(value->value->value) <<
         std::endl;
   }
 
   for (const auto pair : env_pairs) {
-    for (const variable_position* interpolation : *pair->value->
+    for (const VariablePosition* interpolation : *pair->value->
          interpolations) {
       std::cout << pair->value->value->substr(interpolation->variable_start,
                                               (interpolation->variable_end -
@@ -155,7 +159,7 @@ TEST_F(DotEnvTest, InterpolateValuesCircular) {
                                               1) <<
           std::endl;
          }
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -168,8 +172,48 @@ TEST_F(DotEnvTest, InterpolateValuesCircular) {
   EXPECT_EQ(*env_pairs.at(2)->value->value, "hello ${b4} hello");
   EXPECT_EQ(*env_pairs.at(3)->key->key, "b4");
   EXPECT_EQ(*env_pairs.at(3)->value->value, "$ { b3}");
-
+  EnvReader::delete_pairs(&env_pairs);
 }
+
+
+TEST_F(DotEnvTest, HEREDOCDoubleQuote) {
+  string interpolate(R"(a="""
+heredoc
+"""
+b=${a}
+c=""" $ {b })");
+  EnvStream interpolate_stream(&interpolate);
+
+  std::vector<EnvPair*> env_pairs;
+
+  EnvReader::read_pairs(interpolate_stream, &env_pairs);
+  for (const auto value : env_pairs) {
+    std::cout << *(value->key->key) << " = " << *(value->value->value) <<
+        std::endl;
+  }
+
+  for (const auto pair : env_pairs) {
+    for (const VariablePosition* interpolation : *pair->value->
+         interpolations) {
+      std::cout << pair->value->value->substr(interpolation->variable_start,
+                                              (interpolation->variable_end -
+                                               interpolation->variable_start) +
+                                              1) <<
+          std::endl;
+         }
+    EnvReader::finalize_value(pair, &env_pairs);
+    std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
+        std::endl;
+  }
+  EXPECT_EQ(env_pairs.size(),3);
+  EXPECT_EQ(*env_pairs.at(0)->key->key , "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value , "\nheredoc\n");
+  EXPECT_EQ(*env_pairs.at(1)->key->key , "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value , "\nheredoc\n");
+  EXPECT_EQ(*env_pairs.at(2)->key->key , "c");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
 TEST_F(DotEnvTest, InterpolateValuesAdvanced) {
   string interpolate("a1=bc\n"
       "b2=${a1}\n"
@@ -179,16 +223,16 @@ TEST_F(DotEnvTest, InterpolateValuesAdvanced) {
       "b6=$ { b2}");
   EnvStream interpolate_stream(&interpolate);
 
-  std::vector<env_pair*> env_pairs;
+  std::vector<EnvPair*> env_pairs;
 
-  env_reader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(interpolate_stream, &env_pairs);
   for (const auto value : env_pairs) {
     std::cout << *(value->key->key) << " = " << *(value->value->value) <<
         std::endl;
   }
 
   for (const auto pair : env_pairs) {
-    for (const variable_position* interpolation : *pair->value->
+    for (const VariablePosition* interpolation : *pair->value->
          interpolations) {
       std::cout << pair->value->value->substr(interpolation->variable_start,
                                               (interpolation->variable_end -
@@ -196,7 +240,7 @@ TEST_F(DotEnvTest, InterpolateValuesAdvanced) {
                                               1) <<
           std::endl;
     }
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -213,6 +257,7 @@ TEST_F(DotEnvTest, InterpolateValuesAdvanced) {
   EXPECT_EQ(*env_pairs.at(4)->value->value, "bc bc");
   EXPECT_EQ(*env_pairs.at(5)->key->key, "b6");
   EXPECT_EQ(*env_pairs.at(5)->value->value, "bc");
+  EnvReader::delete_pairs(&env_pairs);
 }
 
 TEST_F(DotEnvTest, InterpolateUnClosed) {
@@ -221,16 +266,16 @@ TEST_F(DotEnvTest, InterpolateUnClosed) {
 
   EnvStream interpolate_escaped_stream(&interpolate_escaped);
 
-  std::vector<env_pair*> env_pairs;
+  std::vector<EnvPair*> env_pairs;
 
-  env_reader::read_pairs(interpolate_escaped_stream, &env_pairs);
+  EnvReader::read_pairs(interpolate_escaped_stream, &env_pairs);
   for (const auto value : env_pairs) {
     //  std::cout << *(value->key->key) << " = " << *(value->value->value) << std::endl;
   }
 
   for (const auto pair : env_pairs) {
     std::cout << "__" << std::endl;
-    for (const variable_position* interpolation : *pair->value->
+    for (const VariablePosition* interpolation : *pair->value->
          interpolations) {
       std::cout << "Interpolation: " << interpolation->variable_start << " -> "
           << interpolation->variable_end << " length: " << (
@@ -243,7 +288,7 @@ TEST_F(DotEnvTest, InterpolateUnClosed) {
                                               1) <<
           std::endl;
     }
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -253,6 +298,7 @@ TEST_F(DotEnvTest, InterpolateUnClosed) {
   EXPECT_EQ(*env_pairs.at(0)->value->value, "bc");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "b2");
   EXPECT_EQ(*env_pairs.at(1)->value->value, "${a1\\}");
+  EnvReader::delete_pairs(&env_pairs);
 }
 
 
@@ -265,16 +311,16 @@ TEST_F(DotEnvTest, InterpolateValuesEscaped) {
       "b6=\\$ { a1}");
   EnvStream interpolate_escaped_stream(&interpolate_escaped);
 
-  std::vector<env_pair*> env_pairs;
+  std::vector<EnvPair*> env_pairs;
 
-  env_reader::read_pairs(interpolate_escaped_stream, &env_pairs);
+  EnvReader::read_pairs(interpolate_escaped_stream, &env_pairs);
   for (const auto value : env_pairs) {
     //  std::cout << *(value->key->key) << " = " << *(value->value->value) << std::endl;
   }
 
   for (const auto pair : env_pairs) {
     std::cout << "__" << std::endl;
-    for (const variable_position* interpolation : *pair->value->
+    for (const VariablePosition* interpolation : *pair->value->
          interpolations) {
       std::cout << "Interpolation: " << interpolation->variable_start << " -> "
           << interpolation->variable_end << " length: " << (
@@ -287,7 +333,7 @@ TEST_F(DotEnvTest, InterpolateValuesEscaped) {
                                               1) <<
           std::endl;
     }
-    env_reader::finalize_value(pair, &env_pairs);
+    EnvReader::finalize_value(pair, &env_pairs);
     std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
         std::endl;
   }
@@ -305,4 +351,5 @@ TEST_F(DotEnvTest, InterpolateValuesEscaped) {
   EXPECT_EQ(*env_pairs.at(4)->value->value, "$ \\{ a1 }");
   EXPECT_EQ(*env_pairs.at(5)->key->key, "b6");
   EXPECT_EQ(*env_pairs.at(5)->value->value, "\\$ { a1}");
+  EnvReader::delete_pairs(&env_pairs);
 }

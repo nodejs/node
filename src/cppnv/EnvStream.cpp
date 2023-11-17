@@ -3,6 +3,7 @@
 cppnv::EnvStream::EnvStream(std::string* data) {
   this->data_ = data;
   this->length_ = this->data_->length();
+  this->is_good = this->index_ < this->length_;
 }
 
 char cppnv::EnvStream::get() {
@@ -10,16 +11,16 @@ char cppnv::EnvStream::get() {
     return -1;
   }
 
-  auto ret =  this->data_->at(this->index_);
+  const auto ret = this->data_->at(this->index_);
   this->index_++;
   this->is_good = this->index_ < this->length_;
   return ret;
 }
 
-bool cppnv::EnvStream::good() {
+bool cppnv::EnvStream::good() const {
   return this->is_good;
 }
 
-bool cppnv::EnvStream::eof() {
+bool cppnv::EnvStream::eof() const {
   return !good();
 }

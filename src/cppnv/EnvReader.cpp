@@ -2,8 +2,8 @@
 
 
 namespace cppnv {
-env_reader::read_result env_reader::read_pair(EnvStream& file,
-                                              const env_pair* pair) {
+EnvReader::read_result EnvReader::read_pair(EnvStream& file,
+                                            const EnvPair* pair) {
   const auto key_result = read_key(file, pair->key);
 
   switch (key_result) {
@@ -60,24 +60,25 @@ env_reader::read_result env_reader::read_pair(EnvStream& file,
       remove_unclosed_interpolation(pair->value);
       return empty;
 
-    case fail:
-      remove_unclosed_interpolation(pair->value);
-      return fail;
     case end_of_stream_key:
       remove_unclosed_interpolation(pair->value);
       return end_of_stream_key;
+    default:
+    case fail:
+      remove_unclosed_interpolation(pair->value);
+      return fail;
   }
 }
 
-void env_reader::create_pair(std::string* const buffer, env_pair*& pair) {
-  pair = new env_pair();
+void EnvReader::create_pair(std::string* const buffer, EnvPair*& pair) {
+  pair = new EnvPair();
   pair->key = new env_key();
   pair->key->key = buffer;
-  pair->value = new env_value();
+  pair->value = new EnvValue();
   pair->value->value = buffer;
 }
 
-int env_reader::read_pairs(EnvStream& file, std::vector<env_pair*>* pairs) {
+int EnvReader::read_pairs(EnvStream& file, std::vector<EnvPair*>* pairs) {
   int count = 0;
   auto buffer = std::string();
   buffer.resize(100);
@@ -85,7 +86,7 @@ int env_reader::read_pairs(EnvStream& file, std::vector<env_pair*>* pairs) {
   auto expect_more = true;
   while (expect_more) {
     buffer.clear();
-    env_pair* pair;
+    EnvPair* pair;
     create_pair(&buffer, pair);
     const auto result = read_pair(file, pair);
     switch (result) {
@@ -109,27 +110,27 @@ int env_reader::read_pairs(EnvStream& file, std::vector<env_pair*>* pairs) {
   return count;
 }
 
-void env_reader::delete_pair(const env_pair* pair) {
+void EnvReader::delete_pair(const EnvPair* pair) {
   delete pair->key;
   delete pair->value;
   delete pair;
 }
 
-void env_reader::delete_pairs(const std::vector<env_pair*>* pairs) {
-  for (auto env_pair : *pairs) {
+void EnvReader::delete_pairs(const std::vector<EnvPair*>* pairs) {
+  for (const auto env_pair : *pairs) {
     delete_pair(env_pair);
   }
 }
 
-int env_reader::read_pairs(EnvStream& file,
-                           std::map<std::string, env_pair*>* mapped_pairs) {
+int EnvReader::read_pairs(EnvStream& file,
+                          std::map<std::string, EnvPair*>* mapped_pairs) {
   int count = 0;
   auto buffer = std::string();
 
   auto expect_more = true;
   while (expect_more) {
     buffer.clear();
-    env_pair* pair;
+    EnvPair* pair;
     create_pair(&buffer, pair);
     const auto result = read_pair(file, pair);
     switch (result) {
@@ -154,8 +155,8 @@ int env_reader::read_pairs(EnvStream& file,
   return count;
 }
 
-env_reader::read_result env_reader::position_of_dollar_last_sign(
-    const env_value* value,
+EnvReader::read_result EnvReader::position_of_dollar_last_sign(
+    const EnvValue* value,
     int* position) {
   if (value->value_index < 1) {
     return empty;
@@ -186,7 +187,7 @@ env_reader::read_result env_reader::position_of_dollar_last_sign(
  * \param key
  * \return
  */
-env_reader::read_result env_reader::read_key(EnvStream& file, env_key* key) {
+EnvReader::read_result EnvReader::read_key(EnvStream& file, env_key* key) {
   if (!file.good()) {
     return end_of_stream_key;
   }
@@ -214,14 +215,15 @@ env_reader::read_result env_reader::read_key(EnvStream& file, env_key* key) {
         key->key_index++;
     }
     if (!file.good()) {
-      return end_of_stream_key;
+      break;
     }
   }
+  return end_of_stream_key;
 }
 
-int env_reader::get_white_space_offset_left(const std::string* value,
-                                            const variable_position*
-                                            interpolation) {
+int EnvReader::get_white_space_offset_left(const std::string* value,
+                                           const VariablePosition*
+                                           interpolation) {
   int tmp = interpolation->variable_start;
   int size = 0;
   while (tmp >= interpolation->start_brace) {
@@ -234,9 +236,9 @@ int env_reader::get_white_space_offset_left(const std::string* value,
   return size;
 }
 
-int env_reader::get_white_space_offset_right(const std::string* value,
-                                             const variable_position*
-                                             interpolation) {
+int EnvReader::get_white_space_offset_right(const std::string* value,
+                                            const VariablePosition*
+                                            interpolation) {
   int tmp = interpolation->end_brace - 1;
   int count = 0;
   while (tmp >= interpolation->start_brace) {
@@ -249,8 +251,8 @@ int env_reader::get_white_space_offset_right(const std::string* value,
   return count;
 }
 
-bool env_reader::process_possible_control_character(
-    env_value* value,
+bool EnvReader::process_possible_control_character(
+    EnvValue* value,
     const char key_char) {
   switch (key_char) {
     case '\0':
@@ -290,7 +292,7 @@ bool env_reader::process_possible_control_character(
   }
 }
 
-void env_reader::walk_back_slashes(env_value* value) {
+void EnvReader::walk_back_slashes(EnvValue* value) {
   const int total_backslash_pairs = value->back_slash_streak / 2;
   // how many \\ in a row
 
@@ -302,9 +304,9 @@ void env_reader::walk_back_slashes(env_value* value) {
   }
 }
 
-void env_reader::close_variable(env_value* value) {
+void EnvReader::close_variable(EnvValue* value) {
   value->is_parsing_variable = false;
-  variable_position* const interpolation = value->interpolations->at(
+  VariablePosition* const interpolation = value->interpolations->at(
       value->interpolation_index);
   interpolation->end_brace = value->value_index - 1;
   interpolation->variable_end = value->value_index - 2;
@@ -334,20 +336,20 @@ void env_reader::close_variable(env_value* value) {
   value->interpolation_index++;
 }
 
-void env_reader::open_variable(env_value* value) {
+void EnvReader::open_variable(EnvValue* value) {
   int position;
   const auto result = position_of_dollar_last_sign(value, &position);
 
   if (result == success) {
     value->is_parsing_variable = true;
     value->interpolations->push_back(
-        new variable_position(value->value_index,
-                              value->value_index - 1,
-                              position));
+        new VariablePosition(value->value_index,
+                             value->value_index - 1,
+                             position));
   }
 }
 
-bool env_reader::walk_double_quotes(env_value* value) {
+bool EnvReader::walk_double_quotes(EnvValue* value) {
   switch (value->double_quote_streak) {
     case 1:
       if (value->triple_double_quoted) {
@@ -374,7 +376,7 @@ bool env_reader::walk_double_quotes(env_value* value) {
   return true;
 }
 
-bool env_reader::walk_single_quotes(env_value* value) {
+bool EnvReader::walk_single_quotes(EnvValue* value) {
   if (value->quoted) {
     return true;
   }
@@ -406,7 +408,7 @@ bool env_reader::walk_single_quotes(env_value* value) {
 }
 
 
-void env_reader::add_to_buffer(env_value* value, const char key_char) {
+void EnvReader::add_to_buffer(EnvValue* value, const char key_char) {
   size_t size = value->value->size();
   if (static_cast<size_t>(value->value_index) >= size) {
     if (size == 0) {
@@ -418,7 +420,7 @@ void env_reader::add_to_buffer(env_value* value, const char key_char) {
   value->value_index++;
 }
 
-bool env_reader::read_next_char(env_value* value, const char key_char) {
+bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   if (!value->quoted && !value->triple_quoted && value->back_slash_streak > 0) {
     if (key_char != '\\') {
       walk_back_slashes(value);
@@ -478,15 +480,15 @@ bool env_reader::read_next_char(env_value* value, const char key_char) {
 
 // Used only when checking closed and open variables because the { }  have been added to the buffer
 // it needs to check 2 values back.
-bool env_reader::is_previous_char_an_escape(env_value* value) {
+bool EnvReader::is_previous_char_an_escape(EnvValue* value) {
   return value->value_index > 1 && value->value->at(value->value_index - 2) ==
          '\\';
 }
 
-bool env_reader::clear_newline_or_comment(EnvStream& file,
-                                          env_value* value,
-                                          char key_char,
-                                          env_reader::read_result& ret_value) {
+bool EnvReader::clear_newline_or_comment(EnvStream& file,
+                                         EnvValue* value,
+                                         char key_char,
+                                         EnvReader::read_result& ret_value) {
   if (key_char == '\n' && !(value->triple_double_quoted || value->
                             triple_quoted)) {
     if (value->value_index > 0 && value->value->at(value->value_index - 1) ==
@@ -516,13 +518,13 @@ bool env_reader::clear_newline_or_comment(EnvStream& file,
   return false;
 }
 
-env_reader::read_result env_reader::read_value(EnvStream& file,
-                                               env_value* value) {
+EnvReader::read_result EnvReader::read_value(EnvStream& file,
+                                             EnvValue* value) {
   if (!file.good()) {
     return end_of_stream_value;
   }
 
-  env_reader::read_result ret_val = success;
+  EnvReader::read_result ret_val = success;
   while (file.good()) {
     char key_char = file.get();
     if (key_char < 0) {
@@ -555,9 +557,9 @@ env_reader::read_result env_reader::read_value(EnvStream& file,
   return success;
 }
 
-void env_reader::remove_unclosed_interpolation(env_value* value) {
+void EnvReader::remove_unclosed_interpolation(EnvValue* value) {
   for (int i = value->interpolation_index - 1; i >= 0; i--) {
-    const variable_position* interpolation = value->interpolations->at(i);
+    const VariablePosition* interpolation = value->interpolations->at(i);
     if (interpolation->closed) {
       continue;
     }
@@ -568,8 +570,8 @@ void env_reader::remove_unclosed_interpolation(env_value* value) {
   }
 }
 
-env_reader::finalize_result env_reader::finalize_value(const env_pair* pair,
-  std::map<std::string, env_pair*>* mapped_pairs) {
+EnvReader::finalize_result EnvReader::finalize_value(const EnvPair* pair,
+  std::map<std::string, EnvPair*>* mapped_pairs) {
   if (pair->value->interpolation_index == 0) {
     pair->value->is_already_interpolated = true;
     pair->value->is_being_interpolated = false;
@@ -579,7 +581,7 @@ env_reader::finalize_result env_reader::finalize_value(const env_pair* pair,
   const auto size = static_cast<int>(pair->value->interpolations->size());
   int buffer_size = pair->value->value_index;
   for (auto i = size - 1; i >= 0; i--) {
-    const variable_position* interpolation = pair->value->interpolations->at(i);
+    const VariablePosition* interpolation = pair->value->interpolations->at(i);
     const auto other_pair = (*mapped_pairs)[interpolation->variable_str->
       c_str()];
     const auto interpolation_length =
@@ -603,7 +605,7 @@ env_reader::finalize_result env_reader::finalize_value(const env_pair* pair,
   int index = pair->value->value_index - 1;
   int buffer_index = buffer_size;
   for (auto i = size - 1; i >= 0; i--) {
-    const variable_position* interpolation = pair->value->interpolations->at(i);
+    const VariablePosition* interpolation = pair->value->interpolations->at(i);
     const auto other_pair = (*mapped_pairs)[*interpolation->variable_str];
 
     int count = (index - interpolation->end_brace);
@@ -645,9 +647,9 @@ env_reader::finalize_result env_reader::finalize_value(const env_pair* pair,
   return interpolated;
 }
 
-env_reader::finalize_result env_reader::finalize_value(
-    const env_pair* pair,
-    std::vector<env_pair*>* pairs) {
+EnvReader::finalize_result EnvReader::finalize_value(
+    const EnvPair* pair,
+    std::vector<EnvPair*>* pairs) {
   if (pair->value->interpolation_index == 0) {
     pair->value->is_already_interpolated = true;
     pair->value->is_being_interpolated = false;
@@ -660,9 +662,9 @@ env_reader::finalize_result env_reader::finalize_value(
 
   const auto size = static_cast<int>(pair->value->interpolations->size());
   for (auto i = size - 1; i >= 0; i--) {
-    const variable_position* interpolation = pair->value->interpolations->at(i);
+    const VariablePosition* interpolation = pair->value->interpolations->at(i);
 
-    for (const env_pair* other_pair : *pairs) {
+    for (const EnvPair* other_pair : *pairs) {
       const size_t variable_str_len =
       (static_cast<size_t>(interpolation->variable_end) - interpolation->
        variable_start) + 1;

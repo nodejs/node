@@ -5,11 +5,11 @@
 
 #include "VariablePosition.h"
 namespace cppnv {
-struct env_value
+struct EnvValue
 {
   std::string* value;
   bool is_parsing_variable = false;
-  std::vector<variable_position*>* interpolations;
+  std::vector<VariablePosition*>* interpolations;
   int interpolation_index = 0;
   bool quoted = false;
   bool triple_quoted = false;
@@ -42,12 +42,12 @@ struct env_value
     value = buff;
   }
 
-  env_value(): value(nullptr), own_buffer(nullptr)
+  EnvValue(): value(nullptr), own_buffer(nullptr)
   {
-    interpolations = new std::vector<variable_position*>();
+    interpolations = new std::vector<VariablePosition*>();
   }
 
-  ~env_value()
+  ~EnvValue()
   {
     for (const auto interpolation : *interpolations)
     {

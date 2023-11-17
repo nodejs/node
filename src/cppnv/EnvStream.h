@@ -13,8 +13,8 @@ private:
 public:
   EnvStream(std::string* data);
   char get();
-  bool good();
-  bool eof();
+  bool good() const;
+  bool eof() const;
 };
 }
 

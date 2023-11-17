@@ -3,12 +3,12 @@
 #include <string>
 
 namespace cppnv {
-struct variable_position {
-  ~variable_position() {
+struct VariablePosition {
+  ~VariablePosition() {
     delete variable_str;
   }
 
-  variable_position(int variable_start, int start_brace, int dollar_sign);
+  VariablePosition(int variable_start, int start_brace, int dollar_sign);
   int variable_start;
   int start_brace;
   int dollar_sign;
