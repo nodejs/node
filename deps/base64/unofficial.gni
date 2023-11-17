@@ -32,6 +32,7 @@ template("base64_gn_build") {
         "HAVE_SSE42=1",
         "HAVE_AVX=1",
         "HAVE_AVX2=1",
+        "HAVE_AVX512=1",
       ]
     }
     if (target_cpu == "arm") {
@@ -65,6 +66,7 @@ template("base64_gn_build") {
       ":base64_sse42",
       ":base64_avx",
       ":base64_avx2",
+      ":base64_avx512",
       ":base64_neon32",
       ":base64_neon64",
     ]
@@ -111,6 +113,7 @@ template("base64_gn_build") {
       }
     }
   }
+
   source_set("base64_avx2") {
     configs += [ ":base64_internal_config" ]
     sources = [ "base64/lib/arch/avx2/codec.c" ]
@@ -119,6 +122,21 @@ template("base64_gn_build") {
         cflags_c = [ "-mavx2" ]
       } else if (is_win) {
         cflags_c = [ "/arch:AVX2" ]
+      }
+    }
+  }
+
+  source_set("base64_avx512") {
+    configs += [ ":base64_internal_config" ]
+    sources = [ "base64/lib/arch/avx512/codec.c" ]
+    if (target_cpu == "x86" || target_cpu == "x64") {
+      if (is_clang || !is_win) {
+        cflags_c = [
+          "-mavx512vl",
+          "-mavx512vbmi",
+        ]
+      } else if (is_win) {
+        cflags_c = [ "/arch:AVX512" ]
       }
     }
   }
