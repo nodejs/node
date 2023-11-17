@@ -1,6 +1,7 @@
 /**
  * @fileoverview Disallow parenthesising higher precedence subexpressions.
  * @author Michael Ficarra
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -14,6 +15,8 @@ const astUtils = require("./utils/ast-utils.js");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

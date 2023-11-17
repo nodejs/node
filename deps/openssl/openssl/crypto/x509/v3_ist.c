@@ -51,25 +51,25 @@ static ISSUER_SIGN_TOOL *v2i_issuer_sign_tool(X509V3_EXT_METHOD *method, X509V3_
         if (strcmp(cnf->name, "signTool") == 0) {
             ist->signTool = ASN1_UTF8STRING_new();
             if (ist->signTool == NULL || !ASN1_STRING_set(ist->signTool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cATool") == 0) {
             ist->cATool = ASN1_UTF8STRING_new();
             if (ist->cATool == NULL || !ASN1_STRING_set(ist->cATool, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
         } else if (strcmp(cnf->name, "signToolCert") == 0) {
             ist->signToolCert = ASN1_UTF8STRING_new();
             if (ist->signToolCert == NULL || !ASN1_STRING_set(ist->signToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
         } else if (strcmp(cnf->name, "cAToolCert") == 0) {
             ist->cAToolCert = ASN1_UTF8STRING_new();
             if (ist->cAToolCert == NULL || !ASN1_STRING_set(ist->cAToolCert, cnf->value, strlen(cnf->value))) {
-                ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
+                ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
                 goto err;
             }
         } else {

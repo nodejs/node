@@ -4043,7 +4043,6 @@ identified by `code: 'ERR_INVALID_HTTP_TOKEN'`.
 
 It is not necessary to use this method before passing headers to an HTTP request
 or response. The HTTP module will automatically validate such headers.
-Examples:
 
 Example:
 

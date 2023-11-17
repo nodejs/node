@@ -7,5 +7,8 @@
         "console namespace: operation dir(optional any, optional object?)"
       ]
     }
+  },
+  "idlharness-shadowrealm.window.js": {
+    "skip": "ShadowRealm support is not enabled"
   }
 }

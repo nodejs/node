@@ -299,3 +299,7 @@ TEST(UtilTest, SPrintF) {
   const std::string with_zero = std::string("a") + '\0' + 'b';
   EXPECT_EQ(SPrintF("%s", with_zero), with_zero);
 }
+
+TEST(UtilTest, DumpJavaScriptStackWithNoIsolate) {
+  node::DumpJavaScriptBacktrace(stderr);
+}

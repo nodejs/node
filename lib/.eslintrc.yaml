@@ -19,7 +19,7 @@ rules:
     - selector: ThrowStatement > CallExpression[callee.name=/Error$/]
       message: Use new keyword when throwing an Error.
     # Config specific to lib
-    - selector: NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError)$/])
+    - selector: NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError|NodeAggregateError)$/])
       message: Use an error exported by the internal/errors module.
     - selector: CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']
       message: Please use `require('internal/errors').hideStackFrames()` instead.
@@ -172,7 +172,7 @@ rules:
     - name: setTimeout
       message: Use `const { setTimeout } = require('timers');` instead of the global.
     - name: structuredClone
-      message: Use `const { structuredClone } = require('internal/structured_clone');` instead of the global.
+      message: Use `const { structuredClone } = internalBinding('messaging');` instead of the global.
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
   no-restricted-modules:

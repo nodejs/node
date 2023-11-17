@@ -14,8 +14,6 @@ import bz2
 import io
 from pathlib import Path
 
-from distutils.version import StrictVersion
-
 # If not run from node/, cd to node/.
 os.chdir(Path(__file__).parent)
 
@@ -30,6 +28,7 @@ tools_path = Path('tools')
 
 sys.path.insert(0, str(tools_path / 'gyp' / 'pylib'))
 from gyp.common import GetFlavor
+from packaging.version import Version
 
 # imports in tools/configure.d
 sys.path.insert(0, str(tools_path / 'configure.d'))
@@ -1566,10 +1565,10 @@ def configure_openssl(o):
     # supported asm compiler for AVX2. See https://github.com/openssl/openssl/
     # blob/OpenSSL_1_1_0-stable/crypto/modes/asm/aesni-gcm-x86_64.pl#L52-L69
     openssl110_asm_supported = \
-      ('gas_version' in variables and StrictVersion(variables['gas_version']) >= StrictVersion('2.23')) or \
-      ('xcode_version' in variables and StrictVersion(variables['xcode_version']) >= StrictVersion('5.0')) or \
-      ('llvm_version' in variables and StrictVersion(variables['llvm_version']) >= StrictVersion('3.3')) or \
-      ('nasm_version' in variables and StrictVersion(variables['nasm_version']) >= StrictVersion('2.10'))
+      ('gas_version' in variables and Version(variables['gas_version']) >= Version('2.23')) or \
+      ('xcode_version' in variables and Version(variables['xcode_version']) >= Version('5.0')) or \
+      ('llvm_version' in variables and Version(variables['llvm_version']) >= Version('3.3')) or \
+      ('nasm_version' in variables and Version(variables['nasm_version']) >= Version('2.10'))
 
     if is_x86 and not openssl110_asm_supported:
       error('''Did not find a new enough assembler, install one or build with
@@ -2121,6 +2120,17 @@ write('config.mk', do_not_edit + config_str)
 gyp_args = ['--no-parallel', '-Dconfiguring_node=1']
 gyp_args += ['-Dbuild_type=' + config['BUILDTYPE']]
 
+# Remove the trailing .exe from the executable name, otherwise the python.exe
+# would be rewrote as python_host.exe due to hack in GYP for supporting cross
+# compilation on Windows.
+# See https://github.com/nodejs/node/pull/32867 for related change.
+python = sys.executable
+if flavor == 'win' and python.lower().endswith('.exe'):
+  python = python[:-4]
+# Always set 'python' variable, otherwise environments that only have python3
+# will fail to run python scripts.
+gyp_args += ['-Dpython=' + python]
+
 if options.use_ninja:
   gyp_args += ['-f', 'ninja-' + flavor]
 elif flavor == 'win' and sys.platform != 'msys':
@@ -2132,10 +2142,6 @@ if options.compile_commands_json:
   gyp_args += ['-f', 'compile_commands_json']
   os.path.islink('./compile_commands.json') and os.unlink('./compile_commands.json')
   os.symlink('./out/' + config['BUILDTYPE'] + '/compile_commands.json', './compile_commands.json')
-
-# override the variable `python` defined in common.gypi
-if bin_override is not None:
-  gyp_args += ['-Dpython=' + sys.executable]
 
 # pass the leftover non-whitespace positional arguments to GYP
 gyp_args += [arg for arg in args if not str.isspace(arg)]

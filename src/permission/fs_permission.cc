@@ -50,13 +50,14 @@ void FreeRecursivelyNode(
   delete node;
 }
 
-bool is_tree_granted(node::permission::FSPermission::RadixTree* granted_tree,
-                     const std::string_view& param) {
+bool is_tree_granted(
+    const node::permission::FSPermission::RadixTree* granted_tree,
+    const std::string_view& param) {
 #ifdef _WIN32
   // is UNC file path
   if (param.rfind("\\\\", 0) == 0) {
     // return lookup with normalized param
-    int starting_pos = 4;  // "\\?\"
+    size_t starting_pos = 4;  // "\\?\"
     if (param.rfind("\\\\?\\UNC\\") == 0) {
       starting_pos += 4;  // "UNC\"
     }
@@ -147,7 +148,7 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
 }
 
 bool FSPermission::is_granted(PermissionScope perm,
-                              const std::string_view& param = "") {
+                              const std::string_view& param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
@@ -171,12 +172,12 @@ FSPermission::RadixTree::~RadixTree() {
 }
 
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
-                                     bool when_empty_return = false) {
+                                     bool when_empty_return = false) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
   if (current_node->children.size() == 0) {
     return when_empty_return;
   }
-  unsigned int parent_node_prefix_len = current_node->prefix.length();
+  size_t parent_node_prefix_len = current_node->prefix.length();
   const std::string path(s);
   auto path_len = path.length();
 
@@ -202,10 +203,10 @@ bool FSPermission::RadixTree::Lookup(const std::string_view& s,
 void FSPermission::RadixTree::Insert(const std::string& path) {
   FSPermission::RadixTree::Node* current_node = root_node_;
 
-  unsigned int parent_node_prefix_len = current_node->prefix.length();
-  int path_len = path.length();
+  size_t parent_node_prefix_len = current_node->prefix.length();
+  size_t path_len = path.length();
 
-  for (int i = 1; i <= path_len; ++i) {
+  for (size_t i = 1; i <= path_len; ++i) {
     bool is_wildcard_node = path[i - 1] == '*';
     bool is_last_char = i == path_len;
 

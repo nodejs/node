@@ -407,6 +407,16 @@ describe('Mock Timers Test Suite', () => {
           assert.strictEqual(result, expectedResult);
         });
 
+        it('should always return the same result as the original timers/promises/setTimeout', async (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          for (const expectedResult of [undefined, null, false, true, 0, 0n, 1, 1n, '', 'result', {}]) {
+            const p = nodeTimersPromises.setTimeout(2000, expectedResult);
+            t.mock.timers.tick(2000);
+            const result = await p;
+            assert.strictEqual(result, expectedResult);
+          }
+        });
+
         it('should abort operation if timers/promises/setTimeout received an aborted signal', async (t) => {
           t.mock.timers.enable({ apis: ['setTimeout'] });
           const expectedResult = 'result';
@@ -469,6 +479,59 @@ describe('Mock Timers Test Suite', () => {
             code: 'ERR_INVALID_ARG_TYPE',
           });
         });
+
+        // Test for https://github.com/nodejs/node/issues/50365
+        it('should not affect other timers when aborting', async (t) => {
+          const f1 = t.mock.fn();
+          const f2 = t.mock.fn();
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const ac = new AbortController();
+
+          // id 1 & pos 1 in priority queue
+          nodeTimersPromises.setTimeout(100, undefined, { signal: ac.signal }).then(f1, f1);
+          // id 2 & pos 1 in priority queue (id 1 is moved to pos 2)
+          nodeTimersPromises.setTimeout(50).then(f2, f2);
+
+          ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
+
+          t.mock.timers.runAll();
+          await nodeTimersPromises.setImmediate(); // let promises settle
+
+          // First setTimeout is aborted
+          assert.strictEqual(f1.mock.callCount(), 1);
+          assert.strictEqual(f1.mock.calls[0].arguments[0].code, 'ABORT_ERR');
+
+          // Second setTimeout should resolve, but never settles, because it was eronously removed by ac.abort()
+          assert.strictEqual(f2.mock.callCount(), 1);
+        });
+
+        // Test for https://github.com/nodejs/node/issues/50365
+        it('should not affect other timers when aborted after triggering', async (t) => {
+          const f1 = t.mock.fn();
+          const f2 = t.mock.fn();
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const ac = new AbortController();
+
+          // id 1 & pos 1 in priority queue
+          nodeTimersPromises.setTimeout(50, true, { signal: ac.signal }).then(f1, f1);
+          // id 2 & pos 2 in priority queue
+          nodeTimersPromises.setTimeout(100).then(f2, f2);
+
+          // First setTimeout resolves
+          t.mock.timers.tick(50);
+          await nodeTimersPromises.setImmediate(); // let promises settle
+          assert.strictEqual(f1.mock.callCount(), 1);
+          assert.strictEqual(f1.mock.calls[0].arguments.length, 1);
+          assert.strictEqual(f1.mock.calls[0].arguments[0], true);
+
+          // Now timer with id 2 will be at pos 1 in priority queue
+          ac.abort(); // BUG: will remove timer at pos 1 not timer with id 1!
+
+          // Second setTimeout should resolve, but never settles, because it was eronously removed by ac.abort()
+          t.mock.timers.runAll();
+          await nodeTimersPromises.setImmediate(); // let promises settle
+          assert.strictEqual(f2.mock.callCount(), 1);
+        });
       });
 
       describe('setInterval Suite', () => {
@@ -495,20 +558,21 @@ describe('Mock Timers Test Suite', () => {
 
           const finished = await intervalIterator.return();
           assert.deepStrictEqual(finished, { done: true, value: undefined });
-          results.forEach((result) => {
+          for (const result of results) {
             assert.strictEqual(typeof result.value, 'number');
             assert.strictEqual(result.done, false);
-          });
+          }
         });
         it('should tick five times testing a real use case', async (t) => {
           t.mock.timers.enable({ apis: ['setInterval'] });
 
           const expectedIterations = 5;
           const interval = 1000;
-          const startedAt = Date.now();
+          let time = 0;
           async function run() {
             const times = [];
-            for await (const time of nodeTimersPromises.setInterval(interval, startedAt)) {
+            for await (const _ of nodeTimersPromises.setInterval(interval)) { // eslint-disable-line no-unused-vars
+              time += interval;
               times.push(time);
               if (times.length === expectedIterations) break;
             }
@@ -525,7 +589,20 @@ describe('Mock Timers Test Suite', () => {
           const timeResults = await r;
           assert.strictEqual(timeResults.length, expectedIterations);
           for (let it = 1; it < expectedIterations; it++) {
-            assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
+            assert.strictEqual(timeResults[it - 1], interval * it);
+          }
+        });
+
+        it('should always return the same result as the original timers/promises/setInterval', async (t) => {
+          t.mock.timers.enable({ apis: ['setInterval'] });
+          for (const expectedResult of [undefined, null, false, true, 0, 0n, 1, 1n, '', 'result', {}]) {
+            const intervalIterator = nodeTimersPromises.setInterval(2000, expectedResult);
+            const p = intervalIterator.next();
+            t.mock.timers.tick(2000);
+            const result = await p;
+            await intervalIterator.return();
+            assert.strictEqual(result.done, false);
+            assert.strictEqual(result.value, expectedResult);
           }
         });
 
@@ -579,13 +656,12 @@ describe('Mock Timers Test Suite', () => {
           const signal = controller.signal;
           const interval = 200;
           const expectedIterations = 2;
-          const startedAt = Date.now();
-          const timeResults = [];
+          let numIterations = 0;
           async function run() {
-            const it = nodeTimersPromises.setInterval(interval, startedAt, { signal });
-            for await (const time of it) {
-              timeResults.push(time);
-              if (timeResults.length === 5) break;
+            const it = nodeTimersPromises.setInterval(interval, undefined, { signal });
+            for await (const _ of it) { // eslint-disable-line no-unused-vars
+              numIterations += 1;
+              if (numIterations === 5) break;
             }
           }
 
@@ -601,11 +677,39 @@ describe('Mock Timers Test Suite', () => {
           await assert.rejects(() => r, {
             name: 'AbortError',
           });
-          assert.strictEqual(timeResults.length, expectedIterations);
+          assert.strictEqual(numIterations, expectedIterations);
+        });
 
-          for (let it = 1; it < expectedIterations; it++) {
-            assert.strictEqual(timeResults[it - 1], startedAt + (interval * it));
-          }
+        // Test for https://github.com/nodejs/node/issues/50381
+        it('should use the mocked interval', (t) => {
+          t.mock.timers.enable({ apis: ['setInterval'] });
+          const fn = t.mock.fn();
+          setInterval(fn, 1000);
+          assert.strictEqual(fn.mock.callCount(), 0);
+          t.mock.timers.tick(1000);
+          assert.strictEqual(fn.mock.callCount(), 1);
+          t.mock.timers.tick(1);
+          t.mock.timers.tick(1);
+          t.mock.timers.tick(1);
+          assert.strictEqual(fn.mock.callCount(), 1);
+        });
+
+        // Test for https://github.com/nodejs/node/issues/50382
+        it('should not prevent due timers to be processed', async (t) => {
+          t.mock.timers.enable({ apis: ['setInterval', 'setTimeout'] });
+          const f1 = t.mock.fn();
+          const f2 = t.mock.fn();
+
+          setInterval(f1, 1000);
+          setTimeout(f2, 1001);
+
+          assert.strictEqual(f1.mock.callCount(), 0);
+          assert.strictEqual(f2.mock.callCount(), 0);
+
+          t.mock.timers.tick(1001);
+
+          assert.strictEqual(f1.mock.callCount(), 1);
+          assert.strictEqual(f2.mock.callCount(), 1);
         });
       });
     });

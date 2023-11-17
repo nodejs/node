@@ -3,25 +3,27 @@ name: Coverage Windows
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - tools/**
-      - .github/**
-      - '!.github/workflows/coverage-windows.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-windows.yml
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - tools/**
-      - .github/**
-      - '!.github/workflows/coverage-windows.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-windows.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -39,11 +41,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: windows-2022
     steps:
-      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236  # v4.7.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps

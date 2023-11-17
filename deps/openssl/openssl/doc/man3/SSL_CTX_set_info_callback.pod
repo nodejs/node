@@ -12,11 +12,15 @@ SSL_get_info_callback
 
  #include <openssl/ssl.h>
 
- void SSL_CTX_set_info_callback(SSL_CTX *ctx, void (*callback)());
- void (*SSL_CTX_get_info_callback(const SSL_CTX *ctx))();
+ void SSL_CTX_set_info_callback(SSL_CTX *ctx,
+                                void (*callback) (const SSL *ssl, int type, int val));
 
- void SSL_set_info_callback(SSL *ssl, void (*callback)());
- void (*SSL_get_info_callback(const SSL *ssl))();
+ void (*SSL_CTX_get_info_callback(SSL_CTX *ctx)) (const SSL *ssl, int type, int val);
+
+ void SSL_set_info_callback(SSL *ssl,
+                            void (*callback) (const SSL *ssl, int type, int val));
+
+ void (*SSL_get_info_callback(const SSL *ssl)) (const SSL *ssl, int type, int val);
 
 =head1 DESCRIPTION
 
@@ -119,7 +123,7 @@ SSL_get_info_callback() returns the current setting.
 The following example callback function prints state strings, information
 about alerts being handled and error messages to the B<bio_err> BIO.
 
- void apps_ssl_info_callback(SSL *s, int where, int ret)
+ void apps_ssl_info_callback(const SSL *s, int where, int ret)
  {
      const char *str;
      int w = where & ~SSL_ST_MASK;
@@ -156,7 +160,7 @@ L<SSL_alert_type_string(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

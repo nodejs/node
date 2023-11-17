@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check empty newline between class members
  * @author 薛定谔的猫<hh_2013@foxmail.com>
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -32,6 +33,8 @@ const ClassMemberTypes = {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -218,6 +218,8 @@ int dsaparam_main(int argc, char **argv)
             goto end;
         }
         pkey = app_keygen(ctx, "DSA", numbits, verbose);
+        if (pkey == NULL)
+            goto end;
         assert(private);
         if (outformat == FORMAT_ASN1)
             i = i2d_PrivateKey_bio(out, pkey);

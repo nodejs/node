@@ -391,6 +391,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_global_customevent,
             kAllowedInEnvvar,
             true);
+  AddOption("--experimental-global-navigator",
+            "expose experimental Navigator API on the global scope",
+            &EnvironmentOptions::experimental_global_navigator,
+            kAllowedInEnvvar,
+            true);
   AddOption("--experimental-global-webcrypto",
             "expose experimental Web Crypto API on the global scope",
             &EnvironmentOptions::experimental_global_web_crypto,
@@ -603,6 +608,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency);
+  AddOption("--test-timeout",
+            "specify test runner timeout",
+            &EnvironmentOptions::test_runner_timeout);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);

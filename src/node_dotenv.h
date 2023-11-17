@@ -18,7 +18,7 @@ class Dotenv {
   Dotenv& operator=(const Dotenv& d) = default;
   ~Dotenv() = default;
 
-  void ParsePath(const std::string_view path);
+  bool ParsePath(const std::string_view path);
   void AssignNodeOptionsIfAvailable(std::string* node_options);
   void SetEnvironment(Environment* env);
 
