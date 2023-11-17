@@ -2,7 +2,7 @@
   "idlharness.any.js": {
     "fail": {
       "expected": [
-        "ReadableStream interface: async iterable<any>"
+        "ReadableStream interface: operation from(any)"
       ]
     }
   },
