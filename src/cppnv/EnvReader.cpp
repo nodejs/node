@@ -4,9 +4,7 @@
 namespace cppnv {
 EnvReader::read_result EnvReader::read_pair(EnvStream& file,
                                             const EnvPair* pair) {
-  const auto key_result = read_key(file, pair->key);
-
-  switch (key_result) {
+  switch (read_key(file, pair->key)) {
     case end_of_stream_key:
       return end_of_stream_key;
     case fail:
@@ -16,7 +14,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
       //this means comment encountered in the key since you can encounter an empty value comment like "a=#"
       return comment_encountered;
     case end_of_stream_value:
-      return success; //we know we hit = and endofstream
+      return success; //we know we hit = and end of stream
     case success:
       break;
   }
@@ -35,8 +33,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
     pair->key->clip_own_buffer(pair->key->key_index);
   }
   pair->value->value->clear();
-  const auto value_result = read_value(file, pair->value);
-  switch (value_result) {
+  switch (read_value(file, pair->value)) {
     case end_of_stream_value:
       return end_of_stream_value; //implicitly a success "a="
     case comment_encountered:
@@ -88,8 +85,7 @@ int EnvReader::read_pairs(EnvStream& file, std::vector<EnvPair*>* pairs) {
     buffer.clear();
     EnvPair* pair;
     create_pair(&buffer, pair);
-    const auto result = read_pair(file, pair);
-    switch (result) {
+    switch (read_pair(file, pair)) {
       case end_of_stream_value:
         expect_more = false;
       case comment_encountered:
@@ -132,8 +128,8 @@ int EnvReader::read_pairs(EnvStream& file,
     buffer.clear();
     EnvPair* pair;
     create_pair(&buffer, pair);
-    const auto result = read_pair(file, pair);
-    switch (result) {
+
+    switch (read_pair(file, pair)) {
       case end_of_stream_value:
         expect_more = false;
       case comment_encountered:
@@ -372,6 +368,8 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
         value->triple_double_quoted = true;
       }
       value->double_quote_streak = 0;
+    default:
+      break;
   }
   return true;
 }
@@ -380,7 +378,7 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
   if (value->quoted) {
     return true;
   }
-  const auto quotes_at_start = value->value_index == 0;
+  const bool quotes_at_start = value->value_index == 0;
   switch (value->single_quote_streak) {
     case 1:
       if (quotes_at_start) {
@@ -480,7 +478,7 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
 
 // Used only when checking closed and open variables because the { }  have been added to the buffer
 // it needs to check 2 values back.
-bool EnvReader::is_previous_char_an_escape(EnvValue* value) {
+bool EnvReader::is_previous_char_an_escape(const EnvValue* value) {
   return value->value_index > 1 && value->value->at(value->value_index - 2) ==
          '\\';
 }
@@ -578,7 +576,7 @@ EnvReader::finalize_result EnvReader::finalize_value(const EnvPair* pair,
     return copied;
   }
   //const auto buffer = new std::string(*pair->value->value);
-  const auto size = static_cast<int>(pair->value->interpolations->size());
+  const int size = pair->value->interpolations->size();
   int buffer_size = pair->value->value_index;
   for (auto i = size - 1; i >= 0; i--) {
     const VariablePosition* interpolation = pair->value->interpolations->at(i);
@@ -602,7 +600,7 @@ EnvReader::finalize_result EnvReader::finalize_value(const EnvPair* pair,
   const auto buffer = new std::string();
 
   buffer->resize(buffer_size);
-  int index = pair->value->value_index - 1;
+  const int index = pair->value->value_index - 1;
   int buffer_index = buffer_size;
   for (auto i = size - 1; i >= 0; i--) {
     const VariablePosition* interpolation = pair->value->interpolations->at(i);
@@ -628,10 +626,9 @@ EnvReader::finalize_result EnvReader::finalize_value(const EnvPair* pair,
                       *pair->value->value,
                       interpolation->end_brace,
                       count);
-      std::cout << *buffer << buffer_index << " " << count << std::endl;
     }
 
-    auto variable_value_count = other_pair->value->value_index;
+    const int variable_value_count = other_pair->value->value_index;
     buffer_index -= variable_value_count;
     buffer->replace(buffer_index,
                     variable_value_count,

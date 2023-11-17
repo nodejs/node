@@ -44,7 +44,7 @@ private:
   static bool walk_single_quotes(EnvValue* value);
   static void add_to_buffer(EnvValue* value, char key_char);
   static bool read_next_char(EnvValue* value, char key_char);
-  static bool is_previous_char_an_escape(EnvValue* value);
+  static bool is_previous_char_an_escape(const EnvValue* value);
   static bool clear_newline_or_comment(EnvStream& file,
                                        EnvValue* value,
                                        char key_char,
