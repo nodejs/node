@@ -270,7 +270,7 @@
     # Enable global allocation site tracking.
     'v8_allocation_site_tracking%': 1,
 
-    'v8_scriptormodule_legacy_lifetime%': 1,
+    'v8_scriptormodule_legacy_lifetime%': 0,
 
     # Change code emission and runtime features to be CET shadow-stack compliant
     # (incomplete and experimental).
