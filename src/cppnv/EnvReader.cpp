@@ -653,6 +653,7 @@ env_reader::finalize_result env_reader::finalize_value(
     pair->value->is_being_interpolated = false;
     return copied;
   }
+  pair->value->is_being_interpolated = true;
   const auto buffer = new std::string(*pair->value->value);
 
   pair->value->set_own_buffer(buffer);
@@ -692,6 +693,8 @@ env_reader::finalize_result env_reader::finalize_value(
       break;
     }
   }
+  pair->value->is_already_interpolated = true;
+  pair->value->is_being_interpolated = false;
   return interpolated;
 }
 }
