@@ -42,7 +42,7 @@ class PermissionBase {
   virtual void Apply(const std::vector<std::string>& allow,
                      PermissionScope scope) = 0;
   virtual bool is_granted(PermissionScope perm,
-                          const std::string_view& param = "") = 0;
+                          const std::string_view& param = "") const = 0;
 };
 
 }  // namespace permission
