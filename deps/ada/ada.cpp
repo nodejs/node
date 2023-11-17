@@ -1,4 +1,4 @@
-/* auto-generated on 2023-10-22 19:50:50 -0400. Do not edit! */
+/* auto-generated on 2023-11-09 19:39:05 -0500. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -10617,155 +10617,292 @@ ada_really_inline void resize(std::string_view& input, size_t pos) noexcept {
   input.remove_suffix(input.size() - pos);
 }
 
-// Reverse the byte order.
-ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept {
-  // performance: this often compiles to a single instruction (e.g., bswap)
-  return ((((val)&0xff00000000000000ull) >> 56) |
-          (((val)&0x00ff000000000000ull) >> 40) |
-          (((val)&0x0000ff0000000000ull) >> 24) |
-          (((val)&0x000000ff00000000ull) >> 8) |
-          (((val)&0x00000000ff000000ull) << 8) |
-          (((val)&0x0000000000ff0000ull) << 24) |
-          (((val)&0x000000000000ff00ull) << 40) |
-          (((val)&0x00000000000000ffull) << 56));
-}
-
-ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept {
-  // performance: under little-endian systems (most systems), this function
-  // is free (just returns the input).
-#if ADA_IS_BIG_ENDIAN
-  return swap_bytes(val);
-#else
-  return val;  // unchanged (trivial)
-#endif
+// computes the number of trailing zeroes
+// this is a private inline function only defined in this source file.
+ada_really_inline int trailing_zeroes(uint32_t input_num) noexcept {
+#ifdef ADA_REGULAR_VISUAL_STUDIO
+  unsigned long ret;
+  // Search the mask data from least significant bit (LSB)
+  // to the most significant bit (MSB) for a set bit (1).
+  _BitScanForward(&ret, input_num);
+  return (int)ret;
+#else   // ADA_REGULAR_VISUAL_STUDIO
+  return __builtin_ctzl(input_num);
+#endif  // ADA_REGULAR_VISUAL_STUDIO
 }
 
 // starting at index location, this finds the next location of a character
 // :, /, \\, ? or [. If none is found, view.size() is returned.
 // For use within get_host_delimiter_location.
+#if ADA_NEON
 ada_really_inline size_t find_next_host_delimiter_special(
     std::string_view view, size_t location) noexcept {
-  // performance: if you plan to call find_next_host_delimiter more than once,
-  // you *really* want find_next_host_delimiter to be inlined, because
-  // otherwise, the constants may get reloaded each time (bad).
-  auto has_zero_byte = [](uint64_t v) {
-    return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '\\' ||
+          view[i] == '?' || view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  auto to_bitmask = [](uint8x16_t input) -> uint16_t {
+    uint8x16_t bit_mask = {0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+                           0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
+    uint8x16_t minput = vandq_u8(input, bit_mask);
+    uint8x16_t tmp = vpaddq_u8(minput, minput);
+    tmp = vpaddq_u8(tmp, tmp);
+    tmp = vpaddq_u8(tmp, tmp);
+    return vgetq_lane_u16(vreinterpretq_u16_u8(tmp), 0);
   };
-  auto index_of_first_set_byte = [](uint64_t v) {
-    return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
-  };
-  auto broadcast = [](uint8_t v) -> uint64_t {
-    return 0x101010101010101ull * v;
-  };
+
+  // fast path for long strings (expected to be common)
   size_t i = location;
-  uint64_t mask1 = broadcast(':');
-  uint64_t mask2 = broadcast('/');
-  uint64_t mask3 = broadcast('\\');
-  uint64_t mask4 = broadcast('?');
-  uint64_t mask5 = broadcast('[');
-  // This loop will get autovectorized under many optimizing compilers,
-  // so you get actually SIMD!
-  for (; i + 7 < view.size(); i += 8) {
-    uint64_t word{};
-    // performance: the next memcpy translates into a single CPU instruction.
-    memcpy(&word, view.data() + i, sizeof(word));
-    // performance: on little-endian systems (most systems), this next line is
-    // free.
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t xor5 = word ^ mask5;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor3) | has_zero_byte(xor4) |
-                        has_zero_byte(xor5);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+  uint8x16_t low_mask = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                         0x00, 0x00, 0x01, 0x04, 0x04, 0x00, 0x00, 0x03};
+  uint8x16_t high_mask = {0x00, 0x00, 0x02, 0x01, 0x00, 0x04, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  uint8x16_t fmask = vmovq_n_u8(0xf);
+  uint8x16_t zero{0};
+  for (; i + 15 < view.size(); i += 16) {
+    uint8x16_t word = vld1q_u8((const uint8_t*)view.data() + i);
+    uint8x16_t lowpart = vqtbl1q_u8(low_mask, vandq_u8(word, fmask));
+    uint8x16_t highpart = vqtbl1q_u8(high_mask, vshrq_n_u8(word, 4));
+    uint8x16_t classify = vandq_u8(lowpart, highpart);
+    if (vmaxvq_u8(classify) != 0) {
+      uint8x16_t is_zero = vceqq_u8(classify, zero);
+      uint16_t is_non_zero = ~to_bitmask(is_zero);
+      return i + trailing_zeroes(is_non_zero);
+    }
+  }
+
+  if (i < view.size()) {
+    uint8x16_t word =
+        vld1q_u8((const uint8_t*)view.data() + view.length() - 16);
+    uint8x16_t lowpart = vqtbl1q_u8(low_mask, vandq_u8(word, fmask));
+    uint8x16_t highpart = vqtbl1q_u8(high_mask, vshrq_n_u8(word, 4));
+    uint8x16_t classify = vandq_u8(lowpart, highpart);
+    if (vmaxvq_u8(classify) != 0) {
+      uint8x16_t is_zero = vceqq_u8(classify, zero);
+      uint16_t is_non_zero = ~to_bitmask(is_zero);
+      return view.length() - 16 + trailing_zeroes(is_non_zero);
+    }
+  }
+  return size_t(view.size());
+}
+#elif ADA_SSE2
+ada_really_inline size_t find_next_host_delimiter_special(
+    std::string_view view, size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '\\' ||
+          view[i] == '?' || view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = location;
+  const __m128i mask1 = _mm_set1_epi8(':');
+  const __m128i mask2 = _mm_set1_epi8('/');
+  const __m128i mask3 = _mm_set1_epi8('\\');
+  const __m128i mask4 = _mm_set1_epi8('?');
+  const __m128i mask5 = _mm_set1_epi8('[');
+
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = _mm_loadu_si128((const __m128i*)(view.data() + i));
+    __m128i m1 = _mm_cmpeq_epi8(word, mask1);
+    __m128i m2 = _mm_cmpeq_epi8(word, mask2);
+    __m128i m3 = _mm_cmpeq_epi8(word, mask3);
+    __m128i m4 = _mm_cmpeq_epi8(word, mask4);
+    __m128i m5 = _mm_cmpeq_epi8(word, mask5);
+    __m128i m = _mm_or_si128(
+        _mm_or_si128(_mm_or_si128(m1, m2), _mm_or_si128(m3, m4)), m5);
+    int mask = _mm_movemask_epi8(m);
+    if (mask != 0) {
+      return i + trailing_zeroes(mask);
     }
   }
   if (i < view.size()) {
-    uint64_t word{};
-    // performance: the next memcpy translates into a function call, but
-    // that is difficult to avoid. Might be a bit expensive.
-    memcpy(&word, view.data() + i, view.size() - i);
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t xor5 = word ^ mask5;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor3) | has_zero_byte(xor4) |
-                        has_zero_byte(xor5);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+    __m128i word =
+        _mm_loadu_si128((const __m128i*)(view.data() + view.length() - 16));
+    __m128i m1 = _mm_cmpeq_epi8(word, mask1);
+    __m128i m2 = _mm_cmpeq_epi8(word, mask2);
+    __m128i m3 = _mm_cmpeq_epi8(word, mask3);
+    __m128i m4 = _mm_cmpeq_epi8(word, mask4);
+    __m128i m5 = _mm_cmpeq_epi8(word, mask5);
+    __m128i m = _mm_or_si128(
+        _mm_or_si128(_mm_or_si128(m1, m2), _mm_or_si128(m3, m4)), m5);
+    int mask = _mm_movemask_epi8(m);
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(mask);
     }
   }
-  return view.size();
+  return size_t(view.length());
 }
+#else
+// : / [ \\ ?
+static constexpr bool special_host_delimiters[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// credit: @the-moisrex recommended a table-based approach
+ada_really_inline size_t find_next_host_delimiter_special(
+    std::string_view view, size_t location) noexcept {
+  auto const str = view.substr(location);
+  for (auto pos = str.begin(); pos != str.end(); ++pos) {
+    if (special_host_delimiters[(uint8_t)*pos]) {
+      return pos - str.begin() + location;
+    }
+  }
+  return size_t(view.size());
+}
+#endif
 
 // starting at index location, this finds the next location of a character
 // :, /, ? or [. If none is found, view.size() is returned.
 // For use within get_host_delimiter_location.
+#if ADA_NEON
 ada_really_inline size_t find_next_host_delimiter(std::string_view view,
                                                   size_t location) noexcept {
-  // performance: if you plan to call find_next_host_delimiter more than once,
-  // you *really* want find_next_host_delimiter to be inlined, because
-  // otherwise, the constants may get reloaded each time (bad).
-  auto has_zero_byte = [](uint64_t v) {
-    return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '?' ||
+          view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  auto to_bitmask = [](uint8x16_t input) -> uint16_t {
+    uint8x16_t bit_mask = {0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+                           0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80};
+    uint8x16_t minput = vandq_u8(input, bit_mask);
+    uint8x16_t tmp = vpaddq_u8(minput, minput);
+    tmp = vpaddq_u8(tmp, tmp);
+    tmp = vpaddq_u8(tmp, tmp);
+    return vgetq_lane_u16(vreinterpretq_u16_u8(tmp), 0);
   };
-  auto index_of_first_set_byte = [](uint64_t v) {
-    return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
-  };
-  auto broadcast = [](uint8_t v) -> uint64_t {
-    return 0x101010101010101ull * v;
-  };
+
+  // fast path for long strings (expected to be common)
   size_t i = location;
-  uint64_t mask1 = broadcast(':');
-  uint64_t mask2 = broadcast('/');
-  uint64_t mask4 = broadcast('?');
-  uint64_t mask5 = broadcast('[');
-  // This loop will get autovectorized under many optimizing compilers,
-  // so you get actually SIMD!
-  for (; i + 7 < view.size(); i += 8) {
-    uint64_t word{};
-    // performance: the next memcpy translates into a single CPU instruction.
-    memcpy(&word, view.data() + i, sizeof(word));
-    // performance: on little-endian systems (most systems), this next line is
-    // free.
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t xor5 = word ^ mask5;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor4) | has_zero_byte(xor5);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+  uint8x16_t low_mask = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                         0x00, 0x00, 0x01, 0x04, 0x00, 0x00, 0x00, 0x03};
+  uint8x16_t high_mask = {0x00, 0x00, 0x02, 0x01, 0x00, 0x04, 0x00, 0x00,
+                          0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+  uint8x16_t fmask = vmovq_n_u8(0xf);
+  uint8x16_t zero{0};
+  for (; i + 15 < view.size(); i += 16) {
+    uint8x16_t word = vld1q_u8((const uint8_t*)view.data() + i);
+    uint8x16_t lowpart = vqtbl1q_u8(low_mask, vandq_u8(word, fmask));
+    uint8x16_t highpart = vqtbl1q_u8(high_mask, vshrq_n_u8(word, 4));
+    uint8x16_t classify = vandq_u8(lowpart, highpart);
+    if (vmaxvq_u8(classify) != 0) {
+      uint8x16_t is_zero = vceqq_u8(classify, zero);
+      uint16_t is_non_zero = ~to_bitmask(is_zero);
+      return i + trailing_zeroes(is_non_zero);
+    }
+  }
+
+  if (i < view.size()) {
+    uint8x16_t word =
+        vld1q_u8((const uint8_t*)view.data() + view.length() - 16);
+    uint8x16_t lowpart = vqtbl1q_u8(low_mask, vandq_u8(word, fmask));
+    uint8x16_t highpart = vqtbl1q_u8(high_mask, vshrq_n_u8(word, 4));
+    uint8x16_t classify = vandq_u8(lowpart, highpart);
+    if (vmaxvq_u8(classify) != 0) {
+      uint8x16_t is_zero = vceqq_u8(classify, zero);
+      uint16_t is_non_zero = ~to_bitmask(is_zero);
+      return view.length() - 16 + trailing_zeroes(is_non_zero);
+    }
+  }
+  return size_t(view.size());
+}
+#elif ADA_SSE2
+ada_really_inline size_t find_next_host_delimiter(std::string_view view,
+                                                  size_t location) noexcept {
+  // first check for short strings in which case we do it naively.
+  if (view.size() - location < 16) {  // slow path
+    for (size_t i = location; i < view.size(); i++) {
+      if (view[i] == ':' || view[i] == '/' || view[i] == '?' ||
+          view[i] == '[') {
+        return i;
+      }
+    }
+    return size_t(view.size());
+  }
+  // fast path for long strings (expected to be common)
+  size_t i = location;
+  const __m128i mask1 = _mm_set1_epi8(':');
+  const __m128i mask2 = _mm_set1_epi8('/');
+  const __m128i mask4 = _mm_set1_epi8('?');
+  const __m128i mask5 = _mm_set1_epi8('[');
+
+  for (; i + 15 < view.size(); i += 16) {
+    __m128i word = _mm_loadu_si128((const __m128i*)(view.data() + i));
+    __m128i m1 = _mm_cmpeq_epi8(word, mask1);
+    __m128i m2 = _mm_cmpeq_epi8(word, mask2);
+    __m128i m4 = _mm_cmpeq_epi8(word, mask4);
+    __m128i m5 = _mm_cmpeq_epi8(word, mask5);
+    __m128i m = _mm_or_si128(_mm_or_si128(m1, m2), _mm_or_si128(m4, m5));
+    int mask = _mm_movemask_epi8(m);
+    if (mask != 0) {
+      return i + trailing_zeroes(mask);
     }
   }
   if (i < view.size()) {
-    uint64_t word{};
-    // performance: the next memcpy translates into a function call, but
-    // that is difficult to avoid. Might be a bit expensive.
-    memcpy(&word, view.data() + i, view.size() - i);
-    // performance: on little-endian systems (most systems), this next line is
-    // free.
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t xor5 = word ^ mask5;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor4) | has_zero_byte(xor5);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+    __m128i word =
+        _mm_loadu_si128((const __m128i*)(view.data() + view.length() - 16));
+    __m128i m1 = _mm_cmpeq_epi8(word, mask1);
+    __m128i m2 = _mm_cmpeq_epi8(word, mask2);
+    __m128i m4 = _mm_cmpeq_epi8(word, mask4);
+    __m128i m5 = _mm_cmpeq_epi8(word, mask5);
+    __m128i m = _mm_or_si128(_mm_or_si128(m1, m2), _mm_or_si128(m4, m5));
+    int mask = _mm_movemask_epi8(m);
+    if (mask != 0) {
+      return view.length() - 16 + trailing_zeroes(mask);
     }
   }
-  return view.size();
+  return size_t(view.length());
 }
+#else
+// : / [ ?
+static constexpr bool host_delimiters[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// credit: @the-moisrex recommended a table-based approach
+ada_really_inline size_t find_next_host_delimiter(std::string_view view,
+                                                  size_t location) noexcept {
+  auto const str = view.substr(location);
+  for (auto pos = str.begin(); pos != str.end(); ++pos) {
+    if (host_delimiters[(uint8_t)*pos]) {
+      return pos - str.begin() + location;
+    }
+  }
+  return size_t(view.size());
+}
+#endif
 
 ada_really_inline std::pair<size_t, bool> get_host_delimiter_location(
     const bool is_special, std::string_view& view) noexcept {
@@ -11040,101 +11177,56 @@ ada_really_inline void strip_trailing_spaces_from_opaque_path(
   url.update_base_pathname(path);
 }
 
+// @ / \\ ?
+static constexpr bool authority_delimiter_special[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// credit: @the-moisrex recommended a table-based approach
 ada_really_inline size_t
 find_authority_delimiter_special(std::string_view view) noexcept {
-  auto has_zero_byte = [](uint64_t v) {
-    return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
-  };
-  auto index_of_first_set_byte = [](uint64_t v) {
-    return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
-  };
-  auto broadcast = [](uint8_t v) -> uint64_t {
-    return 0x101010101010101ull * v;
-  };
-  size_t i = 0;
-  uint64_t mask1 = broadcast('@');
-  uint64_t mask2 = broadcast('/');
-  uint64_t mask3 = broadcast('?');
-  uint64_t mask4 = broadcast('\\');
-
-  for (; i + 7 < view.size(); i += 8) {
-    uint64_t word{};
-    memcpy(&word, view.data() + i, sizeof(word));
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor3) | has_zero_byte(xor4);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+  // performance note: we might be able to gain further performance
+  // with SIMD instrinsics.
+  for (auto pos = view.begin(); pos != view.end(); ++pos) {
+    if (authority_delimiter_special[(uint8_t)*pos]) {
+      return pos - view.begin();
     }
   }
-
-  if (i < view.size()) {
-    uint64_t word{};
-    memcpy(&word, view.data() + i, view.size() - i);
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t xor4 = word ^ mask4;
-    uint64_t is_match = has_zero_byte(xor1) | has_zero_byte(xor2) |
-                        has_zero_byte(xor3) | has_zero_byte(xor4);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
-    }
-  }
-
-  return view.size();
+  return size_t(view.size());
 }
 
+// @ / ?
+static constexpr bool authority_delimiter[256] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+// credit: @the-moisrex recommended a table-based approach
 ada_really_inline size_t
 find_authority_delimiter(std::string_view view) noexcept {
-  auto has_zero_byte = [](uint64_t v) {
-    return ((v - 0x0101010101010101) & ~(v)&0x8080808080808080);
-  };
-  auto index_of_first_set_byte = [](uint64_t v) {
-    return ((((v - 1) & 0x101010101010101) * 0x101010101010101) >> 56) - 1;
-  };
-  auto broadcast = [](uint8_t v) -> uint64_t {
-    return 0x101010101010101ull * v;
-  };
-  size_t i = 0;
-  uint64_t mask1 = broadcast('@');
-  uint64_t mask2 = broadcast('/');
-  uint64_t mask3 = broadcast('?');
-
-  for (; i + 7 < view.size(); i += 8) {
-    uint64_t word{};
-    memcpy(&word, view.data() + i, sizeof(word));
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t is_match =
-        has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
+  // performance note: we might be able to gain further performance
+  // with SIMD instrinsics.
+  for (auto pos = view.begin(); pos != view.end(); ++pos) {
+    if (authority_delimiter[(uint8_t)*pos]) {
+      return pos - view.begin();
     }
   }
-
-  if (i < view.size()) {
-    uint64_t word{};
-    memcpy(&word, view.data() + i, view.size() - i);
-    word = swap_bytes_if_big_endian(word);
-    uint64_t xor1 = word ^ mask1;
-    uint64_t xor2 = word ^ mask2;
-    uint64_t xor3 = word ^ mask3;
-    uint64_t is_match =
-        has_zero_byte(xor1) | has_zero_byte(xor2) | has_zero_byte(xor3);
-    if (is_match) {
-      return size_t(i + index_of_first_set_byte(is_match));
-    }
-  }
-
-  return view.size();
+  return size_t(view.size());
 }
 
 }  // namespace ada::helpers
