@@ -291,6 +291,22 @@ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
       performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
 }
 
+static double PerformanceNowImpl() {
+  return static_cast<double>(uv_hrtime() - performance_process_start) /
+         NANOS_PER_MILLIS;
+}
+
+static double FastPerformanceNow(v8::Local<v8::Value> receiver) {
+  return PerformanceNowImpl();
+}
+
+static void SlowPerformanceNow(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(PerformanceNowImpl());
+}
+
+static v8::CFunction fast_performance_now(
+    v8::CFunction::Make(FastPerformanceNow));
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -311,6 +327,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
   SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
   SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
+  SetFastMethodNoSideEffect(
+      isolate, target, "now", SlowPerformanceNow, &fast_performance_now);
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -376,6 +394,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetTimeOriginTimeStamp);
   registry->Register(CreateELDHistogram);
   registry->Register(MarkBootstrapComplete);
+  registry->Register(SlowPerformanceNow);
+  registry->Register(FastPerformanceNow);
+  registry->Register(fast_performance_now.GetTypeInfo());
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
 }
