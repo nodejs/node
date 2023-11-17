@@ -12,7 +12,6 @@ using std::string;
 using std::istringstream;
 
 
-
 class DotEnvTest : public EnvironmentTestFixture {
 };
 
@@ -44,6 +43,49 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EXPECT_TRUE(*env_pairs.at(3)->value->value == "e");
 }
 
+
+TEST_F(DotEnvTest, ControlCodes) {
+  string codes(R"(a=\tb\n
+b=\\\\
+c=\\\\t
+d=\\\\\t
+e= \\ \\ \ \\ \\\\t
+f= \\ \\ \b \\ \\\\t
+g= \\ \\ \r \\ \\\\b\n)");
+
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<env_pair*> env_pairs;
+  env_reader::read_pairs(codes_stream, &env_pairs);
+  for (const auto value : env_pairs) {
+    std::cout << *(value->key->key) << " = " << *(value->value->value) <<
+        std::endl;
+  }
+
+  for (const auto pair : env_pairs) {
+    env_reader::finalize_value(pair, &env_pairs);
+    std::cout << *(pair->key->key) << " = |" << *(pair->value->value) << "|" <<
+        std::endl;
+  }
+
+  EXPECT_EQ(env_pairs.size(), 7);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "\tb\n");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "\\\\");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "\\\\t");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "d");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "\\\\\t");
+  EXPECT_EQ(*env_pairs.at(4)->key->key, "e");
+  EXPECT_EQ(*env_pairs.at(4)->value->value, " \\ \\ \\ \\ \\\\t");
+  EXPECT_EQ(*env_pairs.at(5)->key->key, "f");
+  EXPECT_EQ(*env_pairs.at(5)->value->value, " \\ \\ \b \\ \\\\t");
+  EXPECT_EQ(*env_pairs.at(6)->key->key, "g");
+  EXPECT_EQ(*env_pairs.at(6)->value->value, " \\ \\ \r \\ \\\\b\n");
+}
+
 TEST_F(DotEnvTest, InterpolateValues) {
   string interpolate("a1=bc\n"
       "b2=${a1}\n"
@@ -52,7 +94,6 @@ TEST_F(DotEnvTest, InterpolateValues) {
       "b5=$ { a1 }\n"
       "b6=$ { a1}");
   EnvStream interpolate_stream(&interpolate);
-
 
   std::vector<env_pair*> env_pairs;
 
@@ -140,7 +181,6 @@ TEST_F(DotEnvTest, InterpolateValuesEscaped) {
       "b5=$ \\{ a1 }\n"
       "b6=\\$ { a1}");
   EnvStream interpolate_escaped_stream(&interpolate_escaped);
-
 
   std::vector<env_pair*> env_pairs;
 

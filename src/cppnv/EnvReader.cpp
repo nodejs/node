@@ -255,6 +255,14 @@ bool env_reader::process_possible_control_character(
   switch (key_char) {
     case '\0':
       return false;
+    case 'v':
+
+      add_to_buffer(value, '\v');
+      return true;
+    case 'a':
+
+      add_to_buffer(value, '\a');
+      return true;
     case 't':
 
       add_to_buffer(value, '\t');
