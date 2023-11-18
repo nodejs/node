@@ -458,7 +458,7 @@ const { PassThrough, Transform } = require('stream');
     js.write(obj);
     const res = js.read();
     assert.strictEqual(res, JSON.stringify(obj));
-  });
+  };
 
   js.end();
   // Read one more time to get the 'end' event
