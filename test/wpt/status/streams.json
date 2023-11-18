@@ -11,6 +11,7 @@
   },
   "piping/general-addition.any.js": {
     "fail": {
+      "note": "Blocked on https://github.com/whatwg/streams/issues/1243",
       "expected": [
         "enqueue() must not synchronously call write algorithm"
       ]
