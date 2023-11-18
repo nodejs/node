@@ -89,8 +89,8 @@ const { setTimeout } = require('timers/promises');
     await assert.rejects(async () => {
       return await suite.run();
     }, common.expectsError({
-      code: 'ERR_BENCHMARK_MISSING_OPERATION',
-      message: 'You forgot to call .start()',
+      code: 'ERR_INVALID_STATE',
+      message: 'Invalid state: You forgot to call .start()',
     }));
   }
 
@@ -104,8 +104,8 @@ const { setTimeout } = require('timers/promises');
     await assert.rejects(async () => {
       return await suite.run();
     }, common.expectsError({
-      code: 'ERR_BENCHMARK_MISSING_OPERATION',
-      message: 'You forgot to call .end(count)',
+      code: 'ERR_INVALID_STATE',
+      message: 'Invalid state: You forgot to call .end(count)',
     }));
   }
 
@@ -119,8 +119,8 @@ const { setTimeout } = require('timers/promises');
     await assert.rejects(async () => {
       return await suite.run();
     }, common.expectsError({
-      code: 'ERR_BENCHMARK_MISSING_OPERATION',
-      message: 'You forgot to call .start()',
+      code: 'ERR_INVALID_STATE',
+      message: 'Invalid state: You forgot to call .start()',
     }));
   }
 

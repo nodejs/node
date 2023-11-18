@@ -705,13 +705,6 @@ An attempt was made to register something that is not a function as an
 The type of an asynchronous resource was invalid. Users are also able
 to define their own types if using the public embedder API.
 
-<a id="ERR_BENCHMARK_MISSING_OPERATION"></a>
-
-### `ERR_BENCHMARK_MISSING_OPERATION`
-
-The user forgot to call .start or .end during the execution of
-the benchmark.
-
 <a id="ERR_BROTLI_COMPRESSION_FAILED"></a>
 
 ### `ERR_BROTLI_COMPRESSION_FAILED`
