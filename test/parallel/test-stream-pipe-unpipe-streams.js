@@ -4,9 +4,9 @@ const assert = require('assert');
 
 const { Readable, Writable } = require('stream');
 
-const source = Readable({ read: () => {} });
-const dest1 = Writable({ write: () => {} });
-const dest2 = Writable({ write: () => {} });
+const source = Readable({ read: () => { } });
+const dest1 = Writable({ write: () => { } });
+const dest2 = Writable({ write: () => { } });
 
 source.pipe(dest1);
 source.pipe(dest2);
@@ -34,9 +34,9 @@ assert.strictEqual(source._readableState.pipes.length, 0);
 
 {
   // Test `cleanup()` if we unpipe all streams.
-  const source = Readable({ read: () => {} });
-  const dest1 = Writable({ write: () => {} });
-  const dest2 = Writable({ write: () => {} });
+  const source = Readable({ read: () => { } });
+  const dest1 = Writable({ write: () => { } });
+  const dest2 = Writable({ write: () => { } });
 
   let destCount = 0;
   const srcCheckEventNames = ['end', 'data'];
@@ -45,13 +45,12 @@ assert.strictEqual(source._readableState.pipes.length, 0);
   const checkSrcCleanup = common.mustCall(() => {
     assert.strictEqual(source._readableState.pipes.length, 0);
     assert.strictEqual(source._readableState.flowing, false);
-
-    srcCheckEventNames.forEach((eventName) => {
+    for (let eventName of srcCheckEventNames) {
       assert.strictEqual(
         source.listenerCount(eventName), 0,
         `source's '${eventName}' event listeners not removed`
       );
-    });
+    }
   });
 
   function checkDestCleanup(dest) {
@@ -65,13 +64,13 @@ assert.strictEqual(source._readableState.pipes.length, 0);
         'listener which is `unpipeChecker`'
       );
       dest.removeListener('unpipe', unpipeChecker);
-      destCheckEventNames.forEach((eventName) => {
+      for (const eventName of destCheckEventNames) {
         assert.strictEqual(
           dest.listenerCount(eventName), 0,
           `destination{${currentDestId}}'s '${eventName}' event ` +
           'listeners not removed'
         );
-      });
+      }
 
       if (--destCount === 0)
         checkSrcCleanup();
@@ -86,8 +85,8 @@ assert.strictEqual(source._readableState.pipes.length, 0);
 }
 
 {
-  const src = Readable({ read: () => {} });
-  const dst = Writable({ write: () => {} });
+  const src = Readable({ read: () => { } });
+  const dst = Writable({ write: () => { } });
   src.pipe(dst);
   src.on('resume', common.mustCall(() => {
     src.on('pause', common.mustCall());
