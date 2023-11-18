@@ -23,10 +23,10 @@ ares_get_servers, ares_get_servers_ports \- Retrieve name servers from an initia
 .nf
 #include <ares.h>
 
-int ares_get_servers(ares_channel \fIchannel\fP,
+int ares_get_servers(ares_channel_t *\fIchannel\fP,
                      struct ares_addr_node **\fIservers\fP)
 
-int ares_get_servers_ports(ares_channel \fIchannel\fP,
+int ares_get_servers_ports(ares_channel_t *\fIchannel\fP,
                            struct ares_addr_port_node **\fIservers\fP)
 .fi
 .SH DESCRIPTION

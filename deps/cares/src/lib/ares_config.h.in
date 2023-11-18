@@ -18,6 +18,9 @@
 /* Definition to make a library symbol externally visible. */
 #undef CARES_SYMBOL_SCOPE_EXTERN
 
+/* Threading enabled */
+#undef CARES_THREADS
+
 /* the signed version of size_t */
 #undef CARES_TYPEOF_ARES_SSIZE_T
 
@@ -175,6 +178,9 @@
 /* Define to 1 if you have a working ioctl SIOCGIFADDR function. */
 #undef HAVE_IOCTL_SIOCGIFADDR
 
+/* Define to 1 if you have the <iphlpapi.h> header file. */
+#undef HAVE_IPHLPAPI_H
+
 /* Define to 1 if you have the `resolve' library (-lresolve). */
 #undef HAVE_LIBRESOLVE
 
@@ -205,11 +211,23 @@
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #undef HAVE_NETINET_TCP_H
 
+/* Define to 1 if you have the <netioapi.h> header file. */
+#undef HAVE_NETIOAPI_H
+
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
 /* Define to 1 if you have PF_INET6. */
 #undef HAVE_PF_INET6
+
+/* Define to 1 if you have the <pthread.h> header file. */
+#undef HAVE_PTHREAD_H
+
+/* Define to 1 if you have the <pthread_np.h> header file. */
+#undef HAVE_PTHREAD_NP_H
+
+/* Have PTHREAD_PRIO_INHERIT. */
+#undef HAVE_PTHREAD_PRIO_INHERIT
 
 /* Define to 1 if you have the recv function. */
 #undef HAVE_RECV
@@ -243,6 +261,9 @@
 
 /* Define to 1 if you have the <socket.h> header file. */
 #undef HAVE_SOCKET_H
+
+/* Define to 1 if you have the stat function. */
+#undef HAVE_STAT
 
 /* Define to 1 if you have the <stdbool.h> header file. */
 #undef HAVE_STDBOOL_H
@@ -390,6 +411,10 @@
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
+
+/* Define to necessary symbol if this constant uses a non-standard name on
+   your system. */
+#undef PTHREAD_CREATE_JOINABLE
 
 /* Define to the type qualifier pointed by arg 5 for recvfrom. */
 #undef RECVFROM_QUAL_ARG5

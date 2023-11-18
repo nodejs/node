@@ -24,11 +24,72 @@
  *
  * SPDX-License-Identifier: MIT
  */
-#ifndef HEADER_CARES_STRDUP_H
-#define HEADER_CARES_STRDUP_H
 
 #include "ares_setup.h"
+#include "ares_str.h"
+#include "ares.h"
+#include "ares_private.h"
 
-extern char *ares_strdup(const char *s1);
+#ifdef HAVE_STDINT_H
+#  include <stdint.h>
+#endif
 
-#endif /* HEADER_CARES_STRDUP_H */
+size_t ares_strlen(const char *str)
+{
+  if (str == NULL) {
+    return 0;
+  }
+
+  return strlen(str);
+}
+
+char *ares_strdup(const char *s1)
+{
+  size_t len;
+  char  *out;
+
+  if (s1 == NULL) {
+    return NULL;
+  }
+
+  len = ares_strlen(s1);
+
+  /* Don't see how this is possible */
+  if (len == SIZE_MAX) {
+    return NULL;
+  }
+
+  out = ares_malloc(len + 1);
+  if (out == NULL) {
+    return NULL;
+  }
+
+  if (len) {
+    memcpy(out, s1, len);
+  }
+
+  out[len] = 0;
+  return out;
+}
+
+size_t ares_strcpy(char *dest, const char *src, size_t dest_size)
+{
+  size_t len = 0;
+
+  if (dest == NULL || dest_size == 0) {
+    return 0;
+  }
+
+  len = ares_strlen(src);
+
+  if (len >= dest_size) {
+    len = dest_size - 1;
+  }
+
+  if (len) {
+    memcpy(dest, src, len);
+  }
+
+  dest[len] = 0;
+  return len;
+}

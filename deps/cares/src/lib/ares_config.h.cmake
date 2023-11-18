@@ -17,10 +17,10 @@
 #undef CARES_EXPOSE_STATICS
 
 /* Defined for build with symbol hiding. */
-#undef CARES_SYMBOL_HIDING
+#cmakedefine CARES_SYMBOL_HIDING
 
 /* Definition to make a library symbol externally visible. */
-#undef CARES_SYMBOL_SCOPE_EXTERN
+#define CARES_SYMBOL_SCOPE_EXTERN @CARES_SYMBOL_SCOPE_EXTERN@
 
 /* Use resolver library to configure cares */
 #cmakedefine CARES_USE_LIBRESOLV
@@ -178,6 +178,12 @@
 
 /* Define to 1 if you have the `resolve' library (-lresolve). */
 #cmakedefine HAVE_LIBRESOLV
+
+/* Define to 1 if you have iphlpapi.h */
+#cmakedefine HAVE_IPHLPAPI_H
+
+/* Define to 1 if you have netioapi.h */
+#cmakedefine HAVE_NETIOAPI_H
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H
@@ -356,6 +362,9 @@
 /* Define if have arc4random_buf() */
 #cmakedefine HAVE_ARC4RANDOM_BUF
 
+/* Define if have stat() */
+#cmakedefine HAVE_STAT
+
 /* a suitable file/device to read random data from */
 #cmakedefine CARES_RANDOM_FILE "@CARES_RANDOM_FILE@"
 
@@ -439,4 +448,16 @@
 
 /* Type to use in place of in_addr_t when system does not provide it. */
 #undef in_addr_t
+
+/* Define to 1 if you have the pthread.h header file. */
+#cmakedefine HAVE_PTHREAD_H
+
+/* Define to 1 if you have the pthread_np.h header file. */
+#cmakedefine HAVE_PTHREAD_NP_H
+
+/* Define to 1 if threads are enabled */
+#cmakedefine CARES_THREADS
+
+/* Define to 1 if pthread_init() exists */
+#cmakedefine HAVE_PTHREAD_INIT
 

@@ -22,13 +22,21 @@ ares_set_servers_csv, ares_set_servers_ports_csv \- Set list of DNS servers to b
 .nf
 #include <ares.h>
 
-int ares_set_servers_csv(ares_channel \fIchannel\fP, const char* \fIservers\fP)
+int ares_set_servers_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\fP)
 
-int ares_set_servers_ports_csv(ares_channel \fIchannel\fP, const char* \fIservers\fP)
+int ares_set_servers_ports_csv(ares_channel_t *\fIchannel\fP, const char* \fIservers\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_set_servers_csv\fP and \fBares_set_servers_ports_csv\fPfunctions set
-the list of DNS servers that ARES will query.  The format of the servers option is:
+the list of DNS servers that ARES will query.  As of v1.22.0 this function can
+be called on an active channel with running queries, previously it would return
+ARES_ENOTIMP.
+
+Though not recommended, passing NULL for servers will clear all configured
+servers and make an inoperable channel, this may be advantageous for test
+simulation but unlikely to be useful in production.
+
+The format of the servers option is:
 
 host[:port][,host[:port]]...
 
@@ -58,9 +66,6 @@ was invalid.
 .TP 15
 .B ARES_ENOTINITIALIZED
 c-ares library initialization not yet performed.
-.TP 15
-.B ARES_ENOTIMP
-Changing name servers configuration while queries are outstanding is not implemented.
 .SH SEE ALSO
 .BR ares_set_servers (3)
 .SH AVAILABILITY

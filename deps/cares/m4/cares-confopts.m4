@@ -229,20 +229,15 @@ AC_DEFUN([CARES_CHECK_OPTION_WARNINGS], [
   AC_BEFORE([$0],[CARES_CHECK_OPTION_WERROR])dnl
   AC_BEFORE([$0],[XC_CHECK_PROG_CC])dnl
   AC_MSG_CHECKING([whether to enable strict compiler warnings])
-  OPT_COMPILER_WARNINGS="default"
+  OPT_COMPILER_WARNINGS="yes"
   AC_ARG_ENABLE(warnings,
 AS_HELP_STRING([--enable-warnings],[Enable strict compiler warnings])
 AS_HELP_STRING([--disable-warnings],[Disable strict compiler warnings]),
-  OPT_COMPILER_WARNINGS=$enableval)
+  OPT_COMPILER_WARNINGS=yes)
   case "$OPT_COMPILER_WARNINGS" in
     no)
       dnl --disable-warnings option used
       want_warnings="no"
-      ;;
-    default)
-      dnl configure option not specified, so
-      dnl use same setting as --enable-debug
-      want_warnings="$want_debug"
       ;;
     *)
       dnl --enable-warnings option used

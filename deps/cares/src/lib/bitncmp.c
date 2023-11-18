@@ -19,8 +19,8 @@
 
 #ifndef HAVE_BITNCMP
 
-#include "ares_setup.h"
-#include "bitncmp.h"
+#  include "ares_setup.h"
+#  include "bitncmp.h"
 
 /*
  * int
@@ -34,22 +34,26 @@
  * author:
  *	Paul Vixie (ISC), June 1996
  */
-int ares__bitncmp(const void *l, const void *r, int n)
+int ares__bitncmp(const void *l, const void *r, size_t n)
 {
-  unsigned int lb, rb;
-  int x, b;
+  size_t       lb;
+  size_t       rb;
+  ares_ssize_t x;
+  size_t       b;
 
   b = n / 8;
   x = memcmp(l, r, b);
-  if (x || (n % 8) == 0)
-    return (x);
+  if (x || (n % 8) == 0) {
+    return (int)x;
+  }
 
   lb = ((const unsigned char *)l)[b];
   rb = ((const unsigned char *)r)[b];
   for (b = n % 8; b > 0; b--) {
     if ((lb & 0x80) != (rb & 0x80)) {
-      if (lb & 0x80)
+      if (lb & 0x80) {
         return (1);
+      }
       return (-1);
     }
     lb <<= 1;

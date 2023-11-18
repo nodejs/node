@@ -244,7 +244,7 @@ Ninja
 -----
 
 Ninja is the next-generation build system meant for generators like CMake that
-heavily parallize builds.  Its use is very similar to the normal build:
+heavily parallelize builds.  Its use is very similar to the normal build:
 
 ```sh
 cd /path/to/cmake/source

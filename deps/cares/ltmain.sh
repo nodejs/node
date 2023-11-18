@@ -31,7 +31,7 @@
 
 PROGRAM=libtool
 PACKAGE=libtool
-VERSION="2.4.7 Debian-2.4.7-5"
+VERSION="2.4.7 Debian-2.4.7-7"
 package_revision=2.4.7
 
 
@@ -572,27 +572,15 @@ func_require_term_colors ()
 # ---------------------
 # Append VALUE onto the existing contents of VAR.
 
-  # We should try to minimise forks, especially on Windows where they are
-  # unreasonably slow, so skip the feature probes when bash or zsh are
-  # being used:
-  if test set = "${BASH_VERSION+set}${ZSH_VERSION+set}"; then
-    : ${_G_HAVE_ARITH_OP="yes"}
-    : ${_G_HAVE_XSI_OPS="yes"}
-    # The += operator was introduced in bash 3.1
-    case $BASH_VERSION in
-      [12].* | 3.0 | 3.0*) ;;
-      *)
-        : ${_G_HAVE_PLUSEQ_OP="yes"}
-        ;;
-    esac
-  fi
-
   # _G_HAVE_PLUSEQ_OP
   # Can be empty, in which case the shell is probed, "yes" if += is
   # useable or anything else if it does not work.
-  test -z "$_G_HAVE_PLUSEQ_OP" \
-    && (eval 'x=a; x+=" b"; test "a b" = "$x"') 2>/dev/null \
-    && _G_HAVE_PLUSEQ_OP=yes
+  if test -z "$_G_HAVE_PLUSEQ_OP" &&  \
+      __PLUSEQ_TEST="a" &&  \
+      __PLUSEQ_TEST+=" b" 2>/dev/null &&  \
+      test "a b" = "$__PLUSEQ_TEST"; then
+    _G_HAVE_PLUSEQ_OP=yes
+  fi
 
 if test yes = "$_G_HAVE_PLUSEQ_OP"
 then
@@ -2308,7 +2296,7 @@ include the following information:
        compiler:       $LTCC
        compiler flags: $LTCFLAGS
        linker:         $LD (gnu? $with_gnu_ld)
-       version:        $progname $scriptversion Debian-2.4.7-5
+       version:        $progname $scriptversion Debian-2.4.7-7
        automake:       `($AUTOMAKE --version) 2>/dev/null |$SED 1q`
        autoconf:       `($AUTOCONF --version) 2>/dev/null |$SED 1q`
 

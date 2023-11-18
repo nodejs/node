@@ -265,6 +265,26 @@ cares_includes_sys_uio="\
 ])
 
 
+dnl CARES_INCLUDES_SYS_STAT
+dnl -------------------------------------------------
+dnl Set up variable with list of headers that must be
+dnl included when sys/stat.h is to be included.
+
+AC_DEFUN([CARES_INCLUDES_SYS_STAT], [
+cares_includes_sys_stat="\
+/* includes start */
+#ifdef HAVE_SYS_TYPES_H
+#  include <sys/types.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#  include <sys/stat.h>
+#endif
+/* includes end */"
+  AC_CHECK_HEADERS(
+    sys/types.h sys/stat.h,
+    [], [], [$cares_includes_sys_stat])
+])
+
 dnl CARES_INCLUDES_UNISTD
 dnl -------------------------------------------------
 dnl Set up variable with list of headers that must be
@@ -3854,6 +3874,91 @@ AC_DEFUN([CARES_CHECK_FUNC_WRITEV], [
   else
     AC_MSG_RESULT([no])
     ac_cv_func_writev="no"
+  fi
+])
+
+dnl CARES_CHECK_FUNC_STAT
+dnl -------------------------------------------------
+dnl Verify if stat is available, prototyped, and
+dnl can be compiled. If all of these are true, and
+dnl usage has not been previously disallowed with
+dnl shell variable cares_disallow_stat, then
+dnl HAVE_STAT will be defined.
+
+AC_DEFUN([CARES_CHECK_FUNC_STAT], [
+  AC_REQUIRE([CARES_INCLUDES_SYS_STAT])dnl
+  #
+  tst_links_stat="unknown"
+  tst_proto_stat="unknown"
+  tst_compi_stat="unknown"
+  tst_allow_stat="unknown"
+  #
+  AC_MSG_CHECKING([if stat can be linked])
+  AC_LINK_IFELSE([
+    AC_LANG_FUNC_LINK_TRY([stat])
+  ],[
+    AC_MSG_RESULT([yes])
+    tst_links_stat="yes"
+  ],[
+    AC_MSG_RESULT([no])
+    tst_links_stat="no"
+  ])
+  #
+  if test "$tst_links_stat" = "yes"; then
+    AC_MSG_CHECKING([if stat is prototyped])
+    AC_EGREP_CPP([stat],[
+      $cares_includes_sys_stat
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_proto_stat="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_proto_stat="no"
+    ])
+  fi
+  #
+  if test "$tst_proto_stat" = "yes"; then
+    AC_MSG_CHECKING([if stat is compilable])
+    AC_COMPILE_IFELSE([
+      AC_LANG_PROGRAM([[
+        $cares_includes_sys_types
+        $cares_includes_sys_stat
+      ]],[[
+        if(0 != stat(0, 0))
+          return 1;
+      ]])
+    ],[
+      AC_MSG_RESULT([yes])
+      tst_compi_stat="yes"
+    ],[
+      AC_MSG_RESULT([no])
+      tst_compi_stat="no"
+    ])
+  fi
+  #
+  if test "$tst_compi_stat" = "yes"; then
+    AC_MSG_CHECKING([if stat usage allowed])
+    if test "x$cares_disallow_stat" != "xyes"; then
+      AC_MSG_RESULT([yes])
+      tst_allow_stat="yes"
+    else
+      AC_MSG_RESULT([no])
+      tst_allow_stat="no"
+    fi
+  fi
+  #
+  AC_MSG_CHECKING([if stat might be used])
+  if test "$tst_links_stat" = "yes" &&
+     test "$tst_proto_stat" = "yes" &&
+     test "$tst_compi_stat" = "yes" &&
+     test "$tst_allow_stat" = "yes"; then
+    AC_MSG_RESULT([yes])
+    AC_DEFINE_UNQUOTED(HAVE_STAT, 1,
+      [Define to 1 if you have the stat function.])
+    ac_cv_func_stat="yes"
+  else
+    AC_MSG_RESULT([no])
+    ac_cv_func_stat="no"
   fi
 ])
 
