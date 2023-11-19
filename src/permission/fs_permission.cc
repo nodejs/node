@@ -119,10 +119,8 @@ namespace permission {
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(const std::vector<std::string>& allow,
                          PermissionScope scope) {
-  using std::string_view_literals::operator""sv;
-
-  for (const std::string_view res : allow) {
-    if (res == "*"sv) {
+  for (const std::string& res : allow) {
+    if (res == "*") {
       if (scope == PermissionScope::kFileSystemRead) {
         deny_all_in_ = false;
         allow_all_in_ = true;
@@ -132,7 +130,7 @@ void FSPermission::Apply(const std::vector<std::string>& allow,
       }
       return;
     }
-    GrantAccess(scope, std::string(res.data(), res.size()));
+    GrantAccess(scope, res);
   }
 }
 
