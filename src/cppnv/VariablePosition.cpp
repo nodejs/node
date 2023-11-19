@@ -6,4 +6,4 @@ VariablePosition::VariablePosition(const int variable_start, const int start_bra
 {
   variable_str = new std::string();
 }
-}  //namespace cppnv
+}   // namespace cppnv

@@ -29,7 +29,7 @@ c=""" $ {b })");
     // create a vector for them to be stored in
   std::vector<env_pair*> env_pairs;
     //read them into the vector
-  env_reader::read_pairs(interpolate_stream, &env_pairs);
+   EnvReader::read_pairs(&interpolate_stream, &env_pairs);
 
 // free
  env_reader::delete_pairs(&env_pairs);

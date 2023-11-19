@@ -5,7 +5,7 @@
 namespace cppnv {
 class EnvKey {
  public:
-  std::string* key; // this will be the temp buffer they all share
+  std::string* key;  // this will be the temp buffer they all share
   std::string* own_buffer;
   // if this is set, then it has it's own buffer which you can get from key
   /**
@@ -37,5 +37,5 @@ class EnvKey {
     delete own_buffer;
   }
 };
-} //namespace cppnv
+}  // namespace cppnv
 #endif  // ENVKEY_H

@@ -26,7 +26,7 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EnvStream basic_stream(&basic);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(basic_stream, &env_pairs);
+  EnvReader::read_pairs(&basic_stream, &env_pairs);
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
@@ -53,14 +53,12 @@ b='''''' asdfasdf
 c='''a'''' asdfasdf
 # blah
 
-f='''# fek''' garfa)"
-
-    );
+f='''# fek''' garfa)");
 
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -79,23 +77,21 @@ f='''# fek''' garfa)"
 }
 
 TEST_F(DotEnvTest, SingleQuotedWithMoreGarbage) {
-//   string codes(R"(# blah
-//
-// a=1
-// )"
-   string codes(R"(a='\t ${b}' asdfasdf
+  //   string codes(R"(# blah
+  //
+  // a=1
+  // )"
+  string codes(R"(a='\t ${b}' asdfasdf
 b='' asdfasdf
 c='a' asdfasdf
 # blah
 
-f='# fek' garfa)"
-
-     );
+f='# fek' garfa)");
 
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -112,15 +108,15 @@ f='# fek' garfa)"
   EXPECT_EQ(*env_pairs.at(3)->value->value, "# fek");
   EnvReader::delete_pairs(&env_pairs);
 }
+
 TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
   string codes(R"(a='\t ${b}' asdfasdf)" "\n"
-      R"(b='' asdfasdf)" "\n"
-      );
+      R"(b='' asdfasdf)" "\n");
 
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -135,17 +131,15 @@ TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
 }
 
 
-
 TEST_F(DotEnvTest, ImplicitDoubleQuote) {
   string codes("a=hello #comment\n"
-    "b=#comment\n"
-    "c=this\\nshouldn'twork"
-      );
+      "b=#comment\n"
+      "c=this\\nshouldn'twork");
 
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -163,13 +157,12 @@ TEST_F(DotEnvTest, ImplicitDoubleQuote) {
 
 TEST_F(DotEnvTest, SingleQuoted) {
   string codes(R"(a='\t ${b}')" "\n"
-      R"(b='')" "\n"
-      );
+      R"(b='')" "\n");
 
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -194,7 +187,7 @@ c="""def""" asldkljasdfl;kj)");
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -224,7 +217,7 @@ ${b}
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -252,7 +245,7 @@ ${b}
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -283,7 +276,7 @@ g= \\ \\ \r \\ \\\\b\n)");
   EnvStream codes_stream(&codes);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(codes_stream, &env_pairs);
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -318,7 +311,7 @@ TEST_F(DotEnvTest, InterpolateValues) {
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -349,7 +342,7 @@ TEST_F(DotEnvTest, InterpolateValuesCircular) {
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -377,7 +370,7 @@ c=""" $ {b })");
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_stream, &env_pairs);
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
@@ -401,7 +394,7 @@ TEST_F(DotEnvTest, InterpolateValuesAdvanced) {
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);
@@ -430,7 +423,7 @@ TEST_F(DotEnvTest, InterpolateUnClosed) {
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_escaped_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_escaped_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     // for (const VariablePosition* interpolation : *pair->value->
@@ -469,7 +462,7 @@ TEST_F(DotEnvTest, InterpolateValuesEscaped) {
 
   std::vector<EnvPair*> env_pairs;
 
-  EnvReader::read_pairs(interpolate_escaped_stream, &env_pairs);
+  EnvReader::read_pairs(&interpolate_escaped_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);

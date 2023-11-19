@@ -25,38 +25,32 @@ struct EnvValue
   int double_quote_streak = 0;
   std::string* own_buffer;
 
-  //todo: remove
-  void clip_own_buffer(int length) const
-  {
+
+  void clip_own_buffer(int length) const {
     own_buffer->resize(length);
   }
 
-  bool has_own_buffer() const
-  {
+  bool has_own_buffer() const {
     return own_buffer != nullptr;
   }
 
-  void set_own_buffer(std::string* buff)
-  {
+  void set_own_buffer(std::string* buff) {
     delete own_buffer;
     own_buffer = buff;
     value = buff;
   }
 
-  EnvValue(): value(nullptr), own_buffer(nullptr)
-  {
+  EnvValue(): value(nullptr), own_buffer(nullptr) {
     interpolations = new std::vector<VariablePosition*>();
   }
 
-  ~EnvValue()
-  {
-    for (const auto interpolation : *interpolations)
-    {
+  ~EnvValue() {
+    for (const auto interpolation : *interpolations) {
       delete interpolation;
     }
     delete own_buffer;
     delete interpolations;
   }
 };
-}  //namespace cppnv
+}   // namespace cppnv
 #endif  // ENVVALUE_H

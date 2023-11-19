@@ -3,10 +3,9 @@
 #include "EnvKey.h"
 #include "EnvValue.h"
 namespace cppnv {
-struct EnvPair
-{
-  EnvKey *key;
-  EnvValue *value;
+struct EnvPair {
+  EnvKey* key;
+  EnvValue* value;
 };
 }
 #endif  // ENVPAIR_H

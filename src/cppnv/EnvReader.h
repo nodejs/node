@@ -10,7 +10,7 @@
 
 namespace cppnv {
 class EnvReader {
-public:
+ public:
   enum read_result {
     success,
     empty,
@@ -22,7 +22,7 @@ public:
 
   enum finalize_result { interpolated, copied, circular };
 
-private:
+ private:
   static void clear_garbage(EnvStream* file);
   static read_result position_of_dollar_last_sign(
       const EnvValue* value,
@@ -46,14 +46,11 @@ private:
   static void add_to_buffer(EnvValue* value, char key_char);
   static bool read_next_char(EnvValue* value, char key_char);
   static bool is_previous_char_an_escape(const EnvValue* value);
-  static bool clear_newline_or_comment(EnvStream* file,
-                                       EnvValue* value,
-                                       char key_char,
-                                       read_result& ret_value);
+
   static read_result read_value(EnvStream* file, EnvValue* value);
   static void remove_unclosed_interpolation(EnvValue* value);
 
-public:
+ public:
   static finalize_result finalize_value(const EnvPair* pair,
                                         std::map<std::string, EnvPair*>*
                                         mapped_pairs);
@@ -67,5 +64,5 @@ public:
   static int read_pairs(EnvStream* file,
                         std::map<std::string, EnvPair*>* mapped_pairs);
 };
-} //namespace cppnv
+}  // namespace cppnv
 #endif  // ENVREADER_H

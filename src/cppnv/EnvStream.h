@@ -4,18 +4,17 @@
 
 namespace cppnv {
 class EnvStream {
-
   size_t index_ = 0;
   std::string* data_ = nullptr;
   size_t length_;
-  bool is_good;
+  bool is_good_;
 
  public:
-  EnvStream(std::string* data);
+  explicit EnvStream(std::string* data);
   char get();
-  bool good() const;
-  bool eof() const;
+  [[nodiscard]] bool good() const;
+  [[nodiscard]] bool eof() const;
 };
-}  //namespace cppnv
+}  // namespace cppnv
 
 #endif

@@ -17,5 +17,5 @@ struct VariablePosition {
   std::string* variable_str;
   bool closed = false;
 };
-} //namespace cppnv
+}  // namespace cppnv
 #endif  // VARIABLEPOSITION_H
