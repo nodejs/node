@@ -5,8 +5,8 @@
 namespace cppnv {
 struct EnvPair
 {
-  env_key *key;
+  EnvKey *key;
   EnvValue *value;
 };
 }
-#endif // ENVPAIR_H
+#endif  // ENVPAIR_H

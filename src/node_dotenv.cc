@@ -4,7 +4,6 @@
 #include "uv.h"
 
 namespace node {
-
 using v8::NewStringType;
 using v8::String;
 
@@ -55,11 +54,17 @@ void Dotenv::SetEnvironment(node::Environment* env) {
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
-              isolate, key.data(), NewStringType::kNormal, key.size())
-              .ToLocalChecked(),
+              isolate,
+              key.data(),
+              NewStringType::kNormal,
+              key.size())
+          .ToLocalChecked(),
           v8::String::NewFromUtf8(
-              isolate, value.data(), NewStringType::kNormal, value.size())
-              .ToLocalChecked());
+              isolate,
+              value.data(),
+              NewStringType::kNormal,
+              value.size())
+          .ToLocalChecked());
     }
   }
 }
@@ -98,12 +103,22 @@ bool Dotenv::ParsePath(const std::string_view path) {
     result.append(buf.base, r);
   }
 
-  using std::string_view_literals::operator""sv;
-  auto lines = SplitString(result, "\n"sv);
+  //using std::string_view_literals::operator""sv;
+  EnvStream env_stream(&result);
 
-  for (const auto& line : lines) {
-    ParseLine(line);
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(env_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+    store_.insert_or_assign(*pair->key->key, *pair->value->value);
   }
+  EnvReader::delete_pairs(&env_pairs);
+  // auto lines = SplitString(result, "\n"sv);
+  //
+  // for (const auto& line : lines) {
+  //   ParseLine(line);
+  // }
   return true;
 }
 
@@ -161,10 +176,10 @@ void Dotenv::ParseLine(const std::string_view line) {
     // Remove any leading/trailing spaces from unquoted values.
     while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
     while (!value.empty() && std::isspace(value.back()))
-      value.erase(value.size() - 1);
+      value.erase(
+          value.size() - 1);
   }
 
   store_.insert_or_assign(std::string(key), value);
 }
-
-}  // namespace node
+} // namespace node

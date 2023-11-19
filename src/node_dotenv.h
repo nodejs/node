@@ -4,8 +4,11 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "util-inl.h"
-
+#include "cppnv/EnvReader.h"
 #include <map>
+using cppnv::EnvStream;
+using cppnv::EnvReader;
+using cppnv::EnvPair;
 
 namespace node {
 

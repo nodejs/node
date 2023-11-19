@@ -58,5 +58,5 @@ struct EnvValue
     delete interpolations;
   }
 };
-}
-#endif // ENVVALUE_H
+}  //namespace cppnv
+#endif  // ENVVALUE_H

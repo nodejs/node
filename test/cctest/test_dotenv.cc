@@ -139,6 +139,7 @@ TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
 TEST_F(DotEnvTest, ImplicitDoubleQuote) {
   string codes("a=hello #comment\n"
     "b=#comment\n"
+    "c=this\\nshouldn'twork"
       );
 
   EnvStream codes_stream(&codes);
@@ -150,11 +151,13 @@ TEST_F(DotEnvTest, ImplicitDoubleQuote) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
 
-  EXPECT_EQ(env_pairs.size(), 2);
+  EXPECT_EQ(env_pairs.size(), 3);
   EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "hello ");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
   EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "this\nshouldn'twork");
   EnvReader::delete_pairs(&env_pairs);
 }
 

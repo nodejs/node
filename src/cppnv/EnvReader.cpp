@@ -2,7 +2,7 @@
 
 
 namespace cppnv {
-EnvReader::read_result EnvReader::read_pair(EnvStream& file,
+EnvReader::read_result EnvReader::read_pair(EnvStream* file,
                                             const EnvPair* pair) {
   switch (read_key(file, pair->key)) {
     case end_of_stream_key:
@@ -11,10 +11,11 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
     case empty:
       return fail;
     case comment_encountered:
-      //this means comment encountered in the key since you can encounter an empty value comment like "a=#"
+      // this means comment encountered in the key since you can encounter
+      // an empty value comment like "a=#"
       return comment_encountered;
     case end_of_stream_value:
-      return success; //we know we hit = and end of stream
+      return success; // we know we hit = and end of stream
     case success:
       break;
   }
@@ -34,7 +35,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
   pair->value->value->clear();
   switch (read_value(file, pair->value)) {
     case end_of_stream_value:
-      return end_of_stream_value; //implicitly a success "a="
+      return end_of_stream_value; // implicitly a success "a="
     case comment_encountered:
     case success:
       if (!pair->value->has_own_buffer()) {
@@ -52,7 +53,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
         pair->value->clip_own_buffer(pair->value->value_index);
       }
       remove_unclosed_interpolation(pair->value);
-      return success; //empty key is still success
+      return success; // empty key is still success
     case empty:
       remove_unclosed_interpolation(pair->value);
       return empty;
@@ -67,15 +68,8 @@ EnvReader::read_result EnvReader::read_pair(EnvStream& file,
   }
 }
 
-void EnvReader::create_pair(std::string* const buffer, EnvPair*& pair) {
-  pair = new EnvPair();
-  pair->key = new env_key();
-  pair->key->key = buffer;
-  pair->value = new EnvValue();
-  pair->value->value = buffer;
-}
 
-int EnvReader::read_pairs(EnvStream& file, std::vector<EnvPair*>* pairs) {
+int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
   int count = 0;
   auto buffer = std::string();
   buffer.resize(100);
@@ -83,8 +77,11 @@ int EnvReader::read_pairs(EnvStream& file, std::vector<EnvPair*>* pairs) {
   auto expect_more = true;
   while (expect_more) {
     buffer.clear();
-    EnvPair* pair;
-    create_pair(&buffer, pair);
+    EnvPair* pair = new EnvPair();
+    pair->key = new EnvKey();
+    pair->key->key = &buffer;
+    pair->value = new EnvValue();
+    pair->value->value = &buffer;
     switch (read_pair(file, pair)) {
       case end_of_stream_value:
         expect_more = false;
@@ -119,7 +116,7 @@ void EnvReader::delete_pairs(const std::vector<EnvPair*>* pairs) {
   }
 }
 
-int EnvReader::read_pairs(EnvStream& file,
+int EnvReader::read_pairs(EnvStream* file,
                           std::map<std::string, EnvPair*>* mapped_pairs) {
   int count = 0;
   auto buffer = std::string();
@@ -127,8 +124,11 @@ int EnvReader::read_pairs(EnvStream& file,
   auto expect_more = true;
   while (expect_more) {
     buffer.clear();
-    EnvPair* pair;
-    create_pair(&buffer, pair);
+    EnvPair* pair = new EnvPair();
+    pair->key = new EnvKey();
+    pair->key->key = &buffer;
+    pair->value = new EnvValue();
+    pair->value->value = &buffer;
 
     switch (read_pair(file, pair)) {
       case end_of_stream_value:
@@ -152,14 +152,14 @@ int EnvReader::read_pairs(EnvStream& file,
   return count;
 }
 
-void EnvReader::clear_garbage(EnvStream& file) {
+void EnvReader::clear_garbage(EnvStream* file) {
   char key_char;
   do {
-    key_char = file.get();
+    key_char = file->get();
     if (key_char < 0) {
       break;
     }
-    if (!file.good()) {
+    if (!file->good()) {
       break;
     }
   } while (key_char != '\n');
@@ -197,13 +197,13 @@ EnvReader::read_result EnvReader::position_of_dollar_last_sign(
  * \param key
  * \return
  */
-EnvReader::read_result EnvReader::read_key(EnvStream& file, env_key* key) {
-  if (!file.good()) {
+EnvReader::read_result EnvReader::read_key(EnvStream* file, EnvKey* key) {
+  if (!file->good()) {
     return end_of_stream_key;
   }
 
-  while (file.good()) {
-    const auto key_char = file.get();
+  while (file->good()) {
+    const auto key_char = file->get();
     if (key_char < 0) {
       break;
     }
@@ -212,7 +212,7 @@ EnvReader::read_result EnvReader::read_key(EnvStream& file, env_key* key) {
     }
     switch (key_char) {
       case '=':
-        if (!file.good()) {
+        if (!file->good()) {
           return end_of_stream_value;
         }
         return success;
@@ -224,7 +224,7 @@ EnvReader::read_result EnvReader::read_key(EnvStream& file, env_key* key) {
         key->key->push_back(key_char);
         key->key_index++;
     }
-    if (!file.good()) {
+    if (!file->good()) {
       break;
     }
   }
@@ -567,7 +567,8 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       }
 
     case '\n':
-      if (!(value->triple_double_quoted || value->triple_quoted)) {
+      if (!(value->triple_double_quoted || value->triple_quoted || value->
+            double_quoted)) {
         return false;
       }
       add_to_buffer(value, key_char);
@@ -629,7 +630,7 @@ bool EnvReader::is_previous_char_an_escape(const EnvValue* value) {
          '\\';
 }
 
-bool EnvReader::clear_newline_or_comment(EnvStream& file,
+bool EnvReader::clear_newline_or_comment(EnvStream* file,
                                          EnvValue* value,
                                          char key_char,
                                          EnvReader::read_result& ret_value) {
@@ -650,11 +651,11 @@ bool EnvReader::clear_newline_or_comment(EnvStream& file,
     }
     char tmp;
     do {
-      tmp = file.get();
+      tmp = file->get();
       if (tmp < 0) {
         break;
       }
-      if (!file.good()) {
+      if (!file->good()) {
         break;
       }
     } while (tmp != '\n');
@@ -662,22 +663,21 @@ bool EnvReader::clear_newline_or_comment(EnvStream& file,
   return false;
 }
 
-EnvReader::read_result EnvReader::read_value(EnvStream& file,
+EnvReader::read_result EnvReader::read_value(EnvStream* file,
                                              EnvValue* value) {
-  if (!file.good()) {
+  if (!file->good()) {
     return end_of_stream_value;
   }
 
-  read_result ret_val = success;
   char key_char = 0;
-  while (file.good()) {
-    key_char = file.get();
+  while (file->good()) {
+    key_char = file->get();
     if (key_char < 0) {
       break;
     }
     // if (clear_newline_or_comment(file, value, key_char, ret_val))
     //   break;
-    if (read_next_char(value, key_char) && file.good()) {
+    if (read_next_char(value, key_char) && file->good()) {
       continue;
     }
     // if (!(value->triple_double_quoted || value->triple_quoted)) {
@@ -857,4 +857,4 @@ EnvReader::finalize_result EnvReader::finalize_value(
   pair->value->is_being_interpolated = false;
   return interpolated;
 }
-}
+} //namespace cppnv
