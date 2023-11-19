@@ -237,10 +237,10 @@ static napi_value TestUtf16External(napi_env env, napi_callback_info info) {
 }
 
 static napi_value TestPropertyKeyUtf16(napi_env env, napi_callback_info info) {
-  return TestOneByteImpl(env,
+  return TestTwoByteImpl(env,
                          info,
                          napi_get_value_string_utf16,
-                         create_property_key_utf16,
+                         node_api_create_property_key_utf16,
                          actual_length);
 }
 
