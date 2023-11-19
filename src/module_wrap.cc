@@ -255,10 +255,14 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 static Local<Object> createImportAttributesContainer(
-    Realm* realm, Isolate* isolate, Local<FixedArray> raw_attributes) {
+    Realm* realm,
+    Isolate* isolate,
+    Local<FixedArray> raw_attributes,
+    const int elements_per_attribute) {
+  CHECK_EQ(raw_attributes->Length() % elements_per_attribute, 0);
   Local<Object> attributes =
       Object::New(isolate, v8::Null(isolate), nullptr, nullptr, 0);
-  for (int i = 0; i < raw_attributes->Length(); i += 3) {
+  for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
     attributes
         ->Set(realm->context(),
               raw_attributes->Get(realm->context(), i).As<String>(),
@@ -304,7 +308,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
     Local<Object> attributes =
-        createImportAttributesContainer(realm, isolate, raw_attributes);
+        createImportAttributesContainer(realm, isolate, raw_attributes, 3);
 
     Local<Value> argv[] = {
         specifier,
@@ -588,7 +592,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
   }
 
   Local<Object> attributes =
-      createImportAttributesContainer(realm, isolate, import_attributes);
+      createImportAttributesContainer(realm, isolate, import_attributes, 2);
 
   Local<Value> import_args[] = {
       id,
