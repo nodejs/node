@@ -1700,7 +1700,8 @@ void SetServers(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = arr->Length();
 
   if (len == 0) {
-    return args.GetReturnValue().Set(ARES_ENODATA);
+    int rv = ares_set_servers(channel->cares_channel(), nullptr);
+    return args.GetReturnValue().Set(rv);
   }
 
   std::vector<ares_addr_port_node> servers(len);

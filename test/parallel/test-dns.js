@@ -136,14 +136,8 @@ const portsExpected = [
 dns.setServers(ports);
 assert.deepStrictEqual(dns.getServers(), portsExpected);
 
-assert.throws(
-  () => {
-    dns.setServers([]);
-  },
-  {
-    code: 'ENODATA'
-  }
-);
+dns.setServers([]);
+assert.deepStrictEqual(dns.getServers(), []);
 
 {
   const errObj = {

@@ -3,13 +3,12 @@ const common = require('../common');
 const mustCall = common.mustCall;
 const assert = require('assert');
 const dgram = require('dgram');
+const dns = require('dns');
 
 const socket = dgram.createSocket('udp4');
 const buffer = Buffer.from('gary busey');
 
-//   Why?
-// const dns = require('dns');
-// dns.setServers([]);
+dns.setServers([]);
 
 socket.once('error', onEvent);
 
