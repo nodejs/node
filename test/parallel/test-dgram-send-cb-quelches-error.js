@@ -8,7 +8,8 @@ const dns = require('dns');
 const socket = dgram.createSocket('udp4');
 const buffer = Buffer.from('gary busey');
 
-dns.setServers([]);
+// Why?
+//dns.setServers([]);
 
 socket.once('error', onEvent);
 

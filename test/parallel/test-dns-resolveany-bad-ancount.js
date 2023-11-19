@@ -31,7 +31,7 @@ server.bind(0, common.mustCall(async () => {
     .then(common.mustNotCall())
     .catch(common.expectsError({
       // May return EBADRESP or ETIMEOUT
-      // code: 'EBADRESP',
+      code: /^(?:EBADRESP|ETIMEOUT)$/,
       syscall: 'queryAny',
       hostname: 'example.org'
     }));
