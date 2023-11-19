@@ -1,4 +1,4 @@
-/* auto-generated on 2023-10-22 19:50:50 -0400. Do not edit! */
+/* auto-generated on 2023-11-19 13:35:02 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -1669,18 +1669,6 @@ ada_really_inline void trim_c0_whitespace(std::string_view& input) noexcept;
 template <class url_type>
 ada_really_inline void strip_trailing_spaces_from_opaque_path(
     url_type& url) noexcept;
-
-/**
- * @private
- * Reverse the order of the bytes.
- */
-ada_really_inline uint64_t swap_bytes(uint64_t val) noexcept;
-
-/**
- * @private
- * Reverse the order of the bytes but only if the system is big endian
- */
-ada_really_inline uint64_t swap_bytes_if_big_endian(uint64_t val) noexcept;
 
 /**
  * @private
@@ -5032,7 +5020,9 @@ ada_really_inline bool begins_with(std::string_view view,
                                    std::string_view prefix);
 
 /**
- * Returns true if an input is an ipv4 address.
+ * Returns true if an input is an ipv4 address. It is assumed that the string
+ * does not contain uppercase ASCII characters (the input should have been
+ * lowered cased before calling this function) and is not empty.
  */
 ada_really_inline ada_constexpr bool is_ipv4(std::string_view view) noexcept;
 
@@ -7088,14 +7078,14 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.7.2"
+#define ADA_VERSION "2.7.4"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 7,
-  ADA_VERSION_REVISION = 2,
+  ADA_VERSION_REVISION = 4,
 };
 
 }  // namespace ada
