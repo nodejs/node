@@ -22,6 +22,11 @@ await rejects(
 );
 
 await rejects(
+  import(jsModuleDataUrl, { with: { type: 'json', other: 'unsupported' } }),
+  { code: 'ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE' }
+);
+
+await rejects(
   import(import.meta.url, { with: { type: 'unsupported' } }),
   { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
 );
