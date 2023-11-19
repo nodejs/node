@@ -107,7 +107,7 @@ bool Dotenv::ParsePath(const std::string_view path) {
   EnvStream env_stream(&result);
 
   std::vector<EnvPair*> env_pairs;
-  EnvReader::read_pairs(env_stream, &env_pairs);
+  EnvReader::read_pairs(&env_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
     EnvReader::finalize_value(pair, &env_pairs);

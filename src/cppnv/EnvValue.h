@@ -5,8 +5,7 @@
 
 #include "VariablePosition.h"
 namespace cppnv {
-struct EnvValue
-{
+struct EnvValue {
   std::string* value;
   bool is_parsing_variable = false;
   std::vector<VariablePosition*>* interpolations;
