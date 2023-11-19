@@ -1,7 +1,7 @@
 /*
  * ngtcp2
  *
- * Copyright (c) 2017 ngtcp2 contributors
+ * Copyright (c) 2023 ngtcp2 contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining
  * a copy of this software and associated documentation files (the
@@ -22,37 +22,41 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_MACRO_H
-#define NGTCP2_MACRO_H
+#ifndef NGTCP2_PKTNS_ID_H
+#define NGTCP2_PKTNS_ID_H
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif /* HAVE_CONFIG_H */
 
-#include <stddef.h>
-
 #include <ngtcp2/ngtcp2.h>
 
-#define ngtcp2_min(A, B) ((A) < (B) ? (A) : (B))
-#define ngtcp2_max(A, B) ((A) > (B) ? (A) : (B))
-
-#define ngtcp2_struct_of(ptr, type, member)                                    \
-  ((type *)(void *)((char *)(ptr)-offsetof(type, member)))
-
-/* ngtcp2_list_insert inserts |T| before |*PD|.  The contract is that
-   this is singly linked list, and the next element is pointed by next
-   field of the previous element.  |PD| must be a pointer to the
-   pointer to the next field of the previous element of |*PD|: if C is
-   the previous element of |PD|, PD = &C->next. */
-#define ngtcp2_list_insert(T, PD)                                              \
-  do {                                                                         \
-    (T)->next = *(PD);                                                         \
-    *(PD) = (T);                                                               \
-  } while (0)
-
-/*
- * ngtcp2_arraylen returns the number of elements in array |A|.
+/**
+ * @enum
+ *
+ * :type:`ngtcp2_pktns_id` defines packet number space identifier.
  */
-#define ngtcp2_arraylen(A) (sizeof(A) / sizeof(A[0]))
+typedef enum ngtcp2_pktns_id {
+  /**
+   * :enum:`NGTCP2_PKTNS_ID_INITIAL` is the Initial packet number
+   * space.
+   */
+  NGTCP2_PKTNS_ID_INITIAL,
+  /**
+   * :enum:`NGTCP2_PKTNS_ID_HANDSHAKE` is the Handshake packet number
+   * space.
+   */
+  NGTCP2_PKTNS_ID_HANDSHAKE,
+  /**
+   * :enum:`NGTCP2_PKTNS_ID_APPLICATION` is the Application data
+   * packet number space.
+   */
+  NGTCP2_PKTNS_ID_APPLICATION,
+  /**
+   * :enum:`NGTCP2_PKTNS_ID_MAX` is defined to get the number of
+   * packet number spaces.
+   */
+  NGTCP2_PKTNS_ID_MAX
+} ngtcp2_pktns_id;
 
-#endif /* NGTCP2_MACRO_H */
+#endif /* NGTCP2_PKTNS_ID_H */
