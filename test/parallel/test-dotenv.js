@@ -62,6 +62,7 @@ assert.strictEqual(process.env.EQUAL_SIGNS, 'equals==');
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES, '{"foo": "bar"}');
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_STRING, '{"foo": "bar"}');
 assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_BACKTICKS, '{"foo": "bar\'s"}');
+assert.strictEqual(process.env.RETAIN_INNER_QUOTES_AS_ESCAPE_SLASH, '{"foo": "bar"}');
 // Retains spaces in string
 assert.strictEqual(process.env.TRIM_SPACE_FROM_UNQUOTED, 'some spaced out string');
 // Parses email addresses completely

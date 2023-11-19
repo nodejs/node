@@ -52,6 +52,8 @@ void Dotenv::SetEnvironment(node::Environment* env) {
     auto existing = env->env_vars()->Get(key.data());
 
     if (existing.IsNothing()) {
+      // Remove all '\' characters from value
+      value.erase(std::remove(value.begin(), value.end(), '\\'), value.end());
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
