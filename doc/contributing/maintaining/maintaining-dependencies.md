@@ -27,7 +27,8 @@ This a list of all the dependencies:
 * [npm 9.6.7][]
 * [openssl 3.0.8][]
 * [postject 1.0.0-alpha.6][]
-* [simdutf 3.2.18][]
+* [simdjson 3.6.0][]
+* [simdutf 4.0.4][]
 * [undici 5.27.2][]
 * [uvwasi 0.0.19][]
 * [V8 11.8.172.12][]
@@ -344,7 +345,8 @@ performance improvements not currently available in standard zlib.
 [npm 9.6.7]: #npm-967
 [openssl 3.0.8]: #openssl-308
 [postject 1.0.0-alpha.6]: #postject-100-alpha6
-[simdutf 3.2.18]: #simdutf-3218
+[simdjson 3.6.0]: #simdutf-360
+[simdutf 4.0.4]: #simdutf-404
 [undici 5.27.2]: #undici-5272
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi 0.0.19]: #uvwasi-0019
