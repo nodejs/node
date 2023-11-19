@@ -22,6 +22,11 @@ await rejects(
 );
 
 await rejects(
+  import(jsModuleDataUrl, { with: { type: 'json', other: 'unsupported' } }),
+  { code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED' }
+);
+
+await rejects(
   import(import.meta.url, { with: { type: 'unsupported' } }),
   { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
 );

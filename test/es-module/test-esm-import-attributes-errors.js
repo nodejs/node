@@ -27,6 +27,11 @@ async function test() {
   );
 
   await rejects(
+    import(jsModuleDataUrl, { with: { type: 'json', other: 'unsupported' } }),
+    { code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED' }
+  );
+
+  await rejects(
     import(jsModuleDataUrl, { with: { type: 'unsupported' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
   );
