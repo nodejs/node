@@ -15,7 +15,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream* file,
       // an empty value comment like "a=#"
       return comment_encountered;
     case end_of_stream_value:
-      return success;  // we know we hit = and end of stream
+      return success; // we know we hit = and end of stream
     case success:
       break;
   }
@@ -35,7 +35,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream* file,
   pair->value->value->clear();
   switch (read_value(file, pair->value)) {
     case end_of_stream_value:
-      return end_of_stream_value;  // implicitly a success "a="
+      return end_of_stream_value; // implicitly a success "a="
     case comment_encountered:
     case success:
       if (!pair->value->has_own_buffer()) {
@@ -53,7 +53,7 @@ EnvReader::read_result EnvReader::read_pair(EnvStream* file,
         pair->value->clip_own_buffer(pair->value->value_index);
       }
       remove_unclosed_interpolation(pair->value);
-      return success;  // empty key is still success
+      return success; // empty key is still success
     case empty:
       remove_unclosed_interpolation(pair->value);
       return empty;
@@ -365,24 +365,24 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
     if (value->double_quote_streak == 1) {
       value->double_quote_streak = 0;
       value->double_quoted = true;
-      return false;  // we have a double quote at the start
+      return false; // we have a double quote at the start
     }
     // we have a empty double quote value aka ''
     if (value->double_quote_streak == 2) {
       value->double_quote_streak = 0;
       value->double_quoted = true;
-      return true;  // we have a  empty double quote at the start
+      return true; // we have a  empty double quote at the start
     }
     if (value->double_quote_streak == 3) {
       value->double_quote_streak = 0;
       value->triple_double_quoted = true;
-      return false;  // we have a triple double quote at the start
+      return false; // we have a triple double quote at the start
     }
     if (value->double_quote_streak > 5) {
       value->double_quote_streak = 0;
       value->triple_double_quoted = true;
       //basically we have """""" an empty heredoc with extra " at the end. Ignore the trailing "
-      return true;  // we have a triple quote at the start
+      return true; // we have a triple quote at the start
     }
     if (value->double_quote_streak > 3) {
       value->triple_double_quoted = true;
@@ -392,10 +392,10 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
         add_to_buffer(value, '"');
       }
       value->double_quote_streak = 0;
-      return false;  // we have a triple quote at the start
+      return false; // we have a triple quote at the start
     }
 
-    return false;  // we have garbage
+    return false; // we have garbage
   }
 
   // we're single quoted
@@ -409,7 +409,7 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
   if (value->triple_double_quoted) {
     if (value->double_quote_streak == 3 || value->double_quote_streak > 3) {
       value->double_quote_streak = 0;
-      return true;  // we have enough to close, truncate trailing single quotes
+      return true; // we have enough to close, truncate trailing single quotes
     }
     //we have not enough to close the heredoc.
     if (value->double_quote_streak < 3) {
@@ -420,7 +420,7 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
       value->double_quote_streak = 0;
       return false;
     }
-    return false;  // we have garbage
+    return false; // we have garbage
   }
 
   return false;
@@ -441,24 +441,24 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
     if (value->single_quote_streak == 1) {
       value->single_quote_streak = 0;
       value->quoted = true;
-      return false;  // we have a single quote at the start
+      return false; // we have a single quote at the start
     }
     // we have a empty single quote value aka ''
     if (value->single_quote_streak == 2) {
       value->single_quote_streak = 0;
       value->quoted = true;
-      return true;  // we have a  empy quote at the start
+      return true; // we have a  empy quote at the start
     }
     if (value->single_quote_streak == 3) {
       value->single_quote_streak = 0;
       value->triple_quoted = true;
-      return false;  // we have a triple quote at the start
+      return false; // we have a triple quote at the start
     }
     if (value->single_quote_streak > 5) {
       value->single_quote_streak = 0;
       value->triple_quoted = true;
       //basically we have '''''' an empty heredoc with extra ' at the end. Ignore the trailing '
-      return true;  // we have a triple quote at the start
+      return true; // we have a triple quote at the start
     }
     if (value->single_quote_streak > 3) {
       value->triple_quoted = true;
@@ -468,10 +468,10 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
         add_to_buffer(value, '\'');
       }
       value->single_quote_streak = 0;
-      return false;  // we have a triple quote at the start
+      return false; // we have a triple quote at the start
     }
 
-    return false;  // we have garbage
+    return false; // we have garbage
   }
 
   // we're single quoted
@@ -485,7 +485,7 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
   if (value->triple_quoted) {
     if (value->single_quote_streak == 3 || value->single_quote_streak > 3) {
       value->single_quote_streak = 0;
-      return true;  // we have enough to close, truncate trailing single quotes
+      return true; // we have enough to close, truncate trailing single quotes
     }
     //we have not enough to close the heredoc.
     if (value->single_quote_streak < 3) {
@@ -496,7 +496,7 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
       value->single_quote_streak = 0;
       return false;
     }
-    return false;  // we have garbage
+    return false; // we have garbage
   }
 
   return false;
@@ -553,11 +553,15 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       case '\'':
         break;
       case '#':
-        return false;
-
+        if (value->implicit_double_quote) {
+          return false;
+        }
+        break;
       default:
-        value->double_quoted = true;
-        value->implicit_double_quote = true;
+        if (!value->quoted && !value->triple_quoted) {
+          value->double_quoted = true;
+          value->implicit_double_quote = true;
+        }
     }
   }
   switch (key_char) {
@@ -565,10 +569,11 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       if (value->implicit_double_quote) {
         return false;
       }
-
+      add_to_buffer(value, key_char);
+      break;
     case '\n':
-      if (!(value->triple_double_quoted || value->triple_quoted || value->
-            double_quoted)) {
+      if (!(value->triple_double_quoted || value->triple_quoted || (value->
+              double_quoted && !value->implicit_double_quote))) {
         return false;
       }
       add_to_buffer(value, key_char);
@@ -825,4 +830,4 @@ EnvReader::finalize_result EnvReader::finalize_value(
   pair->value->is_being_interpolated = false;
   return interpolated;
 }
-}  // namespace cppnv
+} // namespace cppnv
