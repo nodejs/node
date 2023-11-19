@@ -250,10 +250,14 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 }
 
 static Local<Object> createImportAttributesContainer(
-    Environment* env, Isolate* isolate, Local<FixedArray> raw_attributes) {
+    Environment* env,
+    Isolate* isolate,
+    Local<FixedArray> raw_attributes,
+    const int elements_per_attribute) {
+  CHECK_EQ(raw_attributes->Length() % elements_per_attribute, 0);
   Local<Object> attributes =
       Object::New(isolate, v8::Null(env->isolate()), nullptr, nullptr, 0);
-  for (int i = 0; i < raw_attributes->Length(); i += 3) {
+  for (int i = 0; i < raw_attributes->Length(); i += elements_per_attribute) {
     attributes
         ->Set(env->context(),
               raw_attributes->Get(env->context(), i).As<String>(),
@@ -299,7 +303,7 @@ void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
 
     Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
     Local<Object> attributes =
-        createImportAttributesContainer(env, isolate, raw_attributes);
+        createImportAttributesContainer(env, isolate, raw_attributes, 3);
 
     Local<Value> argv[] = {
         specifier,
@@ -583,7 +587,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
       options->Get(context, HostDefinedOptions::kID).As<Symbol>();
 
   Local<Object> attributes =
-      createImportAttributesContainer(env, isolate, import_attributes);
+      createImportAttributesContainer(env, isolate, import_attributes, 2);
 
   Local<Value> import_args[] = {
       id,
