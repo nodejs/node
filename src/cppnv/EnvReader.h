@@ -23,6 +23,7 @@ public:
   enum finalize_result { interpolated, copied, circular };
 
 private:
+  static void clear_garbage(EnvStream &file);
   static read_result position_of_dollar_last_sign(
       const EnvValue* value,
       int* position);

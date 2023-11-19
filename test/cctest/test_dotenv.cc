@@ -43,6 +43,230 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EnvReader::delete_pairs(&env_pairs);
 }
 
+TEST_F(DotEnvTest, TripleSingleQuotedWithMoreGarbage) {
+  //   string codes(R"(# blah
+  //
+  // a=1
+  // )"
+  string codes(R"(a='''\t ${b}''' asdfasdf
+b='''''' asdfasdf
+c='''a'''' asdfasdf
+# blah
+
+f='''# fek''' garfa)"
+
+    );
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 4);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "\\t ${b}");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "a");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "f");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "# fek");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, SingleQuotedWithMoreGarbage) {
+//   string codes(R"(# blah
+//
+// a=1
+// )"
+   string codes(R"(a='\t ${b}' asdfasdf
+b='' asdfasdf
+c='a' asdfasdf
+# blah
+
+f='# fek' garfa)"
+
+     );
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 4);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "\\t ${b}");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "a");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "f");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "# fek");
+  EnvReader::delete_pairs(&env_pairs);
+}
+TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
+  string codes(R"(a='\t ${b}' asdfasdf)" "\n"
+      R"(b='' asdfasdf)" "\n"
+      );
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 2);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "\\t ${b}");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+
+
+TEST_F(DotEnvTest, ImplicitDoubleQuote) {
+  string codes("a=hello #comment\n"
+    "b=#comment\n"
+      );
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 2);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "hello ");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, SingleQuoted) {
+  string codes(R"(a='\t ${b}')" "\n"
+      R"(b='')" "\n"
+      );
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 2);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "\\t ${b}");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, DoubleQuotedHereDocWithGarbage) {
+  string codes(R"(b=1
+a="""
+\t
+${b}
+""" abc
+c="""def""" asldkljasdfl;kj)");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 3);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "1");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(1)->value->value,
+            R"(
+)" "\t" R"(
+1
+)");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "def");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, DoubleQuotedHereDoc) {
+  string codes(R"(b=1
+a="""
+\t
+${b}
+""")");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 2);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "1");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(1)->value->value,
+            R"(
+)" "\t" R"(
+1
+)");
+
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, SingleQuotedHereDoc) {
+  string codes(R"(a='''
+\t
+${b}
+''')");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 1);
+  // EXPECT_EQ(*env_pairs.at(0)->key->key, "b");
+  // EXPECT_EQ(*env_pairs.at(0)->value->value, "1");
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value,
+            R"(
+\t
+${b}
+)");
+
+  EnvReader::delete_pairs(&env_pairs);
+}
 
 TEST_F(DotEnvTest, ControlCodes) {
   string codes(R"(a=\tb\n
