@@ -50,8 +50,9 @@ void FreeRecursivelyNode(
   delete node;
 }
 
-bool is_tree_granted(node::permission::FSPermission::RadixTree* granted_tree,
-                     const std::string_view& param) {
+bool is_tree_granted(
+    const node::permission::FSPermission::RadixTree* granted_tree,
+    const std::string_view& param) {
 #ifdef _WIN32
   // is UNC file path
   if (param.rfind("\\\\", 0) == 0) {
@@ -147,7 +148,7 @@ void FSPermission::GrantAccess(PermissionScope perm, const std::string& res) {
 }
 
 bool FSPermission::is_granted(PermissionScope perm,
-                              const std::string_view& param = "") {
+                              const std::string_view& param = "") const {
   switch (perm) {
     case PermissionScope::kFileSystem:
       return allow_all_in_ && allow_all_out_;
@@ -171,7 +172,7 @@ FSPermission::RadixTree::~RadixTree() {
 }
 
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
-                                     bool when_empty_return = false) {
+                                     bool when_empty_return = false) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
   if (current_node->children.size() == 0) {
     return when_empty_return;

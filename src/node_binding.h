@@ -40,6 +40,7 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(fs_dir)                                                                    \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
+  V(modules)                                                                   \
   V(module_wrap)                                                               \
   V(performance)                                                               \
   V(process_methods)                                                           \

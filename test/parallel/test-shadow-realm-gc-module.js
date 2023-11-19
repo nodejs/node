@@ -8,13 +8,11 @@
 
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const { runAndBreathe } = require('../common/gc');
 
-async function main() {
-  const mod = fixtures.fileURL('es-module-shadow-realm', 'state-counter.mjs');
-  for (let i = 0; i < 100; i++) {
-    const realm = new ShadowRealm();
-    await realm.importValue(mod, 'getCounter');
-  }
-}
+const mod = fixtures.fileURL('es-module-shadow-realm', 'state-counter.mjs');
 
-main().then(common.mustCall());
+runAndBreathe(async () => {
+  const realm = new ShadowRealm();
+  await realm.importValue(mod, 'getCounter');
+}, 100).then(common.mustCall());
