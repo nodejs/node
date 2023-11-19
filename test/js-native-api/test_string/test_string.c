@@ -433,6 +433,7 @@ napi_value Init(napi_env env, napi_value exports) {
       DECLARE_NODE_API_PROPERTY("TestLargeLatin1", TestLargeLatin1),
       DECLARE_NODE_API_PROPERTY("TestLargeUtf16", TestLargeUtf16),
       DECLARE_NODE_API_PROPERTY("TestMemoryCorruption", TestMemoryCorruption),
+      DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf16", TestPropertyKeyUtf16),
   };
 
   init_test_null(env, exports);
