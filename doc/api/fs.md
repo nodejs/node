@@ -3814,7 +3814,7 @@ system requests but rather the internal buffering `fs.readFile` performs.
 2. If a file descriptor is specified as the `path`, it will not be closed
    automatically.
 3. The reading will begin at the current position. For example, if the file
-   already had `'Hello World`' and six bytes are read with the file descriptor,
+   already had `'Hello World'` and six bytes are read with the file descriptor,
    the call to `fs.readFile()` with the same file descriptor, would give
    `'World'`, rather than `'Hello World'`.
 
@@ -6256,7 +6256,8 @@ changes:
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
   * `flush` {boolean} If all data is successfully written to the file, and
     `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
-    Returns `undefined`.
+
+Returns `undefined`.
 
 The `mode` option only affects the newly created file. See [`fs.open()`][]
 for more details.

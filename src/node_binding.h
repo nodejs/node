@@ -37,10 +37,14 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
   V(contextify)                                                                \
   V(encoding_binding)                                                          \
   V(fs)                                                                        \
+  V(fs_dir)                                                                    \
+  V(messaging)                                                                 \
   V(mksnapshot)                                                                \
-  V(timers)                                                                    \
-  V(process_methods)                                                           \
+  V(modules)                                                                   \
+  V(module_wrap)                                                               \
   V(performance)                                                               \
+  V(process_methods)                                                           \
+  V(timers)                                                                    \
   V(url)                                                                       \
   V(worker)                                                                    \
   NODE_BUILTIN_ICU_BINDINGS(V)

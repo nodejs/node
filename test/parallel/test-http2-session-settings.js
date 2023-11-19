@@ -104,15 +104,15 @@ server.listen(
         ['maxHeaderListSize', 2 ** 32],
         ['maxHeaderSize', -1],
         ['maxHeaderSize', 2 ** 32],
-      ].forEach((i) => {
+      ].forEach(([key, value]) => {
         const settings = {};
-        settings[i[0]] = i[1];
+        settings[key] = value;
         assert.throws(
           () => client.settings(settings),
           {
             name: 'RangeError',
             code: 'ERR_HTTP2_INVALID_SETTING_VALUE',
-            message: `Invalid value for setting "${i[0]}": ${i[1]}`
+            message: `Invalid value for setting "${key}": ${value}`
           }
         );
       });

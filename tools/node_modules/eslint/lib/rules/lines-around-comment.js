@@ -1,6 +1,7 @@
 /**
  * @fileoverview Enforces empty lines around comments.
  * @author Jamund Ferguson
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -52,6 +53,8 @@ function getCommentLineNums(comments) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

@@ -1196,6 +1196,16 @@ added: v19.0.0
 
 Disable exposition of [CustomEvent Web API][] on the global scope.
 
+### `--no-experimental-global-navigator`
+
+<!-- YAML
+added: v21.2.0
+-->
+
+> Stability: 1 - Experimental
+
+Disable exposition of [Navigator API][] on the global scope.
+
 ### `--no-experimental-global-webcrypto`
 
 <!-- YAML
@@ -1770,6 +1780,15 @@ node --test --test-shard=1/3
 node --test --test-shard=2/3
 node --test --test-shard=3/3
 ```
+
+### `--test-timeout`
+
+<!-- YAML
+added: v21.2.0
+-->
+
+A number of milliseconds the test execution will fail after. If unspecified,
+subtests inherit this value from their parent. The default value is `Infinity`.
 
 ### `--throw-deprecation`
 
@@ -2350,6 +2369,7 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
+* `--no-experimental-global-navigator`
 * `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-extra-info-on-fatal-exception`
@@ -2765,6 +2785,7 @@ done
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders
+[Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [Permission Model]: permissions.md#permission-model

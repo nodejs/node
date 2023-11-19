@@ -917,8 +917,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
                                        napi_value async_resource,
                                        napi_value async_resource_name,
                                        napi_async_context* result) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   CHECK_ARG(env, result);
 
@@ -951,8 +950,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
 
 napi_status NAPI_CDECL napi_async_destroy(napi_env env,
                                           napi_async_context async_context) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_context);
 
   v8impl::AsyncContext* node_async_context =
@@ -1101,8 +1099,7 @@ napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,
 napi_status NAPI_CDECL napi_is_buffer(napi_env env,
                                       napi_value value,
                                       bool* result) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
@@ -1114,8 +1111,7 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
                                             napi_value value,
                                             void** data,
                                             size_t* length) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> buffer = v8impl::V8LocalValueFromJsValue(value);
@@ -1236,8 +1232,7 @@ napi_create_async_work(napi_env env,
                        napi_async_complete_callback complete,
                        void* data,
                        napi_async_work* result) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
@@ -1267,8 +1262,7 @@ napi_create_async_work(napi_env env,
 
 napi_status NAPI_CDECL napi_delete_async_work(napi_env env,
                                               napi_async_work work) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, work);
 
   uvimpl::Work::Delete(reinterpret_cast<uvimpl::Work*>(work));
@@ -1322,8 +1316,7 @@ napi_create_threadsafe_function(napi_env env,
                                 void* context,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
-  CHECK_ENV(env);
-  env->CheckGCAccess();
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);
   CHECK_ARG(env, result);

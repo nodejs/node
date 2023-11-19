@@ -1,6 +1,7 @@
 /**
  * @fileoverview A rule to choose between single and double quote marks
  * @author Matt DuVall <http://www.mattduvall.com/>, Brandon Payton
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -77,6 +78,8 @@ const AVOID_ESCAPE = "avoid-escape";
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

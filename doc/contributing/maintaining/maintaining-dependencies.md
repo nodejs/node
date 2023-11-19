@@ -10,7 +10,7 @@ This a list of all the dependencies:
 
 * [acorn 8.11.2][]
 * [ada 2.7.2][]
-* [base64 0.5.0][]
+* [base64 0.5.1][]
 * [brotli 1.0.9][]
 * [c-ares 1.20.1][]
 * [cjs-module-lexer 1.2.2][]
@@ -156,7 +156,7 @@ an abstract syntax tree walker for the ESTree format.
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
 
-### base64 0.5.0
+### base64 0.5.1
 
 The [base64](https://github.com/aklomp/base64) dependency is a base64
 stream encoding/decoding library in C99 with SIMD and OpenMP acceleration.
@@ -287,7 +287,12 @@ See [maintaining-openssl][] for more informations.
 The [postject](https://github.com/nodejs/postject) dependency is used for the
 [Single Executable strategic initiative](https://github.com/nodejs/single-executable).
 
-### simdutf 3.2.18
+### simdjson 3.6.0
+
+The [simdjson](https://github.com/simdjson/simdjson) dependency is
+a C++ library for fast JSON parsing.
+
+### simdutf 4.0.4
 
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
@@ -321,7 +326,7 @@ performance improvements not currently available in standard zlib.
 
 [acorn 8.11.2]: #acorn-8112
 [ada 2.7.2]: #ada-272
-[base64 0.5.0]: #base64-050
+[base64 0.5.1]: #base64-051
 [brotli 1.0.9]: #brotli-109
 [c-ares 1.20.1]: #c-ares-1201
 [cjs-module-lexer 1.2.2]: #cjs-module-lexer-122

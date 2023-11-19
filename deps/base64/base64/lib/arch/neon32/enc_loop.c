@@ -100,7 +100,8 @@ enc_loop_neon32_inner_asm (const uint8_t **s, uint8_t **o)
 		  [n63] "w" (n63)
 
 		// Clobbers.
-		: "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31"
+		: "d24", "d25", "d26", "d27", "d28", "d29", "d30", "d31",
+		  "cc", "memory"
 	);
 }
 #endif

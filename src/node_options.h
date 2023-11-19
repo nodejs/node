@@ -110,6 +110,7 @@ class EnvironmentOptions : public Options {
   bool experimental_fetch = true;
   bool experimental_websocket = false;
   bool experimental_global_customevent = true;
+  bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
@@ -161,6 +162,7 @@ class EnvironmentOptions : public Options {
   bool has_env_file_string = false;
   bool test_runner = false;
   uint64_t test_runner_concurrency = 0;
+  uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
