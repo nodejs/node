@@ -69,3 +69,5 @@ assert.strictEqual(process.env.TRIM_SPACE_FROM_UNQUOTED, 'some spaced out string
 assert.strictEqual(process.env.EMAIL, 'therealnerdybeast@example.tld');
 // Parses keys and values surrounded by spaces
 assert.strictEqual(process.env.SPACED_KEY, 'parsed');
+// Parses windows path
+assert.strictEqual(process.env.PATH_WINDOWS, 'C:\\\\Windows\\\\system32');
