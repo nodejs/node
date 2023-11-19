@@ -125,7 +125,8 @@ static napi_status create_property_key_utf16(napi_env env,
                                              size_t length,
                                              napi_value* result) {
   // Convert UTF-16 string to napi_value
-  napi_status status = node_api_create_property_key_utf16(env, string, length, result);
+  napi_status status =
+      node_api_create_property_key_utf16(env, string, length, result);
 
   if (status != napi_ok) {
     // Handle necessary operations in case of an error
