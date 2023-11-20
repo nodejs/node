@@ -6,7 +6,6 @@ const npa = require('npm-package-arg')
 const pickManifest = require('npm-pick-manifest')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 
-const ansiTrim = require('strip-ansi')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
 
 class Outdated extends ArboristWorkspaceCmd {
@@ -23,6 +22,7 @@ class Outdated extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
+    const { default: stripAnsi } = await import('strip-ansi')
     const global = resolve(this.npm.globalDir, '..')
     const where = this.npm.global
       ? global
@@ -106,7 +106,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
       const tableOpts = {
         align: ['l', 'r', 'r', 'r', 'l'],
-        stringLength: s => ansiTrim(s).length,
+        stringLength: s => stripAnsi(s).length,
       }
       this.npm.output(table(outTable, tableOpts))
     }

@@ -59,3 +59,6 @@ if ! xcrun spctl --assess --type install --context context:primary-signature --i
 else
   echo "Verification was successful."
 fi
+
+xcrun stapler staple "node-$pkgid.pkg"
+echo "Stapler was successful."

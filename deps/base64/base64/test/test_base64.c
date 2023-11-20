@@ -1,6 +1,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include "../include/libbase64.h"
 #include "codec_supported.h"
 #include "moby_dick.h"
@@ -92,7 +93,7 @@ assert_roundtrip (int flags, const char *src)
 }
 
 static int
-test_char_table (int flags)
+test_char_table (int flags, bool use_malloc)
 {
 	bool fail = false;
 	char chr[256];
@@ -107,8 +108,24 @@ test_char_table (int flags)
 	for (int i = 0; i < 256; i++) {
 
 		size_t chrlen = 256 - i;
+		char* src = &chr[i];
+		if (use_malloc) {
+			src = malloc(chrlen); /* malloc/copy this so valgrind can find out-of-bound access */
+			if (src == NULL) {
+				printf(
+					"FAIL: encoding @ %d: allocation of %lu bytes failed\n",
+					i, (unsigned long)chrlen
+				);
+				fail = true;
+				continue;
+			}
+			memcpy(src, &chr[i], chrlen);
+		}
 
-		base64_encode(&chr[i], chrlen, enc, &enclen, BASE64_FORCE_PLAIN);
+		base64_encode(src, chrlen, enc, &enclen, flags);
+		if (use_malloc) {
+			free(src);
+		}
 
 		if (!base64_decode(enc, enclen, dec, &declen, flags)) {
 			printf("FAIL: decoding @ %d: decoding error\n", i);
@@ -198,6 +215,11 @@ test_streaming (int flags)
 		while (base64_stream_decode(&state, &ref[inpos], (inpos + bs > reflen) ? reflen - inpos : bs, &enc[enclen], &partlen)) {
 			enclen += partlen;
 			inpos += bs;
+
+			// Has the entire buffer been consumed?
+			if (inpos >= 400) {
+				break;
+			}
 		}
 		if (enclen != 256) {
 			printf("FAIL: stream decoding gave incorrect size: "
@@ -336,7 +358,8 @@ test_one_codec (const char *codec, int flags)
 		fail |= assert_roundtrip(flags, vec[i].out);
 	}
 
-	fail |= test_char_table(flags);
+	fail |= test_char_table(flags, false); /* test with unaligned input buffer */
+	fail |= test_char_table(flags, true); /* test for out-of-bound input read */
 	fail |= test_streaming(flags);
 	fail |= test_invalid_dec_input(flags);
 

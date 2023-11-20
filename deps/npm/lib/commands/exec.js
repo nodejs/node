@@ -34,24 +34,33 @@ class Exec extends BaseCommand {
     for (const [name, path] of this.workspaces) {
       const locationMsg =
         `in workspace ${this.npm.chalk.green(name)} at location:\n${this.npm.chalk.dim(path)}`
-      await this.callExec(args, { locationMsg, runPath: path })
+      await this.callExec(args, { name, locationMsg, runPath: path })
     }
   }
 
-  async callExec (args, { locationMsg, runPath } = {}) {
-    // This is where libnpmexec will look for locally installed packages
+  async callExec (args, { name, locationMsg, runPath } = {}) {
+    // This is where libnpmexec will look for locally installed packages at the project level
     const localPrefix = this.npm.localPrefix
+    // This is where libnpmexec will look for locally installed packages at the workspace level
+    let localBin = this.npm.localBin
+    let path = localPrefix
 
     // This is where libnpmexec will actually run the scripts from
     if (!runPath) {
       runPath = process.cwd()
+    } else {
+      // We have to consider if the workspace has its own separate versions
+      // libnpmexec will walk up to localDir after looking here
+      localBin = resolve(this.npm.localDir, name, 'node_modules', '.bin')
+      // We also need to look for `bin` entries in the workspace package.json
+      // libnpmexec will NOT look in the project root for the bin entry
+      path = runPath
     }
 
     const call = this.npm.config.get('call')
     let globalPath
     const {
       flatOptions,
-      localBin,
       globalBin,
       globalDir,
       chalk,
@@ -79,14 +88,14 @@ class Exec extends BaseCommand {
       // copy args so they dont get mutated
       args: [...args],
       call,
-      localBin,
-      locationMsg,
+      chalk,
       globalBin,
       globalPath,
+      localBin,
+      locationMsg,
       output,
-      chalk,
       packages,
-      path: localPrefix,
+      path,
       runPath,
       scriptShell,
       yes,

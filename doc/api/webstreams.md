@@ -1420,9 +1420,13 @@ changes:
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: v21.2.0
+    pr-url: https://github.com/nodejs/node/pull/50097
+    description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of either `'deflate'` or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
 
 #### `compressionStream.readable`
 
@@ -1454,9 +1458,13 @@ changes:
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: v21.2.0
+    pr-url: https://github.com/nodejs/node/pull/50097
+    description: format now accepts `deflate-raw` value.
 -->
 
-* `format` {string} One of either `'deflate'` or `'gzip'`.
+* `format` {string} One of `'deflate'`, `'deflate-raw'`, or `'gzip'`.
 
 #### `decompressionStream.readable`
 
