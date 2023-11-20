@@ -133,26 +133,20 @@ int EnvReader::read_pairs(EnvStream* file,
     pair->value = new EnvValue();
     pair->value->value = &buffer;
 
-    switch (read_pair(file, pair)) {
-      case end_of_stream_value:
-        expect_more = false;
-      case comment_encountered:
-        [[fallthrough]];
-      case success:
-
-        mapped_pairs->insert_or_assign(*pair->key->key, pair);
-        count++;
-        continue;
-      case end_of_stream_key:
-        expect_more = false;
-        [[fallthrough]];
-      case fail:
-        [[fallthrough]];
-      case empty:
-        delete pair->key;
-        delete pair->value;
-        delete pair;
+    const read_result read_pair_result = read_pair(file, pair);
+    if (read_pair_result == end_of_stream_key || read_pair_result ==
+        end_of_stream_value) {
+      expect_more = false;
     }
+    if (read_pair_result == end_of_stream_value || read_pair_result ==
+        comment_encountered || read_pair_result == success) {
+      mapped_pairs->insert_or_assign(*pair->key->key, pair);
+      count++;
+      continue;
+    }
+    delete pair->key;
+    delete pair->value;
+    delete pair;
   }
 
   return count;
@@ -556,21 +550,16 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   // Check to see if the first character is a ' or ". If it is neither,
   // it is an implicit double quote.
   if (value->value_index == 0) {
-    switch (key_char) {
-      case '"':
-      case '\'':
-        break;
-      case '#':
-        if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
-            !value->triple_double_quoted) {
-          return false;
-        }
-        break;
-      default:
-        if (!value->quoted && !value->triple_quoted) {
-          value->double_quoted = true;
-          value->implicit_double_quote = true;
-        }
+    if (key_char == '#') {
+      if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
+          !value->triple_double_quoted) {
+        return false;
+      }
+    } else if (!(key_char == '"' || key_char == '\'')) {
+      if (!value->quoted && !value->triple_quoted) {
+        value->double_quoted = true;
+        value->implicit_double_quote = true;
+      }
     }
   }
   switch (key_char) {
