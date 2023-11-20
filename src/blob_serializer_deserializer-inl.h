@@ -140,10 +140,11 @@ std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
   Debug("ReadStringView(), length=%zu: ", length);
 
   std::string_view result(sink.data() + read_total, length);
-  Debug("%p, read %zu bytes\n", result.data(), result.size());
+  Debug("%p, read %zu bytes", result.data(), result.size());
   if (mode == StringLogMode::kAddressAndContent) {
-    Debug("%s", result);
+    Debug(", content:%s%s", length > 32 ? "\n" : " ", result);
   }
+  Debug("\n");
 
   read_total += length;
   return result;
