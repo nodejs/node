@@ -10,7 +10,7 @@ Node.js APIs might be deprecated for any of the following reasons:
 * An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
-Node.js uses four kinds of Deprecations:
+Node.js uses four kinds of deprecations:
 
 * Documentation-only
 * Runtime (non-`node_modules` code only)
