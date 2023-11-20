@@ -22,7 +22,7 @@ class EnvKey {
     own_buffer->resize(length);
   }
 
-  bool has_own_buffer() const {
+  [[nodiscard]] bool has_own_buffer() const {
     return own_buffer != nullptr;
   }
 
