@@ -180,11 +180,14 @@ TEST_F(DotEnvTest, BackTickQuote) {
   EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
   EXPECT_EQ(*env_pairs.at(2)->value->value, "this\nshouldn'twork");
   EXPECT_EQ(*env_pairs.at(3)->key->key, "d");
-  EXPECT_EQ(*env_pairs.at(3)->value->value, "double \"quotes\" and single 'quotes' work inside backticks");
+  EXPECT_EQ(*env_pairs.at(3)->value->value,
+            "double \"quotes\" and single 'quotes' work inside backticks");
   EXPECT_EQ(*env_pairs.at(4)->key->key, "e");
-  EXPECT_EQ(*env_pairs.at(4)->value->value, "`backticks` work inside single quotes");
+  EXPECT_EQ(*env_pairs.at(4)->value->value,
+            "`backticks` work inside single quotes");
   EXPECT_EQ(*env_pairs.at(5)->key->key, "f");
-  EXPECT_EQ(*env_pairs.at(5)->value->value, "`backticks` work inside double quotes");
+  EXPECT_EQ(*env_pairs.at(5)->value->value,
+            "`backticks` work inside double quotes");
   EnvReader::delete_pairs(&env_pairs);
 }
 
