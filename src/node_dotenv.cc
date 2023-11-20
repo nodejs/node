@@ -52,11 +52,6 @@ void Dotenv::SetEnvironment(node::Environment* env) {
     auto existing = env->env_vars()->Get(key.data());
 
     if (existing.IsNothing()) {
-      size_t found = value.find("\\\"");
-      while (found != std::string::npos) {
-        value.replace(found, 2, "\"");
-        found = value.find("\\\"", found + 1);
-      }
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
@@ -155,6 +150,13 @@ void Dotenv::ParseLine(const std::string_view line) {
     }
 
     value.erase(end_quotation_index);
+
+    // Remove escaping slash
+    size_t found = value.find("\\");
+    while (found != std::string::npos) {
+      value.erase(found, 1);
+      found = value.find("\\", found + 1);
+    }
   } else {
     auto hash_index = value.find('#');
 
