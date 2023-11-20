@@ -31,6 +31,7 @@ describe('sourcemaps output', { concurrency: true }, () => {
     { name: 'source-map/output/source_map_enclosing_function.js' },
     { name: 'source-map/output/source_map_eval.js' },
     { name: 'source-map/output/source_map_no_source_file.js' },
+    { name: 'source-map/output/source_map_prepare_stack_trace.js' },
     { name: 'source-map/output/source_map_reference_error_tabs.js' },
     { name: 'source-map/output/source_map_sourcemapping_url_string.js' },
     { name: 'source-map/output/source_map_throw_catch.js' },
