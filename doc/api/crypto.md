@@ -2722,7 +2722,7 @@ added: v15.9.0
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
 
-### `x509.keyUsage`
+### `x509.extKeyUsage`
 
 <!-- YAML
 added: v15.6.0
@@ -2730,7 +2730,7 @@ added: v15.6.0
 
 * Type: {string\[]}
 
-An array detailing the key usages for this certificate.
+An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 
