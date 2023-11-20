@@ -13,7 +13,7 @@ Node.js APIs might be deprecated for any of the following reasons:
 Node.js uses four kinds of deprecations:
 
 * Documentation-only
-* Runtime (non-`node_modules` code only)
+* Application (non-`node_modules` code only)
 * Runtime (all code)
 * End-of-Life
 
@@ -26,7 +26,7 @@ deprecations below. Documentation-only deprecations that support that flag
 are explicitly labeled as such in the
 [list of Deprecated APIs](#list-of-deprecated-apis).
 
-A Runtime deprecation for only non-`node_modules` code will, by default,
+An Application deprecation for only non-`node_modules` code will, by default,
 generate a process warning that will be printed to `stderr` the first time
 the deprecated API is used in code that's not loaded from `node_modules`.
 When the [`--throw-deprecation`][] command-line flag is used, a Runtime
