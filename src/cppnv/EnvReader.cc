@@ -4,21 +4,20 @@
 namespace cppnv {
 EnvReader::read_result EnvReader::read_pair(EnvStream* file,
                                             const EnvPair* pair) {
-  switch (read_key(file, pair->key)) {
-    case end_of_stream_key:
-      return end_of_stream_key;
-    case fail:
-    case empty:
-      return fail;
-    case comment_encountered:
-      // this means comment encountered in the key since you can encounter
-      // an empty value comment like "a=#"
-      return comment_encountered;
-    case end_of_stream_value:
-      return success;  // we know we hit = and end of stream
-    case success:
-      break;
+  const read_result result = read_key(file, pair->key);
+  if (result == end_of_stream_key) {
+    return end_of_stream_key;
   }
+  if (result == fail || result == empty) {
+    return fail;
+  }
+  if (result == comment_encountered) {
+    return comment_encountered;
+  }
+  if (result == end_of_stream_value) {
+    return success;
+  }
+
   if (!pair->key->has_own_buffer()) {
     const auto tmp_str = new std::string(pair->key->key_index, '\0');
 
@@ -33,40 +32,40 @@ EnvReader::read_result EnvReader::read_pair(EnvStream* file,
     pair->key->clip_own_buffer(pair->key->key_index);
   }
   pair->value->value->clear();
-  switch (read_value(file, pair->value)) {
-    case end_of_stream_value:
-      return end_of_stream_value;  // implicitly a success "a="
-    case comment_encountered:
-    case success:
-      if (!pair->value->has_own_buffer()) {
-        const auto tmp_str =
-            new std::string(pair->value->value_index, '\0');
-
-        tmp_str->replace(0,
-                         pair->value->value_index,
-                         *pair->value->value,
-                         0,
-                         pair->value->value_index);
-
-        pair->value->
-              set_own_buffer(tmp_str);
-      } else {
-        pair->value->clip_own_buffer(pair->value->value_index);
-      }
-      remove_unclosed_interpolation(pair->value);
-      return success;  // empty key is still success
-    case empty:
-      remove_unclosed_interpolation(pair->value);
-      return empty;
-
-    case end_of_stream_key:
-      remove_unclosed_interpolation(pair->value);
-      return end_of_stream_key;
-    default:
-    case fail:
-      remove_unclosed_interpolation(pair->value);
-      return fail;
+  const read_result value_result = read_value(file, pair->value);
+  if (value_result == end_of_stream_value) {
+    return end_of_stream_value;
   }
+  if (value_result == comment_encountered || value_result == success) {
+    if (!pair->value->has_own_buffer()) {
+      const auto tmp_str =
+          new std::string(pair->value->value_index, '\0');
+
+      tmp_str->replace(0,
+                       pair->value->value_index,
+                       *pair->value->value,
+                       0,
+                       pair->value->value_index);
+
+      pair->value->
+            set_own_buffer(tmp_str);
+    } else {
+      pair->value->clip_own_buffer(pair->value->value_index);
+    }
+    remove_unclosed_interpolation(pair->value);
+    return success;
+  }
+  if (value_result == empty) {
+    remove_unclosed_interpolation(pair->value);
+    return empty;
+  }
+  if (value_result == end_of_stream_key) {
+    remove_unclosed_interpolation(pair->value);
+    return end_of_stream_key;
+  }
+
+  remove_unclosed_interpolation(pair->value);
+  return fail;
 }
 
 
@@ -83,24 +82,25 @@ int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
     pair->key->key = &buffer;
     pair->value = new EnvValue();
     pair->value->value = &buffer;
-    switch (read_pair(file, pair)) {
-      case end_of_stream_value:
+    const read_result result = read_pair(file, pair);
+    if (result == end_of_stream_value) {
+      expect_more = false;
+      pairs->push_back(pair);
+      count++;
+      continue;
+    }
+    if (result == success) {
+      pairs->push_back(pair);
+      count++;
+      continue;
+    }
+    if (result == end_of_stream_key || result == fail || result == empty) {
+      if (result == end_of_stream_key) {
         expect_more = false;
-      [[fallthrough]];
-      case success:
-        pairs->push_back(pair);
-        count++;
-        continue;
-      case end_of_stream_key:
-        expect_more = false;
-      case fail:
-        [[fallthrough]];
-      case comment_encountered:
-      [[fallthrough]];
-      case empty:
-        delete pair->key;
-        delete pair->value;
-        delete pair;
+      }
+      delete pair->key;
+      delete pair->value;
+      delete pair;
     }
   }
 
@@ -145,7 +145,7 @@ int EnvReader::read_pairs(EnvStream* file,
         continue;
       case end_of_stream_key:
         expect_more = false;
-      [[fallthrough]];
+        [[fallthrough]];
       case fail:
         [[fallthrough]];
       case empty:
@@ -561,9 +561,10 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       case '\'':
         break;
       case '#':
-
+        if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
+            !value->triple_double_quoted) {
           return false;
-
+        }
 
       default:
         if (!value->quoted && !value->triple_quoted) {

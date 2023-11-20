@@ -75,10 +75,6 @@ f='''# fek''' garfa)");
 }
 
 TEST_F(DotEnvTest, SingleQuotedWithMoreGarbage) {
-  //   string codes(R"(# blah
-  //
-  // a=1
-  // )"
   string codes(R"(a='\t ${b}' asdfasdf
 b='' asdfasdf
 c='a' asdfasdf

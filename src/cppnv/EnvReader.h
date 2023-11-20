@@ -1,7 +1,7 @@
 #ifndef SRC_CPPNV_ENVREADER_H_
 #define SRC_CPPNV_ENVREADER_H_
 #include <iostream>
-#include <istream>
+#include <cstring>
 #include "EnvStream.h"
 #include <map>
 #include <vector>
