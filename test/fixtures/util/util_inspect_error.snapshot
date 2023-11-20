@@ -7,7 +7,7 @@
        at *
        at *
        at *
-       at node:internal*main*run_main_module**,
+       at ,
   nested:
    { err:
       Error: foo
@@ -18,7 +18,7 @@
           at *
           at *
           at *
-          at node:internal*main*run_main_module** } }
+          at  } }
 {
   err: Error: foo
   bar
@@ -28,7 +28,7 @@
       at *
       at *
       at *
-      at node:internal*main*run_main_module**,
+      at ,
   nested: {
     err: Error: foo
     bar

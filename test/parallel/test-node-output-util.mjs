@@ -11,13 +11,29 @@ function replaceStackTrace(str) {
 
 function normalize(str) {
   return str
-    .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
-    .replaceAll('/', '*')
-    .replaceAll(process.version, '*')
-    .replaceAll(/:\d+/g, '*');
+  .replaceAll(process.version, '*')
+  .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
+  .replaceAll('/', '*')
+  .replaceAll(/\d+/g, '*')
+  .replaceAll('\x1B', '*')
+  .replaceAll('process.processTicksAndRejections', '')
+  .replaceAll('(node:internal*process*task_queues:*:*)', '')
+  .replaceAll('node:internal*main*run_main_module:*:*', '')
+  .replace(/[^\x00-\x7F]/g, '90')
+  .replace(/\u001b\[\d+m/g, '39')
+  // .replaceAll(/(\[*m\W+)at .*node:.*/g, '$1at *[39m')
+  // .replaceAll('*internals*', '*')
+  // .replaceAll(/\d+:\d+/g, '')
+  // .replaceAll(/:\d+/g, ':*')
+  // .replaceAll('process.processTicksAndRejections (node:internal*process*task_queues:*:*)', '');
+  // .replaceAll('//', '*')
+  // .replaceAll(/\/(\w)/g, '*$1')
+  // .replaceAll('*test*', '*')
+  // .replaceAll('*fixtures*errors*', '*')
+  // .replaceAll('file:**', 'file:*/');
 }
 const common = snapshot
-  .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
+.transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
 
 const defaultTransform = snapshot.transform(common, replaceStackTrace, normalize);
 
@@ -27,9 +43,9 @@ const tests = [
 ];
 
 describe('util output', { concurrency: true }, () => {
-  for (const { name, transform } of tests) {
+  for (const { name } of tests) {
     it(name, async () => {
-      await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform);
+      await snapshot.spawnAndAssert(fixtures.path(name), defaultTransform);
     });
   }
 });
