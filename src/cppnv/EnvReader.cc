@@ -5,19 +5,27 @@ namespace cppnv {
 EnvReader::read_result EnvReader::read_pair(EnvStream* file,
                                             const EnvPair* pair) {
   const read_result result = read_key(file, pair->key);
-  if (result == end_of_stream_key) {
-    return end_of_stream_key;
-  }
   if (result == fail || result == empty) {
     return fail;
   }
   if (result == comment_encountered) {
     return comment_encountered;
   }
+  if (result == end_of_stream_key) {
+    return end_of_stream_key;
+  }
+
   if (result == end_of_stream_value) {
     return success;
   }
+  //  trim right side of key
+  while (pair->key->key_index > 0) {
+    if (pair->key->key->at(pair->key->key_index -1) != ' ') {
+      break;
+    }
+    pair->key->key_index--;
 
+  }
   if (!pair->key->has_own_buffer()) {
     const auto tmp_str = new std::string(pair->key->key_index, '\0');
 
@@ -211,6 +219,13 @@ EnvReader::read_result EnvReader::read_key(EnvStream* file, EnvKey* key) {
       return comment_encountered;
     }
     switch (key_char) {
+      case ' ':
+        if(key->key_index == 0) {
+          continue; //left trim keys
+        }
+        key->key->push_back(key_char);
+        key->key_index++;  // I choose to support things like abc dc=ef
+        break;
       case '=':
         if (!file->good()) {
           return end_of_stream_value;
@@ -551,29 +566,41 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   // it is an implicit double quote.
   if (value->value_index == 0) {
     if (key_char == '`') {
+
       if (value->back_tick_quoted) {
           return false;
       }
-      value->double_quoted = true;
-      value->back_tick_quoted = true;
-      return true;
+      if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
+          !value->triple_double_quoted) {
+        value->double_quoted = true;
+        value->back_tick_quoted = true;
+        return true;
+      }
+
     }
+
     if (key_char == '#') {
       if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
           !value->triple_double_quoted) {
         return false;
       }
-    } else if (!(key_char == '"' || key_char == '\'')) {
-      if (!value->quoted && !value->triple_quoted) {
+    }
+    else if (!(key_char == '"' || key_char == '\'')) {
+      if (!value->quoted && !value->triple_quoted && !value->double_quoted
+        && !value->triple_double_quoted) {
         value->double_quoted = true;
         value->implicit_double_quote = true;
       }
     }
+    if (key_char == ' ' && value->implicit_double_quote) {
+      return true;  // trim left strings on implicit quotes
+    }
   }
   switch (key_char) {
+
     case '`':
       if (value->back_tick_quoted) {
-        return true;
+        return false;
       }
       add_to_buffer(value, key_char);
       break;
@@ -586,6 +613,11 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
     case '\n':
       if (!(value->triple_double_quoted || value->triple_quoted || (value->
               double_quoted && !value->implicit_double_quote))) {
+        if (value->value_index > 0) {
+          if (value->value->at(value->value_index - 1 ) == '\r') {
+            value->value_index--;
+          }
+        }
         return false;
       }
       add_to_buffer(value, key_char);
@@ -629,7 +661,7 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       return true;
 
     case '"':
-      if (!value->quoted && !value->triple_quoted && !value->back_tick_quoted) {
+      if (!value->quoted && !value->triple_quoted && !value->back_tick_quoted && !value->implicit_double_quote) {
         value->double_quote_streak++;
       } else {
         add_to_buffer(value, key_char);
@@ -700,6 +732,16 @@ EnvReader::read_result EnvReader::read_value(EnvStream* file,
       if (key_char != '\n') {
         clear_garbage(file);
       }
+    }
+  }
+  // trim right side of implicit double quote
+  if (value->implicit_double_quote) {
+    while (value->value_index > 0) {
+      if (value->value->at(value->value_index -1) != ' ') {
+        break;
+      }
+      value->value_index--;
+
     }
   }
   return success;

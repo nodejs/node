@@ -16,10 +16,41 @@ class DotEnvTest : public EnvironmentTestFixture {
 TEST_F(DotEnvTest, ReadDotEnvFile) {
   // std::vector<EnvPair*> env_pairs;
   //
-  string basic("a=bc\n"
+  string basic("    SPACED_KEY = parsed\n"
+      "a=bc\n"
       "b=cdd\n"
       "l=asff\n"
-      "d=e\n"
+      "d=e\r\n"
+      "b\n");
+  EnvStream basic_stream(&basic);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(&basic_stream, &env_pairs);
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 5);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "SPACED_KEY");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "parsed");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "bc");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "cdd");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "l");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "asff");
+  EXPECT_EQ(*env_pairs.at(4)->key->key, "d");
+  EXPECT_EQ(*env_pairs.at(4)->value->value, "e");
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+TEST_F(DotEnvTest, DoubleQuotes) {
+  // std::vector<EnvPair*> env_pairs;
+  //
+  string basic("a=\"    double quotes    \"\n"
+      "b=\"cdd\"\n"
+      "l=\"asff\nc\"\n"
+      "d=e\r\n"
       "b\n");
   EnvStream basic_stream(&basic);
 
@@ -31,11 +62,11 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
 
   EXPECT_EQ(env_pairs.size(), 4);
   EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
-  EXPECT_EQ(*env_pairs.at(0)->value->value, "bc");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "    double quotes    ");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
   EXPECT_EQ(*env_pairs.at(1)->value->value, "cdd");
   EXPECT_EQ(*env_pairs.at(2)->key->key, "l");
-  EXPECT_EQ(*env_pairs.at(2)->value->value, "asff");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "asff\nc");
   EXPECT_EQ(*env_pairs.at(3)->key->key, "d");
   EXPECT_EQ(*env_pairs.at(3)->value->value, "e");
   EnvReader::delete_pairs(&env_pairs);
@@ -127,7 +158,10 @@ TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
 TEST_F(DotEnvTest, BackTickQuote) {
   string codes("a=`hello `#comment\n"
       "b=``#comment\n"
-      "c=`this\\nshouldn'twork`");
+      "c=`this\\nshouldn'twork`\n"
+      "d=`double \"quotes\" and single 'quotes' work inside backticks`\n"
+      "e='`backticks` work inside single quotes'\n"
+      "f='`backticks` work inside double quotes'");
 
   EnvStream codes_stream(&codes);
 
@@ -138,18 +172,25 @@ TEST_F(DotEnvTest, BackTickQuote) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
 
-  EXPECT_EQ(env_pairs.size(), 3);
+  EXPECT_EQ(env_pairs.size(), 6);
   EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "hello ");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
   EXPECT_EQ(*env_pairs.at(1)->value->value, "");
   EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
   EXPECT_EQ(*env_pairs.at(2)->value->value, "this\nshouldn'twork");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "d");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "double \"quotes\" and single 'quotes' work inside backticks");
+  EXPECT_EQ(*env_pairs.at(4)->key->key, "e");
+  EXPECT_EQ(*env_pairs.at(4)->value->value, "`backticks` work inside single quotes");
+  EXPECT_EQ(*env_pairs.at(5)->key->key, "f");
+  EXPECT_EQ(*env_pairs.at(5)->value->value, "`backticks` work inside double quotes");
   EnvReader::delete_pairs(&env_pairs);
 }
 
 TEST_F(DotEnvTest, ImplicitDoubleQuote) {
-  string codes("a=hello #comment\n"
+  string codes("k=    some spaced out string    \n"
+      "a=hello #comment\n"
       "b=#comment\n"
       "c=this\\nshouldn'twork");
 
@@ -162,13 +203,15 @@ TEST_F(DotEnvTest, ImplicitDoubleQuote) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
 
-  EXPECT_EQ(env_pairs.size(), 3);
-  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
-  EXPECT_EQ(*env_pairs.at(0)->value->value, "hello ");
-  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
-  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
-  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
-  EXPECT_EQ(*env_pairs.at(2)->value->value, "this\nshouldn'twork");
+  EXPECT_EQ(env_pairs.size(), 4);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "k");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "some spaced out string");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "hello");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "this\nshouldn'twork");
   EnvReader::delete_pairs(&env_pairs);
 }
 
