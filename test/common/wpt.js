@@ -610,7 +610,7 @@ class WPTRunner {
       'ReadableStreamBYOBReader', 'ReadableStreamBYOBRequest',
       'ReadableByteStreamController', 'ReadableStreamDefaultController',
       'ByteLengthQueuingStrategy', 'CountQueuingStrategy',
-      'TextEncoderStream', 'TextDecoderStream',
+      'TextEncoder', 'TextDecoder', 'TextEncoderStream', 'TextDecoderStream',
       'CompressionStream', 'DecompressionStream',
     ];
     if (Boolean(process.versions.openssl) && !process.env.NODE_SKIP_CRYPTO) {
