@@ -1,11 +1,4 @@
 {
-  "idlharness.any.js": {
-    "fail": {
-      "expected": [
-        "ReadableStream interface: operation from(any)"
-      ]
-    }
-  },
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
   },
