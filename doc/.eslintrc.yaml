@@ -13,5 +13,5 @@ rules:
   prefer-rest-params: error
   prefer-template: error
 
-  # Stylistic Issues
-  no-multiple-empty-lines: [error, {max: 1, maxEOF: 0, maxBOF: 0}]
+  # Stylistic rules
+  '@stylistic/js/no-multiple-empty-lines': [error, {max: 1, maxEOF: 0, maxBOF: 0}]
