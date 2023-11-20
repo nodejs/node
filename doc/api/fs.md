@@ -904,6 +904,39 @@ condition, since other processes may change the file's state between the two
 calls. Instead, user code should open/read/write the file directly and handle
 the error raised if the file is not accessible.
 
+### `fsPromises.existing(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `path` {string|Buffer|URL}
+* Returns: {Promise} Fulfills with `string` representing path upon success.
+
+Tests a user's accessibility for the file or directory specified by `path`.
+
+If the accessibility check is successful, the promise is fulfilled with the
+path that was passed to it. If any of the accessibility checks fail, the promise
+is fulfilled with empty string.
+
+The following example checks if the file `/etc/passwd` can be read and written
+by the current process:
+
+```mjs
+import { existing } from 'node:fs/promises';
+
+const existingPasswdFilepath = await existing('/etc/passwd');
+if(existingPasswdFilepath){
+  ... do something with the existingPasswdFilepath
+}
+```
+
+Using `fsPromises.existing()` to check for the accessibility of a file before
+calling `fsPromises.open()` is not recommended. Doing so introduces a race
+condition, since other processes may change the file's state between the two
+calls. Instead, user code should open/read/write the file directly and handle
+the error raised if the file is not accessible.
+
 ### `fsPromises.appendFile(path, data[, options])`
 
 <!-- YAML
