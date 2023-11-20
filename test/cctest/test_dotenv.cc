@@ -4,8 +4,8 @@
 #include "node_test_fixture.h"
 #include "cppnv/EnvReader.h"
 
-using cppnv::EnvReader;
 using cppnv::EnvPair;
+using cppnv::EnvReader;
 using cppnv::EnvStream;
 using cppnv::VariablePosition;
 using std::string;
