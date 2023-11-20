@@ -37,7 +37,7 @@
     "skip": "The iso-8859-16 encoding is not supported"
   },
   "idlharness.any.js": {
-    "skip": "No implementation of TextDecoderStream and TextEncoderStream"
+    "requires": ["small-icu"]
   },
   "idlharness-shadowrealm.window.js": {
     "skip": "ShadowRealm support is not enabled"
