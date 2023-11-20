@@ -565,7 +565,7 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
             !value->triple_double_quoted) {
           return false;
         }
-
+        break;
       default:
         if (!value->quoted && !value->triple_quoted) {
           value->double_quoted = true;
