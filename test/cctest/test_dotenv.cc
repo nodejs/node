@@ -7,7 +7,6 @@
 using cppnv::EnvPair;
 using cppnv::EnvReader;
 using cppnv::EnvStream;
-using cppnv::VariablePosition;
 using std::string;
 
 

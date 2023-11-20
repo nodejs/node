@@ -6,10 +6,6 @@
 #include "util-inl.h"
 #include "cppnv/EnvReader.h"
 #include <map>
-using cppnv::EnvPair;
-using cppnv::EnvReader;
-using cppnv::EnvStream;
-
 
 
 namespace node {

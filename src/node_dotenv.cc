@@ -4,6 +4,9 @@
 #include "uv.h"
 
 namespace node {
+using cppnv::EnvPair;
+using cppnv::EnvReader;
+using cppnv::EnvStream;
 using v8::NewStringType;
 using v8::String;
 
