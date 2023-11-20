@@ -426,19 +426,6 @@ TEST_F(DotEnvTest, InterpolateUnClosed) {
   EnvReader::read_pairs(&interpolate_escaped_stream, &env_pairs);
 
   for (const auto pair : env_pairs) {
-    // for (const VariablePosition* interpolation : *pair->value->
-    //      interpolations) {
-    //   std::cout << "Interpolation: " << interpolation->variable_start << " -> "
-    //       << interpolation->variable_end << " length: " << (
-    //         interpolation->variable_end - interpolation->variable_start) + 1
-    //       << std::endl;
-    //
-    //   std::cout << pair->value->value->substr(interpolation->variable_start,
-    //                                           (interpolation->variable_end -
-    //                                            interpolation->variable_start) +
-    //                                           1) <<
-    //       std::endl;
-    // }
     EnvReader::finalize_value(pair, &env_pairs);
   }
 
