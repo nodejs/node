@@ -124,6 +124,29 @@ TEST_F(DotEnvTest, SingleQuotedWithGarbage) {
   EnvReader::delete_pairs(&env_pairs);
 }
 
+TEST_F(DotEnvTest, BackTickQuote) {
+  string codes("a=`hello `#comment\n"
+      "b=``#comment\n"
+      "c=`this\\nshouldn'twork`");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 3);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "a");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "hello ");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "b");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "c");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "this\nshouldn'twork");
+  EnvReader::delete_pairs(&env_pairs);
+}
 
 TEST_F(DotEnvTest, ImplicitDoubleQuote) {
   string codes("a=hello #comment\n"

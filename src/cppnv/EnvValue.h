@@ -15,6 +15,7 @@ struct EnvValue {
   bool double_quoted = false;
   bool triple_double_quoted = false;
   bool implicit_double_quote = false;
+  bool back_tick_quoted = false;
   int value_index = 0;
   bool is_already_interpolated = false;
   bool is_being_interpolated = false;

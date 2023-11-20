@@ -550,6 +550,14 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   // Check to see if the first character is a ' or ". If it is neither,
   // it is an implicit double quote.
   if (value->value_index == 0) {
+    if (key_char == '`') {
+      if(value->back_tick_quoted) {
+          return false;
+      }
+      value->double_quoted = true;
+      value->back_tick_quoted = true;
+      return true;
+    }
     if (key_char == '#') {
       if (!value->quoted && !value->triple_quoted && !value->double_quoted &&
           !value->triple_double_quoted) {
@@ -563,6 +571,12 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
     }
   }
   switch (key_char) {
+    case '`':
+      if(value->back_tick_quoted) {
+        return true;
+      }
+      add_to_buffer(value, key_char);
+      break;
     case '#':
       if (value->implicit_double_quote) {
         return false;
@@ -577,6 +591,7 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
       add_to_buffer(value, key_char);
       return true;
     case '\\':
+
       if (value->quoted || value->triple_quoted) {
         add_to_buffer(value, key_char);
         return true;
@@ -612,8 +627,9 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
         add_to_buffer(value, key_char);
       }
       return true;
+
     case '"':
-      if (!value->quoted && !value->triple_quoted) {
+      if (!value->quoted && !value->triple_quoted && !value->back_tick_quoted) {
         value->double_quote_streak++;
       } else {
         add_to_buffer(value, key_char);
