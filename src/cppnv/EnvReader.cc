@@ -86,7 +86,7 @@ int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
     switch (read_pair(file, pair)) {
       case end_of_stream_value:
         expect_more = false;
-      [[fallthrough]]
+      [[fallthrough]];
       case success:
         pairs->push_back(pair);
         count++;
@@ -94,9 +94,9 @@ int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
       case end_of_stream_key:
         expect_more = false;
       case fail:
-        [[fallthrough]]
+        [[fallthrough]];
       case comment_encountered:
-      [[fallthrough]]
+      [[fallthrough]];
       case empty:
         delete pair->key;
         delete pair->value;
@@ -137,7 +137,7 @@ int EnvReader::read_pairs(EnvStream* file,
       case end_of_stream_value:
         expect_more = false;
       case comment_encountered:
-        [[fallthrough]]
+        [[fallthrough]];
       case success:
 
         mapped_pairs->insert_or_assign(*pair->key->key, pair);
@@ -145,9 +145,9 @@ int EnvReader::read_pairs(EnvStream* file,
         continue;
       case end_of_stream_key:
         expect_more = false;
-      [[fallthrough]]
+      [[fallthrough]];
       case fail:
-        [[fallthrough]]
+        [[fallthrough]];
       case empty:
         delete pair->key;
         delete pair->value;
