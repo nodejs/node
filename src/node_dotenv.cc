@@ -103,7 +103,7 @@ bool Dotenv::ParsePath(const std::string_view path) {
     result.append(buf.base, r);
   }
 
-  //using std::string_view_literals::operator""sv;
+
   EnvStream env_stream(&result);
 
   std::vector<EnvPair*> env_pairs;
@@ -114,11 +114,7 @@ bool Dotenv::ParsePath(const std::string_view path) {
     store_.insert_or_assign(*pair->key->key, *pair->value->value);
   }
   EnvReader::delete_pairs(&env_pairs);
-  // auto lines = SplitString(result, "\n"sv);
-  //
-  // for (const auto& line : lines) {
-  //   ParseLine(line);
-  // }
+
   return true;
 }
 
@@ -182,4 +178,4 @@ void Dotenv::ParseLine(const std::string_view line) {
 
   store_.insert_or_assign(std::string(key), value);
 }
-} // namespace node
+}  // namespace node

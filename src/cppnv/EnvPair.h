@@ -1,5 +1,5 @@
-﻿#ifndef ENVPAIR_H
-#define ENVPAIR_H
+#ifndef SRC_CPPNV_ENVPAIR_H_
+#define SRC_CPPNV_ENVPAIR_H_
 #include "EnvKey.h"
 #include "EnvValue.h"
 namespace cppnv {
@@ -8,4 +8,4 @@ struct EnvPair {
   EnvValue* value;
 };
 }
-#endif  // ENVPAIR_H
+#endif  // SRC_CPPNV_ENVPAIR_H_

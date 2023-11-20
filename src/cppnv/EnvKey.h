@@ -1,5 +1,5 @@
-﻿#ifndef ENVKEY_H
-#define ENVKEY_H
+#ifndef SRC_CPPNV_ENVKEY_H_
+#define SRC_CPPNV_ENVKEY_H_
 #include <string>
 
 namespace cppnv {
@@ -38,4 +38,4 @@ class EnvKey {
   }
 };
 }  // namespace cppnv
-#endif  // ENVKEY_H
+#endif  // SRC_CPPNV_ENVKEY_H_

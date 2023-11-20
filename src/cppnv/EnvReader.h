@@ -1,5 +1,5 @@
-﻿#ifndef ENVREADER_H
-#define ENVREADER_H
+#ifndef SRC_CPPNV_ENVREADER_H_
+#define SRC_CPPNV_ENVREADER_H_
 #include <iostream>
 #include <istream>
 #include "EnvStream.h"
@@ -65,4 +65,4 @@ class EnvReader {
                         std::map<std::string, EnvPair*>* mapped_pairs);
 };
 }  // namespace cppnv
-#endif  // ENVREADER_H
+#endif  // SRC_CPPNV_ENVREADER_H_

@@ -1,4 +1,4 @@
-﻿#include "EnvStream.h"
+#include "EnvStream.h"
 
 cppnv::EnvStream::EnvStream(std::string* data) {
   this->data_ = data;

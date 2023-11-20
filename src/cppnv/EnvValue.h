@@ -1,5 +1,5 @@
-﻿#ifndef ENVVALUE_H
-#define ENVVALUE_H
+#ifndef SRC_CPPNV_ENVVALUE_H_
+#define SRC_CPPNV_ENVVALUE_H_
 #include <string>
 #include <vector>
 
@@ -52,4 +52,4 @@ struct EnvValue {
   }
 };
 }   // namespace cppnv
-#endif  // ENVVALUE_H
+#endif  // SRC_CPPNV_ENVVALUE_H_

@@ -1,5 +1,5 @@
-﻿#ifndef ENVSTREAM_H
-#define ENVSTREAM_H
+#ifndef SRC_CPPNV_ENVSTREAM_H_
+#define SRC_CPPNV_ENVSTREAM_H_
 #include "string"
 
 namespace cppnv {
@@ -17,4 +17,4 @@ class EnvStream {
 };
 }  // namespace cppnv
 
-#endif
+#endif  // SRC_CPPNV_ENVSTREAM_H_

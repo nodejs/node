@@ -1,4 +1,4 @@
-﻿#include "VariablePosition.h"
+#include "VariablePosition.h"
 
 namespace cppnv {
 VariablePosition::VariablePosition(const int variable_start,

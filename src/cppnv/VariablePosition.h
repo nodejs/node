@@ -1,5 +1,5 @@
-﻿#ifndef VARIABLEPOSITION_H
-#define VARIABLEPOSITION_H
+#ifndef SRC_CPPNV_VARIABLEPOSITION_H_
+#define SRC_CPPNV_VARIABLEPOSITION_H_
 #include <string>
 
 namespace cppnv {
@@ -18,4 +18,4 @@ struct VariablePosition {
   bool closed = false;
 };
 }  // namespace cppnv
-#endif  // VARIABLEPOSITION_H
+#endif  // SRC_CPPNV_VARIABLEPOSITION_H_
