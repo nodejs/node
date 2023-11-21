@@ -153,6 +153,9 @@ the nomination.
 
 The nomination passes if no collaborators oppose it after one week. Otherwise,
 the nomination fails.
+Maintaining the list of collaborators is a key reponsibility
+of the [Node.js TSC](https://github.com/nodejs/TSC/blob/main/TSC-Charter.md#section-4-responsibilities-of-the-tsc),
+and as a result the TSC can decide to override the opposition.
 
 There are steps a nominator can take in advance to make a nomination as
 frictionless as possible. To request feedback from other collaborators in
