@@ -107,6 +107,18 @@ changes:
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
 
+### `module.releaseResolvedModule(resolvedURL)`
+
+<!-- YAML
+added: x.x.x
+-->
+
+> Stability: 1 - Experimental
+
+* `resolvedURL` {string} The fully-resolved URL of a module.
+
+Clears the given module from the ESM resolve and load caches.
+
 ### `module.syncBuiltinESMExports()`
 
 <!-- YAML
