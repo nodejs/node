@@ -668,7 +668,9 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   return true;
 }
 
-// Used only when checking closed and open variables because the { }  // have been added to the buffer  // it needs to check 2 values back.
+// Used only when checking closed and open variables because the { }
+// // have been added to the buffer
+// // it needs to check 2 values back.
 bool EnvReader::is_previous_char_an_escape(const EnvValue* value) {
   return value->value_index > 1
          && value->value->at(value->value_index - 2) ==
@@ -719,7 +721,8 @@ EnvReader::read_result EnvReader::read_value(EnvStream* file,
       }
     }
   }
-  if ((value->triple_double_quoted || value->triple_quoted) && key_char != '\n') {
+  if ((value->triple_double_quoted || value->triple_quoted)
+    && key_char != '\n') {
     clear_garbage(file);
   }
   if (value->double_quote_streak > 0) {
