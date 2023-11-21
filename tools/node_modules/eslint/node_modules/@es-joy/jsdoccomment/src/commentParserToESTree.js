@@ -268,6 +268,7 @@ const commentParserToESTree = (jsdoc, mode, {
       }
 
       const {
+        // eslint-disable-next-line no-unused-vars -- Discarding
         end: ed,
         delimiter: de,
         postDelimiter: pd,

@@ -39,10 +39,8 @@ const BABEL_PRESET_ORG_RE = /^(@babel\/)(?!preset-|[^/]+\/)/;
 const OTHER_PLUGIN_ORG_RE = /^(@(?!babel\/)[^/]+\/)(?![^/]*babel-plugin(?:-|\/|$)|[^/]+\/)/;
 const OTHER_PRESET_ORG_RE = /^(@(?!babel\/)[^/]+\/)(?![^/]*babel-preset(?:-|\/|$)|[^/]+\/)/;
 const OTHER_ORG_DEFAULT_RE = /^(@(?!babel$)[^/]+)$/;
-const resolvePlugin = resolveStandardizedName.bind(null, "plugin");
-exports.resolvePlugin = resolvePlugin;
-const resolvePreset = resolveStandardizedName.bind(null, "preset");
-exports.resolvePreset = resolvePreset;
+const resolvePlugin = exports.resolvePlugin = resolveStandardizedName.bind(null, "plugin");
+const resolvePreset = exports.resolvePreset = resolveStandardizedName.bind(null, "preset");
 function* loadPlugin(name, dirname) {
   const filepath = resolvePlugin(name, dirname, yield* (0, _async.isAsync)());
   const value = yield* requireModule("plugin", filepath);

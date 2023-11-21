@@ -63,7 +63,7 @@ function isHelper(node) {
 function isType(node) {
   return isLiteral(node) || isObjectExpression(node) || isArrayExpression(node) || isIdentifier(node) || isMemberExpression(node);
 }
-const nodes = {
+const nodes = exports.nodes = {
   AssignmentExpression(node) {
     const state = crawl(node.right);
     if (state.hasCall && state.hasHelper || state.hasFunction) {
@@ -112,7 +112,6 @@ const nodes = {
     }
   }
 };
-exports.nodes = nodes;
 nodes.ObjectProperty = nodes.ObjectTypeProperty = nodes.ObjectMethod = function (node, parent) {
   if (parent.properties[0] === node) {
     return 1;
