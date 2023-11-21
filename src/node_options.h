@@ -138,6 +138,7 @@ class EnvironmentOptions : public Options {
   bool allow_native_addons = true;
   bool global_search_paths = true;
   bool warnings = true;
+  std::vector<std::string> disable_warnings;
   bool force_context_aware = false;
   bool pending_deprecation = false;
   bool preserve_symlinks = false;
