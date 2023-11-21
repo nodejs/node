@@ -331,10 +331,10 @@ TEST_F(DotEnvTest, ControlCodes) {
   string codes(R"(a=\tb\n
 b=\\\\
 c=\\\\t
-d=\\\\\t
-e= \\ \\ \ \\ \\\\t
-f= \\ \\ \b \\ \\\\t
-g= \\ \\ \r \\ \\\\b\n)");
+d="\\\\\t"
+e=" \\ \\ \ \\ \\\\t"
+f=" \\ \\ \b \\ \\\\t"
+g=" \\ \\ \r \\ \\\\b\n")");
 
   EnvStream codes_stream(&codes);
 
