@@ -715,6 +715,8 @@ maintaining the Node.js project.
   **Qingyu Deng** <<i@ayase-lab.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
   **Brian Muenzenmeyer** <<brian.muenzenmeyer@gmail.com>> (he/him)
+* [CanadaHonk](https://github.com/CanadaHonk) -
+  **Oliver Medhurst** <<honk@goose.icu>> (they/them)
 * [daeyeon](https://github.com/daeyeon) -
   **Daeyeon Jeong** <<daeyeon.dev@gmail.com>> (he/him)
 * [F3n67u](https://github.com/F3n67u) -
