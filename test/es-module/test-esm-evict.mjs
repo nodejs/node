@@ -1,6 +1,6 @@
 import '../common/index.mjs';
 import { strictEqual } from 'node:assert';
-import { releaseLoadedModule } from 'node:module';
+import { releaseResolvedModule } from 'node:module';
 
 const specifier = 'data:application/javascript,export default globalThis.value;';
 
@@ -11,7 +11,7 @@ globalThis.value = 2;
 const instance2 = await import(specifier);
 strictEqual(instance2.default, 1);
 
-strictEqual(releaseLoadedModule(specifier, import.meta.url), true);
-strictEqual(releaseLoadedModule(specifier, import.meta.url), false);
+releaseResolvedModule(specifier);
 const instance3 = await import(specifier);
 strictEqual(instance3.default, 2);
+delete globalThis.value;
