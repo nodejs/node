@@ -48,5 +48,12 @@ else
   exit 1
 fi
 
+if ! xcrun spctl --assess --type install --context context:primary-signature --ignore-cache --verbose=2 "node-$pkgid.pkg"; then
+  echo "error: Signature will not be accepted by Gatekeeper!" 1>&2
+  exit 1
+else
+  echo "Verification was successful."
+fi
+
 xcrun stapler staple "node-$pkgid.pkg"
 echo "Stapler was successful."
