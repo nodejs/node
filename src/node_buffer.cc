@@ -743,14 +743,7 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
 
 uint32_t FastByteLengthUtf8(Local<Value> receiver,
                             const v8::FastOneByteString& source) {
-  uint32_t result = 0;
-  uint32_t length = source.length;
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(source.data);
-  for (uint32_t i = 0; i < length; ++i) {
-    result += (data[i] >> 7);
-  }
-  result += length;
-  return result;
+  return simdutf::utf8_length_from_latin1(source.data, source.length);
 }
 
 static v8::CFunction fast_byte_length_utf8(
