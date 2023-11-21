@@ -166,7 +166,7 @@ The valid arguments for the `--allow-fs-read` flag are:
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be diplayed
+When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -220,7 +220,7 @@ The valid arguments for the `--allow-fs-write` flag are:
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be diplayed
+When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
