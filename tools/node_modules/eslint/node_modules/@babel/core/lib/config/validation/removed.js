@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-var _default = {
+var _default = exports.default = {
   auxiliaryComment: {
     message: "Use `auxiliaryCommentBefore` or `auxiliaryCommentAfter`"
   },
@@ -63,7 +63,6 @@ var _default = {
     message: "The `sourceMapTarget` option has been removed because it makes more sense for the tooling " + "that calls Babel to assign `map.file` themselves."
   }
 };
-exports.default = _default;
 0 && 0;
 
 //# sourceMappingURL=removed.js.map

@@ -21,5 +21,11 @@
   ],
   "proposal-optional-chaining": [
     "bugfix/transform-v8-spread-parameters-in-optional-chaining"
+  ],
+  "transform-class-properties": [
+    "bugfix/transform-v8-static-class-fields-redefine-readonly"
+  ],
+  "proposal-class-properties": [
+    "bugfix/transform-v8-static-class-fields-redefine-readonly"
   ]
 }

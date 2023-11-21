@@ -40,8 +40,7 @@ function* loadConfig(name, dirname, envName, caller) {
 function* resolveShowConfigPath(dirname) {
   return null;
 }
-const ROOT_CONFIG_FILENAMES = [];
-exports.ROOT_CONFIG_FILENAMES = ROOT_CONFIG_FILENAMES;
+const ROOT_CONFIG_FILENAMES = exports.ROOT_CONFIG_FILENAMES = [];
 function resolvePlugin(name, dirname) {
   return null;
 }

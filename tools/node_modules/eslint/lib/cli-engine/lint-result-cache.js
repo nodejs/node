@@ -128,16 +128,28 @@ class LintResultCache {
             return null;
         }
 
-        // If source is present but null, need to reread the file from the filesystem.
-        if (
-            fileDescriptor.meta.results &&
-            fileDescriptor.meta.results.source === null
-        ) {
-            debug(`Rereading cached result source from filesystem: ${filePath}`);
-            fileDescriptor.meta.results.source = fs.readFileSync(filePath, "utf-8");
+        const cachedResults = fileDescriptor.meta.results;
+
+        // Just in case, not sure if this can ever happen.
+        if (!cachedResults) {
+            return cachedResults;
         }
 
-        return fileDescriptor.meta.results;
+        /*
+         * Shallow clone the object to ensure that any properties added or modified afterwards
+         * will not be accidentally stored in the cache file when `reconcile()` is called.
+         * https://github.com/eslint/eslint/issues/13507
+         * All intentional changes to the cache file must be done through `setCachedLintResults()`.
+         */
+        const results = { ...cachedResults };
+
+        // If source is present but null, need to reread the file from the filesystem.
+        if (results.source === null) {
+            debug(`Rereading cached result source from filesystem: ${filePath}`);
+            results.source = fs.readFileSync(filePath, "utf-8");
+        }
+
+        return results;
     }
 
     /**
