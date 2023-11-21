@@ -9,7 +9,7 @@ All dependencies are located within the `deps` directory.
 This a list of all the dependencies:
 
 * [acorn][]
-* [ada 2.7.2][]
+* [ada][]
 * [base64][]
 * [brotli][]
 * [c-ares 1.20.1][]
@@ -148,7 +148,7 @@ The [acorn](https://github.com/acornjs/acorn) dependency is a JavaScript parser.
 [acorn-walk](https://github.com/acornjs/acorn/tree/master/acorn-walk) is
 an abstract syntax tree walker for the ESTree format.
 
-### ada 2.7.2
+### ada
 
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
@@ -312,7 +312,7 @@ it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
 [acorn]: #acorn
-[ada 2.7.2]: #ada-272
+[ada]: #ada
 [base64]: #base64
 [brotli]: #brotli
 [c-ares 1.20.1]: #c-ares-1200
