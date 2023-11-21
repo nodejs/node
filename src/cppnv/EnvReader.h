@@ -52,9 +52,6 @@ class EnvReader {
 
  public:
   static finalize_result finalize_value(const EnvPair* pair,
-                                        std::map<std::string, EnvPair*>*
-                                        mapped_pairs);
-  static finalize_result finalize_value(const EnvPair* pair,
                                         std::vector<EnvPair*>* pairs);
   static read_result read_pair(EnvStream* file, const EnvPair* pair);
 

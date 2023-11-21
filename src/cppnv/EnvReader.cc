@@ -78,11 +78,9 @@ EnvReader::read_result EnvReader::read_pair(EnvStream* file,
 
 int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
   int count = 0;
-  auto buffer = std::string();
-  buffer.resize(100);
+  auto buffer = std::string(256, '\0');
 
-  auto expect_more = true;
-  while (expect_more) {
+  while (true) {
     buffer.clear();
     EnvPair* pair = new EnvPair();
     pair->key = new EnvKey();
@@ -91,24 +89,23 @@ int EnvReader::read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs) {
     pair->value->value = &buffer;
     const read_result result = read_pair(file, pair);
     if (result == end_of_stream_value) {
-      expect_more = false;
       pairs->push_back(pair);
       count++;
-      continue;
+      break;
     }
     if (result == success) {
       pairs->push_back(pair);
       count++;
       continue;
     }
-    if (result == end_of_stream_key || result == fail || result == empty) {
-      if (result == end_of_stream_key) {
-        expect_more = false;
-      }
-      delete pair->key;
-      delete pair->value;
-      delete pair;
+
+    delete pair->key;
+    delete pair->value;
+    delete pair;
+    if (result == comment_encountered || result == fail) {
+      continue;
     }
+    break;
   }
 
   return count;
@@ -215,6 +212,7 @@ EnvReader::read_result EnvReader::read_key(EnvStream* file, EnvKey* key) {
       break;
     }
     if (key_char == '#') {
+      clear_garbage(file);
       return comment_encountered;
     }
     switch (key_char) {
@@ -670,9 +668,7 @@ bool EnvReader::read_next_char(EnvValue* value, const char key_char) {
   return true;
 }
 
-// Used only when checking closed and open variables because the { }
-// have been added to the buffer
-// it needs to check 2 values back.
+// Used only when checking closed and open variables because the { }  // have been added to the buffer  // it needs to check 2 values back.
 bool EnvReader::is_previous_char_an_escape(const EnvValue* value) {
   return value->value_index > 1
          && value->value->at(value->value_index - 2) ==
@@ -723,6 +719,9 @@ EnvReader::read_result EnvReader::read_value(EnvStream* file,
       }
     }
   }
+  if ((value->triple_double_quoted || value->triple_quoted) && key_char != '\n') {
+    clear_garbage(file);
+  }
   if (value->double_quote_streak > 0) {
     if (walk_double_quotes(value)) {
       if (key_char != '\n') {
@@ -755,82 +754,6 @@ void EnvReader::remove_unclosed_interpolation(EnvValue* value) {
   }
 }
 
-EnvReader::finalize_result EnvReader::finalize_value(const EnvPair* pair,
-  std::map<std::string, EnvPair*>* mapped_pairs) {
-  if (pair->value->interpolation_index == 0) {
-    pair->value->is_already_interpolated = true;
-    pair->value->is_being_interpolated = false;
-    return copied;
-  }
-  // const auto buffer = new std::string(*pair->value->value);
-  const int size = pair->value->interpolations->size();
-  int buffer_size = pair->value->value_index;
-  for (auto i = size - 1; i >= 0; i--) {
-    const VariablePosition* interpolation = pair->value->interpolations->at(i);
-    const auto other_pair = (*mapped_pairs)[interpolation->variable_str->
-      c_str()];
-    const auto interpolation_length =
-        (interpolation->end_brace - interpolation->dollar_sign) + 1;
-    if (other_pair) {
-      if (other_pair->value->is_being_interpolated) {
-        return circular;
-      }
-      if (!other_pair->value->is_already_interpolated) {
-        const auto walk_result = finalize_value(other_pair, mapped_pairs);
-        if (walk_result == circular) {
-          return circular;
-        }
-      }
-      buffer_size += -(interpolation_length - other_pair->value->value_index);
-    }
-  }
-  const auto buffer = new std::string();
-
-  buffer->resize(buffer_size);
-  const int index = pair->value->value_index - 1;
-  int buffer_index = buffer_size;
-  for (auto i = size - 1; i >= 0; i--) {
-    const VariablePosition* interpolation = pair->value->interpolations->at(i);
-    const auto other_pair = (*mapped_pairs)[*interpolation->variable_str];
-
-    int count = (index - interpolation->end_brace);
-    buffer_index = buffer_index - count;
-
-    if (!other_pair) {
-      buffer_index += count;
-      count = index - interpolation->dollar_sign;
-      buffer_index -= count;
-      buffer->replace(buffer_index,
-                      count,
-                      *pair->value->value,
-                      interpolation->dollar_sign,
-                      count);
-      continue;
-    }
-    if (count > 0) {
-      buffer->replace(buffer_index,
-                      count,
-                      *pair->value->value,
-                      interpolation->end_brace,
-                      count);
-    }
-
-    const int variable_value_count = other_pair->value->value_index;
-    buffer_index -= variable_value_count;
-    buffer->replace(buffer_index,
-                    variable_value_count,
-                    *other_pair->value->value);
-  }
-  // if (index != 0)
-  // {
-  //     int off = buffer_index - index;
-  //
-  //     buffer->replace(off, index, *pair->value->value, 0, index);
-  // }
-  pair->value->set_own_buffer(buffer);
-  return interpolated;
-}
-
 EnvReader::finalize_result EnvReader::finalize_value(
     const EnvPair* pair,
     std::vector<EnvPair*>* pairs) {
@@ -850,8 +773,8 @@ EnvReader::finalize_result EnvReader::finalize_value(
 
     for (const EnvPair* other_pair : *pairs) {
       const size_t variable_str_len =
-      (static_cast<size_t>(interpolation->variable_end) - interpolation->
-       variable_start) + 1;
+          static_cast<size_t>(interpolation->variable_end) - interpolation->
+          variable_start + 1;
       if (variable_str_len != other_pair->key->
                                           key->size()) {
         continue;
