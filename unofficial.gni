@@ -159,6 +159,7 @@ template("node_gn_build") {
       "deps/nghttp2",
       "deps/ngtcp2",
       "deps/postject",
+      "deps/simdjson",
       "deps/simdutf",
       "deps/uvwasi",
       "//third_party/zlib",
