@@ -3420,6 +3420,23 @@ Type: Documentation-only
 `F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` are
 deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
+### DEP0177: `util.types.isWebAssemblyCompiledModule`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50486
+    description: A deprecation code has been assigned.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/32116
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
+`value instanceof WebAssembly.Module` instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3563,6 +3580,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 [`util.log()`]: util.md#utillogstring
 [`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.toUSVString()`]: util.md#utiltousvstringstring
+[`util.types.isWebAssemblyCompiledModule`]: util.md#utiltypesiswebassemblycompiledmodulevalue
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
