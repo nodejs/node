@@ -13,6 +13,29 @@
   "queuing-strategies-size-function-per-global.window.js": {
     "skip": "Browser-specific test"
   },
+  "readable-byte-streams/read-min.any.js": {
+    "fail": {
+      "expected": [
+        "ReadableStream with byte source: read({ min }) rejects if min is 0",
+        "ReadableStream with byte source: read({ min }) rejects if min is negative",
+        "ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (Uint8Array)",
+        "ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (Uint16Array)",
+        "ReadableStream with byte source: read({ min }) rejects if min is larger than view's length (DataView)",
+        "ReadableStream with byte source: read({ min }), then read()",
+        "ReadableStream with byte source: read({ min }) with a DataView",
+        "ReadableStream with byte source: enqueue(), then read({ min })",
+        "ReadableStream with byte source: read({ min: 3 }) on a 3-byte Uint8Array, then multiple enqueue() up to 3 bytes",
+        "ReadableStream with byte source: read({ min: 3 }) on a 5-byte Uint8Array, then multiple enqueue() up to 3 bytes",
+        "ReadableStream with byte source: read({ min: 3 }) on a 5-byte Uint8Array, then multiple enqueue() up to 4 bytes",
+        "ReadableStream with byte source: read({ min }) when closed before view is filled",
+        "ReadableStream with byte source: read({ min }) when closed immediately after view is filled",
+        "ReadableStream with byte source: cancel() with partially filled pending read({ min }) request",
+        "ReadableStream with byte source: 3 byte enqueue(), then close(), then read({ min }) with 2-element Uint16Array must fail",
+        "ReadableStream with byte source: read({ min }) with 2-element Uint16Array, then 3 byte enqueue(), then close() must fail",
+        "ReadableStream with byte source: tee() with read({ min }) from branch1 and read() from branch2"
+      ]
+    }
+  },
   "readable-streams/cross-realm-crash.window.js": {
     "skip": "Browser-specific test"
   },
