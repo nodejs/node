@@ -22,8 +22,6 @@ calling `require('node:tls')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
-
 ```cjs
 let tls;
 try {
