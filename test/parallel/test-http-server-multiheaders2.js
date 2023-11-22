@@ -70,7 +70,7 @@ const multipleForbidden = [
 ];
 
 const server = http.createServer(function(req, res) {
-  for (const header of multipleForbidden){
+  for (const header of multipleForbidden) {
     assert.strictEqual(req.headers[header.toLowerCase()], 'foo',
                        `header parsed incorrectly: ${header}`);
   };
