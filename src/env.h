@@ -1016,8 +1016,14 @@ class Environment : public MemoryRetainer {
   };
 
  private:
-  inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
-                         const char* errmsg);
+  // V8 has changed the constructor of exceptions, support both APIs before Node
+  // updates to V8 12.1.
+  using V8ExceptionConstructorOld =
+      v8::Local<v8::Value> (*)(v8::Local<v8::String>);
+  using V8ExceptionConstructorNew =
+      v8::Local<v8::Value> (*)(v8::Local<v8::String>, v8::Local<v8::Value>);
+  inline void ThrowError(V8ExceptionConstructorOld fun, const char* errmsg);
+  inline void ThrowError(V8ExceptionConstructorNew fun, const char* errmsg);
   void TrackContext(v8::Local<v8::Context> context);
   void UntrackContext(v8::Local<v8::Context> context);
 
