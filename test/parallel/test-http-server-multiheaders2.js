@@ -73,8 +73,8 @@ const server = http.createServer(function(req, res) {
   for (const header of multipleForbidden) {
     assert.strictEqual(req.headers[header.toLowerCase()], 'foo',
                        `header parsed incorrectly: ${header}`);
-  };
-  for (const header of multipleAllowed){
+  }
+  for (const header of multipleAllowed) {
     const sep = (header.toLowerCase() === 'cookie' ? '; ' : ', ');
     assert.strictEqual(req.headers[header.toLowerCase()], `foo${sep}bar`,
                        `header parsed incorrectly: ${header}`);
