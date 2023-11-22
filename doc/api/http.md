@@ -16,14 +16,12 @@ user is able to stream data.
 
 HTTP message headers are represented by an object like this:
 
-<!-- eslint-skip -->
-
-```js
-{ 'content-length': '123',
-  'content-type': 'text/plain',
-  'connection': 'keep-alive',
-  'host': 'example.com',
-  'accept': '*/*' }
+```json
+{ "content-length": "123",
+  "content-type": "text/plain",
+  "connection": "keep-alive",
+  "host": "example.com",
+  "accept": "*/*" }
 ```
 
 Keys are lowercased. Values are not modified.
