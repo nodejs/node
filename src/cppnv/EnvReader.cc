@@ -783,8 +783,8 @@ EnvReader::finalize_result EnvReader::finalize_value(
         continue;
       }
 
-      if (0 != memcmp(other_pair->key->key->c_str(),
-                      pair->value->value->c_str() + interpolation->
+      if (0 != memcmp(other_pair->key->key->data(),
+                      pair->value->value->data() + interpolation->
                       variable_start,
                       variable_str_len))
         continue;

@@ -21,7 +21,8 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
       "b=cdd\n"
       "l=asff\n"
       "d=e\r\n"
-      "b\n");
+      "b\n"
+      "ds=hello $ lllo\n");
   EnvStream basic_stream(&basic);
 
   std::vector<EnvPair*> env_pairs;
@@ -30,7 +31,7 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
     EnvReader::finalize_value(pair, &env_pairs);
   }
 
-  EXPECT_EQ(env_pairs.size(), 5);
+  EXPECT_EQ(env_pairs.size(), 6);
   EXPECT_EQ(*env_pairs.at(0)->key->key, "SPACED_KEY");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "parsed");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
@@ -41,6 +42,8 @@ TEST_F(DotEnvTest, ReadDotEnvFile) {
   EXPECT_EQ(*env_pairs.at(3)->value->value, "asff");
   EXPECT_EQ(*env_pairs.at(4)->key->key, "d");
   EXPECT_EQ(*env_pairs.at(4)->value->value, "e");
+  EXPECT_EQ(*env_pairs.at(5)->key->key, "ds");
+  EXPECT_EQ(*env_pairs.at(5)->value->value, "hello $ lllo");
   EnvReader::delete_pairs(&env_pairs);
 }
 
@@ -270,6 +273,147 @@ c="""def""" asldkljasdfl;kj)");
   EnvReader::delete_pairs(&env_pairs);
 }
 
+TEST_F(DotEnvTest, DoubleQuotedHereDoc2) {
+  string codes(R"(user=bill
+domain=smith.tld
+email=${user}@${domain}
+company=club
+reply_user=no-reply
+reply_domain=company.tld
+message="""Greetings ${user},
+we have detected that you are finally
+ready to become a member of our esteemed
+${company}. Please send us an email with the
+documentation to ${reply_user}@${reply_domain}
+within 2 weeks.
+
+Thank you,
+${company} Management
+"""
+cc_message="${message}")");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 8);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "user");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "bill");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "domain");
+  EXPECT_EQ(*env_pairs.at(1)->value->value,"smith.tld");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "email");
+  EXPECT_EQ(*env_pairs.at(2)->value->value,"bill@smith.tld");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "company");
+  EXPECT_EQ(*env_pairs.at(3)->value->value,"club");
+  EXPECT_EQ(*env_pairs.at(4)->key->key, "reply_user");
+  EXPECT_EQ(*env_pairs.at(4)->value->value,"no-reply");
+  EXPECT_EQ(*env_pairs.at(5)->key->key, "reply_domain");
+  EXPECT_EQ(*env_pairs.at(5)->value->value,"company.tld");
+  EXPECT_EQ(*env_pairs.at(6)->key->key, "message");
+  EXPECT_EQ(*env_pairs.at(6)->value->value,R"(Greetings bill,
+we have detected that you are finally
+ready to become a member of our esteemed
+club. Please send us an email with the
+documentation to no-reply@company.tld
+within 2 weeks.
+
+Thank you,
+club Management
+)");
+  EXPECT_EQ(*env_pairs.at(7)->key->key, "cc_message");
+  EXPECT_EQ(*env_pairs.at(7)->value->value,R"(Greetings bill,
+we have detected that you are finally
+ready to become a member of our esteemed
+club. Please send us an email with the
+documentation to no-reply@company.tld
+within 2 weeks.
+
+Thank you,
+club Management
+)");
+
+
+  EnvReader::delete_pairs(&env_pairs);
+}
+
+
+TEST_F(DotEnvTest, DoubleQuotedHereDoc3) {
+  string codes(R"(#The user name
+user=bill #should be bill
+domain=smith.tld #the domain
+
+#some spaces for fun
+email=${user}@${domain}
+company=club #blub blub I'm a club
+reply_user=no-reply #nope. we don't reply.
+reply_domain=company.tld
+# ha
+              #haaaaaaaaaaaaaaaaaaaaaaaaaaaa
+message="""Greetings ${user},
+we have detected that you are finally
+ready to become a member of our esteemed
+${company}. Please send us an email with the
+documentation to ${reply_user}@${reply_domain}
+within 2 weeks.
+
+Thank you,
+${company} Management
+""" #k
+cc_message="${message}")");
+
+  EnvStream codes_stream(&codes);
+
+  std::vector<EnvPair*> env_pairs;
+  EnvReader::read_pairs(&codes_stream, &env_pairs);
+
+  for (const auto pair : env_pairs) {
+    EnvReader::finalize_value(pair, &env_pairs);
+  }
+
+  EXPECT_EQ(env_pairs.size(), 8);
+  EXPECT_EQ(*env_pairs.at(0)->key->key, "user");
+  EXPECT_EQ(*env_pairs.at(0)->value->value, "bill");
+  EXPECT_EQ(*env_pairs.at(1)->key->key, "domain");
+  EXPECT_EQ(*env_pairs.at(1)->value->value,"smith.tld");
+  EXPECT_EQ(*env_pairs.at(2)->key->key, "email");
+  EXPECT_EQ(*env_pairs.at(2)->value->value,"bill@smith.tld");
+  EXPECT_EQ(*env_pairs.at(3)->key->key, "company");
+  EXPECT_EQ(*env_pairs.at(3)->value->value,"club");
+  EXPECT_EQ(*env_pairs.at(4)->key->key, "reply_user");
+  EXPECT_EQ(*env_pairs.at(4)->value->value,"no-reply");
+  EXPECT_EQ(*env_pairs.at(5)->key->key, "reply_domain");
+  EXPECT_EQ(*env_pairs.at(5)->value->value,"company.tld");
+  EXPECT_EQ(*env_pairs.at(6)->key->key, "message");
+  EXPECT_EQ(*env_pairs.at(6)->value->value,R"(Greetings bill,
+we have detected that you are finally
+ready to become a member of our esteemed
+club. Please send us an email with the
+documentation to no-reply@company.tld
+within 2 weeks.
+
+Thank you,
+club Management
+)");
+  EXPECT_EQ(*env_pairs.at(7)->key->key, "cc_message");
+  EXPECT_EQ(*env_pairs.at(7)->value->value,R"(Greetings bill,
+we have detected that you are finally
+ready to become a member of our esteemed
+club. Please send us an email with the
+documentation to no-reply@company.tld
+within 2 weeks.
+
+Thank you,
+club Management
+)");
+
+
+  EnvReader::delete_pairs(&env_pairs);
+}
 TEST_F(DotEnvTest, DoubleQuotedHereDoc) {
   string codes(R"(b=1
 a="""
