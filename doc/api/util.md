@@ -2513,9 +2513,7 @@ added: v10.0.0
 
 Returns `true` if the value is an instance of a [Module Namespace Object][].
 
-<!-- eslint-skip -->
-
-```js
+```mjs
 import * as ns from './a.js';
 
 util.types.isModuleNamespaceObject(ns);  // Returns true
