@@ -2,7 +2,7 @@
 #include <sstream>
 #include "gtest/gtest.h"
 #include "node_test_fixture.h"
-#include "cppnv/EnvReader.h"
+#include "node_dotenv.h"
 
 using cppnv::EnvPair;
 using cppnv::EnvReader;
