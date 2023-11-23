@@ -1215,21 +1215,26 @@ static void LStat(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*path);
 
   bool use_bigint = args[1]->IsTrue();
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
-  if (req_wrap_async != nullptr) {  // lstat(path, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // lstat(path, use_bigint, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     FS_ASYNC_TRACE_BEGIN1(
         UV_FS_LSTAT, req_wrap_async, "path", TRACE_STR_COPY(*path))
     AsyncCall(env, req_wrap_async, args, "lstat", UTF8, AfterStat,
               uv_fs_lstat, *path);
-  } else {  // lstat(path, use_bigint, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // lstat(path, use_bigint, undefined, throw_if_no_entry)
+    bool do_not_throw_if_no_entry = args[3]->IsFalse();
+    FSReqWrapSync req_wrap_sync("lstat", *path);
     FS_SYNC_TRACE_BEGIN(lstat);
-    int err = SyncCall(env, args[3], &req_wrap_sync, "lstat", uv_fs_lstat,
-                       *path);
+    int result;
+    if (do_not_throw_if_no_entry) {
+      result = SyncCallAndThrowIf(
+          is_uv_error_except_no_entry, env, &req_wrap_sync, uv_fs_lstat, *path);
+    } else {
+      result = SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_lstat, *path);
+    }
     FS_SYNC_TRACE_END(lstat);
-    if (err != 0) {
-      return;  // error info is in ctx
+    if (is_uv_error(result)) {
+      return;
     }
 
     Local<Value> arr = FillGlobalStatsArray(binding_data, use_bigint,
@@ -1250,19 +1255,23 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   int fd = args[0].As<Int32>()->Value();
 
   bool use_bigint = args[1]->IsTrue();
-  FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
-  if (req_wrap_async != nullptr) {  // fstat(fd, use_bigint, req)
+  if (!args[2]->IsUndefined()) {  // fstat(fd, use_bigint, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 2, use_bigint);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FSTAT, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fstat", UTF8, AfterStat,
               uv_fs_fstat, fd);
-  } else {  // fstat(fd, use_bigint, undefined, ctx)
-    CHECK_EQ(argc, 4);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fstat(fd, use_bigint, undefined, do_not_throw_error)
+    bool do_not_throw_error = args[2]->IsTrue();
+    const auto should_throw = [do_not_throw_error](int result) {
+      return is_uv_error(result) && !do_not_throw_error;
+    };
+    FSReqWrapSync req_wrap_sync("fstat");
     FS_SYNC_TRACE_BEGIN(fstat);
-    int err = SyncCall(env, args[3], &req_wrap_sync, "fstat", uv_fs_fstat, fd);
+    int err =
+        SyncCallAndThrowIf(should_throw, env, &req_wrap_sync, uv_fs_fstat, fd);
     FS_SYNC_TRACE_END(fstat);
-    if (err != 0) {
-      return;  // error info is in ctx
+    if (is_uv_error(err)) {
+      return;
     }
 
     Local<Value> arr = FillGlobalStatsArray(binding_data, use_bigint,
