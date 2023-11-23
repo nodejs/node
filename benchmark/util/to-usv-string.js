@@ -5,7 +5,7 @@ const common = require('../common');
 const BASE = 'string\ud801';
 
 const bench = common.createBenchmark(main, {
-  n: [1e5],
+  n: [1e6],
   size: [10, 100, 500],
 });
 
