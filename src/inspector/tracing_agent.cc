@@ -190,6 +190,7 @@ DispatchResponse TracingAgent::getCategories(
   categories_list->addItem("node.perf");
   categories_list->addItem("node.perf.timerify");
   categories_list->addItem("node.perf.usertiming");
+  categories_list->addItem("node.process.sync");
   categories_list->addItem("node.promises.rejections");
   categories_list->addItem("node.threadpoolwork.async");
   categories_list->addItem("node.threadpoolwork.sync");
