@@ -1161,6 +1161,11 @@ changes:
       of shards to split the test files to. This option is _required_.
 * Returns: {TestsStream}
 
+**Note:** `shard` is used to horizontally parallelize test running across
+machines or processes, ideal for large-scale executions across varied
+environments. It's incompatible with `watch` mode, tailored for rapid
+code iteration by automatically rerunning tests on file changes.
+
 ```mjs
 import { tap } from 'node:test/reporters';
 import { run } from 'node:test';
