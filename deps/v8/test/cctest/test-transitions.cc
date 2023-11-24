@@ -41,7 +41,7 @@ TEST(TransitionArray_SimpleFieldTransitions) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   {
     TransitionsAccessor::Insert(isolate, map0, name1, map1,
@@ -71,8 +71,8 @@ TEST(TransitionArray_SimpleFieldTransitions) {
                                                  attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
-      Name key = transitions.GetKey(i);
-      Map target = transitions.GetTarget(i);
+      Tagged<Name> key = transitions.GetKey(i);
+      Tagged<Map> target = transitions.GetTarget(i);
       CHECK((key == *name1 && target == *map1) ||
             (key == *name2 && target == *map2));
     }
@@ -104,7 +104,7 @@ TEST(TransitionArray_FullFieldTransitions) {
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   {
     TransitionsAccessor::Insert(isolate, map0, name1, map1,
@@ -134,8 +134,8 @@ TEST(TransitionArray_FullFieldTransitions) {
                                                  attributes));
     CHECK_EQ(2, transitions.NumberOfTransitions());
     for (int i = 0; i < 2; i++) {
-      Name key = transitions.GetKey(i);
-      Map target = transitions.GetTarget(i);
+      Tagged<Name> key = transitions.GetKey(i);
+      Tagged<Map> target = transitions.GetTarget(i);
       CHECK((key == *name1 && target == *map1) ||
             (key == *name2 && target == *map2));
     }
@@ -157,7 +157,7 @@ TEST(TransitionArray_DifferentFieldNames) {
   PropertyAttributes attributes = NONE;
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   for (int i = 0; i < PROPS_COUNT; i++) {
     base::EmbeddedVector<char, 64> buffer;
@@ -180,8 +180,8 @@ TEST(TransitionArray_DifferentFieldNames) {
                            *names[i], PropertyKind::kData, attributes));
   }
   for (int i = 0; i < PROPS_COUNT; i++) {
-    Name key = transitions.GetKey(i);
-    Map target = transitions.GetTarget(i);
+    Tagged<Name> key = transitions.GetKey(i);
+    Tagged<Map> target = transitions.GetTarget(i);
     for (int j = 0; j < PROPS_COUNT; j++) {
       if (*names[i] == key) {
         CHECK_EQ(*maps[i], target);
@@ -201,7 +201,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributesSimple) {
   Factory* factory = isolate->factory();
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   const int ATTRS_COUNT = (READ_ONLY | DONT_ENUM | DONT_DELETE) + 1;
   static_assert(ATTRS_COUNT == 8);
@@ -248,7 +248,7 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   Handle<Map> maps[PROPS_COUNT];
 
   Handle<Map> map0 = Map::Create(isolate, 0);
-  CHECK(map0->raw_transitions()->IsSmi());
+  CHECK(IsSmi(map0->raw_transitions()));
 
   // Some number of fields.
   for (int i = 0; i < PROPS_COUNT; i++) {
@@ -296,12 +296,12 @@ TEST(TransitionArray_SameFieldNamesDifferentAttributes) {
   // Ensure that info about the other fields still valid.
   CHECK_EQ(PROPS_COUNT + ATTRS_COUNT, transitions.NumberOfTransitions());
   for (int i = 0; i < PROPS_COUNT + ATTRS_COUNT; i++) {
-    Name key = transitions.GetKey(i);
-    Map target = transitions.GetTarget(i);
+    Tagged<Name> key = transitions.GetKey(i);
+    Tagged<Map> target = transitions.GetTarget(i);
     if (key == *name) {
       // Attributes transition.
       PropertyAttributes attributes =
-          target.GetLastDescriptorDetails(isolate).attributes();
+          target->GetLastDescriptorDetails(isolate).attributes();
       CHECK_EQ(*attr_maps[static_cast<int>(attributes)], target);
     } else {
       for (int j = 0; j < PROPS_COUNT; j++) {

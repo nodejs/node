@@ -74,7 +74,7 @@ class KeyAccumulator final {
                                                    Handle<JSObject> object);
 
   V8_WARN_UNUSED_RESULT ExceptionStatus
-  AddKey(Object key, AddKeyConversion convert = DO_NOT_CONVERT);
+  AddKey(Tagged<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
   V8_WARN_UNUSED_RESULT ExceptionStatus
   AddKey(Handle<Object> key, AddKeyConversion convert = DO_NOT_CONVERT);
 
@@ -89,7 +89,7 @@ class KeyAccumulator final {
   void set_skip_indices(bool value) { skip_indices_ = value; }
   // Shadowing keys are used to filter keys. This happens when non-enumerable
   // keys appear again on the prototype chain.
-  void AddShadowingKey(Object key, AllowGarbageCollection* allow_gc);
+  void AddShadowingKey(Tagged<Object> key, AllowGarbageCollection* allow_gc);
   void AddShadowingKey(Handle<Object> key);
 
  private:
@@ -222,7 +222,7 @@ class FastKeyAccumulator {
 
   MaybeHandle<FixedArray> GetOwnKeysWithUninitializedEnumLength();
 
-  bool MayHaveElements(JSReceiver receiver);
+  bool MayHaveElements(Tagged<JSReceiver> receiver);
   bool TryPrototypeInfoCache(Handle<JSReceiver> receiver);
 
   Isolate* isolate_;

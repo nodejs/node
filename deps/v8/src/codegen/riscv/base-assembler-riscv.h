@@ -44,6 +44,7 @@
 #include "src/codegen/constant-pool.h"
 #include "src/codegen/external-reference.h"
 #include "src/codegen/label.h"
+#include "src/codegen/machine-type.h"
 #include "src/codegen/riscv/constants-riscv.h"
 #include "src/codegen/riscv/register-riscv.h"
 #include "src/objects/contexts.h"

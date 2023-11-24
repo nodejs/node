@@ -2,7 +2,6 @@
 require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const join = require('path').join;
 
 const {
   O_CREAT = 0,
@@ -18,7 +17,7 @@ tmpdir.refresh();
 // Run this test on all platforms. While UV_FS_O_FILEMAP is only available on
 // Windows, it should be silently ignored on other platforms.
 
-const filename = join(tmpdir.path, 'fmap.txt');
+const filename = tmpdir.resolve('fmap.txt');
 const text = 'Memory File Mapping Test';
 
 const mw = UV_FS_O_FILEMAP | O_TRUNC | O_CREAT | O_WRONLY;

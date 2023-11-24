@@ -11,21 +11,17 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-void TypeAssertionsPhase::Run(PipelineData* data, Zone* temp_zone) {
-  UnparkedScopeIfNeeded scope(data->broker());
+void TypeAssertionsPhase::Run(Zone* temp_zone) {
+  UnparkedScopeIfNeeded scope(PipelineData::Get().broker());
 
-  turboshaft::TypeInferenceReducerArgs typing_args{
-      data->isolate(),
+  turboshaft::TypeInferenceReducerArgs::Scope typing_args{
       turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::
           kPreserveFromInputGraph};
 
-  turboshaft::OptimizationPhase<turboshaft::AssertTypesReducer,
-                                turboshaft::ValueNumberingReducer,
-                                turboshaft::TypeInferenceReducer>::
-      Run(data->isolate(), &data->graph(), temp_zone, data->node_origins(),
-          std::tuple{typing_args,
-                     turboshaft::AssertTypesReducerArgs{data->isolate()}});
+  turboshaft::OptimizationPhase<
+      turboshaft::AssertTypesReducer, turboshaft::ValueNumberingReducer,
+      turboshaft::TypeInferenceReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

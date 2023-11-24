@@ -3,23 +3,27 @@ name: Coverage Linux
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/*
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -37,11 +41,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236  # v4.7.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -53,7 +57,7 @@ jobs:
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Test
-        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9" || exit 0
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
         env:

@@ -136,7 +136,6 @@ a:link,
 a:active,
 a:visited {
   color: var(--color-links);
-  text-decoration: none;
   border-radius: 2px;
   padding: 1px 3px;
 }
@@ -950,7 +949,7 @@ kbd {
   display: block;
 }
 
-.js-flavor-selector {
+.js-flavor-toggle {
   -webkit-appearance: none;
   appearance: none;
   float: right;
@@ -963,14 +962,14 @@ kbd {
   cursor: pointer;
   margin: 0;
 }
-.js-flavor-selector:checked {
+.js-flavor-toggle:checked {
   background-image: url(./js-flavor-esm.svg);
 }
-.js-flavor-selector:not(:checked) ~ .mjs,
-.js-flavor-selector:checked ~ .cjs {
+.js-flavor-toggle:not(:checked) ~ .mjs,
+.js-flavor-toggle:checked ~ .cjs {
   display: none;
 }
-.dark-mode .js-flavor-selector {
+.dark-mode .js-flavor-toggle {
   filter: invert(1);
 }
 
@@ -1001,7 +1000,7 @@ kbd {
 }
 
 @supports (aspect-ratio: 1 / 1) {
-  .js-flavor-selector {
+  .js-flavor-toggle {
     height: 1.5em;
     width: auto;
     aspect-ratio: 2719 / 384;
@@ -1058,24 +1057,24 @@ kbd {
   #apicontent {
     overflow: hidden;
   }
-  .js-flavor-selector {
+  .js-flavor-toggle {
     display: none;
   }
-  .js-flavor-selector + * {
+  .js-flavor-toggle + * {
     margin-bottom: 2rem;
     padding-bottom: 2rem;
     border-bottom: 1px solid var(--color-text-primary);
   }
-  .js-flavor-selector ~ * {
+  .js-flavor-toggle ~ * {
     display: block !important;
     background-position: top right;
     background-size: 142px 20px;
     background-repeat: no-repeat;
   }
-  .js-flavor-selector ~ .cjs {
+  .js-flavor-toggle ~ .cjs {
     background-image: url(./js-flavor-cjs.svg);
   }
-  .js-flavor-selector ~ .mjs {
+  .js-flavor-toggle ~ .mjs {
     background-image: url(./js-flavor-esm.svg);
   }
 }

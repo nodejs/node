@@ -350,7 +350,7 @@ to generate the function bodies.
 B<I<TYPE>_new>() allocates an empty object of the indicated type.
 The object returned must be released by calling B<I<TYPE>_free>().
 
-B<I<TYPE>_new_ex>() is similiar to B<I<TYPE>_new>() but also passes the
+B<I<TYPE>_new_ex>() is similar to B<I<TYPE>_new>() but also passes the
 library context I<libctx> and the property query I<propq> to use when retrieving
 algorithms from providers. This created object can then be used when loading
 binary data using B<d2i_I<TYPE>>().
@@ -383,7 +383,7 @@ deprecated in 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

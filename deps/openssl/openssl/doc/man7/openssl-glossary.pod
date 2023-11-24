@@ -12,7 +12,7 @@ openssl-glossary - An OpenSSL Glossary
 
 =item Algorithm
 
-Cryptograpic primitives such as the SHA256 digest, or AES encryption are
+Cryptographic primitives such as the SHA256 digest, or AES encryption are
 referred to in OpenSSL as "algorithms". There can be more than one
 implementation for any given algorithm available for use.
 
@@ -45,7 +45,7 @@ L<OSSL_DECODER_CTX_new_for_pkey(3)>
 
 =item Default Provider
 
-An OpenSSL Provider that contains the most commmon OpenSSL algorithm
+An OpenSSL Provider that contains the most common OpenSSL algorithm
 implementations. It is loaded by default if no other provider is available. All
 the algorithm implementations in the Base Provider are also available in the
 Default Provider.
@@ -81,7 +81,7 @@ Fetching is the process of looking through the available algorithm
 implementations, applying selection criteria (via a property query string), and
 finally choosing the implementation that will be used.
 
-Also see Explicit Fetching and Implict Fetching.
+Also see Explicit Fetching and Implicit Fetching.
 
 L<crypto(7)>
 
@@ -221,7 +221,7 @@ This glossary was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

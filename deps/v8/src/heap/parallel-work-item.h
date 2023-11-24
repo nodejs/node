@@ -22,6 +22,11 @@ class ParallelWorkItem {
                true, std::memory_order_relaxed) == false;
   }
 
+  bool IsAcquired() const {
+    return reinterpret_cast<const std::atomic<bool>*>(&acquire_)->load(
+        std::memory_order_relaxed);
+  }
+
  private:
   bool acquire_{false};
 };

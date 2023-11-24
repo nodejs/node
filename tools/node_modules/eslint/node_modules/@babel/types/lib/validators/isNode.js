@@ -4,9 +4,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isNode;
-var _definitions = require("../definitions");
+var _index = require("../definitions/index.js");
 function isNode(node) {
-  return !!(node && _definitions.VISITOR_KEYS[node.type]);
+  return !!(node && _index.VISITOR_KEYS[node.type]);
 }
 
 //# sourceMappingURL=isNode.js.map

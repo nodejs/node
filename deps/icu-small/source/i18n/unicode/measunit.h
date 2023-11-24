@@ -371,7 +371,8 @@ class U_I18N_API MeasureUnit: public UObject {
 
     /**
      * Default constructor.
-     * Populates the instance with the base dimensionless unit.
+     * Populates the instance with the base dimensionless unit, which means that there will be
+     * no unit on the formatted number.
      * @stable ICU 3.0
      */
     MeasureUnit();
@@ -1527,23 +1528,21 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getNanosecond();
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of duration: quarter.
      * Caller owns returned value and must free it.
      * Also see {@link #getQuarter()}.
      * @param status ICU error code.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     static MeasureUnit *createQuarter(UErrorCode &status);
 
     /**
      * Returns by value, unit of duration: quarter.
      * Also see {@link #createQuarter()}.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     static MeasureUnit getQuarter();
-#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of duration: second.
@@ -2737,23 +2736,21 @@ class U_I18N_API MeasureUnit: public UObject {
      */
     static MeasureUnit getTon();
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Returns by pointer, unit of mass: tonne.
      * Caller owns returned value and must free it.
      * Also see {@link #getTonne()}.
      * @param status ICU error code.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     static MeasureUnit *createTonne(UErrorCode &status);
 
     /**
      * Returns by value, unit of mass: tonne.
      * Also see {@link #createTonne()}.
-     * @draft ICU 72
+     * @stable ICU 72
      */
     static MeasureUnit getTonne();
-#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of power: gigawatt.
@@ -2882,6 +2879,24 @@ class U_I18N_API MeasureUnit: public UObject {
      * @stable ICU 65
      */
     static MeasureUnit getBar();
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Returns by pointer, unit of pressure: gasoline-energy-density.
+     * Caller owns returned value and must free it.
+     * Also see {@link #getGasolineEnergyDensity()}.
+     * @param status ICU error code.
+     * @draft ICU 74
+     */
+    static MeasureUnit *createGasolineEnergyDensity(UErrorCode &status);
+
+    /**
+     * Returns by value, unit of pressure: gasoline-energy-density.
+     * Also see {@link #createGasolineEnergyDensity()}.
+     * @draft ICU 74
+     */
+    static MeasureUnit getGasolineEnergyDensity();
+#endif /* U_HIDE_DRAFT_API */
 
     /**
      * Returns by pointer, unit of pressure: hectopascal.

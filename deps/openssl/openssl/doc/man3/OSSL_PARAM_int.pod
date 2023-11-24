@@ -241,7 +241,7 @@ will be assigned the size the parameter's I<data> buffer should have.
 OSSL_PARAM_get_utf8_string() retrieves a UTF8 string from the parameter
 pointed to by I<p>.
 The string is stored into I<*val> with a size limit of I<max_len>,
-which must be large enough to accomodate a terminating NUL byte,
+which must be large enough to accommodate a terminating NUL byte,
 otherwise this function will fail.
 If I<*val> is NULL, memory is allocated for the string (including the
 terminating  NUL byte) and I<max_len> is ignored.
@@ -250,14 +250,14 @@ If memory is allocated by this function, it must be freed by the caller.
 OSSL_PARAM_set_utf8_string() sets a UTF8 string from the parameter pointed to
 by I<p> to the value referenced by I<val>.
 If the parameter's I<data> field isn't NULL, its I<data_size> must indicate
-that the buffer is large enough to accomodate the string that I<val> points at,
+that the buffer is large enough to accommodate the string that I<val> points at,
 not including the terminating NUL byte, or this function will fail.
 A terminating NUL byte is added only if the parameter's I<data_size> indicates
 the buffer is longer than the string length, otherwise the string will not be
 NUL terminated.
 If the parameter's I<data> field is NULL, then only its I<return_size> field
 will be assigned the minimum size the parameter's I<data> buffer should have
-to accomodate the string, not including a terminating NUL byte.
+to accommodate the string, not including a terminating NUL byte.
 
 OSSL_PARAM_get_octet_string() retrieves an OCTET string from the parameter
 pointed to by I<p>.

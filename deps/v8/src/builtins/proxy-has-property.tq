@@ -8,8 +8,8 @@ namespace proxy {
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-hasproperty-p
-transitioning builtin ProxyHasProperty(implicit context: Context)(
-    proxy: JSProxy, name: PropertyKey): JSAny {
+transitioning builtin ProxyHasProperty(
+    implicit context: Context)(proxy: JSProxy, name: PropertyKey): JSAny {
   dcheck(Is<JSProxy>(proxy));
 
   PerformStackCheck();

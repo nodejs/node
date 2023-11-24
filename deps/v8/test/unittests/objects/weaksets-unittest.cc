@@ -60,6 +60,7 @@ class WeakSetsTest : public TestWithHeapInternalsAndContext {
   }
 };
 
+namespace {
 static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   std::pair<v8::Persistent<v8::Value>*, int>* p =
@@ -69,6 +70,7 @@ static void WeakPointerCallback(const v8::WeakCallbackInfo<void>& data) {
   NumberOfWeakCalls++;
   p->first->Reset();
 }
+}  // namespace
 
 TEST_F(WeakSetsTest, WeakSet_Weakness) {
   v8_flags.incremental_marking = false;
@@ -91,17 +93,17 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
   {
     HandleScope inner_scope(i_isolate());
     Handle<Smi> smi(Smi::FromInt(23), i_isolate());
-    int32_t hash = key->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*key, i_isolate()).value();
     JSWeakCollection::Set(weakset, key, smi, hash);
   }
-  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
 
   // Force a full GC.
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
+  CHECK_EQ(1, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   std::pair<Handle<Object>*, int> handle_and_id(&key, 1234);
@@ -110,11 +112,14 @@ TEST_F(WeakSetsTest, WeakSet_Weakness) {
       &WeakPointerCallback, v8::WeakCallbackType::kParameter);
   CHECK(global_handles->IsWeak(key.location()));
 
-  PreciseCollectAllGarbage();
+  // We need to invoke GC without stack here, otherwise the object may survive.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      isolate()->heap());
+  InvokeAtomicMajorGC();
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      1, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
+      1, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 }
 
 TEST_F(WeakSetsTest, WeakSet_Shrinking) {
@@ -123,7 +128,7 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
 
   // Check initial capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table()).Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Fill up weak set to trigger capacity change.
   {
@@ -132,25 +137,26 @@ TEST_F(WeakSetsTest, WeakSet_Shrinking) {
     for (int i = 0; i < 32; i++) {
       Handle<JSObject> object = factory->NewJSObjectFromMap(map);
       Handle<Smi> smi(Smi::FromInt(i), i_isolate());
-      int32_t hash = object->GetOrCreateHash(i_isolate()).value();
+      int32_t hash = Object::GetOrCreateHash(*object, i_isolate()).value();
       JSWeakCollection::Set(weakset, object, smi, hash);
     }
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, EphemeronHashTable::cast(weakset->table()).Capacity());
+  CHECK_EQ(128, EphemeronHashTable::cast(weakset->table())->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      0, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
-  PreciseCollectAllGarbage();
-  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table()).NumberOfElements());
+      0, EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
+  InvokeAtomicMajorGC();
+  CHECK_EQ(0, EphemeronHashTable::cast(weakset->table())->NumberOfElements());
   CHECK_EQ(
-      32, EphemeronHashTable::cast(weakset->table()).NumberOfDeletedElements());
+      32,
+      EphemeronHashTable::cast(weakset->table())->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table()).Capacity());
+  CHECK_EQ(32, EphemeronHashTable::cast(weakset->table())->Capacity());
 }
 
 // Test that weak set values on an evacuation candidate which are not reachable
@@ -181,14 +187,16 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060a) {
       CHECK(!Heap::InYoungGeneration(*object));
       CHECK_IMPLIES(!v8_flags.enable_third_party_heap,
                     !first_page->Contains(object->address()));
-      int32_t hash = key->GetOrCreateHash(i_isolate()).value();
+      int32_t hash = Object::GetOrCreateHash(*key, i_isolate()).value();
       JSWeakCollection::Set(weakset, key, object, hash);
     }
   }
 
   // Force compacting garbage collection.
   CHECK(v8_flags.compact_on_every_full_gc);
-  CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  InvokeMajorGC();
 }
 
 // Test that weak set keys on an evacuation candidate which are reachable by
@@ -223,16 +231,18 @@ TEST_F(WeakSetsTest, WeakSet_Regress2060b) {
   Handle<JSWeakSet> weakset = AllocateJSWeakSet();
   for (int i = 0; i < 32; i++) {
     Handle<Smi> smi(Smi::FromInt(i), i_isolate());
-    int32_t hash = keys[i]->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*keys[i], i_isolate()).value();
     JSWeakCollection::Set(weakset, keys[i], smi, hash);
   }
 
   // Force compacting garbage collection. The subsequent collections are used
   // to verify that key references were actually updated.
   CHECK(v8_flags.compact_on_every_full_gc);
-  CollectAllGarbage();
-  CollectAllGarbage();
-  CollectAllGarbage();
+  // We need to invoke GC without stack, otherwise no compaction is performed.
+  DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
+  InvokeMajorGC();
+  InvokeMajorGC();
+  InvokeMajorGC();
 }
 
 }  // namespace test_weaksets

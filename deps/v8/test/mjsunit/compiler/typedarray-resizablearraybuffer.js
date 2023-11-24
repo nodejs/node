@@ -226,13 +226,9 @@ for (let shared of [false, true]) {
         blen = Resize(ab, 9);
         assertEquals(blen, ByteLength(ta));
         assertEquals(Math.floor(blen / target.BYTES_PER_ELEMENT), Length(ta));
-        assertOptimized(ByteLength);
-        assertOptimized(Length);
         blen = Resize(ab, 24);
         assertEquals(blen, ByteLength(ta));
         assertEquals(Math.floor(blen / target.BYTES_PER_ELEMENT), Length(ta));
-        assertOptimized(ByteLength);
-        assertOptimized(Length);
 
         if (!shared) {
           %ArrayBufferDetach(ab);

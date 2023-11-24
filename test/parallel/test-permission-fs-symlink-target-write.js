@@ -19,9 +19,9 @@ const { spawnSync } = require('child_process');
   tmpdir.refresh();
 }
 
-const readOnlyFolder = path.join(tmpdir.path, 'read-only');
-const readWriteFolder = path.join(tmpdir.path, 'read-write');
-const writeOnlyFolder = path.join(tmpdir.path, 'write-only');
+const readOnlyFolder = tmpdir.resolve('read-only');
+const readWriteFolder = tmpdir.resolve('read-write');
+const writeOnlyFolder = tmpdir.resolve('write-only');
 const file = fixtures.path('permission', 'fs-symlink-target-write.js');
 const commonPathWildcard = path.join(__filename, '../../common*');
 
@@ -36,8 +36,8 @@ fs.writeFileSync(path.join(readWriteFolder, 'file'), 'NO evil file contents');
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${file},${commonPathWildcard},${readOnlyFolder},${readWriteFolder}`,
-      `--allow-fs-write=${readWriteFolder},${writeOnlyFolder}`,
+      `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${readOnlyFolder}`, `--allow-fs-read=${readWriteFolder}`,
+      `--allow-fs-write=${readWriteFolder}`, `--allow-fs-write=${writeOnlyFolder}`,
       file,
     ],
     {

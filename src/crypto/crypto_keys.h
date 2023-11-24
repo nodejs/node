@@ -193,6 +193,9 @@ class KeyObjectHandle : public BaseObject {
       const v8::FunctionCallbackInfo<v8::Value>& args);
   v8::Local<v8::Value> GetAsymmetricKeyType() const;
 
+  static void CheckEcKeyData(const v8::FunctionCallbackInfo<v8::Value>& args);
+  bool CheckEcKeyData() const;
+
   static void GetSymmetricKeySize(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 

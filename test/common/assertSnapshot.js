@@ -8,6 +8,10 @@ const assert = require('node:assert/strict');
 const stackFramesRegexp = /(?<=\n)(\s+)((.+?)\s+\()?(?:\(?(.+?):(\d+)(?::(\d+))?)\)?(\s+\{)?(\[\d+m)?(\n|$)/g;
 const windowNewlineRegexp = /\r/g;
 
+function replaceNodeVersion(str) {
+  return str.replaceAll(process.version, '*');
+}
+
 function replaceStackTrace(str, replacement = '$1*$7$8\n') {
   return str.replace(stackFramesRegexp, replacement);
 }
@@ -38,7 +42,17 @@ async function assertSnapshot(actual, filename = process.argv[1]) {
   if (process.env.NODE_REGENERATE_SNAPSHOTS) {
     await fs.writeFile(snapshot, actual);
   } else {
-    const expected = await fs.readFile(snapshot, 'utf8');
+    let expected;
+    try {
+      expected = await fs.readFile(snapshot, 'utf8');
+    } catch (e) {
+      if (e.code === 'ENOENT') {
+        console.log(
+          'Snapshot file does not exist. You can create a new one by running the test with NODE_REGENERATE_SNAPSHOTS=1',
+        );
+      }
+      throw e;
+    }
     assert.strictEqual(actual, replaceWindowsLineEndings(expected));
   }
 }
@@ -74,6 +88,7 @@ module.exports = {
   assertSnapshot,
   getSnapshotPath,
   replaceFullPaths,
+  replaceNodeVersion,
   replaceStackTrace,
   replaceWindowsLineEndings,
   replaceWindowsPaths,

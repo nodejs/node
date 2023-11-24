@@ -9,14 +9,13 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
 const fork = require('child_process').fork;
-const path = require('path');
 const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
 const warnmod = require.resolve(fixtures.path('warnings.js'));
-const warnpath = path.join(tmpdir.path, 'warnings.txt');
+const warnpath = tmpdir.resolve('warnings.txt');
 
 fork(warnmod, { env: { ...process.env, NODE_REDIRECT_WARNINGS: warnpath } })
   .on('exit', common.mustCall(() => {

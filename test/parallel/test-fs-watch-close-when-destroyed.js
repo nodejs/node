@@ -17,10 +17,9 @@ if (common.isIBMi)
 
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
-const path = require('path');
 
 tmpdir.refresh();
-const root = path.join(tmpdir.path, 'watched-directory');
+const root = tmpdir.resolve('watched-directory');
 fs.mkdirSync(root);
 
 const watcher = fs.watch(root, { persistent: false, recursive: false });

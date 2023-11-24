@@ -113,7 +113,7 @@ void RuntimeTestRunner::CheckEnumerationOrder(
   ReadOnlyRoots roots(isolate_);
   int i = 0;
   for (InternalIndex index : table->IterateEntriesOrdered()) {
-    Object key;
+    Tagged<Object> key;
     if (table->ToKey(roots, index, &key)) {
       CHECK_LT(i, expected_keys.size());
       Handle<Name> expected_key =

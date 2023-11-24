@@ -21,10 +21,10 @@ const { strictEqual } = require('assert');
 const assert = require('assert');
 
 const inputFile = fixtures.path('sea.js');
-const requirableFile = join(tmpdir.path, 'requirable.js');
-const configFile = join(tmpdir.path, 'sea-config.json');
-const seaPrepBlob = join(tmpdir.path, 'sea-prep.blob');
-const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 'sea');
+const requirableFile = tmpdir.resolve('requirable.js');
+const configFile = tmpdir.resolve('sea-config.json');
+const seaPrepBlob = tmpdir.resolve('sea-prep.blob');
+const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'sea');
 
 tmpdir.refresh();
 
@@ -43,7 +43,7 @@ writeFileSync(configFile, `
 `);
 
 // Copy input to working directory
-copyFileSync(inputFile, join(tmpdir.path, 'sea.js'));
+copyFileSync(inputFile, tmpdir.resolve('sea.js'));
 execFileSync(process.execPath, ['--experimental-sea-config', 'sea-config.json'], {
   cwd: tmpdir.path
 });

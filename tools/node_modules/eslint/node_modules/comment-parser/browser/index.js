@@ -8,7 +8,7 @@ var CommentParser = (function (exports) {
         Markers["nostart"] = "/***";
         Markers["delim"] = "*";
         Markers["end"] = "*/";
-    })(exports.Markers || (exports.Markers = {}));
+    })(exports.Markers = exports.Markers || (exports.Markers = {}));
 
     function isSpace(source) {
         return /^\s+$/.test(source);

@@ -599,8 +599,7 @@ my @disable_cascades = (
 
     "crypto-mdebug"     => [ "crypto-mdebug-backtrace" ],
 
-    # If no modules, then no dynamic engines either
-    "module"            => [ "dynamic-engine" ],
+    "module"            => [ "dynamic-engine", "fips" ],
 
     # Without shared libraries, dynamic engines aren't possible.
     # This is due to them having to link with libcrypto and register features
@@ -617,8 +616,6 @@ my @disable_cascades = (
     # Without position independent code, there can be no shared libraries
     # or modules.
     "pic"               => [ "shared", "module" ],
-
-    "module"            => [ "fips", "dso" ],
 
     "engine"            => [ "dynamic-engine", grep(/eng$/, @disablables) ],
     "dynamic-engine"    => [ "loadereng" ],

@@ -20,7 +20,7 @@ class StringComparator {
     State(const State&) = delete;
     State& operator=(const State&) = delete;
 
-    void Init(String string,
+    void Init(Tagged<String> string,
               const SharedStringAccessGuardIfNeeded& access_guard);
 
     inline void VisitOneByteString(const uint8_t* chars, int length) {
@@ -59,7 +59,7 @@ class StringComparator {
     return CompareCharsEqual(a, b, to_check);
   }
 
-  bool Equals(String string_1, String string_2,
+  bool Equals(Tagged<String> string_1, Tagged<String> string_2,
               const SharedStringAccessGuardIfNeeded& access_guard);
 
  private:

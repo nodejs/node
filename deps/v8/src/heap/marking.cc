@@ -2,24 +2,25 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/heap/marking.h"
+#include "src/heap/marking-inl.h"
 
 namespace v8 {
 namespace internal {
 
-const size_t Bitmap::kSize = Bitmap::CellsCount() * Bitmap::kBytesPerCell;
+namespace {
+constexpr MarkBit::CellType kAllBitsSetInCellValue =
+    std::numeric_limits<MarkBit::CellType>::max();
+}
 
-template <>
-bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
-    uint32_t start_index, uint32_t end_index) {
+bool MarkingBitmap::AllBitsSetInRange(MarkBitIndex start_index,
+                                      MarkBitIndex end_index) const {
   if (start_index >= end_index) return false;
   end_index--;
 
-  unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-  unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
+  const CellIndex start_cell_index = IndexToCell(start_index);
+  MarkBit::CellType start_index_mask = IndexInCellMask(start_index);
+  const CellIndex end_cell_index = IndexToCell(end_index);
+  MarkBit::CellType end_index_mask = IndexInCellMask(end_index);
 
   MarkBit::CellType matching_mask;
   if (start_cell_index != end_cell_index) {
@@ -28,7 +29,7 @@ bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
       return false;
     }
     for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
-      if (cells()[i] != ~0u) return false;
+      if (cells()[i] != kAllBitsSetInCellValue) return false;
     }
     matching_mask = end_index_mask | (end_index_mask - 1);
     return ((cells()[end_cell_index] & matching_mask) == matching_mask);
@@ -38,23 +39,21 @@ bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsSetInRange(
   }
 }
 
-template <>
-bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsClearInRange(
-    uint32_t start_index, uint32_t end_index) {
+bool MarkingBitmap::AllBitsClearInRange(MarkBitIndex start_index,
+                                        MarkBitIndex end_index) const {
   if (start_index >= end_index) return true;
   end_index--;
 
-  unsigned int start_cell_index = start_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType start_index_mask = 1u << Bitmap::IndexInCell(start_index);
-
-  unsigned int end_cell_index = end_index >> Bitmap::kBitsPerCellLog2;
-  MarkBit::CellType end_index_mask = 1u << Bitmap::IndexInCell(end_index);
+  const CellIndex start_cell_index = IndexToCell(start_index);
+  MarkBit::CellType start_index_mask = IndexInCellMask(start_index);
+  const CellIndex end_cell_index = IndexToCell(end_index);
+  MarkBit::CellType end_index_mask = IndexInCellMask(end_index);
 
   MarkBit::CellType matching_mask;
   if (start_cell_index != end_cell_index) {
     matching_mask = ~(start_index_mask - 1);
     if ((cells()[start_cell_index] & matching_mask)) return false;
-    for (unsigned int i = start_cell_index + 1; i < end_cell_index; i++) {
+    for (size_t i = start_cell_index + 1; i < end_cell_index; i++) {
       if (cells()[i]) return false;
     }
     matching_mask = end_index_mask | (end_index_mask - 1);
@@ -67,19 +66,19 @@ bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::AllBitsClearInRange(
 
 namespace {
 
-void PrintWord(uint32_t word, uint32_t himask = 0) {
-  for (uint32_t mask = 1; mask != 0; mask <<= 1) {
+void PrintWord(MarkBit::CellType word, MarkBit::CellType himask = 0) {
+  for (MarkBit::CellType mask = 1; mask != 0; mask <<= 1) {
     if ((mask & himask) != 0) PrintF("[");
     PrintF((mask & word) ? "1" : "0");
     if ((mask & himask) != 0) PrintF("]");
   }
 }
 
-class CellPrinter {
+class CellPrinter final {
  public:
-  CellPrinter() : seq_start(0), seq_type(0), seq_length(0) {}
+  CellPrinter() = default;
 
-  void Print(size_t pos, uint32_t cell) {
+  void Print(size_t pos, MarkBit::CellType cell) {
     if (cell == seq_type) {
       seq_length++;
       return;
@@ -102,39 +101,49 @@ class CellPrinter {
   void Flush() {
     if (seq_length > 0) {
       PrintF("%zu: %dx%zu\n", seq_start, seq_type == 0 ? 0 : 1,
-             seq_length * Bitmap::kBitsPerCell);
+             seq_length * MarkingBitmap::kBitsPerCell);
       seq_length = 0;
     }
   }
 
-  static bool IsSeq(uint32_t cell) { return cell == 0 || cell == 0xFFFFFFFF; }
+  static bool IsSeq(MarkBit::CellType cell) {
+    return cell == 0 || cell == kAllBitsSetInCellValue;
+  }
 
  private:
-  size_t seq_start;
-  uint32_t seq_type;
-  size_t seq_length;
+  size_t seq_start = 0;
+  MarkBit::CellType seq_type = 0;
+  size_t seq_length = 0;
 };
 
 }  // anonymous namespace
 
-template <>
-void ConcurrentBitmap<AccessMode::NON_ATOMIC>::Print() {
+void MarkingBitmap::Print() const {
   CellPrinter printer;
-  for (size_t i = 0; i < CellsCount(); i++) {
+  for (size_t i = 0; i < kCellsCount; i++) {
     printer.Print(i, cells()[i]);
   }
   printer.Flush();
   PrintF("\n");
 }
 
-template <>
-bool ConcurrentBitmap<AccessMode::NON_ATOMIC>::IsClean() {
-  for (size_t i = 0; i < CellsCount(); i++) {
+bool MarkingBitmap::IsClean() const {
+  for (size_t i = 0; i < kCellsCount; i++) {
     if (cells()[i] != 0) {
       return false;
     }
   }
   return true;
+}
+
+// static
+MarkBit MarkBit::FromForTesting(Address address) {
+  return MarkingBitmap::MarkBitFromAddress(address);
+}
+
+// static
+MarkBit MarkBit::FromForTesting(Tagged<HeapObject> heap_object) {
+  return MarkingBitmap::MarkBitFromAddress(heap_object.ptr());
 }
 
 }  // namespace internal

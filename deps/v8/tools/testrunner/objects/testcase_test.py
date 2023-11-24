@@ -7,10 +7,11 @@ import os
 import sys
 import unittest
 
+from pathlib import Path
+
 # Needed because the test runner contains relative imports.
-TOOLS_PATH = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.append(TOOLS_PATH)
+TOOLS_PATH = Path(__file__).resolve().parent.parent.parent
+sys.path.append(str(TOOLS_PATH))
 
 from testrunner.objects.testcase import TestCase
 

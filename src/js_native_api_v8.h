@@ -10,8 +10,8 @@ namespace v8impl {
 
 class RefTracker {
  public:
-  RefTracker() {}
-  virtual ~RefTracker() {}
+  RefTracker() = default;
+  virtual ~RefTracker() = default;
   virtual void Finalize() {}
 
   typedef RefTracker RefList;
@@ -105,6 +105,9 @@ struct napi_env__ {
     CallIntoModule([&](napi_env env) { cb(env, data, hint); });
   }
 
+  // Invoke finalizer from V8 garbage collector.
+  void InvokeFinalizerFromGC(v8impl::RefTracker* finalizer);
+
   // Enqueue the finalizer to the napi_env's own queue of the second pass
   // weak callback.
   // Implementation should drain the queue at the time it is safe to call
@@ -130,6 +133,19 @@ struct napi_env__ {
     delete this;
   }
 
+  void CheckGCAccess() {
+    if (module_api_version == NAPI_VERSION_EXPERIMENTAL && in_gc_finalizer) {
+      v8impl::OnFatalError(
+          nullptr,
+          "Finalizer is calling a function that may affect GC state.\n"
+          "The finalizers are run directly from GC and must not affect GC "
+          "state.\n"
+          "Use `node_api_post_finalizer` from inside of the finalizer to work "
+          "around this issue.\n"
+          "It schedules the call as a new task in the event loop.");
+    }
+  }
+
   v8::Isolate* const isolate;  // Shortcut for context()->GetIsolate()
   v8impl::Persistent<v8::Context> context_persistent;
 
@@ -148,6 +164,7 @@ struct napi_env__ {
   int refs = 1;
   void* instance_data = nullptr;
   int32_t module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  bool in_gc_finalizer = false;
 
  protected:
   // Should not be deleted directly. Delete with `napi_env__::DeleteMe()`
@@ -195,6 +212,12 @@ inline napi_status napi_set_last_error(napi_env env,
     }                                                                          \
   } while (0)
 
+#define CHECK_ENV_NOT_IN_GC(env)                                               \
+  do {                                                                         \
+    CHECK_ENV((env));                                                          \
+    (env)->CheckGCAccess();                                                    \
+  } while (0)
+
 #define CHECK_ARG(env, arg)                                                    \
   RETURN_STATUS_IF_FALSE((env), ((arg) != nullptr), napi_invalid_arg)
 
@@ -210,7 +233,7 @@ inline napi_status napi_set_last_error(napi_env env,
 
 // NAPI_PREAMBLE is not wrapped in do..while: try_catch must have function scope
 #define NAPI_PREAMBLE(env)                                                     \
-  CHECK_ENV((env));                                                            \
+  CHECK_ENV_NOT_IN_GC((env));                                                  \
   RETURN_STATUS_IF_FALSE(                                                      \
       (env), (env)->last_exception.IsEmpty(), napi_pending_exception);         \
   RETURN_STATUS_IF_FALSE((env),                                                \
@@ -355,8 +378,28 @@ enum class Ownership {
   kUserland,
 };
 
-// Wrapper around Finalizer that implements reference counting.
-class RefBase : public Finalizer, public RefTracker {
+// Wrapper around Finalizer that can be tracked.
+class TrackedFinalizer : public Finalizer, public RefTracker {
+ protected:
+  TrackedFinalizer(napi_env env,
+                   napi_finalize finalize_callback,
+                   void* finalize_data,
+                   void* finalize_hint);
+
+ public:
+  static TrackedFinalizer* New(napi_env env,
+                               napi_finalize finalize_callback,
+                               void* finalize_data,
+                               void* finalize_hint);
+  ~TrackedFinalizer() override;
+
+ protected:
+  void Finalize() override;
+  void FinalizeCore(bool deleteMe);
+};
+
+// Wrapper around TrackedFinalizer that implements reference counting.
+class RefBase : public TrackedFinalizer {
  protected:
   RefBase(napi_env env,
           uint32_t initial_refcount,
@@ -372,7 +415,6 @@ class RefBase : public Finalizer, public RefTracker {
                       napi_finalize finalize_callback,
                       void* finalize_data,
                       void* finalize_hint);
-  virtual ~RefBase();
 
   void* Data();
   uint32_t Ref();

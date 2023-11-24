@@ -7,10 +7,10 @@ added:
   - v19.7.0
   - v18.16.0
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/46824
     description: Added support for "useSnapshot".
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48191
     description: Added support for "useCodeCache".
 -->

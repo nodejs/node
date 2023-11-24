@@ -315,7 +315,7 @@ function _regeneratorRuntime() {
     };
   };
   function values(iterable) {
-    if (iterable) {
+    if (iterable || iterable === "") {
       var iteratorMethod = iterable[iteratorSymbol];
       if (iteratorMethod) {
         return iteratorMethod.call(iterable);
@@ -340,9 +340,7 @@ function _regeneratorRuntime() {
         return next.next = next;
       }
     }
-    return {
-      next: doneResult
-    };
+    throw new TypeError(typeof iterable + " is not iterable");
   }
   _exports.values = values;
   function doneResult() {

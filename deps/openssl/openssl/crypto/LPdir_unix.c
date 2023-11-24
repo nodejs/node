@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -137,7 +137,7 @@ const char *LP_find_file(LP_DIR_CTX **ctx, const char *directory)
     if ((*ctx)->expect_file_generations) {
         char *p = (*ctx)->entry_name + strlen((*ctx)->entry_name);
 
-        while(p > (*ctx)->entry_name && isdigit(p[-1]))
+        while (p > (*ctx)->entry_name && isdigit((unsigned char)p[-1]))
             p--;
         if (p > (*ctx)->entry_name && p[-1] == ';')
             p[-1] = '\0';

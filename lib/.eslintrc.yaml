@@ -19,7 +19,7 @@ rules:
     - selector: ThrowStatement > CallExpression[callee.name=/Error$/]
       message: Use new keyword when throwing an Error.
     # Config specific to lib
-    - selector: NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError)$/])
+    - selector: NewExpression[callee.name=/Error$/]:not([callee.name=/^(AssertionError|NghttpError|AbortError|NodeAggregateError)$/])
       message: Use an error exported by the internal/errors module.
     - selector: CallExpression[callee.object.name='Error'][callee.property.name='captureStackTrace']
       message: Please use `require('internal/errors').hideStackFrames()` instead.
@@ -33,10 +33,6 @@ rules:
       message: Use `const { AbortController } = require('internal/abort_controller');` instead of the global.
     - name: AbortSignal
       message: Use `const { AbortSignal } = require('internal/abort_controller');` instead of the global.
-      # Atomics is not available in primordials because it can be
-      # disabled with --no-harmony-atomics CLI flag.
-    - name: Atomics
-      message: Use `const { Atomics } = globalThis;` instead of the global.
     - name: Blob
       message: Use `const { Blob } = require('buffer');` instead of the global.
     - name: BroadcastChannel
@@ -176,9 +172,13 @@ rules:
     - name: setTimeout
       message: Use `const { setTimeout } = require('timers');` instead of the global.
     - name: structuredClone
-      message: Use `const { structuredClone } = require('internal/structured_clone');` instead of the global.
+      message: Use `const { structuredClone } = internalBinding('messaging');` instead of the global.
     - name: SubtleCrypto
       message: Use `const { SubtleCrypto } = require('internal/crypto/webcrypto');` instead of the global.
+  no-restricted-modules:
+    - error
+    - name: url
+      message: Require `internal/url` instead of `url`.
   # Custom rules in tools/eslint-rules
   node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error
@@ -189,6 +189,7 @@ rules:
     - name: AggregateError
     - name: Array
     - name: ArrayBuffer
+    - name: Atomics
     - name: BigInt
     - name: BigInt64Array
     - name: BigUint64Array

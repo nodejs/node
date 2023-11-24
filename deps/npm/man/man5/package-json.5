@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "July 2023" "" ""
+.TH "PACKAGE.JSON" "5" "November 2023" "" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -70,8 +70,10 @@ It should look like this:
 .RS 2
 .nf
 {
-  "url" : "https://github.com/owner/project/issues",
-  "email" : "project@hostname.com"
+  "bugs": {
+    "url": "https://github.com/owner/project/issues",
+    "email": "project@hostname.com"
+  }
 }
 .fi
 .RE
@@ -254,6 +256,8 @@ Certain files are always included, regardless of settings:
 \fBLICENSE\fR / \fBLICENCE\fR
 .IP \(bu 4
 The file in the "main" field
+.IP \(bu 4
+The file(s) in the "bin" field
 .RE 0
 
 .P

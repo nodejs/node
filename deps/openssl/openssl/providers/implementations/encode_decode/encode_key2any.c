@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -858,14 +858,17 @@ static int prepare_rsa_params(const void *rsa, int nid, int save,
                 case 1:
                     if ((str = OPENSSL_malloc(str_sz)) == NULL
                         || !WPACKET_init_der(&pkt, str, str_sz)) {
+                        WPACKET_cleanup(&pkt);
                         goto err;
                     }
                     break;
                 }
                 if (!ossl_DER_w_RSASSA_PSS_params(&pkt, -1, pss)
                     || !WPACKET_finish(&pkt)
-                    || !WPACKET_get_total_written(&pkt, &str_sz))
+                    || !WPACKET_get_total_written(&pkt, &str_sz)) {
+                    WPACKET_cleanup(&pkt);
                     goto err;
+                }
                 WPACKET_cleanup(&pkt);
 
                 /*

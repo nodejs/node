@@ -217,6 +217,9 @@ module.exports = [
     description: 'Retrieves a name:pathname Map for a given workspaces config',
     keywords: [
       '\x1B[33mnpm\x1B[39m',
+      // eslint-disable-next-line no-octal-escape
+      '\x1b]4;0;?\007',
+      '\u001b[Hbad map',
       'npmcli',
       'libnpm',
       'cli',
@@ -274,5 +277,12 @@ module.exports = [
     links: { npm: 'https://www.npmjs.com/package/%40types%2Flibnpmsearch' },
     publisher: { username: 'types', email: 'ts-npm-types@microsoft.com' },
     maintainers: [{ username: 'types', email: 'ts-npm-types@microsoft.com' }],
+  },
+  {
+    name: 'pkg-no-desc',
+    scope: 'unscoped',
+    version: '1.0.0',
+    date: '2019-09-26T22:24:28.713Z',
+    maintainers: [{ username: 'lukekarrys', email: 'lukekarrys' }],
   },
 ]

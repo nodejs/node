@@ -48,7 +48,8 @@ const
     equal = require("fast-deep-equal"),
     Traverser = require("../../lib/shared/traverser"),
     { getRuleOptionsSchema, validate } = require("../shared/config-validator"),
-    { Linter, SourceCodeFixer, interpolate } = require("../linter");
+    { Linter, SourceCodeFixer, interpolate } = require("../linter"),
+    CodePath = require("../linter/code-path-analysis/code-path");
 
 const ajv = require("../shared/ajv")({ strictDefaults: true });
 
@@ -62,6 +63,7 @@ const { SourceCode } = require("../source-code");
 //------------------------------------------------------------------------------
 
 /** @typedef {import("../shared/types").Parser} Parser */
+/** @typedef {import("../shared/types").Rule} Rule */
 
 
 /**
@@ -161,7 +163,42 @@ const suggestionObjectParameters = new Set([
 ]);
 const friendlySuggestionObjectParameterList = `[${[...suggestionObjectParameters].map(key => `'${key}'`).join(", ")}]`;
 
+const forbiddenMethods = [
+    "applyInlineConfig",
+    "applyLanguageOptions",
+    "finalize"
+];
+
 const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
+
+const DEPRECATED_SOURCECODE_PASSTHROUGHS = {
+    getSource: "getText",
+    getSourceLines: "getLines",
+    getAllComments: "getAllComments",
+    getNodeByRangeIndex: "getNodeByRangeIndex",
+
+    // getComments: "getComments", -- already handled by a separate error
+    getCommentsBefore: "getCommentsBefore",
+    getCommentsAfter: "getCommentsAfter",
+    getCommentsInside: "getCommentsInside",
+    getJSDocComment: "getJSDocComment",
+    getFirstToken: "getFirstToken",
+    getFirstTokens: "getFirstTokens",
+    getLastToken: "getLastToken",
+    getLastTokens: "getLastTokens",
+    getTokenAfter: "getTokenAfter",
+    getTokenBefore: "getTokenBefore",
+    getTokenByRangeStart: "getTokenByRangeStart",
+    getTokens: "getTokens",
+    getTokensAfter: "getTokensAfter",
+    getTokensBefore: "getTokensBefore",
+    getTokensBetween: "getTokensBetween",
+
+    getScope: "getScope",
+    getAncestors: "getAncestors",
+    getDeclaredVariables: "getDeclaredVariables",
+    markVariableAsUsed: "markVariableAsUsed"
+};
 
 /**
  * Clones a given value deeply.
@@ -305,6 +342,19 @@ function getCommentsDeprecation() {
 }
 
 /**
+ * Function to replace forbidden `SourceCode` methods.
+ * @param {string} methodName The name of the method to forbid.
+ * @returns {Function} The function that throws the error.
+ */
+function throwForbiddenMethodError(methodName) {
+    return () => {
+        throw new Error(
+            `\`SourceCode#${methodName}()\` cannot be called inside a rule.`
+        );
+    };
+}
+
+/**
  * Emit a deprecation warning if function-style format is being used.
  * @param {string} ruleName Name of the rule.
  * @returns {void}
@@ -333,6 +383,53 @@ function emitMissingSchemaWarning(ruleName) {
         );
     }
 }
+
+/**
+ * Emit a deprecation warning if a rule uses a deprecated `context` method.
+ * @param {string} ruleName Name of the rule.
+ * @param {string} methodName The name of the method on `context` that was used.
+ * @returns {void}
+ */
+function emitDeprecatedContextMethodWarning(ruleName, methodName) {
+    if (!emitDeprecatedContextMethodWarning[`warned-${ruleName}-${methodName}`]) {
+        emitDeprecatedContextMethodWarning[`warned-${ruleName}-${methodName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule is using \`context.${methodName}()\`, which is deprecated and will be removed in ESLint v9. Please use \`sourceCode.${DEPRECATED_SOURCECODE_PASSTHROUGHS[methodName]}()\` instead.`,
+            "DeprecationWarning"
+        );
+    }
+}
+
+/**
+ * Emit a deprecation warning if rule uses CodePath#currentSegments.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitCodePathCurrentSegmentsWarning(ruleName) {
+    if (!emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`]) {
+        emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule uses CodePath#currentSegments and will stop working in ESLint v9. Please read the documentation for how to update your code: https://eslint.org/docs/latest/extend/code-path-analysis#usage-examples`,
+            "DeprecationWarning"
+        );
+    }
+}
+
+/**
+ * Emit a deprecation warning if `context.parserServices` is used.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitParserServicesWarning(ruleName) {
+    if (!emitParserServicesWarning[`warned-${ruleName}`]) {
+        emitParserServicesWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule is using \`context.parserServices\`, which is deprecated and will be removed in ESLint v9. Please use \`sourceCode.parserServices\` instead.`,
+            "DeprecationWarning"
+        );
+    }
+}
+
 
 //------------------------------------------------------------------------------
 // Public Interface
@@ -508,17 +605,20 @@ class RuleTester {
     /**
      * Define a rule for one particular run of tests.
      * @param {string} name The name of the rule to define.
-     * @param {Function} rule The rule definition.
+     * @param {Function | Rule} rule The rule definition.
      * @returns {void}
      */
     defineRule(name, rule) {
+        if (typeof rule === "function") {
+            emitLegacyRuleAPIWarning(name);
+        }
         this.rules[name] = rule;
     }
 
     /**
      * Adds a new rule test to execute.
      * @param {string} ruleName The name of the rule to run.
-     * @param {Function} rule The rule to test.
+     * @param {Function | Rule} rule The rule to test.
      * @param {{
      *   valid: (ValidTestCase | string)[],
      *   invalid: InvalidTestCase[]
@@ -562,7 +662,38 @@ class RuleTester {
                 freezeDeeply(context.settings);
                 freezeDeeply(context.parserOptions);
 
-                return (typeof rule === "function" ? rule : rule.create)(context);
+                // wrap all deprecated methods
+                const newContext = Object.create(
+                    context,
+                    Object.fromEntries(Object.keys(DEPRECATED_SOURCECODE_PASSTHROUGHS).map(methodName => [
+                        methodName,
+                        {
+                            value(...args) {
+
+                                // emit deprecation warning
+                                emitDeprecatedContextMethodWarning(ruleName, methodName);
+
+                                // call the original method
+                                return context[methodName].call(this, ...args);
+                            },
+                            enumerable: true
+                        }
+                    ]))
+                );
+
+                // emit warning about context.parserServices
+                const parserServices = context.parserServices;
+
+                Object.defineProperty(newContext, "parserServices", {
+                    get() {
+                        emitParserServicesWarning(ruleName);
+                        return parserServices;
+                    }
+                });
+
+                Object.freeze(newContext);
+
+                return (typeof rule === "function" ? rule : rule.create)(newContext);
             }
         }));
 
@@ -681,14 +812,30 @@ class RuleTester {
             validate(config, "rule-tester", id => (id === ruleName ? rule : null));
 
             // Verify the code.
-            const { getComments } = SourceCode.prototype;
+            const { getComments, applyLanguageOptions, applyInlineConfig, finalize } = SourceCode.prototype;
+            const originalCurrentSegments = Object.getOwnPropertyDescriptor(CodePath.prototype, "currentSegments");
             let messages;
 
             try {
                 SourceCode.prototype.getComments = getCommentsDeprecation;
+                Object.defineProperty(CodePath.prototype, "currentSegments", {
+                    get() {
+                        emitCodePathCurrentSegmentsWarning(ruleName);
+                        return originalCurrentSegments.get.call(this);
+                    }
+                });
+
+                forbiddenMethods.forEach(methodName => {
+                    SourceCode.prototype[methodName] = throwForbiddenMethodError(methodName);
+                });
+
                 messages = linter.verify(code, config, filename);
             } finally {
                 SourceCode.prototype.getComments = getComments;
+                Object.defineProperty(CodePath.prototype, "currentSegments", originalCurrentSegments);
+                SourceCode.prototype.applyInlineConfig = applyInlineConfig;
+                SourceCode.prototype.applyLanguageOptions = applyLanguageOptions;
+                SourceCode.prototype.finalize = finalize;
             }
 
             const fatalErrorMessage = messages.find(m => m.fatal);
@@ -1021,29 +1168,35 @@ class RuleTester {
         /*
          * This creates a mocha test suite and pipes all supplied info through
          * one of the templates above.
+         * The test suites for valid/invalid are created conditionally as
+         * test runners (eg. vitest) fail for empty test suites.
          */
         this.constructor.describe(ruleName, () => {
-            this.constructor.describe("valid", () => {
-                test.valid.forEach(valid => {
-                    this.constructor[valid.only ? "itOnly" : "it"](
-                        sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
-                        () => {
-                            testValidTemplate(valid);
-                        }
-                    );
+            if (test.valid.length > 0) {
+                this.constructor.describe("valid", () => {
+                    test.valid.forEach(valid => {
+                        this.constructor[valid.only ? "itOnly" : "it"](
+                            sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
+                            () => {
+                                testValidTemplate(valid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
 
-            this.constructor.describe("invalid", () => {
-                test.invalid.forEach(invalid => {
-                    this.constructor[invalid.only ? "itOnly" : "it"](
-                        sanitize(invalid.name || invalid.code),
-                        () => {
-                            testInvalidTemplate(invalid);
-                        }
-                    );
+            if (test.invalid.length > 0) {
+                this.constructor.describe("invalid", () => {
+                    test.invalid.forEach(invalid => {
+                        this.constructor[invalid.only ? "itOnly" : "it"](
+                            sanitize(invalid.name || invalid.code),
+                            () => {
+                                testInvalidTemplate(invalid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
         });
     }
 }

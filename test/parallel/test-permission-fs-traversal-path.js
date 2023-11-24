@@ -18,7 +18,7 @@ const tmpdir = require('../common/tmpdir');
 
 const file = fixtures.path('permission', 'fs-traversal.js');
 const blockedFolder = tmpdir.path;
-const allowedFolder = path.join(tmpdir.path, 'subdirectory/');
+const allowedFolder = tmpdir.resolve('subdirectory');
 const commonPathWildcard = path.join(__filename, '../../common*');
 
 {
@@ -31,7 +31,7 @@ const commonPathWildcard = path.join(__filename, '../../common*');
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${file},${commonPathWildcard},${allowedFolder}`,
+      `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${allowedFolder}`,
       `--allow-fs-write=${allowedFolder}`,
       file,
     ],

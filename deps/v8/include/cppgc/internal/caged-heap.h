@@ -33,24 +33,31 @@ class V8_EXPORT CagedHeapBase {
 
   V8_INLINE static bool AreWithinCage(const void* addr1, const void* addr2) {
 #if defined(CPPGC_2GB_CAGE)
-    static constexpr size_t kHalfWordShift = sizeof(uint32_t) * CHAR_BIT - 1;
+    static constexpr size_t kHeapBaseShift = sizeof(uint32_t) * CHAR_BIT - 1;
 #else   //! defined(CPPGC_2GB_CAGE)
-    static constexpr size_t kHalfWordShift = sizeof(uint32_t) * CHAR_BIT;
+#if defined(CPPGC_POINTER_COMPRESSION)
+    static constexpr size_t kHeapBaseShift =
+        31 + api_constants::kPointerCompressionShift;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+    static constexpr size_t kHeapBaseShift = sizeof(uint32_t) * CHAR_BIT;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
 #endif  //! defined(CPPGC_2GB_CAGE)
-    static_assert((static_cast<size_t>(1) << kHalfWordShift) ==
-                  api_constants::kCagedHeapReservationSize);
+    static_assert((static_cast<size_t>(1) << kHeapBaseShift) ==
+                  api_constants::kCagedHeapMaxReservationSize);
     CPPGC_DCHECK(g_heap_base_);
     return !(((reinterpret_cast<uintptr_t>(addr1) ^ g_heap_base_) |
               (reinterpret_cast<uintptr_t>(addr2) ^ g_heap_base_)) >>
-             kHalfWordShift);
+             kHeapBaseShift);
   }
 
   V8_INLINE static uintptr_t GetBase() { return g_heap_base_; }
+  V8_INLINE static size_t GetAgeTableSize() { return g_age_table_size_; }
 
  private:
   friend class CagedHeap;
 
   static uintptr_t g_heap_base_;
+  static size_t g_age_table_size_;
 };
 
 }  // namespace internal

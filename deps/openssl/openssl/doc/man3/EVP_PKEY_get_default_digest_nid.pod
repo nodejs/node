@@ -18,8 +18,8 @@ EVP_PKEY_get_default_digest_nid, EVP_PKEY_get_default_digest_name
 EVP_PKEY_get_default_digest_name() fills in the default message digest
 name for the public key signature operations associated with key
 I<pkey> into I<mdname>, up to at most I<mdname_sz> bytes including the
-ending NUL byte.  The name could be C<"UNDEF">, signifying that no digest
-should be used.
+ending NUL byte.  The name could be C<"UNDEF">, signifying that a digest
+must (for return value 2) or may (for return value 1) be left unspecified.
 
 EVP_PKEY_get_default_digest_nid() sets I<pnid> to the default message
 digest NID for the public key signature operations associated with key
@@ -57,7 +57,7 @@ This function was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

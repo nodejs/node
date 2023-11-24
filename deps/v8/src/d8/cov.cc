@@ -71,8 +71,10 @@ extern "C" void __sanitizer_cov_trace_pc_guard_init(uint32_t* start,
 uint32_t sanitizer_cov_count_discovered_edges() {
   uint32_t on_edges_counter = 0;
   for (uint32_t i = 1; i < builtins_start; ++i) {
-    // TODO(ralbovsky): Can be optimized for fewer divisions.
-    if (shmem->edges[i / 8] & (1 << (i % 8))) {
+    const uint32_t byteIndex = i >> 3;  // Divide by 8 using a shift operation
+    const uint32_t bitIndex = i & 7;  // Modulo 8 using a bitwise AND operation
+
+    if (shmem->edges[byteIndex] & (1 << bitIndex)) {
       ++on_edges_counter;
     }
   }
@@ -114,9 +116,10 @@ void cov_update_builtins_basic_block_coverage(
   }
   for (uint32_t i = 0; i < cov_map.size(); ++i) {
     if (cov_map[i]) {
-      // TODO(ralbovsky): Can be optimized for fewer divisions.
-      shmem->edges[(i + builtins_start) / 8] |=
-          (1 << ((i + builtins_start) % 8));
+      const uint32_t byteIndex = (i + builtins_start) >> 3;
+      const uint32_t bitIndex = (i + builtins_start) & 7;
+
+      shmem->edges[byteIndex] |= (1 << bitIndex);
     }
   }
 }

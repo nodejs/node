@@ -28,7 +28,7 @@ const commonPath = path.join(__filename, '../../common');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission', `--allow-fs-read=${file},${commonPathWildcard}`, file,
+      '--experimental-permission', `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, file,
     ],
     {
       env: {

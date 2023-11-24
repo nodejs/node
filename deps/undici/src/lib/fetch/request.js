@@ -13,8 +13,8 @@ const {
   makePolicyContainer
 } = require('./util')
 const {
-  forbiddenMethods,
-  corsSafeListedMethods,
+  forbiddenMethodsSet,
+  corsSafeListedMethodsSet,
   referrerPolicy,
   requestRedirect,
   requestMode,
@@ -232,14 +232,18 @@ class Request {
         }
 
         // 3. If one of the following is true
-        // parsedReferrer’s cannot-be-a-base-URL is true, scheme is "about",
-        // and path contains a single string "client"
-        // parsedReferrer’s origin is not same origin with origin
+        // - parsedReferrer’s scheme is "about" and path is the string "client"
+        // - parsedReferrer’s origin is not same origin with origin
         // then set request’s referrer to "client".
-        // TODO
-
-        // 4. Otherwise, set request’s referrer to parsedReferrer.
-        request.referrer = parsedReferrer
+        if (
+          (parsedReferrer.protocol === 'about:' && parsedReferrer.hostname === 'client') ||
+          (origin && !sameOrigin(parsedReferrer, this[kRealm].settingsObject.baseUrl))
+        ) {
+          request.referrer = 'client'
+        } else {
+          // 4. Otherwise, set request’s referrer to parsedReferrer.
+          request.referrer = parsedReferrer
+        }
       }
     }
 
@@ -315,7 +319,7 @@ class Request {
         throw TypeError(`'${init.method}' is not a valid HTTP method.`)
       }
 
-      if (forbiddenMethods.indexOf(method.toUpperCase()) !== -1) {
+      if (forbiddenMethodsSet.has(method.toUpperCase())) {
         throw TypeError(`'${init.method}' HTTP method is unsupported.`)
       }
 
@@ -336,6 +340,8 @@ class Request {
 
     // 28. Set this’s signal to a new AbortSignal object with this’s relevant
     // Realm.
+    // TODO: could this be simplified with AbortSignal.any
+    // (https://dom.spec.whatwg.org/#dom-abortsignal-any)
     const ac = new AbortController()
     this[kSignal] = ac.signal
     this[kSignal][kRealm] = this[kRealm]
@@ -381,7 +387,7 @@ class Request {
           }
         } catch {}
 
-        signal.addEventListener('abort', abort, { once: true })
+        util.addAbortListener(signal, abort)
         requestFinalizer.register(ac, { signal, abort })
       }
     }
@@ -398,7 +404,7 @@ class Request {
     if (mode === 'no-cors') {
       // 1. If this’s request’s method is not a CORS-safelisted method,
       // then throw a TypeError.
-      if (!corsSafeListedMethods.includes(request.method)) {
+      if (!corsSafeListedMethodsSet.has(request.method)) {
         throw new TypeError(
           `'${request.method} is unsupported in no-cors mode.`
         )
@@ -729,12 +735,11 @@ class Request {
     if (this.signal.aborted) {
       ac.abort(this.signal.reason)
     } else {
-      this.signal.addEventListener(
-        'abort',
+      util.addAbortListener(
+        this.signal,
         () => {
           ac.abort(this.signal.reason)
-        },
-        { once: true }
+        }
       )
     }
     clonedRequestObject[kSignal] = ac.signal

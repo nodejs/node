@@ -1,6 +1,5 @@
 // Flags: --expose-internals
 import * as common from '../common/index.mjs';
-import path from 'node:path';
 import { describe, it } from 'node:test';
 import { spawn } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -18,7 +17,7 @@ tmpdir.refresh();
 const fixtureContent = {
   'dependency.js': 'module.exports = {};',
   'dependency.mjs': 'export const a = 1;',
-  'dependent.js': `
+  'test.js': `
 const test = require('node:test');
 require('./dependency.js');
 import('./dependency.mjs');
@@ -26,16 +25,16 @@ import('data:text/javascript,');
 test('test has ran');`,
 };
 const fixturePaths = Object.keys(fixtureContent)
-  .reduce((acc, file) => ({ ...acc, [file]: path.join(tmpdir.path, file) }), {});
+  .reduce((acc, file) => ({ ...acc, [file]: tmpdir.resolve(file) }), {});
 Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
-async function testWatch({ fileToUpdate }) {
+async function testWatch({ fileToUpdate, file }) {
   const ran1 = util.createDeferredPromise();
   const ran2 = util.createDeferredPromise();
   const child = spawn(process.execPath,
-                      ['--watch', '--test', '--no-warnings', fixturePaths['dependent.js']],
-                      { encoding: 'utf8', stdio: 'pipe' });
+                      ['--watch', '--test', file ? fixturePaths[file] : undefined].filter(Boolean),
+                      { encoding: 'utf8', stdio: 'pipe', cwd: tmpdir.path });
   let stdout = '';
 
   child.stdout.on('data', (data) => {
@@ -48,10 +47,7 @@ async function testWatch({ fileToUpdate }) {
   await ran1.promise;
   const content = fixtureContent[fileToUpdate];
   const path = fixturePaths[fileToUpdate];
-  const interval = setInterval(() => {
-    console.log(`Updating ${path}`);
-    writeFileSync(path, content);
-  }, 50);
+  const interval = setInterval(() => writeFileSync(path, content), common.platformTimeout(1000));
   await ran2.promise;
   clearInterval(interval);
   child.kill();
@@ -59,14 +55,18 @@ async function testWatch({ fileToUpdate }) {
 
 describe('test runner watch mode', () => {
   it('should run tests repeatedly', async () => {
-    await testWatch({ fileToUpdate: 'dependent.js' });
+    await testWatch({ file: 'test.js', fileToUpdate: 'test.js' });
   });
 
   it('should run tests with dependency repeatedly', async () => {
-    await testWatch({ fileToUpdate: 'dependency.js' });
+    await testWatch({ file: 'test.js', fileToUpdate: 'dependency.js' });
   });
 
   it('should run tests with ESM dependency', async () => {
-    await testWatch({ fileToUpdate: 'dependency.mjs' });
+    await testWatch({ file: 'test.js', fileToUpdate: 'dependency.mjs' });
+  });
+
+  it('should support running tests without a file', async () => {
+    await testWatch({ fileToUpdate: 'test.js' });
   });
 });

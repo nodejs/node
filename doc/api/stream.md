@@ -278,7 +278,7 @@ run().catch(console.error);
 rs.resume(); // Drain the stream.
 ```
 
-The `finished` API provides [callback version][stream-finished]:
+The `finished` API also provides a [callback version][stream-finished].
 
 ### Object mode
 
@@ -1907,7 +1907,9 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 ##### `readable[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.4.0
+added:
+ - v20.4.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -2012,6 +2014,10 @@ showBoth();
 added:
   - v17.4.0
   - v16.14.0
+changes:
+  - version: v20.7.0
+    pr-url: https://github.com/nodejs/node/pull/49249
+    description: added `highWaterMark` in options.
 -->
 
 > Stability: 1 - Experimental
@@ -2025,6 +2031,8 @@ added:
 * `options` {Object}
   * `concurrency` {number} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
+  * `highWaterMark` {number} how many items to buffer while waiting for user
+    consumption of the mapped items. **Default:** `concurrency * 2 - 1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
 * Returns: {Readable} a stream mapped with the function `fn`.
@@ -2059,6 +2067,10 @@ for await (const result of dnsResults) {
 added:
   - v17.4.0
   - v16.14.0
+changes:
+  - version: v20.7.0
+    pr-url: https://github.com/nodejs/node/pull/49249
+    description: added `highWaterMark` in options.
 -->
 
 > Stability: 1 - Experimental
@@ -2071,6 +2083,8 @@ added:
 * `options` {Object}
   * `concurrency` {number} the maximum concurrent invocation of `fn` to call
     on the stream at once. **Default:** `1`.
+  * `highWaterMark` {number} how many items to buffer while waiting for user
+    consumption of the filtered items. **Default:** `concurrency * 2 - 1`.
   * `signal` {AbortSignal} allows destroying the stream if the signal is
     aborted.
 * Returns: {Readable} a stream filtered with the predicate `fn`.
@@ -2810,6 +2824,11 @@ const server = http.createServer((req, res) => {
 added: v16.9.0
 changes:
   - version:
+    - v21.1.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50187
+    description: Added support for stream class.
+  - version:
     - v19.8.0
     - v18.16.0
     pr-url: https://github.com/nodejs/node/pull/46675
@@ -2819,7 +2838,7 @@ changes:
 > Stability: 1 - `stream.compose` is experimental.
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]|
-  ReadableStream\[]|WritableStream\[]|TransformStream\[]}
+  ReadableStream\[]|WritableStream\[]|TransformStream\[]|Duplex\[]|Function}
 * Returns: {stream.Duplex}
 
 Combines two or more streams into a `Duplex` stream that writes to the

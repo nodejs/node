@@ -360,7 +360,9 @@ was not open when it was closed.
 ### `server[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.5.0
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -577,7 +579,7 @@ added: v5.7.0
 <!-- YAML
 added: v0.2.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/48276
     description: Setting `maxConnections` to `0` drops all the incoming
                  connections. Previously, it was interpreted as `Infinity`.
@@ -799,7 +801,9 @@ socket as reported by the operating system:
 ### `socket.autoSelectFamilyAttemptedAddresses`
 
 <!-- YAML
-added: v19.4.0
+added:
+ - v19.4.0
+ - v18.18.0
 -->
 
 * {string\[]}
@@ -886,7 +890,9 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: v20.0.0
+  - version:
+      - v20.0.0
+      - v18.18.0
     pr-url: https://github.com/nodejs/node/pull/46790
     description: The default value for the autoSelectFamily option is now true.
                  The `--enable-network-family-autoselection` CLI flag has been renamed
@@ -1679,7 +1685,9 @@ Sets the default value of the `autoSelectFamily` option of [`socket.connect(opt
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.18.0
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
@@ -1690,7 +1698,9 @@ The initial default value is `250`.
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.18.0
 -->
 
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].

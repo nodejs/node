@@ -5,17 +5,15 @@
 #include 'src/builtins/builtins-promise-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-DebugPromiseThen(implicit context: Context)(JSAny): JSAny;
+extern transitioning runtime DebugPromiseThen(
+    implicit context: Context)(JSAny): JSAny;
 }
 
 namespace promise {
 
-extern macro
-CodeStubAssembler::HasAsyncEventDelegate(): bool;
+extern macro CodeStubAssembler::HasAsyncEventDelegate(): bool;
 
-macro
-IsPromiseSpeciesLookupChainIntact(
+macro IsPromiseSpeciesLookupChainIntact(
     nativeContext: NativeContext, promiseMap: Map): bool {
   const promisePrototype =
       *NativeContextSlot(nativeContext, ContextSlot::PROMISE_PROTOTYPE_INDEX);
@@ -25,9 +23,9 @@ IsPromiseSpeciesLookupChainIntact(
 }
 
 // https://tc39.es/ecma262/#sec-promise.prototype.then
-transitioning javascript builtin
-PromisePrototypeThen(js-implicit context: NativeContext, receiver: JSAny)(
-    onFulfilled: JSAny, onRejected: JSAny): JSAny {
+transitioning javascript builtin PromisePrototypeThen(
+    js-implicit context: NativeContext, receiver: JSAny)(onFulfilled: JSAny,
+    onRejected: JSAny): JSAny {
   // 1. Let promise be the this value.
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   const promise = Cast<JSPromise>(receiver) otherwise ThrowTypeError(

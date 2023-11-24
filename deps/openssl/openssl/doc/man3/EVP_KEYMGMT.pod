@@ -123,7 +123,7 @@ otherwise 0.
 
 EVP_KEYMGMT_get0_name() returns the algorithm name, or NULL on error.
 
-EVP_KEYMGMT_get0_description() returns a pointer to a decription, or NULL if
+EVP_KEYMGMT_get0_description() returns a pointer to a description, or NULL if
 there isn't one.
 
 EVP_KEYMGMT_gettable_params(), EVP_KEYMGMT_settable_params() and
@@ -140,7 +140,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -86,7 +86,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  icu::Collator* icu_collator = collator->icu_collator().raw();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -202,7 +202,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   // If the collator return the locale differ from what got requested, we stored
   // it in the collator->locale. Otherwise, we just use the one from the
   // collator.
-  if (collator->locale().length() != 0) {
+  if (collator->locale()->length() != 0) {
     // Get the locale from collator->locale() since we know in some cases
     // collator won't be able to return the requested one, such as zh_CN.
     Handle<String> locale_from_collator(collator->locale(), isolate);

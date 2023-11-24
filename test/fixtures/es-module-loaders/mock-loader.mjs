@@ -2,7 +2,7 @@ import { receiveMessageOnPort } from 'node:worker_threads';
 const mockedModuleExports = new Map();
 let currentMockVersion = 0;
 
-// This loader causes a new module `node:mock` to become available as a way to
+// These hooks enable code running on the application thread to
 // swap module resolution results for mocking purposes. It uses this instead
 // of import.meta so that CommonJS can still use the functionality.
 //
@@ -22,7 +22,7 @@ let currentMockVersion = 0;
 //       it cannot be changed. So things like the following DO NOT WORK:
 //
 // ```mjs
-// import mock from 'node:mock';
+// import mock from 'test-esm-loader-mock'; // See test-esm-loader-mock.mjs
 // mock('file:///app.js', {x:1});
 // const namespace1 = await import('file:///app.js');
 // namespace1.x; // 1
@@ -35,17 +35,6 @@ let currentMockVersion = 0;
 // ```
 
 /**
- * FIXME: this is a hack to workaround loaders being
- * single threaded for now, just ensures that the MessagePort drains
- */
-function doDrainPort() {
-  let msg;
-  while (msg = receiveMessageOnPort(preloadPort)) {
-    onPreloadPortMessage(msg.message);
-  }
-}
-
-/**
  * @param param0 message from the application context
  */
 function onPreloadPortMessage({
@@ -54,127 +43,31 @@ function onPreloadPortMessage({
   currentMockVersion = mockVersion;
   mockedModuleExports.set(resolved, exports);
 }
-let preloadPort;
-export function globalPreload({port}) {
-  // Save the communication port to the application context to send messages
-  // to it later
-  preloadPort = port;
-  // Every time the application context sends a message over the port
-  port.on('message', onPreloadPortMessage);
-  // This prevents the port that the Loader/application talk over
-  // from keeping the process alive, without this, an application would be kept
-  // alive just because a loader is waiting for messages
-  port.unref();
 
-  const insideAppContext = (getBuiltin, port, setImportMetaCallback) => {
-    /**
-     * This is the Map that saves *all* the mocked URL -> replacement Module
-     * mappings
-     * @type {Map<string, {namespace, listeners}>}
-     */
-    let mockedModules = new Map();
-    let mockVersion = 0;
-    /**
-     * This is the value that is placed into the `node:mock` default export
-     *
-     * @example
-     * ```mjs
-     * import mock from 'node:mock';
-     * const mutator = mock('file:///app.js', {x:1});
-     * const namespace = await import('file:///app.js');
-     * namespace.x; // 1;
-     * mutator.x = 2;
-     * namespace.x; // 2;
-     * ```
-     *
-     * @param {string} resolved an absolute URL HREF string
-     * @param {object} replacementProperties an object to pick properties from
-     *                                       to act as a module namespace
-     * @returns {object} a mutator object that can update the module namespace
-     *                   since we can't do something like old Object.observe
-     */
-    const doMock = (resolved, replacementProperties) => {
-      let exportNames = Object.keys(replacementProperties);
-      let namespace = Object.create(null);
-      /**
-       * @type {Array<(name: string)=>void>} functions to call whenever an
-       *                                     export name is updated
-       */
-      let listeners = [];
-      for (const name of exportNames) {
-        let currentValueForPropertyName = replacementProperties[name];
-        Object.defineProperty(namespace, name, {
-          enumerable: true,
-          get() {
-            return currentValueForPropertyName;
-          },
-          set(v) {
-            currentValueForPropertyName = v;
-            for (let fn of listeners) {
-              try {
-                fn(name);
-              } catch {
-              }
-            }
-          }
-        });
-      }
-      mockedModules.set(resolved, {
-        namespace,
-        listeners
-      });
-      mockVersion++;
-      // Inform the loader that the `resolved` URL should now use the specific
-      // `mockVersion` and has export names of `exportNames`
-      //
-      // This allows the loader to generate a fake module for that version
-      // and names the next time it resolves a specifier to equal `resolved`
-      port.postMessage({ mockVersion, resolved, exports: exportNames });
-      return namespace;
-    }
-    // Sets the import.meta properties up
-    // has the normal chaining workflow with `defaultImportMetaInitializer`
-    setImportMetaCallback((meta, context, defaultImportMetaInitializer) => {
-      /**
-       * 'node:mock' creates its default export by plucking off of import.meta
-       * and must do so in order to get the communications channel from inside
-       * preloadCode
-       */
-      if (context.url === 'node:mock') {
-        meta.doMock = doMock;
-        return;
-      }
-      /**
-       * Fake modules created by `node:mock` get their meta.mock utility set
-       * to the corresponding value keyed off `mockedModules` and use this
-       * to setup their exports/listeners properly
-       */
-      if (context.url.startsWith('mock-facade:')) {
-        let [proto, version, encodedTargetURL] = context.url.split(':');
-        let decodedTargetURL = decodeURIComponent(encodedTargetURL);
-        if (mockedModules.has(decodedTargetURL)) {
-          meta.mock = mockedModules.get(decodedTargetURL);
-          return;
-        }
-      }
-      /**
-       * Ensure we still get things like `import.meta.url`
-       */
-      defaultImportMetaInitializer(meta, context);
-    });
-  };
-  return `(${insideAppContext})(getBuiltin, port, setImportMetaCallback)`
+/** @type {URL['href']} */
+let mainImportURL;
+/** @type {MessagePort} */
+let preloadPort;
+export async function initialize(data) {
+  ({ mainImportURL, port: preloadPort } = data);
+  
+  data.port.on('message', onPreloadPortMessage);
 }
 
+/**
+ * Because Node.js internals use a separate MessagePort for cross-thread
+ * communication, there could be some messages pending that we should handle
+ * before continuing.
+ */
+function doDrainPort() {
+  let msg;
+  while (msg = receiveMessageOnPort(preloadPort)) {
+    onPreloadPortMessage(msg.message);
+  }
+}
 
 // Rewrites node: loading to mock-facade: so that it can be intercepted
 export async function resolve(specifier, context, defaultResolve) {
-  if (specifier === 'node:mock') {
-    return {
-      shortCircuit: true,
-      url: specifier
-    };
-  }
   doDrainPort();
   const def = await defaultResolve(specifier, context);
   if (context.parentURL?.startsWith('mock-facade:')) {
@@ -193,55 +86,46 @@ export async function resolve(specifier, context, defaultResolve) {
 
 export async function load(url, context, defaultLoad) {
   doDrainPort();
-  if (url === 'node:mock') {
-    /**
-     * Simply grab the import.meta.doMock to establish the communication
-     * channel with preloadCode
-     */
-    return {
-      shortCircuit: true,
-      source: 'export default import.meta.doMock',
-      format: 'module'
-    };
-  }
   /**
    * Mocked fake module, not going to be handled in default way so it
    * generates the source text, then short circuits
    */
   if (url.startsWith('mock-facade:')) {
-    let [proto, version, encodedTargetURL] = url.split(':');
-    let ret = generateModule(mockedModuleExports.get(
-      decodeURIComponent(encodedTargetURL)
-    ));
+    const encodedTargetURL = url.slice(url.lastIndexOf(':') + 1);
     return {
       shortCircuit: true,
-      source: ret,
-      format: 'module'
+      source: generateModule(encodedTargetURL),
+      format: 'module',
     };
   }
   return defaultLoad(url, context);
 }
 
 /**
- *
- * @param {Array<string>} exports name of the exports of the module
+ * Generate the source code for a mocked module.
+ * @param {string} encodedTargetURL the module being mocked
  * @returns {string}
  */
-function generateModule(exports) {
+function generateModule(encodedTargetURL) {
+  const exports = mockedModuleExports.get(
+    decodeURIComponent(encodedTargetURL)
+  );
   let body = [
+    `import { mockedModules } from ${JSON.stringify(mainImportURL)};`,
     'export {};',
-    'let mapping = {__proto__: null};'
+    'let mapping = {__proto__: null};',
+    `const mock = mockedModules.get(${JSON.stringify(encodedTargetURL)});`,
   ];
   for (const [i, name] of Object.entries(exports)) {
     let key = JSON.stringify(name);
-    body.push(`var _${i} = import.meta.mock.namespace[${key}];`);
+    body.push(`var _${i} = mock.namespace[${key}];`);
     body.push(`Object.defineProperty(mapping, ${key}, { enumerable: true, set(v) {_${i} = v;}, get() {return _${i};} });`);
     body.push(`export {_${i} as ${name}};`);
   }
-  body.push(`import.meta.mock.listeners.push(${
+  body.push(`mock.listeners.push(${
     () => {
       for (var k in mapping) {
-        mapping[k] = import.meta.mock.namespace[k];
+        mapping[k] = mock.namespace[k];
       }
     }
   });`);

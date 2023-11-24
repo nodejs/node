@@ -2,7 +2,7 @@
 
 // Flags: --experimental-vm-modules
 
-require('../common');
+const common = require('../common');
 
 const assert = require('assert');
 const { SourceTextModule } = require('vm');
@@ -27,4 +27,4 @@ assert.rejects(async () => {
   m.createCachedData();
 }, {
   code: 'ERR_VM_MODULE_CANNOT_CREATE_CACHED_DATA',
-});
+}).then(common.mustCall());

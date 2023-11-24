@@ -1,4 +1,3 @@
-#include "node_util.h"
 #include "base_object-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
@@ -17,8 +16,6 @@ using v8::CFunction;
 using v8::Context;
 using v8::External;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
-using v8::HandleScope;
 using v8::IndexFilter;
 using v8::Integer;
 using v8::Isolate;
@@ -34,6 +31,8 @@ using v8::PropertyFilter;
 using v8::Proxy;
 using v8::SKIP_STRINGS;
 using v8::SKIP_SYMBOLS;
+using v8::StackFrame;
+using v8::StackTrace;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
@@ -140,6 +139,24 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<StackTrace> trace = StackTrace::CurrentStackTrace(isolate, 2);
+
+  // This function is frame zero. The caller is frame one. If there aren't two
+  // stack frames, return undefined.
+  if (trace->GetFrameCount() != 2) {
+    return;
+  }
+
+  Local<StackFrame> frame = trace->GetFrame(isolate, 1);
+  Local<Value> ret[] = {Integer::New(isolate, frame->GetLineNumber()),
+                        Integer::New(isolate, frame->GetColumn()),
+                        frame->GetScriptNameOrSourceURL()};
+
+  args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
+}
+
 static void IsArrayBufferDetached(const FunctionCallbackInfo<Value>& args) {
   if (args[0]->IsArrayBuffer()) {
     auto buffer = args[0].As<v8::ArrayBuffer>();
@@ -181,107 +198,29 @@ void ArrayBufferViewHasBuffer(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<ArrayBufferView>()->HasBuffer());
 }
 
-WeakReference::WeakReference(Realm* realm,
-                             Local<Object> object,
-                             Local<Object> target)
-    : WeakReference(realm, object, target, 0) {}
+static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
+  // TODO(anonrig): We can use an enum here and then create the array in the
+  // binding, which will remove the hard-coding in C++ and JS land.
 
-WeakReference::WeakReference(Realm* realm,
-                             Local<Object> object,
-                             Local<Object> target,
-                             uint64_t reference_count)
-    : SnapshotableObject(realm, object, type_int),
-      reference_count_(reference_count) {
-  MakeWeak();
-  if (!target.IsEmpty()) {
-    target_.Reset(realm->isolate(), target);
-    if (reference_count_ == 0) {
-      target_.SetWeak();
-    }
+  // Currently, the return type of this function corresponds to the index of the
+  // array defined in the JS land. This is done as an optimization to reduce the
+  // string serialization overhead.
+  switch (type) {
+    case UV_TCP:
+      return 0;
+    case UV_TTY:
+      return 1;
+    case UV_UDP:
+      return 2;
+    case UV_FILE:
+      return 3;
+    case UV_NAMED_PIPE:
+      return 4;
+    case UV_UNKNOWN_HANDLE:
+      return 5;
+    default:
+      ABORT();
   }
-}
-
-bool WeakReference::PrepareForSerialization(Local<Context> context,
-                                            v8::SnapshotCreator* creator) {
-  if (target_.IsEmpty()) {
-    target_index_ = 0;
-    return true;
-  }
-
-  // Users can still hold strong references to target in addition to the
-  // reference that we manage here, and they could expect that the referenced
-  // object remains the same as long as that external strong reference
-  // is alive. Since we have no way to know if there is any other reference
-  // keeping the target alive, the best we can do to maintain consistency is to
-  // simply save a reference to the target in the snapshot (effectively making
-  // it strong) during serialization, and restore it during deserialization.
-  // If there's no known counted reference from our side, we'll make the
-  // reference here weak upon deserialization so that it can be GC'ed if users
-  // do not hold additional references to it.
-  Local<Object> target = target_.Get(context->GetIsolate());
-  target_index_ = creator->AddData(context, target);
-  DCHECK_NE(target_index_, 0);
-  target_.Reset();
-  return true;
-}
-
-InternalFieldInfoBase* WeakReference::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
-  info->target = target_index_;
-  info->reference_count = reference_count_;
-  return info;
-}
-
-void WeakReference::Deserialize(Local<Context> context,
-                                Local<Object> holder,
-                                int index,
-                                InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-  HandleScope scope(context->GetIsolate());
-
-  InternalFieldInfo* weak_info = reinterpret_cast<InternalFieldInfo*>(info);
-  Local<Object> target;
-  if (weak_info->target != 0) {
-    target = context->GetDataFromSnapshotOnce<Object>(weak_info->target)
-                 .ToLocalChecked();
-  }
-  new WeakReference(
-      Realm::GetCurrent(context), holder, target, weak_info->reference_count);
-}
-
-void WeakReference::New(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  CHECK(args.IsConstructCall());
-  CHECK(args[0]->IsObject());
-  new WeakReference(realm, args.This(), args[0].As<Object>());
-}
-
-void WeakReference::Get(const FunctionCallbackInfo<Value>& args) {
-  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-  Isolate* isolate = args.GetIsolate();
-  if (!weak_ref->target_.IsEmpty())
-    args.GetReturnValue().Set(weak_ref->target_.Get(isolate));
-}
-
-void WeakReference::IncRef(const FunctionCallbackInfo<Value>& args) {
-  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-  weak_ref->reference_count_++;
-  if (weak_ref->target_.IsEmpty()) return;
-  if (weak_ref->reference_count_ == 1) weak_ref->target_.ClearWeak();
-  args.GetReturnValue().Set(
-      v8::Number::New(args.GetIsolate(), weak_ref->reference_count_));
-}
-
-void WeakReference::DecRef(const FunctionCallbackInfo<Value>& args) {
-  WeakReference* weak_ref = Unwrap<WeakReference>(args.Holder());
-  CHECK_GE(weak_ref->reference_count_, 1);
-  weak_ref->reference_count_--;
-  if (weak_ref->target_.IsEmpty()) return;
-  if (weak_ref->reference_count_ == 0) weak_ref->target_.SetWeak();
-  args.GetReturnValue().Set(
-      v8::Number::New(args.GetIsolate(), weak_ref->reference_count_));
 }
 
 static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
@@ -291,67 +230,12 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(fd, 0);
 
   uv_handle_type t = uv_guess_handle(fd);
-  // TODO(anonrig): We can use an enum here and then create the array in the
-  // binding, which will remove the hard-coding in C++ and JS land.
-  uint32_t type{0};
-
-  // Currently, the return type of this function corresponds to the index of the
-  // array defined in the JS land. This is done as an optimization to reduce the
-  // string serialization overhead.
-  switch (t) {
-    case UV_TCP:
-      type = 0;
-      break;
-    case UV_TTY:
-      type = 1;
-      break;
-    case UV_UDP:
-      type = 2;
-      break;
-    case UV_FILE:
-      type = 3;
-      break;
-    case UV_NAMED_PIPE:
-      type = 4;
-      break;
-    case UV_UNKNOWN_HANDLE:
-      type = 5;
-      break;
-    default:
-      ABORT();
-  }
-
-  args.GetReturnValue().Set(type);
+  args.GetReturnValue().Set(GetUVHandleTypeCode(t));
 }
 
 static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
   uv_handle_type t = uv_guess_handle(fd);
-  uint32_t type{0};
-
-  switch (t) {
-    case UV_TCP:
-      type = 0;
-      break;
-    case UV_TTY:
-      type = 1;
-      break;
-    case UV_UDP:
-      type = 2;
-      break;
-    case UV_FILE:
-      type = 3;
-      break;
-    case UV_NAMED_PIPE:
-      type = 4;
-      break;
-    case UV_UNKNOWN_HANDLE:
-      type = 5;
-      break;
-    default:
-      ABORT();
-  }
-
-  return type;
+  return GetUVHandleTypeCode(t);
 }
 
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
@@ -393,6 +277,7 @@ static void ToUSVString(const FunctionCallbackInfo<Value>& args) {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
+  registry->Register(GetCallerLocation);
   registry->Register(IsArrayBufferDetached);
   registry->Register(PreviewEntries);
   registry->Register(GetOwnNonIndexProperties);
@@ -400,10 +285,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetExternalValue);
   registry->Register(Sleep);
   registry->Register(ArrayBufferViewHasBuffer);
-  registry->Register(WeakReference::New);
-  registry->Register(WeakReference::Get);
-  registry->Register(WeakReference::IncRef);
-  registry->Register(WeakReference::DecRef);
   registry->Register(GuessHandleType);
   registry->Register(FastGuessHandleType);
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
@@ -495,6 +376,8 @@ void Initialize(Local<Object> target,
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);
   SetMethodNoSideEffect(
+      context, target, "getCallerLocation", GetCallerLocation);
+  SetMethodNoSideEffect(
       context, target, "isArrayBufferDetached", IsArrayBufferDetached);
   SetMethodNoSideEffect(context, target, "previewEntries", PreviewEntries);
   SetMethodNoSideEffect(
@@ -514,15 +397,6 @@ void Initialize(Local<Object> target,
                   should_abort_on_uncaught_toggle,
                   env->should_abort_on_uncaught_toggle().GetJSArray())
             .FromJust());
-
-  Local<FunctionTemplate> weak_ref =
-      NewFunctionTemplate(isolate, WeakReference::New);
-  weak_ref->InstanceTemplate()->SetInternalFieldCount(
-      WeakReference::kInternalFieldCount);
-  SetProtoMethod(isolate, weak_ref, "get", WeakReference::Get);
-  SetProtoMethod(isolate, weak_ref, "incRef", WeakReference::IncRef);
-  SetProtoMethod(isolate, weak_ref, "decRef", WeakReference::DecRef);
-  SetConstructorFunction(context, target, "WeakReference", weak_ref);
 
   SetFastMethodNoSideEffect(context,
                             target,

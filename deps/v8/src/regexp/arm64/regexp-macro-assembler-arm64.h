@@ -94,8 +94,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // {raw_code} is an Address because this is called via ExternalReference.
   static int CheckStackGuardState(Address* return_address, Address raw_code,
                                   Address re_frame, int start_offset,
-                                  const byte** input_start,
-                                  const byte** input_end);
+                                  const uint8_t** input_start,
+                                  const uint8_t** input_end);
 
  private:
   static constexpr int kFramePointerOffset = 0;

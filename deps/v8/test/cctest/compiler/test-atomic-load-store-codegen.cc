@@ -15,7 +15,7 @@ namespace compiler {
 #if V8_TARGET_LITTLE_ENDIAN
 #define LSB(addr, bytes) addr
 #elif V8_TARGET_BIG_ENDIAN
-#define LSB(addr, bytes) reinterpret_cast<byte*>(addr + 1) - (bytes)
+#define LSB(addr, bytes) reinterpret_cast<uint8_t*>(addr + 1) - (bytes)
 #else
 #error "Unknown Architecture"
 #endif
@@ -88,7 +88,8 @@ void CheckEq(CType in_value, CType out_value) {
 #ifdef V8_COMPRESS_POINTERS
 // Specializations for checking the result of compressing store.
 template <>
-void CheckEq<Object>(Object in_value, Object out_value) {
+void CheckEq<Tagged<Object>>(Tagged<Object> in_value,
+                             Tagged<Object> out_value) {
   // Compare only lower 32-bits of the value because tagged load/stores are
   // 32-bit operations anyway.
   CHECK_EQ(static_cast<Tagged_t>(in_value.ptr()),
@@ -96,24 +97,25 @@ void CheckEq<Object>(Object in_value, Object out_value) {
 }
 
 template <>
-void CheckEq<HeapObject>(HeapObject in_value, HeapObject out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<HeapObject>>(Tagged<HeapObject> in_value,
+                                 Tagged<HeapObject> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 
 template <>
-void CheckEq<Smi>(Smi in_value, Smi out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<Smi>>(Tagged<Smi> in_value, Tagged<Smi> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 #endif
 
-template <typename TaggedT>
-void InitBuffer(TaggedT* buffer, size_t length, MachineType type) {
-  const size_t kBufferSize = sizeof(TaggedT) * length;
+template <typename T>
+void InitBuffer(Tagged<T>* buffer, size_t length, MachineType type) {
+  const size_t kBufferSize = sizeof(Tagged<T>) * length;
 
   // Tagged field loads require values to be properly tagged because of
   // pointer decompression that may be happenning during load.
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Smi* smi_view = reinterpret_cast<Smi*>(&buffer[0]);
+  Tagged<Smi>* smi_view = reinterpret_cast<Tagged<Smi>*>(&buffer[0]);
   if (type.IsTaggedSigned()) {
     for (size_t i = 0; i < length; i++) {
       smi_view[i] = Smi::FromInt(static_cast<int>(i + kBufferSize) ^ 0xABCDEF0);
@@ -130,18 +132,19 @@ void InitBuffer(TaggedT* buffer, size_t length, MachineType type) {
   }
 }
 
-template <typename TaggedT>
+template <typename T>
 void AtomicLoadTagged(MachineType type, AtomicMemoryOrder order) {
   const int kNumElems = 16;
-  TaggedT buffer[kNumElems];
+  Tagged<T> buffer[kNumElems];
 
   InitBuffer(buffer, kNumElems, type);
 
   for (int i = 0; i < kNumElems; i++) {
-    BufferedRawMachineAssemblerTester<TaggedT> m;
-    TaggedT* base_pointer = &buffer[0];
+    BufferedRawMachineAssemblerTester<Tagged<T>> m;
+    Tagged<T>* base_pointer = &buffer[0];
     if (COMPRESS_POINTERS_BOOL) {
-      base_pointer = reinterpret_cast<TaggedT*>(LSB(base_pointer, kTaggedSize));
+      base_pointer =
+          reinterpret_cast<Tagged<T>*>(LSB(base_pointer, kTaggedSize));
     }
     Node* base = m.PointerConstant(base_pointer);
     Node* index = m.Int32Constant(i * sizeof(buffer[0]));
@@ -153,7 +156,7 @@ void AtomicLoadTagged(MachineType type, AtomicMemoryOrder order) {
       load = m.AtomicLoad(params, base, index);
     }
     m.Return(load);
-    CheckEq<TaggedT>(buffer[i], m.Call());
+    CheckEq<Tagged<T>>(buffer[i], m.Call());
   }
 }
 }  // namespace
@@ -241,7 +244,7 @@ TEST(SeqCstStoreInteger) {
 }
 
 namespace {
-template <typename TaggedT>
+template <typename T>
 void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
   // This tests that tagged values are correctly transferred by atomic loads and
   // stores from in_buffer to out_buffer. For each particular element in
@@ -249,17 +252,17 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
   // indices are zapped, to test instructions of the correct width are emitted.
 
   const int kNumElems = 16;
-  TaggedT in_buffer[kNumElems];
-  TaggedT out_buffer[kNumElems];
+  Tagged<T> in_buffer[kNumElems];
+  Tagged<T> out_buffer[kNumElems];
   uintptr_t zap_data[] = {kZapValue, kZapValue};
-  TaggedT zap_value;
+  Tagged<T> zap_value;
 
-  static_assert(sizeof(TaggedT) <= sizeof(zap_data));
-  MemCopy(&zap_value, &zap_data, sizeof(TaggedT));
+  static_assert(sizeof(Tagged<T>) <= sizeof(zap_data));
+  MemCopy(&zap_value, &zap_data, sizeof(Tagged<T>));
   InitBuffer(in_buffer, kNumElems, type);
 
 #ifdef V8_TARGET_BIG_ENDIAN
-  int offset = sizeof(TaggedT) - ElementSizeInBytes(type.representation());
+  int offset = sizeof(Tagged<T>) - ElementSizeInBytes(type.representation());
 #else
   int offset = 0;
 #endif
@@ -270,9 +273,9 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t OK = 0x29000 + x;
     Node* in_base = m.PointerConstant(in_buffer);
-    Node* in_index = m.IntPtrConstant(x * sizeof(TaggedT) + offset);
+    Node* in_index = m.IntPtrConstant(x * sizeof(Tagged<T>) + offset);
     Node* out_base = m.PointerConstant(out_buffer);
-    Node* out_index = m.IntPtrConstant(y * sizeof(TaggedT) + offset);
+    Node* out_index = m.IntPtrConstant(y * sizeof(Tagged<T>) + offset);
 
     Node* load;
     AtomicLoadParameters load_params(type, order);
@@ -295,7 +298,7 @@ void AtomicStoreTagged(MachineType type, AtomicMemoryOrder order) {
     CHECK_NE(in_buffer[x], out_buffer[y]);
     CHECK_EQ(OK, m.Call());
     // Mostly same as CHECK_EQ() but customized for compressed tagged values.
-    CheckEq<TaggedT>(in_buffer[x], out_buffer[y]);
+    CheckEq<Tagged<T>>(in_buffer[x], out_buffer[y]);
     for (int32_t z = 0; z < kNumElems; z++) {
       if (z != y) CHECK_EQ(zap_value, out_buffer[z]);
     }

@@ -421,7 +421,7 @@ console.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.6.0
     pr-url: https://github.com/nodejs/node/pull/48765
     description: inspector.open() now returns a `Disposable` object.
 -->

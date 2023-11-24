@@ -12,7 +12,6 @@ try {
 
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
@@ -147,7 +146,7 @@ function testApiInChildProcess(execArgs, cb) {
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = path.join(tmpdir.path, 'node_trace.1.log');
+    const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
     fs.readFile(file, common.mustSucceed((data) => {

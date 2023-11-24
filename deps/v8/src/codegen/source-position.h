@@ -80,12 +80,12 @@ class SourcePosition final {
 
   // Assumes that the code object is optimized.
   std::vector<SourcePositionInfo> InliningStack(Isolate* isolate,
-                                                Code code) const;
+                                                Tagged<Code> code) const;
   std::vector<SourcePositionInfo> InliningStack(
       Isolate* isolate, OptimizedCompilationInfo* cinfo) const;
-  SourcePositionInfo FirstInfo(Isolate* isolate, Code code) const;
+  SourcePositionInfo FirstInfo(Isolate* isolate, Tagged<Code> code) const;
 
-  void Print(std::ostream& out, Code code) const;
+  void Print(std::ostream& out, Tagged<Code> code) const;
   void PrintJson(std::ostream& out) const;
 
   int ScriptOffset() const {
@@ -140,7 +140,7 @@ class SourcePosition final {
     SetInliningId(inlining_id);
   }
 
-  void Print(std::ostream& out, SharedFunctionInfo function) const;
+  void Print(std::ostream& out, Tagged<SharedFunctionInfo> function) const;
 
   using IsExternalField = base::BitField64<bool, 0, 1>;
 

@@ -62,6 +62,10 @@
 #include <unordered_set>
 #include <vector>
 
+namespace v8 {
+class CppHeap;
+}
+
 namespace node {
 
 namespace shadow_realm {
@@ -136,6 +140,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
               MultiIsolatePlatform* platform = nullptr,
               ArrayBufferAllocator* node_allocator = nullptr,
               const SnapshotData* snapshot_data = nullptr);
+  ~IsolateData();
 
   SET_MEMORY_INFO_NAME(IsolateData)
   SET_SELF_SIZE(IsolateData)
@@ -147,6 +152,10 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
 
   uint16_t* embedder_id_for_cppgc() const;
   uint16_t* embedder_id_for_non_cppgc() const;
+
+  static inline void SetCppgcReference(v8::Isolate* isolate,
+                                       v8::Local<v8::Object> object,
+                                       void* wrappable);
 
   inline uv_loop_t* event_loop() const;
   inline MultiIsolatePlatform* platform() const;
@@ -229,6 +238,7 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   NodeArrayBufferAllocator* const node_allocator_;
   MultiIsolatePlatform* platform_;
   const SnapshotData* snapshot_data_;
+  std::unique_ptr<v8::CppHeap> cpp_heap_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
   bool is_building_snapshot_ = false;
@@ -578,6 +588,9 @@ class Environment : public MemoryRetainer {
 
   SET_MEMORY_INFO_NAME(Environment)
 
+  static std::string GetExecPath(const std::vector<std::string>& argv);
+  static std::string GetCwd(const std::string& exec_path);
+
   inline size_t SelfSize() const override;
   bool IsRootNode() const override { return true; }
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -593,8 +606,6 @@ class Environment : public MemoryRetainer {
   void RunDeserializeRequests();
   // Should be called before InitializeInspector()
   void InitializeDiagnostics();
-
-  std::string GetCwd();
 
 #if HAVE_INSPECTOR
   // If the environment is created for a worker, pass parent_handle and
@@ -735,14 +746,6 @@ class Environment : public MemoryRetainer {
   builtins::BuiltinLoader* builtin_loader();
 
   std::unordered_multimap<int, loader::ModuleWrap*> hash_to_module_map;
-  std::unordered_map<uint32_t, loader::ModuleWrap*> id_to_module_map;
-  std::unordered_map<uint32_t, contextify::ContextifyScript*>
-      id_to_script_map;
-  std::unordered_map<uint32_t, contextify::CompiledFnEntry*> id_to_function_map;
-
-  inline uint32_t get_next_module_id();
-  inline uint32_t get_next_script_id();
-  inline uint32_t get_next_function_id();
 
   EnabledDebugList* enabled_debug_list() { return &enabled_debug_list_; }
 
@@ -1013,8 +1016,14 @@ class Environment : public MemoryRetainer {
   };
 
  private:
-  inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
-                         const char* errmsg);
+  // V8 has changed the constructor of exceptions, support both APIs before Node
+  // updates to V8 12.1.
+  using V8ExceptionConstructorOld =
+      v8::Local<v8::Value> (*)(v8::Local<v8::String>);
+  using V8ExceptionConstructorNew =
+      v8::Local<v8::Value> (*)(v8::Local<v8::String>, v8::Local<v8::Value>);
+  inline void ThrowError(V8ExceptionConstructorOld fun, const char* errmsg);
+  inline void ThrowError(V8ExceptionConstructorNew fun, const char* errmsg);
   void TrackContext(v8::Local<v8::Context> context);
   void UntrackContext(v8::Local<v8::Context> context);
 

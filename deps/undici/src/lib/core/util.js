@@ -58,31 +58,31 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
-    throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
-  }
-
-  if (url.path != null && typeof url.path !== 'string') {
-    throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
-  }
-
-  if (url.pathname != null && typeof url.pathname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
-  }
-
-  if (url.hostname != null && typeof url.hostname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
-  }
-
-  if (url.origin != null && typeof url.origin !== 'string') {
-    throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
-  }
-
   if (!/^https?:/.test(url.origin || url.protocol)) {
     throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   if (!(url instanceof URL)) {
+    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+      throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
+    }
+
+    if (url.path != null && typeof url.path !== 'string') {
+      throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
+    }
+
+    if (url.pathname != null && typeof url.pathname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
+    }
+
+    if (url.hostname != null && typeof url.hostname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
+    }
+
+    if (url.origin != null && typeof url.origin !== 'string') {
+      throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
@@ -168,7 +168,7 @@ function bodyLength (body) {
     return 0
   } else if (isStream(body)) {
     const state = body._readableState
-    return state && state.ended === true && Number.isFinite(state.length)
+    return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length)
       ? state.length
       : null
   } else if (isBlobLike(body)) {
@@ -190,7 +190,7 @@ function isReadableAborted (stream) {
 }
 
 function destroy (stream, err) {
-  if (!isStream(stream) || isDestroyed(stream)) {
+  if (stream == null || !isStream(stream) || isDestroyed(stream)) {
     return
   }
 
@@ -199,6 +199,7 @@ function destroy (stream, err) {
       // See: https://github.com/nodejs/node/pull/38505/files
       stream.socket = null
     }
+
     stream.destroy(err)
   } else if (err) {
     process.nextTick((stream, err) => {
@@ -218,6 +219,9 @@ function parseKeepAliveTimeout (val) {
 }
 
 function parseHeaders (headers, obj = {}) {
+  // For H2 support
+  if (!Array.isArray(headers)) return headers
+
   for (let i = 0; i < headers.length; i += 2) {
     const key = headers[i].toString().toLowerCase()
     let val = obj[key]
@@ -355,6 +359,12 @@ function getSocketInfo (socket) {
   }
 }
 
+async function * convertIterableToBuffer (iterable) {
+  for await (const chunk of iterable) {
+    yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+  }
+}
+
 let ReadableStream
 function ReadableStreamFrom (iterable) {
   if (!ReadableStream) {
@@ -362,8 +372,7 @@ function ReadableStreamFrom (iterable) {
   }
 
   if (ReadableStream.from) {
-    // https://github.com/whatwg/streams/pull/1083
-    return ReadableStream.from(iterable)
+    return ReadableStream.from(convertIterableToBuffer(iterable))
   }
 
   let iterator
@@ -422,6 +431,24 @@ function throwIfAborted (signal) {
   }
 }
 
+let events
+function addAbortListener (signal, listener) {
+  if (typeof Symbol.dispose === 'symbol') {
+    if (!events) {
+      events = require('events')
+    }
+    if (typeof events.addAbortListener === 'function' && 'aborted' in signal) {
+      return events.addAbortListener(signal, listener)
+    }
+  }
+  if ('addEventListener' in signal) {
+    signal.addEventListener('abort', listener, { once: true })
+    return () => signal.removeEventListener('abort', listener)
+  }
+  signal.addListener('abort', listener)
+  return () => signal.removeListener('abort', listener)
+}
+
 const hasToWellFormed = !!String.prototype.toWellFormed
 
 /**
@@ -469,6 +496,7 @@ module.exports = {
   isFormDataLike,
   buildURL,
   throwIfAborted,
+  addAbortListener,
   nodeMajor,
   nodeMinor,
   nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)

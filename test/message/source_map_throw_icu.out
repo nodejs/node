@@ -1,9 +1,0 @@
-*icu.jsx:3
-    ("********", throw Error("an error"));
-     ^
-
-Error: an error
-    at *icu.jsx:3:23*
-    at *icu.jsx:9:5*
-
-Node.js *

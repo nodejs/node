@@ -12,3 +12,28 @@ extern class Oddball extends PrimitiveHeapObject {
   type_of: String;
   kind: Smi;
 }
+
+@cppObjectDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class Null extends Oddball {}
+
+@cppObjectDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class Undefined extends Oddball {}
+
+@cppObjectDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class Boolean extends Oddball {}
+
+@cppObjectDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class True extends Boolean {}
+
+@cppObjectDefinition
+@hasSameInstanceTypeAsParent
+@doNotGenerateCast
+extern class False extends Boolean {}

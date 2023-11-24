@@ -145,6 +145,8 @@ TESTSUITES_TARGETS = {
 OUTDIR = Path("out")
 
 
+# Note: this function is reused by update-compile-commands.py. When renaming
+# this, please update that file too!
 def detect_goma():
   if os.environ.get("GOMA_DIR"):
     return Path(os.environ.get("GOMA_DIR"))
@@ -157,10 +159,14 @@ def detect_goma():
   cipd_bin = Path(goma).parent / ".cipd_bin"
   if not cipd_bin.exists():
     return None
+  # Some machines have one of these files, some have the other, some have both.
   goma_auth = Path("~/.goma_client_oauth2_config").expanduser()
-  if not goma_auth.exists():
-    return None
-  return cipd_bin
+  if goma_auth.exists():
+    return cipd_bin
+  goma_auth = Path("~/.goma_oauth2_config").expanduser()
+  if goma_auth.exists():
+    return cipd_bin
+  return None
 
 
 GOMADIR = detect_goma()
@@ -383,6 +389,8 @@ class RawConfig:
 
 # Contrary to RawConfig, takes arch and mode, and sets everything up
 # automatically.
+# Note: This class is imported by update-compile-commands.py. When renaming
+# anything here, please update that script too!
 class ManagedConfig(RawConfig):
 
   def __init__(self,

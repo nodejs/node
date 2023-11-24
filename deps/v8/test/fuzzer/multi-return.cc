@@ -160,7 +160,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   InputProvider input(data, size);
   // Create randomized descriptor.
   size_t param_count = input.NumNonZeroBytes(0, kNumTypes);
-  if (param_count > InstructionStream::kMaxArguments) return 0;
+  if (param_count > wasm::kV8MaxWasmFunctionParams) return 0;
 
   size_t return_count = input.NumNonZeroBytes(param_count + 1, kNumTypes);
   if (return_count > wasm::kV8MaxWasmFunctionReturns) return 0;
@@ -246,9 +246,9 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
           .ToHandleChecked();
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(i_isolate, code->InstructionSize());
+      AllocateNativeModule(i_isolate, code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  uint8_t* code_start = module->AddCodeForTesting(code)->instructions().begin();
   // Generate wrapper.
   int expect = 0;
 

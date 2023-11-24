@@ -78,7 +78,7 @@ RegisterAllocatorVerifier::RegisterAllocatorVerifier(
     VerifyEmptyGaps(instr);
     const size_t operand_count = OperandCount(instr);
     OperandConstraint* op_constraints =
-        zone->NewArray<OperandConstraint>(operand_count);
+        zone->AllocateArray<OperandConstraint>(operand_count);
     size_t count = 0;
     for (size_t i = 0; i < instr->InputCount(); ++i, ++count) {
       BuildConstraint(instr->InputAt(i), &op_constraints[count]);

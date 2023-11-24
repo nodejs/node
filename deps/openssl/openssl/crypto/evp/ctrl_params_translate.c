@@ -636,8 +636,8 @@ static int default_fixup_args(enum state state,
                                                       ctx->p2, ctx->sz);
                 case OSSL_PARAM_OCTET_STRING:
                     return OSSL_PARAM_get_octet_string(ctx->params,
-                                                       ctx->p2, ctx->sz,
-                                                       &ctx->sz);
+                                                       &ctx->p2, ctx->sz,
+                                                       (size_t *)&ctx->p1);
                 case OSSL_PARAM_OCTET_PTR:
                     return OSSL_PARAM_get_octet_ptr(ctx->params,
                                                     ctx->p2, &ctx->sz);
@@ -685,7 +685,7 @@ static int default_fixup_args(enum state state,
                     return OSSL_PARAM_set_octet_string(ctx->params, ctx->p2,
                                                        size);
                 case OSSL_PARAM_OCTET_PTR:
-                    return OSSL_PARAM_set_octet_ptr(ctx->params, ctx->p2,
+                    return OSSL_PARAM_set_octet_ptr(ctx->params, *(void **)ctx->p2,
                                                     size);
                 default:
                     ERR_raise_data(ERR_LIB_EVP, ERR_R_UNSUPPORTED,
@@ -695,6 +695,9 @@ static int default_fixup_args(enum state state,
                                    translation->param_data_type);
                     return 0;
                 }
+            } else if (state == PRE_PARAMS_TO_CTRL && ctx->action_type == GET) {
+                if (translation->param_data_type == OSSL_PARAM_OCTET_PTR)
+                    ctx->p2 = &ctx->bufp;
             }
         }
         /* Any other combination is simply pass-through */
@@ -1783,7 +1786,8 @@ static int get_rsa_payload_n(enum state state,
 {
     const BIGNUM *bn = NULL;
 
-    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)
+    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA
+        && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)
         return 0;
     bn = RSA_get0_n(EVP_PKEY_get0_RSA(ctx->p2));
 
@@ -1796,7 +1800,8 @@ static int get_rsa_payload_e(enum state state,
 {
     const BIGNUM *bn = NULL;
 
-    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)
+    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA
+        && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)
         return 0;
     bn = RSA_get0_e(EVP_PKEY_get0_RSA(ctx->p2));
 
@@ -1809,7 +1814,8 @@ static int get_rsa_payload_d(enum state state,
 {
     const BIGNUM *bn = NULL;
 
-    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)
+    if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA
+        && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)
         return 0;
     bn = RSA_get0_d(EVP_PKEY_get0_RSA(ctx->p2));
 
@@ -1909,7 +1915,8 @@ static int get_rsa_payload_coefficient(enum state state,
                          const struct translation_st *translation,      \
                          struct translation_ctx_st *ctx)                \
     {                                                                   \
-        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)              \
+        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA               \
+            && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)       \
             return 0;                                                   \
         return get_rsa_payload_factor(state, translation, ctx, n - 1);  \
     }
@@ -1920,7 +1927,8 @@ static int get_rsa_payload_coefficient(enum state state,
                          const struct translation_st *translation,      \
                          struct translation_ctx_st *ctx)                \
     {                                                                   \
-        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)              \
+        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA               \
+            && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)       \
             return 0;                                                   \
         return get_rsa_payload_exponent(state, translation, ctx,        \
                                         n - 1);                         \
@@ -1932,7 +1940,8 @@ static int get_rsa_payload_coefficient(enum state state,
                          const struct translation_st *translation,      \
                          struct translation_ctx_st *ctx)                \
     {                                                                   \
-        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA)              \
+        if (EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA               \
+            && EVP_PKEY_get_base_id(ctx->p2) != EVP_PKEY_RSA_PSS)       \
             return 0;                                                   \
         return get_rsa_payload_coefficient(state, translation, ctx,     \
                                            n - 1);                      \
@@ -2254,7 +2263,7 @@ static const struct translation_st evp_pkey_ctx_translations[] = {
       OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_STRING, NULL },
     { GET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_TYPE_CRYPT,
       EVP_PKEY_CTRL_GET_RSA_OAEP_LABEL, NULL, NULL,
-      OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_STRING, NULL },
+      OSSL_ASYM_CIPHER_PARAM_OAEP_LABEL, OSSL_PARAM_OCTET_PTR, NULL },
 
     { SET, EVP_PKEY_RSA_PSS, 0, EVP_PKEY_OP_TYPE_GEN,
       EVP_PKEY_CTRL_MD, "rsa_pss_keygen_md", NULL,
@@ -2268,10 +2277,10 @@ static const struct translation_st evp_pkey_ctx_translations[] = {
     { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
       EVP_PKEY_CTRL_RSA_KEYGEN_BITS, "rsa_keygen_bits", NULL,
       OSSL_PKEY_PARAM_RSA_BITS, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
-    { SET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_KEYGEN,
+    { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
       EVP_PKEY_CTRL_RSA_KEYGEN_PUBEXP, "rsa_keygen_pubexp", NULL,
       OSSL_PKEY_PARAM_RSA_E, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
-    { SET, EVP_PKEY_RSA, 0, EVP_PKEY_OP_KEYGEN,
+    { SET, EVP_PKEY_RSA, EVP_PKEY_RSA_PSS, EVP_PKEY_OP_KEYGEN,
       EVP_PKEY_CTRL_RSA_KEYGEN_PRIMES, "rsa_keygen_primes", NULL,
       OSSL_PKEY_PARAM_RSA_PRIMES, OSSL_PARAM_UNSIGNED_INTEGER, NULL },
 

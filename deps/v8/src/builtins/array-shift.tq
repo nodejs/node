@@ -36,8 +36,8 @@ macro TryFastArrayShift(implicit context: Context)(receiver: JSAny): JSAny
   return result;
 }
 
-transitioning macro GenericArrayShift(implicit context: Context)(
-    receiver: JSAny): JSAny {
+transitioning macro GenericArrayShift(
+    implicit context: Context)(receiver: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 

@@ -241,6 +241,9 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
     return nullptr;
   }
 
+  // We allow a few additional conversions on the lhs of the arithmetic
+  // operation. This needs to be kept in sync with the corresponding code in
+  // {Typer::Visitor::InductionVariablePhiTypeIsPrefixedPoint}.
   // TODO(jarin) Support both sides.
   Node* input = arith->InputAt(0);
   if (input->opcode() == IrOpcode::kSpeculativeToNumber ||

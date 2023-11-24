@@ -72,7 +72,7 @@
         [true, false].forEach(function(extractable) {
 
             // Test public keys first
-            [[]].forEach(function(usages) { // Only valid usages argument is empty array
+            allValidUsages(vector.publicUsages, true).forEach(function(usages) {
                 ['spki', 'jwk', 'raw'].forEach(function(format) {
                     var algorithm = {name: vector.name};
                     var data = keyData[vector.name];
@@ -81,17 +81,27 @@
                     }
 
                     testFormat(format, algorithm, data, vector.name, usages, extractable);
+
+                    // Test for https://github.com/WICG/webcrypto-secure-curves/pull/24
+                    if (format === "jwk" && extractable) {
+                        testJwkAlgBehaviours(algorithm, data.jwk, vector.name, usages);
+                    }
                 });
 
             });
 
             // Next, test private keys
-            allValidUsages(vector.privateUsages, []).forEach(function(usages) {
+            allValidUsages(vector.privateUsages).forEach(function(usages) {
                 ['pkcs8', 'jwk'].forEach(function(format) {
                     var algorithm = {name: vector.name};
                     var data = keyData[vector.name];
 
                     testFormat(format, algorithm, data, vector.name, usages, extractable);
+
+                    // Test for https://github.com/WICG/webcrypto-secure-curves/pull/24
+                    if (format === "jwk" && extractable) {
+                        testJwkAlgBehaviours(algorithm, data.jwk, vector.name, usages);
+                    }
                 });
             });
         });
@@ -124,6 +134,28 @@
                 assert_unreached("Threw an unexpected error: " + err.toString());
             });
         }, "Good parameters: " + keySize.toString() + " bits " + parameterString(format, keyData[format], algorithm, extractable, usages));
+    }
+
+    // Test importKey/exportKey "alg" behaviours, alg is ignored upon import and alg is missing for Ed25519 and Ed448 JWK export
+    // https://github.com/WICG/webcrypto-secure-curves/pull/24
+    function testJwkAlgBehaviours(algorithm, keyData, crv, usages) {
+        promise_test(function(test) {
+            return subtle.importKey('jwk', { ...keyData, alg: 'this is ignored' }, algorithm, true, usages).
+            then(function(key) {
+                assert_equals(key.constructor, CryptoKey, "Imported a CryptoKey object");
+
+                return subtle.exportKey('jwk', key).
+                then(function(result) {
+                    assert_equals(Object.keys(result).length, keyData.d ? 6 : 5, "Correct number of JWK members");
+                    assert_equals(result.alg, undefined, 'No JWK "alg" member is present');
+                    assert_true(equalJwk(keyData, result), "Round trip works");
+                }, function(err) {
+                    assert_unreached("Threw an unexpected error: " + err.toString());
+                });
+            }, function(err) {
+                assert_unreached("Threw an unexpected error: " + err.toString());
+            });
+        }, "Good parameters with ignored JWK alg: " + crv.toString() + " " + parameterString('jwk', keyData, algorithm, true, usages));
     }
 
 
@@ -192,46 +224,6 @@
         var base64String = btoa(binaryString);
 
         return base64String.replace(/=/g, "");
-    }
-
-    // Want to test every valid combination of usages. Start by creating a list
-    // of all non-empty subsets to possible usages.
-    function allNonemptySubsetsOf(arr) {
-        var results = [];
-        var firstElement;
-        var remainingElements;
-
-        for(var i=0; i<arr.length; i++) {
-            firstElement = arr[i];
-            remainingElements = arr.slice(i+1);
-            results.push([firstElement]);
-
-            if (remainingElements.length > 0) {
-                allNonemptySubsetsOf(remainingElements).forEach(function(combination) {
-                    combination.push(firstElement);
-                    results.push(combination);
-                });
-            }
-        }
-
-        return results;
-    }
-
-    // Return a list of all valid usage combinations, given the possible ones
-    // and the ones that are required for a particular operation.
-    function allValidUsages(possibleUsages, requiredUsages) {
-        var allUsages = [];
-
-        allNonemptySubsetsOf(possibleUsages).forEach(function(usage) {
-            for (var i=0; i<requiredUsages.length; i++) {
-                if (!usage.includes(requiredUsages[i])) {
-                    return;
-                }
-            }
-            allUsages.push(usage);
-        });
-
-        return allUsages;
     }
 
     // Convert method parameters to a string to uniquely name each test

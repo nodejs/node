@@ -11,7 +11,7 @@ if (!common.hasIntl) common.skip('missing Intl');
   const and = new Intl.ListFormat('en', { style: 'long', type: 'conjunction' });
   const or = new Intl.ListFormat('en', { style: 'long', type: 'disjunction' });
 
-  const input = ['apple', 'banana', 'orange'];
+  const input = ['apple', 'banana', 'orange', 'pear'];
   for (let i = 0; i < input.length; i++) {
     const slicedInput = input.slice(0, i);
     strictEqual(formatList(slicedInput), and.format(slicedInput));

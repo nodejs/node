@@ -2,7 +2,7 @@
 // Flags: --expose-gc --force-node-api-uncaught-exceptions-policy
 
 const common = require('../../common');
-const test_reference = require(`./build/${common.buildType}/test_reference`);
+const binding = require(`./build/${common.buildType}/test_finalizer`);
 const assert = require('assert');
 
 process.on('uncaughtException', common.mustCall((err) => {
@@ -11,7 +11,7 @@ process.on('uncaughtException', common.mustCall((err) => {
 
 (async function() {
   {
-    test_reference.createExternalWithJsFinalize(
+    binding.createExternalWithJsFinalize(
       common.mustCall(() => {
         throw new Error('finalizer error');
       }));

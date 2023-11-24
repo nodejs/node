@@ -151,7 +151,8 @@ class State {
   get entries() {
     if (!this.map) return {};
     return {
-      map: this.map.id, time: this.map.time
+    map:
+      this.map.id, time: this.map.time
     }
   }
 }

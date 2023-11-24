@@ -6,12 +6,11 @@ const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   n: [1e5],
 });
-const path = require('path');
 const { rmSync } = require('fs');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../../test/common/tmpdir');
 
-const coverageDir = path.join(tmpdir.path, `./cov-${Date.now()}`);
+const coverageDir = tmpdir.resolve(`cov-${Date.now()}`);
 
 function main({ n }) {
   bench.start();

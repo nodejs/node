@@ -115,8 +115,6 @@ export class Processor extends LogReader {
         parsers: [this.parseAddress, this.parseAddress],
         processor: this.processCodeMove
       },
-      'code-delete':
-          {parsers: [this.parseAddress], processor: this.processCodeDelete},
       'code-source-info': {
         parsers: [
           this.parseAddress, parseInt, parseInt, parseInt, parseString,
@@ -141,7 +139,7 @@ export class Processor extends LogReader {
       },
       'sfi-move': {
         parsers: [this.parseAddress, this.parseAddress],
-        processor: this.processFunctionMove
+        processor: this.processSFIMove
       },
       'tick': {
         parsers: [
@@ -359,15 +357,15 @@ export class Processor extends LogReader {
     this._lastTimestamp = timestamp;
     let profilerEntry;
     let stateName = '';
-    if (maybe_func.length) {
-      const funcAddr = this.parseAddress(maybe_func[0]);
+    if (type != 'RegExp' && maybe_func.length) {
+      const sfiAddr = this.parseAddress(maybe_func[0]);
       stateName = maybe_func[1] ?? '';
       const state = Profile.parseState(maybe_func[1]);
       profilerEntry = this._profile.addFuncCode(
-          type, nameAndPosition, timestamp, start, size, funcAddr, state);
+          type, nameAndPosition, timestamp, start, size, sfiAddr, state);
     } else {
-      profilerEntry = this._profile.addAnyCode(
-          type, nameAndPosition, timestamp, start, size);
+      profilerEntry =
+          this._profile.addCode(type, nameAndPosition, timestamp, start, size);
     }
     const name = nameAndPosition.slice(0, nameAndPosition.indexOf(' '));
     this._lastCodeLogEntry = new CodeLogEntry(
@@ -434,8 +432,8 @@ export class Processor extends LogReader {
     this._profile.deleteCode(start);
   }
 
-  processFunctionMove(from, to) {
-    this._profile.moveFunc(from, to);
+  processSFIMove(from, to) {
+    this._profile.moveSharedFunctionInfo(from, to);
   }
 
   processTick(
@@ -514,7 +512,7 @@ export class Processor extends LogReader {
   formatProfileEntry(profileEntry, line, column) {
     if (!profileEntry) return '<unknown>';
     if (profileEntry.type === 'Builtin') return profileEntry.name;
-    const name = profileEntry.func.getName();
+    const name = profileEntry.sfi.getName();
     const array = this._formatPCRegexp.exec(name);
     const formatted =
         (array === null) ? name : profileEntry.getState() + array[1];

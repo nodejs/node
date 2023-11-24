@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.20.2">16.20.2</a><br/>
 <a href="#16.20.1">16.20.1</a><br/>
 <a href="#16.20.0">16.20.0</a><br/>
 <a href="#16.19.1">16.19.1</a><br/>
@@ -52,6 +53,7 @@
 </table>
 
 * Other Versions
+  * [21.x](CHANGELOG_V21.md)
   * [20.x](CHANGELOG_V20.md)
   * [19.x](CHANGELOG_V19.md)
   * [18.x](CHANGELOG_V18.md)
@@ -72,6 +74,34 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.20.2"></a>
+
+## 2023-08-09, Version 16.20.2 'Gallium' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-32002](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32002):  Policies can be bypassed via Module.\_load (High)
+* [CVE-2023-32006](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32006): Policies can be bypassed by module.constructor.createRequire (Medium)
+* [CVE-2023-32559](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32559): Policies can be bypassed via process.binding (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 14th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000264.html).
+  * [OpenSSL security advisory 19th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000265.html).
+  * [OpenSSL security advisory 31st July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000267.html)
+
+More detailed information on each of the vulnerabilities can be found in [August 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`40c3958a5a`](https://github.com/nodejs/node/commit/40c3958a5a)] - **deps**: update archs files for OpenSSL-1.1.1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`a9ac9da89a`](https://github.com/nodejs/node/commit/a9ac9da89a)] - **deps**: fix openssl crypto clean (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`362d4c7494`](https://github.com/nodejs/node/commit/362d4c7494)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`d8ccfe9ad4`](https://github.com/nodejs/node/commit/d8ccfe9ad4)] - **policy**: handle Module.constructor and main.extensions bypass (RafaelGSS) [nodejs-private/node-private#445](https://github.com/nodejs-private/node-private/pull/445)
+* \[[`242aaa0caa`](https://github.com/nodejs/node/commit/242aaa0caa)] - **policy**: disable process.binding() when enabled (Tobias Nießen) [nodejs-private/node-private#459](https://github.com/nodejs-private/node-private/pull/459)
 
 <a id="16.20.1"></a>
 

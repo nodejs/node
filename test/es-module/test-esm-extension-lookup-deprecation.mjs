@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import * as tmpdir from '../common/tmpdir.js';
+import tmpdir from '../common/tmpdir.js';
 
 import assert from 'node:assert';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -11,7 +11,7 @@ describe('ESM in main field', { concurrency: true }, () => {
   before(() => tmpdir.refresh());
 
   it('should handle fully-specified relative path without any warning', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
@@ -29,7 +29,7 @@ describe('ESM in main field', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
   });
   it('should handle fully-specified absolute path without any warning', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
@@ -48,7 +48,7 @@ describe('ESM in main field', { concurrency: true }, () => {
   });
 
   it('should emit warning when "main" and "exports" are missing', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
@@ -65,7 +65,7 @@ describe('ESM in main field', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
   });
   it('should emit warning when "main" is falsy', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
@@ -83,7 +83,7 @@ describe('ESM in main field', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
   });
   it('should emit warning when "main" is a relative path without extension', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');
@@ -101,7 +101,7 @@ describe('ESM in main field', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
   });
   it('should emit warning when "main" is an absolute path without extension', async () => {
-    const cwd = path.join(tmpdir.path, Math.random().toString());
+    const cwd = tmpdir.resolve(Math.random().toString());
     const pkgPath = path.join(cwd, './node_modules/pkg/');
     await mkdir(pkgPath, { recursive: true });
     await writeFile(path.join(pkgPath, './index.js'), 'console.log("Hello World!")');

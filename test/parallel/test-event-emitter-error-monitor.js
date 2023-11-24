@@ -25,7 +25,7 @@ EE.emit('error', theErr);
 
 // Verify it works with once
 process.nextTick(() => EE.emit('error', theErr));
-assert.rejects(EventEmitter.once(EE, 'notTriggered'), theErr);
+assert.rejects(EventEmitter.once(EE, 'notTriggered'), theErr).then(common.mustCall());
 
 // Only error events trigger error monitor
 EE.on('aEvent', common.mustCall());

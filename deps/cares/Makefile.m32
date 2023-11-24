@@ -1,10 +1,12 @@
 #############################################################
 #
-## Makefile for building libcares.a with MingW32 (GCC-3.2)
-## Use: make -f Makefile.m32 [demos]
-##
-## Quick hack by Guenter; comments to: /dev/nul
+# Makefile for building libcares.a with MingW32 (GCC-3.2)
+# Use: make -f Makefile.m32 [demos]
 #
+# Quick hack by Guenter; comments to: /dev/nul
+#
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 ########################################################
 ## Nothing more to do below this line!
 
@@ -34,7 +36,7 @@ $(LIB): $(OBJLIB)
 
 all: $(LIB) demos
 
-demos: src/tools/adig.exe src/tools/ahost.exe src/tools/acountry.exe
+demos: src/tools/adig.exe src/tools/ahost.exe
 
 tags:
 	etags *.[ch]
@@ -68,7 +70,7 @@ install:
 	done)
 
 clean:
-	$(RM) src/tools/ares_getopt.o $(OBJLIB) $(LIB) src/tools/adig.exe src/tools/ahost.exe src/tools/acountry.exe
+	$(RM) src/tools/ares_getopt.o $(OBJLIB) $(LIB) src/tools/adig.exe src/tools/ahost.exe
 
 distclean: clean
 	$(RM) config.cache config.log config.status Makefile

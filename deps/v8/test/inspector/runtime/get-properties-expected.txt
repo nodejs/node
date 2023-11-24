@@ -111,10 +111,13 @@ Running test: testArrayBuffer
   Symbol(Symbol.toStringTag) own string ArrayBuffer
   byteLength own no value, getter
   constructor own function undefined
+  detached own no value, getter
   maxByteLength own no value, getter
   resizable own no value, getter
   resize own function undefined
   slice own function undefined
+  transfer own function undefined
+  transferToFixedLength own function undefined
 Internal properties
   [[Prototype]] object undefined
 [[Int8Array]]
@@ -159,10 +162,13 @@ Running test: testArrayBufferFromWebAssemblyMemory
   Symbol(Symbol.toStringTag) own string ArrayBuffer
   byteLength own no value, getter
   constructor own function undefined
+  detached own no value, getter
   maxByteLength own no value, getter
   resizable own no value, getter
   resize own function undefined
   slice own function undefined
+  transfer own function undefined
+  transferToFixedLength own function undefined
 Internal properties
   [[Prototype]] object undefined
 [[Int8Array]]

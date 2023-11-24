@@ -69,9 +69,9 @@ Object.defineProperty(exports, "resolveShowConfigPath", {
     return _configuration.resolveShowConfigPath;
   }
 });
-var _package = require("./package");
-var _configuration = require("./configuration");
-var _plugins = require("./plugins");
+var _package = require("./package.js");
+var _configuration = require("./configuration.js");
+var _plugins = require("./plugins.js");
 ({});
 0 && 0;
 

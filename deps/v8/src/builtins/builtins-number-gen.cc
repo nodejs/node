@@ -154,7 +154,7 @@ DEF_UNOP(Negate_Baseline, Generate_NegateWithFeedback)
     auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);               \
                                                                                \
     TVARIABLE(Smi, var_type_feedback);                                         \
-    TNode<Oddball> result = RelationalComparison(Operation::k##Name, lhs, rhs, \
+    TNode<Boolean> result = RelationalComparison(Operation::k##Name, lhs, rhs, \
                                                  context, &var_type_feedback); \
     UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);          \
                                                                                \
@@ -173,7 +173,7 @@ DEF_COMPARE(GreaterThanOrEqual)
     auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);          \
                                                                           \
     TVARIABLE(Smi, var_type_feedback);                                    \
-    TNode<Oddball> result = RelationalComparison(                         \
+    TNode<Boolean> result = RelationalComparison(                         \
         Operation::k##Name, lhs, rhs,                                     \
         [&]() { return LoadContextFromBaseline(); }, &var_type_feedback); \
     auto feedback_vector = LoadFeedbackVectorFromBaseline();              \
@@ -195,7 +195,7 @@ TF_BUILTIN(Equal_WithFeedback, CodeStubAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(Smi, var_type_feedback);
-  TNode<Oddball> result = Equal(
+  TNode<Boolean> result = Equal(
       lhs, rhs, [&]() { return context; }, &var_type_feedback);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
 
@@ -209,7 +209,7 @@ TF_BUILTIN(StrictEqual_WithFeedback, CodeStubAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(Smi, var_type_feedback);
-  TNode<Oddball> result = StrictEqual(lhs, rhs, &var_type_feedback);
+  TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
 
   Return(result);
@@ -221,7 +221,7 @@ TF_BUILTIN(Equal_Baseline, CodeStubAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(Smi, var_type_feedback);
-  TNode<Oddball> result = Equal(
+  TNode<Boolean> result = Equal(
       lhs, rhs, [&]() { return LoadContextFromBaseline(); },
       &var_type_feedback);
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
@@ -236,7 +236,7 @@ TF_BUILTIN(StrictEqual_Baseline, CodeStubAssembler) {
   auto slot = UncheckedParameter<UintPtrT>(Descriptor::kSlot);
 
   TVARIABLE(Smi, var_type_feedback);
-  TNode<Oddball> result = StrictEqual(lhs, rhs, &var_type_feedback);
+  TNode<Boolean> result = StrictEqual(lhs, rhs, &var_type_feedback);
   auto feedback_vector = LoadFeedbackVectorFromBaseline();
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot);
 

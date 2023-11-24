@@ -879,7 +879,7 @@ int UnitTestOptions::GTestProcessSEH(DWORD seh_code, const char* location) {
   //      apparently).
   //
   // SEH exception code for C++ exceptions.
-  // (see http://support.microsoft.com/kb/185294 for more information).
+  // (see https://support.microsoft.com/kb/185294 for more information).
   const DWORD kCxxExceptionCode = 0xe06d7363;
 
   if (!GTEST_FLAG_GET(catch_exceptions) || seh_code == kCxxExceptionCode ||
@@ -3228,7 +3228,8 @@ static const char* GetAnsiColorCode(GTestColor color) {
     case GTestColor::kYellow:
       return "3";
     default:
-      return nullptr;
+      assert(false);
+      return "9";
   }
 }
 
@@ -5399,7 +5400,7 @@ void UnitTest::RecordProperty(const std::string& key,
 int UnitTest::Run() {
 #ifdef GTEST_HAS_DEATH_TEST
   const bool in_death_test_child_process =
-      GTEST_FLAG_GET(internal_run_death_test).length() > 0;
+      !GTEST_FLAG_GET(internal_run_death_test).empty();
 
   // Google Test implements this protocol for catching that a test
   // program exits before returning control to Google Test:

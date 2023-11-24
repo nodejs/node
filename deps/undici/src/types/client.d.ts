@@ -1,7 +1,6 @@
 import { URL } from 'url'
 import { TlsOptions } from 'tls'
 import Dispatcher from './dispatcher'
-import DispatchInterceptor from './dispatcher'
 import buildConnector from "./connector";
 
 /**
@@ -19,14 +18,14 @@ export class Client extends Dispatcher {
 
 export declare namespace Client {
   export interface OptionsInterceptors {
-    Client: readonly DispatchInterceptor[];
+    Client: readonly Dispatcher.DispatchInterceptor[];
   }
   export interface Options {
     /** TODO */
     interceptors?: OptionsInterceptors;
-    /** The maximum length of request headers in bytes. Default: `16384` (16KiB). */
+    /** The maximum length of request headers in bytes. Default: Node.js' `--max-http-header-size` or `16384` (16KiB). */
     maxHeaderSize?: number;
-    /** The amount of time the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
+    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers (Node 14 and above only). Default: `300e3` milliseconds (300s). */
     headersTimeout?: number;
     /** @deprecated unsupported socketTimeout, use headersTimeout & bodyTimeout instead */
     socketTimeout?: never;
@@ -40,13 +39,13 @@ export declare namespace Client {
     idleTimeout?: never;
     /** @deprecated unsupported keepAlive, use pipelining=0 instead */
     keepAlive?: never;
-    /** the timeout after which a socket without active requests will time out. Monitors time between activity on a connected socket. This value may be overridden by *keep-alive* hints from the server. Default: `4e3` milliseconds (4s). */
+    /** the timeout, in milliseconds, after which a socket without active requests will time out. Monitors time between activity on a connected socket. This value may be overridden by *keep-alive* hints from the server. Default: `4e3` milliseconds (4s). */
     keepAliveTimeout?: number;
     /** @deprecated unsupported maxKeepAliveTimeout, use keepAliveMaxTimeout instead */
     maxKeepAliveTimeout?: never;
-    /** the maximum allowed `idleTimeout` when overridden by *keep-alive* hints from the server. Default: `600e3` milliseconds (10min). */
+    /** the maximum allowed `idleTimeout`, in milliseconds, when overridden by *keep-alive* hints from the server. Default: `600e3` milliseconds (10min). */
     keepAliveMaxTimeout?: number;
-    /** A number subtracted from server *keep-alive* hints when overriding `idleTimeout` to account for timing inaccuracies caused by e.g. transport latency. Default: `1e3` milliseconds (1s). */
+    /** A number of milliseconds subtracted from server *keep-alive* hints when overriding `idleTimeout` to account for timing inaccuracies caused by e.g. transport latency. Default: `1e3` milliseconds (1s). */
     keepAliveTimeoutThreshold?: number;
     /** TODO */
     socketPath?: string;
@@ -71,7 +70,17 @@ export declare namespace Client {
     /** Enables a family autodetection algorithm that loosely implements section 5 of RFC 8305. */
     autoSelectFamily?: boolean;
     /** The amount of time in milliseconds to wait for a connection attempt to finish before trying the next address when using the `autoSelectFamily` option. */
-    autoSelectFamilyAttemptTimeout?: number; 
+    autoSelectFamilyAttemptTimeout?: number;
+    /**
+     * @description Enables support for H2 if the server has assigned bigger priority to it through ALPN negotiation.
+     * @default false
+    */
+    allowH2?: boolean;
+    /**
+     * @description Dictates the maximum number of concurrent streams for a single H2 session. It can be overriden by a SETTINGS remote frame.
+     * @default 100
+    */
+    maxConcurrentStreams?: number
   }
   export interface SocketInfo {
     localAddress?: string

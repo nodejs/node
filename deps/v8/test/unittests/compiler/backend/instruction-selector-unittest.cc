@@ -44,7 +44,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   TickCounter tick_counter;
   size_t max_unoptimized_frame_height = 0;
   size_t max_pushed_argument_count = 0;
-  InstructionSelector selector(
+  InstructionSelector selector = InstructionSelector::ForTurbofan(
       test_->zone(), node_count, &linkage, &sequence, schedule,
       &source_position_table, nullptr,
       InstructionSelector::kEnableSwitchJumpTable, &tick_counter, nullptr,
@@ -471,7 +471,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   EXPECT_EQ(0, s.ToInt32(call_instr->InputAt(4)));  // This should be a context.
                                                     // We inserted 0 here.
   EXPECT_EQ(0.5, s.ToFloat64(call_instr->InputAt(5)));
-  EXPECT_TRUE(s.ToHeapObject(call_instr->InputAt(6))->IsUndefined(isolate()));
+  EXPECT_TRUE(IsUndefined(*s.ToHeapObject(call_instr->InputAt(6)), isolate()));
 
   // Function.
   EXPECT_EQ(s.ToVreg(function_node), s.ToVreg(call_instr->InputAt(7)));

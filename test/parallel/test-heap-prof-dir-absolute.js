@@ -9,7 +9,6 @@ common.skipIfInspectorDisabled();
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { spawnSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
@@ -24,7 +23,7 @@ const {
 // Tests absolute --heap-prof-dir
 {
   tmpdir.refresh();
-  const dir = path.join(tmpdir.path, 'prof');
+  const dir = tmpdir.resolve('prof');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--heap-prof-dir',

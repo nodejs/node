@@ -6,7 +6,7 @@ const {
 } = require('node:stream/web');
 
 const bench = common.createBenchmark(main, {
-  n: [5e6],
+  n: [5e5],
   highWaterMarkR: [512, 1024, 2048, 4096],
   highWaterMarkW: [512, 1024, 2048, 4096],
 });
@@ -18,7 +18,7 @@ async function main({ n, highWaterMarkR, highWaterMarkW }) {
   const rs = new ReadableStream({
     highWaterMark: highWaterMarkR,
     pull: function(controller) {
-      if (i++ === n) {
+      if (i++ < n) {
         controller.enqueue(b);
       } else {
         controller.close();

@@ -13,6 +13,12 @@ specific_include_rules = {
   "c-api\.h": [
     "+third_party/wasm-api/wasm.hh",
   ],
+  "turboshaft-graph-interface\.cc": [
+    "+src/compiler/turboshaft/assembler.h",
+    "+src/compiler/turboshaft/define-assembler-macros.inc",
+    "+src/compiler/turboshaft/graph.h",
+    "+src/compiler/turboshaft/undef-assembler-macros.inc",
+  ],
   "wasm-engine\.h": [
     # The WasmEngine may cache common call descriptors.
     "+src/compiler/wasm-call-descriptors.h",

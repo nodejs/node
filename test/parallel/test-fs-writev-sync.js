@@ -2,7 +2,6 @@
 
 require('../common');
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 
@@ -10,7 +9,7 @@ tmpdir.refresh();
 
 const expected = 'ümlaut. Лорем 運務ホソモ指及 आपको करने विकास 紙読決多密所 أضف';
 
-const getFileName = (i) => path.join(tmpdir.path, `writev_sync_${i}.txt`);
+const getFileName = (i) => tmpdir.resolve(`writev_sync_${i}.txt`);
 
 /**
  * Testing with a array of buffers input

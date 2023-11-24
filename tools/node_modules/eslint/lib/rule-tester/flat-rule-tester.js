@@ -16,7 +16,9 @@ const
     equal = require("fast-deep-equal"),
     Traverser = require("../shared/traverser"),
     { getRuleOptionsSchema } = require("../config/flat-config-helpers"),
-    { Linter, SourceCodeFixer, interpolate } = require("../linter");
+    { Linter, SourceCodeFixer, interpolate } = require("../linter"),
+    CodePath = require("../linter/code-path-analysis/code-path");
+
 const { FlatConfigArray } = require("../config/flat-config-array");
 const { defaultConfig } = require("../config/default-config");
 
@@ -32,6 +34,7 @@ const { ConfigArraySymbol } = require("@humanwhocodes/config-array");
 
 /** @typedef {import("../shared/types").Parser} Parser */
 /** @typedef {import("../shared/types").LanguageOptions} LanguageOptions */
+/** @typedef {import("../shared/types").Rule} Rule */
 
 
 /**
@@ -129,6 +132,15 @@ const suggestionObjectParameters = new Set([
     "output"
 ]);
 const friendlySuggestionObjectParameterList = `[${[...suggestionObjectParameters].map(key => `'${key}'`).join(", ")}]`;
+
+const forbiddenMethods = [
+    "applyInlineConfig",
+    "applyLanguageOptions",
+    "finalize"
+];
+
+/** @type {Map<string,WeakSet>} */
+const forbiddenMethodCalls = new Map(forbiddenMethods.map(methodName => ([methodName, new WeakSet()])));
 
 const hasOwnProperty = Function.call.bind(Object.hasOwnProperty);
 
@@ -271,6 +283,49 @@ function getCommentsDeprecation() {
     throw new Error(
         "`SourceCode#getComments()` is deprecated and will be removed in a future major version. Use `getCommentsBefore()`, `getCommentsAfter()`, and `getCommentsInside()` instead."
     );
+}
+
+/**
+ * Emit a deprecation warning if rule uses CodePath#currentSegments.
+ * @param {string} ruleName Name of the rule.
+ * @returns {void}
+ */
+function emitCodePathCurrentSegmentsWarning(ruleName) {
+    if (!emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`]) {
+        emitCodePathCurrentSegmentsWarning[`warned-${ruleName}`] = true;
+        process.emitWarning(
+            `"${ruleName}" rule uses CodePath#currentSegments and will stop working in ESLint v9. Please read the documentation for how to update your code: https://eslint.org/docs/latest/extend/code-path-analysis#usage-examples`,
+            "DeprecationWarning"
+        );
+    }
+}
+
+/**
+ * Function to replace forbidden `SourceCode` methods. Allows just one call per method.
+ * @param {string} methodName The name of the method to forbid.
+ * @param {Function} prototype The prototype with the original method to call.
+ * @returns {Function} The function that throws the error.
+ */
+function throwForbiddenMethodError(methodName, prototype) {
+
+    const original = prototype[methodName];
+
+    return function(...args) {
+
+        const called = forbiddenMethodCalls.get(methodName);
+
+        /* eslint-disable no-invalid-this -- needed to operate as a method. */
+        if (!called.has(this)) {
+            called.add(this);
+
+            return original.apply(this, args);
+        }
+        /* eslint-enable no-invalid-this -- not needed past this point */
+
+        throw new Error(
+            `\`SourceCode#${methodName}()\` cannot be called inside a rule.`
+        );
+    };
 }
 
 //------------------------------------------------------------------------------
@@ -446,7 +501,7 @@ class FlatRuleTester {
     /**
      * Adds a new rule test to execute.
      * @param {string} ruleName The name of the rule to run.
-     * @param {Function} rule The rule to test.
+     * @param {Function | Rule} rule The rule to test.
      * @param {{
      *   valid: (ValidTestCase | string)[],
      *   invalid: InvalidTestCase[]
@@ -480,6 +535,7 @@ class FlatRuleTester {
         }
 
         const baseConfig = [
+            { files: ["**"] }, // Make sure the default config matches for all files
             {
                 plugins: {
 
@@ -661,10 +717,6 @@ class FlatRuleTester {
                 }
             }
 
-            // Verify the code.
-            const { getComments } = SourceCode.prototype;
-            let messages;
-
             // check for validation errors
             try {
                 configs.normalizeSync();
@@ -674,12 +726,33 @@ class FlatRuleTester {
                 throw error;
             }
 
+            // Verify the code.
+            const { getComments, applyLanguageOptions, applyInlineConfig, finalize } = SourceCode.prototype;
+            const originalCurrentSegments = Object.getOwnPropertyDescriptor(CodePath.prototype, "currentSegments");
+            let messages;
+
             try {
                 SourceCode.prototype.getComments = getCommentsDeprecation;
+                Object.defineProperty(CodePath.prototype, "currentSegments", {
+                    get() {
+                        emitCodePathCurrentSegmentsWarning(ruleName);
+                        return originalCurrentSegments.get.call(this);
+                    }
+                });
+
+                forbiddenMethods.forEach(methodName => {
+                    SourceCode.prototype[methodName] = throwForbiddenMethodError(methodName, SourceCode.prototype);
+                });
+
                 messages = linter.verify(code, configs, filename);
             } finally {
                 SourceCode.prototype.getComments = getComments;
+                Object.defineProperty(CodePath.prototype, "currentSegments", originalCurrentSegments);
+                SourceCode.prototype.applyInlineConfig = applyInlineConfig;
+                SourceCode.prototype.applyLanguageOptions = applyLanguageOptions;
+                SourceCode.prototype.finalize = finalize;
             }
+
 
             const fatalErrorMessage = messages.find(m => m.fatal);
 
@@ -1011,29 +1084,35 @@ class FlatRuleTester {
         /*
          * This creates a mocha test suite and pipes all supplied info through
          * one of the templates above.
+         * The test suites for valid/invalid are created conditionally as
+         * test runners (eg. vitest) fail for empty test suites.
          */
         this.constructor.describe(ruleName, () => {
-            this.constructor.describe("valid", () => {
-                test.valid.forEach(valid => {
-                    this.constructor[valid.only ? "itOnly" : "it"](
-                        sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
-                        () => {
-                            testValidTemplate(valid);
-                        }
-                    );
+            if (test.valid.length > 0) {
+                this.constructor.describe("valid", () => {
+                    test.valid.forEach(valid => {
+                        this.constructor[valid.only ? "itOnly" : "it"](
+                            sanitize(typeof valid === "object" ? valid.name || valid.code : valid),
+                            () => {
+                                testValidTemplate(valid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
 
-            this.constructor.describe("invalid", () => {
-                test.invalid.forEach(invalid => {
-                    this.constructor[invalid.only ? "itOnly" : "it"](
-                        sanitize(invalid.name || invalid.code),
-                        () => {
-                            testInvalidTemplate(invalid);
-                        }
-                    );
+            if (test.invalid.length > 0) {
+                this.constructor.describe("invalid", () => {
+                    test.invalid.forEach(invalid => {
+                        this.constructor[invalid.only ? "itOnly" : "it"](
+                            sanitize(invalid.name || invalid.code),
+                            () => {
+                                testInvalidTemplate(invalid);
+                            }
+                        );
+                    });
                 });
-            });
+            }
         });
     }
 }

@@ -5,12 +5,13 @@
 #ifndef V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 #define V8_OBJECTS_DEBUG_OBJECTS_INL_H_
 
-#include "src/objects/debug-objects.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/bytecode-array-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/objects/debug-objects.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -37,17 +38,17 @@ BIT_FIELD_ACCESSORS(DebugInfo, debugger_hints, debugging_id,
                     DebugInfo::DebuggingIdBits)
 
 bool DebugInfo::HasInstrumentedBytecodeArray() {
-  return debug_bytecode_array(kAcquireLoad).IsBytecodeArray();
+  return IsBytecodeArray(debug_bytecode_array(kAcquireLoad));
 }
 
-BytecodeArray DebugInfo::OriginalBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::OriginalBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
   return BytecodeArray::cast(original_bytecode_array(kAcquireLoad));
 }
 
-BytecodeArray DebugInfo::DebugBytecodeArray() {
+Tagged<BytecodeArray> DebugInfo::DebugBytecodeArray() {
   DCHECK(HasInstrumentedBytecodeArray());
-  DCHECK_EQ(shared().GetActiveBytecodeArray(),
+  DCHECK_EQ(shared()->GetActiveBytecodeArray(),
             debug_bytecode_array(kAcquireLoad));
   return BytecodeArray::cast(debug_bytecode_array(kAcquireLoad));
 }
@@ -55,10 +56,10 @@ BytecodeArray DebugInfo::DebugBytecodeArray() {
 TQ_OBJECT_CONSTRUCTORS_IMPL(StackFrameInfo)
 NEVER_READ_ONLY_SPACE_IMPL(StackFrameInfo)
 
-Script StackFrameInfo::script() const {
-  HeapObject object = shared_or_script();
-  if (object.IsSharedFunctionInfo()) {
-    object = SharedFunctionInfo::cast(object).script();
+Tagged<Script> StackFrameInfo::script() const {
+  Tagged<HeapObject> object = shared_or_script();
+  if (IsSharedFunctionInfo(object)) {
+    object = SharedFunctionInfo::cast(object)->script();
   }
   return Script::cast(object);
 }
@@ -72,16 +73,16 @@ NEVER_READ_ONLY_SPACE_IMPL(ErrorStackData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ErrorStackData)
 
 bool ErrorStackData::HasFormattedStack() const {
-  return !call_site_infos_or_formatted_stack().IsFixedArray();
+  return !IsFixedArray(call_site_infos_or_formatted_stack());
 }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, formatted_stack, Object,
+ACCESSORS_RELAXED_CHECKED(ErrorStackData, formatted_stack, Tagged<Object>,
                           kCallSiteInfosOrFormattedStackOffset,
-                          !limit_or_stack_frame_infos().IsSmi())
+                          !IsSmi(limit_or_stack_frame_infos()))
 
 bool ErrorStackData::HasCallSiteInfos() const { return !HasFormattedStack(); }
 
-ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, FixedArray,
+ACCESSORS_RELAXED_CHECKED(ErrorStackData, call_site_infos, Tagged<FixedArray>,
                           kCallSiteInfosOrFormattedStackOffset,
                           !HasFormattedStack())
 

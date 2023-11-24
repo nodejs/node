@@ -385,6 +385,11 @@ config("minizip_warnings") {
 }
 
 static_library("minizip") {
+  include_dirs = [
+    ".",
+    "//third_party/zlib",
+  ]
+
   sources = [
     "contrib/minizip/ioapi.c",
     "contrib/minizip/ioapi.h",
@@ -507,6 +512,7 @@ if (build_with_chromium) {
     }
 
     deps = [
+      ":minizip",
       ":zlib",
       "google:compression_utils",
       "google:zip",

@@ -519,10 +519,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
     Matcher<c::Node*> load_vector_cell_matcher = m.IsLoadFromObject(
         MachineType::TaggedPointer(), load_function_matcher,
         c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
-    EXPECT_THAT(load_feedback_vector,
-                m.IsLoadFromObject(
-                    MachineType::TaggedPointer(), load_vector_cell_matcher,
-                    c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
+    EXPECT_THAT(
+        load_feedback_vector,
+        m.IsLoadFromObject(
+            MachineType::TaggedPointer(), load_vector_cell_matcher,
+            c::IsIntPtrConstant(FeedbackCell::kValueOffset - kHeapObjectTag)));
   }
 }
 

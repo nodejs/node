@@ -17,14 +17,10 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-class Isolate;
 class JSModuleNamespace;
 class SourceTextModuleDescriptor;
 class SourceTextModuleInfo;
 class SourceTextModuleInfoEntry;
-class String;
 class Zone;
 
 #include "torque-generated/src/objects/module-tq.inc"
@@ -51,7 +47,7 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
   };
 
   // The exception in the case {status} is kErrored.
-  Object GetException();
+  Tagged<Object> GetException();
 
   // Returns if this module or any transitively requested module is [[Async]],
   // i.e. has a top-level await.
@@ -123,7 +119,7 @@ class Module : public TorqueGeneratedModule<Module, HeapObject> {
 
   // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);
-  void RecordError(Isolate* isolate, Object error);
+  void RecordError(Isolate* isolate, Tagged<Object> error);
 
   TQ_OBJECT_CONSTRUCTORS(Module)
 };

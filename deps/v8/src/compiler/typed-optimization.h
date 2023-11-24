@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
       Node* comparison, Node* from_char_code, Type constant_type,
       bool inverted);
   Reduction TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
-      Node* comparison, const StringRef& string, bool inverted);
+      Node* comparison, StringRef string, bool inverted);
   const Operator* NumberComparisonFor(const Operator* op);
 
   Node* ConvertPlainPrimitiveToNumber(Node* node);

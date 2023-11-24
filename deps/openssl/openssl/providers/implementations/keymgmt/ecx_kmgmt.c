@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -236,6 +236,9 @@ static int ecx_export(void *keydata, int selection, OSSL_CALLBACK *param_cb,
     int ret = 0;
 
     if (!ossl_prov_is_running() || key == NULL)
+        return 0;
+
+    if ((selection & OSSL_KEYMGMT_SELECT_KEYPAIR) == 0)
         return 0;
 
     tmpl = OSSL_PARAM_BLD_new();

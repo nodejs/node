@@ -611,7 +611,7 @@ TEST_F(ZipTest, UnzipWindowsSpecialNames) {
       "NUL .txt",
       "NUL  .txt",
       "NUL  ..txt",
-#ifndef OS_MAC
+#ifndef OS_APPLE
       "Nul.txt",
 #endif
       "nul.very long extension",
@@ -669,7 +669,7 @@ TEST_F(ZipTest, UnzipWindowsSpecialNames) {
 }
 
 TEST_F(ZipTest, UnzipDifferentCases) {
-#if defined(OS_WIN) || defined(OS_MAC)
+#if defined(OS_WIN) || defined(OS_APPLE)
   // Only the first file (with mixed case) is extracted.
   EXPECT_FALSE(zip::Unzip(GetDataDirectory().AppendASCII(
                               "Repeated File Name With Different Cases.zip"),
@@ -711,7 +711,7 @@ TEST_F(ZipTest, UnzipDifferentCasesContinueOnError) {
 
   std::string contents;
 
-#if defined(OS_WIN) || defined(OS_MAC)
+#if defined(OS_WIN) || defined(OS_APPLE)
   // Only the first file (with mixed case) has been extracted.
   EXPECT_THAT(
       GetRelativePaths(test_dir_, base::FileEnumerator::FileType::FILES),
@@ -782,7 +782,7 @@ TEST_F(ZipTest, UnzipMixedPaths) {
       "Space→ ",                  //
       "c/NUL",                    // Disappears on Windows
       "nul.very long extension",  // Disappears on Windows
-#ifndef OS_MAC
+#ifndef OS_APPLE
       "CASE",                     // Conflicts with "Case"
       "case",                     // Conflicts with "Case"
 #endif

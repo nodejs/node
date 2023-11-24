@@ -23,13 +23,19 @@ class ApiNatives {
  public:
   static const int kInitialFunctionCacheSize = 256;
 
+  // A convenient internal wrapper around FunctionTemplate::New() for creating
+  // getter/setter callback function templates.
+  static Handle<FunctionTemplateInfo> CreateAccessorFunctionTemplateInfo(
+      Isolate* isolate, FunctionCallback callback, int length,
+      v8::SideEffectType side_effect_type);
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
       Isolate* isolate, Handle<NativeContext> native_context,
       Handle<FunctionTemplateInfo> data,
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSFunction> InstantiateFunction(
-      Handle<FunctionTemplateInfo> data,
+      Isolate* isolate, Handle<FunctionTemplateInfo> data,
       MaybeHandle<Name> maybe_name = MaybeHandle<Name>());
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> InstantiateObject(

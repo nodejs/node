@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -184,15 +184,21 @@ int CONF_modules_load_file_ex(OSSL_LIB_CTX *libctx, const char *filename,
     CONF *conf = NULL;
     int ret = 0, diagnostics = 0;
 
+    ERR_set_mark();
+
     if (filename == NULL) {
         file = CONF_get1_default_config_file();
         if (file == NULL)
             goto err;
+        if (*file == '\0') {
+            /* Do not try to load an empty file name but do not error out */
+            ret = 1;
+            goto err;
+        }
     } else {
         file = (char *)filename;
     }
 
-    ERR_set_mark();
     conf = NCONF_new_ex(libctx, NULL);
     if (conf == NULL)
         goto err;

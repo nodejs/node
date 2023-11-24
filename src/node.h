@@ -261,6 +261,12 @@ enum Flags : uint32_t {
   kNoUseLargePages = 1 << 11,
   // Skip printing output for --help, --version, --v8-options.
   kNoPrintHelpOrVersionOutput = 1 << 12,
+  // Do not perform cppgc initialization. If set, the embedder must call
+  // cppgc::InitializeProcess() before creating a Node.js environment
+  // and call cppgc::ShutdownProcess() before process shutdown.
+  kNoInitializeCppgc = 1 << 13,
+  // Initialize the process for predictable snapshot generation.
+  kGeneratePredictableSnapshot = 1 << 14,
 
   // Emulate the behavior of InitializeNodeWithArgs() when passing
   // a flags argument to the InitializeOncePerProcess() replacement
@@ -269,7 +275,7 @@ enum Flags : uint32_t {
       kNoStdioInitialization | kNoDefaultSignalHandling | kNoInitializeV8 |
       kNoInitializeNodeV8Platform | kNoInitOpenSSL |
       kNoParseGlobalDebugVariables | kNoAdjustResourceLimits |
-      kNoUseLargePages | kNoPrintHelpOrVersionOutput,
+      kNoUseLargePages | kNoPrintHelpOrVersionOutput | kNoInitializeCppgc,
 };
 }  // namespace ProcessInitializationFlags
 namespace ProcessFlags = ProcessInitializationFlags;  // Legacy alias.
@@ -285,7 +291,7 @@ enum Flags : uint32_t {
 
 class NODE_EXTERN InitializationResult {
  public:
-  virtual ~InitializationResult();
+  virtual ~InitializationResult() = default;
 
   // Returns a suggested process exit code.
   virtual int exit_code() const = 0;
@@ -654,7 +660,7 @@ enum Flags : uint64_t {
 }  // namespace EnvironmentFlags
 
 struct InspectorParentHandle {
-  virtual ~InspectorParentHandle();
+  virtual ~InspectorParentHandle() = default;
 };
 
 // TODO(addaleax): Maybe move per-Environment options parsing here.
@@ -1485,6 +1491,25 @@ void RegisterSignalHandler(int signal,
                                            void* ucontext),
                            bool reset_handler = false);
 #endif  // _WIN32
+
+// Configure the layout of the JavaScript object with a cppgc::GarbageCollected
+// instance so that when the JavaScript object is reachable, the garbage
+// collected instance would have its Trace() method invoked per the cppgc
+// contract. To make it work, the process must have called
+// cppgc::InitializeProcess() before, which is usually the case for addons
+// loaded by the stand-alone Node.js executable. Embedders of Node.js can use
+// either need to call it themselves or make sure that
+// ProcessInitializationFlags::kNoInitializeCppgc is *not* set for cppgc to
+// work.
+// If the CppHeap is owned by Node.js, which is usually the case for addon,
+// the object must be created with at least two internal fields available,
+// and the first two internal fields would be configured by Node.js.
+// This may be superseded by a V8 API in the future, see
+// https://bugs.chromium.org/p/v8/issues/detail?id=13960. Until then this
+// serves as a helper for Node.js isolates.
+NODE_EXTERN void SetCppgcReference(v8::Isolate* isolate,
+                                   v8::Local<v8::Object> object,
+                                   void* wrappable);
 
 }  // namespace node
 

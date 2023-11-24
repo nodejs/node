@@ -39,7 +39,7 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     RandomBytesConfig* params) {
-  CHECK(IsAnyByteSource(args[offset]));  // Buffer to fill
+  CHECK(IsAnyBufferSource(args[offset]));  // Buffer to fill
   CHECK(args[offset + 1]->IsUint32());  // Offset
   CHECK(args[offset + 2]->IsUint32());  // Size
 

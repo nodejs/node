@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.19.0",
+  "version": "0.23.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,13 +10,13 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": ">=16.20.0"
+    "node": ">=18.17.1"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.0-rc.44+sha224.6526204ca38ed0105e81ba52d83dc0c7b8ee63600a13dc332914fde0",
+  "packageManager": "yarn@4.0.0-rc.53+sha256.00e0111b9741a6b886c659a49b06d4ccb16e5d568bd1006c2d1f80bc48393c9b",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
@@ -24,35 +24,35 @@
     "@jest/globals": "^29.0.0",
     "@types/debug": "^4.1.5",
     "@types/jest": "^29.0.0",
-    "@types/node": "^20.0.0",
+    "@types/node": "^20.4.6",
     "@types/semver": "^7.1.0",
     "@types/tar": "^6.0.0",
     "@types/which": "^3.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.0.0",
-    "@typescript-eslint/parser": "^5.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.8.0",
+    "@typescript-eslint/parser": "^6.8.0",
     "@yarnpkg/eslint-config": "^0.6.0-rc.7",
-    "@yarnpkg/fslib": "^2.1.0",
+    "@yarnpkg/fslib": "^3.0.0-rc.48",
     "@zkochan/cmd-shim": "^6.0.0",
     "babel-plugin-dynamic-import-node": "^2.3.3",
     "clipanion": "^3.0.1",
     "debug": "^4.1.1",
-    "esbuild": "0.17.19",
+    "esbuild": "0.19.5",
     "eslint": "^8.0.0",
-    "eslint-plugin-arca": "^0.15.0",
+    "eslint-plugin-arca": "^0.16.0",
     "jest": "^29.0.0",
     "nock": "^13.0.4",
-    "proxy-agent": "^6.0.0",
-    "semver": "^7.1.3",
+    "proxy-agent": "^6.2.2",
+    "semver": "^7.5.2",
     "supports-color": "^9.0.0",
     "tar": "^6.0.1",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.4",
     "v8-compile-cache": "^2.3.0",
-    "which": "^3.0.0"
+    "which": "^4.0.0"
   },
   "scripts": {
     "build": "rm -rf dist shims && run build:bundle && ts-node ./mkshims.ts",
-    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node16.20.0 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
+    "build:bundle": "esbuild ./sources/_lib.ts --bundle --platform=node --target=node18.17.0 --external:corepack --outfile='./dist/lib/corepack.cjs' --resolve-extensions='.ts,.mjs,.js'",
     "corepack": "ts-node ./sources/_cli.ts",
     "lint": "eslint .",
     "prepack": "yarn build",
@@ -96,7 +96,7 @@
     ]
   },
   "resolutions": {
-    "vm2": "patch:vm2@npm:3.9.9#.yarn/patches/vm2-npm-3.9.9-03fd1f4dc5.patch"
+    "vm2": "portal:./vm2"
   },
   "bin": {
     "corepack": "./dist/corepack.js",

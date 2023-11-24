@@ -6,17 +6,17 @@
 
 namespace runtime {
 extern runtime CreateArrayLiteral(
-    Context, Undefined | FeedbackVector, TaggedIndex,
-    ArrayBoilerplateDescription, Smi): HeapObject;
+    Context, Undefined|FeedbackVector, TaggedIndex, ArrayBoilerplateDescription,
+    Smi): HeapObject;
 extern runtime CreateObjectLiteral(
-    Context, Undefined | FeedbackVector, TaggedIndex,
+    Context, Undefined|FeedbackVector, TaggedIndex,
     ObjectBoilerplateDescription, Smi): HeapObject;
 }
 
 namespace constructor {
 
-extern builtin FastNewClosure(
-    Context, SharedFunctionInfo, FeedbackCell): JSFunction;
+extern builtin FastNewClosure(Context, SharedFunctionInfo, FeedbackCell):
+    JSFunction;
 extern builtin FastNewObject(Context, JSFunction, JSReceiver): JSObject;
 
 extern enum AllocationSiteMode {
@@ -53,26 +53,27 @@ builtin FastNewClosureBaseline(
   tail FastNewClosure(context, sharedFunctionInfo, feedbackCell);
 }
 
-builtin FastNewFunctionContextEval(implicit context: Context)(
-    scopeInfo: ScopeInfo, slots: uint32): Context {
+builtin FastNewFunctionContextEval(
+    implicit context: Context)(scopeInfo: ScopeInfo, slots: uint32): Context {
   return FastNewFunctionContext(scopeInfo, slots, context, kEvalScope);
 }
 
-builtin FastNewFunctionContextFunction(implicit context: Context)(
-    scopeInfo: ScopeInfo, slots: uint32): Context {
+builtin FastNewFunctionContextFunction(
+    implicit context: Context)(scopeInfo: ScopeInfo, slots: uint32): Context {
   return FastNewFunctionContext(scopeInfo, slots, context, kFunctionScope);
 }
 
-builtin CreateRegExpLiteral(implicit context: Context)(
-    maybeFeedbackVector: HeapObject, slot: TaggedIndex, pattern: Object,
-    flags: Smi): JSRegExp {
+builtin CreateRegExpLiteral(
+    implicit context: Context)(maybeFeedbackVector: HeapObject,
+    slot: TaggedIndex, pattern: Object, flags: Smi): JSRegExp {
   return CreateRegExpLiteral(
       maybeFeedbackVector, slot, pattern, flags, context);
 }
 
-builtin CreateShallowArrayLiteral(implicit context: Context)(
-    maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
-    constantElements: ArrayBoilerplateDescription, flags: Smi): HeapObject {
+builtin CreateShallowArrayLiteral(
+    implicit context: Context)(maybeFeedbackVector: Undefined|FeedbackVector,
+    slot: TaggedIndex, constantElements: ArrayBoilerplateDescription,
+    flags: Smi): HeapObject {
   try {
     const vector = Cast<FeedbackVector>(maybeFeedbackVector)
         otherwise CallRuntime;
@@ -85,14 +86,16 @@ builtin CreateShallowArrayLiteral(implicit context: Context)(
   }
 }
 
-builtin CreateEmptyArrayLiteral(implicit context: Context)(
-    feedbackVector: FeedbackVector, slot: TaggedIndex): HeapObject {
+builtin CreateEmptyArrayLiteral(
+    implicit context: Context)(feedbackVector: FeedbackVector,
+    slot: TaggedIndex): HeapObject {
   return CreateEmptyArrayLiteral(feedbackVector, slot, context);
 }
 
-builtin CreateShallowObjectLiteral(implicit context: Context)(
-    maybeFeedbackVector: Undefined|FeedbackVector, slot: TaggedIndex,
-    desc: ObjectBoilerplateDescription, flags: Smi): HeapObject {
+builtin CreateShallowObjectLiteral(
+    implicit context: Context)(maybeFeedbackVector: Undefined|FeedbackVector,
+    slot: TaggedIndex, desc: ObjectBoilerplateDescription,
+    flags: Smi): HeapObject {
   try {
     const feedbackVector = Cast<FeedbackVector>(maybeFeedbackVector)
         otherwise CallRuntime;
@@ -105,8 +108,7 @@ builtin CreateShallowObjectLiteral(implicit context: Context)(
 }
 
 // ES #sec-object-constructor
-transitioning javascript builtin
-ObjectConstructor(
+transitioning javascript builtin ObjectConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
   if (newTarget == Undefined || newTarget == target) {
@@ -129,8 +131,7 @@ builtin CreateEmptyLiteralObject(implicit context: Context)(): JSAny {
 }
 
 // ES #sec-number-constructor
-transitioning javascript builtin
-NumberConstructor(
+transitioning javascript builtin NumberConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
     target: JSFunction)(...arguments): JSAny {
   // 1. If no arguments were passed to this function invocation, let n be +0.
@@ -161,9 +162,8 @@ NumberConstructor(
   return result;
 }
 
-javascript builtin
-GenericLazyDeoptContinuation(js-implicit context: NativeContext)(result: JSAny):
-    JSAny {
+javascript builtin GenericLazyDeoptContinuation(
+    js-implicit context: NativeContext)(result: JSAny): JSAny {
   return result;
 }
 

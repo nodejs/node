@@ -1,3 +1,4 @@
+const { addAbortListener } = require('../core/util')
 const { RequestAbortedError } = require('../core/errors')
 
 const kListener = Symbol('kListener')
@@ -29,11 +30,7 @@ function addSignal (self, signal) {
     abort(self)
   }
 
-  if ('addEventListener' in self[kSignal]) {
-    self[kSignal].addEventListener('abort', self[kListener])
-  } else {
-    self[kSignal].addListener('abort', self[kListener])
-  }
+  addAbortListener(self[kSignal], self[kListener])
 }
 
 function removeSignal (self) {

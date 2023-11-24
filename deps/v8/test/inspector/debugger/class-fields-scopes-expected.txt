@@ -104,7 +104,7 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 2
+                    columnNumber : 10
                     lineNumber : 11
                     scriptId : <scriptId>
                 }
@@ -187,7 +187,7 @@ Running test: testScopesPaused
         callFrameId : <callFrameId>
         canBeRestarted : true
         functionLocation : {
-            columnNumber : 2
+            columnNumber : 10
             lineNumber : 11
             scriptId : <scriptId>
         }
@@ -212,7 +212,7 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 2
+                    columnNumber : 10
                     lineNumber : 11
                     scriptId : <scriptId>
                 }
@@ -421,7 +421,7 @@ Running test: testScopesPaused
         callFrameId : <callFrameId>
         canBeRestarted : true
         functionLocation : {
-            columnNumber : 2
+            columnNumber : 10
             lineNumber : 11
             scriptId : <scriptId>
         }
@@ -446,7 +446,7 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 2
+                    columnNumber : 10
                     lineNumber : 11
                     scriptId : <scriptId>
                 }
@@ -655,7 +655,7 @@ Running test: testScopesPaused
         callFrameId : <callFrameId>
         canBeRestarted : true
         functionLocation : {
-            columnNumber : 2
+            columnNumber : 10
             lineNumber : 11
             scriptId : <scriptId>
         }
@@ -680,7 +680,7 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 2
+                    columnNumber : 10
                     lineNumber : 11
                     scriptId : <scriptId>
                 }
@@ -962,7 +962,7 @@ Running test: testScopesPaused
         callFrameId : <callFrameId>
         canBeRestarted : true
         functionLocation : {
-            columnNumber : 2
+            columnNumber : 10
             lineNumber : 11
             scriptId : <scriptId>
         }
@@ -987,7 +987,7 @@ Running test: testScopesPaused
                     type : object
                 }
                 startLocation : {
-                    columnNumber : 2
+                    columnNumber : 10
                     lineNumber : 11
                     scriptId : <scriptId>
                 }

@@ -15,10 +15,9 @@ if (isCPPSymbolsNotMapped) {
 
 const assert = require('assert');
 const { spawn, spawnSync } = require('child_process');
-const path = require('path');
 const { writeFileSync } = require('fs');
 
-const LOG_FILE = path.join(tmpdir.path, 'tick-processor.log');
+const LOG_FILE = tmpdir.resolve('tick-processor.log');
 const RETRY_TIMEOUT = 150;
 const BROKEN_PART = 'tick,';
 const WARN_REG_EXP = /\(node:\d+\) \[BROKEN_PROFILE_FILE] Warning: Profile file .* is broken/;

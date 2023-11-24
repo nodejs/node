@@ -312,7 +312,7 @@ void ShuffleRange(internal::Random* random, int begin, int end,
       << begin << ", " << size << "].";
 
   // Fisher-Yates shuffle, from
-  // http://en.wikipedia.org/wiki/Fisher-Yates_shuffle
+  // https://en.wikipedia.org/wiki/Fisher-Yates_shuffle
   for (int range_width = end - begin; range_width >= 2; range_width--) {
     const int last_in_range = begin + range_width - 1;
     const int selected =
@@ -672,7 +672,7 @@ class GTEST_API_ UnitTestImpl {
   void AddTestInfo(internal::SetUpTestSuiteFunc set_up_tc,
                    internal::TearDownTestSuiteFunc tear_down_tc,
                    TestInfo* test_info) {
-#ifdef GTEST_HAS_FILE_SYSTEM
+#if GTEST_HAS_FILE_SYSTEM
     // In order to support thread-safe death tests, we need to
     // remember the original working directory when the test program
     // was first invoked.  We cannot do this in RUN_ALL_TESTS(), as

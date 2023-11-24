@@ -31,7 +31,9 @@ describe('legacyMainResolve', () => {
 
     for (const [mainOrFolder, allowReads] of paths) {
       const allowReadFilePaths = allowReads.map((filepath) => path.resolve(fixtextureFolder, filepath));
-      const allowReadFiles = allowReads?.length > 0 ? ['--allow-fs-read', allowReadFilePaths.join(',')] : [];
+      const allowReadFiles = allowReads?.length > 0 ?
+        allowReadFilePaths.flatMap((path) => ['--allow-fs-read', path]) :
+        [];
       const fixtextureFolderEscaped = escapeWhenSepIsBackSlash(fixtextureFolder);
 
       const { status, stderr } = spawnSync(
@@ -85,7 +87,9 @@ describe('legacyMainResolve', () => {
 
     for (const [folder, expectedFile, allowReads] of paths) {
       const allowReadFilePaths = allowReads.map((filepath) => path.resolve(fixtextureFolder, folder, filepath));
-      const allowReadFiles = allowReads?.length > 0 ? ['--allow-fs-read', allowReadFilePaths.join(',')] : [];
+      const allowReadFiles = allowReads?.length > 0 ?
+        allowReadFilePaths.flatMap((path) => ['--allow-fs-read', path]) :
+        [];
       const fixtextureFolderEscaped = escapeWhenSepIsBackSlash(fixtextureFolder);
 
       const { status, stderr } = spawnSync(

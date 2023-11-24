@@ -4,7 +4,7 @@ const { ArrayPrototypePop, Promise } = require('../ours/primordials')
 const { isIterable, isNodeStream, isWebStream } = require('../internal/streams/utils')
 const { pipelineImpl: pl } = require('../internal/streams/pipeline')
 const { finished } = require('../internal/streams/end-of-stream')
-require('stream')
+require('../../lib/stream.js')
 function pipeline(...streams) {
   return new Promise((resolve, reject) => {
     let signal

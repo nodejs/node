@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -3683,11 +3683,11 @@ static int prov_available(char *providers)
     int more = 1;
 
     while (more) {
-        for (; isspace(*providers); providers++)
+        for (; isspace((unsigned char)(*providers)); providers++)
             continue;
         if (*providers == '\0')
             break;               /* End of the road */
-        for (p = providers; *p != '\0' && !isspace(*p); p++)
+        for (p = providers; *p != '\0' && !isspace((unsigned char)(*p)); p++)
             continue;
         if (*p == '\0')
             more = 0;

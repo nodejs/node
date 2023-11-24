@@ -15,7 +15,7 @@ function main({ n }) {
 
   bench.start();
   for (let k = 0; k < n; ++k) {
-    for (let i = 0; i < 1e4; ++i)
+    for (let i = 0; i < 1e3; ++i)
       s.push(b);
     while (s.read());
   }

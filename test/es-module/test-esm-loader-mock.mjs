@@ -1,9 +1,6 @@
-// Flags: --loader ./test/fixtures/es-module-loaders/mock-loader.mjs
 import '../common/index.mjs';
-import assert from 'assert/strict';
-
-// This is provided by test/fixtures/es-module-loaders/mock-loader.mjs
-import mock from 'node:mock';
+import assert from 'node:assert/strict';
+import { mock } from '../fixtures/es-module-loaders/mock.mjs';
 
 mock('node:events', {
   EventEmitter: 'This is mocked!'

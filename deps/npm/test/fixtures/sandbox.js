@@ -42,11 +42,6 @@ const _get = Symbol('sandbox.proxy.get')
 const _set = Symbol('sandbox.proxy.set')
 const _logs = Symbol('sandbox.logs')
 
-// these config keys can be redacted widely
-const redactedDefaults = [
-  'tmp',
-]
-
 // we can't just replace these values everywhere because they're known to be
 // very short strings that could be present all over the place, so we only
 // replace them if they're located within quotes for now
@@ -161,12 +156,6 @@ class Sandbox extends EventEmitter {
     // and we replaced the node version first, the real execPath we're trying
     // to replace would no longer be represented, and be missed.
     if (this[_npm]) {
-      // replace default config values with placeholders
-      for (const name of redactedDefaults) {
-        const value = this[_npm].config.defaults[name]
-        clean = clean.split(normalize(value)).join(`{${name.toUpperCase()}}`)
-      }
-
       // replace vague default config values that are present within quotes
       // with placeholders
       for (const name of vagueRedactedDefaults) {

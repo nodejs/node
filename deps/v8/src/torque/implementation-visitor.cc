@@ -170,6 +170,7 @@ void ImplementationVisitor::BeginDebugMacrosFile() {
   source << "#include \"torque-generated/debug-macros.h\"\n\n";
   source << "#include \"src/objects/swiss-name-dictionary.h\"\n";
   source << "#include \"src/objects/ordered-hash-table.h\"\n";
+  source << "#include \"src/torque/runtime-support.h\"\n";
   source << "#include \"tools/debug_helper/debug-macro-shims.h\"\n";
   source << "#include \"include/v8-internal.h\"\n";
   source << "\n";
@@ -2832,6 +2833,9 @@ VisitResult ImplementationVisitor::GenerateCall(
     GenerateCatchBlock(catch_block);
     if (is_tailcall) {
       return VisitResult::NeverResult();
+    } else if (return_type->IsNever()) {
+      assembler().Emit(AbortInstruction{AbortInstruction::Kind::kUnreachable});
+      return VisitResult::NeverResult();
     } else {
       size_t slot_count = LoweredSlotCount(return_type);
       if (builtin->IsStub()) {
@@ -3607,10 +3611,13 @@ void ImplementationVisitor::GenerateBuiltinDefinitionsAndInterfaceDescriptors(
           interface_descriptors << "  DEFINE_RESULT_AND_PARAMETER_TYPES(";
           PrintCommaSeparatedList(interface_descriptors, return_types,
                                   MachineTypeString);
+          bool is_first = return_types.empty();
           for (size_t i = kFirstNonContextParameter;
                i < builtin->parameter_names().size(); ++i) {
             const Type* type = builtin->signature().parameter_types.types[i];
-            interface_descriptors << ", " << MachineTypeString(type);
+            interface_descriptors << (is_first ? "" : ", ")
+                                  << MachineTypeString(type);
+            is_first = false;
           }
           interface_descriptors << ")\n";
 
@@ -3866,7 +3873,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_DATA_ONLY_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }
@@ -3874,7 +3882,8 @@ void ImplementationVisitor::GenerateVisitorLists(
 
     header << "#define TORQUE_POINTER_VISITOR_ID_LIST(V)\\\n";
     for (const ClassType* type : TypeOracle::GetClasses()) {
-      if (type->ShouldGenerateBodyDescriptor() && !type->HasNoPointerSlots()) {
+      if (type->ShouldGenerateBodyDescriptor() &&
+          !type->HasNoPointerSlotsExceptMap()) {
         header << "V(" << type->name() << ")\\\n";
       }
     }
@@ -4069,19 +4078,18 @@ base::Optional<std::vector<Field>> GetOrderedUniqueIndexFields(
 }
 
 void CppClassGenerator::GenerateClass() {
-  // Is<name>_NonInline(HeapObject)
+  // Is<name>_NonInline(Tagged<HeapObject>)
   if (!type_->IsShape()) {
     cpp::Function f("Is"s + name_ + "_NonInline");
-    f.SetDescription("Alias for HeapObject::Is"s + name_ +
-                     "() that avoids inlining.");
+    f.SetDescription("Alias for Is"s + name_ + "() that avoids inlining.");
     f.SetExport(true);
     f.SetReturnType("bool");
-    f.AddParameter("HeapObject", "o");
+    f.AddParameter("Tagged<HeapObject>", "o");
 
     f.PrintDeclaration(hdr_);
     hdr_ << "\n";
     f.PrintDefinition(impl_, [&](std::ostream& stream) {
-      stream << "  return o.Is" << name_ << "();\n";
+      stream << "  return Is" << name_ << "(o);\n";
     });
   }
   hdr_ << "// Definition " << Position() << "\n";
@@ -4286,18 +4294,18 @@ void CppClassGenerator::GenerateClassCasts() {
                    gen_name_);
   cpp::Function f(&owner, "cast");
   f.SetFlags(cpp::Function::kV8Inline | cpp::Function::kStatic);
-  f.SetReturnType("D");
-  f.AddParameter("Object", "object");
+  f.SetReturnType("Tagged<D>");
+  f.AddParameter("Tagged<Object>", "object");
 
-  // V8_INLINE static D cast(Object)
+  // V8_INLINE static D cast(Tagged<Object>)
   f.PrintDeclaration(hdr_);
   f.PrintDefinition(inl_, [](std::ostream& stream) {
-    stream << "    return D(object.ptr());\n";
+    stream << "    return Tagged<D>(D(object.ptr()));\n";
   });
-  // V8_INLINE static D unchecked_cast(Object)
+  // V8_INLINE static D unchecked_cast(Tagged<Object>)
   f.SetName("unchecked_cast");
   f.PrintInlineDefinition(hdr_, [](std::ostream& stream) {
-    stream << "    return base::bit_cast<D>(object);\n";
+    stream << "    return Tagged<D>::unchecked_cast(object);\n";
   });
 }
 
@@ -4322,28 +4330,16 @@ void CppClassGenerator::GenerateClassConstructors() {
   hdr_ << "  }\n\n";
 
   hdr_ << " protected:\n";
+  hdr_ << "  inline explicit constexpr " << gen_name_
+       << "(Address ptr, typename P::SkipTypeCheckTag\n)";
+  hdr_ << "    : P(ptr, typename P::SkipTypeCheckTag{}) {}\n";
   hdr_ << "  inline explicit " << gen_name_ << "(Address ptr);\n";
-  hdr_ << "  // Special-purpose constructor for subclasses that have fast "
-          "paths where\n";
-  hdr_ << "  // their ptr() is a Smi.\n";
-  hdr_ << "  inline explicit " << gen_name_
-       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);\n";
 
   inl_ << "template<class D, class P>\n";
   inl_ << "inline " << gen_name_T_ << "::" << gen_name_ << "(Address ptr)\n";
   inl_ << "    : P(ptr) {\n";
   inl_ << "  SLOW_DCHECK(Is" << typecheck_type->name()
        << "_NonInline(*this));\n";
-  inl_ << "}\n";
-
-  inl_ << "template<class D, class P>\n";
-  inl_ << "inline " << gen_name_T_ << "::" << gen_name_
-       << "(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)\n";
-  inl_ << "    : P(ptr, allow_smi) {\n";
-  inl_ << "  SLOW_DCHECK("
-       << "(allow_smi == HeapObject::AllowInlineSmiStorage::kAllowBeingASmi"
-          " && this->IsSmi()) || Is"
-       << typecheck_type->name() << "_NonInline(*this));\n";
   inl_ << "}\n";
 }
 
@@ -4369,13 +4365,12 @@ std::string GenerateRuntimeTypeCheck(const Type* type,
         // to, so just check that it's weak.
         type_check << value << ".IsWeak()";
       } else {
-        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && "
-                   << value << ".GetHeapObjectOrSmi().Is"
+        type_check << "(" << (strong ? "!" : "") << value << ".IsWeak() && Is"
                    << (strong ? runtime_type.type : runtime_type.weak_ref_to)
-                   << "())";
+                   << "(" << value << ".GetHeapObjectOrSmi()))";
       }
     } else {
-      type_check << value << ".Is" << runtime_type.type << "()";
+      type_check << "Is" << runtime_type.type << "(" << value << ")";
     }
   }
   return type_check.str();
@@ -4403,7 +4398,8 @@ bool CanGenerateFieldAccessors(const Type* field_type) {
   // TODO(v8:10391) Generate accessors for external pointers.
   return field_type != TypeOracle::GetVoidType() &&
          field_type != TypeOracle::GetFloat64OrHoleType() &&
-         !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType());
+         !field_type->IsSubtypeOf(TypeOracle::GetExternalPointerType()) &&
+         !field_type->IsSubtypeOf(TypeOracle::GetIndirectPointerType());
 }
 }  // namespace
 
@@ -4485,7 +4481,6 @@ void CppClassGenerator::GenerateFieldAccessors(
     }
 
     getter.PrintDefinition(inl_, [&](auto& stream) {
-      stream << "  " << type_name << " value;\n";
       EmitLoadFieldStatement(stream, class_field, struct_fields);
       stream << "  return value;\n";
     });
@@ -4543,11 +4538,7 @@ std::string CppClassGenerator::GetTypeNameForAccessor(const Field& f) {
     }
     return constexpr_version->GetGeneratedTypeName();
   }
-  if (field_type->IsSubtypeOf(TypeOracle::GetSmiType())) {
-    // Follow the convention to create Smi accessors with type int.
-    return "int";
-  }
-  return field_type->UnhandlifiedCppTypeName();
+  return field_type->TagglifiedCppTypeName();
 }
 
 bool CppClassGenerator::CanContainHeapObjects(const Type* t) {
@@ -4582,7 +4573,7 @@ void CppClassGenerator::EmitLoadFieldStatement(
     offset = "offset";
   }
 
-  stream << "  value = ";
+  stream << "  " << type_name << " value = ";
 
   if (!field_type->IsSubtypeOf(TypeOracle::GetTaggedType())) {
     if (class_field.read_synchronization ==
@@ -4810,13 +4801,13 @@ void ImplementationVisitor::GenerateClassDefinitions(
         }
 
         factory_impl << ");\n";
-        factory_impl << "  Map map = factory()->read_only_roots()."
+        factory_impl << "  Tagged<Map> map = factory()->read_only_roots()."
                      << SnakeifyString(type->name()) << "_map();";
-        factory_impl << "  HeapObject raw_object =\n";
+        factory_impl << "  Tagged<HeapObject> raw_object =\n";
         factory_impl << "    factory()->AllocateRawWithImmortalMap(size, "
                         "allocation_type, map);\n";
-        factory_impl << "  " << type->UnhandlifiedCppTypeName()
-                     << " result = " << type->UnhandlifiedCppTypeName()
+        factory_impl << "  " << type->TagglifiedCppTypeName()
+                     << " result = " << type->GetConstexprGeneratedTypeName()
                      << "::cast(raw_object);\n";
         factory_impl << "  DisallowGarbageCollection no_gc;";
         factory_impl << "  WriteBarrierMode write_barrier_mode =\n"
@@ -4827,7 +4818,7 @@ void ImplementationVisitor::GenerateClassDefinitions(
         for (const Field& f : type->ComputeAllFields()) {
           if (f.name_and_type.name == "map") continue;
           if (!f.index) {
-            factory_impl << "  result.TorqueGeneratedClass::set_"
+            factory_impl << "  result->TorqueGeneratedClass::set_"
                          << SnakeifyString(f.name_and_type.name) << "(";
             if (f.name_and_type.type->IsSubtypeOf(
                     TypeOracle::GetTaggedType()) &&
@@ -5034,26 +5025,6 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         h_contents << "BodyDescriptorBase {\n";
         h_contents << " public:\n";
 
-        h_contents << "  static bool IsValidSlot(Map map, HeapObject obj, int "
-                      "offset) {\n";
-        if (has_array_fields) {
-          h_contents << "    if (offset < kHeaderSize) {\n";
-        }
-        h_contents << "      bool valid_slots[] = {";
-        for (ObjectSlotKind slot : header_slot_kinds) {
-          h_contents << (slot != ObjectSlotKind::kNoPointer ? "1" : "0") << ",";
-        }
-        h_contents << "};\n"
-                   << "      return valid_slots[static_cast<unsigned "
-                      "int>(offset)/kTaggedSize];\n";
-        if (has_array_fields) {
-          h_contents << "    }\n";
-          bool array_is_tagged = *array_slot_kind != ObjectSlotKind::kNoPointer;
-          h_contents << "    return " << (array_is_tagged ? "true" : "false")
-                     << ";\n";
-        }
-        h_contents << "  }\n\n";
-
         h_contents << "  template <typename ObjectVisitor>\n";
         h_contents
             << "  static inline void IterateBody(Map map, HeapObject obj, "
@@ -5130,7 +5101,7 @@ void ImplementationVisitor::GenerateBodyDescriptors(
         // We use an unchecked_cast here because this is used for concurrent
         // marking, where we shouldn't re-read the map.
         h_contents << "    return " << name
-                   << "::unchecked_cast(raw_object).AllocatedSize();\n";
+                   << "::unchecked_cast(raw_object)->AllocatedSize();\n";
       }
       h_contents << "  }\n\n";
 
@@ -5307,7 +5278,7 @@ void ImplementationVisitor::GenerateClassVerifiers(
       }
 
       // Second, verify that this object is what it claims to be.
-      cc_contents << "  CHECK(o.Is" << name << "(isolate));\n";
+      cc_contents << "  CHECK(Is" << name << "(o, isolate));\n";
 
       // Third, verify its properties.
       for (auto f : type->fields()) {

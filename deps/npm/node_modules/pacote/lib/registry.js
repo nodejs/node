@@ -8,7 +8,7 @@ const pickManifest = require('npm-pick-manifest')
 const ssri = require('ssri')
 const crypto = require('crypto')
 const npa = require('npm-package-arg')
-const { sigstore } = require('sigstore')
+const sigstore = require('sigstore')
 
 // Corgis are cute. 🐕🐶
 const corgiDoc = 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*'
@@ -299,7 +299,7 @@ class RegistryFetcher extends Fetcher {
                 tufCachePath: this.tufCache,
                 keySelector: publicKey ? () => publicKey.pemkey : undefined,
               }
-              await sigstore.verify(bundle, null, options)
+              await sigstore.verify(bundle, options)
             } catch (e) {
               throw Object.assign(new Error(
                 `${mani._id} failed to verify attestation: ${e.message}`

@@ -115,7 +115,8 @@ struct AssertionInfo {
 };
 [[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 [[noreturn]] void NODE_EXTERN_PRIVATE Abort();
-void DumpBacktrace(FILE* fp);
+void DumpNativeBacktrace(FILE* fp);
+void DumpJavaScriptBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
@@ -890,6 +891,11 @@ void SetFastMethod(v8::Local<v8::Context> context,
                    const std::string_view name,
                    v8::FunctionCallback slow_callback,
                    const v8::CFunction* c_function);
+void SetFastMethod(v8::Isolate* isolate,
+                   v8::Local<v8::Template> that,
+                   const std::string_view name,
+                   v8::FunctionCallback slow_callback,
+                   const v8::MemorySpan<const v8::CFunction>& methods);
 void SetFastMethodNoSideEffect(v8::Isolate* isolate,
                                v8::Local<v8::Template> that,
                                const std::string_view name,
@@ -900,7 +906,12 @@ void SetFastMethodNoSideEffect(v8::Local<v8::Context> context,
                                const std::string_view name,
                                v8::FunctionCallback slow_callback,
                                const v8::CFunction* c_function);
-
+void SetFastMethodNoSideEffect(
+    v8::Isolate* isolate,
+    v8::Local<v8::Template> that,
+    const std::string_view name,
+    v8::FunctionCallback slow_callback,
+    const v8::MemorySpan<const v8::CFunction>& methods);
 void SetProtoMethod(v8::Isolate* isolate,
                     v8::Local<v8::FunctionTemplate> that,
                     const std::string_view name,
@@ -958,17 +969,31 @@ void SetConstructorFunction(v8::Isolate* isolate,
                             SetConstructorFunctionFlag flag =
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
 
-// Simple RAII class to spin up a v8::Isolate instance.
-class RAIIIsolate {
+// Like RAIIIsolate, except doesn't enter the isolate while it's in scope.
+class RAIIIsolateWithoutEntering {
  public:
-  RAIIIsolate();
-  ~RAIIIsolate();
+  explicit RAIIIsolateWithoutEntering(const SnapshotData* data = nullptr);
+  ~RAIIIsolateWithoutEntering();
 
   v8::Isolate* get() const { return isolate_; }
 
  private:
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   v8::Isolate* isolate_;
+};
+
+// Simple RAII class to spin up a v8::Isolate instance and enter it
+// immediately.
+class RAIIIsolate {
+ public:
+  explicit RAIIIsolate(const SnapshotData* data = nullptr);
+  ~RAIIIsolate();
+
+  v8::Isolate* get() const { return isolate_.get(); }
+
+ private:
+  RAIIIsolateWithoutEntering isolate_;
+  v8::Isolate::Scope isolate_scope_;
 };
 
 }  // namespace node

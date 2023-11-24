@@ -40,7 +40,7 @@ These functions perform an OCSP POST request / response transfer over HTTP,
 using the HTTP request functions described in L<OSSL_HTTP_REQ_CTX(3)>.
 
 The function OCSP_sendreq_new() builds a complete B<OSSL_HTTP_REQ_CTX> structure
-with the B<BIO> I<io> to be used for requests and reponse, the URL path I<path>,
+with the B<BIO> I<io> to be used for requests and response, the URL path I<path>,
 optionally the OCSP request I<req>, and a response header maximum line length
 of I<buf_size>. If I<buf_size> is zero a default value of 4KiB is used.
 The I<req> may be set to NULL and provided later using OCSP_REQ_CTX_set1_req()
@@ -115,7 +115,7 @@ were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

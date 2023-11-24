@@ -19,6 +19,23 @@ constexpr auto CallInterfaceDescriptor::DefaultRegisterArray() {
   return registers;
 }
 
+constexpr auto CallInterfaceDescriptor::DefaultDoubleRegisterArray() {
+  auto registers = DoubleRegisterArray(d1, d2, d3, d4, d5, d6, d7);
+  return registers;
+}
+
+constexpr auto CallInterfaceDescriptor::DefaultReturnRegisterArray() {
+  auto registers =
+      RegisterArray(kReturnRegister0, kReturnRegister1, kReturnRegister2);
+  return registers;
+}
+
+constexpr auto CallInterfaceDescriptor::DefaultReturnDoubleRegisterArray() {
+  // Padding to have as many double return registers as GP return registers.
+  auto registers = DoubleRegisterArray(kFPReturnRegister0, no_dreg, no_dreg);
+  return registers;
+}
+
 #if DEBUG
 template <typename DerivedDescriptor>
 void StaticCallInterfaceDescriptor<DerivedDescriptor>::
@@ -264,11 +281,35 @@ constexpr auto BinarySmiOp_BaselineDescriptor::registers() {
 }
 
 // static
-constexpr auto ApiCallbackDescriptor::registers() {
-  return RegisterArray(r3,   // kApiFunctionAddress
-                       r4,   // kArgc
-                       r5,   // kCallData
-                       r2);  // kHolder
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ApiFunctionAddressRegister() {
+  return r3;
+}
+// static
+constexpr Register
+CallApiCallbackOptimizedDescriptor::ActualArgumentsCountRegister() {
+  return r4;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::CallDataRegister() {
+  return r5;
+}
+// static
+constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
+  return r2;
+}
+// static
+constexpr Register
+CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
+  return r4;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
+  return r5;
+}
+// static
+constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
+  return r2;
 }
 
 // static
@@ -306,6 +347,10 @@ constexpr auto RunMicrotasksEntryDescriptor::registers() {
   return RegisterArray(r2, r3);
 }
 
+constexpr auto WasmJSToWasmWrapperDescriptor::registers() {
+  // Arbitrarily picked register.
+  return RegisterArray(r2);
+}
 }  // namespace internal
 }  // namespace v8
 

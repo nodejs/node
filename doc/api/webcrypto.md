@@ -684,6 +684,7 @@ added: v15.0.0
 
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
+* `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} containing {ArrayBuffer}
 
 Using the method and parameters specified by `algorithm` and the keying
@@ -1641,7 +1642,7 @@ added: v15.0.0
 The length (in bytes) of the random salt to use.
 
 [^1]: An experimental implementation of
-    [Secure Curves in the Web Cryptography API][] as of 05 May 2022
+    [Secure Curves in the Web Cryptography API][] as of 30 August 2023
 
 [JSON Web Key]: https://tools.ietf.org/html/rfc7517
 [Key usages]: #cryptokeyusages

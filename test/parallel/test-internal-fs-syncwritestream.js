@@ -4,13 +4,12 @@
 const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const SyncWriteStream = require('internal/fs/sync_write_stream');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = path.join(tmpdir.path, 'sync-write-stream.txt');
+const filename = tmpdir.resolve('sync-write-stream.txt');
 
 // Verify constructing the instance with default options.
 {

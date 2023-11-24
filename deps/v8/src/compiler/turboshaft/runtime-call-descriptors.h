@@ -5,7 +5,9 @@
 #ifndef V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 #define V8_COMPILER_TURBOSHAFT_RUNTIME_CALL_DESCRIPTORS_H_
 
+#include "src/compiler/operator.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/runtime/runtime.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -22,7 +24,10 @@ struct RuntimeCallDescriptor {
 #ifdef DEBUG
       Derived::Verify(descriptor);
 #endif  // DEBUG
-      return TSCallDescriptor::Create(descriptor, zone);
+      CanThrow can_throw = (Derived::Properties & Operator::kNoThrow)
+                               ? CanThrow::kNo
+                               : CanThrow::kYes;
+      return TSCallDescriptor::Create(descriptor, can_throw, zone);
     }
 
 #ifdef DEBUG
@@ -64,9 +69,27 @@ struct RuntimeCallDescriptor {
 #endif  // DEBUG
   };
 
-  using Boolean = Oddball;
-
  public:
+  struct Abort : public Descriptor<Abort> {
+    static constexpr auto Function = Runtime::kAbort;
+    using arguments_t = std::tuple<V<Smi>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct DateCurrentTime : public Descriptor<DateCurrentTime> {
+    static constexpr auto Function = Runtime::kDateCurrentTime;
+    using arguments_t = std::tuple<>;
+    using result_t = V<Number>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto Function = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;
@@ -96,6 +119,26 @@ struct RuntimeCallDescriptor {
 
     static constexpr bool NeedsFrameState = true;
     static constexpr Operator::Properties Properties = Operator::kNoDeopt;
+  };
+
+  struct TransitionElementsKind : public Descriptor<TransitionElementsKind> {
+    static constexpr auto Function = Runtime::kTransitionElementsKind;
+    using arguments_t = std::tuple<V<HeapObject>, V<Map>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+  };
+
+  struct TryMigrateInstance : public Descriptor<TryMigrateInstance> {
+    static constexpr auto Function = Runtime::kTryMigrateInstance;
+    using arguments_t = std::tuple<V<HeapObject>>;
+    using result_t = V<Object>;
+
+    static constexpr bool NeedsFrameState = false;
+    static constexpr Operator::Properties Properties =
+        Operator::kNoDeopt | Operator::kNoThrow;
   };
 };
 

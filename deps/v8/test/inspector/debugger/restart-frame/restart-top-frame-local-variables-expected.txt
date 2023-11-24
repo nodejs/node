@@ -56,8 +56,26 @@ Evaluating y:
 {
     id : <messageId>
     result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: Cannot access 'y' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
         result : {
-            type : undefined
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'y' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+            objectId : <objectId>
+            subtype : error
+            type : object
         }
     }
 }
@@ -65,8 +83,26 @@ Evaluating z:
 {
     id : <messageId>
     result : {
+        exceptionDetails : {
+            columnNumber : 0
+            exception : {
+                className : ReferenceError
+                description : ReferenceError: Cannot access 'z' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+                objectId : <objectId>
+                subtype : error
+                type : object
+            }
+            exceptionId : <exceptionId>
+            lineNumber : 0
+            scriptId : <scriptId>
+            text : Uncaught
+        }
         result : {
-            type : undefined
+            className : ReferenceError
+            description : ReferenceError: Cannot access 'z' from debugger     at eval (eval at foo (:1:1), <anonymous>:1:1)     at foo (testRestartFrame.js:3:11)     at testRestartFrame.js:8:1
+            objectId : <objectId>
+            subtype : error
+            type : object
         }
     }
 }

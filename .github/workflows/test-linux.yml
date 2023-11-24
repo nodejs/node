@@ -34,11 +34,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236  # v4.7.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -46,4 +46,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions --measure-flakiness 9"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' --measure-flakiness 9"

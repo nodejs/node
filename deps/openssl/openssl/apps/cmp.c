@@ -2115,7 +2115,7 @@ static const char *prev_item(const char *opt, const char *end)
     beg = end;
     while (beg > opt) {
         --beg;
-        if (beg[0] == ',' || isspace(beg[0])) {
+        if (beg[0] == ',' || isspace(_UC(beg[0]))) {
             ++beg;
             break;
         }
@@ -2130,7 +2130,7 @@ static const char *prev_item(const char *opt, const char *end)
     opt_item[len] = '\0';
     while (beg > opt) {
         --beg;
-        if (beg[0] != ',' && !isspace(beg[0])) {
+        if (beg[0] != ',' && !isspace(_UC(beg[0]))) {
             ++beg;
             break;
         }
@@ -2148,6 +2148,7 @@ static char *conf_get_string(const CONF *src_conf, const char *groups,
     while ((end = prev_item(groups, end)) != NULL) {
         if ((res = NCONF_get_string(src_conf, opt_item, name)) != NULL)
             return res;
+        ERR_clear_error();
     }
     return res;
 }
@@ -2511,7 +2512,7 @@ static int get_opts(int argc, char **argv)
             }
             break;
         case OPT_CSR:
-            opt_csr = opt_arg();
+            opt_csr = opt_str();
             break;
         case OPT_OUT_TRUSTED:
             opt_out_trusted = opt_str();

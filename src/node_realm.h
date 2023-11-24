@@ -101,6 +101,8 @@ class Realm : public MemoryRetainer {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   template <typename T>
   static inline T* GetBindingData(v8::Local<v8::Context> context);
+  template <typename T>
+  inline T* GetBindingData();
   inline BindingDataStore* binding_data_store();
 
   // The BaseObject count is a debugging helper that makes sure that there are

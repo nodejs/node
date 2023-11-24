@@ -1,0 +1,17 @@
+TestInlining
+Considering {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} for inlining with {ADDRESS} {{ADDRESS} <FeedbackVector[9]>}
+1 candidate(s) for inlining:
+- candidate: JSCall node #83 with frequency 1, 1 target(s):
+  - target: {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>}, bytecode size: 47
+Inlining {ADDRESS} {{ADDRESS} <SharedFunctionInfo inner>} into {ADDRESS} {{ADDRESS} <SharedFunctionInfo jsFct>}
+Considering wasm function [2] <no name> of module {ADDRESS} for inlining
+- not inlining: function body is larger than max inlinee size (102 > 30)
+Considering wasm function [0] createArray of module {ADDRESS} for inlining
+- not inlining: function body contains unsupported instructions
+Considering wasm function [1] arrayLen of module {ADDRESS} for inlining
+- not inlining: wasm inlining into try catch is not supported
+Inlinee contains {NUMBER} calls without local exception handler; linking to surrounding exception handler.
+Considering wasm function [1] arrayLen of module {ADDRESS} for inlining
+- not inlining: another wasm module is already used for inlining
+Considering wasm function [1] arrayLen of module {ADDRESS} for inlining
+- inlining

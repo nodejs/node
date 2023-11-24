@@ -1,9 +1,9 @@
+// Flags: --expose-internals
 'use strict';
 
 require('../common');
 const assert = require('assert');
 const { MIMEType, MIMEParams } = require('util');
-
 
 const WHITESPACES = '\t\n\f\r ';
 const NOT_HTTP_TOKEN_CODE_POINT = ',';

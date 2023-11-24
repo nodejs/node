@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "July 2023" "" ""
+.TH "CONFIG" "7" "November 2023" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -350,6 +350,16 @@ Type: Boolean
 
 .P
 Run git commit hooks when using the \fBnpm version\fR command.
+.SS "\fBcpu\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override CPU architecture of native modules to install. Acceptable values are same as \fBcpu\fR field of package.json, which comes from \fBprocess.arch\fR.
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
@@ -1038,6 +1048,16 @@ Type: Boolean
 
 .P
 This option causes npm to create lock files without a \fBresolved\fR key for registry dependencies. Subsequent installs will need to resolve tarball endpoints with the configured registry, likely resulting in a longer install time.
+.SS "\fBos\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override OS of native modules to install. Acceptable values are same as \fBos\fR field of package.json, which comes from \fBprocess.platform\fR.
 .SS "\fBotp\fR"
 .RS 0
 .IP \(bu 4
@@ -1335,6 +1355,26 @@ Type: Boolean
 Save installed packages into \fBdependencies\fR specifically. This is useful if a package already exists in \fBdevDependencies\fR or \fBoptionalDependencies\fR, but you want to move it to be a non-optional production dependency.
 .P
 This is the default behavior if \fB--save\fR is true, and neither \fB--save-dev\fR or \fB--save-optional\fR are true.
+.SS "\fBsbom-format\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: "cyclonedx" or "spdx"
+.RE 0
+
+.P
+SBOM format to use when generating SBOMs.
+.SS "\fBsbom-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "library"
+.IP \(bu 4
+Type: "library", "application", or "framework"
+.RE 0
+
+.P
+The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR fieled. For CycloneDX, this is the value for the \fBtype\fR field.
 .SS "\fBscope\fR"
 .RS 0
 .IP \(bu 4
@@ -1769,18 +1809,6 @@ cert="-----BEGIN CERTIFICATE-----\[rs]nXXXX\[rs]nXXXX\[rs]n-----END CERTIFICATE-
 .RE
 .P
 It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
-.SS "\fBci-name\fR"
-.RS 0
-.IP \(bu 4
-Default: The name of the current CI system, or \fBnull\fR when not on a known CI platform.
-.IP \(bu 4
-Type: null or String
-.IP \(bu 4
-DEPRECATED: This config is deprecated and will not be changeable in future version of npm.
-.RE 0
-
-.P
-The name of a continuous integration system. If not set explicitly, npm will detect the current CI environment using the \fB\fBci-info\fR\fR \fI\(lahttp://npm.im/ci-info\(ra\fR module.
 .SS "\fBdev\fR"
 .RS 0
 .IP \(bu 4
@@ -1959,18 +1987,6 @@ DEPRECATED: Use the --package-lock setting instead.
 
 .P
 Alias for --package-lock
-.SS "\fBtmp\fR"
-.RS 0
-.IP \(bu 4
-Default: The value returned by the Node.js \fBos.tmpdir()\fR method \fI\(lahttps://nodejs.org/api/os.html#os_os_tmpdir\(ra\fR
-.IP \(bu 4
-Type: Path
-.IP \(bu 4
-DEPRECATED: This setting is no longer used. npm stores temporary files in a special location in the cache, and they are managed by \fB\fBcacache\fR\fR \fI\(lahttp://npm.im/cacache\(ra\fR.
-.RE 0
-
-.P
-Historically, the location where temporary files were stored. No longer relevant.
 .SS "See also"
 .RS 0
 .IP \(bu 4

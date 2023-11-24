@@ -876,12 +876,12 @@ class FdEntry final : public EntryImpl {
       }
       Realm* realm = entry->env()->principal_realm();
       return std::make_shared<ReaderImpl>(
-          BaseObjectPtr<fs::FileHandle>(fs::FileHandle::New(
-              realm->GetBindingData<fs::BindingData>(realm->context()),
-              file,
-              Local<Object>(),
-              entry->start_,
-              entry->end_ - entry->start_)),
+          BaseObjectPtr<fs::FileHandle>(
+              fs::FileHandle::New(realm->GetBindingData<fs::BindingData>(),
+                                  file,
+                                  Local<Object>(),
+                                  entry->start_,
+                                  entry->end_ - entry->start_)),
           entry);
     }
 

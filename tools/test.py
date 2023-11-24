@@ -89,7 +89,7 @@ skip_regex = re.compile(r'# SKIP\S*\s+(.*)', re.IGNORECASE)
 VERBOSE = False
 
 os.umask(0o022)
-os.environ['NODE_OPTIONS'] = ''
+os.environ.pop('NODE_OPTIONS', None)
 
 # ---------------------------------------------
 # --- P r o g r e s s   I n d i c a t o r s ---
@@ -316,6 +316,11 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       sys.stdout.flush()
 
 class ActionsAnnotationProgressIndicator(DotsProgressIndicator):
+  def AboutToRun(self, case):
+    case.additional_flags = case.additional_flags.copy() if hasattr(case, 'additional_flags') else []
+    case.additional_flags.append('--test-reporter=./tools/github_reporter/index.js')
+    case.additional_flags.append('--test-reporter-destination=stdout')
+
   def GetAnnotationInfo(self, test, output):
     traceback = output.stdout + output.stderr
     find_full_path = re.search(r' +at .*\(.*%s:([0-9]+):([0-9]+)' % test.file, traceback)
@@ -601,7 +606,8 @@ class TestCase(object):
       result = self.RunCommand(self.GetCommand(), {
         "TEST_SERIAL_ID": "%d" % self.serial_id,
         "TEST_THREAD_ID": "%d" % self.thread_id,
-        "TEST_PARALLEL" : "%d" % self.parallel
+        "TEST_PARALLEL" : "%d" % self.parallel,
+        "GITHUB_STEP_SUMMARY": "",
       })
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
@@ -909,6 +915,7 @@ class LiteralTestSuite(TestSuite):
 TIMEOUT_SCALEFACTOR = {
     'arm'       : { 'debug' :  8, 'release' : 3 }, # The ARM buildbots are slow.
     'riscv64'   : { 'debug' :  8, 'release' : 3 }, # The riscv devices are slow.
+    'loong64'   : { 'debug' :  4, 'release' : 1 },
     'ia32'      : { 'debug' :  4, 'release' : 1 },
     'ppc'       : { 'debug' :  4, 'release' : 1 },
     's390'      : { 'debug' :  4, 'release' : 1 } }

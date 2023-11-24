@@ -12,47 +12,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void SimdShuffle::CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
-                                      bool* needs_swap, bool* is_swizzle) {
-  *needs_swap = false;
-  // Inputs equal, then it's a swizzle.
-  if (inputs_equal) {
-    *is_swizzle = true;
-  } else {
-    // Inputs are distinct; check that both are required.
-    bool src0_is_used = false;
-    bool src1_is_used = false;
-    for (int i = 0; i < kSimd128Size; ++i) {
-      if (shuffle[i] < kSimd128Size) {
-        src0_is_used = true;
-      } else {
-        src1_is_used = true;
-      }
-    }
-    if (src0_is_used && !src1_is_used) {
-      *is_swizzle = true;
-    } else if (src1_is_used && !src0_is_used) {
-      *needs_swap = true;
-      *is_swizzle = true;
-    } else {
-      *is_swizzle = false;
-      // Canonicalize general 2 input shuffles so that the first input lanes are
-      // encountered first. This makes architectural shuffle pattern matching
-      // easier, since we only need to consider 1 input ordering instead of 2.
-      if (shuffle[0] >= kSimd128Size) {
-        // The second operand is used first. Swap inputs and adjust the shuffle.
-        *needs_swap = true;
-        for (int i = 0; i < kSimd128Size; ++i) {
-          shuffle[i] ^= kSimd128Size;
-        }
-      }
-    }
-  }
-  if (*is_swizzle) {
-    for (int i = 0; i < kSimd128Size; ++i) shuffle[i] &= kSimd128Size - 1;
-  }
-}
-
 bool SimdShuffle::TryMatchIdentity(const uint8_t* shuffle) {
   for (int i = 0; i < kSimd128Size; ++i) {
     if (shuffle[i] != i) return false;
@@ -87,6 +46,18 @@ bool SimdShuffle::TryMatch32x4Shuffle(const uint8_t* shuffle,
       if (shuffle[i * 4 + j] - shuffle[i * 4 + j - 1] != 1) return false;
     }
     shuffle32x4[i] = shuffle[i * 4] / 4;
+  }
+  return true;
+}
+
+bool SimdShuffle::TryMatch32x8Shuffle(const uint8_t* shuffle,
+                                      uint8_t* shuffle32x8) {
+  for (int i = 0; i < 8; ++i) {
+    if (shuffle[i * 4] % 4 != 0) return false;
+    for (int j = 1; j < 4; ++j) {
+      if (shuffle[i * 4 + j] - shuffle[i * 4 + j - 1] != 1) return false;
+    }
+    shuffle32x8[i] = shuffle[i * 4] / 4;
   }
   return true;
 }

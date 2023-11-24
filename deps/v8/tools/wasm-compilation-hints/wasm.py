@@ -4,11 +4,6 @@
 # Use of this source code is governed by a BSD-style license that can be found
 # in the LICENSE file.
 
-import io
-import math
-import struct
-import sys
-
 CUSTOM_SECTION_ID = 0
 FUNCTION_SECTION_ID = 3
 

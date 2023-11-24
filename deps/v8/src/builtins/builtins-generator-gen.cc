@@ -227,7 +227,7 @@ TF_BUILTIN(SuspendGeneratorBaseline, GeneratorBuiltinsAssembler) {
   TNode<FixedArray> parameters_and_registers =
       LoadJSGeneratorObjectParametersAndRegisters(generator);
   auto parameters_and_registers_length =
-      SmiUntag(LoadFixedArrayBaseLength(parameters_and_registers));
+      LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
 
   // Copy over the function parameters
   auto parameter_base_index = IntPtrConstant(
@@ -289,7 +289,7 @@ TF_BUILTIN(ResumeGeneratorBaseline, GeneratorBuiltinsAssembler) {
   auto register_count = UncheckedParameter<IntPtrT>(Descriptor::kRegisterCount);
   auto end_index = IntPtrAdd(formal_parameter_count, register_count);
   auto parameters_and_registers_length =
-      SmiUntag(LoadFixedArrayBaseLength(parameters_and_registers));
+      LoadAndUntagFixedArrayBaseLength(parameters_and_registers);
   CSA_CHECK(this, UintPtrLessThan(end_index, parameters_and_registers_length));
   auto parent_frame_pointer = LoadParentFramePointer();
   BuildFastLoop<IntPtrT>(

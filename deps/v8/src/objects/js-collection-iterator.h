@@ -51,7 +51,7 @@ class OrderedHashTableIterator : public JSCollectionIterator {
 
   // Returns the current key of the iterator. This should only be called when
   // |HasMore| returns true.
-  inline Object CurrentKey();
+  inline Tagged<Object> CurrentKey();
 
  private:
   // Transitions the iterator to the non obsolete backing store. This is a NOP

@@ -12,6 +12,7 @@
 #include "node_options-inl.h"
 #include "node_process-inl.h"
 #include "node_shadow_realm.h"
+#include "node_snapshotable.h"
 #include "node_v8_platform-inl.h"
 #include "node_worker.h"
 #include "req_wrap-inl.h"
@@ -37,6 +38,8 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EmbedderGraph;
 using v8::EscapableHandleScope;
 using v8::Function;
@@ -61,6 +64,7 @@ using v8::TracingController;
 using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
+using v8::WrapperDescriptor;
 using worker::Worker;
 
 int const ContextEmbedderTag::kNodeContextTag = 0x6e6f64;
@@ -345,6 +349,8 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 
 void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
+
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -427,6 +433,7 @@ void IsolateData::CreateProperties() {
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
 #define V(PropertyName, StringValue)                                           \
@@ -497,6 +504,7 @@ void IsolateData::CreateProperties() {
   binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
+  CreateEnvProxyTemplate(this);
 }
 
 constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
@@ -538,6 +546,14 @@ IsolateData::IsolateData(Isolate* isolate,
     // for embedder ID, V8 could accidentally enable cppgc on them. So
     // safe guard against this.
     DCHECK_NE(descriptor.wrappable_type_index, BaseObject::kSlot);
+  } else {
+    cpp_heap_ = CppHeap::Create(
+        platform,
+        CppHeapCreateParams{
+            {},
+            WrapperDescriptor(
+                BaseObject::kEmbedderType, BaseObject::kSlot, cppgc_id)});
+    isolate->AttachCppHeap(cpp_heap_.get());
   }
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
@@ -563,6 +579,21 @@ IsolateData::IsolateData(Isolate* isolate,
   } else {
     DeserializeProperties(&snapshot_data->isolate_data_info);
   }
+}
+
+IsolateData::~IsolateData() {
+  if (cpp_heap_ != nullptr) {
+    // The CppHeap must be detached before being terminated.
+    isolate_->DetachCppHeap();
+    cpp_heap_->Terminate();
+  }
+}
+
+// Public API
+void SetCppgcReference(Isolate* isolate,
+                       Local<Object> object,
+                       void* wrappable) {
+  IsolateData::SetCppgcReference(isolate, object, wrappable);
 }
 
 void IsolateData::MemoryInfo(MemoryTracker* tracker) const {
@@ -657,7 +688,7 @@ void Environment::TryLoadAddon(
   }
 }
 
-std::string Environment::GetCwd() {
+std::string Environment::GetCwd(const std::string& exec_path) {
   char cwd[PATH_MAX_BYTES];
   size_t size = PATH_MAX_BYTES;
   const int err = uv_cwd(cwd, &size);
@@ -669,7 +700,6 @@ std::string Environment::GetCwd() {
 
   // This can fail if the cwd is deleted. In that case, fall back to
   // exec_path.
-  const std::string& exec_path = exec_path_;
   return exec_path.substr(0, exec_path.find_last_of(kPathSeparator));
 }
 
@@ -703,7 +733,7 @@ std::unique_ptr<v8::BackingStore> Environment::release_managed_buffer(
   return bs;
 }
 
-std::string GetExecPath(const std::vector<std::string>& argv) {
+std::string Environment::GetExecPath(const std::vector<std::string>& argv) {
   char exec_path_buf[2 * PATH_MAX];
   size_t exec_path_len = sizeof(exec_path_buf);
   std::string exec_path;
@@ -745,7 +775,7 @@ Environment::Environment(IsolateData* isolate_data,
       timer_base_(uv_now(isolate_data->event_loop())),
       exec_argv_(exec_args),
       argv_(args),
-      exec_path_(GetExecPath(args)),
+      exec_path_(Environment::GetExecPath(args)),
       exit_info_(
           isolate_, kExitInfoFieldCount, MAYBE_FIELD_PTR(env_info, exit_info)),
       should_abort_on_uncaught_toggle_(
@@ -849,12 +879,12 @@ Environment::Environment(IsolateData* isolate_data,
     // unless explicitly allowed by the user
     options_->allow_native_addons = false;
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
-    permission()->Apply("*", permission::PermissionScope::kInspector);
+    permission()->Apply({"*"}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
-      permission()->Apply("*", permission::PermissionScope::kChildProcess);
+      permission()->Apply({"*"}, permission::PermissionScope::kChildProcess);
     }
     if (!options_->allow_worker_threads) {
-      permission()->Apply("*", permission::PermissionScope::kWorkerThreads);
+      permission()->Apply({"*"}, permission::PermissionScope::kWorkerThreads);
     }
 
     if (!options_->allow_fs_read.empty()) {
@@ -1624,10 +1654,13 @@ void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
 void AsyncHooks::grow_async_ids_stack() {
   async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
-  env()->async_hooks_binding()->Set(
-      env()->context(),
-      env()->async_ids_stack_string(),
-      async_ids_stack_.GetJSArray()).Check();
+  env()
+      ->principal_realm()
+      ->async_hooks_binding()
+      ->Set(env()->context(),
+            env()->async_ids_stack_string(),
+            async_ids_stack_.GetJSArray())
+      .Check();
 }
 
 void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
@@ -1636,7 +1669,8 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
           "actual: %.f, expected: %.f)\n",
           async_id_fields_.GetValue(kExecutionAsyncId),
           expected_async_id);
-  DumpBacktrace(stderr);
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
   fflush(stderr);
   // TODO(joyeecheung): should this exit code be more specific?
   if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);
@@ -1735,7 +1769,7 @@ void Environment::EnqueueDeserializeRequest(DeserializeRequestCallback cb,
                                             Local<Object> holder,
                                             int index,
                                             InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   DeserializeRequest request{cb, {isolate(), holder}, index, info};
   deserialize_requests_.push_back(std::move(request));
 }
@@ -1895,7 +1929,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
 
   std::string dir = env->options()->diagnostic_dir;
   if (dir.empty()) {
-    dir = env->GetCwd();
+    dir = Environment::GetCwd(env->exec_path_);
   }
   DiagnosticFilename name(env, "Heap", "heapsnapshot");
   std::string filename = dir + kPathSeparator + (*name);

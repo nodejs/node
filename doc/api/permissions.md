@@ -33,11 +33,18 @@ If you find a potential security vulnerability, please refer to our
 
 Node.js contains experimental support for creating policies on loading code.
 
-Policies are a security feature intended to allow guarantees
-about what code Node.js is able to load. The use of policies assumes
-safe practices for the policy files such as ensuring that policy
-files cannot be overwritten by the Node.js application by using
-file permissions.
+Policies are a security feature intended to ensure the integrity
+of the loaded code.
+
+While it does not function as a provenance mechanism to trace the origin of
+code, it serves as a robust defense against the execution of malicious code.
+Unlike runtime-based models that may restrict capabilities once the code is
+loaded, Node.js policies focus on preventing malicious code from ever being
+fully loaded into the application in the first place.
+
+The use of policies assumes safe practices for the policy
+files such as ensuring that policy files cannot be overwritten by the Node.js
+application by using file permissions.
 
 A best practice would be to ensure that the policy manifest is read-only for
 the running Node.js application and that the file cannot be changed
@@ -202,12 +209,6 @@ the manifest and then immediately used without searching.
 Any specifier string for which resolution is attempted and that is not listed in
 the dependencies results in an error according to the policy.
 
-Redirection does not prevent access to APIs through means such as direct access
-to `require.cache` or through `module.constructor` which allow access to
-loading modules. Policy redirection only affects specifiers to `require()` and
-`import`. Other means, such as to prevent undesired access to APIs through
-variables, are necessary to lock down that path of loading modules.
-
 A boolean value of `true` for the dependencies map can be specified to allow a
 module to load any specifier without redirection. This can be useful for local
 development and may have some valid usage in production, but should be used
@@ -223,6 +224,9 @@ can be used to ensure some kinds of dynamic access are explicitly prevented.
 
 Unknown values for the resolved module location cause failures but are
 not guaranteed to be forward compatible.
+
+All the guarantees for policy redirection are specified in the
+[Guarantees](#guarantees) section.
 
 ##### Example: Patched dependency
 
@@ -446,13 +450,25 @@ not adopt the origin of the `blob:` URL.
 Additionally, import maps only work on `import` so it may be desirable to add a
 `"import"` condition to all dependency mappings.
 
+#### Guarantees
+
+* The policies guarantee the file integrity when a module is loaded using
+  `require()`, `import()` or `new Module()`.
+* Redirection does not prevent access to APIs through means such as direct
+  access to `require.cache` which allow access to loaded modules.
+  Policy redirection only affects specifiers to `require()` and
+  `import`.
+* The approval of the module integrity in policies threat model implies
+  they are allowed to muck with and even circumvent security features once
+  loaded so environmental/runtime hardening is expected.
+
 ## Process-based permissions
 
 ### Permission Model
 
 <!-- type=misc -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 <!-- name=permission-model -->
 
@@ -482,7 +498,8 @@ Error: Access to this API has been restricted
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:76:24)
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
-  permission: 'FileSystemRead'
+  permission: 'FileSystemRead',
+  resource: '/home/user/index.js'
 }
 ```
 
@@ -532,7 +549,7 @@ Example:
 * `--allow-fs-write=*` - It will allow all `FileSystemWrite` operations.
 * `--allow-fs-write=/tmp/` - It will allow `FileSystemWrite` access to the `/tmp/`
   folder.
-* `--allow-fs-read=/tmp/,/home/.gitignore` - It allows `FileSystemRead` access
+* `--allow-fs-read=/tmp/ --allow-fs-read=/home/.gitignore` - It allows `FileSystemRead` access
   to the `/tmp/` folder **and** the `/home/.gitignore` path.
 
 Wildcards are supported too:
@@ -544,15 +561,26 @@ Wildcards are supported too:
 
 There are constraints you need to know before using this system:
 
+* When the permission model is enabled, Node.js may resolve some paths
+  differently than when it is disabled.
 * Native modules are restricted by default when using the Permission Model.
 * OpenSSL engines currently cannot be requested at runtime when the Permission
   Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
 * The model does not inherit to a child node process.
 * The model does not inherit to a worker thread.
+* Symbolic links will be followed even to locations outside of the set of paths
+  that access has been granted to. Relative symbolic links may allow access to
+  arbitrary files and directories. When starting applications with the
+  permission model enabled, you must ensure that no paths to which access has
+  been granted contain relative symbolic links.
 * When creating symlinks the target (first argument) should have read and
   write access.
 * Permission changes are not retroactively applied to existing resources.
+* The Permission Model is initialized after the Node.js environment is set up.
+  However, certain flags such as `--env-file` or `--openssl-config` are designed
+  to read files before environment initialization. As a result, such flags are
+  not subject to the rules of the Permission Model.
 
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md

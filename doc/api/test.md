@@ -44,7 +44,7 @@ processed in one of three ways:
 1. A synchronous function that is considered failing if it throws an exception,
    and is considered passing otherwise.
 2. A function that returns a `Promise` that is considered failing if the
-   `Promise` rejects, and is considered passing if the `Promise` resolves.
+   `Promise` rejects, and is considered passing if the `Promise` fulfills.
 3. A function that receives a callback function. If the callback receives any
    truthy value as its first argument, the test is considered failing. If a
    falsy value is passed as the first argument to the callback, the test is
@@ -67,7 +67,7 @@ test('synchronous failing test', (t) => {
 
 test('asynchronous passing test', async (t) => {
   // This test passes because the Promise returned by the async
-  // function is not rejected.
+  // function is settled and not rejected.
   assert.strictEqual(1, 1);
 });
 
@@ -350,11 +350,12 @@ in the [test runner execution model][] section.
 
 ### Test runner execution model
 
-Each matching test file is executed in a separate child process. If the child
-process finishes with an exit code of 0, the test is considered passing.
-Otherwise, the test is considered to be a failure. Test files must be
-executable by Node.js, but are not required to use the `node:test` module
-internally.
+Each matching test file is executed in a separate child process. The maximum
+number of child processes running at any time is controlled by the
+[`--test-concurrency`][] flag. If the child process finishes with an exit code
+of 0, the test is considered passing. Otherwise, the test is considered to be a
+failure. Test files must be executable by Node.js, but are not required to use
+the `node:test` module internally.
 
 Each test file is executed as if it was a regular script. That is, if the test
 file itself uses `node:test` to define tests, all of those tests will be
@@ -401,6 +402,18 @@ if (anAlwaysFalseCondition) {
   console.log('this is never executed');
 }
 ```
+
+### Coverage reporters
+
+The tap and spec reporters will print a summary of the coverage statistics.
+There is also an lcov reporter that will generate an lcov file which can be
+used as an in depth coverage report.
+
+```bash
+node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=lcov.info
+```
+
+### Limitations
 
 The test runner's code coverage functionality has the following limitations,
 which will be addressed in a future Node.js release:
@@ -504,7 +517,7 @@ This allows developers to write more reliable and
 predictable tests for time-dependent functionality.
 
 The example below shows how to mock `setTimeout`.
-Using `.enable(['setTimeout']);`
+Using `.enable({ apis: ['setTimeout'] });`
 it will mock the `setTimeout` functions in the [node:timers](./timers.md) and
 [node:timers/promises](./timers.md#timers-promises-api) modules,
 as well as from the Node.js global context.
@@ -521,7 +534,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = mock.fn();
 
   // Optionally choose what to mock
-  mock.timers.enable(['setTimeout']);
+  mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -545,7 +558,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = mock.fn();
 
   // Optionally choose what to mock
-  mock.timers.enable(['setTimeout']);
+  mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -574,7 +587,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
@@ -592,13 +605,227 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
 
   // Advance in time
   context.mock.timers.tick(9999);
   assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
+
+### Dates
+
+The mock timers API also allows the mocking of the `Date` object. This is a
+useful feature for testing time-dependent functionality, or to simulate
+internal calendar functions such as `Date.now()`.
+
+The dates implementation is also part of the [`MockTimers`][] class. Refer to it
+for a full list of methods and features.
+
+**Note:** Dates and timers are dependent when mocked together. This means that
+if you have both the `Date` and `setTimeout` mocked, advancing the time will
+also advance the mocked date as they simulate a single internal clock.
+
+The example below show how to mock the `Date` object and obtain the current
+`Date.now()` value.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks the Date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'] });
+  // If not specified, the initial date will be based on 0 in the UNIX epoch
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(9999);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks the Date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'] });
+  // If not specified, the initial date will be based on 0 in the UNIX epoch
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(9999);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+If there is no initial epoch set, the initial date will be based on 0 in the
+Unix epoch. This is January 1st, 1970, 00:00:00 UTC. You can set an initial date
+by passing a `now` property to the `.enable()` method. This value will be used
+as the initial date for the mocked `Date` object. It can either be a positive
+integer, or another Date object.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks the Date object with initial time', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 300);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks the Date object with initial time', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 300);
+});
+```
+
+You can use the `.setTime()` method to manually move the mocked date to another
+time. This method only accepts a positive integer.
+
+**Note:** This method will execute any mocked timers that are in the past
+from the new time.
+
+In the below example we are setting a new time for the mocked date.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('sets the time of a date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.setTime(1000);
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('sets the time of a date object', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['Date'], now: 100 });
+  assert.strictEqual(Date.now(), 100);
+
+  // Advance in time will also advance the date
+  context.mock.timers.setTime(1000);
+  context.mock.timers.tick(200);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+If you have any timer that's set to run in the past, it will be executed as if
+the `.tick()` method has been called. This is useful if you want to test
+time-dependent functionality that's already in the past.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+
+  context.mock.timers.setTime(800);
+  // Timer is not executed as the time is not yet reached
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 800);
+
+  context.mock.timers.setTime(1200);
+  // Timer is executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+
+  context.mock.timers.setTime(800);
+  // Timer is not executed as the time is not yet reached
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 800);
+
+  context.mock.timers.setTime(1200);
+  // Timer is executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 1200);
+});
+```
+
+Using `.runAll()` will execute all timers that are currently in the queue. This
+will also advance the mocked date to the time of the last timer that was
+executed as if the time has passed.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+  setTimeout(fn, 2000);
+  setTimeout(fn, 3000);
+
+  context.mock.timers.runAll();
+  // All timers are executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 3);
+  assert.strictEqual(Date.now(), 3000);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runs timers as setTime passes ticks', (context) => {
+  // Optionally choose what to mock
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const fn = context.mock.fn();
+  setTimeout(fn, 1000);
+  setTimeout(fn, 2000);
+  setTimeout(fn, 3000);
+
+  context.mock.timers.runAll();
+  // All timers are executed as the time is now reached
+  assert.strictEqual(fn.mock.callCount(), 3);
+  assert.strictEqual(Date.now(), 3000);
 });
 ```
 
@@ -632,6 +859,13 @@ The following built-reporters are supported:
   where each passing test is represented by a `.`,
   and each failing test is represented by a `X`.
 
+* `junit`
+  The junit reporter outputs test results in a jUnit XML format
+
+* `lcov`
+  The `lcov` reporter outputs test coverage when used with the
+  [`--experimental-test-coverage`][] flag.
+
 When `stdout` is a [TTY][], the `spec` reporter is used by default.
 Otherwise, the `tap` reporter is used by default.
 
@@ -643,11 +877,11 @@ to the test runner's output is required, use the events emitted by the
 The reporters are available via the `node:test/reporters` module:
 
 ```mjs
-import { tap, spec, dot } from 'node:test/reporters';
+import { tap, spec, dot, junit, lcov } from 'node:test/reporters';
 ```
 
 ```cjs
-const { tap, spec, dot } = require('node:test/reporters');
+const { tap, spec, dot, junit, lcov } = require('node:test/reporters');
 ```
 
 ### Custom reporters
@@ -884,6 +1118,8 @@ changes:
     number. If a nullish value is provided, each process gets its own port,
     incremented from the primary's `process.debugPort`.
     **Default:** `undefined`.
+  * `only`: {boolean} If truthy, the test context will only run tests that
+    have the `only` option set
   * `setup` {Function} A function that accepts the `TestsStream` instance
     and can be used to setup listeners before any tests are run.
     **Default:** `undefined`.
@@ -906,9 +1142,16 @@ changes:
       of shards to split the test files to. This option is _required_.
 * Returns: {TestsStream}
 
+**Note:** `shard` is used to horizontally parallelize test running across
+machines or processes, ideal for large-scale executions across varied
+environments. It's incompatible with `watch` mode, tailored for rapid
+code iteration by automatically rerunning tests on file changes.
+
 ```mjs
 import { tap } from 'node:test/reporters';
+import { run } from 'node:test';
 import process from 'node:process';
+import path from 'node:path';
 
 run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)
@@ -917,6 +1160,8 @@ run({ files: [path.resolve('./tests/test.js')] })
 
 ```cjs
 const { tap } = require('node:test/reporters');
+const { run } = require('node:test');
+const path = require('node:path');
 
 run({ files: [path.resolve('./tests/test.js')] })
   .compose(tap)
@@ -975,7 +1220,7 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
-* Returns: {Promise} Resolved with `undefined` once
+* Returns: {Promise} Fulfilled with `undefined` once
   the test completes, or immediately if the test runs within [`describe()`][].
 
 The `test()` function is the value imported from the `test` module. Each
@@ -985,8 +1230,8 @@ The `TestContext` object passed to the `fn` argument can be used to perform
 actions related to the current test. Examples include skipping the test, adding
 additional diagnostic information, or creating subtests.
 
-`test()` returns a `Promise` that resolves once the test completes.
-if `test()` is called within a `describe()` block, it resolve immediately.
+`test()` returns a `Promise` that fulfills once the test completes.
+if `test()` is called within a `describe()` block, it fulfills immediately.
 The return value can usually be discarded for top level tests.
 However, the return value from subtests should be used to prevent the parent
 test from finishing first and cancelling the subtest
@@ -1566,36 +1811,52 @@ Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
 
+MockTimers is also able to mock the `Date` object.
+
 The [`MockTracker`][] provides a top-level `timers` export
 which is a `MockTimers` instance.
 
-### `timers.enable([timers])`
+### `timers.enable([enableOptions])`
 
 <!-- YAML
 added:
   - v20.4.0
+changes:
+  - version: v21.2.0
+    pr-url: https://github.com/nodejs/node/pull/48638
+    description: Updated parameters to be an option object with available APIs
+                 and the default initial epoch.
 -->
 
 Enables timer mocking for the specified timers.
 
-* `timers` {Array} An optional array containing the timers to mock.
-  The currently supported timer values are `'setInterval'` and `'setTimeout'`.
-  If no array is provided, all timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`,
-  and `'clearTimeout'`) will be mocked by default.
+* `enableOptions` {Object} Optional configuration options for enabling timer
+  mocking. The following properties are supported:
+  * `apis` {Array} An optional array containing the timers to mock.
+    The currently supported timer values are `'setInterval'`, `'setTimeout'`, `'setImmediate'`,
+    and `'Date'`. **Default:** `['setInterval', 'setTimeout', 'setImmediate', 'Date']`.
+    If no array is provided, all time related APIs (`'setInterval'`, `'clearInterval'`,
+    `'setTimeout'`, `'clearTimeout'`, and `'Date'`) will be mocked by default.
+  * `now` {number | Date} An optional number or Date object representing the
+    initial time (in milliseconds) to use as the value
+    for `Date.now()`. **Default:** `0`.
 
 **Note:** When you enable mocking for a specific timer, its associated
 clear function will also be implicitly mocked.
 
-Example usage:
+**Note:** Mocking `Date` will affect the behavior of the mocked timers
+as they use the same internal clock.
+
+Example usage without setting initial time:
 
 ```mjs
 import { mock } from 'node:test';
-mock.timers.enable(['setInterval']);
+mock.timers.enable({ apis: ['setInterval'] });
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
-mock.timers.enable(['setInterval']);
+mock.timers.enable({ apis: ['setInterval'] });
 ```
 
 The above example enables mocking for the `setInterval` timer and
@@ -1604,12 +1865,36 @@ and `clearInterval` functions from [node:timers](./timers.md),
 [node:timers/promises](./timers.md#timers-promises-api), and
 `globalThis` will be mocked.
 
+Example usage with initial time set
+
+```mjs
+import { mock } from 'node:test';
+mock.timers.enable({ apis: ['Date'], now: 1000 });
+```
+
+```cjs
+const { mock } = require('node:test');
+mock.timers.enable({ apis: ['Date'], now: 1000 });
+```
+
+Example usage with initial Date object as time set
+
+```mjs
+import { mock } from 'node:test';
+mock.timers.enable({ apis: ['Date'], now: new Date() });
+```
+
+```cjs
+const { mock } = require('node:test');
+mock.timers.enable({ apis: ['Date'], now: new Date() });
+```
+
 Alternatively, if you call `mock.timers.enable()` without any parameters:
 
 All timers (`'setInterval'`, `'clearInterval'`, `'setTimeout'`, and `'clearTimeout'`)
 will be mocked. The `setInterval`, `clearInterval`, `setTimeout`, and `clearTimeout`
 functions from `node:timers`, `node:timers/promises`,
-and `globalThis` will be mocked.
+and `globalThis` will be mocked. As well as the global `Date` object.
 
 ### `timers.reset()`
 
@@ -1630,7 +1915,7 @@ import { mock } from 'node:test';
 mock.timers.reset();
 ```
 
-```js
+```cjs
 const { mock } = require('node:test');
 mock.timers.reset();
 ```
@@ -1666,7 +1951,7 @@ import { test } from 'node:test';
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
 
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
 
   setTimeout(fn, 9999);
 
@@ -1679,13 +1964,13 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
 
   setTimeout(fn, 9999);
   assert.strictEqual(fn.mock.callCount(), 0);
@@ -1705,7 +1990,7 @@ import { test } from 'node:test';
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
@@ -1718,13 +2003,13 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
   const fn = context.mock.fn();
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const nineSecs = 9000;
   setTimeout(fn, nineSecs);
 
@@ -1734,6 +2019,48 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   context.mock.timers.tick(twoSeconds);
 
   assert.strictEqual(fn.mock.callCount(), 1);
+});
+```
+
+Advancing time using `.tick` will also advance the time for any `Date` object
+created after the mock was enabled (if `Date` was also set to be mocked).
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  setTimeout(fn, 9999);
+
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 9999);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('mocks setTimeout to be executed synchronously without having to actually wait for it', (context) => {
+  const fn = context.mock.fn();
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+
+  setTimeout(fn, 9999);
+  assert.strictEqual(fn.mock.callCount(), 0);
+  assert.strictEqual(Date.now(), 0);
+
+  // Advance in time
+  context.mock.timers.tick(9999);
+  assert.strictEqual(fn.mock.callCount(), 1);
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
@@ -1750,7 +2077,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
   // Implicity mocked as well
@@ -1762,7 +2089,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
@@ -1770,7 +2097,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const fn = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   const id = setTimeout(fn, 9999);
 
   // Implicity mocked as well
@@ -1804,7 +2131,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nodeTimerPromiseSpy = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(globalTimeoutObjectSpy, 9999);
   nodeTimers.setTimeout(nodeTimerSpy, 9999);
 
@@ -1819,7 +2146,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimers = require('node:timers');
@@ -1831,7 +2158,7 @@ test('mocks setTimeout to be executed synchronously without having to actually w
   const nodeTimerPromiseSpy = context.mock.fn();
 
   // Optionally choose what to mock
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout'] });
   setTimeout(globalTimeoutObjectSpy, 9999);
   nodeTimers.setTimeout(nodeTimerSpy, 9999);
 
@@ -1854,7 +2181,7 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 import nodeTimersPromises from 'node:timers/promises';
 test('should tick five times testing a real use case', async (context) => {
-  context.mock.timers.enable(['setInterval']);
+  context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
   const interval = 1000;
@@ -1881,12 +2208,12 @@ test('should tick five times testing a real use case', async (context) => {
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 const nodeTimersPromises = require('node:timers/promises');
 test('should tick five times testing a real use case', async (context) => {
-  context.mock.timers.enable(['setInterval']);
+  context.mock.timers.enable({ apis: ['setInterval'] });
 
   const expectedIterations = 3;
   const interval = 1000;
@@ -1920,7 +2247,8 @@ added:
   - v20.4.0
 -->
 
-Triggers all pending mocked timers immediately.
+Triggers all pending mocked timers immediately. If the `Date` object is also
+mocked, it will also advance the `Date` object to the furthest timer's time.
 
 The example below triggers all pending timers immediately,
 causing them to execute without any delay.
@@ -1930,7 +2258,7 @@ import assert from 'node:assert';
 import { test } from 'node:test';
 
 test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const results = [];
   setTimeout(() => results.push(1), 9999);
 
@@ -1942,17 +2270,18 @@ test('runAll functions following the given order', (context) => {
   assert.deepStrictEqual(results, []);
 
   context.mock.timers.runAll();
-
   assert.deepStrictEqual(results, [3, 2, 1]);
+  // The Date object is also advanced to the furthest timer's time
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
-```js
+```cjs
 const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('runAll functions following the given order', (context) => {
-  context.mock.timers.enable(['setTimeout']);
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
   const results = [];
   setTimeout(() => results.push(1), 9999);
 
@@ -1964,8 +2293,9 @@ test('runAll functions following the given order', (context) => {
   assert.deepStrictEqual(results, []);
 
   context.mock.timers.runAll();
-
   assert.deepStrictEqual(results, [3, 2, 1]);
+  // The Date object is also advanced to the furthest timer's time
+  assert.strictEqual(Date.now(), 9999);
 });
 ```
 
@@ -1974,12 +2304,105 @@ triggering timers in the context of timer mocking.
 It does not have any effect on real-time system
 clocks or actual timers outside of the mocking environment.
 
+### `timers.setTime(milliseconds)`
+
+<!-- YAML
+added:
+  - v21.2.0
+-->
+
+Sets the current Unix timestamp that will be used as reference for any mocked
+`Date` objects.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runAll functions following the given order', (context) => {
+  const now = Date.now();
+  const setTime = 1000;
+  // Date.now is not mocked
+  assert.deepStrictEqual(Date.now(), now);
+
+  context.mock.timers.enable({ apis: ['Date'] });
+  context.mock.timers.setTime(setTime);
+  // Date.now is now 1000
+  assert.strictEqual(Date.now(), setTime);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('setTime replaces current time', (context) => {
+  const now = Date.now();
+  const setTime = 1000;
+  // Date.now is not mocked
+  assert.deepStrictEqual(Date.now(), now);
+
+  context.mock.timers.enable({ apis: ['Date'] });
+  context.mock.timers.setTime(setTime);
+  // Date.now is now 1000
+  assert.strictEqual(Date.now(), setTime);
+});
+```
+
+#### Dates and Timers working together
+
+Dates and timer objects are dependent on each other. If you use `setTime()` to
+pass the current time to the mocked `Date` object, the set timers with
+`setTimeout` and `setInterval` will **not** be affected.
+
+However, the `tick` method **will** advanced the mocked `Date` object.
+
+```mjs
+import assert from 'node:assert';
+import { test } from 'node:test';
+
+test('runAll functions following the given order', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  assert.deepStrictEqual(results, []);
+  context.mock.timers.setTime(12000);
+  assert.deepStrictEqual(results, []);
+  // The date is advanced but the timers don't tick
+  assert.strictEqual(Date.now(), 12000);
+});
+```
+
+```cjs
+const assert = require('node:assert');
+const { test } = require('node:test');
+
+test('runAll functions following the given order', (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
+  const results = [];
+  setTimeout(() => results.push(1), 9999);
+
+  assert.deepStrictEqual(results, []);
+  context.mock.timers.setTime(12000);
+  assert.deepStrictEqual(results, []);
+  // The date is advanced but the timers don't tick
+  assert.strictEqual(Date.now(), 12000);
+});
+```
+
 ## Class: `TestsStream`
 
 <!-- YAML
 added:
   - v18.9.0
   - v16.19.0
+changes:
+  - version:
+    - v20.0.0
+    - v19.9.0
+    - v18.17.0
+    pr-url: https://github.com/nodejs/node/pull/47094
+    description: added type to test:pass and test:fail events for when the test is a suite.
 -->
 
 * Extends {ReadableStream}
@@ -2004,8 +2427,18 @@ object, streaming a series of events representing the execution of the tests.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
-      * `uncoveredLineNumbers` {Array} An array of integers representing line
-        numbers that are uncovered.
+      * `functions` {Array} An array of functions representing function
+        coverage.
+        * `name` {string} The name of the function.
+        * `line` {number} The line number where the function is defined.
+        * `count` {number} The number of times the function was called.
+      * `branches` {Array} An array of branches representing branch coverage.
+        * `line` {number} The line number where the branch is defined.
+        * `count` {number} The number of times the branch was taken.
+      * `lines` {Array} An array of lines representing line
+        numbers and the number of times they were covered.
+        * `line` {number} The line number.
+        * `count` {number} The number of times the line was covered.
     * `totals` {Object} An object containing a summary of coverage for all
       files.
       * `totalLineCount` {number} The total number of lines.
@@ -2027,8 +2460,12 @@ Emitted when code coverage is enabled and all tests have completed.
 ### Event: `'test:dequeue'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -2037,8 +2474,12 @@ Emitted when a test is dequeued, right before it is executed.
 ### Event: `'test:diagnostic'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The diagnostic message.
   * `nesting` {number} The nesting level of the test.
 
@@ -2047,8 +2488,12 @@ Emitted when [`context.diagnostic`][] is called.
 ### Event: `'test:enqueue'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -2057,12 +2502,18 @@ Emitted when a test is enqueued for execution.
 ### Event: `'test:fail'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
     * `duration_ms` {number} The duration of the test in milliseconds.
     * `error` {Error} An error wrapping the error thrown by the test.
       * `cause` {Error} The actual error thrown by the test.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -2074,10 +2525,16 @@ Emitted when a test fails.
 ### Event: `'test:pass'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `details` {Object} Additional execution metadata.
     * `duration_ms` {number} The duration of the test in milliseconds.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
   * `testNumber` {number} The ordinal number of the test.
@@ -2089,8 +2546,12 @@ Emitted when a test passes.
 ### Event: `'test:plan'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `nesting` {number} The nesting level of the test.
   * `count` {number} The number of subtests that have ran.
 
@@ -2099,8 +2560,12 @@ Emitted when all subtests have completed for a given test.
 ### Event: `'test:start'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string|undefined} The path of the test file,
     `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `name` {string} The test name.
   * `nesting` {number} The nesting level of the test.
 
@@ -2111,7 +2576,11 @@ defined.
 ### Event: `'test:stderr'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stderr`.
 
 Emitted when a running test writes to `stderr`.
@@ -2120,7 +2589,11 @@ This event is only emitted if `--test` flag is passed.
 ### Event: `'test:stdout'`
 
 * `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `file` {string} The path of the test file.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
   * `message` {string} The message written to `stdout`.
 
 Emitted when a running test writes to `stdout`.
@@ -2430,7 +2903,7 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
-* Returns: {Promise} Resolved with `undefined` once the test completes.
+* Returns: {Promise} Fulfilled with `undefined` once the test completes.
 
 This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
@@ -2484,6 +2957,7 @@ added:
 [TTY]: tty.md
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--import`]: cli.md#--importmodule
+[`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-name-pattern`]: cli.md#--test-name-pattern
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination

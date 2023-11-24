@@ -19,15 +19,6 @@ const TARGET_NODE_TYPE = /^(?:Arrow)?FunctionExpression$/u;
 const TARGET_METHODS = /^(?:every|filter|find(?:Last)?(?:Index)?|flatMap|forEach|map|reduce(?:Right)?|some|sort|toSorted)$/u;
 
 /**
- * Checks a given code path segment is reachable.
- * @param {CodePathSegment} segment A segment to check.
- * @returns {boolean} `true` if the segment is reachable.
- */
-function isReachable(segment) {
-    return segment.reachable;
-}
-
-/**
  * Checks a given node is a member access which has the specified name's
  * property.
  * @param {ASTNode} node A node to check.
@@ -36,6 +27,22 @@ function isReachable(segment) {
  */
 function isTargetMethod(node) {
     return astUtils.isSpecificMemberAccess(node, null, TARGET_METHODS);
+}
+
+/**
+ * Checks all segments in a set and returns true if any are reachable.
+ * @param {Set<CodePathSegment>} segments The segments to check.
+ * @returns {boolean} True if any segment is reachable; false otherwise.
+ */
+function isAnySegmentReachable(segments) {
+
+    for (const segment of segments) {
+        if (segment.reachable) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -129,6 +136,76 @@ function getArrayMethodName(node) {
     return null;
 }
 
+/**
+ * Checks if the given node is a void expression.
+ * @param {ASTNode} node The node to check.
+ * @returns {boolean} - `true` if the node is a void expression
+ */
+function isExpressionVoid(node) {
+    return node.type === "UnaryExpression" && node.operator === "void";
+}
+
+/**
+ * Fixes the linting error by prepending "void " to the given node
+ * @param {Object} sourceCode context given by context.sourceCode
+ * @param {ASTNode} node The node to fix.
+ * @param {Object} fixer The fixer object provided by ESLint.
+ * @returns {Array<Object>} - An array of fix objects to apply to the node.
+ */
+function voidPrependFixer(sourceCode, node, fixer) {
+
+    const requiresParens =
+
+        // prepending `void ` will fail if the node has a lower precedence than void
+        astUtils.getPrecedence(node) < astUtils.getPrecedence({ type: "UnaryExpression", operator: "void" }) &&
+
+        // check if there are parentheses around the node to avoid redundant parentheses
+        !astUtils.isParenthesised(sourceCode, node);
+
+    // avoid parentheses issues
+    const returnOrArrowToken = sourceCode.getTokenBefore(
+        node,
+        node.parent.type === "ArrowFunctionExpression"
+            ? astUtils.isArrowToken
+
+            // isReturnToken
+            : token => token.type === "Keyword" && token.value === "return"
+    );
+
+    const firstToken = sourceCode.getTokenAfter(returnOrArrowToken);
+
+    const prependSpace =
+
+        // is return token, as => allows void to be adjacent
+        returnOrArrowToken.value === "return" &&
+
+        // If two tokens (return and "(") are adjacent
+        returnOrArrowToken.range[1] === firstToken.range[0];
+
+    return [
+        fixer.insertTextBefore(firstToken, `${prependSpace ? " " : ""}void ${requiresParens ? "(" : ""}`),
+        fixer.insertTextAfter(node, requiresParens ? ")" : "")
+    ];
+}
+
+/**
+ * Fixes the linting error by `wrapping {}` around the given node's body.
+ * @param {Object} sourceCode context given by context.sourceCode
+ * @param {ASTNode} node The node to fix.
+ * @param {Object} fixer The fixer object provided by ESLint.
+ * @returns {Array<Object>} - An array of fix objects to apply to the node.
+ */
+function curlyWrapFixer(sourceCode, node, fixer) {
+    const arrowToken = sourceCode.getTokenBefore(node.body, astUtils.isArrowToken);
+    const firstToken = sourceCode.getTokenAfter(arrowToken);
+    const lastToken = sourceCode.getLastToken(node);
+
+    return [
+        fixer.insertTextBefore(firstToken, "{"),
+        fixer.insertTextAfter(lastToken, "}")
+    ];
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -144,6 +221,9 @@ module.exports = {
             url: "https://eslint.org/docs/latest/rules/array-callback-return"
         },
 
+        // eslint-disable-next-line eslint-plugin/require-meta-has-suggestions -- false positive
+        hasSuggestions: true,
+
         schema: [
             {
                 type: "object",
@@ -153,6 +233,10 @@ module.exports = {
                         default: false
                     },
                     checkForEach: {
+                        type: "boolean",
+                        default: false
+                    },
+                    allowVoid: {
                         type: "boolean",
                         default: false
                     }
@@ -165,13 +249,15 @@ module.exports = {
             expectedAtEnd: "{{arrayMethodName}}() expects a value to be returned at the end of {{name}}.",
             expectedInside: "{{arrayMethodName}}() expects a return value from {{name}}.",
             expectedReturnValue: "{{arrayMethodName}}() expects a return value from {{name}}.",
-            expectedNoReturnValue: "{{arrayMethodName}}() expects no useless return value from {{name}}."
+            expectedNoReturnValue: "{{arrayMethodName}}() expects no useless return value from {{name}}.",
+            wrapBraces: "Wrap the expression in `{}`.",
+            prependVoid: "Prepend `void` to the expression."
         }
     },
 
     create(context) {
 
-        const options = context.options[0] || { allowImplicit: false, checkForEach: false };
+        const options = context.options[0] || { allowImplicit: false, checkForEach: false, allowVoid: false };
         const sourceCode = context.sourceCode;
 
         let funcInfo = {
@@ -198,26 +284,56 @@ module.exports = {
                 return;
             }
 
-            let messageId = null;
+            const messageAndSuggestions = { messageId: "", suggest: [] };
 
             if (funcInfo.arrayMethodName === "forEach") {
                 if (options.checkForEach && node.type === "ArrowFunctionExpression" && node.expression) {
-                    messageId = "expectedNoReturnValue";
+
+                    if (options.allowVoid) {
+                        if (isExpressionVoid(node.body)) {
+                            return;
+                        }
+
+                        messageAndSuggestions.messageId = "expectedNoReturnValue";
+                        messageAndSuggestions.suggest = [
+                            {
+                                messageId: "wrapBraces",
+                                fix(fixer) {
+                                    return curlyWrapFixer(sourceCode, node, fixer);
+                                }
+                            },
+                            {
+                                messageId: "prependVoid",
+                                fix(fixer) {
+                                    return voidPrependFixer(sourceCode, node.body, fixer);
+                                }
+                            }
+                        ];
+                    } else {
+                        messageAndSuggestions.messageId = "expectedNoReturnValue";
+                        messageAndSuggestions.suggest = [{
+                            messageId: "wrapBraces",
+                            fix(fixer) {
+                                return curlyWrapFixer(sourceCode, node, fixer);
+                            }
+                        }];
+                    }
                 }
             } else {
-                if (node.body.type === "BlockStatement" && funcInfo.codePath.currentSegments.some(isReachable)) {
-                    messageId = funcInfo.hasReturn ? "expectedAtEnd" : "expectedInside";
+                if (node.body.type === "BlockStatement" && isAnySegmentReachable(funcInfo.currentSegments)) {
+                    messageAndSuggestions.messageId = funcInfo.hasReturn ? "expectedAtEnd" : "expectedInside";
                 }
             }
 
-            if (messageId) {
+            if (messageAndSuggestions.messageId) {
                 const name = astUtils.getFunctionNameWithKind(node);
 
                 context.report({
                     node,
                     loc: astUtils.getFunctionHeadLoc(node, sourceCode),
-                    messageId,
-                    data: { name, arrayMethodName: fullMethodName(funcInfo.arrayMethodName) }
+                    messageId: messageAndSuggestions.messageId,
+                    data: { name, arrayMethodName: fullMethodName(funcInfo.arrayMethodName) },
+                    suggest: messageAndSuggestions.suggest.length !== 0 ? messageAndSuggestions.suggest : null
                 });
             }
         }
@@ -242,7 +358,8 @@ module.exports = {
                         methodName &&
                         !node.async &&
                         !node.generator,
-                    node
+                    node,
+                    currentSegments: new Set()
                 };
             },
 
@@ -250,6 +367,23 @@ module.exports = {
             onCodePathEnd() {
                 funcInfo = funcInfo.upper;
             },
+
+            onUnreachableCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onUnreachableCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
+            onCodePathSegmentStart(segment) {
+                funcInfo.currentSegments.add(segment);
+            },
+
+            onCodePathSegmentEnd(segment) {
+                funcInfo.currentSegments.delete(segment);
+            },
+
 
             // Checks the return statement is valid.
             ReturnStatement(node) {
@@ -260,30 +394,46 @@ module.exports = {
 
                 funcInfo.hasReturn = true;
 
-                let messageId = null;
+                const messageAndSuggestions = { messageId: "", suggest: [] };
 
                 if (funcInfo.arrayMethodName === "forEach") {
 
                     // if checkForEach: true, returning a value at any path inside a forEach is not allowed
                     if (options.checkForEach && node.argument) {
-                        messageId = "expectedNoReturnValue";
+
+                        if (options.allowVoid) {
+                            if (isExpressionVoid(node.argument)) {
+                                return;
+                            }
+
+                            messageAndSuggestions.messageId = "expectedNoReturnValue";
+                            messageAndSuggestions.suggest = [{
+                                messageId: "prependVoid",
+                                fix(fixer) {
+                                    return voidPrependFixer(sourceCode, node.argument, fixer);
+                                }
+                            }];
+                        } else {
+                            messageAndSuggestions.messageId = "expectedNoReturnValue";
+                        }
                     }
                 } else {
 
                     // if allowImplicit: false, should also check node.argument
                     if (!options.allowImplicit && !node.argument) {
-                        messageId = "expectedReturnValue";
+                        messageAndSuggestions.messageId = "expectedReturnValue";
                     }
                 }
 
-                if (messageId) {
+                if (messageAndSuggestions.messageId) {
                     context.report({
                         node,
-                        messageId,
+                        messageId: messageAndSuggestions.messageId,
                         data: {
                             name: astUtils.getFunctionNameWithKind(funcInfo.node),
                             arrayMethodName: fullMethodName(funcInfo.arrayMethodName)
-                        }
+                        },
+                        suggest: messageAndSuggestions.suggest.length !== 0 ? messageAndSuggestions.suggest : null
                     });
                 }
             },

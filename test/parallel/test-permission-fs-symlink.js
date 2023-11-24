@@ -19,8 +19,8 @@ const tmpdir = require('../common/tmpdir');
 const file = fixtures.path('permission', 'fs-symlink.js');
 const commonPathWildcard = path.join(__filename, '../../common*');
 const blockedFile = fixtures.path('permission', 'deny', 'protected-file.md');
-const blockedFolder = path.join(tmpdir.path, 'subdirectory');
-const symlinkFromBlockedFile = path.join(tmpdir.path, 'example-symlink.md');
+const blockedFolder = tmpdir.resolve('subdirectory');
+const symlinkFromBlockedFile = tmpdir.resolve('example-symlink.md');
 
 {
   tmpdir.refresh();
@@ -37,7 +37,7 @@ const symlinkFromBlockedFile = path.join(tmpdir.path, 'example-symlink.md');
     process.execPath,
     [
       '--experimental-permission',
-      `--allow-fs-read=${file},${commonPathWildcard},${symlinkFromBlockedFile}`,
+      `--allow-fs-read=${file}`, `--allow-fs-read=${commonPathWildcard}`, `--allow-fs-read=${symlinkFromBlockedFile}`,
       `--allow-fs-write=${symlinkFromBlockedFile}`,
       file,
     ],

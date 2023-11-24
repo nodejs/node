@@ -18,9 +18,6 @@ class WasmStreaming;
 }  // namespace v8
 
 namespace v8::internal {
-class Context;
-template <typename T>
-class Handle;
 
 namespace wasm {
 class CompilationResultResolver;
@@ -37,7 +34,7 @@ class WasmJs {
                                         bool exposed_on_global_object);
 
   V8_EXPORT_PRIVATE static void InstallConditionalFeatures(
-      Isolate* isolate, Handle<Context> context);
+      Isolate* isolate, Handle<NativeContext> context);
 };
 
 }  // namespace v8::internal

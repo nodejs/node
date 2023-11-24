@@ -9,8 +9,8 @@ const kBuiltinNameValues: constexpr string = '%TypedArray%.prototype.values';
 
 // %TypedArray%.values ()
 // https://tc39.github.io/ecma262/#sec-%typedarray%.values
-transitioning javascript builtin
-TypedArrayPrototypeValues(js-implicit context: NativeContext, receiver: JSAny)(
+transitioning javascript builtin TypedArrayPrototypeValues(
+    js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): JSArrayIterator {
   try {
     const array: JSTypedArray = Cast<JSTypedArray>(receiver)

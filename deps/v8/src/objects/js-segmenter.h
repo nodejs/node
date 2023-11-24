@@ -46,7 +46,7 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
   Handle<String> GranularityAsString(Isolate* isolate) const;
 
   // Segmenter accessors.
-  DECL_ACCESSORS(icu_break_iterator, Managed<icu::BreakIterator>)
+  DECL_ACCESSORS(icu_break_iterator, Tagged<Managed<icu::BreakIterator>>)
 
   // Granularity: identifying the segmenter used.
   //

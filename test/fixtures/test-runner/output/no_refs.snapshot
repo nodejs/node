@@ -4,6 +4,7 @@ TAP version 13
     not ok 1 - +does not keep event loop alive
       ---
       duration_ms: *
+      location: '/test/fixtures/test-runner/output/no_refs.js:(LINE):11'
       failureType: 'cancelledByParent'
       error: 'Promise resolution is still pending but the event loop has already resolved'
       code: 'ERR_TEST_FAILURE'
@@ -14,6 +15,7 @@ TAP version 13
 not ok 1 - does not keep event loop alive
   ---
   duration_ms: *
+  location: '/test/fixtures/test-runner/output/no_refs.js:(LINE):1'
   failureType: 'cancelledByParent'
   error: 'Promise resolution is still pending but the event loop has already resolved'
   code: 'ERR_TEST_FAILURE'

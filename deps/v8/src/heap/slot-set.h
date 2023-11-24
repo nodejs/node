@@ -33,7 +33,7 @@ using ::heap::base::SlotCallbackResult;
 // is replaced with a pointer to a malloc-allocated bitmap.
 class PossiblyEmptyBuckets {
  public:
-  PossiblyEmptyBuckets() : bitmap_(kNullAddress) {}
+  PossiblyEmptyBuckets() = default;
   PossiblyEmptyBuckets(PossiblyEmptyBuckets&& other) V8_NOEXCEPT
       : bitmap_(other.bitmap_) {
     other.bitmap_ = kNullAddress;
@@ -43,11 +43,6 @@ class PossiblyEmptyBuckets {
 
   PossiblyEmptyBuckets(const PossiblyEmptyBuckets&) = delete;
   PossiblyEmptyBuckets& operator=(const PossiblyEmptyBuckets&) = delete;
-
-  void Initialize() {
-    bitmap_ = kNullAddress;
-    DCHECK(!IsAllocated());
-  }
 
   void Release() {
     if (IsAllocated()) {
@@ -81,13 +76,12 @@ class PossiblyEmptyBuckets {
     }
   }
 
-  bool IsEmpty() { return bitmap_ == kNullAddress; }
+  bool IsEmpty() const { return bitmap_ == kNullAddress; }
 
  private:
-  Address bitmap_;
-  static const Address kPointerTag = 1;
-  static const int kWordSize = sizeof(uintptr_t);
-  static const int kBitsPerWord = kWordSize * kBitsPerByte;
+  static constexpr Address kPointerTag = 1;
+  static constexpr int kWordSize = sizeof(uintptr_t);
+  static constexpr int kBitsPerWord = kWordSize * kBitsPerByte;
 
   bool IsAllocated() { return bitmap_ & kPointerTag; }
 
@@ -121,6 +115,8 @@ class PossiblyEmptyBuckets {
     return reinterpret_cast<uintptr_t*>(bitmap_ & ~kPointerTag);
   }
 
+  Address bitmap_ = kNullAddress;
+
   FRIEND_TEST(PossiblyEmptyBucketsTest, WordsForBuckets);
 };
 
@@ -138,12 +134,24 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
     return static_cast<SlotSet*>(BasicSlotSet::Allocate(buckets));
   }
 
+  template <v8::internal::AccessMode access_mode>
+  static constexpr BasicSlotSet::AccessMode ConvertAccessMode() {
+    switch (access_mode) {
+      case v8::internal::AccessMode::ATOMIC:
+        return BasicSlotSet::AccessMode::ATOMIC;
+      case v8::internal::AccessMode::NON_ATOMIC:
+        return BasicSlotSet::AccessMode::NON_ATOMIC;
+    }
+  }
+
   // Similar to BasicSlotSet::Iterate() but Callback takes the parameter of type
   // MaybeObjectSlot.
-  template <typename Callback>
+  template <
+      v8::internal::AccessMode access_mode = v8::internal::AccessMode::ATOMIC,
+      typename Callback>
   size_t Iterate(Address chunk_start, size_t start_bucket, size_t end_bucket,
                  Callback callback, EmptyBucketMode mode) {
-    return BasicSlotSet::Iterate(
+    return BasicSlotSet::Iterate<ConvertAccessMode<access_mode>()>(
         chunk_start, start_bucket, end_bucket,
         [&callback](Address slot) { return callback(MaybeObjectSlot(slot)); },
         [this, mode](size_t bucket_index) {
@@ -205,11 +213,14 @@ class SlotSet final : public ::heap::base::BasicSlotSet<kTaggedSize> {
       if (!other_bucket) continue;
       Bucket* bucket = LoadBucket<AccessMode::NON_ATOMIC>(bucket_index);
       if (bucket == nullptr) {
-        bucket = new Bucket;
-        CHECK(SwapInNewBucket<AccessMode::NON_ATOMIC>(bucket_index, bucket));
-      }
-      for (int cell_index = 0; cell_index < kCellsPerBucket; cell_index++) {
-        bucket->SetCellBits(cell_index, *other_bucket->cell(cell_index));
+        other->StoreBucket<AccessMode::NON_ATOMIC>(bucket_index, nullptr);
+        StoreBucket<AccessMode::NON_ATOMIC>(bucket_index, other_bucket);
+      } else {
+        for (int cell_index = 0; cell_index < kCellsPerBucket; cell_index++) {
+          bucket->SetCellBits<AccessMode::NON_ATOMIC>(
+              cell_index,
+              other_bucket->LoadCell<AccessMode::NON_ATOMIC>(cell_index));
+        }
       }
     }
   }

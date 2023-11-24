@@ -7,7 +7,6 @@ const common = require('../common');
 // Refer: https://github.com/nodejs/node/issues/7655
 
 const fs = require('fs');
-const path = require('path');
 
 const options = common.mustNotMutateObjectDeep({});
 const tmpdir = require('../common/tmpdir');
@@ -20,8 +19,8 @@ fs.readdir(__dirname, options, common.mustSucceed());
 fs.readdirSync(__dirname, options);
 
 if (common.canCreateSymLink()) {
-  const sourceFile = path.resolve(tmpdir.path, 'test-readlink');
-  const linkFile = path.resolve(tmpdir.path, 'test-readlink-link');
+  const sourceFile = tmpdir.resolve('test-readlink');
+  const linkFile = tmpdir.resolve('test-readlink-link');
 
   fs.writeFileSync(sourceFile, '');
   fs.symlinkSync(sourceFile, linkFile);
@@ -31,13 +30,13 @@ if (common.canCreateSymLink()) {
 }
 
 {
-  const fileName = path.resolve(tmpdir.path, 'writeFile');
+  const fileName = tmpdir.resolve('writeFile');
   fs.writeFileSync(fileName, 'ABCD', options);
   fs.writeFile(fileName, 'ABCD', options, common.mustSucceed());
 }
 
 {
-  const fileName = path.resolve(tmpdir.path, 'appendFile');
+  const fileName = tmpdir.resolve('appendFile');
   fs.appendFileSync(fileName, 'ABCD', options);
   fs.appendFile(fileName, 'ABCD', options, common.mustSucceed());
 }
@@ -58,13 +57,13 @@ if (!common.isIBMi) { // IBMi does not support fs.watch()
 }
 
 {
-  const tempFileName = path.resolve(tmpdir.path, 'mkdtemp-');
+  const tempFileName = tmpdir.resolve('mkdtemp-');
   fs.mkdtempSync(tempFileName, options);
   fs.mkdtemp(tempFileName, options, common.mustSucceed());
 }
 
 {
-  const fileName = path.resolve(tmpdir.path, 'streams');
+  const fileName = tmpdir.resolve('streams');
   fs.WriteStream(fileName, options).once('open', common.mustCall(() => {
     fs.ReadStream(fileName, options).destroy();
   })).end();

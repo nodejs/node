@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -167,17 +167,25 @@ int ossl_dsa_check_key(OSSL_LIB_CTX *ctx, const DSA *dsa, int sign)
 
         /*
          * For Digital signature verification DSA keys with < 112 bits of
-         * security strength (i.e L < 2048 bits), are still allowed for legacy
-         * use. The bounds given in SP800 131Ar2 - Table 2 are
-         * (512 <= L < 2048 and 160 <= N < 224)
+         * security strength, are still allowed for legacy
+         * use. The bounds given in SP 800-131Ar2 - Table 2 are
+         * (512 <= L < 2048 or 160 <= N < 224).
+         *
+         * We are a little stricter and insist that both minimums are met.
+         * For example a L = 256, N = 160 key *would* be allowed by SP 800-131Ar2
+         * but we don't.
          */
-        if (!sign && L < 2048)
-            return (L >= 512 && N >= 160 && N < 224);
+        if (!sign) {
+            if (L < 512 || N < 160)
+                return 0;
+            if (L < 2048 || N < 224)
+                return 1;
+        }
 
          /* Valid sizes for both sign and verify */
-        if (L == 2048 && (N == 224 || N == 256))
+        if (L == 2048 && (N == 224 || N == 256))    /* 112 bits */
             return 1;
-        return (L == 3072 && N == 256);
+        return (L == 3072 && N == 256);             /* 128 bits */
     }
 # endif /* OPENSSL_NO_FIPS_SECURITYCHECKS */
     return 1;

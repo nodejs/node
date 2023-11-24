@@ -9,7 +9,7 @@
   [0.01, "--thread-pool-size=2"],
   [0.01, "--thread-pool-size=4"],
   [0.01, "--thread-pool-size=8"],
-  [0.1, "--interrupt-budget=1000"],
+  [0.25, "--jit-fuzzing"],
   [0.25, "--future"],
   [0.2, "--no-regexp-tier-up"],
   [0.1, "--regexp-interpret-all"],
@@ -26,12 +26,11 @@
   [0.1, "--no-enable-lzcnt"],
   [0.1, "--no-enable-popcnt"],
   [0.25, "--no-lazy-feedback-allocation"],
-  [0.1, "--no-lazy-feedback-allocation --interrupt-budget=100"],
-  [0.05, "--interrupt-budget-for-feedback-allocation=0"],
   [0.1, "--no-wasm-generic-wrapper"],
   [0.2, "--turboshaft"],
   [0.1, "--turbo-force-mid-tier-regalloc"],
   [0.0001, "--simulate-errors"],
-  [0.1, "--minor-mc"],
+  [0.25, "--minor-ms"],
+  [0.1, "--concurrent-minor-ms-marking"],
   [0.1, "--shared-string-table"]
 ]

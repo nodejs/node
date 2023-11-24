@@ -1,5 +1,6 @@
 
 #include "node_snapshotable.h"
+#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -18,10 +19,10 @@
 #include "node_internals.h"
 #include "node_main_instance.h"
 #include "node_metadata.h"
+#include "node_modules.h"
 #include "node_process.h"
 #include "node_snapshot_builder.h"
 #include "node_url.h"
-#include "node_util.h"
 #include "node_v8.h"
 #include "node_v8_platform-inl.h"
 #include "timers.h"
@@ -145,7 +146,8 @@ class SnapshotDeserializer : public BlobDeserializer<SnapshotDeserializer> {
  public:
   explicit SnapshotDeserializer(std::string_view v)
       : BlobDeserializer<SnapshotDeserializer>(
-            per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT),
+            per_process::enabled_debug_list.enabled(
+                DebugCategory::SNAPSHOT_SERDES),
             v) {}
 
   template <typename T,
@@ -159,7 +161,7 @@ class SnapshotSerializer : public BlobSerializer<SnapshotSerializer> {
   SnapshotSerializer()
       : BlobSerializer<SnapshotSerializer>(
             per_process::enabled_debug_list.enabled(
-                DebugCategory::MKSNAPSHOT)) {
+                DebugCategory::SNAPSHOT_SERDES)) {
     // Currently the snapshot blob built with an empty script is around 4MB.
     // So use that as the default sink size.
     sink.reserve(4 * 1024 * 1024);
@@ -715,13 +717,6 @@ SnapshotData::~SnapshotData() {
   }
 }
 
-template <typename T>
-void WriteVector(std::ostream* ss, const T* vec, size_t size) {
-  for (size_t i = 0; i < size; i++) {
-    *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
-  }
-}
-
 static std::string GetCodeCacheDefName(const std::string& id) {
   char buf[64] = {0};
   size_t size = id.size();
@@ -746,48 +741,71 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-static void WriteDataAsCharString(std::ostream* ss,
-                                  const uint8_t* data,
-                                  size_t length) {
-  for (size_t i = 0; i < length; i++) {
-    const uint8_t ch = data[i];
-    // We can print most printable characters directly. The exceptions are '\'
-    // (escape characters), " (would end the string), and ? (trigraphs). The
-    // latter may be overly conservative: we compile with C++17 which doesn't
-    // support trigraphs.
-    if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
-      *ss << ch;
-    } else {
-      // All other characters are blindly output as octal.
-      const char c0 = '0' + ((ch >> 6) & 7);
-      const char c1 = '0' + ((ch >> 3) & 7);
-      const char c2 = '0' + (ch & 7);
-      *ss << "\\" << c0 << c1 << c2;
-    }
-    if (i % 64 == 63) {
-      // Go to a newline every 64 bytes since many text editors have
-      // problems with very long lines.
-      *ss << "\"\n\"";
-    }
+std::string ToOctalString(const uint8_t ch) {
+  // We can print most printable characters directly. The exceptions are '\'
+  // (escape characters), " (would end the string), and ? (trigraphs). The
+  // latter may be overly conservative: we compile with C++17 which doesn't
+  // support trigraphs.
+  if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
+    return std::string(1, static_cast<char>(ch));
   }
+  // All other characters are blindly output as octal.
+  const char c0 = '0' + ((ch >> 6) & 7);
+  const char c1 = '0' + ((ch >> 3) & 7);
+  const char c2 = '0' + (ch & 7);
+  return std::string("\\") + c0 + c1 + c2;
 }
 
-static void WriteStaticCodeCacheDataAsStringLiteral(
-    std::ostream* ss, const builtins::CodeCacheInfo& info) {
-  *ss << "static const uint8_t *" << GetCodeCacheDefName(info.id)
-      << "= reinterpret_cast<const uint8_t *>(\"";
-  WriteDataAsCharString(ss, info.data.data, info.data.length);
-  *ss << "\");\n";
+std::vector<std::string> GetOctalTable() {
+  size_t size = 1 << 8;
+  std::vector<std::string> code_table(size);
+  for (size_t i = 0; i < size; ++i) {
+    code_table[i] = ToOctalString(static_cast<uint8_t>(i));
+  }
+  return code_table;
 }
-#else
-static void WriteStaticCodeCacheDataAsArray(
-    std::ostream* ss, const builtins::CodeCacheInfo& info) {
-  *ss << "static const uint8_t " << GetCodeCacheDefName(info.id) << "[] = {\n";
-  WriteVector(ss, info.data.data, info.data.length);
-  *ss << "};\n";
+
+const std::string& GetOctalCode(uint8_t index) {
+  static std::vector<std::string> table = GetOctalTable();
+  return table[index];
 }
-#endif
+
+template <typename T>
+void WriteByteVectorLiteral(std::ostream* ss,
+                            const T* vec,
+                            size_t size,
+                            const char* var_name,
+                            bool use_array_literals) {
+  constexpr bool is_uint8_t = std::is_same_v<T, uint8_t>;
+  static_assert(is_uint8_t || std::is_same_v<T, char>);
+  constexpr const char* type_name = is_uint8_t ? "uint8_t" : "char";
+  if (!use_array_literals) {
+    const uint8_t* data = reinterpret_cast<const uint8_t*>(vec);
+    *ss << "static const " << type_name << " *" << var_name << " = ";
+    *ss << (is_uint8_t ? R"(reinterpret_cast<const uint8_t *>(")" : "\"");
+    for (size_t i = 0; i < size; i++) {
+      const uint8_t ch = data[i];
+      *ss << GetOctalCode(ch);
+      if (i % 64 == 63) {
+        // Go to a newline every 64 bytes since many text editors have
+        // problems with very long lines.
+        *ss << "\"\n\"";
+      }
+    }
+    *ss << (is_uint8_t ? "\");\n" : "\";\n");
+  } else {
+    *ss << "static const " << type_name << " " << var_name << "[] = {";
+    for (size_t i = 0; i < size; i++) {
+      *ss << std::to_string(vec[i]) << (i == size - 1 ? '\n' : ',');
+      if (i % 64 == 63) {
+        // Print a newline every 64 units and a offset to improve
+        // readability.
+        *ss << "  // " << (i / 64) << "\n";
+      }
+    }
+    *ss << "};\n";
+  }
+}
 
 static void WriteCodeCacheInitializer(std::ostream* ss,
                                       const std::string& id,
@@ -800,7 +818,9 @@ static void WriteCodeCacheInitializer(std::ostream* ss,
   *ss << "    },\n";
 }
 
-void FormatBlob(std::ostream& ss, const SnapshotData* data) {
+void FormatBlob(std::ostream& ss,
+                const SnapshotData* data,
+                bool use_array_literals) {
   ss << R"(#include <cstddef>
 #include "env.h"
 #include "node_snapshot_builder.h"
@@ -811,32 +831,24 @@ void FormatBlob(std::ostream& ss, const SnapshotData* data) {
 namespace node {
 )";
 
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-  ss << R"(static const char *v8_snapshot_blob_data = ")";
-  WriteDataAsCharString(
-      &ss,
-      reinterpret_cast<const uint8_t*>(data->v8_snapshot_blob_data.data),
-      data->v8_snapshot_blob_data.raw_size);
-  ss << R"(";)";
-#else
-  ss << R"(static const char v8_snapshot_blob_data[] = {)";
-  WriteVector(&ss,
-              data->v8_snapshot_blob_data.data,
-              data->v8_snapshot_blob_data.raw_size);
-  ss << R"(};)";
-#endif
+  WriteByteVectorLiteral(&ss,
+                         data->v8_snapshot_blob_data.data,
+                         data->v8_snapshot_blob_data.raw_size,
+                         "v8_snapshot_blob_data",
+                         use_array_literals);
 
   ss << R"(static const int v8_snapshot_blob_size = )"
-     << data->v8_snapshot_blob_data.raw_size << ";";
+     << data->v8_snapshot_blob_data.raw_size << ";\n";
 
+  // Windows can't deal with too many large vector initializers.
+  // Store the data into static arrays first.
   for (const auto& item : data->code_cache) {
-#ifdef NODE_MKSNAPSHOT_USE_STRING_LITERALS
-    WriteStaticCodeCacheDataAsStringLiteral(&ss, item);
-#else
-    // Windows can't deal with too many large vector initializers.
-    // Store the data into static arrays first.
-    WriteStaticCodeCacheDataAsArray(&ss, item);
-#endif
+    std::string var_name = GetCodeCacheDefName(item.id);
+    WriteByteVectorLiteral(&ss,
+                           item.data.data,
+                           item.data.length,
+                           var_name.c_str(),
+                           use_array_literals);
   }
 
   ss << R"(const SnapshotData snapshot_data {
@@ -901,7 +913,7 @@ void SnapshotBuilder::InitializeIsolateParams(const SnapshotData* data,
       const_cast<v8::StartupData*>(&(data->v8_snapshot_blob_data));
 }
 
-ExitCode SnapshotBuilder::Generate(
+ExitCode BuildSnapshotWithoutCodeCache(
     SnapshotData* out,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
@@ -923,8 +935,8 @@ ExitCode SnapshotBuilder::Generate(
       fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
     return ExitCode::kBootstrapFailure;
   }
-  Isolate* isolate = setup->isolate();
 
+  Isolate* isolate = setup->isolate();
   {
     HandleScope scope(isolate);
     TryCatch bootstrapCatch(isolate);
@@ -958,7 +970,66 @@ ExitCode SnapshotBuilder::Generate(
     }
   }
 
-  return CreateSnapshot(out, setup.get(), static_cast<uint8_t>(snapshot_type));
+  return SnapshotBuilder::CreateSnapshot(
+      out, setup.get(), static_cast<uint8_t>(snapshot_type));
+}
+
+ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
+                                    const std::vector<std::string>& args,
+                                    const std::vector<std::string>& exec_args) {
+  RAIIIsolate raii_isolate(out);
+  Isolate* isolate = raii_isolate.get();
+  v8::Locker locker(isolate);
+  Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
+  TryCatch bootstrapCatch(isolate);
+
+  auto print_Exception = OnScopeLeave([&]() {
+    if (bootstrapCatch.HasCaught()) {
+      PrintCaughtException(
+          isolate, isolate->GetCurrentContext(), bootstrapCatch);
+    }
+  });
+
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+  builtins::BuiltinLoader builtin_loader;
+  // Regenerate all the code cache.
+  if (!builtin_loader.CompileAllBuiltins(context)) {
+    return ExitCode::kGenericUserError;
+  }
+  builtin_loader.CopyCodeCache(&(out->code_cache));
+  if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
+    for (const auto& item : out->code_cache) {
+      std::string size_str = FormatSize(item.data.length);
+      per_process::Debug(DebugCategory::MKSNAPSHOT,
+                         "Generated code cache for %d: %s\n",
+                         item.id.c_str(),
+                         size_str.c_str());
+    }
+  }
+  return ExitCode::kNoFailure;
+}
+
+ExitCode SnapshotBuilder::Generate(
+    SnapshotData* out,
+    const std::vector<std::string>& args,
+    const std::vector<std::string>& exec_args,
+    std::optional<std::string_view> main_script) {
+  ExitCode code =
+      BuildSnapshotWithoutCodeCache(out, args, exec_args, main_script);
+  if (code != ExitCode::kNoFailure) {
+    return code;
+  }
+
+#ifdef NODE_USE_NODE_CODE_CACHE
+  // Deserialize the snapshot to recompile code cache. We need to do this in the
+  // second pass because V8 requires the code cache to be compiled with a
+  // finalized read-only space.
+  return BuildCodeCacheFromSnapshot(out, args, exec_args);
+#else
+  return ExitCode::kNoFailure;
+#endif
 }
 
 ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
@@ -1011,21 +1082,6 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
       out->isolate_data_info = setup->isolate_data()->Serialize(creator);
       out->env_info = env->Serialize(creator);
 
-#ifdef NODE_USE_NODE_CODE_CACHE
-      // Regenerate all the code cache.
-      if (!env->builtin_loader()->CompileAllBuiltins(main_context)) {
-        return ExitCode::kGenericUserError;
-      }
-      env->builtin_loader()->CopyCodeCache(&(out->code_cache));
-      for (const auto& item : out->code_cache) {
-        std::string size_str = FormatSize(item.data.length);
-        per_process::Debug(DebugCategory::MKSNAPSHOT,
-                           "Generated code cache for %d: %s\n",
-                           item.id.c_str(),
-                           size_str.c_str());
-      }
-#endif
-
       ResetContextSettingsBeforeSnapshot(main_context);
     }
 
@@ -1073,17 +1129,45 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
   return ExitCode::kNoFailure;
 }
 
-ExitCode SnapshotBuilder::Generate(
-    std::ostream& out,
+ExitCode SnapshotBuilder::GenerateAsSource(
+    const char* out_path,
     const std::vector<std::string>& args,
     const std::vector<std::string>& exec_args,
-    std::optional<std::string_view> main_script) {
+    std::optional<std::string_view> main_script_path,
+    bool use_array_literals) {
+  std::string main_script_content;
+  std::optional<std::string_view> main_script_optional;
+  if (main_script_path.has_value()) {
+    int r = ReadFileSync(&main_script_content, main_script_path.value().data());
+    if (r != 0) {
+      FPrintF(stderr,
+              "Cannot read main script %s for building snapshot. %s: %s",
+              main_script_path.value(),
+              uv_err_name(r),
+              uv_strerror(r));
+      return ExitCode::kGenericUserError;
+    }
+    main_script_optional = main_script_content;
+  }
+
+  std::ofstream out(out_path, std::ios::out | std::ios::binary);
+  if (!out) {
+    FPrintF(stderr, "Cannot open %s for output.\n", out_path);
+    return ExitCode::kGenericUserError;
+  }
+
   SnapshotData data;
-  ExitCode exit_code = Generate(&data, args, exec_args, main_script);
+  ExitCode exit_code = Generate(&data, args, exec_args, main_script_optional);
   if (exit_code != ExitCode::kNoFailure) {
     return exit_code;
   }
-  FormatBlob(out, &data);
+  FormatBlob(out, &data, use_array_literals);
+
+  if (!out) {
+    std::cerr << "Failed to write to " << out_path << "\n";
+    exit_code = node::ExitCode::kGenericUserError;
+  }
+
   return exit_code;
 }
 
@@ -1107,25 +1191,33 @@ std::string SnapshotableObject::GetTypeName() const {
 void DeserializeNodeInternalFields(Local<Object> holder,
                                    int index,
                                    StartupData payload,
-                                   void* env) {
+                                   void* callback_data) {
   if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
     return;
   }
+
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Deserialize internal field %d of %p, size=%d\n",
                      static_cast<int>(index),
                      (*holder),
                      static_cast<int>(payload.raw_size));
 
-  if (payload.raw_size == 0) {
-    holder->SetAlignedPointerInInternalField(index, nullptr);
+  Environment* env = static_cast<Environment*>(callback_data);
+
+  // To deserialize the first field, check the type and re-tag the object.
+  if (index == BaseObject::kEmbedderType) {
+    int size = sizeof(EmbedderTypeInfo);
+    DCHECK_EQ(payload.raw_size, size);
+    EmbedderTypeInfo read_data;
+    memcpy(&read_data, payload.data, size);
+    // For now we only support non-cppgc objects.
+    CHECK_EQ(read_data.mode, EmbedderTypeInfo::MemoryMode::kBaseObject);
+    BaseObject::TagBaseObject(env->isolate_data(), holder);
     return;
   }
 
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
-
-  Environment* env_ptr = static_cast<Environment*>(env);
+  // To deserialize the second field, enqueue a deserialize request.
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   const InternalFieldInfoBase* info =
       reinterpret_cast<const InternalFieldInfoBase*>(payload.data);
   // TODO(joyeecheung): we can add a constant kNodeEmbedderId to the
@@ -1138,7 +1230,7 @@ void DeserializeNodeInternalFields(Local<Object> holder,
                        "Object %p is %s\n",                                    \
                        (*holder),                                              \
                        #NativeTypeName);                                       \
-    env_ptr->EnqueueDeserializeRequest(                                        \
+    env->EnqueueDeserializeRequest(                                            \
         NativeTypeName::Deserialize,                                           \
         holder,                                                                \
         index,                                                                 \
@@ -1164,28 +1256,52 @@ void DeserializeNodeInternalFields(Local<Object> holder,
 StartupData SerializeNodeContextInternalFields(Local<Object> holder,
                                                int index,
                                                void* callback_data) {
-  // We only do one serialization for the kEmbedderType slot, the result
-  // contains everything necessary for deserializing the entire object,
-  // including the fields whose index is bigger than kEmbedderType
-  // (most importantly, BaseObject::kSlot).
-  // For Node.js this design is enough for all the native binding that are
-  // serializable.
+  // For the moment we do not set any internal fields in ArrayBuffer
+  // or ArrayBufferViews, so just return nullptr.
+  if (holder->IsArrayBuffer() || holder->IsArrayBufferView()) {
+    CHECK_NULL(holder->GetAlignedPointerFromInternalField(index));
+    return StartupData{nullptr, 0};
+  }
+
+  // Use the V8 convention and serialize unknown objects verbatim.
   Environment* env = static_cast<Environment*>(callback_data);
-  if (index != BaseObject::kEmbedderType ||
-      !BaseObject::IsBaseObject(env->isolate_data(), holder)) {
+  if (!BaseObject::IsBaseObject(env->isolate_data(), holder)) {
+    per_process::Debug(DebugCategory::MKSNAPSHOT,
+                       "Serialize unknown object, index=%d, holder=%p\n",
+                       static_cast<int>(index),
+                       *holder);
     return StartupData{nullptr, 0};
   }
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
-                     "Serialize internal field, index=%d, holder=%p\n",
+                     "Serialize BaseObject, index=%d, holder=%p\n",
                      static_cast<int>(index),
                      *holder);
 
-  void* native_ptr =
-      holder->GetAlignedPointerFromInternalField(BaseObject::kSlot);
-  per_process::Debug(DebugCategory::MKSNAPSHOT, "native = %p\n", native_ptr);
-  DCHECK(static_cast<BaseObject*>(native_ptr)->is_snapshotable());
-  SnapshotableObject* obj = static_cast<SnapshotableObject*>(native_ptr);
+  BaseObject* object_ptr = static_cast<BaseObject*>(
+      holder->GetAlignedPointerFromInternalField(BaseObject::kSlot));
+  // If the native object is already set to null, ignore it.
+  if (object_ptr == nullptr) {
+    return StartupData{nullptr, 0};
+  }
+
+  DCHECK(object_ptr->is_snapshotable());
+  SnapshotableObject* obj = static_cast<SnapshotableObject*>(object_ptr);
+
+  // To serialize the type field, save data in a EmbedderTypeInfo.
+  if (index == BaseObject::kEmbedderType) {
+    int size = sizeof(EmbedderTypeInfo);
+    char* data = new char[size];
+    // We need to use placement new because V8 calls delete[] on the returned
+    // data.
+    // TODO(joyeecheung): support cppgc objects.
+    new (data) EmbedderTypeInfo(obj->type(),
+                                EmbedderTypeInfo::MemoryMode::kBaseObject);
+    return StartupData{data, size};
+  }
+
+  // To serialize the slot field, invoke Serialize() method on the object.
+  DCHECK_IS_SNAPSHOT_SLOT(index);
 
   per_process::Debug(DebugCategory::MKSNAPSHOT,
                      "Object %p is %s, ",
@@ -1341,7 +1457,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info = internal_field_info_;
   internal_field_info_ = nullptr;
   return info;
@@ -1351,7 +1467,7 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.

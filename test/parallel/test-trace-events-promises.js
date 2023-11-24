@@ -3,7 +3,6 @@ const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 
 if (process.argv[2] === 'child') {
@@ -26,7 +25,7 @@ if (process.argv[2] === 'child') {
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = path.join(tmpdir.path, 'node_trace.1.log');
+    const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
     fs.readFile(file, common.mustCall((err, data) => {

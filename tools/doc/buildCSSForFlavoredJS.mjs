@@ -45,7 +45,7 @@ export default function buildCSSForFlavoredJS(dynamicSizes) {
     `@media(max-width:${getMarginLeft(charCount) + getPaddingLeft(charCount) +
                         charCount * ESTIMATED_CHAR_WIDTH + TOGGLE_WIDTH +
                         getPaddingRight(charCount) + getMarginRight(charCount)}px){` +
-      `.with-${charCount}-chars>.js-flavor-selector{` +
+      `.with-${charCount}-chars>.js-flavor-toggle{` +
         'float:none;' +
         'margin:0 0 1em auto;' +
       '}' +

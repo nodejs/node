@@ -270,7 +270,7 @@
     # Enable global allocation site tracking.
     'v8_allocation_site_tracking%': 1,
 
-    'v8_scriptormodule_legacy_lifetime%': 1,
+    'v8_scriptormodule_legacy_lifetime%': 0,
 
     # Change code emission and runtime features to be CET shadow-stack compliant
     # (incomplete and experimental).
@@ -279,6 +279,10 @@
     # Compile V8 using zlib as dependency.
     # Sets -DV8_USE_ZLIB
     'v8_use_zlib%': 1,
+
+    # Whether custom embedder snapshots may extend (= allocate new objects in)
+    # ReadOnlySpace.
+    'v8_enable_extensible_ro_snapshot%': 1,
 
     # Variables from v8.gni
 
@@ -459,6 +463,9 @@
       }],
       ['v8_use_zlib==1', {
         'defines': ['V8_USE_ZLIB',],
+      }],
+      ['v8_enable_extensible_ro_snapshot==1', {
+        'defines': ['V8_ENABLE_EXTENSIBLE_RO_SNAPSHOT',],
       }],
       ['v8_enable_precise_zone_stats==1', {
         'defines': ['V8_ENABLE_PRECISE_ZONE_STATS',],

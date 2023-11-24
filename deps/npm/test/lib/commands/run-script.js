@@ -781,12 +781,7 @@ t.test('workspaces', async t => {
   t.test('missing scripts in all workspaces', async t => {
     const { runScript, RUN_SCRIPTS, cleanLogs } = await mockWorkspaces(t, { exec: null })
 
-    await t.rejects(
-      runScript.exec(['missing-script']),
-      /Missing script: missing-script/,
-      'should throw missing script error'
-    )
-
+    await runScript.exec(['missing-script'])
     t.match(RUN_SCRIPTS(), [])
     t.strictSame(
       cleanLogs(),

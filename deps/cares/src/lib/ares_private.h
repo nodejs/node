@@ -1,22 +1,31 @@
+/* MIT License
+ *
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) 2010 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef __ARES_PRIVATE_H
 #define __ARES_PRIVATE_H
-
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2004-2010 by Daniel Stenberg
- *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
- */
 
 /*
  * Define WIN32 when build target is Win32 API
@@ -33,12 +42,10 @@
 #ifdef WATT32
 #include <tcp.h>
 #include <sys/ioctl.h>
-#define writev(s,v,c)     writev_s(s,v,c)
-#define HAVE_WRITEV 1
 #endif
 
-#define DEFAULT_TIMEOUT         5000 /* milliseconds */
-#define DEFAULT_TRIES           4
+#define DEFAULT_TIMEOUT         2000 /* milliseconds */
+#define DEFAULT_TRIES           3
 #ifndef INADDR_NONE
 #define INADDR_NONE 0xffffffff
 #endif
@@ -102,7 +109,15 @@ W32_FUNC const char *_w32_GetHostsFile (void);
 #endif
 
 #include "ares_ipv6.h"
-#include "ares_llist.h"
+
+struct ares_rand_state;
+typedef struct ares_rand_state ares_rand_state;
+
+#include "ares__llist.h"
+#include "ares__slist.h"
+#include "ares__htable_stvp.h"
+#include "ares__htable_asvp.h"
+#include "ares__buf.h"
 
 #ifndef HAVE_GETENV
 #  include "ares_getenv.h"
@@ -120,11 +135,6 @@ W32_FUNC const char *_w32_GetHostsFile (void);
 #ifndef HAVE_STRNCASECMP
 #  include "ares_strcasecmp.h"
 #  define strncasecmp(p1,p2,n) ares_strncasecmp(p1,p2,n)
-#endif
-
-#ifndef HAVE_WRITEV
-#  include "ares_writev.h"
-#  define writev(s,ptr,cnt) ares_writev(s,ptr,cnt)
 #endif
 
 /********* EDNS defines section ******/
@@ -148,37 +158,31 @@ struct ares_addr {
 
 struct query;
 
-struct send_request {
-  /* Remaining data to send */
-  const unsigned char *data;
-  size_t len;
+struct server_state;
 
-  /* The query for which we're sending this data */
-  struct query* owner_query;
-  /* The buffer we're using, if we have our own copy of the packet */
-  unsigned char *data_storage;
-
-  /* Next request in queue */
-  struct send_request *next;
+struct server_connection {
+  struct server_state *server;
+  ares_socket_t        fd;
+  int                  is_tcp;
+  /* total number of queries run on this connection since it was established */
+  size_t               total_queries;
+  /* list of outstanding queries to this connection */
+  ares__llist_t       *queries_to_conn;
 };
 
 struct server_state {
+  size_t idx; /* index for server in ares_channel */
   struct ares_addr addr;
-  ares_socket_t udp_socket;
-  ares_socket_t tcp_socket;
 
-  /* Mini-buffer for reading the length word */
-  unsigned char tcp_lenbuf[2];
-  int tcp_lenbuf_pos;
-  int tcp_length;
+  ares__llist_t            *connections;
+  struct server_connection *tcp_conn;
 
-  /* Buffer for reading actual TCP data */
-  unsigned char *tcp_buffer;
-  int tcp_buffer_pos;
+  /* TCP buffer since multiple responses can come back in one read, or partial
+   * in a read */
+  ares__buf_t              *tcp_parser;
 
   /* TCP output queue */
-  struct send_request *qhead;
-  struct send_request *qtail;
+  ares__buf_t              *tcp_send;
 
   /* Which incarnation of this connection is this? We don't want to
    * retransmit requests into the very same socket, but if the server
@@ -186,34 +190,27 @@ struct server_state {
    * re-send. */
   int tcp_connection_generation;
 
-  /* Circular, doubly-linked list of outstanding queries to this server */
-  struct list_node queries_to_server;
-
   /* Link back to owning channel */
   ares_channel channel;
-
-  /* Is this server broken? We mark connections as broken when a
-   * request that is queued for sending times out.
-   */
-  int is_broken;
 };
 
 /* State to represent a DNS query */
 struct query {
   /* Query ID from qbuf, for faster lookup, and current timeout */
-  unsigned short qid;
+  unsigned short qid; /* host byte order */
   struct timeval timeout;
+  ares_channel channel;
 
   /*
-   * Links for the doubly-linked lists in which we insert a query.
-   * These circular, doubly-linked lists that are hash-bucketed based
-   * the attributes we care about, help making most important
-   * operations O(1).
+   * Node object for each list entry the query belongs to in order to
+   * make removal operations O(1).
    */
-  struct list_node queries_by_qid;    /* hopefully in same cache line as qid */
-  struct list_node queries_by_timeout;
-  struct list_node queries_to_server;
-  struct list_node all_queries;
+  ares__slist_node_t *node_queries_by_timeout;
+  ares__llist_node_t *node_queries_to_conn;
+  ares__llist_node_t *node_all_queries;
+
+  /* connection handle for validation purposes */
+  const struct server_connection *conn;
 
   /* Query buf with length at beginning, for TCP transmission */
   unsigned char *tcpbuf;
@@ -232,6 +229,8 @@ struct query {
   int using_tcp;
   int error_status;
   int timeouts; /* number of timeouts we saw for this request */
+  int no_retries; /* do not perform any additional retries, this is set when
+                   * a query is to be canceled */
 };
 
 /* Per-server state for a query */
@@ -259,9 +258,6 @@ struct apattern {
   int family;
   unsigned short type;
 };
-
-struct ares_rand_state;
-typedef struct ares_rand_state ares_rand_state;
 
 struct ares_channeldata {
   /* Configuration data */
@@ -294,30 +290,28 @@ struct ares_channeldata {
   struct server_state *servers;
   int nservers;
 
-  /* ID to use for next query */
-  unsigned short next_id;
   /* random state to use when generating new ids */
   ares_rand_state *rand_state;
 
   /* Generation number to use for the next TCP socket open/close */
   int tcp_connection_generation;
 
-  /* The time at which we last called process_timeouts(). Uses integer seconds
-     just to draw the line somewhere. */
-  time_t last_timeout_processed;
-
   /* Last server we sent a query to. */
   int last_server;
 
-  /* Circular, doubly-linked list of queries, bucketed various ways.... */
-  /* All active queries in a single list: */
-  struct list_node all_queries;
+  /* All active queries in a single list */
+  ares__llist_t   *all_queries;
   /* Queries bucketed by qid, for quickly dispatching DNS responses: */
-#define ARES_QID_TABLE_SIZE 2048
-  struct list_node queries_by_qid[ARES_QID_TABLE_SIZE];
+  ares__htable_stvp_t *queries_by_qid;
+
   /* Queries bucketed by timeout, for quickly handling timeouts: */
-#define ARES_TIMEOUT_TABLE_SIZE 1024
-  struct list_node queries_by_timeout[ARES_TIMEOUT_TABLE_SIZE];
+  ares__slist_t   *queries_by_timeout;
+
+  /* Map linked list node member for connection to file descriptor.  We use
+   * the node instead of the connection object itself so we can quickly look
+   * up a connection and remove it if necessary (as otherwise we'd have to
+   * scan all connections) */
+  ares__htable_asvp_t *connnode_by_socket;
 
   ares_sock_state_cb sock_state_cb;
   void *sock_state_cb_data;
@@ -336,6 +330,9 @@ struct ares_channeldata {
 
   /* Path for hosts file, configurable via ares_options */
   char *hosts_path;
+
+  /* Maximum UDP queries per connection allowed */
+  int udp_max_queries;
 };
 
 /* Does the domain end in ".onion" or ".onion."? Case-insensitive. */
@@ -350,15 +347,31 @@ extern void (*ares_free)(void *ptr);
 int ares__timedout(struct timeval *now,
                    struct timeval *check);
 
-void ares__send_query(ares_channel channel, struct query *query,
-                      struct timeval *now);
-void ares__close_sockets(ares_channel channel, struct server_state *server);
+/* Returns one of the normal ares status codes like ARES_SUCCESS */
+int ares__send_query(ares_channel channel, struct query *query,
+                     struct timeval *now);
+
+/* Identical to ares_query, but returns a normal ares return code like
+ * ARES_SUCCESS, and can be passed the qid by reference which will be
+ * filled in on ARES_SUCCESS */
+int ares_query_qid(ares_channel channel, const char *name,
+                              int dnsclass, int type, ares_callback callback,
+                              void *arg, unsigned short *qid);
+/* Identical to ares_send() except returns normal ares return codes like
+ * ARES_SUCCESS */
+int ares_send_ex(ares_channel channel, const unsigned char *qbuf, int qlen,
+                 ares_callback callback, void *arg);
+void ares__close_connection(struct server_connection *conn);
+void ares__close_sockets(struct server_state *server);
+void ares__check_cleanup_conn(ares_channel channel, ares_socket_t fd);
 int ares__get_hostent(FILE *fp, int family, struct hostent **host);
 int ares__read_line(FILE *fp, char **buf, size_t *bufsize);
 void ares__free_query(struct query *query);
 
 ares_rand_state *ares__init_rand_state(void);
 void ares__destroy_rand_state(ares_rand_state *state);
+void ares__rand_bytes(ares_rand_state *state, unsigned char *buf, size_t len);
+
 unsigned short ares__generate_new_id(ares_rand_state *state);
 struct timeval ares__tvnow(void);
 int ares__expand_name_validated(const unsigned char *encoded,
@@ -368,7 +381,7 @@ int ares__expand_name_validated(const unsigned char *encoded,
 int ares__expand_name_for_response(const unsigned char *encoded,
                                    const unsigned char *abuf, int alen,
                                    char **s, long *enclen, int is_hostname);
-void ares__init_servers_state(ares_channel channel);
+int ares__init_servers_state(ares_channel channel);
 void ares__destroy_servers_state(ares_channel channel);
 int ares__parse_qtype_reply(const unsigned char* abuf, int alen, int* qtype);
 int ares__single_domain(ares_channel channel, const char *name, char **s);
@@ -378,16 +391,12 @@ int ares__readaddrinfo(FILE *fp, const char *name, unsigned short port,
                        const struct ares_addrinfo_hints *hints,
                        struct ares_addrinfo *ai);
 
-struct ares_addrinfo *ares__malloc_addrinfo(void);
-
-struct ares_addrinfo_node *ares__malloc_addrinfo_node(void);
 void ares__freeaddrinfo_nodes(struct ares_addrinfo_node *ai_node);
 
 struct ares_addrinfo_node *ares__append_addrinfo_node(struct ares_addrinfo_node **ai_node);
 void ares__addrinfo_cat_nodes(struct ares_addrinfo_node **head,
                               struct ares_addrinfo_node *tail);
 
-struct ares_addrinfo_cname *ares__malloc_addrinfo_cname(void);
 void ares__freeaddrinfo_cnames(struct ares_addrinfo_cname *ai_cname);
 
 struct ares_addrinfo_cname *ares__append_addrinfo_cname(struct ares_addrinfo_cname **ai_cname);

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -109,65 +109,70 @@ sub tsignverify {
 
     $ENV{OPENSSL_CONF} = $defaultconf;
 
-    $sigfile = $nonfips_sigfile;
-    $testtext = $prefix.': '.
-        'Sign something with a non-FIPS key'.
-        ' with the default provider';
-    ok(run(app(['openssl', 'dgst', '-sha256',
-                '-sign', $nonfips_key,
-                '-out', $sigfile,
-                $tbs_data])),
-       $testtext);
+    SKIP : {
+        skip "FIPS failure testing", 6
+            if ($nonfips_key eq '');
 
-    $testtext = $prefix.': '.
-        'Verify something with a non-FIPS key'.
-        ' with the default provider';
-    ok(run(app(['openssl', 'dgst', '-sha256',
-                '-verify', $nonfips_pub_key,
-                '-signature', $sigfile,
-                $tbs_data])),
-       $testtext);
+        $sigfile = $nonfips_sigfile;
+        $testtext = $prefix.': '.
+            'Sign something with a non-FIPS key'.
+            ' with the default provider';
+        ok(run(app(['openssl', 'dgst', '-sha256',
+                    '-sign', $nonfips_key,
+                    '-out', $sigfile,
+                    $tbs_data])),
+           $testtext);
 
-    $ENV{OPENSSL_CONF} = $fipsconf;
+        $testtext = $prefix.': '.
+            'Verify something with a non-FIPS key'.
+            ' with the default provider';
+        ok(run(app(['openssl', 'dgst', '-sha256',
+                    '-verify', $nonfips_pub_key,
+                    '-signature', $sigfile,
+                    $tbs_data])),
+           $testtext);
 
-    $testtext = $prefix.': '.
-        'Sign something with a non-FIPS key'.
-        ' (should fail)';
-    ok(!run(app(['openssl', 'dgst', '-sha256',
-                 '-sign', $nonfips_key,
-                 '-out', $prefix.'.nonfips.fail.sig',
-                 $tbs_data])),
-       $testtext);
+        $ENV{OPENSSL_CONF} = $fipsconf;
 
-    $testtext = $prefix.': '.
-        'Verify something with a non-FIPS key'.
-        ' (should fail)';
-    ok(!run(app(['openssl', 'dgst', '-sha256',
-                 '-verify', $nonfips_pub_key,
-                 '-signature', $sigfile,
-                 $tbs_data])),
-       $testtext);
+        $testtext = $prefix.': '.
+            'Sign something with a non-FIPS key'.
+            ' (should fail)';
+        ok(!run(app(['openssl', 'dgst', '-sha256',
+                     '-sign', $nonfips_key,
+                     '-out', $prefix.'.nonfips.fail.sig',
+                     $tbs_data])),
+           $testtext);
 
-    $testtext = $prefix.': '.
-        'Verify something with a non-FIPS key'.
-		' in FIPS mode but with a non-FIPS property query';
-    ok(run(app(['openssl', 'dgst',
-				'-provider', 'default',
-				'-propquery', '?fips!=yes',
-				'-sha256',
-                '-verify', $nonfips_pub_key,
-                '-signature', $sigfile,
-                $tbs_data])),
-       $testtext);
+        $testtext = $prefix.': '.
+            'Verify something with a non-FIPS key'.
+            ' (should fail)';
+        ok(!run(app(['openssl', 'dgst', '-sha256',
+                     '-verify', $nonfips_pub_key,
+                     '-signature', $sigfile,
+                     $tbs_data])),
+           $testtext);
 
-    $testtext = $prefix.': '.
-        'Verify a valid signature against the wrong data with a non-FIPS key'.
-        ' (should fail)';
-    ok(!run(app(['openssl', 'dgst', '-sha256',
-                 '-verify', $nonfips_pub_key,
-                 '-signature', $sigfile,
-                 $bogus_data])),
-       $testtext);
+        $testtext = $prefix.': '.
+            'Verify something with a non-FIPS key'.
+		    ' in FIPS mode but with a non-FIPS property query';
+        ok(run(app(['openssl', 'dgst',
+				    '-provider', 'default',
+				    '-propquery', '?fips!=yes',
+				    '-sha256',
+                    '-verify', $nonfips_pub_key,
+                    '-signature', $sigfile,
+                    $tbs_data])),
+           $testtext);
+
+        $testtext = $prefix.': '.
+            'Verify a valid signature against the wrong data with a non-FIPS key'.
+            ' (should fail)';
+        ok(!run(app(['openssl', 'dgst', '-sha256',
+                     '-verify', $nonfips_pub_key,
+                     '-signature', $sigfile,
+                     $bogus_data])),
+           $testtext);
+   }
 }
 
 SKIP : {
@@ -395,7 +400,6 @@ SKIP : {
                     '-out', $testtext_prefix.'.fail.priv.pem'])),
             $testtext);
 
-        tsignverify($testtext_prefix, $fips_key, $fips_pub_key, $nonfips_key,
-                    $nonfips_pub_key);
+        tsignverify($testtext_prefix, $fips_key, $fips_pub_key, '', '');
     };
 }

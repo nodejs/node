@@ -176,16 +176,14 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
 // --- P r o c e s s o r ---
 // -------------------------
 
-
-static void LogCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() < 1) return;
-  Isolate* isolate = args.GetIsolate();
+static void LogCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() < 1) return;
+  Isolate* isolate = info.GetIsolate();
   HandleScope scope(isolate);
-  Local<Value> arg = args[0];
+  Local<Value> arg = info[0];
   String::Utf8Value value(isolate, arg);
   HttpRequestProcessor::Log(*value);
 }
-
 
 // Execute the script and fetch the Process method.
 bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
@@ -388,7 +386,7 @@ Local<Object> JsHttpRequestProcessor::WrapMap(map<string, string>* obj) {
 // Utility function that extracts the C++ map pointer from a wrapper
 // object.
 map<string, string>* JsHttpRequestProcessor::UnwrapMap(Local<Object> obj) {
-  Local<External> field = obj->GetInternalField(0).As<External>();
+  Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
   void* ptr = field->Value();
   return static_cast<map<string, string>*>(ptr);
 }
@@ -504,7 +502,7 @@ Local<Object> JsHttpRequestProcessor::WrapRequest(HttpRequest* request) {
  * wrapper object.
  */
 HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Local<Object> obj) {
-  Local<External> field = obj->GetInternalField(0).As<External>();
+  Local<External> field = obj->GetInternalField(0).As<Value>().As<External>();
   void* ptr = field->Value();
   return static_cast<HttpRequest*>(ptr);
 }

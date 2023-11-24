@@ -135,6 +135,19 @@ npm query ":type(git)" | jq 'map(.name)' | xargs -I {} npm why {}
   },
   ...
 ```
+### Package lock only mode
+
+If package-lock-only is enabled, only the information in the package
+lock (or shrinkwrap) is loaded.  This means that information from the
+package.json files of your dependencies will not be included in the
+result set (e.g. description, homepage, engines).
+
+### Package lock only mode
+
+If package-lock-only is enabled, only the information in the package
+lock (or shrinkwrap) is loaded.  This means that information from the
+package.json files of your dependencies will not be included in the
+result set (e.g. description, homepage, engines).
 
 ### Configuration
 
@@ -206,6 +219,22 @@ all workspaces via the `workspaces` flag, will cause npm to operate only on
 the specified workspaces, and not on the root project.
 
 This value is not exported to the environment for child processes.
+
+#### `package-lock-only`
+
+* Default: false
+* Type: Boolean
+
+If set to true, the current operation will only use the `package-lock.json`,
+ignoring `node_modules`.
+
+For `update` this means only the `package-lock.json` will be updated,
+instead of checking `node_modules` and downloading dependencies.
+
+For `list` this means the output will be based on the tree described by the
+`package-lock.json`, rather than the contents of `node_modules`.
+
+
 ## See Also
 
 * [dependency selectors](/using-npm/dependency-selectors)

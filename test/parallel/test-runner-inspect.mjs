@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
-import * as tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
+import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -61,7 +61,7 @@ tmpdir.refresh();
 
 // Outputs coverage when event loop is drained, with no async logic.
 {
-  const coverageDirectory = path.join(tmpdir.path, 'coverage');
+  const coverageDirectory = tmpdir.resolve('coverage');
   async function getCoveredFiles() {
     const coverageFiles = await fs.readdir(coverageDirectory);
     const files = new Set();
