@@ -8,6 +8,7 @@
 #include "include/v8-context.h"
 #include "include/v8-function.h"
 #include "include/v8-microtask-queue.h"
+#include "include/v8-profiler.h"
 #include "include/v8-util.h"
 #include "src/inspector/inspected-context.h"
 #include "src/inspector/protocol/Protocol.h"
@@ -38,7 +39,7 @@ void cleanupExpiredWeakPointers(Map& map) {
   }
 }
 
-class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
+class MatchPrototypePredicate : public v8::QueryObjectPredicate {
  public:
   MatchPrototypePredicate(V8InspectorImpl* inspector,
                           v8::Local<v8::Context> context,
@@ -994,7 +995,7 @@ v8::Local<v8::Array> V8Debugger::queryObjects(v8::Local<v8::Context> context,
   v8::Isolate* isolate = context->GetIsolate();
   std::vector<v8::Global<v8::Object>> v8_objects;
   MatchPrototypePredicate predicate(m_inspector, context, prototype);
-  v8::debug::QueryObjects(context, &predicate, &v8_objects);
+  isolate->GetHeapProfiler()->QueryObjects(context, &predicate, &v8_objects);
 
   v8::MicrotasksScope microtasksScope(context,
                                       v8::MicrotasksScope::kDoNotRunMicrotasks);
