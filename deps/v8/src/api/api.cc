@@ -10917,6 +10917,16 @@ int HeapProfiler::GetSnapshotCount() {
   return reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshotsCount();
 }
 
+void HeapProfiler::QueryObjects(Local<Context> v8_context,
+                                QueryObjectPredicate* predicate,
+                                std::vector<Global<Object>>* objects) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_context->GetIsolate());
+  i::HeapProfiler* profiler = reinterpret_cast<i::HeapProfiler*>(this);
+  DCHECK_EQ(isolate, profiler->isolate());
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  profiler->QueryObjects(Utils::OpenHandle(*v8_context), predicate, objects);
+}
+
 const HeapSnapshot* HeapProfiler::GetHeapSnapshot(int index) {
   return reinterpret_cast<const HeapSnapshot*>(
       reinterpret_cast<i::HeapProfiler*>(this)->GetSnapshot(index));
