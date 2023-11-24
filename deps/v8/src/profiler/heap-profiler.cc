@@ -245,7 +245,7 @@ Heap* HeapProfiler::heap() const { return ids_->heap(); }
 Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
 void HeapProfiler::QueryObjects(Handle<Context> context,
-                                debug::QueryObjectPredicate* predicate,
+                                v8::QueryObjectPredicate* predicate,
                                 std::vector<v8::Global<v8::Object>>* objects) {
   {
     HandleScope handle_scope(isolate());

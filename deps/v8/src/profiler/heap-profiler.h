@@ -88,8 +88,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context,
-                    debug::QueryObjectPredicate* predicate,
+  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
 
  private:
