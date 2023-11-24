@@ -30,7 +30,7 @@ class StringsStorage;
 // generate consistent IDs for moved objects.
 class HeapProfilerNativeMoveListener {
  public:
-  HeapProfilerNativeMoveListener(HeapProfiler* profiler)
+  explicit HeapProfilerNativeMoveListener(HeapProfiler* profiler)
       : profiler_(profiler) {}
   HeapProfilerNativeMoveListener(const HeapProfilerNativeMoveListener& other) =
       delete;
@@ -119,8 +119,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context,
-                    debug::QueryObjectPredicate* predicate,
+  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
   void set_native_move_listener(
       std::unique_ptr<HeapProfilerNativeMoveListener> listener) {

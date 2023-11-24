@@ -30,6 +30,7 @@
 #include <ctype.h>
 
 #include <memory>
+#include <vector>
 
 #include "include/v8-function.h"
 #include "include/v8-json.h"
@@ -4066,6 +4067,67 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
       heap_profiler->GetAllocationProfile());
   CHECK(profile);
   heap_profiler->StopSamplingHeapProfiler();
+}
+
+namespace {
+class TestQueryObjectPredicate : public v8::QueryObjectPredicate {
+ public:
+  TestQueryObjectPredicate(v8::Local<v8::Context> context,
+                           v8::Local<v8::Symbol> symbol)
+      : context_(context), symbol_(symbol) {}
+
+  bool Filter(v8::Local<v8::Object> object) override {
+    return object->HasOwnProperty(context_, symbol_).FromMaybe(false);
+  }
+
+ private:
+  v8::Local<v8::Context> context_;
+  v8::Local<v8::Symbol> symbol_;
+};
+
+class IncludeAllQueryObjectPredicate : public v8::QueryObjectPredicate {
+ public:
+  IncludeAllQueryObjectPredicate() {}
+  bool Filter(v8::Local<v8::Object> object) override { return true; }
+};
+}  // anonymous namespace
+
+TEST(QueryObjects) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context = env.local();
+
+  v8::Local<v8::Symbol> sym =
+      v8::Symbol::New(isolate, v8_str("query_object_test"));
+  context->Global()->Set(context, v8_str("test_symbol"), sym).Check();
+  v8::Local<v8::Value> arr = CompileRun(R"(
+      const arr = [];
+      for (let i = 0; i < 10; ++i) {
+        arr.push({[test_symbol]: true});
+      }
+      arr;
+    )");
+  context->Global()->Set(context, v8_str("arr"), arr).Check();
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+
+  {
+    TestQueryObjectPredicate predicate(context, sym);
+    std::vector<v8::Global<v8::Object>> out;
+    heap_profiler->QueryObjects(context, &predicate, &out);
+
+    CHECK_EQ(out.size(), 10);
+    for (size_t i = 0; i < out.size(); ++i) {
+      CHECK(out[i].Get(isolate)->HasOwnProperty(context, sym).FromMaybe(false));
+    }
+  }
+
+  {
+    IncludeAllQueryObjectPredicate predicate;
+    std::vector<v8::Global<v8::Object>> out;
+    heap_profiler->QueryObjects(context, &predicate, &out);
+    CHECK_GE(out.size(), 10);
+  }
 }
 
 TEST(WeakReference) {

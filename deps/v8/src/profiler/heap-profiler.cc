@@ -283,7 +283,7 @@ Heap* HeapProfiler::heap() const { return ids_->heap(); }
 Isolate* HeapProfiler::isolate() const { return heap()->isolate(); }
 
 void HeapProfiler::QueryObjects(Handle<Context> context,
-                                debug::QueryObjectPredicate* predicate,
+                                v8::QueryObjectPredicate* predicate,
                                 std::vector<v8::Global<v8::Object>>* objects) {
   // We need a stack marker here to allow deterministic passes over the stack.
   // The garbage collection and the two object heap iterators should scan the
