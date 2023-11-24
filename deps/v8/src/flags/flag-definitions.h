@@ -274,7 +274,6 @@ DEFINE_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_import_assertions, "harmony import assertions")            \
   V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")  \
   V(harmony_change_array_by_copy, "harmony change-Array-by-copy")      \
-  V(harmony_string_is_well_formed, "harmony String#{is,to}WellFormed") \
   V(harmony_rab_gsab,                                                  \
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")        \
   V(harmony_regexp_unicode_sets, "harmony RegExp Unicode Sets")
