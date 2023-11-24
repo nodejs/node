@@ -168,6 +168,11 @@ local const config configuration_table[10] = {
  * bit values at the expense of memory usage). We slide even when level == 0 to
  * keep the hash table consistent if we switch back to level > 0 later.
  */
+#if defined(__has_feature)
+#  if __has_feature(memory_sanitizer)
+     __attribute__((no_sanitize("memory")))
+#  endif
+#endif
 local void slide_hash(deflate_state *s) {
 #if defined(DEFLATE_SLIDE_HASH_SSE2) || defined(DEFLATE_SLIDE_HASH_NEON)
     slide_hash_simd(s->head, s->prev, s->w_size, s->hash_size);
