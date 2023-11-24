@@ -2114,6 +2114,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kStringPrototypeIncludes, 1, false);
     SimpleInstallFunction(isolate_, prototype, "indexOf",
                           Builtin::kStringPrototypeIndexOf, 1, false);
+    SimpleInstallFunction(isolate(), prototype, "isWellFormed",
+                          Builtin::kStringPrototypeIsWellFormed, 0, false);
     SimpleInstallFunction(isolate_, prototype, "italics",
                           Builtin::kStringPrototypeItalics, 0, false);
     SimpleInstallFunction(isolate_, prototype, "lastIndexOf",
@@ -2170,6 +2172,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(isolate_, prototype, "toString",
                           Builtin::kStringPrototypeToString, 0, true);
+    SimpleInstallFunction(isolate(), prototype, "toWellFormed",
+                          Builtin::kStringPrototypeToWellFormed, 0, false);
     SimpleInstallFunction(isolate_, prototype, "trim",
                           Builtin::kStringPrototypeTrim, 0, false);
 
@@ -4957,18 +4961,6 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
                       Builtin::kSharedArrayBufferPrototypeGetGrowable, false);
   SimpleInstallFunction(isolate(), shared_array_buffer_prototype, "grow",
                         Builtin::kSharedArrayBufferPrototypeGrow, 1, true);
-}
-
-void Genesis::InitializeGlobal_harmony_string_is_well_formed() {
-  if (!v8_flags.harmony_string_is_well_formed) return;
-  Handle<JSFunction> string_function(native_context()->string_function(),
-                                     isolate());
-  Handle<JSObject> string_prototype(
-      JSObject::cast(string_function->initial_map().prototype()), isolate());
-  SimpleInstallFunction(isolate(), string_prototype, "isWellFormed",
-                        Builtin::kStringPrototypeIsWellFormed, 0, false);
-  SimpleInstallFunction(isolate(), string_prototype, "toWellFormed",
-                        Builtin::kStringPrototypeToWellFormed, 0, false);
 }
 
 void Genesis::InitializeGlobal_harmony_temporal() {
