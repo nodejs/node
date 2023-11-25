@@ -756,7 +756,7 @@ describe('Loader hooks', { concurrency: true }, () => {
           if (s.endsWith('entry-point')) {
             return {
               shortCircuit: true,
-              url: 'file:///virtual-entry-point',
+              url: 'file:///c:/virtual-entry-point',
               format: 'commonjs',
             };
           }
@@ -764,7 +764,7 @@ describe('Loader hooks', { concurrency: true }, () => {
         })
       }export ${
         encodeURIComponent(async function load(u, c, n) {
-          if (u === 'file:///virtual-entry-point') {
+          if (u === 'file:///c:/virtual-entry-point') {
             return {
               shortCircuit: true,
               source: `"use strict";require(${JSON.stringify(fixtures)});console.log("Hello");`,
