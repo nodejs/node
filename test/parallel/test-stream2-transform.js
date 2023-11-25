@@ -417,7 +417,7 @@ const { PassThrough, Transform } = require('stream');
     jp.write(JSON.stringify(obj));
     const res = jp.read();
     assert.deepStrictEqual(res, obj);
-  };
+  }
 
   jp.end();
   // Read one more time to get the 'end' event
