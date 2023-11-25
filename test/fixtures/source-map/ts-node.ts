@@ -4,7 +4,7 @@ function foo(str: string) {
 
 foo('noop');
 
-// To recreate (only on windows):
+// To recreate (Windows only):
 //
 // const filePath = require.resolve('./test/fixtures/source-map/ts-node.ts');
 // const compiled = require('ts-node').create({ transpileOnly: true }).compile(fs.readFileSync(filePath, 'utf8'), filePath);

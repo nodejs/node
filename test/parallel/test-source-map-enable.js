@@ -289,7 +289,7 @@ function nextdir() {
   assert.match(output.stderr.toString(), /at functionC.*10:3/);
 }
 
-// Properly converts windows absolute paths to absolute URLs
+// Properly converts Windows absolute paths to absolute URLs.
 // Refs: https://github.com/nodejs/node/issues/50523
 // Refs: https://github.com/TypeStrong/ts-node/issues/1769
 {
