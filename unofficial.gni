@@ -257,10 +257,11 @@ template("node_gn_build") {
     script = "tools/generate_config_gypi.py"
     outputs = [ "$target_gen_dir/config.gypi" ]
     depfile = "$target_gen_dir/$target_name.d"
-    script_args = [ "$root_build_dir" ]
-    script_args += outputs
-    script_args += [ depfile ]
-    args = rebase_path(script_args, root_build_dir)
+    args = rebase_path(outputs, root_build_dir) + [
+      "--out-dir", rebase_path(root_build_dir, root_build_dir),
+      "--dep-file", rebase_path(depfile, root_build_dir),
+      "--node-gn-path", node_path,
+    ]
   }
 
   executable("node_js2c") {
