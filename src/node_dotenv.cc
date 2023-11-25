@@ -2,8 +2,13 @@
 #include "env-inl.h"
 #include "node_file.h"
 #include "uv.h"
+#include "node_dotenv.h"
+#include "env-inl.h"
+#include "node_file.h"
+#include "uv.h"
 
 namespace node {
+using cppnv::EnvKey;
 using cppnv::EnvPair;
 using cppnv::EnvReader;
 using cppnv::EnvStream;
@@ -57,17 +62,11 @@ void Dotenv::SetEnvironment(node::Environment* env) {
       env->env_vars()->Set(
           isolate,
           v8::String::NewFromUtf8(
-              isolate,
-              key.data(),
-              NewStringType::kNormal,
-              key.size())
-          .ToLocalChecked(),
+              isolate, key.data(), NewStringType::kNormal, key.size())
+              .ToLocalChecked(),
           v8::String::NewFromUtf8(
-              isolate,
-              value.data(),
-              NewStringType::kNormal,
-              value.size())
-          .ToLocalChecked());
+              isolate, value.data(), NewStringType::kNormal, value.size())
+              .ToLocalChecked());
     }
   }
 }
@@ -106,7 +105,6 @@ bool Dotenv::ParsePath(const std::string_view path) {
     result.append(buf.base, r);
   }
 
-
   EnvStream env_stream(&result);
 
   std::vector<EnvPair*> env_pairs;
@@ -117,7 +115,6 @@ bool Dotenv::ParsePath(const std::string_view path) {
     store_.insert_or_assign(*pair->key->key, *pair->value->value);
   }
   EnvReader::delete_pairs(&env_pairs);
-
   return true;
 }
 
@@ -175,13 +172,14 @@ void Dotenv::ParseLine(const std::string_view line) {
     // Remove any leading/trailing spaces from unquoted values.
     while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
     while (!value.empty() && std::isspace(value.back()))
-      value.erase(
-          value.size() - 1);
+      value.erase(value.size() - 1);
   }
 
   store_.insert_or_assign(std::string(key), value);
 }
+
 }  // namespace node
+
 
 namespace cppnv {
 VariablePosition::VariablePosition(const int variable_start,
@@ -500,10 +498,7 @@ bool EnvReader::process_possible_control_character(
 }
 
 void EnvReader::walk_back_slashes(EnvValue* value) {
-  const int total_backslash_pairs = value->back_slash_streak / 2;
-  // how many \\ in a row
-
-  if (total_backslash_pairs > 0) {
+  if (const int total_backslash_pairs = value->back_slash_streak / 2; total_backslash_pairs > 0) {
     for (int i = 0; i < total_backslash_pairs; i++) {
       add_to_buffer(value, '\\');
     }
@@ -517,17 +512,15 @@ void EnvReader::close_variable(EnvValue* value) {
       value->interpolation_index);
   interpolation->end_brace = value->value_index - 1;
   interpolation->variable_end = value->value_index - 2;
-  const auto left_whitespace = get_white_space_offset_left(
+  if (const auto left_whitespace = get_white_space_offset_left(
       value->value,
-      interpolation);
-  if (left_whitespace > 0) {
+      interpolation); left_whitespace > 0) {
     interpolation->variable_start =
         interpolation->variable_start + left_whitespace;
   }
-  const auto right_whitespace = get_white_space_offset_right(
+  if (const auto right_whitespace = get_white_space_offset_right(
       value->value,
-      interpolation);
-  if (right_whitespace > 0) {
+      interpolation); right_whitespace > 0) {
     interpolation->variable_end =
         interpolation->variable_end - right_whitespace;
   }
@@ -630,10 +623,6 @@ bool EnvReader::walk_double_quotes(EnvValue* value) {
  * \return True if end quotes detected and input should stop, false otherwise
  */
 bool EnvReader::walk_single_quotes(EnvValue* value) {
-  // if (value->quoted && value->single_quote_streak == 0) {
-  //   return true;
-  // }
-
   // we have have some quotes at the start
   if (value->value_index == 0) {
     if (value->single_quote_streak == 1) {
@@ -645,7 +634,7 @@ bool EnvReader::walk_single_quotes(EnvValue* value) {
     if (value->single_quote_streak == 2) {
       value->single_quote_streak = 0;
       value->quoted = true;
-      return true;  // we have a  empy quote at the start
+      return true;  // we have a  empty quote at the start
     }
     if (value->single_quote_streak == 3) {
       value->single_quote_streak = 0;
@@ -875,22 +864,10 @@ EnvReader::read_result EnvReader::read_value(EnvStream* file,
     if (key_char < 0) {
       break;
     }
-    // if (clear_newline_or_comment(file, value, key_char, ret_val))
-    //   break;
+
     if (read_next_char(value, key_char) && file->good()) {
       continue;
     }
-    // if (!(value->triple_double_quoted || value->triple_quoted)) {
-    //   if (key_char == '\n') {
-    //     break;
-    //   }
-    // }
-
-    // if (value->triple_double_quoted || value->triple_quoted) {
-    //   if (key_char != '\n') {
-    //     clear_garbage(file);
-    //   }
-    // }
     break;
   }
   if (value->back_slash_streak > 0) {
