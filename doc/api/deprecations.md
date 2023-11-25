@@ -148,7 +148,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (non-`node_modules` code only)
+Type: Application (non-`node_modules` code only)
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can lead to accidental security issues.
