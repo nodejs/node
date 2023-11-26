@@ -1,4 +1,4 @@
-/* auto-generated on 2023-11-15 17:34:03 -0500. Do not edit! */
+/* auto-generated on 2023-11-22 11:07:54 -0500. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 /* begin file src/implementation.cpp */
@@ -201,118 +201,53 @@ namespace simd {
 namespace {
 // Start of private section with Visual Studio workaround
 
+#ifndef simdutf_make_uint8x16_t
+#define simdutf_make_uint8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                   \
+   ([=]() {                                                                        \
+     static uint8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,             \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};           \
+     return vld1q_u8(array);                                                       \
+   }())
+#endif
+#ifndef simdutf_make_int8x16_t
+#define simdutf_make_int8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                  \
+   ([=]() {                                                                       \
+     static int8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,             \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};          \
+     return vld1q_s8(array);                                                      \
+   }())
+#endif
 
-/**
- * make_uint8x16_t initializes a SIMD register (uint8x16_t).
- * This is needed because, incredibly, the syntax uint8x16_t x = {1,2,3...}
- * is not recognized under Visual Studio! This is a workaround.
- * Using a std::initializer_list<uint8_t>  as a parameter resulted in
- * inefficient code. With the current approach, if the parameters are
- * compile-time constants,
- * GNU GCC compiles it to ldr, the same as uint8x16_t x = {1,2,3...}.
- * You should not use this function except for compile-time constants:
- * it is not efficient.
- */
-simdutf_really_inline uint8x16_t make_uint8x16_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8,
-                                         uint8_t x9,  uint8_t x10, uint8_t x11, uint8_t x12,
-                                         uint8_t x13, uint8_t x14, uint8_t x15, uint8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // uint8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_u8(array);
-  uint8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_u8(x1, x, 0);
-  x = vsetq_lane_u8(x2, x, 1);
-  x = vsetq_lane_u8(x3, x, 2);
-  x = vsetq_lane_u8(x4, x, 3);
-  x = vsetq_lane_u8(x5, x, 4);
-  x = vsetq_lane_u8(x6, x, 5);
-  x = vsetq_lane_u8(x7, x, 6);
-  x = vsetq_lane_u8(x8, x, 7);
-  x = vsetq_lane_u8(x9, x, 8);
-  x = vsetq_lane_u8(x10, x, 9);
-  x = vsetq_lane_u8(x11, x, 10);
-  x = vsetq_lane_u8(x12, x, 11);
-  x = vsetq_lane_u8(x13, x, 12);
-  x = vsetq_lane_u8(x14, x, 13);
-  x = vsetq_lane_u8(x15, x, 14);
-  x = vsetq_lane_u8(x16, x, 15);
-  return x;
-}
-
-// We have to do the same work for make_int8x16_t
-simdutf_really_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int8_t x4,
-                                       int8_t x5,  int8_t x6,  int8_t x7,  int8_t x8,
-                                       int8_t x9,  int8_t x10, int8_t x11, int8_t x12,
-                                       int8_t x13, int8_t x14, int8_t x15, int8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // int8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_s8(array);
-  int8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_s8(x1, x, 0);
-  x = vsetq_lane_s8(x2, x, 1);
-  x = vsetq_lane_s8(x3, x, 2);
-  x = vsetq_lane_s8(x4, x, 3);
-  x = vsetq_lane_s8(x5, x, 4);
-  x = vsetq_lane_s8(x6, x, 5);
-  x = vsetq_lane_s8(x7, x, 6);
-  x = vsetq_lane_s8(x8, x, 7);
-  x = vsetq_lane_s8(x9, x, 8);
-  x = vsetq_lane_s8(x10, x, 9);
-  x = vsetq_lane_s8(x11, x, 10);
-  x = vsetq_lane_s8(x12, x, 11);
-  x = vsetq_lane_s8(x13, x, 12);
-  x = vsetq_lane_s8(x14, x, 13);
-  x = vsetq_lane_s8(x15, x, 14);
-  x = vsetq_lane_s8(x16, x, 15);
-  return x;
-}
-
-simdutf_really_inline uint8x8_t make_uint8x8_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8) {
-  uint8x8_t x{};
-  x = vset_lane_u8(x1, x, 0);
-  x = vset_lane_u8(x2, x, 1);
-  x = vset_lane_u8(x3, x, 2);
-  x = vset_lane_u8(x4, x, 3);
-  x = vset_lane_u8(x5, x, 4);
-  x = vset_lane_u8(x6, x, 5);
-  x = vset_lane_u8(x7, x, 6);
-  x = vset_lane_u8(x8, x, 7);
-  return x;
-}
-
-simdutf_really_inline uint16x8_t make_uint16x8_t(uint16_t x1,  uint16_t x2,  uint16_t x3,  uint16_t x4,
-                                       uint16_t x5,  uint16_t x6,  uint16_t x7,  uint16_t x8) {
-  uint16x8_t x{};
-  x = vsetq_lane_u16(x1, x, 0);
-  x = vsetq_lane_u16(x2, x, 1);
-  x = vsetq_lane_u16(x3, x, 2);
-  x = vsetq_lane_u16(x4, x, 3);
-  x = vsetq_lane_u16(x5, x, 4);
-  x = vsetq_lane_u16(x6, x, 5);
-  x = vsetq_lane_u16(x7, x, 6);
-  x = vsetq_lane_u16(x8, x, 7);;
-  return x;
-}
-
-simdutf_really_inline int16x8_t make_int16x8_t(int16_t x1,  int16_t x2,  int16_t x3,  int16_t x4,
-                                       int16_t x5,  int16_t x6,  int16_t x7,  int16_t x8) {
-  uint16x8_t x{};
-  x = vsetq_lane_s16(x1, x, 0);
-  x = vsetq_lane_s16(x2, x, 1);
-  x = vsetq_lane_s16(x3, x, 2);
-  x = vsetq_lane_s16(x4, x, 3);
-  x = vsetq_lane_s16(x5, x, 4);
-  x = vsetq_lane_s16(x6, x, 5);
-  x = vsetq_lane_s16(x7, x, 6);
-  x = vsetq_lane_s16(x8, x, 7);;
-  return x;
-}
+#ifndef simdutf_make_uint8x8_t
+#define simdutf_make_uint8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                   \
+     static uint8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};        \
+     return vld1_u8(array);                                                   \
+   }())
+#endif
+#ifndef simdutf_make_int8x8_t
+#define simdutf_make_int8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                 \
+   ([=]() {                                                                   \
+     static int8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};         \
+     return vld1_s8(array);                                                   \
+   }())
+#endif
+#ifndef simdutf_make_uint16x8_t
+#define simdutf_make_uint16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                    \
+     static uint16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};        \
+     return vld1q_u16(array);                                                  \
+   }())
+#endif
+#ifndef simdutf_make_int16x8_t
+#define simdutf_make_int16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                 \
+   ([=]() {                                                                    \
+     static int16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};         \
+     return vld1q_s16(array);                                                  \
+   }())
+#endif
 
 
 // End of private section with Visual Studio workaround
@@ -375,7 +310,7 @@ simdutf_really_inline int16x8_t make_int16x8_t(int16_t x1,  int16_t x2,  int16_t
     // purposes (cutting it down to uint16_t costs performance in some compilers).
     simdutf_really_inline uint32_t to_bitmask() const {
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask =  make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+      const uint8x16_t bit_mask =  simdutf_make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
                                                    0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80);
 #else
       const uint8x16_t bit_mask =  {0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
@@ -422,7 +357,7 @@ simdutf_really_inline int16x8_t make_int16x8_t(int16_t x1,  int16_t x2,  int16_t
     simdutf_really_inline simd8(
       uint8_t v0,  uint8_t v1,  uint8_t v2,  uint8_t v3,  uint8_t v4,  uint8_t v5,  uint8_t v6,  uint8_t v7,
       uint8_t v8,  uint8_t v9,  uint8_t v10, uint8_t v11, uint8_t v12, uint8_t v13, uint8_t v14, uint8_t v15
-    ) : simd8(make_uint8x16_t(
+    ) : simd8(simdutf_make_uint8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -595,7 +530,7 @@ simdutf_really_inline int16x8_t make_int16x8_t(int16_t x1,  int16_t x2,  int16_t
     simdutf_really_inline simd8(
       int8_t v0,  int8_t v1,  int8_t v2,  int8_t v3, int8_t v4,  int8_t v5,  int8_t v6,  int8_t v7,
       int8_t v8,  int8_t v9,  int8_t v10, int8_t v11, int8_t v12, int8_t v13, int8_t v14, int8_t v15
-    ) : simd8(make_int8x16_t(
+    ) : simd8(simdutf_make_int8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -737,7 +672,7 @@ simdutf_really_inline int16x8_t make_int16x8_t(int16_t x1,  int16_t x2,  int16_t
 
     simdutf_really_inline uint64_t to_bitmask() const {
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask = make_uint8x16_t(
+      const uint8x16_t bit_mask = simdutf_make_uint8x16_t(
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80
       );
@@ -1042,7 +977,7 @@ simdutf_really_inline simd16<int16_t>::operator simd16<uint16_t>() const { retur
 
     simdutf_really_inline uint64_t to_bitmask() const {
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask = make_uint8x16_t(
+      const uint8x16_t bit_mask = simdutf_make_uint8x16_t(
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80
       );
@@ -4364,16 +4299,6 @@ inline size_t utf16_length_from_utf8(const char* buf, size_t len) {
         if(uint8_t(p[i]) >= 240) { counter++; }
     }
     return counter;
-}
-
-inline size_t latin1_length_from_utf8(const char *buf, size_t len) {
-  const uint8_t * c = reinterpret_cast<const uint8_t *>(buf);
-
-    size_t answer = len;
-    for(size_t i = 0; i < len; i++) {
-        if((c[i] & 0b11100000) == 0b11000000) { answer--; } // if we have a two-byte UTF8 character
-    }
-    return answer;
 }
 
 simdutf_warn_unused inline size_t trim_partial_utf8(const char *input, size_t length) {
@@ -12175,15 +12100,6 @@ inline size_t convert(const char *buf, size_t len, char32_t *utf32_output) {
   return utf32_output - start;
 }
 
-inline result convert_with_errors(const char32_t *buf, size_t len, char32_t *utf32_output) {
-  const uint32_t *data = reinterpret_cast<const uint32_t *>(buf);
-  char32_t* start{utf32_output};
-  for (size_t i = 0; i < len; i++) {
-    *utf32_output++ = (char32_t)data[i];
-  }
-  return result(error_code::SUCCESS, utf32_output - start);
-}
-
 } // latin1_to_utf32 namespace
 } // unnamed namespace
 } // namespace scalar
@@ -12685,7 +12601,7 @@ simdutf_really_inline uint16x4_t convert_utf8_3_byte_to_utf16(uint8x16_t in) {
   // Low half contains  10cccccc|1110aaaa
   // High half contains 10bbbbbb|10bbbbbb
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-  const uint8x16_t sh = make_uint8x16_t(0, 2, 3, 5, 6, 8, 9, 11, 1, 1, 4, 4, 7, 7, 10, 10);
+  const uint8x16_t sh = simdutf_make_uint8x16_t(0, 2, 3, 5, 6, 8, 9, 11, 1, 1, 4, 4, 7, 7, 10, 10);
 #else
   const uint8x16_t sh = {0, 2, 3, 5, 6, 8, 9, 11, 1, 1, 4, 4, 7, 7, 10, 10};
 #endif
@@ -13210,7 +13126,7 @@ arm_convert_latin1_to_utf8(const char *latin1_input, size_t len,
         vreinterpretq_u8_u16(vbslq_u16(one_byte_bytemask, in16, t4));
     // 3. prepare bitmask for 8-bit lookup
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-    const uint16x8_t mask = make_uint16x8_t(0x0001, 0x0004, 0x0010, 0x0040,
+    const uint16x8_t mask = simdutf_make_uint16x8_t(0x0001, 0x0004, 0x0010, 0x0040,
                                             0x0002, 0x0008, 0x0020, 0x0080);
 #else
     const uint16x8_t mask = {0x0001, 0x0004, 0x0010, 0x0040,
@@ -13953,7 +13869,7 @@ std::pair<const char16_t*, char*> arm_convert_utf16_to_utf8(const char16_t* buf,
           const uint8x16_t utf8_unpacked = vreinterpretq_u8_u16(vbslq_u16(one_byte_bytemask, in, t4));
           // 3. prepare bitmask for 8-bit lookup
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t mask = make_uint16x8_t(0x0001, 0x0004,
+          const uint16x8_t mask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                     0x0010, 0x0040,
                                     0x0002, 0x0008,
                                     0x0020, 0x0080);
@@ -13984,7 +13900,7 @@ std::pair<const char16_t*, char*> arm_convert_utf16_to_utf8(const char16_t* buf,
     if (vmaxvq_u16(surrogates_bytemask) == 0) {
         // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t dup_even = make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
+        const uint16x8_t dup_even = simdutf_make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
                                      0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
 #else
         const uint16x8_t dup_even = {0x0000, 0x0202, 0x0404, 0x0606,
@@ -14046,11 +13962,11 @@ std::pair<const char16_t*, char*> arm_convert_utf16_to_utf8(const char16_t* buf,
         const uint16x8_t v_007f = vmovq_n_u16((uint16_t)0x007F);
         const uint16x8_t one_byte_bytemask = vcleq_u16(in, v_007f);
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t onemask = make_uint16x8_t(0x0001, 0x0004,
+        const uint16x8_t onemask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                     0x0010, 0x0040,
                                     0x0100, 0x0400,
                                     0x1000, 0x4000 );
-        const uint16x8_t twomask = make_uint16x8_t(0x0002, 0x0008,
+        const uint16x8_t twomask = simdutf_make_uint16x8_t(0x0002, 0x0008,
                                     0x0020, 0x0080,
                                     0x0200, 0x0800,
                                     0x2000, 0x8000 );
@@ -14206,7 +14122,7 @@ std::pair<result, char*> arm_convert_utf16_to_utf8_with_errors(const char16_t* b
           const uint8x16_t utf8_unpacked = vreinterpretq_u8_u16(vbslq_u16(one_byte_bytemask, in, t4));
           // 3. prepare bitmask for 8-bit lookup
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t mask = make_uint16x8_t(0x0001, 0x0004,
+          const uint16x8_t mask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                     0x0010, 0x0040,
                                     0x0002, 0x0008,
                                     0x0020, 0x0080);
@@ -14237,7 +14153,7 @@ std::pair<result, char*> arm_convert_utf16_to_utf8_with_errors(const char16_t* b
     if (vmaxvq_u16(surrogates_bytemask) == 0) {
         // case: code units from register produce either 1, 2 or 3 UTF-8 bytes
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t dup_even = make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
+        const uint16x8_t dup_even = simdutf_make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
                                      0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
 #else
         const uint16x8_t dup_even = {0x0000, 0x0202, 0x0404, 0x0606,
@@ -14299,11 +14215,11 @@ std::pair<result, char*> arm_convert_utf16_to_utf8_with_errors(const char16_t* b
         const uint16x8_t v_007f = vmovq_n_u16((uint16_t)0x007F);
         const uint16x8_t one_byte_bytemask = vcleq_u16(in, v_007f);
 #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t onemask = make_uint16x8_t(0x0001, 0x0004,
+        const uint16x8_t onemask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                     0x0010, 0x0040,
                                     0x0100, 0x0400,
                                     0x1000, 0x4000 );
-        const uint16x8_t twomask = make_uint16x8_t(0x0002, 0x0008,
+        const uint16x8_t twomask = simdutf_make_uint16x8_t(0x0002, 0x0008,
                                     0x0020, 0x0080,
                                     0x0200, 0x0800,
                                     0x2000, 0x8000 );
@@ -14661,7 +14577,7 @@ std::pair<const char32_t*, char*> arm_convert_utf32_to_utf8(const char32_t* buf,
         const uint8x16_t utf8_unpacked = vreinterpretq_u8_u16(vbslq_u16(one_byte_bytemask, utf16_packed, t4));
         // 3. prepare bitmask for 8-bit lookup
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t mask = make_uint16x8_t(0x0001, 0x0004,
+        const uint16x8_t mask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                   0x0010, 0x0040,
                                   0x0002, 0x0008,
                                   0x0020, 0x0080);
@@ -14691,7 +14607,7 @@ std::pair<const char32_t*, char*> arm_convert_utf32_to_utf8(const char32_t* buf,
         forbidden_bytemask = vorrq_u16(vandq_u16(vcleq_u16(utf16_packed, v_dfff), vcgeq_u16(utf16_packed, v_d800)), forbidden_bytemask);
 
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t dup_even = make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
+          const uint16x8_t dup_even = simdutf_make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
                                       0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
   #else
           const uint16x8_t dup_even = {0x0000, 0x0202, 0x0404, 0x0606,
@@ -14753,11 +14669,11 @@ std::pair<const char32_t*, char*> arm_convert_utf32_to_utf8(const char32_t* buf,
           const uint16x8_t v_007f = vmovq_n_u16((uint16_t)0x007F);
           const uint16x8_t one_byte_bytemask = vcleq_u16(utf16_packed, v_007f);
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t onemask = make_uint16x8_t(0x0001, 0x0004,
+          const uint16x8_t onemask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                       0x0010, 0x0040,
                                       0x0100, 0x0400,
                                       0x1000, 0x4000 );
-          const uint16x8_t twomask = make_uint16x8_t(0x0002, 0x0008,
+          const uint16x8_t twomask = simdutf_make_uint16x8_t(0x0002, 0x0008,
                                       0x0020, 0x0080,
                                       0x0200, 0x0800,
                                       0x2000, 0x8000 );
@@ -14894,7 +14810,7 @@ std::pair<result, char*> arm_convert_utf32_to_utf8_with_errors(const char32_t* b
         const uint8x16_t utf8_unpacked = vreinterpretq_u8_u16(vbslq_u16(one_byte_bytemask, utf16_packed, t4));
         // 3. prepare bitmask for 8-bit lookup
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-        const uint16x8_t mask = make_uint16x8_t(0x0001, 0x0004,
+        const uint16x8_t mask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                   0x0010, 0x0040,
                                   0x0002, 0x0008,
                                   0x0020, 0x0080);
@@ -14929,7 +14845,7 @@ std::pair<result, char*> arm_convert_utf32_to_utf8_with_errors(const char32_t* b
         }
 
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t dup_even = make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
+          const uint16x8_t dup_even = simdutf_make_uint16x8_t(0x0000, 0x0202, 0x0404, 0x0606,
                                       0x0808, 0x0a0a, 0x0c0c, 0x0e0e);
   #else
           const uint16x8_t dup_even = {0x0000, 0x0202, 0x0404, 0x0606,
@@ -14991,11 +14907,11 @@ std::pair<result, char*> arm_convert_utf32_to_utf8_with_errors(const char32_t* b
           const uint16x8_t v_007f = vmovq_n_u16((uint16_t)0x007F);
           const uint16x8_t one_byte_bytemask = vcleq_u16(utf16_packed, v_007f);
   #ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
-          const uint16x8_t onemask = make_uint16x8_t(0x0001, 0x0004,
+          const uint16x8_t onemask = simdutf_make_uint16x8_t(0x0001, 0x0004,
                                       0x0010, 0x0040,
                                       0x0100, 0x0400,
                                       0x1000, 0x4000 );
-          const uint16x8_t twomask = make_uint16x8_t(0x0002, 0x0008,
+          const uint16x8_t twomask = simdutf_make_uint16x8_t(0x0002, 0x0008,
                                       0x0020, 0x0080,
                                       0x0200, 0x0800,
                                       0x2000, 0x8000 );
@@ -16802,8 +16718,7 @@ using namespace simd;
         }
       }
       if(pos < size) {
-        size_t howmany  = scalar::utf8_to_latin1::convert(in + pos, size - pos, latin1_output);
-        if(howmany == 0) { return 0; }
+        size_t howmany  = scalar::utf8_to_latin1::convert_valid(in + pos, size - pos, latin1_output);
         latin1_output += howmany;
       }
       return latin1_output - start;
@@ -16921,7 +16836,6 @@ simdutf_warn_unused size_t implementation::convert_latin1_to_utf8(const char * b
       ret.first, len - (ret.first - buf), ret.second);
     converted_chars += scalar_converted_chars;
   }
-
   return converted_chars;
 }
 
@@ -17283,8 +17197,16 @@ simdutf_warn_unused result implementation::convert_utf32_to_latin1_with_errors(c
 }
 
 simdutf_warn_unused size_t implementation::convert_valid_utf32_to_latin1(const char32_t* buf, size_t len, char* latin1_output) const noexcept {
-  // optimization opportunity: implement a custom function.
-  return convert_utf32_to_latin1(buf,len,latin1_output);
+  std::pair<const char32_t*, char*> ret = arm_convert_utf32_to_latin1(buf, len, latin1_output);
+  if (ret.first == nullptr) { return 0; }
+  size_t saved_bytes = ret.second - latin1_output;
+
+  if (ret.first != buf + len) {
+    const size_t scalar_saved_bytes = scalar::utf32_to_latin1::convert_valid(
+                                        ret.first, len - (ret.first - buf), ret.second);
+    saved_bytes += scalar_saved_bytes;
+  }
+  return saved_bytes;
 }
 
 simdutf_warn_unused size_t implementation::convert_valid_utf32_to_utf8(const char32_t* buf, size_t len, char* utf8_output) const noexcept {
@@ -17413,11 +17335,7 @@ simdutf_warn_unused size_t implementation::utf8_length_from_latin1(const char * 
     // vertical addition
     result -= vaddvq_s8(vreinterpretq_s8_u8(withhighbit));
   }
-  // scalar tail
-  for (uint8_t j = 0; j < rem; j++) {
-    result += (simd_end[j] >> 7);
-  }
-  return result + length;
+  return result + (length / lanes) * lanes + scalar::latin1::utf8_length_from_latin1((const char*)simd_end, rem);
 }
 
 simdutf_warn_unused size_t implementation::utf8_length_from_utf16le(const char16_t * input, size_t length) const noexcept {
@@ -17785,7 +17703,7 @@ simdutf_warn_unused size_t implementation::count_utf8(const char * input, size_t
 }
 
 simdutf_warn_unused size_t implementation::latin1_length_from_utf8(const char* buf, size_t len) const noexcept {
-  return scalar::utf8::latin1_length_from_utf8(buf,len);
+  return scalar::utf8::count_code_points(buf,len);
 }
 
 simdutf_warn_unused size_t implementation::latin1_length_from_utf16(size_t length) const noexcept {
@@ -26219,8 +26137,7 @@ using namespace simd;
         }
       }
       if(pos < size) {
-        size_t howmany  = scalar::utf8_to_latin1::convert(in + pos, size - pos, latin1_output);
-        if(howmany == 0) { return 0; }
+        size_t howmany  = scalar::utf8_to_latin1::convert_valid(in + pos, size - pos, latin1_output);
         latin1_output += howmany;
       }
       return latin1_output - start;
@@ -32608,8 +32525,7 @@ using namespace simd;
         }
       }
       if(pos < size) {
-        size_t howmany  = scalar::utf8_to_latin1::convert(in + pos, size - pos, latin1_output);
-        if(howmany == 0) { return 0; }
+        size_t howmany  = scalar::utf8_to_latin1::convert_valid(in + pos, size - pos, latin1_output);
         latin1_output += howmany;
       }
       return latin1_output - start;
