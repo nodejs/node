@@ -229,11 +229,7 @@ class Request {
 
   onBodySent (chunk) {
     if (this[kHandler].onBodySent) {
-      try {
-        this[kHandler].onBodySent(chunk)
-      } catch (err) {
-        this.onError(err)
-      }
+      return this[kHandler].onBodySent(chunk)
     }
   }
 
@@ -243,11 +239,7 @@ class Request {
     }
 
     if (this[kHandler].onRequestSent) {
-      try {
-        this[kHandler].onRequestSent()
-      } catch (err) {
-        this.onError(err)
-      }
+      return this[kHandler].onRequestSent()
     }
   }
 
