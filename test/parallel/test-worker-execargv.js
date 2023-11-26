@@ -20,11 +20,12 @@ if (!process.env.HAS_STARTED_WORKER) {
     );
   }));
 
+  // Refs: https://github.com/nodejs/node/issues/50885
   new Worker(
     "require('worker_threads').parentPort.postMessage(process.execArgv)",
-    { eval: true, execArgv: ['--trace-warnings'] })
+    { eval: true, execArgv: ['--trace-warnings', '--conditions', 'meow'] })
     .on('message', common.mustCall((data) => {
-      assert.deepStrictEqual(data, ['--trace-warnings']);
+      assert.deepStrictEqual(data, ['--trace-warnings', '--conditions', 'meow']);
     }));
 } else {
   process.emitWarning('some warning');
