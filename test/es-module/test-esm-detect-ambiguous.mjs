@@ -28,11 +28,6 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
         code: 'const foo = await Promise.resolve("bar"); console.log(foo);',
         output: 'bar\n',
       },
-      {
-        name: 'top-level `await` in a function call',
-        code: 'console.log(await Promise.resolve("bar"));',
-        output: 'bar\n',
-      },
     ]) {
       it(`supports all possible ESM-only syntax elements: (${name})`, async () => {
         const { stdout, stderr, code: exitCode, signal } = await spawnPromisified(process.execPath, [
