@@ -2033,7 +2033,7 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 4);
+  CHECK_GE(argc, 5);
 
   CHECK(args[0]->IsInt32());
   const int fd = args[0].As<Int32>()->Value();
@@ -2060,18 +2060,20 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
   char* buf = buffer_data + off;
   uv_buf_t uvbuf = uv_buf_init(buf, len);
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 5);
-  if (req_wrap_async != nullptr) {  // write(fd, buffer, off, len, pos, req)
+  if (argc > 5) {  // write(fd, buffer, off, len, pos, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 5);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_WRITE, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "write", UTF8, AfterInteger,
               uv_fs_write, fd, &uvbuf, 1, pos);
-  } else {  // write(fd, buffer, off, len, pos, undefined, ctx)
-    CHECK_EQ(argc, 7);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // write(fd, buffer, off, len, pos)
+    FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[6], &req_wrap_sync, "write",
-                                uv_fs_write, fd, &uvbuf, 1, pos);
+    int bytesWritten = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_write, fd, &uvbuf, 1, pos);
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    if (is_uv_error(bytesWritten)) {
+      return;
+    }
     args.GetReturnValue().Set(bytesWritten);
   }
 }
@@ -2208,9 +2210,8 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     } else {
       req_wrap_async->SetReturnValue(args);
     }
-  } else {  // write(fd, string, pos, enc, undefined, ctx)
-    CHECK_EQ(argc, 6);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // write(fd, string, pos, enc)
+    FSReqWrapSync req_wrap_sync("write");
     FSReqBase::FSReqBuffer stack_buffer;
     if (buf == nullptr) {
       if (!StringBytes::StorageSize(isolate, value, enc).To(&len))
@@ -2225,9 +2226,12 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     }
     uv_buf_t uvbuf = uv_buf_init(buf, len);
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[5], &req_wrap_sync, "write",
-                                uv_fs_write, fd, &uvbuf, 1, pos);
+    int bytesWritten = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_write, fd, &uvbuf, 1, pos);
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
+    if (is_uv_error(bytesWritten)) {
+      return;
+    }
     args.GetReturnValue().Set(bytesWritten);
   }
 }
