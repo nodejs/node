@@ -3,9 +3,51 @@ import * as fixtures from '../common/fixtures.mjs';
 import { spawn } from 'node:child_process';
 import { describe, it } from 'node:test';
 import { strictEqual, match } from 'node:assert';
+import { join } from 'node:path';
 
 describe('--experimental-detect-module', { concurrency: true }, () => {
   describe('string input', { concurrency: true }, () => {
+    for (const { name, code, output } of [
+      {
+        name: '`import` statements',
+        code: 'import { version } from "node:process"; console.log(version);',
+        output: `${process.version}\n`,
+      },
+      {
+        name: '`export` statements',
+        code: 'export const foo = "bar"; console.log foo;',
+        output: 'bar\n',
+      },
+      {
+        name: '`import.meta` references',
+        code: 'console.log(import.meta.filename);',
+        output: `${join(process.cwd(), '[eval1]')}\n`,
+      },
+      {
+        name: 'top-level `await`',
+        code: 'const foo = await Promise.resolve("bar"); console.log(foo);',
+        output: 'bar\n',
+      },
+      {
+        name: 'top-level `await` in a function call',
+        code: 'console.log(await Promise.resolve("bar"));',
+        output: 'bar\n',
+      },
+    ]) {
+      it(`supports all possible ESM-only syntax elements: (${name})`, async () => {
+        const { stdout, stderr, code: exitCode, signal } = await spawnPromisified(process.execPath, [
+          '--experimental-detect-module',
+          '--eval',
+          code,
+        ]);
+
+        strictEqual(stderr, '');
+        strictEqual(stdout, output);
+        strictEqual(exitCode, 0);
+        strictEqual(signal, null);
+      });
+    }
+
     it('permits ESM syntax in --eval input without requiring --input-type=module', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',

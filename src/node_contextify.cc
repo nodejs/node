@@ -1406,7 +1406,9 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
 constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
     "Cannot use import statement outside a module",  // `import` statements
     "Unexpected token 'export'",                     // `export` statements
-    "Cannot use 'import.meta' outside a module"};    // `import.meta` references
+    "Cannot use 'import.meta' outside a module",     // `import.meta` references
+    "await is only valid in async functions and the top level bodies of "
+    "modules"};  // top-level `await`
 
 void ContextifyContext::ContainsModuleSyntax(
     const FunctionCallbackInfo<Value>& args) {
