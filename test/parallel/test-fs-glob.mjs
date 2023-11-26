@@ -65,6 +65,7 @@ const patterns = {
   ],
   'a/{b,c,d,e,f}/**/g': [],
   'a/b/**': ['a/b', 'a/b/c', 'a/b/c/d'],
+  'a/{b/**,b/c}': ['a/b', 'a/b/c', 'a/b/c/d'],
   './**/g': ['a/abcdef/g', 'a/abcfed/g'],
   'a/abc{fed,def}/g/h': ['a/abcdef/g/h', 'a/abcfed/g/h'],
   'a/abc{fed/g,def}/**/': ['a/abcdef', 'a/abcdef/g', 'a/abcfed/g'],
