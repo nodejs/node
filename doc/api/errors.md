@@ -1780,6 +1780,7 @@ An import attribute is missing, preventing the specified module to be imported.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 An import attribute is not supported by this version of Node.js.

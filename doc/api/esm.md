@@ -12,7 +12,9 @@ changes:
     - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Add experimental support for import attributes.
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/44710
     description: Module customization hooks are executed off the main thread.
   - version:
@@ -262,6 +264,7 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->
@@ -386,15 +389,21 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: Unflag `import.meta.resolve``, with `parentURL` parameter still
                  flagged.
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49038
     description: This API no longer throws when targeting `file:` URLs that do
                  not map to an existing file on the local FS.
-  - version: v20.0.0
+  - version:
+    - v20.0.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/44710
     description: This API now returns a string synchronously instead of a Promise.
   - version:

@@ -1803,6 +1803,7 @@ set to `true`.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -1821,6 +1822,7 @@ which is a `MockTimers` instance.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 changes:
   - version: v21.2.0
     pr-url: https://github.com/nodejs/node/pull/48638
@@ -1901,6 +1903,7 @@ and `globalThis` will be mocked. As well as the global `Date` object.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -1929,6 +1932,7 @@ Calls `timers.reset()`.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 Advances time for all mocked timers.
@@ -2245,6 +2249,7 @@ test('should tick five times testing a real use case', async (context) => {
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 Triggers all pending mocked timers immediately. If the `Date` object is also
