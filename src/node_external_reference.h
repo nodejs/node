@@ -115,6 +115,7 @@ class ExternalReferenceRegistry {
   V(task_queue)                                                                \
   V(tcp_wrap)                                                                  \
   V(tty_wrap)                                                                  \
+  V(udp_wrap)                                                                  \
   V(url)                                                                       \
   V(util)                                                                      \
   V(pipe_wrap)                                                                 \
