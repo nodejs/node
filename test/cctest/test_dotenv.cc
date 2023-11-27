@@ -305,17 +305,18 @@ cc_message="${message}")");
   EXPECT_EQ(*env_pairs.at(0)->key->key, "user");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "bill");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "domain");
-  EXPECT_EQ(*env_pairs.at(1)->value->value,"smith.tld");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "smith.tld");
   EXPECT_EQ(*env_pairs.at(2)->key->key, "email");
-  EXPECT_EQ(*env_pairs.at(2)->value->value,"bill@smith.tld");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "bill@smith.tld");
   EXPECT_EQ(*env_pairs.at(3)->key->key, "company");
-  EXPECT_EQ(*env_pairs.at(3)->value->value,"club");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "club");
   EXPECT_EQ(*env_pairs.at(4)->key->key, "reply_user");
-  EXPECT_EQ(*env_pairs.at(4)->value->value,"no-reply");
+  EXPECT_EQ(*env_pairs.at(4)->value->value, "no-reply");
   EXPECT_EQ(*env_pairs.at(5)->key->key, "reply_domain");
-  EXPECT_EQ(*env_pairs.at(5)->value->value,"company.tld");
+  EXPECT_EQ(*env_pairs.at(5)->value->value, "company.tld");
   EXPECT_EQ(*env_pairs.at(6)->key->key, "message");
-  EXPECT_EQ(*env_pairs.at(6)->value->value,R"(Greetings bill,
+  EXPECT_EQ(*env_pairs.at(6)->value->value,
+            R"(Greetings bill,
 we have detected that you are finally
 ready to become a member of our esteemed
 club. Please send us an email with the
@@ -326,7 +327,8 @@ Thank you,
 club Management
 )");
   EXPECT_EQ(*env_pairs.at(7)->key->key, "cc_message");
-  EXPECT_EQ(*env_pairs.at(7)->value->value,R"(Greetings bill,
+  EXPECT_EQ(*env_pairs.at(7)->value->value,
+            R"(Greetings bill,
 we have detected that you are finally
 ready to become a member of our esteemed
 club. Please send us an email with the
@@ -336,7 +338,6 @@ within 2 weeks.
 Thank you,
 club Management
 )");
-
 
   EnvReader::delete_pairs(&env_pairs);
 }
@@ -379,17 +380,18 @@ cc_message="${message}")");
   EXPECT_EQ(*env_pairs.at(0)->key->key, "user");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "bill");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "domain");
-  EXPECT_EQ(*env_pairs.at(1)->value->value,"smith.tld");
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "smith.tld");
   EXPECT_EQ(*env_pairs.at(2)->key->key, "email");
-  EXPECT_EQ(*env_pairs.at(2)->value->value,"bill@smith.tld");
+  EXPECT_EQ(*env_pairs.at(2)->value->value, "bill@smith.tld");
   EXPECT_EQ(*env_pairs.at(3)->key->key, "company");
-  EXPECT_EQ(*env_pairs.at(3)->value->value,"club");
+  EXPECT_EQ(*env_pairs.at(3)->value->value, "club");
   EXPECT_EQ(*env_pairs.at(4)->key->key, "reply_user");
-  EXPECT_EQ(*env_pairs.at(4)->value->value,"no-reply");
+  EXPECT_EQ(*env_pairs.at(4)->value->value, "no-reply");
   EXPECT_EQ(*env_pairs.at(5)->key->key, "reply_domain");
-  EXPECT_EQ(*env_pairs.at(5)->value->value,"company.tld");
+  EXPECT_EQ(*env_pairs.at(5)->value->value, "company.tld");
   EXPECT_EQ(*env_pairs.at(6)->key->key, "message");
-  EXPECT_EQ(*env_pairs.at(6)->value->value,R"(Greetings bill,
+  EXPECT_EQ(*env_pairs.at(6)->value->value,
+            R"(Greetings bill,
 we have detected that you are finally
 ready to become a member of our esteemed
 club. Please send us an email with the
@@ -400,7 +402,8 @@ Thank you,
 club Management
 )");
   EXPECT_EQ(*env_pairs.at(7)->key->key, "cc_message");
-  EXPECT_EQ(*env_pairs.at(7)->value->value,R"(Greetings bill,
+  EXPECT_EQ(*env_pairs.at(7)->value->value,
+            R"(Greetings bill,
 we have detected that you are finally
 ready to become a member of our esteemed
 club. Please send us an email with the
@@ -411,9 +414,9 @@ Thank you,
 club Management
 )");
 
-
   EnvReader::delete_pairs(&env_pairs);
 }
+
 TEST_F(DotEnvTest, DoubleQuotedHereDoc) {
   string codes(R"(b=1
 a="""

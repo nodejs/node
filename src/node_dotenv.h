@@ -8,7 +8,6 @@
 #include <map>
 #include <string>
 #include <cstring>
-#include <map>
 #include <vector>
 
 namespace node {
@@ -58,7 +57,7 @@ class EnvStream {
   size_t length_;
   bool is_good_;
 
-public:
+ public:
   explicit EnvStream(std::string* data);
   char get();
   [[nodiscard]] bool good() const;

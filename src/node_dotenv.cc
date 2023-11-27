@@ -2,10 +2,6 @@
 #include "env-inl.h"
 #include "node_file.h"
 #include "uv.h"
-#include "node_dotenv.h"
-#include "env-inl.h"
-#include "node_file.h"
-#include "uv.h"
 
 namespace node {
 using cppnv::EnvKey;
@@ -203,7 +199,6 @@ char cppnv::EnvStream::get() {
   if (this->index_ >= this->length_) {
     return -1;
   }
-
   const auto ret = this->data_->at(this->index_);
   this->index_++;
   this->is_good_ = this->index_ < this->length_;
@@ -498,7 +493,8 @@ bool EnvReader::process_possible_control_character(
 }
 
 void EnvReader::walk_back_slashes(EnvValue* value) {
-  if (const int total_backslash_pairs = value->back_slash_streak / 2; total_backslash_pairs > 0) {
+  if (const int total_backslash_pairs = value->back_slash_streak / 2;
+    total_backslash_pairs > 0) {
     for (int i = 0; i < total_backslash_pairs; i++) {
       add_to_buffer(value, '\\');
     }
