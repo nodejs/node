@@ -647,6 +647,7 @@ and `"` are usable.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -706,7 +707,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -1753,6 +1756,7 @@ for more details.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 The maximum number of test files that the test runner CLI will execute
@@ -1820,7 +1824,9 @@ The destination for the corresponding test reporter. See the documentation on
 ### `--test-shard`
 
 <!-- YAML
-added: v20.5.0
+added:
+  - v20.5.0
+  - v18.19.0
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where

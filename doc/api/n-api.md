@@ -5455,6 +5455,7 @@ required in order to enable correct disposal of the reference.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 > Stability: 1 - Experimental
