@@ -257,6 +257,41 @@ void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(data_view);
 }
 
+
+#define POSTJECT_SENTINEL_EMBED "NODE_EMBED_fce680ab2cc467b6e072b8b5df1996b2"
+static inline bool hasEmbeddedData() {
+  static const volatile char* sentinel = POSTJECT_SENTINEL_EMBED ":0";
+  return sentinel[sizeof(POSTJECT_SENTINEL_EMBED)] == '1';
+}
+#undef POSTJECT_SENTINEL_EMBED
+void GetEmbeddedData(const FunctionCallbackInfo<Value> &args) {
+  if (!hasEmbeddedData()) {
+    return;
+  }
+
+  Isolate* isolate = args.GetIsolate();
+  size_t size = 0;
+  #ifdef __APPLE__
+    postject_options options;
+    postject_options_init(&options);
+    options.macho_segment_name = "NODE_SEA";
+    const void* data = postject_find_resource("NODE_EMBEDDED_DATA", &size, &options);
+  #else
+    const void* data = postject_find_resource("NODE_EMBEDDED_DATA", &size, nullptr);
+  #endif
+
+   std::shared_ptr<BackingStore> backing_store = ArrayBuffer::NewBackingStore(
+      const_cast<void*>(static_cast<const void*>(data)),
+      size,
+      [](void* /* data */, size_t /* length */, void* /* deleter_data */) {
+        // The code cache data blob is not freed here because it is a static
+        // blob which is not allocated by the BackingStore allocator.
+      },
+      nullptr);
+  Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, backing_store);
+  args.GetReturnValue().Set(array_buffer);
+}
+
 void GetCodePath(const FunctionCallbackInfo<Value>& args) {
   DCHECK(IsSingleExecutable());
 
@@ -558,6 +593,7 @@ void Initialize(Local<Object> target,
             IsExperimentalSeaWarningNeeded);
   SetMethod(context, target, "getCodePath", GetCodePath);
   SetMethod(context, target, "getCodeCache", GetCodeCache);
+  SetMethod(context, target, "getEmbeddedData", GetEmbeddedData);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -565,6 +601,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetCodePath);
   registry->Register(GetCodeCache);
+  registry->Register(GetEmbeddedData);
 }
 
 }  // namespace sea
