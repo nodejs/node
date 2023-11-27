@@ -456,6 +456,12 @@ make docopen
 This will open a file URL to a one-page version of all the browsable HTML
 documents using the default browser.
 
+```bash
+make docclean
+```
+
+This will clean previously built doc.
+
 To test if Node.js was built correctly:
 
 ```bash
