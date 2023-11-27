@@ -27,6 +27,7 @@ template("simdutf_gn_build") {
       cflags_cc = [
         "-Wno-#pragma-messages",
         "-Wno-ambiguous-reversed-operator",
+        "-Wno-unreachable-code",
         "-Wno-unreachable-code-break",
         "-Wno-unused-const-variable",
         "-Wno-unused-function",

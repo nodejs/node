@@ -18,5 +18,10 @@ template("simdjson_gn_build") {
     forward_variables_from(invoker, "*")
     public_configs = [ ":simdjson_config" ]
     sources = gypi_values.simdjson_sources
+    if (is_clang || !is_win) {
+      cflags_cc = [
+        "-Wno-unreachable-code-return",
+      ]
+    }
   }
 }
