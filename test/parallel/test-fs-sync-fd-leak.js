@@ -41,16 +41,33 @@ fs.writeSync = function() {
   throw new Error('BAM');
 };
 
+// Internal fast paths are pure C++, can't error inside write
+internalBinding('fs').writeFileUtf8 = function() {
+  // Fake close
+  close_called++;
+  throw new Error('BAM');
+};
+
 internalBinding('fs').fstat = function() {
   throw new Error('EBADF: bad file descriptor, fstat');
 };
 
 let close_called = 0;
 ensureThrows(function() {
+  // Fast path: writeFileSync utf8
   fs.writeFileSync('dummy', 'xxx');
 }, 'BAM');
 ensureThrows(function() {
+  // Non-fast path
+  fs.writeFileSync('dummy', 'xxx', { encoding: 'base64' });
+}, 'BAM');
+ensureThrows(function() {
+  // Fast path: writeFileSync utf8
   fs.appendFileSync('dummy', 'xxx');
+}, 'BAM');
+ensureThrows(function() {
+  // Non-fast path
+  fs.appendFileSync('dummy', 'xxx', { encoding: 'base64' });
 }, 'BAM');
 
 function ensureThrows(cb, message) {
