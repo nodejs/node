@@ -4,8 +4,8 @@ const common = require('../common.js');
 const { randomBytes } = require('crypto');
 
 const bench = common.createBenchmark(main, {
-  size: [64, 1024, 8192, 512 * 1024],
-  n: [1e3],
+  size: [64, 1024, 8 * 1024, 16 * 1024],
+  n: [1e5],
 });
 
 function main({ n, size }) {
