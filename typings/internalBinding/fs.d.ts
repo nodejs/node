@@ -231,6 +231,9 @@ declare namespace InternalFSBinding {
   function writeString(fd: number, value: string, pos: unknown, encoding: unknown, usePromises: typeof kUsePromises): Promise<number>;
 
   function getFormatOfExtensionlessFile(url: string): ConstantsBinding['fs'];
+
+  function writeFileUtf8(path: string, data: string, flag: number, mode: number): void;
+  function writeFileUtf8(fd: number, data: string, flag: number, mode: number): void;
 }
 
 export interface FsBinding {
