@@ -197,7 +197,6 @@ class EnvReader {
   static int read_pairs(EnvStream* file, std::vector<EnvPair*>* pairs);
   static void delete_pair(const EnvPair* pair);
   static void delete_pairs(const std::vector<EnvPair*>* pairs);
-
 };
 }  // namespace cppnv
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
