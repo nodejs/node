@@ -110,6 +110,7 @@ class ExternalReferenceRegistry {
   V(permission)                                                                \
   V(process_methods)                                                           \
   V(process_object)                                                            \
+  V(process_wrap)                                                              \
   V(report)                                                                    \
   V(task_queue)                                                                \
   V(tcp_wrap)                                                                  \
