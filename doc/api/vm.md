@@ -615,7 +615,7 @@ The identifier of the current module, as set in the constructor.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50141
     description: The option `extra.assert` is renamed to `extra.attributes`. The
                  former name is still provided for backward compatibility.

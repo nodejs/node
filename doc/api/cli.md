@@ -373,7 +373,7 @@ Expose the [Web Crypto API][] on the global scope.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v18.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -406,7 +406,7 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -1301,7 +1301,7 @@ for more details.
 ### `--test-concurrency`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 The maximum number of test files that the test runner CLI will execute
@@ -1347,7 +1347,7 @@ option set.
 ### `--test-shard`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where

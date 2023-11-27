@@ -3463,7 +3463,7 @@ Using this function is mutually exclusive with using the deprecated
 ## `process.sourceMapsEnabled`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 > Stability: 1 - Experimental

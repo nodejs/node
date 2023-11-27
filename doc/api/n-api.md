@@ -5423,7 +5423,7 @@ required in order to enable correct disposal of the reference.
 #### `node_api_post_finalizer`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 > Stability: 1 - Experimental

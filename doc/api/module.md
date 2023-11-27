@@ -81,9 +81,9 @@ isBuiltin('wss'); // false
 ### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49655
     description: Add support for WHATWG URL instances.
 -->
@@ -151,7 +151,7 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
   - version:
@@ -381,7 +381,7 @@ asynchronous operations (like `console.log`) to complete.
 #### `initialize()`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -456,7 +456,7 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: The property `context.importAssertions` is replaced with
                  `context.importAttributes`. Using the old name is still

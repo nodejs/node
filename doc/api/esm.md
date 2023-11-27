@@ -7,7 +7,7 @@
 <!-- YAML
 added: v8.5.0
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/44710
     description: Module customization hooks are executed off the main thread.
   - version:
@@ -243,7 +243,7 @@ added:
   - v17.1.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->
@@ -340,15 +340,15 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: Unflag `import.meta.resolve``, with `parentURL` parameter still
                  flagged.
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49038
     description: This API no longer throws when targeting `file:` URLs that do
                  not map to an existing file on the local FS.
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/44710
     description: This API now returns a string synchronously instead of a Promise.
   - version:

@@ -1794,7 +1794,7 @@ An import attribute is not supported by this version of Node.js.
 ### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
 
 <!-- YAML
-added: REPLACEME
+added: v18.19.0
 -->
 
 An import attribute is not supported by this version of Node.js.

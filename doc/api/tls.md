@@ -2045,7 +2045,7 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: REPLACEME
+  - version: v18.19.0
     pr-url: https://github.com/nodejs/node/pull/45190
     description: The `options` parameter can now include `ALPNCallback`.
   - version: v12.3.0
