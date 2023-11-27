@@ -2327,6 +2327,84 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void WriteFileUtf8(const FunctionCallbackInfo<Value>& args) {
+  // Fast C++ path for fs.writeFileSync(path, data) with utf8 encoding
+  // (file, data, options.flag, options.mode)
+
+  Environment* env = Environment::GetCurrent(args);
+  auto isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 4);
+
+  BufferValue value(isolate, args[1]);
+  CHECK_NOT_NULL(*value);
+
+  CHECK(args[2]->IsInt32());
+  const int flags = args[2].As<Int32>()->Value();
+
+  CHECK(args[3]->IsInt32());
+  const int mode = args[3].As<Int32>()->Value();
+
+  uv_file file;
+
+  bool is_fd = args[0]->IsInt32();
+
+  // Check for file descriptor
+  if (is_fd) {
+    file = args[0].As<Int32>()->Value();
+  } else {
+    BufferValue path(isolate, args[0]);
+    CHECK_NOT_NULL(*path);
+    if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
+
+    FSReqWrapSync req_open("open", *path);
+
+    FS_SYNC_TRACE_BEGIN(open);
+    file =
+        SyncCallAndThrowOnError(env, &req_open, uv_fs_open, *path, flags, mode);
+    FS_SYNC_TRACE_END(open);
+
+    if (is_uv_error(file)) {
+      return;
+    }
+  }
+
+  int bytesWritten = 0;
+  uint32_t offset = 0;
+
+  const size_t length = value.length();
+  uv_buf_t uvbuf = uv_buf_init(value.out(), length);
+
+  FS_SYNC_TRACE_BEGIN(write);
+  while (offset < length) {
+    FSReqWrapSync req_write("write");
+    bytesWritten = SyncCallAndThrowOnError(
+        env, &req_write, uv_fs_write, file, &uvbuf, 1, -1);
+
+    // Write errored out
+    if (bytesWritten < 0) {
+      break;
+    }
+
+    offset += bytesWritten;
+    DCHECK_LE(offset, length);
+    uvbuf.base += bytesWritten;
+    uvbuf.len -= bytesWritten;
+  }
+  FS_SYNC_TRACE_END(write);
+
+  if (!is_fd) {
+    FSReqWrapSync req_close("close");
+
+    FS_SYNC_TRACE_BEGIN(close);
+    int result = SyncCallAndThrowOnError(env, &req_close, uv_fs_close, file);
+    FS_SYNC_TRACE_END(close);
+
+    if (is_uv_error(result)) {
+      return;
+    }
+  }
+}
 
 /*
  * Wrapper for read(2).
@@ -3169,6 +3247,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "writeBuffer", WriteBuffer);
   SetMethod(isolate, target, "writeBuffers", WriteBuffers);
   SetMethod(isolate, target, "writeString", WriteString);
+  SetMethod(isolate, target, "writeFileUtf8", WriteFileUtf8);
   SetMethod(isolate, target, "realpath", RealPath);
   SetMethod(isolate, target, "copyFile", CopyFile);
 
@@ -3289,6 +3368,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WriteBuffer);
   registry->Register(WriteBuffers);
   registry->Register(WriteString);
+  registry->Register(WriteFileUtf8);
   registry->Register(RealPath);
   registry->Register(CopyFile);
 
