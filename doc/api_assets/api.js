@@ -24,12 +24,6 @@
           );
         }
       }
-
-      if (mq.matches) {
-        document.documentElement.classList.add('dark-mode');
-      }
-    } else if (storedTheme === 'dark') {
-      document.documentElement.classList.add('dark-mode');
     }
 
     if (themeToggleButton) {
