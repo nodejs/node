@@ -1983,6 +1983,9 @@ class AsyncCompileJSToWasmWrapperJob final
     }
 
     TRACE_EVENT0("v8.wasm", "wasm.JSToWasmWrapperCompilation");
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
       wrapper_unit->Execute();

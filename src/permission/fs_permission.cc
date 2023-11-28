@@ -119,10 +119,8 @@ namespace permission {
 // allow = '/tmp/,/home/example.js'
 void FSPermission::Apply(const std::vector<std::string>& allow,
                          PermissionScope scope) {
-  using std::string_view_literals::operator""sv;
-
-  for (const std::string_view res : allow) {
-    if (res == "*"sv) {
+  for (const std::string& res : allow) {
+    if (res == "*") {
       if (scope == PermissionScope::kFileSystemRead) {
         deny_all_in_ = false;
         allow_all_in_ = true;
@@ -132,7 +130,7 @@ void FSPermission::Apply(const std::vector<std::string>& allow,
       }
       return;
     }
-    GrantAccess(scope, std::string(res.data(), res.size()));
+    GrantAccess(scope, res);
   }
 }
 
@@ -172,7 +170,7 @@ FSPermission::RadixTree::~RadixTree() {
 }
 
 bool FSPermission::RadixTree::Lookup(const std::string_view& s,
-                                     bool when_empty_return = false) const {
+                                     bool when_empty_return) const {
   FSPermission::RadixTree::Node* current_node = root_node_;
   if (current_node->children.size() == 0) {
     return when_empty_return;

@@ -1422,7 +1422,7 @@ class Linter {
     verify(textOrSourceCode, config, filenameOrOptions) {
         debug("Verify");
 
-        const { configType } = internalSlotsMap.get(this);
+        const { configType, cwd } = internalSlotsMap.get(this);
 
         const options = typeof filenameOrOptions === "string"
             ? { filename: filenameOrOptions }
@@ -1441,7 +1441,7 @@ class Linter {
                 let configArray = config;
 
                 if (!Array.isArray(config) || typeof config.getConfig !== "function") {
-                    configArray = new FlatConfigArray(config);
+                    configArray = new FlatConfigArray(config, { basePath: cwd });
                     configArray.normalizeSync();
                 }
 

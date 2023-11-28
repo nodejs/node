@@ -1094,7 +1094,9 @@ The object that acts as the namespace for all W3C
 ## `WebSocket`
 
 <!-- YAML
-added: v21.0.0
+added:
+  - v21.0.0
+  - v20.10.0
 -->
 
 > Stability: 1 - Experimental.

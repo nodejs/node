@@ -532,9 +532,10 @@ The TSC serves as the final arbiter where required.
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
 4. Check that the commit message adheres to [commit message guidelines][].
-5. Add all necessary [metadata](#metadata) to commit messages before landing. If
-   you are unsure exactly how to format the commit messages, use the commit log
-   as a reference. See [this commit][commit-example] as an example.
+5. Add all necessary [metadata][git-node-metadata] to commit messages before
+   landing. If you are unsure exactly how to format the commit messages, use
+   the commit log as a reference. See [this commit][commit-example] as an
+   example.
 
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
