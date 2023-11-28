@@ -126,6 +126,11 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #define ABORT_NO_BACKTRACE() abort()
 #endif
 
+// A function calls a [[noreturn]] function will print an incorrect
+// call stack because the frame pc was advanced to an invalid op at the call
+// site, which may vary on different platforms.
+// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
+// backtrace is correct.
 #define ABORT()                                                                \
   do {                                                                         \
     node::DumpNativeBacktrace(stderr);                                         \
@@ -141,7 +146,9 @@ void DumpJavaScriptBacktrace(FILE* fp);
     static const node::AssertionInfo args = {                                  \
         __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME};        \
     node::Assert(args);                                                        \
-    /* Mark the macro as [[noreturn]].                                     */  \
+    /* `node::Assert` doesn't return. Add an [[noreturn]] abort() here to  */  \
+    /* make the compiler happy about no return value in the caller         */  \
+    /* function when calling ERROR_AND_ABORT.                              */  \
     ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
