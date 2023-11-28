@@ -130,7 +130,7 @@ void DumpJavaScriptBacktrace(FILE* fp);
 // backtraces may not work correctly in [[noreturn]] functions because
 // when generating code for them the compiler can choose not to
 // maintain the frame pointers or link registers that are necessary for
-// correct backtracing. 
+// correct backtracing.
 // `ABORT` must be a macro and not a [[noreturn]] function to make sure the
 // backtrace is correct.
 #define ABORT()                                                                \
