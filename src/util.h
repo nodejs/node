@@ -126,9 +126,11 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #define ABORT_NO_BACKTRACE() abort()
 #endif
 
-// A function calls a [[noreturn]] function will print an incorrect
-// call stack because the frame pc was advanced to an invalid op at the call
-// site, which may vary on different platforms.
+// Caller of this macro must not be marked as [[noreturn]]. Printing of
+// backtraces may not work correctly in [[noreturn]] functions because
+// when generating code for them the compiler can choose not to
+// maintain the frame pointers or link registers that are necessary for
+// correct backtracing. 
 // `ABORT` must be a macro and not a [[noreturn]] function to make sure the
 // backtrace is correct.
 #define ABORT()                                                                \
