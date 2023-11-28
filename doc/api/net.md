@@ -38,7 +38,10 @@ it will unlink the Unix domain socket as well. For example,
 socket outside of these abstractions, the user will need to remove it. The same
 applies when a Node.js API creates a Unix domain socket but the program then
 crashes. In short, a Unix domain socket will be visible in the file system and
-will persist until unlinked.
+will persist until unlinked. On Linux, You can use Unix abstract socket by adding
+`\0` to the beginning of the path, such as `\0abstract`. The path to the Unix
+abstract socket is not visible in the file system and it will disappear automatically
+when all open references to the socket are closed.
 
 On Windows, the local domain is implemented using a named pipe. The path _must_
 refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
