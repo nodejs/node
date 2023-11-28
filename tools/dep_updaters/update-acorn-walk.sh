@@ -17,7 +17,7 @@ DEPS_DIR="$BASE_DIR/deps"
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
 NEW_VERSION=$("$NODE" "$NPM" view acorn-walk dist-tags.latest)
-CURRENT_VERSION=$("$NODE" "$NPM" --prefix './deps/acorn/acorn-walk/' pkg get version)
+CURRENT_VERSION=$("$NODE" -p "require('./deps/acorn/acorn-walk/package.json').version")
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "acorn-walk" "$NEW_VERSION" "$CURRENT_VERSION"
