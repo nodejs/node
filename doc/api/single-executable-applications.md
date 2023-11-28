@@ -219,6 +219,8 @@ const image = getAsset('a.jpg');
 const text = getAsset('b.txt', 'utf8');
 // Returns a Blob containing the asset.
 const blob = getAssetAsBlob('a.jpg');
+// Returns an ArrayBuffer containing the raw asset without copying.
+const raw = getRawAsset('a.jpg');
 ```
 
 See documentation of the [`sea.getAsset()`][] and [`sea.getAssetAsBlob()`][]
@@ -315,6 +317,27 @@ An error is thrown when no matching asset can be found.
 * `options` {Object}
   * `type` {string} An optional mime type for the blob.
 * Returns: {Blob}
+
+### `sea.getRawAsset(key)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This method can be used to retrieve the assets configured to be bundled into the
+single-executable application at build time.
+An error is thrown when no matching asset can be found.
+
+Unlike `sea.getRawAsset()` or `sea.getAssetAsBlob()`, this method does not
+return a copy. Instead, it returns the raw asset bundled inside the executable.
+
+For now, users should avoid writing to the returned array buffer. If the
+injected section is not marked as writable or not aligned properly,
+writes to the returned array buffer is likely to result in a crash.
+
+* `key`  {string} the key for the asset in the dictionary specified by the
+  `assets` field in the single-executable application configuration.
+* Returns: {string|ArrayBuffer}
 
 ### `require(id)` in the injected main script is not file based
 

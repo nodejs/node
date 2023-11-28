@@ -77,6 +77,8 @@ const binaryAssetOnDisk = readFileSync(process.env.__TEST_PERSON_JPG);
 {
   const actualAsset = getAsset('utf8_test_text.txt', 'utf8')
   assert.strictEqual(actualAsset, textAssetOnDisk);
+  // Log it out so that the test could compare it and see if
+  // it's encoded/decoded correctly in the SEA.
   console.log(actualAsset);
 }
 
