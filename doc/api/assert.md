@@ -1511,6 +1511,59 @@ let err;
 //     at errorFrame
 ```
 
+## `assert.includes(string, substring[, message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental.
+
+* `string` {string}
+* `substring` {string}
+* `message` {string|Error}
+
+Expects the `substring` input to be included in the `string` input.
+
+```mjs
+import assert from 'node:assert/strict';
+
+assert.includes('I will fail', 'pass');
+// AssertionError [ERR_ASSERTION]: The substring was not located inside the target string.
+
+assert.includes(123, 'pass');
+// AssertionError [ERR_ASSERTION]: The "string" argument must be of type string.
+
+assert.includes('I will fail', /pass/);
+// AssertionError [ERR_ASSERTION]: The "substring" argument must be of type string.
+
+assert.includes('I will pass', 'pass');
+// OK
+```
+
+```cjs
+const assert = require('node:assert/strict');
+
+assert.includes('I will fail', 'pass');
+// AssertionError [ERR_ASSERTION]: The substring was not located inside the target string.
+
+assert.includes(123, 'pass');
+// AssertionError [ERR_ASSERTION]: The "string" argument must be of type string.
+
+assert.includes('I will fail', /pass/);
+// AssertionError [ERR_ASSERTION]: The "substring" argument must be of type string.
+
+assert.includes('I will pass', 'pass');
+// OK
+```
+
+If the `substring` argument is not part of the `string` argument, or if `string` is
+of another type than `string`, or if `substring` is of another type than `string`, an
+[`AssertionError`][] is thrown with a `message` property set equal to the value of the
+`message` parameter. If the `message` parameter is undefined, a default error message
+is assigned. If the `message` parameter is an instance of an [`Error`][] then it will
+be thrown instead of the [`AssertionError`][].
+
 ## `assert.match(string, regexp[, message])`
 
 <!-- YAML
