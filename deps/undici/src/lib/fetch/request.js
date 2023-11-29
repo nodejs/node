@@ -316,11 +316,11 @@ class Request {
       // 2. If method is not a method or method is a forbidden method, then
       // throw a TypeError.
       if (!isValidHTTPToken(init.method)) {
-        throw TypeError(`'${init.method}' is not a valid HTTP method.`)
+        throw new TypeError(`'${init.method}' is not a valid HTTP method.`)
       }
 
       if (forbiddenMethodsSet.has(method.toUpperCase())) {
-        throw TypeError(`'${init.method}' HTTP method is unsupported.`)
+        throw new TypeError(`'${init.method}' HTTP method is unsupported.`)
       }
 
       // 3. Normalize method.

@@ -1957,7 +1957,7 @@ async function httpNetworkFetch (
         path: url.pathname + url.search,
         origin: url.origin,
         method: request.method,
-        body: fetchParams.controller.dispatcher.isMockActive ? request.body && request.body.source : body,
+        body: fetchParams.controller.dispatcher.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
         headers: request.headersList.entries,
         maxRedirections: 0,
         upgrade: request.mode === 'websocket' ? 'websocket' : undefined
@@ -2002,7 +2002,7 @@ async function httpNetworkFetch (
                 location = val
               }
 
-              headers.append(key, val)
+              headers[kHeadersList].append(key, val)
             }
           } else {
             const keys = Object.keys(headersList)
@@ -2016,7 +2016,7 @@ async function httpNetworkFetch (
                 location = val
               }
 
-              headers.append(key, val)
+              headers[kHeadersList].append(key, val)
             }
           }
 
@@ -2120,7 +2120,7 @@ async function httpNetworkFetch (
             const key = headersList[n + 0].toString('latin1')
             const val = headersList[n + 1].toString('latin1')
 
-            headers.append(key, val)
+            headers[kHeadersList].append(key, val)
           }
 
           resolve({
