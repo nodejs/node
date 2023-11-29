@@ -736,4 +736,39 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
+
+  it('should handle mixed of opt-in modules and non-opt-in ones', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      `data:text/javascript,const fixtures=${JSON.stringify(fixtures.path('empty.js'))};export ${
+        encodeURIComponent(function resolve(s, c, n) {
+          if (s.endsWith('entry-point')) {
+            return {
+              shortCircuit: true,
+              url: 'file:///c:/virtual-entry-point',
+              format: 'commonjs',
+            };
+          }
+          return n(s, c);
+        })
+      }export ${
+        encodeURIComponent(async function load(u, c, n) {
+          if (u === 'file:///c:/virtual-entry-point') {
+            return {
+              shortCircuit: true,
+              source: `"use strict";require(${JSON.stringify(fixtures)});console.log("Hello");`,
+              format: 'commonjs',
+            };
+          }
+          return n(u, c);
+        })}`,
+      'entry-point',
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.strictEqual(stdout, 'Hello\n');
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
 });
