@@ -367,8 +367,6 @@ For information about the governance of the Node.js project, see
   **Zeyu "Alex" Yang** <<himself65@outlook.com>> (he/him)
 * [iansu](https://github.com/iansu) -
   **Ian Sutherland** <<ian@iansutherland.ca>>
-* [JacksonTian](https://github.com/JacksonTian) -
-  **Jackson Tian** <<shyvo1987@gmail.com>>
 * [JakobJingleheimer](https://github.com/JakobJingleheimer) -
   **Jacob Smith** <<jacob@frende.me>> (he/him)
 * [jasnell](https://github.com/jasnell) -
@@ -569,6 +567,8 @@ For information about the governance of the Node.js project, see
   **Isaac Z. Schlueter** <<i@izs.me>>
 * [italoacasas](https://github.com/italoacasas) -
   **Italo A. Casas** <<me@italoacasas.com>> (he/him)
+* [JacksonTian](https://github.com/JacksonTian) -
+  **Jackson Tian** <<shyvo1987@gmail.com>>
 * [jasongin](https://github.com/jasongin) -
   **Jason Ginchereau** <<jasongin@microsoft.com>>
 * [jbergstroem](https://github.com/jbergstroem) -
