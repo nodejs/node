@@ -484,8 +484,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   // These checks should all collapse at compile time.
   if (static_cast<uint32_t>(Limits::max()) <=
           std::numeric_limits<uint32_t>::max() &&
-      static_cast<uint32_t>(Limits::min()) >=
-          std::numeric_limits<uint32_t>::min() && Limits::is_exact) {
+      number >= 0 && Limits::is_exact) {
     return v8::Integer::NewFromUnsigned(isolate, static_cast<uint32_t>(number));
   }
 
