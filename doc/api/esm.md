@@ -933,9 +933,9 @@ The resolver can throw the following errors:
 >       2. If _resolved_ is not **null** or **undefined**, return _resolved_.
 > 3. Otherwise, if _exports_ is an Object and all keys of _exports_ start with
 >    _"."_, then
->    1. Let _matchKey_ be the string _"./"_ concatenated with _subpath_.
+>    1. Assert: _subpath_ begins with _"./"_.
 >    2. Let _resolved_ be the result of **PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(
->       _matchKey_, _exports_, _packageURL_, **false**, _conditions_).
+>       _subpath_, _exports_, _packageURL_, **false**, _conditions_).
 >    3. If _resolved_ is not **null** or **undefined**, return _resolved_.
 > 4. Throw a _Package Path Not Exported_ error.
 
@@ -1015,7 +1015,7 @@ _isImports_, _conditions_)
 >       Package Target_ error.
 >    3. Let _resolvedTarget_ be the URL resolution of the concatenation of
 >       _packageURL_ and _target_.
->    4. Assert: _resolvedTarget_ is contained in _packageURL_.
+>    4. Assert: _packageURL_ is contained in _resolvedTarget_.
 >    5. If _patternMatch_ is **null**, then
 >       1. Return _resolvedTarget_.
 >    6. If _patternMatch_ split on _"/"_ or _"\\"_ contains any _""_, _"."_,
@@ -1024,7 +1024,7 @@ _isImports_, _conditions_)
 >    7. Return the URL resolution of _resolvedTarget_ with every instance of
 >       _"\*"_ replaced with _patternMatch_.
 > 2. Otherwise, if _target_ is a non-null Object, then
->    1. If _exports_ contains any index property keys, as defined in ECMA-262
+>    1. If _target_ contains any index property keys, as defined in ECMA-262
 >       [6.1.7 Array Index][], throw an _Invalid Package Configuration_ error.
 >    2. For each property _p_ of _target_, in object insertion order as,
 >       1. If _p_ equals _"default"_ or _conditions_ contains an entry for _p_,
