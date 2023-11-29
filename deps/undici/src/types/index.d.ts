@@ -14,6 +14,7 @@ import MockPool from'./mock-pool'
 import MockAgent from'./mock-agent'
 import mockErrors from'./mock-errors'
 import ProxyAgent from'./proxy-agent'
+import RetryHandler from'./retry-handler'
 import { request, pipeline, stream, connect, upgrade } from './api'
 
 export * from './cookies'
@@ -27,7 +28,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, RedirectHandler, DecoratorHandler }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, MockClient, MockPool, MockAgent, mockErrors, ProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler }
 export default Undici
 
 declare namespace Undici {
@@ -35,6 +36,7 @@ declare namespace Undici {
   var Pool: typeof import('./pool').default;
   var RedirectHandler: typeof import ('./handlers').RedirectHandler
   var DecoratorHandler: typeof import ('./handlers').DecoratorHandler
+  var RetryHandler: typeof import ('./retry-handler').default
   var createRedirectInterceptor: typeof import ('./interceptors').createRedirectInterceptor
   var BalancedPool: typeof import('./balanced-pool').default;
   var Client: typeof import('./client').default;
