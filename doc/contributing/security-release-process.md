@@ -200,6 +200,12 @@ out a better way, forward the email you receive to
   * Request publication of [H1 CVE requests][]
     * (Check that the "Version Fixed" field in the CVE is correct, and provide
       links to the release blogs in the "Public Reference" section)
+  * In case the reporter doesn't accept the disclosure follow this process:
+    * Remove the original report reference within the reference text box and
+      insert the public URL you would like to be attached to this CVE.
+    * Then uncheck the Public Disclosure on HackerOne box at the bottom of the
+      page.
+      ![screenshot of HackerOne CVE form](https://github.com/nodejs/node/assets/26234614/e22e4f33-7948-4dd2-952e-2f9166f5568d)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
   [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
