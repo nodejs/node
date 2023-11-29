@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "5.27.2",
+  "version": "5.28.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -118,6 +118,7 @@
     "jsdom": "^22.1.0",
     "jsfuzz": "^1.0.15",
     "mocha": "^10.0.0",
+    "mockttp": "^3.9.2",
     "p-timeout": "^3.2.0",
     "pre-commit": "^1.2.2",
     "proxy": "^1.0.2",
