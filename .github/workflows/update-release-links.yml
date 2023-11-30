@@ -3,7 +3,7 @@ name: Update release links
 on:
   workflow_dispatch:
   release:
-    types: [published, released]
+    types: [released]
 
 permissions:
   contents: read
