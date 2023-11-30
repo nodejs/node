@@ -1,8 +1,9 @@
 name: Update release links
 
 on:
+  workflow_dispatch:
   release:
-    types: [published]
+    types: [released]
 
 permissions:
   contents: read
