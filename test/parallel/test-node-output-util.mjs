@@ -21,16 +21,6 @@ function normalize(str) {
   .replaceAll('node:internal*main*run_main_module:*:*', '')
   .replace(/[^\x00-\x7F]/g, '90')
   .replace(/\u001b\[\d+m/g, '39')
-  // .replaceAll(/(\[*m\W+)at .*node:.*/g, '$1at *[39m')
-  // .replaceAll('*internals*', '*')
-  // .replaceAll(/\d+:\d+/g, '')
-  // .replaceAll(/:\d+/g, ':*')
-  // .replaceAll('process.processTicksAndRejections (node:internal*process*task_queues:*:*)', '');
-  // .replaceAll('//', '*')
-  // .replaceAll(/\/(\w)/g, '*$1')
-  // .replaceAll('*test*', '*')
-  // .replaceAll('*fixtures*errors*', '*')
-  // .replaceAll('file:**', 'file:*/');
 }
 const common = snapshot
 .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
