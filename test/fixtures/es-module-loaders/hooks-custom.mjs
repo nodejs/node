@@ -101,7 +101,7 @@ export function load(url, context, next) {
     return {
       format: 'commonjs',
       shortCircuit: true,
-      source: null,
+      source: 1n,
     };
   }
 

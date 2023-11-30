@@ -48,8 +48,8 @@ try {
 } catch ({ code, message }) {
   assert.strictEqual(code, 'ERR_INVALID_RETURN_PROPERTY_VALUE');
   assert.match(message, /"source"/);
-  assert.match(message, /"load"/);
-  assert.match(message, /got null/);
+  assert.match(message, /'load'/);
+  assert.match(message, /got type bigint/);
 }
 
 await import('../fixtures/es-module-loaders/js-as-esm.js')
