@@ -1142,6 +1142,11 @@ changes:
       of shards to split the test files to. This option is _required_.
 * Returns: {TestsStream}
 
+**Note:** `shard` is used to horizontally parallelize test running across
+machines or processes, ideal for large-scale executions across varied
+environments. It's incompatible with `watch` mode, tailored for rapid
+code iteration by automatically rerunning tests on file changes.
+
 ```mjs
 import { tap } from 'node:test/reporters';
 import { run } from 'node:test';
@@ -1798,6 +1803,7 @@ set to `true`.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -1816,8 +1822,9 @@ which is a `MockTimers` instance.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 changes:
-  - version: REPLACEME
+  - version: v21.2.0
     pr-url: https://github.com/nodejs/node/pull/48638
     description: Updated parameters to be an option object with available APIs
                  and the default initial epoch.
@@ -1896,6 +1903,7 @@ and `globalThis` will be mocked. As well as the global `Date` object.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 This function restores the default behavior of all mocks that were previously
@@ -1924,6 +1932,7 @@ Calls `timers.reset()`.
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 Advances time for all mocked timers.
@@ -2240,6 +2249,7 @@ test('should tick five times testing a real use case', async (context) => {
 <!-- YAML
 added:
   - v20.4.0
+  - v18.19.0
 -->
 
 Triggers all pending mocked timers immediately. If the `Date` object is also
@@ -2303,7 +2313,7 @@ clocks or actual timers outside of the mocking environment.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.2.0
 -->
 
 Sets the current Unix timestamp that will be used as reference for any mocked

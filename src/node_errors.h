@@ -71,6 +71,7 @@ void AppendExceptionLine(Environment* env,
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
   V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
   V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
+  V(ERR_INVALID_PACKAGE_CONFIG, Error)                                         \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_STATE, Error)                                                  \
@@ -123,6 +124,10 @@ void AppendExceptionLine(Environment* env,
   inline void THROW_##code(                                                    \
       Environment* env, const char* format, Args&&... args) {                  \
     THROW_##code(env->isolate(), format, std::forward<Args>(args)...);         \
+  }                                                                            \
+  template <typename... Args>                                                  \
+  inline void THROW_##code(Realm* realm, const char* format, Args&&... args) { \
+    THROW_##code(realm->isolate(), format, std::forward<Args>(args)...);       \
   }
 ERRORS_WITH_CODE(V)
 #undef V

@@ -64,14 +64,14 @@ void Dotenv::SetEnvironment(node::Environment* env) {
   }
 }
 
-void Dotenv::ParsePath(const std::string_view path) {
+bool Dotenv::ParsePath(const std::string_view path) {
   uv_fs_t req;
   auto defer_req_cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
 
   uv_file file = uv_fs_open(nullptr, &req, path.data(), 0, 438, nullptr);
   if (req.result < 0) {
     // req will be cleaned up by scope leave.
-    return;
+    return false;
   }
   uv_fs_req_cleanup(&req);
 
@@ -89,7 +89,7 @@ void Dotenv::ParsePath(const std::string_view path) {
     auto r = uv_fs_read(nullptr, &req, file, &buf, 1, -1, nullptr);
     if (req.result < 0) {
       // req will be cleaned up by scope leave.
-      return;
+      return false;
     }
     uv_fs_req_cleanup(&req);
     if (r <= 0) {
@@ -104,6 +104,7 @@ void Dotenv::ParsePath(const std::string_view path) {
   for (const auto& line : lines) {
     ParseLine(line);
   }
+  return true;
 }
 
 void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {

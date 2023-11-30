@@ -2015,7 +2015,9 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
-  - version: v20.7.0
+  - version:
+    - v20.7.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
@@ -2068,7 +2070,9 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
-  - version: v20.7.0
+  - version:
+    - v20.7.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
@@ -2823,7 +2827,9 @@ const server = http.createServer((req, res) => {
 <!-- YAML
 added: v16.9.0
 changes:
-  - version: v21.1.0
+  - version:
+    - v21.1.0
+    - v20.10.0
     pr-url: https://github.com/nodejs/node/pull/50187
     description: Added support for stream class.
   - version:

@@ -498,7 +498,8 @@ Error: Access to this API has been restricted
     at Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:76:24)
     at node:internal/main/run_main_module:23:47 {
   code: 'ERR_ACCESS_DENIED',
-  permission: 'FileSystemRead'
+  permission: 'FileSystemRead',
+  resource: '/home/user/index.js'
 }
 ```
 

@@ -22,8 +22,6 @@ calling `require('node:tls')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
-
 ```cjs
 let tls;
 try {
@@ -2049,7 +2047,9 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: v20.4.0
+  - version:
+    - v20.4.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/45190
     description: The `options` parameter can now include `ALPNCallback`.
   - version: v19.0.0

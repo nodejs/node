@@ -288,6 +288,19 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
             .IsNothing()) {
       return BaseObjectPtr<ContextifyContext>();
     }
+
+    // Assign host_defined_options_id to the global object so that in the
+    // callback of ImportModuleDynamically, we can get the
+    // host_defined_options_id from the v8::Context without accessing the
+    // wrapper object.
+    if (new_context_global
+            ->SetPrivate(v8_context,
+                         env->host_defined_option_symbol(),
+                         options->host_defined_options_id)
+            .IsNothing()) {
+      return BaseObjectPtr<ContextifyContext>();
+    }
+
     env->AssignToContext(v8_context, nullptr, info);
 
     if (!env->contextify_wrapper_template()
@@ -305,6 +318,16 @@ BaseObjectPtr<ContextifyContext> ContextifyContext::New(
   if (sandbox_obj
           ->SetPrivate(
               v8_context, env->contextify_context_private_symbol(), wrapper)
+          .IsNothing()) {
+    return BaseObjectPtr<ContextifyContext>();
+  }
+  // Assign host_defined_options_id to the sandbox object so that module
+  // callbacks like importModuleDynamically can be registered once back to the
+  // JS land.
+  if (sandbox_obj
+          ->SetPrivate(v8_context,
+                       env->host_defined_option_symbol(),
+                       options->host_defined_options_id)
           .IsNothing()) {
     return BaseObjectPtr<ContextifyContext>();
   }
@@ -344,7 +367,7 @@ void ContextifyContext::RegisterExternalReferences(
 void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_EQ(args.Length(), 6);
+  CHECK_EQ(args.Length(), 7);
   CHECK(args[0]->IsObject());
   Local<Object> sandbox = args[0].As<Object>();
 
@@ -374,6 +397,9 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
     options.own_microtask_queue =
         MicrotaskQueue::New(env->isolate(), MicrotasksPolicy::kExplicit);
   }
+
+  CHECK(args[6]->IsSymbol());
+  options.host_defined_options_id = args[6].As<Symbol>();
 
   TryCatchScope try_catch(env);
   BaseObjectPtr<ContextifyContext> context_ptr =
@@ -1446,7 +1472,7 @@ void ContextifyContext::ContainsModuleSyntax(
   ContextifyContext::CompileFunctionAndCacheResult(env,
                                                    context,
                                                    &source,
-                                                   params,
+                                                   std::move(params),
                                                    std::vector<Local<Object>>(),
                                                    options,
                                                    true,

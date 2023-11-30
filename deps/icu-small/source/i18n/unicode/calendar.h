@@ -1237,7 +1237,8 @@ public:
     /**
      * Clears the value in the given time field, both making it unset and assigning it a
      * value of zero. This field value will be determined during the next resolving of
-     * time into time fields.
+     * time into time fields. Clearing UCAL_ORDINAL_MONTH or UCAL_MONTH will
+     * clear both fields.
      *
      * @param field  The time field to be cleared.
      * @stable ICU 2.6.

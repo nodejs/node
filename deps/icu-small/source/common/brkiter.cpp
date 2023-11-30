@@ -27,6 +27,7 @@
 #include "unicode/rbbi.h"
 #include "unicode/brkiter.h"
 #include "unicode/udata.h"
+#include "unicode/uloc.h"
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/filteredbrk.h"
@@ -121,8 +122,11 @@ BreakIterator::buildInstance(const Locale& loc, const char *type, UErrorCode &st
     // If there is a result, set the valid locale and actual locale, and the kind
     if (U_SUCCESS(status) && result != nullptr) {
         U_LOCALE_BASED(locBased, *(BreakIterator*)result);
+
         locBased.setLocaleIDs(ures_getLocaleByType(b, ULOC_VALID_LOCALE, &status), 
                               actualLocale.data());
+        uprv_strncpy(result->requestLocale, loc.getName(), ULOC_FULLNAME_CAPACITY);
+        result->requestLocale[ULOC_FULLNAME_CAPACITY-1] = 0; // always terminate
     }
 
     ures_close(b);
@@ -202,18 +206,20 @@ BreakIterator::getAvailableLocales(int32_t& count)
 
 BreakIterator::BreakIterator()
 {
-    *validLocale = *actualLocale = 0;
+    *validLocale = *actualLocale = *requestLocale = 0;
 }
 
 BreakIterator::BreakIterator(const BreakIterator &other) : UObject(other) {
     uprv_strncpy(actualLocale, other.actualLocale, sizeof(actualLocale));
     uprv_strncpy(validLocale, other.validLocale, sizeof(validLocale));
+    uprv_strncpy(requestLocale, other.requestLocale, sizeof(requestLocale));
 }
 
 BreakIterator &BreakIterator::operator =(const BreakIterator &other) {
     if (this != &other) {
         uprv_strncpy(actualLocale, other.actualLocale, sizeof(actualLocale));
         uprv_strncpy(validLocale, other.validLocale, sizeof(validLocale));
+        uprv_strncpy(requestLocale, other.requestLocale, sizeof(requestLocale));
     }
     return *this;
 }
@@ -493,12 +499,18 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
 
 Locale
 BreakIterator::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
+    if (type == ULOC_REQUESTED_LOCALE) {
+        return Locale(requestLocale);
+    }
     U_LOCALE_BASED(locBased, *this);
     return locBased.getLocale(type, status);
 }
 
 const char *
 BreakIterator::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
+    if (type == ULOC_REQUESTED_LOCALE) {
+        return requestLocale;
+    }
     U_LOCALE_BASED(locBased, *this);
     return locBased.getLocaleID(type, status);
 }

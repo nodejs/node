@@ -166,6 +166,8 @@ function regFetch (uri, /* istanbul ignore next */ opts_ = {}) {
   return Promise.resolve(body).then(doFetch)
 }
 
+module.exports.getAuth = getAuth
+
 module.exports.json = fetchJSON
 function fetchJSON (uri, opts) {
   return regFetch(uri, opts).then(res => res.json())

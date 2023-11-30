@@ -59,6 +59,8 @@
 
 # tls/crypto
 
+/doc/api/crypto.md @nodejs/crypto
+/doc/api/webcrypto.md @nodejs/crypto
 /lib/crypto.js @nodejs/crypto
 /lib/internal/crypto/* @nodejs/crypto
 /lib/internal/tls/* @nodejs/crypto @nodejs/net
@@ -176,3 +178,5 @@
 # Web Standards
 /lib/internal/bootstrap/web/* @nodejs/web-standards
 /lib/internal/navigator.js @nodejs/web-standards
+/test/fixtures/wpt/ @nodejs/web-standards
+/test/wpt/ @nodejs/web-standards

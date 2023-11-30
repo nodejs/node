@@ -372,11 +372,11 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
         factor.constantExponents[CONSTANT_FT2M] += 3 * power * signum;
     } else if (baseStr == "in3_to_m3") {
         factor.constantExponents[CONSTANT_FT2M] += 3 * power * signum;
-        factor.factorDen *= 12 * 12 * 12;
+        factor.factorDen *= std::pow(12 * 12 * 12, power * signum);
     } else if (baseStr == "gal_to_m3") {
-        factor.factorNum *= 231;
         factor.constantExponents[CONSTANT_FT2M] += 3 * power * signum;
-        factor.factorDen *= 12 * 12 * 12;
+        factor.factorNum *= std::pow(231, power * signum);
+        factor.factorDen *= std::pow(12 * 12 * 12, power * signum);
     } else if (baseStr == "gal_imp_to_m3") {
         factor.constantExponents[CONSTANT_GAL_IMP2M3] += power * signum;
     } else if (baseStr == "G") {
@@ -397,6 +397,14 @@ void U_I18N_API addSingleFactorConstant(StringPiece baseStr, int32_t power, Sign
         factor.constantExponents[CONSTANT_SEC_PER_JULIAN_YEAR] += power * signum;
     } else if (baseStr == "speed_of_light_meters_per_second") {
         factor.constantExponents[CONSTANT_SPEED_OF_LIGHT_METERS_PER_SECOND] += power * signum;
+    } else if (baseStr == "sho_to_m3") {
+        factor.constantExponents[CONSTANT_SHO_TO_M3] += power * signum;
+    } else if (baseStr == "tsubo_to_m2") {
+        factor.constantExponents[CONSTANT_TSUBO_TO_M2] += power * signum;
+    } else if (baseStr == "shaku_to_m") {
+        factor.constantExponents[CONSTANT_SHAKU_TO_M] += power * signum;
+    } else if (baseStr == "AMU") {
+        factor.constantExponents[CONSTANT_AMU] += power * signum;
     } else {
         if (signum == Signum::NEGATIVE) {
             factor.factorDen *= std::pow(strToDouble(baseStr, status), power);
@@ -535,7 +543,7 @@ void UnitsConverter::init(const ConversionRates &ratesInfo, UErrorCode &status) 
 
     loadConversionRate(conversionRate_, conversionRate_.source, conversionRate_.target, unitsState,
                        ratesInfo, status);
-                          
+
 }
 
 int32_t UnitsConverter::compareTwoUnits(const MeasureUnitImpl &firstUnit,

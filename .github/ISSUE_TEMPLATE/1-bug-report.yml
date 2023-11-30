@@ -27,7 +27,11 @@ body:
   - type: textarea
     attributes:
       label: What steps will reproduce the bug?
-      description: Enter details about your bug, preferably a simple code snippet that can be run using `node` directly without installing third-party dependencies.
+      description: >
+        Enter details about your bug, preferably a simple code snippet that can
+        be run using `node` directly without installing third-party dependencies
+        or downloading code from the internet (i.e. no ZIP archive, no GitHub
+        repository, etc.).
   - type: textarea
     attributes:
       label: How often does it reproduce? Is there a required condition?

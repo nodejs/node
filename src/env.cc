@@ -349,6 +349,8 @@ IsolateDataSerializeInfo IsolateData::Serialize(SnapshotCreator* creator) {
 
 void IsolateData::DeserializeProperties(const IsolateDataSerializeInfo* info) {
   size_t i = 0;
+
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
@@ -431,6 +433,7 @@ void IsolateData::CreateProperties() {
   // One byte because our strings are ASCII and we can safely skip V8's UTF-8
   // decoding step.
 
+  v8::Isolate::Scope isolate_scope(isolate_);
   HandleScope handle_scope(isolate_);
 
 #define V(PropertyName, StringValue)                                           \
@@ -501,6 +504,7 @@ void IsolateData::CreateProperties() {
   binding::CreateInternalBindingTemplates(this);
 
   contextify::ContextifyContext::InitializeGlobalTemplates(this);
+  CreateEnvProxyTemplate(this);
 }
 
 constexpr uint16_t kDefaultCppGCEmebdderID = 0x90de;
@@ -1650,10 +1654,13 @@ void AsyncHooks::MemoryInfo(MemoryTracker* tracker) const {
 void AsyncHooks::grow_async_ids_stack() {
   async_ids_stack_.reserve(async_ids_stack_.Length() * 3);
 
-  env()->async_hooks_binding()->Set(
-      env()->context(),
-      env()->async_ids_stack_string(),
-      async_ids_stack_.GetJSArray()).Check();
+  env()
+      ->principal_realm()
+      ->async_hooks_binding()
+      ->Set(env()->context(),
+            env()->async_ids_stack_string(),
+            async_ids_stack_.GetJSArray())
+      .Check();
 }
 
 void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
@@ -1662,7 +1669,8 @@ void AsyncHooks::FailWithCorruptedAsyncStack(double expected_async_id) {
           "actual: %.f, expected: %.f)\n",
           async_id_fields_.GetValue(kExecutionAsyncId),
           expected_async_id);
-  DumpBacktrace(stderr);
+  DumpNativeBacktrace(stderr);
+  DumpJavaScriptBacktrace(stderr);
   fflush(stderr);
   // TODO(joyeecheung): should this exit code be more specific?
   if (!env()->abort_on_uncaught_exception()) Exit(ExitCode::kGenericUserError);

@@ -42,7 +42,7 @@ calling `require('node:crypto')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-global-assign -->
 
 ```cjs
 let crypto;
@@ -52,6 +52,8 @@ try {
   console.error('crypto support is disabled!');
 }
 ```
+
+<!-- eslint-enable no-global-assign -->
 
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
@@ -2722,7 +2724,7 @@ added: v15.9.0
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
 
-### `x509.keyUsage`
+### `x509.extKeyUsage`
 
 <!-- YAML
 added: v15.6.0
@@ -2730,7 +2732,7 @@ added: v15.6.0
 
 * Type: {string\[]}
 
-An array detailing the key usages for this certificate.
+An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 

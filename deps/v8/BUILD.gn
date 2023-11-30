@@ -500,6 +500,7 @@ if (v8_enable_short_builtin_calls == "") {
 if (v8_enable_external_code_space == "") {
   v8_enable_external_code_space =
       v8_enable_pointer_compression &&
+      v8_enable_pointer_compression_shared_cage &&
       (v8_current_cpu == "x64" || v8_current_cpu == "arm64")
 }
 if (v8_enable_maglev == "") {
@@ -682,6 +683,12 @@ assert(!v8_expose_memory_corruption_api || v8_enable_sandbox,
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_enable_pointer_compression,
     "Can't share a pointer compression cage if pointers aren't compressed")
+
+assert(
+    !v8_enable_pointer_compression ||
+        v8_enable_pointer_compression_shared_cage ||
+        !v8_enable_external_code_space,
+    "Multi-cage pointer compression mode is not compatible with external code space")
 
 assert(
     !v8_enable_pointer_compression_shared_cage || v8_current_cpu == "x64" ||
