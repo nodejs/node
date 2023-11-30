@@ -2189,6 +2189,9 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50973
+    description: End-of-Life.
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/22089
     description: Runtime deprecation.
@@ -2197,11 +2200,12 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-Using [`crypto.createCipher()`][] and [`crypto.createDecipher()`][] must be
-avoided as they use a weak key derivation function (MD5 with no salt) and static
-initialization vectors. It is recommended to derive a key using
+`crypto.createCipher()` and `crypto.createDecipher()` have been removed
+as they use a weak key derivation function (MD5 with no salt) and static
+initialization vectors.
+It is recommended to derive a key using
 [`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] with random salts and to use
 [`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
 [`Cipher`][] and [`Decipher`][] objects respectively.
@@ -3557,9 +3561,7 @@ The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
 [`console.error()`]: console.md#consoleerrordata-args
 [`console.log()`]: console.md#consolelogdata-args
 [`crypto.Certificate()` constructor]: crypto.md#legacy-api
-[`crypto.createCipher()`]: crypto.md#cryptocreatecipheralgorithm-password-options
 [`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
-[`crypto.createDecipher()`]: crypto.md#cryptocreatedecipheralgorithm-password-options
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.fips`]: crypto.md#cryptofips
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
