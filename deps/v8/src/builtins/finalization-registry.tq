@@ -129,7 +129,7 @@ FinalizationRegistryConstructor(
   return finalizationRegistry;
 }
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-finalization-registry.prototype.register
+// https://tc39.es/ecma262/#sec-finalization-registry.prototype.register
 transitioning javascript builtin
 FinalizationRegistryRegister(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {

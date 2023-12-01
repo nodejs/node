@@ -319,8 +319,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)                                              \
-  V(harmony_array_grouping, "harmony array grouping")                       \
-  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")
+  V(harmony_array_grouping, "harmony array grouping")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) \

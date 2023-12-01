@@ -2679,12 +2679,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         ExternalReference::address_of_shared_string_table_flag());
   }
 
-  TNode<BoolT> HasHarmonySymbolAsWeakmapKeyFlag() {
-    return LoadRuntimeFlag(
-        ExternalReference::
-            address_of_FLAG_harmony_symbol_as_weakmap_key());
-  }
-
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
   TNode<BoolT> IsNumeric(TNode<Object> object);
 

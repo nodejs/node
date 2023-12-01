@@ -13,7 +13,7 @@ extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(
 
 namespace weakref {
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-weak-ref-target
+// https://tc39.es/ecma262/#sec-weak-ref-target
 transitioning javascript builtin
 WeakRefConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,

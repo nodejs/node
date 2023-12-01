@@ -399,6 +399,7 @@ TNode<IntPtrT> BaseCollectionsAssembler::EstimatedInitialSize(
       [=] { return IntPtrConstant(0); });
 }
 
+// https://tc39.es/ecma262/#sec-canbeheldweakly
 void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
     const TNode<Object> obj, Label* if_cannot_be_held_weakly) {
   Label check_symbol_key(this);
@@ -411,7 +412,6 @@ void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
   GotoIf(IsJSSharedStructInstanceType(instance_type), if_cannot_be_held_weakly);
   Goto(&end);
   Bind(&check_symbol_key);
-  GotoIfNot(HasHarmonySymbolAsWeakmapKeyFlag(), if_cannot_be_held_weakly);
   GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
   GotoIf(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),

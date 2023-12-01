@@ -1206,7 +1206,7 @@ MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
                    throw_if_cannot_be_shared);
 }
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
+// https://tc39.es/ecma262/#sec-canbeheldweakly
 bool Object::CanBeHeldWeakly() const {
   if (IsJSReceiver()) {
     // TODO(v8:12547) Shared structs and arrays should only be able to point
@@ -1217,10 +1217,7 @@ bool Object::CanBeHeldWeakly() const {
     }
     return true;
   }
-  if (FLAG_harmony_symbol_as_weakmap_key) {
-    return IsSymbol() && !Symbol::cast(*this).is_in_public_symbol_table();
-  }
-  return false;
+  return IsSymbol() && !Symbol::cast(*this).is_in_public_symbol_table();
 }
 
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {
