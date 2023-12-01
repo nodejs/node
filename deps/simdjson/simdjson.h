@@ -1,4 +1,4 @@
-/* auto-generated on 2023-10-30 12:51:02 -0400. Do not edit! */
+/* auto-generated on 2023-12-01 13:55:28 -0500. Do not edit! */
 /* including simdjson.h:  */
 /* begin file simdjson.h */
 #ifndef SIMDJSON_H
@@ -129,6 +129,8 @@
 #define SIMDJSON_IS_X86_64 1
 #elif defined(__aarch64__) || defined(_M_ARM64)
 #define SIMDJSON_IS_ARM64 1
+#elif defined(__riscv) && __riscv_xlen == 64
+#define SIMDJSON_IS_RISCV64 1
 #elif defined(__PPC64__) || defined(_M_PPC64)
 #if defined(__ALTIVEC__)
 #define SIMDJSON_IS_PPC64_VMX 1
@@ -2319,7 +2321,7 @@ namespace std {
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION "3.6.0"
+#define SIMDJSON_VERSION "3.6.2"
 
 namespace simdjson {
 enum {
@@ -2334,7 +2336,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
-  SIMDJSON_VERSION_REVISION = 0
+  SIMDJSON_VERSION_REVISION = 2
 };
 } // namespace simdjson
 
@@ -2398,7 +2400,7 @@ enum error_code {
   INVALID_URI_FRAGMENT,       ///< Invalid URI fragment
   UNEXPECTED_ERROR,           ///< indicative of a bug in simdjson
   PARSER_IN_USE,              ///< parser is already in use.
-  OUT_OF_ORDER_ITERATION,     ///< tried to iterate an array or object out of order
+  OUT_OF_ORDER_ITERATION,     ///< tried to iterate an array or object out of order (checked when SIMDJSON_DEVELOPMENT_CHECKS=1)
   INSUFFICIENT_PADDING,       ///< The JSON doesn't have enough padding for simdjson to safely parse it.
   INCOMPLETE_ARRAY_OR_OBJECT, ///< The document ends early.
   SCALAR_DOCUMENT_AS_VALUE,   ///< A scalar document is treated as a value.
@@ -2406,6 +2408,13 @@ enum error_code {
   TRAILING_CONTENT,           ///< Unexpected trailing content in the JSON input
   NUM_ERROR_CODES
 };
+
+/**
+ * It is the convention throughout the code that  the macro SIMDJSON_DEVELOPMENT_CHECKS determines whether
+ * we check for OUT_OF_ORDER_ITERATION. The logic behind it is that these errors only occurs when the code
+ * that was written while breaking some simdjson::ondemand requirement. They should not occur in released
+ * code after these issues were fixed.
+ */
 
 /**
  * Get the error message for the given error code.
@@ -2566,11 +2575,11 @@ struct simdjson_result : public internal::simdjson_result_base<T> {
    */
   simdjson_inline simdjson_result() noexcept;
   /**
-   * @private Create a new error result.
+   * @private Create a new successful result.
    */
   simdjson_inline simdjson_result(T &&value) noexcept;
   /**
-   * @private Create a new successful result.
+   * @private Create a new error result.
    */
   simdjson_inline simdjson_result(error_code error_code) noexcept;
   /**
@@ -10641,89 +10650,53 @@ namespace {
 // Start of private section with Visual Studio workaround
 
 
-/**
- * make_uint8x16_t initializes a SIMD register (uint8x16_t).
- * This is needed because, incredibly, the syntax uint8x16_t x = {1,2,3...}
- * is not recognized under Visual Studio! This is a workaround.
- * Using a std::initializer_list<uint8_t>  as a parameter resulted in
- * inefficient code. With the current approach, if the parameters are
- * compile-time constants,
- * GNU GCC compiles it to ldr, the same as uint8x16_t x = {1,2,3...}.
- * You should not use this function except for compile-time constants:
- * it is not efficient.
- */
-simdjson_inline uint8x16_t make_uint8x16_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8,
-                                         uint8_t x9,  uint8_t x10, uint8_t x11, uint8_t x12,
-                                         uint8_t x13, uint8_t x14, uint8_t x15, uint8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // uint8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_u8(array);
-  uint8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_u8(x1, x, 0);
-  x = vsetq_lane_u8(x2, x, 1);
-  x = vsetq_lane_u8(x3, x, 2);
-  x = vsetq_lane_u8(x4, x, 3);
-  x = vsetq_lane_u8(x5, x, 4);
-  x = vsetq_lane_u8(x6, x, 5);
-  x = vsetq_lane_u8(x7, x, 6);
-  x = vsetq_lane_u8(x8, x, 7);
-  x = vsetq_lane_u8(x9, x, 8);
-  x = vsetq_lane_u8(x10, x, 9);
-  x = vsetq_lane_u8(x11, x, 10);
-  x = vsetq_lane_u8(x12, x, 11);
-  x = vsetq_lane_u8(x13, x, 12);
-  x = vsetq_lane_u8(x14, x, 13);
-  x = vsetq_lane_u8(x15, x, 14);
-  x = vsetq_lane_u8(x16, x, 15);
-  return x;
-}
+#ifndef simdjson_make_uint8x16_t
+#define simdjson_make_uint8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                   \
+   ([=]() {                                                                        \
+     uint8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,                    \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};           \
+     return vld1q_u8(array);                                                       \
+   }())
+#endif
+#ifndef simdjson_make_int8x16_t
+#define simdjson_make_int8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                  \
+   ([=]() {                                                                       \
+     int8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,                    \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};          \
+     return vld1q_s8(array);                                                      \
+   }())
+#endif
 
-simdjson_inline uint8x8_t make_uint8x8_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8) {
-  uint8x8_t x{};
-  x = vset_lane_u8(x1, x, 0);
-  x = vset_lane_u8(x2, x, 1);
-  x = vset_lane_u8(x3, x, 2);
-  x = vset_lane_u8(x4, x, 3);
-  x = vset_lane_u8(x5, x, 4);
-  x = vset_lane_u8(x6, x, 5);
-  x = vset_lane_u8(x7, x, 6);
-  x = vset_lane_u8(x8, x, 7);
-  return x;
-}
-
-// We have to do the same work for make_int8x16_t
-simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int8_t x4,
-                                       int8_t x5,  int8_t x6,  int8_t x7,  int8_t x8,
-                                       int8_t x9,  int8_t x10, int8_t x11, int8_t x12,
-                                       int8_t x13, int8_t x14, int8_t x15, int8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // int8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_s8(array);
-  int8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_s8(x1, x, 0);
-  x = vsetq_lane_s8(x2, x, 1);
-  x = vsetq_lane_s8(x3, x, 2);
-  x = vsetq_lane_s8(x4, x, 3);
-  x = vsetq_lane_s8(x5, x, 4);
-  x = vsetq_lane_s8(x6, x, 5);
-  x = vsetq_lane_s8(x7, x, 6);
-  x = vsetq_lane_s8(x8, x, 7);
-  x = vsetq_lane_s8(x9, x, 8);
-  x = vsetq_lane_s8(x10, x, 9);
-  x = vsetq_lane_s8(x11, x, 10);
-  x = vsetq_lane_s8(x12, x, 11);
-  x = vsetq_lane_s8(x13, x, 12);
-  x = vsetq_lane_s8(x14, x, 13);
-  x = vsetq_lane_s8(x15, x, 14);
-  x = vsetq_lane_s8(x16, x, 15);
-  return x;
-}
+#ifndef simdjson_make_uint8x8_t
+#define simdjson_make_uint8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                    \
+     uint8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                \
+     return vld1_u8(array);                                                    \
+   }())
+#endif
+#ifndef simdjson_make_int8x8_t
+#define simdjson_make_int8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                 \
+   ([=]() {                                                                    \
+     int8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                 \
+     return vld1_s8(array);                                                    \
+   }())
+#endif
+#ifndef simdjson_make_uint16x8_t
+#define simdjson_make_uint16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)               \
+   ([=]() {                                                                    \
+     uint16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};               \
+     return vld1q_u16(array);                                                  \
+   }())
+#endif
+#ifndef simdjson_make_int16x8_t
+#define simdjson_make_int16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                    \
+     int16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                \
+     return vld1q_s16(array);                                                  \
+   }())
+#endif
 
 // End of private section with Visual Studio workaround
 } // namespace
@@ -10782,7 +10755,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     // purposes (cutting it down to uint16_t costs performance in some compilers).
     simdjson_inline uint32_t to_bitmask() const {
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask =  make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+      const uint8x16_t bit_mask =  simdjson_make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
                                                    0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80);
 #else
       const uint8x16_t bit_mask =  {0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
@@ -10816,7 +10789,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     simdjson_inline simd8(
       uint8_t v0,  uint8_t v1,  uint8_t v2,  uint8_t v3,  uint8_t v4,  uint8_t v5,  uint8_t v6,  uint8_t v7,
       uint8_t v8,  uint8_t v9,  uint8_t v10, uint8_t v11, uint8_t v12, uint8_t v13, uint8_t v14, uint8_t v15
-    ) : simd8(make_uint8x16_t(
+    ) : simd8(simdjson_make_uint8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -10907,7 +10880,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
       uint8x16_t shufmask = vreinterpretq_u8_u64(shufmask64);
       // we increment by 0x08 the second half of the mask
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      uint8x16_t inc = make_uint8x16_t(0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
+      uint8x16_t inc = simdjson_make_uint8x16_t(0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
 #else
       uint8x16_t inc = {0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
 #endif
@@ -10937,7 +10910,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
       uint8x8_t compactmask2 = vcreate_u8(thintable_epi8[mask2]);
       // we increment by 0x08 the second half of the mask
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      uint8x8_t inc = make_uint8x8_t(0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
+      uint8x8_t inc = simdjson_make_uint8x8_t(0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
 #else
       uint8x8_t inc = {0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
 #endif
@@ -10992,7 +10965,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     simdjson_inline simd8(
       int8_t v0,  int8_t v1,  int8_t v2,  int8_t v3, int8_t v4,  int8_t v5,  int8_t v6,  int8_t v7,
       int8_t v8,  int8_t v9,  int8_t v10, int8_t v11, int8_t v12, int8_t v13, int8_t v14, int8_t v15
-    ) : simd8(make_int8x16_t(
+    ) : simd8(simdjson_make_int8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -11110,7 +11083,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
 
     simdjson_inline uint64_t to_bitmask() const {
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask = make_uint8x16_t(
+      const uint8x16_t bit_mask = simdjson_make_uint8x16_t(
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80
       );
@@ -26169,89 +26142,53 @@ namespace {
 // Start of private section with Visual Studio workaround
 
 
-/**
- * make_uint8x16_t initializes a SIMD register (uint8x16_t).
- * This is needed because, incredibly, the syntax uint8x16_t x = {1,2,3...}
- * is not recognized under Visual Studio! This is a workaround.
- * Using a std::initializer_list<uint8_t>  as a parameter resulted in
- * inefficient code. With the current approach, if the parameters are
- * compile-time constants,
- * GNU GCC compiles it to ldr, the same as uint8x16_t x = {1,2,3...}.
- * You should not use this function except for compile-time constants:
- * it is not efficient.
- */
-simdjson_inline uint8x16_t make_uint8x16_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8,
-                                         uint8_t x9,  uint8_t x10, uint8_t x11, uint8_t x12,
-                                         uint8_t x13, uint8_t x14, uint8_t x15, uint8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // uint8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_u8(array);
-  uint8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_u8(x1, x, 0);
-  x = vsetq_lane_u8(x2, x, 1);
-  x = vsetq_lane_u8(x3, x, 2);
-  x = vsetq_lane_u8(x4, x, 3);
-  x = vsetq_lane_u8(x5, x, 4);
-  x = vsetq_lane_u8(x6, x, 5);
-  x = vsetq_lane_u8(x7, x, 6);
-  x = vsetq_lane_u8(x8, x, 7);
-  x = vsetq_lane_u8(x9, x, 8);
-  x = vsetq_lane_u8(x10, x, 9);
-  x = vsetq_lane_u8(x11, x, 10);
-  x = vsetq_lane_u8(x12, x, 11);
-  x = vsetq_lane_u8(x13, x, 12);
-  x = vsetq_lane_u8(x14, x, 13);
-  x = vsetq_lane_u8(x15, x, 14);
-  x = vsetq_lane_u8(x16, x, 15);
-  return x;
-}
+#ifndef simdjson_make_uint8x16_t
+#define simdjson_make_uint8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                   \
+   ([=]() {                                                                        \
+     uint8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,                    \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};           \
+     return vld1q_u8(array);                                                       \
+   }())
+#endif
+#ifndef simdjson_make_int8x16_t
+#define simdjson_make_int8x16_t(x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, \
+                             x13, x14, x15, x16)                                  \
+   ([=]() {                                                                       \
+     int8_t array[16] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8,                    \
+                                 x9, x10, x11, x12, x13, x14, x15, x16};          \
+     return vld1q_s8(array);                                                      \
+   }())
+#endif
 
-simdjson_inline uint8x8_t make_uint8x8_t(uint8_t x1,  uint8_t x2,  uint8_t x3,  uint8_t x4,
-                                         uint8_t x5,  uint8_t x6,  uint8_t x7,  uint8_t x8) {
-  uint8x8_t x{};
-  x = vset_lane_u8(x1, x, 0);
-  x = vset_lane_u8(x2, x, 1);
-  x = vset_lane_u8(x3, x, 2);
-  x = vset_lane_u8(x4, x, 3);
-  x = vset_lane_u8(x5, x, 4);
-  x = vset_lane_u8(x6, x, 5);
-  x = vset_lane_u8(x7, x, 6);
-  x = vset_lane_u8(x8, x, 7);
-  return x;
-}
-
-// We have to do the same work for make_int8x16_t
-simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int8_t x4,
-                                       int8_t x5,  int8_t x6,  int8_t x7,  int8_t x8,
-                                       int8_t x9,  int8_t x10, int8_t x11, int8_t x12,
-                                       int8_t x13, int8_t x14, int8_t x15, int8_t x16) {
-  // Doing a load like so end ups generating worse code.
-  // int8_t array[16] = {x1, x2, x3, x4, x5, x6, x7, x8,
-  //                     x9, x10,x11,x12,x13,x14,x15,x16};
-  // return vld1q_s8(array);
-  int8x16_t x{};
-  // incredibly, Visual Studio does not allow x[0] = x1
-  x = vsetq_lane_s8(x1, x, 0);
-  x = vsetq_lane_s8(x2, x, 1);
-  x = vsetq_lane_s8(x3, x, 2);
-  x = vsetq_lane_s8(x4, x, 3);
-  x = vsetq_lane_s8(x5, x, 4);
-  x = vsetq_lane_s8(x6, x, 5);
-  x = vsetq_lane_s8(x7, x, 6);
-  x = vsetq_lane_s8(x8, x, 7);
-  x = vsetq_lane_s8(x9, x, 8);
-  x = vsetq_lane_s8(x10, x, 9);
-  x = vsetq_lane_s8(x11, x, 10);
-  x = vsetq_lane_s8(x12, x, 11);
-  x = vsetq_lane_s8(x13, x, 12);
-  x = vsetq_lane_s8(x14, x, 13);
-  x = vsetq_lane_s8(x15, x, 14);
-  x = vsetq_lane_s8(x16, x, 15);
-  return x;
-}
+#ifndef simdjson_make_uint8x8_t
+#define simdjson_make_uint8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                    \
+     uint8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                \
+     return vld1_u8(array);                                                    \
+   }())
+#endif
+#ifndef simdjson_make_int8x8_t
+#define simdjson_make_int8x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                 \
+   ([=]() {                                                                    \
+     int8_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                 \
+     return vld1_s8(array);                                                    \
+   }())
+#endif
+#ifndef simdjson_make_uint16x8_t
+#define simdjson_make_uint16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)               \
+   ([=]() {                                                                    \
+     uint16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};               \
+     return vld1q_u16(array);                                                  \
+   }())
+#endif
+#ifndef simdjson_make_int16x8_t
+#define simdjson_make_int16x8_t(x1, x2, x3, x4, x5, x6, x7, x8)                \
+   ([=]() {                                                                    \
+     int16_t array[8] = {x1, x2,  x3,  x4,  x5,  x6,  x7,  x8};                \
+     return vld1q_s16(array);                                                  \
+   }())
+#endif
 
 // End of private section with Visual Studio workaround
 } // namespace
@@ -26310,7 +26247,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     // purposes (cutting it down to uint16_t costs performance in some compilers).
     simdjson_inline uint32_t to_bitmask() const {
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask =  make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
+      const uint8x16_t bit_mask =  simdjson_make_uint8x16_t(0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
                                                    0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80);
 #else
       const uint8x16_t bit_mask =  {0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
@@ -26344,7 +26281,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     simdjson_inline simd8(
       uint8_t v0,  uint8_t v1,  uint8_t v2,  uint8_t v3,  uint8_t v4,  uint8_t v5,  uint8_t v6,  uint8_t v7,
       uint8_t v8,  uint8_t v9,  uint8_t v10, uint8_t v11, uint8_t v12, uint8_t v13, uint8_t v14, uint8_t v15
-    ) : simd8(make_uint8x16_t(
+    ) : simd8(simdjson_make_uint8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -26435,7 +26372,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
       uint8x16_t shufmask = vreinterpretq_u8_u64(shufmask64);
       // we increment by 0x08 the second half of the mask
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      uint8x16_t inc = make_uint8x16_t(0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
+      uint8x16_t inc = simdjson_make_uint8x16_t(0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
 #else
       uint8x16_t inc = {0, 0, 0, 0, 0, 0, 0, 0, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
 #endif
@@ -26465,7 +26402,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
       uint8x8_t compactmask2 = vcreate_u8(thintable_epi8[mask2]);
       // we increment by 0x08 the second half of the mask
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      uint8x8_t inc = make_uint8x8_t(0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
+      uint8x8_t inc = simdjson_make_uint8x8_t(0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08);
 #else
       uint8x8_t inc = {0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08, 0x08};
 #endif
@@ -26520,7 +26457,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
     simdjson_inline simd8(
       int8_t v0,  int8_t v1,  int8_t v2,  int8_t v3, int8_t v4,  int8_t v5,  int8_t v6,  int8_t v7,
       int8_t v8,  int8_t v9,  int8_t v10, int8_t v11, int8_t v12, int8_t v13, int8_t v14, int8_t v15
-    ) : simd8(make_int8x16_t(
+    ) : simd8(simdjson_make_int8x16_t(
       v0, v1, v2, v3, v4, v5, v6, v7,
       v8, v9, v10,v11,v12,v13,v14,v15
     )) {}
@@ -26638,7 +26575,7 @@ simdjson_inline int8x16_t make_int8x16_t(int8_t x1,  int8_t x2,  int8_t x3,  int
 
     simdjson_inline uint64_t to_bitmask() const {
 #ifdef SIMDJSON_REGULAR_VISUAL_STUDIO
-      const uint8x16_t bit_mask = make_uint8x16_t(
+      const uint8x16_t bit_mask = simdjson_make_uint8x16_t(
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80,
         0x01, 0x02, 0x4, 0x8, 0x10, 0x20, 0x40, 0x80
       );
@@ -29768,6 +29705,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -29890,10 +29833,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -31696,7 +31644,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
@@ -39668,6 +39626,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -39790,10 +39754,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -41596,7 +41565,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
@@ -50060,6 +50039,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -50182,10 +50167,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -51988,7 +51978,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
@@ -60451,6 +60451,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -60573,10 +60579,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -62379,7 +62390,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
@@ -70957,6 +70978,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -71079,10 +71106,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -72885,7 +72917,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
@@ -81786,6 +81828,12 @@ public:
   /**
    * Cast this JSON value to a value when the document is an object or an array.
    *
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is set to 1 (which is the case when building in Debug mode
+   * by default), and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
    * @returns A value if a JSON array or object cannot be found.
    * @returns SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
@@ -81908,10 +81956,15 @@ public:
    */
   simdjson_inline operator bool() noexcept(false);
   /**
-   * Cast this JSON value to a value.
+   * Cast this JSON value to a value when the document is an object or an array.
    *
-   * @returns A value value.
-   * @exception if a JSON value cannot be found
+   * You must not have begun iterating through the object or array. When
+   * SIMDJSON_DEVELOPMENT_CHECKS is defined, and you have already begun iterating,
+   * you will get an OUT_OF_ORDER_ITERATION error. If you have begun iterating, you can use
+   * rewind() to reset the document to its initial state before calling this method.
+   *
+   * @returns A value value if a JSON array or object cannot be found.
+   * @exception SCALAR_DOCUMENT_AS_VALUE error is the document is a scalar (see is_scalar() function).
    */
   simdjson_inline operator value() noexcept(false);
 #endif
@@ -83714,7 +83767,17 @@ simdjson_inline simdjson_result<object> document::start_or_resume_object() noexc
 simdjson_inline simdjson_result<value> document::get_value() noexcept {
   // Make sure we start any arrays or objects before returning, so that start_root_<object/array>()
   // gets called.
-  iter.assert_at_document_depth();
+
+  // It is the convention throughout the code that  the macro `SIMDJSON_DEVELOPMENT_CHECKS` determines whether
+  // we check for OUT_OF_ORDER_ITERATION. Proper on::demand code should never trigger this error.
+#if SIMDJSON_DEVELOPMENT_CHECKS
+  if (!iter.at_root()) { return OUT_OF_ORDER_ITERATION; }
+#endif
+  // assert_at_root() serves two purposes: in Debug mode, whether or not
+  // SIMDJSON_DEVELOPMENT_CHECKS is set or not, it checks that we are at the root of
+  // the document (this will typically be redundant). In release mode, it generates
+  // SIMDJSON_ASSUME statements to allow the compiler to make assumptions.
+  iter.assert_at_root();
   switch (*iter.peek()) {
     case '[': {
       // The following lines check that the document ends with ].
