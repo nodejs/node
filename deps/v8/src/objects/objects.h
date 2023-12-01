@@ -770,6 +770,11 @@ class Object : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
                                        Handle<HeapObject> value,
                                        ShouldThrow throw_if_cannot_be_shared);
 
+  // Whether this Object can be held weakly, i.e. whether it can be used as a
+  // key in WeakMap, as a key in WeakSet, as the target of a WeakRef, or as a
+  // target or unregister token of a FinalizationRegistry.
+  inline bool CanBeHeldWeakly() const;
+
  protected:
   inline Address field_address(size_t offset) const {
     return ptr() + offset - kHeapObjectTag;

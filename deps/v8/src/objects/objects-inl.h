@@ -1206,6 +1206,23 @@ MaybeHandle<Object> Object::Share(Isolate* isolate, Handle<Object> value,
                    throw_if_cannot_be_shared);
 }
 
+// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-canbeheldweakly-abstract-operation
+bool Object::CanBeHeldWeakly() const {
+  if (IsJSReceiver()) {
+    // TODO(v8:12547) Shared structs and arrays should only be able to point
+    // to shared values in weak collections. For now, disallow them as weak
+    // collection keys.
+    if (FLAG_harmony_struct) {
+      return !IsJSSharedStruct();
+    }
+    return true;
+  }
+  if (FLAG_harmony_symbol_as_weakmap_key) {
+    return IsSymbol() && !Symbol::cast(*this).is_in_public_symbol_table();
+  }
+  return false;
+}
+
 Handle<Object> ObjectHashTableShape::AsHandle(Handle<Object> key) {
   return key;
 }

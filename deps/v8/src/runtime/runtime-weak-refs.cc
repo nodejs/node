@@ -44,13 +44,7 @@ RUNTIME_FUNCTION(Runtime_JSWeakRefAddToKeptObjects) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   Handle<HeapObject> object = args.at<HeapObject>(0);
-  if (FLAG_harmony_symbol_as_weakmap_key) {
-    DCHECK(object->IsJSReceiver() ||
-           (object->IsSymbol() &&
-            !(Handle<Symbol>::cast(object))->is_in_public_symbol_table()));
-  } else {
-    DCHECK(object->IsJSReceiver());
-  }
+  DCHECK(object->CanBeHeldWeakly());
 
   isolate->heap()->KeepDuringJob(object);
 

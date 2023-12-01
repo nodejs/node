@@ -16,7 +16,7 @@ extern transitioning macro
 RemoveFinalizationRegistryCellFromUnregisterTokenMap(
     JSFinalizationRegistry, WeakCell): void;
 
-extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeWeakKey(JSAny):
+extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeHeldWeakly(JSAny):
     void labels NotWeakKey;
 
 macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
@@ -140,7 +140,7 @@ FinalizationRegistryRegister(
       MessageTemplate::kIncompatibleMethodReceiver,
       'FinalizationRegistry.prototype.register', receiver);
   // 3. If CanBeHeldWeakly(target) is false, throw a TypeError exception.
-  GotoIfCannotBeWeakKey(arguments[0])
+  GotoIfCannotBeHeldWeakly(arguments[0])
       otherwise ThrowTypeError(MessageTemplate::kInvalidWeakRefsRegisterTarget);
 
   const target = UnsafeCast<(JSReceiver | Symbol)>(arguments[0]);
@@ -159,7 +159,7 @@ FinalizationRegistryRegister(
   if (IsUndefined(unregisterTokenRaw)) {
     unregisterToken = Undefined;
   } else {
-    GotoIfCannotBeWeakKey(unregisterTokenRaw)
+    GotoIfCannotBeHeldWeakly(unregisterTokenRaw)
         otherwise ThrowTypeError(
         MessageTemplate::kInvalidWeakRefsUnregisterToken, unregisterTokenRaw);
     unregisterToken = UnsafeCast<(JSReceiver | Symbol)>(unregisterTokenRaw);

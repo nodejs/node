@@ -27,23 +27,10 @@ BUILTIN(FinalizationRegistryUnregister) {
 
   // 4. If CanBeHeldWeakly(unregisterToken) is false, throw a TypeError
   // exception.
-  if (FLAG_harmony_symbol_as_weakmap_key) {
-    if (!unregister_token->IsJSReceiver() &&
-        (!unregister_token->IsSymbol() ||
-         Handle<Symbol>::cast(unregister_token)->is_in_public_symbol_table())) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError(MessageTemplate::kInvalidWeakRefsUnregisterToken,
-                       unregister_token));
-    }
-  } else {
-    // 4. If Type(unregisterToken) is not Object, throw a TypeError exception.
-    if (!unregister_token->IsJSReceiver()) {
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate,
-          NewTypeError(MessageTemplate::kInvalidWeakRefsUnregisterToken,
-                       unregister_token));
-    }
+  if (!unregister_token->CanBeHeldWeakly()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kInvalidWeakRefsUnregisterToken,
+                              unregister_token));
   }
 
   bool success = JSFinalizationRegistry::Unregister(

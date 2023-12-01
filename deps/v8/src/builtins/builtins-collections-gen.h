@@ -27,8 +27,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   virtual ~BaseCollectionsAssembler() = default;
 
-  void GotoIfCannotBeWeakKey(const TNode<Object> obj,
-                             Label* if_cannot_be_weak_key);
+  void GotoIfCannotBeHeldWeakly(const TNode<Object> obj,
+                                Label* if_cannot_be_held_weakly);
 
  protected:
   enum Variant { kMap, kSet, kWeakMap, kWeakSet };
