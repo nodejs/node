@@ -141,6 +141,7 @@
     } ],
     [ 'node_shared_zlib=="false"', {
       'dependencies': [ 'deps/zlib/zlib.gyp:zlib' ],
+      'defines': [ 'NODE_BUNDLED_ZLIB' ],
       'conditions': [
         [ 'force_load=="true"', {
           'xcode_settings': {
