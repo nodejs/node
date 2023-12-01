@@ -34,6 +34,10 @@ Node-API.
   * Experimental APIs **must** be documented as such.
   * Experimental APIs **must** require an explicit compile-time flag
     (`#define`) to be set to opt-in.
+  * A feature flag of the form `NODE_API_EXPERIMENTAL_HAS_<FEATURE>` **must**
+    be added with each experimental feature in order to allow code to
+    distinguish between experimental features as present in one version of
+    Node.js versus another.
   * Experimental APIs **must** be considered for backport.
   * Experimental status exit criteria **must** involve at least the
     following:
