@@ -656,6 +656,18 @@ class SymbolMirror final : public ValueMirror {
                    .build();
   }
 
+  void buildEntryPreview(
+      v8::Local<v8::Context> context, int* nameLimit, int* indexLimit,
+      std::unique_ptr<ObjectPreview>* preview) const override {
+    *preview =
+        ObjectPreview::create()
+            .setType(RemoteObject::TypeEnum::Symbol)
+            .setDescription(descriptionForSymbol(context, m_symbol))
+            .setOverflow(false)
+            .setProperties(std::make_unique<protocol::Array<PropertyPreview>>())
+            .build();
+  }
+
   v8::Local<v8::Value> v8Value() const override { return m_symbol; }
 
   protocol::Response buildWebDriverValue(

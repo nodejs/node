@@ -159,6 +159,88 @@ expression: new WeakSet([{}])
 ]
 
 
+Running test: symbolsAsKeysInEntries
+expression: new Map([[Symbol('key1'), 1]])
+{
+    name : size
+    type : number
+    value : 1
+}
+[[Entries]]:
+[
+    [0] : {
+        key : {
+            description : Symbol(key1)
+            overflow : false
+            properties : [
+            ]
+            type : symbol
+        }
+        value : {
+            description : 1
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+    }
+]
+
+expression: new Set([Symbol('key2')])
+{
+    name : size
+    type : number
+    value : 1
+}
+[[Entries]]:
+[
+    [0] : {
+        value : {
+            description : Symbol(key2)
+            overflow : false
+            properties : [
+            ]
+            type : symbol
+        }
+    }
+]
+
+expression: new WeakMap([[Symbol('key3'), 2]])
+[[Entries]]:
+[
+    [0] : {
+        key : {
+            description : Symbol(key3)
+            overflow : false
+            properties : [
+            ]
+            type : symbol
+        }
+        value : {
+            description : 2
+            overflow : false
+            properties : [
+            ]
+            type : number
+        }
+    }
+]
+
+expression: new WeakSet([Symbol('key4')])
+[[Entries]]:
+[
+    [0] : {
+        value : {
+            description : Symbol(key4)
+            overflow : false
+            properties : [
+            ]
+            type : symbol
+        }
+    }
+]
+
+
 Running test: iteratorObject
 expression: (new Map([[1,2]])).entries()
 [[Entries]]:
