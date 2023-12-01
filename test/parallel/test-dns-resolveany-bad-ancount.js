@@ -8,7 +8,7 @@ const dnsPromises = dns.promises;
 
 const server = dgram.createSocket('udp4');
 const rdns = new dns.Resolver({ timeout: 3000, retry: 1 });
-const rdnsPromises = new dns.promises.Resolver({ timeout: 3000, retry: 1 });
+const rdnsPromises = new dnsPromises.Resolver({ timeout: 3000, retry: 1 });
 
 server.on('message', common.mustCall((msg, { address, port }) => {
   const parsed = dnstools.parseDNSPacket(msg);
