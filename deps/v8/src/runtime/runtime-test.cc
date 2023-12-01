@@ -27,6 +27,7 @@
 #include "src/logging/counters.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/objects/js-function-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/managed-inl.h"
@@ -1728,6 +1729,15 @@ RUNTIME_FUNCTION(Runtime_SharedGC) {
   SealHandleScope scope(isolate);
   isolate->heap()->CollectSharedGarbage(GarbageCollectionReason::kTesting);
   return ReadOnlyRoots(isolate).undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_GetWeakCollectionSize) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  Handle<JSWeakCollection> collection = args.at<JSWeakCollection>(0);
+
+  return Smi::FromInt(
+      EphemeronHashTable::cast(collection->table()).NumberOfElements());
 }
 
 }  // namespace internal
