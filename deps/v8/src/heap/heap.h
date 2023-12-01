@@ -955,7 +955,7 @@ class Heap {
     return is_finalization_registry_cleanup_task_posted_;
   }
 
-  V8_EXPORT_PRIVATE void KeepDuringJob(Handle<JSReceiver> target);
+  V8_EXPORT_PRIVATE void KeepDuringJob(Handle<HeapObject> target);
   void ClearKeptObjects();
 
   // ===========================================================================

@@ -550,6 +550,11 @@ ExternalReference::address_of_mock_arraybuffer_allocator_flag() {
   return ExternalReference(&FLAG_mock_arraybuffer_allocator);
 }
 
+ExternalReference
+ExternalReference::address_of_FLAG_harmony_symbol_as_weakmap_key() {
+  return ExternalReference(&FLAG_harmony_symbol_as_weakmap_key);
+}
+
 ExternalReference ExternalReference::address_of_builtin_subclassing_flag() {
   return ExternalReference(&FLAG_builtin_subclassing);
 }

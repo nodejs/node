@@ -2,15 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include 'src/builtins/builtins-collections-gen.h'
+
 namespace runtime {
 
-extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(JSReceiver):
-    void;
+extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(
+    JSReceiver | Symbol): void;
 
 }  // namespace runtime
 
 namespace weakref {
 
+// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-weak-ref-target
 transitioning javascript builtin
 WeakRefConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
@@ -19,15 +22,17 @@ WeakRefConstructor(
   if (newTarget == Undefined) {
     ThrowTypeError(MessageTemplate::kConstructorNotFunction, 'WeakRef');
   }
-  // 2. If Type(target) is not Object, throw a TypeError exception.
-  const weakTarget = Cast<JSReceiver>(weakTarget) otherwise
-  ThrowTypeError(
-      MessageTemplate::kWeakRefsWeakRefConstructorTargetMustBeObject);
+
+  // 2. If CanBeHeldWeakly(weakTarget) is false, throw a TypeError exception.
+  GotoIfCannotBeWeakKey(weakTarget) otherwise ThrowTypeError(
+      MessageTemplate::kInvalidWeakRefsWeakRefConstructorTarget);
+
   // 3. Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget,
   // "%WeakRefPrototype%", « [[WeakRefTarget]] »).
   const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
   const weakRef = UnsafeCast<JSWeakRef>(AllocateFastOrSlowJSObjectFromMap(map));
   // 4. Perfom ! AddToKeptObjects(target).
+  const weakTarget = UnsafeCast<(JSReceiver | Symbol)>(weakTarget);
   runtime::JSWeakRefAddToKeptObjects(weakTarget);
   // 5. Set weakRef.[[WeakRefTarget]] to target.
   weakRef.target = weakTarget;
@@ -52,7 +57,8 @@ WeakRefDeref(js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   if (target != Undefined) {
     // JSWeakRefAddToKeptObjects might allocate and cause a GC, but it
     // won't clear `target` since we hold it here on the stack.
-    runtime::JSWeakRefAddToKeptObjects(UnsafeCast<JSReceiver>(target));
+    runtime::JSWeakRefAddToKeptObjects(
+        UnsafeCast<(JSReceiver | Symbol)>(target));
   }
   return target;
 }

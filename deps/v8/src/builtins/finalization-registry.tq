@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+#include "src/builtins/builtins-collections-gen.h"
 
 namespace runtime {
 extern runtime
@@ -14,6 +15,9 @@ namespace weakref {
 extern transitioning macro
 RemoveFinalizationRegistryCellFromUnregisterTokenMap(
     JSFinalizationRegistry, WeakCell): void;
+
+extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeWeakKey(JSAny):
+    void labels NotWeakKey;
 
 macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
   const weakCellTail = weakCell.next;
@@ -125,6 +129,7 @@ FinalizationRegistryConstructor(
   return finalizationRegistry;
 }
 
+// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-finalization-registry.prototype.register
 transitioning javascript builtin
 FinalizationRegistryRegister(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
@@ -134,33 +139,32 @@ FinalizationRegistryRegister(
   ThrowTypeError(
       MessageTemplate::kIncompatibleMethodReceiver,
       'FinalizationRegistry.prototype.register', receiver);
-  // 3. If Type(target) is not Object, throw a TypeError exception.
-  const target = Cast<JSReceiver>(arguments[0]) otherwise ThrowTypeError(
-      MessageTemplate::kWeakRefsRegisterTargetMustBeObject);
+  // 3. If CanBeHeldWeakly(target) is false, throw a TypeError exception.
+  GotoIfCannotBeWeakKey(arguments[0])
+      otherwise ThrowTypeError(MessageTemplate::kInvalidWeakRefsRegisterTarget);
+
+  const target = UnsafeCast<(JSReceiver | Symbol)>(arguments[0]);
   const heldValue = arguments[1];
   // 4. If SameValue(target, heldValue), throw a TypeError exception.
   if (target == heldValue) {
     ThrowTypeError(
         MessageTemplate::kWeakRefsRegisterTargetAndHoldingsMustNotBeSame);
   }
-  // 5. If Type(unregisterToken) is not Object,
+  // 5. If CanBeHeldWeakly(unregisterToken) is false,
   //   a. If unregisterToken is not undefined, throw a TypeError exception.
   //   b. Set unregisterToken to empty.
   const unregisterTokenRaw = arguments[2];
-  let unregisterToken: JSReceiver|Undefined;
-  typeswitch (unregisterTokenRaw) {
-    case (Undefined): {
-      unregisterToken = Undefined;
-    }
-    case (unregisterTokenObj: JSReceiver): {
-      unregisterToken = unregisterTokenObj;
-    }
-    case (JSAny): deferred {
-      ThrowTypeError(
-          MessageTemplate::kWeakRefsUnregisterTokenMustBeObject,
-          unregisterTokenRaw);
-    }
+  let unregisterToken: JSReceiver|Undefined|Symbol;
+
+  if (IsUndefined(unregisterTokenRaw)) {
+    unregisterToken = Undefined;
+  } else {
+    GotoIfCannotBeWeakKey(unregisterTokenRaw)
+        otherwise ThrowTypeError(
+        MessageTemplate::kInvalidWeakRefsUnregisterToken, unregisterTokenRaw);
+    unregisterToken = UnsafeCast<(JSReceiver | Symbol)>(unregisterTokenRaw);
   }
+
   // 6. Let cell be the Record { [[WeakRefTarget]] : target, [[HeldValue]]:
   //    heldValue, [[UnregisterToken]]: unregisterToken }.
   // Allocate the WeakCell object in the old space, because 1) WeakCell weakness

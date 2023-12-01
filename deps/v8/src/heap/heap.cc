@@ -6924,7 +6924,7 @@ void Heap::RemoveDirtyFinalizationRegistriesOnContext(NativeContext context) {
   set_dirty_js_finalization_registries_list_tail(prev);
 }
 
-void Heap::KeepDuringJob(Handle<JSReceiver> target) {
+void Heap::KeepDuringJob(Handle<HeapObject> target) {
   DCHECK(weak_refs_keep_during_job().IsUndefined() ||
          weak_refs_keep_during_job().IsOrderedHashSet());
   Handle<OrderedHashSet> table;
