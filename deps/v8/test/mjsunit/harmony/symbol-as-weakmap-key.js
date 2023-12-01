@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-symbol-as-weakmap-key --expose-gc
+// Flags: --harmony-symbol-as-weakmap-key --expose-gc --allow-natives-syntax --noincremental-marking
 
 (function TestWeakMapWithNonRegisteredSymbolKey() {
   const key = Symbol('123');
@@ -28,16 +28,17 @@
   const outerKey = Symbol('234');
   const outerValue = 1;
   map.set(outerKey, outerValue);
-  {
+  (function () {
     const innerKey = Symbol('123');
     const innerValue = 1;
     map.set(innerKey, innerValue);
     assertTrue(map.has(innerKey));
     assertSame(innerValue, map.get(innerKey));
-  }
+  })();
   gc();
   assertTrue(map.has(outerKey));
   assertSame(outerValue, map.get(outerKey));
+  assertEquals(1, %GetWeakCollectionSize(map));
 })();
 
 (function TestWeakMapWithRegisteredSymbolKey() {
@@ -74,13 +75,14 @@
   const set = new WeakSet();
   const outerKey = Symbol('234');
   set.add(outerKey);
-  {
+  (function () {
     const innerKey = Symbol('123');
     set.add(innerKey);
     assertTrue(set.has(innerKey));
-  }
-  gc();
+  })();
   assertTrue(set.has(outerKey));
+  gc();
+  assertEquals(1, %GetWeakCollectionSize(set));
 })();
 
 (function TestWeakSetWithRegisteredSymbolKey() {
