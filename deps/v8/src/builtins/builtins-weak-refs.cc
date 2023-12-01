@@ -9,23 +9,19 @@
 namespace v8 {
 namespace internal {
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-finalization-registry.prototype.unregister
+// https://tc39.es/ecma262/#sec-finalization-registry.prototype.unregister
 BUILTIN(FinalizationRegistryUnregister) {
   HandleScope scope(isolate);
   const char* method_name = "FinalizationRegistry.prototype.unregister";
 
   // 1. Let finalizationGroup be the this value.
   //
-  // 2. If Type(finalizationGroup) is not Object, throw a TypeError
-  //    exception.
-  //
-  // 3. If finalizationGroup does not have a [[Cells]] internal slot,
-  //    throw a TypeError exception.
+  // 2. Perform ? RequireInternalSlot(finalizationRegistry, [[Cells]]).
   CHECK_RECEIVER(JSFinalizationRegistry, finalization_registry, method_name);
 
   Handle<Object> unregister_token = args.atOrUndefined(isolate, 1);
 
-  // 4. If CanBeHeldWeakly(unregisterToken) is false, throw a TypeError
+  // 3. If CanBeHeldWeakly(unregisterToken) is false, throw a TypeError
   // exception.
   if (!unregister_token->CanBeHeldWeakly()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
