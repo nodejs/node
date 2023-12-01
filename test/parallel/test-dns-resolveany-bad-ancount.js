@@ -7,6 +7,8 @@ const dgram = require('dgram');
 const dnsPromises = dns.promises;
 
 const server = dgram.createSocket('udp4');
+const rdns = new dns.Resolver({ timeout: 3000, retry: 1 });
+const rdnsPromises = new dns.promises.Resolver({ timeout: 3000, retry: 1 });
 
 server.on('message', common.mustCall((msg, { address, port }) => {
   const parsed = dnstools.parseDNSPacket(msg);
@@ -25,9 +27,10 @@ server.on('message', common.mustCall((msg, { address, port }) => {
 
 server.bind(0, common.mustCall(async () => {
   const address = server.address();
-  dns.setServers([`127.0.0.1:${address.port}`]);
+  rdns.setServers([`127.0.0.1:${address.port}`]);
+  rdnsPromise.setServers([`127.0.0.1:${address.port}`]);
 
-  dnsPromises.resolveAny('example.org')
+  rdnsPromises.resolveAny('example.org')
     .then(common.mustNotCall())
     .catch(common.expectsError({
       // May return EBADRESP or ETIMEOUT
@@ -36,7 +39,7 @@ server.bind(0, common.mustCall(async () => {
       hostname: 'example.org'
     }));
 
-  dns.resolveAny('example.org', common.mustCall((err) => {
+  rdns.resolveAny('example.org', common.mustCall((err) => {
     assert.notStrictEqual(err.code, 'SUCCESS');
     assert.strictEqual(err.syscall, 'queryAny');
     assert.strictEqual(err.hostname, 'example.org');
