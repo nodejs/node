@@ -93,6 +93,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                                             size_t length,
                                                             napi_value* result);
 #ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_EXTERNAL_STRINGS
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_create_external_string_latin1(napi_env env,
                                        char* str,
@@ -518,6 +519,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
 #endif  // NAPI_VERSION >= 5
 
 #ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_POST_FINALIZER
 
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_post_finalizer(napi_env env,
