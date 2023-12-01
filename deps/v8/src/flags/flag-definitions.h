@@ -307,8 +307,7 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
     "harmony ResizableArrayBuffer / GrowableSharedArrayBuffer")                \
   V(harmony_temporal, "Temporal")                                              \
   V(harmony_shadow_realm, "harmony ShadowRealm")                               \
-  V(harmony_struct, "harmony structs and shared structs")                      \
-  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")
+  V(harmony_struct, "harmony structs and shared structs")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V) \
@@ -319,8 +318,9 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 #endif
 
 // Features that are complete (but still behind the --harmony flag).
-#define HARMONY_STAGED_BASE(V) \
-  V(harmony_array_grouping, "harmony array grouping")
+#define HARMONY_STAGED_BASE(V)                                              \
+  V(harmony_array_grouping, "harmony array grouping")                       \
+  V(harmony_symbol_as_weakmap_key, "harmony symbols as weakmap keys")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V) \
