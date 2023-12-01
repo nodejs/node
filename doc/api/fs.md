@@ -6971,7 +6971,7 @@ added: v0.1.10
 Returns `true` if the {fs.Stats} object describes a file system directory.
 
 If the {fs.Stats} object was obtained from calling [`fs.lstat()`][] on a
-symbolic link which resolves to a directory, this method will return false.
+symbolic link which resolves to a directory, this method will return `false`.
 This is because [`fs.lstat()`][] returns information
 about a symbolic link itself and not the path it resolves to.
 
