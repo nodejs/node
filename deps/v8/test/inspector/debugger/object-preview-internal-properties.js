@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-class-fields
+// Flags: --harmony-symbol-as-weakmap-key
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Check internal properties reported in object preview.");
 
@@ -42,6 +42,15 @@ InspectorTest.runTestSuite([
       .then(() => checkExpression("new Set([1])"))
       .then(() => checkExpression("new WeakMap([[{}, 42]])"))
       .then(() => checkExpression("new WeakSet([{}])"))
+      .then(next);
+  },
+
+  function symbolsAsKeysInEntries(next)
+  {
+    checkExpression("new Map([[Symbol('key1'), 1]])")
+      .then(() => checkExpression("new Set([Symbol('key2')])"))
+      .then(() => checkExpression("new WeakMap([[Symbol('key3'), 2]])"))
+      .then(() => checkExpression("new WeakSet([Symbol('key4')])"))
       .then(next);
   },
 
