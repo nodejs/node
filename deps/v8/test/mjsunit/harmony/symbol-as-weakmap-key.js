@@ -99,3 +99,10 @@
   assertFalse(set.delete(key));
   assertFalse(set.has(key));
 })();
+
+(function TestFinalizationRegistryUnregister() {
+  const fr = new FinalizationRegistry(function() {});
+  const key = {};
+  fr.register(Symbol('foo'), "holdings", key);
+  fr.unregister(key);
+})();

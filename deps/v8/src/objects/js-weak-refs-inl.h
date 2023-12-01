@@ -170,9 +170,7 @@ void WeakCell::Nullify(Isolate* isolate,
   // only called for WeakCells which haven't been unregistered yet, so they will
   // be in the active_cells list. (The caller must guard against calling this
   // for unregistered WeakCells by checking that the target is not undefined.)
-  DCHECK(target().IsJSReceiver() ||
-         (target().IsSymbol() &&
-          !Symbol::cast(target()).is_in_public_symbol_table()));
+  DCHECK(target().CanBeHeldWeakly());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =
@@ -218,7 +216,7 @@ void WeakCell::RemoveFromFinalizationRegistryCells(Isolate* isolate) {
 
   // It's important to set_target to undefined here. This guards that we won't
   // call Nullify (which assumes that the WeakCell is in active_cells).
-  DCHECK(target().IsUndefined() || target().IsJSReceiver());
+  DCHECK(target().IsUndefined() || target().CanBeHeldWeakly());
   set_target(ReadOnlyRoots(isolate).undefined_value());
 
   JSFinalizationRegistry fr =

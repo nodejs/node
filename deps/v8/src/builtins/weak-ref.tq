@@ -24,7 +24,7 @@ WeakRefConstructor(
   }
 
   // 2. If CanBeHeldWeakly(weakTarget) is false, throw a TypeError exception.
-  GotoIfCannotBeWeakKey(weakTarget) otherwise ThrowTypeError(
+  GotoIfCannotBeHeldWeakly(weakTarget) otherwise ThrowTypeError(
       MessageTemplate::kInvalidWeakRefsWeakRefConstructorTarget);
 
   // 3. Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget,

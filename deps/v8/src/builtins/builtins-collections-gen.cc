@@ -399,23 +399,23 @@ TNode<IntPtrT> BaseCollectionsAssembler::EstimatedInitialSize(
       [=] { return IntPtrConstant(0); });
 }
 
-void BaseCollectionsAssembler::GotoIfCannotBeWeakKey(
-    const TNode<Object> obj, Label* if_cannot_be_weak_key) {
+void BaseCollectionsAssembler::GotoIfCannotBeHeldWeakly(
+    const TNode<Object> obj, Label* if_cannot_be_held_weakly) {
   Label check_symbol_key(this);
   Label end(this);
-  GotoIf(TaggedIsSmi(obj), if_cannot_be_weak_key);
+  GotoIf(TaggedIsSmi(obj), if_cannot_be_held_weakly);
   TNode<Uint16T> instance_type = LoadMapInstanceType(LoadMap(CAST(obj)));
   GotoIfNot(IsJSReceiverInstanceType(instance_type), &check_symbol_key);
   // TODO(v8:12547) Shared structs should only be able to point to shared values
   // in weak collections. For now, disallow them as weak collection keys.
-  GotoIf(IsJSSharedStructInstanceType(instance_type), if_cannot_be_weak_key);
+  GotoIf(IsJSSharedStructInstanceType(instance_type), if_cannot_be_held_weakly);
   Goto(&end);
   Bind(&check_symbol_key);
-  GotoIfNot(HasHarmonySymbolAsWeakmapKeyFlag(), if_cannot_be_weak_key);
-  GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_weak_key);
+  GotoIfNot(HasHarmonySymbolAsWeakmapKeyFlag(), if_cannot_be_held_weakly);
+  GotoIfNot(IsSymbolInstanceType(instance_type), if_cannot_be_held_weakly);
   TNode<Uint32T> flags = LoadSymbolFlags(CAST(obj));
   GotoIf(Word32And(flags, Symbol::IsInPublicSymbolTableBit::kMask),
-         if_cannot_be_weak_key);
+         if_cannot_be_held_weakly);
   Goto(&end);
   Bind(&end);
 }
@@ -2573,17 +2573,17 @@ TF_BUILTIN(WeakMapLookupHashIndex, WeakCollectionsBuiltinsAssembler) {
   auto table = Parameter<EphemeronHashTable>(Descriptor::kTable);
   auto key = Parameter<Object>(Descriptor::kKey);
 
-  Label if_cannot_be_weak_key(this);
+  Label if_cannot_be_held_weakly(this);
 
-  GotoIfCannotBeWeakKey(key, &if_cannot_be_weak_key);
+  GotoIfCannotBeHeldWeakly(key, &if_cannot_be_held_weakly);
 
-  TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_weak_key);
+  TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_held_weakly);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> key_index = FindKeyIndexForKey(
-      table, key, hash, EntryMask(capacity), &if_cannot_be_weak_key);
+      table, key, hash, EntryMask(capacity), &if_cannot_be_held_weakly);
   Return(SmiTag(ValueIndexFromKeyIndex(key_index)));
 
-  BIND(&if_cannot_be_weak_key);
+  BIND(&if_cannot_be_held_weakly);
   Return(SmiConstant(-1));
 }
 
@@ -2638,22 +2638,22 @@ TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
   auto collection = Parameter<JSWeakCollection>(Descriptor::kCollection);
   auto key = Parameter<Object>(Descriptor::kKey);
 
-  Label call_runtime(this), if_cannot_be_weak_key(this);
+  Label call_runtime(this), if_cannot_be_held_weakly(this);
 
-  GotoIfCannotBeWeakKey(key, &if_cannot_be_weak_key);
+  GotoIfCannotBeHeldWeakly(key, &if_cannot_be_held_weakly);
 
-  TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_weak_key);
+  TNode<IntPtrT> hash = GetHash(CAST(key), &if_cannot_be_held_weakly);
   TNode<EphemeronHashTable> table = LoadTable(collection);
   TNode<IntPtrT> capacity = LoadTableCapacity(table);
   TNode<IntPtrT> key_index = FindKeyIndexForKey(
-      table, key, hash, EntryMask(capacity), &if_cannot_be_weak_key);
+      table, key, hash, EntryMask(capacity), &if_cannot_be_held_weakly);
   TNode<IntPtrT> number_of_elements = LoadNumberOfElements(table, -1);
   GotoIf(ShouldShrink(capacity, number_of_elements), &call_runtime);
 
   RemoveEntry(table, key_index, number_of_elements);
   Return(TrueConstant());
 
-  BIND(&if_cannot_be_weak_key);
+  BIND(&if_cannot_be_held_weakly);
   Return(FalseConstant());
 
   BIND(&call_runtime);
@@ -2735,7 +2735,7 @@ TF_BUILTIN(WeakMapPrototypeSet, WeakCollectionsBuiltinsAssembler) {
                          "WeakMap.prototype.set");
 
   Label throw_invalid_key(this);
-  GotoIfCannotBeWeakKey(key, &throw_invalid_key);
+  GotoIfCannotBeHeldWeakly(key, &throw_invalid_key);
 
   Return(
       CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, key, value));
@@ -2753,7 +2753,7 @@ TF_BUILTIN(WeakSetPrototypeAdd, WeakCollectionsBuiltinsAssembler) {
                          "WeakSet.prototype.add");
 
   Label throw_invalid_value(this);
-  GotoIfCannotBeWeakKey(value, &throw_invalid_value);
+  GotoIfCannotBeHeldWeakly(value, &throw_invalid_value);
 
   Return(CallBuiltin(Builtin::kWeakCollectionSet, context, receiver, value,
                      TrueConstant()));
