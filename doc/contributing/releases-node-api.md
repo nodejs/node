@@ -100,6 +100,8 @@ and update the define version guards with the release version:
 + #endif  // NAPI_VERSION >= 10
 ```
 
+Remove any feature flags of the form `NODE_API_EXPERIMENTAL_HAS_<FEATURE>`.
+
 Also, update the Node-API version value of the `napi_get_version` test in
 `test/js-native-api/test_general/test.js` with the release version `x`:
 
