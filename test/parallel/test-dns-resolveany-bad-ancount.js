@@ -28,7 +28,7 @@ server.on('message', common.mustCall((msg, { address, port }) => {
 server.bind(0, common.mustCall(async () => {
   const address = server.address();
   rdns.setServers([`127.0.0.1:${address.port}`]);
-  rdnsPromise.setServers([`127.0.0.1:${address.port}`]);
+  rdnsPromises.setServers([`127.0.0.1:${address.port}`]);
 
   rdnsPromises.resolveAny('example.org')
     .then(common.mustNotCall())
