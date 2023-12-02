@@ -48,9 +48,11 @@ const invalidCallbackObj = {
   const entries = files.map(() => {
     const dirent = dir.readSync();
     assertDirent(dirent);
-    return dirent.name;
-  });
-  assert.deepStrictEqual(files, entries.sort());
+    return { name: dirent.name, path: dirent.path, parentPath: dirent.parentPath, toString() { return dirent.name; } };
+  }).sort();
+  assert.deepStrictEqual(entries.map((d) => d.name), files);
+  assert.deepStrictEqual(entries.map((d) => d.path), files.map((name) => path.join(testDir, name)));
+  assert.deepStrictEqual(entries.map((d) => d.parentPath), Array(entries.length).fill(testDir));
 
   // dir.read should return null when no more entries exist
   assert.strictEqual(dir.readSync(), null);
