@@ -48,7 +48,7 @@ const expectedModules = new Set([
   'NativeModule internal/event_target',
   'NativeModule internal/fixed_queue',
   'NativeModule internal/fs/utils',
-  'NativeModule internal/fs/read-file/utf8',
+  'NativeModule internal/fs/read/utf8',
   'NativeModule internal/linkedlist',
   'NativeModule internal/modules/cjs/loader',
   'NativeModule internal/modules/esm/utils',
