@@ -1086,7 +1086,8 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     OPENSSL_INIT_set_config_file_flags(settings,
                                        CONF_MFLAGS_IGNORE_MISSING_FILE);
 
-    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, settings);
+    OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG | OPENSSL_INIT_ADD_ALL_DIGESTS,
+                        settings);
     OPENSSL_INIT_free(settings);
 
     if (ERR_peek_error() != 0) {
