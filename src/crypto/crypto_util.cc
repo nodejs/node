@@ -419,7 +419,8 @@ ByteSource ByteSource::NullTerminatedCopy(Environment* env,
 
 ByteSource ByteSource::FromSymmetricKeyObjectHandle(Local<Value> handle) {
   CHECK(handle->IsObject());
-  KeyObjectHandle* key = Unwrap<KeyObjectHandle>(handle.As<Object>());
+  KeyObjectHandle* key =
+      BaseObject::Unwrap<KeyObjectHandle>(handle.As<Object>());
   CHECK_NOT_NULL(key);
   return Foreign(key->Data()->GetSymmetricKey(),
                  key->Data()->GetSymmetricKeySize());
