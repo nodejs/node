@@ -56,7 +56,6 @@ constexpr size_t kFsStatFsBufferLength =
 
 class BindingData : public SnapshotableObject {
  public:
-
   enum class FilePathIsFileReturnType {
     kIsFile = 0,
     kIsNotFile,

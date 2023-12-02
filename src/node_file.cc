@@ -2633,8 +2633,9 @@ static bool FileURLToPath(
   for (size_t i = 0; i < pathname_size; i++) {
     if (pathname[i] == '/') {
       pathname_escaped_slash += '\\';
-    } else
+    } else {
       pathname_escaped_slash += pathname[i];
+    }
 
     if (pathname[i] != '%') continue;
 
