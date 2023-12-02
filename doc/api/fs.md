@@ -6638,6 +6638,19 @@ The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
 
+#### `dirent.parentPath`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 – Experimental
+
+* {string}
+
+The path to the parent directory of the file this {fs.Dirent} object refers to.
+
 #### `dirent.path`
 
 <!-- YAML
@@ -6648,7 +6661,7 @@ added:
 
 * {string}
 
-The base path that this {fs.Dirent} object refers to.
+Alias for `dirent.parentPath`.
 
 ### Class: `fs.FSWatcher`
 
