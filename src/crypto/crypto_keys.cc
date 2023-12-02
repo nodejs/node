@@ -805,7 +805,8 @@ ManagedEVPPKey ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(
         env, std::move(pkey), ret, "Failed to read asymmetric key");
   } else {
     CHECK(args[*offset]->IsObject());
-    KeyObjectHandle* key = Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
+    KeyObjectHandle* key =
+        BaseObject::Unwrap<KeyObjectHandle>(args[*offset].As<Object>());
     CHECK_NOT_NULL(key);
     CHECK_NE(key->Data()->GetKeyType(), kKeyTypeSecret);
     (*offset) += 4;
