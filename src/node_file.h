@@ -56,6 +56,13 @@ constexpr size_t kFsStatFsBufferLength =
 
 class BindingData : public SnapshotableObject {
  public:
+
+  enum class FilePathIsFileReturnType {
+    kIsFile = 0,
+    kIsNotFile,
+    kThrowInsufficientPermissions
+  };
+
   explicit BindingData(Realm* realm, v8::Local<v8::Object> wrap);
 
   AliasedFloat64Array stats_field_array;
@@ -71,9 +78,27 @@ class BindingData : public SnapshotableObject {
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(fs_binding_data)
 
+  static void LegacyMainResolve(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(v8::Local<v8::Context> context,
+                                         v8::Local<v8::Object> ctor);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
+
+  static FilePathIsFileReturnType FilePathIsFile(Environment* env,
+                                                 const std::string& file_path);
+
+  static const std::array<std::string, 10> legacy_main_extensions;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is defined.
+  static const uint8_t legacy_main_extensions_with_main_end = 7;
+  // define the final index of the algorithm resolution
+  // when packageConfig.main is NOT defined
+  static const uint8_t legacy_main_extensions_package_fallback_end = 10;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.

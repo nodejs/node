@@ -67,17 +67,22 @@ void AppendExceptionLine(Environment* env,
   V(ERR_INVALID_ARG_VALUE, TypeError)                                          \
   V(ERR_OSSL_EVP_INVALID_DIGEST, Error)                                        \
   V(ERR_INVALID_ARG_TYPE, TypeError)                                           \
+  V(ERR_INVALID_FILE_URL_HOST, TypeError)                                      \
+  V(ERR_INVALID_FILE_URL_PATH, TypeError)                                      \
   V(ERR_INVALID_OBJECT_DEFINE_PROPERTY, TypeError)                             \
   V(ERR_INVALID_MODULE, Error)                                                 \
   V(ERR_INVALID_STATE, Error)                                                  \
   V(ERR_INVALID_THIS, TypeError)                                               \
   V(ERR_INVALID_TRANSFER_OBJECT, TypeError)                                    \
+  V(ERR_INVALID_URL, TypeError)                                                \
+  V(ERR_INVALID_URL_SCHEME, TypeError)                                         \
   V(ERR_MEMORY_ALLOCATION_FAILED, Error)                                       \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE, Error)                             \
   V(ERR_MISSING_ARGS, TypeError)                                               \
   V(ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST, TypeError)                      \
   V(ERR_MISSING_PASSPHRASE, TypeError)                                         \
   V(ERR_MISSING_PLATFORM_FOR_WORKER, Error)                                    \
+  V(ERR_MODULE_NOT_FOUND, Error)                                               \
   V(ERR_NON_CONTEXT_AWARE_DISABLED, Error)                                     \
   V(ERR_OUT_OF_RANGE, RangeError)                                              \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
@@ -160,6 +165,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_INVALID_MODULE, "No such module")                                      \
   V(ERR_INVALID_THIS, "Value of \"this\" is the wrong type")                   \
   V(ERR_INVALID_TRANSFER_OBJECT, "Found invalid object in transferList")       \
+  V(ERR_INVALID_URL_SCHEME, "The URL must be of scheme file:")                 \
   V(ERR_MEMORY_ALLOCATION_FAILED, "Failed to allocate memory")                 \
   V(ERR_OSSL_EVP_INVALID_DIGEST, "Invalid digest used")                        \
   V(ERR_MESSAGE_TARGET_CONTEXT_UNAVAILABLE,                                    \
