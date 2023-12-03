@@ -19,8 +19,6 @@ function normalize(str) {
   .replaceAll('process.processTicksAndRejections', '')
   .replaceAll('(node:internal*process*task_queues:*:*)', '')
   .replaceAll('node:internal*main*run_main_module:*:*', '');
-  // .replace(/[^\x00-\x7F]/g, '90')
-  // .replace(/\u001b\[\d+m/g, '39');
 }
 const common = snapshot
 .transform(snapshot.replaceWindowsLineEndings, snapshot.replaceWindowsPaths);
