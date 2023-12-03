@@ -113,8 +113,9 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
-[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
+
+// This indirectly calls backtrace so it can not be marked as [[noreturn]].
+void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
 void DumpNativeBacktrace(FILE* fp);
 void DumpJavaScriptBacktrace(FILE* fp);
 
@@ -125,16 +126,32 @@ void DumpJavaScriptBacktrace(FILE* fp);
 #define ABORT_NO_BACKTRACE() abort()
 #endif
 
-#define ABORT() node::Abort()
+// Caller of this macro must not be marked as [[noreturn]]. Printing of
+// backtraces may not work correctly in [[noreturn]] functions because
+// when generating code for them the compiler can choose not to
+// maintain the frame pointers or link registers that are necessary for
+// correct backtracing.
+// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
+// backtrace is correct.
+#define ABORT()                                                                \
+  do {                                                                         \
+    node::DumpNativeBacktrace(stderr);                                         \
+    node::DumpJavaScriptBacktrace(stderr);                                     \
+    fflush(stderr);                                                            \
+    ABORT_NO_BACKTRACE();                                                      \
+  } while (0)
 
-#define ERROR_AND_ABORT(expr)                                                 \
-  do {                                                                        \
-    /* Make sure that this struct does not end up in inline code, but      */ \
-    /* rather in a read-only data section when modifying this code.        */ \
-    static const node::AssertionInfo args = {                                 \
-      __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME           \
-    };                                                                        \
-    node::Assert(args);                                                       \
+#define ERROR_AND_ABORT(expr)                                                  \
+  do {                                                                         \
+    /* Make sure that this struct does not end up in inline code, but      */  \
+    /* rather in a read-only data section when modifying this code.        */  \
+    static const node::AssertionInfo args = {                                  \
+        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME};        \
+    node::Assert(args);                                                        \
+    /* `node::Assert` doesn't return. Add an [[noreturn]] abort() here to  */  \
+    /* make the compiler happy about no return value in the caller         */  \
+    /* function when calling ERROR_AND_ABORT.                              */  \
+    ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
 #ifdef __GNUC__

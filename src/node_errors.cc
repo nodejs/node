@@ -376,14 +376,7 @@ void AppendExceptionLine(Environment* env,
             .FromMaybe(false));
 }
 
-[[noreturn]] void Abort() {
-  DumpNativeBacktrace(stderr);
-  DumpJavaScriptBacktrace(stderr);
-  fflush(stderr);
-  ABORT_NO_BACKTRACE();
-}
-
-[[noreturn]] void Assert(const AssertionInfo& info) {
+void Assert(const AssertionInfo& info) {
   std::string name = GetHumanReadableProcessName();
 
   fprintf(stderr,
@@ -396,7 +389,7 @@ void AppendExceptionLine(Environment* env,
           info.message);
 
   fflush(stderr);
-  Abort();
+  ABORT();
 }
 
 enum class EnhanceFatalException { kEnhance, kDontEnhance };
@@ -404,7 +397,7 @@ enum class EnhanceFatalException { kEnhance, kDontEnhance };
 /**
  * Report the exception to the inspector, then print it to stderr.
  * This should only be used when the Node.js instance is about to exit
- * (i.e. this should be followed by a env->Exit() or an Abort()).
+ * (i.e. this should be followed by a env->Exit() or an ABORT()).
  *
  * Use enhance_stack = EnhanceFatalException::kDontEnhance
  * when it's unsafe to call into JavaScript.
@@ -576,8 +569,7 @@ static void ReportFatalException(Environment* env,
   ABORT();
 }
 
-[[noreturn]] void OOMErrorHandler(const char* location,
-                                  const v8::OOMDetails& details) {
+void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
   // We should never recover from this handler so once it's true it's always
   // true.
   is_in_oom.store(true);
@@ -1063,7 +1055,7 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   if (env != nullptr && env->abort_on_uncaught_exception()) {
     ReportFatalException(
         env, exception, message, EnhanceFatalException::kEnhance);
-    Abort();
+    ABORT();
   }
   bool from_promise = args[1]->IsTrue();
   errors::TriggerUncaughtException(isolate, exception, message, from_promise);
@@ -1174,7 +1166,7 @@ void TriggerUncaughtException(Isolate* isolate,
     // much we can do, so we just print whatever is useful and crash.
     PrintToStderrAndFlush(
         FormatCaughtException(isolate, context, error, message));
-    Abort();
+    ABORT();
   }
 
   // Invoke process._fatalException() to give user a chance to handle it.
