@@ -3536,7 +3536,7 @@ The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
 -->
 
