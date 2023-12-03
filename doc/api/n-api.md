@@ -2892,39 +2892,6 @@ life cycle of the JavaScript value.
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
 
-#### `node_api_create_property_key_utf16`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-```c
-napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
-                                                          const char16_t* str,
-                                                          size_t length,
-                                                          napi_value* result);
-```
-
-* `[in] env`: The environment that the API is invoked under.
-* `[in] str`: A pointer to a buffer containing `UTF-16` encoded characters.
-* `[in] length`: The length of the string in `UTF-16` code units.
-* `[out] result`: A `napi_value` representing a JavaScript `string`.
-  Returns napi\_ok if the API succeeded.
-
-This API creates a JavaScript `string` value
-from a `UTF-16` encoded C string. The native string is copied.
-
-The JavaScript `string` type is
-described in Section 6.1.4 of the
-ECMAScript Language Specification.
-The string created with this API
-hints that it will be used as a property key.
-Aside from performance implications,
-there are no differences
-from `napi_create_string_utf16`.
-
 #### `napi_create_string_utf16`
 
 <!-- YAML
@@ -3029,6 +2996,48 @@ Returns `napi_ok` if the API succeeded.
 
 This API creates a JavaScript `string` value from a UTF8-encoded C string.
 The native string is copied.
+
+The JavaScript `string` type is described in
+[Section 6.1.4][] of the ECMAScript Language Specification.
+
+#### `node_api_create_property_key_utf16`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+```c
+napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result);
+```
+
+* `[in] env`: The environment that the API is invoked under.
+* `[in] str`: Character buffer representing a UTF16-LE-encoded string.
+* `[in] length`: The length of the string in two-byte code units, or
+  `NAPI_AUTO_LENGTH` if it is null-terminated.
+* `[out] result`: A `napi_value` representing an optimized JavaScript `string`
+  to be used as a property key for objects.
+
+Returns `napi_ok` if the API succeeded.
+
+This API creates an optimized JavaScript `string` value from
+a UTF16-LE-encoded C string to be used as a property key for objects.
+The native string is copied.
+
+Many JavaScript engines including V8 use internalized strings as keys
+to set and get property values. They typically use a hash table to create
+and lookup such strings. While it adds some cost per key creation, it improves
+the performance after that by enabling comparison of string pointers instead
+of the whole strings.
+
+If a new JavaScript string is intended to be used as a property key, then
+it is more efficient to use the `node_api_create_property_key_utf16` function.
+Otherwise, for the string values use the `napi_create_string_utf16` or
+`node_api_create_external_string_utf16` functions.
 
 The JavaScript `string` type is described in
 [Section 6.1.4][] of the ECMAScript Language Specification.
