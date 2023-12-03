@@ -65,6 +65,9 @@ class ProxyAgent extends DispatcherBase {
     this[kProxyTls] = opts.proxyTls
     this[kProxyHeaders] = opts.headers || {}
 
+    const resolvedUrl = new URL(opts.uri)
+    const { origin, port, host, username, password } = resolvedUrl
+
     if (opts.auth && opts.token) {
       throw new InvalidArgumentError('opts.auth cannot be used in combination with opts.token')
     } else if (opts.auth) {
@@ -72,10 +75,9 @@ class ProxyAgent extends DispatcherBase {
       this[kProxyHeaders]['proxy-authorization'] = `Basic ${opts.auth}`
     } else if (opts.token) {
       this[kProxyHeaders]['proxy-authorization'] = opts.token
+    } else if (username && password) {
+      this[kProxyHeaders]['proxy-authorization'] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString('base64')}`
     }
-
-    const resolvedUrl = new URL(opts.uri)
-    const { origin, port, host } = resolvedUrl
 
     const connect = buildConnector({ ...opts.proxyTls })
     this[kConnectEndpoint] = buildConnector({ ...opts.requestTls })
@@ -100,7 +102,7 @@ class ProxyAgent extends DispatcherBase {
           })
           if (statusCode !== 200) {
             socket.on('error', () => {}).destroy()
-            callback(new RequestAbortedError('Proxy response !== 200 when HTTP Tunneling'))
+            callback(new RequestAbortedError(`Proxy response (${statusCode}) !== 200 when HTTP Tunneling`))
           }
           if (opts.protocol !== 'https:') {
             callback(null, socket)
