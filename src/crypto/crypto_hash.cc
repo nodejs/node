@@ -52,6 +52,28 @@ void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(ctx.ToJSArray());
 }
 
+const EVP_MD* GetDigestImplementation(Environment* env,
+                                      const Utf8Value& hash_type) {
+#if OPENSSL_VERSION_MAJOR >= 3
+  std::string hash_type_str = hash_type.ToString();
+  auto it = env->evp_md_cache.find(hash_type_str);
+  if (it == env->evp_md_cache.end()) {
+    EVP_MD* explicit_md = EVP_MD_fetch(nullptr, hash_type_str.c_str(), nullptr);
+    if (explicit_md != nullptr) {
+      env->evp_md_cache.emplace(hash_type_str, explicit_md);
+      return explicit_md;
+    } else {
+      // We'll do a fallback.
+      ERR_clear_error();
+    }
+  } else {
+    return it->second.get();
+  }
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+  // EVP_MD_fetch failed, fallback to EVP_get_digestbyname.
+  return EVP_get_digestbyname(*hash_type);
+}
+
 void Hash::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -94,7 +116,7 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     md = EVP_MD_CTX_md(orig->mdctx_.get());
   } else {
     const Utf8Value hash_type(env->isolate(), args[0]);
-    md = EVP_get_digestbyname(*hash_type);
+    md = GetDigestImplementation(env, hash_type);
   }
 
   Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
@@ -284,7 +306,7 @@ bool HashTraits::DeriveBits(
     Environment* env,
     const HashConfig& params,
     ByteSource* out) {
-  EVPMDPointer ctx(EVP_MD_CTX_new());
+  EVPMDCtxPointer ctx(EVP_MD_CTX_new());
 
   if (UNLIKELY(!ctx ||
                EVP_DigestInit_ex(ctx.get(), params.digest, nullptr) <= 0 ||
@@ -357,6 +379,5 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
     args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
-
 }  // namespace crypto
 }  // namespace node

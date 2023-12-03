@@ -49,6 +49,10 @@
 #include "uv.h"
 #include "v8.h"
 
+#if HAVE_OPENSSL
+#include <openssl/evp.h>
+#endif
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -1017,6 +1021,12 @@ class Environment : public MemoryRetainer {
     kHasExitCode,
     kExitInfoFieldCount
   };
+
+#if OPENSSL_VERSION_MAJOR >= 3
+  // We declare another alias here to avoid having to include crypto_util.h
+  using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
+  std::unordered_map<std::string, EVPMDPointer> evp_md_cache;
+#endif  // OPENSSL_VERSION_MAJOR
 
  private:
   // V8 has changed the constructor of exceptions, support both APIs before Node

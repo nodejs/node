@@ -34,7 +34,7 @@ class Hash final : public BaseObject {
   Hash(Environment* env, v8::Local<v8::Object> wrap);
 
  private:
-  EVPMDPointer mdctx_ {};
+  EVPMDCtxPointer mdctx_{};
   unsigned int md_len_ = 0;
   ByteSource digest_;
 };
