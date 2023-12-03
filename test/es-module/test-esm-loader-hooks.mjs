@@ -747,6 +747,29 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(signal, null);
   });
 
+  it('should support source maps in commonjs translator', async () => {
+    const readFile = async () => {};
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--enable-source-maps',
+      '--experimental-loader',
+      `data:text/javascript,import{readFile}from"node:fs/promises";export ${
+        async function load(u, c, n) {
+          const r = await n(u, c);
+          if (c.format === 'commonjs') {
+            r.source = await readFile(new URL(u));
+          }
+          return r;
+        }}`,
+      fixtures.path('source-map/throw-on-require.js'),
+    ]);
+
+    assert.strictEqual(stdout, '');
+    assert.match(stderr, /throw-on-require\.ts:9:9/);
+    assert.strictEqual(code, 1);
+    assert.strictEqual(signal, null);
+  });
+
   it('should handle mixed of opt-in modules and non-opt-in ones', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
