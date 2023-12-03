@@ -19,9 +19,14 @@ void AppendExceptionLine(Environment* env,
                          v8::Local<v8::Message> message,
                          enum ErrorHandlingMode mode);
 
+// This function calls backtrace, it should have not be marked as [[noreturn]].
+// But it is a public API, removing the attribute can break.
+// Prefer UNREACHABLE() internally instead, it doesn't need manually set
+// location.
 [[noreturn]] void OnFatalError(const char* location, const char* message);
-[[noreturn]] void OOMErrorHandler(const char* location,
-                                  const v8::OOMDetails& details);
+// This function calls backtrace, do not mark as [[noreturn]]. Read more in the
+// ABORT macro.
+void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
 
 // Helpers to construct errors similar to the ones provided by
 // lib/internal/errors.js.

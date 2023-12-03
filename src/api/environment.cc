@@ -734,7 +734,7 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
     }
   } else if (per_process::cli_options->disable_proto != "") {
     // Validated in ProcessGlobalArgs
-    OnFatalError("InitializeContextRuntime()", "invalid --disable-proto mode");
+    UNREACHABLE("invalid --disable-proto mode");
   }
 
   return Just(true);
