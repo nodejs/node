@@ -111,14 +111,16 @@ changes:
 Register a module that exports [hooks][] that customize Node.js module
 resolution and loading behavior. See [Customization hooks][].
 
-> **Warning** If setting up a `MessageChannel` to communicate with a loader
-> within the Module Worker, beware that this can lead to a deadlock. For
-> example, you have 2 modules, A and B. "A" is registered first and sets up a
-> message channel,which it uses in its `resolve` hook. "B" uses `register` to
-> register its own loader. Resolving "B"'s own loader will go through "A"'s
-> `resolve`, which will try to communicate with the Module Worker. The Module
-> Worker is currently busy trying to register "B"'s loader, thus resulting in a
-> deadlock.
+> **Warning** When setting up a `MessageChannel` to communicate with hooks,
+> beware that this can lead to a deadlock. For example, you have 2 modules,
+> A and B. "A" is registered first and sets up a message channel, which it uses
+> in its `resolve` hook. "B" uses `register` to register its hooks. Resolving
+> "B"'s own specifier will go through "A"'s `resolve` hook, which will try to
+> communicate with a locked thread that is busy trying to register "B"'s hooks.
+> Since registering B depends on resolving B's specifier, and resolving B's
+> specifier is blocked by A's communication request, and that is itself blocked
+> by the pending registration that started the chain, the application becomes
+> deadlocked.
 
 ### `module.syncBuiltinESMExports()`
 
