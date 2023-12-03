@@ -18,5 +18,5 @@ function main({ n }) {
     array[i] = createHash('sha1');
   }
   bench.end(n);
-  assert.strictEqual(typeof array[n - 1], 'object')
+  assert.strictEqual(typeof array[n - 1], 'object');
 }
