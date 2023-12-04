@@ -3523,7 +3523,9 @@ Using this function is mutually exclusive with using the deprecated
 ## `process.sourceMapsEnabled`
 
 <!-- YAML
-added: v20.7.0
+added:
+  - v20.7.0
+  - v18.19.0
 -->
 
 > Stability: 1 - Experimental

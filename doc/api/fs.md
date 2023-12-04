@@ -1204,7 +1204,9 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -3328,7 +3330,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version: v18.0.0
@@ -5661,7 +5665,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -6632,6 +6638,19 @@ The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
 
+#### `dirent.parentPath`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 – Experimental
+
+* {string}
+
+The path to the parent directory of the file this {fs.Dirent} object refers to.
+
 #### `dirent.path`
 
 <!-- YAML
@@ -6642,7 +6661,7 @@ added:
 
 * {string}
 
-The base path that this {fs.Dirent} object refers to.
+Alias for `dirent.parentPath`.
 
 ### Class: `fs.FSWatcher`
 

@@ -448,7 +448,7 @@ Affects the default output directory of:
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: REPLACEME
+added: v21.3.0
 -->
 
 Disable specific process warnings by `code` or `type`.
@@ -647,6 +647,7 @@ and `"` are usable.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 > Stability: 1.0 - Early development
@@ -706,7 +707,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -1076,12 +1079,13 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 added: v12.0.0
 -->
 
-This configures Node.js to interpret string input as CommonJS or as an ES
-module. String input is input via `--eval`, `--print`, or `STDIN`.
+This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
+as an ES module. Valid values are `"commonjs"` or `"module"`. The default is
+`"commonjs"` unless [`--experimental-default-type=module`][] is used.
 
-Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
-
-The REPL does not support this option.
+The REPL does not support this option. Usage of `--input-type=module` with
+[`--print`][] will throw an error, as `--print` does not support ES module
+syntax.
 
 ### `--insecure-http-parser`
 
@@ -1753,6 +1757,7 @@ for more details.
 added:
   - v21.0.0
   - v20.10.0
+  - v18.19.0
 -->
 
 The maximum number of test files that the test runner CLI will execute
@@ -1820,7 +1825,9 @@ The destination for the corresponding test reporter. See the documentation on
 ### `--test-shard`
 
 <!-- YAML
-added: v20.5.0
+added:
+  - v20.5.0
+  - v18.19.0
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where
@@ -2870,6 +2877,7 @@ done
 [`--import`]: #--importmodule
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
+[`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait

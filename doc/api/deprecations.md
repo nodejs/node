@@ -10,10 +10,11 @@ Node.js APIs might be deprecated for any of the following reasons:
 * An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
-Node.js uses three kinds of Deprecations:
+Node.js uses four kinds of deprecations:
 
 * Documentation-only
-* Runtime
+* Application (non-`node_modules` code only)
+* Runtime (all code)
 * End-of-Life
 
 A Documentation-only deprecation is one that is expressed only within the
@@ -25,10 +26,17 @@ deprecations below. Documentation-only deprecations that support that flag
 are explicitly labeled as such in the
 [list of Deprecated APIs](#list-of-deprecated-apis).
 
-A Runtime deprecation will, by default, generate a process warning that will
-be printed to `stderr` the first time the deprecated API is used. When the
-[`--throw-deprecation`][] command-line flag is used, a Runtime deprecation will
-cause an error to be thrown.
+An Application deprecation for only non-`node_modules` code will, by default,
+generate a process warning that will be printed to `stderr` the first time
+the deprecated API is used in code that's not loaded from `node_modules`.
+When the [`--throw-deprecation`][] command-line flag is used, a Runtime
+deprecation will cause an error to be thrown. When
+[`--pending-deprecation`][] is used, warnings will also be emitted for
+code loaded from `node_modules`.
+
+A runtime deprecation for all code is similar to the runtime deprecation
+for non-`node_modules` code, except that it also emits a warning for
+code loaded from `node_modules`.
 
 An End-of-Life deprecation is used when functionality is or will soon be removed
 from Node.js.
@@ -140,7 +148,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Application (non-`node_modules` code only)
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can lead to accidental security issues.
@@ -3510,7 +3518,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.3.0
     pr-url: https://github.com/nodejs/node/pull/50486
     description: A deprecation code has been assigned.
   - version: v14.0.0
