@@ -14,7 +14,12 @@
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
+
+#ifdef NODE_BUNDLED_ZLIB
 #include "zlib_version.h"
+#else
+#include <zlib.h>
+#endif  // NODE_BUNDLED_ZLIB
 
 #if HAVE_OPENSSL
 #include <openssl/opensslv.h>
@@ -78,7 +83,11 @@ Metadata::Versions::Versions() {
   node = NODE_VERSION_STRING;
   v8 = v8::V8::GetVersion();
   uv = uv_version_string();
+#ifdef NODE_BUNDLED_ZLIB
   zlib = ZLIB_VERSION;
+#else
+  zlib = zlibVersion();
+#endif  // NODE_BUNDLED_ZLIB
   ares = ARES_VERSION_STR;
   modules = NODE_STRINGIFY(NODE_MODULE_VERSION);
   nghttp2 = NGHTTP2_VERSION;
