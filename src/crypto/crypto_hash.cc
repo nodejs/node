@@ -14,6 +14,7 @@ namespace node {
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
+using v8::Int32;
 using v8::Isolate;
 using v8::Just;
 using v8::Local;
@@ -34,44 +35,86 @@ void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
 }
 
-void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-  CipherPushContext ctx(env);
-  EVP_MD_do_all_sorted(
+void CacheSupportedHashAlgorithms(const EVP_MD* md,
+                                  const char* from,
+                                  const char* to,
+                                  void* arg) {
+  if (!from) return;
+
 #if OPENSSL_VERSION_MAJOR >= 3
-    array_push_back<EVP_MD,
-                    EVP_MD_fetch,
-                    EVP_MD_free,
-                    EVP_get_digestbyname,
-                    EVP_MD_get0_name>,
-#else
-    array_push_back<EVP_MD>,
-#endif
-    &ctx);
-  args.GetReturnValue().Set(ctx.ToJSArray());
+  const EVP_MD* implicit_md = EVP_get_digestbyname(from);
+  if (!implicit_md) return;
+  const char* real_name = EVP_MD_get0_name(implicit_md);
+  if (!real_name) return;
+  // EVP_*_fetch() does not support alias names, so we need to pass it the
+  // real/original algorithm name.
+  // We use EVP_*_fetch() as a filter here because it will only return an
+  // instance if the algorithm is supported by the public OpenSSL APIs (some
+  // algorithms are used internally by OpenSSL and are also passed to this
+  // callback).
+  EVP_MD* explicit_md = EVP_MD_fetch(nullptr, real_name, nullptr);
+  if (!explicit_md) return;
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+
+  Environment* env = static_cast<Environment*>(arg);
+  env->supported_hash_algorithms.push_back(from);
+
+#if OPENSSL_VERSION_MAJOR >= 3
+  env->evp_md_cache.emplace_back(explicit_md);
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+}
+
+const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
+  if (env->supported_hash_algorithms.empty()) {
+    MarkPopErrorOnReturn mark_pop_error_on_return;
+    std::vector<std::string> results;
+    EVP_MD_do_all_sorted(CacheSupportedHashAlgorithms, env);
+#if OPENSSL_VERSION_MAJOR >= 3
+    CHECK_EQ(env->supported_hash_algorithms.size(), env->evp_md_cache.size());
+    CHECK_GT(env->supported_hash_algorithms.size(), 0);
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+  }
+  return env->supported_hash_algorithms;
+}
+
+void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  const std::vector<std::string>& results = GetSupportedHashAlgorithms(env);
+
+  Local<Value> ret;
+  if (ToV8Value(context, results).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 const EVP_MD* GetDigestImplementation(Environment* env,
-                                      const Utf8Value& hash_type) {
+                                      Local<Value> algorithm,
+                                      Local<Value> algorithm_id) {
+  CHECK(algorithm->IsString());
+  CHECK(algorithm_id->IsInt32());
+  int32_t id = algorithm_id.As<Int32>()->Value();
+
+  const std::vector<std::string>& algorithms = GetSupportedHashAlgorithms(env);
+  std::string algorithm_str;
+
+  if (id != -1) {
 #if OPENSSL_VERSION_MAJOR >= 3
-  std::string hash_type_str = hash_type.ToString();
-  auto it = env->evp_md_cache.find(hash_type_str);
-  if (it == env->evp_md_cache.end()) {
-    EVP_MD* explicit_md = EVP_MD_fetch(nullptr, hash_type_str.c_str(), nullptr);
-    if (explicit_md != nullptr) {
-      env->evp_md_cache.emplace(hash_type_str, explicit_md);
-      return explicit_md;
-    } else {
-      // We'll do a fallback.
-      ERR_clear_error();
-    }
-  } else {
-    return it->second.get();
-  }
+    CHECK_LT(static_cast<size_t>(id), algorithms.size());
+    auto& ptr = env->evp_md_cache[id];
+    CHECK_NOT_NULL(ptr.get());
+    return ptr.get();
+#else
+    algorithm_str = algorithms[id];
 #endif  // OPENSSL_VERSION_MAJOR >= 3
-  // EVP_MD_fetch failed, fallback to EVP_get_digestbyname.
-  return EVP_get_digestbyname(*hash_type);
+  }
+
+  if (algorithm_str.empty()) {  // It could be unsupported algorithms.
+    Utf8Value utf8(env->isolate(), algorithm);
+    algorithm_str = utf8.ToString();
+  }
+  const EVP_MD* implicit_md = EVP_get_digestbyname(algorithm_str.c_str());
+  return implicit_md;
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
@@ -110,19 +153,17 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
 
   const Hash* orig = nullptr;
   const EVP_MD* md = nullptr;
-
   if (args[0]->IsObject()) {
     ASSIGN_OR_RETURN_UNWRAP(&orig, args[0].As<Object>());
     md = EVP_MD_CTX_md(orig->mdctx_.get());
   } else {
-    const Utf8Value hash_type(env->isolate(), args[0]);
-    md = GetDigestImplementation(env, hash_type);
+    md = GetDigestImplementation(env, args[0], args[1]);
   }
 
   Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
-  if (!args[1]->IsUndefined()) {
-    CHECK(args[1]->IsUint32());
-    xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
+  if (!args[2]->IsUndefined()) {
+    CHECK(args[2]->IsUint32());
+    xof_md_len = Just<unsigned int>(args[2].As<Uint32>()->Value());
   }
 
   Hash* hash = new Hash(env, args.This());
