@@ -194,8 +194,9 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
     ret = New(env, src, len_in_bytes);
     // new always takes ownership of src
     buf->Release();
-  } else if (!buf->IsInvalidated())
+  } else if (!buf->IsInvalidated()) {
     ret = Copy(env, src, len_in_bytes);
+  }
 
   return ret;
 }
