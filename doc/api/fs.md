@@ -6618,7 +6618,7 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v21.4.0
 -->
 
 > Stability: 1 – Experimental
