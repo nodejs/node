@@ -1,7 +1,7 @@
-const { mustNotCall } = require('../../common/index.js');
+const { mustNotCall } = require('../common/index.js');
+const { path: fixture } = require('../common/fixtures');
 const assert = require('node:assert');
 const { spawn } = require('node:child_process');
-const path = require('node:path');
 const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
 const { pathToFileURL } = require('node:url');
@@ -12,8 +12,8 @@ describe('hooks deadlock', { concurrency: true }, () => {
     let stdout = '';
     // ! Do NOT use spawnSync here: it will deadlock.
     const child = spawn(execPath, [
-      `--import=${pathToFileURL(path.resolve(__dirname, './a/register.mjs'))}`,
-      `--import=${pathToFileURL(path.resolve(__dirname, './b/register.mjs'))}`,
+      `--import=${pathToFileURL(fixture('es-module-loaders/inter-dependent-hooks/a/register.mjs'))}`,
+      `--import=${pathToFileURL(fixture('es-module-loaders/inter-dependent-hooks/b/register.mjs'))}`,
       '--input-type=module',
       '--eval',
       'import.meta.url;console.log("done")',
