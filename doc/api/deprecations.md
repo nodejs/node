@@ -3321,6 +3321,27 @@ In a future version of Node.js, [`message.headers`][],
 [`message.headersDistinct`][], [`message.trailers`][], and
 [`message.trailersDistinct`][] will be read-only.
 
+<!-- md-lint skip-deprecation DEP0172 -->
+<!-- md-lint skip-deprecation DEP0173 -->
+<!-- md-lint skip-deprecation DEP0174 -->
+<!-- md-lint skip-deprecation DEP0175 -->
+<!-- md-lint skip-deprecation DEP0176 -->
+<!-- md-lint skip-deprecation DEP0177 -->
+
+### DEP0178: `dirent.path`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51020
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`dirent.path`][] is deprecated due to its lack of consistency across
+release lines. Please use [`dirent.parentPath`][] instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3366,6 +3387,8 @@ In a future version of Node.js, [`message.headers`][],
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
+[`dirent.parentPath`]: fs.md#direntparentpath
+[`dirent.path`]: fs.md#direntpath
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
