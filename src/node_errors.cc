@@ -608,8 +608,18 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     bool is_code_like) {
   HandleScope scope(context->GetIsolate());
 
+  if (context->GetNumberOfEmbedderDataFields() <=
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
+    // The context is not (yet) configured by Node.js for this. We don't
+    // have enough information to make a decision, just allow it which is
+    // the default.
+    return {true, {}};
+  }
   Environment* env = Environment::GetCurrent(context);
-  if (env->source_maps_enabled()) {
+  if (env == nullptr) {
+    return {true, {}};
+  }
+  if (env->source_maps_enabled() && env->can_call_into_js()) {
     // We do not expect the maybe_cache_generated_source_map to throw any more
     // exceptions. If it does, just ignore it.
     errors::TryCatchScope try_catch(env);
