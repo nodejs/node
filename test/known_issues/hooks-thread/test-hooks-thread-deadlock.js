@@ -4,6 +4,7 @@ const { spawn } = require('node:child_process');
 const path = require('node:path');
 const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
+const { pathToFileURL } = require('node:url');
 
 describe('hooks deadlock', { concurrency: true }, () => {
   it('will deadlock when a/hooks…resolve tries to contact the main thread during b/register', async () => {
@@ -11,8 +12,8 @@ describe('hooks deadlock', { concurrency: true }, () => {
     let stdout = '';
     // ! Do NOT use spawnSync here: it will deadlock.
     const child = spawn(execPath, [
-      `--import=${path.resolve(__dirname, './a/register.mjs')}`,
-      `--import=${path.resolve(__dirname, './b/register.mjs')}`,
+      `--import=${pathToFileURL(path.resolve(__dirname, './a/register.mjs'))}`,
+      `--import=${pathToFileURL(path.resolve(__dirname, './b/register.mjs'))}`,
       '--input-type=module',
       '--eval',
       'import.meta.url;console.log("done")',
