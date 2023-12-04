@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const { setTimeout } = require('timers/promises');
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -48,7 +47,6 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
 
   process.once('exit', function() {
@@ -89,9 +87,7 @@ tmpdir.refresh();
     }
   });
 
-  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(forbiddenFile, 'world');
-  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(acceptableFile, 'acceptable');
 
   process.once('exit', function() {

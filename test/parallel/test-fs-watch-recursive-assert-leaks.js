@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const { setTimeout } = require('timers/promises');
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -31,18 +30,15 @@ tmpdir.refresh();
   let watcherClosed = false;
   const watcher = fs.watch(testDirectory, { recursive: true });
   watcher.on('change', common.mustCallAtLeast(async (event, filename) => {
-    await setTimeout(common.platformTimeout(100));
     if (filename === path.basename(filePath)) {
       watcher.close();
       watcherClosed = true;
     }
-    await setTimeout(common.platformTimeout(100));
     assert(!process._getActiveHandles().some((handle) => handle.constructor.name === 'StatWatcher'));
   }));
 
   process.on('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
-  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'content');
 })().then(common.mustCall());
