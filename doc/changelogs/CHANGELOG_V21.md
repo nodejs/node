@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#21.4.0">21.4.0</a><br/>
 <a href="#21.3.0">21.3.0</a><br/>
 <a href="#21.2.0">21.2.0</a><br/>
 <a href="#21.1.0">21.1.0</a><br/>
@@ -38,6 +39,58 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.4.0"></a>
+
+## 2023-12-05, Version 21.4.0 (Current), @targos
+
+### Notable Changes
+
+This release fixes a regression introduced in v21.3.0 that caused the `fs.writeFileSync`
+method to throw when called with `'utf8'` encoding, no flag option, and if the target file didn't exist yet.
+
+* \[[`32acafeeb6`](https://github.com/nodejs/node/commit/32acafeeb6)] - **(SEMVER-MINOR)** **fs**: introduce `dirent.parentPath` (Antoine du Hamel) [#50976](https://github.com/nodejs/node/pull/50976)
+* \[[`724548674d`](https://github.com/nodejs/node/commit/724548674d)] - **fs**: use default w flag for writeFileSync with utf8 encoding (Murilo Kakazu) [#50990](https://github.com/nodejs/node/pull/50990)
+
+### Commits
+
+* \[[`b24ee15fb2`](https://github.com/nodejs/node/commit/b24ee15fb2)] - **benchmark**: update iterations in benchmark/crypto/hkdf.js (Lei Shi) [#50866](https://github.com/nodejs/node/pull/50866)
+* \[[`f79b54e60e`](https://github.com/nodejs/node/commit/f79b54e60e)] - **benchmark**: update iterations in benchmark/crypto/get-ciphers.js (Lei Shi) [#50863](https://github.com/nodejs/node/pull/50863)
+* \[[`dc049acbbb`](https://github.com/nodejs/node/commit/dc049acbbb)] - **benchmark**: update number of iterations for `util.inspect` (kylo5aby) [#50651](https://github.com/nodejs/node/pull/50651)
+* \[[`d7c562ae38`](https://github.com/nodejs/node/commit/d7c562ae38)] - **deps**: update googletest to 76bb2af (Node.js GitHub Bot) [#50555](https://github.com/nodejs/node/pull/50555)
+* \[[`59a45ddbef`](https://github.com/nodejs/node/commit/59a45ddbef)] - **deps**: update googletest to b10fad3 (Node.js GitHub Bot) [#50555](https://github.com/nodejs/node/pull/50555)
+* \[[`099ebdb781`](https://github.com/nodejs/node/commit/099ebdb781)] - **deps**: update undici to 5.28.1 (Node.js GitHub Bot) [#50975](https://github.com/nodejs/node/pull/50975)
+* \[[`4b1bed04f7`](https://github.com/nodejs/node/commit/4b1bed04f7)] - **deps**: update undici to 5.28.0 (Node.js GitHub Bot) [#50915](https://github.com/nodejs/node/pull/50915)
+* \[[`b281e98b1e`](https://github.com/nodejs/node/commit/b281e98b1e)] - **doc**: add additional details about `--input-type` (Shubham Pandey) [#50796](https://github.com/nodejs/node/pull/50796)
+* \[[`b7036f2028`](https://github.com/nodejs/node/commit/b7036f2028)] - **doc**: add procedure when CVEs don't get published (Rafael Gonzaga) [#50945](https://github.com/nodejs/node/pull/50945)
+* \[[`7adf239af0`](https://github.com/nodejs/node/commit/7adf239af0)] - **doc**: fix some errors in esm resolution algorithms (Christopher Jeffrey (JJ)) [#50898](https://github.com/nodejs/node/pull/50898)
+* \[[`759ebcaead`](https://github.com/nodejs/node/commit/759ebcaead)] - **doc**: reserve 121 for Electron 29 (Shelley Vohr) [#50957](https://github.com/nodejs/node/pull/50957)
+* \[[`cedc3427fa`](https://github.com/nodejs/node/commit/cedc3427fa)] - **doc**: run license-builder (github-actions\[bot]) [#50926](https://github.com/nodejs/node/pull/50926)
+* \[[`30a6f19769`](https://github.com/nodejs/node/commit/30a6f19769)] - **doc**: document non-node\_modules-only runtime deprecation (Joyee Cheung) [#50748](https://github.com/nodejs/node/pull/50748)
+* \[[`eecab883f0`](https://github.com/nodejs/node/commit/eecab883f0)] - **doc**: add doc for Unix abstract socket (theanarkh) [#50904](https://github.com/nodejs/node/pull/50904)
+* \[[`ec74b93b38`](https://github.com/nodejs/node/commit/ec74b93b38)] - **doc**: remove flicker on page load on dark theme (Dima Demakov) [#50942](https://github.com/nodejs/node/pull/50942)
+* \[[`724548674d`](https://github.com/nodejs/node/commit/724548674d)] - **fs**: use default w flag for writeFileSync with utf8 encoding (Murilo Kakazu) [#50990](https://github.com/nodejs/node/pull/50990)
+* \[[`32acafeeb6`](https://github.com/nodejs/node/commit/32acafeeb6)] - **(SEMVER-MINOR)** **fs**: introduce `dirent.parentPath` (Antoine du Hamel) [#50976](https://github.com/nodejs/node/pull/50976)
+* \[[`c1ee506454`](https://github.com/nodejs/node/commit/c1ee506454)] - **fs**: remove workaround for `esm` package (Yagiz Nizipli) [#50907](https://github.com/nodejs/node/pull/50907)
+* \[[`1cf087dfb3`](https://github.com/nodejs/node/commit/1cf087dfb3)] - **lib**: refactor to use validateFunction in diagnostics\_channel (Deokjin Kim) [#50955](https://github.com/nodejs/node/pull/50955)
+* \[[`c37d18d5e1`](https://github.com/nodejs/node/commit/c37d18d5e1)] - **lib**: streamline process.binding() handling (Joyee Cheung) [#50773](https://github.com/nodejs/node/pull/50773)
+* \[[`246cf73631`](https://github.com/nodejs/node/commit/246cf73631)] - **lib,src**: replace toUSVString with `toWellFormed()` (Yagiz Nizipli) [#47342](https://github.com/nodejs/node/pull/47342)
+* \[[`9bc79173a0`](https://github.com/nodejs/node/commit/9bc79173a0)] - **loader**: speed up line length calc used by moduleProvider (Mudit) [#50969](https://github.com/nodejs/node/pull/50969)
+* \[[`812ab9e4f8`](https://github.com/nodejs/node/commit/812ab9e4f8)] - **meta**: bump step-security/harden-runner from 2.6.0 to 2.6.1 (dependabot\[bot]) [#50999](https://github.com/nodejs/node/pull/50999)
+* \[[`1dbe1af19a`](https://github.com/nodejs/node/commit/1dbe1af19a)] - **meta**: bump github/codeql-action from 2.22.5 to 2.22.8 (dependabot\[bot]) [#50998](https://github.com/nodejs/node/pull/50998)
+* \[[`bed1b93f8a`](https://github.com/nodejs/node/commit/bed1b93f8a)] - **meta**: move one or more collaborators to emeritus (Node.js GitHub Bot) [#50931](https://github.com/nodejs/node/pull/50931)
+* \[[`1e7d101428`](https://github.com/nodejs/node/commit/1e7d101428)] - **src**: make ModifyCodeGenerationFromStrings more robust (Joyee Cheung) [#50763](https://github.com/nodejs/node/pull/50763)
+* \[[`709ac479eb`](https://github.com/nodejs/node/commit/709ac479eb)] - **src**: disable uncaught exception abortion for ESM syntax detection (Yagiz Nizipli) [#50987](https://github.com/nodejs/node/pull/50987)
+* \[[`f6ff11c9f9`](https://github.com/nodejs/node/commit/f6ff11c9f9)] - **src**: fix backtrace with tail \[\[noreturn]] abort (Chengzhong Wu) [#50849](https://github.com/nodejs/node/pull/50849)
+* \[[`74f5a1cbc9`](https://github.com/nodejs/node/commit/74f5a1cbc9)] - **src**: print MKSNAPSHOT debug logs to stderr (Joyee Cheung) [#50759](https://github.com/nodejs/node/pull/50759)
+* \[[`3a1c664a97`](https://github.com/nodejs/node/commit/3a1c664a97)] - **test**: replace forEach to for.. test-webcrypto-export-import-cfrg.js (Angelo Parziale) [#50785](https://github.com/nodejs/node/pull/50785)
+* \[[`ac3a6eefe3`](https://github.com/nodejs/node/commit/ac3a6eefe3)] - **test**: log more information in SEA tests (Joyee Cheung) [#50759](https://github.com/nodejs/node/pull/50759)
+* \[[`94462d42f5`](https://github.com/nodejs/node/commit/94462d42f5)] - **test**: consolidate utf8 text fixtures in tests (Joyee Cheung) [#50732](https://github.com/nodejs/node/pull/50732)
+* \[[`8e1a70a347`](https://github.com/nodejs/node/commit/8e1a70a347)] - **tools**: add triggers to update release links workflow (Moshe Atlow) [#50974](https://github.com/nodejs/node/pull/50974)
+* \[[`ca10cbb774`](https://github.com/nodejs/node/commit/ca10cbb774)] - **tools**: update lint-md-dependencies to rollup\@4.5.2 (Node.js GitHub Bot) [#50913](https://github.com/nodejs/node/pull/50913)
+* \[[`1e40c4a366`](https://github.com/nodejs/node/commit/1e40c4a366)] - **tools**: fix current version check (Marco Ippolito) [#50951](https://github.com/nodejs/node/pull/50951)
+* \[[`3faed331e1`](https://github.com/nodejs/node/commit/3faed331e1)] - **typings**: fix JSDoc in `internal/modules/esm/hooks` (Alex Yang) [#50887](https://github.com/nodejs/node/pull/50887)
+* \[[`6a087ceffa`](https://github.com/nodejs/node/commit/6a087ceffa)] - **url**: throw error if argument length of revokeObjectURL is 0 (DylanTet) [#50433](https://github.com/nodejs/node/pull/50433)
 
 <a id="21.3.0"></a>
 
