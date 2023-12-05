@@ -315,6 +315,8 @@ inline napi_value JsValueFromV8LocalValue(v8::Local<v8::Value> local) {
 
 inline v8::Local<v8::Value> V8LocalValueFromJsValue(napi_value v) {
   v8::Local<v8::Value> local;
+  static_assert(sizeof(local) == sizeof(v),
+              "Cannot convert supposed napi_value v to v8::Local<v8::Value>");
   memcpy(static_cast<void*>(&local), &v, sizeof(v));
   return local;
 }
