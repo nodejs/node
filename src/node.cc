@@ -264,6 +264,9 @@ void Environment::InitializeDiagnostics() {
       env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
     }, this);
   }
+  if (options_->trace_promises) {
+    isolate_->SetPromiseHook(TracePromises);
+  }
 }
 
 static

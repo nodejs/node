@@ -934,6 +934,9 @@ class Environment : public MemoryRetainer {
   inline void RemoveCleanupHook(CleanupQueue::Callback cb, void* arg);
   void RunCleanup();
 
+  static void TracePromises(v8::PromiseHookType type,
+                            v8::Local<v8::Promise> promise,
+                            v8::Local<v8::Value> parent);
   static size_t NearHeapLimitCallback(void* data,
                                       size_t current_heap_limit,
                                       size_t initial_heap_limit);
@@ -1094,6 +1097,7 @@ class Environment : public MemoryRetainer {
   uint32_t module_id_counter_ = 0;
   uint32_t script_id_counter_ = 0;
   uint32_t function_id_counter_ = 0;
+  uint32_t trace_promise_id_counter_ = 0;
 
   AliasedInt32Array exit_info_;
 
