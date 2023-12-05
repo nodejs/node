@@ -1,5 +1,5 @@
 'use strict'
 
 module.exports = {
-  kConstruct: Symbol('constructable')
+  kConstruct: require('../core/symbols').kConstruct
 }
