@@ -15,7 +15,7 @@ function replaceTestDuration(str) {
 }
 
 const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd()}/?${color}(.*)${color}\\)`, 'g');
+const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd().replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
 
 function replaceSpecDuration(str) {
   return str
