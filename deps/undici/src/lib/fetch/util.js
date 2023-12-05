@@ -1,6 +1,6 @@
 'use strict'
 
-const { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require('./constants')
+const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
 const { performance } = require('perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
@@ -29,7 +29,7 @@ function responseURL (response) {
 // https://fetch.spec.whatwg.org/#concept-response-location-url
 function responseLocationURL (response, requestFragment) {
   // 1. If response’s status is not a redirect status, then return null.
-  if (!redirectStatus.includes(response.status)) {
+  if (!redirectStatusSet.has(response.status)) {
     return null
   }
 
@@ -64,7 +64,7 @@ function requestBadPort (request) {
 
   // 2. If url’s scheme is an HTTP(S) scheme and url’s port is a bad port,
   // then return blocked.
-  if (urlIsHttpHttpsScheme(url) && badPorts.includes(url.port)) {
+  if (urlIsHttpHttpsScheme(url) && badPortsSet.has(url.port)) {
     return 'blocked'
   }
 
@@ -103,52 +103,57 @@ function isValidReasonPhrase (statusText) {
   return true
 }
 
-function isTokenChar (c) {
-  return !(
-    c >= 0x7f ||
-    c <= 0x20 ||
-    c === '(' ||
-    c === ')' ||
-    c === '<' ||
-    c === '>' ||
-    c === '@' ||
-    c === ',' ||
-    c === ';' ||
-    c === ':' ||
-    c === '\\' ||
-    c === '"' ||
-    c === '/' ||
-    c === '[' ||
-    c === ']' ||
-    c === '?' ||
-    c === '=' ||
-    c === '{' ||
-    c === '}'
-  )
+/**
+ * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
+ * @param {number} c
+ */
+function isTokenCharCode (c) {
+  switch (c) {
+    case 0x22:
+    case 0x28:
+    case 0x29:
+    case 0x2c:
+    case 0x2f:
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+    case 0x3f:
+    case 0x40:
+    case 0x5b:
+    case 0x5c:
+    case 0x5d:
+    case 0x7b:
+    case 0x7d:
+      // DQUOTE and "(),/:;<=>?@[\]{}"
+      return false
+    default:
+      // VCHAR %x21-7E
+      return c >= 0x21 && c <= 0x7e
+  }
 }
 
-// See RFC 7230, Section 3.2.6.
-// https://github.com/chromium/chromium/blob/d7da0240cae77824d1eda25745c4022757499131/third_party/blink/renderer/platform/network/http_parsers.cc#L321
+/**
+ * @param {string} characters
+ */
 function isValidHTTPToken (characters) {
-  if (!characters || typeof characters !== 'string') {
+  if (characters.length === 0) {
     return false
   }
   for (let i = 0; i < characters.length; ++i) {
-    const c = characters.charCodeAt(i)
-    if (c > 0x7f || !isTokenChar(c)) {
+    if (!isTokenCharCode(characters.charCodeAt(i))) {
       return false
     }
   }
   return true
 }
 
-// https://fetch.spec.whatwg.org/#header-name
-// https://github.com/chromium/chromium/blob/b3d37e6f94f87d59e44662d6078f6a12de845d17/net/http/http_util.cc#L342
+/**
+ * @see https://fetch.spec.whatwg.org/#header-name
+ * @param {string} potentialValue
+ */
 function isValidHeaderName (potentialValue) {
-  if (potentialValue.length === 0) {
-    return false
-  }
-
   return isValidHTTPToken(potentialValue)
 }
 
@@ -206,7 +211,7 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
     // The left-most policy is the fallback.
     for (let i = policyHeader.length; i !== 0; i--) {
       const token = policyHeader[i - 1].trim()
-      if (referrerPolicyTokens.includes(token)) {
+      if (referrerPolicyTokens.has(token)) {
         policy = token
         break
       }
@@ -556,14 +561,35 @@ function bytesMatch (bytes, metadataList) {
     const algorithm = item.algo
 
     // 2. Let expectedValue be the val component of item.
-    const expectedValue = item.hash
+    let expectedValue = item.hash
+
+    // See https://github.com/web-platform-tests/wpt/commit/e4c5cc7a5e48093220528dfdd1c4012dc3837a0e
+    // "be liberal with padding". This is annoying, and it's not even in the spec.
+
+    if (expectedValue.endsWith('==')) {
+      expectedValue = expectedValue.slice(0, -2)
+    }
 
     // 3. Let actualValue be the result of applying algorithm to bytes.
-    const actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+    let actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+
+    if (actualValue.endsWith('==')) {
+      actualValue = actualValue.slice(0, -2)
+    }
 
     // 4. If actualValue is a case-sensitive match for expectedValue,
     //    return true.
     if (actualValue === expectedValue) {
+      return true
+    }
+
+    let actualBase64URL = crypto.createHash(algorithm).update(bytes).digest('base64url')
+
+    if (actualBase64URL.endsWith('==')) {
+      actualBase64URL = actualBase64URL.slice(0, -2)
+    }
+
+    if (actualBase64URL === expectedValue) {
       return true
     }
   }
@@ -672,11 +698,30 @@ function isCancelled (fetchParams) {
     fetchParams.controller.state === 'terminated'
 }
 
-// https://fetch.spec.whatwg.org/#concept-method-normalize
+const normalizeMethodRecord = {
+  delete: 'DELETE',
+  DELETE: 'DELETE',
+  get: 'GET',
+  GET: 'GET',
+  head: 'HEAD',
+  HEAD: 'HEAD',
+  options: 'OPTIONS',
+  OPTIONS: 'OPTIONS',
+  post: 'POST',
+  POST: 'POST',
+  put: 'PUT',
+  PUT: 'PUT'
+}
+
+// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizeMethodRecord, null)
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-method-normalize
+ * @param {string} method
+ */
 function normalizeMethod (method) {
-  return /^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/i.test(method)
-    ? method.toUpperCase()
-    : method
+  return normalizeMethodRecord[method.toLowerCase()] ?? method
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
@@ -812,17 +857,17 @@ function iteratorResult (pair, kind) {
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-function fullyReadBody (body, processBody, processBodyError) {
+async function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
   // 2. Let successSteps given a byte sequence bytes be to queue a
   //    fetch task to run processBody given bytes, with taskDestination.
-  const successSteps = (bytes) => queueMicrotask(() => processBody(bytes))
+  const successSteps = processBody
 
   // 3. Let errorSteps be to queue a fetch task to run processBodyError,
   //    with taskDestination.
-  const errorSteps = (error) => queueMicrotask(() => processBodyError(error))
+  const errorSteps = processBodyError
 
   // 4. Let reader be the result of getting a reader for body’s stream.
   //    If that threw an exception, then run errorSteps with that
@@ -837,7 +882,12 @@ function fullyReadBody (body, processBody, processBodyError) {
   }
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
-  readAllBytes(reader, successSteps, errorSteps)
+  try {
+    const result = await readAllBytes(reader)
+    successSteps(result)
+  } catch (e) {
+    errorSteps(e)
+  }
 }
 
 /** @type {ReadableStream} */
@@ -906,36 +956,23 @@ function isomorphicEncode (input) {
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
  * @param {ReadableStreamDefaultReader} reader
- * @param {(bytes: Uint8Array) => void} successSteps
- * @param {(error: Error) => void} failureSteps
  */
-async function readAllBytes (reader, successSteps, failureSteps) {
+async function readAllBytes (reader) {
   const bytes = []
   let byteLength = 0
 
   while (true) {
-    let done
-    let chunk
-
-    try {
-      ({ done, value: chunk } = await reader.read())
-    } catch (e) {
-      // 1. Call failureSteps with e.
-      failureSteps(e)
-      return
-    }
+    const { done, value: chunk } = await reader.read()
 
     if (done) {
       // 1. Call successSteps with bytes.
-      successSteps(Buffer.concat(bytes, byteLength))
-      return
+      return Buffer.concat(bytes, byteLength)
     }
 
     // 1. If chunk is not a Uint8Array object, call failureSteps
     //    with a TypeError and abort these steps.
     if (!isUint8Array(chunk)) {
-      failureSteps(new TypeError('Received non-Uint8Array chunk'))
-      return
+      throw new TypeError('Received non-Uint8Array chunk')
     }
 
     // 2. Append the bytes represented by chunk to bytes.
@@ -1029,5 +1066,6 @@ module.exports = {
   urlIsLocal,
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
-  readAllBytes
+  readAllBytes,
+  normalizeMethodRecord
 }

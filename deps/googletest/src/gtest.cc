@@ -43,6 +43,7 @@
 #include <algorithm>
 #include <chrono>  // NOLINT
 #include <cmath>
+#include <csignal>  // NOLINT: raise(3) is used on some platforms
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -863,30 +864,39 @@ bool UnitTestOptions::FilterMatchesTest(const std::string& test_suite_name,
 }
 
 #if GTEST_HAS_SEH
-// Returns EXCEPTION_EXECUTE_HANDLER if Google Test should handle the
-// given SEH exception, or EXCEPTION_CONTINUE_SEARCH otherwise.
-// This function is useful as an __except condition.
-int UnitTestOptions::GTestShouldProcessSEH(DWORD exception_code) {
+static std::string FormatSehExceptionMessage(DWORD exception_code,
+                                             const char* location) {
+  Message message;
+  message << "SEH exception with code 0x" << std::setbase(16) << exception_code
+          << std::setbase(10) << " thrown in " << location << ".";
+  return message.GetString();
+}
+
+int UnitTestOptions::GTestProcessSEH(DWORD seh_code, const char* location) {
   // Google Test should handle a SEH exception if:
   //   1. the user wants it to, AND
-  //   2. this is not a breakpoint exception, AND
+  //   2. this is not a breakpoint exception or stack overflow, AND
   //   3. this is not a C++ exception (VC++ implements them via SEH,
   //      apparently).
   //
   // SEH exception code for C++ exceptions.
-  // (see http://support.microsoft.com/kb/185294 for more information).
+  // (see https://support.microsoft.com/kb/185294 for more information).
   const DWORD kCxxExceptionCode = 0xe06d7363;
 
-  bool should_handle = true;
+  if (!GTEST_FLAG_GET(catch_exceptions) || seh_code == kCxxExceptionCode ||
+      seh_code == EXCEPTION_BREAKPOINT ||
+      seh_code == EXCEPTION_STACK_OVERFLOW) {
+    return EXCEPTION_CONTINUE_SEARCH;  // Don't handle these exceptions
+  }
 
-  if (!GTEST_FLAG_GET(catch_exceptions))
-    should_handle = false;
-  else if (exception_code == EXCEPTION_BREAKPOINT)
-    should_handle = false;
-  else if (exception_code == kCxxExceptionCode)
-    should_handle = false;
+  internal::ReportFailureInUnknownLocation(
+      TestPartResult::kFatalFailure,
+      FormatSehExceptionMessage(seh_code, location) +
+          "\n"
+          "Stack trace:\n" +
+          ::testing::internal::GetCurrentOsStackTraceExceptTop(1));
 
-  return should_handle ? EXCEPTION_EXECUTE_HANDLER : EXCEPTION_CONTINUE_SEARCH;
+  return EXCEPTION_EXECUTE_HANDLER;
 }
 #endif  // GTEST_HAS_SEH
 
@@ -2553,23 +2563,6 @@ bool Test::HasSameFixtureClass() {
   return true;
 }
 
-#if GTEST_HAS_SEH
-
-// Adds an "exception thrown" fatal failure to the current test.  This
-// function returns its result via an output parameter pointer because VC++
-// prohibits creation of objects with destructors on stack in functions
-// using __try (see error C2712).
-static std::string* FormatSehExceptionMessage(DWORD exception_code,
-                                              const char* location) {
-  Message message;
-  message << "SEH exception with code 0x" << std::setbase(16) << exception_code
-          << std::setbase(10) << " thrown in " << location << ".";
-
-  return new std::string(message.GetString());
-}
-
-#endif  // GTEST_HAS_SEH
-
 namespace internal {
 
 #if GTEST_HAS_EXCEPTIONS
@@ -2611,16 +2604,8 @@ Result HandleSehExceptionsInMethodIfSupported(T* object, Result (T::*method)(),
 #if GTEST_HAS_SEH
   __try {
     return (object->*method)();
-  } __except (internal::UnitTestOptions::GTestShouldProcessSEH(  // NOLINT
-      GetExceptionCode())) {
-    // We create the exception message on the heap because VC++ prohibits
-    // creation of objects with destructors on stack in functions using __try
-    // (see error C2712).
-    std::string* exception_message =
-        FormatSehExceptionMessage(GetExceptionCode(), location);
-    internal::ReportFailureInUnknownLocation(TestPartResult::kFatalFailure,
-                                             *exception_message);
-    delete exception_message;
+  } __except (internal::UnitTestOptions::GTestProcessSEH(  // NOLINT
+      GetExceptionCode(), location)) {
     return static_cast<Result>(0);
   }
 #else
@@ -3244,7 +3229,8 @@ static const char* GetAnsiColorCode(GTestColor color) {
     case GTestColor::kYellow:
       return "3";
     default:
-      return nullptr;
+      assert(false);
+      return "9";
   }
 }
 
@@ -5415,7 +5401,7 @@ void UnitTest::RecordProperty(const std::string& key,
 int UnitTest::Run() {
 #ifdef GTEST_HAS_DEATH_TEST
   const bool in_death_test_child_process =
-      GTEST_FLAG_GET(internal_run_death_test).length() > 0;
+      !GTEST_FLAG_GET(internal_run_death_test).empty();
 
   // Google Test implements this protocol for catching that a test
   // program exits before returning control to Google Test:
@@ -5655,8 +5641,10 @@ void UnitTestImpl::ConfigureXmlOutput() {
                         << output_format << "\" ignored.";
   }
 #else
-  GTEST_LOG_(ERROR) << "ERROR: alternative output formats require "
-                    << "GTEST_HAS_FILE_SYSTEM to be enabled";
+  if (!output_format.empty()) {
+    GTEST_LOG_(ERROR) << "ERROR: alternative output formats require "
+                      << "GTEST_HAS_FILE_SYSTEM to be enabled";
+  }
 #endif  // GTEST_HAS_FILE_SYSTEM
 }
 

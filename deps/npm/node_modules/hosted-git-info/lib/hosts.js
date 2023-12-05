@@ -199,8 +199,7 @@ hosts.sourcehut = {
     `https://${domain}/${user}/${project}.git${maybeJoin('#', committish)}`,
   tarballtemplate: ({ domain, user, project, committish }) =>
     `https://${domain}/${user}/${project}/archive/${maybeEncode(committish) || 'HEAD'}.tar.gz`,
-  bugstemplate: ({ user, project }) =>
-    `https://todo.sr.ht/${user}/${project}`,
+  bugstemplate: ({ user, project }) => null,
   extract: (url) => {
     let [, user, project, aux] = url.pathname.split('/', 4)
 

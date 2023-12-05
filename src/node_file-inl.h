@@ -277,9 +277,10 @@ FSReqBase* GetReqWrap(const v8::FunctionCallbackInfo<v8::Value>& args,
     return Unwrap<FSReqBase>(value.As<v8::Object>());
   }
 
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
-  Environment* env = binding_data->env();
-  if (value->StrictEquals(env->fs_use_promises_symbol())) {
+  Realm* realm = Realm::GetCurrent(args);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+
+  if (value->StrictEquals(realm->isolate_data()->fs_use_promises_symbol())) {
     if (use_bigint) {
       return FSReqPromise<AliasedBigInt64Array>::New(binding_data, use_bigint);
     } else {
@@ -346,6 +347,38 @@ int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
                  OneByteString(isolate, syscall)).Check();
   }
   return err;
+}
+
+// Similar to SyncCall but throws immediately if there is an error.
+template <typename Predicate, typename Func, typename... Args>
+int SyncCallAndThrowIf(Predicate should_throw,
+                       Environment* env,
+                       FSReqWrapSync* req_wrap,
+                       Func fn,
+                       Args... args) {
+  env->PrintSyncTrace();
+  int result = fn(nullptr, &(req_wrap->req), args..., nullptr);
+  if (should_throw(result)) {
+    env->ThrowUVException(result,
+                          req_wrap->syscall_p,
+                          nullptr,
+                          req_wrap->path_p,
+                          req_wrap->dest_p);
+  }
+  return result;
+}
+
+constexpr bool is_uv_error(int result) {
+  return result < 0;
+}
+
+// Similar to SyncCall but throws immediately if there is an error.
+template <typename Func, typename... Args>
+int SyncCallAndThrowOnError(Environment* env,
+                            FSReqWrapSync* req_wrap,
+                            Func fn,
+                            Args... args) {
+  return SyncCallAndThrowIf(is_uv_error, env, req_wrap, fn, args...);
 }
 
 }  // namespace fs

@@ -10,9 +10,8 @@
 
 namespace v8::internal {
 
-void CrossHeapRememberedSet::RememberReferenceIfNeeded(Isolate& isolate,
-                                                       JSObject host_obj,
-                                                       void* cppgc_object) {
+void CrossHeapRememberedSet::RememberReferenceIfNeeded(
+    Isolate& isolate, Tagged<JSObject> host_obj, void* cppgc_object) {
   DCHECK_NOT_NULL(cppgc_object);
   // Any in-cage pointer must point to a vaild, not freed cppgc object.
   auto* page =

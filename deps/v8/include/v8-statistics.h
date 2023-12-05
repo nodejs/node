@@ -46,6 +46,10 @@ enum class MeasureMemoryExecution { kDefault, kEager, kLazy };
  *
  * It specifies the contexts that need to be measured and gets called when
  * the measurement is completed to report the results.
+ *
+ * Both MeasurementComplete() callbacks will be invoked on completion.
+ * Each implementation of this class should hence implement only one of them,
+ * and leave the other empty.
  */
 class V8_EXPORT MeasureMemoryDelegate {
  public:
@@ -66,10 +70,41 @@ class V8_EXPORT MeasureMemoryDelegate {
    * \param unattributed_size_in_bytes total size of objects that were not
    *   attributed to any context (i.e. are likely shared objects).
    */
+  V8_DEPRECATE_SOON("Please use the version that takes a result struct")
   virtual void MeasurementComplete(
       const std::vector<std::pair<Local<Context>, size_t>>&
           context_sizes_in_bytes,
-      size_t unattributed_size_in_bytes) = 0;
+      size_t unattributed_size_in_bytes) {}
+
+  /** Holds the result of a memory measurement request. */
+  struct Result {
+    /**
+     * a vector of (context, size) pairs that includes each context for
+     * which ShouldMeasure returned true and that was not garbage collected
+     * while the memory measurement was in progress.
+     */
+    const std::vector<std::pair<Local<Context>, size_t>>&
+        context_sizes_in_bytes;
+
+    /**
+     * total size of objects that were not attributed to any context (i.e. are
+     * likely shared objects).
+     */
+    size_t unattributed_size_in_bytes;
+
+    /** total size of generated code for Wasm (shared across contexts). */
+    size_t wasm_code_size_in_bytes;
+
+    /** total size of Wasm metadata (except code; shared across contexts). */
+    size_t wasm_metadata_size_in_bytes;
+  };
+
+  /**
+   * This function is called when memory measurement finishes.
+   *
+   * \param result the result of the measurement.
+   */
+  virtual void MeasurementComplete(Result result) {}
 
   /**
    * Returns a default delegate that resolves the given promise when

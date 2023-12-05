@@ -68,6 +68,10 @@ class Search extends BaseCommand {
     let anyOutput = false
 
     class FilterStream extends Minipass {
+      constructor () {
+        super({ objectMode: true })
+      }
+
       write (pkg) {
         if (filter(pkg, opts.include, opts.exclude)) {
           super.write(pkg)
@@ -77,12 +81,12 @@ class Search extends BaseCommand {
 
     const filterStream = new FilterStream()
 
-    // Grab a configured output stream that will spit out packages in the
-    // desired format.
-    const outputStream = formatSearchStream({
+    const { default: stripAnsi } = await import('strip-ansi')
+    // Grab a configured output stream that will spit out packages in the desired format.
+    const outputStream = await formatSearchStream({
       args, // --searchinclude options are not highlighted
       ...opts,
-    })
+    }, stripAnsi)
 
     log.silly('search', 'searching packages')
     const p = new Pipeline(

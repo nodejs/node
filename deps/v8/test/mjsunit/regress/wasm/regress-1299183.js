@@ -39,7 +39,7 @@ builder.addType(
            wasmRefType(kWasmAnyRef), wasmRefNullType(4), kWasmI64, kWasmI64,
            wasmRefType(kWasmEqRef), kWasmI32],
           [kWasmI32]));
-builder.addMemory(16, 32, false);
+builder.addMemory(16, 32);
 builder.addTable(kWasmFuncRef, 4, 5, undefined)
 builder.addTable(kWasmFuncRef, 15, 25, undefined)
 builder.addTable(kWasmFuncRef, 1, 1, undefined)

@@ -26,16 +26,15 @@ const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 
 tmpdir.refresh();
 
 
-const nonexistentFile = path.join(tmpdir.path, 'non-existent');
-const nonexistentDir = path.join(tmpdir.path, 'non-existent', 'foo', 'bar');
-const existingFile = path.join(tmpdir.path, 'existingFile.js');
-const existingFile2 = path.join(tmpdir.path, 'existingFile2.js');
-const existingDir = path.join(tmpdir.path, 'dir');
+const nonexistentFile = tmpdir.resolve('non-existent');
+const nonexistentDir = tmpdir.resolve('non-existent', 'foo', 'bar');
+const existingFile = tmpdir.resolve('existingFile.js');
+const existingFile2 = tmpdir.resolve('existingFile2.js');
+const existingDir = tmpdir.resolve('dir');
 const existingDir2 = fixtures.path('keys');
 fs.mkdirSync(existingDir);
 fs.writeFileSync(existingFile, 'test', 'utf-8');
@@ -297,7 +296,7 @@ function re(literals, ...values) {
     return true;
   };
 
-  const destFile = path.join(tmpdir.path, 'foo');
+  const destFile = tmpdir.resolve('foo');
   fs.rename(nonexistentFile, destFile, common.mustCall(validateError));
 
   assert.throws(

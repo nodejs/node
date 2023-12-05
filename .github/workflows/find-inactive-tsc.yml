@@ -20,13 +20,13 @@ jobs:
 
     steps:
       - name: Checkout the repo
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Clone nodejs/TSC repository
-        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           fetch-depth: 0
           path: .tmp
@@ -34,7 +34,7 @@ jobs:
           repository: nodejs/TSC
 
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
+        uses: actions/setup-node@8f152de45cc393bb48ce5d89d36b731f54556e65  # v4.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 

@@ -1,15 +1,20 @@
 #include "base_object.h"
 #include "env-inl.h"
+#include "node_messaging.h"
 #include "node_realm-inl.h"
 
 namespace node {
 
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
+using v8::Just;
 using v8::Local;
+using v8::Maybe;
 using v8::Object;
 using v8::Value;
+using v8::ValueDeserializer;
 using v8::WeakCallbackInfo;
 using v8::WeakCallbackType;
 
@@ -17,7 +22,7 @@ BaseObject::BaseObject(Realm* realm, Local<Object> object)
     : persistent_handle_(realm->isolate(), object), realm_(realm) {
   CHECK_EQ(false, object.IsEmpty());
   CHECK_GE(object->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  SetInternalFields(object, static_cast<void*>(this));
+  SetInternalFields(realm->isolate_data(), object, static_cast<void*>(this));
   realm->AddCleanupHook(DeleteMe, static_cast<void*>(this));
   realm->modify_base_object_count(1);
 }
@@ -66,18 +71,13 @@ void BaseObject::MakeWeak() {
       WeakCallbackType::kParameter);
 }
 
-// This just has to be different from the Chromium ones:
-// https://source.chromium.org/chromium/chromium/src/+/main:gin/public/gin_embedders.h;l=18-23;drc=5a758a97032f0b656c3c36a3497560762495501a
-// Otherwise, when Node is loaded in an isolate which uses cppgc, cppgc will
-// misinterpret the data stored in the embedder fields and try to garbage
-// collect them.
-uint16_t kNodeEmbedderId = 0x90de;
-
 void BaseObject::LazilyInitializedJSTemplateConstructor(
     const FunctionCallbackInfo<Value>& args) {
   DCHECK(args.IsConstructCall());
   CHECK_GE(args.This()->InternalFieldCount(), BaseObject::kInternalFieldCount);
-  SetInternalFields(args.This(), nullptr);
+  Environment* env = Environment::GetCurrent(args);
+  DCHECK_NOT_NULL(env);
+  SetInternalFields(env->isolate_data(), args.This(), nullptr);
 }
 
 Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
@@ -91,6 +91,28 @@ Local<FunctionTemplate> BaseObject::MakeLazilyInitializedJSTemplate(
       isolate_data->isolate(), LazilyInitializedJSTemplateConstructor);
   t->InstanceTemplate()->SetInternalFieldCount(BaseObject::kInternalFieldCount);
   return t;
+}
+
+BaseObject::TransferMode BaseObject::GetTransferMode() const {
+  return TransferMode::kDisallowCloneAndTransfer;
+}
+
+std::unique_ptr<worker::TransferData> BaseObject::TransferForMessaging() {
+  return {};
+}
+
+std::unique_ptr<worker::TransferData> BaseObject::CloneForMessaging() const {
+  return {};
+}
+
+Maybe<std::vector<BaseObjectPtr<BaseObject>>> BaseObject::NestedTransferables()
+    const {
+  return Just(std::vector<BaseObjectPtr<BaseObject>>{});
+}
+
+Maybe<bool> BaseObject::FinalizeTransferRead(Local<Context> context,
+                                             ValueDeserializer* deserializer) {
+  return Just(true);
 }
 
 BaseObject::PointerData* BaseObject::pointer_data() {

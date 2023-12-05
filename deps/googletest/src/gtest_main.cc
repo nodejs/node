@@ -31,7 +31,8 @@
 
 #include "gtest/gtest.h"
 
-#if defined(GTEST_OS_ESP8266) || defined(GTEST_OS_ESP32)
+#if defined(GTEST_OS_ESP8266) || defined(GTEST_OS_ESP32) || \
+    (defined(GTEST_OS_NRF52) && defined(ARDUINO))
 // Arduino-like platforms: program entry points are setup/loop instead of main.
 
 #ifdef GTEST_OS_ESP8266

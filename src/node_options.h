@@ -28,24 +28,20 @@ class HostPort {
 
   void set_host(const std::string& host) { host_name_ = host; }
 
-  void set_port(int port) { port_ = port; }
+  void set_port(uint16_t port) { port_ = port; }
 
   const std::string& host() const { return host_name_; }
 
-  int port() const {
-    // TODO(joyeecheung): make port a uint16_t
-    CHECK_GE(port_, 0);
-    return port_;
-  }
+  uint16_t port() const { return port_; }
 
   void Update(const HostPort& other) {
     if (!other.host_name_.empty()) host_name_ = other.host_name_;
-    if (other.port_ >= 0) port_ = other.port_;
+    port_ = other.port_;
   }
 
  private:
   std::string host_name_;
-  int port_;
+  uint16_t port_;
 };
 
 class Options {
@@ -108,21 +104,25 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
+  bool detect_module = false;
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;
+  bool experimental_websocket = false;
   bool experimental_global_customevent = true;
+  bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
   bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
-  std::string module_type;
+  std::string input_type;  // Value of --input-type
+  std::string type;        // Value of --experimental-default-type
   std::string experimental_policy;
   std::string experimental_policy_integrity;
   bool has_policy_integrity_string = false;
   bool experimental_permission = false;
-  std::string allow_fs_read;
-  std::string allow_fs_write;
+  std::vector<std::string> allow_fs_read;
+  std::vector<std::string> allow_fs_write;
   bool allow_child_process = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
@@ -139,6 +139,7 @@ class EnvironmentOptions : public Options {
   bool allow_native_addons = true;
   bool global_search_paths = true;
   bool warnings = true;
+  std::vector<std::string> disable_warnings;
   bool force_context_aware = false;
   bool pending_deprecation = false;
   bool preserve_symlinks = false;
@@ -158,7 +159,11 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  std::string env_file;
+  bool has_env_file_string = false;
   bool test_runner = false;
+  uint64_t test_runner_concurrency = 0;
+  uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;

@@ -676,7 +676,8 @@ void array_push_back(const TypeName* evp_ref,
 }
 #endif
 
-inline bool IsAnyByteSource(v8::Local<v8::Value> arg) {
+// WebIDL AllowSharedBufferSource.
+inline bool IsAnyBufferSource(v8::Local<v8::Value> arg) {
   return arg->IsArrayBufferView() ||
          arg->IsArrayBuffer() ||
          arg->IsSharedArrayBuffer();
@@ -694,7 +695,7 @@ class ArrayBufferOrViewContents {
       return;
     }
 
-    CHECK(IsAnyByteSource(buf));
+    CHECK(IsAnyBufferSource(buf));
     if (buf->IsArrayBufferView()) {
       auto view = buf.As<v8::ArrayBufferView>();
       offset_ = view->ByteOffset();

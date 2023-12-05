@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node.h"
+#include "node_dotenv.h"
 
 // ========== local headers ==========
 
@@ -61,6 +62,8 @@
 #include "libplatform/libplatform.h"
 #endif  // NODE_USE_V8_PLATFORM
 #include "v8-profiler.h"
+
+#include "cppgc/platform.h"
 
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
@@ -137,6 +140,10 @@ using v8::V8;
 using v8::Value;
 
 namespace per_process {
+
+// node_dotenv.h
+// Instance is used to store environment variables including NODE_OPTIONS.
+node::Dotenv dotenv_file = Dotenv();
 
 // node_revert.h
 // Bit flag used to track security reverts.
@@ -291,6 +298,21 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   }
 
   CHECK(!env->isolate_data()->is_building_snapshot());
+
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    // The SEA preparation blob building process should already enforce this,
+    // this check is just here to guard against the unlikely case where
+    // the SEA preparation blob has been manually modified by someone.
+    CHECK_IMPLIES(sea.use_snapshot(),
+                  !env->snapshot_deserialize_main().IsEmpty());
+  }
+#endif
+
+  if (env->options()->has_env_file_string) {
+    per_process::dotenv_file.SetEnvironment(env);
+  }
 
   // TODO(joyeecheung): move these conditions into JS land and let the
   // deserialize main function take precedence. For workers, we need to
@@ -731,6 +753,13 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
                 "--no-harmony-import-assertions") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-assertions");
   }
+  // TODO(aduh95): remove this when the harmony-import-attributes flag
+  // is removed in V8.
+  if (std::find(v8_args.begin(),
+                v8_args.end(),
+                "--no-harmony-import-attributes") == v8_args.end()) {
+    v8_args.emplace_back("--harmony-import-attributes");
+  }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
   if (std::find(v8_args.begin(), v8_args.end(),
@@ -816,13 +845,40 @@ static ExitCode InitializeNodeWithArgsInternal(
   V8::SetFlagsFromString(NODE_V8_OPTIONS, sizeof(NODE_V8_OPTIONS) - 1);
 #endif
 
+  if (!!(flags & ProcessInitializationFlags::kGeneratePredictableSnapshot) ||
+      per_process::cli_options->per_isolate->build_snapshot) {
+    v8::V8::SetFlagsFromString("--predictable");
+    v8::V8::SetFlagsFromString("--random_seed=42");
+  }
+
+  // Specify this explicitly to avoid being affected by V8 changes to the
+  // default value.
+  V8::SetFlagsFromString("--rehash-snapshot");
+
   HandleEnvOptions(per_process::cli_options->per_isolate->per_env);
+
+  std::string node_options;
+  auto file_paths = node::Dotenv::GetPathFromArgs(*argv);
+
+  if (!file_paths.empty()) {
+    CHECK(!per_process::v8_initialized);
+    auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
+
+    for (const auto& file_path : file_paths) {
+      std::string path = cwd + kPathSeparator + file_path;
+      auto path_exists = per_process::dotenv_file.ParsePath(path);
+
+      if (!path_exists) errors->push_back(file_path + ": not found");
+    }
+
+    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
+  }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
   if (!(flags & ProcessInitializationFlags::kDisableNodeOptionsEnv)) {
-    std::string node_options;
-
-    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options)) {
+    // NODE_OPTIONS environment variable is preferred over the file one.
+    if (credentials::SafeGetenv("NODE_OPTIONS", &node_options) ||
+        !node_options.empty()) {
       std::vector<std::string> env_argv =
           ParseNodeOptionsEnvVar(node_options, errors);
 
@@ -875,9 +931,14 @@ static ExitCode InitializeNodeWithArgsInternal(
 
     // Initialize ICU.
     // If icu_data_dir is empty here, it will load the 'minimal' data.
-    if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir)) {
-      errors->push_back("could not initialize ICU "
-                        "(check NODE_ICU_DATA or --icu-data-dir parameters)\n");
+    std::string icu_error;
+    if (!i18n::InitializeICUDirectory(per_process::cli_options->icu_data_dir,
+                                      &icu_error)) {
+      errors->push_back(icu_error +
+                        ": Could not initialize ICU. "
+                        "Check the directory specified by NODE_ICU_DATA or "
+                        "--icu-data-dir contains " U_ICUDATA_NAME ".dat and "
+                        "it's readable\n");
       return ExitCode::kInvalidCommandLineArgument;
     }
     per_process::metadata.versions.InitializeIntlVersions();
@@ -1085,6 +1146,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     V8::Initialize();
   }
 
+  if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
+    v8::PageAllocator* allocator = nullptr;
+    if (result->platform_ != nullptr) {
+      allocator = result->platform_->GetPageAllocator();
+    }
+    cppgc::InitializeProcess(allocator);
+  }
+
   performance::performance_v8_start = PERFORMANCE_NOW();
   per_process::v8_initialized = true;
 
@@ -1102,6 +1171,10 @@ void TearDownOncePerProcess() {
   ResetStdio();
   if (!(flags & ProcessInitializationFlags::kNoDefaultSignalHandling)) {
     ResetSignalHandlers();
+  }
+
+  if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
+    cppgc::ShutdownProcess();
   }
 
   per_process::v8_initialized = false;
@@ -1126,9 +1199,6 @@ void TearDownOncePerProcess() {
     per_process::v8_platform.Dispose();
   }
 }
-
-InitializationResult::~InitializationResult() {}
-InitializationResultImpl::~InitializationResultImpl() {}
 
 ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
                                       const InitializationResultImpl* result) {
@@ -1198,49 +1268,66 @@ ExitCode GenerateAndWriteSnapshotData(const SnapshotData** snapshot_data_ptr,
   return exit_code;
 }
 
-ExitCode LoadSnapshotDataAndRun(const SnapshotData** snapshot_data_ptr,
-                                const InitializationResultImpl* result) {
-  ExitCode exit_code = result->exit_code_enum();
+bool LoadSnapshotData(const SnapshotData** snapshot_data_ptr) {
   // nullptr indicates there's no snapshot data.
   DCHECK_NULL(*snapshot_data_ptr);
+
+  bool is_sea = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
+  if (sea::IsSingleExecutable()) {
+    is_sea = true;
+    sea::SeaResource sea = sea::FindSingleExecutableResource();
+    if (sea.use_snapshot()) {
+      std::unique_ptr<SnapshotData> read_data =
+          std::make_unique<SnapshotData>();
+      std::string_view snapshot = sea.main_code_or_snapshot;
+      if (SnapshotData::FromBlob(read_data.get(), snapshot)) {
+        *snapshot_data_ptr = read_data.release();
+        return true;
+      } else {
+        fprintf(stderr, "Invalid snapshot data in single executable binary\n");
+        return false;
+      }
+    }
+  }
+#endif
+
   // --snapshot-blob indicates that we are reading a customized snapshot.
-  if (!per_process::cli_options->snapshot_blob.empty()) {
+  // Ignore it when we are loading from SEA.
+  if (!is_sea && !per_process::cli_options->snapshot_blob.empty()) {
     std::string filename = per_process::cli_options->snapshot_blob;
     FILE* fp = fopen(filename.c_str(), "rb");
     if (fp == nullptr) {
       fprintf(stderr, "Cannot open %s", filename.c_str());
-      exit_code = ExitCode::kStartupSnapshotFailure;
-      return exit_code;
+      return false;
     }
     std::unique_ptr<SnapshotData> read_data = std::make_unique<SnapshotData>();
     bool ok = SnapshotData::FromFile(read_data.get(), fp);
     fclose(fp);
     if (!ok) {
-      // If we fail to read the customized snapshot,
-      // simply exit with kStartupSnapshotFailure.
-      exit_code = ExitCode::kStartupSnapshotFailure;
-      return exit_code;
+      return false;
     }
     *snapshot_data_ptr = read_data.release();
-  } else if (per_process::cli_options->node_snapshot) {
-    // If --snapshot-blob is not specified, we are reading the embedded
-    // snapshot, but we will skip it if --no-node-snapshot is specified.
+    return true;
+  }
+
+  if (per_process::cli_options->node_snapshot) {
+    // If --snapshot-blob is not specified or if the SEA contains no snapshot,
+    // we are reading the embedded snapshot, but we will skip it if
+    // --no-node-snapshot is specified.
     const node::SnapshotData* read_data =
         SnapshotBuilder::GetEmbeddedSnapshotData();
-    if (read_data != nullptr && read_data->Check()) {
+    if (read_data != nullptr) {
+      if (!read_data->Check()) {
+        return false;
+      }
       // If we fail to read the embedded snapshot, treat it as if Node.js
       // was built without one.
       *snapshot_data_ptr = read_data;
     }
   }
 
-  NodeMainInstance main_instance(*snapshot_data_ptr,
-                                 uv_default_loop(),
-                                 per_process::v8_platform.Platform(),
-                                 result->args(),
-                                 result->exec_args());
-  exit_code = main_instance.Run();
-  return exit_code;
+  return true;
 }
 
 static ExitCode StartInternal(int argc, char** argv) {
@@ -1275,7 +1362,8 @@ static ExitCode StartInternal(int argc, char** argv) {
 
   std::string sea_config = per_process::cli_options->experimental_sea_config;
   if (!sea_config.empty()) {
-    return sea::BuildSingleExecutableBlob(sea_config);
+    return sea::BuildSingleExecutableBlob(
+        sea_config, result->args(), result->exec_args());
   }
 
   // --build-snapshot indicates that we are in snapshot building mode.
@@ -1290,7 +1378,15 @@ static ExitCode StartInternal(int argc, char** argv) {
   }
 
   // Without --build-snapshot, we are in snapshot loading mode.
-  return LoadSnapshotDataAndRun(&snapshot_data, result.get());
+  if (!LoadSnapshotData(&snapshot_data)) {
+    return ExitCode::kStartupSnapshotFailure;
+  }
+  NodeMainInstance main_instance(snapshot_data,
+                                 uv_default_loop(),
+                                 per_process::v8_platform.Platform(),
+                                 result->args(),
+                                 result->exec_args());
+  return main_instance.Run();
 }
 
 int Start(int argc, char** argv) {

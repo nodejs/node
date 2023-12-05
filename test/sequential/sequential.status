@@ -14,6 +14,9 @@ test-watch-mode-inspect: PASS, FLAKY
 [$system==win32]
 # https://github.com/nodejs/node/issues/47116
 test-http-max-sockets: PASS, FLAKY
+# https://github.com/nodejs/node/issues/49630
+test-single-executable-application-snapshot: PASS, FLAKY
+test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
 
 [$system==linux]
 
@@ -37,7 +40,17 @@ test-tls-psk-client: PASS, FLAKY
 test-tls-securepair-client: PASS, FLAKY
 
 [$arch==arm]
+# https://github.com/nodejs/node/issues/49933
+test-watch-mode-inspect: PASS, FLAKY
 
 [$arch==s390x]
 # https://github.com/nodejs/node/issues/41286
 test-performance-eventloopdelay: PASS, FLAKY
+
+[$system==ppc || $system==ppc64]
+# https://github.com/nodejs/node/issues/50740
+test-single-executable-application-empty: PASS, FLAKY
+test-single-executable-application-snapshot-and-code-cache: PASS, FLAKY
+test-single-executable-application-snapshot: PASS, FLAKY
+test-single-executable-application-use-code-cache: PASS, FLAKY
+test-single-executable-application: PASS, FLAKY

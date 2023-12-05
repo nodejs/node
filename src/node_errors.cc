@@ -1,5 +1,6 @@
 #include <cerrno>
 #include <cstdarg>
+#include <sstream>
 
 #include "debug_utils-inl.h"
 #include "node_errors.h"
@@ -15,6 +16,7 @@ namespace node {
 using errors::TryCatchScope;
 using v8::Boolean;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -185,7 +187,46 @@ static std::string GetErrorSource(Isolate* isolate,
   return buf + std::string(underline_buf, off);
 }
 
-static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
+static std::atomic<bool> is_in_oom{false};
+static std::atomic<bool> is_retrieving_js_stacktrace{false};
+MaybeLocal<StackTrace> GetCurrentStackTrace(Isolate* isolate, int frame_count) {
+  if (isolate == nullptr) {
+    return MaybeLocal<StackTrace>();
+  }
+  // Generating JavaScript stack trace can result in V8 fatal error,
+  // which can re-enter this function.
+  if (is_retrieving_js_stacktrace.load()) {
+    return MaybeLocal<StackTrace>();
+  }
+
+  // Can not capture the stacktrace when the isolate is in a OOM state or no
+  // context is entered.
+  if (is_in_oom.load() || !isolate->InContext()) {
+    return MaybeLocal<StackTrace>();
+  }
+
+  constexpr StackTrace::StackTraceOptions options =
+      static_cast<StackTrace::StackTraceOptions>(
+          StackTrace::kDetailed |
+          StackTrace::kExposeFramesAcrossSecurityOrigins);
+
+  is_retrieving_js_stacktrace.store(true);
+  EscapableHandleScope scope(isolate);
+  Local<StackTrace> stack =
+      StackTrace::CurrentStackTrace(isolate, frame_count, options);
+
+  is_retrieving_js_stacktrace.store(false);
+  if (stack->GetFrameCount() == 0) {
+    return MaybeLocal<StackTrace>();
+  }
+
+  return scope.Escape(stack);
+}
+
+static std::string FormatStackTrace(
+    Isolate* isolate,
+    Local<StackTrace> stack,
+    StackTracePrefix prefix = StackTracePrefix::kAt) {
   std::string result;
   for (int i = 0; i < stack->GetFrameCount(); i++) {
     Local<StackFrame> stack_frame = stack->GetFrame(isolate, i);
@@ -193,15 +234,18 @@ static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
     node::Utf8Value script_name(isolate, stack_frame->GetScriptName());
     const int line_number = stack_frame->GetLineNumber();
     const int column = stack_frame->GetColumn();
-
+    std::string prefix_str = prefix == StackTracePrefix::kAt
+                                 ? "    at "
+                                 : std::to_string(i + 1) + ": ";
     if (stack_frame->IsEval()) {
       if (stack_frame->GetScriptId() == Message::kNoScriptIdInfo) {
-        result += SPrintF("    at [eval]:%i:%i\n", line_number, column);
+        result += SPrintF("%s[eval]:%i:%i\n", prefix_str, line_number, column);
       } else {
         std::vector<char> buf(script_name.length() + 64);
         snprintf(buf.data(),
                  buf.size(),
-                 "    at [eval] (%s:%i:%i)\n",
+                 "%s[eval] (%s:%i:%i)\n",
+                 prefix_str.c_str(),
                  *script_name,
                  line_number,
                  column);
@@ -214,7 +258,8 @@ static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
       std::vector<char> buf(script_name.length() + 64);
       snprintf(buf.data(),
                buf.size(),
-               "    at %s:%i:%i\n",
+               "%s%s:%i:%i\n",
+               prefix_str.c_str(),
                *script_name,
                line_number,
                column);
@@ -223,7 +268,8 @@ static std::string FormatStackTrace(Isolate* isolate, Local<StackTrace> stack) {
       std::vector<char> buf(fn_name_s.length() + script_name.length() + 64);
       snprintf(buf.data(),
                buf.size(),
-               "    at %s (%s:%i:%i)\n",
+               "%s%s (%s:%i:%i)\n",
+               prefix_str.c_str(),
                *fn_name_s,
                *script_name,
                line_number,
@@ -239,8 +285,10 @@ static void PrintToStderrAndFlush(const std::string& str) {
   fflush(stderr);
 }
 
-void PrintStackTrace(Isolate* isolate, Local<StackTrace> stack) {
-  PrintToStderrAndFlush(FormatStackTrace(isolate, stack));
+void PrintStackTrace(Isolate* isolate,
+                     Local<StackTrace> stack,
+                     StackTracePrefix prefix) {
+  PrintToStderrAndFlush(FormatStackTrace(isolate, stack, prefix));
 }
 
 std::string FormatCaughtException(Isolate* isolate,
@@ -328,25 +376,20 @@ void AppendExceptionLine(Environment* env,
             .FromMaybe(false));
 }
 
-[[noreturn]] void Abort() {
-  DumpBacktrace(stderr);
-  fflush(stderr);
-  ABORT_NO_BACKTRACE();
-}
-
-[[noreturn]] void Assert(const AssertionInfo& info) {
+void Assert(const AssertionInfo& info) {
   std::string name = GetHumanReadableProcessName();
 
   fprintf(stderr,
-          "%s: %s:%s%s Assertion `%s' failed.\n",
+          "\n"
+          "  #  %s: %s at %s\n"
+          "  #  Assertion failed: %s\n\n",
           name.c_str(),
-          info.file_line,
-          info.function,
-          *info.function ? ":" : "",
+          info.function ? info.function : "(unknown function)",
+          info.file_line ? info.file_line : "(unknown source location)",
           info.message);
-  fflush(stderr);
 
-  Abort();
+  fflush(stderr);
+  ABORT();
 }
 
 enum class EnhanceFatalException { kEnhance, kDontEnhance };
@@ -354,7 +397,7 @@ enum class EnhanceFatalException { kEnhance, kDontEnhance };
 /**
  * Report the exception to the inspector, then print it to stderr.
  * This should only be used when the Node.js instance is about to exit
- * (i.e. this should be followed by a env->Exit() or an Abort()).
+ * (i.e. this should be followed by a env->Exit() or an ABORT()).
  *
  * Use enhance_stack = EnhanceFatalException::kDontEnhance
  * when it's unsafe to call into JavaScript.
@@ -526,8 +569,10 @@ static void ReportFatalException(Environment* env,
   ABORT();
 }
 
-[[noreturn]] void OOMErrorHandler(const char* location,
-                                  const v8::OOMDetails& details) {
+void OOMErrorHandler(const char* location, const v8::OOMDetails& details) {
+  // We should never recover from this handler so once it's true it's always
+  // true.
+  is_in_oom.store(true);
   const char* message =
       details.is_heap_oom ? "Allocation failed - JavaScript heap out of memory"
                           : "Allocation failed - process out of memory";
@@ -563,8 +608,18 @@ v8::ModifyCodeGenerationFromStringsResult ModifyCodeGenerationFromStrings(
     bool is_code_like) {
   HandleScope scope(context->GetIsolate());
 
+  if (context->GetNumberOfEmbedderDataFields() <=
+      ContextEmbedderIndex::kAllowCodeGenerationFromStrings) {
+    // The context is not (yet) configured by Node.js for this. We don't
+    // have enough information to make a decision, just allow it which is
+    // the default.
+    return {true, {}};
+  }
   Environment* env = Environment::GetCurrent(context);
-  if (env->source_maps_enabled()) {
+  if (env == nullptr) {
+    return {true, {}};
+  }
+  if (env->source_maps_enabled() && env->can_call_into_js()) {
     // We do not expect the maybe_cache_generated_source_map to throw any more
     // exceptions. If it does, just ignore it.
     errors::TryCatchScope try_catch(env);
@@ -1010,7 +1065,7 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   if (env != nullptr && env->abort_on_uncaught_exception()) {
     ReportFatalException(
         env, exception, message, EnhanceFatalException::kEnhance);
-    Abort();
+    ABORT();
   }
   bool from_promise = args[1]->IsTrue();
   errors::TriggerUncaughtException(isolate, exception, message, from_promise);
@@ -1121,7 +1176,7 @@ void TriggerUncaughtException(Isolate* isolate,
     // much we can do, so we just print whatever is useful and crash.
     PrintToStderrAndFlush(
         FormatCaughtException(isolate, context, error, message));
-    Abort();
+    ABORT();
   }
 
   // Invoke process._fatalException() to give user a chance to handle it.

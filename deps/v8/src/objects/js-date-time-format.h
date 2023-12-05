@@ -36,9 +36,19 @@ namespace internal {
 class JSDateTimeFormat
     : public TorqueGeneratedJSDateTimeFormat<JSDateTimeFormat, JSObject> {
  public:
+  // ecma-402/#sec-todatetimeoptions
+  enum class RequiredOption { kDate, kTime, kAny };
+  enum class DefaultsOption { kDate, kTime, kAll };
+
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat> New(
       Isolate* isolate, Handle<Map> map, Handle<Object> locales,
       Handle<Object> options, const char* service);
+
+  V8_WARN_UNUSED_RESULT static MaybeHandle<JSDateTimeFormat>
+  CreateDateTimeFormat(Isolate* isolate, Handle<Map> map,
+                       Handle<Object> locales, Handle<Object> options,
+                       RequiredOption required, DefaultsOption defaults,
+                       const char* service);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ResolvedOptions(
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format);
@@ -79,13 +89,6 @@ class JSDateTimeFormat
       Isolate* isolate, Handle<JSDateTimeFormat> date_time_format,
       Handle<Object> x_date_value, Handle<Object> y_date_value,
       const char* method_name);
-
-  // ecma-402/#sec-todatetimeoptions
-  enum class RequiredOption { kDate, kTime, kAny };
-  enum class DefaultsOption { kDate, kTime, kAll };
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSObject> ToDateTimeOptions(
-      Isolate* isolate, Handle<Object> input_options, RequiredOption required,
-      DefaultsOption defaults);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> ToLocaleDateTime(
       Isolate* isolate, Handle<Object> date, Handle<Object> locales,
@@ -146,11 +149,10 @@ class JSDateTimeFormat
   static_assert(DateTimeStyle::kMedium <= TimeStyleBits::kMax);
   static_assert(DateTimeStyle::kShort <= TimeStyleBits::kMax);
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
-  DECL_ACCESSORS(icu_simple_date_format, Managed<icu::SimpleDateFormat>)
-  DECL_ACCESSORS(icu_date_interval_format, Managed<icu::DateIntervalFormat>)
-
-  DECL_BOOLEAN_ACCESSORS(alt_calendar)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
+  DECL_ACCESSORS(icu_simple_date_format, Tagged<Managed<icu::SimpleDateFormat>>)
+  DECL_ACCESSORS(icu_date_interval_format,
+                 Tagged<Managed<icu::DateIntervalFormat>>)
 
   DECL_PRINTER(JSDateTimeFormat)
 

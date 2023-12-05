@@ -82,9 +82,8 @@ void node_napi_env__::trigger_fatal_exception(v8::Local<v8::Value> local_err) {
   node::errors::TriggerUncaughtException(isolate, local_err, local_msg);
 }
 
-// option enforceUncaughtExceptionPolicy is added for not breaking existing
-// running n-api add-ons, and should be deprecated in the next major Node.js
-// release.
+// The option enforceUncaughtExceptionPolicy is added for not breaking existing
+// running Node-API add-ons.
 template <bool enforceUncaughtExceptionPolicy, typename T>
 void node_napi_env__::CallbackIntoModule(T&& call) {
   CallIntoModule(call, [](napi_env env_, v8::Local<v8::Value> local_err) {
@@ -93,19 +92,24 @@ void node_napi_env__::CallbackIntoModule(T&& call) {
       return;
     }
     node::Environment* node_env = env->node_env();
-    if (!node_env->options()->force_node_api_uncaught_exceptions_policy &&
+    // If the module api version is less than NAPI_VERSION_EXPERIMENTAL,
+    // and the option --force-node-api-uncaught-exceptions-policy is not
+    // specified, emit a warning about the uncaught exception instead of
+    // triggering uncaught exception event.
+    if (env->module_api_version < NAPI_VERSION_EXPERIMENTAL &&
+        !node_env->options()->force_node_api_uncaught_exceptions_policy &&
         !enforceUncaughtExceptionPolicy) {
       ProcessEmitDeprecationWarning(
           node_env,
           "Uncaught N-API callback exception detected, please run node "
-          "with option --force-node-api-uncaught-exceptions-policy=true"
+          "with option --force-node-api-uncaught-exceptions-policy=true "
           "to handle those exceptions properly.",
           "DEP0168");
       return;
     }
     // If there was an unhandled exception in the complete callback,
     // report it as a fatal exception. (There is no JavaScript on the
-    // callstack that can possibly handle it.)
+    // call stack that can possibly handle it.)
     env->trigger_fatal_exception(local_err);
   });
 }
@@ -913,7 +917,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
                                        napi_value async_resource,
                                        napi_value async_resource_name,
                                        napi_async_context* result) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   CHECK_ARG(env, result);
 
@@ -946,7 +950,7 @@ napi_status NAPI_CDECL napi_async_init(napi_env env,
 
 napi_status NAPI_CDECL napi_async_destroy(napi_env env,
                                           napi_async_context async_context) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_context);
 
   v8impl::AsyncContext* node_async_context =
@@ -1095,7 +1099,7 @@ napi_status NAPI_CDECL napi_create_buffer_copy(napi_env env,
 napi_status NAPI_CDECL napi_is_buffer(napi_env env,
                                       napi_value value,
                                       bool* result) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, value);
   CHECK_ARG(env, result);
 
@@ -1107,7 +1111,7 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
                                             napi_value value,
                                             void** data,
                                             size_t* length) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> buffer = v8impl::V8LocalValueFromJsValue(value);
@@ -1228,7 +1232,7 @@ napi_create_async_work(napi_env env,
                        napi_async_complete_callback complete,
                        void* data,
                        napi_async_work* result) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, execute);
   CHECK_ARG(env, result);
 
@@ -1258,7 +1262,7 @@ napi_create_async_work(napi_env env,
 
 napi_status NAPI_CDECL napi_delete_async_work(napi_env env,
                                               napi_async_work work) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, work);
 
   uvimpl::Work::Delete(reinterpret_cast<uvimpl::Work*>(work));
@@ -1312,7 +1316,7 @@ napi_create_threadsafe_function(napi_env env,
                                 void* context,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
-  CHECK_ENV(env);
+  CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);
   CHECK_ARG(env, result);

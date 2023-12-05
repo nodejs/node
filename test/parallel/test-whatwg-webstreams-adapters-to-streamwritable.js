@@ -125,11 +125,11 @@ class TestSource {
 
   assert.rejects(writableStream.close(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 
   assert.rejects(writableStream.abort(), {
     code: 'ERR_INVALID_STATE',
-  });
+  }).then(common.mustCall());
 
   assert.throws(() => writableStream.getWriter(), {
     code: 'ERR_INVALID_STATE',

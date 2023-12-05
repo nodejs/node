@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Flags: --experimental-value-unavailable
 
 // Test that debug-evaluate doesn't crash when this is used before super() call
 // in constructor.
@@ -27,7 +28,7 @@ class A { constructor () { this.a = 239; } }
 class B extends A {
   constructor () {
     debugger;
-    assertTrue(result.indexOf("Cannot read properties of undefined (reading 'a')") >= 0);
+    assertTrue(result.indexOf("Cannot access 'this' from debugger") >= 0);
     super();
     debugger;
     assertEquals(239, result);

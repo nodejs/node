@@ -37,5 +37,5 @@ assert.throws(
       message: 'The argument \'buffer\' is empty and cannot be written. ' +
                'Received Uint8Array(0) []'
     }
-  );
+  ).then(common.mustCall());
 })().then(common.mustCall());

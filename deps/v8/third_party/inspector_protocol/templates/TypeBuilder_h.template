@@ -89,8 +89,16 @@ public:
       {% endif %}
 
       {% if property.optional %}
-    bool {{"has" | to_method_case}}{{property_name}}() { return {{property_field}}.isJust(); }
-    {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}({{property_type.raw_pass_type}} defaultValue) { return {{property_field}}.isJust() ? {{property_field}}.fromJust() : defaultValue; }
+    bool {{"has" | to_method_case}}{{property_name}}() { return {{property_field}}.has_value(); }
+    {% if property_type.is_primitive %}
+    {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}({{property_type.raw_pass_type}} defaultValue) const {
+       return {{property_field}}.value_or(defaultValue);
+    }
+    {% else %}
+    {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}({{property_type.raw_pass_type}} defaultValue) {
+       return {{property_field}}.has_value() ? &{{property_field}}.value() : defaultValue;
+    }
+    {% endif %}
       {% else %}
     {{property_type.raw_return_type}} {{"get" | to_method_case}}{{property_name}}() { return {{property_type.to_raw_type % property_field}}; }
       {% endif %}

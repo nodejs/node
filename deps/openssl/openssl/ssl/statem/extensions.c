@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1420,7 +1420,11 @@ static int final_key_share(SSL *s, unsigned int context, int sent)
                     group_id = pgroups[i];
 
                     if (check_in_list(s, group_id, clntgroups, clnt_num_groups,
-                                      1))
+                                      1)
+                            && tls_group_allowed(s, group_id,
+                                                 SSL_SECOP_CURVE_SUPPORTED)
+                            && tls_valid_group(s, group_id, TLS1_3_VERSION,
+                                               TLS1_3_VERSION, 0, NULL))
                         break;
                 }
 

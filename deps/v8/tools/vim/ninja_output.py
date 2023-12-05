@@ -6,7 +6,6 @@ from __future__ import print_function
 
 import sys
 import os
-import itertools
 import re
 
 try:

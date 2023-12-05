@@ -532,13 +532,20 @@ The TSC serves as the final arbiter where required.
    [build](https://github.com/nodejs/build/issues) repositories, open new
    issues. Run a new CI any time someone pushes new code to the pull request.
 4. Check that the commit message adheres to [commit message guidelines][].
-5. Add all necessary [metadata](#metadata) to commit messages before landing. If
-   you are unsure exactly how to format the commit messages, use the commit log
-   as a reference. See [this commit][commit-example] as an example.
+5. Add all necessary [metadata][git-node-metadata] to commit messages before
+   landing. If you are unsure exactly how to format the commit messages, use
+   the commit log as a reference. See [this commit][commit-example] as an
+   example.
 
 For pull requests from first-time contributors, be
 [welcoming](#welcoming-first-time-contributors). Also, verify that their git
 settings are to their liking.
+
+If a pull request contains more than one commit, it can be landed either by
+squashing into one commit or by rebasing all the commits, or a mix of the two.
+Generally, a collaborator should land a pull request by squashing. If a pull
+request has more than one self-contained subsystem commits, a collaborator
+may land it as several commits.
 
 All commits should be self-contained, meaning every commit should pass all
 tests. This makes it much easier when bisecting to find a breaking change.
@@ -549,22 +556,23 @@ See the [commit queue guide][commit-queue.md].
 
 ### Using `git-node`
 
-In most cases, using [the `git-node` command][git-node] of [`node-core-utils`][]
-is enough to land a pull request. If you discover a problem when using
-this tool, please file an issue [to the issue tracker][node-core-utils-issues].
+In most cases, using [the `git-node` command][git-node] of
+[`@node-core/utils`][] is enough to land a pull request. If you discover a
+problem when using this tool, please file an issue
+[to the issue tracker][node-core-utils-issues].
 
 Quick example:
 
 ```bash
-npm install -g node-core-utils
+npm install -g @node-core/utils
 git node land $PRID
 ```
 
-To use `node-core-utils`, you will need a GitHub access token. If you do not
-have one, `node-core-utils` will create one for you the first time you use it.
+To use `@node-core/utils`, you will need a GitHub access token. If you do not
+have one, `@node-core/utils` will create one for you the first time you use it.
 To do this, it will ask for your GitHub password and two-factor authentication
 code. If you wish to create the token yourself in advance, see
-[the `node-core-utils` guide][node-core-utils-credentials].
+[the `@node-core/utils` guide][node-core-utils-credentials].
 
 ### Technical HOWTO
 
@@ -953,7 +961,7 @@ need to be attached anymore, as only important bugfixes will be included.
 [TSC]: https://github.com/nodejs/TSC
 [`--pending-deprecation`]: ../api/cli.md#--pending-deprecation
 [`--throw-deprecation`]: ../api/cli.md#--throw-deprecation
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [backporting guide]: backporting-to-release-lines.md
 [commit message guidelines]: pull-requests.md#commit-message-guidelines
 [commit-example]: https://github.com/nodejs/node/commit/b636ba8186

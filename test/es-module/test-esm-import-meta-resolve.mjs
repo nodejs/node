@@ -9,8 +9,10 @@ const fixtures = dirname.slice(0, dirname.lastIndexOf('/', dirname.length - 2) +
 
 assert.strictEqual(import.meta.resolve('./test-esm-import-meta.mjs'),
                    dirname + 'test-esm-import-meta.mjs');
+assert.strictEqual(import.meta.resolve('./notfound.mjs'), new URL('./notfound.mjs', import.meta.url).href);
+assert.strictEqual(import.meta.resolve('./asset'), new URL('./asset', import.meta.url).href);
 try {
-  import.meta.resolve('./notfound.mjs');
+  import.meta.resolve('does-not-exist');
   assert.fail();
 } catch (e) {
   assert.strictEqual(e.code, 'ERR_MODULE_NOT_FOUND');
@@ -37,7 +39,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
     '--eval', 'console.log(typeof import.meta.resolve)',
   ]);
@@ -46,7 +47,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
   ]);
   cp.stdin.end('console.log(typeof import.meta.resolve)');
@@ -55,7 +55,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
     '--eval', 'import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"',
   ]);
@@ -64,7 +63,6 @@ assert.strictEqual(import.meta.resolve('baz/', fixtures),
 
 {
   const cp = spawn(execPath, [
-    '--experimental-import-meta-resolve',
     '--input-type=module',
   ]);
   cp.stdin.end('import "data:text/javascript,console.log(import.meta.resolve(%22node:os%22))"');

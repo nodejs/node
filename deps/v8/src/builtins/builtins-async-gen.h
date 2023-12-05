@@ -26,7 +26,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                       TNode<JSPromise> outer_promise,
                       TNode<SharedFunctionInfo> on_resolve_sfi,
                       TNode<SharedFunctionInfo> on_reject_sfi,
-                      TNode<Oddball> is_predicted_as_caught);
+                      TNode<Boolean> is_predicted_as_caught);
   TNode<Object> Await(TNode<Context> context,
                       TNode<JSGeneratorObject> generator, TNode<Object> value,
                       TNode<JSPromise> outer_promise,
@@ -40,7 +40,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   // Return a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions
   TNode<JSFunction> CreateUnwrapClosure(TNode<NativeContext> native_context,
-                                        TNode<Oddball> done);
+                                        TNode<Boolean> done);
 
  private:
   void InitializeNativeClosure(TNode<Context> context,
@@ -48,7 +48,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
                                TNode<HeapObject> function,
                                TNode<SharedFunctionInfo> shared_info);
   TNode<Context> AllocateAsyncIteratorValueUnwrapContext(
-      TNode<NativeContext> native_context, TNode<Oddball> done);
+      TNode<NativeContext> native_context, TNode<Boolean> done);
 };
 
 }  // namespace internal

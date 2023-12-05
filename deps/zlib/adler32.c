@@ -90,9 +90,9 @@ uLong ZEXPORT adler32_z(uLong adler, const Bytef *buf, z_size_t len) {
         return adler | (sum2 << 16);
     }
 
-#if defined(ADLER32_SIMD_SSSE3)
+#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON)
     /*
-     * Use SSSE3 to compute the adler32. Since this routine can be
+     * Use SIMD to compute the adler32. Since this function can be
      * freely used, check CPU features here. zlib convention is to
      * call adler32(0, NULL, 0), before making calls to adler32().
      * So this is a good early (and infrequent) place to cache CPU

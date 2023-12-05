@@ -261,7 +261,10 @@ try:
   subprocess.check_call("gcertstatus >&/dev/null || gcert", shell=True)
   has_gcert = True
 
-  cmd = ["pprof", "-flame", f"-add_comment={shlex.join(sys.argv)}"]
+  cmd = [
+      "pprof", "-symbolize=local", "-flame",
+      f"-add_comment={shlex.join(sys.argv)}"
+  ]
   print("# Processing and uploading largest pprof result")
   url = subprocess.check_output(cmd + [largest_result]).decode('utf-8').strip()
   print("# PPROF RESULT")
@@ -275,6 +278,6 @@ except subprocess.CalledProcessError as e:
   if has_gcert:
     raise Exception("Could not generate pprof results") from e
   print("# Please run `gcert` for generating pprof results")
-  print(f"pprof -flame {' '.join(rel_path_strings)}")
+  print(f"pprof -symbolize=local -flame {' '.join(rel_path_strings)}")
 except KeyboardInterrupt:
   exit(1)

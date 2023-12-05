@@ -198,7 +198,7 @@ Sets the mode in the associated KDF ctx.
 
 =item "pkcs5" (B<OSSL_KDF_PARAM_PKCS5>) <integer>
 
-Enables or diables the SP800-132 compliance checks.
+Enables or disables the SP800-132 compliance checks.
 A mode of 0 enables the compliance checks.
 
 The checks performed are:
@@ -349,7 +349,7 @@ The provider KDF interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

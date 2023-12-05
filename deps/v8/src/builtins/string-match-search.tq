@@ -8,11 +8,12 @@ struct StringMatchFunctor {
   macro FnSymbol(): Symbol {
     return MatchSymbolConstant();
   }
-  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject): bool {
+  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject):
+      bool {
     return regexp::IsFastRegExpForMatch(maybeRegExp);
   }
-  transitioning macro CallFast(implicit context: Context)(
-      regexp: FastJSRegExp, string: String): JSAny {
+  transitioning macro CallFast(
+      implicit context: Context)(regexp: FastJSRegExp, string: String): JSAny {
     return regexp::RegExpMatchFast(regexp, string);
   }
 }
@@ -21,18 +22,19 @@ struct StringSearchFunctor {
   macro FnSymbol(): Symbol {
     return SearchSymbolConstant();
   }
-  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject): bool {
+  macro CanCallFast(implicit context: Context)(maybeRegExp: HeapObject):
+      bool {
     return regexp::IsFastRegExpForSearch(maybeRegExp);
   }
-  transitioning macro CallFast(implicit context: Context)(
-      regexp: FastJSRegExp, string: String): JSAny {
+  transitioning macro CallFast(
+      implicit context: Context)(regexp: FastJSRegExp, string: String): JSAny {
     return regexp::RegExpSearchFast(regexp, string);
   }
 }
 
 transitioning macro StringMatchSearch<F: type>(
-    implicit context: NativeContext, receiver: JSAny)(
-    regexp: JSAny, functor: F, methodName: constexpr string): JSAny {
+    implicit context: NativeContext, receiver: JSAny)(regexp: JSAny,
+    functor: F, methodName: constexpr string): JSAny {
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(receiver, methodName);
 
@@ -69,17 +71,17 @@ transitioning macro StringMatchSearch<F: type>(
 }
 
 // https://tc39.es/ecma262/#sec-string.prototype.match
-transitioning javascript builtin
-StringPrototypeMatch(
-    js-implicit context: NativeContext, receiver: JSAny)(regexp: JSAny): JSAny {
+transitioning javascript builtin StringPrototypeMatch(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    regexp: JSAny): JSAny {
   return StringMatchSearch(
       regexp, StringMatchFunctor{}, 'String.prototype.match');
 }
 
 // https://tc39.es/ecma262/#sec-string.prototype.search
-transitioning javascript builtin
-StringPrototypeSearch(
-    js-implicit context: NativeContext, receiver: JSAny)(regexp: JSAny): JSAny {
+transitioning javascript builtin StringPrototypeSearch(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    regexp: JSAny): JSAny {
   return StringMatchSearch(
       regexp, StringSearchFunctor{}, 'String.prototype.search');
 }

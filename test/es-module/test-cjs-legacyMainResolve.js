@@ -82,7 +82,7 @@ describe('legacyMainResolve', () => {
           {},
           ''
         ),
-      { message: /instance of URL/ }
+      { message: /instance of URL/, code: 'ERR_INVALID_ARG_TYPE' },
     );
   });
 
@@ -99,7 +99,7 @@ describe('legacyMainResolve', () => {
           { main: './invalid/index.js' },
           ''
         ),
-      { message: /Invalid URL/ }
+      { code: 'ERR_INVALID_URL' },
     );
   });
 
@@ -116,7 +116,7 @@ describe('legacyMainResolve', () => {
           { main: undefined },
           ''
         ),
-      { message: /Invalid URL/ }
+      { code: 'ERR_INVALID_URL' },
     );
   });
 
@@ -129,7 +129,15 @@ describe('legacyMainResolve', () => {
     );
     assert.throws(
       () => legacyMainResolve(packageJsonUrl, { main: null }, packageJsonUrl),
-      { message: /Cannot find package/i }
+      { code: 'ERR_MODULE_NOT_FOUND' },
+    );
+  });
+
+  it('should not crash when cannot resolve to a file that contains special chars', () => {
+    const packageJsonUrl = pathToFileURL('/c/file%20with%20percents/package.json');
+    assert.throws(
+      () => legacyMainResolve(packageJsonUrl, { main: null }, packageJsonUrl),
+      { code: 'ERR_MODULE_NOT_FOUND' },
     );
   });
 
@@ -142,7 +150,7 @@ describe('legacyMainResolve', () => {
     );
     assert.throws(
       () => legacyMainResolve(packageJsonUrl, { main: null }, undefined),
-      { message: /"base" argument must be/ }
+      { message: /"base" argument must be/, code: 'ERR_INVALID_ARG_TYPE' },
     );
   });
 });

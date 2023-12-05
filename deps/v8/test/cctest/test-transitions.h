@@ -12,7 +12,7 @@ namespace internal {
 
 class TestTransitionsAccessor : public TransitionsAccessor {
  public:
-  TestTransitionsAccessor(Isolate* isolate, Map map)
+  TestTransitionsAccessor(Isolate* isolate, Tagged<Map> map)
       : TransitionsAccessor(isolate, map) {}
   TestTransitionsAccessor(Isolate* isolate, Handle<Map> map)
       : TransitionsAccessor(isolate, *map) {}
@@ -27,7 +27,9 @@ class TestTransitionsAccessor : public TransitionsAccessor {
 
   int Capacity() { return TransitionsAccessor::Capacity(); }
 
-  TransitionArray transitions() { return TransitionsAccessor::transitions(); }
+  Tagged<TransitionArray> transitions() {
+    return TransitionsAccessor::transitions();
+  }
 };
 
 }  // namespace internal

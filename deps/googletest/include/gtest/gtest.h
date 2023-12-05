@@ -51,7 +51,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <iomanip>
 #include <limits>
 #include <memory>
 #include <ostream>
@@ -1574,12 +1573,12 @@ AssertionResult CmpHelperFloatingPointEQ(const char* lhs_expression,
   }
 
   ::std::stringstream lhs_ss;
-  lhs_ss << std::setprecision(std::numeric_limits<RawType>::digits10 + 2)
-         << lhs_value;
+  lhs_ss.precision(std::numeric_limits<RawType>::digits10 + 2);
+  lhs_ss << lhs_value;
 
   ::std::stringstream rhs_ss;
-  rhs_ss << std::setprecision(std::numeric_limits<RawType>::digits10 + 2)
-         << rhs_value;
+  rhs_ss.precision(std::numeric_limits<RawType>::digits10 + 2);
+  rhs_ss << rhs_value;
 
   return EqFailure(lhs_expression, rhs_expression,
                    StringStreamToString(&lhs_ss), StringStreamToString(&rhs_ss),
@@ -2101,8 +2100,8 @@ class GTEST_API_ ScopedTrace {
 // Assuming that each thread maintains its own stack of traces.
 // Therefore, a SCOPED_TRACE() would (correctly) only affect the
 // assertions in its own thread.
-#define SCOPED_TRACE(message)                                         \
-  ::testing::ScopedTrace GTEST_CONCAT_TOKEN_(gtest_trace_, __LINE__)( \
+#define SCOPED_TRACE(message)                                               \
+  const ::testing::ScopedTrace GTEST_CONCAT_TOKEN_(gtest_trace_, __LINE__)( \
       __FILE__, __LINE__, (message))
 
 // Compile-time assertion for type equality.

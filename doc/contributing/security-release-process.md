@@ -29,7 +29,8 @@ The current security stewards are documented in the main Node.js
 | NodeSource   | Juan            | 2022-Nov-04  |
 | RH and IBM   | Michael         | 2023-Feb-16  |
 | NearForm     | Rafael          | 2023-Jun-20  |
-| NearForm     | Rafael          |              |
+| NearForm     | Rafael          | 2023-Aug-09  |
+| NearForm     | Rafael          | 2023-Oct-13  |
 | Datadog      | Bryan           |              |
 | IBM          | Joe             |              |
 | Platformatic | Matteo          |              |
@@ -56,6 +57,8 @@ The current security stewards are documented in the main Node.js
   * [ ] pre-release: _**LINK TO PR**_
   * [ ] post-release: _**LINK TO PR**_
     * List vulnerabilities in order of descending severity
+    * Use the "summary" feature in HackerOne to sync post-release content
+      and CVE requests. Example [2038134](https://hackerone.com/bugs?subject=nodejs\&report_id=2038134)
     * Ask the HackerOne reporter if they would like to be credited on the
       security release blog page:
       ```text
@@ -70,8 +73,6 @@ The current security stewards are documented in the main Node.js
 
 ## Announcement (one week in advance of the planned release)
 
-* [ ] Verify that GitHub Actions are working as normal: <https://www.githubstatus.com/>.
-
 * [ ] Check that all vulnerabilities are ready for release integration:
   * PRs against all affected release lines or cherry-pick clean
   * Approved
@@ -81,6 +82,9 @@ The current security stewards are documented in the main Node.js
       between Security Releases.
   * Pass `make test`
   * Have CVEs
+    * Use the "summary" feature in HackerOne to create a description for the
+      CVE and the post release announcement.
+      Example [2038134](https://hackerone.com/bugs?subject=nodejs\&report_id=2038134)
     * Make sure that dependent libraries have CVEs for their issues. We should
       only create CVEs for vulnerabilities in Node.js itself. This is to avoid
       having duplicate CVEs for the same vulnerability.
@@ -117,7 +121,8 @@ The google groups UI does not support adding a CC, until we figure
 out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
-* [ ] Create a new issue in [nodejs/tweet][]
+* [ ] Post in the [nodejs-social channel][]
+  in the OpenJS slack asking for amplication of the blog post.
 
   ```text
   Security release pre-alert:
@@ -176,7 +181,8 @@ out a better way, forward the email you receive to
   For more information see: https://nodejs.org/en/blog/vulnerability/month-year-security-releases/
   ```
 
-* [ ] Create a new issue in [nodejs/tweet][]
+* [ ] Post in the [nodejs-social channel][]
+  in the OpenJS slack asking for amplication of the blog post.
   ```text
   Security release:
 
@@ -194,6 +200,12 @@ out a better way, forward the email you receive to
   * Request publication of [H1 CVE requests][]
     * (Check that the "Version Fixed" field in the CVE is correct, and provide
       links to the release blogs in the "Public Reference" section)
+  * In case the reporter doesn't accept the disclosure follow this process:
+    * Remove the original report reference within the reference text box and
+      insert the public URL you would like to be attached to this CVE.
+    * Then uncheck the Public Disclosure on HackerOne box at the bottom of the
+      page.
+      ![screenshot of HackerOne CVE form](https://github.com/nodejs/node/assets/26234614/e22e4f33-7948-4dd2-952e-2f9166f5568d)
 
 * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the
   [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
@@ -235,5 +247,5 @@ The steps to correct CVE information are:
 [H1 CVE requests]: https://hackerone.com/nodejs/cve_requests
 [docker-node]: https://github.com/nodejs/docker-node/issues
 [email]: https://groups.google.com/forum/#!forum/nodejs-sec
+[nodejs-social channel]: https://openjs-foundation.slack.com/archives/C0142A39BNE
 [nodejs/build]: https://github.com/nodejs/build/issues
-[nodejs/tweet]: https://github.com/nodejs/tweet/issues

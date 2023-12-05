@@ -290,7 +290,7 @@ class MessagePort : public HandleWrap {
   // NULL pointer to the C++ MessagePort object is also detached.
   inline bool IsDetached() const;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -319,15 +319,23 @@ class MessagePort : public HandleWrap {
   friend class MessagePortData;
 };
 
-// Provide a base class from which JS classes that should be transferable or
-// cloneable by postMessage() can inherit.
+// Provide a wrapper class created when a built-in JS classes that being
+// transferable or cloneable by postMessage().
 // See e.g. FileHandle in internal/fs/promises.js for an example.
 class JSTransferable : public BaseObject {
  public:
-  JSTransferable(Environment* env, v8::Local<v8::Object> obj);
-  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static BaseObjectPtr<JSTransferable> Wrap(Environment* env,
+                                            v8::Local<v8::Object> target);
+  static bool IsJSTransferable(Environment* env,
+                               v8::Local<v8::Context> context,
+                               v8::Local<v8::Object> object);
 
-  TransferMode GetTransferMode() const override;
+  JSTransferable(Environment* env,
+                 v8::Local<v8::Object> obj,
+                 v8::Local<v8::Object> target);
+  ~JSTransferable();
+
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<TransferData> TransferForMessaging() override;
   std::unique_ptr<TransferData> CloneForMessaging() const override;
   v8::Maybe<std::vector<BaseObjectPtr<BaseObject>>>
@@ -340,8 +348,13 @@ class JSTransferable : public BaseObject {
   SET_MEMORY_INFO_NAME(JSTransferable)
   SET_SELF_SIZE(JSTransferable)
 
+  v8::Local<v8::Object> target() const;
+
  private:
-  std::unique_ptr<TransferData> TransferOrClone(TransferMode mode) const;
+  template <TransferMode mode>
+  std::unique_ptr<TransferData> TransferOrClone() const;
+
+  v8::Global<v8::Object> target_;
 
   class Data : public TransferData {
    public:
@@ -366,7 +379,7 @@ class JSTransferable : public BaseObject {
 };
 
 v8::Local<v8::FunctionTemplate> GetMessagePortConstructorTemplate(
-    Environment* env);
+    IsolateData* isolate_data);
 
 }  // namespace worker
 }  // namespace node

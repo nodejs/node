@@ -1,4 +1,3 @@
-// Flags: --no-warnings
 'use strict';
 require('../../../common');
 const assert = require('node:assert');
@@ -13,12 +12,12 @@ it.todo('sync pass todo', () => {
 it('sync pass todo with message', { todo: 'this is a passing todo' }, () => {
 });
 
-it.todo('sync fail todo', () => {
-  throw new Error('thrown from sync fail todo');
+it.todo('sync todo', () => {
+  throw new Error('should not count as a failure');
 });
 
-it('sync fail todo with message', { todo: 'this is a failing todo' }, () => {
-  throw new Error('thrown from sync fail todo with message');
+it('sync todo with message', { todo: 'this is a failing todo' }, () => {
+  throw new Error('should not count as a failure');
 });
 
 it.skip('sync skip pass', () => {
@@ -197,15 +196,6 @@ it('test with a name and options provided', { skip: true });
 // A test with only options and a function provided.
 it({ skip: true }, function functionAndOptions() {});
 
-// A test whose description needs to be escaped.
-it('escaped description \\ # \\#\\');
-
-// A test whose skip message needs to be escaped.
-it('escaped skip message', { skip: '#skip' });
-
-// A test whose todo message needs to be escaped.
-it('escaped todo message', { todo: '#todo' });
-
 it('callback pass', (t, done) => {
   setImmediate(done);
 });
@@ -374,4 +364,23 @@ describe('rejected thenable', () => {
       return (_, errorHandler) => errorHandler(new Error('custom error'));
     },
   };
+});
+
+describe("async describe function", async () => {
+  await null;
+
+  await it("it inside describe 1", async () => {
+    await null
+  });
+  await it("it inside describe 2", async () => {
+    await null;
+  });
+
+  describe("inner describe", async () => {
+    await null;
+
+    it("it inside inner describe", async () => {
+      await null;
+    });
+  });
 });

@@ -120,6 +120,8 @@ void RAND_keep_random_devices_open(int keep)
  */
 int RAND_poll(void)
 {
+    static const char salt[] = "polling";
+
 # ifndef OPENSSL_NO_DEPRECATED_3_0
     const RAND_METHOD *meth = RAND_get_rand_method();
     int ret = meth == RAND_OpenSSL();
@@ -148,14 +150,12 @@ int RAND_poll(void)
         ret = 1;
      err:
         ossl_rand_pool_free(pool);
+        return ret;
     }
-    return ret;
-# else
-    static const char salt[] = "polling";
+# endif
 
     RAND_seed(salt, sizeof(salt));
     return 1;
-# endif
 }
 
 # ifndef OPENSSL_NO_DEPRECATED_3_0

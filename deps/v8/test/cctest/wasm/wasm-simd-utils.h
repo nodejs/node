@@ -6,6 +6,8 @@
 #include <stdint.h>
 
 #include "src/base/macros.h"
+#include "src/compiler/node-observer.h"
+#include "src/compiler/opcodes.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -13,6 +15,67 @@
 
 namespace v8 {
 namespace internal {
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+
+class SIMD256NodeObserver : public compiler::NodeObserver {
+ public:
+  explicit SIMD256NodeObserver(
+      std::function<void(const compiler::Node*)> handler)
+      : handler_(handler) {
+    DCHECK(handler_);
+  }
+
+  Observation OnNodeCreated(const compiler::Node* node) override {
+    handler_(node);
+    return Observation::kContinue;
+  }
+
+ private:
+  std::function<void(const compiler::Node*)> handler_;
+};
+
+class ObserveSIMD256Scope {
+ public:
+  explicit ObserveSIMD256Scope(Isolate* isolate,
+                               compiler::NodeObserver* node_observer)
+      : isolate_(isolate), node_observer_(node_observer) {
+    DCHECK_NOT_NULL(isolate_);
+    DCHECK_NULL(isolate_->node_observer());
+    isolate_->set_node_observer(node_observer_);
+  }
+
+  ~ObserveSIMD256Scope() {
+    DCHECK_NOT_NULL(isolate_->node_observer());
+    isolate_->set_node_observer(nullptr);
+  }
+
+  Isolate* isolate_;
+  compiler::NodeObserver* node_observer_;
+};
+
+// Build input wasm expressions and check if the revectorization success
+// (create the expected simd256 node).
+#define BUILD_AND_CHECK_REVEC_NODE(wasm_runner, expected_simd256_op, ...) \
+  bool find_expected_node = false;                                        \
+  SIMD256NodeObserver* observer =                                         \
+      wasm_runner.zone()->New<SIMD256NodeObserver>(                       \
+          [&](const compiler::Node* node) {                               \
+            if (node->opcode() == expected_simd256_op) {                  \
+              if (expected_simd256_op == compiler::IrOpcode::kStore &&    \
+                  StoreRepresentationOf(node->op()).representation() !=   \
+                      MachineRepresentation::kSimd256) {                  \
+                return;                                                   \
+              }                                                           \
+              find_expected_node = true;                                  \
+            }                                                             \
+          });                                                             \
+  ObserveSIMD256Scope scope(CcTest::InitIsolateOnce(), observer);         \
+  r.Build({__VA_ARGS__});                                                 \
+  CHECK(find_expected_node);
+
+#endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
 namespace wasm {
 
 using Int8UnOp = int8_t (*)(int8_t);
@@ -27,6 +90,7 @@ using Uint16BinOp = uint16_t (*)(uint16_t, uint16_t);
 using Int16ShiftOp = int16_t (*)(int16_t, int);
 using Int32UnOp = int32_t (*)(int32_t);
 using Int32BinOp = int32_t (*)(int32_t, int32_t);
+using Uint32BinOp = uint32_t (*)(uint32_t, uint32_t);
 using Int32ShiftOp = int32_t (*)(int32_t, int);
 using Int64UnOp = int64_t (*)(int64_t);
 using Int64BinOp = int64_t (*)(int64_t, int64_t);
@@ -173,6 +237,47 @@ void RunF64x2BinOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                        DoubleBinOp expected_op);
 void RunF64x2CompareOpTest(TestExecutionTier execution_tier, WasmOpcode opcode,
                            DoubleCompareOp expected_op);
+
+#ifdef V8_ENABLE_WASM_SIMD256_REVEC
+void RunI8x32UnOpRevecTest(WasmOpcode opcode, Int8UnOp expected_op,
+                           compiler::IrOpcode::Value revec_opcode);
+void RunI16x16UnOpRevecTest(WasmOpcode opcode, Int16UnOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+void RunI32x8UnOpRevecTest(WasmOpcode opcode, Int32UnOp expected_op,
+                           compiler::IrOpcode::Value revec_opcode);
+void RunF32x8UnOpRevecTest(WasmOpcode opcode, FloatUnOp expected_op,
+                           compiler::IrOpcode::Value revec_opcode);
+void RunF64x4UnOpRevecTest(WasmOpcode opcode, DoubleUnOp expected_op,
+                           compiler::IrOpcode::Value revec_opcode);
+
+template <typename T = int8_t, typename OpType = T (*)(T, T)>
+void RunI8x32BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+
+template <typename T = int16_t, typename OpType = T (*)(T, T)>
+void RunI16x16BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
+                             compiler::IrOpcode::Value revec_opcode);
+
+template <typename T = int32_t, typename OpType = T (*)(T, T)>
+void RunI32x8BinOpRevecTest(WasmOpcode opcode, OpType expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+
+void RunI64x4BinOpRevecTest(WasmOpcode opcode, Int64BinOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+void RunF64x4BinOpRevecTest(WasmOpcode opcode, DoubleBinOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+void RunF32x8BinOpRevecTest(WasmOpcode opcode, FloatBinOp expected_op,
+                            compiler::IrOpcode::Value revec_opcode);
+
+void RunI16x16ShiftOpRevecTest(WasmOpcode opcode, Int16ShiftOp expected_op,
+                               compiler::IrOpcode::Value revec_opcode);
+void RunI32x8ShiftOpRevecTest(WasmOpcode opcode, Int32ShiftOp expected_op,
+                              compiler::IrOpcode::Value revec_opcode);
+void RunI64x4ShiftOpRevecTest(WasmOpcode opcode, Int64ShiftOp expected_op,
+                              compiler::IrOpcode::Value revec_opcode);
+
+// TODO(yuhengwei): Add revec test for IGeU, IGeS, INe and IGtU
+#endif
 
 }  // namespace wasm
 }  // namespace internal

@@ -68,6 +68,11 @@ for (const { protocol, createServer } of [
     const server = createServer(function(_req, res) {
       const url = new URL(_req.url, host);
       const redirect = url.searchParams.get('redirect');
+
+      if (url.pathname === 'json') {
+        common.mustCall(() => assert.strictEqual(_req.header.content, 'application/json,*/*;charset=utf-8;q=0.5'));
+      }
+
       if (url.pathname === '/not-found') {
         res.writeHead(404);
         res.end();
@@ -203,6 +208,13 @@ for (const { protocol, createServer } of [
       import(notFound.href),
       { code: 'ERR_MODULE_NOT_FOUND' },
     );
+
+    const jsonUrl = new URL(url.href + 'json');
+    jsonUrl.searchParams.set('mime', 'application/json');
+    jsonUrl.searchParams.set('body', '{"x": 1}');
+    const json = await import(jsonUrl.href, { with: { type: 'json' } });
+    assert.deepStrictEqual(Object.keys(json), ['default']);
+    assert.strictEqual(json.default.x, 1);
 
     server.close();
   }

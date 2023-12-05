@@ -23,55 +23,55 @@ const expectedPackageHack =
 
 const expectedBare = errTemplate('deep-fail', 'comeOn', '{ comeOn }');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/single-quote.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedRelative
 }, 'should support relative specifiers with single quotes');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/double-quote.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedRelative
 }, 'should support relative specifiers with double quotes');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/renamed-import.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedRenamed
 }, 'should correctly format named imports with renames');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/multi-line.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedWithoutExample,
 }, 'should correctly format named imports across multiple lines');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/json-hack.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedPackageHack
 }, 'should respect recursive package.json for module type');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/bare-import-single.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedBare
 }, 'should support bare specifiers with single quotes');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/bare-import-double.mjs`);
 }, {
   name: 'SyntaxError',
   message: expectedBare
 }, 'should support bare specifiers with double quotes');
 
-rejects(async () => {
+await rejects(async () => {
   await import(`${fixtureBase}/escaped-single-quote.mjs`);
 }, /import pkg from '\.\/oh'no\.cjs'/, 'should support relative specifiers with escaped single quote');

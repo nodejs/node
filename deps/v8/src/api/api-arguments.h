@@ -74,15 +74,15 @@ class PropertyCallbackArguments final
   using Super = CustomArguments<T>;
   static constexpr int kArgsLength = T::kArgsLength;
   static constexpr int kThisIndex = T::kThisIndex;
-  static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kHolderIndex = T::kHolderIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
   static constexpr int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
-  PropertyCallbackArguments(Isolate* isolate, Object data, Object self,
-                            JSObject holder, Maybe<ShouldThrow> should_throw);
+  PropertyCallbackArguments(Isolate* isolate, Tagged<Object> data,
+                            Tagged<Object> self, Tagged<JSObject> holder,
+                            Maybe<ShouldThrow> should_throw);
   inline ~PropertyCallbackArguments();
 
   // Don't copy PropertyCallbackArguments, because they would both have the
@@ -158,14 +158,8 @@ class PropertyCallbackArguments final
   inline Handle<JSObject> CallPropertyEnumerator(
       Handle<InterceptorInfo> interceptor);
 
-  inline Handle<Object> BasicCallIndexedGetterCallback(
-      IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
-  inline Handle<Object> BasicCallNamedGetterCallback(
-      GenericNamedPropertyGetterCallback f, Handle<Name> name,
-      Handle<Object> info, Handle<Object> receiver = Handle<Object>());
-
-  inline JSObject holder() const;
-  inline Object receiver() const;
+  inline Tagged<JSObject> holder() const;
+  inline Tagged<Object> receiver() const;
 
 #ifdef DEBUG
   // This stores current value of Isolate::javascript_execution_counter().
@@ -184,20 +178,28 @@ class FunctionCallbackArguments
   static constexpr int kArgsLengthWithReceiver = T::kArgsLengthWithReceiver;
 
   static constexpr int kHolderIndex = T::kHolderIndex;
-  static constexpr int kDataIndex = T::kDataIndex;
-  static constexpr int kReturnValueDefaultValueIndex =
-      T::kReturnValueDefaultValueIndex;
   static constexpr int kIsolateIndex = T::kIsolateIndex;
+  static constexpr int kUnusedIndex = T::kUnusedIndex;
+  static constexpr int kDataIndex = T::kDataIndex;
   static constexpr int kNewTargetIndex = T::kNewTargetIndex;
 
   static_assert(T::kThisValuesIndex == BuiltinArguments::kReceiverArgsOffset);
+
+  static constexpr int kSize = T::kSize;
+  static constexpr int kImplicitArgsOffset = T::kImplicitArgsOffset;
+  static constexpr int kValuesOffset = T::kValuesOffset;
+  static constexpr int kLengthOffset = T::kLengthOffset;
+
   // Make sure all FunctionCallbackInfo constants are in sync.
+  static_assert(T::kSize == sizeof(T));
   static_assert(T::kImplicitArgsOffset == offsetof(T, implicit_args_));
   static_assert(T::kValuesOffset == offsetof(T, values_));
   static_assert(T::kLengthOffset == offsetof(T, length_));
 
-  FunctionCallbackArguments(Isolate* isolate, Object data, Object holder,
-                            HeapObject new_target, Address* argv, int argc);
+  FunctionCallbackArguments(Isolate* isolate, Tagged<Object> data,
+                            Tagged<Object> holder,
+                            Tagged<HeapObject> new_target, Address* argv,
+                            int argc);
 
   /*
    * The following Call function wraps the calling of all callbacks to handle
@@ -207,10 +209,10 @@ class FunctionCallbackArguments
    * and used if it's been set to anything inside the callback.
    * New style callbacks always use the return value.
    */
-  inline Handle<Object> Call(CallHandlerInfo handler);
+  inline Handle<Object> Call(Tagged<CallHandlerInfo> handler);
 
  private:
-  inline JSReceiver holder() const;
+  inline Tagged<JSReceiver> holder() const;
 
   internal::Address* argv_;
   int const argc_;

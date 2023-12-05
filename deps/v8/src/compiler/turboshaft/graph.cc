@@ -89,16 +89,12 @@ std::ostream& operator<<(std::ostream& os, const Graph& graph) {
 std::ostream& operator<<(std::ostream& os, const Block::Kind& kind) {
   switch (kind) {
     case Block::Kind::kLoopHeader:
-      os << "LOOP";
-      break;
+      return os << "LOOP";
     case Block::Kind::kMerge:
-      os << "MERGE";
-      break;
+      return os << "MERGE";
     case Block::Kind::kBranchTarget:
-      os << "BLOCK";
-      break;
+      return os << "BLOCK";
   }
-  return os;
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -7,7 +7,6 @@ const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const fs = require('fs');
 const fn = fixtures.path('empty.txt');
-const join = require('path').join;
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
@@ -55,7 +54,7 @@ function tempFdSync(callback) {
   // position of the file, instead of reading from the beginning of the file,
   // when used with file descriptors.
 
-  const filename = join(tmpdir.path, 'test.txt');
+  const filename = tmpdir.resolve('test.txt');
   fs.writeFileSync(filename, 'Hello World');
 
   {

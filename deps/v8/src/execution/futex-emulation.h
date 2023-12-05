@@ -38,8 +38,6 @@ namespace internal {
 class BackingStore;
 class FutexWaitList;
 
-template <typename T>
-class Handle;
 class Isolate;
 class JSArrayBuffer;
 
@@ -150,53 +148,53 @@ class FutexEmulation : public AllStatic {
   // |rel_timeout_ms| can be Infinity.
   // If woken, return "ok", otherwise return "timed-out". The initial check and
   // the decision to wait happen atomically.
-  static Object WaitJs32(Isolate* isolate, WaitMode mode,
-                         Handle<JSArrayBuffer> array_buffer, size_t addr,
-                         int32_t value, double rel_timeout_ms);
+  static Tagged<Object> WaitJs32(Isolate* isolate, WaitMode mode,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, int32_t value,
+                                 double rel_timeout_ms);
 
   // An version of WaitJs32 for int64_t values.
-  static Object WaitJs64(Isolate* isolate, WaitMode mode,
-                         Handle<JSArrayBuffer> array_buffer, size_t addr,
-                         int64_t value, double rel_timeout_ms);
+  static Tagged<Object> WaitJs64(Isolate* isolate, WaitMode mode,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, int64_t value,
+                                 double rel_timeout_ms);
 
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
-  V8_EXPORT_PRIVATE static Object WaitWasm32(Isolate* isolate,
-                                             Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr, int32_t value,
-                                             int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm32(
+      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
+      int32_t value, int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
-  V8_EXPORT_PRIVATE static Object WaitWasm64(Isolate* isolate,
-                                             Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr, int64_t value,
-                                             int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm64(
+      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
+      int64_t value, int64_t rel_timeout_ns);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
-  V8_EXPORT_PRIVATE static Object Wake(Handle<JSArrayBuffer> array_buffer,
-                                       size_t addr,
-                                       uint32_t num_waiters_to_wake);
+  V8_EXPORT_PRIVATE static Tagged<Object> Wake(
+      Handle<JSArrayBuffer> array_buffer, size_t addr,
+      uint32_t num_waiters_to_wake);
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.
   static void IsolateDeinit(Isolate* isolate);
 
   // Return the number of threads or async waiters waiting on |addr|. Should
   // only be used for testing.
-  static Object NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
-                                     size_t addr);
+  static Tagged<Object> NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
+                                             size_t addr);
 
   // Return the number of async waiters (which belong to |isolate|) waiting.
   // Should only be used for testing.
-  static Object NumAsyncWaitersForTesting(Isolate* isolate);
+  static Tagged<Object> NumAsyncWaitersForTesting(Isolate* isolate);
 
   // Return the number of async waiters which were waiting for |addr| and are
   // now waiting for the Promises to be resolved. Should only be used for
   // testing.
-  static Object NumUnresolvedAsyncPromisesForTesting(
+  static Tagged<Object> NumUnresolvedAsyncPromisesForTesting(
       Handle<JSArrayBuffer> array_buffer, size_t addr);
 
  private:
@@ -206,25 +204,27 @@ class FutexEmulation : public AllStatic {
   friend class AsyncWaiterTimeoutTask;
 
   template <typename T>
-  static Object Wait(Isolate* isolate, WaitMode mode,
-                     Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     double rel_timeout_ms);
+  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
+                             Handle<JSArrayBuffer> array_buffer, size_t addr,
+                             T value, double rel_timeout_ms);
 
   template <typename T>
-  static Object Wait(Isolate* isolate, WaitMode mode,
-                     Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     bool use_timeout, int64_t rel_timeout_ns,
-                     CallType call_type = CallType::kIsNotWasm);
+  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
+                             Handle<JSArrayBuffer> array_buffer, size_t addr,
+                             T value, bool use_timeout, int64_t rel_timeout_ns,
+                             CallType call_type = CallType::kIsNotWasm);
 
   template <typename T>
-  static Object WaitSync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                         size_t addr, T value, bool use_timeout,
-                         int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitSync(Isolate* isolate,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, T value, bool use_timeout,
+                                 int64_t rel_timeout_ns, CallType call_type);
 
   template <typename T>
-  static Object WaitAsync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                          size_t addr, T value, bool use_timeout,
-                          int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitAsync(Isolate* isolate,
+                                  Handle<JSArrayBuffer> array_buffer,
+                                  size_t addr, T value, bool use_timeout,
+                                  int64_t rel_timeout_ns, CallType call_type);
 
   // Resolve the Promises of the async waiters which belong to |isolate|.
   static void ResolveAsyncWaiterPromises(Isolate* isolate);

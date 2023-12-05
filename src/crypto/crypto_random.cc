@@ -39,7 +39,7 @@ Maybe<bool> RandomBytesTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
     unsigned int offset,
     RandomBytesConfig* params) {
-  CHECK(IsAnyByteSource(args[offset]));  // Buffer to fill
+  CHECK(IsAnyBufferSource(args[offset]));  // Buffer to fill
   CHECK(args[offset + 1]->IsUint32());  // Offset
   CHECK(args[offset + 2]->IsUint32());  // Size
 
@@ -75,10 +75,10 @@ Maybe<bool> RandomPrimeTraits::EncodeOutput(
   size_t size = BN_num_bytes(params.prime.get());
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(env->isolate(), size);
-  BN_bn2binpad(
-      params.prime.get(),
-      reinterpret_cast<unsigned char*>(store->Data()),
-      size);
+  CHECK_EQ(static_cast<int>(size),
+           BN_bn2binpad(params.prime.get(),
+                        reinterpret_cast<unsigned char*>(store->Data()),
+                        size));
   *result = ArrayBuffer::New(env->isolate(), store);
   return Just(true);
 }

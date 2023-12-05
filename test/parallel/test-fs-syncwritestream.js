@@ -4,7 +4,6 @@ const assert = require('assert');
 const spawn = require('child_process').spawn;
 const stream = require('stream');
 const fs = require('fs');
-const path = require('path');
 
 // require('internal/fs/utils').SyncWriteStream is used as a stdio
 // implementation when stdout/stderr point to files.
@@ -24,7 +23,7 @@ if (process.argv[2] === 'child') {
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = path.join(tmpdir.path, 'stdout');
+const filename = tmpdir.resolve('stdout');
 const stdoutFd = fs.openSync(filename, 'w');
 
 const proc = spawn(process.execPath, [__filename, 'child'], {

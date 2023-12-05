@@ -8,7 +8,6 @@ const fixtures = require('../common/fixtures');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const path = require('path');
 const { spawnSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
@@ -22,7 +21,7 @@ const {
 
 {
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, 'test.heapprofile');
+  const file = tmpdir.resolve('test.heapprofile');
   const output = spawnSync(process.execPath, [
     '--heap-prof',
     '--heap-prof-name',

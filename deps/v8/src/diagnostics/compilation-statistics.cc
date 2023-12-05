@@ -4,6 +4,7 @@
 
 #include "src/diagnostics/compilation-statistics.h"
 
+#include <iomanip>
 #include <ostream>
 #include <vector>
 
@@ -44,6 +45,7 @@ void CompilationStatistics::RecordPhaseKindStats(const char* phase_kind_name,
 void CompilationStatistics::RecordTotalStats(const BasicStats& stats) {
   base::MutexGuard guard(&record_mutex_);
   total_stats_.Accumulate(stats);
+  total_stats_.count_++;
 }
 
 void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
@@ -54,6 +56,8 @@ void CompilationStatistics::BasicStats::Accumulate(const BasicStats& stats) {
     max_allocated_bytes_ = stats.max_allocated_bytes_;
     function_name_ = stats.function_name_;
   }
+  input_graph_size_ += stats.input_graph_size_;
+  output_graph_size_ += stats.output_graph_size_;
 }
 
 std::string CompilationStatistics::BasicStats::AsJSON() {
@@ -80,6 +84,7 @@ std::string CompilationStatistics::BasicStats::AsJSON() {
 }
 
 static void WriteLine(std::ostream& os, bool machine_format, const char* name,
+                      const char* compiler,
                       const CompilationStatistics::BasicStats& stats,
                       const CompilationStatistics::BasicStats& total_stats) {
   const size_t kBufferSize = 128;
@@ -90,21 +95,34 @@ static void WriteLine(std::ostream& os, bool machine_format, const char* name,
   double size_percent =
       static_cast<double>(stats.total_allocated_bytes_ * 100) /
       static_cast<double>(total_stats.total_allocated_bytes_);
+  double growth =
+      static_cast<double>(stats.output_graph_size_) / stats.input_graph_size_;
+  double mops_per_s = (stats.output_graph_size_ / 1000000.0) / (ms / 1000.0);
+
   if (machine_format) {
     base::OS::SNPrintF(buffer, kBufferSize,
-                       "\"%s_time\"=%.3f\n\"%s_space\"=%zu", name, ms, name,
-                       stats.total_allocated_bytes_);
+                       "\"%s_%s_time\"=%.3f\n\"%s_%s_space\"=%zu", compiler,
+                       name, ms, compiler, name, stats.total_allocated_bytes_);
     os << buffer;
   } else {
-    base::OS::SNPrintF(buffer, kBufferSize,
-                       "%34s %10.3f (%5.1f%%)  %10zu (%5.1f%%) %10zu %10zu",
-                       name, ms, percent, stats.total_allocated_bytes_,
-                       size_percent, stats.max_allocated_bytes_,
-                       stats.absolute_max_allocated_bytes_);
+    if (stats.output_graph_size_ != 0) {
+      base::OS::SNPrintF(
+          buffer, kBufferSize,
+          "%34s %10.3f (%4.1f%%)  %10zu (%4.1f%%) %10zu %10zu   %5.3f %6.2f",
+          name, ms, percent, stats.total_allocated_bytes_, size_percent,
+          stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_,
+          growth, mops_per_s);
+    } else {
+      base::OS::SNPrintF(
+          buffer, kBufferSize,
+          "%34s %10.3f (%4.1f%%)  %10zu (%4.1f%%) %10zu %10zu               ",
+          name, ms, percent, stats.total_allocated_bytes_, size_percent,
+          stats.max_allocated_bytes_, stats.absolute_max_allocated_bytes_);
+    }
 
     os << buffer;
     if (!stats.function_name_.empty()) {
-      os << "   " << stats.function_name_.c_str();
+      os << "  " << stats.function_name_.c_str();
     }
     os << std::endl;
   }
@@ -115,12 +133,12 @@ static void WriteFullLine(std::ostream& os) {
         "-----------------------------------------------------------\n";
 }
 
-static void WriteHeader(std::ostream& os) {
+static void WriteHeader(std::ostream& os, const char* compiler) {
   WriteFullLine(os);
-  os << "                Turbofan phase            Time (ms)    "
-     << "                   Space (bytes)             Function\n"
+  os << std::setw(24) << compiler << " phase            Time (ms)   "
+     << "                   Space (bytes)            Growth MOps/s Function\n"
      << "                                                       "
-     << "          Total          Max.     Abs. max.\n";
+     << "         Total         Max.     Abs. max.\n";
   WriteFullLine(os);
 }
 
@@ -149,7 +167,7 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
     sorted_phases[it->second.insert_order_] = it;
   }
 
-  if (!ps.machine_output) WriteHeader(os);
+  if (!ps.machine_output) WriteHeader(os, ps.compiler);
   for (const auto& phase_kind_it : sorted_phase_kinds) {
     const auto& phase_kind_name = phase_kind_it->first;
     if (!ps.machine_output) {
@@ -157,20 +175,25 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
         const auto& phase_stats = phase_it->second;
         if (phase_stats.phase_kind_name_ != phase_kind_name) continue;
         const auto& phase_name = phase_it->first;
-        WriteLine(os, ps.machine_output, phase_name.c_str(), phase_stats,
-                  s.total_stats_);
+        WriteLine(os, ps.machine_output, phase_name.c_str(), ps.compiler,
+                  phase_stats, s.total_stats_);
       }
       WritePhaseKindBreak(os);
     }
     const auto& phase_kind_stats = phase_kind_it->second;
-    WriteLine(os, ps.machine_output, phase_kind_name.c_str(), phase_kind_stats,
-              s.total_stats_);
+    WriteLine(os, ps.machine_output, phase_kind_name.c_str(), ps.compiler,
+              phase_kind_stats, s.total_stats_);
     os << std::endl;
   }
 
   if (!ps.machine_output) WriteFullLine(os);
-  WriteLine(os, ps.machine_output, "totals", s.total_stats_, s.total_stats_);
+  WriteLine(os, ps.machine_output, "totals", ps.compiler, s.total_stats_,
+            s.total_stats_);
 
+  if (ps.machine_output) {
+    os << std::endl;
+    os << "\"" << ps.compiler << "_totals_count\"=" << s.total_stats_.count_;
+  }
   return os;
 }
 

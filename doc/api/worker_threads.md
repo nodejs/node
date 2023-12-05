@@ -174,7 +174,7 @@ There is no equivalent to this API in browsers.
 ## `worker.isMarkedAsUntransferable(object)`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 * `object` {any} Any JavaScript value.
@@ -600,7 +600,7 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47604
     description: An error is thrown when an untransferable object is in the
                  transfer list.
@@ -886,7 +886,8 @@ Notable differences inside a Worker environment are:
   unless otherwise specified. Changes to one copy are not visible in other
   threads, and are not visible to native add-ons (unless
   [`worker.SHARE_ENV`][] is passed as the `env` option to the
-  [`Worker`][] constructor).
+  [`Worker`][] constructor). On Windows, unlike the main thread, a copy of the
+  environment variables operates in a case-sensitive manner.
 * [`process.title`][] cannot be modified.
 * Signals are not delivered through [`process.on('...')`][Signals events].
 * Execution may stop at any point as a result of [`worker.terminate()`][]

@@ -830,62 +830,62 @@ void ChannelWrap::EnsureServers() {
 
 int AnyTraits::Send(QueryWrap<AnyTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_any);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ATraits::Send(QueryWrap<ATraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_a);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AaaaTraits::Send(QueryWrap<AaaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_aaaa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CaaTraits::Send(QueryWrap<CaaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, T_CAA);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CnameTraits::Send(QueryWrap<CnameTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_cname);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int MxTraits::Send(QueryWrap<MxTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_mx);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NsTraits::Send(QueryWrap<NsTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ns);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int TxtTraits::Send(QueryWrap<TxtTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_txt);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SrvTraits::Send(QueryWrap<SrvTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_srv);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int PtrTraits::Send(QueryWrap<PtrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_ptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NaptrTraits::Send(QueryWrap<NaptrTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_naptr);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SoaTraits::Send(QueryWrap<SoaTraits>* wrap, const char* name) {
   wrap->AresQuery(name, ns_c_in, ns_t_soa);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AnyTraits::Parse(
@@ -1052,7 +1052,7 @@ int AnyTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ATraits::Parse(
@@ -1086,7 +1086,7 @@ int ATraits::Parse(
   Local<Array> ttls = AddrTTLToArray<ares_addrttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int AaaaTraits::Parse(
@@ -1120,7 +1120,7 @@ int AaaaTraits::Parse(
   Local<Array> ttls = AddrTTLToArray<ares_addr6ttl>(env, addrttls, naddrttls);
 
   wrap->CallOnComplete(ret, ttls);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CaaTraits::Parse(
@@ -1142,7 +1142,7 @@ int CaaTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int CnameTraits::Parse(
@@ -1165,7 +1165,7 @@ int CnameTraits::Parse(
     return status;
 
   wrap->CallOnComplete(ret);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int MxTraits::Parse(
@@ -1188,7 +1188,7 @@ int MxTraits::Parse(
     return status;
 
   wrap->CallOnComplete(mx_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NsTraits::Parse(
@@ -1211,7 +1211,7 @@ int NsTraits::Parse(
     return status;
 
   wrap->CallOnComplete(names);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int TxtTraits::Parse(
@@ -1233,7 +1233,7 @@ int TxtTraits::Parse(
     return status;
 
   wrap->CallOnComplete(txt_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SrvTraits::Parse(
@@ -1255,7 +1255,7 @@ int SrvTraits::Parse(
     return status;
 
   wrap->CallOnComplete(srv_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int PtrTraits::Parse(
@@ -1279,7 +1279,7 @@ int PtrTraits::Parse(
     return status;
 
   wrap->CallOnComplete(aliases);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int NaptrTraits::Parse(
@@ -1301,7 +1301,7 @@ int NaptrTraits::Parse(
     return status;
 
   wrap->CallOnComplete(naptr_records);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int SoaTraits::Parse(
@@ -1352,7 +1352,7 @@ int SoaTraits::Parse(
   ares_free_data(soa_out);
 
   wrap->CallOnComplete(soa_record);
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
@@ -1381,7 +1381,7 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
       family,
       GetHostByAddrWrap::Callback,
       wrap->MakeCallbackPointer());
-  return 0;
+  return ARES_SUCCESS;
 }
 
 int ReverseTraits::Parse(
@@ -1396,7 +1396,7 @@ int ReverseTraits::Parse(
   HandleScope handle_scope(env->isolate());
   Context::Scope context_scope(env->context());
   wrap->CallOnComplete(HostentToNames(env, host));
-  return 0;
+  return ARES_SUCCESS;
 }
 
 namespace {

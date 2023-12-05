@@ -10,7 +10,9 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
+#include "src/objects/bytecode-array.h"
 #include "src/objects/code.h"
+#include "src/objects/instruction-stream.h"
 #include "src/objects/name.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
@@ -88,8 +90,10 @@ class LogEventListener {
   virtual void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                                      Handle<String> source) = 0;
   // Not handlified as this happens during GC. No allocation allowed.
-  virtual void CodeMoveEvent(InstructionStream from, InstructionStream to) = 0;
-  virtual void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) = 0;
+  virtual void CodeMoveEvent(Tagged<InstructionStream> from,
+                             Tagged<InstructionStream> to) = 0;
+  virtual void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                                 Tagged<BytecodeArray> to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void NativeContextMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
@@ -107,6 +111,7 @@ class LogEventListener {
   virtual void WeakCodeClearEvent() = 0;
 
   virtual bool is_listening_to_code_events() { return false; }
+  virtual bool allows_code_compaction() { return true; }
 };
 
 // Dispatches code events to a set of registered listeners.
@@ -139,6 +144,13 @@ class Logger {
       if (listener->is_listening_to_code_events()) return true;
     }
     return false;
+  }
+
+  bool allows_code_compaction() const {
+    for (auto listener : listeners_) {
+      if (!listener->allows_code_compaction()) return false;
+    }
+    return true;
   }
 
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
@@ -205,13 +217,14 @@ class Logger {
       listener->RegExpCodeCreateEvent(code, source);
     }
   }
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) {
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->CodeMoveEvent(from, to);
     }
   }
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from, Tagged<BytecodeArray> to) {
     base::MutexGuard guard(&mutex_);
     for (auto listener : listeners_) {
       listener->BytecodeMoveEvent(from, to);

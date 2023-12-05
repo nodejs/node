@@ -83,6 +83,50 @@ t.test('get single arg', async t => {
   )
 })
 
+t.test('get multiple arg', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        version: '1.1.1',
+      }),
+    },
+  })
+
+  await pkg('get', 'name', 'version')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    {
+      name: 'foo',
+      version: '1.1.1',
+    },
+    'should print retrieved package.json field'
+  )
+})
+
+t.test('get multiple arg with empty value', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo',
+        author: '',
+      }),
+    },
+  })
+
+  await pkg('get', 'name', 'author')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    {
+      name: 'foo',
+      author: '',
+    },
+    'should print retrieved package.json field regardless of empty value'
+  )
+})
+
 t.test('get nested arg', async t => {
   const { pkg, OUTPUT } = await mockNpm(t, {
     prefixDir: {
@@ -615,5 +659,60 @@ t.test('workspaces', async t => {
       funding: 'http://example.com',
     },
     'should delete version field from workspace b'
+  )
+})
+
+t.test('single workspace', async t => {
+  const { pkg, OUTPUT } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'root',
+        version: '1.0.0',
+        workspaces: [
+          'packages/*',
+        ],
+      }),
+      packages: {
+        a: {
+          'package.json': JSON.stringify({
+            name: 'a',
+            version: '1.0.0',
+          }),
+        },
+        b: {
+          'package.json': JSON.stringify({
+            name: 'b',
+            version: '1.2.3',
+          }),
+        },
+      },
+    },
+    config: { workspace: ['packages/a'] },
+  })
+
+  await pkg('get', 'name', 'version')
+
+  t.strictSame(
+    JSON.parse(OUTPUT()),
+    { a: { name: 'a', version: '1.0.0' } },
+    'should only return info for one workspace'
+  )
+})
+
+t.test('fix', async t => {
+  const { pkg, readPackageJson } = await mockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'foo ',
+        version: 'v1.1.1',
+      }),
+    },
+  })
+
+  await pkg('fix')
+  t.strictSame(
+    readPackageJson(),
+    { name: 'foo', version: '1.1.1' },
+    'fixes package.json issues'
   )
 })

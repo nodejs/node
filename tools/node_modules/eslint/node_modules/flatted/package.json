@@ -1,6 +1,6 @@
 {
   "name": "flatted",
-  "version": "3.2.7",
+  "version": "3.2.9",
   "description": "A super light and fast circular JSON parser.",
   "unpkg": "min.js",
   "types": "types.d.ts",
@@ -15,6 +15,7 @@
     "size": "cat index.js | wc -c;cat min.js | wc -c;gzip -c9 min.js | wc -c;cat min.js | brotli | wc -c; cat es.js | brotli | wc -c; cat esm.js | brotli | wc -c",
     "test": "c8 node test/index.js",
     "test:php": "php php/test.php",
+    "test:py": "python python/test.py",
     "coverage": "mkdir -p ./coverage; c8 report --reporter=text-lcov > ./coverage/lcov.info"
   },
   "repository": {

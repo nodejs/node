@@ -36,7 +36,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.10',
+    'v8_embedder_string': '-node.17',
 
     ##### V8 defaults for Node.js #####
 
@@ -75,8 +75,16 @@
 
     'v8_win64_unwinding_info': 1,
 
-    # TODO(refack): make v8-perfetto happen
+    # Variables controlling external defines exposed in public headers.
+    'v8_enable_conservative_stack_scanning%': 0,
+    'v8_enable_direct_local%': 0,
+    'v8_enable_map_packing%': 0,
+    'v8_enable_pointer_compression_shared_cage%': 0,
+    'v8_enable_sandbox%': 0,
+    'v8_enable_v8_checks%': 0,
+    'v8_enable_zone_compression%': 0,
     'v8_use_perfetto': 0,
+    'tsan%': 0,
 
     ##### end V8 defaults #####
 
@@ -134,7 +142,7 @@
             }],
           ],
         },
-        'defines': [ 'DEBUG', '_DEBUG', 'V8_ENABLE_CHECKS' ],
+        'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
         'conditions': [
           ['OS in "aix os400"', {
@@ -230,7 +238,7 @@
             ],
           },],
           ['OS == "android"', {
-            'cflags': [ '-fPIC' ],
+            'cflags': [ '-fPIC', '-I<(android_ndk_path)/sources/android/cpufeatures' ],
             'ldflags': [ '-fPIC' ]
           }],
         ],
@@ -257,11 +265,8 @@
       }
     },
 
-    # Defines these mostly for node-gyp to pickup, and warn addon authors of
-    # imminent V8 deprecations, also to sync how dependencies are configured.
+    # Defines these mostly for node-gyp to pickup.
     'defines': [
-      'V8_DEPRECATION_WARNINGS',
-      'V8_IMMINENT_DEPRECATION_WARNINGS',
       '_GLIBCXX_USE_CXX11_ABI=1',
     ],
 
@@ -369,14 +374,49 @@
           }],
         ],
       }],
+      # The defines bellow must include all things from the external_v8_defines
+      # list in v8/BUILD.gn.
+      ['v8_enable_v8_checks == 1', {
+        'defines': ['V8_ENABLE_CHECKS'],
+      }],
       ['v8_enable_pointer_compression == 1', {
-        'defines': [
-          'V8_COMPRESS_POINTERS',
-          'V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE',
-        ],
+        'defines': ['V8_COMPRESS_POINTERS'],
+      }],
+      ['v8_enable_pointer_compression_shared_cage == 1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_SHARED_CAGE'],
+      }],
+      ['v8_enable_pointer_compression == 1 and v8_enable_pointer_compression_shared_cage != 1', {
+        'defines': ['V8_COMPRESS_POINTERS_IN_ISOLATE_CAGE'],
       }],
       ['v8_enable_pointer_compression == 1 or v8_enable_31bit_smis_on_64bit_arch == 1', {
         'defines': ['V8_31BIT_SMIS_ON_64BIT_ARCH'],
+      }],
+      ['v8_enable_zone_compression == 1', {
+        'defines': ['V8_COMPRESS_ZONES',],
+      }],
+      ['v8_enable_sandbox == 1', {
+        'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_deprecation_warnings == 1', {
+        'defines': ['V8_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_imminent_deprecation_warnings == 1', {
+        'defines': ['V8_IMMINENT_DEPRECATION_WARNINGS',],
+      }],
+      ['v8_use_perfetto == 1', {
+        'defines': ['V8_USE_PERFETTO',],
+      }],
+      ['v8_enable_map_packing == 1', {
+        'defines': ['V8_MAP_PACKING',],
+      }],
+      ['tsan == 1', {
+        'defines': ['V8_IS_TSAN',],
+      }],
+      ['v8_enable_conservative_stack_scanning == 1', {
+        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
+      }],
+      ['v8_enable_direct_local == 1', {
+        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['OS == "win"', {
         'defines': [
@@ -411,28 +451,56 @@
             'cflags': [ '-I/usr/local/include' ],
             'ldflags': [ '-Wl,-z,wxneeded' ],
           }],
+          ['_toolset=="host"', {
+            'conditions': [
+              [ 'host_arch=="ia32"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'host_arch=="x64"', {
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'host_arch=="ppc" and OS not in "aix os400"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'host_arch=="ppc64" and OS not in "aix os400"', {
+                'cflags': [ '-m64', '-mminimal-toc' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'host_arch=="s390x" and OS=="linux"', {
+                'cflags': [ '-m64', '-march=z196' ],
+                'ldflags': [ '-m64', '-march=z196' ],
+              }],
+            ],
+          }],
+          ['_toolset=="target"', {
+            'conditions': [
+              [ 'target_arch=="ia32"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'target_arch=="x64"', {
+                'cflags': [ '-m64' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'target_arch=="ppc" and OS not in "aix os400"', {
+                'cflags': [ '-m32' ],
+                'ldflags': [ '-m32' ],
+              }],
+              [ 'target_arch=="ppc64" and OS not in "aix os400"', {
+                'cflags': [ '-m64', '-mminimal-toc' ],
+                'ldflags': [ '-m64' ],
+              }],
+              [ 'target_arch=="s390x" and OS=="linux"', {
+                'cflags': [ '-m64', '-march=z196' ],
+                'ldflags': [ '-m64', '-march=z196' ],
+              }],
+            ],
+          }],
         ],
         'conditions': [
-          [ 'target_arch=="ia32"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
-          [ 'target_arch=="x64"', {
-            'cflags': [ '-m64' ],
-            'ldflags': [ '-m64' ],
-          }],
-          [ 'target_arch=="ppc" and OS not in "aix os400"', {
-            'cflags': [ '-m32' ],
-            'ldflags': [ '-m32' ],
-          }],
-          [ 'target_arch=="ppc64" and OS not in "aix os400"', {
-            'cflags': [ '-m64', '-mminimal-toc' ],
-            'ldflags': [ '-m64' ],
-          }],
-          [ 'target_arch=="s390x" and OS=="linux"', {
-            'cflags': [ '-m64', '-march=z196' ],
-            'ldflags': [ '-m64', '-march=z196' ],
-          }],
           [ 'OS=="solaris"', {
             'cflags': [ '-pthreads' ],
             'ldflags': [ '-pthreads' ],
@@ -500,7 +568,7 @@
           'GCC_ENABLE_CPP_RTTI': 'NO',              # -fno-rtti
           'GCC_ENABLE_PASCAL_STRINGS': 'NO',        # No -mpascal-strings
           'PREBINDING': 'NO',                       # No -Wl,-prebind
-          'MACOSX_DEPLOYMENT_TARGET': '10.15',      # -mmacosx-version-min=10.15
+          'MACOSX_DEPLOYMENT_TARGET': '11.0',       # -mmacosx-version-min=11.0
           'USE_HEADERMAP': 'NO',
           'OTHER_CFLAGS': [
             '-fno-strict-aliasing',

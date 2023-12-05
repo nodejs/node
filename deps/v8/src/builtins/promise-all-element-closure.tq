@@ -15,9 +15,9 @@ struct PromiseAllWrapResultAsFulfilledFunctor {
 }
 
 struct PromiseAllSettledWrapResultAsFulfilledFunctor {
-  transitioning
-  macro Call(implicit context: Context)(
-      nativeContext: NativeContext, value: JSAny): JSAny {
+  transitioning macro Call(
+      implicit context: Context)(nativeContext: NativeContext,
+      value: JSAny): JSAny {
     // TODO(gsathya): Optimize the creation using a cached map to
     // prevent transitions here.
     // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
@@ -38,9 +38,9 @@ struct PromiseAllSettledWrapResultAsFulfilledFunctor {
 }
 
 struct PromiseAllSettledWrapResultAsRejectedFunctor {
-  transitioning
-  macro Call(implicit context: Context)(
-      nativeContext: NativeContext, value: JSAny): JSAny {
+  transitioning macro Call(
+      implicit context: Context)(nativeContext: NativeContext,
+      value: JSAny): JSAny {
     // TODO(gsathya): Optimize the creation using a cached map to
     // prevent transitions here.
     // 9. Let obj be ! ObjectCreate(%ObjectPrototype%).
@@ -60,11 +60,11 @@ struct PromiseAllSettledWrapResultAsRejectedFunctor {
   }
 }
 
-extern macro LoadJSReceiverIdentityHash(JSReceiver): intptr labels IfNoHash;
+extern macro LoadJSReceiverIdentityHash(JSReceiver): uint32 labels IfNoHash;
 
 type PromiseAllResolveElementContext extends FunctionContext;
 extern enum PromiseAllResolveElementContextSlots extends intptr
-constexpr 'PromiseBuiltins::PromiseAllResolveElementContextSlots' {
+    constexpr 'PromiseBuiltins::PromiseAllResolveElementContextSlots' {
   kPromiseAllResolveElementRemainingSlot:
       Slot<PromiseAllResolveElementContext, Smi>,
   kPromiseAllResolveElementCapabilitySlot:
@@ -114,8 +114,8 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
   dcheck(kPropertyArrayNoHashSentinel == 0);
   const identityHash =
       LoadJSReceiverIdentityHash(function) otherwise unreachable;
-  dcheck(identityHash > 0);
-  const index = identityHash - 1;
+  dcheck(ChangeUint32ToWord(identityHash) < kSmiMaxValue);
+  const index = Signed(ChangeUint32ToWord(identityHash)) - 1;
 
   let remainingElementsCount = *ContextSlot(
       promiseContext,
@@ -175,41 +175,49 @@ transitioning macro PromiseAllResolveElementClosure<F: type>(
         *NativeContextSlot(
         nativeContext, ContextSlot::JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX);
 
-    // If resolve and reject handlers close over values to keep track of whether
-    // an input promise is already settled, mark the values array as COW before
-    // letting it escape to user code.
-    if (hasResolveAndRejectClosures) MakeFixedArrayCOW(values);
-
+    // After this point, values escapes to user code.
+    //
+    // If resolve and reject handlers close over values to keep track of
+    // whether an input promise is already settled, mark the values array as
+    // COW. The original values array is still needed to guard against resolve
+    // or reject being called multiple times for an element.
+    //
+    // Otherwise, clear the slot.
+    if (hasResolveAndRejectClosures) {
+      MakeFixedArrayCOW(values);
+    } else {
+      *ContextSlot(
+          promiseContext,
+          PromiseAllResolveElementContextSlots::
+              kPromiseAllResolveElementValuesSlot) = kEmptyFixedArray;
+    }
     const valuesArray = NewJSArray(arrayMap, values);
     Call(promiseContext, resolve, Undefined, valuesArray);
   }
   return Undefined;
 }
 
-transitioning javascript builtin
-PromiseAllResolveElementClosure(
-    js-implicit context: Context, receiver: JSAny,
-    target: JSFunction)(value: JSAny): JSAny {
+transitioning javascript builtin PromiseAllResolveElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
   const context =
       %RawDownCast<PromiseAllResolveElementContext|NativeContext>(context);
   return PromiseAllResolveElementClosure(
       value, target, PromiseAllWrapResultAsFulfilledFunctor{}, false);
 }
 
-transitioning javascript builtin
-PromiseAllSettledResolveElementClosure(
-    js-implicit context: Context, receiver: JSAny,
-    target: JSFunction)(value: JSAny): JSAny {
+transitioning javascript builtin PromiseAllSettledResolveElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
   const context =
       %RawDownCast<PromiseAllResolveElementContext|NativeContext>(context);
   return PromiseAllResolveElementClosure(
       value, target, PromiseAllSettledWrapResultAsFulfilledFunctor{}, true);
 }
 
-transitioning javascript builtin
-PromiseAllSettledRejectElementClosure(
-    js-implicit context: Context, receiver: JSAny,
-    target: JSFunction)(value: JSAny): JSAny {
+transitioning javascript builtin PromiseAllSettledRejectElementClosure(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    value: JSAny): JSAny {
   const context =
       %RawDownCast<PromiseAllResolveElementContext|NativeContext>(context);
   return PromiseAllResolveElementClosure(

@@ -456,7 +456,9 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   if (filename_v->IsUndefined()) {
     DiagnosticFilename name(env, "Heap", "heapsnapshot");
     THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kFileSystemWrite, env->GetCwd());
+        env,
+        permission::PermissionScope::kFileSystemWrite,
+        Environment::GetCwd(env->exec_path()));
     if (WriteSnapshot(env, *name, options).IsNothing()) return;
     if (String::NewFromUtf8(isolate, *name).ToLocal(&filename_v)) {
       args.GetReturnValue().Set(filename_v);

@@ -49,7 +49,7 @@ namespace credentials {
 
 #if defined(__linux__)
 // Returns true if the current process only has the passed-in capability.
-bool HasOnly(int capability) {
+static bool HasOnly(int capability) {
   DCHECK(cap_valid(capability));
 
   struct __user_cap_data_struct cap_data[2];
@@ -116,14 +116,13 @@ bool SafeGetenv(const char* key,
       ret = uv_os_getenv(key, *val, &init_sz);
     }
 
-    if (ret >= 0) {  // Env key value fetch success.
+    if (ret == 0) {  // Env key value fetch success.
       *text = *val;
       return true;
     }
   }
 
 fail:
-  text->clear();
   return false;
 }
 

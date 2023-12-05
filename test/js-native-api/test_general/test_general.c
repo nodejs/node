@@ -3,11 +3,12 @@
 // not related to any of the other tests
 // defined in the file
 #define NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
+#include <js_native_api.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static napi_value testStrictEquals(napi_env env, napi_callback_info info) {
   size_t argc = 2;

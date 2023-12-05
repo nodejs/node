@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "es2015",
     "module": "commonjs",
-    "moduleResolution": "node",
+    "moduleResolution": "node16",
     "declaration": true,
     "outDir": "./lib",
     "lib": ["es2016", "es5"]

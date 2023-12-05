@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_HEAP_CONFIG_H_
 
 #include "include/cppgc/heap.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc::internal {
 
@@ -29,6 +30,8 @@ struct MarkingConfig {
   StackState stack_state = StackState::kMayContainHeapPointers;
   MarkingType marking_type = MarkingType::kIncremental;
   IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
+  v8::base::TimeDelta incremental_task_delay = v8::base::TimeDelta();
+  bool bailout_of_marking_when_ahead_of_schedule = false;
 };
 
 struct SweepingConfig {

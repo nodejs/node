@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
-  common.skip('missing crypto');
+if (!common.hasOpenSSL3)
+  common.skip('missing crypto, or OpenSSL version lower than 3');
 
 const fixtures = require('../common/fixtures');
 const { inspect } = require('util');
@@ -85,6 +85,7 @@ test('AES256-SHA', U, 'AES256-SHA');
 
 test(U, 'TLS_AES_256_GCM_SHA384', 'TLS_AES_256_GCM_SHA384');
 test('TLS_AES_256_GCM_SHA384', U, 'TLS_AES_256_GCM_SHA384');
+test('TLS_AES_256_GCM_SHA384:!TLS_CHACHA20_POLY1305_SHA256', U, 'TLS_AES_256_GCM_SHA384');
 
 // Do not have shared ciphers.
 test('TLS_AES_256_GCM_SHA384', 'TLS_CHACHA20_POLY1305_SHA256',

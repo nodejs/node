@@ -96,7 +96,7 @@ const { once } = require('events');
     Readable.from([1, 2, 3, 4]).forEach(async (_, { signal }) => {
       calls++;
       await once(signal, 'abort');
-    }, { signal: ac.signal, concurrency: 2 });
+    }, { signal: ac.signal, concurrency: 2, highWaterMark: 0 });
   // pump
   assert.rejects(async () => {
     await forEachPromise;

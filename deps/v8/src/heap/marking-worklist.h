@@ -24,7 +24,7 @@ class JSObject;
 // The index of the main thread task used by concurrent/parallel GC.
 const int kMainThreadTask = 0;
 
-using MarkingWorklist = ::heap::base::Worklist<HeapObject, 64>;
+using MarkingWorklist = ::heap::base::Worklist<Tagged<HeapObject>, 64>;
 
 // We piggyback on marking to compute object sizes per native context that is
 // needed for the new memory measurement API. The algorithm works as follows:
@@ -102,6 +102,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // This should be invoked at the end of marking. All worklists must be
   // empty at that point.
   void ReleaseContextWorklists();
+  bool IsUsingContextWorklists() const { return !context_worklists_.empty(); }
 
   void Clear();
   void Print();
@@ -148,14 +149,14 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   // Local worklists implicitly check for emptiness on destruction.
   ~Local() = default;
 
-  inline void Push(HeapObject object);
-  inline bool Pop(HeapObject* object);
+  inline void Push(Tagged<HeapObject> object);
+  inline bool Pop(Tagged<HeapObject>* object);
 
-  inline void PushOnHold(HeapObject object);
-  inline bool PopOnHold(HeapObject* object);
+  inline void PushOnHold(Tagged<HeapObject> object);
+  inline bool PopOnHold(Tagged<HeapObject>* object);
 
   using WrapperSnapshot = CppMarkingState::EmbedderDataSnapshot;
-  inline bool ExtractWrapper(Map map, JSObject object,
+  inline bool ExtractWrapper(Tagged<Map> map, Tagged<JSObject> object,
                              WrapperSnapshot& snapshot);
   inline void PushExtractedWrapper(const WrapperSnapshot& snapshot);
   inline bool SupportsExtractWrapper();
@@ -167,6 +168,9 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   // empty. In the per-context marking mode it also publishes the shared
   // worklist.
   void ShareWork();
+  // Publishes the local active marking worklist. Assume per-context marking
+  // mode is not used.
+  void PublishWork();
   // Merges the on-hold worklist to the shared worklist.
   void MergeOnHold();
 
@@ -189,7 +193,7 @@ class V8_EXPORT_PRIVATE MarkingWorklists::Local final {
   inline void SwitchToContextImpl(Address context,
                                   MarkingWorklist::Local* worklist);
 
-  bool PopContext(HeapObject* object);
+  bool PopContext(Tagged<HeapObject>* object);
   Address SwitchToContextSlow(Address context);
 
   // Points to either `shared_`, `other_` or to a per-context worklist.

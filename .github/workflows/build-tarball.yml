@@ -39,11 +39,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@bd6b4b6205c4dbad673328db7b31b7fab9e241c0  # v4.6.1
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236  # v4.7.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -57,7 +57,7 @@ jobs:
           mkdir tarballs
           mv *.tar.gz tarballs
       - name: Upload tarball artifact
-        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce  # v3.1.2
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32  # v3.1.3
         with:
           name: tarballs
           path: tarballs
@@ -65,11 +65,11 @@ jobs:
     needs: build-tarball
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9  # v3.5.3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@bd6b4b6205c4dbad673328db7b31b7fab9e241c0  # v4.6.1
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236  # v4.7.1
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -94,4 +94,4 @@ jobs:
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots --measure-flakiness 9"
+          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9"

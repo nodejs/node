@@ -11,11 +11,15 @@
 #include "src/handles/handles.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 
 namespace v8 {
 namespace internal {
+
+CollectionBarrier::CollectionBarrier(
+    Heap* heap, std::shared_ptr<v8::TaskRunner> foreground_task_runner)
+    : heap_(heap), foreground_task_runner_(foreground_task_runner) {}
 
 bool CollectionBarrier::WasGCRequested() {
   return collection_requested_.load();
@@ -47,7 +51,12 @@ class BackgroundCollectionInterruptTask : public CancelableTask {
 
  private:
   // v8::internal::CancelableTask overrides.
-  void RunInternal() override { heap_->CheckCollectionRequested(); }
+  void RunInternal() override {
+    // In case multi-cage pointer compression mode is enabled ensure that
+    // current thread's cage base values are properly initialized.
+    PtrComprCageAccessScope ptr_compr_cage_access_scope(heap_->isolate());
+    heap_->CheckCollectionRequested();
+  }
 
   Heap* heap_;
 };
@@ -95,28 +104,32 @@ bool CollectionBarrier::AwaitCollectionBackground(LocalHeap* local_heap) {
   }
 
   // The first thread needs to activate the stack guard and post the task.
-  if (first_thread) ActivateStackGuardAndPostTask();
+  if (first_thread) {
+    Isolate* isolate = heap_->isolate();
+    ExecutionAccess access(isolate);
+    isolate->stack_guard()->RequestGC();
 
-  ParkedScope scope(local_heap);
-  base::MutexGuard guard(&mutex_);
-
-  while (block_for_collection_) {
-    if (shutdown_requested_) return false;
-    cv_wakeup_.Wait(&mutex_);
+    foreground_task_runner_->PostTask(
+        std::make_unique<BackgroundCollectionInterruptTask>(heap_));
   }
 
-  // Collection may have been cancelled while blocking for it.
-  return collection_performed_;
-}
+  bool collection_performed = false;
+  local_heap->BlockWhileParked([this, &collection_performed]() {
+    base::MutexGuard guard(&mutex_);
 
-void CollectionBarrier::ActivateStackGuardAndPostTask() {
-  Isolate* isolate = heap_->isolate();
-  ExecutionAccess access(isolate);
-  isolate->stack_guard()->RequestGC();
+    while (block_for_collection_) {
+      if (shutdown_requested_) {
+        collection_performed = false;
+        return;
+      }
+      cv_wakeup_.Wait(&mutex_);
+    }
 
-  V8::GetCurrentPlatform()
-      ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate))
-      ->PostTask(std::make_unique<BackgroundCollectionInterruptTask>(heap_));
+    // Collection may have been cancelled while blocking for it.
+    collection_performed = collection_performed_;
+  });
+
+  return collection_performed;
 }
 
 void CollectionBarrier::StopTimeToCollectionTimer() {

@@ -15,6 +15,7 @@ const MockAgent = require('./lib/mock/mock-agent')
 const MockPool = require('./lib/mock/mock-pool')
 const mockErrors = require('./lib/mock/mock-errors')
 const ProxyAgent = require('./lib/proxy-agent')
+const RetryHandler = require('./lib/handler/RetryHandler')
 const { getGlobalDispatcher, setGlobalDispatcher } = require('./lib/global')
 const DecoratorHandler = require('./lib/handler/DecoratorHandler')
 const RedirectHandler = require('./lib/handler/RedirectHandler')
@@ -36,6 +37,7 @@ module.exports.Pool = Pool
 module.exports.BalancedPool = BalancedPool
 module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
+module.exports.RetryHandler = RetryHandler
 
 module.exports.DecoratorHandler = DecoratorHandler
 module.exports.RedirectHandler = RedirectHandler
@@ -106,7 +108,10 @@ if (util.nodeMajor > 16 || (util.nodeMajor === 16 && util.nodeMinor >= 8)) {
     try {
       return await fetchImpl(...arguments)
     } catch (err) {
-      Error.captureStackTrace(err, this)
+      if (typeof err === 'object') {
+        Error.captureStackTrace(err, this)
+      }
+
       throw err
     }
   }

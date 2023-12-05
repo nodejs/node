@@ -20,8 +20,8 @@ function _path() {
   };
   return data;
 }
-var _async = require("../../gensync-utils/async");
-var _moduleTypes = require("./module-types");
+var _async = require("../../gensync-utils/async.js");
+var _moduleTypes = require("./module-types.js");
 function _url() {
   const data = require("url");
   _url = function () {
@@ -29,7 +29,14 @@ function _url() {
   };
   return data;
 }
-var _importMetaResolve = require("./import-meta-resolve");
+var _importMetaResolve = require("../../vendor/import-meta-resolve.js");
+function _fs() {
+  const data = require("fs");
+  _fs = function () {
+    return data;
+  };
+  return data;
+}
 const debug = _debug()("babel:config:loading:files:plugins");
 const EXACT_RE = /^module:/;
 const BABEL_PLUGIN_PREFIX_RE = /^(?!@|module:|[^/]+\/|babel-plugin-)/;
@@ -39,10 +46,8 @@ const BABEL_PRESET_ORG_RE = /^(@babel\/)(?!preset-|[^/]+\/)/;
 const OTHER_PLUGIN_ORG_RE = /^(@(?!babel\/)[^/]+\/)(?![^/]*babel-plugin(?:-|\/|$)|[^/]+\/)/;
 const OTHER_PRESET_ORG_RE = /^(@(?!babel\/)[^/]+\/)(?![^/]*babel-preset(?:-|\/|$)|[^/]+\/)/;
 const OTHER_ORG_DEFAULT_RE = /^(@(?!babel$)[^/]+)$/;
-const resolvePlugin = resolveStandardizedName.bind(null, "plugin");
-exports.resolvePlugin = resolvePlugin;
-const resolvePreset = resolveStandardizedName.bind(null, "preset");
-exports.resolvePreset = resolvePreset;
+const resolvePlugin = exports.resolvePlugin = resolveStandardizedName.bind(null, "plugin");
+const resolvePreset = exports.resolvePreset = resolveStandardizedName.bind(null, "preset");
 function* loadPlugin(name, dirname) {
   const filepath = resolvePlugin(name, dirname, yield* (0, _async.isAsync)());
   const value = yield* requireModule("plugin", filepath);
@@ -134,7 +139,7 @@ function tryImportMetaResolve(id, options) {
   try {
     return {
       error: null,
-      value: (0, _importMetaResolve.default)(id, options)
+      value: (0, _importMetaResolve.resolve)(id, options)
     };
   } catch (error) {
     return {
@@ -165,7 +170,13 @@ function resolveStandardizedName(type, name, dirname, resolveESM) {
     return resolveStandardizedNameForRequire(type, name, dirname);
   }
   try {
-    return resolveStandardizedNameForImport(type, name, dirname);
+    const resolved = resolveStandardizedNameForImport(type, name, dirname);
+    if (!(0, _fs().existsSync)(resolved)) {
+      throw Object.assign(new Error(`Could not resolve "${name}" in file ${dirname}.`), {
+        type: "MODULE_NOT_FOUND"
+      });
+    }
+    return resolved;
   } catch (e) {
     try {
       return resolveStandardizedNameForRequire(type, name, dirname);

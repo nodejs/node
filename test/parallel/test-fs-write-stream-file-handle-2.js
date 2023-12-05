@@ -1,10 +1,9 @@
 'use strict';
 const common = require('../common');
 const fs = require('fs');
-const path = require('path');
 const assert = require('assert');
 const tmpdir = require('../common/tmpdir');
-const file = path.join(tmpdir.path, 'write_stream_filehandle_test.txt');
+const file = tmpdir.resolve('write_stream_filehandle_test.txt');
 const input = 'hello world';
 
 tmpdir.refresh();

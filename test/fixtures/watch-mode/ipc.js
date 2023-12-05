@@ -3,7 +3,7 @@ const url = require('node:url');
 const fs = require('node:fs');
 const tmpdir = require('../../common/tmpdir');
 
-const tmpfile = path.join(tmpdir.path, 'file');
+const tmpfile = tmpdir.resolve('file');
 fs.writeFileSync(tmpfile, '');
 
 process.send({ 'watch:require': [path.resolve(__filename)] });

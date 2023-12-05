@@ -345,6 +345,16 @@ Run git commit hooks when using the `npm version` command.
 
 
 
+#### `cpu`
+
+* Default: null
+* Type: null or String
+
+Override CPU architecture of native modules to install. Acceptable values
+are same as `cpu` field of package.json, which comes from `process.arch`.
+
+
+
 #### `depth`
 
 * Default: `Infinity` if `--all` is set, otherwise `1`
@@ -1038,6 +1048,16 @@ time.
 
 
 
+#### `os`
+
+* Default: null
+* Type: null or String
+
+Override OS of native modules to install. Acceptable values are same as `os`
+field of package.json, which comes from `process.platform`.
+
+
+
 #### `otp`
 
 * Default: null
@@ -1335,6 +1355,26 @@ you want to move it to be a non-optional production dependency.
 
 This is the default behavior if `--save` is true, and neither `--save-dev`
 or `--save-optional` are true.
+
+
+
+#### `sbom-format`
+
+* Default: null
+* Type: "cyclonedx" or "spdx"
+
+SBOM format to use when generating SBOMs.
+
+
+
+#### `sbom-type`
+
+* Default: "library"
+* Type: "library", "application", or "framework"
+
+The type of package described by the generated SBOM. For SPDX, this is the
+value for the `primaryPackagePurpose` fieled. For CycloneDX, this is the
+value for the `type` field.
 
 
 
@@ -1775,20 +1815,6 @@ registry-scoped "certfile" path like
 
 
 
-#### `ci-name`
-
-* Default: The name of the current CI system, or `null` when not on a known CI
-  platform.
-* Type: null or String
-* DEPRECATED: This config is deprecated and will not be changeable in future
-  version of npm.
-
-The name of a continuous integration system. If not set explicitly, npm will
-detect the current CI environment using the
-[`ci-info`](http://npm.im/ci-info) module.
-
-
-
 #### `dev`
 
 * Default: false
@@ -1946,20 +1972,6 @@ Alias for `--omit=dev`
 * DEPRECATED: Use the --package-lock setting instead.
 
 Alias for --package-lock
-
-
-
-#### `tmp`
-
-* Default: The value returned by the Node.js `os.tmpdir()` method
-  <https://nodejs.org/api/os.html#os_os_tmpdir>
-* Type: Path
-* DEPRECATED: This setting is no longer used. npm stores temporary files in a
-  special location in the cache, and they are managed by
-  [`cacache`](http://npm.im/cacache).
-
-Historically, the location where temporary files were stored. No longer
-relevant.
 
 
 

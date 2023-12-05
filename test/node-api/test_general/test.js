@@ -19,7 +19,7 @@ tmpdir.refresh();
 }
 
 {
-  const urlTestDir = path.join(tmpdir.path, 'foo%#bar');
+  const urlTestDir = tmpdir.resolve('foo%#bar');
   const urlTestFile = path.join(urlTestDir, path.basename(filename));
   fs.mkdirSync(urlTestDir, { recursive: true });
   fs.copyFileSync(filename, urlTestFile);

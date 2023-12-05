@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to check empty newline between class members
  * @author 薛定谔的猫<hh_2013@foxmail.com>
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -11,12 +12,29 @@
 const astUtils = require("./utils/ast-utils");
 
 //------------------------------------------------------------------------------
+// Helpers
+//------------------------------------------------------------------------------
+
+/**
+ * Types of class members.
+ * Those have `test` method to check it matches to the given class member.
+ * @private
+ */
+const ClassMemberTypes = {
+    "*": { test: () => true },
+    field: { test: node => node.type === "PropertyDefinition" },
+    method: { test: node => node.type === "MethodDefinition" }
+};
+
+//------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
 
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {
@@ -29,7 +47,32 @@ module.exports = {
 
         schema: [
             {
-                enum: ["always", "never"]
+                anyOf: [
+                    {
+                        type: "object",
+                        properties: {
+                            enforce: {
+                                type: "array",
+                                items: {
+                                    type: "object",
+                                    properties: {
+                                        blankLine: { enum: ["always", "never"] },
+                                        prev: { enum: ["method", "field", "*"] },
+                                        next: { enum: ["method", "field", "*"] }
+                                    },
+                                    additionalProperties: false,
+                                    required: ["blankLine", "prev", "next"]
+                                },
+                                minItems: 1
+                            }
+                        },
+                        additionalProperties: false,
+                        required: ["enforce"]
+                    },
+                    {
+                        enum: ["always", "never"]
+                    }
+                ]
             },
             {
                 type: "object",
@@ -55,6 +98,7 @@ module.exports = {
         options[0] = context.options[0] || "always";
         options[1] = context.options[1] || { exceptAfterSingleLine: false };
 
+        const configureList = typeof options[0] === "object" ? options[0].enforce : [{ blankLine: options[0], prev: "*", next: "*" }];
         const sourceCode = context.sourceCode;
 
         /**
@@ -144,6 +188,38 @@ module.exports = {
             return sourceCode.getTokensBetween(before, after, { includeComments: true }).length !== 0;
         }
 
+        /**
+         * Checks whether the given node matches the given type.
+         * @param {ASTNode} node The class member node to check.
+         * @param {string} type The class member type to check.
+         * @returns {boolean} `true` if the class member node matched the type.
+         * @private
+         */
+        function match(node, type) {
+            return ClassMemberTypes[type].test(node);
+        }
+
+        /**
+         * Finds the last matched configuration from the configureList.
+         * @param {ASTNode} prevNode The previous node to match.
+         * @param {ASTNode} nextNode The current node to match.
+         * @returns {string|null} Padding type or `null` if no matches were found.
+         * @private
+         */
+        function getPaddingType(prevNode, nextNode) {
+            for (let i = configureList.length - 1; i >= 0; --i) {
+                const configure = configureList[i];
+                const matched =
+                    match(prevNode, configure.prev) &&
+                    match(nextNode, configure.next);
+
+                if (matched) {
+                    return configure.blankLine;
+                }
+            }
+            return null;
+        }
+
         return {
             ClassBody(node) {
                 const body = node.body;
@@ -158,22 +234,34 @@ module.exports = {
                     const isPadded = afterPadding.loc.start.line - beforePadding.loc.end.line > 1;
                     const hasTokenInPadding = hasTokenOrCommentBetween(beforePadding, afterPadding);
                     const curLineLastToken = findLastConsecutiveTokenAfter(curLast, nextFirst, 0);
+                    const paddingType = getPaddingType(body[i], body[i + 1]);
 
-                    if ((options[0] === "always" && !skip && !isPadded) ||
-                        (options[0] === "never" && isPadded)) {
+                    if (paddingType === "never" && isPadded) {
                         context.report({
                             node: body[i + 1],
-                            messageId: isPadded ? "never" : "always",
+                            messageId: "never",
+
                             fix(fixer) {
                                 if (hasTokenInPadding) {
                                     return null;
                                 }
-                                return isPadded
-                                    ? fixer.replaceTextRange([beforePadding.range[1], afterPadding.range[0]], "\n")
-                                    : fixer.insertTextAfter(curLineLastToken, "\n");
+                                return fixer.replaceTextRange([beforePadding.range[1], afterPadding.range[0]], "\n");
+                            }
+                        });
+                    } else if (paddingType === "always" && !skip && !isPadded) {
+                        context.report({
+                            node: body[i + 1],
+                            messageId: "always",
+
+                            fix(fixer) {
+                                if (hasTokenInPadding) {
+                                    return null;
+                                }
+                                return fixer.insertTextAfter(curLineLastToken, "\n");
                             }
                         });
                     }
+
                 }
             }
         };

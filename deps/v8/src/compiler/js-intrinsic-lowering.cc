@@ -124,12 +124,10 @@ Reduction JSIntrinsicLowering::ReduceDeoptimizeNow(Node* node) {
   Node* const effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
 
-  // TODO(bmeurer): Move MergeControlToEnd() to the AdvancedReducer.
   Node* deoptimize = graph()->NewNode(
       common()->Deoptimize(DeoptimizeReason::kDeoptimizeNow, FeedbackSource()),
       frame_state, effect, control);
-  NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-  Revisit(graph()->end());
+  MergeControlToEnd(graph(), common(), deoptimize);
 
   node->TrimInputCount(0);
   NodeProperties::ChangeOp(node, common()->Dead());
@@ -295,7 +293,11 @@ Reduction JSIntrinsicLowering::ReduceTurbofanStaticAssert(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceVerifyType(Node* node) {
-  return Change(node, simplified()->VerifyType());
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  effect = graph()->NewNode(simplified()->VerifyType(), value, effect);
+  ReplaceWithValue(node, value, effect);
+  return Changed(effect);
 }
 
 Reduction JSIntrinsicLowering::ReduceCheckTurboshaftTypeOf(Node* node) {

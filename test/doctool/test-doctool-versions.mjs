@@ -4,7 +4,6 @@ import tmpdir from '../common/tmpdir.js';
 import assert from 'assert';
 import { spawnSync } from 'child_process';
 import fs from 'fs';
-import path from 'path';
 import { fileURLToPath } from 'url';
 import util from 'util';
 
@@ -29,7 +28,7 @@ const expected = [
 ];
 
 tmpdir.refresh();
-const versionsFile = path.join(tmpdir.path, 'versions.json');
+const versionsFile = tmpdir.resolve('versions.json');
 debuglog(`${process.execPath} ${versionsTool} ${versionsFile}`);
 const opts = { cwd: tmpdir.path, encoding: 'utf8' };
 const cp = spawnSync(process.execPath, [ versionsTool, versionsFile ], opts);

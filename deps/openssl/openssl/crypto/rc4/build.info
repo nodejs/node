@@ -21,9 +21,14 @@ SOURCE[../../libcrypto]=$RC4ASM
 
 # When all deprecated symbols are removed, libcrypto doesn't export the
 # rc4 functions, so we must include them directly in liblegacy.a
-IF[{- $disabled{'deprecated-3.0'} && !$disabled{module} && !$disabled{shared} -}]
+IF[{- !$disabled{module} && !$disabled{shared} -}]
   SOURCE[../../providers/liblegacy.a]=$RC4ASM
 ENDIF
+
+# Implementations are now spread across several libraries, so the defines
+# need to be applied to all affected libraries and modules.
+DEFINE[../../libcrypto]=$RC4DEF
+DEFINE[../../providers/liblegacy.a]=$RC4DEF
 
 GENERATE[rc4-586.S]=asm/rc4-586.pl
 DEPEND[rc4-586.S]=../perlasm/x86asm.pl

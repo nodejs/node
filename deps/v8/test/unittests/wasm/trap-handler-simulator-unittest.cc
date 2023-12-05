@@ -13,9 +13,7 @@
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 
-#if !V8_HOST_ARCH_X64 || !V8_TARGET_ARCH_ARM64
-#error "Only include this file on arm64 simulator builds on x64."
-#endif
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
 
 namespace v8 {
 namespace internal {
@@ -123,7 +121,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   masm.Ret();
 
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
@@ -151,3 +149,5 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR

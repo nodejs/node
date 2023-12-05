@@ -11,6 +11,6 @@ for (var i = 0; i < LENGTH; ++i) {
   data.push('do ');
 }
 
-const largeText = data.join();
+const largeText = createExternalizableString(data.join());
 externalizeString(largeText);
 gc();

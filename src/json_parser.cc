@@ -4,7 +4,6 @@
 #include "util-inl.h"
 
 namespace node {
-using v8::ArrayBuffer;
 using v8::Context;
 using v8::Isolate;
 using v8::Local;
@@ -12,34 +11,17 @@ using v8::Object;
 using v8::String;
 using v8::Value;
 
-static Isolate* NewIsolate(v8::ArrayBuffer::Allocator* allocator) {
-  Isolate* isolate = Isolate::Allocate();
-  CHECK_NOT_NULL(isolate);
-  per_process::v8_platform.Platform()->RegisterIsolate(isolate,
-                                                       uv_default_loop());
-  Isolate::CreateParams params;
-  params.array_buffer_allocator = allocator;
-  Isolate::Initialize(isolate, params);
-  return isolate;
-}
-
-void JSONParser::FreeIsolate(Isolate* isolate) {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate);
-  isolate->Dispose();
-}
-
-JSONParser::JSONParser()
-    : allocator_(ArrayBuffer::Allocator::NewDefaultAllocator()),
-      isolate_(NewIsolate(allocator_.get())),
-      handle_scope_(isolate_.get()),
-      context_(isolate_.get(), Context::New(isolate_.get())),
-      context_scope_(context_.Get(isolate_.get())) {}
+JSONParser::JSONParser() {}
 
 bool JSONParser::Parse(const std::string& content) {
   DCHECK(!parsed_);
 
   Isolate* isolate = isolate_.get();
-  Local<Context> context = context_.Get(isolate);
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
 
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
@@ -53,16 +35,25 @@ bool JSONParser::Parse(const std::string& content) {
       !result_value->IsObject()) {
     return false;
   }
+
+  context_.Reset(isolate, context);
   content_.Reset(isolate, result_value.As<Object>());
   parsed_ = true;
+
   return true;
 }
 
 std::optional<std::string> JSONParser::GetTopLevelStringField(
     std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+
   Local<Context> context = context_.Get(isolate);
+  Context::Scope context_scope(context);
+
   Local<Object> content_object = content_.Get(isolate);
+
   Local<Value> value;
   // It's not a real script, so don't print the source line.
   errors::PrinterTryCatch bootstrapCatch(
@@ -81,7 +72,12 @@ std::optional<std::string> JSONParser::GetTopLevelStringField(
 
 std::optional<bool> JSONParser::GetTopLevelBoolField(std::string_view field) {
   Isolate* isolate = isolate_.get();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope handle_scope(isolate);
+
   Local<Context> context = context_.Get(isolate);
+  Context::Scope context_scope(context);
+
   Local<Object> content_object = content_.Get(isolate);
   Local<Value> value;
   bool has_field;

@@ -14,6 +14,8 @@ class HeapObject;
 class Isolate;
 class OldLargeObjectSpace;
 class PagedSpace;
+template <typename T>
+class Tagged;
 
 class CodeStatistics {
  public:
@@ -33,13 +35,14 @@ class CodeStatistics {
 #endif
 
  private:
-  static void RecordCodeAndMetadataStatistics(HeapObject object,
+  static void RecordCodeAndMetadataStatistics(Tagged<HeapObject> object,
                                               Isolate* isolate);
 
 #ifdef DEBUG
   static void CollectCommentStatistics(Isolate* isolate,
                                        CodeCommentsIterator* it);
-  static void CollectCodeCommentStatistics(AbstractCode obj, Isolate* isolate);
+  static void CollectCodeCommentStatistics(Tagged<AbstractCode> obj,
+                                           Isolate* isolate);
   static void EnterComment(Isolate* isolate, const char* comment, int delta);
   static void ResetCodeStatistics(Isolate* isolate);
 #endif

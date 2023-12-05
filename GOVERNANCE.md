@@ -151,8 +151,9 @@ Provide a summary of the nominee's contributions. For example:
 Mention @nodejs/collaborators in the issue to notify other collaborators about
 the nomination.
 
-The nomination passes if no collaborators oppose it after one week. Otherwise,
-the nomination fails.
+The nomination passes if no collaborators oppose it after one week. In the case
+of an objection, the TSC is responsible for working with the individuals
+involved and finding a resolution.
 
 There are steps a nominator can take in advance to make a nomination as
 frictionless as possible. To request feedback from other collaborators in

@@ -109,21 +109,21 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(base::Vector<const uint8_t> chars);
   void WriteTwoByteString(base::Vector<const base::uc16> chars);
-  void WriteBigIntContents(BigInt bigint);
+  void WriteBigIntContents(Tagged<BigInt> bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
-  void WriteOddball(Oddball oddball);
-  void WriteSmi(Smi smi);
-  void WriteHeapNumber(HeapNumber number);
-  void WriteBigInt(BigInt bigint);
+  void WriteOddball(Tagged<Oddball> oddball);
+  void WriteSmi(Tagged<Smi> smi);
+  void WriteHeapNumber(Tagged<HeapNumber> number);
+  void WriteBigInt(Tagged<BigInt> bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver)
       V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObjectSlow(Handle<JSObject> object) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArray(Handle<JSArray> array) V8_WARN_UNUSED_RESULT;
-  void WriteJSDate(JSDate date);
+  void WriteJSDate(Tagged<JSDate> date);
   Maybe<bool> WriteJSPrimitiveWrapper(Handle<JSPrimitiveWrapper> value)
       V8_WARN_UNUSED_RESULT;
   void WriteJSRegExp(Handle<JSRegExp> regexp);
@@ -131,7 +131,7 @@ class ValueSerializer {
   Maybe<bool> WriteJSSet(Handle<JSSet> map) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSArrayBuffer(Handle<JSArrayBuffer> array_buffer)
       V8_WARN_UNUSED_RESULT;
-  Maybe<bool> WriteJSArrayBufferView(JSArrayBufferView array_buffer);
+  Maybe<bool> WriteJSArrayBufferView(Tagged<JSArrayBufferView> array_buffer);
   Maybe<bool> WriteJSError(Handle<JSObject> error) V8_WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSSharedArray(Handle<JSSharedArray> shared_array)
       V8_WARN_UNUSED_RESULT;
@@ -155,6 +155,8 @@ class ValueSerializer {
   Maybe<uint32_t> WriteJSObjectPropertiesSlow(
       Handle<JSObject> object, Handle<FixedArray> keys) V8_WARN_UNUSED_RESULT;
 
+  Maybe<bool> IsHostObject(Handle<JSObject> object);
+
   /*
    * Asks the delegate to handle an error that occurred during data cloning, by
    * throwing an exception appropriate for the host.
@@ -172,6 +174,7 @@ class ValueSerializer {
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool has_custom_host_objects_ = false;
   bool treat_array_buffer_views_as_host_objects_ = false;
   bool out_of_memory_ = false;
   Zone zone_;
@@ -300,8 +303,8 @@ class ValueDeserializer {
   MaybeHandle<JSArrayBufferView> ReadJSArrayBufferView(
       Handle<JSArrayBuffer> buffer) V8_WARN_UNUSED_RESULT;
   bool ValidateJSArrayBufferViewFlags(
-      JSArrayBuffer buffer, uint32_t serialized_flags, bool& is_length_tracking,
-      bool& is_backed_by_rab) V8_WARN_UNUSED_RESULT;
+      Tagged<JSArrayBuffer> buffer, uint32_t serialized_flags,
+      bool& is_length_tracking, bool& is_backed_by_rab) V8_WARN_UNUSED_RESULT;
   MaybeHandle<Object> ReadJSError() V8_WARN_UNUSED_RESULT;
 #if V8_ENABLE_WEBASSEMBLY
   MaybeHandle<JSObject> ReadWasmModuleTransfer() V8_WARN_UNUSED_RESULT;

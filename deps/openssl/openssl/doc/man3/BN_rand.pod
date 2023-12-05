@@ -59,7 +59,7 @@ BN_rand() is the same as BN_rand_ex() except that the default library context
 is always used.
 
 BN_rand_range_ex() generates a cryptographically strong pseudo-random
-number I<rnd>, of security stength at least I<strength> bits,
+number I<rnd>, of security strength at least I<strength> bits,
 in the range 0 E<lt>= I<rnd> E<lt> I<range> using the random number
 generator for the library context associated with I<ctx>. The parameter I<ctx>
 may be NULL in which case the default library context is used.
@@ -119,7 +119,7 @@ BN_priv_rand_range_ex() functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

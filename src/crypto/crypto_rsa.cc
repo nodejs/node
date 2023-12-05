@@ -321,7 +321,7 @@ Maybe<bool> RSACipherTraits::AdditionalConfig(
         return Nothing<bool>();
       }
 
-      if (IsAnyByteSource(args[offset + 2])) {
+      if (IsAnyBufferSource(args[offset + 2])) {
         ArrayBufferOrViewContents<char> label(args[offset + 2]);
         if (UNLIKELY(!label.CheckSizeInt32())) {
           THROW_ERR_OUT_OF_RANGE(env, "label is too big");
@@ -577,7 +577,9 @@ Maybe<bool> GetRsaKeyDetail(
       int64_t salt_length = 20;
 
       if (params->hashAlgorithm != nullptr) {
-        hash_nid = OBJ_obj2nid(params->hashAlgorithm->algorithm);
+        const ASN1_OBJECT* hash_obj;
+        X509_ALGOR_get0(&hash_obj, nullptr, nullptr, params->hashAlgorithm);
+        hash_nid = OBJ_obj2nid(hash_obj);
       }
 
       if (target
@@ -590,9 +592,13 @@ Maybe<bool> GetRsaKeyDetail(
       }
 
       if (params->maskGenAlgorithm != nullptr) {
-        mgf_nid = OBJ_obj2nid(params->maskGenAlgorithm->algorithm);
+        const ASN1_OBJECT* mgf_obj;
+        X509_ALGOR_get0(&mgf_obj, nullptr, nullptr, params->maskGenAlgorithm);
+        mgf_nid = OBJ_obj2nid(mgf_obj);
         if (mgf_nid == NID_mgf1) {
-          mgf1_hash_nid = OBJ_obj2nid(params->maskHash->algorithm);
+          const ASN1_OBJECT* mgf1_hash_obj;
+          X509_ALGOR_get0(&mgf1_hash_obj, nullptr, nullptr, params->maskHash);
+          mgf1_hash_nid = OBJ_obj2nid(mgf1_hash_obj);
         }
       }
 

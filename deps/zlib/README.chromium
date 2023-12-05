@@ -4,7 +4,8 @@ URL: http://zlib.net/
 Version: 1.2.13
 CPEPrefix: cpe:/a:zlib:zlib:1.2.13
 Security Critical: yes
-License: Custom license
+Shipped: yes
+License: Zlib
 License File: LICENSE
 License Android Compatible: yes
 

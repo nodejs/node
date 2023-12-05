@@ -93,9 +93,7 @@ class Realm : public MemoryRetainer {
   // this scope can access the created T* object using
   // GetBindingData<T>(args) later.
   template <typename T, typename... Args>
-  T* AddBindingData(v8::Local<v8::Context> context,
-                    v8::Local<v8::Object> target,
-                    Args&&... args);
+  T* AddBindingData(v8::Local<v8::Object> target, Args&&... args);
   template <typename T, typename U>
   static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>
@@ -103,6 +101,8 @@ class Realm : public MemoryRetainer {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   template <typename T>
   static inline T* GetBindingData(v8::Local<v8::Context> context);
+  template <typename T>
+  inline T* GetBindingData();
   inline BindingDataStore* binding_data_store();
 
   // The BaseObject count is a debugging helper that makes sure that there are

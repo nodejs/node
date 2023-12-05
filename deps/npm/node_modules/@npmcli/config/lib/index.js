@@ -115,6 +115,7 @@ class Config {
     this.defaults = defaults
 
     this.npmPath = npmPath
+    this.npmBin = join(this.npmPath, 'bin/npm-cli.js')
     this.argv = argv
     this.env = env
     this.execPath = execPath
@@ -231,6 +232,8 @@ class Config {
     for (const { data } of this.data.values()) {
       this.#flatten(data, this.#flatOptions)
     }
+    this.#flatOptions.nodeBin = this.execPath
+    this.#flatOptions.npmBin = this.npmBin
     process.emit('timeEnd', 'config:load:flatten')
 
     return this.#flatOptions
@@ -321,10 +324,6 @@ class Config {
     this.#loadObject(defaultsObject, 'default', 'default values')
 
     const { data } = this.data.get('default')
-
-    // the metrics-registry defaults to the current resolved value of
-    // the registry, unless overridden somewhere else.
-    settableGetter(data, 'metrics-registry', () => this.#get('registry'))
 
     // if the prefix is set on cli, env, or userconfig, then we need to
     // default the globalconfig file to that location, instead of the default
@@ -614,7 +613,15 @@ class Config {
     process.emit('time', 'config:load:file:' + file)
     // only catch the error from readFile, not from the loadObject call
     await readFile(file, 'utf8').then(
-      data => this.#loadObject(ini.parse(data), type, file),
+      data => {
+        const parsedConfig = ini.parse(data)
+        if (type === 'project' && parsedConfig.prefix) {
+          // Log error if prefix is mentioned in project .npmrc
+          /* eslint-disable-next-line max-len */
+          log.error('config', `prefix cannot be changed from project config: ${file}.`)
+        }
+        return this.#loadObject(parsedConfig, type, file)
+      },
       er => this.#loadObject(null, type, file, er)
     )
     process.emit('timeEnd', 'config:load:file:' + file)
@@ -767,29 +774,29 @@ class Config {
     await chmod(conf.source, mode)
   }
 
-  clearCredentialsByURI (uri) {
+  clearCredentialsByURI (uri, level = 'user') {
     const nerfed = nerfDart(uri)
     const def = nerfDart(this.get('registry'))
     if (def === nerfed) {
-      this.delete(`-authtoken`, 'user')
-      this.delete(`_authToken`, 'user')
-      this.delete(`_authtoken`, 'user')
-      this.delete(`_auth`, 'user')
-      this.delete(`_password`, 'user')
-      this.delete(`username`, 'user')
+      this.delete(`-authtoken`, level)
+      this.delete(`_authToken`, level)
+      this.delete(`_authtoken`, level)
+      this.delete(`_auth`, level)
+      this.delete(`_password`, level)
+      this.delete(`username`, level)
       // de-nerf email if it's nerfed to the default registry
-      const email = this.get(`${nerfed}:email`, 'user')
+      const email = this.get(`${nerfed}:email`, level)
       if (email) {
-        this.set('email', email, 'user')
+        this.set('email', email, level)
       }
     }
-    this.delete(`${nerfed}:_authToken`, 'user')
-    this.delete(`${nerfed}:_auth`, 'user')
-    this.delete(`${nerfed}:_password`, 'user')
-    this.delete(`${nerfed}:username`, 'user')
-    this.delete(`${nerfed}:email`, 'user')
-    this.delete(`${nerfed}:certfile`, 'user')
-    this.delete(`${nerfed}:keyfile`, 'user')
+    this.delete(`${nerfed}:_authToken`, level)
+    this.delete(`${nerfed}:_auth`, level)
+    this.delete(`${nerfed}:_password`, level)
+    this.delete(`${nerfed}:username`, level)
+    this.delete(`${nerfed}:email`, level)
+    this.delete(`${nerfed}:certfile`, level)
+    this.delete(`${nerfed}:keyfile`, level)
   }
 
   setCredentialsByURI (uri, { token, username, password, email, certfile, keyfile }) {

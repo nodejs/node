@@ -6,6 +6,16 @@
 "use strict";
 
 //-----------------------------------------------------------------------------
+// Requirements
+//-----------------------------------------------------------------------------
+
+/*
+ * Note: This can be removed in ESLint v9 because structuredClone is available globally
+ * starting in Node.js v17.
+ */
+const structuredClone = require("@ungap/structured-clone").default;
+
+//-----------------------------------------------------------------------------
 // Type Definitions
 //-----------------------------------------------------------------------------
 
@@ -119,7 +129,7 @@ function normalizeRuleOptions(ruleOptions) {
         : [ruleOptions];
 
     finalOptions[0] = ruleSeverities.get(finalOptions[0]);
-    return finalOptions;
+    return structuredClone(finalOptions);
 }
 
 //-----------------------------------------------------------------------------
@@ -179,9 +189,7 @@ class InvalidRuleSeverityError extends Error {
  * @throws {InvalidRuleSeverityError} If the value isn't a valid rule severity.
  */
 function assertIsRuleSeverity(ruleId, value) {
-    const severity = typeof value === "string"
-        ? ruleSeverities.get(value.toLowerCase())
-        : ruleSeverities.get(value);
+    const severity = ruleSeverities.get(value);
 
     if (typeof severity === "undefined") {
         throw new InvalidRuleSeverityError(ruleId, value);
@@ -211,6 +219,38 @@ function assertIsObject(value) {
         throw new TypeError("Expected an object.");
     }
 }
+
+/**
+ * The error type when there's an eslintrc-style options in a flat config.
+ */
+class IncompatibleKeyError extends Error {
+
+    /**
+     * @param {string} key The invalid key.
+     */
+    constructor(key) {
+        super("This appears to be in eslintrc format rather than flat config format.");
+        this.messageTemplate = "eslintrc-incompat";
+        this.messageData = { key };
+    }
+}
+
+/**
+ * The error type when there's an eslintrc-style plugins array found.
+ */
+class IncompatiblePluginsError extends Error {
+
+    /**
+     * Creates a new instance.
+     * @param {Array<string>} plugins The plugins array.
+     */
+    constructor(plugins) {
+        super("This appears to be in eslintrc format (array of strings) rather than flat config format (object).");
+        this.messageTemplate = "eslintrc-plugins";
+        this.messageData = { plugins };
+    }
+}
+
 
 //-----------------------------------------------------------------------------
 // Low-Level Schemas
@@ -303,6 +343,11 @@ const pluginsSchema = {
             throw new TypeError("Expected an object.");
         }
 
+        // make sure it's not an array, which would mean eslintrc-style is used
+        if (Array.isArray(value)) {
+            throw new IncompatiblePluginsError(value);
+        }
+
         // second check the keys to make sure they are objects
         for (const key of Object.keys(value)) {
 
@@ -343,48 +388,57 @@ const rulesSchema = {
             ...second
         };
 
+
         for (const ruleId of Object.keys(result)) {
 
-            // avoid hairy edge case
-            if (ruleId === "__proto__") {
+            try {
 
-                /* eslint-disable-next-line no-proto -- Though deprecated, may still be present */
-                delete result.__proto__;
-                continue;
+                // avoid hairy edge case
+                if (ruleId === "__proto__") {
+
+                    /* eslint-disable-next-line no-proto -- Though deprecated, may still be present */
+                    delete result.__proto__;
+                    continue;
+                }
+
+                result[ruleId] = normalizeRuleOptions(result[ruleId]);
+
+                /*
+                 * If either rule config is missing, then the correct
+                 * config is already present and we just need to normalize
+                 * the severity.
+                 */
+                if (!(ruleId in first) || !(ruleId in second)) {
+                    continue;
+                }
+
+                const firstRuleOptions = normalizeRuleOptions(first[ruleId]);
+                const secondRuleOptions = normalizeRuleOptions(second[ruleId]);
+
+                /*
+                 * If the second rule config only has a severity (length of 1),
+                 * then use that severity and keep the rest of the options from
+                 * the first rule config.
+                 */
+                if (secondRuleOptions.length === 1) {
+                    result[ruleId] = [secondRuleOptions[0], ...firstRuleOptions.slice(1)];
+                    continue;
+                }
+
+                /*
+                 * In any other situation, then the second rule config takes
+                 * precedence. That means the value at `result[ruleId]` is
+                 * already correct and no further work is necessary.
+                 */
+            } catch (ex) {
+                throw new Error(`Key "${ruleId}": ${ex.message}`, { cause: ex });
             }
 
-            result[ruleId] = normalizeRuleOptions(result[ruleId]);
-
-            /*
-             * If either rule config is missing, then the correct
-             * config is already present and we just need to normalize
-             * the severity.
-             */
-            if (!(ruleId in first) || !(ruleId in second)) {
-                continue;
-            }
-
-            const firstRuleOptions = normalizeRuleOptions(first[ruleId]);
-            const secondRuleOptions = normalizeRuleOptions(second[ruleId]);
-
-            /*
-             * If the second rule config only has a severity (length of 1),
-             * then use that severity and keep the rest of the options from
-             * the first rule config.
-             */
-            if (secondRuleOptions.length === 1) {
-                result[ruleId] = [secondRuleOptions[0], ...firstRuleOptions.slice(1)];
-                continue;
-            }
-
-            /*
-             * In any other situation, then the second rule config takes
-             * precedence. That means the value at `result[ruleId]` is
-             * already correct and no further work is necessary.
-             */
         }
 
         return result;
+
+
     },
 
     validate(value) {
@@ -438,11 +492,44 @@ const sourceTypeSchema = {
     }
 };
 
+/**
+ * Creates a schema that always throws an error. Useful for warning
+ * about eslintrc-style keys.
+ * @param {string} key The eslintrc key to create a schema for.
+ * @returns {ObjectPropertySchema} The schema.
+ */
+function createEslintrcErrorSchema(key) {
+    return {
+        merge: "replace",
+        validate() {
+            throw new IncompatibleKeyError(key);
+        }
+    };
+}
+
+const eslintrcKeys = [
+    "env",
+    "extends",
+    "globals",
+    "ignorePatterns",
+    "noInlineConfig",
+    "overrides",
+    "parser",
+    "parserOptions",
+    "reportUnusedDisableDirectives",
+    "root"
+];
+
 //-----------------------------------------------------------------------------
 // Full schema
 //-----------------------------------------------------------------------------
 
-exports.flatConfigSchema = {
+const flatConfigSchema = {
+
+    // eslintrc-style keys that should always error
+    ...Object.fromEntries(eslintrcKeys.map(key => [key, createEslintrcErrorSchema(key)])),
+
+    // flat config keys
     settings: deepObjectAssignSchema,
     linterOptions: {
         schema: {
@@ -462,4 +549,14 @@ exports.flatConfigSchema = {
     processor: processorSchema,
     plugins: pluginsSchema,
     rules: rulesSchema
+};
+
+//-----------------------------------------------------------------------------
+// Exports
+//-----------------------------------------------------------------------------
+
+module.exports = {
+    flatConfigSchema,
+    assertIsRuleSeverity,
+    assertIsRuleOptions
 };

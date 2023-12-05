@@ -63,7 +63,7 @@ TEST(0) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
@@ -99,7 +99,7 @@ TEST(1) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(100, 0, 0, 0, 0));
@@ -147,7 +147,7 @@ TEST(2) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(10, 0, 0, 0, 0));
@@ -216,7 +216,7 @@ TEST(3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.i = 100000;
@@ -1075,7 +1075,7 @@ TEST(WordSizedVectorInstructions) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));

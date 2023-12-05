@@ -419,12 +419,20 @@ console.
 
 ### `inspector.open([port[, host[, wait]]])`
 
+<!-- YAML
+changes:
+  - version: v20.6.0
+    pr-url: https://github.com/nodejs/node/pull/48765
+    description: inspector.open() now returns a `Disposable` object.
+-->
+
 * `port` {number} Port to listen on for inspector connections. Optional.
   **Default:** what was specified on the CLI.
 * `host` {string} Host to listen on for inspector connections. Optional.
   **Default:** what was specified on the CLI.
 * `wait` {boolean} Block until a client has connected. Optional.
   **Default:** `false`.
+* Returns: {Disposable} that calls [`inspector.close()`][].
 
 Activate inspector on host and port. Equivalent to
 `node --inspect=[[host:]port]`, but can be done programmatically after node has
@@ -472,5 +480,6 @@ An exception will be thrown if there is no active inspector.
 [Chrome DevTools Protocol Viewer]: https://chromedevtools.github.io/devtools-protocol/v8/
 [Heap Profiler]: https://chromedevtools.github.io/devtools-protocol/v8/HeapProfiler
 [`'Debugger.paused'`]: https://chromedevtools.github.io/devtools-protocol/v8/Debugger#event-paused
+[`inspector.close()`]: #inspectorclose
 [`session.connect()`]: #sessionconnect
 [security warning]: cli.md#warning-binding-inspector-to-a-public-ipport-combination-is-insecure

@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = loadPrivatePartialConfig;
-exports.loadPartialConfig = void 0;
+exports.loadPartialConfig = loadPartialConfig;
 function _path() {
   const data = require("path");
   _path = function () {
@@ -12,21 +12,14 @@ function _path() {
   };
   return data;
 }
-function _gensync() {
-  const data = require("gensync");
-  _gensync = function () {
-    return data;
-  };
-  return data;
-}
-var _plugin = require("./plugin");
-var _util = require("./util");
-var _item = require("./item");
-var _configChain = require("./config-chain");
-var _environment = require("./helpers/environment");
-var _options = require("./validation/options");
-var _files = require("./files");
-var _resolveTargets = require("./resolve-targets");
+var _plugin = require("./plugin.js");
+var _util = require("./util.js");
+var _item = require("./item.js");
+var _configChain = require("./config-chain.js");
+var _environment = require("./helpers/environment.js");
+var _options = require("./validation/options.js");
+var _index = require("./files/index.js");
+var _resolveTargets = require("./resolve-targets.js");
 const _excluded = ["showIgnoredFiles"];
 function _objectWithoutPropertiesLoose(source, excluded) { if (source == null) return {}; var target = {}; var sourceKeys = Object.keys(source); var key, i; for (i = 0; i < sourceKeys.length; i++) { key = sourceKeys[i]; if (excluded.indexOf(key) >= 0) continue; target[key] = source[key]; } return target; }
 function resolveRootMode(rootDir, rootMode) {
@@ -35,14 +28,14 @@ function resolveRootMode(rootDir, rootMode) {
       return rootDir;
     case "upward-optional":
       {
-        const upwardRootDir = (0, _files.findConfigUpwards)(rootDir);
+        const upwardRootDir = (0, _index.findConfigUpwards)(rootDir);
         return upwardRootDir === null ? rootDir : upwardRootDir;
       }
     case "upward":
       {
-        const upwardRootDir = (0, _files.findConfigUpwards)(rootDir);
+        const upwardRootDir = (0, _index.findConfigUpwards)(rootDir);
         if (upwardRootDir !== null) return upwardRootDir;
-        throw Object.assign(new Error(`Babel was run with rootMode:"upward" but a root could not ` + `be found when searching upward from "${rootDir}".\n` + `One of the following config files must be in the directory tree: ` + `"${_files.ROOT_CONFIG_FILENAMES.join(", ")}".`), {
+        throw Object.assign(new Error(`Babel was run with rootMode:"upward" but a root could not ` + `be found when searching upward from "${rootDir}".\n` + `One of the following config files must be in the directory tree: ` + `"${_index.ROOT_CONFIG_FILENAMES.join(", ")}".`), {
           code: "BABEL_ROOT_NOT_FOUND",
           dirname: rootDir
         });
@@ -67,7 +60,7 @@ function* loadPrivatePartialConfig(inputOpts) {
   const absoluteCwd = _path().resolve(cwd);
   const absoluteRootDir = resolveRootMode(_path().resolve(absoluteCwd, rootDir), rootMode);
   const filename = typeof args.filename === "string" ? _path().resolve(cwd, args.filename) : undefined;
-  const showConfigPath = yield* (0, _files.resolveShowConfigPath)(absoluteCwd);
+  const showConfigPath = yield* (0, _index.resolveShowConfigPath)(absoluteCwd);
   const context = {
     filename,
     cwd: absoluteCwd,
@@ -109,7 +102,7 @@ function* loadPrivatePartialConfig(inputOpts) {
     files: configChain.files
   };
 }
-const loadPartialConfig = _gensync()(function* (opts) {
+function* loadPartialConfig(opts) {
   let showIgnoredFiles = false;
   if (typeof opts === "object" && opts !== null && !Array.isArray(opts)) {
     var _opts = opts;
@@ -138,8 +131,7 @@ const loadPartialConfig = _gensync()(function* (opts) {
     }
   });
   return new PartialConfig(options, babelrc ? babelrc.filepath : undefined, ignore ? ignore.filepath : undefined, config ? config.filepath : undefined, fileHandling, files);
-});
-exports.loadPartialConfig = loadPartialConfig;
+}
 class PartialConfig {
   constructor(options, babelrc, ignore, config, fileHandling, files) {
     this.options = void 0;

@@ -1,8 +1,8 @@
 'use strict';
 
-const common = require('../common');
+require('../common');
 const assert = require('assert');
-const { exec } = require('child_process');
+const { spawnSyncAndExit } = require('../common/child_process');
 const fixtures = require('../common/fixtures');
 
 const node = process.execPath;
@@ -17,20 +17,18 @@ const syntaxErrorRE = /^SyntaxError: \b/m;
     const preloadFile = fixtures.path('no-wrapper.js');
     const file = fixtures.path('syntax', 'illegal_if_not_wrapped.js');
     const args = [requireFlag, preloadFile, checkFlag, file];
-    const cmd = [node, ...args].join(' ');
-    exec(cmd, common.mustCall((err, stdout, stderr) => {
-      assert.strictEqual(err instanceof Error, true);
-      assert.strictEqual(err.code, 1,
-                         `code ${err.code} !== 1 for error:\n\n${err}`);
+    spawnSyncAndExit(node, args, {
+      status: 1,
+      signal: null,
+      trim: true,
+      stdout: '',
+      stderr(output) {
+        // stderr should have a syntax error message
+        assert.match(output, syntaxErrorRE);
 
-      // No stdout should be produced
-      assert.strictEqual(stdout, '');
-
-      // stderr should have a syntax error message
-      assert.match(stderr, syntaxErrorRE);
-
-      // stderr should include the filename
-      assert(stderr.startsWith(file), `${stderr} starts with ${file}`);
-    }));
+        // stderr should include the filename
+        assert(output.startsWith(file), `${output} starts with ${file}`);
+      }
+    });
   });
 });

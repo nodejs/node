@@ -62,7 +62,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info = internal_field_info_;
   internal_field_info_ = nullptr;
   return info;
@@ -72,23 +72,24 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
   BindingData* binding =
-      realm->AddBindingData<BindingData>(context, holder, casted_info);
+      realm->AddBindingData<BindingData>(holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
 void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
   CHECK_GE(args.Length(), 2);
   CHECK(args[0]->IsString());
   CHECK(args[1]->IsUint8Array());
-  BindingData* binding_data = Realm::GetBindingData<BindingData>(args);
+
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = realm->isolate();
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
 
   Local<String> source = args[0].As<String>();
 
@@ -232,7 +233,7 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
                                              Local<Context> context,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
-  realm->AddBindingData<BindingData>(context, target);
+  realm->AddBindingData<BindingData>(target);
 }
 
 void BindingData::RegisterTimerExternalReferences(

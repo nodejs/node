@@ -509,6 +509,20 @@ variable will be set to `'production'` for all lifecycle scripts.
 
 
 
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
+
+
+
 #### `strict-peer-deps`
 
 * Default: false
@@ -643,6 +657,26 @@ commands that modify your local installation, eg, `install`, `update`,
 
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
+
+
+
+#### `cpu`
+
+* Default: null
+* Type: null or String
+
+Override CPU architecture of native modules to install. Acceptable values
+are same as `cpu` field of package.json, which comes from `process.arch`.
+
+
+
+#### `os`
+
+* Default: null
+* Type: null or String
+
+Override OS of native modules to install. Acceptable values are same as `os`
+field of package.json, which comes from `process.platform`.
 
 
 

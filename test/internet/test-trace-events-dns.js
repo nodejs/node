@@ -2,7 +2,6 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const util = require('util');
@@ -57,7 +56,7 @@ for (const tr in tests) {
     throw new Error(`${tr}:\n${util.inspect(proc)}`);
   }
 
-  const file = path.join(tmpdir.path, traceFile);
+  const file = tmpdir.resolve(traceFile);
 
   const data = fs.readFileSync(file);
   const traces = JSON.parse(data.toString()).traceEvents

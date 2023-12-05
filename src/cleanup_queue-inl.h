@@ -26,8 +26,8 @@ bool CleanupQueue::empty() const {
 }
 
 void CleanupQueue::Add(Callback cb, void* arg) {
-  auto insertion_info = cleanup_hooks_.emplace(
-      CleanupHookCallback{cb, arg, cleanup_hook_counter_++});
+  auto insertion_info =
+      cleanup_hooks_.emplace(cb, arg, cleanup_hook_counter_++);
   // Make sure there was no existing element with these values.
   CHECK_EQ(insertion_info.second, true);
 }
@@ -39,7 +39,9 @@ void CleanupQueue::Remove(Callback cb, void* arg) {
 
 template <typename T>
 void CleanupQueue::ForEachBaseObject(T&& iterator) const {
-  for (const auto& hook : cleanup_hooks_) {
+  std::vector<CleanupHookCallback> callbacks = GetOrdered();
+
+  for (const auto& hook : callbacks) {
     BaseObject* obj = GetBaseObject(hook);
     if (obj != nullptr) iterator(obj);
   }

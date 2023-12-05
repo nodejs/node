@@ -105,7 +105,7 @@ class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
-  // Prints: a b {}
+  // Prints: a b undefined
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -1271,7 +1271,9 @@ const { getEventListeners, EventEmitter } = require('node:events');
 ## `events.getMaxListeners(emitterOrTarget)`
 
 <!-- YAML
-added: v19.9.0
+added:
+  - v19.9.0
+  - v18.17.0
 -->
 
 * `emitterOrTarget` {EventEmitter|EventTarget}
@@ -1801,10 +1803,12 @@ const emitter = new EventEmitter();
 setMaxListeners(5, target, emitter);
 ```
 
-## `events.addAbortListener(signal, resource)`
+## `events.addAbortListener(signal, listener)`
 
 <!-- YAML
-added: REPLACEME
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental

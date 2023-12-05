@@ -8,7 +8,6 @@ const fixtures = require('../common/fixtures');
 common.skipIfInspectorDisabled();
 
 const assert = require('assert');
-const path = require('path');
 const { spawnSync } = require('child_process');
 
 const tmpdir = require('../common/tmpdir');
@@ -22,7 +21,7 @@ const {
 // --cpu-prof-name
 {
   tmpdir.refresh();
-  const file = path.join(tmpdir.path, 'test.cpuprofile');
+  const file = tmpdir.resolve('test.cpuprofile');
   const output = spawnSync(process.execPath, [
     '--cpu-prof',
     '--cpu-prof-interval',

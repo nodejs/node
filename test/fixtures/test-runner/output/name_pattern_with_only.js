@@ -1,4 +1,4 @@
-// Flags: --no-warnings --test-only --test-name-pattern=enabled
+// Flags: --test-only --test-name-pattern=enabled
 'use strict';
 const common = require('../../../common');
 const { test } = require('node:test');

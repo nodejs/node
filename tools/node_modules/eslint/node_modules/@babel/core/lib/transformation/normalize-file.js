@@ -39,9 +39,9 @@ function _convertSourceMap() {
   };
   return data;
 }
-var _file = require("./file/file");
-var _parser = require("../parser");
-var _cloneDeep = require("./util/clone-deep");
+var _file = require("./file/file.js");
+var _index = require("../parser/index.js");
+var _cloneDeep = require("./util/clone-deep.js");
 const {
   file,
   traverseFast
@@ -61,7 +61,7 @@ function* normalizeFile(pluginPasses, options, code, ast) {
       ast = (0, _cloneDeep.default)(ast);
     }
   } else {
-    ast = yield* (0, _parser.default)(pluginPasses, options, code);
+    ast = yield* (0, _index.default)(pluginPasses, options, code);
   }
   let inputMap = null;
   if (options.inputSourceMap !== false) {
@@ -72,9 +72,11 @@ function* normalizeFile(pluginPasses, options, code, ast) {
       const lastComment = extractComments(INLINE_SOURCEMAP_REGEX, ast);
       if (lastComment) {
         try {
-          inputMap = _convertSourceMap().fromComment(lastComment);
+          inputMap = _convertSourceMap().fromComment("//" + lastComment);
         } catch (err) {
-          debug("discarding unknown inline input sourcemap", err);
+          {
+            debug("discarding unknown inline input sourcemap");
+          }
         }
       }
     }

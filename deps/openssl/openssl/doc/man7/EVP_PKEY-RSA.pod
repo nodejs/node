@@ -189,7 +189,7 @@ both return 1 unconditionally.
 
 For RSA keys, L<EVP_PKEY_public_check(3)> conforms to the SP800-56Br1 I<public key
 check> when the OpenSSL FIPS provider is used. The OpenSSL default provider
-performs similiar tests but relaxes the keysize restrictions for backwards
+performs similar tests but relaxes the keysize restrictions for backwards
 compatibility.
 
 For RSA keys, L<EVP_PKEY_public_check_quick(3)> is the same as

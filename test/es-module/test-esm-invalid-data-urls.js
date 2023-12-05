@@ -18,4 +18,7 @@ const assert = require('assert');
     code: 'ERR_UNKNOWN_MODULE_FORMAT',
     message: 'Unknown module format: text/css for URL data:text/css,.error { color: red; }',
   });
+  await assert.rejects(import('data:WRONGtext/javascriptFORMAT,console.log("hello!");'), {
+    code: 'ERR_UNKNOWN_MODULE_FORMAT',
+  });
 })().then(common.mustCall());

@@ -95,7 +95,6 @@ class RequestHandler extends AsyncResource {
 
     this.callback = null
     this.res = body
-
     if (callback !== null) {
       if (this.throwOnError && statusCode >= 400) {
         this.runInAsyncScope(getResolveErrorBodyCallback, null,
@@ -178,3 +177,4 @@ function request (opts, callback) {
 }
 
 module.exports = request
+module.exports.RequestHandler = RequestHandler

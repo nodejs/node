@@ -565,11 +565,11 @@ const testVectors = [
       'spki',
       ecPublic.export({ format: 'der', type: 'spki' }),
       { name, hash: 'SHA-256' },
-      true, [publicUsage]), { message: /Invalid key type/ });
+      true, [publicUsage]), { message: /Invalid key type/ }).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       ecPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name, hash: 'SHA-256' },
-      true, [privateUsage]), { message: /Invalid key type/ });
+      true, [privateUsage]), { message: /Invalid key type/ }).then(common.mustCall());
   }
 }

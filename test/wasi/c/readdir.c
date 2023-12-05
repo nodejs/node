@@ -14,7 +14,6 @@ int main() {
 
   platform = getenv("NODE_PLATFORM");
   assert(platform != NULL);
-  has_d_type = (0 != strcmp(platform, "aix") && 0 != strcmp(platform, "sunos"));
 
   dir = opendir("/sandbox");
   assert(dir != NULL);
@@ -25,17 +24,9 @@ int main() {
     if (strcmp(entry->d_name, "input.txt") == 0 ||
         strcmp(entry->d_name, "input2.txt") == 0 ||
         strcmp(entry->d_name, "notadir") == 0) {
-      if (has_d_type) {
         assert(entry->d_type == DT_REG);
-      } else {
-        assert(entry->d_type == DT_UNKNOWN);
-      }
     } else if (strcmp(entry->d_name, "subdir") == 0) {
-      if (has_d_type) {
         assert(entry->d_type == DT_DIR);
-      } else {
-        assert(entry->d_type == DT_UNKNOWN);
-      }
     } else {
       assert("unexpected file");
     }

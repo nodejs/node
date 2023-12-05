@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 2012 by Gilles Chehade <gilles@openbsd.org>
  * Copyright (c) 1996,1999 by Internet Software Consortium.
@@ -15,6 +14,8 @@
  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"

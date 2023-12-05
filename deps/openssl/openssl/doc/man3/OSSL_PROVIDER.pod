@@ -90,8 +90,8 @@ the environment variable OPENSSL_MODULES if set.
 
 OSSL_PROVIDER_try_load() functions like OSSL_PROVIDER_load(), except that
 it does not disable the fallback providers if the provider cannot be
-loaded and initialized or if I<retain_fallbacks> is zero.
-If the provider loads successfully and I<retain_fallbacks> is nonzero, the
+loaded and initialized or if I<retain_fallbacks> is nonzero.
+If the provider loads successfully and I<retain_fallbacks> is zero, the
 fallback providers are disabled.
 
 OSSL_PROVIDER_unload() unloads the given provider.
@@ -213,7 +213,7 @@ The type and functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

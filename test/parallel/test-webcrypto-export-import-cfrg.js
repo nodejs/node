@@ -251,13 +251,8 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
     assert.strictEqual(pvtJwk.crv, jwk.crv);
     assert.strictEqual(pvtJwk.d, jwk.d);
 
-    if (jwk.crv.startsWith('Ed')) {
-      assert.strictEqual(pubJwk.alg, 'EdDSA');
-      assert.strictEqual(pvtJwk.alg, 'EdDSA');
-    } else {
-      assert.strictEqual(pubJwk.alg, undefined);
-      assert.strictEqual(pvtJwk.alg, undefined);
-    }
+    assert.strictEqual(pubJwk.alg, undefined);
+    assert.strictEqual(pvtJwk.alg, undefined);
   } else {
     await assert.rejects(
       subtle.exportKey('jwk', publicKey), {
@@ -281,24 +276,22 @@ async function testImportJwk({ name, publicUsages, privateUsages }, extractable)
       { message: 'Invalid JWK "use" Parameter' });
   }
 
+  // The JWK alg member is ignored
+  // https://github.com/WICG/webcrypto-secure-curves/pull/24
   if (name.startsWith('Ed')) {
-    await assert.rejects(
-      subtle.importKey(
-        'jwk',
-        { kty: jwk.kty, x: jwk.x, crv: jwk.crv, alg: 'foo' },
-        { name },
-        extractable,
-        publicUsages),
-      { message: 'JWK "alg" does not match the requested algorithm' });
+    await subtle.importKey(
+      'jwk',
+      { kty: jwk.kty, x: jwk.x, crv: jwk.crv, alg: 'foo' },
+      { name },
+      extractable,
+      publicUsages);
 
-    await assert.rejects(
-      subtle.importKey(
-        'jwk',
-        { ...jwk, alg: 'foo' },
-        { name },
-        extractable,
-        privateUsages),
-      { message: 'JWK "alg" does not match the requested algorithm' });
+    await subtle.importKey(
+      'jwk',
+      { ...jwk, alg: 'foo' },
+      { name },
+      extractable,
+      privateUsages);
   }
 
   for (const crv of [undefined, name === 'Ed25519' ? 'Ed448' : 'Ed25519']) {
@@ -347,15 +340,14 @@ async function testImportRaw({ name, publicUsages }) {
 
 (async function() {
   const tests = [];
-  testVectors.forEach((vector) => {
-    [true, false].forEach((extractable) => {
+  for (const vector of testVectors) {
+    for (const extractable of [true, false]) {
       tests.push(testImportSpki(vector, extractable));
       tests.push(testImportPkcs8(vector, extractable));
       tests.push(testImportJwk(vector, extractable));
-    });
+    }
     tests.push(testImportRaw(vector));
-  });
-
+  }
   await Promise.all(tests);
 })().then(common.mustCall());
 
@@ -373,11 +365,11 @@ async function testImportRaw({ name, publicUsages }) {
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },
-      true, publicUsages), { message: /Invalid key type/ });
+      true, publicUsages), { message: /Invalid key type/ }).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name },
-      true, privateUsages), { message: /Invalid key type/ });
+      true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
   }
 }

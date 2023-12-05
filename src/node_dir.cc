@@ -53,7 +53,7 @@ static const char* get_dir_func_name_by_type(uv_fs_type req_type) {
     FS_TYPE_TO_NAME(CLOSEDIR, "closedir")
 #undef FS_TYPE_TO_NAME
     default:
-      return "unknow";
+      return "unknown";
   }
 }
 
@@ -397,28 +397,58 @@ static void OpenDir(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-void Initialize(Local<Object> target,
-                Local<Value> unused,
-                Local<Context> context,
-                void* priv) {
-  Environment* env = Environment::GetCurrent(context);
+static void OpenDirSync(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  SetMethod(context, target, "opendir", OpenDir);
+  CHECK_GE(args.Length(), 1);
+
+  BufferValue path(isolate, args[0]);
+  CHECK_NOT_NULL(*path);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path.ToStringView());
+
+  uv_fs_t req;
+  auto make = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+  FS_DIR_SYNC_TRACE_BEGIN(opendir);
+  int err = uv_fs_opendir(nullptr, &req, *path, nullptr);
+  FS_DIR_SYNC_TRACE_END(opendir);
+  if (err < 0) {
+    return env->ThrowUVException(err, "opendir");
+  }
+
+  uv_dir_t* dir = static_cast<uv_dir_t*>(req.ptr);
+  DirHandle* handle = DirHandle::New(env, dir);
+
+  args.GetReturnValue().Set(handle->object().As<Value>());
+}
+
+void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                Local<ObjectTemplate> target) {
+  Isolate* isolate = isolate_data->isolate();
+
+  SetMethod(isolate, target, "opendir", OpenDir);
+  SetMethod(isolate, target, "opendirSync", OpenDirSync);
 
   // Create FunctionTemplate for DirHandle
   Local<FunctionTemplate> dir = NewFunctionTemplate(isolate, DirHandle::New);
-  dir->Inherit(AsyncWrap::GetConstructorTemplate(env));
+  dir->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, dir, "read", DirHandle::Read);
   SetProtoMethod(isolate, dir, "close", DirHandle::Close);
   Local<ObjectTemplate> dirt = dir->InstanceTemplate();
   dirt->SetInternalFieldCount(DirHandle::kInternalFieldCount);
-  SetConstructorFunction(context, target, "DirHandle", dir);
-  env->set_dir_instance_template(dirt);
+  SetConstructorFunction(isolate, target, "DirHandle", dir);
+  isolate_data->set_dir_instance_template(dirt);
 }
+
+void CreatePerContextProperties(Local<Object> target,
+                                Local<Value> unused,
+                                Local<Context> context,
+                                void* priv) {}
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(OpenDir);
+  registry->Register(OpenDirSync);
   registry->Register(DirHandle::New);
   registry->Register(DirHandle::Read);
   registry->Register(DirHandle::Close);
@@ -428,6 +458,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 }  // end namespace node
 
-NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir, node::fs_dir::Initialize)
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(fs_dir,
+                                    node::fs_dir::CreatePerContextProperties)
+NODE_BINDING_PER_ISOLATE_INIT(fs_dir, node::fs_dir::CreatePerIsolateProperties)
 NODE_BINDING_EXTERNAL_REFERENCE(fs_dir,
                                 node::fs_dir::RegisterExternalReferences)

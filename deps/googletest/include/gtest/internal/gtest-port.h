@@ -208,6 +208,8 @@
 //   or
 //                                 UniversalPrinter<absl::optional>
 //                                 specializations. Always defined to 0 or 1.
+//   GTEST_INTERNAL_HAS_STD_SPAN - for enabling UniversalPrinter<std::span>
+//                                 specializations. Always defined to 0 or 1
 //   GTEST_INTERNAL_HAS_STRING_VIEW - for enabling Matcher<std::string_view> or
 //                                    Matcher<absl::string_view>
 //                                    specializations. Always defined to 0 or 1.
@@ -220,7 +222,6 @@
 //   GTEST_HAS_ALT_PATH_SEP_ - Always defined to 0 or 1.
 //   GTEST_WIDE_STRING_USES_UTF16_ - Always defined to 0 or 1.
 //   GTEST_HAS_MUTEX_AND_THREAD_LOCAL_ - Always defined to 0 or 1.
-//   GTEST_HAS_DOWNCAST_ - Always defined to 0 or 1.
 //   GTEST_HAS_NOTIFICATION_- Always defined to 0 or 1.
 //
 // Synchronization:
@@ -280,6 +281,22 @@
 #error C++ versions less than C++14 are not supported.
 #endif
 
+// MSVC >= 19.11 (VS 2017 Update 3) supports __has_include.
+#ifdef __has_include
+#define GTEST_INTERNAL_HAS_INCLUDE __has_include
+#else
+#define GTEST_INTERNAL_HAS_INCLUDE(...) 0
+#endif
+
+// Detect C++ feature test macros as gracefully as possible.
+// MSVC >= 19.15, Clang >= 3.4.1, and GCC >= 4.1.2 support feature test macros.
+#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L && \
+    (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<version>))
+#include <version>  // C++20 and later
+#elif (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<ciso646>))
+#include <ciso646>  // Pre-C++20
+#endif
+
 #include <ctype.h>   // for isspace, etc
 #include <stddef.h>  // for ptrdiff_t
 #include <stdio.h>
@@ -312,10 +329,6 @@
 
 #include "gtest/internal/custom/gtest-port.h"
 #include "gtest/internal/gtest-port-arch.h"
-
-#ifndef GTEST_HAS_DOWNCAST_
-#define GTEST_HAS_DOWNCAST_ 0
-#endif
 
 #ifndef GTEST_HAS_MUTEX_AND_THREAD_LOCAL_
 #define GTEST_HAS_MUTEX_AND_THREAD_LOCAL_ 0
@@ -505,7 +518,8 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #if (!(defined(GTEST_OS_LINUX_ANDROID) || defined(GTEST_OS_CYGWIN) || \
        defined(GTEST_OS_SOLARIS) || defined(GTEST_OS_HAIKU) ||        \
        defined(GTEST_OS_ESP32) || defined(GTEST_OS_ESP8266) ||        \
-       defined(GTEST_OS_XTENSA) || defined(GTEST_OS_QURT)))
+       defined(GTEST_OS_XTENSA) || defined(GTEST_OS_QURT) ||          \
+       defined(GTEST_OS_NXP_QN9090) || defined(GTEST_OS_NRF52)))
 #define GTEST_HAS_STD_WSTRING 1
 #else
 #define GTEST_HAS_STD_WSTRING 0
@@ -613,7 +627,7 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // Determines whether clone(2) is supported.
 // Usually it will only be available on Linux, excluding
 // Linux on the Itanium architecture.
-// Also see http://linux.die.net/man/2/clone.
+// Also see https://linux.die.net/man/2/clone.
 #ifndef GTEST_HAS_CLONE
 // The user didn't tell us, so we need to figure it out.
 
@@ -831,9 +845,9 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #ifndef GTEST_API_
 
 #ifdef _MSC_VER
-#if GTEST_LINKED_AS_SHARED_LIBRARY
+#if defined(GTEST_LINKED_AS_SHARED_LIBRARY) && GTEST_LINKED_AS_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllimport)
-#elif GTEST_CREATE_SHARED_LIBRARY
+#elif defined(GTEST_CREATE_SHARED_LIBRARY) && GTEST_CREATE_SHARED_LIBRARY
 #define GTEST_API_ __declspec(dllexport)
 #endif
 #elif GTEST_HAVE_ATTRIBUTE_(visibility)
@@ -924,9 +938,11 @@ using std::tuple_size;
 namespace internal {
 
 // A secret type that Google Test users don't know about.  It has no
-// definition on purpose.  Therefore it's impossible to create a
+// accessible constructors on purpose.  Therefore it's impossible to create a
 // Secret object, which is what we want.
-class Secret;
+class Secret {
+  Secret(const Secret&) = delete;
+};
 
 // A helper for suppressing warnings on constant condition.  It just
 // returns 'condition'.
@@ -1143,47 +1159,6 @@ inline To ImplicitCast_(To x) {
   return x;
 }
 
-// When you upcast (that is, cast a pointer from type Foo to type
-// SuperclassOfFoo), it's fine to use ImplicitCast_<>, since upcasts
-// always succeed.  When you downcast (that is, cast a pointer from
-// type Foo to type SubclassOfFoo), static_cast<> isn't safe, because
-// how do you know the pointer is really of type SubclassOfFoo?  It
-// could be a bare Foo, or of type DifferentSubclassOfFoo.  Thus,
-// when you downcast, you should use this macro.  In debug mode, we
-// use dynamic_cast<> to double-check the downcast is legal (we die
-// if it's not).  In normal mode, we do the efficient static_cast<>
-// instead.  Thus, it's important to test in debug mode to make sure
-// the cast is legal!
-//    This is the only place in the code we should use dynamic_cast<>.
-// In particular, you SHOULDN'T be using dynamic_cast<> in order to
-// do RTTI (eg code like this:
-//    if (dynamic_cast<Subclass1>(foo)) HandleASubclass1Object(foo);
-//    if (dynamic_cast<Subclass2>(foo)) HandleASubclass2Object(foo);
-// You should design the code some other way not to need this.
-//
-// This relatively ugly name is intentional. It prevents clashes with
-// similar functions users may have (e.g., down_cast). The internal
-// namespace alone is not enough because the function can be found by ADL.
-template <typename To, typename From>  // use like this: DownCast_<T*>(foo);
-inline To DownCast_(From* f) {         // so we only accept pointers
-  // Ensures that To is a sub-type of From *.  This test is here only
-  // for compile-time type checking, and has no overhead in an
-  // optimized build at run-time, as it will be optimized away
-  // completely.
-  GTEST_INTENTIONAL_CONST_COND_PUSH_()
-  if (false) {
-    GTEST_INTENTIONAL_CONST_COND_POP_()
-    const To to = nullptr;
-    ::testing::internal::ImplicitCast_<From*>(to);
-  }
-
-#if GTEST_HAS_RTTI
-  // RTTI: debug mode only!
-  GTEST_CHECK_(f == nullptr || dynamic_cast<To>(f) != nullptr);
-#endif
-  return static_cast<To>(f);
-}
-
 // Downcasts the pointer of type Base to Derived.
 // Derived must be a subclass of Base. The parameter MUST
 // point to a class of type Derived, not any subclass of it.
@@ -1191,17 +1166,12 @@ inline To DownCast_(From* f) {         // so we only accept pointers
 // check to enforce this.
 template <class Derived, class Base>
 Derived* CheckedDowncastToActualType(Base* base) {
+  static_assert(std::is_base_of<Base, Derived>::value,
+                "target type not derived from source type");
 #if GTEST_HAS_RTTI
-  GTEST_CHECK_(typeid(*base) == typeid(Derived));
+  GTEST_CHECK_(base == nullptr || dynamic_cast<Derived*>(base) != nullptr);
 #endif
-
-#if GTEST_HAS_DOWNCAST_
-  return ::down_cast<Derived*>(base);
-#elif GTEST_HAS_RTTI
-  return dynamic_cast<Derived*>(base);  // NOLINT
-#else
-  return static_cast<Derived*>(base);  // Poor man's downcast.
-#endif
+  return static_cast<Derived*>(base);
 }
 
 #if GTEST_HAS_STREAM_REDIRECTION
@@ -1995,7 +1965,7 @@ inline bool IsUpper(char ch) {
 inline bool IsXDigit(char ch) {
   return isxdigit(static_cast<unsigned char>(ch)) != 0;
 }
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 inline bool IsXDigit(char8_t ch) {
   return isxdigit(static_cast<unsigned char>(ch)) != 0;
 }
@@ -2397,9 +2367,9 @@ using Any = ::absl::any;
 }  // namespace internal
 }  // namespace testing
 #else
-#ifdef __has_include
-#if __has_include(<any>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    (!defined(_MSC_VER) || GTEST_HAS_RTTI)
+#if defined(__cpp_lib_any) || (GTEST_INTERNAL_HAS_INCLUDE(<any>) &&        \
+                               GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
+                               (!defined(_MSC_VER) || GTEST_HAS_RTTI))
 // Otherwise for C++17 and higher use std::any for UniversalPrinter<>
 // specializations.
 #define GTEST_INTERNAL_HAS_ANY 1
@@ -2411,8 +2381,7 @@ using Any = ::std::any;
 }  // namespace testing
 // The case where absl is configured NOT to alias std::any is not
 // supported.
-#endif  // __has_include(<any>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#endif  // __has_include
+#endif  // __cpp_lib_any
 #endif  // GTEST_HAS_ABSL
 
 #ifndef GTEST_INTERNAL_HAS_ANY
@@ -2432,8 +2401,8 @@ inline ::absl::nullopt_t Nullopt() { return ::absl::nullopt; }
 }  // namespace internal
 }  // namespace testing
 #else
-#ifdef __has_include
-#if __has_include(<optional>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if defined(__cpp_lib_optional) || (GTEST_INTERNAL_HAS_INCLUDE(<optional>) && \
+                                    GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
 // Otherwise for C++17 and higher use std::optional for UniversalPrinter<>
 // specializations.
 #define GTEST_INTERNAL_HAS_OPTIONAL 1
@@ -2447,12 +2416,20 @@ inline ::std::nullopt_t Nullopt() { return ::std::nullopt; }
 }  // namespace testing
 // The case where absl is configured NOT to alias std::optional is not
 // supported.
-#endif  // __has_include(<optional>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#endif  // __has_include
+#endif  // __cpp_lib_optional
 #endif  // GTEST_HAS_ABSL
 
 #ifndef GTEST_INTERNAL_HAS_OPTIONAL
 #define GTEST_INTERNAL_HAS_OPTIONAL 0
+#endif
+
+#if defined(__cpp_lib_span) || (GTEST_INTERNAL_HAS_INCLUDE(<span>) && \
+                                GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L)
+#define GTEST_INTERNAL_HAS_STD_SPAN 1
+#endif  // __cpp_lib_span
+
+#ifndef GTEST_INTERNAL_HAS_STD_SPAN
+#define GTEST_INTERNAL_HAS_STD_SPAN 0
 #endif
 
 #ifdef GTEST_HAS_ABSL
@@ -2466,8 +2443,9 @@ using StringView = ::absl::string_view;
 }  // namespace internal
 }  // namespace testing
 #else
-#ifdef __has_include
-#if __has_include(<string_view>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if defined(__cpp_lib_string_view) ||             \
+    (GTEST_INTERNAL_HAS_INCLUDE(<string_view>) && \
+     GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
 // Otherwise for C++17 and higher use std::string_view for Matcher<>
 // specializations.
 #define GTEST_INTERNAL_HAS_STRING_VIEW 1
@@ -2479,9 +2457,7 @@ using StringView = ::std::string_view;
 }  // namespace testing
 // The case where absl is configured NOT to alias std::string_view is not
 // supported.
-#endif  // __has_include(<string_view>) && GTEST_INTERNAL_CPLUSPLUS_LANG >=
-        // 201703L
-#endif  // __has_include
+#endif  // __cpp_lib_string_view
 #endif  // GTEST_HAS_ABSL
 
 #ifndef GTEST_INTERNAL_HAS_STRING_VIEW
@@ -2500,8 +2476,8 @@ using Variant = ::absl::variant<T...>;
 }  // namespace internal
 }  // namespace testing
 #else
-#ifdef __has_include
-#if __has_include(<variant>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
+#if defined(__cpp_lib_variant) || (GTEST_INTERNAL_HAS_INCLUDE(<variant>) && \
+                                   GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L)
 // Otherwise for C++17 and higher use std::variant for UniversalPrinter<>
 // specializations.
 #define GTEST_INTERNAL_HAS_VARIANT 1
@@ -2513,16 +2489,16 @@ using Variant = ::std::variant<T...>;
 }  // namespace internal
 }  // namespace testing
 // The case where absl is configured NOT to alias std::variant is not supported.
-#endif  // __has_include(<variant>) && GTEST_INTERNAL_CPLUSPLUS_LANG >= 201703L
-#endif  // __has_include
+#endif  // __cpp_lib_variant
 #endif  // GTEST_HAS_ABSL
 
 #ifndef GTEST_INTERNAL_HAS_VARIANT
 #define GTEST_INTERNAL_HAS_VARIANT 0
 #endif
 
-#if defined(GTEST_INTERNAL_CPLUSPLUS_LANG) && \
-    GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L
+#if (defined(__cpp_constexpr) && !defined(__cpp_inline_variables)) || \
+    (defined(GTEST_INTERNAL_CPLUSPLUS_LANG) &&                        \
+     GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L)
 #define GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
 #endif
 

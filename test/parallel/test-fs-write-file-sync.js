@@ -26,7 +26,6 @@ if (!common.isMainThread)
   common.skip('Setting process.umask is not supported in Workers');
 
 const assert = require('assert');
-const path = require('path');
 const fs = require('fs');
 
 // On Windows chmod is only able to manipulate read-only bit. Test if creating
@@ -41,7 +40,7 @@ tmpdir.refresh();
 
 // Test writeFileSync
 {
-  const file = path.join(tmpdir.path, 'testWriteFileSync.txt');
+  const file = tmpdir.resolve('testWriteFileSync.txt');
 
   fs.writeFileSync(file, '123', { mode });
   const content = fs.readFileSync(file, { encoding: 'utf8' });
@@ -51,7 +50,7 @@ tmpdir.refresh();
 
 // Test appendFileSync
 {
-  const file = path.join(tmpdir.path, 'testAppendFileSync.txt');
+  const file = tmpdir.resolve('testAppendFileSync.txt');
 
   fs.appendFileSync(file, 'abc', { mode });
   const content = fs.readFileSync(file, { encoding: 'utf8' });
@@ -77,7 +76,7 @@ tmpdir.refresh();
     return _closeSync(...args);
   };
 
-  const file = path.join(tmpdir.path, 'testWriteFileSyncFd.txt');
+  const file = tmpdir.resolve('testWriteFileSyncFd.txt');
   const fd = fs.openSync(file, 'w+', mode);
 
   fs.writeFileSync(fd, '123');
@@ -94,7 +93,7 @@ tmpdir.refresh();
 
 // Test writeFileSync with flags
 {
-  const file = path.join(tmpdir.path, 'testWriteFileSyncFlags.txt');
+  const file = tmpdir.resolve('testWriteFileSyncFlags.txt');
 
   fs.writeFileSync(file, 'hello ', { encoding: 'utf8', flag: 'a' });
   fs.writeFileSync(file, 'world!', { encoding: 'utf8', flag: 'a' });
@@ -102,9 +101,25 @@ tmpdir.refresh();
   assert.strictEqual(content, 'hello world!');
 }
 
+// Test writeFileSync with no flags
+{
+  const utf8Data = 'hello world!';
+  for (const test of [
+    { data: utf8Data },
+    { data: utf8Data, options: { encoding: 'utf8' } },
+    { data: Buffer.from(utf8Data, 'utf8').toString('hex'), options: { encoding: 'hex' } },
+  ]) {
+    const file = tmpdir.resolve(`testWriteFileSyncNewFile_${Math.random()}.txt`);
+    fs.writeFileSync(file, test.data, test.options);
+
+    const content = fs.readFileSync(file, { encoding: 'utf-8' });
+    assert.strictEqual(content, utf8Data);
+  }
+}
+
 // Test writeFileSync with an invalid input
 {
-  const file = path.join(tmpdir.path, 'testWriteFileSyncInvalid.txt');
+  const file = tmpdir.resolve('testWriteFileSyncInvalid.txt');
   for (const data of [
     false, 5, {}, [], null, undefined, true, 5n, () => {}, Symbol(), new Map(),
     new String('notPrimitive'),

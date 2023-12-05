@@ -26,10 +26,7 @@ namespace compiler {
 class JSCreateLoweringTest : public TypedGraphTest {
  public:
   JSCreateLoweringTest()
-      : TypedGraphTest(3),
-        javascript_(zone()),
-        deps_(broker(), zone()),
-        handle_scope_(isolate()) {}
+      : TypedGraphTest(3), javascript_(zone()), deps_(broker(), zone()) {}
   ~JSCreateLoweringTest() override = default;
 
  protected:
@@ -60,14 +57,13 @@ class JSCreateLoweringTest : public TypedGraphTest {
  private:
   JSOperatorBuilder javascript_;
   CompilationDependencies deps_;
-  CanonicalHandleScope handle_scope_;
 };
 
 // -----------------------------------------------------------------------------
 // JSCreate
 
 TEST_F(JSCreateLoweringTest, JSCreate) {
-  Handle<JSFunction> function = isolate()->object_function();
+  Handle<JSFunction> function = CanonicalHandle(*isolate()->object_function());
   Node* const target = graph()->NewNode(common()->HeapConstant(function));
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
@@ -79,7 +75,7 @@ TEST_F(JSCreateLoweringTest, JSCreate) {
   EXPECT_THAT(
       r.replacement(),
       IsFinishRegion(
-          IsAllocate(IsNumberConstant(function->initial_map().instance_size()),
+          IsAllocate(IsNumberConstant(function->initial_map()->instance_size()),
                      IsBeginRegion(effect), control),
           _));
 }
@@ -91,8 +87,8 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedMapped) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->regexp_function()->shared(),
-                                    isolate());
+  Handle<SharedFunctionInfo> shared =
+      CanonicalHandle(isolate()->regexp_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(
@@ -110,8 +106,8 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedUnmapped) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->regexp_function()->shared(),
-                                    isolate());
+  Handle<SharedFunctionInfo> shared =
+      CanonicalHandle(isolate()->regexp_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(
@@ -129,8 +125,8 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
   Node* const closure = Parameter(Type::Any());
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
-  Handle<SharedFunctionInfo> shared(isolate()->regexp_function()->shared(),
-                                    isolate());
+  Handle<SharedFunctionInfo> shared =
+      CanonicalHandle(isolate()->regexp_function()->shared());
   Node* const frame_state_outer = FrameState(shared, graph()->start());
   Node* const frame_state_inner = FrameState(shared, frame_state_outer);
   Reduction r = Reduce(graph()->NewNode(

@@ -381,7 +381,7 @@ bool ValidateAuthTag(
     AESCipherConfig* params) {
   switch (cipher_mode) {
     case kWebCryptoCipherDecrypt: {
-      if (!IsAnyByteSource(value)) {
+      if (!IsAnyBufferSource(value)) {
         THROW_ERR_CRYPTO_INVALID_TAG_LENGTH(env);
         return false;
       }
@@ -419,7 +419,7 @@ bool ValidateAdditionalData(
     Local<Value> value,
     AESCipherConfig* params) {
   // Additional Data
-  if (IsAnyByteSource(value)) {
+  if (IsAnyBufferSource(value)) {
     ArrayBufferOrViewContents<char> additional(value);
     if (UNLIKELY(!additional.CheckSizeInt32())) {
       THROW_ERR_OUT_OF_RANGE(env, "additionalData is too big");

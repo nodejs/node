@@ -10,10 +10,11 @@ Node.js APIs might be deprecated for any of the following reasons:
 * An improved alternative API is available.
 * Breaking changes to the API are expected in a future major release.
 
-Node.js uses three kinds of Deprecations:
+Node.js uses four kinds of deprecations:
 
 * Documentation-only
-* Runtime
+* Application (non-`node_modules` code only)
+* Runtime (all code)
 * End-of-Life
 
 A Documentation-only deprecation is one that is expressed only within the
@@ -25,10 +26,17 @@ deprecations below. Documentation-only deprecations that support that flag
 are explicitly labeled as such in the
 [list of Deprecated APIs](#list-of-deprecated-apis).
 
-A Runtime deprecation will, by default, generate a process warning that will
-be printed to `stderr` the first time the deprecated API is used. When the
-[`--throw-deprecation`][] command-line flag is used, a Runtime deprecation will
-cause an error to be thrown.
+An Application deprecation for only non-`node_modules` code will, by default,
+generate a process warning that will be printed to `stderr` the first time
+the deprecated API is used in code that's not loaded from `node_modules`.
+When the [`--throw-deprecation`][] command-line flag is used, a Runtime
+deprecation will cause an error to be thrown. When
+[`--pending-deprecation`][] is used, warnings will also be emitted for
+code loaded from `node_modules`.
+
+A runtime deprecation for all code is similar to the runtime deprecation
+for non-`node_modules` code, except that it also emits a warning for
+code loaded from `node_modules`.
 
 An End-of-Life deprecation is used when functionality is or will soon be removed
 from Node.js.
@@ -140,7 +148,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime (supports [`--pending-deprecation`][])
+Type: Application (non-`node_modules` code only)
 
 The `Buffer()` function and `new Buffer()` constructor are deprecated due to
 API usability issues that can lead to accidental security issues.
@@ -872,7 +880,7 @@ The [`require.extensions`][] property is deprecated.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47202
     description: Runtime deprecation.
   - version: v16.6.0
@@ -964,6 +972,9 @@ The [`tls.SecurePair`][] class is deprecated. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -976,7 +987,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`util.isArray()`][] API is deprecated. Please use `Array.isArray()`
 instead.
@@ -985,6 +996,9 @@ instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -997,14 +1011,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isBoolean()`][] API is deprecated.
+The [`util.isBoolean()`][] API is deprecated. Please use
+`typeof arg === 'boolean'` instead.
 
 ### DEP0046: `util.isBuffer()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1017,7 +1035,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 The [`util.isBuffer()`][] API is deprecated. Please use
 [`Buffer.isBuffer()`][] instead.
@@ -1026,6 +1044,9 @@ The [`util.isBuffer()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1038,14 +1059,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isDate()`][] API is deprecated.
+The [`util.isDate()`][] API is deprecated. Please use
+`arg instanceof Date` instead.
 
 ### DEP0048: `util.isError()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1058,14 +1083,19 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isError()`][] API is deprecated.
+The [`util.isError()`][] API is deprecated. Please use
+`Object.prototype.toString(arg) === '[object Error]' || arg instanceof Error`
+instead.
 
 ### DEP0049: `util.isFunction()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1078,14 +1108,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isFunction()`][] API is deprecated.
+The [`util.isFunction()`][] API is deprecated. Please use
+`typeof arg === 'function'` instead.
 
 ### DEP0050: `util.isNull()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1098,14 +1132,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isNull()`][] API is deprecated.
+The [`util.isNull()`][] API is deprecated. Please use
+`arg === null` instead.
 
 ### DEP0051: `util.isNullOrUndefined()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1118,14 +1156,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isNullOrUndefined()`][] API is deprecated.
+The [`util.isNullOrUndefined()`][] API is deprecated. Please use
+`arg === null || arg === undefined` instead.
 
 ### DEP0052: `util.isNumber()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1138,14 +1180,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isNumber()`][] API is deprecated.
+The [`util.isNumber()`][] API is deprecated. Please use
+`typeof arg === 'number'` instead.
 
 ### DEP0053: `util.isObject()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1158,14 +1204,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isObject()`][] API is deprecated.
+The [`util.isObject()`][] API is deprecated. Please use
+`arg && typeof arg === 'object'` instead.
 
 ### DEP0054: `util.isPrimitive()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1178,14 +1228,19 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isPrimitive()`][] API is deprecated.
+The [`util.isPrimitive()`][] API is deprecated. Please use
+`arg === null || (typeof arg !=='object' && typeof arg !== 'function')`
+instead.
 
 ### DEP0055: `util.isRegExp()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1198,14 +1253,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isRegExp()`][] API is deprecated.
+The [`util.isRegExp()`][] API is deprecated. Please use
+`arg instanceof RegExp` instead.
 
 ### DEP0056: `util.isString()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1218,14 +1277,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isString()`][] API is deprecated.
+The [`util.isString()`][] API is deprecated. Please use
+`typeof arg === 'string'` instead.
 
 ### DEP0057: `util.isSymbol()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1238,14 +1301,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isSymbol()`][] API is deprecated.
+The [`util.isSymbol()`][] API is deprecated. Please use
+`typeof arg === 'symbol'` instead.
 
 ### DEP0058: `util.isUndefined()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version:
     - v6.12.0
     - v4.8.6
@@ -1258,14 +1325,18 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.isUndefined()`][] API is deprecated.
+The [`util.isUndefined()`][] API is deprecated. Please use
+`arg === undefined` instead.
 
 ### DEP0059: `util.log()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
     description: A deprecation code has been assigned.
@@ -1274,14 +1345,27 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util.log()`][] API is deprecated.
+The [`util.log()`][] API has been deprecated because it's an unmaintained
+legacy API that was exposed to user land by accident. Instead,
+consider the following alternatives based on your specific needs:
+
+* **Third-Party Logging Libraries**
+
+* **Use `console.log(new Date().toLocaleString(), message)`**
+
+By adopting one of these alternatives, you can transition away from `util.log()`
+and choose a logging strategy that aligns with the specific
+requirements and complexity of your application.
 
 ### DEP0060: `util._extend()`
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50488
+    description: Runtime deprecation.
   - version: v6.12.0
     pr-url: https://github.com/nodejs/node/pull/10116
     description: A deprecation code has been assigned.
@@ -1290,9 +1374,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`util._extend()`][] API is deprecated.
+The [`util._extend()`][] API is deprecated because it's an unmaintained
+legacy API that was exposed to user land by accident.
+Please use `target = Object.assign(target, source)` instead.
 
 ### DEP0061: `fs.SyncWriteStream`
 
@@ -2214,6 +2300,9 @@ changes:
 Type: Documentation-only (supports [`--pending-deprecation`][])
 
 `process.binding()` is for use by Node.js internal code only.
+
+While `process.binding()` has not reached End-of-Life status in general, it is
+unavailable when [policies][] or the [permission model][] are enabled.
 
 ### DEP0112: `dgram` private APIs
 
@@ -3295,7 +3384,9 @@ Node-API callbacks.
 
 <!-- YAML
 changes:
-  - version: v19.9.0
+  - version:
+      - v19.9.0
+      - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47203
     description: Added support for `--pending-deprecation`.
   - version:
@@ -3378,6 +3469,82 @@ In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
 Consider using alternatives such as the [`mock`][] helper function.
 
+### DEP0174: calling `promisify` on a function that returns a `Promise`
+
+<!-- YAML
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/49609
+    description: Runtime deprecation.
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49647
+    description: Documentation-only deprecation.
+-->
+
+Type: Runtime
+
+Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
+the result of said promise, which can lead to unhandled promise rejections.
+
+### DEP0175: `util.toUSVString`
+
+<!-- YAML
+changes:
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49725
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.toUSVString()`][] API is deprecated. Please use
+[`String.prototype.toWellFormed`][] instead.
+
+### DEP0176: `fs.F_OK`, `fs.R_OK`, `fs.W_OK`, `fs.X_OK`
+
+<!-- YAML
+changes:
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49683
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+`F_OK`, `R_OK`, `W_OK` and `X_OK` getters exposed directly on `node:fs` are
+deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
+
+### DEP0177: `util.types.isWebAssemblyCompiledModule`
+
+<!-- YAML
+changes:
+  - version: v21.3.0
+    pr-url: https://github.com/nodejs/node/pull/50486
+    description: A deprecation code has been assigned.
+  - version: v14.0.0
+    pr-url: https://github.com/nodejs/node/pull/32116
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
+`value instanceof WebAssembly.Module` instead.
+
+### DEP0178: `dirent.path`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51020
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`dirent.path`][] is deprecated due to its lack of consistency across
+release lines. Please use [`dirent.parentPath`][] instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3400,6 +3567,7 @@ Consider using alternatives such as the [`mock`][] helper function.
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
@@ -3423,6 +3591,8 @@ Consider using alternatives such as the [`mock`][] helper function.
 [`decipher.setAuthTag()`]: crypto.md#deciphersetauthtagbuffer-encoding
 [`diagnostics_channel.subscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelsubscribename-onmessage
 [`diagnostics_channel.unsubscribe(name, onMessage)`]: diagnostics_channel.md#diagnostics_channelunsubscribename-onmessage
+[`dirent.parentPath`]: fs.md#direntparentpath
+[`dirent.path`]: fs.md#direntpath
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`domain`]: domain.md
@@ -3518,6 +3688,9 @@ Consider using alternatives such as the [`mock`][] helper function.
 [`util.isSymbol()`]: util.md#utilissymbolobject
 [`util.isUndefined()`]: util.md#utilisundefinedobject
 [`util.log()`]: util.md#utillogstring
+[`util.promisify`]: util.md#utilpromisifyoriginal
+[`util.toUSVString()`]: util.md#utiltousvstringstring
+[`util.types.isWebAssemblyCompiledModule`]: util.md#utiltypesiswebassemblycompiledmodulevalue
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
@@ -3530,6 +3703,8 @@ Consider using alternatives such as the [`mock`][] helper function.
 [from_string_encoding]: buffer.md#static-method-bufferfromstring-encoding
 [legacy URL API]: url.md#legacy-url-api
 [legacy `urlObject`]: url.md#legacy-urlobject
+[permission model]: permissions.md#permission-model
+[policies]: permissions.md#policies
 [static methods of `crypto.Certificate()`]: crypto.md#class-certificate
 [subpath exports]: packages.md#subpath-exports
 [subpath imports]: packages.md#subpath-imports

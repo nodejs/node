@@ -11,13 +11,13 @@ function _gensync() {
   };
   return data;
 }
-var _async = require("../gensync-utils/async");
-var _util = require("./util");
-var context = require("../index");
-var _plugin = require("./plugin");
-var _item = require("./item");
-var _configChain = require("./config-chain");
-var _deepArray = require("./helpers/deep-array");
+var _async = require("../gensync-utils/async.js");
+var _util = require("./util.js");
+var context = require("../index.js");
+var _plugin = require("./plugin.js");
+var _item = require("./item.js");
+var _configChain = require("./config-chain.js");
+var _deepArray = require("./helpers/deep-array.js");
 function _traverse() {
   const data = require("@babel/traverse");
   _traverse = function () {
@@ -25,13 +25,13 @@ function _traverse() {
   };
   return data;
 }
-var _caching = require("./caching");
-var _options = require("./validation/options");
-var _plugins = require("./validation/plugins");
-var _configApi = require("./helpers/config-api");
-var _partial = require("./partial");
-var _configError = require("../errors/config-error");
-var _default = _gensync()(function* loadFullConfig(inputOpts) {
+var _caching = require("./caching.js");
+var _options = require("./validation/options.js");
+var _plugins = require("./validation/plugins.js");
+var _configApi = require("./helpers/config-api.js");
+var _partial = require("./partial.js");
+var _configError = require("../errors/config-error.js");
+var _default = exports.default = _gensync()(function* loadFullConfig(inputOpts) {
   var _opts$assumptions;
   const result = yield* (0, _partial.default)(inputOpts);
   if (!result) {
@@ -150,7 +150,6 @@ var _default = _gensync()(function* loadFullConfig(inputOpts) {
     externalDependencies: (0, _deepArray.finalize)(externalDependencies)
   };
 });
-exports.default = _default;
 function enhanceError(context, fn) {
   return function* (arg1, arg2) {
     try {
@@ -268,13 +267,12 @@ const validateIfOptionNeedsFilename = (options, descriptor) => {
 };
 const validatePreset = (preset, context, descriptor) => {
   if (!context.filename) {
+    var _options$overrides;
     const {
       options
     } = preset;
     validateIfOptionNeedsFilename(options, descriptor);
-    if (options.overrides) {
-      options.overrides.forEach(overrideOptions => validateIfOptionNeedsFilename(overrideOptions, descriptor));
-    }
+    (_options$overrides = options.overrides) == null || _options$overrides.forEach(overrideOptions => validateIfOptionNeedsFilename(overrideOptions, descriptor));
   }
 };
 const instantiatePreset = (0, _caching.makeWeakCacheSync)(({

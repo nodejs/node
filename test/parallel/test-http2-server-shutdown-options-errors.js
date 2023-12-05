@@ -19,7 +19,7 @@ const types = [
 server.on('stream', common.mustCall((stream) => {
   const session = stream.session;
 
-  types.forEach((input) => {
+  for (const input of types) {
     const received = common.invalidArgTypeHelper(input);
     assert.throws(
       () => session.goaway(input),
@@ -48,7 +48,7 @@ server.on('stream', common.mustCall((stream) => {
                  `TypedArray, or DataView.${received}`
       }
     );
-  });
+  }
 
   stream.session.destroy();
 }));

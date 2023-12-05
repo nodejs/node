@@ -63,7 +63,11 @@ export class SchedulePhase extends Phase {
     }
     const blockRpo = Number.parseInt(match.groups.rpo, 10);
     const blockId = Number.parseInt(match.groups.id, 10);
-    const block = new ScheduleBlock(blockRpo, blockId, match.groups.deferred !== undefined,
+    let blockCount = -1;
+    if (match.groups.count !== undefined){
+      blockCount = Number.parseInt(match.groups.count, 10);
+    }
+    const block = new ScheduleBlock(blockRpo, blockId, blockCount, match.groups.deferred !== undefined,
       predecessors.sort());
     this.data.blocksRpo[block.rpo] = block;
   }
@@ -84,6 +88,7 @@ export class SchedulePhase extends Phase {
     },
     {
       lineRegexps: [
+        /^\s*---\s*BLOCK\ B(?<rpo>\d+)\ id(?<id>\d+)\ PGO Execution Count:(?<count>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/,
         /^\s*---\s*BLOCK\ B(?<rpo>\d+)\ id(?<id>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/,
         /^\s*---\s*BLOCK\ B(?<rpo>\d+)\s*(?<deferred>\(deferred\))?(\ <-\ )?(?<in>[^-]*)?\ ---$/
       ],
@@ -115,14 +120,16 @@ export class ScheduleNode {
 export class ScheduleBlock {
   rpo: number;
   id: number;
+  count: number;
   deferred: boolean;
   predecessors: Array<number>;
   successors: Array<number>;
   nodes: Array<ScheduleNode>;
 
-  constructor(rpo: number, id: number, deferred: boolean, predecessors: Array<number>) {
+  constructor(rpo: number, id: number, count: number, deferred: boolean, predecessors: Array<number>) {
     this.rpo = rpo;
     this.id = id;
+    this.count = count;
     this.deferred = deferred;
     this.predecessors = predecessors;
     this.successors = new Array<number>();

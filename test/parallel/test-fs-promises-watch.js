@@ -17,7 +17,7 @@ class WatchTestCase {
     this.field = field;
     this.shouldSkip = !shouldInclude;
   }
-  get dirPath() { return join(tmpdir.path, this.dirName); }
+  get dirPath() { return tmpdir.resolve(this.dirName); }
   get filePath() { return join(this.dirPath, this.fileName); }
 }
 
@@ -79,42 +79,42 @@ assert.rejects(
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch(1)) { }
   },
-  { code: 'ERR_INVALID_ARG_TYPE' });
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
 assert.rejects(
   async () => {
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch(__filename, 1)) { }
   },
-  { code: 'ERR_INVALID_ARG_TYPE' });
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
 assert.rejects(
   async () => {
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch('', { persistent: 1 })) { }
   },
-  { code: 'ERR_INVALID_ARG_TYPE' });
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
 assert.rejects(
   async () => {
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch('', { recursive: 1 })) { }
   },
-  { code: 'ERR_INVALID_ARG_TYPE' });
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
 assert.rejects(
   async () => {
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch('', { encoding: 1 })) { }
   },
-  { code: 'ERR_INVALID_ARG_VALUE' });
+  { code: 'ERR_INVALID_ARG_VALUE' }).then(common.mustCall());
 
 assert.rejects(
   async () => {
     // eslint-disable-next-line no-unused-vars, no-empty
     for await (const _ of watch('', { signal: 1 })) { }
   },
-  { code: 'ERR_INVALID_ARG_TYPE' });
+  { code: 'ERR_INVALID_ARG_TYPE' }).then(common.mustCall());
 
 (async () => {
   const ac = new AbortController();

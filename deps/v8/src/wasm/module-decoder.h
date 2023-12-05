@@ -84,6 +84,11 @@ enum class DecodingMethod {
   kDeserialize
 };
 
+enum PopulateExplicitRecGroups {
+  kDoNotPopulateExplicitRecGroups,
+  kPopulateExplicitRecGroups
+};
+
 // Decodes the bytes of a wasm module in {wire_bytes} while recording events and
 // updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
@@ -96,7 +101,9 @@ V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
 // or updating counters.
 V8_EXPORT_PRIVATE ModuleResult DecodeWasmModule(
     WasmFeatures enabled_features, base::Vector<const uint8_t> wire_bytes,
-    bool validate_functions, ModuleOrigin origin);
+    bool validate_functions, ModuleOrigin origin,
+    PopulateExplicitRecGroups populate_explicit_rec_groups =
+        kDoNotPopulateExplicitRecGroups);
 // Stripped down version for disassembler needs.
 V8_EXPORT_PRIVATE ModuleResult
 DecodeWasmModuleForDisassembler(base::Vector<const uint8_t> wire_bytes);
@@ -156,7 +163,7 @@ class ModuleDecoder {
   explicit ModuleDecoder(WasmFeatures enabled_feature);
   ~ModuleDecoder();
 
-  void DecodeModuleHeader(base::Vector<const uint8_t> bytes, uint32_t offset);
+  void DecodeModuleHeader(base::Vector<const uint8_t> bytes);
 
   void DecodeSection(SectionCode section_code,
                      base::Vector<const uint8_t> bytes, uint32_t offset);

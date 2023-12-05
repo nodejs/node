@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2005 Nokia. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -2271,7 +2271,7 @@ int s_client_main(int argc, char **argv)
             do {
                 mbuf_len = BIO_gets(fbio, mbuf, BUFSIZZ);
             }
-            while (mbuf_len > 3 && (!isdigit(mbuf[0]) || !isdigit(mbuf[1]) || !isdigit(mbuf[2]) || mbuf[3] != ' '));
+            while (mbuf_len > 3 && (!isdigit((unsigned char)mbuf[0]) || !isdigit((unsigned char)mbuf[1]) || !isdigit((unsigned char)mbuf[2]) || mbuf[3] != ' '));
             (void)BIO_flush(fbio);
             BIO_pop(fbio);
             BIO_free(fbio);

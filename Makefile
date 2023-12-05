@@ -286,7 +286,7 @@ coverage-report-js:
 # Runs the C++ tests using the built `cctest` executable.
 cctest: all
 	@out/$(BUILDTYPE)/$@ --gtest_filter=$(GTEST_FILTER)
-	@out/$(BUILDTYPE)/embedtest "require('./test/embedding/test-embedding.js')"
+	$(NODE) ./test/embedding/test-embedding.js
 
 .PHONY: list-gtests
 list-gtests:
@@ -550,7 +550,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
-	out/Release/embedtest 'require("./test/embedding/test-embedding.js")'
+	$(NODE) ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
 	@PS_OUT=`ps awwx | grep Release/node | grep -v grep | awk '{print $$1}'`; \
@@ -1423,6 +1423,7 @@ FORMAT_CPP_FILES += $(LINT_CPP_FILES)
 # C source codes.
 FORMAT_CPP_FILES += $(wildcard \
 	benchmark/napi/*/*.c \
+	test/js-native-api/*.h \
 	test/js-native-api/*/*.c \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.c \

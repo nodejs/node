@@ -24,6 +24,10 @@ extern class WasmApiFunctionRef extends HeapObject {
   // to load memory start/size fields.
   instance: WasmInstanceObject|Undefined;
   suspend: Smi;  // Boolean.
+  wrapper_budget: Smi;
+  call_origin: Smi|WasmInternalFunction|Tuple2;
+  // The signature is needed for the generic wasm-to-js wrapper.
+  sig: PodArrayOfWasmValueType;
 }
 
 // This is the representation that is used internally by wasm to represent
@@ -40,6 +44,8 @@ extern class WasmInternalFunction extends HeapObject {
   external: JSFunction|Undefined;
   // This field is used when the call target is null.
   code: Code;
+  // The function index if ref is a WasmInstanceObject, -1 otherwise.
+  function_index: Smi;
   // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
   call_target: ExternalPointer;
 }
@@ -71,9 +77,10 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   sig: ExternalPointer;  // wasm::FunctionSig*
 }
 
+extern operator '.sig_ptr' macro LoadWasmExportedFunctionDataSigPtr(
+    WasmExportedFunctionData): RawPtr;
+
 extern class WasmJSFunctionData extends WasmFunctionData {
-  serialized_return_count: Smi;
-  serialized_parameter_count: Smi;
   serialized_signature: PodArrayOfWasmValueType;
 }
 
@@ -88,13 +95,12 @@ extern class WasmResumeData extends HeapObject {
 }
 
 extern class WasmIndirectFunctionTable extends Struct {
+  sig_ids: ByteArray;
+  targets: ExternalPointerArray;
+  refs: FixedArray;
   size: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-  sig_ids: RawPtr;
-  targets: RawPtr;
-  managed_native_allocations: Foreign|Undefined;
-  refs: FixedArray;
 }
 
 extern class WasmContinuationObject extends HeapObject {
@@ -106,9 +112,16 @@ extern class WasmContinuationObject extends HeapObject {
 extern class WasmSuspenderObject extends JSObject {
   continuation: WasmContinuationObject|Undefined;
   parent: WasmSuspenderObject|Undefined;
+  promise: JSPromise;
   resume: JSObject|Undefined;
   reject: JSObject|Undefined;
   state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
+  // Number of Wasm-to-JS frames in this suspender's stack.
+  // If the value is non-zero, this means that there are JS frames on the stack
+  // and trying to suspend should trap.
+  wasm_to_js_counter: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
 
 extern class WasmExceptionTag extends Struct {
@@ -157,7 +170,7 @@ extern class WasmGlobalObject extends JSObject {
   tagged_buffer: FixedArray|Undefined;
   offset: Smi;
   raw_type: Smi;
-  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // TODO(14034): If we encode mutability in raw_type, turn this into a boolean
   // accessor.
   is_mutable: Smi;
 }
@@ -188,7 +201,8 @@ extern class WasmTypeInfo extends HeapObject {
   type_index: uint32;
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-  instance: WasmInstanceObject;
+  // Is undefined for WasmExternalFunctions referring to WasmJSFunctions.
+  instance: WasmInstanceObject|Undefined;
   const supertypes_length: Smi;
   supertypes[supertypes_length]: Object;
 }
@@ -198,12 +212,10 @@ extern operator '.native_type_ptr' macro LoadWasmTypeInfoNativeTypePtr(
 
 // WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
 @abstract
-extern class WasmObject extends JSReceiver {
-}
+extern class WasmObject extends JSReceiver {}
 
 @highestInstanceTypeWithinParentClassRange
-extern class WasmStruct extends WasmObject {
-}
+extern class WasmStruct extends WasmObject {}
 
 @lowestInstanceTypeWithinParentClassRange
 extern class WasmArray extends WasmObject {

@@ -16,6 +16,7 @@ class Update extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'global-style',
     'omit',
+    'include',
     'strict-peer-deps',
     'package-lock',
     'foreground-scripts',

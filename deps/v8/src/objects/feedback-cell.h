@@ -31,14 +31,16 @@ class FeedbackCell : public TorqueGeneratedFeedbackCell<FeedbackCell, Struct> {
   using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::value;
   using TorqueGeneratedFeedbackCell<FeedbackCell, Struct>::set_value;
 
-  DECL_RELEASE_ACQUIRE_ACCESSORS(value, HeapObject)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(value, Tagged<HeapObject>)
+
+  inline void clear_interrupt_budget();
 
   inline void clear_padding();
   inline void reset_feedback_vector(
-      base::Optional<std::function<void(HeapObject object, ObjectSlot slot,
-                                        HeapObject target)>>
+      base::Optional<
+          std::function<void(Tagged<HeapObject> object, ObjectSlot slot,
+                             Tagged<HeapObject> target)>>
           gc_notify_updated_slot = base::nullopt);
-  inline void SetInitialInterruptBudget();
 
   // The closure count is encoded in the cell's map, which distinguishes
   // between zero, one, or many closures. This function records a new closure

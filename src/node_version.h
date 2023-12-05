@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_VERSION_H_
 #define SRC_NODE_VERSION_H_
 
-#define NODE_MAJOR_VERSION 21
+#define NODE_MAJOR_VERSION 22
 #define NODE_MINOR_VERSION 0
 #define NODE_PATCH_VERSION 0
 
@@ -83,13 +83,20 @@
  * We will, at times update the version of V8 shipped in the release line
  * if it can be made ABI compatible with the previous version.
  *
+ * Embedders building Node.js can define NODE_EMBEDDER_MODULE_VERSION to
+ * override the default value of NODE_MODULE_VERSION.
+ *
  * The registry of used NODE_MODULE_VERSION numbers is located at
  *   https://github.com/nodejs/node/blob/HEAD/doc/abi_version_registry.json
  * Extenders, embedders and other consumers of Node.js that require ABI
  * version matching should open a pull request to reserve a number in this
  * registry.
  */
-#define NODE_MODULE_VERSION 115
+#if defined(NODE_EMBEDDER_MODULE_VERSION)
+#define NODE_MODULE_VERSION NODE_EMBEDDER_MODULE_VERSION
+#else
+#define NODE_MODULE_VERSION 120
+#endif
 
 // The NAPI_VERSION supported by the runtime. This is the inclusive range of
 // versions which the Node.js binary being built supports.

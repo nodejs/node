@@ -26,7 +26,7 @@ const {
   defaultResolve: resolve
 } = internalResolve;
 
-const rel = (file) => path.join(tmpdir.path, file);
+const rel = (file) => tmpdir.resolve(file);
 const previousCwd = process.cwd();
 const nmDir = rel('node_modules');
 

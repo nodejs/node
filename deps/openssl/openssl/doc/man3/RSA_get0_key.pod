@@ -54,7 +54,7 @@ see L<openssl_user_macros(7)>:
 
 All of the functions described on this page are deprecated.
 Applications should instead use L<EVP_PKEY_get_bn_param(3)> for any methods that
-return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more infomation.
+return a B<BIGNUM>. Refer to L<EVP_PKEY-DH(7)> for more information.
 
 An RSA object contains the components for the public and private key,
 B<n>, B<e>, B<d>, B<p>, B<q>, B<dmp1>, B<dmq1> and B<iqmp>.  B<n> is
@@ -184,7 +184,7 @@ All of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -13,7 +13,7 @@ function _path() {
   };
   return data;
 }
-var _configDescriptors = require("./config-descriptors");
+var _configDescriptors = require("./config-descriptors.js");
 function createItemFromDescriptor(desc) {
   return new ConfigItem(desc);
 }

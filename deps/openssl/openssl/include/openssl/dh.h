@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -89,7 +89,11 @@ int EVP_PKEY_CTX_get0_dh_kdf_ukm(EVP_PKEY_CTX *ctx, unsigned char **ukm);
 #  include <openssl/dherr.h>
 
 #  ifndef OPENSSL_DH_MAX_MODULUS_BITS
-#   define OPENSSL_DH_MAX_MODULUS_BITS    10000
+#   define OPENSSL_DH_MAX_MODULUS_BITS        10000
+#  endif
+
+#  ifndef OPENSSL_DH_CHECK_MAX_MODULUS_BITS
+#   define OPENSSL_DH_CHECK_MAX_MODULUS_BITS  32768
 #  endif
 
 #  define OPENSSL_DH_FIPS_MIN_MODULUS_BITS 1024

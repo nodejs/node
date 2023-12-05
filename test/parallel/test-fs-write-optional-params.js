@@ -7,13 +7,12 @@ const common = require('../common');
 
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const util = require('util');
 
 tmpdir.refresh();
 
-const destInvalid = path.resolve(tmpdir.path, 'rwopt_invalid');
+const destInvalid = tmpdir.resolve('rwopt_invalid');
 const buffer = Buffer.from('zyx');
 
 function testInvalidCb(fd, expectedCode, buffer, options, callback) {
@@ -28,7 +27,7 @@ function testValidCb(buffer, options, index, callback) {
   options = common.mustNotMutateObjectDeep(options);
   const length = options?.length;
   const offset = options?.offset;
-  const dest = path.resolve(tmpdir.path, `rwopt_valid_${index}`);
+  const dest = tmpdir.resolve(`rwopt_valid_${index}`);
   fs.open(dest, 'w', common.mustSucceed((fd) => {
     fs.write(fd, buffer, options, common.mustSucceed((bytesWritten, bufferWritten) => {
       const writeBufCopy = Uint8Array.prototype.slice.call(bufferWritten);

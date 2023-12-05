@@ -43,6 +43,9 @@
 //   1. foo::PrintTo(const T&, ostream*)
 //   2. operator<<(ostream&, const T&) defined in either foo or the
 //      global namespace.
+// * Prefer AbslStringify(..) to operator<<(..), per https://abseil.io/tips/215.
+// * Define foo::PrintTo(..) if the type already has AbslStringify(..), but an
+//   alternative presentation in test results is of interest.
 //
 // However if T is an STL-style container then it is printed element-wise
 // unless foo::PrintTo(const T&, ostream*) is defined. Note that
@@ -112,8 +115,16 @@
 #include <utility>
 #include <vector>
 
+#ifdef GTEST_HAS_ABSL
+#include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
+#endif  // GTEST_HAS_ABSL
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-port.h"
+
+#if GTEST_INTERNAL_HAS_STD_SPAN
+#include <span>  // NOLINT
+#endif  // GTEST_INTERNAL_HAS_STD_SPAN
 
 namespace testing {
 
@@ -124,13 +135,32 @@ namespace internal {
 template <typename T>
 void UniversalPrint(const T& value, ::std::ostream* os);
 
+template <typename T>
+struct IsStdSpan {
+  static constexpr bool value = false;
+};
+
+#if GTEST_INTERNAL_HAS_STD_SPAN
+template <typename E>
+struct IsStdSpan<std::span<E>> {
+  static constexpr bool value = true;
+};
+#endif  // GTEST_INTERNAL_HAS_STD_SPAN
+
 // Used to print an STL-style container when the user doesn't define
 // a PrintTo() for it.
+//
+// NOTE: Since std::span does not have const_iterator until C++23, it would
+// fail IsContainerTest before C++23. However, IsContainerTest only uses
+// the presence of const_iterator to avoid treating iterators as containers
+// because of iterator::iterator. Which means std::span satisfies the *intended*
+// condition of IsContainerTest.
 struct ContainerPrinter {
   template <typename T,
             typename = typename std::enable_if<
-                (sizeof(IsContainerTest<T>(0)) == sizeof(IsContainer)) &&
-                !IsRecursiveContainer<T>::value>::type>
+                ((sizeof(IsContainerTest<T>(0)) == sizeof(IsContainer)) &&
+                 !IsRecursiveContainer<T>::value) ||
+                IsStdSpan<T>::value>::type>
   static void PrintValue(const T& container, std::ostream* os) {
     const size_t kMaxCount = 32;  // The maximum number of elements to print.
     *os << '{';
@@ -260,6 +290,17 @@ struct ConvertibleToStringViewPrinter {
 #endif
 };
 
+#ifdef GTEST_HAS_ABSL
+struct ConvertibleToAbslStringifyPrinter {
+  template <typename T,
+            typename = typename std::enable_if<
+                absl::HasAbslStringify<T>::value>::type>  // NOLINT
+  static void PrintValue(const T& value, ::std::ostream* os) {
+    *os << absl::StrCat(value);
+  }
+};
+#endif  // GTEST_HAS_ABSL
+
 // Prints the given number of bytes in the given object to the given
 // ostream.
 GTEST_API_ void PrintBytesInObjectTo(const unsigned char* obj_bytes,
@@ -298,8 +339,8 @@ struct FindFirstPrinter<
 //  - Print containers (they have begin/end/etc).
 //  - Print function pointers.
 //  - Print object pointers.
-//  - Use the stream operator, if available.
 //  - Print protocol buffers.
+//  - Use the stream operator, if available.
 //  - Print types convertible to BiggestInt.
 //  - Print types convertible to StringView, if available.
 //  - Fallback to printing the raw bytes of the object.
@@ -308,6 +349,9 @@ void PrintWithFallback(const T& value, ::std::ostream* os) {
   using Printer = typename FindFirstPrinter<
       T, void, ContainerPrinter, FunctionPointerPrinter, PointerPrinter,
       ProtobufPrinter,
+#ifdef GTEST_HAS_ABSL
+      ConvertibleToAbslStringifyPrinter,
+#endif  // GTEST_HAS_ABSL
       internal_stream_operator_without_lexical_name_lookup::StreamPrinter,
       ConvertibleToIntegerPrinter, ConvertibleToStringViewPrinter,
       RawBytesPrinter, FallbackPrinter>::type;
@@ -475,7 +519,7 @@ GTEST_API_ void PrintTo(char32_t c, ::std::ostream* os);
 inline void PrintTo(char16_t c, ::std::ostream* os) {
   PrintTo(ImplicitCast_<char32_t>(c), os);
 }
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 inline void PrintTo(char8_t c, ::std::ostream* os) {
   PrintTo(ImplicitCast_<char32_t>(c), os);
 }
@@ -531,7 +575,7 @@ int AppropriateResolution(FloatType val) {
     } else if (val >= 0.0001) {
       mulfor6 = 1e9;
     }
-    if (static_cast<float>(static_cast<int32_t>(val * mulfor6 + 0.5)) /
+    if (static_cast<FloatType>(static_cast<int32_t>(val * mulfor6 + 0.5)) /
             mulfor6 ==
         val)
       return 6;
@@ -546,7 +590,7 @@ int AppropriateResolution(FloatType val) {
     } else if (val >= 1e6) {  // 1,000,000 to 9,999,999
       divfor6 = 10;
     }
-    if (static_cast<float>(static_cast<int32_t>(val / divfor6 + 0.5)) *
+    if (static_cast<FloatType>(static_cast<int32_t>(val / divfor6 + 0.5)) *
             divfor6 ==
         val)
       return 6;
@@ -588,7 +632,7 @@ inline void PrintTo(const unsigned char* s, ::std::ostream* os) {
 inline void PrintTo(unsigned char* s, ::std::ostream* os) {
   PrintTo(ImplicitCast_<const void*>(s), os);
 }
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 // Overloads for u8 strings.
 GTEST_API_ void PrintTo(const char8_t* s, ::std::ostream* os);
 inline void PrintTo(char8_t* s, ::std::ostream* os) {
@@ -908,7 +952,7 @@ void UniversalPrintArray(const T* begin, size_t len, ::std::ostream* os) {
 GTEST_API_ void UniversalPrintArray(const char* begin, size_t len,
                                     ::std::ostream* os);
 
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 // This overload prints a (const) char8_t array compactly.
 GTEST_API_ void UniversalPrintArray(const char8_t* begin, size_t len,
                                     ::std::ostream* os);

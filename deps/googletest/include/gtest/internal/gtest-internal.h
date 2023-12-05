@@ -58,7 +58,6 @@
 
 #include <cstdint>
 #include <functional>
-#include <iomanip>
 #include <limits>
 #include <map>
 #include <set>
@@ -79,7 +78,7 @@
 //
 // will result in the token foo__LINE__, instead of foo followed by
 // the current line number.  For more details, see
-// http://www.parashift.com/c++-faq-lite/misc-technical-issues.html#faq-39.6
+// https://www.parashift.com/c++-faq-lite/misc-technical-issues.html#faq-39.6
 #define GTEST_CONCAT_TOKEN_(foo, bar) GTEST_CONCAT_TOKEN_IMPL_(foo, bar)
 #define GTEST_CONCAT_TOKEN_IMPL_(foo, bar) foo##bar
 
@@ -170,7 +169,7 @@ namespace edit_distance {
 // All edits cost the same, with replace having lower priority than
 // add/remove.
 // Simple implementation of the Wagner-Fischer algorithm.
-// See http://en.wikipedia.org/wiki/Wagner-Fischer_algorithm
+// See https://en.wikipedia.org/wiki/Wagner-Fischer_algorithm
 enum EditType { kMatch, kAdd, kRemove, kReplace };
 GTEST_API_ std::vector<EditType> CalculateOptimalEdits(
     const std::vector<size_t>& left, const std::vector<size_t>& right);
@@ -237,7 +236,7 @@ GTEST_API_ std::string GetBoolAssertionFailureMessage(
 //   For double, there are 11 exponent bits and 52 fraction bits.
 //
 //   More details can be found at
-//   http://en.wikipedia.org/wiki/IEEE_floating-point_standard.
+//   https://en.wikipedia.org/wiki/IEEE_floating-point_standard.
 //
 // Template parameter:
 //
@@ -282,7 +281,7 @@ class FloatingPoint {
   // bits.  Therefore, 4 should be enough for ordinary use.
   //
   // See the following article for more details on ULP:
-  // http://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+  // https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
   static const uint32_t kMaxUlps = 4;
 
   // Constructs a FloatingPoint from a raw floating-point number.
@@ -363,7 +362,7 @@ class FloatingPoint {
   //   N - 1  (the biggest number representable using
   //          sign-and-magnitude) is represented by 2N - 1.
   //
-  // Read http://en.wikipedia.org/wiki/Signed_number_representations
+  // Read https://en.wikipedia.org/wiki/Signed_number_representations
   // for more details on signed number representations.
   static Bits SignAndMagnitudeToBiased(const Bits& sam) {
     if (kSignBitMask & sam) {
@@ -1497,19 +1496,20 @@ class NeverThrown {
              gtest_ar_, text, #actual, #expected)                     \
              .c_str())
 
-#define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail)                          \
-  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \
-  if (::testing::internal::AlwaysTrue()) {                                     \
-    ::testing::internal::HasNewFatalFailureHelper gtest_fatal_failure_checker; \
-    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);                 \
-    if (gtest_fatal_failure_checker.has_new_fatal_failure()) {                 \
-      goto GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__);            \
-    }                                                                          \
-  } else                                                                       \
-    GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__)                    \
-        : fail("Expected: " #statement                                         \
-               " doesn't generate new fatal "                                  \
-               "failures in the current thread.\n"                             \
+#define GTEST_TEST_NO_FATAL_FAILURE_(statement, fail)               \
+  GTEST_AMBIGUOUS_ELSE_BLOCKER_                                     \
+  if (::testing::internal::AlwaysTrue()) {                          \
+    const ::testing::internal::HasNewFatalFailureHelper             \
+        gtest_fatal_failure_checker;                                \
+    GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);      \
+    if (gtest_fatal_failure_checker.has_new_fatal_failure()) {      \
+      goto GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__); \
+    }                                                               \
+  } else /* NOLINT */                                               \
+    GTEST_CONCAT_TOKEN_(gtest_label_testnofatal_, __LINE__)         \
+        : fail("Expected: " #statement                              \
+               " doesn't generate new fatal "                       \
+               "failures in the current thread.\n"                  \
                "  Actual: it does.")
 
 // Expands to the name of the class that implements the given test.

@@ -245,9 +245,12 @@ const exec = async (opts) => {
 
     if (add.length) {
       if (!yes) {
+        const missingPackages = add.map(a => `${a.replace(/@$/, '')}`)
         // set -n to always say no
         if (yes === false) {
-          throw new Error('canceled')
+          // Error message lists missing package(s) when process is canceled
+          /* eslint-disable-next-line max-len */
+          throw new Error(`npx canceled due to missing packages and no YES option: ${JSON.stringify(missingPackages)}`)
         }
 
         if (noTTY() || ciInfo.isCI) {
@@ -257,8 +260,7 @@ const exec = async (opts) => {
             add.map((pkg) => pkg.replace(/@$/, '')).join(', ')
           }`)
         } else {
-          const addList = add.map(a => `  ${a.replace(/@$/, '')}`)
-            .join('\n') + '\n'
+          const addList = missingPackages.join('\n') + '\n'
           const prompt = `Need to install the following packages:\n${
           addList
         }Ok to proceed? `

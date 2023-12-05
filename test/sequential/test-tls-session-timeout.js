@@ -45,7 +45,6 @@ function doTest() {
   const assert = require('assert');
   const tls = require('tls');
   const fs = require('fs');
-  const join = require('path').join;
   const fixtures = require('../common/fixtures');
   const spawn = require('child_process').spawn;
 
@@ -69,7 +68,7 @@ function doTest() {
 
   const sessionFileName = (function() {
     const ticketFileName = 'tls-session-ticket.txt';
-    const tmpPath = join(tmpdir.path, ticketFileName);
+    const tmpPath = tmpdir.resolve(ticketFileName);
     fs.writeFileSync(tmpPath, fixtures.readSync(ticketFileName));
     return tmpPath;
   }());

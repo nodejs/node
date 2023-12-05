@@ -586,32 +586,32 @@ LogicVRegister Simulator::cmp(VectorFormat vform, LogicVRegister dst,
                               const LogicVRegister& src2, Condition cond) {
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
+    bool result = false;
     int64_t sa = src1.Int(vform, i);
     int64_t sb = src2.Int(vform, i);
     uint64_t ua = src1.Uint(vform, i);
     uint64_t ub = src2.Uint(vform, i);
-    bool result = false;
     switch (cond) {
       case eq:
-        result = (ua == ub);
+        result = (src1.Is(src2) || ua == ub);
         break;
       case ge:
-        result = (sa >= sb);
+        result = (src1.Is(src2) || sa >= sb);
         break;
       case gt:
-        result = (sa > sb);
+        result = (!src1.Is(src2) && sa > sb);
         break;
       case hi:
-        result = (ua > ub);
+        result = (!src1.Is(src2) && ua > ub);
         break;
       case hs:
-        result = (ua >= ub);
+        result = (src1.Is(src2) || ua >= ub);
         break;
       case lt:
-        result = (sa < sb);
+        result = (!src1.Is(src2) && sa < sb);
         break;
       case le:
-        result = (sa <= sb);
+        result = (src1.Is(src2) || sa <= sb);
         break;
       default:
         UNREACHABLE();
@@ -1023,7 +1023,8 @@ LogicVRegister Simulator::eor(VectorFormat vform, LogicVRegister dst,
                               const LogicVRegister& src2) {
   dst.ClearForWrite(vform);
   for (int i = 0; i < LaneCountFromFormat(vform); i++) {
-    dst.SetUint(vform, i, src1.Uint(vform, i) ^ src2.Uint(vform, i));
+    dst.SetUint(vform, i,
+                src1.Is(src2) ? 0 : src1.Uint(vform, i) ^ src2.Uint(vform, i));
   }
   return dst;
 }

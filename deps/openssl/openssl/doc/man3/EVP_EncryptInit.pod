@@ -665,7 +665,7 @@ Note that the block size for a cipher may be different to the block size for
 the underlying encryption/decryption primitive.
 For example AES in CTR mode has a block size of 1 (because it operates like a
 stream cipher), even though AES has a block size of 16.
-Use EVP_CIPHER_get_block_size() to retreive the cached value.
+Use EVP_CIPHER_get_block_size() to retrieve the cached value.
 
 =item "aead" (B<OSSL_CIPHER_PARAM_AEAD>) <integer>
 
@@ -1192,10 +1192,11 @@ EVP_DecryptFinal_ex() returns 0 if the decrypt failed or 1 for success.
 EVP_CipherInit_ex2() and EVP_CipherUpdate() return 1 for success and 0 for failure.
 EVP_CipherFinal_ex() returns 0 for a decryption failure or 1 for success.
 
-EVP_Cipher() returns the amount of encrypted / decrypted bytes, or -1
-on failure if the flag B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is set for the
-cipher.  EVP_Cipher() returns 1 on success or 0 on failure, if the flag
+EVP_Cipher() returns 1 on success or 0 on failure, if the flag
 B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is not set for the cipher.
+EVP_Cipher() returns the number of bytes written to I<out> for encryption / decryption, or
+the number of bytes authenticated in a call specifying AAD for an AEAD cipher, if the flag
+B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is set for the cipher.
 
 EVP_CIPHER_CTX_reset() returns 1 for success and 0 for failure.
 
@@ -1266,7 +1267,8 @@ depending on the mode specified.
 
 To specify additional authenticated data (AAD), a call to EVP_CipherUpdate(),
 EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made with the output
-parameter I<out> set to B<NULL>.
+parameter I<out> set to B<NULL>. In this case, on success, the parameter
+I<outl> is set to the number of bytes authenticated.
 
 When decrypting, the return value of EVP_DecryptFinal() or EVP_CipherFinal()
 indicates whether the operation was successful. If it does not indicate success,

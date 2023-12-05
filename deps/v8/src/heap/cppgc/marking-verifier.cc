@@ -39,7 +39,7 @@ MarkingVerifierBase::MarkingVerifierBase(
     HeapBase& heap, CollectionType collection_type,
     VerificationState& verification_state,
     std::unique_ptr<cppgc::Visitor> visitor)
-    : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor.get()),
+    : ConservativeTracingVisitor(heap, *heap.page_backend(), *visitor),
       verification_state_(verification_state),
       visitor_(std::move(visitor)),
       collection_type_(collection_type) {}

@@ -9,7 +9,8 @@ const kBuiltinNameFindLastIndex: constexpr string =
     '%TypedArray%.prototype.findIndexLast';
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
-transitioning macro FindLastIndexAllElements(implicit context: Context)(
+transitioning macro FindLastIndexAllElements(
+    implicit context: Context)(
     attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     predicate: Callable, thisArg: JSAny): Number {
   let witness =
@@ -50,8 +51,7 @@ transitioning macro FindLastIndexAllElements(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-%typedarray%.prototype.findlastindex
-transitioning javascript builtin
-TypedArrayPrototypeFindLastIndex(
+transitioning javascript builtin TypedArrayPrototypeFindLastIndex(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = predicate
   // arguments[1] = thisArg
@@ -68,7 +68,7 @@ TypedArrayPrototypeFindLastIndex(
     const thisArg = arguments[1];
     return FindLastIndexAllElements(attachedArrayAndLength, predicate, thisArg);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFindLastIndex);
   } label IsDetachedOrOutOfBounds deferred {

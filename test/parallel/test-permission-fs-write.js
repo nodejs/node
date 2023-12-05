@@ -26,7 +26,7 @@ const file = fixtures.path('permission', 'fs-write.js');
     [
       '--experimental-permission',
       '--allow-fs-read=*',
-      `--allow-fs-write=${regularFile},${commonPath}`,
+      `--allow-fs-write=${regularFile}`, `--allow-fs-write=${commonPath}`,
       file,
     ],
     {

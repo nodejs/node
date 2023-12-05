@@ -112,7 +112,7 @@ function _supportsColor(haveStream, {streamIsTTY, sniffFlags = true} = {}) {
 	}
 
 	if ('CI' in env) {
-		if ('GITHUB_ACTIONS' in env) {
+		if ('GITHUB_ACTIONS' in env || 'GITEA_ACTIONS' in env) {
 			return 3;
 		}
 

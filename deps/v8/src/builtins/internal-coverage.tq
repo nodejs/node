@@ -6,25 +6,26 @@
 
 namespace internal_coverage {
 
+extern macro GetCoverageInfo(SharedFunctionInfo): Object;
+
 macro GetCoverageInfo(implicit context: Context)(function: JSFunction):
     CoverageInfo labels IfNoCoverageInfo {
   const shared: SharedFunctionInfo = function.shared_function_info;
-  const debugInfo = Cast<DebugInfo>(shared.script_or_debug_info)
+  const maybeCoverageInfo = GetCoverageInfo(shared);
+  const coverageInfo = Cast<CoverageInfo>(maybeCoverageInfo)
       otherwise goto IfNoCoverageInfo;
-
-  if (!debugInfo.flags.has_coverage_info) goto IfNoCoverageInfo;
-  return UnsafeCast<CoverageInfo>(debugInfo.coverage_info);
+  return coverageInfo;
 }
 
-macro IncrementBlockCount(implicit context: Context)(
-    coverageInfo: CoverageInfo, slot: Smi): void {
+macro IncrementBlockCount(
+    implicit context: Context)(coverageInfo: CoverageInfo, slot: Smi): void {
   dcheck(Convert<int32>(slot) < coverageInfo.slot_count);
   ++coverageInfo.slots[slot].block_count;
 }
 
 builtin IncBlockCounter(
-    implicit context:
-        Context)(function: JSFunction, coverageArraySlotIndex: Smi): Undefined {
+    implicit context: Context)(function: JSFunction,
+    coverageArraySlotIndex: Smi): Undefined {
   // It's quite possible that a function contains IncBlockCounter bytecodes,
   // but no coverage info exists. This happens e.g. by selecting the
   // best-effort coverage collection mode, which triggers deletion of all

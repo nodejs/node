@@ -55,6 +55,8 @@ along with a reference for the [`package.json`][] fields defined by Node.js.
 
 ## Determining module system
 
+### Introduction
+
 Node.js will treat the following as [ES modules][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
 expressions:
@@ -67,14 +69,17 @@ expressions:
 * Strings passed in as an argument to `--eval`, or piped to `node` via `STDIN`,
   with the flag `--input-type=module`.
 
-Node.js will treat as [CommonJS][] all other forms of input, such as `.js` files
-where the nearest parent `package.json` file contains no top-level `"type"`
-field, or string input without the flag `--input-type`. This behavior is to
-preserve backward compatibility. However, now that Node.js supports both
-CommonJS and ES modules, it is best to be explicit whenever possible. Node.js
-will treat the following as CommonJS when passed to `node` as the initial input,
-or when referenced by `import` statements, `import()` expressions, or
-`require()` expressions:
+* Code that contains syntax that only parses successfully as [ES modules][],
+  such as `import` or `export` statements or `import.meta`, when the code has no
+  explicit marker of how it should be interpreted. Explicit markers are `.mjs`
+  or `.cjs` extensions, `package.json` `"type"` fields with either `"module"` or
+  `"commonjs"` values, or `--input-type` or `--experimental-default-type` flags.
+  Dynamic `import()` expressions are supported in either CommonJS or ES modules
+  and would not cause a file to be treated as an ES module.
+
+Node.js will treat the following as [CommonJS][] when passed to `node` as the
+initial input, or when referenced by `import` statements or `import()`
+expressions:
 
 * Files with a `.cjs` extension.
 
@@ -84,11 +89,30 @@ or when referenced by `import` statements, `import()` expressions, or
 * Strings passed in as an argument to `--eval` or `--print`, or piped to `node`
   via `STDIN`, with the flag `--input-type=commonjs`.
 
-Package authors should include the [`"type"`][] field, even in packages where
-all sources are CommonJS. Being explicit about the `type` of the package will
-future-proof the package in case the default type of Node.js ever changes, and
-it will also make things easier for build tools and loaders to determine how the
-files in the package should be interpreted.
+Aside from these explicit cases, there are other cases where Node.js defaults to
+one module system or the other based on the value of the
+[`--experimental-default-type`][] flag:
+
+* Files ending in `.js` or with no extension, if there is no `package.json` file
+  present in the same folder or any parent folder.
+
+* Files ending in `.js` or with no extension, if the nearest parent
+  `package.json` field lacks a `"type"` field; unless the folder is inside a
+  `node_modules` folder. (Package scopes under `node_modules` are always treated
+  as CommonJS when the `package.json` file lacks a `"type"` field, regardless
+  of `--experimental-default-type`, for backward compatibility.)
+
+* Strings passed in as an argument to `--eval` or piped to `node` via `STDIN`,
+  when `--input-type` is unspecified.
+
+This flag currently defaults to `"commonjs"`, but it may change in the future to
+default to `"module"`. For this reason it is best to be explicit wherever
+possible; in particular, package authors should always include the [`"type"`][]
+field in their `package.json` files, even in packages where all sources are
+CommonJS. Being explicit about the `type` of the package will future-proof the
+package in case the default type of Node.js ever changes, and it will also make
+things easier for build tools and loaders to determine how the files in the
+package should be interpreted.
 
 ### Modules loaders
 
@@ -251,7 +275,7 @@ both CommonJS and ES modules in a single package please consult
 
 Existing packages introducing the [`"exports"`][] field will prevent consumers
 of the package from using any entry points that are not defined, including the
-[`package.json`][] (e.g. `require('your-package/package.json')`. **This will
+[`package.json`][] (e.g. `require('your-package/package.json')`). **This will
 likely be a breaking change.**
 
 To make the introduction of [`"exports"`][] non-breaking, ensure that every
@@ -1337,6 +1361,7 @@ This field defines [subpath imports][] for the current package.
 [`"packageManager"`]: #packagemanager
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
+[`--experimental-default-type`]: cli.md#--experimental-default-typetype
 [`--no-addons` flag]: cli.md#--no-addons
 [`ERR_PACKAGE_PATH_NOT_EXPORTED`]: errors.md#err_package_path_not_exported
 [`esm`]: https://github.com/standard-things/esm#readme

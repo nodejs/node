@@ -699,7 +699,7 @@ ManagedEVPPKey::GetPrivateKeyEncodingFromJs(
       (*offset)++;
     }
 
-    if (IsAnyByteSource(args[*offset])) {
+    if (IsAnyBufferSource(args[*offset])) {
       CHECK_IMPLIES(context != kKeyContextInput, result.cipher_ != nullptr);
       ArrayBufferOrViewContents<char> passphrase(args[*offset]);
       if (UNLIKELY(!passphrase.CheckSizeInt32())) {
@@ -730,7 +730,7 @@ ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset,
     bool allow_key_object) {
-  if (args[*offset]->IsString() || IsAnyByteSource(args[*offset])) {
+  if (args[*offset]->IsString() || IsAnyBufferSource(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ByteSource key = ByteSource::FromStringOrBuffer(env, args[(*offset)++]);
     NonCopyableMaybe<PrivateKeyEncodingConfig> config =
@@ -756,7 +756,7 @@ ManagedEVPPKey ManagedEVPPKey::GetPrivateKeyFromJs(
 ManagedEVPPKey ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(
     const FunctionCallbackInfo<Value>& args,
     unsigned int* offset) {
-  if (IsAnyByteSource(args[*offset])) {
+  if (IsAnyBufferSource(args[*offset])) {
     Environment* env = Environment::GetCurrent(args);
     ArrayBufferOrViewContents<char> data(args[(*offset)++]);
     if (UNLIKELY(!data.CheckSizeInt32())) {
@@ -907,6 +907,8 @@ v8::Local<v8::Function> KeyObjectHandle::Initialize(Environment* env) {
         isolate, templ, "getSymmetricKeySize", GetSymmetricKeySize);
     SetProtoMethodNoSideEffect(
         isolate, templ, "getAsymmetricKeyType", GetAsymmetricKeyType);
+    SetProtoMethodNoSideEffect(
+        isolate, templ, "checkEcKeyData", CheckEcKeyData);
     SetProtoMethod(isolate, templ, "export", Export);
     SetProtoMethod(isolate, templ, "exportJwk", ExportJWK);
     SetProtoMethod(isolate, templ, "initECRaw", InitECRaw);
@@ -926,6 +928,7 @@ void KeyObjectHandle::RegisterExternalReferences(
   registry->Register(Init);
   registry->Register(GetSymmetricKeySize);
   registry->Register(GetAsymmetricKeyType);
+  registry->Register(CheckEcKeyData);
   registry->Register(Export);
   registry->Register(ExportJWK);
   registry->Register(InitECRaw);
@@ -1235,6 +1238,34 @@ void KeyObjectHandle::GetAsymmetricKeyType(
   ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
 
   args.GetReturnValue().Set(key->GetAsymmetricKeyType());
+}
+
+bool KeyObjectHandle::CheckEcKeyData() const {
+  MarkPopErrorOnReturn mark_pop_error_on_return;
+
+  const ManagedEVPPKey& key = data_->GetAsymmetricKey();
+  KeyType type = data_->GetKeyType();
+  CHECK_NE(type, kKeyTypeSecret);
+  EVPKeyCtxPointer ctx(EVP_PKEY_CTX_new(key.get(), nullptr));
+  CHECK(ctx);
+  CHECK_EQ(EVP_PKEY_id(key.get()), EVP_PKEY_EC);
+
+  if (type == kKeyTypePrivate) {
+    return EVP_PKEY_check(ctx.get()) == 1;
+  }
+
+#if OPENSSL_VERSION_MAJOR >= 3
+  return EVP_PKEY_public_check_quick(ctx.get()) == 1;
+#else
+  return EVP_PKEY_public_check(ctx.get()) == 1;
+#endif
+}
+
+void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {
+  KeyObjectHandle* key;
+  ASSIGN_OR_RETURN_UNWRAP(&key, args.Holder());
+
+  args.GetReturnValue().Set(key->CheckEcKeyData());
 }
 
 void KeyObjectHandle::GetSymmetricKeySize(

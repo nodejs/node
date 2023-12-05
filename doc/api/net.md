@@ -38,7 +38,10 @@ it will unlink the Unix domain socket as well. For example,
 socket outside of these abstractions, the user will need to remove it. The same
 applies when a Node.js API creates a Unix domain socket but the program then
 crashes. In short, a Unix domain socket will be visible in the file system and
-will persist until unlinked.
+will persist until unlinked. On Linux, You can use Unix abstract socket by adding
+`\0` to the beginning of the path, such as `\0abstract`. The path to the Unix
+abstract socket is not visible in the file system and it will disappear automatically
+when all open references to the socket are closed.
 
 On Windows, the local domain is implemented using a named pipe. The path _must_
 refer to an entry in `\\?\pipe\` or `\\.\pipe\`. Any characters are permitted,
@@ -357,6 +360,19 @@ The optional `callback` will be called once the `'close'` event occurs. Unlike
 that event, it will be called with an `Error` as its only argument if the server
 was not open when it was closed.
 
+### `server[Symbol.asyncDispose]()`
+
+<!-- YAML
+added:
+ - v20.5.0
+ - v18.18.0
+-->
+
+> Stability: 1 - Experimental
+
+Calls [`server.close()`][] and returns a promise that fulfills when the
+server has closed.
+
 ### `server.getConnections(callback)`
 
 <!-- YAML
@@ -566,7 +582,7 @@ added: v5.7.0
 <!-- YAML
 added: v0.2.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/48276
     description: Setting `maxConnections` to `0` drops all the incoming
                  connections. Previously, it was interpreted as `Infinity`.
@@ -788,7 +804,9 @@ socket as reported by the operating system:
 ### `socket.autoSelectFamilyAttemptedAddresses`
 
 <!-- YAML
-added: v19.4.0
+added:
+ - v19.4.0
+ - v18.18.0
 -->
 
 * {string\[]}
@@ -875,7 +893,9 @@ behavior.
 <!-- YAML
 added: v0.1.90
 changes:
-  - version: v20.0.0
+  - version:
+      - v20.0.0
+      - v18.18.0
     pr-url: https://github.com/nodejs/node/pull/46790
     description: The default value for the autoSelectFamily option is now true.
                  The `--enable-network-family-autoselection` CLI flag has been renamed
@@ -1546,7 +1566,9 @@ then returns the `net.Socket` that starts the connection.
 <!-- YAML
 added: v0.5.0
 changes:
-  - version: v20.1.0
+  - version:
+    - v20.1.0
+    - v18.17.0
     pr-url: https://github.com/nodejs/node/pull/47405
     description: The `highWaterMark` option is supported now.
   - version:
@@ -1666,7 +1688,9 @@ Sets the default value of the `autoSelectFamily` option of [`socket.connect(opt
 ## `net.getDefaultAutoSelectFamilyAttemptTimeout()`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.18.0
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
@@ -1677,7 +1701,9 @@ The initial default value is `250`.
 ## `net.setDefaultAutoSelectFamilyAttemptTimeout(value)`
 
 <!-- YAML
-added: v19.8.0
+added:
+ - v19.8.0
+ - v18.18.0
 -->
 
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].

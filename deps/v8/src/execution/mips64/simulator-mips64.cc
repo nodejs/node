@@ -304,7 +304,8 @@ void MipsDebugger::Debug() {
       disasm::Disassembler dasm(converter);
       // Use a reasonably large buffer.
       v8::base::EmbeddedVector<char, 256> buffer;
-      dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(sim_->get_pc()));
+      dasm.InstructionDecode(buffer,
+                             reinterpret_cast<uint8_t*>(sim_->get_pc()));
       PrintF("  0x%016" PRIx64 "   %s\n", sim_->get_pc(), buffer.begin());
       last_pc = sim_->get_pc();
     }
@@ -395,10 +396,10 @@ void MipsDebugger::Debug() {
           int64_t value;
           StdoutStream os;
           if (GetValue(arg1, &value)) {
-            Object obj(value);
+            Tagged<Object> obj(value);
             os << arg1 << ": \n";
 #ifdef DEBUG
-            obj.Print(os);
+            Print(obj, os);
             os << "\n";
 #else
             os << Brief(obj) << "\n";
@@ -441,16 +442,16 @@ void MipsDebugger::Debug() {
         while (cur < end) {
           PrintF("  0x%012" PRIxPTR " :  0x%016" PRIx64 "  %14" PRId64 " ",
                  reinterpret_cast<intptr_t>(cur), *cur, *cur);
-          Object obj(*cur);
+          Tagged<Object> obj(*cur);
           Heap* current_heap = sim_->isolate_->heap();
           if (!skip_obj_print) {
-            if (obj.IsSmi() ||
+            if (IsSmi(obj) ||
                 IsValidHeapObject(current_heap, HeapObject::cast(obj))) {
               PrintF(" (");
-              if (obj.IsSmi()) {
+              if (IsSmi(obj)) {
                 PrintF("smi %d", Smi::ToInt(obj));
               } else {
-                obj.ShortPrint();
+                ShortPrint(obj);
               }
               PrintF(")");
             }
@@ -466,11 +467,11 @@ void MipsDebugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int regnum = Registers::Number(arg1);
@@ -478,7 +479,7 @@ void MipsDebugger::Debug() {
             // The argument is an address or a register name.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(value);
+              cur = reinterpret_cast<uint8_t*>(value);
               // Disassemble 10 instructions at <arg1>.
               end = cur + (10 * kInstrSize);
             }
@@ -486,7 +487,7 @@ void MipsDebugger::Debug() {
             // The argument is the number of instructions.
             int64_t value;
             if (GetValue(arg1, &value)) {
-              cur = reinterpret_cast<byte*>(sim_->get_pc());
+              cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
               // Disassemble <arg1> instructions.
               end = cur + (value * kInstrSize);
             }
@@ -495,7 +496,7 @@ void MipsDebugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -595,16 +596,16 @@ void MipsDebugger::Debug() {
         // Use a reasonably large buffer.
         v8::base::EmbeddedVector<char, 256> buffer;
 
-        byte* cur = nullptr;
-        byte* end = nullptr;
+        uint8_t* cur = nullptr;
+        uint8_t* end = nullptr;
 
         if (argc == 1) {
-          cur = reinterpret_cast<byte*>(sim_->get_pc());
+          cur = reinterpret_cast<uint8_t*>(sim_->get_pc());
           end = cur + (10 * kInstrSize);
         } else if (argc == 2) {
           int64_t value;
           if (GetValue(arg1, &value)) {
-            cur = reinterpret_cast<byte*>(value);
+            cur = reinterpret_cast<uint8_t*>(value);
             // no length parameter passed, assume 10 instructions
             end = cur + (10 * kInstrSize);
           }
@@ -612,7 +613,7 @@ void MipsDebugger::Debug() {
           int64_t value1;
           int64_t value2;
           if (GetValue(arg1, &value1) && GetValue(arg2, &value2)) {
-            cur = reinterpret_cast<byte*>(value1);
+            cur = reinterpret_cast<uint8_t*>(value1);
             end = cur + (value2 * kInstrSize);
           }
         }
@@ -785,8 +786,9 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
-  stack_size_ = v8_flags.sim_stack_size * KB;
-  stack_ = reinterpret_cast<char*>(base::Malloc(stack_size_));
+  size_t stack_size = AllocatedStackSize();
+  stack_ = reinterpret_cast<uintptr_t>(new uint8_t[stack_size]);
+  stack_limit_ = stack_ + kStackProtectionSize;
   pc_modified_ = false;
   icount_ = 0;
   break_count_ = 0;
@@ -813,7 +815,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   // The sp is initialized to point to the bottom (high address) of the
   // allocated stack area. To be safe in potential stack underflows we leave
   // some buffer below.
-  registers_[sp] = reinterpret_cast<int64_t>(stack_) + stack_size_ - 64;
+  registers_[sp] = stack_ + stack_size - kStackProtectionSize;
   // The ra and pc are initialized to a known bad value that will cause an
   // access violation if the simulator ever tries to execute it.
   registers_[pc] = bad_ra;
@@ -824,7 +826,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 Simulator::~Simulator() {
   GlobalMonitor::Get()->RemoveLinkedAddress(&global_monitor_thread_);
-  base::Free(stack_);
+  delete[] reinterpret_cast<uint8_t*>(stack_);
 }
 
 // Get the active Simulator for the current thread.
@@ -2173,12 +2175,20 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
   // we also drop down the JS limit to reflect the exhaustion on the JS stack.
   if (base::Stack::GetCurrentStackPosition() < c_limit) {
-    return reinterpret_cast<uintptr_t>(get_sp());
+    return get_sp();
   }
 
-  // Otherwise the limit is the JS stack. Leave a safety margin of 1024 bytes
+  // Otherwise the limit is the JS stack. Leave a safety margin
   // to prevent overrunning the stack when pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 1024;
+  return stack_limit_ + kAdditionalStackMargin;
+}
+
+base::Vector<uint8_t> Simulator::GetCurrentStackView() const {
+  // We do not add an additional safety margin as above in
+  // Simulator::StackLimit, as users of this method are expected to add their
+  // own margin.
+  return base::VectorOf(reinterpret_cast<uint8_t*>(stack_limit_),
+                        UsableStackSize());
 }
 
 // Unsupported instructions use Format to print an error and stop execution.
@@ -2205,16 +2215,17 @@ using SimulatorRuntimeCompareCall = int64_t (*)(double darg0, double darg1);
 using SimulatorRuntimeFPFPCall = double (*)(double darg0, double darg1);
 using SimulatorRuntimeFPCall = double (*)(double darg0);
 using SimulatorRuntimeFPIntCall = double (*)(double darg0, int32_t arg0);
+// Define four args for future flexibility; at the time of this writing only
+// one is ever used.
+using SimulatorRuntimeFPTaggedCall = double (*)(int64_t arg0, int64_t arg1,
+                                                int64_t arg2, int64_t arg3);
 
 // This signature supports direct call in to API function native callback
 // (refer to InvocationCallback in v8.h).
 using SimulatorRuntimeDirectApiCall = void (*)(int64_t arg0);
-using SimulatorRuntimeProfilingApiCall = void (*)(int64_t arg0, void* arg1);
 
 // This signature supports direct call to accessor getter callback.
 using SimulatorRuntimeDirectGetterCall = void (*)(int64_t arg0, int64_t arg1);
-using SimulatorRuntimeProfilingGetterCall = void (*)(int64_t arg0, int64_t arg1,
-                                                     void* arg2);
 
 using MixedRuntimeCall_0 = AnyCType (*)();
 
@@ -2510,6 +2521,19 @@ void Simulator::SoftwareInterrupt() {
             UNREACHABLE();
         }
       }
+    } else if (redirection->type() ==
+               ExternalReference::BUILTIN_FP_POINTER_CALL) {
+      if (v8_flags.trace_sim) {
+        PrintF("Call to host function at %p args %08" PRIx64 " \n",
+               reinterpret_cast<void*>(external), arg0);
+      }
+      SimulatorRuntimeFPTaggedCall target =
+          reinterpret_cast<SimulatorRuntimeFPTaggedCall>(external);
+      double dresult = target(arg0, arg1, arg2, arg3);
+      SetFpResult(dresult);
+      if (v8_flags.trace_sim) {
+        PrintF("Returned %f\n", dresult);
+      }
     } else if (redirection->type() == ExternalReference::DIRECT_API_CALL) {
       if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 " \n",
@@ -2518,15 +2542,6 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectApiCall target =
           reinterpret_cast<SimulatorRuntimeDirectApiCall>(external);
       target(arg0);
-    } else if (redirection->type() == ExternalReference::PROFILING_API_CALL) {
-      if (v8_flags.trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
-               " \n",
-               reinterpret_cast<void*>(external), arg0, arg1);
-      }
-      SimulatorRuntimeProfilingApiCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingApiCall>(external);
-      target(arg0, Redirection::UnwrapRedirection(arg1));
     } else if (redirection->type() == ExternalReference::DIRECT_GETTER_CALL) {
       if (v8_flags.trace_sim) {
         PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
@@ -2536,16 +2551,6 @@ void Simulator::SoftwareInterrupt() {
       SimulatorRuntimeDirectGetterCall target =
           reinterpret_cast<SimulatorRuntimeDirectGetterCall>(external);
       target(arg0, arg1);
-    } else if (redirection->type() ==
-               ExternalReference::PROFILING_GETTER_CALL) {
-      if (v8_flags.trace_sim) {
-        PrintF("Call to host function at %p args %08" PRIx64 "  %08" PRIx64
-               "  %08" PRIx64 " \n",
-               reinterpret_cast<void*>(external), arg0, arg1, arg2);
-      }
-      SimulatorRuntimeProfilingGetterCall target =
-          reinterpret_cast<SimulatorRuntimeProfilingGetterCall>(external);
-      target(arg0, arg1, Redirection::UnwrapRedirection(arg2));
     } else {
       DCHECK(redirection->type() == ExternalReference::BUILTIN_CALL ||
              redirection->type() == ExternalReference::BUILTIN_CALL_PAIR);
@@ -4151,12 +4156,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
           switch (sa()) {
             case DIV_OP:
               if (rt_u_32 != 0) {
-                SetResult(rd_reg(), rs_u_32 / rt_u_32);
+                SetResult(rd_reg(), static_cast<int32_t>(rs_u_32 / rt_u_32));
               }
               break;
             case MOD_OP:
               if (rt_u() != 0) {
-                SetResult(rd_reg(), rs_u_32 % rt_u_32);
+                SetResult(rd_reg(), static_cast<int32_t>(rs_u_32 % rt_u_32));
               }
               break;
             default:
@@ -4168,8 +4173,8 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
           if (rt_u() != 0) {
             uint32_t rt_u_32 = static_cast<uint32_t>(rt_u());
             uint32_t rs_u_32 = static_cast<uint32_t>(rs_u());
-            set_register(LO, rs_u_32 / rt_u_32);
-            set_register(HI, rs_u_32 % rt_u_32);
+            set_register(LO, static_cast<int32_t>(rs_u_32 / rt_u_32));
+            set_register(HI, static_cast<int32_t>(rs_u_32 % rt_u_32));
           }
         }
       }
@@ -7476,7 +7481,7 @@ void Simulator::InstructionDecode(Instruction* instr) {
     disasm::NameConverter converter;
     disasm::Disassembler dasm(converter);
     // Use a reasonably large buffer.
-    dasm.InstructionDecode(buffer, reinterpret_cast<byte*>(instr));
+    dasm.InstructionDecode(buffer, reinterpret_cast<uint8_t*>(instr));
   }
 
   instr_ = instr;

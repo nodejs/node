@@ -12,6 +12,7 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
+#include <optional>
 #include <string>
 
 namespace node {
@@ -51,6 +52,9 @@ class BindingData : public SnapshotableObject {
   static void CanParse(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool FastCanParse(v8::Local<v8::Value> receiver,
                            const v8::FastOneByteString& input);
+  static bool FastCanParseWithBase(v8::Local<v8::Value> receiver,
+                                   const v8::FastOneByteString& input,
+                                   const v8::FastOneByteString& base);
 
   static void Format(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetOrigin(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -72,10 +76,16 @@ class BindingData : public SnapshotableObject {
   void UpdateComponents(const ada::url_components& components,
                         const ada::scheme::type type);
 
-  static v8::CFunction fast_can_parse_;
+  static v8::CFunction fast_can_parse_methods_[];
 };
 
-std::string FromFilePath(const std::string_view file_path);
+void ThrowInvalidURL(Environment* env,
+                     std::string_view input,
+                     std::optional<std::string> base);
+std::string FromFilePath(std::string_view file_path);
+std::optional<std::string> FileURLToPath(Environment* env,
+                                         const ada::url_aggregator& file_url);
+void FromNamespacedPath(std::string* path);
 
 }  // namespace url
 

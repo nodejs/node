@@ -165,17 +165,16 @@ using AccessorNameSetterCallback =
 /**
  * Access control specifications.
  *
- * Some accessors should be accessible across contexts.  These
+ * Some accessors should be accessible across contexts. These
  * accessors have an explicit access control parameter which specifies
  * the kind of cross-context access that should be allowed.
  *
- * TODO(dcarney): Remove PROHIBITS_OVERWRITING as it is now unused.
  */
 enum AccessControl {
   DEFAULT = 0,
   ALL_CAN_READ = 1,
   ALL_CAN_WRITE = 1 << 1,
-  PROHIBITS_OVERWRITING = 1 << 2
+  PROHIBITS_OVERWRITING V8_ENUM_DEPRECATE_SOON("unused") = 1 << 2
 };
 
 /**
@@ -247,13 +246,16 @@ class V8_EXPORT Object : public Value {
   V8_WARN_UNUSED_RESULT Maybe<bool> Set(Local<Context> context, uint32_t index,
                                         Local<Value> value);
 
-  // Implements CreateDataProperty (ECMA-262, 7.3.4).
-  //
-  // Defines a configurable, writable, enumerable property with the given value
-  // on the object unless the property already exists and is not configurable
-  // or the object is not extensible.
-  //
-  // Returns true on success.
+  /**
+   * Implements CreateDataProperty(O, P, V), see
+   * https://tc39.es/ecma262/#sec-createdataproperty.
+   *
+   * Defines a configurable, writable, enumerable property with the given value
+   * on the object unless the property already exists and is not configurable
+   * or the object is not extensible.
+   *
+   * Returns true on success.
+   */
   V8_WARN_UNUSED_RESULT Maybe<bool> CreateDataProperty(Local<Context> context,
                                                        Local<Name> key,
                                                        Local<Value> value);
@@ -261,29 +263,35 @@ class V8_EXPORT Object : public Value {
                                                        uint32_t index,
                                                        Local<Value> value);
 
-  // Implements DefineOwnProperty.
-  //
-  // In general, CreateDataProperty will be faster, however, does not allow
-  // for specifying attributes.
-  //
-  // Returns true on success.
+  /**
+   * Implements [[DefineOwnProperty]] for data property case, see
+   * https://tc39.es/ecma262/#table-essential-internal-methods.
+   *
+   * In general, CreateDataProperty will be faster, however, does not allow
+   * for specifying attributes.
+   *
+   * Returns true on success.
+   */
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineOwnProperty(
       Local<Context> context, Local<Name> key, Local<Value> value,
       PropertyAttribute attributes = None);
 
-  // Implements Object.DefineProperty(O, P, Attributes), see Ecma-262 19.1.2.4.
-  //
-  // The defineProperty function is used to add an own property or
-  // update the attributes of an existing own property of an object.
-  //
-  // Both data and accessor descriptors can be used.
-  //
-  // In general, CreateDataProperty is faster, however, does not allow
-  // for specifying attributes or an accessor descriptor.
-  //
-  // The PropertyDescriptor can change when redefining a property.
-  //
-  // Returns true on success.
+  /**
+   * Implements Object.defineProperty(O, P, Attributes), see
+   * https://tc39.es/ecma262/#sec-object.defineproperty.
+   *
+   * The defineProperty function is used to add an own property or
+   * update the attributes of an existing own property of an object.
+   *
+   * Both data and accessor descriptors can be used.
+   *
+   * In general, CreateDataProperty is faster, however, does not allow
+   * for specifying attributes or an accessor descriptor.
+   *
+   * The PropertyDescriptor can change when redefining a property.
+   *
+   * Returns true on success.
+   */
   V8_WARN_UNUSED_RESULT Maybe<bool> DefineProperty(
       Local<Context> context, Local<Name> key, PropertyDescriptor& descriptor);
 
@@ -302,14 +310,15 @@ class V8_EXPORT Object : public Value {
       Local<Context> context, Local<Value> key);
 
   /**
-   * Returns Object.getOwnPropertyDescriptor as per ES2016 section 19.1.2.6.
+   * Implements Object.getOwnPropertyDescriptor(O, P), see
+   * https://tc39.es/ecma262/#sec-object.getownpropertydescriptor.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> GetOwnPropertyDescriptor(
       Local<Context> context, Local<Name> key);
 
   /**
-   * Object::Has() calls the abstract operation HasProperty(O, P) described
-   * in ECMA-262, 7.3.10. Has() returns
+   * Object::Has() calls the abstract operation HasProperty(O, P), see
+   * https://tc39.es/ecma262/#sec-hasproperty. Has() returns
    * true, if the object has the property, either own or on the prototype chain.
    * Interceptors, i.e., PropertyQueryCallbacks, are called if present.
    *
@@ -347,7 +356,7 @@ class V8_EXPORT Object : public Value {
 
   void SetAccessorProperty(Local<Name> name, Local<Function> getter,
                            Local<Function> setter = Local<Function>(),
-                           PropertyAttribute attribute = None,
+                           PropertyAttribute attributes = None,
                            AccessControl settings = DEFAULT);
 
   /**
@@ -465,20 +474,29 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static int InternalFieldCount(
       const PersistentBase<Object>& object) {
-    return object.val_->InternalFieldCount();
+    return object.template value<Object>()->InternalFieldCount();
   }
 
   /** Same as above, but works for BasicTracedReference. */
   V8_INLINE static int InternalFieldCount(
       const BasicTracedReference<Object>& object) {
-    return object->InternalFieldCount();
+    return object.template value<Object>()->InternalFieldCount();
   }
 
-  /** Gets the value from an internal field. */
-  V8_INLINE Local<Value> GetInternalField(int index);
+  /**
+   * Gets the data from an internal field.
+   * To cast the return value into v8::Value subtypes, it needs to be
+   * casted to a v8::Value first. For example, to cast it into v8::External:
+   *
+   * object->GetInternalField(index).As<v8::Value>().As<v8::External>();
+   *
+   * The embedder should make sure that the internal field being retrieved
+   * using this method has already been set with SetInternalField() before.
+   **/
+  V8_INLINE Local<Data> GetInternalField(int index);
 
-  /** Sets the value in an internal field. */
-  void SetInternalField(int index, Local<Value> value);
+  /** Sets the data in an internal field. */
+  void SetInternalField(int index, Local<Data> data);
 
   /**
    * Gets a 2-byte-aligned native pointer from an internal field. This field
@@ -490,13 +508,15 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for PersistentBase. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const PersistentBase<Object>& object, int index) {
-    return object.val_->GetAlignedPointerFromInternalField(index);
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index);
   }
 
   /** Same as above, but works for TracedReference. */
   V8_INLINE static void* GetAlignedPointerFromInternalField(
       const BasicTracedReference<Object>& object, int index) {
-    return object->GetAlignedPointerFromInternalField(index);
+    return object.template value<Object>()->GetAlignedPointerFromInternalField(
+        index);
   }
 
   /**
@@ -604,7 +624,7 @@ class V8_EXPORT Object : public Value {
   /** Same as above, but works for Persistents */
   V8_INLINE static MaybeLocal<Context> GetCreationContext(
       const PersistentBase<Object>& object) {
-    return object.val_->GetCreationContext();
+    return object.template value<Object>()->GetCreationContext();
   }
 
   /**
@@ -670,6 +690,10 @@ class V8_EXPORT Object : public Value {
    */
   Isolate* GetIsolate();
 
+  V8_INLINE static Isolate* GetIsolate(const TracedReference<Object>& handle) {
+    return handle.template value<Object>()->GetIsolate();
+  }
+
   /**
    * If this object is a Set, Map, WeakSet or WeakMap, this returns a
    * representation of the elements of this object as an array.
@@ -710,13 +734,13 @@ class V8_EXPORT Object : public Value {
  private:
   Object();
   static void CheckCast(Value* obj);
-  Local<Value> SlowGetInternalField(int index);
+  Local<Data> SlowGetInternalField(int index);
   void* SlowGetAlignedPointerFromInternalField(int index);
 };
 
 // --- Implementation ---
 
-Local<Value> Object::GetInternalField(int index) {
+Local<Data> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
   using A = internal::Address;
   using I = internal::Internals;
@@ -733,14 +757,9 @@ Local<Value> Object::GetInternalField(int index) {
     value = I::DecompressTaggedField(obj, static_cast<uint32_t>(value));
 #endif
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-    return Local<Value>(reinterpret_cast<Value*>(value));
-#else
-    internal::Isolate* isolate =
-        internal::IsolateFromNeverReadOnlySpaceObject(obj);
-    A* result = HandleScope::CreateHandle(isolate, value);
-    return Local<Value>(reinterpret_cast<Value*>(result));
-#endif
+    auto isolate = reinterpret_cast<v8::Isolate*>(
+        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return Local<Data>::New(isolate, value);
   }
 #endif
   return SlowGetInternalField(index);

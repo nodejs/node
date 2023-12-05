@@ -42,6 +42,7 @@ static int tls_dump_puts(BIO *bp, const char *str);
 static BIO_METHOD *method_tls_dump = NULL;
 static BIO_METHOD *meth_mem = NULL;
 static BIO_METHOD *meth_always_retry = NULL;
+static int retry_err = -1;
 
 /* Note: Not thread safe! */
 const BIO_METHOD *bio_f_tls_dump_filter(void)
@@ -760,16 +761,21 @@ static int always_retry_free(BIO *bio)
     return 1;
 }
 
+void set_always_retry_err_val(int err)
+{
+    retry_err = err;
+}
+
 static int always_retry_read(BIO *bio, char *out, int outl)
 {
     BIO_set_retry_read(bio);
-    return -1;
+    return retry_err;
 }
 
 static int always_retry_write(BIO *bio, const char *in, int inl)
 {
     BIO_set_retry_write(bio);
-    return -1;
+    return retry_err;
 }
 
 static long always_retry_ctrl(BIO *bio, int cmd, long num, void *ptr)
@@ -795,13 +801,13 @@ static long always_retry_ctrl(BIO *bio, int cmd, long num, void *ptr)
 static int always_retry_gets(BIO *bio, char *buf, int size)
 {
     BIO_set_retry_read(bio);
-    return -1;
+    return retry_err;
 }
 
 static int always_retry_puts(BIO *bio, const char *str)
 {
     BIO_set_retry_write(bio);
-    return -1;
+    return retry_err;
 }
 
 int create_ssl_ctx_pair(OSSL_LIB_CTX *libctx, const SSL_METHOD *sm,

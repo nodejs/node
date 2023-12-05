@@ -161,8 +161,11 @@ NULL) to print additional diagnostic information in a user-oriented way.
 
 OSSL_HTTP_set1_request() sets up in I<rctx> the request header and content data
 and expectations on the response using the following parameters.
-If <rctx> indicates using a proxy for HTTP (but not HTTPS), the server hostname
-(and optionally port) needs to be placed in the header and thus must be present.
+If <rctx> indicates using a proxy for HTTP (but not HTTPS), the server host
+(and optionally port) needs to be placed in the header; thus it must be present
+in I<rctx>.
+For backward compatibility, the server (and optional port) may also be given in
+the I<path> argument beginning with C<http://> (thus giving an absoluteURI).
 If I<path> is NULL it defaults to "/".
 If I<req> is NULL the HTTP GET method will be used to send the request
 else HTTP POST with the contents of I<req> and optional I<content_type>, where
@@ -274,7 +277,7 @@ All the functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

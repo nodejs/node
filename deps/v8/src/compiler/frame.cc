@@ -46,7 +46,7 @@ void FrameAccessState::MarkHasFrame(bool state) {
 }
 
 void FrameAccessState::SetFrameAccessToDefault() {
-  if (has_frame() && !v8_flags.turbo_sp_frame_access) {
+  if (has_frame()) {
     SetFrameAccessToFP();
   } else {
     SetFrameAccessToSP();

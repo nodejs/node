@@ -16,7 +16,7 @@ tmpdir.refresh();
 let dirc = 0;
 function nextdir() {
   return process.env.NODE_V8_COVERAGE ||
-    path.join(tmpdir.path, `source_map_${++dirc}`);
+    tmpdir.resolve(`source_map_${++dirc}`);
 }
 
 // Outputs source maps when event loop is drained, with no async logic.
@@ -287,6 +287,30 @@ function nextdir() {
   assert.match(output.stderr.toString(), /webpack:\/\/\/webpack\.js:14:9/);
   assert.match(output.stderr.toString(), /at functionD.*14:9/);
   assert.match(output.stderr.toString(), /at functionC.*10:3/);
+}
+
+// Properly converts Windows absolute paths to absolute URLs.
+// Refs: https://github.com/nodejs/node/issues/50523
+// Refs: https://github.com/TypeStrong/ts-node/issues/1769
+{
+  const coverageDirectory = nextdir();
+  const output = spawnSync(process.execPath, [
+    require.resolve('../fixtures/source-map/ts-node-win32.js'),
+  ], { env: { ...process.env, NODE_V8_COVERAGE: coverageDirectory } });
+  assert.strictEqual(output.status, 0);
+  assert.strictEqual(output.stderr.toString(), '');
+  const sourceMap = getSourceMapFromCache(
+    'ts-node-win32.js',
+    coverageDirectory
+  );
+  // base64 JSON should have been decoded, the D: in the sources field should
+  // have been taken as the drive letter on Windows, the scheme on POSIX.
+  assert.strictEqual(
+    sourceMap.data.sources[0],
+    common.isWindows ?
+      'file:///D:/workspaces/node/test/fixtures/source-map/ts-node.ts' :
+      'd:/workspaces/node/test/fixtures/source-map/ts-node.ts'
+  );
 }
 
 // Stores and applies source map associated with file that throws while

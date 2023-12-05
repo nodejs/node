@@ -14,29 +14,39 @@ const { isValidWithUnicodeFlag } = require("./utils/regular-expressions");
 //------------------------------------------------------------------------------
 
 /**
+ * @typedef {import('@eslint-community/regexpp').AST.Character} Character
+ * @typedef {import('@eslint-community/regexpp').AST.CharacterClassElement} CharacterClassElement
+ */
+
+/**
  * Iterate character sequences of a given nodes.
  *
  * CharacterClassRange syntax can steal a part of character sequence,
  * so this function reverts CharacterClassRange syntax and restore the sequence.
- * @param {regexpp.AST.CharacterClassElement[]} nodes The node list to iterate character sequences.
- * @returns {IterableIterator<number[]>} The list of character sequences.
+ * @param {CharacterClassElement[]} nodes The node list to iterate character sequences.
+ * @returns {IterableIterator<Character[]>} The list of character sequences.
  */
 function *iterateCharacterSequence(nodes) {
+
+    /** @type {Character[]} */
     let seq = [];
 
     for (const node of nodes) {
         switch (node.type) {
             case "Character":
-                seq.push(node.value);
+                seq.push(node);
                 break;
 
             case "CharacterClassRange":
-                seq.push(node.min.value);
+                seq.push(node.min);
                 yield seq;
-                seq = [node.max.value];
+                seq = [node.max];
                 break;
 
             case "CharacterSet":
+            case "CharacterClass": // [[]] nesting character class
+            case "ClassStringDisjunction": // \q{...}
+            case "ExpressionCharacterClass": // [A--B]
                 if (seq.length > 0) {
                     yield seq;
                     seq = [];
@@ -52,32 +62,74 @@ function *iterateCharacterSequence(nodes) {
     }
 }
 
+
+/**
+ * Checks whether the given character node is a Unicode code point escape or not.
+ * @param {Character} char the character node to check.
+ * @returns {boolean} `true` if the character node is a Unicode code point escape.
+ */
+function isUnicodeCodePointEscape(char) {
+    return /^\\u\{[\da-f]+\}$/iu.test(char.raw);
+}
+
+/**
+ * Each function returns `true` if it detects that kind of problem.
+ * @type {Record<string, (chars: Character[]) => boolean>}
+ */
 const hasCharacterSequence = {
     surrogatePairWithoutUFlag(chars) {
-        return chars.some((c, i) => i !== 0 && isSurrogatePair(chars[i - 1], c));
+        return chars.some((c, i) => {
+            if (i === 0) {
+                return false;
+            }
+            const c1 = chars[i - 1];
+
+            return (
+                isSurrogatePair(c1.value, c.value) &&
+                !isUnicodeCodePointEscape(c1) &&
+                !isUnicodeCodePointEscape(c)
+            );
+        });
+    },
+
+    surrogatePair(chars) {
+        return chars.some((c, i) => {
+            if (i === 0) {
+                return false;
+            }
+            const c1 = chars[i - 1];
+
+            return (
+                isSurrogatePair(c1.value, c.value) &&
+                (
+                    isUnicodeCodePointEscape(c1) ||
+                    isUnicodeCodePointEscape(c)
+                )
+            );
+        });
     },
 
     combiningClass(chars) {
         return chars.some((c, i) => (
             i !== 0 &&
-            isCombiningCharacter(c) &&
-            !isCombiningCharacter(chars[i - 1])
+            isCombiningCharacter(c.value) &&
+            !isCombiningCharacter(chars[i - 1].value)
         ));
     },
 
     emojiModifier(chars) {
         return chars.some((c, i) => (
             i !== 0 &&
-            isEmojiModifier(c) &&
-            !isEmojiModifier(chars[i - 1])
+            isEmojiModifier(c.value) &&
+            !isEmojiModifier(chars[i - 1].value)
         ));
     },
 
     regionalIndicatorSymbol(chars) {
         return chars.some((c, i) => (
             i !== 0 &&
-            isRegionalIndicatorSymbol(c) &&
-            isRegionalIndicatorSymbol(chars[i - 1])
+            isRegionalIndicatorSymbol(c.value) &&
+            isRegionalIndicatorSymbol(chars[i - 1].value)
         ));
     },
 
@@ -87,9 +139,9 @@ const hasCharacterSequence = {
         return chars.some((c, i) => (
             i !== 0 &&
             i !== lastIndex &&
-            c === 0x200d &&
-            chars[i - 1] !== 0x200d &&
-            chars[i + 1] !== 0x200d
+            c.value === 0x200d &&
+            chars[i - 1].value !== 0x200d &&
+            chars[i + 1].value !== 0x200d
         ));
     }
 };
@@ -117,6 +169,7 @@ module.exports = {
 
         messages: {
             surrogatePairWithoutUFlag: "Unexpected surrogate pair in character class. Use 'u' flag.",
+            surrogatePair: "Unexpected surrogate pair in character class.",
             combiningClass: "Unexpected combined character in character class.",
             emojiModifier: "Unexpected modified Emoji in character class.",
             regionalIndicatorSymbol: "Unexpected national flag in character class.",
@@ -144,7 +197,10 @@ module.exports = {
                     pattern,
                     0,
                     pattern.length,
-                    flags.includes("u")
+                    {
+                        unicode: flags.includes("u"),
+                        unicodeSets: flags.includes("v")
+                    }
                 );
             } catch {
 

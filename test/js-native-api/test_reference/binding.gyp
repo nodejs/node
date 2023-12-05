@@ -3,8 +3,13 @@
     {
       "target_name": "test_reference",
       "sources": [
-        "../entry_point.c",
         "test_reference.c"
+      ]
+    },
+    {
+      "target_name": "test_finalizer",
+      "sources": [
+        "test_finalizer.c"
       ]
     }
   ]

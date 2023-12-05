@@ -56,10 +56,11 @@ mv "c-ares-$NEW_VERSION" cares
 echo "Removing tests"
 rm -rf "$WORKSPACE/cares/test"
 
-echo "Copying existing .gitignore, config and gyp files"
+echo "Copying existing .gitignore, config, gyp and gn files"
 cp -R "$DEPS_DIR/cares/config" "$WORKSPACE/cares"
 cp "$DEPS_DIR/cares/.gitignore" "$WORKSPACE/cares"
 cp "$DEPS_DIR/cares/cares.gyp" "$WORKSPACE/cares"
+cp "$DEPS_DIR/cares/"*.gn "$DEPS_DIR/cares/"*.gni "$WORKSPACE/cares"
 
 echo "Replacing existing c-ares"
 rm -rf "$DEPS_DIR/cares"

@@ -42,7 +42,7 @@ calling `require('node:crypto')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
+<!-- eslint-disable no-global-assign -->
 
 ```cjs
 let crypto;
@@ -52,6 +52,8 @@ try {
   console.error('crypto support is disabled!');
 }
 ```
+
+<!-- eslint-enable no-global-assign -->
 
 When using the lexical ESM `import` keyword, the error can only be
 caught if a handler for `process.on('uncaughtException')` is registered
@@ -2722,7 +2724,7 @@ added: v15.9.0
 The issuer certificate or `undefined` if the issuer certificate is not
 available.
 
-### `x509.keyUsage`
+### `x509.extKeyUsage`
 
 <!-- YAML
 added: v15.6.0
@@ -2730,7 +2732,7 @@ added: v15.6.0
 
 * Type: {string\[]}
 
-An array detailing the key usages for this certificate.
+An array detailing the key extended usages for this certificate.
 
 ### `x509.publicKey`
 
@@ -5590,7 +5592,7 @@ instead.
 ### Support for weak or compromised algorithms
 
 The `node:crypto` module still supports some algorithms which are already
-compromised and are not currently recommended for use. The API also allows
+compromised and are not recommended for use. The API also allows
 the use of ciphers and hashes with a small key size that are too weak for safe
 use.
 
@@ -6091,7 +6093,7 @@ See the [list of SSL OP Flags][] for details.
 [FIPS provider from OpenSSL 3]: https://www.openssl.org/docs/man3.0/man7/crypto.html#FIPS-provider
 [HTML 5.2]: https://www.w3.org/TR/html52/changes.html#features-removed
 [JWK]: https://tools.ietf.org/html/rfc7517
-[NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar1.pdf
+[NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect

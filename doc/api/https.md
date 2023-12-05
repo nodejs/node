@@ -17,8 +17,6 @@ calling `require('node:https')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
-
 ```cjs
 let https;
 try {
@@ -296,7 +294,7 @@ changes:
 
 * `url` {string | URL}
 * `options` {Object | string | URL} Accepts the same `options` as
-  [`https.request()`][], with the `method` always set to `GET`.
+  [`https.request()`][], with the method set to GET by default.
 * `callback` {Function}
 
 Like [`http.get()`][] but for HTTPS.
