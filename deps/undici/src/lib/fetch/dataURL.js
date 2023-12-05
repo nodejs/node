@@ -119,17 +119,14 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  const href = url.href
-
   if (!excludeFragment) {
-    return href
+    return url.href
   }
 
-  const hash = href.lastIndexOf('#')
-  if (hash === -1) {
-    return href
-  }
-  return href.slice(0, hash)
+  const href = url.href
+  const hashLength = url.hash.length
+
+  return hashLength === 0 ? href : href.substring(0, href.length - hashLength)
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points

@@ -1,4 +1,4 @@
-const assert = require('node:assert')
+const assert = require('assert')
 
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
 const { RequestRetryError } = require('../core/errors')
@@ -95,7 +95,7 @@ class RetryHandler {
   }
 
   onBodySent (chunk) {
-    return this.handler.onBodySent(chunk)
+    if (this.handler.onBodySent) return this.handler.onBodySent(chunk)
   }
 
   static [kRetryHandlerDefaultRetry] (err, { state, opts }, cb) {
