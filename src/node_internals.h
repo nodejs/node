@@ -87,6 +87,8 @@ enum class StackTracePrefix {
   kAt,  // "    at "
   kNumber
 };
+void PrintCurrentStackTrace(v8::Isolate* isolate,
+                            StackTracePrefix prefix = StackTracePrefix::kAt);
 void PrintStackTrace(v8::Isolate* isolate,
                      v8::Local<v8::StackTrace> stack,
                      StackTracePrefix prefix = StackTracePrefix::kAt);

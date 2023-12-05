@@ -291,6 +291,13 @@ void PrintStackTrace(Isolate* isolate,
   PrintToStderrAndFlush(FormatStackTrace(isolate, stack, prefix));
 }
 
+void PrintCurrentStackTrace(Isolate* isolate, StackTracePrefix prefix) {
+  Local<StackTrace> stack;
+  if (GetCurrentStackTrace(isolate).ToLocal(&stack)) {
+    PrintStackTrace(isolate, stack, prefix);
+  }
+}
+
 std::string FormatCaughtException(Isolate* isolate,
                                   Local<Context> context,
                                   Local<Value> err,
