@@ -132,7 +132,7 @@ function translateESLintRC(eslintrcConfig, {
             debug(`Translating plugin: ${pluginName}`);
             debug(`Resolving plugin '${pluginName} relative to ${resolvePluginsRelativeTo}`);
 
-            const { definition: plugin, error } = eslintrcConfig.plugins[pluginName];
+            const { original: plugin, error } = eslintrcConfig.plugins[pluginName];
 
             if (error) {
                 throw error;

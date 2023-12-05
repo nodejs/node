@@ -36,12 +36,10 @@ function shareCommentsWithSiblings() {
   }
 }
 function removeIfExisting(list, toRemove) {
-  if (!toRemove) return list;
-  let lastFoundIndex = -1;
+  if (!(toRemove != null && toRemove.length)) return list;
+  const set = new Set(toRemove);
   return list.filter(el => {
-    const i = toRemove.indexOf(el, lastFoundIndex);
-    if (i === -1) return true;
-    lastFoundIndex = i;
+    return !set.has(el);
   });
 }
 function addComment(type, content, line) {

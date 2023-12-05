@@ -74,6 +74,9 @@ const arrayOfStringsOrObjectPatterns = {
                         minItems: 1,
                         uniqueItems: true
                     },
+                    importNamePattern: {
+                        type: "string"
+                    },
                     message: {
                         type: "string",
                         minLength: 1
@@ -115,8 +118,12 @@ module.exports = {
             patternAndImportNameWithCustomMessage: "'{{importName}}' import from '{{importSource}}' is restricted from being used by a pattern. {{customMessage}}",
 
             patternAndEverything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted from being used by a pattern.",
+
+            patternAndEverythingWithRegexImportName: "* import is invalid because import name matching '{{importNames}}' pattern from '{{importSource}}' is restricted from being used.",
             // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
             patternAndEverythingWithCustomMessage: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted from being used by a pattern. {{customMessage}}",
+            // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
+            patternAndEverythingWithRegexImportNameAndCustomMessage: "* import is invalid because import name matching '{{importNames}}' pattern from '{{importSource}}' is restricted from being used. {{customMessage}}",
 
             everything: "* import is invalid because '{{importNames}}' from '{{importSource}}' is restricted.",
             // eslint-disable-next-line eslint-plugin/report-message-format -- Custom message might not end in a period
@@ -175,10 +182,11 @@ module.exports = {
         }
 
         // relative paths are supported for this rule
-        const restrictedPatternGroups = restrictedPatterns.map(({ group, message, caseSensitive, importNames }) => ({
+        const restrictedPatternGroups = restrictedPatterns.map(({ group, message, caseSensitive, importNames, importNamePattern }) => ({
             matcher: ignore({ allowRelativePaths: true, ignorecase: !caseSensitive }).add(group),
             customMessage: message,
-            importNames
+            importNames,
+            importNamePattern
         }));
 
         // if no imports are restricted we don't need to check
@@ -262,12 +270,13 @@ module.exports = {
 
             const customMessage = group.customMessage;
             const restrictedImportNames = group.importNames;
+            const restrictedImportNamePattern = group.importNamePattern ? new RegExp(group.importNamePattern, "u") : null;
 
             /*
              * If we are not restricting to any specific import names and just the pattern itself,
              * report the error and move on
              */
-            if (!restrictedImportNames) {
+            if (!restrictedImportNames && !restrictedImportNamePattern) {
                 context.report({
                     node,
                     messageId: customMessage ? "patternWithCustomMessage" : "patterns",
@@ -279,40 +288,54 @@ module.exports = {
                 return;
             }
 
-            if (importNames.has("*")) {
-                const specifierData = importNames.get("*")[0];
+            importNames.forEach((specifiers, importName) => {
+                if (importName === "*") {
+                    const [specifier] = specifiers;
 
-                context.report({
-                    node,
-                    messageId: customMessage ? "patternAndEverythingWithCustomMessage" : "patternAndEverything",
-                    loc: specifierData.loc,
-                    data: {
-                        importSource,
-                        importNames: restrictedImportNames,
-                        customMessage
+                    if (restrictedImportNames) {
+                        context.report({
+                            node,
+                            messageId: customMessage ? "patternAndEverythingWithCustomMessage" : "patternAndEverything",
+                            loc: specifier.loc,
+                            data: {
+                                importSource,
+                                importNames: restrictedImportNames,
+                                customMessage
+                            }
+                        });
+                    } else {
+                        context.report({
+                            node,
+                            messageId: customMessage ? "patternAndEverythingWithRegexImportNameAndCustomMessage" : "patternAndEverythingWithRegexImportName",
+                            loc: specifier.loc,
+                            data: {
+                                importSource,
+                                importNames: restrictedImportNamePattern,
+                                customMessage
+                            }
+                        });
                     }
-                });
-            }
 
-            restrictedImportNames.forEach(importName => {
-                if (!importNames.has(importName)) {
                     return;
                 }
 
-                const specifiers = importNames.get(importName);
-
-                specifiers.forEach(specifier => {
-                    context.report({
-                        node,
-                        messageId: customMessage ? "patternAndImportNameWithCustomMessage" : "patternAndImportName",
-                        loc: specifier.loc,
-                        data: {
-                            importSource,
-                            customMessage,
-                            importName
-                        }
+                if (
+                    (restrictedImportNames && restrictedImportNames.includes(importName)) ||
+                    (restrictedImportNamePattern && restrictedImportNamePattern.test(importName))
+                ) {
+                    specifiers.forEach(specifier => {
+                        context.report({
+                            node,
+                            messageId: customMessage ? "patternAndImportNameWithCustomMessage" : "patternAndImportName",
+                            loc: specifier.loc,
+                            data: {
+                                importSource,
+                                customMessage,
+                                importName
+                            }
+                        });
                     });
-                });
+                }
             });
         }
 
