@@ -3,7 +3,7 @@
 const common = require('../common.js');
 const { randomBytes } = require('crypto');
 
-// add together with imports
+// Add together with imports
 const assert = require('assert');
 
 let _cryptoResult;
