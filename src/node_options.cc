@@ -672,6 +672,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "show stack traces on process warnings",
             &EnvironmentOptions::trace_warnings,
             kAllowedInEnvvar);
+  AddOption("--trace-promises",
+            "show stack traces on promise initialization and resolution",
+            &EnvironmentOptions::trace_promises,
+            kAllowedInEnvvar);
   AddOption("--experimental-default-type",
             "set module system to use by default",
             &EnvironmentOptions::type,
