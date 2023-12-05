@@ -726,15 +726,15 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--no-warnings',
       '--experimental-loader',
       `data:text/javascript,import{readFile}from"node:fs/promises";import{fileURLToPath}from"node:url";export ${
-        async function load(u, c, n) {
-          const r = await n(u, c);
-          if (u.endsWith('/common/index.js')) {
-            r.source = '"use strict";module.exports=require("node:module").createRequire(' +
-                     `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))});\n`;
-          } else if (c.format === 'commonjs') {
-            r.source = await readFile(new URL(u));
+        async function load(url, context, nextLoad) {
+          const resolved = await nextLoad(url, context);
+          if (url.endsWith('/common/index.js')) {
+            resolved.source = '"use strict";module.exports=require("node:module").createRequire(' +
+                     `${JSON.stringify(url)})(${JSON.stringify(fileURLToPath(url))});\n`;
+          } else if (context.format === 'commonjs') {
+            resolved.source = await readFile(new URL(url));
           }
-          return r;
+          return resolved;
         }}`,
       '--experimental-loader',
       fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'),
@@ -754,12 +754,12 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--enable-source-maps',
       '--experimental-loader',
       `data:text/javascript,import{readFile}from"node:fs/promises";export ${
-        async function load(u, c, n) {
-          const r = await n(u, c);
-          if (c.format === 'commonjs') {
-            r.source = await readFile(new URL(u));
+        async function load(url, context, nextLoad) {
+          const resolved = await nextLoad(url, context);
+          if (context.format === 'commonjs') {
+            resolved.source = await readFile(new URL(url));
           }
-          return r;
+          return resolved;
         }}`,
       fixtures.path('source-map/throw-on-require.js'),
     ]);
@@ -775,26 +775,26 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--no-warnings',
       '--experimental-loader',
       `data:text/javascript,const fixtures=${JSON.stringify(fixtures.path('empty.js'))};export ${
-        encodeURIComponent(function resolve(s, c, n) {
-          if (s.endsWith('entry-point')) {
+        encodeURIComponent(function resolve(specifier, context, nextResolve) {
+          if (specifier.endsWith('entry-point')) {
             return {
               shortCircuit: true,
               url: 'file:///c:/virtual-entry-point',
               format: 'commonjs',
             };
           }
-          return n(s, c);
+          return nextResolve(specifier, context);
         })
       }export ${
-        encodeURIComponent(async function load(u, c, n) {
-          if (u === 'file:///c:/virtual-entry-point') {
+        encodeURIComponent(async function load(url, context, nextLoad) {
+          if (url === 'file:///c:/virtual-entry-point') {
             return {
               shortCircuit: true,
               source: `"use strict";require(${JSON.stringify(fixtures)});console.log("Hello");`,
               format: 'commonjs',
             };
           }
-          return n(u, c);
+          return nextLoad(url, context);
         })}`,
       'entry-point',
     ]);
