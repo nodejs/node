@@ -18,7 +18,7 @@ This a list of all the dependencies:
 * [googletest 76bb2af][]
 * [histogram 0.11.8][]
 * [icu-small 74.1][]
-* [libuv 1.46.0][]
+* [libuv 1.47.0][]
 * [llhttp 9.1.3][]
 * [minimatch 9.0.3][]
 * [nghttp2 1.58.0][]
@@ -29,7 +29,7 @@ This a list of all the dependencies:
 * [postject 1.0.0-alpha.6][]
 * [simdjson 3.6.0][]
 * [simdutf 4.0.4][]
-* [undici 5.28.1][]
+* [undici 5.28.2][]
 * [uvwasi 0.0.19][]
 * [V8 11.8.172.12][]
 * [zlib 1.2.13.1-motley-5daffc7][]
@@ -207,7 +207,7 @@ and Java libraries providing Unicode and Globalization
 support for software applications.
 See [maintaining-icu][] for more informations.
 
-### libuv 1.46.0
+### libuv 1.47.0
 
 The [libuv](https://github.com/libuv/libuv) dependency is a
 multi-platform support library with a focus on asynchronous I/O.
@@ -297,7 +297,7 @@ a C++ library for fast JSON parsing.
 The [simdutf](https://github.com/simdutf/simdutf) dependency is
 a C++ library for fast UTF-8 decoding and encoding.
 
-### undici 5.28.1
+### undici 5.28.2
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
 written from scratch for Node.js..
@@ -335,7 +335,7 @@ performance improvements not currently available in standard zlib.
 [googletest 76bb2af]: #googletest-76bb2af
 [histogram 0.11.8]: #histogram-0118
 [icu-small 74.1]: #icu-small-741
-[libuv 1.46.0]: #libuv-1460
+[libuv 1.47.0]: #libuv-1470
 [llhttp 9.1.3]: #llhttp-913
 [maintaining-V8]: ./maintaining-V8.md
 [maintaining-cjs-module-lexer]: ./maintaining-cjs-module-lexer.md
@@ -352,7 +352,7 @@ performance improvements not currently available in standard zlib.
 [postject 1.0.0-alpha.6]: #postject-100-alpha6
 [simdjson 3.6.0]: #simdutf-360
 [simdutf 4.0.4]: #simdutf-404
-[undici 5.28.1]: #undici-5281
+[undici 5.28.2]: #undici-5282
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi 0.0.19]: #uvwasi-0019
 [v8 11.8.172.12]: #v8-11817212

@@ -235,3 +235,23 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
     }
   });
 });
+
+// Validate temporarily disabling `--abort-on-uncaught-exception`
+// while running `containsModuleSyntax`.
+// Ref: https://github.com/nodejs/node/issues/50878
+describe('Wrapping a `require` of an ES module while using `--abort-on-uncaught-exception`', () => {
+  it('should work', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--abort-on-uncaught-exception',
+      '--eval',
+      'assert.throws(() => require("./package-type-module/esm.js"), { code: "ERR_REQUIRE_ESM" })',
+    ], {
+      cwd: fixtures.path('es-modules'),
+    });
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '');
+    strictEqual(code, 0);
+    strictEqual(signal, null);
+  });
+});

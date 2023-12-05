@@ -27,6 +27,13 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+/* ifaddrs is not implemented on AIX and IBM i PASE */
+#if !defined(_AIX)
+#include <ifaddrs.h>
+#endif
 
 static int maybe_bind_socket(int fd) {
   union uv__sockaddr s;
@@ -198,11 +205,55 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 }
 
 
+static int uv__is_ipv6_link_local(const struct sockaddr* addr) {
+  const struct sockaddr_in6* a6;
+  uint8_t b[2];
+
+  if (addr->sa_family != AF_INET6)
+    return 0;
+
+  a6 = (const struct sockaddr_in6*) addr;
+  memcpy(b, &a6->sin6_addr, sizeof(b));
+
+  return b[0] == 0xFE && b[1] == 0x80;
+}
+
+
+static int uv__ipv6_link_local_scope_id(void) {
+/* disable link local on AIX & PASE for now */
+#if defined(_AIX)
+  return 0;
+#else
+  struct sockaddr_in6* a6;
+  struct ifaddrs* ifa;
+  struct ifaddrs* p;
+  int rv;
+
+  if (getifaddrs(&ifa))
+    return 0;
+
+  for (p = ifa; p != NULL; p = p->ifa_next)
+    if (uv__is_ipv6_link_local(p->ifa_addr))
+      break;
+
+  rv = 0;
+  if (p != NULL) {
+    a6 = (struct sockaddr_in6*) p->ifa_addr;
+    rv = a6->sin6_scope_id;
+  }
+
+  freeifaddrs(ifa);
+  return rv;
+#endif
+}
+
+
 int uv__tcp_connect(uv_connect_t* req,
                     uv_tcp_t* handle,
                     const struct sockaddr* addr,
                     unsigned int addrlen,
                     uv_connect_cb cb) {
+  struct sockaddr_in6 tmp6;
   int err;
   int r;
 
@@ -219,6 +270,14 @@ int uv__tcp_connect(uv_connect_t* req,
                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   if (err)
     return err;
+
+  if (uv__is_ipv6_link_local(addr)) {
+    memcpy(&tmp6, addr, sizeof(tmp6));
+    if (tmp6.sin6_scope_id == 0) {
+      tmp6.sin6_scope_id = uv__ipv6_link_local_scope_id();
+      addr = (void*) &tmp6;
+    }
+  }
 
   do {
     errno = 0;
@@ -374,28 +433,39 @@ int uv__tcp_nodelay(int fd, int on) {
 
 
 int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
+  int intvl;
+  int cnt;
+
+  (void) &intvl;
+  (void) &cnt;
+    
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
     return UV__ERR(errno);
 
+  if (!on)
+    return 0;
+
 #ifdef TCP_KEEPIDLE
-  if (on) {
-    int intvl = 1;  /*  1 second; same as default on Win32 */
-    int cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
-      return UV__ERR(errno);
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
-      return UV__ERR(errno);
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
-      return UV__ERR(errno);
-  }
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
+    return UV__ERR(errno);
+/* Solaris/SmartOS, if you don't support keep-alive,
+ * then don't advertise it in your system headers...
+ */
+/* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
+#elif defined(TCP_KEEPALIVE) && !defined(__sun)
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
+    return UV__ERR(errno);
 #endif
 
-  /* Solaris/SmartOS, if you don't support keep-alive,
-   * then don't advertise it in your system headers...
-   */
-  /* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
-#if defined(TCP_KEEPALIVE) && !defined(__sun)
-  if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
+#ifdef TCP_KEEPINTVL
+  intvl = 1;  /*  1 second; same as default on Win32 */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+    return UV__ERR(errno);
+#endif
+
+#ifdef TCP_KEEPCNT
+  cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
     return UV__ERR(errno);
 #endif
 

@@ -1468,6 +1468,7 @@ void ContextifyContext::ContainsModuleSyntax(
       String::NewFromUtf8(isolate, "__dirname").ToLocalChecked()};
 
   TryCatchScope try_catch(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
 
   ContextifyContext::CompileFunctionAndCacheResult(env,
                                                    context,
