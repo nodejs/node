@@ -44,7 +44,6 @@
       *
       *
       *
-      *
 
  beforeEach throws
    1 (*ms)
@@ -351,7 +350,6 @@
 *
  after throws (*ms)
   Error: after
-      *
       *
       *
       *

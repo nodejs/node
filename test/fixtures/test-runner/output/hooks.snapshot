@@ -103,7 +103,6 @@ not ok 3 - after throws
     *
     *
     *
-    *
   ...
 # Subtest: beforeEach throws
     # Subtest: 1
