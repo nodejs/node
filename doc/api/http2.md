@@ -611,12 +611,14 @@ const http2 = require('node:http2');
 
 const server = http2.createServer();
 const expectedWindowSize = 2 ** 20;
-server.on('connect', (session) => {
+server.on('session', (session) => {
 
   // Set local window size to be 2 ** 20
   session.setLocalWindowSize(expectedWindowSize);
 });
 ```
+
+For http2 clients the proper event is either `'connect'` or `'remoteSettings'`.
 
 #### `http2session.setTimeout(msecs, callback)`
 
