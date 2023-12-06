@@ -101,7 +101,7 @@ const assert = require('assert');
 
   read._destroy = common.mustCall(function(err, cb) {
     assert.strictEqual(err, null);
-    process.nextTick(() => {
+    queueMicrotask(() => {
       this.push(null);
       cb();
     });

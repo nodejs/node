@@ -209,7 +209,7 @@ for (let i = 0; i < chunks.length; i++) {
   });
 
   tw.on('finish', common.mustCall(function() {
-    process.nextTick(common.mustCall(function() {
+    queueMicrotask(common.mustCall(function() {
       // Got chunks in the right order
       assert.deepStrictEqual(tw.buffer, chunks);
       // Called all callbacks
@@ -315,7 +315,7 @@ const helloWorldBuffer = Buffer.from('hello world');
   });
   w.end('this is the end');
   w.end('and so is this');
-  process.nextTick(common.mustCall(function() {
+  queueMicrotask(common.mustCall(function() {
     assert.strictEqual(gotError, true);
   }));
 }
@@ -378,7 +378,7 @@ const helloWorldBuffer = Buffer.from('hello world');
   // Verify finish is emitted if the last chunk is empty
   const w = new W();
   w._write = function(chunk, e, cb) {
-    process.nextTick(cb);
+    queueMicrotask(cb);
   };
   w.on('finish', common.mustCall());
   w.write(Buffer.allocUnsafe(1));
@@ -398,7 +398,7 @@ const helloWorldBuffer = Buffer.from('hello world');
     }, 100);
   });
   w._write = function(chunk, e, cb) {
-    process.nextTick(cb);
+    queueMicrotask(cb);
   };
   w.on('finish', common.mustCall(function() {
     assert.strictEqual(shutdown, true);
@@ -454,7 +454,7 @@ const helloWorldBuffer = Buffer.from('hello world');
     cb(new Error());
   });
   w._write = function(chunk, e, cb) {
-    process.nextTick(cb);
+    queueMicrotask(cb);
   };
   w.on('error', common.mustCall());
   w.on('prefinish', common.mustNotCall());

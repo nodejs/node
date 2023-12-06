@@ -108,7 +108,7 @@ const assert = require('assert');
 
   duplex._destroy = common.mustCall(function(err, cb) {
     assert.strictEqual(err, null);
-    process.nextTick(() => {
+    queueMicrotask(() => {
       this.push(null);
       this.end();
       cb();

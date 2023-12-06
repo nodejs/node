@@ -118,3 +118,23 @@ const http = require('http');
     req.end('asd');
   });
 }
+
+{
+  // Destroy timing relative to Promise
+
+  new Promise((resolve) => {
+    const r = new Readable({ read() {} });
+    destroy(r, new Error('asd'));
+    resolve(r);
+  }).then(common.mustCall((r) => {
+    r.on('error', common.mustCall());
+  }));
+
+  new Promise((resolve) => {
+    const r = new Readable({ read() {} });
+    resolve(r);
+    r.destroy(new Error('asd'));
+  }).then(common.mustCall((r) => {
+    r.on('error', common.mustCall());
+  }));
+}
