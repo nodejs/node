@@ -887,7 +887,7 @@ the error as first arg convention typically used. This will always produce a
 function execution, and will produce a [`asyncStart` event][] and
 [`asyncEnd` event][] around the callback execution. It may also produce an
 [`error` event][] if the given function throws or the first argument passed to
-the calblack is set. This will run the given function using
+the callback is set. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
