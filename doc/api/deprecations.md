@@ -3545,6 +3545,20 @@ Type: Documentation-only
 The [`dirent.path`][] is deprecated due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
 
+### DEP0179: calling `StringDecoder` without new qualifier
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51076
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Initializing [`StringDecoder`][] without `new` qualifier is deprecated.
+Please use `new StringDecoder()` instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3568,6 +3582,7 @@ release lines. Please use [`dirent.parentPath`][] instead.
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
+[`StringDecoder`]: string_decoder.md#class-stringdecoder
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
