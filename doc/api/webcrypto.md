@@ -330,7 +330,7 @@ async function pbkdf2Key(pass, salt, iterations = 1000, length = 256) {
     iterations,
   }, keyMaterial, {
     name: 'AES-GCM',
-    length: 256,
+    length,
   }, true, ['encrypt', 'decrypt']);
   return key;
 }
