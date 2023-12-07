@@ -231,6 +231,33 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
+### `--experimental-detect-module` flag
+
+<!-- YAML
+added:
+  - v21.1.0
+  - v20.10.0
+-->
+
+> Stability: 1.0 - Early development
+
+Node.js will inspect the source code of ambiguous input to determine whether it
+contains ES module syntax; if such syntax is detected, the input will be treated
+as an ES module.
+
+Ambiguous input is defined as:
+
+* Files with a `.js` extension or no extension; and either no controlling
+  `package.json` file or one that lacks a `type` field; and
+  `--experimental-default-type` is not specified.
+* String input (`--eval` or STDIN) when neither `--input-type` nor
+  `--experimental-default-type` are specified.
+
+ES module syntax is defined as syntax that would throw when evaluated as
+CommonJS. This includes `import` and `export` statements and `import.meta`
+references. It does _not_ include `import()` expressions, which are valid in
+CommonJS.
+
 ## Determining package manager
 
 > Stability: 1 - Experimental
