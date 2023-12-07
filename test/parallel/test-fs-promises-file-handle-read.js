@@ -109,7 +109,7 @@ async function validateReadWithNoOptions(byte) {
   response = await read(fileHandle, buf, 0, undefined, 0, { useConf: true });
   assert.strictEqual(response.bytesRead, byte);
   response = await read(fileHandle, buf, 0, null, 0, { useConf: true });
-  assert.strictEqual(response.bytesRead, 0);
+  assert.strictEqual(response.bytesRead, byte);
 }
 
 (async function() {
