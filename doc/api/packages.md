@@ -71,11 +71,13 @@ expressions:
 
 * Code that contains syntax that only parses successfully as [ES modules][],
   such as `import` or `export` statements or `import.meta`, when the code has no
-  explicit marker of how it should be interpreted. Explicit markers are `.mjs`
-  or `.cjs` extensions, `package.json` `"type"` fields with either `"module"` or
-  `"commonjs"` values, or `--input-type` or `--experimental-default-type` flags.
-  Dynamic `import()` expressions are supported in either CommonJS or ES modules
-  and would not cause a file to be treated as an ES module.
+  explicit marker of how it should be interpreted. To use this feature
+  [--experimental-detect-module](https://nodejs.org/docs/latest/api/cli.html)
+  flag is to be used. Explicit markers are `.mjs` or `.cjs` extensions,
+  `package.json` `"type"` fields with either `"module"` or `"commonjs"` values,
+  or `--input-type` or `--experimental-default-type` flags. Dynamic `import()`
+  expressions are supported in either CommonJS or ES modules and would not
+  cause a file to be treated as an ES module.
 
 Node.js will treat the following as [CommonJS][] when passed to `node` as the
 initial input, or when referenced by `import` statements or `import()`
@@ -230,33 +232,6 @@ echo "import { sep } from 'node:path'; console.log(sep);" | node --input-type=mo
 For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
-
-### `--experimental-detect-module` flag
-
-<!-- YAML
-added:
-  - v21.1.0
-  - v20.10.0
--->
-
-> Stability: 1.0 - Early development
-
-Node.js will inspect the source code of ambiguous input to determine whether it
-contains ES module syntax; if such syntax is detected, the input will be treated
-as an ES module.
-
-Ambiguous input is defined as:
-
-* Files with a `.js` extension or no extension; and either no controlling
-  `package.json` file or one that lacks a `type` field; and
-  `--experimental-default-type` is not specified.
-* String input (`--eval` or STDIN) when neither `--input-type` nor
-  `--experimental-default-type` are specified.
-
-ES module syntax is defined as syntax that would throw when evaluated as
-CommonJS. This includes `import` and `export` statements and `import.meta`
-references. It does _not_ include `import()` expressions, which are valid in
-CommonJS.
 
 ## Determining package manager
 
