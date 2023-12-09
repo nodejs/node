@@ -31,17 +31,15 @@ class TokenSecret final : public MemoryRetainer {
   // the length is not verified so care must be taken
   // when this constructor is used.
   explicit TokenSecret(const uint8_t* secret);
+  ~TokenSecret();
 
-  TokenSecret(const TokenSecret& other) = default;
-  TokenSecret& operator=(const TokenSecret& other) = default;
-  TokenSecret& operator=(const uint8_t* other);
-
-  TokenSecret& operator=(TokenSecret&& other) = delete;
+  TokenSecret(const TokenSecret&) = default;
+  TokenSecret& operator=(const TokenSecret&) = default;
+  TokenSecret(TokenSecret&&) = delete;
+  TokenSecret& operator=(TokenSecret&&) = delete;
 
   operator const uint8_t*() const;
-
-  // Resets the secret to a random value.
-  void Reset();
+  uint8_t operator[](int pos) const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TokenSecret)

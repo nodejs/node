@@ -116,8 +116,8 @@ class TransportParams final {
     SET_MEMORY_INFO_NAME(TransportParams::Options)
     SET_SELF_SIZE(Options)
 
-    static v8::Maybe<const Options> From(Environment* env,
-                                         v8::Local<v8::Value> value);
+    static v8::Maybe<Options> From(Environment* env,
+                                   v8::Local<v8::Value> value);
   };
 
   explicit TransportParams(Type type);

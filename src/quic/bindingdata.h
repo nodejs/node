@@ -118,11 +118,14 @@ constexpr size_t kMaxVectorCount = 16;
   V(address_lru_size, "addressLRUSize")                                        \
   V(alpn, "alpn")                                                              \
   V(application_options, "application")                                        \
+  V(bbr, "bbr")                                                                \
+  V(bbr2, "bbr2")                                                              \
   V(ca, "ca")                                                                  \
   V(certs, "certs")                                                            \
   V(cc_algorithm, "cc")                                                        \
   V(crl, "crl")                                                                \
   V(ciphers, "ciphers")                                                        \
+  V(cubic, "cubic")                                                            \
   V(disable_active_migration, "disableActiveMigration")                        \
   V(disable_stateless_reset, "disableStatelessReset")                          \
   V(enable_tls_trace, "tlsTrace")                                              \
@@ -162,6 +165,7 @@ constexpr size_t kMaxVectorCount = 16;
   V(qpack_encoder_max_dtable_capacity, "qpackEncoderMaxDTableCapacity")        \
   V(qpack_max_dtable_capacity, "qpackMaxDTableCapacity")                       \
   V(reject_unauthorized, "rejectUnauthorized")                                 \
+  V(reno, "reno")                                                              \
   V(retry_token_expiration, "retryTokenExpiration")                            \
   V(request_peer_certificate, "requestPeerCertificate")                        \
   V(reset_token_secret, "resetTokenSecret")                                    \
@@ -194,7 +198,7 @@ class BindingData final
       public mem::NgLibMemoryManager<BindingData, ngtcp2_mem> {
  public:
   SET_BINDING_ID(quic_binding_data)
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BindingData& Get(Environment* env);
