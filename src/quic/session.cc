@@ -211,31 +211,19 @@ void ngtcp2_debug_log(void* user_data, const char* fmt, ...) {
   va_end(ap);
 }
 
-template <typename Opt, uint32_t Opt::*member>
-bool SetOption(Environment* env,
-               Opt* options,
-               const v8::Local<Object>& object,
-               const v8::Local<String>& name) {
-  Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  if (!value->IsUndefined()) {
-    DCHECK(value->IsNumber());
-    options->*member = value.As<Uint32>()->Value();
-  }
-  return true;
-}
-
 template <typename Opt, PreferredAddress::Policy Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  // If the policy specified is invalid, we will just ignore it.
-  auto maybePolicy = PreferredAddress::tryGetPolicy(env, value);
-  if (!maybePolicy.IsJust()) return false;
-  options->*member = maybePolicy.FromJust();
+  PreferredAddress::Policy policy =
+      PreferredAddress::Policy::USE_PREFERRED_ADDRESS;
+  if (!object->Get(env->context(), name).ToLocal(&value) ||
+      !PreferredAddress::tryGetPolicy(env, value).To(&policy)) {
+    return false;
+  }
+  options->*member = policy;
   return true;
 }
 
@@ -245,10 +233,12 @@ bool SetOption(Environment* env,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  auto maybeOptions = TLSContext::Options::From(env, value);
-  if (!maybeOptions.IsJust()) return false;
-  options->*member = maybeOptions.FromJust();
+  TLSContext::Options opts;
+  if (!object->Get(env->context(), name).ToLocal(&value) ||
+      !TLSContext::Options::From(env, value).To(&opts)) {
+    return false;
+  }
+  options->*member = opts;
   return true;
 }
 
@@ -258,10 +248,12 @@ bool SetOption(Environment* env,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  auto maybeOptions = Session::Application_Options::From(env, value);
-  if (!maybeOptions.IsJust()) return false;
-  options->*member = maybeOptions.FromJust();
+  Session::Application_Options opts;
+  if (!object->Get(env->context(), name).ToLocal(&value) ||
+      !Session::Application_Options::From(env, value).To(&opts)) {
+    return false;
+  }
+  options->*member = opts;
   return true;
 }
 
@@ -271,10 +263,12 @@ bool SetOption(Environment* env,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  auto maybeOptions = TransportParams::Options::From(env, value);
-  if (!maybeOptions.IsJust()) return false;
-  options->*member = maybeOptions.FromJust();
+  TransportParams::Options opts;
+  if (!object->Get(env->context(), name).ToLocal(&value) ||
+      !TransportParams::Options::From(env, value).To(&opts)) {
+    return false;
+  }
+  options->*member = opts;
   return true;
 }
 

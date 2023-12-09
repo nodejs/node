@@ -31,15 +31,26 @@ TransportParams::Config::Config(Side side,
                                 const CID& retry_scid)
     : side(side), ocid(ocid), retry_scid(retry_scid) {}
 
-Maybe<const TransportParams::Options> TransportParams::Options::From(
+Maybe<TransportParams::Options> TransportParams::Options::From(
     Environment* env, Local<Value> value) {
-  if (value.IsEmpty() || !value->IsObject()) {
-    return Nothing<const Options>();
+  if (value.IsEmpty()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+    return Nothing<Options>();
   }
 
-  auto& state = BindingData::Get(env);
-  auto params = value.As<Object>();
   Options options;
+  auto& state = BindingData::Get(env);
+
+  if (value->IsUndefined()) {
+    return Just<Options>(options);
+  }
+
+  if (!value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+    return Nothing<Options>();
+  }
+
+  auto params = value.As<Object>();
 
 #define SET(name)                                                              \
   SetOption<TransportParams::Options, &TransportParams::Options::name>(        \
@@ -52,12 +63,12 @@ Maybe<const TransportParams::Options> TransportParams::Options::From(
       !SET(max_idle_timeout) || !SET(active_connection_id_limit) ||
       !SET(ack_delay_exponent) || !SET(max_ack_delay) ||
       !SET(max_datagram_frame_size) || !SET(disable_active_migration)) {
-    return Nothing<const Options>();
+    return Nothing<Options>();
   }
 
 #undef SET
 
-  return Just<const Options>(options);
+  return Just<Options>(options);
 }
 
 void TransportParams::Options::MemoryInfo(MemoryTracker* tracker) const {

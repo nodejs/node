@@ -34,9 +34,32 @@ bool SetOption(Environment* env,
                const v8::Local<v8::String>& name) {
   v8::Local<v8::Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
+  options->*member = value->BooleanValue(env->isolate());
+  return true;
+}
+
+template <typename Opt, uint32_t Opt::*member>
+bool SetOption(Environment* env,
+               Opt* options,
+               const v8::Local<v8::Object>& object,
+               const v8::Local<v8::String>& name) {
+  v8::Local<v8::Value> value;
+  if (!object->Get(env->context(), name).ToLocal(&value)) return false;
   if (!value->IsUndefined()) {
-    CHECK(value->IsBoolean());
-    options->*member = value->IsTrue();
+    if (!value->IsUint32()) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must be an uint32", *nameStr);
+      return false;
+    }
+    v8::Local<v8::Uint32> num;
+    if (!value->ToUint32(env->context()).ToLocal(&num)) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "The %s option must be an uint32", *nameStr);
+      return false;
+    }
+    options->*member = num->Value();
   }
   return true;
 }
@@ -50,7 +73,13 @@ bool SetOption(Environment* env,
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
 
   if (!value->IsUndefined()) {
-    CHECK_IMPLIES(!value->IsBigInt(), value->IsNumber());
+    if (!value->IsBigInt() && !value->IsNumber()) {
+      Utf8Value nameStr(env->isolate(), name);
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "option %s must be a bigint or number", *nameStr);
+      return false;
+    }
+    DCHECK_IMPLIES(!value->IsBigInt(), value->IsNumber());
 
     uint64_t val = 0;
     if (value->IsBigInt()) {
@@ -58,12 +87,17 @@ bool SetOption(Environment* env,
       val = value.As<v8::BigInt>()->Uint64Value(&lossless);
       if (!lossless) {
         Utf8Value label(env->isolate(), name);
-        THROW_ERR_OUT_OF_RANGE(
-            env, ("options." + label.ToString() + " is out of range").c_str());
+        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", *label);
         return false;
       }
     } else {
-      val = static_cast<int64_t>(value.As<v8::Number>()->Value());
+      double dbl = value.As<v8::Number>()->Value();
+      if (dbl < 0) {
+        Utf8Value label(env->isolate(), name);
+        THROW_ERR_INVALID_ARG_VALUE(env, "option %s is out of range", *label);
+        return false;
+      }
+      val = static_cast<uint64_t>(dbl);
     }
     options->*member = val;
   }

@@ -12,7 +12,6 @@
 #include <algorithm>
 #include <optional>
 #include "bindingdata.h"
-#include "defs.h"
 #include "packet.h"
 #include "session.h"
 #include "sessionticket.h"
@@ -26,20 +25,25 @@ namespace quic {
 // client and server simultaneously.
 class Endpoint final : public AsyncWrap, public Packet::Listener {
  public:
-  static constexpr size_t DEFAULT_MAX_CONNECTIONS =
-      std::min<size_t>(kMaxSizeT, static_cast<size_t>(kMaxSafeJsInteger));
-  static constexpr size_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
-  static constexpr size_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
+  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS =
+      std::min<uint64_t>(kMaxSizeT, static_cast<uint64_t>(kMaxSafeJsInteger));
+  static constexpr uint64_t DEFAULT_MAX_CONNECTIONS_PER_HOST = 100;
+  static constexpr uint64_t DEFAULT_MAX_SOCKETADDRESS_LRU_SIZE =
       (DEFAULT_MAX_CONNECTIONS_PER_HOST * 10);
-  static constexpr size_t DEFAULT_MAX_STATELESS_RESETS = 10;
-  static constexpr size_t DEFAULT_MAX_RETRY_LIMIT = 10;
+  static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
+  static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
+
+  static constexpr auto QUIC_CC_ALGO_RENO = NGTCP2_CC_ALGO_RENO;
+  static constexpr auto QUIC_CC_ALGO_CUBIC = NGTCP2_CC_ALGO_CUBIC;
+  static constexpr auto QUIC_CC_ALGO_BBR = NGTCP2_CC_ALGO_BBR;
+  static constexpr auto QUIC_CC_ALGO_BBR2 = NGTCP2_CC_ALGO_BBR2;
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
     // The local socket address to which the UDP port will be bound. The port
     // may be 0 to have Node.js select an available port. IPv6 or IPv4 addresses
     // may be used. When using IPv6, dual mode will be supported by default.
-    SocketAddress local_address;
+    std::shared_ptr<SocketAddress> local_address;
 
     // Retry tokens issued by the Endpoint are time-limited. By default, retry
     // tokens expire after DEFAULT_RETRYTOKEN_EXPIRATION *seconds*. This is an
@@ -134,14 +138,15 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = NGTCP2_CC_ALGO_CUBIC;
 
-    // By default, when Node.js starts, it will generate a reset_token_secret at
-    // random. This is a secret used in generating stateless reset tokens. In
-    // order for stateless reset to be effective, however, it is necessary to
-    // use a deterministic secret that persists across ngtcp2 endpoints and
-    // sessions.
+    // By default, when the endpoint is created, it will generate a
+    // reset_token_secret at random. This is a secret used in generating
+    // stateless reset tokens. In order for stateless reset to be effective,
+    // however, it is necessary to use a deterministic secret that persists
+    // across ngtcp2 endpoints and sessions. This means that the endpoint
+    // configuration really should have a reset token secret passed in.
     TokenSecret reset_token_secret;
 
-    // The secret used for generating new tokens.
+    // The secret used for generating new regular tokens.
     TokenSecret token_secret;
 
     // When the local_address specifies an IPv6 local address to bind to, the
@@ -169,16 +174,14 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   bool HasInstance(Environment* env, v8::Local<v8::Value> value);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void InitPerIsolate(IsolateData* data,
+                             v8::Local<v8::ObjectTemplate> target);
+  static void InitPerContext(Realm* realm, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
-
-  static BaseObjectPtr<Endpoint> Create(Environment* env,
-                                        const Endpoint::Options& config);
 
   Endpoint(Environment* env,
            v8::Local<v8::Object> object,
            const Endpoint::Options& options);
-  ~Endpoint() override;
 
   inline const Options& options() const {
     return options_;
@@ -289,6 +292,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
     bool is_bound() const;
     bool is_closed() const;
+    bool is_closed_or_closing() const;
     operator bool() const;
 
     void Ref();
@@ -301,11 +305,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
    private:
     class Impl;
 
-    static void CleanupHook(void* data);
-
-    BaseObjectPtr<Impl> impl_;
+    BaseObjectWeakPtr<Impl> impl_;
     bool is_bound_ = false;
     bool is_started_ = false;
+    bool is_closed_ = false;
   };
 
   bool is_closed() const;
@@ -349,10 +352,9 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   // JavaScript API
 
-  // Create a new Endpoint instance. `createEndpoint()` is exposed as a method
-  // on the internalBinding('quic') object.
+  // Create a new Endpoint.
   // @param Endpoint::Options options - Options to configure the Endpoint.
-  static void CreateEndpoint(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   // Methods on the Endpoint instance:
 
@@ -373,6 +375,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   // packets.
   // @param bool on - If true, mark the Endpoint as busy.
   static void MarkBusy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastMarkBusy(v8::Local<v8::Object> receiver, bool on);
 
   // DoCloseGracefully is the signal that endpoint should close. Any packets
   // that are already in the queue or in flight will be allowed to finish, but
@@ -387,9 +390,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
   // Ref() causes a listening Endpoint to keep the event loop active.
   static void Ref(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  // Unref() allows the event loop to close even if the Endpoint is listening.
-  static void Unref(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRef(v8::Local<v8::Object> receiver, bool on);
 
   void Receive(const uv_buf_t& buf, const SocketAddress& from);
 
