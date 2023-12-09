@@ -176,10 +176,10 @@ class DataQueueImpl final : public DataQueue,
 
   void NotifyBackpressure(size_t amount) {
     if (idempotent_) return;
-    for (auto listener : backpressure_listeners_) listener->EntryRead(amount);
+    for (auto& listener : backpressure_listeners_) listener->EntryRead(amount);
   }
 
-  bool HasBackpressureListeners() const {
+  bool HasBackpressureListeners() const noexcept {
     return !backpressure_listeners_.empty();
   }
 

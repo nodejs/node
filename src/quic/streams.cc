@@ -804,7 +804,7 @@ BaseObjectPtr<Blob::Reader> Stream::get_reader() {
 
 void Stream::set_final_size(uint64_t final_size) {
   DCHECK_IMPLIES(state_->fin_received == 1,
-                 final_size <= stats_.Get<&Stats::final_size>());
+                 final_size <= STAT_GET(Stats, final_size));
   state_->fin_received = 1;
   STAT_SET(Stats, final_size, final_size);
 }
