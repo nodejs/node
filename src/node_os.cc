@@ -146,6 +146,10 @@ static void GetTotalMemory(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(amount);
 }
 
+static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
+  double amount = static_cast<double>(uv_get_constrained_memory());
+  args.GetReturnValue().Set(amount);
+}
 
 static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -394,6 +398,7 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "getLoadAvg", GetLoadAvg);
   SetMethod(context, target, "getUptime", GetUptime);
   SetMethod(context, target, "getTotalMem", GetTotalMemory);
+  SetMethod(context, target, "getConstrainedMem", GetConstrainedMemory);
   SetMethod(context, target, "getFreeMem", GetFreeMemory);
   SetMethod(context, target, "getCPUs", GetCPUInfo);
   SetMethod(context, target, "getInterfaceAddresses", GetInterfaceAddresses);
@@ -416,6 +421,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
   registry->Register(GetTotalMemory);
+  registry->Register(GetConstrainedMemory);
   registry->Register(GetFreeMemory);
   registry->Register(GetCPUInfo);
   registry->Register(GetInterfaceAddresses);

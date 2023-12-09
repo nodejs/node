@@ -7,6 +7,7 @@ export interface OSBinding {
   getLoadAvg(array: Float64Array): void;
   getUptime(): number;
   getTotalMem(): number;
+  getConstrainedMem(): number;
   getFreeMem(): number;
   getCPUs(): Array<string | number>;
   getInterfaceAddresses(ctx: InternalOSBinding.OSContext): Array<string | number | boolean> | undefined;

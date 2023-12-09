@@ -422,6 +422,19 @@ added: v0.3.3
 
 Returns the total amount of system memory in bytes as an integer.
 
+## `os.maxmem()`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+* Returns: {integer}
+
+Returns the total amount of memory available to the process (in bytes) based on
+limits imposed by the OS.
+If there is no such constraint, or the constraint is unknown, 0 is returned.
+
 ## `os.type()`
 
 <!-- YAML
