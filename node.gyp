@@ -377,6 +377,7 @@
       'src/quic/tlscontext.h',
       'src/quic/tokens.h',
       'src/quic/transportparams.h',
+      'src/quic/quic.cc',
     ],
     'node_cctest_sources': [
       'src/node_snapshot_stub.cc',

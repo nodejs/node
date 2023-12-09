@@ -277,6 +277,7 @@ bool SetOption(Environment* env,
           ASSIGN_OR_RETURN_UNWRAP(&handle, item, false);
           (options->*member).push_back(handle->Data());
         } else {
+          THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
           return false;
         }
       } else if constexpr (std::is_same<T, Store>::value) {
@@ -285,6 +286,7 @@ bool SetOption(Environment* env,
         } else if (item->IsArrayBuffer()) {
           (options->*member).emplace_back(item.As<v8::ArrayBuffer>());
         } else {
+          THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
           return false;
         }
       }
@@ -297,6 +299,7 @@ bool SetOption(Environment* env,
         ASSIGN_OR_RETURN_UNWRAP(&handle, value, false);
         (options->*member).push_back(handle->Data());
       } else {
+        THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
         return false;
       }
     } else if constexpr (std::is_same<T, Store>::value) {
@@ -305,6 +308,7 @@ bool SetOption(Environment* env,
       } else if (value->IsArrayBuffer()) {
         (options->*member).emplace_back(value.As<v8::ArrayBuffer>());
       } else {
+        THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
         return false;
       }
     }
@@ -545,16 +549,25 @@ ngtcp2_conn* TLSContext::getConnection(ngtcp2_crypto_conn_ref* ref) {
   return *context->session_;
 }
 
-Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
-                                                           Local<Value> value) {
-  if (value.IsEmpty() || !value->IsObject()) {
+Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
+                                                     Local<Value> value) {
+  if (value.IsEmpty()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
-    return Nothing<const Options>();
+    return Nothing<Options>();
   }
 
-  auto& state = BindingData::Get(env);
-  auto params = value.As<Object>();
   Options options;
+  auto& state = BindingData::Get(env);
+
+  if (value->IsUndefined()) {
+    return Just<Options>(options);
+  }
+  if (!value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+    return Nothing<Options>();
+  }
+
+  auto params = value.As<Object>();
 
 #define SET_VECTOR(Type, name)                                                 \
   SetOption<Type, TLSContext::Options, &TLSContext::Options::name>(            \
@@ -571,10 +584,10 @@ Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
       !SET_VECTOR(std::shared_ptr<crypto::KeyObjectData>, keys) ||
       !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
       !SET_VECTOR(Store, crl)) {
-    return Nothing<const Options>();
+    return Nothing<Options>();
   }
 
-  return Just<const Options>(options);
+  return Just<Options>(options);
 }
 
 }  // namespace quic
