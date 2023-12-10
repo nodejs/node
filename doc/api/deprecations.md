@@ -3545,6 +3545,21 @@ Type: Documentation-only
 The [`dirent.path`][] is deprecated due to its lack of consistency across
 release lines. Please use [`dirent.parentPath`][] instead.
 
+### DEP0179: `Hash` constructor
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51077
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `Hash` class directly with `Hash()` or `new Hash()` is
+deprecated due to being internals, not intended for public use.
+Please use the [`crypto.createHash()`][] method to create Hash instances.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3583,6 +3598,7 @@ release lines. Please use [`dirent.parentPath`][] instead.
 [`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
 [`crypto.createDecipher()`]: crypto.md#cryptocreatedecipheralgorithm-password-options
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
+[`crypto.createHash()`]: crypto.md#cryptocreatehashalgorithm-options
 [`crypto.fips`]: crypto.md#cryptofips
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback
