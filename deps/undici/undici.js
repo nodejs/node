@@ -365,6 +365,120 @@ var require_errors = __commonJS({
   }
 });
 
+// lib/core/constants.js
+var require_constants = __commonJS({
+  "lib/core/constants.js"(exports2, module2) {
+    var headerNameLowerCasedRecord = {};
+    var wellknownHeaderNames = [
+      "Accept",
+      "Accept-Encoding",
+      "Accept-Language",
+      "Accept-Ranges",
+      "Access-Control-Allow-Credentials",
+      "Access-Control-Allow-Headers",
+      "Access-Control-Allow-Methods",
+      "Access-Control-Allow-Origin",
+      "Access-Control-Expose-Headers",
+      "Access-Control-Max-Age",
+      "Access-Control-Request-Headers",
+      "Access-Control-Request-Method",
+      "Age",
+      "Allow",
+      "Alt-Svc",
+      "Alt-Used",
+      "Authorization",
+      "Cache-Control",
+      "Clear-Site-Data",
+      "Connection",
+      "Content-Disposition",
+      "Content-Encoding",
+      "Content-Language",
+      "Content-Length",
+      "Content-Location",
+      "Content-Range",
+      "Content-Security-Policy",
+      "Content-Security-Policy-Report-Only",
+      "Content-Type",
+      "Cookie",
+      "Cross-Origin-Embedder-Policy",
+      "Cross-Origin-Opener-Policy",
+      "Cross-Origin-Resource-Policy",
+      "Date",
+      "Device-Memory",
+      "Downlink",
+      "ECT",
+      "ETag",
+      "Expect",
+      "Expect-CT",
+      "Expires",
+      "Forwarded",
+      "From",
+      "Host",
+      "If-Match",
+      "If-Modified-Since",
+      "If-None-Match",
+      "If-Range",
+      "If-Unmodified-Since",
+      "Keep-Alive",
+      "Last-Modified",
+      "Link",
+      "Location",
+      "Max-Forwards",
+      "Origin",
+      "Permissions-Policy",
+      "Pragma",
+      "Proxy-Authenticate",
+      "Proxy-Authorization",
+      "RTT",
+      "Range",
+      "Referer",
+      "Referrer-Policy",
+      "Refresh",
+      "Retry-After",
+      "Sec-WebSocket-Accept",
+      "Sec-WebSocket-Extensions",
+      "Sec-WebSocket-Key",
+      "Sec-WebSocket-Protocol",
+      "Sec-WebSocket-Version",
+      "Server",
+      "Server-Timing",
+      "Service-Worker-Allowed",
+      "Service-Worker-Navigation-Preload",
+      "Set-Cookie",
+      "SourceMap",
+      "Strict-Transport-Security",
+      "Supports-Loading-Mode",
+      "TE",
+      "Timing-Allow-Origin",
+      "Trailer",
+      "Transfer-Encoding",
+      "Upgrade",
+      "Upgrade-Insecure-Requests",
+      "User-Agent",
+      "Vary",
+      "Via",
+      "WWW-Authenticate",
+      "X-Content-Type-Options",
+      "X-DNS-Prefetch-Control",
+      "X-Frame-Options",
+      "X-Permitted-Cross-Domain-Policies",
+      "X-Powered-By",
+      "X-Requested-With",
+      "X-XSS-Protection"
+    ];
+    for (let i = 0; i < wellknownHeaderNames.length; ++i) {
+      const key = wellknownHeaderNames[i];
+      const lowerCasedKey = key.toLowerCase();
+      headerNameLowerCasedRecord[key] = headerNameLowerCasedRecord[lowerCasedKey] = lowerCasedKey;
+    }
+    Object.setPrototypeOf(headerNameLowerCasedRecord, null);
+    module2.exports = {
+      wellknownHeaderNames,
+      headerNameLowerCasedRecord
+    };
+  }
+});
+
 // lib/core/util.js
 var require_util = __commonJS({
   "lib/core/util.js"(exports2, module2) {
@@ -378,6 +492,7 @@ var require_util = __commonJS({
     var { Blob: Blob2 } = require("buffer");
     var nodeUtil = require("util");
     var { stringify } = require("querystring");
+    var { headerNameLowerCasedRecord } = require_constants();
     var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
     function nop() {
     }
@@ -541,18 +656,20 @@ var require_util = __commonJS({
       if (!Array.isArray(headers))
         return headers;
       for (let i = 0; i < headers.length; i += 2) {
-        const key = headers[i].toString().toLowerCase();
-        let val = obj[key];
+        const key = headers[i].toString();
+        const lowerCasedKey = headerNameLowerCasedRecord[key] ?? key.toLowerCase();
+        let val = obj[lowerCasedKey];
         if (!val) {
-          if (Array.isArray(headers[i + 1])) {
-            obj[key] = headers[i + 1].map((x) => x.toString("utf8"));
+          const headersValue = headers[i + 1];
+          if (typeof headersValue === "string") {
+            obj[lowerCasedKey] = headersValue;
           } else {
-            obj[key] = headers[i + 1].toString("utf8");
+            obj[lowerCasedKey] = Array.isArray(headersValue) ? headersValue.map((x) => x.toString("utf8")) : headersValue.toString("utf8");
           }
         } else {
           if (!Array.isArray(val)) {
             val = [val];
-            obj[key] = val;
+            obj[lowerCasedKey] = val;
           }
           val.push(headers[i + 1].toString("utf8"));
         }
@@ -648,20 +765,7 @@ var require_util = __commonJS({
       };
     }
     __name(getSocketInfo, "getSocketInfo");
-    async function* convertIterableToBuffer(iterable) {
-      for await (const chunk of iterable) {
-        yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      }
-    }
-    __name(convertIterableToBuffer, "convertIterableToBuffer");
-    var ReadableStream;
     function ReadableStreamFrom(iterable) {
-      if (!ReadableStream) {
-        ReadableStream = require("stream/web").ReadableStream;
-      }
-      if (ReadableStream.from) {
-        return ReadableStream.from(convertIterableToBuffer(iterable));
-      }
       let iterator;
       return new ReadableStream(
         {
@@ -673,18 +777,21 @@ var require_util = __commonJS({
             if (done) {
               queueMicrotask(() => {
                 controller.close();
+                controller.byobRequest?.respond(0);
               });
             } else {
               const buf = Buffer.isBuffer(value) ? value : Buffer.from(value);
-              controller.enqueue(new Uint8Array(buf));
+              if (buf.byteLength) {
+                controller.enqueue(new Uint8Array(buf));
+              }
             }
             return controller.desiredSize > 0;
           },
           async cancel(reason) {
             await iterator.return();
-          }
-        },
-        0
+          },
+          type: "bytes"
+        }
       );
     }
     __name(ReadableStreamFrom, "ReadableStreamFrom");
@@ -779,10 +886,9 @@ var require_util = __commonJS({
 });
 
 // lib/fetch/constants.js
-var require_constants = __commonJS({
+var require_constants2 = __commonJS({
   "lib/fetch/constants.js"(exports2, module2) {
     "use strict";
-    var { MessageChannel, receiveMessageOnPort } = require("worker_threads");
     var corsSafeListedMethods = ["GET", "HEAD", "POST"];
     var corsSafeListedMethodsSet = new Set(corsSafeListedMethods);
     var nullBodyStatus = [101, 204, 205, 304];
@@ -927,31 +1033,7 @@ var require_constants = __commonJS({
       ""
     ];
     var subresourceSet = new Set(subresource);
-    var DOMException = globalThis.DOMException ?? (() => {
-      try {
-        atob("~");
-      } catch (err) {
-        return Object.getPrototypeOf(err).constructor;
-      }
-    })();
-    var channel;
-    var structuredClone = globalThis.structuredClone ?? // https://github.com/nodejs/node/blob/b27ae24dcc4251bad726d9d84baf678d1f707fed/lib/internal/structured_clone.js
-    // structuredClone was added in v17.0.0, but fetch supports v16.8
-    /* @__PURE__ */ __name(function structuredClone2(value, options = void 0) {
-      if (arguments.length === 0) {
-        throw new TypeError("missing argument");
-      }
-      if (!channel) {
-        channel = new MessageChannel();
-      }
-      channel.port1.unref();
-      channel.port2.unref();
-      channel.port1.postMessage(value, options?.transfer);
-      return receiveMessageOnPort(channel.port2).message;
-    }, "structuredClone");
     module2.exports = {
-      DOMException,
-      structuredClone,
       subresource,
       forbiddenMethods,
       requestBodyHeader,
@@ -1015,11 +1097,318 @@ var require_global = __commonJS({
   }
 });
 
+// lib/fetch/dataURL.js
+var require_dataURL = __commonJS({
+  "lib/fetch/dataURL.js"(exports2, module2) {
+    var assert = require("assert");
+    var { atob } = require("buffer");
+    var { isomorphicDecode } = require_util2();
+    var encoder = new TextEncoder();
+    var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/;
+    var HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/;
+    var HTTP_QUOTED_STRING_TOKENS = /[\u0009|\u0020-\u007E|\u0080-\u00FF]/;
+    function dataURLProcessor(dataURL) {
+      assert(dataURL.protocol === "data:");
+      let input = URLSerializer(dataURL, true);
+      input = input.slice(5);
+      const position = { position: 0 };
+      let mimeType = collectASequenceOfCodePointsFast(
+        ",",
+        input,
+        position
+      );
+      const mimeTypeLength = mimeType.length;
+      mimeType = removeASCIIWhitespace(mimeType, true, true);
+      if (position.position >= input.length) {
+        return "failure";
+      }
+      position.position++;
+      const encodedBody = input.slice(mimeTypeLength + 1);
+      let body = stringPercentDecode(encodedBody);
+      if (/;(\u0020){0,}base64$/i.test(mimeType)) {
+        const stringBody = isomorphicDecode(body);
+        body = forgivingBase64(stringBody);
+        if (body === "failure") {
+          return "failure";
+        }
+        mimeType = mimeType.slice(0, -6);
+        mimeType = mimeType.replace(/(\u0020)+$/, "");
+        mimeType = mimeType.slice(0, -1);
+      }
+      if (mimeType.startsWith(";")) {
+        mimeType = "text/plain" + mimeType;
+      }
+      let mimeTypeRecord = parseMIMEType(mimeType);
+      if (mimeTypeRecord === "failure") {
+        mimeTypeRecord = parseMIMEType("text/plain;charset=US-ASCII");
+      }
+      return { mimeType: mimeTypeRecord, body };
+    }
+    __name(dataURLProcessor, "dataURLProcessor");
+    function URLSerializer(url, excludeFragment = false) {
+      if (!excludeFragment) {
+        return url.href;
+      }
+      const href = url.href;
+      const hashLength = url.hash.length;
+      const serialized = hashLength === 0 ? href : href.substring(0, href.length - hashLength);
+      if (!hashLength && href.endsWith("#")) {
+        return serialized.slice(0, -1);
+      }
+      return serialized;
+    }
+    __name(URLSerializer, "URLSerializer");
+    function collectASequenceOfCodePoints(condition, input, position) {
+      let result = "";
+      while (position.position < input.length && condition(input[position.position])) {
+        result += input[position.position];
+        position.position++;
+      }
+      return result;
+    }
+    __name(collectASequenceOfCodePoints, "collectASequenceOfCodePoints");
+    function collectASequenceOfCodePointsFast(char, input, position) {
+      const idx = input.indexOf(char, position.position);
+      const start = position.position;
+      if (idx === -1) {
+        position.position = input.length;
+        return input.slice(start);
+      }
+      position.position = idx;
+      return input.slice(start, position.position);
+    }
+    __name(collectASequenceOfCodePointsFast, "collectASequenceOfCodePointsFast");
+    function stringPercentDecode(input) {
+      const bytes = encoder.encode(input);
+      return percentDecode(bytes);
+    }
+    __name(stringPercentDecode, "stringPercentDecode");
+    function percentDecode(input) {
+      const output = [];
+      for (let i = 0; i < input.length; i++) {
+        const byte = input[i];
+        if (byte !== 37) {
+          output.push(byte);
+        } else if (byte === 37 && !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))) {
+          output.push(37);
+        } else {
+          const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2]);
+          const bytePoint = Number.parseInt(nextTwoBytes, 16);
+          output.push(bytePoint);
+          i += 2;
+        }
+      }
+      return Uint8Array.from(output);
+    }
+    __name(percentDecode, "percentDecode");
+    function parseMIMEType(input) {
+      input = removeHTTPWhitespace(input, true, true);
+      const position = { position: 0 };
+      const type = collectASequenceOfCodePointsFast(
+        "/",
+        input,
+        position
+      );
+      if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
+        return "failure";
+      }
+      if (position.position > input.length) {
+        return "failure";
+      }
+      position.position++;
+      let subtype = collectASequenceOfCodePointsFast(
+        ";",
+        input,
+        position
+      );
+      subtype = removeHTTPWhitespace(subtype, false, true);
+      if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
+        return "failure";
+      }
+      const typeLowercase = type.toLowerCase();
+      const subtypeLowercase = subtype.toLowerCase();
+      const mimeType = {
+        type: typeLowercase,
+        subtype: subtypeLowercase,
+        /** @type {Map<string, string>} */
+        parameters: /* @__PURE__ */ new Map(),
+        // https://mimesniff.spec.whatwg.org/#mime-type-essence
+        essence: `${typeLowercase}/${subtypeLowercase}`
+      };
+      while (position.position < input.length) {
+        position.position++;
+        collectASequenceOfCodePoints(
+          // https://fetch.spec.whatwg.org/#http-whitespace
+          (char) => HTTP_WHITESPACE_REGEX.test(char),
+          input,
+          position
+        );
+        let parameterName = collectASequenceOfCodePoints(
+          (char) => char !== ";" && char !== "=",
+          input,
+          position
+        );
+        parameterName = parameterName.toLowerCase();
+        if (position.position < input.length) {
+          if (input[position.position] === ";") {
+            continue;
+          }
+          position.position++;
+        }
+        if (position.position > input.length) {
+          break;
+        }
+        let parameterValue = null;
+        if (input[position.position] === '"') {
+          parameterValue = collectAnHTTPQuotedString(input, position, true);
+          collectASequenceOfCodePointsFast(
+            ";",
+            input,
+            position
+          );
+        } else {
+          parameterValue = collectASequenceOfCodePointsFast(
+            ";",
+            input,
+            position
+          );
+          parameterValue = removeHTTPWhitespace(parameterValue, false, true);
+          if (parameterValue.length === 0) {
+            continue;
+          }
+        }
+        if (parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && (parameterValue.length === 0 || HTTP_QUOTED_STRING_TOKENS.test(parameterValue)) && !mimeType.parameters.has(parameterName)) {
+          mimeType.parameters.set(parameterName, parameterValue);
+        }
+      }
+      return mimeType;
+    }
+    __name(parseMIMEType, "parseMIMEType");
+    function forgivingBase64(data) {
+      data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, "");
+      if (data.length % 4 === 0) {
+        data = data.replace(/=?=$/, "");
+      }
+      if (data.length % 4 === 1) {
+        return "failure";
+      }
+      if (/[^+/0-9A-Za-z]/.test(data)) {
+        return "failure";
+      }
+      const binary = atob(data);
+      const bytes = new Uint8Array(binary.length);
+      for (let byte = 0; byte < binary.length; byte++) {
+        bytes[byte] = binary.charCodeAt(byte);
+      }
+      return bytes;
+    }
+    __name(forgivingBase64, "forgivingBase64");
+    function collectAnHTTPQuotedString(input, position, extractValue) {
+      const positionStart = position.position;
+      let value = "";
+      assert(input[position.position] === '"');
+      position.position++;
+      while (true) {
+        value += collectASequenceOfCodePoints(
+          (char) => char !== '"' && char !== "\\",
+          input,
+          position
+        );
+        if (position.position >= input.length) {
+          break;
+        }
+        const quoteOrBackslash = input[position.position];
+        position.position++;
+        if (quoteOrBackslash === "\\") {
+          if (position.position >= input.length) {
+            value += "\\";
+            break;
+          }
+          value += input[position.position];
+          position.position++;
+        } else {
+          assert(quoteOrBackslash === '"');
+          break;
+        }
+      }
+      if (extractValue) {
+        return value;
+      }
+      return input.slice(positionStart, position.position);
+    }
+    __name(collectAnHTTPQuotedString, "collectAnHTTPQuotedString");
+    function serializeAMimeType(mimeType) {
+      assert(mimeType !== "failure");
+      const { parameters, essence } = mimeType;
+      let serialization = essence;
+      for (let [name, value] of parameters.entries()) {
+        serialization += ";";
+        serialization += name;
+        serialization += "=";
+        if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
+          value = value.replace(/(\\|")/g, "\\$1");
+          value = '"' + value;
+          value += '"';
+        }
+        serialization += value;
+      }
+      return serialization;
+    }
+    __name(serializeAMimeType, "serializeAMimeType");
+    function isHTTPWhiteSpace(char) {
+      return char === "\r" || char === "\n" || char === "	" || char === " ";
+    }
+    __name(isHTTPWhiteSpace, "isHTTPWhiteSpace");
+    function removeHTTPWhitespace(str, leading = true, trailing = true) {
+      let lead = 0;
+      let trail = str.length - 1;
+      if (leading) {
+        for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++)
+          ;
+      }
+      if (trailing) {
+        for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--)
+          ;
+      }
+      return str.slice(lead, trail + 1);
+    }
+    __name(removeHTTPWhitespace, "removeHTTPWhitespace");
+    function isASCIIWhitespace(char) {
+      return char === "\r" || char === "\n" || char === "	" || char === "\f" || char === " ";
+    }
+    __name(isASCIIWhitespace, "isASCIIWhitespace");
+    function removeASCIIWhitespace(str, leading = true, trailing = true) {
+      let lead = 0;
+      let trail = str.length - 1;
+      if (leading) {
+        for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++)
+          ;
+      }
+      if (trailing) {
+        for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--)
+          ;
+      }
+      return str.slice(lead, trail + 1);
+    }
+    __name(removeASCIIWhitespace, "removeASCIIWhitespace");
+    module2.exports = {
+      dataURLProcessor,
+      URLSerializer,
+      collectASequenceOfCodePoints,
+      collectASequenceOfCodePointsFast,
+      stringPercentDecode,
+      parseMIMEType,
+      collectAnHTTPQuotedString,
+      serializeAMimeType
+    };
+  }
+});
+
 // lib/fetch/util.js
 var require_util2 = __commonJS({
   "lib/fetch/util.js"(exports2, module2) {
     "use strict";
-    var { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require_constants();
+    var { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require_constants2();
     var { getGlobalOrigin } = require_global();
     var { performance: performance2 } = require("perf_hooks");
     var { isBlobLike, toUSVString, ReadableStreamFrom } = require_util();
@@ -1504,11 +1893,7 @@ var require_util2 = __commonJS({
       }
     }
     __name(fullyReadBody, "fullyReadBody");
-    var ReadableStream = globalThis.ReadableStream;
     function isReadableStreamLike(stream) {
-      if (!ReadableStream) {
-        ReadableStream = require("stream/web").ReadableStream;
-      }
       return stream instanceof ReadableStream || stream[Symbol.toStringTag] === "ReadableStream" && typeof stream.tee === "function";
     }
     __name(isReadableStreamLike, "isReadableStreamLike");
@@ -1523,8 +1908,9 @@ var require_util2 = __commonJS({
     function readableStreamClose(controller) {
       try {
         controller.close();
+        controller.byobRequest?.respond(0);
       } catch (err) {
-        if (!err.message.includes("Controller is already closed")) {
+        if (!err.message.includes("Controller is already closed") && !err.message.includes("ReadableStream is already closed")) {
           throw err;
         }
       }
@@ -1572,7 +1958,90 @@ var require_util2 = __commonJS({
       return protocol === "http:" || protocol === "https:";
     }
     __name(urlIsHttpHttpsScheme, "urlIsHttpHttpsScheme");
-    var hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key));
+    var collectASequenceOfCodePoints;
+    function simpleRangeHeaderValue(value, allowWhitespace) {
+      collectASequenceOfCodePoints ??= require_dataURL().collectASequenceOfCodePoints;
+      const data = value;
+      if (!data.startsWith("bytes")) {
+        return "failure";
+      }
+      const position = { position: 5 };
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      if (data.charCodeAt(position.position) !== 61) {
+        return "failure";
+      }
+      position.position++;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      const rangeStart = collectASequenceOfCodePoints(
+        (char) => {
+          const code = char.charCodeAt(0);
+          return code >= 48 && code <= 57;
+        },
+        data,
+        position
+      );
+      const rangeStartValue = rangeStart.length ? Number(rangeStart) : null;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      if (data.charCodeAt(position.position) !== 45) {
+        return "failure";
+      }
+      position.position++;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      const rangeEnd = collectASequenceOfCodePoints(
+        (char) => {
+          const code = char.charCodeAt(0);
+          return code >= 48 && code <= 57;
+        },
+        data,
+        position
+      );
+      const rangeEndValue = rangeEnd.length ? Number(rangeEnd) : null;
+      if (position.position < data.length) {
+        return "failure";
+      }
+      if (rangeEndValue === null && rangeStartValue === null) {
+        return "failure";
+      }
+      if (rangeStartValue > rangeEndValue) {
+        return "failure";
+      }
+      return { rangeStartValue, rangeEndValue };
+    }
+    __name(simpleRangeHeaderValue, "simpleRangeHeaderValue");
+    function buildContentRange(rangeStart, rangeEnd, fullLength) {
+      let contentRange = "bytes ";
+      contentRange += isomorphicEncode(`${rangeStart}`);
+      contentRange += "-";
+      contentRange += isomorphicEncode(`${rangeEnd}`);
+      contentRange += "/";
+      contentRange += isomorphicEncode(`${fullLength}`);
+      return contentRange;
+    }
+    __name(buildContentRange, "buildContentRange");
     module2.exports = {
       isAborted,
       isCancelled,
@@ -1605,7 +2074,6 @@ var require_util2 = __commonJS({
       makeIterator,
       isValidHeaderName,
       isValidHeaderValue,
-      hasOwn,
       isErrorLike,
       fullyReadBody,
       bytesMatch,
@@ -1617,7 +2085,9 @@ var require_util2 = __commonJS({
       urlHasHttpsScheme,
       urlIsHttpHttpsScheme,
       readAllBytes,
-      normalizeMethodRecord
+      normalizeMethodRecord,
+      simpleRangeHeaderValue,
+      buildContentRange
     };
   }
 });
@@ -1627,7 +2097,7 @@ var require_webidl = __commonJS({
   "lib/fetch/webidl.js"(exports2, module2) {
     "use strict";
     var { types } = require("util");
-    var { hasOwn, toUSVString } = require_util2();
+    var { toUSVString } = require_util2();
     var webidl = {};
     webidl.converters = {};
     webidl.util = {};
@@ -1838,7 +2308,7 @@ var require_webidl = __commonJS({
         for (const options of converters) {
           const { key, defaultValue, required, converter } = options;
           if (required === true) {
-            if (!hasOwn(dictionary, key)) {
+            if (!Object.hasOwn(dictionary, key)) {
               throw webidl.errors.exception({
                 header: "Dictionary",
                 message: `Missing required key "${key}".`
@@ -1846,7 +2316,7 @@ var require_webidl = __commonJS({
             }
           }
           let value = dictionary[key];
-          const hasDefault = hasOwn(options, "defaultValue");
+          const hasDefault = Object.hasOwn(options, "defaultValue");
           if (hasDefault && value !== null) {
             value = value ?? defaultValue;
           }
@@ -2532,12 +3002,12 @@ var require_PartStream = __commonJS({
   "node_modules/@fastify/busboy/deps/dicer/lib/PartStream.js"(exports2, module2) {
     "use strict";
     var inherits = require("node:util").inherits;
-    var ReadableStream = require("node:stream").Readable;
+    var ReadableStream2 = require("node:stream").Readable;
     function PartStream(opts) {
-      ReadableStream.call(this, opts);
+      ReadableStream2.call(this, opts);
     }
     __name(PartStream, "PartStream");
-    inherits(PartStream, ReadableStream);
+    inherits(PartStream, ReadableStream2);
     PartStream.prototype._read = function(n) {
     };
     module2.exports = PartStream;
@@ -4393,309 +4863,6 @@ var require_main = __commonJS({
   }
 });
 
-// lib/fetch/dataURL.js
-var require_dataURL = __commonJS({
-  "lib/fetch/dataURL.js"(exports2, module2) {
-    var assert = require("assert");
-    var { atob: atob2 } = require("buffer");
-    var { isomorphicDecode } = require_util2();
-    var encoder = new TextEncoder();
-    var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/;
-    var HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/;
-    var HTTP_QUOTED_STRING_TOKENS = /[\u0009|\u0020-\u007E|\u0080-\u00FF]/;
-    function dataURLProcessor(dataURL) {
-      assert(dataURL.protocol === "data:");
-      let input = URLSerializer(dataURL, true);
-      input = input.slice(5);
-      const position = { position: 0 };
-      let mimeType = collectASequenceOfCodePointsFast(
-        ",",
-        input,
-        position
-      );
-      const mimeTypeLength = mimeType.length;
-      mimeType = removeASCIIWhitespace(mimeType, true, true);
-      if (position.position >= input.length) {
-        return "failure";
-      }
-      position.position++;
-      const encodedBody = input.slice(mimeTypeLength + 1);
-      let body = stringPercentDecode(encodedBody);
-      if (/;(\u0020){0,}base64$/i.test(mimeType)) {
-        const stringBody = isomorphicDecode(body);
-        body = forgivingBase64(stringBody);
-        if (body === "failure") {
-          return "failure";
-        }
-        mimeType = mimeType.slice(0, -6);
-        mimeType = mimeType.replace(/(\u0020)+$/, "");
-        mimeType = mimeType.slice(0, -1);
-      }
-      if (mimeType.startsWith(";")) {
-        mimeType = "text/plain" + mimeType;
-      }
-      let mimeTypeRecord = parseMIMEType(mimeType);
-      if (mimeTypeRecord === "failure") {
-        mimeTypeRecord = parseMIMEType("text/plain;charset=US-ASCII");
-      }
-      return { mimeType: mimeTypeRecord, body };
-    }
-    __name(dataURLProcessor, "dataURLProcessor");
-    function URLSerializer(url, excludeFragment = false) {
-      if (!excludeFragment) {
-        return url.href;
-      }
-      const href = url.href;
-      const hashLength = url.hash.length;
-      return hashLength === 0 ? href : href.substring(0, href.length - hashLength);
-    }
-    __name(URLSerializer, "URLSerializer");
-    function collectASequenceOfCodePoints(condition, input, position) {
-      let result = "";
-      while (position.position < input.length && condition(input[position.position])) {
-        result += input[position.position];
-        position.position++;
-      }
-      return result;
-    }
-    __name(collectASequenceOfCodePoints, "collectASequenceOfCodePoints");
-    function collectASequenceOfCodePointsFast(char, input, position) {
-      const idx = input.indexOf(char, position.position);
-      const start = position.position;
-      if (idx === -1) {
-        position.position = input.length;
-        return input.slice(start);
-      }
-      position.position = idx;
-      return input.slice(start, position.position);
-    }
-    __name(collectASequenceOfCodePointsFast, "collectASequenceOfCodePointsFast");
-    function stringPercentDecode(input) {
-      const bytes = encoder.encode(input);
-      return percentDecode(bytes);
-    }
-    __name(stringPercentDecode, "stringPercentDecode");
-    function percentDecode(input) {
-      const output = [];
-      for (let i = 0; i < input.length; i++) {
-        const byte = input[i];
-        if (byte !== 37) {
-          output.push(byte);
-        } else if (byte === 37 && !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))) {
-          output.push(37);
-        } else {
-          const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2]);
-          const bytePoint = Number.parseInt(nextTwoBytes, 16);
-          output.push(bytePoint);
-          i += 2;
-        }
-      }
-      return Uint8Array.from(output);
-    }
-    __name(percentDecode, "percentDecode");
-    function parseMIMEType(input) {
-      input = removeHTTPWhitespace(input, true, true);
-      const position = { position: 0 };
-      const type = collectASequenceOfCodePointsFast(
-        "/",
-        input,
-        position
-      );
-      if (type.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(type)) {
-        return "failure";
-      }
-      if (position.position > input.length) {
-        return "failure";
-      }
-      position.position++;
-      let subtype = collectASequenceOfCodePointsFast(
-        ";",
-        input,
-        position
-      );
-      subtype = removeHTTPWhitespace(subtype, false, true);
-      if (subtype.length === 0 || !HTTP_TOKEN_CODEPOINTS.test(subtype)) {
-        return "failure";
-      }
-      const typeLowercase = type.toLowerCase();
-      const subtypeLowercase = subtype.toLowerCase();
-      const mimeType = {
-        type: typeLowercase,
-        subtype: subtypeLowercase,
-        /** @type {Map<string, string>} */
-        parameters: /* @__PURE__ */ new Map(),
-        // https://mimesniff.spec.whatwg.org/#mime-type-essence
-        essence: `${typeLowercase}/${subtypeLowercase}`
-      };
-      while (position.position < input.length) {
-        position.position++;
-        collectASequenceOfCodePoints(
-          // https://fetch.spec.whatwg.org/#http-whitespace
-          (char) => HTTP_WHITESPACE_REGEX.test(char),
-          input,
-          position
-        );
-        let parameterName = collectASequenceOfCodePoints(
-          (char) => char !== ";" && char !== "=",
-          input,
-          position
-        );
-        parameterName = parameterName.toLowerCase();
-        if (position.position < input.length) {
-          if (input[position.position] === ";") {
-            continue;
-          }
-          position.position++;
-        }
-        if (position.position > input.length) {
-          break;
-        }
-        let parameterValue = null;
-        if (input[position.position] === '"') {
-          parameterValue = collectAnHTTPQuotedString(input, position, true);
-          collectASequenceOfCodePointsFast(
-            ";",
-            input,
-            position
-          );
-        } else {
-          parameterValue = collectASequenceOfCodePointsFast(
-            ";",
-            input,
-            position
-          );
-          parameterValue = removeHTTPWhitespace(parameterValue, false, true);
-          if (parameterValue.length === 0) {
-            continue;
-          }
-        }
-        if (parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && (parameterValue.length === 0 || HTTP_QUOTED_STRING_TOKENS.test(parameterValue)) && !mimeType.parameters.has(parameterName)) {
-          mimeType.parameters.set(parameterName, parameterValue);
-        }
-      }
-      return mimeType;
-    }
-    __name(parseMIMEType, "parseMIMEType");
-    function forgivingBase64(data) {
-      data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, "");
-      if (data.length % 4 === 0) {
-        data = data.replace(/=?=$/, "");
-      }
-      if (data.length % 4 === 1) {
-        return "failure";
-      }
-      if (/[^+/0-9A-Za-z]/.test(data)) {
-        return "failure";
-      }
-      const binary = atob2(data);
-      const bytes = new Uint8Array(binary.length);
-      for (let byte = 0; byte < binary.length; byte++) {
-        bytes[byte] = binary.charCodeAt(byte);
-      }
-      return bytes;
-    }
-    __name(forgivingBase64, "forgivingBase64");
-    function collectAnHTTPQuotedString(input, position, extractValue) {
-      const positionStart = position.position;
-      let value = "";
-      assert(input[position.position] === '"');
-      position.position++;
-      while (true) {
-        value += collectASequenceOfCodePoints(
-          (char) => char !== '"' && char !== "\\",
-          input,
-          position
-        );
-        if (position.position >= input.length) {
-          break;
-        }
-        const quoteOrBackslash = input[position.position];
-        position.position++;
-        if (quoteOrBackslash === "\\") {
-          if (position.position >= input.length) {
-            value += "\\";
-            break;
-          }
-          value += input[position.position];
-          position.position++;
-        } else {
-          assert(quoteOrBackslash === '"');
-          break;
-        }
-      }
-      if (extractValue) {
-        return value;
-      }
-      return input.slice(positionStart, position.position);
-    }
-    __name(collectAnHTTPQuotedString, "collectAnHTTPQuotedString");
-    function serializeAMimeType(mimeType) {
-      assert(mimeType !== "failure");
-      const { parameters, essence } = mimeType;
-      let serialization = essence;
-      for (let [name, value] of parameters.entries()) {
-        serialization += ";";
-        serialization += name;
-        serialization += "=";
-        if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
-          value = value.replace(/(\\|")/g, "\\$1");
-          value = '"' + value;
-          value += '"';
-        }
-        serialization += value;
-      }
-      return serialization;
-    }
-    __name(serializeAMimeType, "serializeAMimeType");
-    function isHTTPWhiteSpace(char) {
-      return char === "\r" || char === "\n" || char === "	" || char === " ";
-    }
-    __name(isHTTPWhiteSpace, "isHTTPWhiteSpace");
-    function removeHTTPWhitespace(str, leading = true, trailing = true) {
-      let lead = 0;
-      let trail = str.length - 1;
-      if (leading) {
-        for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++)
-          ;
-      }
-      if (trailing) {
-        for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--)
-          ;
-      }
-      return str.slice(lead, trail + 1);
-    }
-    __name(removeHTTPWhitespace, "removeHTTPWhitespace");
-    function isASCIIWhitespace(char) {
-      return char === "\r" || char === "\n" || char === "	" || char === "\f" || char === " ";
-    }
-    __name(isASCIIWhitespace, "isASCIIWhitespace");
-    function removeASCIIWhitespace(str, leading = true, trailing = true) {
-      let lead = 0;
-      let trail = str.length - 1;
-      if (leading) {
-        for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++)
-          ;
-      }
-      if (trailing) {
-        for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--)
-          ;
-      }
-      return str.slice(lead, trail + 1);
-    }
-    __name(removeASCIIWhitespace, "removeASCIIWhitespace");
-    module2.exports = {
-      dataURLProcessor,
-      URLSerializer,
-      collectASequenceOfCodePoints,
-      collectASequenceOfCodePointsFast,
-      stringPercentDecode,
-      parseMIMEType,
-      collectAnHTTPQuotedString,
-      serializeAMimeType
-    };
-  }
-});
-
 // lib/fetch/file.js
 var require_file = __commonJS({
   "lib/fetch/file.js"(exports2, module2) {
@@ -5068,7 +5235,6 @@ var require_body = __commonJS({
     var { FormData } = require_formdata();
     var { kState } = require_symbols2();
     var { webidl } = require_webidl();
-    var { DOMException, structuredClone } = require_constants();
     var { Blob: Blob2, File: NativeFile } = require("buffer");
     var { kBodyUsed } = require_symbols();
     var assert = require("assert");
@@ -5076,14 +5242,10 @@ var require_body = __commonJS({
     var { isUint8Array, isArrayBuffer } = require("util/types");
     var { File: UndiciFile } = require_file();
     var { parseMIMEType, serializeAMimeType } = require_dataURL();
-    var ReadableStream = globalThis.ReadableStream;
     var File = NativeFile ?? UndiciFile;
     var textEncoder = new TextEncoder();
     var textDecoder = new TextDecoder();
     function extractBody(object, keepalive = false) {
-      if (!ReadableStream) {
-        ReadableStream = require("stream/web").ReadableStream;
-      }
       let stream = null;
       if (object instanceof ReadableStream) {
         stream = object;
@@ -5092,14 +5254,15 @@ var require_body = __commonJS({
       } else {
         stream = new ReadableStream({
           async pull(controller) {
-            controller.enqueue(
-              typeof source === "string" ? textEncoder.encode(source) : source
-            );
+            const buffer = typeof source === "string" ? textEncoder.encode(source) : source;
+            if (buffer.byteLength) {
+              controller.enqueue(buffer);
+            }
             queueMicrotask(() => readableStreamClose(controller));
           },
           start() {
           },
-          type: void 0
+          type: "bytes"
         });
       }
       assert(isReadableStreamLike(stream));
@@ -5196,10 +5359,14 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             if (done) {
               queueMicrotask(() => {
                 controller.close();
+                controller.byobRequest?.respond(0);
               });
             } else {
               if (!isErrored(stream)) {
-                controller.enqueue(new Uint8Array(value));
+                const buffer = new Uint8Array(value);
+                if (buffer.byteLength) {
+                  controller.enqueue(buffer);
+                }
               }
             }
             return controller.desiredSize > 0;
@@ -5207,7 +5374,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           async cancel(reason) {
             await iterator.return();
           },
-          type: void 0
+          type: "bytes"
         });
       }
       const body = { stream, source, length };
@@ -5215,9 +5382,6 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     }
     __name(extractBody, "extractBody");
     function safelyExtractBody(object, keepalive = false) {
-      if (!ReadableStream) {
-        ReadableStream = require("stream/web").ReadableStream;
-      }
       if (object instanceof ReadableStream) {
         assert(!util.isDisturbed(object), "The body has already been consumed.");
         assert(!object.locked, "The stream is locked.");
@@ -5456,9 +5620,8 @@ var require_response = __commonJS({
     } = require_util2();
     var {
       redirectStatusSet,
-      nullBodyStatus,
-      DOMException
-    } = require_constants();
+      nullBodyStatus
+    } = require_constants2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { webidl } = require_webidl();
     var { FormData } = require_formdata();
@@ -5467,7 +5630,6 @@ var require_response = __commonJS({
     var { kHeadersList, kConstruct } = require_symbols();
     var assert = require("assert");
     var { types } = require("util");
-    var ReadableStream = globalThis.ReadableStream || require("stream/web").ReadableStream;
     var textEncoder = new TextEncoder("utf-8");
     var Response = class _Response {
       static {
@@ -5476,9 +5638,10 @@ var require_response = __commonJS({
       // Creates network error Response.
       static error() {
         const relevantRealm = { settingsObject: {} };
-        const responseObject = new _Response();
+        const responseObject = new _Response(kConstruct);
         responseObject[kState] = makeNetworkError();
         responseObject[kRealm] = relevantRealm;
+        responseObject[kHeaders] = new Headers(kConstruct);
         responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList;
         responseObject[kHeaders][kGuard] = "immutable";
         responseObject[kHeaders][kRealm] = relevantRealm;
@@ -5495,8 +5658,11 @@ var require_response = __commonJS({
         );
         const body = extractBody(bytes);
         const relevantRealm = { settingsObject: {} };
-        const responseObject = new _Response();
+        const responseObject = new _Response(kConstruct);
+        responseObject[kState] = makeResponse({});
         responseObject[kRealm] = relevantRealm;
+        responseObject[kHeaders] = new Headers(kConstruct);
+        responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList;
         responseObject[kHeaders][kGuard] = "response";
         responseObject[kHeaders][kRealm] = relevantRealm;
         initializeResponse(responseObject, init, { body: body[0], type: "application/json" });
@@ -5519,8 +5685,11 @@ var require_response = __commonJS({
         if (!redirectStatusSet.has(status)) {
           throw new RangeError("Invalid status code " + status);
         }
-        const responseObject = new _Response();
+        const responseObject = new _Response(kConstruct);
+        responseObject[kState] = makeResponse({});
         responseObject[kRealm] = relevantRealm;
+        responseObject[kHeaders] = new Headers(kConstruct);
+        responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList;
         responseObject[kHeaders][kGuard] = "immutable";
         responseObject[kHeaders][kRealm] = relevantRealm;
         responseObject[kState].status = status;
@@ -5530,6 +5699,9 @@ var require_response = __commonJS({
       }
       // https://fetch.spec.whatwg.org/#dom-response
       constructor(body = null, init = {}) {
+        if (body === kConstruct) {
+          return;
+        }
         if (body !== null) {
           body = webidl.converters.BodyInit(body);
         }
@@ -5605,9 +5777,10 @@ var require_response = __commonJS({
           });
         }
         const clonedResponse = cloneResponse(this[kState]);
-        const clonedResponseObject = new _Response();
+        const clonedResponseObject = new _Response(kConstruct);
         clonedResponseObject[kState] = clonedResponse;
         clonedResponseObject[kRealm] = this[kRealm];
+        clonedResponseObject[kHeaders] = new Headers(kConstruct);
         clonedResponseObject[kHeaders][kHeadersList] = clonedResponse.headersList;
         clonedResponseObject[kHeaders][kGuard] = this[kHeaders][kGuard];
         clonedResponseObject[kHeaders][kRealm] = this[kHeaders][kRealm];
@@ -5662,8 +5835,8 @@ var require_response = __commonJS({
         cacheState: "",
         statusText: "",
         ...init,
-        headersList: init.headersList ? new HeadersList(init.headersList) : new HeadersList(),
-        urlList: init.urlList ? [...init.urlList] : []
+        headersList: init?.headersList ? new HeadersList(init?.headersList) : new HeadersList(),
+        urlList: init?.urlList ? [...init.urlList] : []
       };
     }
     __name(makeResponse, "makeResponse");
@@ -5866,10 +6039,7 @@ var require_dispatcher_weakref = __commonJS({
           FinalizationRegistry: CompatFinalizer
         };
       }
-      return {
-        WeakRef: global.WeakRef || CompatWeakRef,
-        FinalizationRegistry: global.FinalizationRegistry || CompatFinalizer
-      };
+      return { WeakRef, FinalizationRegistry };
     };
   }
 });
@@ -5880,7 +6050,7 @@ var require_request = __commonJS({
     "use strict";
     var { extractBody, mixinBody, cloneBody } = require_body();
     var { Headers, fill: fillHeaders, HeadersList } = require_headers();
-    var { FinalizationRegistry } = require_dispatcher_weakref()();
+    var { FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var util = require_util();
     var {
       isValidHTTPToken,
@@ -5898,7 +6068,7 @@ var require_request = __commonJS({
       requestCredentials,
       requestCache,
       requestDuplex
-    } = require_constants();
+    } = require_constants2();
     var { kEnumerableProperty } = util;
     var { kHeaders, kSignal, kState, kGuard, kRealm } = require_symbols2();
     var { webidl } = require_webidl();
@@ -5907,9 +6077,8 @@ var require_request = __commonJS({
     var { kHeadersList, kConstruct } = require_symbols();
     var assert = require("assert");
     var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require("events");
-    var TransformStream = globalThis.TransformStream;
     var kAbortController = Symbol("abortController");
-    var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
+    var requestFinalizer = new FinalizationRegistry2(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
     });
     var Request = class _Request {
@@ -6184,9 +6353,6 @@ var require_request = __commonJS({
             throw new TypeError(
               "Cannot construct a Request with a Request object that has already been used."
             );
-          }
-          if (!TransformStream) {
-            TransformStream = require("stream/web").TransformStream;
           }
           const identityTransform = new TransformStream();
           inputBody.stream.pipeThrough(identityTransform);
@@ -7194,9 +7360,6 @@ var require_request2 = __commonJS({
           throw new InvalidArgumentError("headers must be an object or an array");
         }
         if (util.isFormDataLike(this.body)) {
-          if (util.nodeMajor < 16 || util.nodeMajor === 16 && util.nodeMinor < 8) {
-            throw new InvalidArgumentError("Form-Data bodies are only supported in node v16.8 and newer.");
-          }
           if (!extractBody) {
             extractBody = require_body().extractBody;
           }
@@ -7592,7 +7755,11 @@ var require_connect = __commonJS({
     }
     __name(setupTimeout, "setupTimeout");
     function onConnectTimeout(socket) {
-      util.destroy(socket, new ConnectTimeoutError());
+      let message = "Connect Timeout Error";
+      if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+        message = +` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")})`;
+      }
+      util.destroy(socket, new ConnectTimeoutError(message));
     }
     __name(onConnectTimeout, "onConnectTimeout");
     module2.exports = buildConnector;
@@ -7621,7 +7788,7 @@ var require_utils = __commonJS({
 });
 
 // lib/llhttp/constants.js
-var require_constants2 = __commonJS({
+var require_constants3 = __commonJS({
   "lib/llhttp/constants.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -8340,7 +8507,7 @@ var require_client = __commonJS({
           throw new InvalidArgumentError("allowH2 must be a valid boolean value");
         }
         if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== "number" || maxConcurrentStreams < 1)) {
-          throw new InvalidArgumentError("maxConcurrentStreams must be a possitive integer, greater than 0");
+          throw new InvalidArgumentError("maxConcurrentStreams must be a positive integer, greater than 0");
         }
         if (typeof connect2 !== "function") {
           connect2 = buildConnector({
@@ -8381,7 +8548,7 @@ var require_client = __commonJS({
         this[kHTTP2SessionState] = !allowH2 ? null : {
           // streams: null, // Fixed queue of streams - For future support of `push`
           openStreams: 0,
-          // Keep track of them to decide wether or not unref the session
+          // Keep track of them to decide whether or not unref the session
           maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100
           // Max peerConcurrentStreams for a Node h2 server
         };
@@ -8518,7 +8685,7 @@ var require_client = __commonJS({
       resume(client);
     }
     __name(onHTTP2GoAway, "onHTTP2GoAway");
-    var constants = require_constants2();
+    var constants = require_constants3();
     var createRedirectInterceptor = require_redirectInterceptor();
     var EMPTY_BUF = Buffer.alloc(0);
     async function lazyllhttp() {
@@ -9622,13 +9789,15 @@ upgrade: ${upgrade}\r
           body.resume();
         }
       }, "onDrain");
-      const onAbort = /* @__PURE__ */ __name(function() {
-        if (finished) {
-          return;
+      const onClose = /* @__PURE__ */ __name(function() {
+        queueMicrotask(() => {
+          body.removeListener("error", onFinished);
+        });
+        if (!finished) {
+          const err = new RequestAbortedError();
+          queueMicrotask(() => onFinished(err));
         }
-        const err = new RequestAbortedError();
-        queueMicrotask(() => onFinished(err));
-      }, "onAbort");
+      }, "onClose");
       const onFinished = /* @__PURE__ */ __name(function(err) {
         if (finished) {
           return;
@@ -9636,7 +9805,7 @@ upgrade: ${upgrade}\r
         finished = true;
         assert(socket.destroyed || socket[kWriting] && client[kRunning] <= 1);
         socket.off("drain", onDrain).off("error", onFinished);
-        body.removeListener("data", onData).removeListener("end", onFinished).removeListener("error", onFinished).removeListener("close", onAbort);
+        body.removeListener("data", onData).removeListener("end", onFinished).removeListener("close", onClose);
         if (!err) {
           try {
             writer.end();
@@ -9651,7 +9820,7 @@ upgrade: ${upgrade}\r
           util.destroy(body);
         }
       }, "onFinished");
-      body.on("data", onData).on("end", onFinished).on("error", onFinished).on("close", onAbort);
+      body.on("data", onData).on("end", onFinished).on("error", onFinished).on("close", onClose);
       if (body.resume) {
         body.resume();
       }
@@ -9968,7 +10137,7 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util = require_util();
     var createRedirectInterceptor = require_redirectInterceptor();
-    var { WeakRef: WeakRef2, FinalizationRegistry } = require_dispatcher_weakref()();
+    var { WeakRef: WeakRef2, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
     var kOnConnectionError = Symbol("onConnectionError");
@@ -10005,7 +10174,7 @@ var require_agent = __commonJS({
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
-        this[kFinalizer] = new FinalizationRegistry(
+        this[kFinalizer] = new FinalizationRegistry2(
           /* istanbul ignore next: gc is undeterministic */
           (key) => {
             const ref = this[kClients].get(key);
@@ -10154,31 +10323,30 @@ var require_fetch = __commonJS({
       isomorphicEncode,
       urlIsLocal,
       urlIsHttpHttpsScheme,
-      urlHasHttpsScheme
+      urlHasHttpsScheme,
+      simpleRangeHeaderValue,
+      buildContentRange
     } = require_util2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var assert = require("assert");
-    var { safelyExtractBody } = require_body();
+    var { safelyExtractBody, extractBody } = require_body();
     var {
       redirectStatusSet,
       nullBodyStatus,
       safeMethodsSet,
       requestBodyHeader,
-      subresourceSet,
-      DOMException
-    } = require_constants();
-    var { kHeadersList } = require_symbols();
+      subresourceSet
+    } = require_constants2();
+    var { kHeadersList, kConstruct } = require_symbols();
     var EE = require("events");
     var { Readable, pipeline } = require("stream");
     var { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require_util();
-    var { dataURLProcessor, serializeAMimeType } = require_dataURL();
-    var { TransformStream } = require("stream/web");
+    var { dataURLProcessor, serializeAMimeType, parseMIMEType } = require_dataURL();
     var { getGlobalDispatcher } = require_global2();
     var { webidl } = require_webidl();
     var { STATUS_CODES } = require("http");
     var GET_OR_HEAD = ["GET", "HEAD"];
     var resolveObjectURL;
-    var ReadableStream = globalThis.ReadableStream;
     var Fetch = class extends EE {
       static {
         __name(this, "Fetch");
@@ -10260,9 +10428,10 @@ var require_fetch = __commonJS({
           );
           return Promise.resolve();
         }
-        responseObject = new Response();
+        responseObject = new Response(kConstruct);
         responseObject[kState] = response;
         responseObject[kRealm] = relevantRealm;
+        responseObject[kHeaders] = new Headers(kConstruct);
         responseObject[kHeaders][kHeadersList] = response.headersList;
         responseObject[kHeaders][kGuard] = "immutable";
         responseObject[kHeaders][kRealm] = relevantRealm;
@@ -10361,9 +10530,9 @@ var require_fetch = __commonJS({
         taskDestination = request.client.globalObject;
         crossOriginIsolatedCapability = request.client.crossOriginIsolatedCapability;
       }
-      const currenTime = coarsenedSharedCurrentTime(crossOriginIsolatedCapability);
+      const currentTime = coarsenedSharedCurrentTime(crossOriginIsolatedCapability);
       const timingInfo = createOpaqueTimingInfo({
-        startTime: currenTime
+        startTime: currentTime
       });
       const fetchParams = {
         controller: new Fetch(dispatcher),
@@ -10526,22 +10695,50 @@ var require_fetch = __commonJS({
           if (blobURLEntry.search.length !== 0) {
             return Promise.resolve(makeNetworkError("NetworkError when attempting to fetch resource."));
           }
-          const blobURLEntryObject = resolveObjectURL(blobURLEntry.toString());
-          if (request.method !== "GET" || !isBlobLike(blobURLEntryObject)) {
+          const blob = resolveObjectURL(blobURLEntry.toString());
+          if (request.method !== "GET" || !isBlobLike(blob)) {
             return Promise.resolve(makeNetworkError("invalid method"));
           }
-          const bodyWithType = safelyExtractBody(blobURLEntryObject);
-          const body = bodyWithType[0];
-          const length = isomorphicEncode(`${body.length}`);
-          const type = bodyWithType[1] ?? "";
-          const response = makeResponse({
-            statusText: "OK",
-            headersList: [
-              ["content-length", { name: "Content-Length", value: length }],
-              ["content-type", { name: "Content-Type", value: type }]
-            ]
-          });
-          response.body = body;
+          const response = makeResponse();
+          const fullLength = blob.size;
+          const serializedFullLength = isomorphicEncode(`${fullLength}`);
+          const type = blob.type;
+          if (!request.headersList.contains("range")) {
+            const bodyWithType = extractBody(blob);
+            response.statusText = "OK";
+            response.body = bodyWithType[0];
+            response.headersList.set("content-length", serializedFullLength);
+            response.headersList.set("content-type", type);
+          } else {
+            response.rangeRequested = true;
+            const rangeHeader = request.headersList.get("range");
+            const rangeValue = simpleRangeHeaderValue(rangeHeader, true);
+            if (rangeValue === "failure") {
+              return Promise.resolve(makeNetworkError("failed to fetch the data URL"));
+            }
+            let { rangeStartValue: rangeStart, rangeEndValue: rangeEnd } = rangeValue;
+            if (rangeStart === null) {
+              rangeStart = fullLength - rangeEnd;
+              rangeEnd = rangeStart + rangeEnd - 1;
+            } else {
+              if (rangeStart >= fullLength) {
+                return Promise.resolve(makeNetworkError("Range start is greater than the blob's size."));
+              }
+              if (rangeEnd === null || rangeEnd >= fullLength) {
+                rangeEnd = fullLength - 1;
+              }
+            }
+            const slicedBlob = blob.slice(rangeStart, rangeEnd, type);
+            const slicedBodyWithType = extractBody(slicedBlob);
+            response.body = slicedBodyWithType[0];
+            const serializedSlicedLength = isomorphicEncode(`${slicedBlob.size}`);
+            const contentRange = buildContentRange(rangeStart, rangeEnd, fullLength);
+            response.status = 206;
+            response.statusText = "Partial Content";
+            response.headersList.set("content-length", serializedSlicedLength);
+            response.headersList.set("content-type", type);
+            response.headersList.set("content-range", contentRange);
+          }
           return Promise.resolve(response);
         }
         case "data:": {
@@ -10580,52 +10777,77 @@ var require_fetch = __commonJS({
     }
     __name(finalizeResponse, "finalizeResponse");
     function fetchFinale(fetchParams, response) {
-      if (response.type === "error") {
-        response.urlList = [fetchParams.request.urlList[0]];
-        response.timingInfo = createOpaqueTimingInfo({
-          startTime: fetchParams.timingInfo.startTime
-        });
-      }
+      let timingInfo = fetchParams.timingInfo;
       const processResponseEndOfBody = /* @__PURE__ */ __name(() => {
-        fetchParams.request.done = true;
-        if (fetchParams.processResponseEndOfBody != null) {
-          queueMicrotask(() => fetchParams.processResponseEndOfBody(response));
+        const unsafeEndTime = Date.now();
+        if (fetchParams.request.destination === "document") {
+          fetchParams.controller.fullTimingInfo = timingInfo;
         }
+        fetchParams.controller.reportTimingSteps = () => {
+          if (fetchParams.request.url.protocol !== "https:") {
+            return;
+          }
+          timingInfo.endTime = unsafeEndTime;
+          let cacheState = response.cacheState;
+          const bodyInfo = response.bodyInfo;
+          if (!response.timingAllowPassed) {
+            timingInfo = createOpaqueTimingInfo(timingInfo);
+            cacheState = "";
+          }
+          let responseStatus = 0;
+          if (fetchParams.request.mode !== "navigator" || !response.hasCrossOriginRedirects) {
+            responseStatus = response.status;
+            const mimeType = parseMIMEType(response.headersList.get("content-type"));
+            if (mimeType !== "failure") {
+            }
+          }
+          if (fetchParams.request.initiatorType != null) {
+            markResourceTiming(timingInfo, fetchParams.request.url, fetchParams.request.initiatorType, globalThis, cacheState, bodyInfo, responseStatus);
+          }
+        };
+        const processResponseEndOfBodyTask = /* @__PURE__ */ __name(() => {
+          fetchParams.request.done = true;
+          if (fetchParams.processResponseEndOfBody != null) {
+            queueMicrotask(() => fetchParams.processResponseEndOfBody(response));
+          }
+          if (fetchParams.request.initiatorType != null) {
+            fetchParams.controller.reportTimingSteps();
+          }
+        }, "processResponseEndOfBodyTask");
+        queueMicrotask(() => processResponseEndOfBodyTask());
       }, "processResponseEndOfBody");
       if (fetchParams.processResponse != null) {
         queueMicrotask(() => fetchParams.processResponse(response));
       }
-      if (response.body == null) {
+      const internalResponse = response.type === "error" ? response : response.internalResponse ?? response;
+      if (internalResponse.body == null) {
         processResponseEndOfBody();
       } else {
-        const identityTransformAlgorithm = /* @__PURE__ */ __name((chunk, controller) => {
-          controller.enqueue(chunk);
-        }, "identityTransformAlgorithm");
         const transformStream = new TransformStream({
           start() {
           },
-          transform: identityTransformAlgorithm,
+          transform(chunk, controller) {
+            controller.enqueue(chunk);
+          },
           flush: processResponseEndOfBody
-        }, {
-          size() {
-            return 1;
-          }
-        }, {
-          size() {
-            return 1;
-          }
         });
-        response.body = { stream: response.body.stream.pipeThrough(transformStream) };
-      }
-      if (fetchParams.processResponseConsumeBody != null) {
-        const processBody = /* @__PURE__ */ __name((nullOrBytes) => fetchParams.processResponseConsumeBody(response, nullOrBytes), "processBody");
-        const processBodyError = /* @__PURE__ */ __name((failure) => fetchParams.processResponseConsumeBody(response, failure), "processBodyError");
-        if (response.body == null) {
-          queueMicrotask(() => processBody(null));
-        } else {
-          return fullyReadBody(response.body, processBody, processBodyError);
-        }
-        return Promise.resolve();
+        internalResponse.body.stream.pipeThrough(transformStream);
+        const byteStream = new ReadableStream({
+          readableStream: transformStream.readable,
+          async start(controller) {
+            const reader = this.readableStream.getReader();
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) {
+                queueMicrotask(() => readableStreamClose(controller));
+                break;
+              }
+              controller.enqueue(value);
+            }
+          },
+          type: "bytes"
+        });
+        internalResponse.body.stream = byteStream;
       }
     }
     __name(fetchFinale, "fetchFinale");
@@ -10939,9 +11161,6 @@ var require_fetch = __commonJS({
       const cancelAlgorithm = /* @__PURE__ */ __name((reason) => {
         fetchParams.controller.abort(reason);
       }, "cancelAlgorithm");
-      if (!ReadableStream) {
-        ReadableStream = require("stream/web").ReadableStream;
-      }
       const stream = new ReadableStream(
         {
           async start(controller) {
@@ -10952,13 +11171,8 @@ var require_fetch = __commonJS({
           },
           async cancel(reason) {
             await cancelAlgorithm(reason);
-          }
-        },
-        {
-          highWaterMark: 0,
-          size() {
-            return 1;
-          }
+          },
+          type: "bytes"
         }
       );
       response.body = { stream };
@@ -10991,7 +11205,10 @@ var require_fetch = __commonJS({
             fetchParams.controller.terminate(bytes);
             return;
           }
-          fetchParams.controller.controller.enqueue(new Uint8Array(bytes));
+          const buffer = new Uint8Array(bytes);
+          if (buffer.byteLength) {
+            fetchParams.controller.controller.enqueue(buffer);
+          }
           if (isErrored(stream)) {
             fetchParams.controller.terminate();
             return;
@@ -11166,7 +11383,7 @@ var require_fetch = __commonJS({
 });
 
 // lib/websocket/constants.js
-var require_constants3 = __commonJS({
+var require_constants4 = __commonJS({
   "lib/websocket/constants.js"(exports2, module2) {
     "use strict";
     var uid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
@@ -11483,7 +11700,7 @@ var require_util3 = __commonJS({
   "lib/websocket/util.js"(exports2, module2) {
     "use strict";
     var { kReadyState, kController, kResponse, kBinaryType, kWebSocketURL } = require_symbols3();
-    var { states, opcodes } = require_constants3();
+    var { states, opcodes } = require_constants4();
     var { MessageEvent, ErrorEvent } = require_events();
     function isEstablished(ws) {
       return ws[kReadyState] === states.OPEN;
@@ -11581,7 +11798,7 @@ var require_connection = __commonJS({
   "lib/websocket/connection.js"(exports2, module2) {
     "use strict";
     var diagnosticsChannel = require("diagnostics_channel");
-    var { uid, states } = require_constants3();
+    var { uid, states } = require_constants4();
     var {
       kReadyState,
       kSentClose,
@@ -11732,7 +11949,7 @@ var require_connection = __commonJS({
 var require_frame = __commonJS({
   "lib/websocket/frame.js"(exports2, module2) {
     "use strict";
-    var { maxUnsigned16Bit } = require_constants3();
+    var { maxUnsigned16Bit } = require_constants4();
     var crypto;
     try {
       crypto = require("crypto");
@@ -11794,7 +12011,7 @@ var require_receiver = __commonJS({
     "use strict";
     var { Writable } = require("stream");
     var diagnosticsChannel = require("diagnostics_channel");
-    var { parserStates, opcodes, states, emptyBuffer } = require_constants3();
+    var { parserStates, opcodes, states, emptyBuffer } = require_constants4();
     var { kReadyState, kSentClose, kResponse, kReceivedClose } = require_symbols3();
     var { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = require_util3();
     var { WebsocketFrameSend } = require_frame();
@@ -12032,10 +12249,9 @@ var require_websocket = __commonJS({
   "lib/websocket/websocket.js"(exports2, module2) {
     "use strict";
     var { webidl } = require_webidl();
-    var { DOMException } = require_constants();
     var { URLSerializer } = require_dataURL();
     var { getGlobalOrigin } = require_global();
-    var { staticPropertyDescriptors, states, opcodes, emptyBuffer } = require_constants3();
+    var { staticPropertyDescriptors, states, opcodes, emptyBuffer } = require_constants4();
     var {
       kWebSocketURL,
       kReadyState,

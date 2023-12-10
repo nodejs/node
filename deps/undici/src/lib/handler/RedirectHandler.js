@@ -135,7 +135,7 @@ class RedirectHandler {
 
         For status 300, which is "Multiple Choices", the spec mentions both generating a Location
         response header AND a response body with the other possible location to follow.
-        Since the spec explicitily chooses not to specify a format for such body and leave it to
+        Since the spec explicitly chooses not to specify a format for such body and leave it to
         servers and browsers implementors, we ignore the body as there is no specified way to eventually parse it.
       */
     } else {
@@ -151,7 +151,7 @@ class RedirectHandler {
         TLDR: undici always ignores 3xx response trailers as they are not expected in case of redirections
         and neither are useful if present.
 
-        See comment on onData method above for more detailed informations.
+        See comment on onData method above for more detailed information.
       */
 
       this.location = null

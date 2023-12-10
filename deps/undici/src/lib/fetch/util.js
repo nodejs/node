@@ -890,14 +890,7 @@ async function fullyReadBody (body, processBody, processBodyError) {
   }
 }
 
-/** @type {ReadableStream} */
-let ReadableStream = globalThis.ReadableStream
-
 function isReadableStreamLike (stream) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
   return stream instanceof ReadableStream || (
     stream[Symbol.toStringTag] === 'ReadableStream' &&
     typeof stream.tee === 'function'
@@ -928,9 +921,10 @@ function isomorphicDecode (input) {
 function readableStreamClose (controller) {
   try {
     controller.close()
+    controller.byobRequest?.respond(0)
   } catch (err) {
     // TODO: add comment explaining why this error occurs.
-    if (!err.message.includes('Controller is already closed')) {
+    if (!err.message.includes('Controller is already closed') && !err.message.includes('ReadableStream is already closed')) {
       throw err
     }
   }
@@ -1018,10 +1012,172 @@ function urlIsHttpHttpsScheme (url) {
   return protocol === 'http:' || protocol === 'https:'
 }
 
+/** @type {import('./dataURL')['collectASequenceOfCodePoints']} */
+let collectASequenceOfCodePoints
+
 /**
- * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
+ * @see https://fetch.spec.whatwg.org/#simple-range-header-value
+ * @param {string} value
+ * @param {boolean} allowWhitespace
  */
-const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
+function simpleRangeHeaderValue (value, allowWhitespace) {
+  // Note: avoid circular require
+  collectASequenceOfCodePoints ??= require('./dataURL').collectASequenceOfCodePoints
+
+  // 1. Let data be the isomorphic decoding of value.
+  // Note: isomorphic decoding takes a sequence of bytes (ie. a Uint8Array) and turns it into a string,
+  // nothing more. We obviously don't need to do that if value is a string already.
+  const data = value
+
+  // 2. If data does not start with "bytes", then return failure.
+  if (!data.startsWith('bytes')) {
+    return 'failure'
+  }
+
+  // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
+  const position = { position: 5 }
+
+  // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //    from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 5. If the code point at position within data is not U+003D (=), then return failure.
+  if (data.charCodeAt(position.position) !== 0x3D) {
+    return 'failure'
+  }
+
+  // 6. Advance position by 1.
+  position.position++
+
+  // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from
+  //    data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits,
+  //    from data given position.
+  const rangeStart = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the
+  //    empty string; otherwise null.
+  const rangeStartValue = rangeStart.length ? Number(rangeStart) : null
+
+  // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //     from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 11. If the code point at position within data is not U+002D (-), then return failure.
+  if (data.charCodeAt(position.position) !== 0x2D) {
+    return 'failure'
+  }
+
+  // 12. Advance position by 1.
+  position.position++
+
+  // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab
+  //     or space, from data given position.
+  // Note from Khafra: its the same fucking step again lol
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 14. Let rangeEnd be the result of collecting a sequence of code points that are
+  //     ASCII digits, from data given position.
+  // Note from Khafra: you wouldn't guess it, but this is also the same step as #8
+  const rangeEnd = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd
+  //     is not the empty string; otherwise null.
+  // Note from Khafra: THE SAME STEP, AGAIN!!!
+  // Note: why interpret as a decimal if we only collect ascii digits?
+  const rangeEndValue = rangeEnd.length ? Number(rangeEnd) : null
+
+  // 16. If position is not past the end of data, then return failure.
+  if (position.position < data.length) {
+    return 'failure'
+  }
+
+  // 17. If rangeEndValue and rangeStartValue are null, then return failure.
+  if (rangeEndValue === null && rangeStartValue === null) {
+    return 'failure'
+  }
+
+  // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is
+  //     greater than rangeEndValue, then return failure.
+  // Note: ... when can they not be numbers?
+  if (rangeStartValue > rangeEndValue) {
+    return 'failure'
+  }
+
+  // 19. Return (rangeStartValue, rangeEndValue).
+  return { rangeStartValue, rangeEndValue }
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#build-a-content-range
+ * @param {number} rangeStart
+ * @param {number} rangeEnd
+ * @param {number} fullLength
+ */
+function buildContentRange (rangeStart, rangeEnd, fullLength) {
+  // 1. Let contentRange be `bytes `.
+  let contentRange = 'bytes '
+
+  // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
+  contentRange += isomorphicEncode(`${rangeStart}`)
+
+  // 3. Append 0x2D (-) to contentRange.
+  contentRange += '-'
+
+  // 4. Append rangeEnd, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${rangeEnd}`)
+
+  // 5. Append 0x2F (/) to contentRange.
+  contentRange += '/'
+
+  // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${fullLength}`)
+
+  // 7. Return contentRange.
+  return contentRange
+}
 
 module.exports = {
   isAborted,
@@ -1055,7 +1211,6 @@ module.exports = {
   makeIterator,
   isValidHeaderName,
   isValidHeaderValue,
-  hasOwn,
   isErrorLike,
   fullyReadBody,
   bytesMatch,
@@ -1067,5 +1222,7 @@ module.exports = {
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
   readAllBytes,
-  normalizeMethodRecord
+  normalizeMethodRecord,
+  simpleRangeHeaderValue,
+  buildContentRange
 }

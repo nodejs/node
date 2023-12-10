@@ -9,6 +9,7 @@ const { InvalidArgumentError } = require('./errors')
 const { Blob } = require('buffer')
 const nodeUtil = require('util')
 const { stringify } = require('querystring')
+const { headerNameLowerCasedRecord } = require('./constants')
 
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
 
@@ -223,19 +224,21 @@ function parseHeaders (headers, obj = {}) {
   if (!Array.isArray(headers)) return headers
 
   for (let i = 0; i < headers.length; i += 2) {
-    const key = headers[i].toString().toLowerCase()
-    let val = obj[key]
+    const key = headers[i].toString()
+    const lowerCasedKey = headerNameLowerCasedRecord[key] ?? key.toLowerCase()
+    let val = obj[lowerCasedKey]
 
     if (!val) {
-      if (Array.isArray(headers[i + 1])) {
-        obj[key] = headers[i + 1].map(x => x.toString('utf8'))
+      const headersValue = headers[i + 1]
+      if (typeof headersValue === 'string') {
+        obj[lowerCasedKey] = headersValue
       } else {
-        obj[key] = headers[i + 1].toString('utf8')
+        obj[lowerCasedKey] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
       }
     } else {
       if (!Array.isArray(val)) {
         val = [val]
-        obj[key] = val
+        obj[lowerCasedKey] = val
       }
       val.push(headers[i + 1].toString('utf8'))
     }
@@ -359,21 +362,9 @@ function getSocketInfo (socket) {
   }
 }
 
-async function * convertIterableToBuffer (iterable) {
-  for await (const chunk of iterable) {
-    yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-  }
-}
-
-let ReadableStream
+/** @type {globalThis['ReadableStream']} */
 function ReadableStreamFrom (iterable) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
-  if (ReadableStream.from) {
-    return ReadableStream.from(convertIterableToBuffer(iterable))
-  }
+  // We cannot use ReadableStream.from here because it does not return a byte stream.
 
   let iterator
   return new ReadableStream(
@@ -386,18 +377,21 @@ function ReadableStreamFrom (iterable) {
         if (done) {
           queueMicrotask(() => {
             controller.close()
+            controller.byobRequest?.respond(0)
           })
         } else {
           const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
-          controller.enqueue(new Uint8Array(buf))
+          if (buf.byteLength) {
+            controller.enqueue(new Uint8Array(buf))
+          }
         }
         return controller.desiredSize > 0
       },
       async cancel (reason) {
         await iterator.return()
-      }
-    },
-    0
+      },
+      type: 'bytes'
+    }
   )
 }
 

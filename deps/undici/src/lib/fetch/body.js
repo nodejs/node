@@ -13,7 +13,6 @@ const {
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
-const { DOMException, structuredClone } = require('./constants')
 const { Blob, File: NativeFile } = require('buffer')
 const { kBodyUsed } = require('../core/symbols')
 const assert = require('assert')
@@ -22,8 +21,6 @@ const { isUint8Array, isArrayBuffer } = require('util/types')
 const { File: UndiciFile } = require('./file')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 
-let ReadableStream = globalThis.ReadableStream
-
 /** @type {globalThis['File']} */
 const File = NativeFile ?? UndiciFile
 const textEncoder = new TextEncoder()
@@ -31,10 +28,6 @@ const textDecoder = new TextDecoder()
 
 // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
 function extractBody (object, keepalive = false) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
   // 1. Let stream be null.
   let stream = null
 
@@ -47,16 +40,19 @@ function extractBody (object, keepalive = false) {
     stream = object.stream()
   } else {
     // 4. Otherwise, set stream to a new ReadableStream object, and set
-    //    up stream.
+    //    up stream with byte reading support.
     stream = new ReadableStream({
       async pull (controller) {
-        controller.enqueue(
-          typeof source === 'string' ? textEncoder.encode(source) : source
-        )
+        const buffer = typeof source === 'string' ? textEncoder.encode(source) : source
+
+        if (buffer.byteLength) {
+          controller.enqueue(buffer)
+        }
+
         queueMicrotask(() => readableStreamClose(controller))
       },
       start () {},
-      type: undefined
+      type: 'bytes'
     })
   }
 
@@ -223,13 +219,17 @@ function extractBody (object, keepalive = false) {
           // When running action is done, close stream.
           queueMicrotask(() => {
             controller.close()
+            controller.byobRequest?.respond(0)
           })
         } else {
           // Whenever one or more bytes are available and stream is not errored,
           // enqueue a Uint8Array wrapping an ArrayBuffer containing the available
           // bytes into stream.
           if (!isErrored(stream)) {
-            controller.enqueue(new Uint8Array(value))
+            const buffer = new Uint8Array(value)
+            if (buffer.byteLength) {
+              controller.enqueue(buffer)
+            }
           }
         }
         return controller.desiredSize > 0
@@ -237,7 +237,7 @@ function extractBody (object, keepalive = false) {
       async cancel (reason) {
         await iterator.return()
       },
-      type: undefined
+      type: 'bytes'
     })
   }
 
@@ -251,11 +251,6 @@ function extractBody (object, keepalive = false) {
 
 // https://fetch.spec.whatwg.org/#bodyinit-safely-extract
 function safelyExtractBody (object, keepalive = false) {
-  if (!ReadableStream) {
-    // istanbul ignore next
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
   // To safely extract a body and a `Content-Type` value from
   // a byte sequence or BodyInit object object, run these steps:
 

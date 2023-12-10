@@ -15,8 +15,7 @@ const {
 } = require('./util')
 const {
   redirectStatusSet,
-  nullBodyStatus,
-  DOMException
+  nullBodyStatus
 } = require('./constants')
 const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
@@ -27,7 +26,6 @@ const { kHeadersList, kConstruct } = require('../core/symbols')
 const assert = require('assert')
 const { types } = require('util')
 
-const ReadableStream = globalThis.ReadableStream || require('stream/web').ReadableStream
 const textEncoder = new TextEncoder('utf-8')
 
 // https://fetch.spec.whatwg.org/#response-class
@@ -40,9 +38,10 @@ class Response {
     // The static error() method steps are to return the result of creating a
     // Response object, given a new network error, "immutable", and this’s
     // relevant Realm.
-    const responseObject = new Response()
+    const responseObject = new Response(kConstruct)
     responseObject[kState] = makeNetworkError()
     responseObject[kRealm] = relevantRealm
+    responseObject[kHeaders] = new Headers(kConstruct)
     responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
     responseObject[kHeaders][kGuard] = 'immutable'
     responseObject[kHeaders][kRealm] = relevantRealm
@@ -68,8 +67,11 @@ class Response {
     // 3. Let responseObject be the result of creating a Response object, given a new response,
     //    "response", and this’s relevant Realm.
     const relevantRealm = { settingsObject: {} }
-    const responseObject = new Response()
+    const responseObject = new Response(kConstruct)
+    responseObject[kState] = makeResponse({})
     responseObject[kRealm] = relevantRealm
+    responseObject[kHeaders] = new Headers(kConstruct)
+    responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
     responseObject[kHeaders][kGuard] = 'response'
     responseObject[kHeaders][kRealm] = relevantRealm
 
@@ -109,8 +111,11 @@ class Response {
 
     // 4. Let responseObject be the result of creating a Response object,
     // given a new response, "immutable", and this’s relevant Realm.
-    const responseObject = new Response()
+    const responseObject = new Response(kConstruct)
+    responseObject[kState] = makeResponse({})
     responseObject[kRealm] = relevantRealm
+    responseObject[kHeaders] = new Headers(kConstruct)
+    responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
     responseObject[kHeaders][kGuard] = 'immutable'
     responseObject[kHeaders][kRealm] = relevantRealm
 
@@ -129,6 +134,10 @@ class Response {
 
   // https://fetch.spec.whatwg.org/#dom-response
   constructor (body = null, init = {}) {
+    if (body === kConstruct) {
+      return
+    }
+
     if (body !== null) {
       body = webidl.converters.BodyInit(body)
     }
@@ -260,9 +269,10 @@ class Response {
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    const clonedResponseObject = new Response()
+    const clonedResponseObject = new Response(kConstruct)
     clonedResponseObject[kState] = clonedResponse
     clonedResponseObject[kRealm] = this[kRealm]
+    clonedResponseObject[kHeaders] = new Headers(kConstruct)
     clonedResponseObject[kHeaders][kHeadersList] = clonedResponse.headersList
     clonedResponseObject[kHeaders][kGuard] = this[kHeaders][kGuard]
     clonedResponseObject[kHeaders][kRealm] = this[kHeaders][kRealm]
@@ -335,10 +345,10 @@ function makeResponse (init) {
     cacheState: '',
     statusText: '',
     ...init,
-    headersList: init.headersList
-      ? new HeadersList(init.headersList)
+    headersList: init?.headersList
+      ? new HeadersList(init?.headersList)
       : new HeadersList(),
-    urlList: init.urlList ? [...init.urlList] : []
+    urlList: init?.urlList ? [...init.urlList] : []
   }
 }
 

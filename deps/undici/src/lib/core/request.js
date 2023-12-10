@@ -196,10 +196,6 @@ class Request {
     }
 
     if (util.isFormDataLike(this.body)) {
-      if (util.nodeMajor < 16 || (util.nodeMajor === 16 && util.nodeMinor < 8)) {
-        throw new InvalidArgumentError('Form-Data bodies are only supported in node v16.8 and newer.')
-      }
-
       if (!extractBody) {
         extractBody = require('../fetch/body.js').extractBody
       }

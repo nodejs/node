@@ -98,58 +98,54 @@ function makeDispatcher (fn) {
 module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
-if (util.nodeMajor > 16 || (util.nodeMajor === 16 && util.nodeMinor >= 8)) {
-  let fetchImpl = null
-  module.exports.fetch = async function fetch (resource) {
-    if (!fetchImpl) {
-      fetchImpl = require('./lib/fetch').fetch
-    }
-
-    try {
-      return await fetchImpl(...arguments)
-    } catch (err) {
-      if (typeof err === 'object') {
-        Error.captureStackTrace(err, this)
-      }
-
-      throw err
-    }
+let fetchImpl = null
+module.exports.fetch = async function fetch (resource) {
+  if (!fetchImpl) {
+    fetchImpl = require('./lib/fetch').fetch
   }
-  module.exports.Headers = require('./lib/fetch/headers').Headers
-  module.exports.Response = require('./lib/fetch/response').Response
-  module.exports.Request = require('./lib/fetch/request').Request
-  module.exports.FormData = require('./lib/fetch/formdata').FormData
-  module.exports.File = require('./lib/fetch/file').File
-  module.exports.FileReader = require('./lib/fileapi/filereader').FileReader
 
-  const { setGlobalOrigin, getGlobalOrigin } = require('./lib/fetch/global')
+  try {
+    return await fetchImpl(...arguments)
+  } catch (err) {
+    if (typeof err === 'object') {
+      Error.captureStackTrace(err, this)
+    }
 
-  module.exports.setGlobalOrigin = setGlobalOrigin
-  module.exports.getGlobalOrigin = getGlobalOrigin
-
-  const { CacheStorage } = require('./lib/cache/cachestorage')
-  const { kConstruct } = require('./lib/cache/symbols')
-
-  // Cache & CacheStorage are tightly coupled with fetch. Even if it may run
-  // in an older version of Node, it doesn't have any use without fetch.
-  module.exports.caches = new CacheStorage(kConstruct)
+    throw err
+  }
 }
+module.exports.Headers = require('./lib/fetch/headers').Headers
+module.exports.Response = require('./lib/fetch/response').Response
+module.exports.Request = require('./lib/fetch/request').Request
+module.exports.FormData = require('./lib/fetch/formdata').FormData
+module.exports.File = require('./lib/fetch/file').File
+module.exports.FileReader = require('./lib/fileapi/filereader').FileReader
 
-if (util.nodeMajor >= 16) {
-  const { deleteCookie, getCookies, getSetCookies, setCookie } = require('./lib/cookies')
+const { setGlobalOrigin, getGlobalOrigin } = require('./lib/fetch/global')
 
-  module.exports.deleteCookie = deleteCookie
-  module.exports.getCookies = getCookies
-  module.exports.getSetCookies = getSetCookies
-  module.exports.setCookie = setCookie
+module.exports.setGlobalOrigin = setGlobalOrigin
+module.exports.getGlobalOrigin = getGlobalOrigin
 
-  const { parseMIMEType, serializeAMimeType } = require('./lib/fetch/dataURL')
+const { CacheStorage } = require('./lib/cache/cachestorage')
+const { kConstruct } = require('./lib/cache/symbols')
 
-  module.exports.parseMIMEType = parseMIMEType
-  module.exports.serializeAMimeType = serializeAMimeType
-}
+// Cache & CacheStorage are tightly coupled with fetch. Even if it may run
+// in an older version of Node, it doesn't have any use without fetch.
+module.exports.caches = new CacheStorage(kConstruct)
 
-if (util.nodeMajor >= 18 && hasCrypto) {
+const { deleteCookie, getCookies, getSetCookies, setCookie } = require('./lib/cookies')
+
+module.exports.deleteCookie = deleteCookie
+module.exports.getCookies = getCookies
+module.exports.getSetCookies = getSetCookies
+module.exports.setCookie = setCookie
+
+const { parseMIMEType, serializeAMimeType } = require('./lib/fetch/dataURL')
+
+module.exports.parseMIMEType = parseMIMEType
+module.exports.serializeAMimeType = serializeAMimeType
+
+if (hasCrypto) {
   const { WebSocket } = require('./lib/websocket/websocket')
 
   module.exports.WebSocket = WebSocket
