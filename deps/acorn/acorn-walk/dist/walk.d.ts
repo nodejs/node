@@ -16,6 +16,8 @@ export type FullAncestorWalkerCallback<TState> = (
 type AggregateType = {
   Expression: acorn.Expression,
   Statement: acorn.Statement,
+  Function: acorn.Function,
+  Class: acorn.Class,
   Pattern: acorn.Pattern,
   ForInit: acorn.VariableDeclaration | acorn.Expression
 }
