@@ -1,3 +1,11 @@
+## 8.3.1 (2023-12-06)
+
+### Bug fixes
+
+Add `Function` and `Class` to the `AggregateType` type, so that they can be used in walkers without raising a type error.
+
+Visitor functions are now called in such a way that their `this` refers to the object they are part of.
+
 ## 8.3.0 (2023-10-26)
 
 ### New features
