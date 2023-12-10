@@ -39,18 +39,9 @@
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <cstring>
-#include <cerrno>
-#include <climits>
-
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <io.h>
 #endif
-
-#include <memory>
 
 namespace node {
 
