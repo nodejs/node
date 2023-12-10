@@ -1022,13 +1022,15 @@ class Environment : public MemoryRetainer {
     kExitInfoFieldCount
   };
 
+#if HAVE_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
   // We declare another alias here to avoid having to include crypto_util.h
   using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
   std::vector<EVPMDPointer> evp_md_cache;
-#endif  // OPENSSL_VERSION_MAJOR
-
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+  std::unordered_map<std::string, size_t> alias_to_md_id_map;
   std::vector<std::string> supported_hash_algorithms;
+#endif  // HAVE_OPENSSL
 
  private:
   // V8 has changed the constructor of exceptions, support both APIs before Node

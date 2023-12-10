@@ -20,6 +20,7 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::Name;
 using v8::Nothing;
 using v8::Object;
 using v8::Uint32;
@@ -35,17 +36,37 @@ void Hash::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackFieldWithSize("md", digest_ ? md_len_ : 0);
 }
 
-void CacheSupportedHashAlgorithms(const EVP_MD* md,
-                                  const char* from,
-                                  const char* to,
-                                  void* arg) {
-  if (!from) return;
-
 #if OPENSSL_VERSION_MAJOR >= 3
-  const EVP_MD* implicit_md = EVP_get_digestbyname(from);
-  if (!implicit_md) return;
+void PushAliases(const char* name, void* data) {
+  static_cast<std::vector<std::string>*>(data)->push_back(name);
+}
+
+EVP_MD* GetCachedMDByID(Environment* env, size_t id) {
+  CHECK_LT(id, env->evp_md_cache.size());
+  EVP_MD* result = env->evp_md_cache[id].get();
+  CHECK_NOT_NULL(result);
+  return result;
+}
+
+struct MaybeCachedMD {
+  EVP_MD* explicit_md = nullptr;
+  const EVP_MD* implicit_md = nullptr;
+  int32_t cache_id = -1;
+};
+
+MaybeCachedMD FetchAndMaybeCacheMD(Environment* env, const char* search_name) {
+  const EVP_MD* implicit_md = EVP_get_digestbyname(search_name);
+  if (!implicit_md) return {nullptr, nullptr, -1};
+
   const char* real_name = EVP_MD_get0_name(implicit_md);
-  if (!real_name) return;
+  if (!real_name) return {nullptr, implicit_md, -1};
+
+  auto it = env->alias_to_md_id_map.find(real_name);
+  if (it != env->alias_to_md_id_map.end()) {
+    size_t id = it->second;
+    return {GetCachedMDByID(env, id), implicit_md, static_cast<int32_t>(id)};
+  }
+
   // EVP_*_fetch() does not support alias names, so we need to pass it the
   // real/original algorithm name.
   // We use EVP_*_fetch() as a filter here because it will only return an
@@ -53,26 +74,56 @@ void CacheSupportedHashAlgorithms(const EVP_MD* md,
   // algorithms are used internally by OpenSSL and are also passed to this
   // callback).
   EVP_MD* explicit_md = EVP_MD_fetch(nullptr, real_name, nullptr);
-  if (!explicit_md) return;
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+  if (!explicit_md) return {nullptr, implicit_md, -1};
 
+  // Cache the EVP_MD* fetched.
+  env->evp_md_cache.emplace_back(explicit_md);
+  size_t id = env->evp_md_cache.size() - 1;
+
+  // Add all the aliases to the map to speed up next lookup.
+  std::vector<std::string> aliases;
+  EVP_MD_names_do_all(explicit_md, PushAliases, &aliases);
+  for (const auto& alias : aliases) {
+    env->alias_to_md_id_map.emplace(alias, id);
+  }
+  env->alias_to_md_id_map.emplace(search_name, id);
+
+  return {explicit_md, implicit_md, static_cast<int32_t>(id)};
+}
+
+void SaveSupportedHashAlgorithmsAndCacheMD(const EVP_MD* md,
+                                           const char* from,
+                                           const char* to,
+                                           void* arg) {
+  if (!from) return;
+  Environment* env = static_cast<Environment*>(arg);
+  auto result = FetchAndMaybeCacheMD(env, from);
+  if (result.explicit_md) {
+    env->supported_hash_algorithms.push_back(from);
+  }
+}
+
+#else
+void SaveSupportedHashAlgorithms(const EVP_MD* md,
+                                 const char* from,
+                                 const char* to,
+                                 void* arg) {
+  if (!from) return;
   Environment* env = static_cast<Environment*>(arg);
   env->supported_hash_algorithms.push_back(from);
-
-#if OPENSSL_VERSION_MAJOR >= 3
-  env->evp_md_cache.emplace_back(explicit_md);
-#endif  // OPENSSL_VERSION_MAJOR >= 3
 }
+#endif  // OPENSSL_VERSION_MAJOR >= 3
 
 const std::vector<std::string>& GetSupportedHashAlgorithms(Environment* env) {
   if (env->supported_hash_algorithms.empty()) {
     MarkPopErrorOnReturn mark_pop_error_on_return;
-    std::vector<std::string> results;
-    EVP_MD_do_all_sorted(CacheSupportedHashAlgorithms, env);
 #if OPENSSL_VERSION_MAJOR >= 3
-    CHECK_EQ(env->supported_hash_algorithms.size(), env->evp_md_cache.size());
-    CHECK_GT(env->supported_hash_algorithms.size(), 0);
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+    // Since we'll fetch the EVP_MD*, cache them along the way to speed up
+    // later lookups instead of throwing them away immediately.
+    EVP_MD_do_all_sorted(SaveSupportedHashAlgorithmsAndCacheMD, env);
+#else
+    EVP_MD_do_all_sorted(SaveSupportedHashAlgorithms, env);
+#endif
   }
   return env->supported_hash_algorithms;
 }
@@ -88,33 +139,67 @@ void Hash::GetHashes(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void Hash::GetCachedAliases(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = args.GetIsolate()->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+  std::vector<Local<Name>> names;
+  std::vector<Local<Value>> values;
+  size_t size = env->alias_to_md_id_map.size();
+#if OPENSSL_VERSION_MAJOR >= 3
+  names.reserve(size);
+  values.reserve(size);
+  for (auto& [alias, id] : env->alias_to_md_id_map) {
+    names.push_back(OneByteString(isolate, alias.c_str(), alias.size()));
+    values.push_back(v8::Uint32::New(isolate, id));
+  }
+#else
+  CHECK(env->alias_to_md_id_map.empty());
+#endif
+  Local<Value> prototype = v8::Null(isolate);
+  Local<Object> result =
+      Object::New(isolate, prototype, names.data(), values.data(), size);
+  args.GetReturnValue().Set(result);
+}
+
 const EVP_MD* GetDigestImplementation(Environment* env,
                                       Local<Value> algorithm,
-                                      Local<Value> algorithm_id) {
+                                      Local<Value> cache_id_val,
+                                      Local<Value> algorithm_cache) {
   CHECK(algorithm->IsString());
-  CHECK(algorithm_id->IsInt32());
-  int32_t id = algorithm_id.As<Int32>()->Value();
+  CHECK(cache_id_val->IsInt32());
+  CHECK(algorithm_cache->IsObject());
 
-  const std::vector<std::string>& algorithms = GetSupportedHashAlgorithms(env);
-  std::string algorithm_str;
-
-  if (id != -1) {
 #if OPENSSL_VERSION_MAJOR >= 3
-    CHECK_LT(static_cast<size_t>(id), algorithms.size());
-    auto& ptr = env->evp_md_cache[id];
-    CHECK_NOT_NULL(ptr.get());
-    return ptr.get();
-#else
-    algorithm_str = algorithms[id];
-#endif  // OPENSSL_VERSION_MAJOR >= 3
+  int32_t cache_id = cache_id_val.As<Int32>()->Value();
+  if (cache_id != -1) {  // Alias already cached, return the cached EVP_MD*.
+    return GetCachedMDByID(env, cache_id);
   }
 
-  if (algorithm_str.empty()) {  // It could be unsupported algorithms.
-    Utf8Value utf8(env->isolate(), algorithm);
-    algorithm_str = utf8.ToString();
+  // Only decode the algorithm when we don't have it cached to avoid
+  // unnecessary overhead.
+  Isolate* isolate = env->isolate();
+  Utf8Value utf8(isolate, algorithm);
+
+  auto result = FetchAndMaybeCacheMD(env, *utf8);
+  if (result.cache_id != -1) {
+    // Add the alias to both C++ side and JS side to speedup the lookup
+    // next time.
+    env->alias_to_md_id_map.emplace(*utf8, result.cache_id);
+    if (algorithm_cache.As<Object>()
+            ->Set(isolate->GetCurrentContext(),
+                  algorithm,
+                  v8::Int32::New(isolate, result.cache_id))
+            .IsNothing()) {
+      return nullptr;
+    }
   }
-  const EVP_MD* implicit_md = EVP_get_digestbyname(algorithm_str.c_str());
-  return implicit_md;
+
+  return result.explicit_md ? result.explicit_md : result.implicit_md;
+#else
+  Utf8Value utf8(env->isolate(), algorithm);
+  return EVP_get_digestbyname(*utf8);
+#endif
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
@@ -130,6 +215,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
   SetConstructorFunction(context, target, "Hash", t);
 
   SetMethodNoSideEffect(context, target, "getHashes", GetHashes);
+  SetMethodNoSideEffect(context, target, "getCachedAliases", GetCachedAliases);
 
   HashJob::Initialize(env, target);
 
@@ -142,12 +228,14 @@ void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(HashUpdate);
   registry->Register(HashDigest);
   registry->Register(GetHashes);
+  registry->Register(GetCachedAliases);
 
   HashJob::RegisterExternalReferences(registry);
 
   registry->Register(InternalVerifyIntegrity);
 }
 
+// new Hash(algorithm, algorithmId, xofLen, algorithmCache)
 void Hash::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -157,13 +245,13 @@ void Hash::New(const FunctionCallbackInfo<Value>& args) {
     ASSIGN_OR_RETURN_UNWRAP(&orig, args[0].As<Object>());
     md = EVP_MD_CTX_md(orig->mdctx_.get());
   } else {
-    md = GetDigestImplementation(env, args[0], args[1]);
+    md = GetDigestImplementation(env, args[0], args[2], args[3]);
   }
 
   Maybe<unsigned int> xof_md_len = Nothing<unsigned int>();
-  if (!args[2]->IsUndefined()) {
-    CHECK(args[2]->IsUint32());
-    xof_md_len = Just<unsigned int>(args[2].As<Uint32>()->Value());
+  if (!args[1]->IsUndefined()) {
+    CHECK(args[1]->IsUint32());
+    xof_md_len = Just<unsigned int>(args[1].As<Uint32>()->Value());
   }
 
   Hash* hash = new Hash(env, args.This());
