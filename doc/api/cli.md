@@ -528,6 +528,15 @@ modifying the stack trace. Call and return the results of the original
 `Error.prepareStackTrace` in the overriding function to modify the stack trace
 with source maps.
 
+```js
+const originalPrepareStackTrace = Error.prepareStackTrace;
+Error.prepareStackTrace = (error, trace) => {
+  // Modify error and trace and format stack trace with
+  // original Error.prepareStackTrace.
+  return originalPrepareStackTrace(error, trace);
+};
+```
+
 Note, enabling source maps can introduce latency to your application
 when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
