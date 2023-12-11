@@ -22,6 +22,7 @@ function findCoverageFileForPid(pid) {
 }
 
 function getTapCoverageFixtureReport() {
+  /* eslint-disable max-len */
   const report = [
     '# start of coverage report',
     '# -------------------------------------------------------------------------------------------------------------------',
@@ -35,6 +36,7 @@ function getTapCoverageFixtureReport() {
     '# -------------------------------------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
+  /* eslint-enable max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
