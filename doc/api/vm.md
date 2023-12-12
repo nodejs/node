@@ -103,7 +103,7 @@ changes:
     [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAttributes` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"with"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -635,7 +635,7 @@ changes:
   * `extra` {Object}
     * `attributes` {Object} The data from the attribute:
       ```mjs
-      import foo from 'foo' assert { name: 'value' };
+      import foo from 'foo' with { name: 'value' };
       //                           ^^^^^^^^^^^^^^^^^ the attribute
       ```
       Per ECMA-262, hosts are expected to trigger an error if an
@@ -1032,7 +1032,7 @@ changes:
     [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `function` {Function}
-    * `importAttributes` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"with"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1258,7 +1258,7 @@ changes:
     [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAttributes` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"with"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1359,7 +1359,7 @@ changes:
     [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAttributes` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"with"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
@@ -1441,7 +1441,7 @@ changes:
     [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
     * `specifier` {string} specifier passed to `import()`
     * `script` {vm.Script}
-    * `importAttributes` {Object} The `"assert"` value passed to the
+    * `importAttributes` {Object} The `"with"` value passed to the
       [`optionsExpression`][] optional parameter, or an empty object if no value
       was provided.
     * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
