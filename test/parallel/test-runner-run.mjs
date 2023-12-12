@@ -470,7 +470,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       const stream = run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')],
         setup: common.mustCall((root) => {
-          assert.strictEqual(root.constructor.name, "TestsStream");
+          assert.strictEqual(root.constructor.name, 'TestsStream');
         }),
       });
       stream.on('test:fail', common.mustNotCall());
