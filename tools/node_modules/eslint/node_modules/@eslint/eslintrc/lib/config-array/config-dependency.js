@@ -28,6 +28,7 @@ class ConfigDependency {
      * Initialize this instance.
      * @param {Object} data The dependency data.
      * @param {T} [data.definition] The dependency if the loading succeeded.
+     * @param {T} [data.original] The original, non-normalized dependency if the loading succeeded.
      * @param {Error} [data.error] The error object if the loading failed.
      * @param {string} [data.filePath] The actual path to the dependency if the loading succeeded.
      * @param {string} data.id The ID of this dependency.
@@ -36,6 +37,7 @@ class ConfigDependency {
      */
     constructor({
         definition = null,
+        original = null,
         error = null,
         filePath = null,
         id,
@@ -48,6 +50,12 @@ class ConfigDependency {
          * @type {T|null}
          */
         this.definition = definition;
+
+        /**
+         * The original dependency as loaded directly from disk if the loading succeeded.
+         * @type {T|null}
+         */
+        this.original = original;
 
         /**
          * The error object if the loading failed.
@@ -101,7 +109,8 @@ class ConfigDependency {
      */
     [util.inspect.custom]() {
         const {
-            definition: _ignore, // eslint-disable-line no-unused-vars
+            definition: _ignore1, // eslint-disable-line no-unused-vars
+            original: _ignore2, // eslint-disable-line no-unused-vars
             ...obj
         } = this;
 

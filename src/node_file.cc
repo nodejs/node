@@ -39,18 +39,9 @@
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 
-#include <fcntl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <cstring>
-#include <cerrno>
-#include <climits>
-
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <io.h>
 #endif
-
-#include <memory>
 
 namespace node {
 
@@ -2467,18 +2458,20 @@ static void ReadBuffers(const FunctionCallbackInfo<Value>& args) {
     iovs[i] = uv_buf_init(Buffer::Data(buffer), Buffer::Length(buffer));
   }
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // readBuffers(fd, buffers, pos, req)
+  if (argc > 3) {  // readBuffers(fd, buffers, pos, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_READ, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "read", UTF8, AfterInteger,
               uv_fs_read, fd, *iovs, iovs.length(), pos);
   } else {  // readBuffers(fd, buffers, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+    FSReqWrapSync req_wrap_sync("read");
     FS_SYNC_TRACE_BEGIN(read);
-    int bytesRead = SyncCall(env, /* ctx */ args[4], &req_wrap_sync, "read",
-                             uv_fs_read, fd, *iovs, iovs.length(), pos);
+    int bytesRead = SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_read, fd, *iovs, iovs.length(), pos);
     FS_SYNC_TRACE_END(read, "bytesRead", bytesRead);
+    if (is_uv_error(bytesRead)) {
+      return;
+    }
     args.GetReturnValue().Set(bytesRead);
   }
 }
@@ -2597,17 +2590,15 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[2]));
   const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // fchown(fd, uid, gid, req)
+  if (argc > 3) {  // fchown(fd, uid, gid, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHOWN, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fchown", UTF8, AfterNoArgs,
               uv_fs_fchown, fd, uid, gid);
-  } else {  // fchown(fd, uid, gid, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fchown(fd, uid, gid)
+    FSReqWrapSync req_wrap_sync("fchown");
     FS_SYNC_TRACE_BEGIN(fchown);
-    SyncCall(env, args[4], &req_wrap_sync, "fchown",
-             uv_fs_fchown, fd, uid, gid);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fchown, fd, uid, gid);
     FS_SYNC_TRACE_END(fchown);
   }
 }

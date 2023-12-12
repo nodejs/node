@@ -203,8 +203,12 @@ CallbackScopeBase::CallbackScopeBase(Environment* env)
     : env(env), context_scope(env->context()), try_catch(env->isolate()) {}
 
 CallbackScopeBase::~CallbackScopeBase() {
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    errors::TriggerUncaughtException(env->isolate(), try_catch);
+  if (try_catch.HasCaught()) {
+    if (!try_catch.HasTerminated() && env->can_call_into_js()) {
+      errors::TriggerUncaughtException(env->isolate(), try_catch);
+    } else {
+      try_catch.ReThrow();
+    }
   }
 }
 

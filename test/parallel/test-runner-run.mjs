@@ -466,4 +466,37 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         }));
     });
   });
+
+  it('should run with no files', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(tap);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with no files and use spec reporter', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(spec);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should run with no files and use dot reporter', async () => {
+    const stream = run({
+      files: undefined
+    }).compose(dot);
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustNotCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
 });
