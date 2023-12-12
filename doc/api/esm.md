@@ -335,7 +335,7 @@ properties.
 ### `import.meta.dirname`
 
 <!-- YAML
-added: REPLACEME
+added: v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -348,7 +348,7 @@ added: REPLACEME
 ### `import.meta.filename`
 
 <!-- YAML
-added: REPLACEME
+added: v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate

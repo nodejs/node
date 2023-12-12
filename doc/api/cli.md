@@ -448,7 +448,7 @@ Affects the default output directory of:
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: REPLACEME
+added: v20.11.0
 -->
 
 Disable specific process warnings by `code` or `type`.
@@ -1797,7 +1797,7 @@ node --test --test-shard=3/3
 ### `--test-timeout`
 
 <!-- YAML
-added: REPLACEME
+added: v20.11.0
 -->
 
 A number of milliseconds the test execution will fail after. If unspecified,

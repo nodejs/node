@@ -1052,7 +1052,7 @@ function with the given `params`.
 <!-- YAML
 added: v0.3.1
 changes:
-  - version: REPLACEME
+  - version: v20.11.0
     pr-url: https://github.com/nodejs/node/pull/50360
     description: The `importModuleDynamically` option is supported now.
   - version: v14.6.0
