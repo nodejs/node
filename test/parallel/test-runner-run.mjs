@@ -1,14 +1,10 @@
-// Flags: --expose-internals
-
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import { join } from 'node:path';
 import { describe, it, run } from 'node:test';
 import { dot, spec, tap } from 'node:test/reporters';
 import assert from 'node:assert';
-import stream from 'internal/test_runner/tests_stream';
 
-const { TestsStream } = stream;
 const testFixtures = fixtures.path('test-runner');
 
 describe('require(\'node:test\').run', { concurrency: true }, () => {
@@ -474,7 +470,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       const stream = run({
         files: [join(testFixtures, 'default-behavior/test/random.cjs')],
         setup: common.mustCall((root) => {
-          assert(root instanceof TestsStream);
+          assert.strictEqual(root.constructor.name, "TestsStream");
         }),
       });
       stream.on('test:fail', common.mustNotCall());
