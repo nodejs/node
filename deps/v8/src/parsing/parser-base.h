@@ -3725,7 +3725,9 @@ ParserBase<Impl>::ParseImportExpressions() {
   AcceptINScope scope(this, true);
   ExpressionT specifier = ParseAssignmentExpressionCoverGrammar();
 
-  if (FLAG_harmony_import_assertions && Check(Token::COMMA)) {
+  if ((FLAG_harmony_import_assertions ||
+       FLAG_harmony_import_attributes) &&
+      Check(Token::COMMA)) {
     if (Check(Token::RPAREN)) {
       // A trailing comma allowed after the specifier.
       return factory()->NewImportCallExpression(specifier, pos);

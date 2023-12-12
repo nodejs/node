@@ -1344,27 +1344,34 @@ ZonePtrList<const Parser::NamedImport>* Parser::ParseNamedImports(int pos) {
 }
 
 ImportAssertions* Parser::ParseImportAssertClause() {
+  // WithClause :
+  //    with '{' '}'
+  //    with '{' WithEntries ','? '}'
+
+  // WithEntries :
+  //    LiteralPropertyName
+  //    LiteralPropertyName ':' StringLiteral , WithEntries
+
+  // (DEPRECATED)
   // AssertClause :
   //    assert '{' '}'
-  //    assert '{' AssertEntries '}'
-
-  // AssertEntries :
-  //    IdentifierName: AssertionKey
-  //    IdentifierName: AssertionKey , AssertEntries
-
-  // AssertionKey :
-  //     IdentifierName
-  //     StringLiteral
+  //    assert '{' WithEntries ','? '}'
 
   auto import_assertions = zone()->New<ImportAssertions>(zone());
 
-  if (!FLAG_harmony_import_assertions) {
-    return import_assertions;
-  }
+  if (FLAG_harmony_import_attributes && Check(Token::WITH)) {
+    // 'with' keyword consumed
+  } else if (FLAG_harmony_import_assertions &&
+             !scanner()->HasLineTerminatorBeforeNext() &&
+             CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    // The 'assert' contextual keyword is deprecated in favor of 'with', and we
+    // need to investigate feasibility of unshipping.
+    //
+    // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
 
-  // Assert clause is optional, and cannot be preceded by a LineTerminator.
-  if (scanner()->HasLineTerminatorBeforeNext() ||
-      !CheckContextualKeyword(ast_value_factory()->assert_string())) {
+    // NOTE(Node.js): Commented out to avoid backporting this use counter to Node.js 18
+    // ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
+  } else {
     return import_assertions;
   }
 
@@ -1372,8 +1379,12 @@ ImportAssertions* Parser::ParseImportAssertClause() {
 
   while (peek() != Token::RBRACE) {
     const AstRawString* attribute_key = nullptr;
-    if (Check(Token::STRING)) {
+    if (Check(Token::STRING) || Check(Token::SMI)) {
       attribute_key = GetSymbol();
+    } else if (Check(Token::NUMBER)) {
+      attribute_key = GetNumberAsSymbol();
+    } else if (Check(Token::BIGINT)) {
+      attribute_key = GetBigIntAsSymbol();
     } else {
       attribute_key = ParsePropertyName();
     }

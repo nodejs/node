@@ -4482,6 +4482,7 @@ void Genesis::InitializeConsole(Handle<JSObject> extras_binding) {
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_attributes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_private_brand_checks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_static_blocks)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_error_cause)
