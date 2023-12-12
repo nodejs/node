@@ -128,10 +128,9 @@ class V8_EXPORT ModuleRequest : public Data {
    *
    * All assertions present in the module request will be supplied in this
    * list, regardless of whether they are supported by the host. Per
-   * https://tc39.es/proposal-import-assertions/#sec-hostgetsupportedimportassertions,
-   * hosts are expected to ignore assertions that they do not support (as
-   * opposed to, for example, triggering an error if an unsupported assertion is
-   * present).
+   * https://tc39.es/proposal-import-attributes/#sec-hostgetsupportedimportattributes,
+   * hosts are expected to throw for assertions that they do not support (as
+   * opposed to, for example, ignoring them).
    */
   Local<FixedArray> GetImportAssertions() const;
 
