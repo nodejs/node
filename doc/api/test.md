@@ -1837,7 +1837,9 @@ added:
   - v20.4.0
   - v18.19.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.11.0
     pr-url: https://github.com/nodejs/node/pull/48638
     description: Updated parameters to be an option object with available APIs
                  and the default initial epoch.
@@ -2327,6 +2329,7 @@ clocks or actual timers outside of the mocking environment.
 <!-- YAML
 added:
   - v21.2.0
+  - v20.11.0
 -->
 
 Sets the current Unix timestamp that will be used as reference for any mocked

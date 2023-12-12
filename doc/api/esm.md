@@ -342,7 +342,9 @@ properties.
 ### `import.meta.dirname`
 
 <!-- YAML
-added: v21.2.0
+added:
+  - v21.2.0
+  - v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate
@@ -355,7 +357,9 @@ added: v21.2.0
 ### `import.meta.filename`
 
 <!-- YAML
-added: v21.2.0
+added:
+  - v21.2.0
+  - v20.11.0
 -->
 
 > Stability: 1.2 - Release candidate
