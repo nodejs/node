@@ -2590,17 +2590,15 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   CHECK(IsSafeJsInt(args[2]));
   const uv_gid_t gid = static_cast<uv_gid_t>(args[2].As<Integer>()->Value());
 
-  FSReqBase* req_wrap_async = GetReqWrap(args, 3);
-  if (req_wrap_async != nullptr) {  // fchown(fd, uid, gid, req)
+  if (argc > 3) {  // fchown(fd, uid, gid, req)
+    FSReqBase* req_wrap_async = GetReqWrap(args, 3);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FCHOWN, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "fchown", UTF8, AfterNoArgs,
               uv_fs_fchown, fd, uid, gid);
-  } else {  // fchown(fd, uid, gid, undefined, ctx)
-    CHECK_EQ(argc, 5);
-    FSReqWrapSync req_wrap_sync;
+  } else {  // fchown(fd, uid, gid)
+    FSReqWrapSync req_wrap_sync("fchown");
     FS_SYNC_TRACE_BEGIN(fchown);
-    SyncCall(env, args[4], &req_wrap_sync, "fchown",
-             uv_fs_fchown, fd, uid, gid);
+    SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_fchown, fd, uid, gid);
     FS_SYNC_TRACE_END(fchown);
   }
 }
