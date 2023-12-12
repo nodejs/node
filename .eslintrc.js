@@ -44,10 +44,7 @@ module.exports = {
   parserOptions: {
     babelOptions: {
       plugins: [
-        [
-          Module._findPath('@babel/plugin-syntax-import-attributes'),
-          { deprecatedAssertSyntax: true },
-        ],
+        Module._findPath('@babel/plugin-syntax-import-attributes'),
       ],
     },
     requireConfigFile: false,

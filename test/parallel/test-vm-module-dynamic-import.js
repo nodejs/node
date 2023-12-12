@@ -58,7 +58,7 @@ async function test() {
   }
 
   {
-    const s = new Script('import("foo", { assert: { key: "value" } })', {
+    const s = new Script('import("foo", { with: { key: "value" } })', {
       importModuleDynamically: common.mustCall((specifier, wrap, attributes) => {
         assert.strictEqual(specifier, 'foo');
         assert.strictEqual(wrap, s);

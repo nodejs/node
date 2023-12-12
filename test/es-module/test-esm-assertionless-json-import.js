@@ -9,7 +9,7 @@ async function test() {
       import('../fixtures/experimental.json'),
       import(
         '../fixtures/experimental.json',
-        { assert: { type: 'json' } }
+        { with: { type: 'json' } }
       ),
     ]);
 
@@ -24,7 +24,7 @@ async function test() {
       import('../fixtures/experimental.json?test'),
       import(
         '../fixtures/experimental.json?test',
-        { assert: { type: 'json' } }
+        { with: { type: 'json' } }
       ),
     ]);
 
@@ -39,7 +39,7 @@ async function test() {
       import('../fixtures/experimental.json#test'),
       import(
         '../fixtures/experimental.json#test',
-        { assert: { type: 'json' } }
+        { with: { type: 'json' } }
       ),
     ]);
 
@@ -54,7 +54,7 @@ async function test() {
       import('../fixtures/experimental.json?test2#test'),
       import(
         '../fixtures/experimental.json?test2#test',
-        { assert: { type: 'json' } }
+        { with: { type: 'json' } }
       ),
     ]);
 
@@ -69,7 +69,7 @@ async function test() {
       import('data:application/json,{"ofLife":42}'),
       import(
         'data:application/json,{"ofLife":42}',
-        { assert: { type: 'json' } }
+        { with: { type: 'json' } }
       ),
     ]);
 
