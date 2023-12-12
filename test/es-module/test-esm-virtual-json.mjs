@@ -25,6 +25,6 @@ function load(url, context, next) {
 register(`data:text/javascript,export ${encodeURIComponent(resolve)};export ${encodeURIComponent(load)}`);
 
 assert.notDeepStrictEqual(
-  await import(fixtures.fileURL('empty.json'), { assert: { type: 'json' } }),
-  await import(fixtures.fileURL('empty.json'), { assert: { type: 'json' } }),
+  await import(fixtures.fileURL('empty.json'), { with: { type: 'json' } }),
+  await import(fixtures.fileURL('empty.json'), { with: { type: 'json' } }),
 );

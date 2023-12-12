@@ -7,27 +7,27 @@ const jsonModuleDataUrl = 'data:application/json,""';
 
 async function test() {
   await rejects(
-    import('data:text/css,', { assert: { type: 'css' } }),
+    import('data:text/css,', { with: { type: 'css' } }),
     { code: 'ERR_UNKNOWN_MODULE_FORMAT' }
   );
 
   await rejects(
-    import('data:text/css,', { assert: { unsupportedAttribute: 'value' } }),
+    import('data:text/css,', { with: { unsupportedAttribute: 'value' } }),
     { code: 'ERR_IMPORT_ATTRIBUTE_UNSUPPORTED' }
   );
 
   await rejects(
-    import(`data:text/javascript,import${JSON.stringify(jsModuleDataUrl)}assert{type:"json"}`),
+    import(`data:text/javascript,import${JSON.stringify(jsModuleDataUrl)}with{type:"json"}`),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED' }
   );
 
   await rejects(
-    import(jsModuleDataUrl, { assert: { type: 'json' } }),
+    import(jsModuleDataUrl, { with: { type: 'json' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_FAILED' }
   );
 
   await rejects(
-    import(jsModuleDataUrl, { assert: { type: 'unsupported' } }),
+    import(jsModuleDataUrl, { with: { type: 'unsupported' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
   );
 
@@ -37,17 +37,17 @@ async function test() {
   );
 
   await rejects(
-    import(jsonModuleDataUrl, { assert: {} }),
+    import(jsonModuleDataUrl, { with: {} }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_MISSING' }
   );
 
   await rejects(
-    import(jsonModuleDataUrl, { assert: { foo: 'bar' } }),
+    import(jsonModuleDataUrl, { with: { foo: 'bar' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_MISSING' }
   );
 
   await rejects(
-    import(jsonModuleDataUrl, { assert: { type: 'unsupported' } }),
+    import(jsonModuleDataUrl, { with: { type: 'unsupported' } }),
     { code: 'ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED' }
   );
 }
