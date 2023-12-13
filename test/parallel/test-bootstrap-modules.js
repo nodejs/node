@@ -75,6 +75,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/url',
   'NativeModule util',
   'NativeModule internal/webidl',
+  'Internal Binding path',
   'Internal Binding performance',
   'Internal Binding permission',
   'NativeModule internal/perf/utils',

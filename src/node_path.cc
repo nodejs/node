@@ -1,11 +1,27 @@
-#include "path.h"
-#include <string>
-#include <vector>
+#include "node_path.h"
 #include "env-inl.h"
+#include "node.h"
+#include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_internals.h"
 #include "util.h"
 
+#include "v8.h"
+
+#include <string>
+#include <vector>
+
 namespace node {
+
+using v8::Array;
+using v8::Context;
+using v8::FunctionCallbackInfo;
+using v8::Local;
+using v8::Object;
+using v8::String;
+using v8::Value;
+
+namespace path {
 
 #ifdef _WIN32
 bool IsPathSeparator(const char c) noexcept {
@@ -235,7 +251,7 @@ std::string PathResolve(Environment* env,
 #else   // _WIN32
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths) {
-  std::string resolvedPath;
+  std::string resolvedPath = "";
   bool resolvedAbsolute = false;
   auto cwd = env->GetCwd(env->exec_path());
   const size_t numArgs = paths.size();
@@ -269,4 +285,48 @@ std::string PathResolve(Environment* env,
 }
 #endif  // _WIN32
 
+static void Resolve(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(args[0]->IsArray());
+  Local<Array> paths = args[0].As<Array>();
+  std::vector<std::string> paths_str;
+  std::vector<std::string_view> paths_strview;
+  paths_str.reserve(paths->Length());
+  paths_strview.reserve(paths->Length());
+
+  for (size_t i = 0; i < paths->Length(); ++i) {
+    Local<Value> p;
+    if (!paths->Get(env->context(), i).ToLocal(&p)) return;
+    if (!p->IsString()) {
+      const std::string msg =
+          "The paths[" + std::to_string(i) + "] must be of type string";
+      THROW_ERR_INVALID_ARG_TYPE(env, msg.c_str());
+      return;
+    }
+    CHECK(p->IsString());
+    Utf8Value val(env->isolate(), p);
+    paths_strview.push_back(paths_str.emplace_back(*val));
+  }
+
+  std::string r = PathResolve(env, paths_strview);
+  args.GetReturnValue().Set(
+      String::NewFromUtf8(env->isolate(), r.c_str()).ToLocalChecked());
+}
+
+void Initialize(Local<Object> target,
+                Local<Value> unused,
+                Local<Context> context,
+                void* priv) {
+  SetMethodNoSideEffect(context, target, "resolve", Resolve);
+}
+
+void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(Resolve);
+}
+
+}  // namespace path
 }  // namespace node
+
+NODE_BINDING_CONTEXT_AWARE_INTERNAL(path, node::path::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(path,
+                                node::path::RegisterExternalReferences)

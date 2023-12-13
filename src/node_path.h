@@ -1,5 +1,5 @@
-#ifndef SRC_PATH_H_
-#define SRC_PATH_H_
+#ifndef SRC_NODE_PATH_H_
+#define SRC_NODE_PATH_H_
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
@@ -10,6 +10,8 @@ namespace node {
 
 class Environment;
 
+namespace path {
+
 bool IsPathSeparator(const char c) noexcept;
 
 std::string NormalizeString(const std::string_view path,
@@ -18,8 +20,10 @@ std::string NormalizeString(const std::string_view path,
 
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& args);
+}  // namespace path
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#endif  // SRC_PATH_H_
+#endif  // SRC_NODE_PATH_H_

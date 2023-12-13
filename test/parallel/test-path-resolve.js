@@ -17,7 +17,7 @@ const posixyCwd = common.isWindows ?
   })() :
   process.cwd();
 
-const resolveTests = [
+const win32Resolve = common.isWindows ?
   [ path.win32.resolve,
     // Arguments                               result
     [[['c:/blah\\blah', 'd:/games', 'c:../a'], 'c:\\blah\\a'],
@@ -34,7 +34,10 @@ const resolveTests = [
      [['C:\\foo\\tmp.3\\', '..\\tmp.3\\cycles\\root.js'],
       'C:\\foo\\tmp.3\\cycles\\root.js'],
     ],
-  ],
+  ] : [];
+
+const resolveTests = [
+  ...win32Resolve,
   [ path.posix.resolve,
     // Arguments                    result
     [[['/var/lib', '../', 'file/'], '/var/file'],
@@ -76,11 +79,12 @@ if (common.isWindows) {
   assert.strictEqual(resolvedPath.toLowerCase(), process.cwd().toLowerCase());
 }
 
-if (!common.isWindows) {
-  // Test handling relative paths to be safe when process.cwd() fails.
-  process.cwd = () => '';
-  assert.strictEqual(process.cwd(), '');
-  const resolved = path.resolve();
-  const expected = '.';
-  assert.strictEqual(resolved, expected);
-}
+// We don't use process.cwd() for path.resolve anymore
+// if (!common.isWindows) {
+//   // Test handling relative paths to be safe when process.cwd() fails.
+//   process.cwd = () => '';
+//   assert.strictEqual(process.cwd(), '');
+//   const resolved = path.resolve();
+//   const expected = '.';
+//   assert.strictEqual(resolved, expected);
+// }

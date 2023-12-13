@@ -1,7 +1,7 @@
 #include "fs_permission.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
-#include "path.h"
+#include "node_path.h"
 #include "v8.h"
 
 #include <fcntl.h>
@@ -131,7 +131,7 @@ void FSPermission::Apply(Environment* env,
       }
       return;
     }
-    GrantAccess(scope, PathResolve(env, {res}));
+    GrantAccess(scope, path::PathResolve(env, {res}));
   }
 }
 

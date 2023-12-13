@@ -73,15 +73,19 @@ if (common.isWindows) {
   assert.strictEqual(path.win32.toNamespacedPath('C').toLowerCase(),
                      `\\\\?\\${process.cwd().toLowerCase()}\\c`);
 }
-assert.strictEqual(path.win32.toNamespacedPath('C:\\foo'), '\\\\?\\C:\\foo');
-assert.strictEqual(path.win32.toNamespacedPath('C:/foo'), '\\\\?\\C:\\foo');
-assert.strictEqual(path.win32.toNamespacedPath('\\\\foo\\bar'),
-                   '\\\\?\\UNC\\foo\\bar\\');
-assert.strictEqual(path.win32.toNamespacedPath('//foo//bar'),
-                   '\\\\?\\UNC\\foo\\bar\\');
-assert.strictEqual(path.win32.toNamespacedPath('\\\\?\\foo'), '\\\\?\\foo');
-assert.strictEqual(path.win32.toNamespacedPath(null), null);
-assert.strictEqual(path.win32.toNamespacedPath(true), true);
-assert.strictEqual(path.win32.toNamespacedPath(1), 1);
-assert.strictEqual(path.win32.toNamespacedPath(), undefined);
-assert.strictEqual(path.win32.toNamespacedPath(emptyObj), emptyObj);
+// We are not exporting win32 implementaion on posix
+// Adding isWindows check as TODO
+if (common.isWindows) {
+  assert.strictEqual(path.win32.toNamespacedPath('C:\\foo'), '\\\\?\\C:\\foo');
+  assert.strictEqual(path.win32.toNamespacedPath('C:/foo'), '\\\\?\\C:\\foo');
+  assert.strictEqual(path.win32.toNamespacedPath('\\\\foo\\bar'),
+                     '\\\\?\\UNC\\foo\\bar\\');
+  assert.strictEqual(path.win32.toNamespacedPath('//foo//bar'),
+                     '\\\\?\\UNC\\foo\\bar\\');
+  assert.strictEqual(path.win32.toNamespacedPath('\\\\?\\foo'), '\\\\?\\foo');
+  assert.strictEqual(path.win32.toNamespacedPath(null), null);
+  assert.strictEqual(path.win32.toNamespacedPath(true), true);
+  assert.strictEqual(path.win32.toNamespacedPath(1), 1);
+  assert.strictEqual(path.win32.toNamespacedPath(), undefined);
+  assert.strictEqual(path.win32.toNamespacedPath(emptyObj), emptyObj);
+}

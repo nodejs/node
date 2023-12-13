@@ -106,6 +106,7 @@ class ExternalReferenceRegistry {
   V(modules)                                                                   \
   V(options)                                                                   \
   V(os)                                                                        \
+  V(path)                                                                      \
   V(performance)                                                               \
   V(permission)                                                                \
   V(process_methods)                                                           \
