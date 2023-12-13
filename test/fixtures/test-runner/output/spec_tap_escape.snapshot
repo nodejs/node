@@ -1,0 +1,13 @@
+✔ escaped description \\ \# \\\#\\ \\n \\t \\f \\v \\b \\r (*ms)
+﹣ escaped skip message (*ms) # \#skip
+✔ escaped todo message (*ms) # \#todo
+✔ escaped diagnostic (*ms)
+ℹ #diagnostic
+ℹ tests 4
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 1
+ℹ duration_ms *

@@ -127,6 +127,10 @@ const tests = [
       replaceTestDuration,
     ),
   },
+  {
+    name: 'test-runner/output/spec_tap_escape.js',
+    transform: specTransform,
+  },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
 ]
 .filter(Boolean)
