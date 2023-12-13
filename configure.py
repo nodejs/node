@@ -123,6 +123,12 @@ parser.add_argument('--no-cross-compiling',
     default=None,
     help='force build to be considered as NOT cross compiled')
 
+parser.add_argument('--use-prefix-to-find-headers',
+    action='store_true',
+    dest='use_prefix_to_find_headers',
+    default=None,
+    help='use the prefix to look for pre-installed headers')
+
 parser.add_argument('--dest-os',
     action='store',
     dest='dest_os',
@@ -1252,6 +1258,7 @@ def configure_node(o):
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
   o['variables']['error_on_warn'] = b(options.error_on_warn)
+  o['variables']['use_prefix_to_find_headers'] = b(options.use_prefix_to_find_headers)
 
   host_arch = host_arch_win() if os.name == 'nt' else host_arch_cc()
   target_arch = options.dest_cpu or host_arch
