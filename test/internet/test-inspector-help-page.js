@@ -18,7 +18,7 @@ function check(url, cb) {
     assert(res.statusCode >= 200 && res.statusCode < 400);
 
     if (res.statusCode >= 300)
-      return check(res.headers.location, cb);
+      return check(new URL(res.headers.location, url), cb);
 
     let result = '';
 
