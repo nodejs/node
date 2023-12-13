@@ -9,7 +9,7 @@ const assert = require('assert');
 const fs = require('fs');
 const cp = require('child_process');
 const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;
-const size = kStringMaxLength / 200;
+const size = Math.floor(kStringMaxLength / 200);
 
 if (common.isAIX && (Number(cp.execSync('ulimit -f')) * 512) < kStringMaxLength)
   common.skip('intensive toString tests due to file size confinements');
