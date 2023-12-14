@@ -91,7 +91,7 @@ StreamWriteResult StreamBase::Write(uv_buf_t* bufs,
   for (size_t i = 0; i < count; ++i) total_bytes += bufs[i].len;
   bytes_written_ += total_bytes;
 
-  if (send_handle == nullptr && !skip_try_write) {
+  if (send_handle == nullptr && HasDoTryWrite() && !skip_try_write) {
     err = DoTryWrite(&bufs, &count);
     if (err != 0 || count == 0) {
       return StreamWriteResult{false, err, nullptr, total_bytes, {}};
@@ -365,7 +365,7 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
   size_t synchronously_written = 0;
   uv_buf_t buf;
 
-  bool try_write = storage_size <= sizeof(stack_storage) &&
+  bool try_write = HasDoTryWrite() && storage_size <= sizeof(stack_storage) &&
                    (!IsIPCPipe() || send_handle_obj.IsEmpty());
   if (try_write) {
     data_size = StringBytes::Write(isolate,
