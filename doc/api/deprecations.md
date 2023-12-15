@@ -3457,7 +3457,7 @@ The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.5.0
     pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
 -->
@@ -3471,7 +3471,7 @@ release lines. Please use [`dirent.parentPath`][] instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.5.0
     pr-url: https://github.com/nodejs/node/pull/51077
     description: Documentation-only deprecation.
 -->
