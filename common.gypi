@@ -285,10 +285,13 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
+        # Node has C and C++ dependencies: we want to specify the standards
+        # independently. Recent versions of Visual Studio support C11 and C17
+        # https://learn.microsoft.com/en-us/cpp/overview/install-c17-support?view=msvc-170
+        'LanguageStandard': 'stdcpp20',
+        'LanguageStandard_C': 'stdc11',
         'AdditionalOptions': [
           '/Zc:__cplusplus',
-          # The following option enables c++20 on Windows. This is needed for V8 v12.4+
-          '-std:c++20',
           # The following option reduces the "error C1060: compiler is out of heap space"
           '/Zm2000',
         ],

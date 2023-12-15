@@ -17,12 +17,11 @@
           'type': 'static_library',
           'conditions': [
             ['target_arch in "ia32 x64" and OS!="ios"', {
-              'defines': [ 'ADLER32_SIMD_SSSE3' ],
               'conditions': [
                 ['OS=="win"', {
                   'defines': [ 'X86_WINDOWS' ],
                 },{
-                  'defines': [ 'X86_NOT_WINDOWS' ],
+                  'defines': [ 'X86_NOT_WINDOWS', 'ADLER32_SIMD_SSSE3' ],
                 }],
                 ['OS!="win" or llvm_version!="0.0"', {
                   'cflags': [ '-mssse3' ],
@@ -40,12 +39,11 @@
           'direct_dependent_settings': {
             'conditions': [
               ['target_arch in "ia32 x64" and OS!="ios"', {
-                'defines': [ 'ADLER32_SIMD_SSSE3' ],
                 'conditions': [
                   ['OS=="win"', {
                     'defines': [ 'X86_WINDOWS' ],
                   },{
-                    'defines': [ 'X86_NOT_WINDOWS' ],
+                    'defines': [ 'X86_NOT_WINDOWS', 'ADLER32_SIMD_SSSE3' ],
                   }],
                 ],
               }],
