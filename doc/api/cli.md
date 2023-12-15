@@ -103,6 +103,47 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `node:domain` module that uses it).
 
+### `--allow-addons`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use
+native addons by default.
+Attempts to do so will throw an `ERR_DLOPEN_DISABLED` unless the
+user explicitly passes the `--allow-addons` flag when starting Node.js.
+
+Example:
+
+```cjs
+// Attempt to require an native addon
+require('nodejs-addon-example');
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:internal/modules/cjs/loader:1319
+  return process.dlopen(module, path.toNamespacedPath(filename));
+                 ^
+
+Error: Cannot load native addon because loading addons is disabled.
+    at Module._extensions..node (node:internal/modules/cjs/loader:1319:18)
+    at Module.load (node:internal/modules/cjs/loader:1091:32)
+    at Module._load (node:internal/modules/cjs/loader:938:12)
+    at Module.require (node:internal/modules/cjs/loader:1115:19)
+    at require (node:internal/modules/helpers:130:18)
+    at Object.<anonymous> (/home/index.js:1:15)
+    at Module._compile (node:internal/modules/cjs/loader:1233:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1287:10)
+    at Module.load (node:internal/modules/cjs/loader:1091:32)
+    at Module._load (node:internal/modules/cjs/loader:938:12) {
+  code: 'ERR_DLOPEN_DISABLED'
+}
+```
+
 ### `--allow-child-process`
 
 <!-- YAML
@@ -2383,6 +2424,7 @@ Node.js options that are allowed are:
 
 <!-- node-options-node start -->
 
+* `--allow-addons`
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`

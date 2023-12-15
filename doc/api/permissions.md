@@ -506,6 +506,9 @@ Error: Access to this API has been restricted
 Allowing access to spawning a process and creating worker threads can be done
 using the [`--allow-child-process`][] and [`--allow-worker`][] respectively.
 
+To allow native addons when using permission model, use the [`--allow-addons`][]
+flag.
+
 #### Runtime API
 
 When enabling the Permission Model through the [`--experimental-permission`][]
@@ -584,6 +587,7 @@ There are constraints you need to know before using this system:
 
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
+[`--allow-addons`]: cli.md#--allow-addons
 [`--allow-child-process`]: cli.md#--allow-child-process
 [`--allow-fs-read`]: cli.md#--allow-fs-read
 [`--allow-fs-write`]: cli.md#--allow-fs-write
