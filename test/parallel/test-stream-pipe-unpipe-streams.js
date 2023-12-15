@@ -34,9 +34,9 @@ assert.strictEqual(source._readableState.pipes.length, 0);
 
 {
   // Test `cleanup()` if we unpipe all streams.
-  const source = Readable({ read: () => { } });
-  const dest1 = Writable({ write: () => { } });
-  const dest2 = Writable({ write: () => { } });
+  const source = Readable({ read: () => {} });
+  const dest1 = Writable({ write: () => {} });
+  const dest2 = Writable({ write: () => {} });
 
   let destCount = 0;
   const srcCheckEventNames = ['end', 'data'];
