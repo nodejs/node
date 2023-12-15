@@ -30,9 +30,9 @@ function createTmpFile(content = 'console.log("running");', ext = '.js', basenam
 }
 
 async function runWriteSucceed({
-  file, watchedFile, args = [file], completed = 'Completed running', restarts = 2
+  file, watchedFile, watchFlag = '--watch', args = [file], completed = 'Completed running', restarts = 2, options = {}
 }) {
-  const child = spawn(execPath, ['--watch', '--no-warnings', ...args], { encoding: 'utf8', stdio: 'pipe' });
+  const child = spawn(execPath, [watchFlag, '--no-warnings', ...args], { encoding: 'utf8', stdio: 'pipe', ...options });
   let completes = 0;
   let cancelRestarts = () => {};
   let stderr = '';
@@ -88,6 +88,22 @@ async function failWriteSucceed({ file, watchedFile }) {
 tmpdir.refresh();
 
 describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
+  it('should watch changes to a file', async () => {
+    const file = createTmpFile();
+    const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
+      timeout: 10000
+    } });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
   it('should watch changes to a file - event loop ended', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file });
