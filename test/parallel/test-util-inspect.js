@@ -2920,7 +2920,7 @@ assert.strictEqual(
   try {
     const trace = require('trace_events').createTracing({ categories: ['fo'] });
     const actualDepth0 = util.inspect({ trace }, { depth: 0 });
-    assert.strictEqual(actualDepth0, '{ trace: [Tracing] }');
+    assert.strictEqual(actualDepth0, '{ trace: Tracing {} }');
     const actualDepth1 = util.inspect({ trace }, { depth: 1 });
     assert.strictEqual(
       actualDepth1,
