@@ -22,16 +22,21 @@ function findCoverageFileForPid(pid) {
 }
 
 function getTapCoverageFixtureReport() {
+  /* eslint-disable max-len */
   const report = [
     '# start of coverage report',
-    '# file | line % | branch % | funcs % | uncovered lines',
-    '# test/fixtures/test-runner/coverage.js | 78.65 | 38.46 | 60.00 | 12, ' +
-    '13, 16, 17, 18, 19, 20, 21, 22, 27, 39, 43, 44, 61, 62, 66, 67, 71, 72',
-    '# test/fixtures/test-runner/invalid-tap.js | 100.00 | 100.00 | 100.00 | ',
-    '# test/fixtures/v8-coverage/throw.js | 71.43 | 50.00 | 100.00 | 5, 6',
-    '# all files | 78.35 | 43.75 | 60.00 |',
+    '# -------------------------------------------------------------------------------------------------------------------',
+    '# file                                     | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------------------------------------------------------------',
+    '# test/fixtures/test-runner/coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
+    '# test/fixtures/test-runner/invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
+    '# test/fixtures/v8-coverage/throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
+    '# -------------------------------------------------------------------------------------------------------------------',
+    '# all files                                |  78.35 |    43.75 |   60.00 |',
+    '# -------------------------------------------------------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
+  /* eslint-enable max-len */
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
@@ -88,7 +93,6 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
     const report = getTapCoverageFixtureReport();
-
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
@@ -152,16 +156,16 @@ test('single process coverage is the same with --test', skipIfNoInspector, () =>
 test('coverage is combined for multiple processes', skipIfNoInspector, () => {
   let report = [
     '# start of coverage report',
-    '# file | line % | branch % | funcs % | uncovered lines',
-    '# test/fixtures/v8-coverage/combined_coverage/common.js | 89.86 | ' +
-    '62.50 | 100.00 | 8, 13, 14, 18, 34, 35, 53',
-    '# test/fixtures/v8-coverage/combined_coverage/first.test.js | 83.33 | ' +
-    '100.00 | 50.00 | 5, 6',
-    '# test/fixtures/v8-coverage/combined_coverage/second.test.js | 100.00 ' +
-    '| 100.00 | 100.00 | ',
-    '# test/fixtures/v8-coverage/combined_coverage/third.test.js | 100.00 | ' +
-    '100.00 | 100.00 | ',
-    '# all files | 92.11 | 72.73 | 88.89 |',
+    '# -------------------------------------------------------------------',
+    '# file           | line % | branch % | funcs % | uncovered lines',
+    '# -------------------------------------------------------------------',
+    '# common.js      |  89.86 |    62.50 |  100.00 | 8 13-14 18 34-35 53',
+    '# first.test.js  |  83.33 |   100.00 |   50.00 | 5-6',
+    '# second.test.js | 100.00 |   100.00 |  100.00 | ',
+    '# third.test.js  | 100.00 |   100.00 |  100.00 | ',
+    '# -------------------------------------------------------------------',
+    '# all files      |  92.11 |    72.73 |   88.89 |',
+    '# -------------------------------------------------------------------',
     '# end of coverage report',
   ].join('\n');
 
@@ -171,10 +175,11 @@ test('coverage is combined for multiple processes', skipIfNoInspector, () => {
 
   const fixture = fixtures.path('v8-coverage', 'combined_coverage');
   const args = [
-    '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
+    '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
   ];
   const result = spawnSync(process.execPath, args, {
-    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path }
+    env: { ...process.env, NODE_TEST_TMPDIR: tmpdir.path },
+    cwd: fixture,
   });
 
   assert.strictEqual(result.stderr.toString(), '');
