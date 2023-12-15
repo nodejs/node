@@ -85,8 +85,8 @@ assert.strictEqual(source._readableState.pipes.length, 0);
 }
 
 {
-  const src = Readable({ read: () => { } });
-  const dst = Writable({ write: () => { } });
+  const src = Readable({ read: () => {} });
+  const dst = Writable({ write: () => {} });
   src.pipe(dst);
   src.on('resume', common.mustCall(() => {
     src.on('pause', common.mustCall());
