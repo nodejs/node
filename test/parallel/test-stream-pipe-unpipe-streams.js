@@ -45,7 +45,7 @@ assert.strictEqual(source._readableState.pipes.length, 0);
   const checkSrcCleanup = common.mustCall(() => {
     assert.strictEqual(source._readableState.pipes.length, 0);
     assert.strictEqual(source._readableState.flowing, false);
-    for (let eventName of srcCheckEventNames) {
+    for (const eventName of srcCheckEventNames) {
       assert.strictEqual(
         source.listenerCount(eventName), 0,
         `source's '${eventName}' event listeners not removed`
