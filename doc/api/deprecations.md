@@ -3313,6 +3313,9 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51179
+    description: Runtime deprecation.
   - version:
     - v18.8.0
     - v16.18.0
@@ -3320,9 +3323,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
-The [`--trace-atomics-wait`][] flag is deprecated.
+The [`--trace-atomics-wait`][] flag is deprecated because
+it uses the V8 hook `SetAtomicsWaitCallback`,
+that will be removed in a future V8 release.
 
 ### DEP0166: Double slashes in imports and exports targets
 
