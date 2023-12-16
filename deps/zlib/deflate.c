@@ -65,7 +65,7 @@
 #endif
 
 const char deflate_copyright[] =
-   " deflate 1.3 Copyright 1995-2023 Jean-loup Gailly and Mark Adler ";
+   " deflate 1.3.0.1 Copyright 1995-2023 Jean-loup Gailly and Mark Adler ";
 /*
   If you use the zlib library in a product, an acknowledgment is welcome
   in the documentation of your product. If for some reason you cannot
@@ -531,7 +531,11 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
      * the compressed data for a dynamic block also cannot overwrite the
      * symbols from which it is being constructed.
      */
+#ifdef LIT_MEM
+    s->pending_buf = (uchf *) ZALLOC(strm, s->lit_bufsize, 5);
+#else
     s->pending_buf = (uchf *) ZALLOC(strm, s->lit_bufsize, 4);
+#endif
     s->pending_buf_size = (ulg)s->lit_bufsize * 4;
 
     if (s->window == Z_NULL || s->prev == Z_NULL || s->head == Z_NULL ||
@@ -541,8 +545,14 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }
+#ifdef LIT_MEM
+    s->d_buf = (ushf *)(s->pending_buf + (s->lit_bufsize << 1));
+    s->l_buf = s->pending_buf + (s->lit_bufsize << 2);
+    s->sym_end = s->lit_bufsize - 1;
+#else
     s->sym_buf = s->pending_buf + s->lit_bufsize;
     s->sym_end = (s->lit_bufsize - 1) * 3;
+#endif
     /* We avoid equality with lit_bufsize*3 because of wraparound at 64K
      * on 16 bit machines and because stored blocks are restricted to
      * 64K-1 bytes.
@@ -754,9 +764,15 @@ int ZEXPORT deflatePrime(z_streamp strm, int bits, int value) {
 
     if (deflateStateCheck(strm)) return Z_STREAM_ERROR;
     s = strm->state;
+#ifdef LIT_MEM
+    if (bits < 0 || bits > 16 ||
+        (uchf *)s->d_buf < s->pending_out + ((Buf_size + 7) >> 3))
+        return Z_BUF_ERROR;
+#else
     if (bits < 0 || bits > 16 ||
         s->sym_buf < s->pending_out + ((Buf_size + 7) >> 3))
         return Z_BUF_ERROR;
+#endif
     do {
         put = Buf_size - s->bi_valid;
         if (put > bits)
@@ -1343,7 +1359,12 @@ int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) {
     zmemcpy(ds->pending_buf, ss->pending_buf, (uInt)ds->pending_buf_size);
 
     ds->pending_out = ds->pending_buf + (ss->pending_out - ss->pending_buf);
+#ifdef LIT_MEM
+    ds->d_buf = (ushf *)(ds->pending_buf + (ds->lit_bufsize << 1));
+    ds->l_buf = ds->pending_buf + (ds->lit_bufsize << 2);
+#else
     ds->sym_buf = ds->pending_buf + ds->lit_bufsize;
+#endif
 
     ds->l_desc.dyn_tree = ds->dyn_ltree;
     ds->d_desc.dyn_tree = ds->dyn_dtree;
