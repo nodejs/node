@@ -35,7 +35,7 @@ jobs:
         run: echo "new_version=$(ls icu-data/tzdata/icunew | tail -1)" >> $GITHUB_ENV
 
       - name: Record current version
-        run: echo "current_version=$(node -e 'console.log(process.versions.tz)')" >> $GITHUB_ENV
+        run: echo "current_version=$(cat ./test/fixtures/tz-version.txt)" >> $GITHUB_ENV
 
       - name: Compare versions
         run: |
