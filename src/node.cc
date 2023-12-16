@@ -258,6 +258,10 @@ void Environment::InitializeDiagnostics() {
   if (options_->trace_uncaught)
     isolate_->SetCaptureStackTraceForUncaughtExceptions(true);
   if (options_->trace_atomics_wait) {
+    ProcessEmitDeprecationWarning(
+        Environment::GetCurrent(isolate_),
+        "The flag --trace-atomics-wait is deprecated.",
+        "DEP0165");
     isolate_->SetAtomicsWaitCallback(AtomicsWaitCallback, this);
     AddCleanupHook([](void* data) {
       Environment* env = static_cast<Environment*>(data);

@@ -25,7 +25,7 @@ if (process.argv[2] === 'child') {
 
 const proc = child_process.spawnSync(
   process.execPath,
-  [ '--trace-atomics-wait', __filename, 'child' ],
+  [ '--disable-warning=DEP0165', '--trace-atomics-wait', __filename, 'child' ],
   { encoding: 'utf8', stdio: [ 'inherit', 'inherit', 'pipe' ] });
 
 if (proc.status !== 0) console.log(proc);
