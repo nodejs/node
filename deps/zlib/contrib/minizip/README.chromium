@@ -6,6 +6,7 @@ License: Zlib
 License File: //third_party/zlib/LICENSE
 Security Critical: yes
 Shipped: yes
+CPEPrefix: cpe:/a:minizip_project:minizip
 
 Description:
 Minizip provides API on top of zlib that can enumerate and extract ZIP archive
