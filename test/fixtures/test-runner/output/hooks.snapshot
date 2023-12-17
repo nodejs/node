@@ -1,3 +1,4 @@
+- after() called
 TAP version 13
 # Subtest: describe hooks
     # Subtest: 1
@@ -568,16 +569,46 @@ not ok 14 - t.after() is called if test body throws
     *
   ...
 # - after() called
-1..14
+# Subtest: run after when before throws
+    # Subtest: 1
+    not ok 1 - 1
+      ---
+      duration_ms: *
+      location: '/test/fixtures/test-runner/output/hooks.js:(LINE):3'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
+      ...
+    1..1
+not ok 15 - run after when before throws
+  ---
+  duration_ms: *
+  type: 'suite'
+  location: '/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  failureType: 'hookFailed'
+  error: 'before'
+  code: 'ERR_TEST_FAILURE'
+  stack: |-
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+    *
+  ...
+1..15
 # before 1 called
 # before 2 called
 # after 1 called
 # after 2 called
-# tests 38
-# suites 8
+# tests 39
+# suites 9
 # pass 14
 # fail 22
-# cancelled 2
+# cancelled 3
 # skipped 0
 # todo 0
 # duration_ms *
