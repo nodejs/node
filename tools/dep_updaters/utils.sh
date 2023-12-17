@@ -81,19 +81,10 @@ log_and_verify_sha256sum() {
   fi
 }
 
-# This function update the version of a maintained dependency in
-# https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-dependencies.md
+# This function is a no-op.
 #
 # $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See that file
 # for a complete list of package name
 # $2 is the new version.
 update_dependency_version() {
-  package_name="$1"
-  new_version="$2"
-  deps_file_path="$ROOT/doc/contributing/maintaining/maintaining-dependencies.md"
-  # Remove version dots for anchor markdown
-  version_no_dots=$(echo "$new_version" | sed -e 's/\.//g')
-  perl -i -pe 's|^\* \['"$package_name"'.*|* ['"$package_name"' '"$new_version"'][]|' "$deps_file_path"
-  perl -i -pe 's|^\['"$package_name"'.*\]: #'"$package_name"'.*|['"$package_name"' '"$new_version"']: #'"$package_name"'-'"$version_no_dots"'|' "$deps_file_path"
-  perl -i -pe 's|^### '"$package_name"'.*|### '"$package_name"' '"$new_version"'|' "$deps_file_path"
 }
