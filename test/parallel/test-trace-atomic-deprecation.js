@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
+const assert = require('node:assert');
 const { test } = require('node:test');
 
 test('should emit deprecation warning DEP0165', async () => {
