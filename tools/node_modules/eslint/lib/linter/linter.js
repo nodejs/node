@@ -44,6 +44,7 @@ const { getRuleFromConfig } = require("../config/flat-config-helpers");
 const { FlatConfigArray } = require("../config/flat-config-array");
 const { RuleValidator } = require("../config/rule-validator");
 const { assertIsRuleOptions, assertIsRuleSeverity } = require("../config/flat-config-schema");
+const { normalizeSeverityToString } = require("../shared/severity");
 const debug = require("debug")("eslint:linter");
 const MAX_AUTOFIX_PASSES = 10;
 const DEFAULT_PARSER_NAME = "espree";
@@ -317,24 +318,6 @@ function createDisableDirectives(options) {
 }
 
 /**
- * Extract the directive and the justification from a given directive comment and trim them.
- * @param {string} value The comment text to extract.
- * @returns {{directivePart: string, justificationPart: string}} The extracted directive and justification.
- */
-function extractDirectiveComment(value) {
-    const match = /\s-{2,}\s/u.exec(value);
-
-    if (!match) {
-        return { directivePart: value.trim(), justificationPart: "" };
-    }
-
-    const directive = value.slice(0, match.index).trim();
-    const justification = value.slice(match.index + match[0].length).trim();
-
-    return { directivePart: directive, justificationPart: justification };
-}
-
-/**
  * Parses comments in file to extract file-specific config of rules, globals
  * and environments and merges them with global config; also code blocks
  * where reporting is disabled or enabled and merges them with reporting config.
@@ -355,7 +338,7 @@ function getDirectiveComments(sourceCode, ruleMapper, warnInlineConfig) {
     });
 
     sourceCode.getInlineConfigNodes().filter(token => token.type !== "Shebang").forEach(comment => {
-        const { directivePart, justificationPart } = extractDirectiveComment(comment.value);
+        const { directivePart, justificationPart } = commentParser.extractDirectiveComment(comment.value);
 
         const match = directivesPattern.exec(directivePart);
 
@@ -500,7 +483,7 @@ function getDirectiveCommentsForFlatConfig(sourceCode, ruleMapper) {
     const disableDirectives = [];
 
     sourceCode.getInlineConfigNodes().filter(token => token.type !== "Shebang").forEach(comment => {
-        const { directivePart, justificationPart } = extractDirectiveComment(comment.value);
+        const { directivePart, justificationPart } = commentParser.extractDirectiveComment(comment.value);
 
         const match = directivesPattern.exec(directivePart);
 
@@ -620,7 +603,7 @@ function findEslintEnv(text) {
         if (match[0].endsWith("*/")) {
             retv = Object.assign(
                 retv || {},
-                commentParser.parseListConfig(extractDirectiveComment(match[1]).directivePart)
+                commentParser.parseListConfig(commentParser.extractDirectiveComment(match[1]).directivePart)
             );
         }
     }
@@ -671,9 +654,11 @@ function normalizeVerifyOptions(providedOptions, config) {
         reportUnusedDisableDirectives = reportUnusedDisableDirectives ? "error" : "off";
     }
     if (typeof reportUnusedDisableDirectives !== "string") {
-        reportUnusedDisableDirectives =
-            linterOptions.reportUnusedDisableDirectives
-                ? "warn" : "off";
+        if (typeof linterOptions.reportUnusedDisableDirectives === "boolean") {
+            reportUnusedDisableDirectives = linterOptions.reportUnusedDisableDirectives ? "warn" : "off";
+        } else {
+            reportUnusedDisableDirectives = linterOptions.reportUnusedDisableDirectives === void 0 ? "off" : normalizeSeverityToString(linterOptions.reportUnusedDisableDirectives);
+        }
     }
 
     return {

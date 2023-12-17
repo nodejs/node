@@ -14,6 +14,7 @@
  * starting in Node.js v17.
  */
 const structuredClone = require("@ungap/structured-clone").default;
+const { normalizeSeverityToNumber } = require("../shared/severity");
 
 //-----------------------------------------------------------------------------
 // Type Definitions
@@ -260,6 +261,26 @@ class IncompatiblePluginsError extends Error {
 const booleanSchema = {
     merge: "replace",
     validate: "boolean"
+};
+
+const ALLOWED_SEVERITIES = new Set(["error", "warn", "off", 2, 1, 0]);
+
+/** @type {ObjectPropertySchema} */
+const disableDirectiveSeveritySchema = {
+    merge(first, second) {
+        const value = second === void 0 ? first : second;
+
+        if (typeof value === "boolean") {
+            return value ? "warn" : "off";
+        }
+
+        return normalizeSeverityToNumber(value);
+    },
+    validate(value) {
+        if (!(ALLOWED_SEVERITIES.has(value) || typeof value === "boolean")) {
+            throw new TypeError("Expected one of: \"error\", \"warn\", \"off\", 0, 1, 2, or a boolean.");
+        }
+    }
 };
 
 /** @type {ObjectPropertySchema} */
@@ -534,7 +555,7 @@ const flatConfigSchema = {
     linterOptions: {
         schema: {
             noInlineConfig: booleanSchema,
-            reportUnusedDisableDirectives: booleanSchema
+            reportUnusedDisableDirectives: disableDirectiveSeveritySchema
         }
     },
     languageOptions: {

@@ -5,6 +5,7 @@ import { URL, fileURLToPath } from "url";
 import { minify } from "terser";
 import { transformSync } from "@babel/core";
 import presetTypescript from "@babel/preset-typescript";
+import { gzipSync } from "zlib";
 
 const HELPERS_FOLDER = new URL("../src/helpers", import.meta.url);
 const IGNORED_FILES = new Set(["package.json"]);
@@ -50,32 +51,61 @@ export default Object.freeze({
     }
     const { minVersion } = minVersionMatch.groups;
 
-    if (isTs) {
-      code = transformSync(code, {
-        configFile: false,
-        babelrc: false,
-        filename: filePath,
-        presets: [
-          [
-            presetTypescript,
-            {
-              onlyRemoveTypeImports: true,
-              optimizeConstEnums: true,
-            },
-          ],
-        ],
-      }).code;
-    }
+    const mangleFns = code.includes("@mangleFns");
+    const noMangleFns = [];
 
+    code = transformSync(code, {
+      configFile: false,
+      babelrc: false,
+      filename: filePath,
+      presets: [
+        [
+          presetTypescript,
+          {
+            onlyRemoveTypeImports: true,
+            optimizeConstEnums: true,
+          },
+        ],
+      ],
+      plugins: [
+        /**
+         * @type {import("@babel/core").PluginObj}
+         */
+        {
+          visitor: {
+            ImportDeclaration(path) {
+              const source = path.node.source;
+              source.value = source.value
+                .replace(/\.ts$/, "")
+                .replace(/^\.\//, "");
+            },
+            FunctionDeclaration(path) {
+              if (
+                mangleFns &&
+                path.node.leadingComments?.find(c =>
+                  c.value.includes("@no-mangle")
+                )
+              ) {
+                const name = path.node.id.name;
+                if (name) noMangleFns.push(name);
+              }
+            },
+          },
+        },
+      ],
+    }).code;
     code = (
       await minify(code, {
-        mangle: { keep_fnames: true },
+        mangle: {
+          keep_fnames: mangleFns ? new RegExp(noMangleFns.join("|")) : true,
+        },
         // The _typeof helper has a custom directive that we must keep
-        compress: { directives: false },
+        compress: { directives: false, passes: 10 },
       })
     ).code;
 
     output += `\
+  // size: ${code.length}, gzip size: ${gzipSync(code).length}
   ${JSON.stringify(helperName)}: helper(
     ${JSON.stringify(minVersion)},
     ${JSON.stringify(code)},

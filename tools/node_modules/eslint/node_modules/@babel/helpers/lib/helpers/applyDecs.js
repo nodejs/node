@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = applyDecs;
+var _setFunctionName = require("setFunctionName");
+var _toPropertyKey = require("toPropertyKey");
 function old_createMetadataMethodsForProperty(metadataMap, kind, property, decoratorFinishedRef) {
   return {
     getMetadata: function (key) {
@@ -108,7 +110,7 @@ function old_memberDec(dec, name, desc, metadataMap, initializers, kind, isStati
   }
   var ctx = {
     kind: kindStr,
-    name: isPrivate ? "#" + name : name,
+    name: isPrivate ? "#" + name : _toPropertyKey(name),
     isStatic: isStatic,
     isPrivate: isPrivate
   };
@@ -207,25 +209,34 @@ function old_getInit(desc) {
 }
 function old_applyMemberDec(ret, base, decInfo, name, kind, isStatic, isPrivate, metadataMap, initializers) {
   var decs = decInfo[0];
-  var desc, initializer, value;
+  var desc, initializer, prefix, value;
   if (isPrivate) {
     if (kind === 0 || kind === 1) {
       desc = {
         get: decInfo[3],
         set: decInfo[4]
       };
+      prefix = "get";
     } else if (kind === 3) {
       desc = {
         get: decInfo[3]
       };
+      prefix = "get";
     } else if (kind === 4) {
       desc = {
         set: decInfo[3]
       };
+      prefix = "set";
     } else {
       desc = {
         value: decInfo[3]
       };
+    }
+    if (kind !== 0) {
+      if (kind === 1) {
+        _setFunctionName(decInfo[4], "#" + name, "set");
+      }
+      _setFunctionName(decInfo[3], "#" + name, prefix);
     }
   } else if (kind !== 0) {
     desc = Object.getOwnPropertyDescriptor(base, name);
