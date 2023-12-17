@@ -166,5 +166,13 @@ test('t.after() is called if test body throws', (t) => {
   throw new Error('bye');
 });
 
+describe('run after when before throws', () => {
+  after(common.mustCall(() => {
+    console.log("- after() called")
+  }));
+  before(() => { throw new Error('before')});
+  it('1', () => {});
+});
+
 before((t) => t.diagnostic('before 2 called'));
 after((t) => t.diagnostic('after 2 called'));
