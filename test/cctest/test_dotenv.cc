@@ -238,11 +238,11 @@ TEST_F(DotEnvTest, SingleQuoted) {
 
 TEST_F(DotEnvTest, DoubleQuotedHereDocWithGarbage) {
   string codes(R"(b=1
-  a="""
-  \t
-  ${b}
-  """ abc
-  c="""def""" asldkljasdfl;kj)");
+a="""
+\t
+${b}
+""" abc
+c="""def""" asldkljasdfl;kj)");
 
   EnvStream codes_stream(&codes);
 
@@ -413,9 +413,9 @@ club Management
 
 TEST_F(DotEnvTest, DoubleQuotedHereDoc) {
   string codes(R"(b=1
-  a="""
-  \t
-  ${b}
+a="""
+\t
+${b}
   """)");
 
   EnvStream codes_stream(&codes);
@@ -431,12 +431,7 @@ TEST_F(DotEnvTest, DoubleQuotedHereDoc) {
   EXPECT_EQ(*env_pairs.at(0)->key->key, "b");
   EXPECT_EQ(*env_pairs.at(0)->value->value, "1");
   EXPECT_EQ(*env_pairs.at(1)->key->key, "a");
-  EXPECT_EQ(*env_pairs.at(1)->value->value,
-            R"(
-)" "\t" R"(
-1
-)");
-
+  EXPECT_EQ(*env_pairs.at(1)->value->value, "\n\t\n1\n  ");
   EnvReader::delete_pairs(&env_pairs);
 }
 
