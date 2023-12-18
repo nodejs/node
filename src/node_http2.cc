@@ -228,6 +228,16 @@ size_t Http2Settings::Init(
   HTTP2_SETTINGS(V)
 #undef V
 
+  uint32_t numAddSettings = buffer[IDX_SETTINGS_COUNT + 1];
+  if (numAddSettings > 0) {
+    uint32_t offset = IDX_SETTINGS_COUNT + 1 + 1;
+    for (uint32_t i = 0; i < numAddSettings; i++) {
+      uint32_t key = buffer[offset + i * 2 + 0];
+      uint32_t val = buffer[offset + i * 2 + 1];
+      entries[count++] = nghttp2_settings_entry{(int32_t)key, val};
+    }
+  }
+
   return count;
 }
 #undef GRABSETTING
@@ -262,7 +272,7 @@ Local<Value> Http2Settings::Pack() {
 }
 
 Local<Value> Http2Settings::Pack(Http2State* state) {
-  nghttp2_settings_entry entries[IDX_SETTINGS_COUNT];
+  nghttp2_settings_entry entries[IDX_SETTINGS_COUNT + MAX_ADDITIONAL_SETTINGS];
   size_t count = Init(state, entries);
   return Pack(state->env(), count, entries);
 }
@@ -298,6 +308,8 @@ void Http2Settings::Update(Http2Session* session, get_setting fn) {
       fn(session->session(), NGHTTP2_SETTINGS_ ## name);
   HTTP2_SETTINGS(V)
 #undef V
+  buffer[IDX_SETTINGS_COUNT + 1] =
+      0;  // no additional settings are coming, clear them
 }
 
 // Initializes the shared TypedArray with the default settings values.
@@ -314,6 +326,7 @@ void Http2Settings::RefreshDefaults(Http2State* http2_state) {
 #undef V
 
   buffer[IDX_SETTINGS_COUNT] = flags;
+  buffer[IDX_SETTINGS_COUNT + 1] = 0;  // no additional settings
 }
 
 

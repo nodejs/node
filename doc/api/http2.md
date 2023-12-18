@@ -3010,6 +3010,19 @@ properties.
   meaningful if sent by the server. Once the `enableConnectProtocol` setting
   has been enabled for a given `Http2Session`, it cannot be disabled.
   **Default:** `false`.
+* `customSettings` {Object} Specifies additional settings, yet not implemented
+  in node and the underlying libraries. The key of the object defines the
+  numeric value of the settings type (as defined in the "HTTP/2 SETTINGS"
+  registry established by \[RFC 7540]) and the values the actual numeric value
+  of the settings.
+  The settings type has to be an integer in the range from 1 to 2^16-1.
+  It should not be a settings type already handled by node, i.e. currently
+  it should be greater than 6, although it is not an error.
+  The values need to be unsigned integers in the range from 0 to 2^32-1.
+  Currently, a maximum of up 10 custom settings is supported.
+  It is only supported for sending SETTINGS.
+  Custom settings are not supported for the functions retrieving remote and
+  local settings as nghttp2 does not pass unknown HTTP/2 settings to Node.js.
 
 All additional properties on the settings object are ignored.
 
