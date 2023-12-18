@@ -1,6 +1,7 @@
 #!/bin/sh
 
-export ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+export ROOT
 
 # This function compare new version with current version of a depdendency and
 # exit the script if the versions are the same
