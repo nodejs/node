@@ -20,10 +20,10 @@
 #############################################################
 AC_PREREQ([2.60])
 
-AC_INIT([c-ares], [1.20.1],
+AC_INIT([c-ares], [1.24.0],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="9:1:7"
+CARES_VERSION_INFO="12:0:10"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -59,7 +59,7 @@ AC_CONFIG_MACRO_DIR([m4])
 AM_MAINTAINER_MODE
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
-AX_REQUIRE_DEFINED([AX_CXX_COMPILE_STDCXX_11])
+AX_REQUIRE_DEFINED([AX_CXX_COMPILE_STDCXX_14])
 
 CARES_CHECK_OPTION_DEBUG
 CARES_CHECK_OPTION_OPTIMIZE
@@ -127,9 +127,12 @@ dnl Get system canonical name
 AC_DEFINE_UNQUOTED(OS, "${host}", [cpu-machine-OS])
 
 XC_CHECK_PROG_CC
-AX_CXX_COMPILE_STDCXX_11([noext],[optional])
+AX_CXX_COMPILE_STDCXX_14([noext],[optional])
 
 XC_AUTOMAKE
+
+dnl make sure we use system extensions like _GNU_SOURCE or _XOPEN_SOURCE
+AC_USE_SYSTEM_EXTENSIONS
 
 dnl This defines _ALL_SOURCE for AIX
 CARES_CHECK_AIX_ALL_SOURCE
@@ -202,6 +205,45 @@ CARES_SET_COMPILER_DEBUG_OPTS
 CARES_SET_COMPILER_OPTIMIZE_OPTS
 CARES_SET_COMPILER_WARNING_OPTS
 
+if test "$want_warnings" = "yes"; then
+  AX_APPEND_COMPILE_FLAGS([-Wall \
+    -Wextra \
+    -Wcast-align \
+    -Wconversion \
+    -Wdeclaration-after-statement \
+    -Wdouble-promotion \
+    -Wfloat-equal \
+    -Wformat-security \
+    -Winit-self \
+    -Wjump-misses-init \
+    -Wlogical-op \
+    -Wmissing-braces \
+    -Wmissing-declarations \
+    -Wmissing-format-attribute \
+    -Wmissing-include-dirs \
+    -Wmissing-prototypes \
+    -Wnested-externs \
+    -Wno-coverage-mismatch \
+    -Wold-style-definition \
+    -Wpacked \
+    -Wpointer-arith \
+    -Wredundant-decls \
+    -Wshadow \
+    -Wsign-conversion \
+    -Wstrict-overflow \
+    -Wstrict-prototypes \
+    -Wtrampolines \
+    -Wundef \
+    -Wunused \
+    -Wvariadic-macros \
+    -Wvla \
+    -Wwrite-strings \
+    -Werror=implicit-int \
+    -Werror=implicit-function-declaration \
+    -Werror=partial-availability \
+  ], [CFLAGS], [-Werror])
+fi
+
 if test "$compiler_id" = "INTEL_UNIX_C"; then
   #
   if test "$compiler_num" -ge "1000"; then
@@ -237,7 +279,7 @@ case X-"$ac_cv_native_windows" in
     CURL_CHECK_HEADER_WINSOCK
     CURL_CHECK_HEADER_WINSOCK2
     CURL_CHECK_HEADER_WS2TCPIP
-    CPPFLAGS="$CPPFLAGS -D_WIN32_WINNT=0x0600"
+    CPPFLAGS="$CPPFLAGS -D_WIN32_WINNT=0x0602"
     ;;
   *)
     ac_cv_header_winsock_h="no"
@@ -437,6 +479,7 @@ AS_IF([test "x$host_vendor" = "xapple"], [
   AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([[
 #include <stdio.h>
+#include <AvailabilityMacros.h>
 #include <TargetConditionals.h>
     ]], [[
 #if TARGET_OS_IPHONE == 0 || __IPHONE_OS_VERSION_MIN_REQUIRED < 100000
@@ -458,6 +501,7 @@ AS_IF([test "x$host_vendor" = "xapple"], [
   AC_COMPILE_IFELSE([
     AC_LANG_PROGRAM([[
 #include <stdio.h>
+#include <AvailabilityMacros.h>
 #include <TargetConditionals.h>
     ]], [[
 #ifndef MAC_OS_X_VERSION_10_12
@@ -531,10 +575,13 @@ AC_CHECK_HEADERS(
        sys/param.h \
        sys/uio.h \
        assert.h \
+       iphlpapi.h \
+       netioapi.h \
        netdb.h \
        netinet/in.h \
        netinet/tcp.h \
        net/if.h \
+       ifaddrs.h \
        errno.h \
        socket.h \
        strings.h \
@@ -705,7 +752,8 @@ CARES_CHECK_FUNC_STRNCMPI
 CARES_CHECK_FUNC_STRNICMP
 CARES_CHECK_FUNC_WRITEV
 CARES_CHECK_FUNC_ARC4RANDOM_BUF
-
+CARES_CHECK_FUNC_STAT
+CARES_CHECK_FUNC_GETIFADDRS
 
 dnl check for AF_INET6
 CARES_CHECK_CONSTANT(
@@ -875,7 +923,10 @@ AC_CHECK_MEMBER(struct addrinfo.ai_flags,
 
 AC_CHECK_FUNCS([bitncmp \
   gettimeofday \
-  if_indextoname
+  if_indextoname \
+  if_nametoindex \
+  ConvertInterfaceIndexToLuid \
+  ConvertInterfaceLuidToNameA
 ],[
 ],[
   func="$ac_func"
@@ -910,7 +961,7 @@ AC_C_BIGENDIAN(
     [AC_DEFINE(ARES_BIG_ENDIAN, 1,
       [define this if ares is built for a big endian system])],
     ,
-    [AC_MSG_WARN([couldn't figure out endianess, assuming little endian!])]
+    [AC_MSG_WARN([couldn't figure out endianness, assuming little endian!])]
 )
 
 dnl Check for user-specified random device
@@ -928,6 +979,33 @@ fi
 
 CARES_CHECK_OPTION_NONBLOCKING
 CARES_CHECK_NONBLOCKING_SOCKET
+
+
+dnl ------------ THREADING --------------
+AC_ARG_ENABLE(cares-threads,
+  AC_HELP_STRING([--disable-cares-threads], [Disable building of thread safety support]),
+  [ CARES_THREADS=${enableval} ],
+  [ CARES_THREADS=yes ])
+
+dnl windows always supports threads, only check non-windows systems.
+if test "${CARES_THREADS}" = "yes" -a "x${ac_cv_native_windows}" != "xyes" ; then
+  AX_PTHREAD([ ], [
+    AC_MSG_WARN([threads requested but not supported])
+    CARES_THREADS=no
+  ])
+
+  if test "${CARES_THREADS}" = "yes" ; then
+    AC_CHECK_HEADERS([pthread.h pthread_np.h])
+    LIBS="$PTHREAD_LIBS $LIBS"
+    CFLAGS="$CFLAGS $PTHREAD_CFLAGS"
+    CC="$PTHREAD_CC"
+    CXX="$PTHREAD_CXX"
+  fi
+fi
+
+if test "${CARES_THREADS}" = "yes" ; then
+  AC_DEFINE([CARES_THREADS], [ 1 ], [Threading enabled])
+fi
 
 CARES_CONFIGURE_SYMBOL_HIDING
 
@@ -956,7 +1034,7 @@ AC_MSG_CHECKING([whether to build tests])
 AC_ARG_ENABLE(tests,
 	AS_HELP_STRING([--enable-tests], [build test suite]),
 	[ build_tests="$enableval" ],
-	[ if test "x$HAVE_CXX11" = "x1" && test "x$cross_compiling" = "xno" ; then
+	[ if test "x$HAVE_CXX14" = "x1" && test "x$cross_compiling" = "xno" ; then
 	    build_tests="yes"
 	  else
 	    build_tests="no"
@@ -965,8 +1043,8 @@ AC_ARG_ENABLE(tests,
 )
 
 if test "x$build_tests" = "xyes" ; then
-	if test "x$HAVE_CXX11" = "0" ; then
-		AC_MSG_ERROR([*** Building tests requires a CXX11 compiler])
+	if test "x$HAVE_CXX14" = "0" ; then
+		AC_MSG_ERROR([*** Building tests requires a CXX14 compiler])
 	fi
 	if test "x$cross_compiling" = "xyes" ; then
 		AC_MSG_ERROR([*** Tests not supported when cross compiling])

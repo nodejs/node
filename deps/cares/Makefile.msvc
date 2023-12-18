@@ -437,6 +437,7 @@ install:
     @copy /y $(SRCDIR)\include\ares_build.h   "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_rules.h   "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_version.h "$(INSTALL_DIR_INC)" >NUL
+    @copy /y $(SRCDIR)\include\ares_dns_record.h "$(INSTALL_DIR_INC)" >NUL
     @echo Installed c-ares $(CFG)
 
 !ENDIF

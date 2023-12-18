@@ -22,7 +22,7 @@ ares_destroy \- Destroy a resolver channel
 .nf
 #include <ares.h>
 
-void ares_destroy(ares_channel \fIchannel\fP)
+void ares_destroy(ares_channel_t *\fIchannel\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_destroy(3)\fP function destroys the name service channel
@@ -33,9 +33,13 @@ by the channel.
 channel, passing a status of \fIARES_EDESTRUCTION\fP. These calls give the
 callbacks a chance to clean up any state which might have been stored in their
 arguments. A callback must not add new requests to a channel being destroyed.
+
+There is no ability to make this function thread-safe.  No additional calls
+using this channel may be made once this function is called.
 .SH SEE ALSO
 .BR ares_init (3),
-.BR ares_cancel (3)
+.BR ares_cancel (3),
+.BR ares_threadsafety (3)
 .SH AUTHOR
 Greg Hudson, MIT Information Systems
 .br

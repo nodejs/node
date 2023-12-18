@@ -22,11 +22,11 @@ ares_process \- Process events for name resolution
 .nf
 #include <ares.h>
 
-void ares_process(ares_channel \fIchannel\fP,
+void ares_process(ares_channel_t *\fIchannel\fP,
                   fd_set *\fIread_fds\fP,
                   fd_set *\fIwrite_fds\fP)
 
-void ares_process_fd(ares_channel \fIchannel\fP,
+void ares_process_fd(ares_channel_t *\fIchannel\fP,
                      ares_socket_t \fIread_fd\fP,
                      ares_socket_t \fIwrite_fd\fP)
 .fi

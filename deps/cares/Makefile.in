@@ -115,11 +115,15 @@ am__aclocal_m4_deps = $(top_srcdir)/m4/ax_ac_append_to_file.m4 \
 	$(top_srcdir)/m4/ax_ac_print_to_file.m4 \
 	$(top_srcdir)/m4/ax_add_am_macro_static.m4 \
 	$(top_srcdir)/m4/ax_am_macros_static.m4 \
+	$(top_srcdir)/m4/ax_append_compile_flags.m4 \
+	$(top_srcdir)/m4/ax_append_flag.m4 \
+	$(top_srcdir)/m4/ax_check_compile_flag.m4 \
 	$(top_srcdir)/m4/ax_check_gnu_make.m4 \
 	$(top_srcdir)/m4/ax_code_coverage.m4 \
 	$(top_srcdir)/m4/ax_cxx_compile_stdcxx.m4 \
-	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_11.m4 \
+	$(top_srcdir)/m4/ax_cxx_compile_stdcxx_14.m4 \
 	$(top_srcdir)/m4/ax_file_escapes.m4 \
+	$(top_srcdir)/m4/ax_pthread.m4 \
 	$(top_srcdir)/m4/ax_require_defined.m4 \
 	$(top_srcdir)/m4/cares-compilers.m4 \
 	$(top_srcdir)/m4/cares-confopts.m4 \
@@ -229,7 +233,7 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 am__DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/libcares.pc.in \
 	AUTHORS INSTALL.md NEWS README.md TODO compile config.guess \
-	config.sub depcomp install-sh ltmain.sh missing
+	config.sub install-sh ltmain.sh missing
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -323,7 +327,7 @@ FILECMD = @FILECMD@
 GCOV = @GCOV@
 GENHTML = @GENHTML@
 GREP = @GREP@
-HAVE_CXX11 = @HAVE_CXX11@
+HAVE_CXX14 = @HAVE_CXX14@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -357,6 +361,10 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PTHREAD_CC = @PTHREAD_CC@
+PTHREAD_CFLAGS = @PTHREAD_CFLAGS@
+PTHREAD_CXX = @PTHREAD_CXX@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -376,6 +384,7 @@ am__leading_dot = @am__leading_dot@
 am__quote = @am__quote@
 am__tar = @am__tar@
 am__untar = @am__untar@
+ax_pthread_config = @ax_pthread_config@
 bindir = @bindir@
 build = @build@
 build_alias = @build_alias@
@@ -430,7 +439,8 @@ EXTRA_DIST = AUTHORS CHANGES README.cares $(man_MANS) RELEASE-NOTES	\
  c-ares-config.cmake.in libcares.pc.cmake libcares.pc.in buildconf get_ver.awk \
  maketgz TODO README.msvc $(MSVCFILES) INSTALL.md README.md LICENSE.md \
  CMakeLists.txt Makefile.dj Makefile.m32 Makefile.netware Makefile.msvc \
- Makefile.Watcom AUTHORS CONTRIBUTING.md SECURITY.md TODO
+ Makefile.Watcom AUTHORS CONTRIBUTING.md SECURITY.md TODO \
+ cmake/EnableWarnings.cmake
 
 CLEANFILES = $(PDFPAGES) $(HTMLPAGES)
 DISTCLEANFILES = include/ares_build.h

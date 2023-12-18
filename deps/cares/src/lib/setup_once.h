@@ -48,47 +48,47 @@
 #include <ctype.h>
 
 #ifdef HAVE_ERRNO_H
-#include <errno.h>
+#  include <errno.h>
 #endif
 
 #ifdef HAVE_SYS_TYPES_H
-#include <sys/types.h>
+#  include <sys/types.h>
 #endif
 
 #ifdef NEED_MALLOC_H
-#include <malloc.h>
+#  include <malloc.h>
 #endif
 
 #ifdef NEED_MEMORY_H
-#include <memory.h>
+#  include <memory.h>
 #endif
 
 #ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
+#  include <sys/stat.h>
 #endif
 
 #ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#ifdef TIME_WITH_SYS_TIME
-#include <time.h>
-#endif
+#  include <sys/time.h>
+#  ifdef TIME_WITH_SYS_TIME
+#    include <time.h>
+#  endif
 #else
-#ifdef HAVE_TIME_H
-#include <time.h>
-#endif
+#  ifdef HAVE_TIME_H
+#    include <time.h>
+#  endif
 #endif
 
 #ifdef WIN32
-#include <io.h>
-#include <fcntl.h>
+#  include <io.h>
+#  include <fcntl.h>
 #endif
 
 #if defined(HAVE_STDBOOL_H) && defined(HAVE_BOOL_T)
-#include <stdbool.h>
+#  include <stdbool.h>
 #endif
 
 #ifdef HAVE_UNISTD_H
-#include <unistd.h>
+#  include <unistd.h>
 #endif
 
 #ifdef __hpux
@@ -103,11 +103,11 @@
 #endif
 
 #ifdef HAVE_SYS_RANDOM_H
-#include <sys/random.h>
+#  include <sys/random.h>
 #endif
 
 #ifdef HAVE_SYS_SOCKET_H
-#include <sys/socket.h>
+#  include <sys/socket.h>
 #endif
 
 #ifdef __hpux
@@ -126,8 +126,8 @@
 
 #ifndef HAVE_STRUCT_TIMEVAL
 struct timeval {
- long tv_sec;
- long tv_usec;
+  long tv_sec;
+  long tv_usec;
 };
 #endif
 
@@ -138,17 +138,17 @@ struct timeval {
  */
 
 #ifdef HAVE_MSG_NOSIGNAL
-#define SEND_4TH_ARG MSG_NOSIGNAL
+#  define SEND_4TH_ARG MSG_NOSIGNAL
 #else
-#define SEND_4TH_ARG 0
+#  define SEND_4TH_ARG 0
 #endif
 
 
 #if defined(__minix)
 /* Minix doesn't support recv on TCP sockets */
-#define sread(x,y,z) (ares_ssize_t)read((RECV_TYPE_ARG1)(x), \
-                                   (RECV_TYPE_ARG2)(y), \
-                                   (RECV_TYPE_ARG3)(z))
+#  define sread(x, y, z) \
+    (ares_ssize_t)       \
+      read((RECV_TYPE_ARG1)(x), (RECV_TYPE_ARG2)(y), (RECV_TYPE_ARG3)(z))
 
 #elif defined(HAVE_RECV)
 /*
@@ -173,97 +173,86 @@ struct timeval {
  * SEND_TYPE_RETV must also be defined.
  */
 
-#if !defined(RECV_TYPE_ARG1) || \
-    !defined(RECV_TYPE_ARG2) || \
-    !defined(RECV_TYPE_ARG3) || \
-    !defined(RECV_TYPE_ARG4) || \
+#  if !defined(RECV_TYPE_ARG1) || !defined(RECV_TYPE_ARG2) || \
+    !defined(RECV_TYPE_ARG3) || !defined(RECV_TYPE_ARG4) ||   \
     !defined(RECV_TYPE_RETV)
-  /* */
-  Error Missing_definition_of_return_and_arguments_types_of_recv
-  /* */
-#else
-#define sread(x,y,z) (ares_ssize_t)recv((RECV_TYPE_ARG1)(x), \
-                                   (RECV_TYPE_ARG2)(y), \
-                                   (RECV_TYPE_ARG3)(z), \
-                                   (RECV_TYPE_ARG4)(0))
-#endif
+/* */
+Error Missing_definition_of_return_and_arguments_types_of_recv
+/* */
+#  else
+#    define sread(x, y, z)                                          \
+      (ares_ssize_t) recv((RECV_TYPE_ARG1)(x), (RECV_TYPE_ARG2)(y), \
+                          (RECV_TYPE_ARG3)(z), (RECV_TYPE_ARG4)(0))
+#  endif
 #else /* HAVE_RECV */
-#ifndef sread
-  /* */
-  Error Missing_definition_of_macro_sread
-  /* */
-#endif
+#  ifndef sread
+/* */
+Error Missing_definition_of_macro_sread
+/* */
+#  endif
 #endif /* HAVE_RECV */
 
 
 #if defined(__minix)
 /* Minix doesn't support send on TCP sockets */
-#define swrite(x,y,z) (ares_ssize_t)write((SEND_TYPE_ARG1)(x), \
-                                    (SEND_TYPE_ARG2)(y), \
-                                    (SEND_TYPE_ARG3)(z))
+#  define swrite(x, y, z) \
+    (ares_ssize_t)        \
+      write((SEND_TYPE_ARG1)(x), (SEND_TYPE_ARG2)(y), (SEND_TYPE_ARG3)(z))
 
 #elif defined(HAVE_SEND)
-#if !defined(SEND_TYPE_ARG1) || \
-    !defined(SEND_QUAL_ARG2) || \
-    !defined(SEND_TYPE_ARG2) || \
-    !defined(SEND_TYPE_ARG3) || \
-    !defined(SEND_TYPE_ARG4) || \
-    !defined(SEND_TYPE_RETV)
+#  if !defined(SEND_TYPE_ARG1) || !defined(SEND_QUAL_ARG2) || \
+    !defined(SEND_TYPE_ARG2) || !defined(SEND_TYPE_ARG3) ||   \
+    !defined(SEND_TYPE_ARG4) || !defined(SEND_TYPE_RETV)
   /* */
   Error Missing_definition_of_return_and_arguments_types_of_send
-  /* */
-#else
-#define swrite(x,y,z) (ares_ssize_t)send((SEND_TYPE_ARG1)(x), \
-                                    (SEND_TYPE_ARG2)(y), \
-                                    (SEND_TYPE_ARG3)(z), \
-                                    (SEND_TYPE_ARG4)(SEND_4TH_ARG))
-#endif
+/* */
+#  else
+#    define swrite(x, y, z)                                         \
+      (ares_ssize_t) send((SEND_TYPE_ARG1)(x), (SEND_TYPE_ARG2)(y), \
+                          (SEND_TYPE_ARG3)(z), (SEND_TYPE_ARG4)(SEND_4TH_ARG))
+#  endif
 #else /* HAVE_SEND */
-#ifndef swrite
+#  ifndef swrite
   /* */
   Error Missing_definition_of_macro_swrite
-  /* */
-#endif
+/* */
+#  endif
 #endif /* HAVE_SEND */
 
 
 #if 0
-#if defined(HAVE_RECVFROM)
+#  if defined(HAVE_RECVFROM)
 /*
  * Currently recvfrom is only used on udp sockets.
  */
-#if !defined(RECVFROM_TYPE_ARG1) || \
-    !defined(RECVFROM_TYPE_ARG2) || \
-    !defined(RECVFROM_TYPE_ARG3) || \
-    !defined(RECVFROM_TYPE_ARG4) || \
-    !defined(RECVFROM_TYPE_ARG5) || \
-    !defined(RECVFROM_TYPE_ARG6) || \
-    !defined(RECVFROM_TYPE_RETV)
+#    if !defined(RECVFROM_TYPE_ARG1) || !defined(RECVFROM_TYPE_ARG2) || \
+      !defined(RECVFROM_TYPE_ARG3) || !defined(RECVFROM_TYPE_ARG4) ||   \
+      !defined(RECVFROM_TYPE_ARG5) || !defined(RECVFROM_TYPE_ARG6) ||   \
+      !defined(RECVFROM_TYPE_RETV)
   /* */
   Error Missing_definition_of_return_and_arguments_types_of_recvfrom
   /* */
-#else
-#define sreadfrom(s,b,bl,f,fl) (ares_ssize_t)recvfrom((RECVFROM_TYPE_ARG1)  (s),  \
-                                                 (RECVFROM_TYPE_ARG2 *)(b),  \
-                                                 (RECVFROM_TYPE_ARG3)  (bl), \
-                                                 (RECVFROM_TYPE_ARG4)  (0),  \
-                                                 (RECVFROM_TYPE_ARG5 *)(f),  \
-                                                 (RECVFROM_TYPE_ARG6 *)(fl))
-#endif
-#else /* HAVE_RECVFROM */
-#ifndef sreadfrom
+#    else
+#      define sreadfrom(s, b, bl, f, fl)                               \
+        (ares_ssize_t)                                                 \
+          recvfrom((RECVFROM_TYPE_ARG1)(s), (RECVFROM_TYPE_ARG2 *)(b), \
+                   (RECVFROM_TYPE_ARG3)(bl), (RECVFROM_TYPE_ARG4)(0),  \
+                   (RECVFROM_TYPE_ARG5 *)(f), (RECVFROM_TYPE_ARG6 *)(fl))
+#    endif
+#  else /* HAVE_RECVFROM */
+#    ifndef sreadfrom
   /* */
   Error Missing_definition_of_macro_sreadfrom
   /* */
-#endif
-#endif /* HAVE_RECVFROM */
+#    endif
+#  endif /* HAVE_RECVFROM */
 
 
-#ifdef RECVFROM_TYPE_ARG6_IS_VOID
-#  define RECVFROM_ARG6_T int
-#else
-#  define RECVFROM_ARG6_T RECVFROM_TYPE_ARG6
-#endif
+#  ifdef RECVFROM_TYPE_ARG6_IS_VOID
+#    define RECVFROM_ARG6_T int
+#  else
+#    define RECVFROM_ARG6_T RECVFROM_TYPE_ARG6
+#  endif
 #endif /* if 0 */
 
 
@@ -272,13 +261,13 @@ struct timeval {
  */
 
 #if defined(HAVE_CLOSESOCKET)
-#  define sclose(x)  closesocket((x))
+#  define sclose(x) closesocket((x))
 #elif defined(HAVE_CLOSESOCKET_CAMEL)
-#  define sclose(x)  CloseSocket((x))
+#  define sclose(x) CloseSocket((x))
 #elif defined(HAVE_CLOSE_S)
-#  define sclose(x)  close_s((x))
+#  define sclose(x) close_s((x))
 #else
-#  define sclose(x)  close((x))
+#  define sclose(x) close((x))
 #endif
 
 
@@ -287,21 +276,21 @@ struct timeval {
  * avoid negative number inputs with argument byte codes > 127.
  */
 
-#define ISSPACE(x)  (isspace((int)  ((unsigned char)x)))
-#define ISDIGIT(x)  (isdigit((int)  ((unsigned char)x)))
-#define ISALNUM(x)  (isalnum((int)  ((unsigned char)x)))
-#define ISXDIGIT(x) (isxdigit((int) ((unsigned char)x)))
-#define ISGRAPH(x)  (isgraph((int)  ((unsigned char)x)))
-#define ISALPHA(x)  (isalpha((int)  ((unsigned char)x)))
-#define ISPRINT(x)  (isprint((int)  ((unsigned char)x)))
-#define ISUPPER(x)  (isupper((int)  ((unsigned char)x)))
-#define ISLOWER(x)  (islower((int)  ((unsigned char)x)))
-#define ISASCII(x)  (isascii((int)  ((unsigned char)x)))
+#define ISSPACE(x)  (isspace((int)((unsigned char)x)))
+#define ISDIGIT(x)  (isdigit((int)((unsigned char)x)))
+#define ISALNUM(x)  (isalnum((int)((unsigned char)x)))
+#define ISXDIGIT(x) (isxdigit((int)((unsigned char)x)))
+#define ISGRAPH(x)  (isgraph((int)((unsigned char)x)))
+#define ISALPHA(x)  (isalpha((int)((unsigned char)x)))
+#define ISPRINT(x)  (isprint((int)((unsigned char)x)))
+#define ISUPPER(x)  (isupper((int)((unsigned char)x)))
+#define ISLOWER(x)  (islower((int)((unsigned char)x)))
+#define ISASCII(x)  (isascii((int)((unsigned char)x)))
 
-#define ISBLANK(x)  (int)((((unsigned char)x) == ' ') || \
-                          (((unsigned char)x) == '\t'))
+#define ISBLANK(x) \
+  (int)((((unsigned char)x) == ' ') || (((unsigned char)x) == '\t'))
 
-#define TOLOWER(x)  (tolower((int)  ((unsigned char)x)))
+#define TOLOWER(x) (tolower((int)((unsigned char)x)))
 
 
 /*
@@ -309,9 +298,9 @@ struct timeval {
  */
 
 #if defined(__hpux) && !defined(HAVE_BOOL_T)
-   typedef int bool;
+typedef int bool;
 #  define false 0
-#  define true 1
+#  define true  1
 #  define HAVE_BOOL_T
 #endif
 
@@ -324,10 +313,10 @@ struct timeval {
  */
 
 #ifndef HAVE_BOOL_T
-  typedef enum {
-      bool_false = 0,
-      bool_true  = 1
-  } bool;
+typedef enum {
+  bool_false = 0,
+  bool_true  = 1
+} bool;
 
 /*
  * Use a define to let 'true' and 'false' use those enums.  There
@@ -349,10 +338,10 @@ struct timeval {
  */
 
 #ifndef TRUE
-#define TRUE true
+#  define TRUE true
 #endif
 #ifndef FALSE
-#define FALSE false
+#  define FALSE false
 #endif
 
 
@@ -361,18 +350,16 @@ struct timeval {
  * avoiding compiler warnings. Mostly intended for other macro definitions.
  */
 
-#define WHILE_FALSE  while(0)
+#define WHILE_FALSE while (0)
 
 #if defined(_MSC_VER) && !defined(__POCC__)
 #  undef WHILE_FALSE
 #  if (_MSC_VER < 1500)
-#    define WHILE_FALSE  while(1, 0)
+#    define WHILE_FALSE while (1, 0)
 #  else
-#    define WHILE_FALSE \
-__pragma(warning(push)) \
-__pragma(warning(disable:4127)) \
-while(0) \
-__pragma(warning(pop))
+#    define WHILE_FALSE                                                   \
+      __pragma(warning(push)) __pragma(warning(disable : 4127)) while (0) \
+        __pragma(warning(pop))
 #  endif
 #endif
 
@@ -383,7 +370,7 @@ __pragma(warning(pop))
 
 #ifndef HAVE_SIG_ATOMIC_T
 typedef int sig_atomic_t;
-#define HAVE_SIG_ATOMIC_T
+#  define HAVE_SIG_ATOMIC_T
 #endif
 
 
@@ -392,9 +379,9 @@ typedef int sig_atomic_t;
  */
 
 #ifdef HAVE_SIG_ATOMIC_T_VOLATILE
-#define SIG_ATOMIC_T static sig_atomic_t
+#  define SIG_ATOMIC_T static sig_atomic_t
 #else
-#define SIG_ATOMIC_T static volatile sig_atomic_t
+#  define SIG_ATOMIC_T static volatile sig_atomic_t
 #endif
 
 
@@ -403,7 +390,7 @@ typedef int sig_atomic_t;
  */
 
 #ifndef RETSIGTYPE
-#define RETSIGTYPE void
+#  define RETSIGTYPE void
 #endif
 
 
@@ -412,9 +399,12 @@ typedef int sig_atomic_t;
  */
 
 #ifdef DEBUGBUILD
-#define DEBUGF(x) x
+#  define DEBUGF(x) x
 #else
-#define DEBUGF(x) do { } WHILE_FALSE
+#  define DEBUGF(x) \
+    do {            \
+    }               \
+    WHILE_FALSE
 #endif
 
 
@@ -423,9 +413,12 @@ typedef int sig_atomic_t;
  */
 
 #if defined(DEBUGBUILD) && defined(HAVE_ASSERT_H)
-#define DEBUGASSERT(x) assert(x)
+#  define DEBUGASSERT(x) assert(x)
 #else
-#define DEBUGASSERT(x) do { } WHILE_FALSE
+#  define DEBUGASSERT(x) \
+    do {                 \
+    }                    \
+    WHILE_FALSE
 #endif
 
 
@@ -435,11 +428,11 @@ typedef int sig_atomic_t;
  */
 
 #ifdef USE_WINSOCK
-#define SOCKERRNO         ((int)WSAGetLastError())
-#define SET_SOCKERRNO(x)  (WSASetLastError((int)(x)))
+#  define SOCKERRNO        ((int)WSAGetLastError())
+#  define SET_SOCKERRNO(x) (WSASetLastError((int)(x)))
 #else
-#define SOCKERRNO         (errno)
-#define SET_SOCKERRNO(x)  (errno = (x))
+#  define SOCKERRNO        (errno)
+#  define SET_SOCKERRNO(x) (errno = (x))
 #endif
 
 
@@ -449,11 +442,11 @@ typedef int sig_atomic_t;
  */
 
 #if defined(WIN32) && !defined(WATT32)
-#define ERRNO         ((int)GetLastError())
-#define SET_ERRNO(x)  (SetLastError((DWORD)(x)))
+#  define ERRNO        ((int)GetLastError())
+#  define SET_ERRNO(x) (SetLastError((DWORD)(x)))
 #else
-#define ERRNO         (errno)
-#define SET_ERRNO(x)  (errno = (x))
+#  define ERRNO        (errno)
+#  define SET_ERRNO(x) (errno = (x))
 #endif
 
 
@@ -462,78 +455,78 @@ typedef int sig_atomic_t;
  */
 
 #ifdef USE_WINSOCK
-#undef  EBADF            /* override definition in errno.h */
-#define EBADF            WSAEBADF
-#undef  EINTR            /* override definition in errno.h */
-#define EINTR            WSAEINTR
-#undef  EINVAL           /* override definition in errno.h */
-#define EINVAL           WSAEINVAL
-#undef  EWOULDBLOCK      /* override definition in errno.h */
-#define EWOULDBLOCK      WSAEWOULDBLOCK
-#undef  EINPROGRESS      /* override definition in errno.h */
-#define EINPROGRESS      WSAEINPROGRESS
-#undef  EALREADY         /* override definition in errno.h */
-#define EALREADY         WSAEALREADY
-#undef  ENOTSOCK         /* override definition in errno.h */
-#define ENOTSOCK         WSAENOTSOCK
-#undef  EDESTADDRREQ     /* override definition in errno.h */
-#define EDESTADDRREQ     WSAEDESTADDRREQ
-#undef  EMSGSIZE         /* override definition in errno.h */
-#define EMSGSIZE         WSAEMSGSIZE
-#undef  EPROTOTYPE       /* override definition in errno.h */
-#define EPROTOTYPE       WSAEPROTOTYPE
-#undef  ENOPROTOOPT      /* override definition in errno.h */
-#define ENOPROTOOPT      WSAENOPROTOOPT
-#undef  EPROTONOSUPPORT  /* override definition in errno.h */
-#define EPROTONOSUPPORT  WSAEPROTONOSUPPORT
-#define ESOCKTNOSUPPORT  WSAESOCKTNOSUPPORT
-#undef  EOPNOTSUPP       /* override definition in errno.h */
-#define EOPNOTSUPP       WSAEOPNOTSUPP
-#define EPFNOSUPPORT     WSAEPFNOSUPPORT
-#undef  EAFNOSUPPORT     /* override definition in errno.h */
-#define EAFNOSUPPORT     WSAEAFNOSUPPORT
-#undef  EADDRINUSE       /* override definition in errno.h */
-#define EADDRINUSE       WSAEADDRINUSE
-#undef  EADDRNOTAVAIL    /* override definition in errno.h */
-#define EADDRNOTAVAIL    WSAEADDRNOTAVAIL
-#undef  ENETDOWN         /* override definition in errno.h */
-#define ENETDOWN         WSAENETDOWN
-#undef  ENETUNREACH      /* override definition in errno.h */
-#define ENETUNREACH      WSAENETUNREACH
-#undef  ENETRESET        /* override definition in errno.h */
-#define ENETRESET        WSAENETRESET
-#undef  ECONNABORTED     /* override definition in errno.h */
-#define ECONNABORTED     WSAECONNABORTED
-#undef  ECONNRESET       /* override definition in errno.h */
-#define ECONNRESET       WSAECONNRESET
-#undef  ENOBUFS          /* override definition in errno.h */
-#define ENOBUFS          WSAENOBUFS
-#undef  EISCONN          /* override definition in errno.h */
-#define EISCONN          WSAEISCONN
-#undef  ENOTCONN         /* override definition in errno.h */
-#define ENOTCONN         WSAENOTCONN
-#define ESHUTDOWN        WSAESHUTDOWN
-#define ETOOMANYREFS     WSAETOOMANYREFS
-#undef  ETIMEDOUT        /* override definition in errno.h */
-#define ETIMEDOUT        WSAETIMEDOUT
-#undef  ECONNREFUSED     /* override definition in errno.h */
-#define ECONNREFUSED     WSAECONNREFUSED
-#undef  ELOOP            /* override definition in errno.h */
-#define ELOOP            WSAELOOP
-#ifndef ENAMETOOLONG     /* possible previous definition in errno.h */
-#define ENAMETOOLONG     WSAENAMETOOLONG
-#endif
-#define EHOSTDOWN        WSAEHOSTDOWN
-#undef  EHOSTUNREACH     /* override definition in errno.h */
-#define EHOSTUNREACH     WSAEHOSTUNREACH
-#ifndef ENOTEMPTY        /* possible previous definition in errno.h */
-#define ENOTEMPTY        WSAENOTEMPTY
-#endif
-#define EPROCLIM         WSAEPROCLIM
-#define EUSERS           WSAEUSERS
-#define EDQUOT           WSAEDQUOT
-#define ESTALE           WSAESTALE
-#define EREMOTE          WSAEREMOTE
+#  undef EBADF           /* override definition in errno.h */
+#  define EBADF WSAEBADF
+#  undef EINTR           /* override definition in errno.h */
+#  define EINTR WSAEINTR
+#  undef EINVAL          /* override definition in errno.h */
+#  define EINVAL WSAEINVAL
+#  undef EWOULDBLOCK     /* override definition in errno.h */
+#  define EWOULDBLOCK WSAEWOULDBLOCK
+#  undef EINPROGRESS     /* override definition in errno.h */
+#  define EINPROGRESS WSAEINPROGRESS
+#  undef EALREADY        /* override definition in errno.h */
+#  define EALREADY WSAEALREADY
+#  undef ENOTSOCK        /* override definition in errno.h */
+#  define ENOTSOCK WSAENOTSOCK
+#  undef EDESTADDRREQ    /* override definition in errno.h */
+#  define EDESTADDRREQ WSAEDESTADDRREQ
+#  undef EMSGSIZE        /* override definition in errno.h */
+#  define EMSGSIZE WSAEMSGSIZE
+#  undef EPROTOTYPE      /* override definition in errno.h */
+#  define EPROTOTYPE WSAEPROTOTYPE
+#  undef ENOPROTOOPT     /* override definition in errno.h */
+#  define ENOPROTOOPT WSAENOPROTOOPT
+#  undef EPROTONOSUPPORT /* override definition in errno.h */
+#  define EPROTONOSUPPORT WSAEPROTONOSUPPORT
+#  define ESOCKTNOSUPPORT WSAESOCKTNOSUPPORT
+#  undef EOPNOTSUPP /* override definition in errno.h */
+#  define EOPNOTSUPP   WSAEOPNOTSUPP
+#  define EPFNOSUPPORT WSAEPFNOSUPPORT
+#  undef EAFNOSUPPORT  /* override definition in errno.h */
+#  define EAFNOSUPPORT WSAEAFNOSUPPORT
+#  undef EADDRINUSE    /* override definition in errno.h */
+#  define EADDRINUSE WSAEADDRINUSE
+#  undef EADDRNOTAVAIL /* override definition in errno.h */
+#  define EADDRNOTAVAIL WSAEADDRNOTAVAIL
+#  undef ENETDOWN      /* override definition in errno.h */
+#  define ENETDOWN WSAENETDOWN
+#  undef ENETUNREACH   /* override definition in errno.h */
+#  define ENETUNREACH WSAENETUNREACH
+#  undef ENETRESET     /* override definition in errno.h */
+#  define ENETRESET WSAENETRESET
+#  undef ECONNABORTED  /* override definition in errno.h */
+#  define ECONNABORTED WSAECONNABORTED
+#  undef ECONNRESET    /* override definition in errno.h */
+#  define ECONNRESET WSAECONNRESET
+#  undef ENOBUFS       /* override definition in errno.h */
+#  define ENOBUFS WSAENOBUFS
+#  undef EISCONN       /* override definition in errno.h */
+#  define EISCONN WSAEISCONN
+#  undef ENOTCONN      /* override definition in errno.h */
+#  define ENOTCONN     WSAENOTCONN
+#  define ESHUTDOWN    WSAESHUTDOWN
+#  define ETOOMANYREFS WSAETOOMANYREFS
+#  undef ETIMEDOUT     /* override definition in errno.h */
+#  define ETIMEDOUT WSAETIMEDOUT
+#  undef ECONNREFUSED  /* override definition in errno.h */
+#  define ECONNREFUSED WSAECONNREFUSED
+#  undef ELOOP         /* override definition in errno.h */
+#  define ELOOP WSAELOOP
+#  ifndef ENAMETOOLONG /* possible previous definition in errno.h */
+#    define ENAMETOOLONG WSAENAMETOOLONG
+#  endif
+#  define EHOSTDOWN WSAEHOSTDOWN
+#  undef EHOSTUNREACH /* override definition in errno.h */
+#  define EHOSTUNREACH WSAEHOSTUNREACH
+#  ifndef ENOTEMPTY   /* possible previous definition in errno.h */
+#    define ENOTEMPTY WSAENOTEMPTY
+#  endif
+#  define EPROCLIM WSAEPROCLIM
+#  define EUSERS   WSAEUSERS
+#  define EDQUOT   WSAEDQUOT
+#  define ESTALE   WSAESTALE
+#  define EREMOTE  WSAEREMOTE
 #endif
 
 
@@ -541,9 +534,9 @@ typedef int sig_atomic_t;
  *  Actually use __32_getpwuid() on 64-bit VMS builds for getpwuid()
  */
 
-#if defined(__VMS) && \
-    defined(__INITIAL_POINTER_SIZE) && (__INITIAL_POINTER_SIZE == 64)
-#define getpwuid __32_getpwuid
+#if defined(__VMS) && defined(__INITIAL_POINTER_SIZE) && \
+  (__INITIAL_POINTER_SIZE == 64)
+#  define getpwuid __32_getpwuid
 #endif
 
 
@@ -552,9 +545,9 @@ typedef int sig_atomic_t;
  */
 
 #ifdef __VMS
-#define argv_item_t  __char_ptr32
+#  define argv_item_t __char_ptr32
 #else
-#define argv_item_t  char *
+#  define argv_item_t char *
 #endif
 
 
