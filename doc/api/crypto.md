@@ -319,7 +319,7 @@ used in one of two ways:
 * Using the [`cipher.update()`][] and [`cipher.final()`][] methods to produce
   the encrypted data.
 
-The [`crypto.createCipher()`][] or [`crypto.createCipheriv()`][] methods are
+The [`crypto.createCipheriv()`][] method is
 used to create `Cipher` instances. `Cipher` objects are not to be created
 directly using the `new` keyword.
 
@@ -651,7 +651,7 @@ used in one of two ways:
 * Using the [`decipher.update()`][] and [`decipher.final()`][] methods to
   produce the unencrypted data.
 
-The [`crypto.createDecipher()`][] or [`crypto.createDecipheriv()`][] methods are
+The [`crypto.createDecipheriv()`][] method is
 used to create `Decipher` instances. `Decipher` objects are not to be created
 directly using the `new` keyword.
 
@@ -2954,77 +2954,6 @@ added: v15.8.0
 
 Checks the primality of the `candidate`.
 
-### `crypto.createCipher(algorithm, password[, options])`
-
-<!-- YAML
-added: v0.1.94
-deprecated: v10.0.0
-changes:
-  - version:
-    - v17.9.0
-    - v16.17.0
-    pr-url: https://github.com/nodejs/node/pull/42427
-    description: The `authTagLength` option is now optional when using the
-                 `chacha20-poly1305` cipher and defaults to 16 bytes.
-  - version: v15.0.0
-    pr-url: https://github.com/nodejs/node/pull/35093
-    description: The password argument can be an ArrayBuffer and is limited to
-                 a maximum of 2 ** 31 - 1 bytes.
-  - version: v10.10.0
-    pr-url: https://github.com/nodejs/node/pull/21447
-    description: Ciphers in OCB mode are now supported.
-  - version: v10.2.0
-    pr-url: https://github.com/nodejs/node/pull/20235
-    description: The `authTagLength` option can now be used to produce shorter
-                 authentication tags in GCM mode and defaults to 16 bytes.
--->
-
-> Stability: 0 - Deprecated: Use [`crypto.createCipheriv()`][] instead.
-
-* `algorithm` {string}
-* `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `options` {Object} [`stream.transform` options][]
-* Returns: {Cipher}
-
-Creates and returns a `Cipher` object that uses the given `algorithm` and
-`password`.
-
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][]. In GCM mode, the `authTagLength`
-option is not required but can be used to set the length of the authentication
-tag that will be returned by `getAuthTag()` and defaults to 16 bytes.
-For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
-
-The `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc. On
-recent OpenSSL releases, `openssl list -cipher-algorithms` will
-display the available cipher algorithms.
-
-The `password` is used to derive the cipher key and initialization vector (IV).
-The value must be either a `'latin1'` encoded string, a [`Buffer`][], a
-`TypedArray`, or a `DataView`.
-
-<strong class="critical">This function is semantically insecure for all
-supported ciphers and fatally flawed for ciphers in counter mode (such as CTR,
-GCM, or CCM).</strong>
-
-The implementation of `crypto.createCipher()` derives keys using the OpenSSL
-function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
-iteration, and no salt. The lack of salt allows dictionary attacks as the same
-password always creates the same key. The low iteration count and
-non-cryptographically secure hash algorithm allow passwords to be tested very
-rapidly.
-
-In line with OpenSSL's recommendation to use a more modern algorithm instead of
-[`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
-their own using [`crypto.scrypt()`][] and to use [`crypto.createCipheriv()`][]
-to create the `Cipher` object. Users should not use ciphers with counter mode
-(e.g. CTR, GCM, or CCM) in `crypto.createCipher()`. A warning is emitted when
-they are used in order to avoid the risk of IV reuse that causes
-vulnerabilities. For the case when IV is reused in GCM, see [Nonce-Disrespecting
-Adversaries][] for details.
-
 ### `crypto.createCipheriv(algorithm, key, iv[, options])`
 
 <!-- YAML
@@ -3098,55 +3027,6 @@ added to ciphertext messages unencrypted. It may sound contradictory that
 something has to be unpredictable and unique, but does not have to be secret;
 remember that an attacker must not be able to predict ahead of time what a
 given IV will be.
-
-### `crypto.createDecipher(algorithm, password[, options])`
-
-<!-- YAML
-added: v0.1.94
-deprecated: v10.0.0
-changes:
-  - version:
-    - v17.9.0
-    - v16.17.0
-    pr-url: https://github.com/nodejs/node/pull/42427
-    description: The `authTagLength` option is now optional when using the
-                 `chacha20-poly1305` cipher and defaults to 16 bytes.
-  - version: v10.10.0
-    pr-url: https://github.com/nodejs/node/pull/21447
-    description: Ciphers in OCB mode are now supported.
--->
-
-> Stability: 0 - Deprecated: Use [`crypto.createDecipheriv()`][] instead.
-
-* `algorithm` {string}
-* `password` {string|ArrayBuffer|Buffer|TypedArray|DataView}
-* `options` {Object} [`stream.transform` options][]
-* Returns: {Decipher}
-
-Creates and returns a `Decipher` object that uses the given `algorithm` and
-`password` (key).
-
-The `options` argument controls stream behavior and is optional except when a
-cipher in CCM or OCB mode (e.g. `'aes-128-ccm'`) is used. In that case, the
-`authTagLength` option is required and specifies the length of the
-authentication tag in bytes, see [CCM mode][].
-For `chacha20-poly1305`, the `authTagLength` option defaults to 16 bytes.
-
-<strong class="critical">This function is semantically insecure for all
-supported ciphers and fatally flawed for ciphers in counter mode (such as CTR,
-GCM, or CCM).</strong>
-
-The implementation of `crypto.createDecipher()` derives keys using the OpenSSL
-function [`EVP_BytesToKey`][] with the digest algorithm set to MD5, one
-iteration, and no salt. The lack of salt allows dictionary attacks as the same
-password always creates the same key. The low iteration count and
-non-cryptographically secure hash algorithm allow passwords to be tested very
-rapidly.
-
-In line with OpenSSL's recommendation to use a more modern algorithm instead of
-[`EVP_BytesToKey`][] it is recommended that developers derive a key and IV on
-their own using [`crypto.scrypt()`][] and to use [`crypto.createDecipheriv()`][]
-to create the `Decipher` object.
 
 ### `crypto.createDecipheriv(algorithm, key, iv[, options])`
 
@@ -6096,7 +5976,6 @@ See the [list of SSL OP Flags][] for details.
 [NIST SP 800-131A]: https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf
 [NIST SP 800-132]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
-[Nonce-Disrespecting Adversaries]: https://github.com/nonce-disrespect/nonce-disrespect
 [OpenSSL's FIPS README file]: https://github.com/openssl/openssl/blob/openssl-3.0/README-FIPS.md
 [OpenSSL's SPKAC implementation]: https://www.openssl.org/docs/man3.0/man1/openssl-spkac.html
 [RFC 1421]: https://www.rfc-editor.org/rfc/rfc1421.txt
@@ -6113,7 +5992,6 @@ See the [list of SSL OP Flags][] for details.
 [`Buffer`]: buffer.md
 [`DH_generate_key()`]: https://www.openssl.org/docs/man3.0/man3/DH_generate_key.html
 [`DiffieHellmanGroup`]: #class-diffiehellmangroup
-[`EVP_BytesToKey`]: https://www.openssl.org/docs/man3.0/man3/EVP_BytesToKey.html
 [`KeyObject`]: #class-keyobject
 [`Sign`]: #class-sign
 [`String.prototype.normalize()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/normalize
@@ -6121,9 +5999,7 @@ See the [list of SSL OP Flags][] for details.
 [`Verify`]: #class-verify
 [`cipher.final()`]: #cipherfinaloutputencoding
 [`cipher.update()`]: #cipherupdatedata-inputencoding-outputencoding
-[`crypto.createCipher()`]: #cryptocreatecipheralgorithm-password-options
 [`crypto.createCipheriv()`]: #cryptocreatecipherivalgorithm-key-iv-options
-[`crypto.createDecipher()`]: #cryptocreatedecipheralgorithm-password-options
 [`crypto.createDecipheriv()`]: #cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.createDiffieHellman()`]: #cryptocreatediffiehellmanprime-primeencoding-generator-generatorencoding
 [`crypto.createECDH()`]: #cryptocreateecdhcurvename
@@ -6144,7 +6020,6 @@ See the [list of SSL OP Flags][] for details.
 [`crypto.publicEncrypt()`]: #cryptopublicencryptkey-buffer
 [`crypto.randomBytes()`]: #cryptorandombytessize-callback
 [`crypto.randomFill()`]: #cryptorandomfillbuffer-offset-size-callback
-[`crypto.scrypt()`]: #cryptoscryptpassword-salt-keylen-options-callback
 [`crypto.webcrypto.getRandomValues()`]: webcrypto.md#cryptogetrandomvaluestypedarray
 [`crypto.webcrypto.subtle`]: webcrypto.md#class-subtlecrypto
 [`decipher.final()`]: #decipherfinaloutputencoding

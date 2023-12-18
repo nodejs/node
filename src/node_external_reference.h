@@ -110,10 +110,12 @@ class ExternalReferenceRegistry {
   V(permission)                                                                \
   V(process_methods)                                                           \
   V(process_object)                                                            \
+  V(process_wrap)                                                              \
   V(report)                                                                    \
   V(task_queue)                                                                \
   V(tcp_wrap)                                                                  \
   V(tty_wrap)                                                                  \
+  V(udp_wrap)                                                                  \
   V(url)                                                                       \
   V(util)                                                                      \
   V(pipe_wrap)                                                                 \
@@ -122,6 +124,7 @@ class ExternalReferenceRegistry {
   V(string_decoder)                                                            \
   V(stream_wrap)                                                               \
   V(signal_wrap)                                                               \
+  V(spawn_sync)                                                                \
   V(trace_events)                                                              \
   V(timers)                                                                    \
   V(types)                                                                     \

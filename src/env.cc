@@ -289,6 +289,12 @@ std::ostream& operator<<(std::ostream& output,
   return output;
 }
 
+std::ostream& operator<<(std::ostream& output, const SnapshotFlags& flags) {
+  output << "static_cast<SnapshotFlags>(" << static_cast<uint32_t>(flags)
+         << ")";
+  return output;
+}
+
 std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
   output << "{\n"
          << "  "
@@ -300,6 +306,7 @@ std::ostream& operator<<(std::ostream& output, const SnapshotMetadata& i) {
          << "  \"" << i.node_arch << "\", // node_arch\n"
          << "  \"" << i.node_platform << "\", // node_platform\n"
          << "  " << i.v8_cache_version_tag << ", // v8_cache_version_tag\n"
+         << "  " << i.flags << ", // flags\n"
          << "}";
   return output;
 }
@@ -810,8 +817,14 @@ Environment::Environment(IsolateData* isolate_data,
         isolate_data->worker_context()->env()->builtin_loader());
   } else if (isolate_data->snapshot_data() != nullptr) {
     // ... otherwise, if a snapshot was provided, use its code cache.
-    builtin_loader()->RefreshCodeCache(
-        isolate_data->snapshot_data()->code_cache);
+    size_t cache_size = isolate_data->snapshot_data()->code_cache.size();
+    per_process::Debug(DebugCategory::CODE_CACHE,
+                       "snapshot contains %zu code cache\n",
+                       cache_size);
+    if (cache_size > 0) {
+      builtin_loader()->RefreshCodeCache(
+          isolate_data->snapshot_data()->code_cache);
+    }
   }
 
   // We'll be creating new objects so make sure we've entered the context.

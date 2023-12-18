@@ -68,6 +68,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   //           --embedder-snapshot-blob blob-path
   //           --embedder-snapshot-create
   //           [--embedder-snapshot-as-file]
+  //           [--without-code-cache]
   // Running snapshot:
   // embedtest --embedder-snapshot-blob blob-path
   //           [--embedder-snapshot-as-file]
@@ -80,6 +81,7 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   std::vector<std::string> filtered_args;
   bool is_building_snapshot = false;
   bool snapshot_as_file = false;
+  std::optional<node::SnapshotConfig> snapshot_config;
   std::string snapshot_blob_path;
   for (size_t i = 0; i < args.size(); ++i) {
     const std::string& arg = args[i];
@@ -87,6 +89,13 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
       is_building_snapshot = true;
     } else if (arg == "--embedder-snapshot-as-file") {
       snapshot_as_file = true;
+    } else if (arg == "--without-code-cache") {
+      if (!snapshot_config.has_value()) {
+        snapshot_config = node::SnapshotConfig{};
+      }
+      snapshot_config.value().flags = static_cast<node::SnapshotFlags>(
+          static_cast<uint32_t>(snapshot_config.value().flags) |
+          static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
     } else if (arg == "--embedder-snapshot-blob") {
       assert(i + 1 < args.size());
       snapshot_blob_path = args[i + 1];
@@ -130,14 +139,23 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
   }
 
   std::vector<std::string> errors;
-  std::unique_ptr<CommonEnvironmentSetup> setup =
-      snapshot
-          ? CommonEnvironmentSetup::CreateFromSnapshot(
-                platform, &errors, snapshot.get(), filtered_args, exec_args)
-      : is_building_snapshot ? CommonEnvironmentSetup::CreateForSnapshotting(
-                                   platform, &errors, filtered_args, exec_args)
-                             : CommonEnvironmentSetup::Create(
-                                   platform, &errors, filtered_args, exec_args);
+  std::unique_ptr<CommonEnvironmentSetup> setup;
+
+  if (snapshot) {
+    setup = CommonEnvironmentSetup::CreateFromSnapshot(
+        platform, &errors, snapshot.get(), filtered_args, exec_args);
+  } else if (is_building_snapshot) {
+    if (snapshot_config.has_value()) {
+      setup = CommonEnvironmentSetup::CreateForSnapshotting(
+          platform, &errors, filtered_args, exec_args, snapshot_config.value());
+    } else {
+      setup = CommonEnvironmentSetup::CreateForSnapshotting(
+          platform, &errors, filtered_args, exec_args);
+    }
+  } else {
+    setup = CommonEnvironmentSetup::Create(
+        platform, &errors, filtered_args, exec_args);
+  }
   if (!setup) {
     for (const std::string& err : errors)
       fprintf(stderr, "%s: %s\n", binary_path.c_str(), err.c_str());

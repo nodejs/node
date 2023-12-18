@@ -1,3 +1,4 @@
+- after() called
  describe hooks
    1 (*ms)
    2 (*ms)
@@ -293,15 +294,32 @@
       *
 
  - after() called
+ run after when before throws
+   1
+    'test did not finish before its parent and was cancelled'
+
+ run after when before throws (*ms)
+
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
  before 1 called
  before 2 called
  after 1 called
  after 2 called
- tests 38
- suites 8
+ tests 39
+ suites 9
  pass 14
  fail 22
- cancelled 2
+ cancelled 3
  skipped 0
  todo 0
  duration_ms *
@@ -563,6 +581,23 @@
 *
  t.after() is called if test body throws (*ms)
   Error: bye
+      *
+      *
+      *
+      *
+
+*
+ 1
+  'test did not finish before its parent and was cancelled'
+
+*
+ run after when before throws (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
       *
       *
       *

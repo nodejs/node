@@ -32,7 +32,7 @@ This a list of all the dependencies:
 * [undici 5.28.2][]
 * [uvwasi 0.0.19][]
 * [V8 11.8.172.12][]
-* [zlib 1.3-22124f5][]
+* [zlib 1.3.0.1-motley-dd5fc13][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -317,7 +317,7 @@ See [maintaining-web-assembly][] for more informations.
 high-performance JavaScript and WebAssembly engine, written in C++.
 See [maintaining-V8][] for more informations.
 
-### zlib 1.3-22124f5
+### zlib 1.3.0.1-motley-dd5fc13
 
 The [zlib](https://chromium.googlesource.com/chromium/src/+/refs/heads/main/third_party/zlib)
 dependency lossless data-compression library,
@@ -350,10 +350,10 @@ performance improvements not currently available in standard zlib.
 [npm 9.6.7]: #npm-967
 [openssl 3.0.8]: #openssl-308
 [postject 1.0.0-alpha.6]: #postject-100-alpha6
-[simdjson 3.6.2]: #simdutf-362
+[simdjson 3.6.2]: #simdjson-362
 [simdutf 4.0.4]: #simdutf-404
 [undici 5.28.2]: #undici-5282
 [update-openssl-action]: ../../../.github/workflows/update-openssl.yml
 [uvwasi 0.0.19]: #uvwasi-0019
 [v8 11.8.172.12]: #v8-11817212
-[zlib 1.3-22124f5]: #zlib-13-22124f5
+[zlib 1.3.0.1-motley-dd5fc13]: #zlib-1301-motley-dd5fc13
