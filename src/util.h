@@ -1013,6 +1013,11 @@ class RAIIIsolate {
   v8::Isolate::Scope isolate_scope_;
 };
 
+std::string DetermineSpecificErrorType(Environment* env,
+                                       v8::Local<v8::Value> input);
+
+v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
