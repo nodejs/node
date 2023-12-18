@@ -1,7 +1,5 @@
 #!/bin/sh
 
-ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-
 # This function compare new version with current version of a depdendency and
 # exit the script if the versions are the same
 #
