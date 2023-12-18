@@ -124,6 +124,9 @@
 /* Define to 1 if you have the gethostname function. */
 #define HAVE_GETHOSTNAME 1
 
+/* Define to 1 if you have the getifaddrs function. */
+#define HAVE_GETIFADDRS 1
+
 /* Define to 1 if you have the getnameinfo function. */
 #define HAVE_GETNAMEINFO 1
 
@@ -132,6 +135,9 @@
 
 /* Define to 1 if you have the `gettimeofday' function. */
 #define HAVE_GETTIMEOFDAY 1
+
+/* Define to 1 if you have the <ifaddrs.h> header file. */
+#define HAVE_IFADDRS_H 1
 
 /* Define to 1 if you have the `if_indextoname' function. */
 #define HAVE_IF_INDEXTONAME 1
