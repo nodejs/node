@@ -1145,8 +1145,10 @@ static void FStat(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  CHECK(args[0]->IsInt32());
-  int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   bool use_bigint = args[1]->IsTrue();
   if (!args[2]->IsUndefined()) {  // fstat(fd, use_bigint, req)
@@ -1396,18 +1398,20 @@ static void FTruncate(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(IsSafeJsInt(args[1]));
   const int64_t len = args[1].As<Integer>()->Value();
 
-  if (argc > 2) {
+  if (argc > 2) {  // ftruncate(fd, len, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 2);
     FS_ASYNC_TRACE_BEGIN0(UV_FS_FTRUNCATE, req_wrap_async)
     AsyncCall(env, req_wrap_async, args, "ftruncate", UTF8, AfterNoArgs,
               uv_fs_ftruncate, fd, len);
-  } else {
+  } else {  // ftruncate(fd, len)
     FSReqWrapSync req_wrap_sync("ftruncate");
     FS_SYNC_TRACE_BEGIN(ftruncate);
     SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_ftruncate, fd, len);
@@ -1421,8 +1425,10 @@ static void Fdatasync(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 1);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   if (argc > 1) {  // fdatasync(fd, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
@@ -1444,8 +1450,10 @@ static void Fsync(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 1);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   if (argc > 1) {
     FSReqBase* req_wrap_async = GetReqWrap(args, 1);
@@ -2518,8 +2526,10 @@ static void FChmod(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 2);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
@@ -2674,8 +2684,10 @@ static void FUTimes(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(args[1]->IsNumber());
   const double atime = args[1].As<Number>()->Value();
