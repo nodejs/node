@@ -34,15 +34,11 @@ finalize_version_update() {
   new_version="$2"
   extra_files="$3"
 
-  # Update the version number on maintaining-dependencies.md
-  update_dependency_version "$package_name" "$new_version"
-
   echo "All done!"
   echo ""
   echo "Please git add $package_name and commit the new version:"
   echo ""
   echo "$ git add -A deps/$package_name $extra_files"
-  echo "$ git add doc/contributing/maintaining/maintaining-dependencies.md"
   echo "$ git commit -m \"deps: update $package_name to $new_version\""
   echo ""
 
@@ -79,12 +75,4 @@ log_and_verify_sha256sum() {
       exit 1
     fi
   fi
-}
-
-# This function is a no-op.
-#
-# $1 is the package name e.g. 'acorn', 'ada', 'base64' etc. See that file
-# for a complete list of package name
-# $2 is the new version.
-update_dependency_version() {
 }
