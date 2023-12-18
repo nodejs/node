@@ -78,6 +78,14 @@ class FSPermission final : public PermissionBase {
           return nullptr;
         }
 
+        // wildcard node takes precedence
+        if (children.size() > 1) {
+          auto it = children.find('*');
+          if (it != children.end()) {
+            return it->second;
+          }
+        }
+
         auto it = children.find(path[idx]);
         if (it == children.end()) {
           return nullptr;
