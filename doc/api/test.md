@@ -2410,7 +2410,7 @@ changes:
     description: added type to test:pass and test:fail events for when the test is a suite.
 -->
 
-* Extends {ReadableStream}
+* Extends {Readable}
 
 A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
