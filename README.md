@@ -871,7 +871,7 @@ license text.
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
 
 
-### Remember
+## Remember
 
 Usally, you will need `npm` to download dependencies, and ocassionally, 
 you will need `npx` to run scripts, also keep in mind that you may define custom scripts
