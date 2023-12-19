@@ -11,31 +11,31 @@ describe('ESM: module not found hint', { concurrency: true }, () => {
     of [
       {
         input: 'import "./print-error-message"',
-        // Did you mean to import ./print-error-message.js?
-        expected: / \.\/print-error-message\.js\?/,
+        // Did you mean to import "./print-error-message.js"?
+        expected: / "\.\/print-error-message\.js"\?/,
       },
       {
         input: 'import "./es-modules/folder%25with percentage?/index.js"',
-        // Did you mean to import ./es-modules/name%2525with%20percentage%3F/index.js?
-        expected: / \.\/es-modules\/folder%2525with%20percentage%3F\/index\.js\?/,
+        // Did you mean to import "./es-modules/folder%2525with%20percentage%3F/index.js"?
+        expected: / "\.\/es-modules\/folder%2525with%20percentage%3F\/index\.js"\?/,
       },
       {
         input: 'import "../folder%25with percentage?/index.js"',
-        // Did you mean to import ../es-modules/name%2525with%20percentage%3F/index.js?
-        expected: / \.\.\/folder%2525with%20percentage%3F\/index\.js\?/,
+        // Did you mean to import "../es-modules/folder%2525with%20percentage%3F/index.js"?
+        expected: / "\.\.\/folder%2525with%20percentage%3F\/index\.js"\?/,
         cwd: fixtureSubDir('es-modules/tla/'),
       },
       {
         input: 'import obj from "some_module/obj"',
-        expected: / some_module\/obj\.js\?/,
+        expected: / "some_module\/obj\.js"\?/,
       },
       {
         input: 'import obj from "some_module/folder%25with percentage?/index.js"',
-        expected: / some_module\/folder%2525with%20percentage%3F\/index\.js\?/,
+        expected: / "some_module\/folder%2525with%20percentage%3F\/index\.js"\?/,
       },
       {
         input: 'import obj from "lone_file.js"',
-        expected: /^(?!.*Did you mean to import lone_file\.js).*$/,
+        expected: /node_modules\/lone_file\.js"\?/,
       },
     ]
   ) it('should cite a variant form', async () => {
