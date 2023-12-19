@@ -10,8 +10,8 @@ This package is used by ESLint.
 
 ## Install
 
-```
-$ npm install globals
+```sh
+npm install globals
 ```
 
 ## Usage
@@ -42,15 +42,3 @@ For Node.js this package provides two sets of globals:
 	See: https://nodejs.org/api/modules.html#modules_the_module_scope
 
 When analyzing code that is known to run outside of a CommonJS wrapper, for example, JavaScript modules, `nodeBuiltin` can find accidental CommonJS references.
-
----
-
-<div align="center">
-	<b>
-		<a href="https://tidelift.com/subscription/pkg/npm-globals?utm_source=npm-globals&utm_medium=referral&utm_campaign=readme">Get professional support for this package with a Tidelift subscription</a>
-	</b>
-	<br>
-	<sub>
-		Tidelift helps make open source sustainable for maintainers while giving companies<br>assurances about security, maintenance, and licensing for their dependencies.
-	</sub>
-</div>

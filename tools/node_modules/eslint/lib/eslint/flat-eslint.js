@@ -11,6 +11,7 @@
 
 // Note: Node.js 12 does not support fs/promises.
 const fs = require("fs").promises;
+const { existsSync } = require("fs");
 const path = require("path");
 const findUp = require("find-up");
 const { version } = require("../../package.json");
@@ -83,7 +84,6 @@ const LintResultCache = require("../cli-engine/lint-result-cache");
  *      doesn't do any config file lookup when `true`; considered to be a config filename
  *      when a string.
  * @property {Record<string,Plugin>} [plugins] An array of plugin implementations.
- * @property {"error" | "warn" | "off"} [reportUnusedDisableDirectives] the severity to report unused eslint-disable directives.
  * @property {boolean} warnIgnored Show warnings when the file list includes ignored files
  */
 
@@ -448,7 +448,6 @@ async function calculateConfigArray(eslint, {
  * @param {FlatConfigArray} config.configs The config.
  * @param {boolean} config.fix If `true` then it does fix.
  * @param {boolean} config.allowInlineConfig If `true` then it uses directive comments.
- * @param {boolean} config.reportUnusedDisableDirectives If `true` then it reports unused `eslint-disable` comments.
  * @param {Linter} config.linter The linter instance to verify.
  * @returns {LintResult} The result of linting.
  * @private
@@ -460,7 +459,6 @@ function verifyText({
     configs,
     fix,
     allowInlineConfig,
-    reportUnusedDisableDirectives,
     linter
 }) {
     const filePath = providedFilePath || "<text>";
@@ -480,7 +478,6 @@ function verifyText({
             allowInlineConfig,
             filename: filePathToVerify,
             fix,
-            reportUnusedDisableDirectives,
 
             /**
              * Check if the linter should adopt a given code block or not.
@@ -748,7 +745,6 @@ class FlatESLint {
             cwd,
             fix,
             fixTypes,
-            reportUnusedDisableDirectives,
             globInputPaths,
             errorOnUnmatchedPattern,
             warnIgnored
@@ -766,7 +762,7 @@ class FlatESLint {
                 const errorCode = error && error.code;
 
                 // Ignore errors when no such file exists or file system is read only (and cache file does not exist)
-                if (errorCode !== "ENOENT" && !(errorCode === "EROFS" && !(await fs.exists(cacheFilePath)))) {
+                if (errorCode !== "ENOENT" && !(errorCode === "EROFS" && !existsSync(cacheFilePath))) {
                     throw error;
                 }
             }
@@ -858,7 +854,6 @@ class FlatESLint {
                             cwd,
                             fix: fixer,
                             allowInlineConfig,
-                            reportUnusedDisableDirectives,
                             linter
                         });
 
@@ -943,7 +938,6 @@ class FlatESLint {
             allowInlineConfig,
             cwd,
             fix,
-            reportUnusedDisableDirectives,
             warnIgnored: constructorWarnIgnored
         } = eslintOptions;
         const results = [];
@@ -967,7 +961,6 @@ class FlatESLint {
                 cwd,
                 fix,
                 allowInlineConfig,
-                reportUnusedDisableDirectives,
                 linter
             }));
         }
