@@ -10,7 +10,7 @@ const net = require('net');
 
 process.on('warning', common.mustNotCall());
 
-const socketListener = (socket) => {
+function socketListener(socket) {
   const firstByte = socket.read(1);
   if (firstByte === null) {
     socket.once('readable', () => {
@@ -21,7 +21,7 @@ const socketListener = (socket) => {
 
   socket.unshift(firstByte);
   httpServer.emit('connection', socket);
-};
+}
 
 const netServer = net.createServer(socketListener);
 const httpServer = http.createServer(common.mustNotCall());
@@ -40,7 +40,7 @@ httpServer.once('clientError', common.mustCall((err, socket) => {
   }));
 }));
 
-netServer.listen(0, () => {
+netServer.listen(0, common.mustCall(() => {
   const socket = net.createConnection(netServer.address().port);
 
   socket.on('connect', common.mustCall(() => {
@@ -52,4 +52,4 @@ netServer.listen(0, () => {
   });
 
   socket.resume();
-});
+}));
