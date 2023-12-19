@@ -1,4 +1,4 @@
-# Node.js
+## Node.js
 
 Node.js is an open-source, cross-platform JavaScript runtime environment.
 
@@ -13,7 +13,7 @@ opinions and compromise. The [TSC](./GOVERNANCE.md#technical-steering-committee)
 reserves the right to limit or block contributors who repeatedly act in ways
 that discourage, exhaust, or otherwise negatively affect other participants.
 
-**This project has a [Code of Conduct][].**
+**This project has a [Code of Conduct][]**
 
 ## Table of contents
 
@@ -62,12 +62,12 @@ member of the Release Team [signs](#release-keys) each Current and LTS release.
 For more information, see the
 [Release README](https://github.com/nodejs/Release#readme).
 
-### Download
+## Download
 
 Binaries, installers, and source tarballs are available at
 <https://nodejs.org/en/download/>.
 
-#### Current and LTS releases
+## Current and LTS releases
 
 <https://nodejs.org/download/release/>
 
@@ -77,21 +77,21 @@ alias for the latest release from an LTS line. For example, the
 [latest-hydrogen](https://nodejs.org/download/release/latest-hydrogen/)
 directory contains the latest Hydrogen (Node.js 18) release.
 
-#### Nightly releases
+## Nightly releases
 
 <https://nodejs.org/download/nightly/>
 
 Each directory name and filename contains a date (in UTC) and the commit
 SHA at the HEAD of the release.
 
-#### API documentation
+## API documentation
 
 Documentation for the latest Current release is at <https://nodejs.org/api/>.
 Version-specific documentation is available in each release directory in the
 _docs_ subdirectory. Version-specific documentation is also at
 <https://nodejs.org/download/docs/>.
 
-### Verifying binaries
+## Verifying binaries
 
 Download directories contain a `SHASUMS256.txt` file with SHA checksums for the
 files.
@@ -156,9 +156,9 @@ For information about the governance of the Node.js project, see
      list. If the format changes, those utilities need to be tested and
      updated. -->
 
-### TSC (Technical Steering Committee)
+## TSC (Technical Steering Committee)
 
-#### TSC voting members
+## TSC voting members
 
 <!--lint disable prohibited-strings-->
 
@@ -203,7 +203,7 @@ For information about the governance of the Node.js project, see
 * [tniessen](https://github.com/tniessen) -
   **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
 
-#### TSC regular members
+## TSC regular members
 
 * [BethGriggs](https://github.com/BethGriggs) -
   **Beth Griggs** <<bethanyngriggs@gmail.com>> (she/her)
@@ -238,7 +238,7 @@ For information about the governance of the Node.js project, see
 
 <summary>TSC emeriti members</summary>
 
-#### TSC emeriti members
+## TSC emeriti members
 
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
@@ -281,7 +281,7 @@ For information about the governance of the Node.js project, see
      of the collaborator list. If the format changes, those utilities need to be
      tested and updated. -->
 
-### Collaborators
+## Collaborators
 
 * [addaleax](https://github.com/addaleax) -
   **Anna Henningsen** <<anna@addaleax.net>> (she/her)
@@ -485,6 +485,8 @@ For information about the governance of the Node.js project, see
   **Yash Ladha** <<yash@yashladha.in>> (he/him)
 * [ZYSzys](https://github.com/ZYSzys) -
   **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
+* [Stebinraj](https://github.com/Stebinraj) -
+  **STEBIN RAJ** <<stebinraj22@gmail.com>> (he/him)
 
 <details>
 
@@ -493,7 +495,7 @@ For information about the governance of the Node.js project, see
 <!-- find-inactive-collaborators.mjs depends on the format of the emeriti list.
      If the format changes, those utilities need to be tested and updated. -->
 
-### Collaborator emeriti
+## Collaborator emeriti
 
 * [ak239](https://github.com/ak239) -
   **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
@@ -707,7 +709,7 @@ For information about the governance of the Node.js project, see
 Collaborators follow the [Collaborator Guide](./doc/contributing/collaborator-guide.md) in
 maintaining the Node.js project.
 
-### Triagers
+## Triagers
 
 * [atlowChemi](https://github.com/atlowChemi) -
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
@@ -745,7 +747,7 @@ maintaining the Node.js project.
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
 
-### Release keys
+## Release keys
 
 Primary GPG keys for Node.js Releasers (some Releasers sign with subkeys):
 
@@ -826,7 +828,7 @@ verify a downloaded file.
 
 </details>
 
-### Security release stewards
+## Security release stewards
 
 When possible, the commitment to take slots in the
 security release steward rotation is made by companies in order
