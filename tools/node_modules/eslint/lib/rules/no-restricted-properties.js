@@ -142,40 +142,27 @@ module.exports = {
             }
         }
 
-        /**
-         * Checks property accesses in a destructuring assignment expression, e.g. `var foo; ({foo} = bar);`
-         * @param {ASTNode} node An AssignmentExpression or AssignmentPattern node
-         * @returns {undefined}
-         */
-        function checkDestructuringAssignment(node) {
-            if (node.right.type === "Identifier") {
-                const objectName = node.right.name;
-
-                if (node.left.type === "ObjectPattern") {
-                    node.left.properties.forEach(property => {
-                        checkPropertyAccess(node.left, objectName, astUtils.getStaticPropertyName(property));
-                    });
-                }
-            }
-        }
-
         return {
             MemberExpression(node) {
                 checkPropertyAccess(node, node.object && node.object.name, astUtils.getStaticPropertyName(node));
             },
-            VariableDeclarator(node) {
-                if (node.init && node.init.type === "Identifier") {
-                    const objectName = node.init.name;
+            ObjectPattern(node) {
+                let objectName = null;
 
-                    if (node.id.type === "ObjectPattern") {
-                        node.id.properties.forEach(property => {
-                            checkPropertyAccess(node.id, objectName, astUtils.getStaticPropertyName(property));
-                        });
+                if (node.parent.type === "VariableDeclarator") {
+                    if (node.parent.init && node.parent.init.type === "Identifier") {
+                        objectName = node.parent.init.name;
+                    }
+                } else if (node.parent.type === "AssignmentExpression" || node.parent.type === "AssignmentPattern") {
+                    if (node.parent.right.type === "Identifier") {
+                        objectName = node.parent.right.name;
                     }
                 }
-            },
-            AssignmentExpression: checkDestructuringAssignment,
-            AssignmentPattern: checkDestructuringAssignment
+
+                node.properties.forEach(property => {
+                    checkPropertyAccess(node, objectName, astUtils.getStaticPropertyName(property));
+                });
+            }
         };
     }
 };

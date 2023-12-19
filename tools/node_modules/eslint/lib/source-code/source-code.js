@@ -213,24 +213,6 @@ function isSpaceBetween(sourceCode, first, second, checkInsideOfJSXText) {
 //-----------------------------------------------------------------------------
 
 /**
- * Extract the directive and the justification from a given directive comment and trim them.
- * @param {string} value The comment text to extract.
- * @returns {{directivePart: string, justificationPart: string}} The extracted directive and justification.
- */
-function extractDirectiveComment(value) {
-    const match = /\s-{2,}\s/u.exec(value);
-
-    if (!match) {
-        return { directivePart: value.trim(), justificationPart: "" };
-    }
-
-    const directive = value.slice(0, match.index).trim();
-    const justification = value.slice(match.index + match[0].length).trim();
-
-    return { directivePart: directive, justificationPart: justification };
-}
-
-/**
  * Ensures that variables representing built-in properties of the Global Object,
  * and any globals declared by special block comments, are present in the global
  * scope.
@@ -921,7 +903,7 @@ class SourceCode extends TokenStore {
                 return false;
             }
 
-            const { directivePart } = extractDirectiveComment(comment.value);
+            const { directivePart } = commentParser.extractDirectiveComment(comment.value);
 
             const directiveMatch = directivesPattern.exec(directivePart);
 
@@ -977,10 +959,7 @@ class SourceCode extends TokenStore {
 
         this.getInlineConfigNodes().forEach(comment => {
 
-            const { directivePart } = extractDirectiveComment(comment.value);
-            const match = directivesPattern.exec(directivePart);
-            const directiveText = match[1];
-            const directiveValue = directivePart.slice(match.index + directiveText.length);
+            const { directiveText, directiveValue } = commentParser.parseDirective(comment);
 
             switch (directiveText) {
                 case "exported":

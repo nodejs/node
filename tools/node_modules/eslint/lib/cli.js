@@ -22,7 +22,8 @@ const fs = require("fs"),
     { FlatESLint, shouldUseFlatConfig } = require("./eslint/flat-eslint"),
     createCLIOptions = require("./options"),
     log = require("./shared/logging"),
-    RuntimeInfo = require("./shared/runtime-info");
+    RuntimeInfo = require("./shared/runtime-info"),
+    { normalizeSeverityToString } = require("./shared/severity");
 const { Legacy: { naming } } = require("@eslint/eslintrc");
 const { ModuleImporter } = require("@humanwhocodes/module-importer");
 
@@ -89,6 +90,7 @@ async function translateOptions({
     plugin,
     quiet,
     reportUnusedDisableDirectives,
+    reportUnusedDisableDirectivesSeverity,
     resolvePluginsRelativeTo,
     rule,
     rulesdir,
@@ -124,6 +126,14 @@ async function translateOptions({
             },
             rules: rule ? rule : {}
         }];
+
+        if (reportUnusedDisableDirectives || reportUnusedDisableDirectivesSeverity !== void 0) {
+            overrideConfig[0].linterOptions = {
+                reportUnusedDisableDirectives: reportUnusedDisableDirectives
+                    ? "error"
+                    : normalizeSeverityToString(reportUnusedDisableDirectivesSeverity)
+            };
+        }
 
         if (parser) {
             overrideConfig[0].languageOptions.parser = await importer.import(parser);
@@ -177,8 +187,7 @@ async function translateOptions({
         fixTypes: fixType,
         ignore,
         overrideConfig,
-        overrideConfigFile,
-        reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0
+        overrideConfigFile
     };
 
     if (configType === "flat") {
@@ -190,6 +199,11 @@ async function translateOptions({
         options.useEslintrc = eslintrc;
         options.extensions = ext;
         options.ignorePath = ignorePath;
+        if (reportUnusedDisableDirectives || reportUnusedDisableDirectivesSeverity !== void 0) {
+            options.reportUnusedDisableDirectives = reportUnusedDisableDirectives
+                ? "error"
+                : normalizeSeverityToString(reportUnusedDisableDirectivesSeverity);
+        }
     }
 
     return options;
@@ -383,6 +397,11 @@ const cli = {
         }
         if (options.fixType && !options.fix && !options.fixDryRun) {
             log.error("The --fix-type option requires either --fix or --fix-dry-run.");
+            return 2;
+        }
+
+        if (options.reportUnusedDisableDirectives && options.reportUnusedDisableDirectivesSeverity !== void 0) {
+            log.error("The --report-unused-disable-directives option and the --report-unused-disable-directives-severity option cannot be used together.");
             return 2;
         }
 
