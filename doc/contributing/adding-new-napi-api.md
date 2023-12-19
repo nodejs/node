@@ -51,3 +51,16 @@ Node-API.
       to the decision to take an API out of experimental status.
     * The API **must** be implemented in a Node.js implementation with an
       alternate VM.
+
+Since the adoption of the policy whereby moving to a later version of Node-API
+from an earlier version may entail rework of existing code, it is possible to
+introduce modifications to already-released Node-APIs, as long as the
+modifications affect neither the ABI nor the API of earlier versions. Such
+modifications **must** be accompanied by an opt-out flag. This provides add-on
+maintainers who take advantage of the initial compile-time flag to track
+impending changes to Node-API with
+
+* a quick fix to the breakage caused,
+* a notification that such breakage is impending, and thus
+* a buffer to adoption above and beyond the one provided by the initial
+  compile-time flag.

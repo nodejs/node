@@ -20,6 +20,15 @@ static void Finalize(napi_env env, void* data, void* hint) {
   free(ref);
 }
 
+static void NogcFinalize(node_api_nogc_env env, void* data, void* hint) {
+#ifdef NAPI_EXPERIMENTAL
+  NODE_API_NOGC_CALL_RETURN_VOID(
+      env, node_api_post_finalizer(env, Finalize, data, hint));
+#else
+  Finalize(env, data, hint);
+#endif
+}
+
 static napi_value CreateRef(napi_env env, napi_callback_info info) {
   size_t argc = 1;
   napi_value cb;
@@ -30,7 +39,7 @@ static napi_value CreateRef(napi_env env, napi_callback_info info) {
   NODE_API_CALL(env, napi_typeof(env, cb, &value_type));
   NODE_API_ASSERT(
       env, value_type == napi_function, "argument must be function");
-  NODE_API_CALL(env, napi_add_finalizer(env, cb, ref, Finalize, NULL, ref));
+  NODE_API_CALL(env, napi_add_finalizer(env, cb, ref, NogcFinalize, NULL, ref));
   return cb;
 }
 
