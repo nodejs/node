@@ -1155,10 +1155,10 @@ import path from 'node:path';
 
 run({ files: [path.resolve('./tests/test.js')] })
  .on('test:fail', () => {
-    process.exitCode = 1
-  })
-  .compose(tap)
-  .pipe(process.stdout);
+   process.exitCode = 1;
+ })
+ .compose(tap)
+ .pipe(process.stdout);
 ```
 
 ```cjs
@@ -1167,11 +1167,11 @@ const { run } = require('node:test');
 const path = require('node:path');
 
 run({ files: [path.resolve('./tests/test.js')] })
-  .on('test:fail', () => {
-    process.exitCode = 1
-  })
-  .compose(tap)
-  .pipe(process.stdout);
+ .on('test:fail', () => {
+   process.exitCode = 1;
+ })
+ .compose(tap)
+ .pipe(process.stdout);
 ```
 
 ## `test([name][, options][, fn])`
