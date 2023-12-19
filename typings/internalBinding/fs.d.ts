@@ -260,7 +260,6 @@ export interface FsBinding {
   fsync: typeof InternalFSBinding.fsync;
   ftruncate: typeof InternalFSBinding.ftruncate;
   futimes: typeof InternalFSBinding.futimes;
-  internalModuleReadJSON: typeof InternalFSBinding.internalModuleReadJSON;
   internalModuleStat: typeof InternalFSBinding.internalModuleStat;
   lchown: typeof InternalFSBinding.lchown;
   link: typeof InternalFSBinding.link;
