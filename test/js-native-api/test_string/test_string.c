@@ -294,6 +294,23 @@ static napi_value TestUtf16Insufficient(napi_env env, napi_callback_info info) {
   return output;
 }
 
+static napi_value TestPropertyKeyUtf16(napi_env env, napi_callback_info info) {
+  return TestTwoByteImpl(env,
+                         info,
+                         napi_get_value_string_utf16,
+                         node_api_create_property_key_utf16,
+                         actual_length);
+}
+
+static napi_value TestPropertyKeyUtf16AutoLength(napi_env env,
+                                                 napi_callback_info info) {
+  return TestTwoByteImpl(env,
+                         info,
+                         napi_get_value_string_utf16,
+                         node_api_create_property_key_utf16,
+                         auto_length);
+}
+
 static napi_value Utf16Length(napi_env env, napi_callback_info info) {
   napi_value args[1];
   NODE_API_CALL(env, validate_and_retrieve_single_string_arg(env, info, args));
@@ -410,6 +427,9 @@ napi_value Init(napi_env env, napi_value exports) {
       DECLARE_NODE_API_PROPERTY("TestLargeLatin1", TestLargeLatin1),
       DECLARE_NODE_API_PROPERTY("TestLargeUtf16", TestLargeUtf16),
       DECLARE_NODE_API_PROPERTY("TestMemoryCorruption", TestMemoryCorruption),
+      DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf16", TestPropertyKeyUtf16),
+      DECLARE_NODE_API_PROPERTY("TestPropertyKeyUtf16AutoLength",
+                                TestPropertyKeyUtf16AutoLength),
   };
 
   init_test_null(env, exports);
