@@ -869,33 +869,3 @@ license text.
 [Strategic initiatives]: doc/contributing/strategic-initiatives.md
 [Technical values and prioritization]: doc/contributing/technical-values.md
 [Working Groups]: https://github.com/nodejs/TSC/blob/HEAD/WORKING_GROUPS.md
-
-
-## Remember
-
-Usally, you will need `npm` to download dependencies, and ocassionally, 
-you will need `npx` to run scripts, also keep in mind that you may define custom scripts
-in the package.json file such as `dev` or `start`.
-
-you may also want to practice in the repl
-
-### Common commands
-
-```bash
-npm run <local-script>
-  npm run dev
-  npm run start
-npx <downloaded-script>
-  npx create-react-app
-  npx create-next-app
-npm install <package>
-  npm install sass
-  npm install tailwind
-
-npm init -y
-```
-
-
-#### Thank you
-
-**Thank *you* for reading the `Node.js` README**
