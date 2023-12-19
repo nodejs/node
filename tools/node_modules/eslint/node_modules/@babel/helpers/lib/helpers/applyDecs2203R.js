@@ -4,6 +4,8 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = applyDecs2203R;
+var _setFunctionName = require("setFunctionName");
+var _toPropertyKey = require("toPropertyKey");
 function applyDecs2203RFactory() {
   function createAddInitializerMethod(initializers, decoratorFinishedRef) {
     return function addInitializer(initializer) {
@@ -32,7 +34,7 @@ function applyDecs2203RFactory() {
     }
     var ctx = {
       kind: kindStr,
-      name: isPrivate ? "#" + name : name,
+      name: isPrivate ? "#" + name : _toPropertyKey(name),
       static: isStatic,
       private: isPrivate
     };
@@ -124,25 +126,34 @@ function applyDecs2203RFactory() {
   }
   function applyMemberDec(ret, base, decInfo, name, kind, isStatic, isPrivate, initializers) {
     var decs = decInfo[0];
-    var desc, init, value;
+    var desc, init, prefix, value;
     if (isPrivate) {
       if (kind === 0 || kind === 1) {
         desc = {
           get: decInfo[3],
           set: decInfo[4]
         };
+        prefix = "get";
       } else if (kind === 3) {
         desc = {
           get: decInfo[3]
         };
+        prefix = "get";
       } else if (kind === 4) {
         desc = {
           set: decInfo[3]
         };
+        prefix = "set";
       } else {
         desc = {
           value: decInfo[3]
         };
+      }
+      if (kind !== 0) {
+        if (kind === 1) {
+          _setFunctionName(decInfo[4], "#" + name, "set");
+        }
+        _setFunctionName(decInfo[3], "#" + name, prefix);
       }
     } else if (kind !== 0) {
       desc = Object.getOwnPropertyDescriptor(base, name);

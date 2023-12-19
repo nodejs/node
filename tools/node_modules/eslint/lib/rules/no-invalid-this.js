@@ -96,7 +96,7 @@ module.exports = {
 
                 if (codePath.origin === "program") {
                     const scope = sourceCode.getScope(node);
-                    const features = context.parserOptions.ecmaFeatures || {};
+                    const features = context.languageOptions.parserOptions.ecmaFeatures || {};
 
                     // `this` at the top level of scripts always refers to the global object
                     stack.push({

@@ -15,7 +15,10 @@ const levn = require("levn"),
         Legacy: {
             ConfigOps
         }
-    } = require("@eslint/eslintrc/universal");
+    } = require("@eslint/eslintrc/universal"),
+    {
+        directivesPattern
+    } = require("../shared/directives");
 
 const debug = require("debug")("eslint:config-comment-parser");
 
@@ -148,4 +151,35 @@ module.exports = class ConfigCommentParser {
         return items;
     }
 
+    /**
+     * Extract the directive and the justification from a given directive comment and trim them.
+     * @param {string} value The comment text to extract.
+     * @returns {{directivePart: string, justificationPart: string}} The extracted directive and justification.
+     */
+    extractDirectiveComment(value) {
+        const match = /\s-{2,}\s/u.exec(value);
+
+        if (!match) {
+            return { directivePart: value.trim(), justificationPart: "" };
+        }
+
+        const directive = value.slice(0, match.index).trim();
+        const justification = value.slice(match.index + match[0].length).trim();
+
+        return { directivePart: directive, justificationPart: justification };
+    }
+
+    /**
+     * Parses a directive comment into directive text and value.
+     * @param {Comment} comment The comment node with the directive to be parsed.
+     * @returns {{directiveText: string, directiveValue: string}} The directive text and value.
+     */
+    parseDirective(comment) {
+        const { directivePart } = this.extractDirectiveComment(comment.value);
+        const match = directivesPattern.exec(directivePart);
+        const directiveText = match[1];
+        const directiveValue = directivePart.slice(match.index + directiveText.length);
+
+        return { directiveText, directiveValue };
+    }
 };

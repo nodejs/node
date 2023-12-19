@@ -209,12 +209,15 @@ module.exports = {
                         });
                     }
 
-                    suggest.push({
-                        messageId: "wrapBraces",
-                        fix(fixer) {
-                            return curlyWrapFixer(sourceCode, node, fixer);
-                        }
-                    });
+                    // Do not suggest wrapping an unnamed FunctionExpression in braces as that would be invalid syntax.
+                    if (!(node.body.type === "FunctionExpression" && !node.body.id)) {
+                        suggest.push({
+                            messageId: "wrapBraces",
+                            fix(fixer) {
+                                return curlyWrapFixer(sourceCode, node, fixer);
+                            }
+                        });
+                    }
 
                     context.report({
                         node: node.body,
