@@ -58,6 +58,8 @@ const jobs = [];
 for await (const dirent of await fs.opendir(directory)) {
   if (dirent.isDirectory()) {
     jobs.push(() => buildAddon(path.join(directory, dirent.name)));
+  } else if (dirent.isFile() && dirent.name === 'binding.gyp') {
+    jobs.push(() => buildAddon(directory));
   }
 }
 await parallel(jobs, parallelization);
