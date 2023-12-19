@@ -675,7 +675,6 @@ function processOptions({
     overrideConfig = null,
     overrideConfigFile = null,
     plugins = {},
-    reportUnusedDisableDirectives = null, // ← should be null by default because if it's a string then it overrides the 'reportUnusedDisableDirectives' setting in config files. And we cannot use `overrideConfig.reportUnusedDisableDirectives` instead because we cannot configure the `error` severity with that.
     warnIgnored = true,
     ...unknownOptions
 }) {
@@ -719,6 +718,9 @@ function processOptions({
         }
         if (unknownOptionKeys.includes("rulePaths")) {
             errors.push("'rulePaths' has been removed. Please define your rules using plugins.");
+        }
+        if (unknownOptionKeys.includes("reportUnusedDisableDirectives")) {
+            errors.push("'reportUnusedDisableDirectives' has been removed. Please use the 'overrideConfig.linterOptions.reportUnusedDisableDirectives' option instead.");
         }
     }
     if (typeof allowInlineConfig !== "boolean") {
@@ -774,14 +776,6 @@ function processOptions({
     if (Array.isArray(plugins)) {
         errors.push("'plugins' doesn't add plugins to configuration to load. Please use the 'overrideConfig.plugins' option instead.");
     }
-    if (
-        reportUnusedDisableDirectives !== "error" &&
-        reportUnusedDisableDirectives !== "warn" &&
-        reportUnusedDisableDirectives !== "off" &&
-        reportUnusedDisableDirectives !== null
-    ) {
-        errors.push("'reportUnusedDisableDirectives' must be any of \"error\", \"warn\", \"off\", and null.");
-    }
     if (typeof warnIgnored !== "boolean") {
         errors.push("'warnIgnored' must be a boolean.");
     }
@@ -806,7 +800,6 @@ function processOptions({
         globInputPaths,
         ignore,
         ignorePatterns,
-        reportUnusedDisableDirectives,
         warnIgnored
     };
 }
