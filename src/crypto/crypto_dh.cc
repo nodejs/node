@@ -153,13 +153,11 @@ bool DiffieHellman::Init(BignumPointer&& bn_p, int g) {
 bool DiffieHellman::Init(const char* p, int p_len, int g) {
   dh_.reset(DH_new());
   if (p_len <= 0) {
-    ERR_put_error(ERR_LIB_BN, BN_F_BN_GENERATE_PRIME_EX,
-      BN_R_BITS_TOO_SMALL, __FILE__, __LINE__);
+    ERR_put_error(ERR_LIB_BN, 0, BN_R_BITS_TOO_SMALL, __FILE__, __LINE__);
     return false;
   }
   if (g <= 1) {
-    ERR_put_error(ERR_LIB_DH, DH_F_DH_BUILTIN_GENPARAMS,
-      DH_R_BAD_GENERATOR, __FILE__, __LINE__);
+    ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
     return false;
   }
   BIGNUM* bn_p =
@@ -177,21 +175,18 @@ bool DiffieHellman::Init(const char* p, int p_len, int g) {
 bool DiffieHellman::Init(const char* p, int p_len, const char* g, int g_len) {
   dh_.reset(DH_new());
   if (p_len <= 0) {
-    ERR_put_error(ERR_LIB_BN, BN_F_BN_GENERATE_PRIME_EX,
-      BN_R_BITS_TOO_SMALL, __FILE__, __LINE__);
+    ERR_put_error(ERR_LIB_BN, 0, BN_R_BITS_TOO_SMALL, __FILE__, __LINE__);
     return false;
   }
   if (g_len <= 0) {
-    ERR_put_error(ERR_LIB_DH, DH_F_DH_BUILTIN_GENPARAMS,
-      DH_R_BAD_GENERATOR, __FILE__, __LINE__);
+    ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
     return false;
   }
   BIGNUM* bn_g =
       BN_bin2bn(reinterpret_cast<const unsigned char*>(g), g_len, nullptr);
   if (BN_is_zero(bn_g) || BN_is_one(bn_g)) {
     BN_free(bn_g);
-    ERR_put_error(ERR_LIB_DH, DH_F_DH_BUILTIN_GENPARAMS,
-      DH_R_BAD_GENERATOR, __FILE__, __LINE__);
+    ERR_put_error(ERR_LIB_DH, 0, DH_R_BAD_GENERATOR, __FILE__, __LINE__);
     return false;
   }
   BIGNUM* bn_p =
