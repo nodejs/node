@@ -2851,7 +2851,7 @@ added: v15.6.0
 
 * Type: {string}
 
-The date/time from which this certificate is considered valid.
+The date/time from which this certificate is valid.
 
 ### `x509.validTo`
 
@@ -2861,7 +2861,7 @@ added: v15.6.0
 
 * Type: {string}
 
-The date/time until which this certificate is considered valid.
+The date/time until which this certificate is valid.
 
 ### `x509.verify(publicKey)`
 
