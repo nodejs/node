@@ -2749,6 +2749,11 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(argc, 2);
 
   BufferValue tmpl(isolate, args[0]);
+  static constexpr const char* const suffix = "XXXXXX";
+  const auto length = tmpl.length();
+  tmpl.AllocateSufficientStorage(length + strlen(suffix));
+  snprintf(tmpl.out() + length, tmpl.length(), "%s", suffix);
+
   CHECK_NOT_NULL(*tmpl);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, tmpl.ToStringView());
