@@ -34,6 +34,10 @@ describe('ESM: module not found hint', { concurrency: true }, () => {
         expected: / "some_module\/folder%2525with%20percentage%3F\/index\.js"\?/,
       },
       {
+        input: 'import "@nodejsscope/pkg/index"',
+        expected: / "@nodejsscope\/pkg\/index\.js"\?/,
+      },
+      {
         input: 'import obj from "lone_file.js"',
         expected: /node_modules\/lone_file\.js"\?/,
       },
