@@ -15,14 +15,14 @@ describe('ESM: module not found hint', { concurrency: true }, () => {
         expected: / "\.\/print-error-message\.js"\?/,
       },
       {
-        input: 'import "./es-modules/folder%25with percentage?/index.js"',
-        // Did you mean to import "./es-modules/folder%2525with%20percentage%3F/index.js"?
-        expected: / "\.\/es-modules\/folder%2525with%20percentage%3F\/index\.js"\?/,
+        input: 'import "./es-modules/folder%25with percentage#/index.js"',
+        // Did you mean to import "./es-modules/folder%2525with%20percentage%23/index.js"?
+        expected: / "\.\/es-modules\/folder%2525with%20percentage%23\/index\.js"\?/,
       },
       {
-        input: 'import "../folder%25with percentage?/index.js"',
-        // Did you mean to import "../es-modules/folder%2525with%20percentage%3F/index.js"?
-        expected: / "\.\.\/folder%2525with%20percentage%3F\/index\.js"\?/,
+        input: 'import "../folder%25with percentage#/index.js"',
+        // Did you mean to import "../es-modules/folder%2525with%20percentage%23/index.js"?
+        expected: / "\.\.\/folder%2525with%20percentage%23\/index\.js"\?/,
         cwd: fixtureSubDir('es-modules/tla/'),
       },
       {
@@ -30,8 +30,8 @@ describe('ESM: module not found hint', { concurrency: true }, () => {
         expected: / "some_module\/obj\.js"\?/,
       },
       {
-        input: 'import obj from "some_module/folder%25with percentage?/index.js"',
-        expected: / "some_module\/folder%2525with%20percentage%3F\/index\.js"\?/,
+        input: 'import obj from "some_module/folder%25with percentage#/index.js"',
+        expected: / "some_module\/folder%2525with%20percentage%23\/index\.js"\?/,
       },
       {
         input: 'import "@nodejsscope/pkg/index"',
