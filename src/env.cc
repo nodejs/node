@@ -894,7 +894,9 @@ Environment::Environment(IsolateData* isolate_data,
     // The process shouldn't be able to neither
     // spawn/worker nor use addons or enable inspector
     // unless explicitly allowed by the user
-    options_->allow_native_addons = false;
+    if (!options_->allow_addons) {
+      options_->allow_native_addons = false;
+    }
     flags_ = flags_ | EnvironmentFlags::kNoCreateInspector;
     permission()->Apply({"*"}, permission::PermissionScope::kInspector);
     if (!options_->allow_child_process) {
