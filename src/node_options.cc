@@ -447,6 +447,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "allow permissions to write in the filesystem",
             &EnvironmentOptions::allow_fs_write,
             kAllowedInEnvvar);
+  AddOption("--allow-addons",
+            "allow use of addons when any permissions are set",
+            &EnvironmentOptions::allow_addons,
+            kAllowedInEnvvar);
   AddOption("--allow-child-process",
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
