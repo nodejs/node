@@ -691,6 +691,47 @@ added: v0.1.90
 Emitted when a socket connection is successfully established.
 See [`net.createConnection()`][].
 
+### Event: `'connectionAttempt'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ip` {number} The IP which the socket is attempting to connect to.
+* `port` {number} The port which the socket is attempting to connect to.
+* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+
+Emitted when a new connection attempt is started. This may be emitted multiple times
+if the family autoselection algorithm is enabled in [`socket.connect(options)`][].
+
+### Event: `'connectionAttemptFailed'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ip` {number} The IP which the socket attempted to connect to.
+* `port` {number} The port which the socket attempted to connect to.
+* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+  \* `error` {Error} The error associated with the failure.
+
+Emitted when a connection attempt failed. This may be emitted multiple times
+if the family autoselection algorithm is enabled in [`socket.connect(options)`][].
+
+### Event: `'connectionAttemptTimeout'`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `ip` {number} The IP which the socket attempted to connect to.
+* `port` {number} The port which the socket attempted to connect to.
+* `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
+
+Emitted when a connection attempt timed out. This is only emitted (and may be
+emitted multiple times) if the family autoselection algorithm is enabled
+in [`socket.connect(options)`][].
+
 ### Event: `'data'`
 
 <!-- YAML
@@ -963,8 +1004,7 @@ For TCP connections, available `options` are:
   obtained IPv6 and IPv4 addresses, in sequence, until a connection is established.
   The first returned AAAA address is tried first, then the first returned A address,
   then the second returned AAAA address and so on.
-  Each connection attempt is given the amount of time specified by the `autoSelectFamilyAttemptTimeout`
-  option before timing out and trying the next address.
+  Each connection attempt (but the last one) is given the amount of time specified by the `autoSelectFamilyAttemptTimeout` option before timing out and trying the next address.
   Ignored if the `family` option is not `0` or if `localAddress` is set.
   Connection errors are not emitted if at least one connection succeeds.
   If all connections attempts fails, a single `AggregateError` with all failed attempts is emitted.

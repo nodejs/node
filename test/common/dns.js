@@ -2,6 +2,7 @@
 
 const assert = require('assert');
 const os = require('os');
+const { isIP } = require('net');
 
 const types = {
   A: 1,
@@ -309,6 +310,25 @@ function errorLookupMock(code = mockedErrorCode, syscall = mockedSysCall) {
   };
 }
 
+function createMockedLookup(...addresses) {
+  addresses = addresses.map((address) => ({ address: address, family: isIP(address) }));
+
+  // Create a DNS server which replies with a AAAA and a A record for the same host
+  return function lookup(hostname, options, cb) {
+    if (options.all === true) {
+      process.nextTick(() => {
+        cb(null, addresses);
+      });
+
+      return;
+    }
+
+    process.nextTick(() => {
+      cb(null, addresses[0].address, addresses[0].family);
+    });
+  };
+}
+
 module.exports = {
   types,
   classes,
@@ -317,4 +337,5 @@ module.exports = {
   errorLookupMock,
   mockedErrorCode,
   mockedSysCall,
+  createMockedLookup,
 };
