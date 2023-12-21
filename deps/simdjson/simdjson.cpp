@@ -1,4 +1,4 @@
-/* auto-generated on 2023-12-01 13:55:28 -0500. Do not edit! */
+/* auto-generated on 2023-12-07 12:42:28 -0500. Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -9583,7 +9583,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -9782,7 +9782,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -15381,7 +15381,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -15580,7 +15580,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -19784,7 +19784,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -19983,7 +19983,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -25948,7 +25948,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -26147,7 +26147,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -32268,7 +32268,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -32467,7 +32467,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -38954,7 +38954,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
@@ -39153,7 +39153,7 @@ simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(c
       // Skip leading 0.00000 and see if it still overflows
       const uint8_t *start_digits = src + 2;
       while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
+      overflow = p-start_digits > 19;
     }
   } else {
     overflow = p-src > 19;
