@@ -564,26 +564,30 @@ be ignored. For example: `/home/*.js` will work similar to `/home/*`.
 
 There are constraints you need to know before using this system:
 
+* The model does not inherit to a child node process or a worker thread.
+* When using the Permission Model the following features will be restricted:
+  * Native modules
+  * Child process
+  * Worker Threads
+  * Inspector protocol
+  * File system access
+* The Permission Model is initialized after the Node.js environment is set up.
+  However, certain flags such as `--env-file` or `--openssl-config` are designed
+  to read files before environment initialization. As a result, such flags are
+  not subject to the rules of the Permission Model.
+* OpenSSL engines cannot be requested at runtime when the Permission
+  Model is enabled, affecting the built-in crypto, https, and tls modules.
+
+#### Limitations and Known Issues
+
 * When the permission model is enabled, Node.js may resolve some paths
   differently than when it is disabled.
-* Native modules are restricted by default when using the Permission Model.
-* OpenSSL engines currently cannot be requested at runtime when the Permission
-  Model is enabled, affecting the built-in crypto, https, and tls modules.
 * Relative paths are not supported through the CLI (`--allow-fs-*`).
-* The model does not inherit to a child node process.
-* The model does not inherit to a worker thread.
 * Symbolic links will be followed even to locations outside of the set of paths
   that access has been granted to. Relative symbolic links may allow access to
   arbitrary files and directories. When starting applications with the
   permission model enabled, you must ensure that no paths to which access has
   been granted contain relative symbolic links.
-* When creating symlinks the target (first argument) should have read and
-  write access.
-* Permission changes are not retroactively applied to existing resources.
-* The Permission Model is initialized after the Node.js environment is set up.
-  However, certain flags such as `--env-file` or `--openssl-config` are designed
-  to read files before environment initialization. As a result, such flags are
-  not subject to the rules of the Permission Model.
 
 [Import maps]: https://url.spec.whatwg.org/#relative-url-with-fragment-string
 [Security Policy]: https://github.com/nodejs/node/blob/main/SECURITY.md
