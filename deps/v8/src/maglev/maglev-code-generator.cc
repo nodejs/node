@@ -419,7 +419,11 @@ class ParallelMoveResolver {
   void EmitMovesFromSource(RegisterT source_reg, GapMoveTargets&& targets) {
     DCHECK(moves_from_register_[source_reg.code()].is_empty());
     if constexpr (DecompressIfNeeded) {
-      static_assert(COMPRESS_POINTERS_BOOL);
+      // The DecompressIfNeeded clause is redundant with the if-constexpr above,
+      // but otherwise this code cannot be compiled by compilers not yet
+      // implementing CWG2518.
+      static_assert(DecompressIfNeeded && COMPRESS_POINTERS_BOOL);
+
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(source_reg, source_reg);
       }
@@ -462,7 +466,11 @@ class ParallelMoveResolver {
     // Decompress after the first move, subsequent moves reuse this register so
     // they're guaranteed to be decompressed.
     if constexpr (DecompressIfNeeded) {
-      static_assert(COMPRESS_POINTERS_BOOL);
+      // The DecompressIfNeeded clause is redundant with the if-constexpr above,
+      // but otherwise this code cannot be compiled by compilers not yet
+      // implementing CWG2518.
+      static_assert(DecompressIfNeeded && COMPRESS_POINTERS_BOOL);
+
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(register_with_slot_value, register_with_slot_value);
         targets.needs_decompression = kDoesNotNeedDecompression;
