@@ -17,6 +17,7 @@
 /CONTRIBUTING.md @nodejs/tsc
 /doc/contributing/*.md @nodejs/tsc
 /GOVERNANCE.md @nodejs/tsc
+/SECURITY.md @nodejs/tsc
 /LICENSE @nodejs/tsc
 /onboarding.md @nodejs/tsc
 
