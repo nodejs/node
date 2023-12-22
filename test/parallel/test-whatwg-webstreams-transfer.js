@@ -464,12 +464,17 @@ const theData = 'hello';
       tracker.verify();
     });
 
+    // We create an interval to keep the event loop alive while
+    // we wait for the stream read to complete.
+    const i = setInterval(() => {}, 1000);
+
     parentPort.onmessage = tracker.calls(({ data }) => {
       assert(isReadableStream(data));
       const reader = data.getReader();
       reader.read().then(tracker.calls((result) => {
         assert(!result.done);
         assert(result.value instanceof Uint8Array);
+        clearInterval(i);
       }));
       parentPort.close();
     });
