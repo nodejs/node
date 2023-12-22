@@ -1,8 +1,7 @@
+#include <js_native_api.h>
 #include <limits.h>  // INT_MAX
 #include <stdlib.h>
 #include <string.h>
-#define NAPI_EXPERIMENTAL
-#include <js_native_api.h>
 #include "../common.h"
 #include "../entry_point.h"
 #include "test_null.h"
