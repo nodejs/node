@@ -138,36 +138,48 @@ void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, ArchOpcode, T) {
 
 template <typename Adapter>
 static void VisitRRI(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  int32_t imm = OpParameter<int32_t>(node->op());
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
+                     typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    int32_t imm = OpParameter<int32_t>(node->op());
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
+  }
 }
 
 template <typename Adapter>
 static void VisitSimdShift(InstructionSelectorT<Adapter>* selector,
-                           ArchOpcode opcode, Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  if (g.IsIntegerConstant(node->InputAt(1))) {
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseImmediate(node->InputAt(1)));
+                           ArchOpcode opcode, typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    selector->Emit(opcode, g.DefineAsRegister(node),
-                   g.UseRegister(node->InputAt(0)),
-                   g.UseRegister(node->InputAt(1)));
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    if (g.IsIntegerConstant(node->InputAt(1))) {
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(node->InputAt(0)),
+                     g.UseImmediate(node->InputAt(1)));
+    } else {
+      selector->Emit(opcode, g.DefineAsRegister(node),
+                     g.UseRegister(node->InputAt(0)),
+                     g.UseRegister(node->InputAt(1)));
+    }
   }
 }
 
 template <typename Adapter>
 static void VisitRRIR(InstructionSelectorT<Adapter>* selector,
-                      ArchOpcode opcode, Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  int32_t imm = OpParameter<int32_t>(node->op());
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
-                 g.UseRegister(node->InputAt(1)));
+                      ArchOpcode opcode, typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    int32_t imm = OpParameter<int32_t>(node->op());
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
+                   g.UseRegister(node->InputAt(1)));
+  }
 }
 
 static void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
@@ -185,20 +197,28 @@ void VisitRRR(InstructionSelectorT<TurboshaftAdapter>*, ArchOpcode, T) {
 
 template <typename Adapter>
 static void VisitUniqueRRR(InstructionSelectorT<Adapter>* selector,
-                           ArchOpcode opcode, Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseUniqueRegister(node->InputAt(0)),
-                 g.UseUniqueRegister(node->InputAt(1)));
+                           ArchOpcode opcode, typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    selector->Emit(opcode, g.DefineAsRegister(node),
+                   g.UseUniqueRegister(node->InputAt(0)),
+                   g.UseUniqueRegister(node->InputAt(1)));
+  }
 }
 
 template <typename Adapter>
 void VisitRRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-               Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(selector);
-  selector->Emit(
-      opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+               typename Adapter::node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(selector);
+    selector->Emit(
+        opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
+        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+  }
 }
 
 template <typename Adapter>
@@ -444,14 +464,19 @@ InstructionOperand EmitAddBeforeS128LoadStore(
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
   StoreLaneParameters params = StoreLaneParametersOf(node->op());
   LoadStoreLaneParams f(params.rep, params.laneidx);
   InstructionCode opcode = kMips64S128StoreLane;
   opcode |= MiscField::encode(f.sz);
 
-  Mips64OperandGeneratorT<Adapter> g(this);
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand addr = EmitAddBeforeS128LoadStore(this, node, &opcode);
   InstructionOperand inputs[4] = {
       g.UseRegister(node->InputAt(2)),
@@ -462,21 +487,31 @@ void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
   Emit(opcode, 0, nullptr, 4, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
   LoadLaneParameters params = LoadLaneParametersOf(node->op());
   LoadStoreLaneParams f(params.rep.representation(), params.laneidx);
   InstructionCode opcode = kMips64S128LoadLane;
   opcode |= MiscField::encode(f.sz);
 
-  Mips64OperandGeneratorT<Adapter> g(this);
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand addr = EmitAddBeforeS128LoadStore(this, node, &opcode);
   Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(2)),
        g.UseImmediate(f.laneidx), addr, g.TempImmediate(0));
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadTransform(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
 
   InstructionCode opcode = kArchNop;
@@ -528,52 +563,53 @@ void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
   EmitLoad(this, node, opcode);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoad(node_t node) {
+  UNIMPLEMENTED();
+}
 
-    InstructionCode opcode = kArchNop;
-    switch (load_rep.representation()) {
-      case MachineRepresentation::kFloat32:
-        opcode = kMips64Lwc1;
-        break;
-      case MachineRepresentation::kFloat64:
-        opcode = kMips64Ldc1;
-        break;
-      case MachineRepresentation::kBit:  // Fall through.
-      case MachineRepresentation::kWord8:
-        opcode = load_rep.IsUnsigned() ? kMips64Lbu : kMips64Lb;
-        break;
-      case MachineRepresentation::kWord16:
-        opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
-        break;
-      case MachineRepresentation::kWord32:
-        opcode = kMips64Lw;
-        break;
-      case MachineRepresentation::kTaggedSigned:   // Fall through.
-      case MachineRepresentation::kTaggedPointer:  // Fall through.
-      case MachineRepresentation::kTagged:         // Fall through.
-      case MachineRepresentation::kWord64:
-        opcode = kMips64Ld;
-        break;
-      case MachineRepresentation::kSimd128:
-        opcode = kMips64MsaLd;
-        break;
-      case MachineRepresentation::kSimd256:            // Fall through.
-      case MachineRepresentation::kCompressedPointer:  // Fall through.
-      case MachineRepresentation::kSandboxedPointer:   // Fall through.
-      case MachineRepresentation::kCompressed:         // Fall through.
-      case MachineRepresentation::kMapWord:            // Fall through.
-      case MachineRepresentation::kIndirectPointer:    // Fall through.
-      case MachineRepresentation::kNone:
-        UNREACHABLE();
-    }
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoad(Node* node) {
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
 
-    EmitLoad(this, node, opcode);
+  InstructionCode opcode = kArchNop;
+  switch (load_rep.representation()) {
+    case MachineRepresentation::kFloat32:
+      opcode = kMips64Lwc1;
+      break;
+    case MachineRepresentation::kFloat64:
+      opcode = kMips64Ldc1;
+      break;
+    case MachineRepresentation::kBit:  // Fall through.
+    case MachineRepresentation::kWord8:
+      opcode = load_rep.IsUnsigned() ? kMips64Lbu : kMips64Lb;
+      break;
+    case MachineRepresentation::kWord16:
+      opcode = load_rep.IsUnsigned() ? kMips64Lhu : kMips64Lh;
+      break;
+    case MachineRepresentation::kWord32:
+      opcode = kMips64Lw;
+      break;
+    case MachineRepresentation::kTaggedSigned:   // Fall through.
+    case MachineRepresentation::kTaggedPointer:  // Fall through.
+    case MachineRepresentation::kTagged:         // Fall through.
+    case MachineRepresentation::kWord64:
+      opcode = kMips64Ld;
+      break;
+    case MachineRepresentation::kSimd128:
+      opcode = kMips64MsaLd;
+      break;
+    case MachineRepresentation::kSimd256:            // Fall through.
+    case MachineRepresentation::kCompressedPointer:  // Fall through.
+    case MachineRepresentation::kSandboxedPointer:   // Fall through.
+    case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kMapWord:            // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
+    case MachineRepresentation::kNone:
+      UNREACHABLE();
   }
+
+  EmitLoad(this, node, opcode);
 }
 
 template <typename Adapter>
@@ -3365,8 +3401,15 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
   VisitAtomicStore(this, node, AtomicWidth::kWord64);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
@@ -3386,8 +3429,15 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Uint8()) {
@@ -3404,8 +3454,14 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord64);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
     Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
@@ -3422,12 +3478,17 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
   } else {
     UNREACHABLE();
   }
-
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
     Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
@@ -3472,12 +3533,12 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
   }
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                            \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) { \
-    VisitWord32AtomicBinaryOperation(                                     \
-        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16,  \
-        kAtomic##op##Uint16, kAtomic##op##Word32);                        \
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
+    VisitWord32AtomicBinaryOperation(                                      \
+        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16,   \
+        kAtomic##op##Uint16, kAtomic##op##Word32);                         \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -3512,7 +3573,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                                 \
   template <typename Adapter>                                                  \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) {      \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) {     \
     VisitWord64AtomicBinaryOperation(node, kAtomic##op##Uint8,                 \
                                      kAtomic##op##Uint16, kAtomic##op##Word32, \
                                      kMips64Word64Atomic##op##Uint64);         \
@@ -3700,9 +3761,14 @@ void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   V(S128Xor, kMips64S128Xor)                             \
   V(S128AndNot, kMips64S128AndNot)
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Const(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128Const(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS128Const(Node* node) {
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
@@ -3722,15 +3788,19 @@ void InstructionSelectorT<Adapter>::VisitS128Const(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Zero(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  Emit(kMips64S128Zero, g.DefineAsRegister(node));
+void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    Emit(kMips64S128Zero, g.DefineAsRegister(node));
+  }
 }
 
-#define SIMD_VISIT_SPLAT(Type)                                         \
-  template <typename Adapter>                                          \
-  void InstructionSelectorT<Adapter>::Visit##Type##Splat(Node* node) { \
-    VisitRR(this, kMips64##Type##Splat, node);                         \
+#define SIMD_VISIT_SPLAT(Type)                                          \
+  template <typename Adapter>                                           \
+  void InstructionSelectorT<Adapter>::Visit##Type##Splat(node_t node) { \
+    VisitRR(this, kMips64##Type##Splat, node);                          \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 #undef SIMD_VISIT_SPLAT
@@ -3738,7 +3808,7 @@ SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                           \
   template <typename Adapter>                                         \
   void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign( \
-      Node* node) {                                                   \
+      node_t node) {                                                  \
     VisitRRI(this, kMips64##Type##ExtractLane##Sign, node);           \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
@@ -3751,34 +3821,34 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                        \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(Node* node) { \
-    VisitRRIR(this, kMips64##Type##ReplaceLane, node);                       \
+#define SIMD_VISIT_REPLACE_LANE(Type)                                         \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
+    VisitRRIR(this, kMips64##Type##ReplaceLane, node);                        \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_UNOP(Name, instruction)                      \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRR(this, instruction, node);                           \
+#define SIMD_VISIT_UNOP(Name, instruction)                       \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRR(this, instruction, node);                            \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 
-#define SIMD_VISIT_SHIFT_OP(Name)                               \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitSimdShift(this, kMips64##Name, node);                  \
+#define SIMD_VISIT_SHIFT_OP(Name)                                \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitSimdShift(this, kMips64##Name, node);                   \
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-#define SIMD_VISIT_BINOP(Name, instruction)                     \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    VisitRRR(this, instruction, node);                          \
+#define SIMD_VISIT_BINOP(Name, instruction)                      \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRRR(this, instruction, node);                           \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
@@ -3798,16 +3868,16 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
   V(I32x4RelaxedLaneSelect)      \
   V(I64x2RelaxedLaneSelect)
 
-#define SIMD_VISIT_RELAXED_OP(Name)                             \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    UNREACHABLE();                                              \
+#define SIMD_VISIT_RELAXED_OP(Name)                              \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNREACHABLE();                                               \
   }
 SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
+void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
   VisitRRRR(this, kMips64S128Select, node);
 }
 
@@ -3819,10 +3889,10 @@ void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
   V(I16x8DotI8x16I7x16S)      \
   V(I32x4DotI8x16I7x16AddS)
 
-#define SIMD_VISIT_UNIMP_OP(Name)                               \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##Name(Node* node) { \
-    UNIMPLEMENTED();                                            \
+#define SIMD_VISIT_UNIMP_OP(Name)                                \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    UNIMPLEMENTED();                                             \
   }
 SIMD_UNIMP_OP_LIST(SIMD_VISIT_UNIMP_OP)
 
@@ -3909,8 +3979,13 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 }  // namespace
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -3924,7 +3999,7 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
   Node* input0 = node->InputAt(0);
   Node* input1 = node->InputAt(1);
   uint8_t offset;
-  Mips64OperandGeneratorT<Adapter> g(this);
+  Mips64OperandGeneratorT<TurbofanAdapter> g(this);
   if (wasm::SimdShuffle::TryMatchConcat(shuffle, &offset)) {
     Emit(kMips64S8x16Concat, g.DefineSameAsFirst(node), g.UseRegister(input1),
          g.UseRegister(input0), g.UseImmediate(offset));
@@ -3945,20 +4020,24 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
 }
 #else
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   UNREACHABLE();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
-  Mips64OperandGeneratorT<Adapter> g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  // We don't want input 0 or input 1 to be the same as output, since we will
-  // modify output before do the calculation.
-  Emit(kMips64I8x16Swizzle, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Mips64OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    // We don't want input 0 or input 1 to be the same as output, since we will
+    // modify output before do the calculation.
+    Emit(kMips64I8x16Swizzle, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
 template <typename Adapter>
@@ -3993,40 +4072,49 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {
   VisitUniqueRRR(this, kMips64F32x4Pmin, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF32x4Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF32x4Pmax(node_t node) {
   VisitUniqueRRR(this, kMips64F32x4Pmax, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Pmin(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2Pmin(node_t node) {
   VisitUniqueRRR(this, kMips64F64x2Pmin, node);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Pmax(Node* node) {
+void InstructionSelectorT<Adapter>::VisitF64x2Pmax(node_t node) {
   VisitUniqueRRR(this, kMips64F64x2Pmax, node);
 }
 
-#define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                                  \
-  template <typename Adapter>                                                  \
-  void InstructionSelectorT<Adapter>::Visit##OPCODE1##ExtMulLow##OPCODE2(      \
-      Node* node) {                                                            \
-    Mips64OperandGeneratorT<Adapter> g(this);                                  \
-    Emit(kMips64ExtMulLow | MiscField::encode(TYPE), g.DefineAsRegister(node), \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));    \
-  }                                                                            \
-  template <typename Adapter>                                                  \
-  void InstructionSelectorT<Adapter>::Visit##OPCODE1##ExtMulHigh##OPCODE2(     \
-      Node* node) {                                                            \
-    Mips64OperandGeneratorT<Adapter> g(this);                                  \
-    Emit(kMips64ExtMulHigh | MiscField::encode(TYPE),                          \
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),            \
-         g.UseRegister(node->InputAt(1)));                                     \
+#define VISIT_EXT_MUL(OPCODE1, OPCODE2, TYPE)                              \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##OPCODE1##ExtMulLow##OPCODE2(  \
+      node_t node) {                                                       \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      Mips64OperandGeneratorT<Adapter> g(this);                            \
+      Emit(kMips64ExtMulLow | MiscField::encode(TYPE),                     \
+           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),      \
+           g.UseRegister(node->InputAt(1)));                               \
+    }                                                                      \
+  }                                                                        \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::Visit##OPCODE1##ExtMulHigh##OPCODE2( \
+      node_t node) {                                                       \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      Mips64OperandGeneratorT<Adapter> g(this);                            \
+      Emit(kMips64ExtMulHigh | MiscField::encode(TYPE),                    \
+           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),      \
+           g.UseRegister(node->InputAt(1)));                               \
+    }                                                                      \
   }
 
 VISIT_EXT_MUL(I64x2, I32x4S, MSAS32)
@@ -4037,12 +4125,16 @@ VISIT_EXT_MUL(I16x8, I8x16S, MSAS8)
 VISIT_EXT_MUL(I16x8, I8x16U, MSAU8)
 #undef VISIT_EXT_MUL
 
-#define VISIT_EXTADD_PAIRWISE(OPCODE, TYPE)                          \
-  template <typename Adapter>                                        \
-  void InstructionSelectorT<Adapter>::Visit##OPCODE(Node* node) {    \
-    Mips64OperandGeneratorT<Adapter> g(this);                        \
-    Emit(kMips64ExtAddPairwise | MiscField::encode(TYPE),            \
-         g.DefineAsRegister(node), g.UseRegister(node->InputAt(0))); \
+#define VISIT_EXTADD_PAIRWISE(OPCODE, TYPE)                            \
+  template <typename Adapter>                                          \
+  void InstructionSelectorT<Adapter>::Visit##OPCODE(node_t node) {     \
+    if constexpr (Adapter::IsTurboshaft) {                             \
+      UNIMPLEMENTED();                                                 \
+    } else {                                                           \
+      Mips64OperandGeneratorT<Adapter> g(this);                        \
+      Emit(kMips64ExtAddPairwise | MiscField::encode(TYPE),            \
+           g.DefineAsRegister(node), g.UseRegister(node->InputAt(0))); \
+    }                                                                  \
   }
 VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16S, MSAS8)
 VISIT_EXTADD_PAIRWISE(I16x8ExtAddPairwiseI8x16U, MSAU8)

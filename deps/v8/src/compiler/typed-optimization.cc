@@ -212,7 +212,7 @@ Reduction TypedOptimization::ReduceCheckBounds(Node* node) {
 Reduction TypedOptimization::ReduceCheckNotTaggedHole(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type const input_type = NodeProperties::GetType(input);
-  if (!input_type.Maybe(Type::TheHole())) {
+  if (!input_type.Maybe(Type::Hole())) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }

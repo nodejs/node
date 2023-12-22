@@ -1029,22 +1029,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
                   kScratchRegister);
   __ j(not_equal, &compile_lazy);
 
-#ifndef V8_JITLESS
-  // Load the feedback vector from the closure.
-  Register feedback_vector = rbx;
-  TaggedRegister feedback_cell(feedback_vector);
-  __ LoadTaggedField(feedback_cell,
-                     FieldOperand(closure, JSFunction::kFeedbackCellOffset));
-  __ LoadTaggedField(feedback_vector,
-                     FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
-
   Label push_stack_frame;
-  // Check if feedback vector is valid. If valid, check for optimized code
-  // and update invocation count. Otherwise, setup the stack frame.
-  __ IsObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, rcx);
-  __ j(not_equal, &push_stack_frame);
+  Register feedback_vector = rbx;
+  __ LoadFeedbackVector(feedback_vector, closure, &push_stack_frame,
+                        Label::kNear);
 
-  // Check the tiering state.
+#ifndef V8_JITLESS
+  // If feedback vector is valid, check for optimized code and update invocation
+  // count.
   Label flags_need_processing;
   __ CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       feedback_vector, CodeKind::INTERPRETED_FUNCTION, &flags_need_processing);
@@ -1058,13 +1050,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
-  __ bind(&push_stack_frame);
 #else
   // Note: By omitting the above code in jitless mode we also disable:
   // - kFlagsLogNextExecution: only used for logging/profiling; and
   // - kInvocationCountOffset: only used for tiering heuristics and code
   //   coverage.
 #endif  // !V8_JITLESS
+
+  __ bind(&push_stack_frame);
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ pushq(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
@@ -1080,6 +1073,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(
   __ Push(kInterpreterBytecodeArrayRegister);
   __ SmiTag(rcx, kInterpreterBytecodeOffsetRegister);
   __ Push(rcx);
+
+  // Push feedback vector.
+  __ Push(feedback_vector);
 
   // Allocate the local and temporary register file on the stack.
   Label stack_overflow;
@@ -1710,7 +1706,8 @@ void Builtins::Generate_InterpreterEnterAtBytecode(MacroAssembler* masm) {
 
 // static
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
-  Register feedback_vector = r8;
+  Register feedback_cell = r8;
+  Register feedback_vector = r11;
   Register return_address = r15;
 
 #ifdef DEBUG
@@ -1723,8 +1720,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
   Register closure = descriptor.GetRegisterParameter(
       BaselineOutOfLinePrologueDescriptor::kClosure);
-  // Load the feedback vector from the closure.
-  TaggedRegister feedback_cell(feedback_vector);
+  // Load the feedback cell and vector from the closure.
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
@@ -1769,9 +1765,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
       Register bytecode_array = descriptor.GetRegisterParameter(
           BaselineOutOfLinePrologueDescriptor::kInterpreterBytecodeArray);
       __ Push(bytecode_array);
-
-      // Baseline code frames store the feedback vector where interpreter would
-      // store the bytecode offset.
+      __ Push(feedback_cell);
       __ Push(feedback_vector);
     }
 
@@ -1845,6 +1839,8 @@ void Builtins::Generate_BaselineOutOfLinePrologueDeopt(MacroAssembler* masm) {
   // We're here because we got deopted during BaselineOutOfLinePrologue's stack
   // check. Undo all its frame creation and call into the interpreter instead.
 
+  // Drop feedback vector.
+  __ Pop(kScratchRegister);
   // Drop bytecode offset (was the feedback vector but got replaced during
   // deopt).
   __ Pop(kScratchRegister);
@@ -2416,7 +2412,8 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
       Label convert_to_object, convert_receiver;
       __ movq(rcx, args.GetReceiverOperand());
       __ JumpIfSmi(rcx, &convert_to_object, Label::kNear);
-      __ JumpIfJSAnyIsNotPrimitive(rcx, rbx, &done_convert, Label::kNear);
+      __ JumpIfJSAnyIsNotPrimitive(rcx, rbx, &done_convert,
+                                   DEBUG_BOOL ? Label::kFar : Label::kNear);
       if (mode != ConvertReceiverMode::kNotNullOrUndefined) {
         Label convert_global_proxy;
         __ JumpIfRoot(rcx, RootIndex::kUndefinedValue, &convert_global_proxy,
@@ -4336,7 +4333,7 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
     // FunctionCallbackInfo::values_ (points at the first varargs argument
     // passed on the stack).
     __ leaq(holder,
-            Operand(holder, (FCA::kArgsLength + 1) * kSystemPointerSize));
+            Operand(holder, FCA::kArgsLengthWithReceiver * kSystemPointerSize));
     __ movq(ExitFrameStackSlotOperand(FCA::kValuesOffset), holder);
 
     // FunctionCallbackInfo::length_.
@@ -4350,9 +4347,8 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
                 (kApiStackSpace - 1) * kSystemPointerSize);
   __ leaq(kScratchRegister,
           Operand(argc, times_system_pointer_size,
-                  (FCA::kArgsLength + exit_frame_params_count) *
-                          kSystemPointerSize +
-                      kReceiverOnStackSize));
+                  (FCA::kArgsLengthWithReceiver + exit_frame_params_count) *
+                      kSystemPointerSize));
   __ movq(ExitFrameStackSlotOperand(kBytesToDropOffset), kScratchRegister);
 
   __ RecordComment("v8::FunctionCallback's argument.");
@@ -4374,9 +4370,10 @@ void Builtins::Generate_CallApiCallbackImpl(MacroAssembler* masm,
 
   const bool with_profiling =
       mode != CallApiCallbackMode::kOptimizedNoProfiling;
+  Label* no_done = nullptr;
   CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
                            thunk_ref, thunk_arg, kUseExitFrameStackSlotOperand,
-                           &stack_space_operand, return_value_operand);
+                           &stack_space_operand, return_value_operand, no_done);
 }
 
 void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
@@ -4491,9 +4488,10 @@ void Builtins::Generate_CallApiGetter(MacroAssembler* masm) {
   Operand* const kUseStackSpaceConstant = nullptr;
 
   const bool with_profiling = true;
-  CallApiFunctionAndReturn(masm, with_profiling, api_function_address,
-                           thunk_ref, thunk_arg, kStackUnwindSpace,
-                           kUseStackSpaceConstant, return_value_operand);
+  Label* no_done = nullptr;
+  CallApiFunctionAndReturn(
+      masm, with_profiling, api_function_address, thunk_ref, thunk_arg,
+      kStackUnwindSpace, kUseStackSpaceConstant, return_value_operand, no_done);
 }
 
 void Builtins::Generate_DirectCEntry(MacroAssembler* masm) {
@@ -4759,10 +4757,9 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     AssertCodeIsBaseline(masm, code_obj, r11);
   }
 
-  // Load the feedback vector.
+  // Load the feedback cell and feedback vector.
+  Register feedback_cell = r8;
   Register feedback_vector = r11;
-
-  TaggedRegister feedback_cell(feedback_vector);
   __ LoadTaggedField(feedback_cell,
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
@@ -4774,12 +4771,20 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
   __ IsObjectType(feedback_vector, FEEDBACK_VECTOR_TYPE, kScratchRegister);
   __ j(not_equal, &install_baseline_code);
 
-  // Save BytecodeOffset from the stack frame.
+  // Save bytecode offset from the stack frame.
   __ SmiUntagUnsigned(
       kInterpreterBytecodeOffsetRegister,
       MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
-  // Replace BytecodeOffset with the feedback vector.
-  __ movq(MemOperand(rbp, InterpreterFrameConstants::kBytecodeOffsetFromFp),
+  // Replace bytecode offset with feedback cell.
+  static_assert(InterpreterFrameConstants::kBytecodeOffsetFromFp ==
+                BaselineFrameConstants::kFeedbackCellFromFp);
+  __ movq(MemOperand(rbp, BaselineFrameConstants::kFeedbackCellFromFp),
+          feedback_cell);
+  feedback_cell = no_reg;
+  // Update feedback vector cache.
+  static_assert(InterpreterFrameConstants::kFeedbackVectorFromFp ==
+                BaselineFrameConstants::kFeedbackVectorFromFp);
+  __ movq(MemOperand(rbp, InterpreterFrameConstants::kFeedbackVectorFromFp),
           feedback_vector);
   feedback_vector = no_reg;
 

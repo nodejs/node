@@ -269,14 +269,6 @@ void JSGenericLowering::LowerJSHasProperty(Node* node) {
   }
 }
 
-bool HasStringType(Node* key) {
-  if (key->opcode() == IrOpcode::kLoadElement) {
-    ElementAccess const& access = ElementAccessOf(key->op());
-    return access.type.Is(Type::String());
-  }
-  return false;
-}
-
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   JSLoadPropertyNode n(node);
   const PropertyAccess& p = n.Parameters();
@@ -289,18 +281,14 @@ void JSGenericLowering::LowerJSLoadProperty(Node* node) {
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
         node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
-                  ? (HasStringType(n->InputAt(1))
-                         ? Builtin::kKeyedLoadICTrampoline_MegamorphicStringKey
-                         : Builtin::kKeyedLoadICTrampoline_Megamorphic)
+                  ? Builtin::kKeyedLoadICTrampoline_Megamorphic
                   : Builtin::kKeyedLoadICTrampoline);
   } else {
     n->InsertInput(zone(), 2,
                    jsgraph()->TaggedIndexConstant(p.feedback().index()));
     ReplaceWithBuiltinCall(
         node, ShouldUseMegamorphicLoadBuiltin(p.feedback(), {}, broker())
-                  ? (HasStringType(n->InputAt(1))
-                         ? Builtin::kKeyedLoadIC_MegamorphicStringKey
-                         : Builtin::kKeyedLoadIC_Megamorphic)
+                  ? Builtin::kKeyedLoadIC_Megamorphic
                   : Builtin::kKeyedLoadIC);
   }
 }
@@ -1201,15 +1189,12 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   // function takes an offset argument which is subtracted from the stack
   // pointer prior to the stack check (i.e. the check is `sp - offset >=
   // limit`).
+  Runtime::FunctionId builtin = GetBuiltinForStackCheckKind(stack_check_kind);
   if (stack_check_kind == StackCheckKind::kJSFunctionEntry) {
     node->InsertInput(zone(), 0,
                       graph()->NewNode(machine()->LoadStackCheckOffset()));
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuardWithGap);
-  } else if (stack_check_kind == StackCheckKind::kJSIterationBody) {
-    ReplaceWithRuntimeCall(node, Runtime::kHandleNoHeapWritesInterrupts);
-  } else {
-    ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
   }
+  ReplaceWithRuntimeCall(node, builtin);
 }
 
 void JSGenericLowering::LowerJSDebugger(Node* node) {

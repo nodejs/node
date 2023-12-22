@@ -180,6 +180,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(LoadImmutable)
       DECLARE_IMPOSSIBLE_CASE(StorePair)
       DECLARE_IMPOSSIBLE_CASE(Store)
+      DECLARE_IMPOSSIBLE_CASE(StoreIndirectPointer)
       DECLARE_IMPOSSIBLE_CASE(StackSlot)
       DECLARE_IMPOSSIBLE_CASE(Word32Popcnt)
       DECLARE_IMPOSSIBLE_CASE(Word64Popcnt)
@@ -240,6 +241,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Float64Select)
       DECLARE_IMPOSSIBLE_CASE(LoadStackCheckOffset)
       DECLARE_IMPOSSIBLE_CASE(LoadFramePointer)
+      DECLARE_IMPOSSIBLE_CASE(LoadStackPointer)
+      DECLARE_IMPOSSIBLE_CASE(SetStackPointer)
       DECLARE_IMPOSSIBLE_CASE(LoadParentFramePointer)
       DECLARE_IMPOSSIBLE_CASE(LoadRootRegister)
       DECLARE_IMPOSSIBLE_CASE(UnalignedLoad)
@@ -856,8 +859,8 @@ Type Typer::Visitor::TypeParameter(Node* node) {
     if (typer_->flags() & Typer::kThisIsReceiver) {
       return Type::Receiver();
     } else {
-      // Parameter[this] can be the_hole for derived class constructors.
-      return Type::Union(Type::TheHole(), Type::NonInternal(), typer_->zone());
+      // Parameter[this] can be a hole type for derived class constructors.
+      return Type::Union(Type::Hole(), Type::NonInternal(), typer_->zone());
     }
   } else if (index == start.NewTargetParameterIndex()) {
     if (typer_->flags() & Typer::kNewTargetIsReceiver) {

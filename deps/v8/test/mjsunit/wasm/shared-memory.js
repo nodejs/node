@@ -138,7 +138,7 @@ function assertMemoryIsValid(memory, shared) {
     },
     get(o, x) {
       if (x === "index") {
-        return "u32";
+        return "i32";
       }
       return 0;
     },

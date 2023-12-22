@@ -146,7 +146,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
 
-  Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  Call(static_cast<Address>(Builtin::kWasmStackOverflow),
+       RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
   if (v8_flags.debug_code) stop();
@@ -1484,6 +1485,8 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister acc) {
   VU.set(kScratchReg, E8, m1);
   VRegister intermediate = kSimd128ScratchReg3;
+  VRegister kSimd128ScratchReg4 =
+      GetUnusedRegister(LiftoffRegList{LiftoffRegister(ft10)}).fp().toV();
   vwmul_vv(intermediate, lhs.fp().toV(), rhs.fp().toV());  // i16*16 v8 v9
 
   constexpr int32_t FIRST_INDEX = 0b0001000100010001;
@@ -1500,7 +1503,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
   vcompress_vv(v0, intermediate, kSimd128ScratchReg2);  // i16*4 b
 
   VU.set(kScratchReg, E16, m1);
-  vwadd_vv(dst.fp().toV(), kSimd128ScratchReg, v0);  // i32*4 c
+  vwadd_vv(kSimd128ScratchReg4, kSimd128ScratchReg, v0);  // i32*4 c
 
   VU.set(kScratchReg, E16, m2);
   li(kScratchReg, THIRD_INDEX);
@@ -1515,7 +1518,7 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
   vwadd_vv(kSimd128ScratchReg3, kSimd128ScratchReg, v0);  // i32*4 c
 
   VU.set(kScratchReg, E32, m1);
-  vadd_vv(dst.fp().toV(), dst.fp().toV(), kSimd128ScratchReg3);
+  vadd_vv(dst.fp().toV(), kSimd128ScratchReg4, kSimd128ScratchReg3);
   vadd_vv(dst.fp().toV(), dst.fp().toV(), acc.fp().toV());
 }
 
@@ -2314,10 +2317,10 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
   }
 }
 
-void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  // A direct call to a builtin. Just encode the builtin index. This will be
+  // patched at relocation.
+  Call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
@@ -2359,7 +2362,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
                WasmValue(declared_function_index));
-  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+  CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
 }  // namespace wasm

@@ -45,10 +45,6 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, HeapObjectSlot slot,
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
-  if ((is_major() || Heap::InYoungGeneration(host)) &&
-      !marking_state_.IsMarked(host))
-    return;
-
   MarkValue(host, value);
 
   if (slot.address() && IsCompacting(host)) {
@@ -61,12 +57,10 @@ void MarkingBarrier::Write(Tagged<HeapObject> host, IndirectPointerSlot slot) {
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
-  if (!marking_state_.IsMarked(host)) return;
-
   // An indirect pointer slot can only contain a Smi if it is uninitialized (in
   // which case the vaue will be Smi::zero()). However, at this point the slot
   // must have been initialized because it was just written to.
-  Tagged<HeapObject> value = HeapObject::cast(slot.load());
+  Tagged<HeapObject> value = HeapObject::cast(slot.load(isolate()));
   MarkValue(host, value);
 
   // We don't emit generational- and shared write barriers for indirect
@@ -106,11 +100,8 @@ void MarkingBarrier::Write(Tagged<InstructionStream> host,
   DCHECK(is_activated_ || shared_heap_worklist_.has_value());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
 
-  if (!marking_state_.IsMarked(host) &&
-      (is_major() || Heap::InYoungGeneration(host)))
-    return;
-
   MarkValue(host, value);
+
   if (is_compacting_) {
     DCHECK(is_major());
     if (is_main_thread_barrier_) {
@@ -128,10 +119,6 @@ void MarkingBarrier::Write(Tagged<JSArrayBuffer> host,
   DCHECK(IsCurrentMarkingBarrier(host));
   DCHECK(!host.InWritableSharedSpace());
   DCHECK(MemoryChunk::FromHeapObject(host)->IsMarking());
-
-  if (!marking_state_.IsMarked(host) &&
-      (is_major() || Heap::InYoungGeneration(host)))
-    return;
 
   if (is_minor()) {
     if (Heap::InYoungGeneration(host)) {
@@ -247,6 +234,11 @@ void ActivateSpaces(Heap* heap, MarkingMode marking_mode) {
       }
     }
   }
+
+  ActivateSpace(heap->trusted_space(), marking_mode);
+  for (LargePage* p : *heap->trusted_lo_space()) {
+    p->SetOldGenerationPageFlags(marking_mode);
+  }
 }
 
 void DeactivateSpace(PagedSpace* space) {
@@ -292,6 +284,11 @@ void DeactivateSpaces(Heap* heap, MarkingMode marking_mode) {
         p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
       }
     }
+  }
+
+  DeactivateSpace(heap->trusted_space());
+  for (LargePage* p : *heap->trusted_lo_space()) {
+    p->SetOldGenerationPageFlags(MarkingMode::kNoMarking);
   }
 }
 }  // namespace

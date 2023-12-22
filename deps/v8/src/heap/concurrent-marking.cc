@@ -5,6 +5,7 @@
 #include "src/heap/concurrent-marking.h"
 
 #include <algorithm>
+#include <atomic>
 #include <stack>
 #include <unordered_map>
 
@@ -282,6 +283,8 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
                                 task_id);
   }
   bool another_ephemeron_iteration = false;
+  MainAllocator* const new_space_allocator =
+      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
 
   {
     TimedScope scope(&time_ms);
@@ -294,6 +297,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         }
       }
     }
+    PtrComprCageBase cage_base(isolate);
     bool is_per_context_mode = local_marking_worklists.IsPerContextMode();
     bool done = false;
     CodePageHeaderModificationScope rwx_write_scope(
@@ -317,10 +321,10 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
         Address new_space_limit = kNullAddress;
         Address new_large_object = kNullAddress;
 
-        if (heap_->new_space()) {
+        if (new_space_allocator) {
           // The order of the two loads is important.
-          new_space_top = heap_->new_space()->original_top_acquire();
-          new_space_limit = heap_->new_space()->original_limit_relaxed();
+          new_space_top = new_space_allocator->original_top_acquire();
+          new_space_limit = new_space_allocator->original_limit_relaxed();
         }
 
         if (heap_->new_lo_space()) {
@@ -333,12 +337,13 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
             addr == new_large_object) {
           local_marking_worklists.PushOnHold(object);
         } else {
-          Tagged<Map> map = object->map(isolate, kAcquireLoad);
+          Tagged<Map> map = object->map(cage_base, kAcquireLoad);
           // The marking worklist should never contain filler objects.
           CHECK(!IsFreeSpaceOrFillerMap(map));
           if (is_per_context_mode) {
             Address context;
-            if (native_context_inferrer.Infer(isolate, map, object, &context)) {
+            if (native_context_inferrer.Infer(cage_base, map, object,
+                                              &context)) {
               local_marking_worklists.SwitchToContext(context);
             }
           }
@@ -390,13 +395,32 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   DCHECK(task_state->local_pretenuring_feedback.empty());
 }
 
+class ConcurrentMarking::MinorMarkingState {
+ public:
+  ~MinorMarkingState() { DCHECK_EQ(0, active_markers_); }
+
+  V8_INLINE void MarkerStarted() {
+    active_markers_.fetch_add(1, std::memory_order_relaxed);
+  }
+
+  // Returns true if all markers are done.
+  V8_INLINE bool MarkerDone() {
+    return active_markers_.fetch_sub(1, std::memory_order_relaxed) == 1;
+  }
+
+ private:
+  std::atomic<int> active_markers_{0};
+};
+
 namespace {
 
-V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
+V8_INLINE bool IsYoungObjectInLab(MainAllocator* new_space_allocator,
+                                  NewLargeObjectSpace* new_lo_space,
+                                  Tagged<HeapObject> heap_object) {
   // The order of the two loads is important.
-  Address new_space_top = heap->new_space()->original_top_acquire();
-  Address new_space_limit = heap->new_space()->original_limit_relaxed();
-  Address new_large_object = heap->new_lo_space()->pending_object();
+  Address new_space_top = new_space_allocator->original_top_acquire();
+  Address new_space_limit = new_space_allocator->original_limit_relaxed();
+  Address new_large_object = new_lo_space->pending_object();
 
   Address addr = heap_object.address();
 
@@ -404,31 +428,37 @@ V8_INLINE bool IsYoungObjectInLab(Heap* heap, Tagged<HeapObject> heap_object) {
          addr == new_large_object;
 }
 
+}  // namespace
+
 template <YoungGenerationMarkingVisitationMode marking_mode>
-V8_INLINE size_t MinorMarkingLoopImpl(
-    Heap* heap, JobDelegate* delegate,
-    PretenuringHandler::PretenuringFeedbackMap* local_pretenuring_feedback) {
+V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
+                                                 TaskState* task_state) {
   static constexpr size_t kBytesUntilInterruptCheck = 64 * KB;
   static constexpr int kObjectsUntilInterruptCheck = 1000;
   size_t marked_bytes = 0;
   size_t current_marked_bytes = 0;
   int objects_processed = 0;
   YoungGenerationMarkingVisitor<marking_mode> visitor(
-      heap, local_pretenuring_feedback);
+      heap_, &task_state->local_pretenuring_feedback);
   YoungGenerationRememberedSetsMarkingWorklist::Local remembered_sets(
-      heap->minor_mark_sweep_collector()->remembered_sets_marking_handler());
+      heap_->minor_mark_sweep_collector()->remembered_sets_marking_handler());
   auto& marking_worklists_local = visitor.marking_worklists_local();
-  Isolate* isolate = heap->isolate();
+  Isolate* isolate = heap_->isolate();
+  minor_marking_state_->MarkerStarted();
+  MainAllocator* const new_space_allocator =
+      heap_->new_space()->main_allocator();
+  NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
+
   do {
     if (delegate->IsJoiningThread()) {
       marking_worklists_local.MergeOnHold();
     }
     Tagged<HeapObject> heap_object;
-    TRACE_GC_EPOCH(heap->tracer(),
+    TRACE_GC_EPOCH(heap_->tracer(),
                    GCTracer::Scope::MINOR_MS_BACKGROUND_MARKING_CLOSURE,
                    ThreadKind::kBackground);
     while (marking_worklists_local.Pop(&heap_object)) {
-      if (IsYoungObjectInLab(heap, heap_object)) {
+      if (IsYoungObjectInLab(new_space_allocator, new_lo_space, heap_object)) {
         visitor.marking_worklists_local().PushOnHold(heap_object);
       } else {
         Tagged<Map> map = heap_object->map(isolate);
@@ -446,6 +476,7 @@ V8_INLINE size_t MinorMarkingLoopImpl(
         marked_bytes += current_marked_bytes;
         if (delegate->ShouldYield()) {
           TRACE_GC_NOTE("ConcurrentMarking::RunMinor Preempted");
+          minor_marking_state_->MarkerDone();
           return marked_bytes;
         }
         objects_processed = 0;
@@ -453,10 +484,13 @@ V8_INLINE size_t MinorMarkingLoopImpl(
       }
     }
   } while (remembered_sets.ProcessNextItem(&visitor));
+  if (minor_marking_state_->MarkerDone()) {
+    // This is the last active marker and it ran out of work. Request GC
+    // finalization.
+    heap_->minor_mark_sweep_collector()->RequestGC();
+  }
   return marked_bytes + current_marked_bytes;
 }
-
-}  // namespace
 
 void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
   DCHECK_NOT_NULL(heap_->new_space());
@@ -476,12 +510,12 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
     TimedScope scope(&time_ms);
     if (heap_->minor_mark_sweep_collector()->is_in_atomic_pause()) {
       marked_bytes =
-          MinorMarkingLoopImpl<YoungGenerationMarkingVisitationMode::kParallel>(
-              heap_, delegate, &task_state->local_pretenuring_feedback);
+          RunMinorImpl<YoungGenerationMarkingVisitationMode::kParallel>(
+              delegate, task_state);
     } else {
-      marked_bytes = MinorMarkingLoopImpl<
-          YoungGenerationMarkingVisitationMode::kConcurrent>(
-          heap_, delegate, &task_state->local_pretenuring_feedback);
+      marked_bytes =
+          RunMinorImpl<YoungGenerationMarkingVisitationMode::kConcurrent>(
+              delegate, task_state);
     }
   }
 
@@ -534,6 +568,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
+  DCHECK_NULL(minor_marking_state_);
   DCHECK(
       std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
         return task_state->local_pretenuring_feedback.empty();
@@ -551,6 +586,7 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     job_handle_ = V8::GetCurrentPlatform()->PostJob(priority, std::move(job));
   } else {
     DCHECK(garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER);
+    minor_marking_state_ = std::make_unique<MinorMarkingState>();
     marking_worklists_ =
         heap_->minor_mark_sweep_collector()->marking_worklists();
     auto job = std::make_unique<JobTaskMinor>(this);
@@ -627,6 +663,7 @@ void ConcurrentMarking::Join() {
   job_handle_->Join();
   current_job_trace_id_.reset();
   garbage_collector_.reset();
+  minor_marking_state_.reset();
 }
 
 bool ConcurrentMarking::Pause() {

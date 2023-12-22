@@ -54,8 +54,8 @@ class V8_NODISCARD SanitizeIsolateScope final {
 
  private:
   Isolate* isolate_;
-  const Object feedback_vectors_for_profiling_tools_;
-  const WeakArrayList detached_contexts_;
+  const Tagged<Object> feedback_vectors_for_profiling_tools_;
+  const Tagged<WeakArrayList> detached_contexts_;
 };
 
 }  // namespace
@@ -166,8 +166,8 @@ void StartupSerializer::SerializeStrongReferences(
                                     SkipRoot::kTracedHandles});
 }
 
-SerializedHandleChecker::SerializedHandleChecker(Isolate* isolate,
-                                                 std::vector<Context>* contexts)
+SerializedHandleChecker::SerializedHandleChecker(
+    Isolate* isolate, std::vector<Tagged<Context>>* contexts)
     : isolate_(isolate) {
   AddToSet(isolate->heap()->serialized_objects());
   for (auto const& context : *contexts) {

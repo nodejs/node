@@ -50,6 +50,7 @@ enum InstanceType : uint16_t;
   V(EphemeronHashTable)                 \
   V(ExternalString)                     \
   V(FeedbackCell)                       \
+  V(FixedArray)                         \
   V(FreeSpace)                          \
   V(JSApiObject)                        \
   V(JSArrayBuffer)                      \
@@ -73,6 +74,7 @@ enum InstanceType : uint16_t;
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(SharedFunctionInfo)                 \
+  V(SloppyArgumentsElements)            \
   V(ShortcutCandidate)                  \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
@@ -234,7 +236,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static const int kNoConstructorFunctionIndex = 0;
   inline int GetConstructorFunctionIndex() const;
   inline void SetConstructorFunctionIndex(int value);
-  static base::Optional<JSFunction> GetConstructorFunction(
+  static base::Optional<Tagged<JSFunction>> GetConstructorFunction(
       Tagged<Map> map, Tagged<Context> native_context);
 
   // Retrieve interceptors.
@@ -616,7 +618,8 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Constructor getter that performs at most the given number of steps
   // in the transition tree. Returns either the constructor or the map at
   // which the walk has stopped.
-  inline Tagged<Object> TryGetConstructor(Isolate* isolate, int max_steps);
+  inline Tagged<Object> TryGetConstructor(PtrComprCageBase cage_base,
+                                          int max_steps);
 
   // Gets non-instance prototype value which is stored in Tuple2 in a
   // root map's |constructor_or_back_pointer| field.
@@ -648,7 +651,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
 
   // [prototype_validity_cell]: Cell containing the validity bit for prototype
-  // chains or Smi(0) if uninitialized.
+  // chains or Tagged<Smi>(0) if uninitialized.
   // The meaning of this validity cell is different for prototype maps and
   // non-prototype maps.
   // For prototype maps the validity bit "guards" modifications of prototype
@@ -730,8 +733,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
       Isolate* isolate, Handle<Map> map, Descriptor* descriptor,
       TransitionFlag flag);
 
-  static MaybeObjectHandle WrapFieldType(Isolate* isolate,
-                                         Handle<FieldType> type);
+  static MaybeObjectHandle WrapFieldType(Handle<FieldType> type);
   V8_EXPORT_PRIVATE static Tagged<FieldType> UnwrapFieldType(
       MaybeObject wrapped_type);
 
@@ -751,10 +753,10 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   static Handle<Map> TransitionElementsTo(Isolate* isolate, Handle<Map> map,
                                           ElementsKind to_kind);
 
-  static base::Optional<Map> TryAsElementsKind(Isolate* isolate,
-                                               Handle<Map> map,
-                                               ElementsKind kind,
-                                               ConcurrencyMode cmode);
+  static base::Optional<Tagged<Map>> TryAsElementsKind(Isolate* isolate,
+                                                       Handle<Map> map,
+                                                       ElementsKind kind,
+                                                       ConcurrencyMode cmode);
   V8_EXPORT_PRIVATE static Handle<Map> AsElementsKind(Isolate* isolate,
                                                       Handle<Map> map,
                                                       ElementsKind kind);
@@ -985,7 +987,7 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // This is the equivalent of IsMap() but avoids reading the instance type so
   // it can be used concurrently without acquire load.
   V8_INLINE bool ConcurrentIsMap(PtrComprCageBase cage_base,
-                                 const Object& object) const;
+                                 Tagged<Object> object) const;
 
   // Use the high-level instance_descriptors/SetInstanceDescriptors instead.
   DECL_RELEASE_SETTER(instance_descriptors, Tagged<DescriptorArray>)
@@ -993,9 +995,6 @@ class Map : public TorqueGeneratedMap<Map, HeapObject> {
   // Hide inherited accessors from the generated superclass.
   DECL_ACCESSORS(constructor_or_back_pointer_or_native_context, Tagged<Object>)
   DECL_ACCESSORS(transitions_or_prototype_info, Tagged<Object>)
-
-  static const int kFastPropertiesSoftLimit = 12;
-  static const int kMaxFastProperties = 128;
 
   friend class MapUpdater;
   template <typename ConcreteVisitor>

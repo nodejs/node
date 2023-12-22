@@ -1156,17 +1156,11 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprArrayNewDefault),
                    array_index, kExprDrop});
 
-  ExpectValidates(
-      sigs.i_v(),
-      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTestDeprecated), struct_index});
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), struct_index});
   ExpectValidates(sigs.i_v(),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefTest), kEqRefCode});
 
-  ExpectValidates(sigs.v_v(),
-                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCastDeprecated),
-                   struct_index, kExprDrop});
   ExpectValidates(sigs.v_v(), {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast),
                                struct_index, kExprDrop});
 
@@ -1175,14 +1169,11 @@ TEST_F(FunctionBodyDecoderTest, UnreachableRefTypes) {
   ExpectValidates(&sig_v_s, {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull,
                              0, kExprCallFunction, struct_consumer});
 
-  ExpectValidates(
-      FunctionSig::Build(zone(), {struct_type}, {}),
-      {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCastDeprecated), struct_index});
   ExpectValidates(FunctionSig::Build(zone(), {struct_type}, {}),
                   {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), struct_index});
 
   ExpectValidates(FunctionSig::Build(zone(), {kWasmStructRef}, {}),
-                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefAsStruct)});
+                  {WASM_UNREACHABLE, WASM_GC_OP(kExprRefCast), kStructRefCode});
 
   ExpectValidates(FunctionSig::Build(zone(), {}, {struct_type_null}),
                   {WASM_UNREACHABLE, WASM_LOCAL_GET(0), kExprBrOnNull, 0,
@@ -4217,29 +4208,28 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
   HeapType::Representation func_heap_2 =
       static_cast<HeapType::Representation>(builder.AddSignature(sigs.i_v()));
 
-  std::tuple<HeapType::Representation, HeapType::Representation, bool, bool>
-      tests[] = {
-          std::make_tuple(HeapType::kArray, array_heap, true, true),
-          std::make_tuple(HeapType::kStruct, super_struct_heap, true, true),
-          std::make_tuple(HeapType::kFunc, func_heap_1, true, true),
-          std::make_tuple(func_heap_1, func_heap_1, true, true),
-          std::make_tuple(func_heap_1, func_heap_2, true, true),
-          std::make_tuple(super_struct_heap, sub_struct_heap, true, true),
-          std::make_tuple(array_heap, sub_struct_heap, true, true),
-          std::make_tuple(super_struct_heap, func_heap_1, true, false),
-          std::make_tuple(HeapType::kEq, super_struct_heap, false, true),
-          std::make_tuple(HeapType::kExtern, func_heap_1, false, false),
-          std::make_tuple(HeapType::kAny, array_heap, false, true),
-          std::make_tuple(HeapType::kI31, array_heap, false, true),
-          std::make_tuple(HeapType::kNone, array_heap, true, true),
-          std::make_tuple(HeapType::kNone, func_heap_1, true, false),
+  std::tuple<HeapType::Representation, HeapType::Representation, bool> tests[] =
+      {
+          std::make_tuple(HeapType::kArray, array_heap, true),
+          std::make_tuple(HeapType::kStruct, super_struct_heap, true),
+          std::make_tuple(HeapType::kFunc, func_heap_1, true),
+          std::make_tuple(func_heap_1, func_heap_1, true),
+          std::make_tuple(func_heap_1, func_heap_2, true),
+          std::make_tuple(super_struct_heap, sub_struct_heap, true),
+          std::make_tuple(array_heap, sub_struct_heap, true),
+          std::make_tuple(super_struct_heap, func_heap_1, false),
+          std::make_tuple(HeapType::kEq, super_struct_heap, true),
+          std::make_tuple(HeapType::kExtern, func_heap_1, false),
+          std::make_tuple(HeapType::kAny, array_heap, true),
+          std::make_tuple(HeapType::kI31, array_heap, true),
+          std::make_tuple(HeapType::kNone, array_heap, true),
+          std::make_tuple(HeapType::kNone, func_heap_1, false),
       };
 
   for (auto test : tests) {
     HeapType from_heap = HeapType(std::get<0>(test));
     HeapType to_heap = HeapType(std::get<1>(test));
     bool should_pass = std::get<2>(test);
-    bool should_pass_new_ops = std::get<3>(test);
     SCOPED_TRACE("from_heap = " + from_heap.name() +
                  ", to_heap = " + to_heap.name());
 
@@ -4251,28 +4241,6 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
     FunctionSig cast_sig(1, 1, cast_reps);
 
     if (should_pass) {
-      ExpectValidates(&test_sig,
-                      {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
-                                                WASM_HEAP_TYPE(to_heap))});
-      ExpectValidates(&cast_sig,
-                      {WASM_REF_CAST_DEPRECATED(WASM_LOCAL_GET(0),
-                                                WASM_HEAP_TYPE(to_heap))});
-    } else {
-      std::string error_message =
-          "[0] expected subtype of (ref null func), (ref null struct) or (ref "
-          "null array), found local.get of type " +
-          test_reps[1].name();
-      ExpectFailure(&test_sig,
-                    {WASM_REF_TEST_DEPRECATED(WASM_LOCAL_GET(0),
-                                              WASM_HEAP_TYPE(to_heap))},
-                    kAppendEnd, ("ref.test" + error_message).c_str());
-      ExpectFailure(&cast_sig,
-                    {WASM_REF_CAST_DEPRECATED(WASM_LOCAL_GET(0),
-                                              WASM_HEAP_TYPE(to_heap))},
-                    kAppendEnd, ("ref.cast" + error_message).c_str());
-    }
-
-    if (should_pass_new_ops) {
       ExpectValidates(&test_sig, {WASM_REF_TEST(WASM_LOCAL_GET(0),
                                                 WASM_HEAP_TYPE(to_heap))});
       ExpectValidates(&cast_sig, {WASM_REF_CAST(WASM_LOCAL_GET(0),
@@ -4309,20 +4277,10 @@ TEST_F(FunctionBodyDecoderTest, RefTestCast) {
 
   // Trivial type error.
   ExpectFailure(sigs.v_v(),
-                {WASM_REF_TEST_DEPRECATED(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "ref.test[0] expected subtype of (ref null func), (ref null "
-                "struct) or (ref null array), found i32.const of type i32");
-  ExpectFailure(sigs.v_v(),
                 {WASM_REF_TEST(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
                 "Invalid types for ref.test: i32.const of type i32 has to be "
                 "in the same reference type hierarchy as (ref 0)");
-  ExpectFailure(sigs.v_v(),
-                {WASM_REF_CAST_DEPRECATED(WASM_I32V(1), array_heap), kExprDrop},
-                kAppendEnd,
-                "ref.cast[0] expected subtype of (ref null func), (ref null "
-                "struct) or (ref null array), found i32.const of type i32");
   ExpectFailure(sigs.v_v(),
                 {WASM_REF_CAST(WASM_I32V(1), array_heap), kExprDrop},
                 kAppendEnd,
@@ -4461,43 +4419,49 @@ TEST_F(FunctionBodyDecoderTest, BrOnAbstractType) {
 
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmStructRef}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_STRUCT(0), WASM_GC_OP(kExprRefAsStruct)});
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kAnyRefCode, kStructRefCode),
+       WASM_GC_OP(kExprRefCast), kStructRefCode});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_STRUCT(0)});
+      {WASM_LOCAL_GET(0),
+       WASM_BR_ON_CAST_FAIL(0, kAnyRefCode, kStructRefCode)});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmI31Ref}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_I31(0), WASM_GC_OP(kExprRefAsI31)});
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kAnyRefCode, kI31RefCode),
+       WASM_GC_OP(kExprRefCast), kI31RefCode});
   ExpectValidates(
       FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_I31(0)});
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, kAnyRefCode, kI31RefCode)});
 
   // Wrong branch type.
-  ExpectFailure(FunctionSig::Build(this->zone(), {}, {kWasmAnyRef}),
-                {WASM_LOCAL_GET(0), WASM_BR_ON_STRUCT(0), WASM_UNREACHABLE},
-                kAppendEnd,
-                "br_on_struct must target a branch of arity at least 1");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {}, {kWasmAnyRef}),
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kAnyRefCode, kStructRefCode),
+       WASM_UNREACHABLE},
+      kAppendEnd, "br_on_cast must target a branch of arity at least 1");
   ExpectFailure(
       FunctionSig::Build(this->zone(), {kNonNullableFunc}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_NON_STRUCT(0)}, kAppendEnd,
-      "type error in branch[0] (expected (ref func), got anyref)");
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST_FAIL(0, kAnyRefCode, kStructRefCode)},
+      kAppendEnd, "type error in branch[0] (expected (ref func), got anyref)");
 
   // Wrong fallthrough type.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {kWasmStructRef}, {kWasmAnyRef}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_STRUCT(0)}, kAppendEnd,
-      "type error in fallthru[0] (expected structref, got anyref)");
-  ExpectFailure(FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
-                {WASM_BLOCK_I(WASM_LOCAL_GET(0), WASM_BR_ON_NON_STRUCT(0))},
-                kAppendEnd,
-                "type error in branch[0] (expected i32, got anyref)");
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kAnyRefCode, kStructRefCode)},
+      kAppendEnd, "type error in fallthru[0] (expected structref, got anyref)");
+  ExpectFailure(
+      FunctionSig::Build(this->zone(), {kWasmAnyRef}, {kWasmAnyRef}),
+      {WASM_BLOCK_I(WASM_LOCAL_GET(0),
+                    WASM_BR_ON_CAST_FAIL(0, kAnyRefCode, kStructRefCode))},
+      kAppendEnd, "type error in branch[0] (expected i32, got anyref)");
 
   // Argument type error.
   ExpectFailure(
       FunctionSig::Build(this->zone(), {kWasmI31Ref}, {kWasmI32}),
-      {WASM_LOCAL_GET(0), WASM_BR_ON_I31(0), WASM_GC_OP(kExprRefAsI31)},
+      {WASM_LOCAL_GET(0), WASM_BR_ON_CAST(0, kAnyRefCode, kI31RefCode),
+       WASM_GC_OP(kExprRefCast), kI31RefCode},
       kAppendEnd,
-      "br_on_i31[0] expected type anyref, found local.get of type i32");
+      "br_on_cast[0] expected type anyref, found local.get of type i32");
 }
 
 TEST_F(FunctionBodyDecoderTest, BrWithBottom) {
@@ -4928,11 +4892,10 @@ TEST_F(WasmOpcodeLengthTest, IllegalRefIndices) {
 }
 
 TEST_F(WasmOpcodeLengthTest, GCOpcodes) {
-  // br_on_cast{,_fail}: prefix + opcode + br_depth + type_index
-  ExpectLength(4, 0xfb, kExprBrOnCastDeprecated & 0xFF);
-  ExpectLength(4, 0xfb, kExprBrOnCastFail & 0xFF);
-  // br_on_cast: prefix + opcode + flags + br_depth + source_type + target_type
+  // br_on_cast[_fail]: prefix + opcode + flags + br_depth + source_type +
+  //                    target_type
   ExpectLength(6, 0xfb, kExprBrOnCastGeneric & 0xFF);
+  ExpectLength(6, 0xfb, kExprBrOnCastFailGeneric & 0xFF);
 
   // struct.new, with leb immediate operand.
   ExpectLength(3, 0xfb, 0x07, 0x42);

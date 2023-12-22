@@ -75,7 +75,7 @@ class ScriptCacheKey : public HashTableKey {
 
   Handle<Object> AsHandle(Isolate* isolate, Handle<SharedFunctionInfo> shared);
 
-  static base::Optional<String> SourceFromObject(Tagged<Object> obj) {
+  static base::Optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;
     DCHECK(IsWeakFixedArray(obj));
     Tagged<WeakFixedArray> array = WeakFixedArray::cast(obj);

@@ -173,6 +173,11 @@ void WriteBarrierDescriptor::Verify(CallInterfaceDescriptorData* data) {
   DCHECK(allocatable_regs.has(kReturnRegister0));
   VerifyArgumentRegisterCount(data, 4);
 }
+// static
+void IndirectPointerWriteBarrierDescriptor::Verify(
+    CallInterfaceDescriptorData* data) {
+  WriteBarrierDescriptor::Verify(data);
+}
 #endif  // DEBUG
 
 }  // namespace internal

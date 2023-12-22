@@ -587,9 +587,8 @@ void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
   Register index = ToRegister(index_input());
 
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(object);
-    __ IsObjectType(object, JS_TYPED_ARRAY_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
+    __ CompareObjectTypeAndAssert(object, JS_TYPED_ARRAY_TYPE, eq,
+                                  AbortReason::kUnexpectedValue);
   }
 
   MaglevAssembler::ScratchRegisterScope temps(masm);
@@ -621,9 +620,8 @@ void CheckJSDataViewBounds::GenerateCode(MaglevAssembler* masm,
   Register object = ToRegister(receiver_input());
   Register index = ToRegister(index_input());
   if (v8_flags.debug_code) {
-    __ AssertNotSmi(object);
-    __ IsObjectType(object, JS_DATA_VIEW_TYPE);
-    __ Assert(eq, AbortReason::kUnexpectedValue);
+    __ CompareObjectTypeAndAssert(object, JS_DATA_VIEW_TYPE, eq,
+                                  AbortReason::kUnexpectedValue);
   }
 
   // Normal DataView (backed by AB / SAB) or non-length tracking backed by GSAB.

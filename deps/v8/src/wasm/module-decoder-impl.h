@@ -553,10 +553,12 @@ class ModuleDecoderImpl : public Decoder {
         return {sig, kNoSuperType, v8_flags.wasm_final_types};
       }
       case kWasmStructTypeCode: {
+        module_->is_wasm_gc = true;
         const StructType* type = consume_struct(&module_->signature_zone);
         return {type, kNoSuperType, v8_flags.wasm_final_types};
       }
       case kWasmArrayTypeCode: {
+        module_->is_wasm_gc = true;
         const ArrayType* type = consume_array(&module_->signature_zone);
         return {type, kNoSuperType, v8_flags.wasm_final_types};
       }
@@ -571,6 +573,7 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK(enabled_features_.has_gc());
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
+      module_->is_wasm_gc = true;
       bool is_final =
           v8_flags.wasm_final_types && kind == kWasmSubtypeFinalCode;
       consume_bytes(1, is_final ? " subtype final, " : " subtype extensible, ",
@@ -654,6 +657,7 @@ class ModuleDecoderImpl : public Decoder {
       uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
       size_t initial_size = module_->types.size();
       if (kind == kWasmRecursiveTypeGroupCode) {
+        module_->is_wasm_gc = true;
         consume_bytes(1, "rec. group definition", tracer_);
         if (tracer_) tracer_->NextLine();
         uint32_t group_size =

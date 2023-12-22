@@ -8,7 +8,7 @@
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/doubly-threaded-list.h"
 #include "src/compiler/turboshaft/graph.h"
-#include "src/compiler/turboshaft/snapshot-table.h"
+#include "src/compiler/turboshaft/snapshot-table-opindex.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/zone/zone.h"
 
@@ -164,60 +164,6 @@ inline MapMaskAndOr CombineMinMax(MapMaskAndOr a, MapMaskAndOr b) {
 inline bool CouldHaveSameMap(MapMaskAndOr a, MapMaskAndOr b) {
   return ((a.and_ & b.or_) == a.and_) || ((b.and_ & a.or_) == b.and_);
 }
-
-// A Wrapper around a SnapshotTable, which takes care of mapping OpIndex to Key.
-// It uses a ZoneUnorderedMap to store this mapping, and is thus more
-// appropriate for cases where not many OpIndex have a corresponding key.
-template <class Value, class KeyData = NoKeyData>
-class SparseOpIndexSnapshotTable : public SnapshotTable<Value, KeyData> {
- public:
-  using Base = SnapshotTable<Value, KeyData>;
-  using Key = typename SnapshotTable<Value, KeyData>::Key;
-
-  SparseOpIndexSnapshotTable(const Graph& graph, Zone* zone)
-      : Base(zone), indices_to_keys_(zone) {}
-
-  using Base::Get;
-  Value Get(OpIndex idx) const {
-    auto it = indices_to_keys_.find(idx);
-    if (it == indices_to_keys_.end()) return Value{};
-    return Base::Get(it->second);
-  }
-
-  using Base::Set;
-  bool Set(OpIndex idx, Value new_value) {
-    Key key = GetOrCreateKey(idx);
-    return Base::Set(key, new_value);
-  }
-
-  void NewKey(OpIndex idx, KeyData data, Value initial_value = Value{}) {
-    DCHECK(!indices_to_keys_[idx].has_value());
-    indices_to_keys_[idx] = Base::NewKey(data, initial_value);
-  }
-  void NewKey(OpIndex idx, Value initial_value = Value{}) {
-    NewKey(idx, KeyData{}, initial_value);
-  }
-
-  bool HasKeyFor(OpIndex idx) const {
-    return indices_to_keys_.find(idx) != indices_to_keys_.end();
-  }
-
-  base::Optional<Key> TryGetKeyFor(OpIndex idx) const {
-    auto it = indices_to_keys_.find(idx);
-    if (it != indices_to_keys_.end()) return it->second;
-    return base::nullopt;
-  }
-
- private:
-  Key GetOrCreateKey(OpIndex idx) {
-    auto it = indices_to_keys_.find(idx);
-    if (it != indices_to_keys_.end()) return it->second;
-    Key key = Base::NewKey();
-    indices_to_keys_.insert({idx, key});
-    return key;
-  }
-  ZoneUnorderedMap<OpIndex, Key> indices_to_keys_;
-};
 
 struct MemoryAddress {
   OpIndex base;
@@ -477,7 +423,11 @@ class MemoryContentTable
     DCHECK_EQ(base, ResolveBase(base));
 
     MemoryAddress mem{base, index, offset, element_size_log2, size};
-    DCHECK_EQ(all_keys_.find(mem), all_keys_.end());
+    auto existing_key = all_keys_.find(mem);
+    if (existing_key != all_keys_.end()) {
+      SetNoNotify(existing_key->second, value);
+      return;
+    }
 
     // Creating a new key.
     Key key = NewKey({mem});
@@ -600,8 +550,8 @@ class LateLoadEliminationAnalyzer {
       : graph_(graph),
         broker_(broker),
         replacements_(graph.op_id_count(), phase_zone),
-        non_aliasing_objects_(graph, phase_zone),
-        object_maps_(graph, phase_zone),
+        non_aliasing_objects_(phase_zone),
+        object_maps_(phase_zone),
         memory_(phase_zone, non_aliasing_objects_, object_maps_, replacements_),
         block_to_snapshot_mapping_(graph.block_count(), phase_zone),
         predecessor_alias_snapshots_(phase_zone),
@@ -692,6 +642,10 @@ class LateLoadEliminationAnalyzer {
 
   Graph& graph_;
   JSHeapBroker* broker_;
+
+#if V8_ENABLE_WEBASSEMBLY
+  bool is_wasm_ = PipelineData::Get().is_wasm();
+#endif
 
   FixedSidetable<OpIndex> replacements_;
 

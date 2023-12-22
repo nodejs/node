@@ -1367,7 +1367,7 @@ Handle<InterceptorInfo> LookupIterator::GetInterceptorForFailedAccessCheck()
     Tagged<Object> interceptor = is_js_array_element(IsElement())
                                      ? access_check_info->indexed_interceptor()
                                      : access_check_info->named_interceptor();
-    if (interceptor != Object()) {
+    if (interceptor != Tagged<Object>()) {
       return handle(InterceptorInfo::cast(interceptor), isolate_);
     }
   }
@@ -1398,7 +1398,7 @@ bool LookupIterator::LookupCachedProperty(Handle<AccessorPair> accessor_pair) {
   DCHECK(IsAccessorPair(*GetAccessors(), isolate_));
 
   Tagged<Object> getter = accessor_pair->getter(isolate_);
-  base::Optional<Name> maybe_name =
+  base::Optional<Tagged<Name>> maybe_name =
       FunctionTemplateInfo::TryGetCachedPropertyName(isolate(), getter);
   if (!maybe_name.has_value()) return false;
 
@@ -1589,7 +1589,7 @@ ConcurrentLookupIterator::TryGetPropertyCell(Isolate* isolate,
     Tagged<Object> maybe_accessor_pair = cell->value(kAcquireLoad);
     if (!IsAccessorPair(maybe_accessor_pair)) return {};
 
-    base::Optional<Name> maybe_cached_property_name =
+    base::Optional<Tagged<Name>> maybe_cached_property_name =
         FunctionTemplateInfo::TryGetCachedPropertyName(
             isolate, AccessorPair::cast(maybe_accessor_pair)
                          ->getter(isolate, kAcquireLoad));

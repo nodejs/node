@@ -2712,7 +2712,8 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   Node* value = n.Argument(0);
   Effect effect = n.effect();
 
-  // We can fold away the Object(x) call if |x| is definitely not a primitive.
+  // We can fold away the Tagged<Object>(x) call if |x| is definitely not a
+  // primitive.
   if (NodeProperties::CanBePrimitive(broker(), value, effect)) {
     if (!NodeProperties::CanBeNullOrUndefined(broker(), value, effect)) {
       // Turn the {node} into a {JSToObject} call if we know that
@@ -7999,7 +8000,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
 
         Node* check1 =
             graph()->NewNode(simplified()->ReferenceEqual(), entry_key,
-                             jsgraph()->TheHoleConstant());
+                             jsgraph()->HashTableHoleConstant());
         Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kFalse),
                                          check1, if_true0);
 

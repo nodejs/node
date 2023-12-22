@@ -55,9 +55,10 @@ void Int64Lowering::LowerGraph() {
     NodeState& top = stack_.back();
     if (top.input_index == top.node->InputCount()) {
       // All inputs of top have already been lowered, now lower top.
+      Node* node = top.node;
       stack_.pop_back();
-      state_[top.node->id()] = State::kVisited;
-      LowerNode(top.node);
+      state_[node->id()] = State::kVisited;
+      LowerNode(node);
     } else {
       // Push the next input onto the stack.
       Node* input = top.node->InputAt(top.input_index++);

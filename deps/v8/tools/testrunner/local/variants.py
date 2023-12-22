@@ -47,7 +47,6 @@ ALL_VARIANT_FLAGS = {
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],
     "minor_ms": [["--minor-ms"]],
-    "concurrent_minor_ms": [["--concurrent-minor-ms-marking"]],
     "no_lfa": [["--no-lazy-feedback-allocation"]],
     # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
     # would not force optimization too. It turns into a Nop. Please see
@@ -62,6 +61,7 @@ ALL_VARIANT_FLAGS = {
         "--no-turbofan", "--no-maglev", "--liftoff", "--no-wasm-tier-up",
         "--no-wasm-lazy-compilation"
     ]],
+    "rehash_snapshot": [["--rehash-snapshot"]],
     "slow_path": [["--force-slow-path"]],
     "stress": [[
         "--no-liftoff", "--stress-lazy-source-positions",
@@ -112,8 +112,8 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
     ],
     "stress_concurrent_inlining": [
         "--single-threaded", "--predictable", "--lazy-feedback-allocation",
-        "--assert-types", "--no-concurrent-recompilation", "--no-turbofan",
-        "--jitless"
+        "--assert-types", "--turboshaft-assert-types",
+        "--no-concurrent-recompilation", "--no-turbofan", "--jitless"
     ],
     # The fast API tests initialize an embedder object that never needs to be
     # serialized to the snapshot, so we don't have a
@@ -161,10 +161,9 @@ INCOMPATIBLE_FLAGS_PER_VARIANT = {
         "--concurrent-recompilation", "--stress_concurrent_inlining",
         "--no-assert-types"
     ],
-    "concurrent_minor_ms": [
-        "--predictable", "--single_threaded_gc", "--single_threaded",
-        "--stress_snapshot", "--trace_gc_object_stats",
-        "--no-incremental-marking", "--no-concurrent-marking"
+    "--turboshaft-assert-types": [
+        "--concurrent-recompilation", "--stress_concurrent_inlining",
+        "--no-turboshaft-assert-types"
     ],
 }
 

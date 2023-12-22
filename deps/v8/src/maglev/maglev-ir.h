@@ -118,6 +118,10 @@ class MergePointInterpreterFrameState;
   V(Float64ToBoolean)                   \
   V(Float64Ieee754Unary)
 
+#define SMI_OPERATIONS_NODE_LIST(V) \
+  V(CheckedSmiIncrement)            \
+  V(CheckedSmiDecrement)
+
 #define CONSTANT_VALUE_NODE_LIST(V) \
   V(Constant)                       \
   V(ExternalConstant)               \
@@ -136,6 +140,7 @@ class MergePointInterpreterFrameState;
   V(AllocateRaw)                                    \
   V(Call)                                           \
   V(CallBuiltin)                                    \
+  V(CallCPPBuiltin)                                 \
   V(CallRuntime)                                    \
   V(CallWithArrayLike)                              \
   V(CallWithSpread)                                 \
@@ -199,6 +204,7 @@ class MergePointInterpreterFrameState;
   V(DefineKeyedOwnGeneric)                          \
   V(Phi)                                            \
   V(RegisterInput)                                  \
+  V(CheckedSmiSizedInt32)                           \
   V(CheckedSmiTagInt32)                             \
   V(CheckedSmiTagUint32)                            \
   V(UnsafeSmiTag)                                   \
@@ -252,6 +258,7 @@ class MergePointInterpreterFrameState;
   CONSTANT_VALUE_NODE_LIST(V)                       \
   INT32_OPERATIONS_NODE_LIST(V)                     \
   FLOAT64_OPERATIONS_NODE_LIST(V)                   \
+  SMI_OPERATIONS_NODE_LIST(V)                       \
   GENERIC_OPERATIONS_NODE_LIST(V)                   \
   INLINE_BUILTIN_NODE_LIST(V)
 
@@ -849,7 +856,7 @@ class OpProperties {
   constexpr bool is_pure() const {
     return (bitfield_ & kPureMask) == kPureValue;
   }
-  constexpr bool is_required_when_unused() {
+  constexpr bool is_required_when_unused() const {
     if (is_conversion()) {
       // Calls in conversions are not counted as a side-effect as far as
       // is_required_when_unused is concerned, since they should always be to
@@ -1511,11 +1518,12 @@ class NodeBase : public ZoneObject {
   using NumDoubleTemporariesNeededField =
       NumTemporariesNeededField::Next<uint8_t, 1>;
   // Align input count to 32-bit.
-  using UnusedField = NumDoubleTemporariesNeededField::Next<uint8_t, 1>;
+  using UnusedField = NumDoubleTemporariesNeededField::Next<bool, 1>;
   using InputCountField = UnusedField::Next<size_t, 17>;
   static_assert(InputCountField::kShift == 32);
 
  protected:
+  using SingleSpareBitField = UnusedField;
   // Subclasses may use the remaining bitfield bits.
   template <class T, int size>
   using NextBitField = InputCountField::Next<T, size>;
@@ -1687,7 +1695,7 @@ class NodeBase : public ZoneObject {
         snapshot;
   }
 
-  void change_input(int index, ValueNode* node) { set_input(index, node); }
+  inline void change_input(int index, ValueNode* node);
 
   void change_representation(ValueRepresentation new_repr) {
     DCHECK_EQ(opcode(), Opcode::kPhi);
@@ -1739,9 +1747,10 @@ class NodeBase : public ZoneObject {
   void set_bitfield(uint64_t new_bitfield) {
 #ifdef DEBUG
     // Make sure that all the base bitfield bits (all bits before the next
-    // bitfield start) are equal in the new value.s
+    // bitfield start, excluding any spare bits) are equal in the new value.
     const uint64_t base_bitfield_mask =
-        (uint64_t{1} << NextBitField<bool, 1>::kShift) - 1;
+        ((uint64_t{1} << NextBitField<bool, 1>::kShift) - 1) &
+        ~SingleSpareBitField::kMask;
     DCHECK_EQ(bitfield_ & base_bitfield_mask,
               new_bitfield & base_bitfield_mask);
 #endif
@@ -1761,9 +1770,8 @@ class NodeBase : public ZoneObject {
     return reinterpret_cast<Address>(last_input());
   }
 
-  void set_input(int index, ValueNode* node) {
-    new (&input(index)) Input(node);
-  }
+  inline void initialize_input_null(int index);
+  inline void set_input(int index, ValueNode* node);
 
   // For nodes that don't have data past the input, allow trimming the input
   // count. This is used by Phis to reduce inputs when merging in dead control
@@ -1822,6 +1830,10 @@ class NodeBase : public ZoneObject {
     const size_t size = size_before_node + sizeof(Derived);
     intptr_t raw_buffer =
         reinterpret_cast<intptr_t>(zone->Allocate<NodeWithInlineInputs>(size));
+#ifdef DEBUG
+    memset(reinterpret_cast<void*>(raw_buffer), 0, size);
+#endif
+
     void* node_buffer = reinterpret_cast<void*>(raw_buffer + size_before_node);
     uint64_t bitfield = OpcodeField::encode(opcode_of<Derived>) |
                         OpPropertiesField::encode(Derived::kProperties) |
@@ -1946,16 +1958,38 @@ class Node : public NodeBase {
 // All non-control nodes with a result.
 class ValueNode : public Node {
  private:
-  using TaggedResultNeedsDecompressField = NextBitField<bool, 1>;
+  using TaggedResultNeedsDecompressField = NodeBase::SingleSpareBitField;
 
  protected:
-  // Subclasses may use the remaining bitfield bits.
-  template <class T, int size>
-  using NextBitField = TaggedResultNeedsDecompressField::Next<T, size>;
+  using SingleSpareBitField = void;
 
  public:
   ValueLocation& result() { return result_; }
   const ValueLocation& result() const { return result_; }
+
+  int use_count() const {
+    // Invalid to check use_count externally once an id is allocated.
+    DCHECK(!has_id());
+    return use_count_;
+  }
+  bool is_used() const { return use_count_ > 0; }
+  bool unused_inputs_were_visited() const { return use_count_ == -1; }
+  void add_use() {
+    // Make sure a saturated use count won't overflow.
+    DCHECK_LT(use_count_, kMaxInt);
+    use_count_++;
+  }
+  void remove_use() {
+    // Make sure a saturated use count won't drop below zero.
+    DCHECK_GT(use_count_, 0);
+    use_count_--;
+  }
+  // Avoid revisiting nodes when processing an unused node's inputs, by marking
+  // it as visited.
+  void mark_unused_inputs_visited() {
+    DCHECK_EQ(use_count_, 0);
+    use_count_ = -1;
+  }
 
   void SetHint(compiler::InstructionOperand hint);
 
@@ -2020,7 +2054,7 @@ class ValueNode : public Node {
     return spill_;
   }
 
-  void mark_use(NodeIdT id, InputLocation* input_location) {
+  void record_next_use(NodeIdT id, InputLocation* input_location) {
     DCHECK_EQ(state_, kLastUse);
     DCHECK_NE(id, kInvalidNodeId);
     DCHECK_LT(start_id(), id);
@@ -2038,14 +2072,13 @@ class ValueNode : public Node {
 
   bool has_valid_live_range() const { return end_id_ != 0; }
   LiveRange live_range() const { return {start_id(), end_id_}; }
-  NodeIdT next_use() const { return next_use_; }
+  NodeIdT current_next_use() const { return next_use_; }
 
   // The following metods should only be used during register allocation, to
   // mark the _current_ state of this Node according to the register allocator.
-  void set_next_use(NodeIdT use) { next_use_ = use; }
+  void advance_next_use(NodeIdT use) { next_use_ = use; }
 
-  // A node is dead once it has no more upcoming uses.
-  bool is_dead() const { return next_use_ == kInvalidNodeId; }
+  bool has_no_more_uses() const { return next_use_ == kInvalidNodeId; }
 
   constexpr bool use_double_register() const {
     return IsDoubleRepresentation(properties().value_representation());
@@ -2177,7 +2210,8 @@ class ValueNode : public Node {
   explicit ValueNode(uint64_t bitfield)
       : Node(bitfield),
         last_uses_next_use_id_(&next_use_),
-        hint_(compiler::InstructionOperand())
+        hint_(compiler::InstructionOperand()),
+        use_count_(0)
 #ifdef DEBUG
         ,
         state_(kLastUse)
@@ -2211,10 +2245,35 @@ class ValueNode : public Node {
     compiler::InstructionOperand spill_;
   };
   compiler::InstructionOperand hint_;
+  // TODO(leszeks): Union this into another field.
+  int use_count_;
 #ifdef DEBUG
   enum {kLastUse, kSpill} state_;
 #endif  // DEBUG
 };
+
+inline void NodeBase::initialize_input_null(int index) {
+  // Should already be null in debug, make sure it's null on release too.
+  DCHECK_EQ(input(index).node(), nullptr);
+  new (&input(index)) Input(nullptr);
+}
+
+inline void NodeBase::set_input(int index, ValueNode* node) {
+  DCHECK_NOT_NULL(node);
+  DCHECK_EQ(input(index).node(), nullptr);
+  node->add_use();
+  new (&input(index)) Input(node);
+}
+
+inline void NodeBase::change_input(int index, ValueNode* node) {
+  DCHECK_NE(input(index).node(), nullptr);
+  input(index).node()->remove_use();
+
+#ifdef DEBUG
+  input(index) = Input(nullptr);
+#endif
+  set_input(index, node);
+}
 
 template <>
 inline RegList ValueNode::ClearRegisters() {
@@ -2258,8 +2317,8 @@ class NodeTMixin : public Base {
   template <typename... Args>
   explicit NodeTMixin(uint64_t bitfield, Args&&... args)
       : Base(bitfield, std::forward<Args>(args)...) {
-    DCHECK_EQ(NodeBase::opcode(), NodeBase::opcode_of<Derived>);
-    DCHECK_EQ(NodeBase::properties(), Derived::kProperties);
+    DCHECK_EQ(this->NodeBase::opcode(), NodeBase::opcode_of<Derived>);
+    DCHECK_EQ(this->NodeBase::properties(), Derived::kProperties);
   }
 };
 
@@ -2326,7 +2385,7 @@ class FixedInputNodeTMixin : public NodeTMixin<Base, Derived> {
   template <typename... Args>
   explicit FixedInputNodeTMixin(uint64_t bitfield, Args&&... args)
       : NodeTMixin<Base, Derived>(bitfield, std::forward<Args>(args)...) {
-    DCHECK_EQ(NodeBase::input_count(), kInputCount);
+    DCHECK_EQ(this->NodeBase::input_count(), kInputCount);
   }
 };
 
@@ -2627,6 +2686,44 @@ class Int32ToBoolean : public FixedInputValueNodeT<1, Int32ToBoolean> {
   using FlipBitField = NextBitField<bool, 1>;
 };
 
+class CheckedSmiIncrement
+    : public FixedInputValueNodeT<1, CheckedSmiIncrement> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiIncrement>;
+
+ public:
+  explicit CheckedSmiIncrement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return Node::input(kValueIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class CheckedSmiDecrement
+    : public FixedInputValueNodeT<1, CheckedSmiDecrement> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiDecrement>;
+
+ public:
+  explicit CheckedSmiDecrement(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kValueIndex = 0;
+  Input& value_input() { return Node::input(kValueIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 template <class Derived, Operation kOperation>
 class Float64BinaryNode : public FixedInputValueNodeT<2, Derived> {
   using Base = FixedInputValueNodeT<2, Derived>;
@@ -2853,6 +2950,30 @@ class CheckedSmiTagInt32 : public FixedInputValueNodeT<1, CheckedSmiTagInt32> {
 
   static constexpr OpProperties kProperties =
       OpProperties::EagerDeopt() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+// This is a check disguised as a conversion node so we can use it to override
+// untagging conversions.
+// TODO(olivf): Support overriding bigger with smaller instruction so we can use
+// CheckInt32IsSmi instead.
+class CheckedSmiSizedInt32
+    : public FixedInputValueNodeT<1, CheckedSmiSizedInt32> {
+  using Base = FixedInputValueNodeT<1, CheckedSmiSizedInt32>;
+
+ public:
+  explicit CheckedSmiSizedInt32(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt() |
+                                              OpProperties::Int32() |
+                                              OpProperties::ConversionNode();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
 
@@ -6780,6 +6901,7 @@ class Phi : public ValueNodeT<Phi> {
     return merge_state_;
   }
 
+  using Node::initialize_input_null;
   using Node::reduce_input_count;
   using Node::set_input;
 
@@ -6854,11 +6976,18 @@ class Phi : public ValueNodeT<Phi> {
     key_ = key;
   }
 
+  // Remembers if a use is unsafely untagged. If that happens we must ensure to
+  // stay within the smi range, even when untagging.
+  void SetUseRequires31BitValue();
+  bool uses_require_31_bit_value() { return uses_require_31_bit_value_; }
+
  private:
   Phi** next() { return &next_; }
 
   const interpreter::Register owner_;
-  bool has_key_ = false;  // True if the {key_} field has been initialized.
+  // True if the {key_} field has been initialized.
+  bool has_key_ = false;
+  bool uses_require_31_bit_value_ = false;
   UseRepresentationSet uses_repr_hint_ = {};
   UseRepresentationSet same_loop_uses_repr_hint_ = {};
 
@@ -7095,6 +7224,63 @@ class CallBuiltin : public ValueNodeT<CallBuiltin> {
   Builtin builtin_;
   base::Optional<compiler::FeedbackSource> feedback_;
   FeedbackSlotType slot_type_ = kTaggedIndex;
+};
+
+class CallCPPBuiltin : public ValueNodeT<CallCPPBuiltin> {
+  using Base = ValueNodeT<CallCPPBuiltin>;
+  // Only 1 return value with arguments on the stack is supported.
+  static constexpr Builtin kCEntry_Builtin =
+      Builtin::kCEntry_Return1_ArgvOnStack_BuiltinExit;
+
+ public:
+  static constexpr int kTargetIndex = 0;
+  static constexpr int kNewTargetIndex = 1;
+  static constexpr int kContextIndex = 2;
+  static constexpr int kFixedInputCount = 3;
+
+  CallCPPBuiltin(uint64_t bitfield, Builtin builtin, ValueNode* target,
+                 ValueNode* new_target, ValueNode* context)
+      : Base(bitfield), builtin_(builtin) {
+    DCHECK(Builtins::CallInterfaceDescriptorFor(builtin).HasContextParameter());
+    DCHECK_EQ(Builtins::CallInterfaceDescriptorFor(builtin).GetReturnCount(),
+              1);
+    set_input(kTargetIndex, target);
+    set_input(kNewTargetIndex, new_target);
+    set_input(kContextIndex, context);
+  }
+
+  // This is an overestimation, since some builtins might not call JS code.
+  static constexpr OpProperties kProperties = OpProperties::JSCall();
+
+  Builtin builtin() const { return builtin_; }
+
+  Input& target() { return input(kTargetIndex); }
+  const Input& target() const { return input(kTargetIndex); }
+  Input& new_target() { return input(kNewTargetIndex); }
+  const Input& new_target() const { return input(kNewTargetIndex); }
+  Input& context() { return input(kContextIndex); }
+  const Input& context() const { return input(kContextIndex); }
+
+  int num_args() const { return input_count() - kFixedInputCount; }
+  Input& arg(int i) { return input(i + kFixedInputCount); }
+  void set_arg(int i, ValueNode* node) {
+    set_input(i + kFixedInputCount, node);
+  }
+
+  auto args_begin() { return std::make_reverse_iterator(&arg(-1)); }
+  auto args_end() { return std::make_reverse_iterator(&arg(num_args() - 1)); }
+
+  void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
+#ifdef V8_COMPRESS_POINTERS
+  void MarkTaggedInputsAsDecompressing();
+#endif
+  int MaxCallStackArgs() const;
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+ private:
+  Builtin builtin_;
 };
 
 class CallRuntime : public ValueNodeT<CallRuntime> {
@@ -7372,6 +7558,8 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   enum Mode {
     // Use Builtin::kCallApiCallbackOptimizedNoProfiling.
     kNoProfiling,
+    // Inline API call sequence into the generated code.
+    kNoProfilingInlined,
     // Use Builtin::kCallApiCallbackOptimized.
     kGeneric,
   };
@@ -7428,6 +7616,9 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
     return call_handler_info_;
   }
   compiler::ObjectRef data() const { return data_; }
+
+  bool inline_builtin() const { return mode() == kNoProfilingInlined; }
+
   void VerifyInputs(MaglevGraphLabeller* graph_labeller) const;
 #ifdef V8_COMPRESS_POINTERS
   void MarkTaggedInputsAsDecompressing();
@@ -7438,7 +7629,10 @@ class CallKnownApiFunction : public ValueNodeT<CallKnownApiFunction> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
  private:
-  using ModeField = NextBitField<Mode, 1>;
+  using ModeField = NextBitField<Mode, 2>;
+
+  void GenerateCallApiCallbackOptimizedInline(MaglevAssembler* masm,
+                                              const ProcessingState& state);
 
   const compiler::FunctionTemplateInfoRef function_template_info_;
   const compiler::CallHandlerInfoRef call_handler_info_;

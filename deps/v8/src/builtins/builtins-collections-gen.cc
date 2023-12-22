@@ -28,7 +28,7 @@ void BaseCollectionsAssembler::AddConstructorEntry(
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
   compiler::ScopedExceptionHandler handler(this, if_exception, var_exception);
-  CSA_DCHECK(this, Word32BinaryNot(IsTheHole(key_value)));
+  CSA_DCHECK(this, Word32BinaryNot(IsHashTableHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
     TorqueStructKeyValuePair pair =
         if_may_have_side_effects != nullptr
@@ -874,7 +874,7 @@ TNode<JSArray> CollectionsBuiltinsAssembler::MapIteratorToList(
     TNode<IntPtrT> entry_start_position;
     TNode<IntPtrT> cur_index;
     std::tie(entry_key, entry_start_position, cur_index) =
-        NextSkipHoles<OrderedHashMap>(table, var_index.value(), &done);
+        NextSkipHashTableHoles<OrderedHashMap>(table, var_index.value(), &done);
 
     // Decide to write key or value.
     Branch(
@@ -981,7 +981,8 @@ TNode<JSArray> CollectionsBuiltinsAssembler::SetOrSetIteratorToList(
     TNode<IntPtrT> entry_start_position;
     TNode<IntPtrT> cur_index;
     std::tie(entry_key, entry_start_position, cur_index) =
-        NextSkipHoles<OrderedHashSet>(table, var_index.value(), &finalize);
+        NextSkipHashTableHoles<OrderedHashSet>(table, var_index.value(),
+                                               &finalize);
 
     Store(elements, var_offset.value(), entry_key);
 
@@ -1284,9 +1285,9 @@ CollectionsBuiltinsAssembler::TransitionOrderedHashSetNoUpdate(
 
 template <typename TableType>
 std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
-CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
-                                            TNode<IntPtrT> index,
-                                            Label* if_end) {
+CollectionsBuiltinsAssembler::NextSkipHashTableHoles(TNode<TableType> table,
+                                                     TNode<IntPtrT> index,
+                                                     Label* if_end) {
   // Compute the used capacity for the {table}.
   TNode<Int32T> number_of_buckets = LoadAndUntagToWord32ObjectField(
       table, TableType::NumberOfBucketsOffset());
@@ -1297,16 +1298,15 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
   TNode<Int32T> used_capacity =
       Int32Add(number_of_elements, number_of_deleted_elements);
 
-  return NextSkipHoles(table, number_of_buckets, used_capacity, index, if_end);
+  return NextSkipHashTableHoles(table, number_of_buckets, used_capacity, index,
+                                if_end);
 }
 
 template <typename TableType>
 std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
-CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
-                                            TNode<Int32T> number_of_buckets,
-                                            TNode<Int32T> used_capacity,
-                                            TNode<IntPtrT> index,
-                                            Label* if_end) {
+CollectionsBuiltinsAssembler::NextSkipHashTableHoles(
+    TNode<TableType> table, TNode<Int32T> number_of_buckets,
+    TNode<Int32T> used_capacity, TNode<IntPtrT> index, Label* if_end) {
   CSA_DCHECK(this, Word32Equal(number_of_buckets,
                                LoadAndUntagToWord32ObjectField(
                                    table, TableType::NumberOfBucketsOffset())));
@@ -1333,7 +1333,7 @@ CollectionsBuiltinsAssembler::NextSkipHoles(TNode<TableType> table,
     entry_key = UnsafeLoadKeyFromOrderedHashTableEntry(
         table, ChangePositiveInt32ToIntPtr(entry_start_position));
     var_index = Int32Add(var_index.value(), Int32Constant(1));
-    Branch(IsTheHole(entry_key), &loop, &done_loop);
+    Branch(IsHashTableHole(entry_key), &loop, &done_loop);
   }
 
   BIND(&done_loop);
@@ -1356,8 +1356,8 @@ CollectionsBuiltinsAssembler::NextKeyIndexPairUnmodifiedTable(
   TNode<IntPtrT> entry_start_position;
   TNode<IntPtrT> next_index;
 
-  std::tie(key, entry_start_position, next_index) =
-      NextSkipHoles(table, number_of_buckets, used_capacity, index, if_end);
+  std::tie(key, entry_start_position, next_index) = NextSkipHashTableHoles(
+      table, number_of_buckets, used_capacity, index, if_end);
 
   return TorqueStructKeyIndexPair{key, next_index};
 }
@@ -1382,7 +1382,7 @@ TorqueStructKeyIndexPair CollectionsBuiltinsAssembler::NextKeyIndexPair(
   TNode<IntPtrT> next_index;
 
   std::tie(key, entry_start_position, next_index) =
-      NextSkipHoles<CollectionType>(table, index, if_end);
+      NextSkipHashTableHoles<CollectionType>(table, index, if_end);
 
   return TorqueStructKeyIndexPair{key, next_index};
 }
@@ -1405,8 +1405,8 @@ CollectionsBuiltinsAssembler::NextKeyValueIndexTupleUnmodifiedTable(
   TNode<IntPtrT> entry_start_position;
   TNode<IntPtrT> next_index;
 
-  std::tie(key, entry_start_position, next_index) =
-      NextSkipHoles(table, number_of_buckets, used_capacity, index, if_end);
+  std::tie(key, entry_start_position, next_index) = NextSkipHashTableHoles(
+      table, number_of_buckets, used_capacity, index, if_end);
 
   TNode<Object> value =
       UnsafeLoadValueFromOrderedHashMapEntry(table, entry_start_position);
@@ -1423,7 +1423,7 @@ CollectionsBuiltinsAssembler::NextKeyValueIndexTuple(
   TNode<IntPtrT> next_index;
 
   std::tie(key, entry_start_position, next_index) =
-      NextSkipHoles(table, index, if_end);
+      NextSkipHashTableHoles(table, index, if_end);
 
   TNode<Object> value =
       UnsafeLoadValueFromOrderedHashMapEntry(table, entry_start_position);
@@ -1677,9 +1677,6 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE,
                          "Map.prototype.delete");
 
-  // This check breaks a known exploitation technique. See crbug.com/1263462
-  CSA_CHECK(this, TaggedNotEqual(key, TheHoleConstant()));
-
   const TNode<OrderedHashMap> table =
       LoadObjectField<OrderedHashMap>(CAST(receiver), JSMap::kTableOffset);
 
@@ -1694,8 +1691,8 @@ TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
 
   BIND(&entry_found);
   // If we found the entry, mark the entry as deleted.
-  StoreKeyValueInOrderedHashMapEntry(table, TheHoleConstant(),
-                                     TheHoleConstant(),
+  StoreKeyValueInOrderedHashMapEntry(table, HashTableHoleConstant(),
+                                     HashTableHoleConstant(),
                                      entry_start_position_or_hash.value());
 
   // Decrement the number of elements, increment the number of deleted elements.
@@ -1823,7 +1820,7 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
                          "Set.prototype.delete");
 
   // This check breaks a known exploitation technique. See crbug.com/1263462
-  CSA_CHECK(this, TaggedNotEqual(key, TheHoleConstant()));
+  CSA_CHECK(this, TaggedNotEqual(key, HashTableHoleConstant()));
 
   const TNode<OrderedHashSet> table =
       LoadObjectField<OrderedHashSet>(CAST(receiver), JSMap::kTableOffset);
@@ -1853,9 +1850,6 @@ TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
 TNode<Smi> CollectionsBuiltinsAssembler::DeleteFromSetTable(
     const TNode<Object> context, TNode<OrderedHashSet> table, TNode<Object> key,
     Label* not_found) {
-  // This check breaks a known exploitation technique. See crbug.com/1263462
-  CSA_CHECK(this, TaggedNotEqual(key, TheHoleConstant()));
-
   TVARIABLE(IntPtrT, entry_start_position_or_hash, IntPtrConstant(0));
   Label entry_found(this);
 
@@ -1864,7 +1858,7 @@ TNode<Smi> CollectionsBuiltinsAssembler::DeleteFromSetTable(
 
   BIND(&entry_found);
   // If we found the entry, mark the entry as deleted.
-  StoreKeyInOrderedHashSetEntry(table, TheHoleConstant(),
+  StoreKeyInOrderedHashSetEntry(table, HashTableHoleConstant(),
                                 entry_start_position_or_hash.value());
 
   // Decrement the number of elements, increment the number of deleted elements.
@@ -1937,7 +1931,7 @@ TF_BUILTIN(MapPrototypeForEach, CollectionsBuiltinsAssembler) {
     TNode<Object> entry_key;
     TNode<IntPtrT> entry_start_position;
     std::tie(entry_key, entry_start_position, index) =
-        NextSkipHoles<OrderedHashMap>(table, index, &done_loop);
+        NextSkipHashTableHoles<OrderedHashMap>(table, index, &done_loop);
 
     // Load the entry value as well.
     TNode<Object> entry_value =
@@ -2019,7 +2013,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<Object> entry_key;
   TNode<IntPtrT> entry_start_position;
   std::tie(entry_key, entry_start_position, index) =
-      NextSkipHoles<OrderedHashMap>(table, index, &return_end);
+      NextSkipHashTableHoles<OrderedHashMap>(table, index, &return_end);
   StoreObjectFieldNoWriteBarrier(receiver, JSMapIterator::kIndexOffset,
                                  SmiTag(index));
   var_value = entry_key;
@@ -2136,7 +2130,7 @@ TF_BUILTIN(SetPrototypeForEach, CollectionsBuiltinsAssembler) {
     TNode<Object> entry_key;
     TNode<IntPtrT> entry_start_position;
     std::tie(entry_key, entry_start_position, index) =
-        NextSkipHoles<OrderedHashSet>(table, index, &done_loop);
+        NextSkipHashTableHoles<OrderedHashSet>(table, index, &done_loop);
 
     // Invoke the {callback} passing the {entry_key} (twice) and the {receiver}.
     Call(context, callback, this_arg, entry_key, entry_key, receiver);
@@ -2204,7 +2198,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   TNode<Object> entry_key;
   TNode<IntPtrT> entry_start_position;
   std::tie(entry_key, entry_start_position, index) =
-      NextSkipHoles<OrderedHashSet>(table, index, &return_end);
+      NextSkipHashTableHoles<OrderedHashSet>(table, index, &return_end);
   StoreObjectFieldNoWriteBarrier(receiver, JSSetIterator::kIndexOffset,
                                  SmiTag(index));
   var_value = entry_key;

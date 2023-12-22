@@ -35,7 +35,7 @@ class JsonStringifier {
                                                       Handle<Object> gap);
 
  private:
-  enum Result { UNCHANGED, SUCCESS, EXCEPTION };
+  enum Result { UNCHANGED, SUCCESS, EXCEPTION, NEED_STACK };
 
   bool InitializeReplacer(Handle<Object> replacer);
   bool InitializeGap(Handle<Object> gap);
@@ -190,7 +190,7 @@ class JsonStringifier {
   V8_INLINE void SerializeDeferredKey(bool deferred_comma,
                                       Handle<Object> deferred_key);
 
-  Result SerializeSmi(Smi object);
+  Result SerializeSmi(Tagged<Smi> object);
 
   Result SerializeDouble(double number);
   V8_INLINE Result SerializeHeapNumber(Handle<HeapNumber> object) {
@@ -264,17 +264,19 @@ class JsonStringifier {
       }
     }
 
-    void TryInsert(String string, Isolate* isolate) {
+    void TryInsert(Tagged<String> string, Isolate* isolate) {
       ReadOnlyRoots roots(isolate);
-      if (string.map(isolate) == roots.internalized_one_byte_string_map()) {
+      if (string->map(isolate) == roots.internalized_one_byte_string_map()) {
         keys_[GetIndex(string)].PatchValue(string);
       }
     }
 
-    bool Contains(String string) { return *keys_[GetIndex(string)] == string; }
+    bool Contains(Tagged<String> string) {
+      return *keys_[GetIndex(string)] == string;
+    }
 
    private:
-    size_t GetIndex(String string) {
+    size_t GetIndex(Tagged<String> string) {
       // Short strings are 16 bytes long in pointer-compression builds, so the
       // lower four bits of the pointer may not provide much entropy.
       return (string.ptr() >> 4) & kIndexMask;
@@ -299,7 +301,7 @@ class JsonStringifier {
   // Tries to do fast-path serialization for a property key, and returns whether
   // it was successful.
   template <typename DestChar>
-  bool TrySerializeSimplePropertyKey(String string);
+  bool TrySerializeSimplePropertyKey(Tagged<String> string);
 
   template <typename Char>
   V8_INLINE static bool DoNotEscape(Char c);
@@ -345,7 +347,9 @@ class JsonStringifier {
   int indent_;
   int part_length_;
   int current_index_;
+  int stack_nesting_level_;
   bool overflowed_;
+  bool need_stack_;
 
   using KeyObject = std::pair<Handle<Object>, Handle<Object>>;
   std::vector<KeyObject> stack_;
@@ -414,7 +418,9 @@ JsonStringifier::JsonStringifier(Isolate* isolate)
       indent_(0),
       part_length_(kInitialPartLength),
       current_index_(0),
+      stack_nesting_level_(0),
       overflowed_(false),
+      need_stack_(false),
       stack_(),
       key_cache_(isolate) {
   one_byte_ptr_ = one_byte_array_;
@@ -433,6 +439,11 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
     return MaybeHandle<Object>();
   }
   Result result = SerializeObject(object);
+  if (result == NEED_STACK) {
+    indent_ = 0;
+    current_index_ = 0;
+    result = SerializeObject(object);
+  }
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) {
     if (overflowed_ || current_index_ > String::kMaxLength) {
@@ -594,6 +605,14 @@ Handle<JSReceiver> JsonStringifier::CurrentHolder(
 
 JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
                                                    Handle<Object> key) {
+  if (!need_stack_) {
+    ++stack_nesting_level_;
+    if V8_UNLIKELY (stack_nesting_level_ > 10) {
+      need_stack_ = true;
+      return NEED_STACK;
+    }
+    return SUCCESS;
+  }
   StackLimitCheck check(isolate_);
   if (check.HasOverflowed()) {
     isolate_->StackOverflow();
@@ -602,7 +621,7 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
 
   {
     DisallowGarbageCollection no_gc;
-    Object raw_obj = *object;
+    Tagged<Object> raw_obj = *object;
     size_t size = stack_.size();
     for (size_t i = 0; i < size; ++i) {
       if (*stack_[i].second == raw_obj) {
@@ -620,7 +639,13 @@ JsonStringifier::Result JsonStringifier::StackPush(Handle<Object> object,
   return SUCCESS;
 }
 
-void JsonStringifier::StackPop() { stack_.pop_back(); }
+void JsonStringifier::StackPop() {
+  if V8_LIKELY (!need_stack_) {
+    --stack_nesting_level_;
+    return;
+  }
+  stack_.pop_back();
+}
 
 class CircularStructureMessageBuilder {
  public:
@@ -681,7 +706,7 @@ class CircularStructureMessageBuilder {
     }
   }
 
-  void AppendSmi(Smi smi) {
+  void AppendSmi(Tagged<Smi> smi) {
     static const int kBufferSize = 100;
     char chars[kBufferSize];
     base::Vector<char> buffer(chars, kBufferSize);
@@ -733,11 +758,12 @@ Handle<String> JsonStringifier::ConstructCircularStructureErrorMessage(
   return result;
 }
 
-bool MayHaveInterestingProperties(Isolate* isolate, JSReceiver object) {
+bool MayHaveInterestingProperties(Isolate* isolate, Tagged<JSReceiver> object) {
   for (PrototypeIterator iter(isolate, object, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent()->map()->may_have_interesting_properties())
+    if (iter.GetCurrent()->map()->may_have_interesting_properties()) {
       return true;
+    }
   }
   return false;
 }
@@ -760,11 +786,17 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
     if ((InstanceTypeChecker::IsJSReceiver(instance_type) &&
          MayHaveInterestingProperties(isolate_, JSReceiver::cast(*object))) ||
         InstanceTypeChecker::IsBigInt(instance_type)) {
+      if (!need_stack_ && stack_nesting_level_ > 0) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
+      need_stack_ = true;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, object, ApplyToJsonFunction(object, key), EXCEPTION);
     }
   }
   if (!replacer_function_.is_null()) {
+    need_stack_ = true;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, object, ApplyReplacerFunction(object, key, initial_value),
         EXCEPTION);
@@ -806,6 +838,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSArray(Handle<JSArray>::cast(object), key);
     case JS_PRIMITIVE_WRAPPER_TYPE:
+      if (!need_stack_) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
       if (deferred_string_key) SerializeDeferredKey(comma, key);
       return SerializeJSPrimitiveWrapper(
           Handle<JSPrimitiveWrapper>::cast(object), key);
@@ -837,6 +873,8 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         AppendString(raw_json);
       }
       return SUCCESS;
+    case HOLE_TYPE:
+      UNREACHABLE();
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_STRUCT_TYPE:
     case WASM_ARRAY_TYPE:
@@ -848,7 +886,10 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
         SerializeString<false>(Handle<String>::cast(object));
         return SUCCESS;
       } else {
-        DCHECK(IsJSReceiver(*object));
+        // Make sure that we have a JSReceiver before we cast it to one.
+        // If we ever leak an internal object that is not a JSReceiver it could
+        // end up here and lead to a type confusion.
+        CHECK(IsJSReceiver(*object));
         if (IsCallable(HeapObject::cast(*object), cage_base)) return UNCHANGED;
         // Go to slow path for global proxy and objects requiring access checks.
         if (deferred_string_key) SerializeDeferredKey(comma, key);
@@ -864,7 +905,7 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
     Handle<JSPrimitiveWrapper> object, Handle<Object> key) {
-  Object raw = object->value();
+  Tagged<Object> raw = object->value();
   if (IsString(raw)) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -893,7 +934,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSPrimitiveWrapper(
   return SUCCESS;
 }
 
-JsonStringifier::Result JsonStringifier::SerializeSmi(Smi object) {
+JsonStringifier::Result JsonStringifier::SerializeSmi(Tagged<Smi> object) {
   static const int kBufferSize = 100;
   char chars[kBufferSize];
   base::Vector<char> buffer(chars, kBufferSize);
@@ -1017,6 +1058,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
 
 JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
     Handle<JSReceiver> object, uint32_t start, uint32_t length) {
+  if (!need_stack_) {
+    need_stack_ = true;
+    return NEED_STACK;
+  }
   // We need to write out at least two characters per array element.
   static const int kMaxSerializableArrayLength = String::kMaxLength / 2;
   if (length > kMaxSerializableArrayLength) {
@@ -1048,7 +1093,8 @@ JsonStringifier::Result JsonStringifier::SerializeArrayLikeSlow(
 
 namespace {
 V8_INLINE bool CanFastSerializeJSObject(PtrComprCageBase cage_base,
-                                        JSObject raw_object, Isolate* isolate) {
+                                        Tagged<JSObject> raw_object,
+                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
   if (IsCustomElementsReceiverMap(raw_object->map(cage_base))) return false;
   if (!raw_object->HasFastProperties(cage_base)) return false;
@@ -1066,6 +1112,10 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
 
   if (!property_list_.is_null() ||
       !CanFastSerializeJSObject(cage_base, *object, isolate_)) {
+    if (!need_stack_) {
+      need_stack_ = true;
+      return NEED_STACK;
+    }
     Result stack_push = StackPush(object, key);
     if (stack_push != SUCCESS) return stack_push;
     Result result = SerializeJSReceiverSlow(object);
@@ -1094,8 +1144,9 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
     PropertyDetails details = PropertyDetails::Empty();
     {
       DisallowGarbageCollection no_gc;
-      DescriptorArray descriptors = map->instance_descriptors(cage_base);
-      Name name = descriptors->GetKey(i);
+      Tagged<DescriptorArray> descriptors =
+          map->instance_descriptors(cage_base);
+      Tagged<Name> name = descriptors->GetKey(i);
       // TODO(rossberg): Should this throw?
       if (!IsString(name, cage_base)) continue;
       key_name = handle(String::cast(name), isolate_);
@@ -1110,13 +1161,17 @@ JsonStringifier::Result JsonStringifier::SerializeJSObject(
       property = JSObject::FastPropertyAt(
           isolate_, object, details.representation(), field_index);
     } else {
+      if (!need_stack_) {
+        need_stack_ = true;
+        return NEED_STACK;
+      }
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           isolate_, property,
           Object::GetPropertyOrElement(isolate_, object, key_name), EXCEPTION);
     }
     Result result = SerializeProperty(property, comma, key_name);
     if (!comma && result == SUCCESS) comma = true;
-    if (result == EXCEPTION) return result;
+    if (result == EXCEPTION || result == NEED_STACK) return result;
   }
   Unindent();
   if (comma) NewLine();
@@ -1147,7 +1202,7 @@ JsonStringifier::Result JsonStringifier::SerializeJSReceiverSlow(
         EXCEPTION);
     Result result = SerializeProperty(property, comma, key);
     if (!comma && result == SUCCESS) comma = true;
-    if (result == EXCEPTION) return result;
+    if (result == EXCEPTION || result == NEED_STACK) return result;
   }
   Unindent();
   if (comma) NewLine();
@@ -1331,16 +1386,16 @@ bool JsonStringifier::SerializeString_(Handle<String> string) {
 }
 
 template <typename DestChar>
-bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
+bool JsonStringifier::TrySerializeSimplePropertyKey(Tagged<String> key) {
   DisallowGarbageCollection no_gc;
   ReadOnlyRoots roots(isolate_);
-  if (key.map(isolate_) != roots.internalized_one_byte_string_map()) {
+  if (key->map(isolate_) != roots.internalized_one_byte_string_map()) {
     return false;
   }
   if (!key_cache_.Contains(key)) {
     return false;
   }
-  int length = key.length();
+  int length = key->length();
   int copy_length = length;
   if constexpr (sizeof(DestChar) == 1) {
     // CopyChars has fast paths for small integer lengths, and is generally a
@@ -1365,7 +1420,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(String key) {
   base::Vector<const uint8_t> chars(
       SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
-            key.address() + key.Size(isolate_));
+            key.address() + key->Size(isolate_));
 #if DEBUG
   for (int i = 0; i < length; ++i) {
     DCHECK(DoNotEscape(chars[i]));

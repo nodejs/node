@@ -37,9 +37,12 @@ MemoryAllocator::MemoryAllocator(Isolate* isolate,
     : isolate_(isolate),
       data_page_allocator_(isolate->page_allocator()),
       code_page_allocator_(code_page_allocator),
+      trusted_page_allocator_(isolate->page_allocator()),
       capacity_(RoundUp(capacity, Page::kPageSize)),
       unmapper_(isolate->heap(), this) {
-  DCHECK_NOT_NULL(code_page_allocator);
+  DCHECK_NOT_NULL(data_page_allocator_);
+  DCHECK_NOT_NULL(code_page_allocator_);
+  DCHECK_NOT_NULL(trusted_page_allocator_);
 }
 
 void MemoryAllocator::TearDown() {
@@ -57,6 +60,7 @@ void MemoryAllocator::TearDown() {
 
   code_page_allocator_ = nullptr;
   data_page_allocator_ = nullptr;
+  trusted_page_allocator_ = nullptr;
 }
 
 class MemoryAllocator::Unmapper::UnmapFreeMemoryJob : public JobTask {
@@ -258,7 +262,9 @@ Address MemoryAllocator::AllocateAlignedMemory(
     size_t chunk_size, size_t area_size, size_t alignment,
     AllocationSpace space, Executability executable, void* hint,
     VirtualMemory* controller) {
-  v8::PageAllocator* page_allocator = this->page_allocator(executable);
+  DCHECK_EQ(space == CODE_SPACE || space == CODE_LO_SPACE,
+            executable == EXECUTABLE);
+  v8::PageAllocator* page_allocator = this->page_allocator(space);
   DCHECK_LT(area_size, chunk_size);
 
   VirtualMemory reservation(page_allocator, chunk_size, hint, alignment);
@@ -508,7 +514,7 @@ void MemoryAllocator::FreeReadOnlyPage(ReadOnlyPage* chunk) {
 
   UnregisterSharedBasicMemoryChunk(chunk);
 
-  v8::PageAllocator* allocator = page_allocator(NOT_EXECUTABLE);
+  v8::PageAllocator* allocator = page_allocator(RO_SPACE);
   VirtualMemory* reservation = chunk->reserved_memory();
   if (reservation->IsReserved()) {
     reservation->FreeReadOnly();

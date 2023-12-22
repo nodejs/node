@@ -592,6 +592,7 @@ uint32_t ComputeFlagListHash() {
 #endif
         flag.PointsTo(&v8_flags.parallel_scavenge) ||
         flag.PointsTo(&v8_flags.concurrent_marking) ||
+        flag.PointsTo(&v8_flags.concurrent_minor_ms_marking) ||
         flag.PointsTo(&v8_flags.concurrent_array_buffer_sweeping) ||
         flag.PointsTo(&v8_flags.parallel_marking) ||
         flag.PointsTo(&v8_flags.concurrent_sweeping) ||

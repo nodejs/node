@@ -231,7 +231,7 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
                                         Tagged<HeapObject> value,
                                         WriteBarrierMode mode) {
   // Indirect pointers are only used when the sandbox is enabled.
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
 
   if (mode == SKIP_WRITE_BARRIER) {
     SLOW_DCHECK(!WriteBarrier::IsRequired(host, value));

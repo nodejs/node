@@ -140,10 +140,10 @@ struct WordOperationTyper {
     std::pair<word_t, word_t> y = MakeRange(rhs);
 
     // If the result would not be a complete range, we compute it.
-    // Check: (lhs.to + rhs.to + 1) - (lhs.from + rhs.from + 1) < max
-    // =====> (lhs.to - lhs.from) + (rhs.to - rhs.from) < max
-    // =====> (lhs.to - lhs.from) < max - (rhs.to - rhs.from)
-    if (distance(x) < max - distance(y)) {
+    // Check: (lhs.to - lhs.from + 1) + rhs.to - rhs.from < max
+    // =====> (lhs.to - lhs.from + 1) < max - rhs.to + rhs.from
+    // =====> (lhs.to - lhs.from + 1) < max - (rhs.to - rhs.from)
+    if (distance(x) + 1 < max - distance(y)) {
       return type_t::Range(x.first + y.first, x.second + y.second, zone);
     }
 
@@ -170,7 +170,13 @@ struct WordOperationTyper {
     std::pair<word_t, word_t> y = MakeRange(rhs);
 
     if (!is_wrapping(x) && !is_wrapping(y)) {
-      return type_t::Range(x.first - y.second, x.second - y.first, zone);
+      // If the result would not be a complete range, we compute it.
+      // Check: (lhs.to - lhs.from + 1) + rhs.to - rhs.from < max
+      // =====> (lhs.to - lhs.from + 1) < max - rhs.to + rhs.from
+      // =====> (lhs.to - lhs.from + 1) < max - (rhs.to - rhs.from)
+      if (distance(x) + 1 < max - distance(y)) {
+        return type_t::Range(x.first - y.second, x.second - y.first, zone);
+      }
     }
 
     // TODO(nicohartmann@): Improve the wrapping cases.

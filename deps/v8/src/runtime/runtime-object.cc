@@ -78,7 +78,8 @@ namespace {
 // complete at any time. For this reason we use the filler map word.
 // If V8_MAP_PACKING is enabled, then the filler map word is a packed filler
 // map. Otherwise, the filler map word is the same as the filler map.
-inline void ClearField(Isolate* isolate, JSObject object, FieldIndex index) {
+inline void ClearField(Isolate* isolate, Tagged<JSObject> object,
+                       FieldIndex index) {
   if (index.is_inobject()) {
     MapWord filler_map_word =
         ReadOnlyRoots(isolate).one_pointer_filler_map_word();
@@ -108,7 +109,7 @@ void GeneralizeAllTransitionsToFieldAsMutable(Isolate* isolate, Handle<Map> map,
     TransitionsAccessor transitions(isolate, *map);
     transitions.ForEachTransitionTo(
         *name,
-        [&](Map target) {
+        [&](Tagged<Map> target) {
           DCHECK_EQ(descriptor, target->LastAdded());
           DCHECK_EQ(*name, target->GetLastDescriptorName(isolate));
           PropertyDetails details = target->GetLastDescriptorDetails(isolate);
@@ -365,7 +366,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
       if (maybe.FromJust()) return ReadOnlyRoots(isolate).true_value();
     }
 
-    Map map = js_obj->map();
+    Tagged<Map> map = js_obj->map();
     if (!IsJSGlobalProxyMap(map) &&
         (key.is_element() && key.index() <= JSObject::kMaxElementIndex
              ? !map->has_indexed_interceptor()
@@ -806,13 +807,14 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       DisallowGarbageCollection no_gc;
       if (IsJSGlobalObject(*lookup_start_object)) {
         // Attempt dictionary lookup.
-        GlobalDictionary dictionary = JSGlobalObject::cast(*lookup_start_object)
-                                          ->global_dictionary(kAcquireLoad);
+        Tagged<GlobalDictionary> dictionary =
+            JSGlobalObject::cast(*lookup_start_object)
+                ->global_dictionary(kAcquireLoad);
         InternalIndex entry = dictionary->FindEntry(isolate, key);
         if (entry.is_found()) {
-          PropertyCell cell = dictionary->CellAt(entry);
+          Tagged<PropertyCell> cell = dictionary->CellAt(entry);
           if (cell->property_details().kind() == PropertyKind::kData) {
-            Object value = cell->value();
+            Tagged<Object> value = cell->value();
             if (!IsPropertyCellHole(value, isolate)) return value;
             // If value is the hole (meaning, absent) do the general lookup.
           }
@@ -820,7 +822,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
       } else if (!lookup_start_object->HasFastProperties()) {
         // Attempt dictionary lookup.
         if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-          SwissNameDictionary dictionary =
+          Tagged<SwissNameDictionary> dictionary =
               lookup_start_object->property_dictionary_swiss();
           InternalIndex entry = dictionary->FindEntry(isolate, *key);
           if (entry.is_found() &&
@@ -828,7 +830,7 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
             return dictionary->ValueAt(entry);
           }
         } else {
-          NameDictionary dictionary =
+          Tagged<NameDictionary> dictionary =
               lookup_start_object->property_dictionary();
           InternalIndex entry = dictionary->FindEntry(isolate, key);
           if ((entry.is_found()) &&
@@ -915,8 +917,8 @@ RUNTIME_FUNCTION(Runtime_SetNamedProperty) {
 namespace {
 
 // ES6 section 12.5.4.
-Object DeleteProperty(Isolate* isolate, Handle<Object> object,
-                      Handle<Object> key, LanguageMode language_mode) {
+Tagged<Object> DeleteProperty(Isolate* isolate, Handle<Object> object,
+                              Handle<Object> key, LanguageMode language_mode) {
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, receiver,
                                      Object::ToObject(isolate, object));
@@ -1186,7 +1188,7 @@ RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {
 RUNTIME_FUNCTION(Runtime_IsJSReceiver) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Object obj = args[0];
+  Tagged<Object> obj = args[0];
   return isolate->heap()->ToBoolean(IsJSReceiver(obj));
 }
 
@@ -1770,7 +1772,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableFindEntry) {
   HandleScope scope(isolate);
   DisallowGarbageCollection no_gc;
   auto table = SwissNameDictionary::cast(args[0]);
-  Name key = Name::cast(args[1]);
+  Tagged<Name> key = Name::cast(args[1]);
   InternalIndex index = table->FindEntry(isolate, key);
   return Smi::FromInt(index.is_found()
                           ? index.as_int()
@@ -1784,7 +1786,7 @@ RUNTIME_FUNCTION(Runtime_SwissTableUpdate) {
   DisallowGarbageCollection no_gc;
   auto table = SwissNameDictionary::cast(args[0]);
   InternalIndex index(args.smi_value_at(1));
-  Object value = args[2];
+  Tagged<Object> value = args[2];
   table->ValueAtPut(index, value);
 
   PropertyDetails details(Smi::cast(args[3]));

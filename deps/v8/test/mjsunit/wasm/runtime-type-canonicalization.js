@@ -19,12 +19,12 @@ let struct_init = builder.addFunction("struct_init",
 let test_pass = builder.addFunction("test_pass",
                                     makeSig([kWasmStructRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
-              kGCPrefix, kExprRefTestDeprecated, identical_struct_index])
+              kGCPrefix, kExprRefTest, identical_struct_index])
     .exportFunc();
 let test_fail = builder.addFunction("test_fail",
                                     makeSig([kWasmStructRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0,
-              kGCPrefix, kExprRefTestDeprecated, distinct_struct_index])
+              kGCPrefix, kExprRefTest, distinct_struct_index])
     .exportFunc();
 
 (function TestCanonicalizationSameInstance() {

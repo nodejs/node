@@ -325,7 +325,7 @@ Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
   JSObject::AddProperty(isolate, object, shared_string,
                         factory->ToBoolean(shared), NONE);
 
-  auto index = is_memory64 ? "u64" : "u32";
+  auto index = is_memory64 ? "i64" : "i32";
   JSObject::AddProperty(isolate, object, index_string,
                         factory->InternalizeUtf8String(index), NONE);
 
@@ -434,7 +434,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
         import_kind = tag_string;
         break;
     }
-    DCHECK(!import_kind->is_null());
+    DCHECK(!import_kind.is_null());
 
     Handle<String> import_module =
         WasmModuleObject::ExtractUtf8StringFromModuleBytes(

@@ -16,6 +16,7 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+class SharedStringAccessGuardIfNeeded;
 
 // The limit for the the fractionDigits/precision for toFixed, toPrecision
 // and toExponential.
@@ -190,6 +191,8 @@ inline bool TryNumberToSize(Tagged<Object> number, size_t* result);
 inline size_t NumberToSize(Tagged<Object> number);
 
 // returns DoubleToString(StringToDouble(string)) == string
+V8_EXPORT_PRIVATE bool IsSpecialIndex(
+    Tagged<String> string, SharedStringAccessGuardIfNeeded& access_guard);
 V8_EXPORT_PRIVATE bool IsSpecialIndex(Tagged<String> string);
 
 }  // namespace internal

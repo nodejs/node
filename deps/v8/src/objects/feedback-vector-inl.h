@@ -13,6 +13,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots-inl.h"
 #include "src/torque/runtime-macro-shims.h"
 
@@ -216,8 +217,8 @@ void FeedbackVector::set_log_next_execution(bool value) {
   set_flags(LogNextExecutionBit::update(flags(), value));
 }
 
-base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
-                                                         FeedbackSlot slot) {
+base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
+    Isolate* isolate, FeedbackSlot slot) {
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
@@ -501,18 +502,14 @@ std::pair<MaybeObject, MaybeObject> FeedbackNexus::GetFeedbackPair() const {
 }
 
 template <typename T>
-struct IsValidFeedbackType
-    : public std::integral_constant<bool,
-                                    std::is_base_of<MaybeObject, T>::value ||
-                                        std::is_base_of<Object, T>::value> {
-  static_assert(kTaggedCanConvertToRawObjects);
-};
+struct IsValidFeedbackType : public std::false_type {};
 
+template <>
+struct IsValidFeedbackType<MaybeObject> : public std::true_type {};
+template <>
+struct IsValidFeedbackType<HeapObjectReference> : public std::true_type {};
 template <typename T>
-struct IsValidFeedbackType<Tagged<T>>
-    : public std::integral_constant<bool,
-                                    std::is_base_of<MaybeObject, T>::value ||
-                                        std::is_base_of<Object, T>::value> {};
+struct IsValidFeedbackType<Tagged<T>> : public std::true_type {};
 
 template <typename FeedbackType>
 void FeedbackNexus::SetFeedback(FeedbackType feedback, WriteBarrierMode mode) {

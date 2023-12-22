@@ -71,9 +71,11 @@ Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& info) {
   uint64_t kSmiValueMask =
       (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
   uint64_t low_bits =
-      Smi(*reinterpret_cast<Address*>(*info[0])).value() & kSmiValueMask;
+      Tagged<Smi>(*reinterpret_cast<Address*>(*info[0])).value() &
+      kSmiValueMask;
   uint64_t high_bits =
-      Smi(*reinterpret_cast<Address*>(*info[1])).value() & kSmiValueMask;
+      Tagged<Smi>(*reinterpret_cast<Address*>(*info[1])).value() &
+      kSmiValueMask;
   Address fp =
       static_cast<Address>((high_bits << (kSmiValueSize - 1)) | low_bits);
 #else

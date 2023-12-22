@@ -13,7 +13,7 @@ namespace internal {
 
 namespace {
 
-void PrepareMapCommon(Map map) {
+void PrepareMapCommon(Tagged<Map> map) {
   DCHECK(IsAlwaysSharedSpaceJSObjectMap(map));
   DisallowGarbageCollection no_gc;
   // Shared objects have fixed layout ahead of time, so there's no slack.

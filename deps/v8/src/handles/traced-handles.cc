@@ -889,7 +889,7 @@ void TracedHandlesImpl::ComputeWeaknessForYoungObjects(
 
   // Treat all objects as roots during incremental marking to avoid corrupting
   // marking worklists.
-  if (is_marking_) return;
+  if (!v8_flags.minor_ms && is_marking_) return;
 
   auto* const handler = isolate_->heap()->GetEmbedderRootsHandler();
   if (!handler) return;

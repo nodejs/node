@@ -42,7 +42,7 @@ namespace torque_internal {
 
 type Tagged generates 'TNode<MaybeObject>' constexpr 'MaybeObject';
 type StrongTagged extends Tagged
-    generates 'TNode<Object>' constexpr 'ObjectPtr';
+    generates 'TNode<Object>' constexpr 'Object';
 type Smi extends StrongTagged generates 'TNode<Smi>' constexpr 'Smi';
 type WeakHeapObject extends Tagged;
 type Weak<T : type extends HeapObject> extends WeakHeapObject;

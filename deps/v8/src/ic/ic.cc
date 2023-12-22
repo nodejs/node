@@ -567,7 +567,7 @@ bool AddOneReceiverMapIfMissing(
 Handle<NativeContext> GetAccessorContext(
     const CallOptimization& call_optimization, Tagged<Map> holder_map,
     Isolate* isolate) {
-  base::Optional<NativeContext> maybe_context =
+  base::Optional<Tagged<NativeContext>> maybe_context =
       call_optimization.GetAccessorContext(holder_map);
 
   // Holders which are remote objects are not expected in the IC system.
@@ -3133,9 +3133,11 @@ enum class FastCloneObjectMode {
 FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
                                        Isolate* isolate) {
   DisallowGarbageCollection no_gc;
+  bool null_proto_literal = flags & ObjectLiteral::kHasNullPrototype;
   if (!IsJSObjectMap(*map)) {
     // Everything that produces the empty object literal can be supported since
     // we have a special case for that.
+    if (null_proto_literal) return FastCloneObjectMode::kNotSupported;
     return IsNullOrUndefinedMap(*map) || IsBooleanMap(*map) ||
                    IsHeapNumberMap(*map)
                ? FastCloneObjectMode::kEmptyObject
@@ -3158,7 +3160,7 @@ FastCloneObjectMode GetCloneModeForMap(Handle<Map> map, int flags,
           ? FastCloneObjectMode::kIdenticalMap
           : FastCloneObjectMode::kDifferentMap;
 
-  if (flags & ObjectLiteral::kHasNullPrototype || IsNull(map->prototype())) {
+  if (null_proto_literal || IsNull(map->prototype())) {
     mode = FastCloneObjectMode::kDifferentMap;
   }
 
@@ -3321,8 +3323,8 @@ RUNTIME_FUNCTION(Runtime_CloneObjectIC_Miss) {
             return *source_map;
           }
           case FastCloneObjectMode::kEmptyObject: {
-            nexus.ConfigureCloneObject(source_map,
-                                       MaybeObjectHandle(Smi(0), isolate));
+            nexus.ConfigureCloneObject(
+                source_map, MaybeObjectHandle(Tagged<Smi>(0), isolate));
             RETURN_RESULT_OR_FAILURE(
                 isolate, CloneObjectSlowPath(isolate, source, flags));
           }

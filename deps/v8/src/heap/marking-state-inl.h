@@ -41,6 +41,16 @@ bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
   return false;
 }
 
+template <typename ConcreteState, AccessMode access_mode>
+bool MarkingStateBase<ConcreteState, access_mode>::TryMarkAndAccountLiveBytes(
+    Tagged<HeapObject> obj, int object_size) {
+  if (TryMark(obj)) {
+    MemoryChunk::FromHeapObject(obj)->IncrementLiveBytesAtomically(object_size);
+    return true;
+  }
+  return false;
+}
+
 }  // namespace internal
 }  // namespace v8
 

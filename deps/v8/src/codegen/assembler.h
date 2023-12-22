@@ -55,6 +55,7 @@
 #include "src/flags/flags.h"
 #include "src/handles/handles.h"
 #include "src/objects/objects.h"
+#include "src/sandbox/indirect-pointer-tag.h"
 #include "src/utils/ostreams.h"
 
 namespace v8 {
@@ -262,6 +263,48 @@ class AssemblerBuffer {
   // destructed), but not written.
   virtual std::unique_ptr<AssemblerBuffer> Grow(int new_size)
       V8_WARN_UNUSED_RESULT = 0;
+};
+
+// Describes a HeapObject slot containing a pointer to another HeapObject. Such
+// a slot can either contain a direct/tagged pointer, or an indirect pointer
+// (i.e. an index into an indirect pointer table, which then contains the
+// actual pointer to the object) together with a specific IndirectPointerTag.
+class SlotDescriptor {
+ public:
+  bool contains_direct_pointer() const {
+    return indirect_pointer_tag_ == kIndirectPointerNullTag;
+  }
+
+  bool contains_indirect_pointer() const {
+    return indirect_pointer_tag_ != kIndirectPointerNullTag;
+  }
+
+  IndirectPointerTag indirect_pointer_tag() const {
+    DCHECK(contains_indirect_pointer());
+    return indirect_pointer_tag_;
+  }
+
+  static SlotDescriptor ForDirectPointerSlot() {
+    return SlotDescriptor(kIndirectPointerNullTag);
+  }
+
+  static SlotDescriptor ForIndirectPointerSlot(IndirectPointerTag tag) {
+    return SlotDescriptor(tag);
+  }
+
+  static SlotDescriptor ForMaybeIndirectPointerSlot(IndirectPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    return ForIndirectPointerSlot(tag);
+#else
+    return ForDirectPointerSlot();
+#endif
+  }
+
+ private:
+  SlotDescriptor(IndirectPointerTag tag) : indirect_pointer_tag_(tag) {}
+
+  // If the tag is null, this object describes a direct pointer slot.
+  IndirectPointerTag indirect_pointer_tag_;
 };
 
 // Allocate an AssemblerBuffer which uses an existing buffer. This buffer cannot

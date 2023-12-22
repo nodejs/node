@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-stringref --experimental-wasm-gc
+// Flags: --expose-externalize-string
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -35,6 +36,8 @@ function encodeWtf8(str) {
   return out;
 }
 
+let externalString = "I'm an external string";
+externalizeString(externalString);
 let interestingStrings = [
   '',
   'ascii',
@@ -48,6 +51,7 @@ let interestingStrings = [
   'ab \ud800',         // Lone lead surrogate at the end.
   'ab \udc00',         // Lone trail surrogate at the end.
   'a \udc00\ud800 b',  // Swapped surrogate pair.
+  externalString,      // External string.
 ];
 
 function IsSurrogate(codepoint) {
@@ -96,6 +100,7 @@ function makeWtf8TestDataSegment() {
 };
 
 (function TestStringNewWtf8Array() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let data = makeWtf8TestDataSegment();
@@ -199,6 +204,7 @@ function makeWtf8TestDataSegment() {
 })();
 
 (function TestStringNewUtf8ArrayTryNullCheck() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let data = makeWtf8TestDataSegment();
   let data_index = builder.addPassiveDataSegment(data.data);
@@ -258,6 +264,7 @@ function makeWtf16TestDataSegment(strings) {
 };
 
 (function TestStringNewWtf16Array() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   // string.new_wtf16_array switches to a different implementation (runtime
@@ -331,6 +338,7 @@ function makeWtf16TestDataSegment(strings) {
 })();
 
 (function TestStringEncodeWtf8Array() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let i8_array = builder.addArray(kWasmI8, true);
@@ -438,6 +446,7 @@ function makeWtf16TestDataSegment(strings) {
 })();
 
 (function TestStringEncodeWtf16Array() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let i16_array = builder.addArray(kWasmI16, true);

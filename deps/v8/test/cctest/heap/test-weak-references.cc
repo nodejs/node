@@ -193,7 +193,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
   HandleScope outer_scope(isolate);
   Handle<LoadHandler> lh = CreateLoadHandlerForTest(factory);
   CHECK(InCorrectGeneration(*lh));
-  Tagged<LoadHandler> lh_location = *lh;
+  Address lh_object_location = lh->address();
   {
     HandleScope inner_scope(isolate);
     // Create a new FixedArray which the LoadHandler will point to.
@@ -210,8 +210,7 @@ TEST(ObjectMovesBeforeClearingWeakField) {
 
   // Scavenger will move *lh.
   heap::InvokeMinorGC(heap);
-  Tagged<LoadHandler> new_lh_location = *lh;
-  CHECK_NE(lh_location, new_lh_location);
+  CHECK_NE(lh_object_location, lh.address());
   CHECK(lh->data1()->IsWeak());
 
   // Now we try to clear *lh.

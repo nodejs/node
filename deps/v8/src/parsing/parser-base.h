@@ -4546,9 +4546,11 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
   DCHECK_IMPLIES(!has_error(), peek() == Token::ARROW);
   if (!impl()->HasCheckedSyntax() && scanner_->HasLineTerminatorBeforeNext()) {
-    // ASI inserts `;` after arrow parameters if a line terminator is found.
-    // `=> ...` is never a valid expression, so report as syntax error.
-    // If next token is not `=>`, it's a syntax error anyways.
+    // No line terminator allowed between the parameters and the arrow:
+    // ArrowFunction[In, Yield, Await] :
+    //   ArrowParameters[?Yield, ?Await] [no LineTerminator here] =>
+    //   ConciseBody[?In]
+    // If the next token is not `=>`, it's a syntax error anyway.
     impl()->ReportUnexpectedTokenAt(scanner_->peek_location(), Token::ARROW);
     return impl()->FailureExpression();
   }

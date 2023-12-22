@@ -25,8 +25,8 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
-  HeapObject obj_a = HeapObject::unchecked_cast(Object(a));
-  HeapObject obj_b = HeapObject::unchecked_cast(Object(b));
+  Tagged<HeapObject> obj_a = HeapObject::unchecked_cast(Tagged<Object>(a));
+  Tagged<HeapObject> obj_b = HeapObject::unchecked_cast(Tagged<Object>(b));
   // This check might fail when we try to compare InstructionStream object with
   // non-InstructionStream object. The main legitimate case when such "mixed"
   // comparison could happen is comparing two AbstractCode objects. If that's

@@ -23,6 +23,12 @@ void HeapAllocator::Setup() {
     spaces_[i] = heap_->space(i);
   }
 
+  new_space_allocator_ =
+      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
+  old_space_allocator_ = heap_->old_space()->main_allocator();
+  trusted_space_allocator_ = heap_->trusted_space()->main_allocator();
+  code_space_allocator_ = heap_->code_space()->main_allocator();
+
   shared_old_allocator_ = heap_->shared_space_allocator_.get();
   shared_lo_space_ = heap_->shared_lo_allocation_space();
 }
@@ -45,6 +51,8 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
     case AllocationType::kSharedOld:
       return shared_lo_space()->AllocateRawBackground(
           heap_->main_thread_local_heap(), size_in_bytes);
+    case AllocationType::kTrusted:
+      return trusted_lo_space()->AllocateRaw(size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -61,6 +69,7 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
     case AllocationType::kOld:
     case AllocationType::kCode:
     case AllocationType::kMap:
+    case AllocationType::kTrusted:
       // OLD_SPACE indicates full GC.
       return OLD_SPACE;
     case AllocationType::kReadOnly:
@@ -128,6 +137,87 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
 
   V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
                               V8::kHeapOOM);
+}
+
+void HeapAllocator::MakeLinearAllocationAreaIterable() {
+  if (new_space_allocator_) {
+    new_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
+  old_space_allocator_->MakeLinearAllocationAreaIterable();
+  trusted_space_allocator_->MakeLinearAllocationAreaIterable();
+  code_space_allocator_->MakeLinearAllocationAreaIterable();
+}
+
+void HeapAllocator::MarkLinearAllocationAreaBlack() {
+  old_space_allocator_->MarkLinearAllocationAreaBlack();
+  trusted_space_allocator_->MarkLinearAllocationAreaBlack();
+
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking Code objects requires write access to the Code page header");
+    code_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+}
+
+void HeapAllocator::UnmarkLinearAllocationArea() {
+  old_space_allocator_->UnmarkLinearAllocationArea();
+  trusted_space_allocator_->UnmarkLinearAllocationArea();
+
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Marking Code objects requires write access to the Code page header");
+    code_space_allocator_->UnmarkLinearAllocationArea();
+  }
+}
+
+void HeapAllocator::AddAllocationObserver(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  if (new_space_allocator_) {
+    new_space_allocator_->AddAllocationObserver(new_space_observer);
+  }
+  if (new_lo_space()) {
+    new_lo_space()->AddAllocationObserver(new_space_observer);
+  }
+  old_space_allocator_->AddAllocationObserver(observer);
+  lo_space()->AddAllocationObserver(observer);
+  trusted_space_allocator_->AddAllocationObserver(observer);
+  trusted_lo_space()->AddAllocationObserver(observer);
+  code_space_allocator_->AddAllocationObserver(observer);
+  code_lo_space()->AddAllocationObserver(observer);
+}
+
+void HeapAllocator::RemoveAllocationObserver(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  if (new_space_allocator_) {
+    new_space_allocator_->RemoveAllocationObserver(new_space_observer);
+  }
+  if (new_lo_space()) {
+    new_lo_space()->RemoveAllocationObserver(new_space_observer);
+  }
+  old_space_allocator_->RemoveAllocationObserver(observer);
+  lo_space()->RemoveAllocationObserver(observer);
+  trusted_space_allocator_->RemoveAllocationObserver(observer);
+  trusted_lo_space()->RemoveAllocationObserver(observer);
+  code_space_allocator_->RemoveAllocationObserver(observer);
+  code_lo_space()->RemoveAllocationObserver(observer);
+}
+
+void HeapAllocator::PauseAllocationObservers() {
+  if (new_space_allocator_) {
+    new_space_allocator_->PauseAllocationObservers();
+  }
+  old_space_allocator_->PauseAllocationObservers();
+  trusted_space_allocator_->PauseAllocationObservers();
+  code_space_allocator_->PauseAllocationObservers();
+}
+
+void HeapAllocator::ResumeAllocationObservers() {
+  if (new_space_allocator_) {
+    new_space_allocator_->ResumeAllocationObservers();
+  }
+  old_space_allocator_->ResumeAllocationObservers();
+  trusted_space_allocator_->ResumeAllocationObservers();
+  code_space_allocator_->ResumeAllocationObservers();
 }
 
 #ifdef DEBUG

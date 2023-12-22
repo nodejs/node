@@ -65,7 +65,6 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   Node* Param(int index, const char* debug_name = nullptr) {
     DCHECK_NOT_NULL(graph_->start());
     // Turbofan allows negative parameter indices.
-    static constexpr int kMinParameterIndex = -1;
     DCHECK_GE(index, kMinParameterIndex);
     int array_index = index - kMinParameterIndex;
     if (parameters_[array_index] == nullptr) {

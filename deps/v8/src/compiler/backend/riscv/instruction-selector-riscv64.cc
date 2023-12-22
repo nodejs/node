@@ -237,7 +237,7 @@ void EmitS128Load(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
+void InstructionSelectorT<Adapter>::VisitStoreLane(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -263,7 +263,7 @@ void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
+void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2624,7 +2624,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2649,7 +2649,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2672,7 +2672,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
-    Node* node) {
+    node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2698,7 +2698,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
-    Node* node) {
+    node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
     UNIMPLEMENTED();
   } else {
@@ -2747,7 +2747,7 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                             \
   template <typename Adapter>                                              \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) {  \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
     if constexpr (Adapter::IsTurboshaft) {                                 \
       UNIMPLEMENTED();                                                     \
                                                                            \
@@ -2790,7 +2790,7 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
 
 #define VISIT_ATOMIC_BINOP(op)                                                \
   template <typename Adapter>                                                 \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) {     \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) {    \
     if constexpr (Adapter::IsTurboshaft) {                                    \
       UNIMPLEMENTED();                                                        \
     } else {                                                                  \
@@ -2848,55 +2848,63 @@ void InstructionSelectorT<Adapter>::VisitSignExtendWord32ToInt64(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Min(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
-  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand mask_reg = g.TempFpRegister(v0);
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
-             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
-             g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
-             g.UseImmediate(m1));
+void InstructionSelectorT<Adapter>::VisitF64x2Min(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    InstructionOperand temp1 = g.TempFpRegister(v0);
+    InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
+    InstructionOperand mask_reg = g.TempFpRegister(v0);
+    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
+               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+               g.UseImmediate(m1));
+    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
+               g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
+               g.UseImmediate(m1));
+    this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
+               g.UseImmediate(m1));
 
-  InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
-             g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfminVv, result, g.UseRegister(node->InputAt(1)),
-             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
-  this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
-             g.UseImmediate(m1));
+    InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
+    InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
+    this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
+               g.UseImmediate(E64), g.UseImmediate(m1));
+    this->Emit(kRiscvVfminVv, result, g.UseRegister(node->InputAt(1)),
+               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+               g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
+    this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
+               g.UseImmediate(m1));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitF64x2Max(Node* node) {
-  RiscvOperandGeneratorT<Adapter> g(this);
-  InstructionOperand temp1 = g.TempFpRegister(v0);
-  InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand mask_reg = g.TempFpRegister(v0);
-  this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
-             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
-             g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
-             g.UseImmediate(m1));
-  this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
-             g.UseImmediate(m1));
+void InstructionSelectorT<Adapter>::VisitF64x2Max(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    RiscvOperandGeneratorT<Adapter> g(this);
+    InstructionOperand temp1 = g.TempFpRegister(v0);
+    InstructionOperand temp2 = g.TempFpRegister(kSimd128ScratchReg);
+    InstructionOperand mask_reg = g.TempFpRegister(v0);
+    this->Emit(kRiscvVmfeqVv, temp1, g.UseRegister(node->InputAt(0)),
+               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+               g.UseImmediate(m1));
+    this->Emit(kRiscvVmfeqVv, temp2, g.UseRegister(node->InputAt(1)),
+               g.UseRegister(node->InputAt(1)), g.UseImmediate(E64),
+               g.UseImmediate(m1));
+    this->Emit(kRiscvVandVv, mask_reg, temp2, temp1, g.UseImmediate(E64),
+               g.UseImmediate(m1));
 
-  InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
-  InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
-  this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
-             g.UseImmediate(E64), g.UseImmediate(m1));
-  this->Emit(kRiscvVfmaxVv, result, g.UseRegister(node->InputAt(1)),
-             g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
-             g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
-  this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
-             g.UseImmediate(m1));
+    InstructionOperand NaN = g.TempFpRegister(kSimd128ScratchReg);
+    InstructionOperand result = g.TempFpRegister(kSimd128ScratchReg);
+    this->Emit(kRiscvVmv, NaN, g.UseImmediate64(0x7ff8000000000000L),
+               g.UseImmediate(E64), g.UseImmediate(m1));
+    this->Emit(kRiscvVfmaxVv, result, g.UseRegister(node->InputAt(1)),
+               g.UseRegister(node->InputAt(0)), g.UseImmediate(E64),
+               g.UseImmediate(m1), g.UseImmediate(MaskType::Mask));
+    this->Emit(kRiscvVmv, g.DefineAsRegister(node), result, g.UseImmediate(E64),
+               g.UseImmediate(m1));
+  }
 }
 // static
 MachineOperatorBuilder::Flags

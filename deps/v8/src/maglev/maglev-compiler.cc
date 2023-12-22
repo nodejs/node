@@ -165,9 +165,70 @@ class MaxCallDepthProcessor {
   const MaglevCompilationUnit* last_seen_unit_ = nullptr;
 };
 
-class UseMarkingProcessor {
+thread_local MaglevGraphLabeller* labeller_;
+
+class AnyUseMarkingProcessor {
  public:
-  explicit UseMarkingProcessor(MaglevCompilationInfo* compilation_info)
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  template <typename NodeT>
+  ProcessResult Process(NodeT* node, const ProcessingState& state) {
+    if constexpr (IsValueNode(Node::opcode_of<NodeT>) &&
+                  !NodeT::kProperties.is_required_when_unused()) {
+      if (!node->is_used()) {
+        if (!node->unused_inputs_were_visited()) {
+          DropInputUses(node);
+        }
+        return ProcessResult::kRemove;
+      }
+    }
+    return ProcessResult::kContinue;
+  }
+
+ private:
+  void DropInputUses(ValueNode* node) {
+    for (Input& input : *node) {
+      ValueNode* input_node = input.node();
+      if (input_node->properties().is_required_when_unused()) continue;
+      input_node->remove_use();
+      if (!input_node->is_used() && !input_node->unused_inputs_were_visited()) {
+        DropInputUses(input_node);
+      }
+    }
+    DCHECK(!node->properties().can_eager_deopt());
+    DCHECK(!node->properties().can_lazy_deopt());
+    node->mark_unused_inputs_visited();
+  }
+};
+
+class DeadNodeSweepingProcessor {
+ public:
+  void PreProcessGraph(Graph* graph) {}
+  void PostProcessGraph(Graph* graph) {}
+  void PreProcessBasicBlock(BasicBlock* block) {}
+
+  ProcessResult Process(NodeBase* node, const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+
+  ProcessResult Process(ValueNode* node, const ProcessingState& state) {
+    if (!node->is_used() && !node->properties().is_required_when_unused()) {
+      // The UseMarkingProcessor will clear dead forward jump Phis eagerly, so
+      // the only dead phis that should remain are loop and exception phis.
+      DCHECK_IMPLIES(node->Is<Phi>(),
+                     node->Cast<Phi>()->is_loop_phi() ||
+                         node->Cast<Phi>()->is_exception_phi());
+      return ProcessResult::kRemove;
+    }
+    return ProcessResult::kContinue;
+  }
+};
+
+class LiveRangeAndNextUseProcessor {
+ public:
+  explicit LiveRangeAndNextUseProcessor(MaglevCompilationInfo* compilation_info)
       : compilation_info_(compilation_info) {}
 
   void PreProcessGraph(Graph* graph) {}
@@ -235,6 +296,7 @@ class UseMarkingProcessor {
 
     if (target->has_phi()) {
       for (Phi* phi : *target->phis()) {
+        DCHECK(phi->is_used());
         ValueNode* input = phi->input(i).node();
         MarkUse(input, use, &phi->input(i), outer_loop_used_nodes);
       }
@@ -288,9 +350,20 @@ class UseMarkingProcessor {
     if (!target->has_phi()) return;
     uint32_t use = node->id();
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
-    for (Phi* phi : *target->phis()) {
-      ValueNode* input = phi->input(i).node();
-      MarkUse(input, use, &phi->input(i), loop_used_nodes);
+    Phi::List& phis = *target->phis();
+    for (auto it = phis.begin(); it != phis.end();) {
+      Phi* phi = *it;
+      if (!phi->is_used()) {
+        // Skip unused phis -- we're processing phis out of order with the dead
+        // node sweeping processor, so we will still observe unused phis here.
+        // We can eagerly remove them while we're at it so that the dead node
+        // sweeping processor doesn't have to revisit them.
+        it = phis.RemoveAt(it);
+      } else {
+        ValueNode* input = phi->input(i).node();
+        MarkUse(input, use, &phi->input(i), loop_used_nodes);
+        ++it;
+      }
     }
   }
 
@@ -315,7 +388,7 @@ class UseMarkingProcessor {
 
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
-    node->mark_use(use_id, input);
+    node->record_next_use(use_id, input);
 
     // If we are in a loop, loop_used_nodes is non-null. In this case, check if
     // the incoming node is from outside the loop, and make sure to extend its
@@ -380,7 +453,7 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
       v8_flags.print_maglev_graph || v8_flags.print_maglev_graphs ||
       v8_flags.trace_maglev_graph_building ||
       v8_flags.trace_maglev_phi_untagging || v8_flags.trace_maglev_regalloc) {
-    compilation_info->set_graph_labeller(new MaglevGraphLabeller());
+    compilation_info->set_graph_labeller(labeller_ = new MaglevGraphLabeller());
   }
 
   {
@@ -437,15 +510,42 @@ bool MaglevCompiler::Compile(LocalIsolate* local_isolate,
 #endif
 
   {
+    // Post-hoc optimisation:
+    //   - Dead node marking
+    //   - Cleaning up identity nodes
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                 "V8.Maglev.DeadCodeMarking");
+    GraphMultiProcessor<AnyUseMarkingProcessor> processor;
+    processor.ProcessGraph(graph);
+  }
+
+  if (v8_flags.print_maglev_graphs) {
+    UnparkedScopeIfOnBackground unparked_scope(local_isolate->heap());
+    std::cout << "After use marking" << std::endl;
+    PrintGraph(std::cout, compilation_info, graph);
+  }
+
+#ifdef DEBUG
+  {
+    GraphProcessor<MaglevGraphVerifier> verifier(compilation_info);
+    verifier.ProcessGraph(graph);
+  }
+#endif
+
+  {
     // Preprocessing for register allocation and code gen:
+    //   - Remove dead nodes
     //   - Collect input/output location constraints
     //   - Find the maximum number of stack arguments passed to calls
     //   - Collect use information, for SSA liveness and next-use distance.
+    //   - Mark
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.Maglev.NodeProcessing");
-    GraphMultiProcessor<ValueLocationConstraintProcessor, MaxCallDepthProcessor,
-                        UseMarkingProcessor, DecompressedUseMarkingProcessor>
-        processor(UseMarkingProcessor{compilation_info});
+    GraphMultiProcessor<DeadNodeSweepingProcessor,
+                        ValueLocationConstraintProcessor, MaxCallDepthProcessor,
+                        LiveRangeAndNextUseProcessor,
+                        DecompressedUseMarkingProcessor>
+        processor(LiveRangeAndNextUseProcessor{compilation_info});
     processor.ProcessGraph(graph);
   }
 

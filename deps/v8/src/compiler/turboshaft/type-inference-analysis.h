@@ -96,8 +96,7 @@ class TypeInferenceAnalysis {
     // Collect the snapshots of all predecessors.
     {
       predecessors_.clear();
-      for (const Block* pred = block.LastPredecessor(); pred != nullptr;
-           pred = pred->NeighboringPredecessor()) {
+      for (const Block* pred : block.PredecessorsIterable()) {
         base::Optional<table_t::Snapshot> pred_snapshot =
             block_to_snapshot_mapping_[pred->index()];
         if (pred_snapshot.has_value()) {
@@ -156,7 +155,6 @@ class TypeInferenceAnalysis {
         case Opcode::kReturn:
         case Opcode::kStore:
         case Opcode::kRetain:
-        case Opcode::kTrapIf:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
         case Opcode::kTuple:
@@ -165,6 +163,7 @@ class TypeInferenceAnalysis {
         case Opcode::kDebugPrint:
 #if V8_ENABLE_WEBASSEMBLY
         case Opcode::kGlobalSet:
+        case Opcode::kTrapIf:
 #endif
         case Opcode::kCheckException:
           // These operations do not produce any output that needs to be typed.
@@ -235,8 +234,10 @@ class TypeInferenceAnalysis {
         case Opcode::kSelect:
         case Opcode::kLoad:
         case Opcode::kAtomicRMW:
+        case Opcode::kMemoryBarrier:
         case Opcode::kAllocate:
         case Opcode::kDecodeExternalPointer:
+        case Opcode::kStackCheck:
         case Opcode::kParameter:
         case Opcode::kOsrValue:
         case Opcode::kStackPointerGreaterThan:
@@ -308,6 +309,8 @@ class TypeInferenceAnalysis {
         case Opcode::kRttCanon:
         case Opcode::kWasmTypeCheck:
         case Opcode::kWasmTypeCast:
+        case Opcode::kExternInternalize:
+        case Opcode::kExternExternalize:
         case Opcode::kStructGet:
         case Opcode::kStructSet:
         case Opcode::kArrayGet:
@@ -325,6 +328,8 @@ class TypeInferenceAnalysis {
         case Opcode::kSimd128LaneMemory:
         case Opcode::kSimd128LoadTransform:
         case Opcode::kSimd128Shuffle:
+        case Opcode::kStringAsWtf16:
+        case Opcode::kStringPrepareForGetCodeUnit:
 #endif
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.

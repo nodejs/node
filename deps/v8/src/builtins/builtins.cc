@@ -188,7 +188,7 @@ void Builtins::set_code(Builtin builtin, Tagged<Code> code) {
 
 Tagged<Code> Builtins::code(Builtin builtin) {
   Address ptr = isolate_->builtin_table()[Builtins::ToInt(builtin)];
-  return Code::cast(Object(ptr));
+  return Code::cast(Tagged<Object>(ptr));
 }
 
 Handle<Code> Builtins::code_handle(Builtin builtin) {
@@ -262,6 +262,11 @@ const char* Builtins::NameForStackTrace(Builtin builtin) {
     case Builtin::kStringPrototypeIndexOf:
     case Builtin::kThrowIndexOfCalledOnNull:
       return "String.indexOf";
+    case Builtin::kDataViewPrototypeGetInt32:
+    case Builtin::kThrowDataViewGetInt32DetachedError:
+    case Builtin::kThrowDataViewGetInt32OutOfBounds:
+    case Builtin::kThrowDataViewGetInt32TypeError:
+      return "DataView.getInt32";
 #if V8_INTL_SUPPORT
     case Builtin::kStringPrototypeToLowerCaseIntl:
 #endif

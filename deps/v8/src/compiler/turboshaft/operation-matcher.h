@@ -32,6 +32,8 @@ class OperationMatcher {
 
   const Operation& Get(OpIndex op_idx) const { return graph_.Get(op_idx); }
 
+  OpIndex Index(const Operation& op) const { return graph_.Index(op); }
+
   bool MatchZero(OpIndex matched) const {
     const ConstantOp* op = TryCast<ConstantOp>(matched);
     if (!op) return false;
@@ -209,6 +211,16 @@ class OperationMatcher {
     return true;
   }
 
+  bool MatchWasmStubCallConstant(OpIndex matched, int64_t* stub_id) const {
+    const ConstantOp* op = TryCast<ConstantOp>(matched);
+    if (!op) return false;
+    if (op->kind != ConstantOp::Kind::kRelocatableWasmStubCall) {
+      return false;
+    }
+    *stub_id = op->signed_integral();
+    return true;
+  }
+
   bool MatchChange(OpIndex matched, OpIndex* input, ChangeOp::Kind kind,
                    RegisterRepresentation from,
                    RegisterRepresentation to) const {
@@ -225,9 +237,9 @@ class OperationMatcher {
     const WordBinopOp* op = TryCast<WordBinopOp>(matched);
     if (!op) return false;
     *kind = op->kind;
-    *rep = op->rep;
     *left = op->left();
     *right = op->right();
+    if (rep) *rep = op->rep;
     return true;
   }
 
@@ -372,6 +384,14 @@ class OperationMatcher {
       *input = op->left();
       *amount = static_cast<uint16_t>(rhs_constant);
       return true;
+    }
+    return false;
+  }
+
+  bool MatchPhi(OpIndex matched,
+                base::Optional<int> input_count = base::nullopt) const {
+    if (const PhiOp* phi = TryCast<PhiOp>(matched)) {
+      return !input_count.has_value() || phi->input_count == *input_count;
     }
     return false;
   }

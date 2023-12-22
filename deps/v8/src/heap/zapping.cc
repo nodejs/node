@@ -26,7 +26,8 @@ void ZapBlock(Address start, size_t size, uintptr_t zap_value) {
   DCHECK(ShouldZapGarbage());
   DCHECK(IsAligned(start, kTaggedSize));
   DCHECK(IsAligned(size, kTaggedSize));
-  MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(zap_value)),
+  MemsetTagged(ObjectSlot(start),
+               Tagged<Object>(static_cast<Address>(zap_value)),
                size >> kTaggedSizeLog2);
 }
 

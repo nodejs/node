@@ -44,7 +44,7 @@ class SemiSpace final : public Space {
   static void Swap(SemiSpace* from, SemiSpace* to);
 
   SemiSpace(Heap* heap, SemiSpaceId semispace)
-      : Space(heap, NEW_SPACE, nullptr, allocation_counter_), id_(semispace) {}
+      : Space(heap, NEW_SPACE, nullptr), id_(semispace) {}
 
   inline bool Contains(Tagged<HeapObject> o) const;
   inline bool Contains(Tagged<Object> o) const;
@@ -103,9 +103,6 @@ class SemiSpace final : public Space {
   void RemovePage(Page* page);
   void PrependPage(Page* page);
   void MovePageToTheEnd(Page* page);
-
-  void PauseAllocationObservers() override { UNREACHABLE(); }
-  void ResumeAllocationObservers() override { UNREACHABLE(); }
 
   Page* InitializePage(MemoryChunk* chunk) final;
 
@@ -200,7 +197,6 @@ class SemiSpace final : public Space {
   size_t committed_physical_memory_ = 0;
   SemiSpaceId id_;
   Page* current_page_ = nullptr;
-  AllocationCounter allocation_counter_;
 
   friend class SemiSpaceNewSpace;
   friend class SemiSpaceObjectIterator;
@@ -225,21 +221,17 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
   using iterator = PageIterator;
   using const_iterator = ConstPageIterator;
 
-  NewSpace(Heap* heap, LinearAllocationArea& allocation_info);
+  NewSpace(Heap* heap,
+           MainAllocator::SupportsExtendingLAB supports_extending_lab,
+           LinearAllocationArea& allocation_info);
 
   inline bool Contains(Tagged<Object> o) const;
   inline bool Contains(Tagged<HeapObject> o) const;
   virtual bool ContainsSlow(Address a) const = 0;
 
-#if DEBUG
-  void VerifyTop() const override;
-#endif  // DEBUG
-
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRawSynchronized(
       int size_in_bytes, AllocationAlignment alignment,
       AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  void MaybeFreeUnusedLab(LinearAllocationArea info);
 
   size_t ExternalBackingStoreOverallBytes() const {
     size_t result = 0;
@@ -259,9 +251,6 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   // Grow the capacity of the space.
   virtual void Grow() = 0;
-
-  // Creates a filler object in the linear allocation area.
-  virtual void MakeLinearAllocationAreaIterable() = 0;
 
   virtual void MakeIterable() = 0;
 
@@ -288,12 +277,7 @@ class NewSpace : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
 
   base::Mutex mutex_;
 
-  AllocationCounter allocation_counter_;
-  LinearAreaOriginalData linear_area_original_data_;
-
   virtual void RemovePage(Page* page) = 0;
-
-  bool SupportsAllocationObserver() const final { return true; }
 };
 
 // -----------------------------------------------------------------------------
@@ -329,10 +313,10 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   // Return the allocated bytes in the active semispace.
   size_t Size() const final {
-    DCHECK_GE(top(), to_space_.page_low());
+    DCHECK_GE(allocator_->top(), to_space_.page_low());
     return (to_space_.current_capacity() - Page::kPageSize) / Page::kPageSize *
                MemoryChunkLayout::AllocatableMemoryInDataPage() +
-           static_cast<size_t>(top() - to_space_.page_low());
+           static_cast<size_t>(allocator_->top() - to_space_.page_low());
   }
 
   size_t SizeOfObjects() const final { return Size(); }
@@ -393,10 +377,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
     DCHECK(to_space_.minimum_capacity() == from_space_.minimum_capacity());
     return to_space_.minimum_capacity();
   }
-
-#if DEBUG
-  void VerifyTop() const final;
-#endif  // DEBUG
 
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
@@ -480,8 +460,6 @@ class V8_EXPORT_PRIVATE SemiSpaceNewSpace final : public NewSpace {
 
   bool IsPromotionCandidate(const MemoryChunk* page) const final;
 
-  void MakeLinearAllocationAreaIterable() final;
-
  private:
   bool IsFromSpaceCommitted() const { return from_space_.IsCommitted(); }
 
@@ -518,11 +496,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
  public:
   // Creates an old space object. The constructor does not allocate pages
   // from OS.
-  explicit PagedSpaceForNewSpace(
-      Heap* heap, size_t initial_capacity, size_t max_capacity,
-      AllocationCounter& allocation_counter,
-      LinearAllocationArea& allocation_info,
-      LinearAreaOriginalData& linear_area_original_data);
+  explicit PagedSpaceForNewSpace(Heap* heap, size_t initial_capacity,
+                                 size_t max_capacity, MainAllocator* allocator);
 
   void TearDown() { PagedSpaceBase::TearDown(); }
 
@@ -534,7 +509,8 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   void FinishShrinking();
 
   size_t AllocatedSinceLastGC() const {
-    return Size() - size_at_last_gc_ - (original_limit_relaxed() - top());
+    return Size() - size_at_last_gc_ -
+           (allocator_->original_limit_relaxed() - allocator_->top());
   }
 
   // Return the maximum capacity of the space.
@@ -605,15 +581,16 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
 
   // Return the available bytes without growing.
   size_t Available() const final {
-    return PagedSpaceBase::Available() + limit() - top();
+    return PagedSpaceBase::Available() + allocator_->limit() -
+           allocator_->top();
   }
 
- private:
   size_t UsableCapacity() const {
     DCHECK_LE(free_list_->wasted_bytes(), current_capacity_);
     return current_capacity_ - free_list_->wasted_bytes();
   }
 
+ private:
   bool AllocatePage();
 
   const size_t initial_capacity_;
@@ -624,6 +601,7 @@ class V8_EXPORT_PRIVATE PagedSpaceForNewSpace final : public PagedSpaceBase {
   Page* last_lab_page_ = nullptr;
 
   bool force_allocation_success_ = false;
+  bool should_exceed_target_capacity_ = false;
 };
 
 // TODO(v8:12612): PagedNewSpace is a bridge between the NewSpace interface and
@@ -694,10 +672,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
     return paged_space_.MaximumCapacity();
   }
 
-#if DEBUG
-  void VerifyTop() const final { NewSpace::VerifyTop(); }
-#endif  // DEBUG
-
   // Return the address of the first allocatable address in the active
   // semispace. This may be the address where the first object resides.
   Address first_allocatable_address() const final {
@@ -761,10 +735,6 @@ class V8_EXPORT_PRIVATE PagedNewSpace final : public NewSpace {
 
   bool EnsureCurrentCapacity() final {
     return paged_space_.EnsureCurrentCapacity();
-  }
-
-  void MakeLinearAllocationAreaIterable() final {
-    paged_space_.MakeLinearAllocationAreaIterable();
   }
 
   PagedSpaceForNewSpace* paged_space() { return &paged_space_; }

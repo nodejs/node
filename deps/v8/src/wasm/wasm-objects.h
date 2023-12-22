@@ -62,7 +62,7 @@ class Managed;
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   DECL_GETTER(has_##name, bool)             \
-  DECL_ACCESSORS(name, Tagged<type>)
+  DECL_ACCESSORS(name, type)
 
 class V8_EXPORT_PRIVATE FunctionTargetAndRef {
  public:
@@ -261,7 +261,7 @@ class WasmTableObject
 class WasmMemoryObject
     : public TorqueGeneratedWasmMemoryObject<WasmMemoryObject, JSObject> {
  public:
-  DECL_OPTIONAL_ACCESSORS(instances, WeakArrayList)
+  DECL_OPTIONAL_ACCESSORS(instances, Tagged<WeakArrayList>)
 
   // Add a use of this memory object to the given instance. This updates the
   // internal weak list of instances that use this memory and also updates the
@@ -346,18 +346,18 @@ class V8_EXPORT_PRIVATE WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(exports_object, Tagged<JSObject>)
   DECL_ACCESSORS(native_context, Tagged<Context>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
-  DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, JSArrayBuffer)
-  DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(tables, FixedArray)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_tables, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(untagged_globals_buffer, Tagged<JSArrayBuffer>)
+  DECL_OPTIONAL_ACCESSORS(tagged_globals_buffer, Tagged<FixedArray>)
+  DECL_OPTIONAL_ACCESSORS(imported_mutable_globals_buffers, Tagged<FixedArray>)
+  DECL_OPTIONAL_ACCESSORS(tables, Tagged<FixedArray>)
+  DECL_OPTIONAL_ACCESSORS(indirect_function_tables, Tagged<FixedArray>)
   DECL_ACCESSORS(imported_function_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(imported_mutable_globals, Tagged<FixedAddressArray>)
   DECL_ACCESSORS(imported_function_targets, Tagged<FixedAddressArray>)
-  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(indirect_function_table_refs, Tagged<FixedArray>)
   DECL_ACCESSORS(indirect_function_table_sig_ids, Tagged<FixedUInt32Array>)
   DECL_ACCESSORS(indirect_function_table_targets, Tagged<ExternalPointerArray>)
-  DECL_OPTIONAL_ACCESSORS(tags_table, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(tags_table, Tagged<FixedArray>)
   DECL_ACCESSORS(wasm_internal_functions, Tagged<FixedArray>)
   DECL_ACCESSORS(managed_object_maps, Tagged<FixedArray>)
   DECL_ACCESSORS(feedback_vectors, Tagged<FixedArray>)
@@ -858,8 +858,6 @@ class WasmJSFunctionData
     : public TorqueGeneratedWasmJSFunctionData<WasmJSFunctionData,
                                                WasmFunctionData> {
  public:
-  DECL_ACCESSORS(wasm_to_js_wrapper_code, Tagged<Code>)
-
   // Dispatched behavior.
   DECL_PRINTER(WasmJSFunctionData)
 
@@ -1169,8 +1167,7 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 #undef DECL_OPTIONAL_ACCESSORS
 
-Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent,
-                             Handle<WasmInstanceObject> opt_instance);
+Handle<Map> CreateFuncRefMap(Isolate* isolate, Handle<Map> opt_rtt_parent);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to

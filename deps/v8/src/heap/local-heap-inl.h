@@ -66,6 +66,15 @@ AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                                 origin);
   }
 
+  if (type == AllocationType::kTrusted) {
+    if (large_object)
+      return heap()->trusted_lo_space()->AllocateRawBackground(this,
+                                                               size_in_bytes);
+    else
+      return trusted_space_allocator()->AllocateRaw(size_in_bytes, alignment,
+                                                    origin);
+  }
+
   DCHECK_EQ(type, AllocationType::kSharedOld);
   if (large_object) {
     return heap()->shared_lo_allocation_space()->AllocateRawBackground(

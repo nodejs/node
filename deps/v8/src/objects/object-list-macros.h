@@ -63,7 +63,6 @@ class FeedbackVector;
 class UncompiledData;
 class TemplateInfo;
 class TransitionArray;
-class TemplateList;
 class WasmInstanceObject;
 class WasmMemoryObject;
 template <typename T>
@@ -251,10 +250,11 @@ class ZoneForwardList;
   V(SymbolWrapper)                              \
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
-  V(TemplateList)                               \
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
+  V(TrustedObject)                              \
+  V(ExposedTrustedObject)                       \
   V(TurboshaftFloat64RangeType)                 \
   V(TurboshaftFloat64SetType)                   \
   V(TurboshaftFloat64Type)                      \
@@ -389,9 +389,10 @@ class ZoneForwardList;
   V(OptimizedOut, optimized_out, OptimizedOut)              \
   V(StaleRegister, stale_register, StaleRegister)
 
-#define HOLE_LIST(V)                       \
-  V(TheHole, the_hole_value, TheHoleValue) \
-  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue)
+#define HOLE_LIST(V)                                                   \
+  V(TheHole, the_hole_value, TheHoleValue)                             \
+  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
+  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)
 
 }  // namespace internal
 }  // namespace v8

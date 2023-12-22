@@ -188,24 +188,25 @@ uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
   static constexpr uint32_t kTrue = 1;
   static constexpr uint32_t kFalse = 0;
 
-  FixedUInt16Array ranges = FixedUInt16Array::cast(Object(raw_byte_array));
-  DCHECK_GE(ranges.length(), 1);
+  Tagged<FixedUInt16Array> ranges =
+      FixedUInt16Array::cast(Tagged<Object>(raw_byte_array));
+  DCHECK_GE(ranges->length(), 1);
 
   // Shortcut for fully out of range chars.
-  if (current_char < ranges.get(0)) return kFalse;
-  if (current_char >= ranges.get(ranges.length() - 1)) {
+  if (current_char < ranges->get(0)) return kFalse;
+  if (current_char >= ranges->get(ranges->length() - 1)) {
     // The last range may be open-ended.
-    return (ranges.length() % 2) == 0 ? kFalse : kTrue;
+    return (ranges->length() % 2) == 0 ? kFalse : kTrue;
   }
 
   // Binary search for the matching range. `ranges` is encoded as
   // [from0, to0, from1, to1, ..., fromN, toN], or
   // [from0, to0, from1, to1, ..., fromN] (open-ended last interval).
 
-  int mid, lower = 0, upper = ranges.length();
+  int mid, lower = 0, upper = ranges->length();
   do {
     mid = lower + (upper - lower) / 2;
-    const base::uc16 elem = ranges.get(mid);
+    const base::uc16 elem = ranges->get(mid);
     if (current_char < elem) {
       upper = mid;
     } else if (current_char > elem) {
@@ -216,7 +217,7 @@ uint32_t RegExpMacroAssembler::IsCharacterInRangeArray(uint32_t current_char,
     }
   } while (lower < upper);
 
-  const bool current_char_ge_last_elem = current_char >= ranges.get(mid);
+  const bool current_char_ge_last_elem = current_char >= ranges->get(mid);
   const int current_range_start_index =
       current_char_ge_last_elem ? mid : mid - 1;
 
@@ -316,7 +317,8 @@ int NativeRegExpMacroAssembler::CheckStackGuardState(
   // Prepare for possible GC.
   HandleScope handles(isolate);
   Handle<InstructionStream> code_handle(re_code, isolate);
-  Handle<String> subject_handle(String::cast(Object(*subject)), isolate);
+  Handle<String> subject_handle(String::cast(Tagged<Object>(*subject)),
+                                isolate);
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(*subject_handle);
   int return_value = 0;
 

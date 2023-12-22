@@ -717,11 +717,10 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfFail(
 
 inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
     Register dst, Register src, Label* success, Label::Distance distance) {
-  // Perform an unsigned comparison against Smi::kMaxValue.
-  CompareInt32AndJumpIf(src, Smi::kMaxValue, kUnsignedLessThanEqual, success,
-                        distance);
-  SmiTagInt32AndSetFlags(dst, src);
-  Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
+  Label fail;
+  SmiTagUint32AndJumpIfFail(dst, src, &fail, Label::Distance::kNear);
+  Jump(success, distance);
+  bind(&fail);
 }
 
 inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
@@ -732,8 +731,8 @@ inline void MaglevAssembler::SmiTagUint32AndJumpIfSuccess(
 inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
   if (v8_flags.debug_code) {
     // Perform an unsigned comparison against Smi::kMaxValue.
-    CompareInt32(src, Smi::kMaxValue);
-    Check(kUnsignedLessThanEqual, AbortReason::kInputDoesNotFitSmi);
+    CompareInt32AndAssert(src, Smi::kMaxValue, kUnsignedLessThanEqual,
+                          AbortReason::kInputDoesNotFitSmi);
   }
   SmiTagInt32AndSetFlags(dst, src);
   Assert(kNoOverflow, AbortReason::kInputDoesNotFitSmi);
@@ -741,6 +740,18 @@ inline void MaglevAssembler::UncheckedSmiTagUint32(Register dst, Register src) {
 
 inline void MaglevAssembler::UncheckedSmiTagUint32(Register reg) {
   UncheckedSmiTagUint32(reg, reg);
+}
+
+inline void MaglevAssembler::SmiAddConstant(Register reg, int value,
+                                            Label* fail,
+                                            Label::Distance distance) {
+  return SmiAddConstant(reg, reg, value, fail, distance);
+}
+
+inline void MaglevAssembler::SmiSubConstant(Register reg, int value,
+                                            Label* fail,
+                                            Label::Distance distance) {
+  return SmiSubConstant(reg, reg, value, fail, distance);
 }
 
 inline void MaglevAssembler::StringLength(Register result, Register string) {

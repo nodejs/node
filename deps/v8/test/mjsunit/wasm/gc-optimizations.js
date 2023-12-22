@@ -456,7 +456,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefTestDeprecated, sub_struct,
+      kGCPrefix, kExprRefTest, sub_struct,
 
       // These casts have to be preserved.
       kExprLocalGet, 0,
@@ -476,7 +476,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprBlock, kWasmRefNull, super_struct,
           kExprLocalGet, 0,
           // This should also get optimized away.
-          kGCPrefix, kExprBrOnCastFail, 0, mid_struct,
+          kGCPrefix, kExprBrOnCastFailGeneric, 0b11, 0, super_struct,
+              mid_struct,
           // So should this, despite being represented by a TypeGuard alias.
           kGCPrefix, kExprRefCast, sub_struct,
           kGCPrefix, kExprStructGet, sub_struct, 1,
@@ -598,7 +599,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
-              kGCPrefix, kExprRefAsStruct,
               kGCPrefix, kExprRefCast, struct_a,
               kExprCallFunction, callee.index])
     .exportFunc();

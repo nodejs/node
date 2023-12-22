@@ -1022,7 +1022,7 @@ void ResetBlackboxedStateCache(Isolate* v8_isolate, Local<Script> script) {
   for (i::Tagged<i::SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (auto debug_info = isolate->debug()->TryGetDebugInfo(info)) {
-      debug_info->set_computed_debug_is_blackboxed(false);
+      debug_info.value()->set_computed_debug_is_blackboxed(false);
     }
   }
 }
@@ -1209,6 +1209,15 @@ v8::MaybeLocal<v8::Value> EvaluateGlobalForTesting(
       &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
+}
+
+void QueryObjects(v8::Local<v8::Context> v8_context,
+                  QueryObjectPredicate* predicate,
+                  std::vector<v8::Global<v8::Object>>* objects) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_context->GetIsolate());
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
+  isolate->heap_profiler()->QueryObjects(Utils::OpenHandle(*v8_context),
+                                         predicate, objects);
 }
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> v8_context,

@@ -139,6 +139,13 @@ void BaselineAssembler::StoreRegister(interpreter::Register output,
   Move(output, value);
 }
 
+void BaselineAssembler::LoadFeedbackCell(Register output) {
+  Move(output, FeedbackCellOperand());
+  ScratchRegisterScope scratch_scope(this);
+  Register scratch = scratch_scope.AcquireScratch();
+  __ AssertFeedbackCell(output, scratch);
+}
+
 template <typename Field>
 void BaselineAssembler::DecodeField(Register reg) {
   __ DecodeField<Field>(reg);

@@ -239,7 +239,7 @@ void Isolate::DidFinishModuleAsyncEvaluation(unsigned ordinal) {
   Handle<type> Isolate::name() {                             \
     return Handle<type>(raw_native_context()->name(), this); \
   }                                                          \
-  bool Isolate::is_##name(type value) {                      \
+  bool Isolate::is_##name(Tagged<type> value) {              \
     return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)

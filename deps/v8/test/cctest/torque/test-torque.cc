@@ -831,21 +831,6 @@ TEST(TestFullyGeneratedClassFromCpp) {
   CHECK_EQ(result->e_field(), 9);
 }
 
-TEST(TestFullyGeneratedClassWithElements) {
-  CcTest::InitializeVM();
-  Isolate* isolate(CcTest::i_isolate());
-  i::HandleScope scope(isolate);
-  const int kNumParams = 0;
-  CodeAssemblerTester asm_tester(isolate, JSParameterCount(kNumParams));
-  TestTorqueAssembler m(asm_tester.state());
-  {
-    m.TestFullyGeneratedClassWithElements();
-    m.Return(m.UndefinedConstant());
-  }
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  ft.Call();
-}
-
 TEST(TestGeneratedCastOperators) {
   CcTest::InitializeVM();
   Isolate* isolate(CcTest::i_isolate());

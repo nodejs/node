@@ -26,10 +26,6 @@
 #include "src/runtime/runtime.h"
 #include "src/snapshot/snapshot.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
-#endif  // V8_ENABLE_WEBASSEMBLY
-
 // Satisfy cpplint check, but don't include platform-specific header. It is
 // included recursively via macro-assembler.h.
 #if 0
@@ -1053,7 +1049,8 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
-    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
+    auto wasm_target =
+        static_cast<Address>(wasm::WasmCode::GetRecordWriteBuiltin(fp_mode));
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
 #else
   if (false) {
@@ -1961,7 +1958,7 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
 
 #if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
-    Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+    Call(static_cast<Address>(Builtin::kDoubleToI), RelocInfo::WASM_STUB_CALL);
 #else
   // For balance.
   if (false) {
@@ -2032,6 +2029,12 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
+  if (v8_flags.debug_code) {
+    CompareObjectType(object, scratch, scratch, FEEDBACK_CELL_TYPE);
+    Assert(eq, AbortReason::kExpectedFeedbackCell);
+  }
+}
 void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
     CompareObjectType(object, scratch, scratch, FEEDBACK_VECTOR_TYPE);
@@ -2264,6 +2267,28 @@ void MacroAssembler::Abort(AbortReason reason) {
 
 void MacroAssembler::LoadMap(Register destination, Register object) {
   LoadTaggedField(destination, FieldMemOperand(object, HeapObject::kMapOffset));
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  Label done;
+
+  // Load the feedback vector from the closure.
+  LoadTaggedField(dst,
+                  FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadTaggedField(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+
+  // Check if feedback vector is valid.
+  LoadTaggedField(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
+  LoadU16(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  CmpS32(scratch, Operand(FEEDBACK_VECTOR_TYPE));
+  b(eq, &done);
+
+  // Not valid, load undefined.
+  LoadRoot(dst, RootIndex::kUndefinedValue);
+  b(fbv_undef);
+
+  bind(&done);
 }
 
 void MacroAssembler::LoadNativeContextSlot(Register dst, int index) {
@@ -3817,7 +3842,7 @@ void MacroAssembler::BranchOnCount(Register r1, Label* l) {
   }
 }
 
-void MacroAssembler::LoadSmiLiteral(Register dst, Smi smi) {
+void MacroAssembler::LoadSmiLiteral(Register dst, Tagged<Smi> smi) {
   intptr_t value = static_cast<intptr_t>(smi.ptr());
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   llilf(dst, Operand(value));
@@ -3828,7 +3853,8 @@ void MacroAssembler::LoadSmiLiteral(Register dst, Smi smi) {
 #endif
 }
 
-void MacroAssembler::CmpSmiLiteral(Register src1, Smi smi, Register scratch) {
+void MacroAssembler::CmpSmiLiteral(Register src1, Tagged<Smi> smi,
+                                   Register scratch) {
 #if defined(V8_COMPRESS_POINTERS) || defined(V8_31BIT_SMIS_ON_64BIT_ARCH)
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));

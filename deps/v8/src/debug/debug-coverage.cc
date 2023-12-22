@@ -18,11 +18,12 @@ namespace v8 {
 namespace internal {
 
 class SharedToCounterMap
-    : public base::TemplateHashMapImpl<SharedFunctionInfo, uint32_t,
-                                       base::KeyEqualityMatcher<Object>,
+    : public base::TemplateHashMapImpl<Tagged<SharedFunctionInfo>, uint32_t,
+                                       base::KeyEqualityMatcher<Tagged<Object>>,
                                        base::DefaultAllocationPolicy> {
  public:
-  using Entry = base::TemplateHashMapEntry<SharedFunctionInfo, uint32_t>;
+  using Entry =
+      base::TemplateHashMapEntry<Tagged<SharedFunctionInfo>, uint32_t>;
   inline void Add(Tagged<SharedFunctionInfo> key, uint32_t count) {
     Entry* entry = LookupOrInsert(key, Hash(key), []() { return 0; });
     uint32_t old_count = entry->value;

@@ -363,7 +363,7 @@ void MinorMarkSweepCollector::CollectGarbage() {
   DCHECK(!sweeper()->AreMinorSweeperTasksRunning());
   DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
 
-  heap_->new_space()->FreeLinearAllocationArea();
+  heap_->allocator()->new_space_allocator()->FreeLinearAllocationArea();
   heap_->new_lo_space()->ResetPendingObject();
 
   is_in_atomic_pause_.store(true, std::memory_order_relaxed);
@@ -385,6 +385,8 @@ void MinorMarkSweepCollector::CollectGarbage() {
   isolate->global_handles()->UpdateListOfYoungNodes();
   isolate->traced_handles()->UpdateListOfYoungNodes();
 
+  isolate->stack_guard()->ClearGC();
+  gc_finalization_requested_.store(false, std::memory_order_relaxed);
   is_in_atomic_pause_.store(false, std::memory_order_relaxed);
 }
 
@@ -710,8 +712,7 @@ void MinorMarkSweepCollector::TraceFragmentation() {
   size_t free_bytes_of_class[free_size_class_limits.size()] = {0};
   size_t live_bytes = 0;
   size_t allocatable_bytes = 0;
-  for (Page* p :
-       PageRange(new_space->first_allocatable_address(), new_space->top())) {
+  for (Page* p : *new_space) {
     Address free_start = p->area_start();
     for (auto [object, size] : LiveObjectRange(p)) {
       Address free_end = object.address();
@@ -728,8 +729,8 @@ void MinorMarkSweepCollector::TraceFragmentation() {
       live_bytes += size;
       free_start = free_end + size;
     }
-    size_t area_end =
-        p->Contains(new_space->top()) ? new_space->top() : p->area_end();
+    const Address top = heap_->NewSpaceTop();
+    size_t area_end = p->Contains(top) ? top : p->area_end();
     if (free_start != area_end) {
       size_t free_bytes = area_end - free_start;
       int free_bytes_index = 0;
@@ -918,5 +919,12 @@ void MinorMarkSweepCollector::Sweep() {
           : ArrayBufferSweeper::TreatAllYoungAsPromoted::kNo);
 }
 
+void MinorMarkSweepCollector::RequestGC() {
+  if (is_in_atomic_pause()) return;
+  DCHECK(v8_flags.concurrent_minor_ms_marking);
+  if (gc_finalization_requested_.exchange(true, std::memory_order_relaxed))
+    return;
+  heap_->isolate()->stack_guard()->RequestGC();
+}
 }  // namespace internal
 }  // namespace v8

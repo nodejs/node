@@ -142,7 +142,7 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
 
   Tagged<HeapObject> istream_allocation =
       AllocateUninitializedInstructionStream(retry_allocation_or_fail);
-  if (istream_allocation->is_null()) {
+  if (istream_allocation.is_null()) {
     return {};
   }
 
@@ -1291,6 +1291,7 @@ Handle<NativeContext> Factory::NewNativeContext() {
   context->set_previous(Context());
   context->set_extension(*undefined_value());
   context->set_errors_thrown(Smi::zero());
+  context->set_is_wasm_js_installed(Smi::zero());
   context->set_math_random_index(Smi::zero());
   context->set_serialized_objects(*empty_fixed_array());
   context->init_microtask_queue(isolate(), nullptr);
@@ -2451,13 +2452,15 @@ Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
 }
 
 Handle<JSObject> Factory::NewError(Handle<JSFunction> constructor,
-                                   Handle<String> message) {
+                                   Handle<String> message,
+                                   Handle<Object> options) {
   // Construct a new error object. If an exception is thrown, use the exception
   // as the result.
 
   Handle<Object> no_caller;
+  if (options.is_null()) options = undefined_value();
   return ErrorUtils::Construct(isolate(), constructor, constructor, message,
-                               undefined_value(), SKIP_NONE, no_caller,
+                               options, SKIP_NONE, no_caller,
                                ErrorUtils::StackTraceCollection::kEnabled)
       .ToHandleChecked();
 }
@@ -3240,11 +3243,9 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
     length = 0;
   }
 
+  CHECK_LE(length, JSTypedArray::kMaxByteLength / element_size);
+  CHECK_EQ(0, byte_offset % element_size);
   size_t byte_length = length * element_size;
-
-  CHECK_LE(length, JSTypedArray::kMaxLength);
-  CHECK_EQ(length, byte_length / element_size);
-  CHECK_EQ(0, byte_offset % ElementsKindToByteSize(elements_kind));
 
   Handle<JSTypedArray> typed_array =
       Handle<JSTypedArray>::cast(NewJSArrayBufferView(
@@ -4084,20 +4085,23 @@ Handle<JSSharedStruct> Factory::NewJSSharedStruct(
         NewPropertyArray(num_oob_fields, AllocationType::kSharedOld);
   }
 
-  Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
-      NewJSObject(constructor, AllocationType::kSharedOld));
-
+  Handle<NumberDictionary> elements_dictionary;
   if (!IsUndefined(*maybe_elements_template)) {
-    Handle<NumberDictionary> dictionary = NumberDictionary::ShallowCopy(
+    elements_dictionary = NumberDictionary::ShallowCopy(
         isolate(), Handle<NumberDictionary>::cast(maybe_elements_template),
         AllocationType::kSharedOld);
-    instance->set_elements(*dictionary);
   }
+
+  Handle<JSSharedStruct> instance = Handle<JSSharedStruct>::cast(
+      NewJSObject(constructor, AllocationType::kSharedOld));
 
   // The struct object has not been fully initialized yet. Disallow allocation
   // from this point on.
   DisallowGarbageCollection no_gc;
   if (!property_array.is_null()) instance->SetProperties(*property_array);
+  if (!elements_dictionary.is_null()) {
+    instance->set_elements(*elements_dictionary);
+  }
 
   return instance;
 }

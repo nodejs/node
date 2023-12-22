@@ -606,9 +606,21 @@ Reduction MemoryLowering::ReduceStoreField(Node* node,
     node->ReplaceInput(2, mapword);
 #endif
   }
-  NodeProperties::ChangeOp(
-      node, machine()->Store(StoreRepresentation(machine_type.representation(),
-                                                 write_barrier_kind)));
+  if (machine_type.representation() ==
+      MachineRepresentation::kIndirectPointer) {
+    // Indirect pointer stores require knowledge of the indirect pointer tag of
+    // the field. This is technically only required for stores that need a
+    // write barrier, but currently we track the tag for all such stores.
+    DCHECK_NE(access.indirect_pointer_tag, kIndirectPointerNullTag);
+    Node* tag = __ IntPtrConstant(access.indirect_pointer_tag);
+    node->InsertInput(graph_zone(), 3, tag);
+    NodeProperties::ChangeOp(
+        node, machine()->StoreIndirectPointer(write_barrier_kind));
+  } else {
+    NodeProperties::ChangeOp(
+        node, machine()->Store(StoreRepresentation(
+                  machine_type.representation(), write_barrier_kind)));
+  }
   return Changed(node);
 }
 

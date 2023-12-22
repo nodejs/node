@@ -14,11 +14,11 @@ namespace v8 {
 namespace internal {
 
 template <typename T>
-MaybeHandle<T>::MaybeHandle(T object, Isolate* isolate)
+MaybeHandle<T>::MaybeHandle(Tagged<T> object, Isolate* isolate)
     : MaybeHandle(handle(object, isolate)) {}
 
 template <typename T>
-MaybeHandle<T>::MaybeHandle(T object, LocalHeap* local_heap)
+MaybeHandle<T>::MaybeHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeHandle(handle(object, local_heap)) {}
 
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
@@ -122,11 +122,11 @@ inline std::ostream& operator<<(std::ostream& os, MaybeHandle<T> handle) {
 #ifdef V8_ENABLE_DIRECT_HANDLE
 
 template <typename T>
-MaybeDirectHandle<T>::MaybeDirectHandle(T object, Isolate* isolate)
+MaybeDirectHandle<T>::MaybeDirectHandle(Tagged<T> object, Isolate* isolate)
     : MaybeDirectHandle(direct_handle(object, isolate)) {}
 
 template <typename T>
-MaybeDirectHandle<T>::MaybeDirectHandle(T object, LocalHeap* local_heap)
+MaybeDirectHandle<T>::MaybeDirectHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeDirectHandle(direct_handle(object, local_heap)) {}
 
 template <typename T>
@@ -164,18 +164,19 @@ MaybeObjectDirectHandle::MaybeObjectDirectHandle(MaybeObject object,
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(DirectHandle<Object> object)
     : reference_type_(HeapObjectReferenceType::STRONG), handle_(object) {}
 
-MaybeObjectDirectHandle::MaybeObjectDirectHandle(Object object,
+MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<Object> object,
                                                  Isolate* isolate)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, isolate) {}
 
-MaybeObjectDirectHandle::MaybeObjectDirectHandle(Object object,
+MaybeObjectDirectHandle::MaybeObjectDirectHandle(Tagged<Object> object,
                                                  LocalHeap* local_heap)
     : reference_type_(HeapObjectReferenceType::STRONG),
       handle_(object, local_heap) {}
 
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(
-    Object object, HeapObjectReferenceType reference_type, Isolate* isolate)
+    Tagged<Object> object, HeapObjectReferenceType reference_type,
+    Isolate* isolate)
     : reference_type_(reference_type), handle_(object, isolate) {}
 
 MaybeObjectDirectHandle::MaybeObjectDirectHandle(
@@ -187,7 +188,7 @@ MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(
   return MaybeObjectDirectHandle(object, HeapObjectReferenceType::WEAK);
 }
 
-MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(Object object,
+MaybeObjectDirectHandle MaybeObjectDirectHandle::Weak(Tagged<Object> object,
                                                       Isolate* isolate) {
   return MaybeObjectDirectHandle(object, HeapObjectReferenceType::WEAK,
                                  isolate);

@@ -39,7 +39,8 @@ void PretenuringHandler::UpdateAllocationSite(
   // to dereference the allocation site and rather have to postpone all checks
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
-  (*pretenuring_feedback)[AllocationSite::unchecked_cast(Object(key))]++;
+  (*pretenuring_feedback)[AllocationSite::unchecked_cast(
+      Tagged<Object>(key))]++;
 }
 
 template <PretenuringHandler::FindMementoMode mode>
@@ -100,7 +101,7 @@ Tagged<AllocationMemento> PretenuringHandler::FindAllocationMemento(
       // another object of at least word size (the header map word) following
       // it, so suffices to compare ptr and top here.
       top = heap_->NewSpaceTop();
-      DCHECK(memento_address >= heap_->new_space()->limit() ||
+      DCHECK(memento_address >= heap_->NewSpaceLimit() ||
              memento_address +
                      ALIGN_TO_ALLOCATION_ALIGNMENT(AllocationMemento::kSize) <=
                  top);

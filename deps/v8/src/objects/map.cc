@@ -48,7 +48,7 @@ Tagged<Map> Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 }
 
 // static
-base::Optional<JSFunction> Map::GetConstructorFunction(
+base::Optional<Tagged<JSFunction>> Map::GetConstructorFunction(
     Tagged<Map> map, Tagged<Context> native_context) {
   DisallowGarbageCollection no_gc;
   if (IsPrimitiveMap(map)) {
@@ -113,6 +113,7 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case EMBEDDER_DATA_ARRAY_TYPE:
       return kVisitEmbedderDataArray;
 
+    case FIXED_ARRAY_TYPE:
     case OBJECT_BOILERPLATE_DESCRIPTION_TYPE:
     case NAME_TO_INDEX_HASH_TABLE_TYPE:
     case REGISTERED_SYMBOL_TABLE_TYPE:
@@ -127,6 +128,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
     case SCRIPT_CONTEXT_TABLE_TYPE:
       return kVisitFixedArray;
+
+    case SLOPPY_ARGUMENTS_ELEMENTS_TYPE:
+      return kVisitSloppyArgumentsElements;
 
     case AWAIT_CONTEXT_TYPE:
     case BLOCK_CONTEXT_TYPE:
@@ -424,9 +428,9 @@ VisitorId Map::GetVisitorId(Tagged<Map> map) {
 }
 
 // static
-MaybeObjectHandle Map::WrapFieldType(Isolate* isolate, Handle<FieldType> type) {
+MaybeObjectHandle Map::WrapFieldType(Handle<FieldType> type) {
   if (IsClass(*type)) {
-    return MaybeObjectHandle::Weak((*type)->AsClass(), isolate);
+    return MaybeObjectHandle::Weak(FieldType::AsClass(type));
   }
   return MaybeObjectHandle(type);
 }
@@ -470,7 +474,7 @@ MaybeHandle<Map> Map::CopyWithField(Isolate* isolate, Handle<Map> map,
         isolate, map->instance_type(), &representation, &type);
   }
 
-  MaybeObjectHandle wrapped_type = WrapFieldType(isolate, type);
+  MaybeObjectHandle wrapped_type = WrapFieldType(type);
 
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
@@ -716,7 +720,7 @@ MaybeHandle<Map> Map::TryUpdate(Isolate* isolate, Handle<Map> old_map) {
     }
   }
 
-  base::Optional<Map> new_map = MapUpdater::TryUpdateNoLock(
+  base::Optional<Tagged<Map>> new_map = MapUpdater::TryUpdateNoLock(
       isolate, *old_map, ConcurrencyMode::kSynchronous);
   if (!new_map.has_value()) return MaybeHandle<Map>();
   if (v8_flags.fast_map_update) {
@@ -772,7 +776,7 @@ Tagged<Map> Map::TryReplayPropertyTransitions(Isolate* isolate,
         DCHECK_EQ(PropertyLocation::kField, old_details.location());
         Tagged<FieldType> old_type = old_descriptors->GetFieldType(i);
         if (FieldTypeIsCleared(old_details.representation(), old_type) ||
-            !old_type->NowIs(new_type)) {
+            !FieldType::NowIs(old_type, new_type)) {
           return Map();
         }
       } else {
@@ -1076,9 +1080,10 @@ static Handle<Map> AddMissingElementsTransitions(Isolate* isolate,
 }
 
 // static
-base::Optional<Map> Map::TryAsElementsKind(Isolate* isolate, Handle<Map> map,
-                                           ElementsKind kind,
-                                           ConcurrencyMode cmode) {
+base::Optional<Tagged<Map>> Map::TryAsElementsKind(Isolate* isolate,
+                                                   Handle<Map> map,
+                                                   ElementsKind kind,
+                                                   ConcurrencyMode cmode) {
   Tagged<Map> closest_map =
       FindClosestElementsTransition(isolate, *map, kind, cmode);
   if (closest_map->elements_kind() != kind) return {};
@@ -1795,7 +1800,8 @@ bool CanHoldValue(Tagged<DescriptorArray> descriptors, InternalIndex descriptor,
     if (details.kind() == PropertyKind::kData) {
       return IsGeneralizableTo(constness, details.constness()) &&
              Object::FitsRepresentation(value, details.representation()) &&
-             descriptors->GetFieldType(descriptor)->NowContains(value);
+             FieldType::NowContains(descriptors->GetFieldType(descriptor),
+                                    value);
     } else {
       DCHECK_EQ(PropertyKind::kAccessor, details.kind());
       return false;

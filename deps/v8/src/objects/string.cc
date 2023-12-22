@@ -1032,7 +1032,7 @@ Handle<FixedArray> String::CalculateLineEnds(IsolateT* isolate,
   // length of packed code. Most scripts have < 32 lines.
   int line_count_estimate = (src->length() >> 6) + 16;
   base::SmallVector<int32_t, kInlineLineEndsSize> line_ends;
-  line_ends.reserve_no_init(line_count_estimate);
+  line_ends.reserve(line_count_estimate);
   {
     DisallowGarbageCollection no_gc;
     // Dispatch on type of strings.

@@ -442,15 +442,16 @@ void PrintTypedArrayElements(std::ostream& os, const ElementType* data_ptr,
 }
 
 template <typename T>
-void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array,
+                             Tagged<Object> (*get)(Tagged<T>, int)) {
   // Print in array notation for non-sparse arrays.
   if (array->length() == 0) return;
-  Tagged<Object> previous_value = array->get(0);
+  Tagged<Object> previous_value = get(array, 0);
   Tagged<Object> value;
   int previous_index = 0;
   int i;
   for (i = 1; i <= array->length(); i++) {
-    if (i < array->length()) value = array->get(i);
+    if (i < array->length()) value = get(array, i);
     if (previous_value == value && i != array->length()) {
       continue;
     }
@@ -464,6 +465,12 @@ void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
     previous_index = i;
     previous_value = value;
   }
+}
+
+template <typename T>
+void PrintFixedArrayElements(std::ostream& os, Tagged<T> array) {
+  PrintFixedArrayElements<T>(os, array,
+                             [](Tagged<T> xs, int i) { return xs->get(i); });
 }
 
 void PrintDictionaryElements(std::ostream& os,
@@ -829,6 +836,25 @@ void EmbedderDataArray::EmbedderDataArrayPrint(std::ostream& os) {
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, *this, "FixedArray");
+}
+
+void ExternalPointerArray::ExternalPointerArrayPrint(std::ostream& os) {
+  PrintHeader(os, "ExternalPointerArray");
+  os << "\n - length: " << length();
+  os << "\n";
+}
+
+void SloppyArgumentsElements::SloppyArgumentsElementsPrint(std::ostream& os) {
+  PrintHeader(os, "SloppyArgumentsElements");
+  os << "\n - length: " << length();
+  os << "\n - context: " << Brief(context());
+  os << "\n - arguments: " << Brief(arguments());
+  os << "\n - mapped_entries:";
+  PrintFixedArrayElements<SloppyArgumentsElements>(
+      os, Tagged(*this), [](Tagged<SloppyArgumentsElements> xs, int i) {
+        return xs->mapped_entries(i, kRelaxedLoad);
+      });
+  os << '\n';
 }
 
 namespace {
@@ -2108,7 +2134,7 @@ void WasmStruct::WasmStructPrint(std::ostream& os) {
 #else
         Address obj = raw;
 #endif
-        os << Brief(Object(obj));
+        os << Brief(Tagged<Object>(obj));
         break;
       }
       case wasm::kS128:
@@ -3315,7 +3341,7 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os,
   switch (details.location()) {
     case PropertyLocation::kField: {
       Tagged<FieldType> field_type = GetFieldType(descriptor);
-      field_type->PrintTo(os);
+      FieldType::PrintTo(field_type, os);
       break;
     }
     case PropertyLocation::kDescriptor:
@@ -3478,12 +3504,18 @@ inline i::Tagged<i::Object> GetObjectFromRaw(void* object) {
 #ifdef V8_COMPRESS_POINTERS
   if (RoundDown<i::kPtrComprCageBaseAlignment>(object_ptr) == i::kNullAddress) {
     // Try to decompress pointer.
-    i::Isolate* isolate = i::Isolate::Current();
-    object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
-        isolate, static_cast<i::Tagged_t>(object_ptr));
+    i::Isolate* isolate = i::Isolate::TryGetCurrent();
+    if (isolate != nullptr) {
+      object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
+          isolate, static_cast<i::Tagged_t>(object_ptr));
+    } else {
+      i::PtrComprCageBase cage_base = i::GetPtrComprCageBase();
+      object_ptr = i::V8HeapCompressionScheme::DecompressTagged(
+          cage_base, static_cast<i::Tagged_t>(object_ptr));
+    }
   }
 #endif
-  return i::Object(object_ptr);
+  return i::Tagged<i::Object>(object_ptr);
 }
 
 }  // namespace
@@ -3536,7 +3568,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Code> lookup_result =
+  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -3547,12 +3579,12 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_Code(void* object) {
 
 #if defined(OBJECT_PRINT)
   i::StdoutStream os;
-  lookup_result->CodePrint(os, nullptr, address);
+  lookup_result.value()->CodePrint(os, nullptr, address);
 #elif defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
-  lookup_result->Disassemble(nullptr, os, isolate, address);
+  lookup_result.value()->Disassemble(nullptr, os, isolate, address);
 #else
-  i::Print(*lookup_result);
+  i::Print(lookup_result.value());
 #endif
 }
 
@@ -3572,7 +3604,7 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  v8::base::Optional<i::Code> lookup_result =
+  v8::base::Optional<i::Tagged<i::Code>> lookup_result =
       isolate->heap()->TryFindCodeForInnerPointerForPrinting(address);
   if (!lookup_result.has_value()) {
     i::PrintF(
@@ -3583,8 +3615,8 @@ V8_EXPORT_PRIVATE extern void _v8_internal_Print_OnlyCode(void* object,
 
 #if defined(ENABLE_DISASSEMBLER)
   i::StdoutStream os;
-  lookup_result->DisassembleOnlyCode(nullptr, os, isolate, address,
-                                     range_limit);
+  lookup_result.value()->DisassembleOnlyCode(nullptr, os, isolate, address,
+                                             range_limit);
 #endif
 }
 

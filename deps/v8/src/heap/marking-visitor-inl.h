@@ -154,14 +154,14 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitCodeTarget(
 
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitExternalPointer(
-    Tagged<HeapObject> host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+    Tagged<HeapObject> host, ExternalPointerSlot slot) {
 #ifdef V8_ENABLE_SANDBOX
-  DCHECK_NE(tag, kExternalPointerNullTag);
+  DCHECK_NE(slot.tag(), kExternalPointerNullTag);
   ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
-  ExternalPointerTable* table = IsSharedExternalPointerType(tag)
+  ExternalPointerTable* table = IsSharedExternalPointerType(slot.tag())
                                     ? shared_external_pointer_table_
                                     : external_pointer_table_;
-  ExternalPointerTable::Space* space = IsSharedExternalPointerType(tag)
+  ExternalPointerTable::Space* space = IsSharedExternalPointerType(slot.tag())
                                            ? shared_external_pointer_space_
                                            : heap_->external_pointer_space();
   table->Mark(space, handle, slot.address());
@@ -172,13 +172,13 @@ template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   if (mode == IndirectPointerMode::kStrong) {
     // Load the referenced object (if the slot is initialized) and mark it as
     // alive if necessary. Indirect pointers never have to be added to a
     // remembered set because the referenced object will update the pointer
     // table entry when it is relocated.
-    Tagged<Object> value = slot.Relaxed_Load();
+    Tagged<Object> value = slot.Relaxed_Load(heap_->isolate());
     if (IsHeapObject(value)) {
       Tagged<HeapObject> obj = HeapObject::cast(value);
       SynchronizePageAccess(obj);
@@ -195,11 +195,18 @@ void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointer(
 template <typename ConcreteVisitor>
 void MarkingVisitorBase<ConcreteVisitor>::VisitIndirectPointerTableEntry(
     Tagged<HeapObject> host, IndirectPointerSlot slot) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  static_assert(kAllIndirectPointerObjectsAreCode);
-  CodePointerTable* table = GetProcessWideCodePointerTable();
-  CodePointerTable::Space* space = heap_->code_pointer_space();
+#ifdef V8_ENABLE_SANDBOX
   IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
+
+  if (slot.tag() == kCodeIndirectPointerTag) {
+    CodePointerTable* table = GetProcessWideCodePointerTable();
+    CodePointerTable::Space* space = heap_->code_pointer_space();
+    table->Mark(space, handle);
+    return;
+  }
+
+  IndirectPointerTable* table = indirect_pointer_table_;
+  IndirectPointerTable::Space* space = heap_->indirect_pointer_space();
   table->Mark(space, handle);
 #else
   UNREACHABLE();
@@ -227,14 +234,14 @@ int MarkingVisitorBase<ConcreteVisitor>::VisitJSFunction(
     DCHECK(IsBaselineCodeFlushingEnabled(code_flush_mode_));
     local_weak_objects_->baseline_flushing_candidates_local.Push(js_function);
   } else {
-#ifdef V8_CODE_POINTER_SANDBOXING
-    VisitIndirectPointer(
-        js_function,
-        js_function->RawIndirectPointerField(JSFunction::kCodeOffset),
-        IndirectPointerMode::kStrong);
+#ifdef V8_ENABLE_SANDBOX
+    VisitIndirectPointer(js_function,
+                         js_function->RawIndirectPointerField(
+                             JSFunction::kCodeOffset, kCodeIndirectPointerTag),
+                         IndirectPointerMode::kStrong);
 #else
     VisitPointer(js_function, js_function->RawField(JSFunction::kCodeOffset));
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
     // TODO(mythria): Consider updating the check for ShouldFlushBaselineCode to
     // also include cases where there is old bytecode even when there is no
     // baseline code and remove this check here.

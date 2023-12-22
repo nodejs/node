@@ -245,12 +245,15 @@ class CollectionsBuiltinsAssembler : public BaseCollectionsAssembler {
       const TNode<IteratorType> iterator);
 
   template <typename TableType>
-  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>> NextSkipHoles(
-      TNode<TableType> table, TNode<IntPtrT> index, Label* if_end);
+  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
+  NextSkipHashTableHoles(TNode<TableType> table, TNode<IntPtrT> index,
+                         Label* if_end);
   template <typename TableType>
-  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>> NextSkipHoles(
-      TNode<TableType> table, TNode<Int32T> number_of_buckets,
-      TNode<Int32T> used_capacity, TNode<IntPtrT> index, Label* if_end);
+  std::tuple<TNode<Object>, TNode<IntPtrT>, TNode<IntPtrT>>
+  NextSkipHashTableHoles(TNode<TableType> table,
+                         TNode<Int32T> number_of_buckets,
+                         TNode<Int32T> used_capacity, TNode<IntPtrT> index,
+                         Label* if_end);
 
   // Specialization for Smi.
   // The {result} variable will contain the entry index if the key was found,

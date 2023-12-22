@@ -46,16 +46,16 @@ class SelectLoweringReducer : public Next {
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
 
-    Variable result = Asm().NewLoopInvariantVariable(rep);
+    Variable result = __ NewLoopInvariantVariable(rep);
     IF (cond) {
-      Asm().SetVariable(result, vtrue);
+      __ SetVariable(result, vtrue);
     }
     ELSE {
-      Asm().SetVariable(result, vfalse);
+      __ SetVariable(result, vfalse);
     }
     END_IF
 
-    return Asm().GetVariable(result);
+    return __ GetVariable(result);
   }
 };
 

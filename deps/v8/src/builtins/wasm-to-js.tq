@@ -62,7 +62,10 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const paramTypes = Subslice(serializedSig, returnCount + 1, paramCount)
       otherwise unreachable;
 
-  const outParams = WasmAllocateFixedArray(paramCount + 1);
+  // The number of parameters that get pushed on the stack is (at least) the
+  // number of incoming parameters plus the receiver.
+  const numStackParams = paramCount + 1;
+  const outParams = WasmAllocateZeroedFixedArray(numStackParams);
   let nextIndex: intptr = 0;
   // Set the receiver to `Undefined` as the default. If the receiver would be
   // different, e.g. the global proxy for sloppy functions, then the CallVarargs
@@ -134,18 +137,17 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
 
   const context = ref.native_context;
   // Reset the signature on the stack, so that incoming parameters don't get
-  // scanned anymore. This performance optimization is possible because the
-  // incoming parameters are not accessed anymore.
+  // scanned anymore.
   *GetRefAt<intptr>(sigSlot, 0) = 0;
 
   const result = CallVarargs(
-      context, target, 0, Convert<int32>(paramCount) + 1, outParams);
+      context, target, 0, Convert<int32>(numStackParams), outParams);
 
   // Put a marker on the stack to indicate to the frame iterator that the call
   // to JavaScript is finished. For asm.js source positions it is important to
   // know if an exception happened in the call to JS, or in the ToNumber
   // conversion afterwards.
-  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(SmiConstant(2));
+  *GetRefAt<intptr>(sigSlot, 0) = BitcastTaggedToWord(SmiConstant(-1));
   let resultFixedArray: FixedArray;
   if (returnCount > 1) {
     resultFixedArray =

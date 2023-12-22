@@ -989,6 +989,10 @@ Node* ScheduleBuilder::ProcessOperation(const AtomicRMWOp& op) {
   }
 }
 
+Node* ScheduleBuilder::ProcessOperation(const MemoryBarrierOp& op) {
+  return AddNode(machine.MemoryBarrier(op.memory_order), {});
+}
+
 Node* ScheduleBuilder::ProcessOperation(const TupleOp& op) {
   // Tuples are only used for lowerings during reduction. Therefore, we can
   // assume that it is unused if it occurs at this point.
@@ -1143,6 +1147,11 @@ Node* ScheduleBuilder::ProcessOperation(const StoreOp& op) {
       o = machine.ProtectedStore(
           op.stored_rep.ToMachineType().representation());
     }
+  } else if (op.stored_rep == MemoryRepresentation::IndirectPointer()) {
+    o = machine.StoreIndirectPointer(op.write_barrier);
+    // In this case we need a fourth input: the indirect pointer tag.
+    Node* tag = IntPtrConstant(op.indirect_pointer_tag());
+    return AddNode(o, {base, index, value, tag});
   } else {
     o = machine.Store(StoreRepresentation(
         op.stored_rep.ToMachineType().representation(), op.write_barrier));
@@ -1154,6 +1163,9 @@ Node* ScheduleBuilder::ProcessOperation(const RetainOp& op) {
   return AddNode(common.Retain(), {GetNode(op.retained())});
 }
 Node* ScheduleBuilder::ProcessOperation(const ParameterOp& op) {
+  // DeadCodeElimination does not eliminate unused parameter operations, so we
+  // just eliminate them here.
+  if (op.saturated_use_count.IsZero()) return nullptr;
   // Parameters need to be cached because the register allocator assumes that
   // there are no duplicate nodes for the same parameter.
   if (parameters.count(op.parameter_index)) {
@@ -1209,6 +1221,8 @@ Node* ScheduleBuilder::ProcessOperation(const DeoptimizeIfOp& op) {
                                                 op.parameters->feedback());
   return AddNode(o, {condition, frame_state});
 }
+
+#if V8_ENABLE_WEBASSEMBLY
 Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   Node* condition = GetNode(op.condition());
   bool has_frame_state = op.frame_state().valid();
@@ -1219,6 +1233,8 @@ Node* ScheduleBuilder::ProcessOperation(const TrapIfOp& op) {
   return has_frame_state ? AddNode(o, {condition, frame_state})
                          : AddNode(o, {condition});
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 Node* ScheduleBuilder::ProcessOperation(const DeoptimizeOp& op) {
   Node* frame_state = GetNode(op.frame_state());
   const Operator* o =
@@ -1263,8 +1279,7 @@ Node* ScheduleBuilder::ProcessOperation(const PhiOp& op) {
 #endif
 
     int current_index = 0;
-    for (Block* pred = current_input_block->LastPredecessor(); pred != nullptr;
-         pred = pred->NeighboringPredecessor()) {
+    for (Block* pred : current_input_block->PredecessorsIterable()) {
       size_t pred_index = predecessor_count - current_index - 1;
       auto lower =
           std::lower_bound(new_predecessors.begin(), new_predecessors.end(),

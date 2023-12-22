@@ -124,6 +124,7 @@ struct FieldAccess {
                                         // guarantee that the value is at most
                                         // kMaxSafeBufferSizeForSandbox after
                                         // decoding.
+  IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag;
 
   FieldAccess()
       : base_is_tagged(kTaggedBase),
@@ -143,7 +144,8 @@ struct FieldAccess {
               ConstFieldInfo const_field_info = ConstFieldInfo::None(),
               bool is_store_in_literal = false,
               ExternalPointerTag external_pointer_tag = kExternalPointerNullTag,
-              bool maybe_initializing_or_transitioning_store = false)
+              bool maybe_initializing_or_transitioning_store = false,
+              IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : base_is_tagged(base_is_tagged),
         offset(offset),
         name(name),
@@ -155,7 +157,8 @@ struct FieldAccess {
         is_store_in_literal(is_store_in_literal),
         external_pointer_tag(external_pointer_tag),
         maybe_initializing_or_transitioning_store(
-            maybe_initializing_or_transitioning_store) {
+            maybe_initializing_or_transitioning_store),
+        indirect_pointer_tag(indirect_pointer_tag) {
     DCHECK_GE(offset, 0);
     DCHECK_IMPLIES(
         machine_type.IsMapWord(),

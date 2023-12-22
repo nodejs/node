@@ -41,6 +41,7 @@ std::ostream& operator<<(std::ostream& os, BranchSemantics semantics) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
   switch (trap_id) {
 #define TRAP_CASE(Name) \
@@ -57,6 +58,7 @@ TrapId TrapIdOf(const Operator* const op) {
          op->opcode() == IrOpcode::kTrapUnless);
   return OpParameter<TrapId>(op);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool operator==(const BranchParameters& lhs, const BranchParameters& rhs) {
   return lhs.semantics() == rhs.semantics() && lhs.hint() == rhs.hint();
@@ -812,6 +814,7 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
+#if V8_ENABLE_WEBASSEMBLY
   template <TrapId trap_id, bool has_frame_state>
   struct TrapIfOperator final : public Operator1<TrapId> {
     TrapIfOperator()
@@ -854,6 +857,8 @@ struct CommonOperatorGlobalCache final {
       kTrapUnless##Trap##OperatorWithoutFrameState;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   template <MachineRepresentation kRep, int kInputCount>
   struct PhiOperator final : public Operator1<MachineRepresentation> {
@@ -1061,6 +1066,7 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id,
                                               bool has_frame_state) {
   switch (trap_id) {
@@ -1106,6 +1112,8 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id,
       1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
       trap_id);                                  // parameter
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
   return zone()->New<Operator>(               // --

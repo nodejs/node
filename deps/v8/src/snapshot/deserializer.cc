@@ -52,8 +52,8 @@ class SlotAccessorForHeapObject {
   }
 
   MaybeObjectSlot slot() const { return object_->RawMaybeWeakField(offset_); }
-  ExternalPointerSlot external_pointer_slot() const {
-    return object_->RawExternalPointerField(offset_);
+  ExternalPointerSlot external_pointer_slot(ExternalPointerTag tag) const {
+    return object_->RawExternalPointerField(offset_, tag);
   }
   Handle<HeapObject> object() const { return object_; }
   int offset() const { return offset_; }
@@ -88,8 +88,11 @@ class SlotAccessorForHeapObject {
     // know which table the object uses.
     CHECK(IsCode(value));
     Tagged<Code> code = Code::cast(value);
-    IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_);
+    InstanceType instance_type = value->map()->instance_type();
+    IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+    IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
     dest.store(code);
+
     IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
@@ -108,7 +111,9 @@ class SlotAccessorForRootSlots {
   explicit SlotAccessorForRootSlots(FullMaybeObjectSlot slot) : slot_(slot) {}
 
   FullMaybeObjectSlot slot() const { return slot_; }
-  ExternalPointerSlot external_pointer_slot() const { UNREACHABLE(); }
+  ExternalPointerSlot external_pointer_slot(ExternalPointerTag tag) const {
+    UNREACHABLE();
+  }
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
@@ -142,7 +147,9 @@ class SlotAccessorForHandle {
       : handle_(handle), isolate_(isolate) {}
 
   MaybeObjectSlot slot() const { UNREACHABLE(); }
-  ExternalPointerSlot external_pointer_slot() const { UNREACHABLE(); }
+  ExternalPointerSlot external_pointer_slot(ExternalPointerTag tag) const {
+    UNREACHABLE();
+  }
   Handle<HeapObject> object() const { UNREACHABLE(); }
   int offset() const { UNREACHABLE(); }
 
@@ -194,10 +201,9 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 
 template <typename IsolateT>
 int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
-                                                 Address value,
-                                                 ExternalPointerTag tag) {
+                                                 Address value) {
   DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_);
-  dest.init(main_thread_isolate(), value, tag);
+  dest.init(main_thread_isolate(), value);
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
   return (kExternalPointerSlotSize / kTaggedSize);
@@ -622,6 +628,8 @@ AllocationType SpaceToAllocation(SnapshotSpace space) {
       return AllocationType::kOld;
     case SnapshotSpace::kReadOnlyHeap:
       return AllocationType::kReadOnly;
+    case SnapshotSpace::kTrusted:
+      return AllocationType::kTrusted;
   }
 }
 }  // namespace
@@ -803,10 +811,11 @@ constexpr uint8_t VerifyBytecodeCount(uint8_t bytecode) {
 
 // This generates a case range for all the spaces.
 // clang-format off
-#define CASE_RANGE_ALL_SPACES(bytecode)                               \
-  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):                \
-    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):        \
-    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap)
+#define CASE_RANGE_ALL_SPACES(bytecode)                                \
+  SpaceEncoder<bytecode>::Encode(SnapshotSpace::kOld):                 \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kCode):         \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kReadOnlyHeap): \
+    case SpaceEncoder<bytecode>::Encode(SnapshotSpace::kTrusted)
 // clang-format on
 
 template <typename IsolateT>
@@ -1019,8 +1028,8 @@ int Deserializer<IsolateT>::ReadExternalReference(uint8_t data,
   if (data == kSandboxedExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(), address,
-                              tag);
+  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+                              address);
 }
 
 template <typename IsolateT>
@@ -1034,8 +1043,8 @@ int Deserializer<IsolateT>::ReadRawExternalReference(
   if (data == kSandboxedRawExternalReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(), address,
-                              tag);
+  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+                              address);
 }
 
 // Find an object in the attached references and write a pointer to it to
@@ -1160,8 +1169,8 @@ int Deserializer<IsolateT>::ReadApiReference(uint8_t data,
   if (data == kSandboxedApiReference) {
     tag = ReadExternalPointerTag();
   }
-  return WriteExternalPointer(slot_accessor.external_pointer_slot(), address,
-                              tag);
+  return WriteExternalPointer(slot_accessor.external_pointer_slot(tag),
+                              address);
 }
 
 template <typename IsolateT>

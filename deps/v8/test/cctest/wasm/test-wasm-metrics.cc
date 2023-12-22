@@ -262,6 +262,7 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
+  if (v8_flags.memory_balancer) return;
   FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
                                           false);
   std::shared_ptr<MetricsRecorder> recorder =

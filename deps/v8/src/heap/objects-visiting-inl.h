@@ -173,7 +173,7 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
 #define VISIT(TypeName)                                                      \
   template <typename ResultType, typename ConcreteVisitor>                   \
   ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##TypeName(      \
-      Map map, TypeName object) {                                            \
+      Tagged<Map> map, Tagged<TypeName> object) {                            \
     ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);          \
     /* If you see the following DCHECK fail, then the size computation of    \
      * BodyDescriptor doesn't match the size return via obj.Size(). This is  \

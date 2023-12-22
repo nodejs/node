@@ -8,6 +8,7 @@
 
 #include "src/base/sanitizer/asan.h"
 #include "src/base/sanitizer/msan.h"
+#include "src/heap/base/memory-tagging.h"
 #include "src/base/sanitizer/tsan.h"
 
 namespace heap::base {
@@ -158,16 +159,22 @@ void Stack::IteratePointersImpl(const Stack* stack, void* argument,
   constexpr size_t kMinStackAlignment = sizeof(void*);
   CHECK_EQ(0u,
            reinterpret_cast<uintptr_t>(stack_end) & (kMinStackAlignment - 1));
-  IteratePointersInStack(visitor,
-                         reinterpret_cast<const void* const*>(stack_end),
-                         stack->stack_start_, asan_fake_stack);
+  {
+    // Temporarily stop checking MTE tags whilst scanning the stack (whilst V8
+    // may not be tagging its portion of the stack, higher frames from the OS or
+    // libc could be using stack tagging.)
+    SuspendTagCheckingScope s;
+    IteratePointersInStack(visitor,
+                           reinterpret_cast<const void* const*>(stack_end),
+                           stack->stack_start_, asan_fake_stack);
 
-  for (const auto& segment : stack->inactive_stacks_) {
-    IteratePointersInStack(visitor, segment.top, segment.start,
-                           asan_fake_stack);
+    for (const auto& segment : stack->inactive_stacks_) {
+      IteratePointersInStack(visitor, segment.top, segment.start,
+                             asan_fake_stack);
+    }
+
+    IterateUnsafeStackIfNecessary(visitor);
   }
-
-  IterateUnsafeStackIfNecessary(visitor);
 }
 
 void Stack::IteratePointersForTesting(StackVisitor* visitor) {

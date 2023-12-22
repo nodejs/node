@@ -22,7 +22,6 @@
 #include "src/base/vector.h"
 #include "src/builtins/builtins.h"
 #include "src/codegen/source-position.h"
-#include "src/common/code-memory-access.h"
 #include "src/handles/handles.h"
 #include "src/tasks/operations-barrier.h"
 #include "src/trap-handler/trap-handler.h"
@@ -50,114 +49,6 @@ class WasmEngine;
 class WasmImportWrapperCache;
 struct WasmModule;
 enum class WellKnownImport : uint8_t;
-
-// Convenience macro listing all wasm runtime stubs. Note that the first few
-// elements of the list coincide with {compiler::TrapId}, order matters.
-#define WASM_RUNTIME_STUB_LIST(V, VTRAP) \
-  FOREACH_WASM_TRAPREASON(VTRAP)         \
-  V(WasmCompileLazy)                     \
-  V(WasmTriggerTierUp)                   \
-  V(WasmLiftoffFrameSetup)               \
-  V(WasmDebugBreak)                      \
-  V(WasmInt32ToHeapNumber)               \
-  V(WasmTaggedNonSmiToInt32)             \
-  V(WasmFloat32ToNumber)                 \
-  V(WasmFloat64ToNumber)                 \
-  V(WasmTaggedToFloat64)                 \
-  V(WasmAllocateJSArray)                 \
-  V(WasmAtomicNotify)                    \
-  V(WasmI32AtomicWait)                   \
-  V(WasmI64AtomicWait)                   \
-  V(WasmGetOwnProperty)                  \
-  V(WasmRefFunc)                         \
-  V(WasmInternalFunctionCreateExternal)  \
-  V(WasmMemoryGrow)                      \
-  V(WasmTableInit)                       \
-  V(WasmTableCopy)                       \
-  V(WasmTableFill)                       \
-  V(WasmTableGrow)                       \
-  V(WasmTableGet)                        \
-  V(WasmTableSet)                        \
-  V(WasmTableGetFuncRef)                 \
-  V(WasmTableSetFuncRef)                 \
-  V(WasmStackGuard)                      \
-  V(WasmStackOverflow)                   \
-  V(WasmAllocateFixedArray)              \
-  V(WasmThrow)                           \
-  V(WasmRethrow)                         \
-  V(WasmRethrowExplicitContext)          \
-  V(WasmTraceEnter)                      \
-  V(WasmTraceExit)                       \
-  V(WasmTraceMemory)                     \
-  V(BigIntToI32Pair)                     \
-  V(BigIntToI64)                         \
-  V(CallRefIC)                           \
-  V(DoubleToI)                           \
-  V(I32PairToBigInt)                     \
-  V(I64ToBigInt)                         \
-  V(RecordWriteSaveFP)                   \
-  V(RecordWriteIgnoreFP)                 \
-  V(ToNumber)                            \
-  IF_TSAN(V, TSANRelaxedStore8IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedStore8SaveFP)    \
-  IF_TSAN(V, TSANRelaxedStore16IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore16SaveFP)   \
-  IF_TSAN(V, TSANRelaxedStore32IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore32SaveFP)   \
-  IF_TSAN(V, TSANRelaxedStore64IgnoreFP) \
-  IF_TSAN(V, TSANRelaxedStore64SaveFP)   \
-  IF_TSAN(V, TSANSeqCstStore8IgnoreFP)   \
-  IF_TSAN(V, TSANSeqCstStore8SaveFP)     \
-  IF_TSAN(V, TSANSeqCstStore16IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore16SaveFP)    \
-  IF_TSAN(V, TSANSeqCstStore32IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore32SaveFP)    \
-  IF_TSAN(V, TSANSeqCstStore64IgnoreFP)  \
-  IF_TSAN(V, TSANSeqCstStore64SaveFP)    \
-  IF_TSAN(V, TSANRelaxedLoad32IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedLoad32SaveFP)    \
-  IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)  \
-  IF_TSAN(V, TSANRelaxedLoad64SaveFP)    \
-  V(WasmAllocateArray_Uninitialized)     \
-  V(WasmArrayCopy)                       \
-  V(WasmArrayCopyWithChecks)             \
-  V(WasmArrayNewSegment)                 \
-  V(WasmArrayInitSegment)                \
-  V(WasmAllocateStructWithRtt)           \
-  V(WasmOnStackReplace)                  \
-  V(WasmSuspend)                         \
-  V(WasmStringNewWtf8)                   \
-  V(WasmStringNewWtf16)                  \
-  V(WasmStringConst)                     \
-  V(WasmStringMeasureUtf8)               \
-  V(WasmStringMeasureWtf8)               \
-  V(WasmStringEncodeWtf8)                \
-  V(WasmStringEncodeWtf16)               \
-  V(WasmStringConcat)                    \
-  V(WasmStringEqual)                     \
-  V(WasmStringIsUSVSequence)             \
-  V(WasmStringAsWtf16)                   \
-  V(WasmStringViewWtf16GetCodeUnit)      \
-  V(WasmStringCodePointAt)               \
-  V(WasmStringViewWtf16Encode)           \
-  V(WasmStringViewWtf16Slice)            \
-  V(WasmStringNewWtf8Array)              \
-  V(WasmStringNewWtf16Array)             \
-  V(WasmStringEncodeWtf8Array)           \
-  V(WasmStringEncodeWtf16Array)          \
-  V(WasmStringAsWtf8)                    \
-  V(WasmStringViewWtf8Advance)           \
-  V(WasmStringViewWtf8Encode)            \
-  V(WasmStringViewWtf8Slice)             \
-  V(WasmStringAsIter)                    \
-  V(WasmStringViewIterNext)              \
-  V(WasmStringViewIterAdvance)           \
-  V(WasmStringViewIterRewind)            \
-  V(WasmStringViewIterSlice)             \
-  V(StringCompare)                       \
-  V(WasmStringFromCodePoint)             \
-  V(WasmStringHash)                      \
-  V(WasmExternInternalize)
 
 // Sorted, disjoint and non-overlapping memory regions. A region is of the
 // form [start, end). So there's no [start, end), [end, other_end),
@@ -193,82 +84,70 @@ class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind { kWasmFunction, kWasmToCapiWrapper, kWasmToJsWrapper, kJumpTable };
 
-  // Each runtime stub is identified by an id. This id is used to reference the
-  // stub via {RelocInfo::WASM_STUB_CALL} and gets resolved during relocation.
-  enum RuntimeStubId {
-#define DEF_ENUM(Name) k##Name,
-#define DEF_ENUM_TRAP(Name) kThrowWasm##Name,
-    WASM_RUNTIME_STUB_LIST(DEF_ENUM, DEF_ENUM_TRAP)
-#undef DEF_ENUM_TRAP
-#undef DEF_ENUM
-        kRuntimeStubCount
-  };
-
-  static constexpr RuntimeStubId GetRecordWriteStub(SaveFPRegsMode fp_mode) {
+  static constexpr Builtin GetRecordWriteBuiltin(SaveFPRegsMode fp_mode) {
     switch (fp_mode) {
       case SaveFPRegsMode::kIgnore:
-        return RuntimeStubId::kRecordWriteIgnoreFP;
+        return Builtin::kRecordWriteIgnoreFP;
       case SaveFPRegsMode::kSave:
-        return RuntimeStubId::kRecordWriteSaveFP;
+        return Builtin::kRecordWriteSaveFP;
     }
   }
 
 #ifdef V8_IS_TSAN
-  static RuntimeStubId GetTSANStoreStub(SaveFPRegsMode fp_mode, int size,
-                                        std::memory_order order) {
+  static Builtin GetTSANStoreBuiltin(SaveFPRegsMode fp_mode, int size,
+                                     std::memory_order order) {
     if (order == std::memory_order_relaxed) {
       if (size == kInt8Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANRelaxedStore8IgnoreFP
-                   : RuntimeStubId::kTSANRelaxedStore8SaveFP;
+                   ? Builtin::kTSANRelaxedStore8IgnoreFP
+                   : Builtin::kTSANRelaxedStore8SaveFP;
       } else if (size == kInt16Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANRelaxedStore16IgnoreFP
-                   : RuntimeStubId::kTSANRelaxedStore16SaveFP;
+                   ? Builtin::kTSANRelaxedStore16IgnoreFP
+                   : Builtin::kTSANRelaxedStore16SaveFP;
       } else if (size == kInt32Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANRelaxedStore32IgnoreFP
-                   : RuntimeStubId::kTSANRelaxedStore32SaveFP;
+                   ? Builtin::kTSANRelaxedStore32IgnoreFP
+                   : Builtin::kTSANRelaxedStore32SaveFP;
       } else {
         CHECK_EQ(size, kInt64Size);
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANRelaxedStore64IgnoreFP
-                   : RuntimeStubId::kTSANRelaxedStore64SaveFP;
+                   ? Builtin::kTSANRelaxedStore64IgnoreFP
+                   : Builtin::kTSANRelaxedStore64SaveFP;
       }
     } else {
       DCHECK_EQ(order, std::memory_order_seq_cst);
       if (size == kInt8Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANSeqCstStore8IgnoreFP
-                   : RuntimeStubId::kTSANSeqCstStore8SaveFP;
+                   ? Builtin::kTSANSeqCstStore8IgnoreFP
+                   : Builtin::kTSANSeqCstStore8SaveFP;
       } else if (size == kInt16Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANSeqCstStore16IgnoreFP
-                   : RuntimeStubId::kTSANSeqCstStore16SaveFP;
+                   ? Builtin::kTSANSeqCstStore16IgnoreFP
+                   : Builtin::kTSANSeqCstStore16SaveFP;
       } else if (size == kInt32Size) {
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANSeqCstStore32IgnoreFP
-                   : RuntimeStubId::kTSANSeqCstStore32SaveFP;
+                   ? Builtin::kTSANSeqCstStore32IgnoreFP
+                   : Builtin::kTSANSeqCstStore32SaveFP;
       } else {
         CHECK_EQ(size, kInt64Size);
         return fp_mode == SaveFPRegsMode::kIgnore
-                   ? RuntimeStubId::kTSANSeqCstStore64IgnoreFP
-                   : RuntimeStubId::kTSANSeqCstStore64SaveFP;
+                   ? Builtin::kTSANSeqCstStore64IgnoreFP
+                   : Builtin::kTSANSeqCstStore64SaveFP;
       }
     }
   }
 
-  static RuntimeStubId GetTSANRelaxedLoadStub(SaveFPRegsMode fp_mode,
-                                              int size) {
+  static Builtin GetTSANRelaxedLoadBuiltin(SaveFPRegsMode fp_mode, int size) {
     if (size == kInt32Size) {
       return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedLoad32IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedLoad32SaveFP;
+                 ? Builtin::kTSANRelaxedLoad32IgnoreFP
+                 : Builtin::kTSANRelaxedLoad32SaveFP;
     } else {
       CHECK_EQ(size, kInt64Size);
       return fp_mode == SaveFPRegsMode::kIgnore
-                 ? RuntimeStubId::kTSANRelaxedLoad64IgnoreFP
-                 : RuntimeStubId::kTSANRelaxedLoad64SaveFP;
+                 ? Builtin::kTSANRelaxedLoad64IgnoreFP
+                 : Builtin::kTSANRelaxedLoad64SaveFP;
     }
   }
 #endif  // V8_IS_TSAN
@@ -700,10 +579,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address GetNearCallTargetForFunction(uint32_t func_index,
                                        const JumpTablesRef&) const;
 
-  // Get a runtime stub entry (which is a far jump table slot) in the jump table
-  // previously looked up via {FindJumpTablesForRegionLocked}.
-  Address GetNearRuntimeStubEntry(WasmCode::RuntimeStubId index,
-                                  const JumpTablesRef&) const;
+  // Get the slot offset in the far jump table that jumps to the given builtin.
+  Address GetJumpTableEntryForBuiltin(Builtin builtin,
+                                      const JumpTablesRef&) const;
 
   // Reverse lookup from a given call target (which must be a jump table slot)
   // to a function index.
@@ -804,11 +682,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
     return import_wrapper_cache_.get();
   }
 
-  const WasmFeatures& enabled_features() const { return enabled_features_; }
+  WasmFeatures enabled_features() const { return enabled_features_; }
 
-  // Returns the runtime stub id that corresponds to the given address (which
-  // must be a far jump table slot). Returns {kRuntimeStubCount} on failure.
-  WasmCode::RuntimeStubId GetRuntimeStubId(Address runtime_stub_target) const;
+  // Returns the builtin that corresponds to the given address (which
+  // must be a far jump table slot). Returns {kNoBuiltinId} on failure.
+  Builtin GetBuiltinInJumptableSlot(Address target) const;
 
   // Sample the current code size of this modules to the given counters.
   void SampleCodeSize(Counters*) const;
@@ -872,6 +750,12 @@ class V8_EXPORT_PRIVATE NativeModule final {
     log_code_.store(false, std::memory_order_relaxed);
   }
 
+  enum class JumpTableType {
+    kJumpTable,
+    kFarJumpTable,
+    kLazyCompileTable,
+  };
+
  private:
   friend class WasmCode;
   friend class WasmCodeAllocator;
@@ -885,8 +769,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   };
 
   // Private constructor, called via {WasmCodeManager::NewNativeModule()}.
-  NativeModule(const WasmFeatures& enabled_features,
-               DynamicTiering dynamic_tiering, VirtualMemory code_space,
+  NativeModule(WasmFeatures enabled_features, DynamicTiering dynamic_tiering,
+               VirtualMemory code_space,
                std::shared_ptr<const WasmModule> module,
                std::shared_ptr<Counters> async_counters,
                std::shared_ptr<NativeModule>* shared_this);
@@ -901,10 +785,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
       bool frame_has_feedback_slot, base::Vector<uint8_t> code_space,
       const JumpTablesRef& jump_tables_ref);
 
-  WasmCode* CreateEmptyJumpTableLocked(int jump_table_size);
+  WasmCode* CreateEmptyJumpTableLocked(int jump_table_size, JumpTableType type);
 
   WasmCode* CreateEmptyJumpTableInRegionLocked(int jump_table_size,
-                                               base::AddressRegion);
+                                               base::AddressRegion,
+                                               JumpTableType type);
 
   // Finds the jump tables that should be used for given code region. This
   // information is then passed to {GetNearCallTargetForFunction} and
@@ -1113,7 +998,7 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   friend class WasmEngine;
 
   std::shared_ptr<NativeModule> NewNativeModule(
-      Isolate* isolate, const WasmFeatures& enabled_features,
+      Isolate* isolate, WasmFeatures enabled_features,
       size_t code_size_estimate, std::shared_ptr<const WasmModule> module);
 
   V8_WARN_UNUSED_RESULT VirtualMemory TryAllocate(size_t size,
@@ -1189,9 +1074,6 @@ class GlobalWasmCodeRef {
   // Also keep the {NativeModule} alive.
   const std::shared_ptr<NativeModule> native_module_;
 };
-
-Builtin RuntimeStubIdToBuiltinName(WasmCode::RuntimeStubId);
-const char* GetRuntimeStubName(WasmCode::RuntimeStubId);
 
 }  // namespace wasm
 }  // namespace internal

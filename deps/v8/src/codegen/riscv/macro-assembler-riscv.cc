@@ -136,6 +136,13 @@ static void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 
 }  // namespace
 #ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
+  if (v8_flags.debug_code) {
+    GetObjectType(object, scratch, scratch);
+    Assert(eq, AbortReason::kExpectedFeedbackCell, scratch,
+           Operand(FEEDBACK_CELL_TYPE));
+  }
+}
 void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
     GetObjectType(object, scratch, scratch);
@@ -430,7 +437,8 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
   DCHECK_EQ(WriteBarrierDescriptor::ObjectRegister(), object);
   DCHECK_EQ(WriteBarrierDescriptor::SlotAddressRegister(), slot_address);
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
-    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
+    auto wasm_target =
+        static_cast<Address>(wasm::WasmCode::GetRecordWriteBuiltin(fp_mode));
     Call(wasm_target, RelocInfo::WASM_STUB_CALL);
   } else {
     auto builtin = Builtins::GetRecordWriteStub(fp_mode);
@@ -3903,7 +3911,7 @@ void MacroAssembler::TruncateDoubleToI(Isolate* isolate, Zone* zone,
   fsd(double_input, sp, 0);
 #if V8_ENABLE_WEBASSEMBLY
   if (stub_mode == StubCallMode::kCallWasmRuntimeStub) {
-    Call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+    Call(static_cast<Address>(Builtin::kDoubleToI), RelocInfo::WASM_STUB_CALL);
 #else
   // For balance.
   if (false) {
@@ -4775,7 +4783,7 @@ void MacroAssembler::LoadAddress(Register dst, Label* target,
   }
 }
 
-void MacroAssembler::Push(Smi smi) {
+void MacroAssembler::Push(Tagged<Smi> smi) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   li(scratch, Operand(smi));
@@ -6452,7 +6460,7 @@ void MacroAssembler::JumpCodeObject(Register code, JumpMode jump_mode) {
 
 void MacroAssembler::CallJSFunction(Register function_object) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -6469,7 +6477,7 @@ void MacroAssembler::CallJSFunction(Register function_object) {
 void MacroAssembler::JumpJSFunction(Register function_object,
                                     JumpMode jump_mode) {
   Register code = kJavaScriptCallCodeStartRegister;
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // When the sandbox is enabled, we can directly fetch the entrypoint pointer
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
@@ -6790,6 +6798,25 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
     __ Move(arg_reg_1, saved_result);
     __ Branch(&leave_exit_frame);
   }
+}
+
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef) {
+  Label done;
+  // Load the feedback vector from the closure.
+  LoadWord(dst, FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
+  LoadWord(dst, FieldMemOperand(dst, FeedbackCell::kValueOffset));
+
+  // Check if feedback vector is valid.
+  LoadWord(scratch, FieldMemOperand(dst, HeapObject::kMapOffset));
+  Lhu(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  Branch(&done, eq, scratch, Operand(FEEDBACK_VECTOR_TYPE));
+
+  // Not valid, load undefined.
+  LoadRoot(dst, RootIndex::kUndefinedValue);
+  Branch(fbv_undef);
+
+  bind(&done);
 }
 
 #undef __

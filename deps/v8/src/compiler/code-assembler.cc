@@ -362,7 +362,7 @@ bool CodeAssembler::TryToSmiConstant(TNode<IntegralT> node,
     intptr_t value = m.ResolvedValue();
     // Make sure that the value is actually a smi
     CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
-    *out_value = Smi(static_cast<Address>(value));
+    *out_value = Tagged<Smi>(static_cast<Address>(value));
     return true;
   }
   return false;
@@ -803,17 +803,17 @@ void CodeAssembler::OptimizedStoreField(MachineRepresentation rep,
 
 void CodeAssembler::OptimizedStoreIndirectPointerField(TNode<HeapObject> object,
                                                        int offset,
+                                                       IndirectPointerTag tag,
                                                        Node* value) {
-  raw_assembler()->OptimizedStoreField(
-      MachineRepresentation::kIndirectPointer, object, offset, value,
+  raw_assembler()->OptimizedStoreIndirectPointerField(
+      object, offset, tag, value,
       WriteBarrierKind::kIndirectPointerWriteBarrier);
 }
 
 void CodeAssembler::OptimizedStoreIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, Node* value) {
-  raw_assembler()->OptimizedStoreField(MachineRepresentation::kIndirectPointer,
-                                       object, offset, value,
-                                       WriteBarrierKind::kNoWriteBarrier);
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag, Node* value) {
+  raw_assembler()->OptimizedStoreIndirectPointerField(
+      object, offset, tag, value, WriteBarrierKind::kNoWriteBarrier);
 }
 
 void CodeAssembler::OptimizedStoreFieldAssertNoWriteBarrier(

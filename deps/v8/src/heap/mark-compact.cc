@@ -114,6 +114,8 @@ class FullMarkingVerifier : public MarkingVerifierBase {
     VerifyMarking(heap_->lo_space());
     VerifyMarking(heap_->code_lo_space());
     if (heap_->shared_lo_space()) VerifyMarking(heap_->shared_lo_space());
+    VerifyMarking(heap_->trusted_space());
+    VerifyMarking(heap_->trusted_lo_space());
   }
 
  protected:
@@ -298,7 +300,7 @@ void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
     PrintIsolate(
         heap_->isolate(),
         "Evacuation candidate: Free bytes: %6zu. Free Lists length: %4d.\n",
-        p->area_size() - p->allocated_bytes(), p->FreeListsLength());
+        p->area_size() - p->allocated_bytes(), p->ComputeFreeListsLength());
   }
 
   p->MarkEvacuationCandidate();
@@ -332,6 +334,8 @@ bool MarkCompactCollector::StartCompaction(StartCompactionMode mode) {
   if (heap_->shared_space()) {
     CollectEvacuationCandidates(heap_->shared_space());
   }
+
+  CollectEvacuationCandidates(heap_->trusted_space());
 
   if (heap_->isolate()->AllowsCodeCompaction() &&
       (!heap_->IsGCWithStack() || v8_flags.compact_code_space_with_stack)) {
@@ -416,7 +420,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean(NewSpace* space) {
     VerifyMarkbitsAreClean(PagedNewSpace::From(space)->paged_space());
     return;
   }
-  for (Page* p : PageRange(space->first_allocatable_address(), space->top())) {
+  for (Page* p : *space) {
     CHECK(p->marking_bitmap()->IsClean());
     CHECK_EQ(0, p->live_bytes());
   }
@@ -438,6 +442,8 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->lo_space());
   VerifyMarkbitsAreClean(heap_->code_lo_space());
   VerifyMarkbitsAreClean(heap_->new_lo_space());
+  VerifyMarkbitsAreClean(heap_->trusted_space());
+  VerifyMarkbitsAreClean(heap_->trusted_lo_space());
 }
 
 #endif  // VERIFY_HEAP
@@ -492,7 +498,8 @@ void MarkCompactCollector::ComputeEvacuationHeuristics(
 
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
-         space->identity() == SHARED_SPACE);
+         space->identity() == SHARED_SPACE ||
+         space->identity() == TRUSTED_SPACE);
 
   int number_of_pages = space->CountTotalPages();
   size_t area_size = space->AreaSize();
@@ -685,9 +692,10 @@ void MarkCompactCollector::Prepare() {
 #endif  // V8_COMPRESS_POINTERS
   }
 
-  NewSpace* new_space = heap_->new_space();
-  if (new_space) {
-    DCHECK_EQ(new_space->top(), new_space->original_top_acquire());
+  if (heap_->new_space()) {
+    DCHECK_EQ(
+        heap_->allocator()->new_space_allocator()->top(),
+        heap_->allocator()->new_space_allocator()->original_top_acquire());
   }
 }
 
@@ -717,6 +725,7 @@ void MarkCompactCollector::VerifyMarking() {
     heap_->old_space()->VerifyLiveBytes();
     heap_->code_space()->VerifyLiveBytes();
     if (heap_->shared_space()) heap_->shared_space()->VerifyLiveBytes();
+    heap_->trusted_space()->VerifyLiveBytes();
     if (v8_flags.minor_ms && heap_->paged_new_space())
       heap_->paged_new_space()->paged_space()->VerifyLiveBytes();
   }
@@ -1127,10 +1136,10 @@ class MarkExternalPointerFromExternalStringTable : public RootVisitor {
     explicit MarkExternalPointerTableVisitor(ExternalPointerTable* table,
                                              ExternalPointerTable::Space* space)
         : table_(table), space_(space) {}
-    void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                              ExternalPointerTag tag) override {
-      DCHECK_NE(tag, kExternalPointerNullTag);
-      DCHECK(IsSharedExternalPointerType(tag));
+    void VisitExternalPointer(Tagged<HeapObject> host,
+                              ExternalPointerSlot slot) override {
+      DCHECK_NE(slot.tag(), kExternalPointerNullTag);
+      DCHECK(IsSharedExternalPointerType(slot.tag()));
       ExternalPointerHandle handle = slot.Relaxed_LoadHandle();
       table_->Mark(space_, handle, slot.address());
     }
@@ -1202,11 +1211,8 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
 
 class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
  public:
-  explicit RecordMigratedSlotVisitor(
-      Heap* heap, EphemeronRememberedSet::TableMap* ephemeron_remembered_set)
-      : ObjectVisitorWithCageBases(heap->isolate()),
-        heap_(heap),
-        ephemeron_remembered_set_(ephemeron_remembered_set) {}
+  explicit RecordMigratedSlotVisitor(Heap* heap)
+      : ObjectVisitorWithCageBases(heap->isolate()), heap_(heap) {}
 
   inline void VisitPointer(Tagged<HeapObject> host, ObjectSlot p) final {
     DCHECK(!HasWeakHeapObjectTag(p.load(cage_base())));
@@ -1253,16 +1259,13 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
     DCHECK(IsEphemeronHashTable(host));
     DCHECK(!Heap::InYoungGeneration(host));
 
+    // Simply record ephemeron keys in OLD_TO_NEW if it points into the young
+    // generation instead of recording it in ephemeron_remembered_set here for
+    // migrated objects. OLD_TO_NEW is per page and we can therefore easily
+    // record in OLD_TO_NEW on different pages in parallel without merging. Both
+    // sets are anyways guaranteed to be empty after a full GC.
+    VisitPointer(host, key);
     VisitPointer(host, value);
-
-    if (ephemeron_remembered_set_ && Heap::InYoungGeneration(*key)) {
-      auto table = EphemeronHashTable::unchecked_cast(host);
-      auto insert_result =
-          ephemeron_remembered_set_->insert({table, std::unordered_set<int>()});
-      insert_result.first->second.insert(index);
-    } else {
-      VisitPointer(host, key);
-    }
   }
 
   inline void VisitCodeTarget(Tagged<InstructionStream> host,
@@ -1292,8 +1295,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   inline void VisitInternalReference(Tagged<InstructionStream> host,
                                      RelocInfo* rinfo) final {}
   inline void VisitExternalPointer(Tagged<HeapObject> host,
-                                   ExternalPointerSlot slot,
-                                   ExternalPointerTag tag) final {}
+                                   ExternalPointerSlot slot) final {}
 
   inline void VisitIndirectPointer(Tagged<HeapObject> host,
                                    IndirectPointerSlot slot,
@@ -1301,15 +1303,20 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
 
   inline void VisitIndirectPointerTableEntry(Tagged<HeapObject> host,
                                              IndirectPointerSlot slot) final {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
     // When an object owning an indirect pointer table entry is relocated, it
-    // needs to update the entry to point to its new location. Currently, only
-    // Code objects are referenced through indirect pointers, and they use the
-    // code pointer table.
-    DCHECK(IsCode(host));
-    static_assert(kAllIndirectPointerObjectsAreCode);
+    // needs to update the entry to point to its new location.
+    // TODO(saelo): This is probably not quite the right place for this code,
+    // since this visitor is for recording slots, not updating them. Figure
+    // out if there's a better place for this logic.
     IndirectPointerHandle handle = slot.Relaxed_LoadHandle();
-    GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
+    if (slot.tag() == kCodeIndirectPointerTag) {
+      DCHECK(IsCode(host));
+      GetProcessWideCodePointerTable()->SetCodeObject(handle, host.ptr());
+    } else {
+      IndirectPointerTable& table = heap_->isolate()->indirect_pointer_table();
+      table.Set(handle, host.ptr());
+    }
 #else
     UNREACHABLE();
 #endif
@@ -1342,7 +1349,6 @@ class RecordMigratedSlotVisitor : public ObjectVisitorWithCageBases {
   }
 
   Heap* const heap_;
-  EphemeronRememberedSet::TableMap* ephemeron_remembered_set_;
 };
 
 class MigrationObserver {
@@ -1369,7 +1375,8 @@ class ProfilingMigrationObserver final : public MigrationObserver {
     if (dest == CODE_SPACE) {
       PROFILE(heap_->isolate(), CodeMoveEvent(InstructionStream::cast(src),
                                               InstructionStream::cast(dst)));
-    } else if (dest == OLD_SPACE && IsBytecodeArray(dst)) {
+    } else if ((dest == OLD_SPACE || dest == TRUSTED_SPACE) &&
+               IsBytecodeArray(dst)) {
       PROFILE(heap_->isolate(), BytecodeMoveEvent(BytecodeArray::cast(src),
                                                   BytecodeArray::cast(dst)));
     }
@@ -1440,6 +1447,7 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
     DCHECK(base->heap_->AllowedToBeMigrated(src->map(cage_base), src, dest));
     DCHECK_NE(dest, LO_SPACE);
     DCHECK_NE(dest, CODE_LO_SPACE);
+    DCHECK_NE(dest, TRUSTED_LO_SPACE);
     if (dest == OLD_SPACE) {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(IsAligned(size, kTaggedSize));
@@ -1458,15 +1466,25 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
         base->ExecuteMigrationObservers(dest, src, dst, size);
       }
       dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
+    } else if (dest == TRUSTED_SPACE) {
+      DCHECK_OBJECT_SIZE(size);
+      DCHECK(IsAligned(size, kTaggedSize));
+      base->heap_->CopyBlock(dst_addr, src_addr, size);
+      if (mode != MigrationMode::kFast) {
+        base->ExecuteMigrationObservers(dest, src, dst, size);
+      }
+      // In case the object's map gets relocated during GC we load the old map
+      // here. This is fine since they store the same content.
+      dst->IterateFast(dst->map(cage_base), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size);
       {
-        ThreadIsolation::WritableJitAllocation writable_allocation =
+        WritableJitAllocation writable_allocation =
             ThreadIsolation::RegisterInstructionStreamAllocation(dst_addr,
                                                                  size);
         base->heap_->CopyBlock(dst_addr, src_addr, size);
         Tagged<InstructionStream> istream = InstructionStream::cast(dst);
-        istream->Relocate(dst_addr - src_addr);
+        istream->Relocate(writable_allocation, dst_addr - src_addr);
       }
       if (mode != MigrationMode::kFast) {
         base->ExecuteMigrationObservers(dest, src, dst, size);
@@ -1635,9 +1653,9 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     return false;
   }
 
-  inline AllocationSpace AllocateTargetObject(Tagged<HeapObject> old_object,
-                                              int size,
-                                              HeapObject* target_object) {
+  inline AllocationSpace AllocateTargetObject(
+      Tagged<HeapObject> old_object, int size,
+      Tagged<HeapObject>* target_object) {
     AllocationAlignment alignment =
         HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
@@ -1736,8 +1754,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
       : heap_(heap), cage_base_(heap->isolate()) {}
 
   bool Visit(Tagged<HeapObject> object, int size) override {
-    RecordMigratedSlotVisitor visitor(
-        heap_, heap_->ephemeron_remembered_set()->tables());
+    RecordMigratedSlotVisitor visitor(heap_);
     Tagged<Map> map = object->map(cage_base_);
     // Instead of calling object.IterateFast(cage_base(), &visitor) here
     // we can shortcut and use the precomputed size value passed to the visitor.
@@ -1862,7 +1879,7 @@ void MarkCompactCollector::MarkObjectsFromClientHeap(Isolate* client) {
   heap->sweeper()->FinishMajorJobs();
 
   if (auto* new_space = heap->new_space()) {
-    new_space->MakeLinearAllocationAreaIterable();
+    new_space->main_allocator()->MakeLinearAllocationAreaIterable();
 
     for (Page* page : *new_space) {
       for (Tagged<HeapObject> obj : HeapObjectRange(page)) {
@@ -2044,7 +2061,9 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   // This phase doesn't support parallel marking.
   DCHECK(heap_->concurrent_marking()->IsStopped());
-  std::unordered_multimap<HeapObject, HeapObject, Object::Hasher> key_to_values;
+  std::unordered_multimap<Tagged<HeapObject>, Tagged<HeapObject>,
+                          Object::Hasher>
+      key_to_values;
   Ephemeron ephemeron;
 
   DCHECK(
@@ -2181,7 +2200,7 @@ std::pair<size_t, size_t> MarkCompactCollector::ProcessMarkingWorklist(
     Tagged<Map> map = object->map(cage_base);
     if (is_per_context_mode) {
       Address context;
-      if (native_context_inferrer_.Infer(isolate, map, object, &context)) {
+      if (native_context_inferrer_.Infer(cage_base, map, object, &context)) {
         local_marking_worklists_->SwitchToContext(context);
       }
     }
@@ -2806,13 +2825,13 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
 #endif  // V8_ENABLE_SANDBOX
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_SWEEP_CODE_POINTER_TABLE);
     GetProcessWideCodePointerTable()->Sweep(heap_->code_pointer_space(),
                                             isolate->counters());
   }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_CLEAR_JOIN_JOB);
@@ -3097,7 +3116,7 @@ void MarkCompactCollector::ProcessFlushedBaselineCandidates() {
     };
     flushed_js_function->ResetIfCodeFlushed(gc_notify_updated_slot);
 
-#ifndef V8_CODE_POINTER_SANDBOXING
+#ifndef V8_ENABLE_SANDBOX
     // Record the code slot that has been updated either to CompileLazy,
     // InterpreterEntryTrampoline or baseline code.
     // This is only necessary when the sandbox is not enabled. If it is, the
@@ -3256,7 +3275,8 @@ void MarkCompactCollector::RightTrimDescriptorArray(
     }
     if (heap::ShouldZapGarbage()) {
       Address zap_end = std::min(aligned_start, end);
-      MemsetTagged(ObjectSlot(start), Object(static_cast<Address>(kZapValue)),
+      MemsetTagged(ObjectSlot(start),
+                   Tagged<Object>(static_cast<Address>(kZapValue)),
                    (zap_end - start) >> kTaggedSizeLog2);
     }
   } else {
@@ -3590,8 +3610,7 @@ MakeSlotValue<InstructionStreamSlot, HeapObjectReferenceType::STRONG>(
 // is not used.
 #endif  // V8_COMPRESS_POINTERS
 
-template <AccessMode access_mode, HeapObjectReferenceType reference_type,
-          typename TSlot>
+template <HeapObjectReferenceType reference_type, typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                               typename TSlot::TObject old,
                               Tagged<HeapObject> heap_obj) {
@@ -3611,14 +3630,10 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
                            Page::COMPACTION_WAS_ABORTED));
     typename TSlot::TObject target = MakeSlotValue<TSlot, reference_type>(
         map_word.ToForwardingAddress(heap_obj));
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      // Needs to be atomic for map space compaction: This slot could be a map
-      // word which we update while loading the map word for updating the slot
-      // on another page.
-      slot.Relaxed_Store(target);
-    } else {
-      slot.Release_CompareAndSwap(old, target);
-    }
+    // Needs to be atomic for map space compaction: This slot could be a map
+    // word which we update while loading the map word for updating the slot
+    // on another page.
+    slot.Relaxed_Store(target);
     DCHECK(!Heap::InFromPage(target));
     DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
   } else {
@@ -3626,16 +3641,14 @@ static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot,
   }
 }
 
-template <AccessMode access_mode, typename TSlot>
+template <typename TSlot>
 static inline void UpdateSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   Tagged<HeapObject> heap_obj;
   if (TSlot::kCanBeWeak && obj.GetHeapObjectIfWeak(&heap_obj)) {
-    UpdateSlot<access_mode, HeapObjectReferenceType::WEAK>(cage_base, slot, obj,
-                                                           heap_obj);
+    UpdateSlot<HeapObjectReferenceType::WEAK>(cage_base, slot, obj, heap_obj);
   } else if (obj.GetHeapObjectIfStrong(&heap_obj)) {
-    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
-                                                             obj, heap_obj);
+    UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, obj, heap_obj);
   }
 }
 
@@ -3646,11 +3659,10 @@ static inline SlotCallbackResult UpdateOldToSharedSlot(
 
   if (obj.GetHeapObject(&heap_obj)) {
     if (obj.IsWeak()) {
-      UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::WEAK>(
-          cage_base, slot, obj, heap_obj);
+      UpdateSlot<HeapObjectReferenceType::WEAK>(cage_base, slot, obj, heap_obj);
     } else {
-      UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::STRONG>(
-          cage_base, slot, obj, heap_obj);
+      UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, obj,
+                                                  heap_obj);
     }
 
     return heap_obj.InWritableSharedSpace() ? KEEP_SLOT : REMOVE_SLOT;
@@ -3659,14 +3671,13 @@ static inline SlotCallbackResult UpdateOldToSharedSlot(
   }
 }
 
-template <AccessMode access_mode, typename TSlot>
+template <typename TSlot>
 static inline void UpdateStrongSlot(PtrComprCageBase cage_base, TSlot slot) {
   typename TSlot::TObject obj = slot.Relaxed_Load(cage_base);
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   Tagged<HeapObject> heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
-    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
-                                                             obj, heap_obj);
+    UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, obj, heap_obj);
   }
 }
 
@@ -3676,15 +3687,13 @@ static inline SlotCallbackResult UpdateStrongOldToSharedSlot(
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   Tagged<HeapObject> heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
-    UpdateSlot<AccessMode::NON_ATOMIC, HeapObjectReferenceType::STRONG>(
-        cage_base, slot, obj, heap_obj);
+    UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, obj, heap_obj);
     return heap_obj.InWritableSharedSpace() ? KEEP_SLOT : REMOVE_SLOT;
   }
 
   return REMOVE_SLOT;
 }
 
-template <AccessMode access_mode>
 static inline void UpdateStrongCodeSlot(Tagged<HeapObject> host,
                                         PtrComprCageBase cage_base,
                                         PtrComprCageBase code_cage_base,
@@ -3693,8 +3702,7 @@ static inline void UpdateStrongCodeSlot(Tagged<HeapObject> host,
   DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(obj.ptr()));
   Tagged<HeapObject> heap_obj;
   if (obj.GetHeapObject(&heap_obj)) {
-    UpdateSlot<access_mode, HeapObjectReferenceType::STRONG>(cage_base, slot,
-                                                             obj, heap_obj);
+    UpdateSlot<HeapObjectReferenceType::STRONG>(cage_base, slot, obj, heap_obj);
 
     Tagged<Code> code = Code::cast(HeapObject::FromAddress(
         slot.address() - Code::kInstructionStreamOffset));
@@ -3739,8 +3747,7 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
 
   void VisitInstructionStreamPointer(Tagged<Code> host,
                                      InstructionStreamSlot slot) override {
-    UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(host, cage_base(),
-                                                 code_cage_base(), slot);
+    UpdateStrongCodeSlot(host, cage_base(), code_cage_base(), slot);
   }
 
   void VisitRootPointer(Root root, const char* description,
@@ -3779,27 +3786,27 @@ class PointersUpdatingVisitor final : public ObjectVisitorWithCageBases,
  private:
   static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
                                             FullObjectSlot slot) {
-    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateStrongSlot(cage_base, slot);
   }
 
   static inline void UpdateRootSlotInternal(PtrComprCageBase cage_base,
                                             OffHeapObjectSlot slot) {
-    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateStrongSlot(cage_base, slot);
   }
 
   static inline void UpdateStrongMaybeObjectSlotInternal(
       PtrComprCageBase cage_base, MaybeObjectSlot slot) {
-    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateStrongSlot(cage_base, slot);
   }
 
   static inline void UpdateStrongSlotInternal(PtrComprCageBase cage_base,
                                               ObjectSlot slot) {
-    UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateStrongSlot(cage_base, slot);
   }
 
   static inline void UpdateSlotInternal(PtrComprCageBase cage_base,
                                         MaybeObjectSlot slot) {
-    UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+    UpdateSlot(cage_base, slot);
   }
 };
 
@@ -3914,7 +3921,7 @@ class Evacuator final : public Malloced {
         local_allocator_(heap_,
                          CompactionSpaceKind::kCompactionSpaceForMarkCompact),
         shared_old_allocator_(CreateSharedOldAllocator(heap_)),
-        record_visitor_(heap_, &ephemeron_remembered_set_),
+        record_visitor_(heap_),
         new_space_visitor_(heap_, &local_allocator_,
                            shared_old_allocator_.get(), &record_visitor_,
                            &local_pretenuring_feedback_),
@@ -3958,7 +3965,6 @@ class Evacuator final : public Malloced {
   // Allocator for the shared heap.
   std::unique_ptr<ConcurrentAllocator> shared_old_allocator_;
 
-  EphemeronRememberedSet::TableMap ephemeron_remembered_set_;
   RecordMigratedSlotVisitor record_visitor_;
 
   // Visitors for the corresponding spaces.
@@ -4011,19 +4017,6 @@ void Evacuator::Finalize() {
       new_to_old_page_visitor_.moved_bytes());
   heap_->pretenuring_handler()->MergeAllocationSitePretenuringFeedback(
       local_pretenuring_feedback_);
-
-  auto* table_map = heap_->ephemeron_remembered_set()->tables();
-  for (auto it = ephemeron_remembered_set_.begin();
-       it != ephemeron_remembered_set_.end(); ++it) {
-    auto insert_result = table_map->insert({it->first, it->second});
-    if (!insert_result.second) {
-      // Insertion didn't happen, there was already an item.
-      auto set = insert_result.first->second;
-      for (int entry : it->second) {
-        set.insert(entry);
-      }
-    }
-  }
 }
 
 class LiveObjectVisitor final : AllStatic {
@@ -4664,7 +4657,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<OLD_TO_OLD>::Iterate(
           chunk_,
           [this, cage_base](MaybeObjectSlot slot) {
-            UpdateSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+            UpdateSlot(cage_base, slot);
             // A string might have been promoted into the shared heap during
             // GC.
             if (record_old_to_shared_slots_) {
@@ -4693,9 +4686,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
             Tagged<HeapObject> host = HeapObject::FromAddress(
                 slot.address() - Code::kInstructionStreamOffset);
             DCHECK(IsCode(host, cage_base));
-            UpdateStrongCodeSlot<AccessMode::NON_ATOMIC>(
-                host, cage_base, code_cage_base,
-                InstructionStreamSlot(slot.address()));
+            UpdateStrongCodeSlot(host, cage_base, code_cage_base,
+                                 InstructionStreamSlot(slot.address()));
             // Always keep slot since all slots are dropped at once after
             // iteration.
             return KEEP_SLOT;
@@ -4748,7 +4740,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           PtrComprCageBase cage_base = heap_->isolate();
           SlotCallbackResult result = UpdateTypedSlotHelper::UpdateTypedSlot(
               heap_, slot_type, slot, [cage_base](FullMaybeObjectSlot slot) {
-                UpdateStrongSlot<AccessMode::NON_ATOMIC>(cage_base, slot);
+                UpdateStrongSlot(cage_base, slot);
                 // Always keep slot since all slots are dropped at once after
                 // iteration.
                 return KEEP_SLOT;
@@ -4800,39 +4792,30 @@ class EphemeronTableUpdatingItem : public UpdatingItem {
     PtrComprCageBase cage_base(heap_->isolate());
 
     auto* table_map = heap_->ephemeron_remembered_set()->tables();
-    for (auto it = table_map->begin(); it != table_map->end();) {
+    for (auto it = table_map->begin(); it != table_map->end(); it++) {
       Tagged<EphemeronHashTable> table = it->first;
       auto& indices = it->second;
       if (table->map_word(cage_base, kRelaxedLoad).IsForwardingAddress()) {
-        // The table has moved, and RecordMigratedSlotVisitor::VisitEphemeron
-        // inserts entries for the moved table into ephemeron_remembered_set_.
-        it = table_map->erase(it);
+        // The object has moved, so ignore slots in dead memory here.
         continue;
       }
       DCHECK(IsMap(table->map(cage_base), cage_base));
       DCHECK(IsEphemeronHashTable(table, cage_base));
-      for (auto iti = indices.begin(); iti != indices.end();) {
+      for (auto iti = indices.begin(); iti != indices.end(); ++iti) {
         // EphemeronHashTable keys must be heap objects.
-        HeapObjectSlot key_slot(table->RawFieldOfElementAt(
+        ObjectSlot key_slot(table->RawFieldOfElementAt(
             EphemeronHashTable::EntryToIndex(InternalIndex(*iti))));
-        Tagged<HeapObject> key = key_slot.ToHeapObject();
+        Tagged<Object> key_object = key_slot.Relaxed_Load();
+        Tagged<HeapObject> key;
+        CHECK(key_object.GetHeapObject(&key));
         MapWord map_word = key->map_word(cage_base, kRelaxedLoad);
         if (map_word.IsForwardingAddress()) {
           key = map_word.ToForwardingAddress(key);
-          key_slot.StoreHeapObject(key);
+          key_slot.Relaxed_Store(key);
         }
-        if (!heap_->InYoungGeneration(key)) {
-          iti = indices.erase(iti);
-        } else {
-          ++iti;
-        }
-      }
-      if (indices.size() == 0) {
-        it = table_map->erase(it);
-      } else {
-        ++it;
       }
     }
+    table_map->clear();
   }
 
  private:
@@ -4876,6 +4859,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
       CollectRememberedSetUpdatingItems(&updating_items,
                                         heap_->shared_lo_space());
     }
+    CollectRememberedSetUpdatingItems(&updating_items, heap_->trusted_space());
+    CollectRememberedSetUpdatingItems(&updating_items,
+                                      heap_->trusted_lo_space());
 
     // Iterating to space may require a valid body descriptor for e.g.
     // WasmStruct which races with updating a slot in Map. Since to space is
@@ -5208,6 +5194,17 @@ void MarkCompactCollector::Sweep() {
     GCTracer::Scope sweep_scope(
         heap_->tracer(), GCTracer::Scope::MC_SWEEP_SHARED, ThreadKind::kMain);
     StartSweepSpace(heap_->shared_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(
+        heap_->tracer(), GCTracer::Scope::MC_SWEEP_TRUSTED, ThreadKind::kMain);
+    StartSweepSpace(heap_->trusted_space());
+  }
+  {
+    GCTracer::Scope sweep_scope(heap_->tracer(),
+                                GCTracer::Scope::MC_SWEEP_TRUSTED_LO,
+                                ThreadKind::kMain);
+    SweepLargeSpace(heap_->trusted_lo_space());
   }
   if (v8_flags.minor_ms && heap_->new_space()) {
     GCTracer::Scope sweep_scope(heap_->tracer(), GCTracer::Scope::MC_SWEEP_NEW,

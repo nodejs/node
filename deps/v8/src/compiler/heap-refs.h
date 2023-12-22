@@ -80,6 +80,7 @@ enum class HoleType : uint8_t {
   kNone,  // Not a Hole.
   kGeneric,
   kPropertyCell,
+  kHashTable,
 };
 
 enum class RefSerializationKind {
@@ -367,6 +368,7 @@ class V8_EXPORT_PRIVATE ObjectRef {
   enum HoleType HoleType() const;
   bool IsTheHole() const;
   bool IsPropertyCellHole() const;
+  bool IsHashTableHole() const;
   bool IsNullOrUndefined() const;
 
   base::Optional<bool> TryGetBooleanValue(JSHeapBroker* broker) const;

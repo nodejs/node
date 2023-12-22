@@ -23,13 +23,17 @@ class Counters;
 /**
  * The entries of a CodePointerTable.
  *
- * Each entry contains a (compressed) pointer to a Code object as well as a raw
- * pointer to the Code's entrypoint.
+ * Each entry contains a pointer to a Code object as well as a raw pointer to
+ * the Code's entrypoint.
  */
 struct CodePointerTableEntry {
   // Make this entry a code pointer entry for the given code object and
   // entrypoint.
   inline void MakeCodePointerEntry(Address code, Address entrypoint);
+
+  // Make this entry a freelist entry, containing the index of the next entry
+  // on the freelist.
+  inline void MakeFreelistEntry(uint32_t next_entry_index);
 
   // Load code entrypoint pointer stored in this entry.
   // This entry must be a code pointer entry.
@@ -46,10 +50,6 @@ struct CodePointerTableEntry {
   // Store the given code object pointer in this entry.
   // This entry must be a code pointer entry.
   inline void SetCodeObject(Address value);
-
-  // Make this entry a freelist entry, containing the index of the next entry
-  // on the freelist.
-  inline void MakeFreelistEntry(uint32_t next_entry_index);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -94,15 +94,21 @@ struct CodePointerTableEntry {
 static_assert(sizeof(CodePointerTableEntry) == kCodePointerTableEntrySize);
 
 /**
- * A table containing pointers to code.
+ * A table containing pointers to Code.
  *
- * When the sandbox is enabled, a code pointer table (CPT) can be used to ensure
- * basic control-flow integrity in the absence of special hardware support (such
- * as landing pad instructions): by referencing code through an index into a
- * CPT, and ensuring that only valid code entrypoints are stored inside the
- * table, it is then guaranteed that any indirect control-flow transfer ends up
- * on a valid entrypoint as long as an attacker is still confined to the
- * sandbox.
+ * Essentially a specialized version of the indirect pointer table (IPT). A
+ * code pointer table entry contains both a pointer to a Code object as well as
+ * a pointer to the entrypoint. This way, the performance sensitive code paths
+ * that for example call a JSFunction can directly load the entrypoint from the
+ * table without having to load it from the Code object.
+ *
+ * When the sandbox is enabled, a code pointer table (CPT) is used to ensure
+ * basic control-flow integrity in the absence of special hardware support
+ * (such as landing pad instructions): by referencing code through an index
+ * into a CPT, and ensuring that only valid code entrypoints are stored inside
+ * the table, it is then guaranteed that any indirect control-flow transfer
+ * ends up on a valid entrypoint as long as an attacker is still confined to
+ * the sandbox.
  */
 class V8_EXPORT_PRIVATE CodePointerTable
     : public ExternalEntityTable<CodePointerTableEntry,
@@ -117,12 +123,8 @@ class V8_EXPORT_PRIVATE CodePointerTable
   CodePointerTable& operator=(const CodePointerTable&) = delete;
 
   // The Spaces used by a CodePointerTable.
-  struct Space
-      : public ExternalEntityTable<CodePointerTableEntry,
-                                   kCodePointerTableReservationSize>::Space {
-   private:
-    friend class CodePointerTable;
-  };
+  using Space = ExternalEntityTable<CodePointerTableEntry,
+                                    kCodePointerTableReservationSize>::Space;
 
   //
   // This method is atomic and can be called from background threads.
@@ -143,8 +145,7 @@ class V8_EXPORT_PRIVATE CodePointerTable
   // This method is atomic and can be called from background threads.
   inline void SetCodeObject(CodePointerHandle handle, Address value);
 
-  // Allocates a new entry in the table. The caller must provide the initial
-  // value and tag.
+  // Allocates a new entry in the table and initialize it.
   //
   // This method is atomic and can be called from background threads.
   inline CodePointerHandle AllocateAndInitializeEntry(Space* space,

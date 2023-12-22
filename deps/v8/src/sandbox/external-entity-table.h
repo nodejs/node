@@ -37,6 +37,11 @@ class Isolate;
  * management as well as entry allocation routines, it does not implement any
  * logic for reclaiming entries such as garbage collection. This must be done
  * by the child classes.
+ *
+ * The Entry type defines how the freelist is represented. For that, it must
+ * implement the following methods:
+ * - void MakeFreelistEntry(uint32_t next_entry_index)
+ * - uint32_t GetNextFreelistEntry()
  */
 template <typename Entry, size_t size>
 class V8_EXPORT_PRIVATE ExternalEntityTable {
@@ -167,6 +172,11 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
       return is_internal_read_only_space_;
     }
 
+#ifdef DEBUG
+    // Check whether this space belongs to the given external entity table.
+    bool BelongsTo(void* table) { return owning_table_ == table; }
+#endif  // DEBUG
+
    protected:
     friend class ExternalEntityTable<Entry, size>;
 
@@ -175,10 +185,7 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     // able to insert additional DCHECKs that verify that spaces are always used
     // with the correct table.
     std::atomic<void*> owning_table_ = nullptr;
-
-    // Check whether this space belongs to the given external entity table.
-    bool BelongsTo(void* table) { return owning_table_ == table; }
-#endif  // DEBUG
+#endif
 
     // The freelist used by this space.
     // This contains both the index of the first entry in the freelist and the
@@ -242,6 +249,20 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   // empty. It will then refill the freelist with all entries in the newly
   // allocated segment.
   FreelistHead Extend(Space* space);
+
+  // Sweeps the given space.
+  //
+  // This will free all unmarked entries to the freelist and unmark all live
+  // entries. The table is swept top-to-bottom so that the freelist ends up
+  // sorted. During sweeping, new entries must not be allocated.
+  //
+  // This is a generic implementation of table sweeping and requires that the
+  // Entry type implements the following additional methods:
+  // - bool IsMarked()
+  // - void Unmark()
+  //
+  // Returns the number of live entries after sweeping.
+  uint32_t GenericSweep(Space* space);
 
   // Allocate a new segment in this table.
   //

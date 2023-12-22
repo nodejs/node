@@ -60,12 +60,13 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(WasmNull)
 
 CAST_ACCESSOR(WasmInstanceObject)
 
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)                  \
-  DEF_GETTER(holder, has_##name, bool) {                                \
-    Object value = TaggedField<Object, offset>::load(cage_base, *this); \
-    return !IsUndefined(value, GetReadOnlyRoots(cage_base));            \
-  }                                                                     \
-  ACCESSORS_CHECKED2(holder, name, Tagged<type>, offset,                \
+#define OPTIONAL_ACCESSORS(holder, name, type, offset)       \
+  DEF_GETTER(holder, has_##name, bool) {                     \
+    Tagged<Object> value =                                   \
+        TaggedField<Object, offset>::load(cage_base, *this); \
+    return !IsUndefined(value, GetReadOnlyRoots(cage_base)); \
+  }                                                          \
+  ACCESSORS_CHECKED2(holder, name, type, offset,             \
                      !IsUndefined(value, GetReadOnlyRoots(cage_base)), true)
 
 #define PRIMITIVE_ACCESSORS(holder, name, type, offset)               \
@@ -107,7 +108,8 @@ bool WasmModuleObject::is_asm_js() {
 }
 
 // WasmMemoryObject
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakArrayList, kInstancesOffset)
+OPTIONAL_ACCESSORS(WasmMemoryObject, instances, Tagged<WeakArrayList>,
+                   kInstancesOffset)
 
 // WasmGlobalObject
 ACCESSORS(WasmGlobalObject, untagged_buffer, Tagged<JSArrayBuffer>,
@@ -234,20 +236,22 @@ ACCESSORS(WasmInstanceObject, native_context, Tagged<Context>,
           kNativeContextOffset)
 ACCESSORS(WasmInstanceObject, memory_objects, Tagged<FixedArray>,
           kMemoryObjectsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, untagged_globals_buffer, JSArrayBuffer,
-                   kUntaggedGlobalsBufferOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, tagged_globals_buffer, FixedArray,
-                   kTaggedGlobalsBufferOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, untagged_globals_buffer,
+                   Tagged<JSArrayBuffer>, kUntaggedGlobalsBufferOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, tagged_globals_buffer,
+                   Tagged<FixedArray>, kTaggedGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, imported_mutable_globals_buffers,
-                   FixedArray, kImportedMutableGlobalsBuffersOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, tables, FixedArray, kTablesOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_tables, FixedArray,
-                   kIndirectFunctionTablesOffset)
+                   Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, tables, Tagged<FixedArray>,
+                   kTablesOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_tables,
+                   Tagged<FixedArray>, kIndirectFunctionTablesOffset)
 ACCESSORS(WasmInstanceObject, imported_function_refs, Tagged<FixedArray>,
           kImportedFunctionRefsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs, FixedArray,
-                   kIndirectFunctionTableRefsOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, FixedArray, kTagsTableOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, indirect_function_table_refs,
+                   Tagged<FixedArray>, kIndirectFunctionTableRefsOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, tags_table, Tagged<FixedArray>,
+                   kTagsTableOffset)
 ACCESSORS(WasmInstanceObject, wasm_internal_functions, Tagged<FixedArray>,
           kWasmInternalFunctionsOffset)
 ACCESSORS(WasmInstanceObject, managed_object_maps, Tagged<FixedArray>,

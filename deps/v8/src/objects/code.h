@@ -7,7 +7,7 @@
 
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -51,7 +51,10 @@ enum class Builtin;
 //  |                          |  <-- MS + unwinding_info_offset()
 //  +--------------------------+  <-- MetadataEnd()
 //
-class Code : public HeapObject {
+// When the sandbox is enabled, Code objects are allocated outside the sandbox
+// and referenced through indirect pointers, so they need to inherit from
+// ExposedTrustedObject.
+class Code : public ExposedTrustedObject {
  public:
   // When V8_EXTERNAL_CODE_SPACE is enabled, InstructionStream objects are
   // allocated in a separate pointer compression cage instead of the cage where
@@ -320,13 +323,10 @@ class Code : public HeapObject {
   /* Untagged data not directly visited by GC starts here. */                 \
   /* When the sandbox is off, the instruction_start field contains a raw */   \
   /* pointer to the first instruction of this Code. */                        \
-  /* If the sandbox is on, this field instead contains the handle for the */  \
-  /* code pointer table entry of this Code object. The instruction start */   \
-  /* value is then stored in that entry. */                                   \
-  V(kInstructionStartOffset,                                                  \
-    V8_CODE_POINTER_SANDBOXING_BOOL ? 0 : kSystemPointerSize)                 \
-  V(kCodePointerTableEntryOffset,                                             \
-    V8_CODE_POINTER_SANDBOXING_BOOL ? kIndirectPointerSlotSize : 0)           \
+  /* If the sandbox is on, this field does not exist. Instead, the */         \
+  /* instruction_start is stored in this Code's code pointer table entry */   \
+  /* referenced via the kSelfIndirectPointerOffset field */                   \
+  V(kInstructionStartOffset, V8_ENABLE_SANDBOX_BOOL ? 0 : kSystemPointerSize) \
   /* The serializer needs to copy bytes starting from here verbatim. */       \
   V(kFlagsOffset, kUInt32Size)                                                \
   V(kInstructionSizeOffset, kIntSize)                                         \
@@ -344,7 +344,9 @@ class Code : public HeapObject {
   /* Total size. */                                                           \
   V(kSize, 0)
 
-  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, CODE_DATA_FIELDS)
+  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize,
+                                CODE_DATA_FIELDS)
+
 #undef CODE_DATA_FIELDS
 
 #ifdef V8_EXTERNAL_CODE_SPACE
@@ -408,7 +410,7 @@ class Code : public HeapObject {
   friend FactoryBase<Factory>;
   friend FactoryBase<LocalFactory>;
 
-  OBJECT_CONSTRUCTORS(Code, HeapObject);
+  OBJECT_CONSTRUCTORS(Code, ExposedTrustedObject);
 };
 
 // A Code object when used in situations where gc might be in progress. The

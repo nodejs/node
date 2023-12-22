@@ -68,12 +68,12 @@ const ConstantArrayBuilder::Entry& ConstantArrayBuilder::ConstantArraySlice::At(
 template <typename IsolateT>
 void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique(
     IsolateT* isolate) const {
-  std::set<Smi> smis;
+  std::set<Tagged<Smi>> smis;
   std::set<double> heap_numbers;
   std::set<const AstRawString*> strings;
   std::set<const char*> bigints;
   std::set<const Scope*> scopes;
-  std::set<Object, Object::Comparer> deferred_objects;
+  std::set<Tagged<Object>, Object::Comparer> deferred_objects;
   for (const Entry& entry : constants_) {
     bool duplicate = false;
     switch (entry.tag_) {

@@ -14,10 +14,6 @@
 #include "src/compiler/node.h"
 #include "src/zone/zone.h"
 
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
-#endif
-
 namespace v8 {
 namespace internal {
 
@@ -619,29 +615,28 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             callee->opcode() != IrOpcode::kRelocatableInt64Constant) {
           return nullptr;
         }
-        intptr_t info =
-            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value();
-        using WasmCode = v8::internal::wasm::WasmCode;
-        constexpr intptr_t unrollable_builtins[] = {
+        Builtin builtin = static_cast<Builtin>(
+            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value());
+        constexpr Builtin unrollable_builtins[] = {
             // Exists in every stack check.
-            WasmCode::kWasmStackGuard,
+            Builtin::kWasmStackGuard,
             // Fast table operations.
-            WasmCode::kWasmTableGet, WasmCode::kWasmTableSet,
-            WasmCode::kWasmTableGetFuncRef, WasmCode::kWasmTableSetFuncRef,
-            WasmCode::kWasmTableGrow,
+            Builtin::kWasmTableGet, Builtin::kWasmTableSet,
+            Builtin::kWasmTableGetFuncRef, Builtin::kWasmTableSetFuncRef,
+            Builtin::kWasmTableGrow,
             // Atomics.
-            WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait,
-            WasmCode::kWasmI64AtomicWait,
+            Builtin::kWasmAtomicNotify, Builtin::kWasmI32AtomicWait,
+            Builtin::kWasmI64AtomicWait,
             // Exceptions.
-            WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
-            WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
+            Builtin::kWasmAllocateFixedArray, Builtin::kWasmThrow,
+            Builtin::kWasmRethrow, Builtin::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
-            WasmCode::kWasmRefFunc,
+            Builtin::kWasmRefFunc,
             // While a built-in call, this is the slow path, so it should not
             // prevent loop unrolling for stringview_wtf16.get_codeunit.
-            WasmCode::kWasmStringViewWtf16GetCodeUnit};
+            Builtin::kWasmStringViewWtf16GetCodeUnit};
         if (std::count(std::begin(unrollable_builtins),
-                       std::end(unrollable_builtins), info) == 0) {
+                       std::end(unrollable_builtins), builtin) == 0) {
           return nullptr;
         }
         ENQUEUE_USES(use, true)

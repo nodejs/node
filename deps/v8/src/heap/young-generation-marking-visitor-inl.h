@@ -250,7 +250,7 @@ V8_INLINE bool YoungGenerationMarkingVisitor<marking_mode>::ShortCutStrings(
           heap_object->map(ObjectVisitorWithCageBases::cage_base())
               ->visitor_id();
       if (visitor_id == VisitorId::kVisitShortcutCandidate) {
-        ConsString string = ConsString::cast(*heap_object);
+        Tagged<ConsString> string = ConsString::cast(*heap_object);
         if (static_cast<Tagged_t>(string->second().ptr()) ==
             StaticReadOnlyRoot::kempty_string) {
           *heap_object = string->first();

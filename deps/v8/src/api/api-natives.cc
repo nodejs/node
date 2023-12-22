@@ -182,7 +182,7 @@ Tagged<Object> GetIntrinsic(Isolate* isolate, v8::Intrinsic intrinsic) {
     V8_INTRINSICS_LIST(GET_INTRINSIC_VALUE)
 #undef GET_INTRINSIC_VALUE
   }
-  return Object();
+  return Tagged<Object>();
 }
 
 template <typename TemplateInfoT>
@@ -195,13 +195,13 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
   // Walk the inheritance chain and copy all accessors to current object.
   int max_number_of_properties = 0;
-  TemplateInfoT info = *data;
+  Tagged<TemplateInfoT> info = *data;
   while (!info.is_null()) {
-    Tagged<Object> props = info.property_accessors();
+    Tagged<Object> props = info->property_accessors();
     if (!IsUndefined(props, isolate)) {
-      max_number_of_properties += TemplateList::cast(props)->length();
+      max_number_of_properties += ArrayList::cast(props)->Length();
     }
-    info = info.GetParent(isolate);
+    info = info->GetParent(isolate);
   }
 
   if (max_number_of_properties > 0) {
@@ -210,7 +210,9 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     Handle<FixedArray> array =
         isolate->factory()->NewFixedArray(max_number_of_properties);
 
-    for (Handle<TemplateInfoT> temp(*data, isolate); !temp->is_null();
+    // TODO(leszeks): Avoid creating unnecessary handles for cases where we
+    // don't need to append anything.
+    for (Handle<TemplateInfoT> temp(*data, isolate); !(*temp).is_null();
          temp = handle(temp->GetParent(isolate), isolate)) {
       // Accumulate accessors.
       Tagged<Object> maybe_properties = temp->property_accessors();
@@ -233,28 +235,27 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
 
   Tagged<Object> maybe_property_list = data->property_list();
   if (IsUndefined(maybe_property_list, isolate)) return obj;
-  Handle<TemplateList> properties(TemplateList::cast(maybe_property_list),
-                                  isolate);
-  if (properties->length() == 0) return obj;
+  Handle<ArrayList> properties(ArrayList::cast(maybe_property_list), isolate);
+  if (properties->Length() == 0) return obj;
 
   int i = 0;
   for (int c = 0; c < data->number_of_properties(); c++) {
-    auto name = handle(Name::cast(properties->get(i++)), isolate);
-    Tagged<Object> bit = properties->get(i++);
+    auto name = handle(Name::cast(properties->Get(i++)), isolate);
+    Tagged<Object> bit = properties->Get(i++);
     if (IsSmi(bit)) {
       PropertyDetails details(Smi::cast(bit));
       PropertyAttributes attributes = details.attributes();
       PropertyKind kind = details.kind();
 
       if (kind == PropertyKind::kData) {
-        auto prop_data = handle(properties->get(i++), isolate);
+        auto prop_data = handle(properties->Get(i++), isolate);
         RETURN_ON_EXCEPTION(
             isolate,
             DefineDataProperty(isolate, obj, name, prop_data, attributes),
             JSObject);
       } else {
-        auto getter = handle(properties->get(i++), isolate);
-        auto setter = handle(properties->get(i++), isolate);
+        auto getter = handle(properties->Get(i++), isolate);
+        auto setter = handle(properties->Get(i++), isolate);
         RETURN_ON_EXCEPTION(isolate,
                             DefineAccessorProperty(isolate, obj, name, getter,
                                                    setter, attributes),
@@ -263,12 +264,12 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     } else {
       // Intrinsic data property --- Get appropriate value from the current
       // context.
-      PropertyDetails details(Smi::cast(properties->get(i++)));
+      PropertyDetails details(Smi::cast(properties->Get(i++)));
       PropertyAttributes attributes = details.attributes();
       DCHECK_EQ(PropertyKind::kData, details.kind());
 
       v8::Intrinsic intrinsic =
-          static_cast<v8::Intrinsic>(Smi::ToInt(properties->get(i++)));
+          static_cast<v8::Intrinsic>(Smi::ToInt(properties->Get(i++)));
       auto prop_data = handle(GetIntrinsic(isolate, intrinsic), isolate);
 
       RETURN_ON_EXCEPTION(
@@ -560,11 +561,11 @@ MaybeHandle<JSFunction> InstantiateFunction(
 void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
                                int length, Handle<Object>* data) {
   Tagged<Object> maybe_list = templ->property_list();
-  Handle<TemplateList> list;
+  Handle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
-    list = TemplateList::New(isolate, length);
+    list = ArrayList::New(isolate, length, AllocationType::kOld);
   } else {
-    list = handle(TemplateList::cast(maybe_list), isolate);
+    list = handle(ArrayList::cast(maybe_list), isolate);
   }
   templ->set_number_of_properties(templ->number_of_properties() + 1);
   for (int i = 0; i < length; i++) {
@@ -572,7 +573,7 @@ void AddPropertyToPropertyList(Isolate* isolate, Handle<TemplateInfo> templ,
         data[i].is_null()
             ? Handle<Object>::cast(isolate->factory()->undefined_value())
             : data[i];
-    list = TemplateList::Add(isolate, list, value);
+    list = ArrayList::Add(isolate, list, value);
   }
   templ->set_property_list(*list);
 }
@@ -678,13 +679,13 @@ void ApiNatives::AddNativeDataProperty(Isolate* isolate,
                                        Handle<TemplateInfo> info,
                                        Handle<AccessorInfo> property) {
   Tagged<Object> maybe_list = info->property_accessors();
-  Handle<TemplateList> list;
+  Handle<ArrayList> list;
   if (IsUndefined(maybe_list, isolate)) {
-    list = TemplateList::New(isolate, 1);
+    list = ArrayList::New(isolate, 1, AllocationType::kOld);
   } else {
-    list = handle(TemplateList::cast(maybe_list), isolate);
+    list = handle(ArrayList::cast(maybe_list), isolate);
   }
-  list = TemplateList::Add(isolate, list, property);
+  list = ArrayList::Add(isolate, list, property);
   info->set_property_accessors(*list);
 }
 

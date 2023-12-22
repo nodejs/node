@@ -232,7 +232,7 @@ class LiveObjectRange final {
  public:
   class iterator final {
    public:
-    using value_type = std::pair<HeapObject, int /* size */>;
+    using value_type = std::pair<Tagged<HeapObject>, int /* size */>;
     using pointer = const value_type*;
     using reference = const value_type&;
     using iterator_category = std::forward_iterator_tag;
@@ -261,8 +261,8 @@ class LiveObjectRange final {
     const PtrComprCageBase cage_base_;
     MarkingBitmap::CellIndex current_cell_index_ = 0;
     MarkingBitmap::CellType current_cell_ = 0;
-    HeapObject current_object_;
-    Map current_map_;
+    Tagged<HeapObject> current_object_;
+    Tagged<Map> current_map_;
     int current_size_ = 0;
   };
 

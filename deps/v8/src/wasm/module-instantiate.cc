@@ -89,27 +89,6 @@ class CompileImportWrapperJob final : public JobTask {
   WasmImportWrapperCache::ModificationScope* const cache_scope_;
 };
 
-Handle<DescriptorArray> CreateArrayDescriptorArray(
-    Isolate* isolate, const wasm::ArrayType* type) {
-  uint32_t kDescriptorsCount = 1;
-  Handle<DescriptorArray> descriptors =
-      isolate->factory()->NewDescriptorArray(kDescriptorsCount);
-
-  // TODO(ishell): cache Wasm field type in FieldType value.
-  MaybeObject any_type = MaybeObject::FromObject(FieldType::Any());
-  DCHECK(IsSmi(any_type));
-
-  // Add descriptor for length property.
-  PropertyDetails details(PropertyKind::kData, FROZEN, PropertyLocation::kField,
-                          PropertyConstness::kConst,
-                          Representation::WasmValue(), static_cast<int>(0));
-  descriptors->Set(InternalIndex(0), *isolate->factory()->length_string(),
-                   any_type, details);
-
-  descriptors->Sort();
-  return descriptors;
-}
-
 Handle<Map> CreateStructMap(Isolate* isolate, const WasmModule* module,
                             int struct_index, Handle<Map> opt_rtt_parent,
                             Handle<WasmInstanceObject> instance) {
@@ -148,19 +127,18 @@ Handle<Map> CreateArrayMap(Isolate* isolate, const WasmModule* module,
   Handle<WasmTypeInfo> type_info = isolate->factory()->NewWasmTypeInfo(
       reinterpret_cast<Address>(type), opt_rtt_parent, cached_instance_size,
       instance, array_index);
-  // TODO(ishell): get canonical descriptor array for WasmArrays from roots.
-  Handle<DescriptorArray> descriptors =
-      CreateArrayDescriptorArray(isolate, type);
   Handle<Map> map = isolate->factory()->NewMap(
       instance_type, instance_size, elements_kind, inobject_properties);
   map->set_wasm_type_info(*type_info);
-  map->SetInstanceDescriptors(isolate, *descriptors,
-                              descriptors->number_of_descriptors());
+  map->SetInstanceDescriptors(isolate,
+                              *isolate->factory()->empty_descriptor_array(), 0);
   map->set_is_extensible(false);
   WasmArray::EncodeElementSizeInMap(type->element_type().value_kind_size(),
                                     *map);
   return map;
 }
+
+}  // namespace
 
 void CreateMapForType(Isolate* isolate, const WasmModule* module,
                       int type_index, Handle<WasmInstanceObject> instance,
@@ -203,12 +181,14 @@ void CreateMapForType(Isolate* isolate, const WasmModule* module,
       map = CreateArrayMap(isolate, module, type_index, rtt_parent, instance);
       break;
     case TypeDefinition::kFunction:
-      map = CreateFuncRefMap(isolate, rtt_parent, instance);
+      map = CreateFuncRefMap(isolate, rtt_parent);
       break;
   }
   canonical_rtts->Set(canonical_type_index, HeapObjectReference::Weak(*map));
   maps->set(type_index, *map);
 }
+
+namespace {
 
 MachineRepresentation NormalizeFastApiRepresentation(const CTypeInfo& info) {
   MachineType t = MachineType::TypeForCType(info);
@@ -342,20 +322,23 @@ bool IsStringOrExternRef(wasm::ValueType type) {
   return IsStringRef(type) || IsExternRef(type);
 }
 
-bool IsI16Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  if (writable && !module->array_type(reftype)->mutability()) return false;
-  return module->array_type(reftype)->element_type() == kWasmI16;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI16Index;
+  // Note: if we ever relax the requirements back to *any* i16 array, we can
+  // simply check {module->array_type(reftype)->element_type() == kWasmI16}
+  // here.
 }
 
-bool IsI8Array(wasm::ValueType type, const WasmModule* module, bool writable) {
+bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
   if (!type.is_object_reference() || !type.has_index()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
-  if (writable && !module->array_type(reftype)->mutability()) return false;
-  return module->array_type(reftype)->element_type() == kWasmI8;
+  return module->isorecursive_canonical_type_ids[reftype] ==
+         TypeCanonicalizer::kPredefinedArrayI8Index;
 }
 
 // This detects imports of the forms:
@@ -431,7 +414,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       case Builtin::kWebAssemblyStringFromWtf16Array:
         // i16array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI16Array(sig->GetParam(0), instance->module(), false) &&
+            IsI16Array(sig->GetParam(0), instance->module()) &&
             sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf16Array;
@@ -440,7 +423,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       case Builtin::kWebAssemblyStringFromWtf8Array:
         // i8array, i32, i32 -> extern
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
-            IsI8Array(sig->GetParam(0), instance->module(), false) &&
+            IsI8Array(sig->GetParam(0), instance->module()) &&
             sig->GetParam(1) == kWasmI32 && sig->GetParam(2) == kWasmI32 &&
             sig->GetReturn(0) == kRefExtern) {
           return WellKnownImport::kStringFromWtf8Array;
@@ -465,7 +448,7 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
         // string, i16array, i32 -> i32
         if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
             sig->GetParam(0) == kWasmExternRef &&
-            IsI16Array(sig->GetParam(1), instance->module(), true) &&
+            IsI16Array(sig->GetParam(1), instance->module()) &&
             sig->GetParam(2) == kWasmI32 && sig->GetReturn(0) == kWasmI32) {
           return WellKnownImport::kStringToWtf16Array;
         }
@@ -518,6 +501,15 @@ WellKnownImport CheckForWellKnownImport(Handle<WasmInstanceObject> instance,
       }
       break;
 #endif
+    case Builtin::kDataViewPrototypeGetInt32:
+      if (sig->parameter_count() == 3 && sig->return_count() == 1 &&
+          sig->GetParam(0) == wasm::kWasmExternRef &&
+          sig->GetParam(1) == wasm::kWasmI32 &&
+          sig->GetParam(2) == wasm::kWasmI32 &&
+          sig->GetReturn(0) == wasm::kWasmI32) {
+        return WellKnownImport::kDataViewGetInt32;
+      }
+      break;
     case Builtin::kNumberPrototypeToString:
       if (sig->parameter_count() == 2 && sig->return_count() == 1 &&
           sig->GetParam(0) == wasm::kWasmI32 &&
@@ -927,7 +919,7 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
         module_object->shared_native_module();
     // Post tasks for lazy compilation metrics before we call the start
     // function.
-    if (v8_flags.wasm_lazy_compilation &&
+    if (v8_flags.wasm_lazy_compilation && !v8_flags.single_threaded &&
         native_module->ShouldLazyCompilationMetricsBeReported()) {
       V8::GetCurrentPlatform()->CallDelayedOnWorkerThread(
           std::make_unique<ReportLazyCompilationTimesTask>(
@@ -1181,8 +1173,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Create maps for managed objects (GC proposal).
   // Must happen before {InitGlobals} because globals can refer to these maps.
-  // We do not need to cache the canonical rtts to (rtt.canon any)'s subtype
-  // list.
   //--------------------------------------------------------------------------
   if (enabled_.has_gc()) {
     if (module_->isorecursive_canonical_type_ids.size() > 0) {
@@ -1202,7 +1192,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Allocate the array that will hold type feedback vectors.
   //--------------------------------------------------------------------------
-  if (enabled_.has_inlining()) {
+  if (enabled_.has_inlining() || module_->is_wasm_gc) {
     int num_functions = static_cast<int>(module_->num_declared_functions);
     // Zero-fill the array so we can do a quick Smi-check to test if a given
     // slot was initialized.

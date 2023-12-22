@@ -497,8 +497,10 @@ function assertMemoryEquals(expected, memory) {
   }
 
   for (let run = 0; run < 10; ++run) {
-    let inputs = new Array(4).fill(0).map(
-        i => Math.floor(Math.random() * kPageSize));
+    // Return a random index in [0, kPageSize - 3) such that we can read four
+    // bytes from there.
+    let get_random_offset = () => Math.floor(Math.random() * (kPageSize - 3));
+    let inputs = new Array(4).fill(0).map(get_random_offset);
     for (let [func_idx, mem_indexes] of mem_indexes_list.entries()) {
       let expected = 0;
       for (let i = 0; i < 4; ++i) {

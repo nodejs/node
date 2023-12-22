@@ -370,9 +370,9 @@ void* OS::GetRandomMmapAddr() {
   // this address for RISC-V. https://github.com/v8-riscv/v8/issues/375
   raw_addr &= 0x3FFFF000;
 #elif V8_TARGET_ARCH_LOONG64
-  // 42 bits of virtual addressing. Truncate to 40 bits to allow kernel chance
-  // to fulfill request.
-  raw_addr &= uint64_t{0xFFFFFF0000};
+  // 40 or 47 bits of virtual addressing. Truncate to 38 bits to allow kernel
+  // chance to fulfill request.
+  raw_addr &= uint64_t{0x3FFFFF0000};
 #else
   raw_addr &= 0x3FFFF000;
 
@@ -848,6 +848,25 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   return 0;
 }
 #endif
+
+int OS::GetPeakMemoryUsageKb() {
+#if defined(V8_OS_FUCHSIA)
+  // Fuchsia does not implement getrusage()
+  return -1;
+#else
+  struct rusage usage;
+  if (getrusage(RUSAGE_SELF, &usage) < 0) return -1;
+
+#if defined(V8_OS_MACOS) || defined(V8_OS_IOS)
+  constexpr int KB = 1024;
+  // MacOS and iOS ru_maxrss count bytes
+  return static_cast<int>(usage.ru_maxrss / KB);
+#else
+  // Most other cases (at least Linux, IOS, return kilobytes)
+  return static_cast<int>(usage.ru_maxrss);
+#endif  // defined(V8_OS_MACOS) || defined(V8_OS_IOS)
+#endif  // defined(V8_OS_FUCHSIA)
+}
 
 double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();

@@ -564,6 +564,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void LoadMap(Register destination, Register object);
 
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef);
+
   void PushAll(RegList registers) {
     if (registers.is_empty()) return;
     ASM_CODE_COMMENT(this);
@@ -859,6 +862,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   MemOperand ReceiverOperand() { return MemOperand(sp, 0); }
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
@@ -1063,7 +1068,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand);
+                              MemOperand return_value_operand, Label* done);
 
 #define ACCESS_MASM(masm) masm->
 

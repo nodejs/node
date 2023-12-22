@@ -39,14 +39,14 @@ bool CallSiteInfo::IsNative() const {
   if (IsBuiltin()) return true;
 #endif
   if (auto script = GetScript()) {
-    return script->type() == Script::Type::kNative;
+    return script.value()->type() == Script::Type::kNative;
   }
   return false;
 }
 
 bool CallSiteInfo::IsEval() const {
   if (auto script = GetScript()) {
-    return script->compilation_type() == Script::CompilationType::kEval;
+    return script.value()->compilation_type() == Script::CompilationType::kEval;
   }
   return false;
 }
@@ -168,29 +168,29 @@ int CallSiteInfo::GetEnclosingColumnNumber(Handle<CallSiteInfo> info) {
 
 int CallSiteInfo::GetScriptId() const {
   if (auto script = GetScript()) {
-    return script->id();
+    return script.value()->id();
   }
   return Message::kNoScriptIdInfo;
 }
 
 Tagged<Object> CallSiteInfo::GetScriptName() const {
   if (auto script = GetScript()) {
-    return script->name();
+    return script.value()->name();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptNameOrSourceURL() const {
   if (auto script = GetScript()) {
-    return script->GetNameOrSourceURL();
+    return script.value()->GetNameOrSourceURL();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
 
 Tagged<Object> CallSiteInfo::GetScriptSource() const {
   if (auto script = GetScript()) {
-    if (script->HasValidSource()) {
-      return script->source();
+    if (script.value()->HasValidSource()) {
+      return script.value()->source();
     }
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
@@ -198,7 +198,7 @@ Tagged<Object> CallSiteInfo::GetScriptSource() const {
 
 Tagged<Object> CallSiteInfo::GetScriptSourceMappingURL() const {
   if (auto script = GetScript()) {
-    return script->source_mapping_url();
+    return script.value()->source_mapping_url();
   }
   return ReadOnlyRoots(GetIsolate()).null_value();
 }
@@ -348,8 +348,8 @@ Tagged<PrimitiveHeapObject> InferMethodNameFromFastObject(
     Isolate* isolate, Tagged<JSObject> receiver, Tagged<JSFunction> fun,
     Tagged<PrimitiveHeapObject> name) {
   ReadOnlyRoots roots(isolate);
-  Map map = receiver->map();
-  DescriptorArray descriptors = map->instance_descriptors(isolate);
+  Tagged<Map> map = receiver->map();
+  Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
   for (auto i : map->IterateOwnDescriptors()) {
     Tagged<PrimitiveHeapObject> key = descriptors->GetKey(i);
     if (IsSymbol(key)) continue;
@@ -456,7 +456,7 @@ Handle<Object> CallSiteInfo::GetMethodName(Handle<CallSiteInfo> info) {
   }
 
   Handle<JSReceiver> receiver =
-      JSReceiver::ToObject(isolate, receiver_or_instance).ToHandleChecked();
+      Object::ToObject(isolate, receiver_or_instance).ToHandleChecked();
   Handle<String> name(function->shared()->Name(), isolate);
   name = String::Flatten(isolate, name);
 
@@ -509,8 +509,7 @@ Handle<Object> CallSiteInfo::GetTypeName(Handle<CallSiteInfo> info) {
     return isolate->factory()->null_value();
   }
   Handle<JSReceiver> receiver =
-      JSReceiver::ToObject(isolate,
-                           handle(info->receiver_or_instance(), isolate))
+      Object::ToObject(isolate, handle(info->receiver_or_instance(), isolate))
           .ToHandleChecked();
   if (IsJSProxy(*receiver)) {
     return isolate->factory()->Proxy_string();
@@ -613,7 +612,7 @@ int CallSiteInfo::ComputeSourcePosition(Handle<CallSiteInfo> info, int offset) {
       ->SourcePosition(isolate, offset);
 }
 
-base::Optional<Script> CallSiteInfo::GetScript() const {
+base::Optional<Tagged<Script>> CallSiteInfo::GetScript() const {
 #if V8_ENABLE_WEBASSEMBLY
   if (IsWasm()) {
     return GetWasmInstance()->module_object()->script();

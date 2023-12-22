@@ -478,7 +478,7 @@ class ConcurrentStringTableLookupThread final
   void RunForString(Handle<String> input_string, int counter) override {
     CHECK(input_string->IsShared());
     Tagged<Object> result =
-        Object(StringTable::TryStringToIndexOrLookupExisting(
+        Tagged<Object>(StringTable::TryStringToIndexOrLookupExisting(
             i_isolate, input_string->ptr()));
     if (IsString(result)) {
       Tagged<String> internalized = String::cast(result);

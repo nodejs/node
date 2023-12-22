@@ -2489,7 +2489,7 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
   TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
@@ -2514,8 +2514,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
   Label if_undefined(this);
   TNode<ClosureFeedbackCellArray> feedback_cell_array =
-      LoadClosureFeedbackArray(
-          CAST(LoadRegister(Register::function_closure())));
+      LoadClosureFeedbackArray(LoadFunctionClosure());
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadFixedArrayElement(feedback_cell_array, slot));
 
@@ -2623,7 +2622,7 @@ IGNITION_HANDLER(CreateWithContext, InterpreterAssembler) {
 //
 // Creates a new mapped arguments object.
 IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
 
   Label if_duplicate_parameters(this, Label::kDeferred);
@@ -2662,7 +2661,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
 // Creates a new unmapped arguments object.
 IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
       builtins_assembler.EmitFastNewStrictArguments(context, closure);
@@ -2674,7 +2673,7 @@ IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
 //
 // Creates a new rest parameter array.
 IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
   TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
@@ -2811,8 +2810,7 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
 
   BIND(&is_not_constructor);
   {
-    TNode<JSFunction> function =
-        CAST(LoadRegister(Register::function_closure()));
+    TNode<JSFunction> function = LoadFunctionClosure();
     CallRuntime(Runtime::kThrowNotSuperConstructor, context, constructor,
                 function);
     // We shouldn't ever return from a throw.
@@ -2891,7 +2889,7 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 // Increment the execution count for the given slot. Used for block code
 // coverage.
 IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
-  TNode<Object> closure = LoadRegister(Register::function_closure());
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Smi> coverage_array_slot = BytecodeOperandIdxSmi(0);
   TNode<Context> context = GetContext();
 
@@ -3079,7 +3077,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
   TNode<FixedArray> array = CAST(LoadObjectField(
       generator, JSGeneratorObject::kParametersAndRegistersOffset));
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
   TNode<Smi> suspend_id = BytecodeOperandUImmSmi(3);
@@ -3156,7 +3154,7 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 // state as executing.
 IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
 
   TNode<SharedFunctionInfo> shared =

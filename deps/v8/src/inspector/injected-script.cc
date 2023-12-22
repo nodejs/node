@@ -640,40 +640,6 @@ Response InjectedScript::wrapObjectMirror(
                           &customPreview);
     if (customPreview) (*result)->setCustomPreview(std::move(customPreview));
   }
-  if (wrapOptions.mode == WrapMode::kWebDriver) {
-    int maxDepth = 1;
-
-    V8SerializationDuplicateTracker duplicateTracker{context};
-
-    std::unique_ptr<protocol::DictionaryValue> deepSerializedValueDict;
-    response = mirror.buildDeepSerializedValue(
-        context, maxDepth, v8::Local<v8::Object>(), duplicateTracker,
-        &deepSerializedValueDict);
-    if (!response.IsSuccess()) return response;
-
-    String16 type;
-    deepSerializedValueDict->getString("type", &type);
-
-    std::unique_ptr<protocol::Runtime::DeepSerializedValue>
-        deepSerializedValue = protocol::Runtime::DeepSerializedValue::create()
-                                  .setType(type)
-                                  .build();
-
-    protocol::Value* maybeValue = deepSerializedValueDict->get("value");
-    if (maybeValue != nullptr) {
-      deepSerializedValue->setValue(maybeValue->clone());
-    }
-
-    int weakLocalObjectReference;
-    if (deepSerializedValueDict->getInteger("weakLocalObjectReference",
-                                            &weakLocalObjectReference)) {
-      deepSerializedValue->setWeakLocalObjectReference(
-          weakLocalObjectReference);
-    }
-
-    if (!response.IsSuccess()) return response;
-    (*result)->setWebDriverValue(std::move(deepSerializedValue));
-  }
   if (wrapOptions.mode == WrapMode::kDeep) {
     V8SerializationDuplicateTracker duplicateTracker{context};
 

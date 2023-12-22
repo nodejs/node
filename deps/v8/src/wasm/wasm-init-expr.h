@@ -46,7 +46,7 @@ class WasmInitExpr : public ZoneObject {
     kArrayNew,
     kArrayNewDefault,
     kArrayNewFixed,
-    kI31New,
+    kRefI31,
     kStringConst,
     kExternInternalize,
     kExternExternalize
@@ -138,8 +138,8 @@ class WasmInitExpr : public ZoneObject {
     return expr;
   }
 
-  static WasmInitExpr I31New(Zone* zone, WasmInitExpr value) {
-    WasmInitExpr expr(zone, kI31New, {value});
+  static WasmInitExpr RefI31(Zone* zone, WasmInitExpr value) {
+    WasmInitExpr expr(zone, kRefI31, {value});
     return expr;
   }
 
@@ -205,7 +205,7 @@ class WasmInitExpr : public ZoneObject {
           if (operands()[i] != other.operands()[i]) return false;
         }
         return true;
-      case kI31New:
+      case kRefI31:
       case kExternInternalize:
       case kExternExternalize:
         return operands_[0] == other.operands_[0];

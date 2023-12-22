@@ -177,21 +177,6 @@ struct GraphBuilder {
                   OpIndex& dominating_frame_state,
                   base::Optional<BailoutReason>* bailout,
                   bool is_final_control = false);
-
-  OpIndex EmitProjectionsAndTuple(OpIndex op_idx) {
-    Operation& op = __ output_graph().Get(op_idx);
-    base::Vector<const RegisterRepresentation> outputs_rep = op.outputs_rep();
-    if (outputs_rep.size() <= 1) {
-      // If {op} has a single output, there is no need to emit Projections or
-      // Tuple, so we just return it.
-      return op_idx;
-    }
-    base::SmallVector<OpIndex, 16> tuple_inputs;
-    for (size_t i = 0; i < outputs_rep.size(); i++) {
-      tuple_inputs.push_back(__ Projection(op_idx, i, outputs_rep[i]));
-    }
-    return __ Tuple(base::VectorOf(tuple_inputs));
-  }
 };
 
 base::Optional<BailoutReason> GraphBuilder::Run() {
@@ -502,21 +487,14 @@ OpIndex GraphBuilder::Process(
       BINOP_CASE(Uint64LessThanOrEqual, Uint64LessThanOrEqual)
       BINOP_CASE(Float32LessThanOrEqual, Float32LessThanOrEqual)
       BINOP_CASE(Float64LessThanOrEqual, Float64LessThanOrEqual)
-#undef BINOP_CASE
 
-#define TUPLE_BINOP_CASE(opcode, assembler_op)                         \
-  case IrOpcode::k##opcode: {                                          \
-    OpIndex idx =                                                      \
-        __ assembler_op(Map(node->InputAt(0)), Map(node->InputAt(1))); \
-    return EmitProjectionsAndTuple(idx);                               \
-  }
-      TUPLE_BINOP_CASE(Int32AddWithOverflow, Int32AddCheckOverflow)
-      TUPLE_BINOP_CASE(Int64AddWithOverflow, Int64AddCheckOverflow)
-      TUPLE_BINOP_CASE(Int32MulWithOverflow, Int32MulCheckOverflow)
-      TUPLE_BINOP_CASE(Int64MulWithOverflow, Int64MulCheckOverflow)
-      TUPLE_BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
-      TUPLE_BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
-#undef TUPLE_BINOP_CASE
+      BINOP_CASE(Int32AddWithOverflow, Int32AddCheckOverflow)
+      BINOP_CASE(Int64AddWithOverflow, Int64AddCheckOverflow)
+      BINOP_CASE(Int32MulWithOverflow, Int32MulCheckOverflow)
+      BINOP_CASE(Int64MulWithOverflow, Int64MulCheckOverflow)
+      BINOP_CASE(Int32SubWithOverflow, Int32SubCheckOverflow)
+      BINOP_CASE(Int64SubWithOverflow, Int64SubCheckOverflow)
+#undef BINOP_CASE
 
     case IrOpcode::kWord64Sar:
     case IrOpcode::kWord32Sar: {
@@ -538,11 +516,6 @@ OpIndex GraphBuilder::Process(
 #define UNARY_CASE(opcode, assembler_op) \
   case IrOpcode::k##opcode:              \
     return __ assembler_op(Map(node->InputAt(0)));
-#define TUPLE_UNARY_CASE(opcode, assembler_op)            \
-  case IrOpcode::k##opcode: {                             \
-    OpIndex idx = __ assembler_op(Map(node->InputAt(0))); \
-    return EmitProjectionsAndTuple(idx);                  \
-  }
 
       UNARY_CASE(Word32ReverseBytes, Word32ReverseBytes)
       UNARY_CASE(Word64ReverseBytes, Word64ReverseBytes)
@@ -624,17 +597,16 @@ OpIndex GraphBuilder::Process(
                  TruncateFloat64ToUint32OverflowUndefined)
       UNARY_CASE(TruncateFloat64ToWord32, JSTruncateFloat64ToWord32)
 
-      TUPLE_UNARY_CASE(TryTruncateFloat32ToInt64, TryTruncateFloat32ToInt64)
-      TUPLE_UNARY_CASE(TryTruncateFloat32ToUint64, TryTruncateFloat32ToUint64)
-      TUPLE_UNARY_CASE(TryTruncateFloat64ToInt32, TryTruncateFloat64ToInt32)
-      TUPLE_UNARY_CASE(TryTruncateFloat64ToInt64, TryTruncateFloat64ToInt64)
-      TUPLE_UNARY_CASE(TryTruncateFloat64ToUint32, TryTruncateFloat64ToUint32)
-      TUPLE_UNARY_CASE(TryTruncateFloat64ToUint64, TryTruncateFloat64ToUint64)
+      UNARY_CASE(TryTruncateFloat32ToInt64, TryTruncateFloat32ToInt64)
+      UNARY_CASE(TryTruncateFloat32ToUint64, TryTruncateFloat32ToUint64)
+      UNARY_CASE(TryTruncateFloat64ToInt32, TryTruncateFloat64ToInt32)
+      UNARY_CASE(TryTruncateFloat64ToInt64, TryTruncateFloat64ToInt64)
+      UNARY_CASE(TryTruncateFloat64ToUint32, TryTruncateFloat64ToUint32)
+      UNARY_CASE(TryTruncateFloat64ToUint64, TryTruncateFloat64ToUint64)
 
       UNARY_CASE(Float64ExtractLowWord32, Float64ExtractLowWord32)
       UNARY_CASE(Float64ExtractHighWord32, Float64ExtractHighWord32)
 #undef UNARY_CASE
-#undef TUPLE_UNARY_CASE
     case IrOpcode::kTruncateInt64ToInt32:
       return __ TruncateWord64ToWord32(Map(node->InputAt(0)));
     case IrOpcode::kTruncateFloat32ToInt32:
@@ -1235,8 +1207,8 @@ OpIndex GraphBuilder::Process(
         Block* catch_block = Map(block->SuccessorAt(1));
         catch_scope.emplace(assembler, catch_block);
       }
-      OpIndex result = EmitProjectionsAndTuple(__ Call(
-          callee, frame_state_idx, base::VectorOf(arguments), ts_descriptor));
+      OpIndex result = __ Call(callee, frame_state_idx,
+                               base::VectorOf(arguments), ts_descriptor);
       if (is_final_control) {
         // The `__ Call()` before has already created exceptional control flow
         // and bound a new block for the success case. So we can just `Goto` the
@@ -1290,6 +1262,7 @@ OpIndex GraphBuilder::Process(
                          &DeoptimizeParametersOf(op));
       return OpIndex::Invalid();
 
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kTrapIf:
       // For wasm the dominating_frame_state is invalid and will not be used.
       // For traps inlined into JS the dominating_frame_state is valid and is
@@ -1303,6 +1276,7 @@ OpIndex GraphBuilder::Process(
       // needed for the trap.
       __ TrapIfNot(Map(node->InputAt(0)), dominating_frame_state, TrapIdOf(op));
       return OpIndex::Invalid();
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     case IrOpcode::kDeoptimize: {
       OpIndex frame_state = Map(node->InputAt(0));
@@ -1424,8 +1398,10 @@ OpIndex GraphBuilder::Process(
 
       MemoryRepresentation rep =
           MemoryRepresentation::FromMachineType(machine_type);
+
       __ Store(object, value, kind, rep, access.write_barrier_kind,
-               access.offset, initializing_transitioning);
+               access.offset, initializing_transitioning,
+               access.indirect_pointer_tag);
       return OpIndex::Invalid();
     }
     case IrOpcode::kLoadFromObject:

@@ -16,6 +16,7 @@
 #include "src/heap/read-only-heap.h"
 #include "src/logging/local-logger.h"
 #include "src/logging/log.h"
+#include "src/objects/arguments-inl.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/literal-objects-inl.h"
 #include "src/objects/module-inl.h"
@@ -372,6 +373,25 @@ Handle<Script> FactoryBase<Impl>::NewScriptWithId(
   }
   impl()->ProcessNewScript(script, script_event_type);
   return script;
+}
+
+template <typename Impl>
+Handle<SloppyArgumentsElements> FactoryBase<Impl>::NewSloppyArgumentsElements(
+    int length, Handle<Context> context, Handle<FixedArray> arguments,
+    AllocationType allocation) {
+  Tagged<SloppyArgumentsElements> result =
+      SloppyArgumentsElements::cast(AllocateRawWithImmortalMap(
+          SloppyArgumentsElements::SizeFor(length), allocation,
+          read_only_roots().sloppy_arguments_elements_map()));
+
+  DisallowGarbageCollection no_gc;
+  WriteBarrierMode write_barrier_mode = allocation == AllocationType::kYoung
+                                            ? SKIP_WRITE_BARRIER
+                                            : UPDATE_WRITE_BARRIER;
+  result->set_length(length);
+  result->set_context(*context, write_barrier_mode);
+  result->set_arguments(*arguments, write_barrier_mode);
+  return handle(result, isolate());
 }
 
 template <typename Impl>
@@ -743,13 +763,13 @@ MaybeHandle<SeqStringT> FactoryBase<Impl>::NewRawStringWithMap(
   int size = SeqStringT::SizeFor(length);
   DCHECK_GE(SeqStringT::kMaxSize, size);
 
-  SeqStringT string =
+  Tagged<SeqStringT> string =
       SeqStringT::cast(AllocateRawWithImmortalMap(size, allocation, map));
   DisallowGarbageCollection no_gc;
-  string.clear_padding_destructively(length);
-  string.set_length(length);
-  string.set_raw_hash_field(String::kEmptyHashField);
-  DCHECK_EQ(size, string.Size());
+  string->clear_padding_destructively(length);
+  string->set_length(length);
+  string->set_raw_hash_field(String::kEmptyHashField);
+  DCHECK_EQ(size, string->Size());
   return handle(string, isolate());
 }
 

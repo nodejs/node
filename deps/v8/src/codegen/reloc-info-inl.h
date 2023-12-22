@@ -12,10 +12,10 @@
 namespace v8 {
 namespace internal {
 
-void RelocInfo::set_target_object(Tagged<InstructionStream> host,
-                                  Tagged<HeapObject> target,
-                                  WriteBarrierMode write_barrier_mode,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<InstructionStream> host,
+                                          Tagged<HeapObject> target,
+                                          WriteBarrierMode write_barrier_mode,
+                                          ICacheFlushMode icache_flush_mode) {
   set_target_object(target, icache_flush_mode);
   if (!v8_flags.disable_write_barriers) {
     WriteBarrierForCode(host, this, target, write_barrier_mode);

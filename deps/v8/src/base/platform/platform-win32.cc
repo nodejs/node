@@ -22,6 +22,7 @@
 #include <dbghelp.h>  // For SymLoadModule64 and al.
 #include <malloc.h>   // For _msize()
 #include <mmsystem.h>  // For timeGetTime().
+#include <psapi.h>     // For GetProcessmMemoryInfo().
 #include <tlhelp32.h>  // For Module32First and al.
 
 #include <limits>
@@ -487,6 +488,18 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
   return 0;
 }
 
+int OS::GetPeakMemoryUsageKb() {
+  constexpr int KB = 1024;
+
+  PROCESS_MEMORY_COUNTERS mem_counters;
+  int ret;
+
+  ret = GetProcessMemoryInfo(GetCurrentProcess(), &mem_counters,
+                             sizeof(mem_counters));
+  if (ret == 0) return -1;
+
+  return static_cast<int>(mem_counters.PeakWorkingSetSize / KB);
+}
 
 // Returns current time as the number of milliseconds since
 // 00:00:00 UTC, January 1, 1970.

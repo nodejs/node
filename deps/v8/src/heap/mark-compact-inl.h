@@ -57,9 +57,17 @@ void MarkCompactCollector::RecordSlot(MemoryChunk* source_page,
     if (target_page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
       RememberedSet<OLD_TO_CODE>::Insert<AccessMode::ATOMIC>(source_page,
                                                              slot.address());
-    } else {
+    } else if (V8_LIKELY(!target_page->InWritableSharedSpace()) ||
+               source_page->heap()->isolate()->is_shared_space_isolate()) {
+      DCHECK_EQ(source_page->heap(), target_page->heap());
       RememberedSet<OLD_TO_OLD>::Insert<AccessMode::ATOMIC>(source_page,
                                                             slot.address());
+    } else {
+      // DCHECK here that we only don't record in case of local->shared
+      // references in a client GC.
+      DCHECK(!source_page->heap()->isolate()->is_shared_space_isolate());
+      DCHECK(target_page->heap()->isolate()->is_shared_space_isolate());
+      DCHECK(target_page->InWritableSharedSpace());
     }
   }
 }

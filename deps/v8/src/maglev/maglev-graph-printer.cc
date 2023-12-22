@@ -749,6 +749,9 @@ ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
     os_ << ", live range: [" << phi->live_range().start << "-"
         << phi->live_range().end << "]";
   }
+  if (!phi->has_id()) {
+    os_ << ", " << phi->use_count() << " uses";
+  }
   os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)

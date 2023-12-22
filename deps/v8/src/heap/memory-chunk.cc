@@ -26,7 +26,7 @@ void MemoryChunk::DiscardUnusedMemory(Address addr, size_t size) {
   if (memory_area.size() != 0) {
     MemoryAllocator* memory_allocator = heap_->memory_allocator();
     v8::PageAllocator* page_allocator =
-        memory_allocator->page_allocator(executable());
+        memory_allocator->page_allocator(owner_identity());
     CHECK(page_allocator->DiscardSystemPages(
         reinterpret_cast<void*>(memory_area.begin()), memory_area.size()));
   }
@@ -270,6 +270,17 @@ bool MemoryChunk::ContainsAnySlots() const {
 void MemoryChunk::ClearLiveness() {
   marking_bitmap()->Clear<AccessMode::NON_ATOMIC>();
   SetLiveBytes(0);
+}
+
+int MemoryChunk::ComputeFreeListsLength() {
+  int length = 0;
+  for (int cat = kFirstCategory; cat <= owner()->free_list()->last_category();
+       cat++) {
+    if (categories_[cat] != nullptr) {
+      length += categories_[cat]->FreeListLength();
+    }
+  }
+  return length;
 }
 
 #ifdef DEBUG

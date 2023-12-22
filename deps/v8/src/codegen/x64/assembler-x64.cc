@@ -3611,6 +3611,15 @@ void Assembler::vperm2f128(YMMRegister dst, YMMRegister src1, YMMRegister src2,
   emit(imm8);
 }
 
+void Assembler::vextractf128(XMMRegister dst, YMMRegister src, uint8_t imm8) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src, xmm0, dst, kL256, k66, k0F3A, kW0);
+  emit(0x19);
+  emit_sse_operand(src, dst);
+  emit(imm8);
+}
+
 void Assembler::fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                           XMMRegister src2, VectorLength l, SIMDPrefix pp,
                           LeadingOpcode m, VexW w) {
