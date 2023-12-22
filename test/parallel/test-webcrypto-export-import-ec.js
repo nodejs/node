@@ -363,16 +363,16 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
 
 (async function() {
   const tests = [];
-  testVectors.forEach((vector) => {
-    curves.forEach((namedCurve) => {
-      [true, false].forEach((extractable) => {
+  for (const vector of testVectors) {
+    for (const namedCurve of curves) {
+      for (const extractable of [true, false]) {
         tests.push(testImportSpki(vector, namedCurve, extractable));
         tests.push(testImportPkcs8(vector, namedCurve, extractable));
         tests.push(testImportJwk(vector, namedCurve, extractable));
-      });
+      }
       tests.push(testImportRaw(vector, namedCurve));
-    });
-  });
+    }
+  }
 
   await Promise.all(tests);
 })().then(common.mustCall());
