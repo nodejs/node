@@ -68,7 +68,7 @@ BytecodeIterator::BytecodeIterator(const uint8_t* start, const uint8_t* end,
   if (pc_ > end_) pc_ = end_;
 }
 
-DecodeResult ValidateFunctionBody(const WasmFeatures& enabled,
+DecodeResult ValidateFunctionBody(WasmFeatures enabled,
                                   const WasmModule* module,
                                   WasmFeatures* detected,
                                   const FunctionBody& body) {

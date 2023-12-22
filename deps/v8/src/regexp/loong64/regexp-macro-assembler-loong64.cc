@@ -1204,7 +1204,8 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int64_t RegExpMacroAssemblerLOONG64::CheckStackGuardState(
     Address* return_address, Address raw_code, Address re_frame) {
-  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
+  Tagged<InstructionStream> re_code =
+      InstructionStream::cast(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       static_cast<int>(frame_entry<int64_t>(re_frame, kStartIndexOffset)),

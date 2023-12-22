@@ -266,9 +266,13 @@ class StreamTester {
 
 #define STREAM_TEST(name)                                                  \
   void RunStream_##name(MockPlatform*, v8::Isolate*);                      \
-  TEST_WITH_PLATFORM(Async##name, MockPlatform) { RUN_STREAM(name); }      \
+  TEST_WITH_PLATFORM(Async##name, MockPlatform) {                          \
+    if (i::v8_flags.memory_balancer) return;                               \
+    RUN_STREAM(name);                                                      \
+  }                                                                        \
                                                                            \
   TEST_WITH_PLATFORM(SingleThreaded##name, MockPlatform) {                 \
+    if (i::v8_flags.memory_balancer) return;                               \
     i::FlagScope<bool> single_threaded_scope(&i::v8_flags.single_threaded, \
                                              true);                        \
     RUN_STREAM(name);                                                      \

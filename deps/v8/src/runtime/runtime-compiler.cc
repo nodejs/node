@@ -262,7 +262,7 @@ void DeoptAllOsrLoopsContainingDeoptExit(Isolate* isolate,
 
   Tagged<FeedbackVector> vector = function->feedback_vector();
   Tagged<Code> code;
-  base::SmallVector<Code, 8> osr_codes;
+  base::SmallVector<Tagged<Code>, 8> osr_codes;
   // Visit before the first loop-with-deopt is found
   for (; !it.done(); it.Advance()) {
     // We're only interested in loop ranges.

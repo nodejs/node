@@ -32,6 +32,7 @@
 #include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary.h"
 #include "src/objects/tagged-index.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 #include "torque-generated/exported-macros-assembler.h"
 
@@ -128,7 +129,13 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(ProxyRevokeSharedFun, proxy_revoke_shared_fun, ProxyRevokeSharedFun)       \
   V(ShadowRealmImportValueFulfilledSFI,                                        \
     shadow_realm_import_value_fulfilled_sfi,                                   \
-    ShadowRealmImportValueFulfilledSFI)
+    ShadowRealmImportValueFulfilledSFI)                                        \
+  V(ArrayFromAsyncOnFulfilledSharedFun,                                        \
+    array_from_async_on_fulfilled_shared_fun,                                  \
+    ArrayFromAsyncOnFulfilledSharedFun)                                        \
+  V(ArrayFromAsyncOnRejectedSharedFun,                                         \
+    array_from_async_on_rejected_shared_fun,                                   \
+    ArrayFromAsyncOnRejectedSharedFun)
 
 #define UNIQUE_INSTANCE_TYPE_IMMUTABLE_IMMOVABLE_MAP_ADAPTER( \
     V, rootIndexName, rootAccessorName, class_name)           \
@@ -178,6 +185,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     IsConcatSpreadableSymbol)                                                \
   V(iterator_symbol, iterator_symbol, IteratorSymbol)                        \
   V(keys_string, keys_string, KeysString)                                    \
+  V(async_iterator_symbol, async_iterator_symbol, AsyncIteratorSymbol)       \
   V(length_string, length_string, LengthString)                              \
   V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)        \
   V(match_symbol, match_symbol, MatchSymbol)                                 \
@@ -230,6 +238,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(SeqTwoByteStringMap, seq_two_byte_string_map, SeqTwoByteStringMap)       \
   V(TheHoleValue, the_hole_value, TheHole)                                   \
   V(PropertyCellHoleValue, property_cell_hole_value, PropertyCellHole)       \
+  V(HashTableHoleValue, hash_table_hole_value, HashTableHole)                \
   V(then_string, then_string, ThenString)                                    \
   V(toJSON_string, toJSON_string, ToJSONString)                              \
   V(toString_string, toString_string, ToStringString)                        \
@@ -1177,19 +1186,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> LoadMaybeIndirectPointerFromObject(TNode<HeapObject> object,
                                                        int offset);
 
-  // When the sandbox is enabled, this will load the Code object pointer from
-  // the code pointer table entry.
-  // Load a code entrypoint pointer from an object.
-  // When the sandbox is enabled, this will load the entrypoint pointer from the
-  // code pointer table entry.
-  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
-                                              int offset) {
-    return LoadCodeEntrypointFromObject(object, IntPtrConstant(offset));
+  // Load the pointer to a Code's entrypoint via an indirect pointer to the
+  // Code object.
+  // Only available when the sandbox is enabled.
+  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
+      TNode<HeapObject> object, int offset) {
+    return LoadCodeEntrypointViaIndirectPointerField(object,
+                                                     IntPtrConstant(offset));
   }
-  TNode<RawPtrT> LoadCodeEntrypointFromObject(TNode<HeapObject> object,
-                                              TNode<IntPtrT> offset);
+  TNode<RawPtrT> LoadCodeEntrypointViaIndirectPointerField(
+      TNode<HeapObject> object, TNode<IntPtrT> offset);
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // Helper function to load a CodePointerHandle from an object and compute the
   // offset into the code pointer table from it.
   TNode<UintPtrT> ComputeCodePointerTableEntryOffset(
@@ -1792,21 +1800,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Store to an indirect pointer field. This involves loading the index for
   // the pointer table entry owned by the pointed-to object (which points back
   // to it) and storing that into the specified field.
-  // TODO(saelo) Currently, only Code objects can be referenced through
-  // indirect pointers, and so we only support these here, but we should
-  // generalize this.
+  // Stores that may require a write barrier also need to know the indirect
+  // pointer tag for the field. Otherwise, it is not needed
   void StoreIndirectPointerField(TNode<HeapObject> object, int offset,
-                                 TNode<Code> value);
-  void StoreIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
-                                               int offset, TNode<Code> value);
+                                 IndirectPointerTag tag,
+                                 TNode<ExposedTrustedObject> value);
+  void StoreIndirectPointerFieldNoWriteBarrier(
+      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      TNode<ExposedTrustedObject> value);
 
   // Store to a field that either contains an indirect pointer (when the
   // sandbox is enabled) or a regular (tagged) pointer otherwise.
   void StoreMaybeIndirectPointerField(TNode<HeapObject> object, int offset,
-                                      TNode<Code> value);
-  void StoreMaybeIndirectPointerFieldNoWriteBarrier(TNode<HeapObject> object,
-                                                    int offset,
-                                                    TNode<Code> value);
+                                      IndirectPointerTag tag,
+                                      TNode<ExposedTrustedObject> value);
+  void StoreMaybeIndirectPointerFieldNoWriteBarrier(
+      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      TNode<ExposedTrustedObject> value);
 
   template <class T>
   void StoreObjectFieldNoWriteBarrier(TNode<HeapObject> object,

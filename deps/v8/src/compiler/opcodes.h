@@ -760,6 +760,7 @@
   V(LoadImmutable)                       \
   V(Store)                               \
   V(StorePair)                           \
+  V(StoreIndirectPointer)                \
   V(StackSlot)                           \
   V(Word32Popcnt)                        \
   V(Word64Popcnt)                        \
@@ -821,6 +822,8 @@
   V(Float64Select)                       \
   V(LoadStackCheckOffset)                \
   V(LoadFramePointer)                    \
+  V(LoadStackPointer)                    \
+  V(SetStackPointer)                     \
   V(LoadParentFramePointer)              \
   V(LoadRootRegister)                    \
   V(UnalignedLoad)                       \

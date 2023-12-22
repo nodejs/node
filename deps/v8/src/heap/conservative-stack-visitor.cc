@@ -41,7 +41,7 @@ Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   if (chunk->IsLargePage()) {
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.
-    HeapObject obj(static_cast<const LargePage*>(chunk)->GetObject());
+    Tagged<HeapObject> obj(static_cast<const LargePage*>(chunk)->GetObject());
     PtrComprCageBase cage_base{chunk->heap()->isolate()};
     return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
   }
@@ -63,8 +63,8 @@ Address ConservativeStackVisitor::FindBasePtr(Address maybe_inner_ptr) const {
   DCHECK_LE(base_ptr, maybe_inner_ptr);
   PtrComprCageBase cage_base{page->heap()->isolate()};
   while (true) {
-    HeapObject obj(HeapObject::FromAddress(base_ptr));
-    const int size = obj.Size(cage_base);
+    Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
+    const int size = obj->Size(cage_base);
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size)
       return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
@@ -104,8 +104,8 @@ void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
   // Proceed with inner-pointer resolution.
   Address base_ptr = FindBasePtr(address);
   if (base_ptr == kNullAddress) return;
-  HeapObject obj = HeapObject::FromAddress(base_ptr);
-  Object root = obj;
+  Tagged<HeapObject> obj = HeapObject::FromAddress(base_ptr);
+  Tagged<Object> root = obj;
   DCHECK_NOT_NULL(delegate_);
   delegate_->VisitRootPointer(Root::kStackRoots, nullptr,
                               FullObjectSlot(&root));

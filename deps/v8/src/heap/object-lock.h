@@ -39,7 +39,7 @@ class ObjectLockGuard final {
   ~ObjectLockGuard() { LockType::Unlock(raw_object_); }
 
  private:
-  HeapObject raw_object_;
+  Tagged<HeapObject> raw_object_;
 };
 
 using ExclusiveObjectLockGuard = ObjectLockGuard<ExclusiveObjectLock>;

@@ -419,11 +419,7 @@ class ParallelMoveResolver {
   void EmitMovesFromSource(RegisterT source_reg, GapMoveTargets&& targets) {
     DCHECK(moves_from_register_[source_reg.code()].is_empty());
     if constexpr (DecompressIfNeeded) {
-      // The DecompressIfNeeded clause is redundant with the if-constexpr above,
-      // but otherwise this code cannot be compiled by compilers not yet
-      // implementing CWG2518.
-      static_assert(DecompressIfNeeded && COMPRESS_POINTERS_BOOL);
-
+      static_assert(COMPRESS_POINTERS_BOOL);
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(source_reg, source_reg);
       }
@@ -466,11 +462,7 @@ class ParallelMoveResolver {
     // Decompress after the first move, subsequent moves reuse this register so
     // they're guaranteed to be decompressed.
     if constexpr (DecompressIfNeeded) {
-      // The DecompressIfNeeded clause is redundant with the if-constexpr above,
-      // but otherwise this code cannot be compiled by compilers not yet
-      // implementing CWG2518.
-      static_assert(DecompressIfNeeded && COMPRESS_POINTERS_BOOL);
-
+      static_assert(COMPRESS_POINTERS_BOOL);
       if (targets.needs_decompression == kNeedsDecompression) {
         __ DecompressTagged(register_with_slot_value, register_with_slot_value);
         targets.needs_decompression = kDoesNotNeedDecompression;
@@ -1625,7 +1617,7 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
        !v8_flags.maglev_build_code_on_background)
           ? deopt_data_
           : GenerateDeoptimizationData(local_isolate);
-  CHECK(!deopt_data->is_null());
+  CHECK(!deopt_data.is_null());
 
   CodeDesc desc;
   masm()->GetCode(local_isolate, &desc, &safepoint_table_builder_,
@@ -1677,7 +1669,8 @@ Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(
       local_isolate->factory()->NewDeoptimizationLiteralArray(
           deopt_literals_.size() + inlined_functions_size + 1);
   Handle<PodArray<InliningPosition>> inlining_positions =
-      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size);
+      PodArray<InliningPosition>::New(local_isolate, inlined_functions_size,
+                                      AllocationType::kOld);
 
   DisallowGarbageCollection no_gc;
 

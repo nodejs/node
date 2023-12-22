@@ -192,10 +192,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   print(arguments.callee.name);
 
   let casts = [
-    [kGCPrefix, kExprBrOnCastFailNull, 0, kI31RefCode],
-    [kGCPrefix, kExprBrOnCastNull, 0, kI31RefCode],
-    [kGCPrefix, kExprBrOnCastFail, 0, kI31RefCode],
-    [kGCPrefix, kExprBrOnCast, 0, kI31RefCode],
     wasmBrOnCastFail(
       0, wasmRefNullType(kWasmAnyRef), wasmRefNullType(kWasmI31Ref)),
     wasmBrOnCast(0, wasmRefNullType(kWasmAnyRef), wasmRefNullType(kWasmI31Ref)),

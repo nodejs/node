@@ -261,9 +261,11 @@ v8_source_set("v8_unittests_sources") {
     "api/isolate-unittest.cc",
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
+    "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
     "api/v8-object-unittest.cc",
     "api/v8-script-unittest.cc",
+    "api/v8-value-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/atomicops-unittest.cc",
@@ -655,7 +657,7 @@ v8_source_set("v8_unittests_sources") {
       sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
     }
     if (v8_enable_webassembly && current_cpu == "arm64") {
-      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   } else if (v8_current_cpu == "x86") {
     sources += [
@@ -699,7 +701,7 @@ v8_source_set("v8_unittests_sources") {
       sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
     }
     if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
@@ -725,6 +727,9 @@ v8_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [ "compiler/loong64/instruction-selector-loong64-unittest.cc" ]
     }
+    if (v8_enable_webassembly && current_cpu == "loong64") {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
   }
 
   if (v8_enable_webassembly) {
@@ -738,7 +743,8 @@ v8_source_set("v8_unittests_sources") {
 
     # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
     # Windows.
-    if (current_cpu == "x64" && v8_current_cpu == "arm64" &&
+    if (current_cpu == "x64" &&
+        (v8_current_cpu == "arm64" || v8_current_cpu == "loong64") &&
         (is_linux || is_mac || is_win)) {
       sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
     }

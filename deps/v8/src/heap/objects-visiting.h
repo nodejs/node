@@ -38,6 +38,7 @@ namespace internal {
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
+  V(FixedArray)                         \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
@@ -60,6 +61,7 @@ namespace internal {
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(SharedFunctionInfo)                 \
+  V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \
@@ -133,8 +135,9 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
     return static_cast<const ConcreteVisitor*>(this);
   }
 
-#define VISIT(TypeName) \
-  V8_INLINE ResultType Visit##TypeName(Map map, TypeName object);
+#define VISIT(TypeName)                                 \
+  V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
+                                       Tagged<TypeName> object);
   TYPED_VISITOR_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
 #undef VISIT

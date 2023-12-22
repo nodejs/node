@@ -77,7 +77,7 @@ macro ValidateDataView(context: Context, o: JSAny, method: String):
       return UnsafeCast<JSRabGsabDataView>(o);
     }
     case (_x: JSAny): {
-      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
+      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method, o);
     }
   }
 }

@@ -39,14 +39,12 @@ class ObjectPreProcessor final {
 #undef PRE_PROCESS_TYPE_LIST
 
  private:
-  void EncodeExternalPointerSlot(ExternalPointerSlot slot,
-                                 ExternalPointerTag tag) {
-    Address value = slot.load(isolate_, tag);
-    EncodeExternalPointerSlot(slot, value, tag);
+  void EncodeExternalPointerSlot(ExternalPointerSlot slot) {
+    Address value = slot.load(isolate_);
+    EncodeExternalPointerSlot(slot, value);
   }
 
-  void EncodeExternalPointerSlot(ExternalPointerSlot slot, Address value,
-                                 ExternalPointerTag tag) {
+  void EncodeExternalPointerSlot(ExternalPointerSlot slot, Address value) {
     // Note it's possible that `value != slot.load(...)`, e.g. for
     // AccessorInfo::remove_getter_indirection.
     ExternalReferenceEncoder::Value encoder_value =
@@ -64,19 +62,18 @@ class ObjectPreProcessor final {
   }
   void PreProcessAccessorInfo(Tagged<AccessorInfo> o) {
     EncodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset),
-        o->getter(isolate_),  // Pass the non-redirected value.
-        kAccessorInfoGetterTag);
-    EncodeExternalPointerSlot(
-        o->RawExternalPointerField(AccessorInfo::kSetterOffset),
-        kAccessorInfoSetterTag);
+        o->RawExternalPointerField(AccessorInfo::kMaybeRedirectedGetterOffset,
+                                   kAccessorInfoGetterTag),
+        o->getter(isolate_));  // Pass the non-redirected value.
+    EncodeExternalPointerSlot(o->RawExternalPointerField(
+        AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
   }
   void PreProcessCallHandlerInfo(Tagged<CallHandlerInfo> o) {
     EncodeExternalPointerSlot(
         o->RawExternalPointerField(
-            CallHandlerInfo::kMaybeRedirectedCallbackOffset),
-        o->callback(isolate_),  // Pass the non-redirected value.
-        kCallHandlerInfoCallbackTag);
+            CallHandlerInfo::kMaybeRedirectedCallbackOffset,
+            kCallHandlerInfoCallbackTag),
+        o->callback(isolate_));  // Pass the non-redirected value.
   }
   void PreProcessCode(Tagged<Code> o) {
     o->ClearInstructionStartForSerialization(isolate_);
@@ -117,7 +114,8 @@ struct ReadOnlySegmentForSerialization {
       if (o.address() >= segment_end) break;
       size_t o_offset = o.ptr() - segment_start;
       Address o_dst = reinterpret_cast<Address>(contents.get()) + o_offset;
-      pre_processor->PreProcessIfNeeded(HeapObject::cast(Object(o_dst)));
+      pre_processor->PreProcessIfNeeded(
+          HeapObject::cast(Tagged<Object>(o_dst)));
     }
   }
 
@@ -201,12 +199,14 @@ class EncodeRelocationsVisitor final : public ObjectVisitor {
   void VisitOffHeapTarget(Tagged<InstructionStream>, RelocInfo*) override {
     UNREACHABLE();
   }
-  void VisitExternalPointer(Tagged<HeapObject>, ExternalPointerSlot slot,
-                            ExternalPointerTag tag) override {
+  void VisitExternalPointer(Tagged<HeapObject>,
+                            ExternalPointerSlot slot) override {
     // This slot was encoded in a previous pass, see EncodeExternalPointerSlot.
 #ifdef DEBUG
-    ExternalPointerSlot slot_in_segment{reinterpret_cast<Address>(
-        segment_->contents.get() + SegmentOffsetOf(slot))};
+    ExternalPointerSlot slot_in_segment{
+        reinterpret_cast<Address>(segment_->contents.get() +
+                                  SegmentOffsetOf(slot)),
+        slot.tag()};
     // Constructing no_gc here is not the intended use pattern (instead we
     // should pass it along the entire callchain); but there's little point of
     // doing that here - all of the code in this file relies on GC being

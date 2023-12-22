@@ -1,0 +1,646 @@
+// Copyright 2023 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+
+extern enum ArrayFromAsyncLabels extends uint31
+    constexpr 'ArrayBuiltins::ArrayFromAsyncLabels' {
+  kGetIteratorStep,
+  kCheckIteratorValueAndMapping,
+  kIteratorMapping,
+  kGetIteratorValueWithMapping,
+  kAddIteratorValueToTheArray,
+  kGetArrayLikeValue,
+  kCheckArrayLikeValueAndMapping,
+  kGetArrayLikeValueWithMapping,
+  kAddArrayLikeValueToTheArray,
+  kDoneAndResolvePromise,
+  kCloseAsyncIterator,
+  kRejectPromise
+}
+
+struct ArrayFromAsyncResumeState {
+  step: ArrayFromAsyncLabels;
+  awaitedValue: JSAny;
+  len: Smi;
+  index: Smi;
+}
+
+type ArrayFromAsyncResolveContext extends FunctionContext;
+extern enum ArrayFromAsyncResolveContextSlots extends intptr
+    constexpr 'ArrayBuiltins::ArrayFromAsyncResolveContextSlots' {
+  kArrayFromAsyncResolveResumeStateStepSlot:
+      Slot<ArrayFromAsyncResolveContext, Smi>,
+  kArrayFromAsyncResolveResumeStateAwaitedValueSlot:
+      Slot<ArrayFromAsyncResolveContext, JSAny>,
+  kArrayFromAsyncResolveResumeStateLenSlot:
+      Slot<ArrayFromAsyncResolveContext, Smi>,
+  kArrayFromAsyncResolveResumeStateIndexSlot:
+      Slot<ArrayFromAsyncResolveContext, Smi>,
+  kArrayFromAsyncResolvePromiseSlot:
+      Slot<ArrayFromAsyncResolveContext, JSPromise>,
+  kArrayFromAsyncResolvePromiseFunctionSlot:
+      Slot<ArrayFromAsyncResolveContext, JSReceiver>,
+  kArrayFromAsyncResolveOnFulfilledFunctionSlot:
+      Slot<ArrayFromAsyncResolveContext, JSFunction|Undefined>,
+  kArrayFromAsyncResolveOnRejectedFunctionSlot:
+      Slot<ArrayFromAsyncResolveContext, JSFunction|Undefined>,
+  kArrayFromAsyncResolveResultArraySlot:
+      Slot<ArrayFromAsyncResolveContext, JSReceiver>,
+  kArrayFromAsyncResolveIteratorSlot:
+      Slot<ArrayFromAsyncResolveContext, JSReceiver>,
+  kArrayFromAsyncResolveNextMethodSlot:
+      Slot<ArrayFromAsyncResolveContext, JSAny>,
+  kArrayFromAsyncResolveErrorSlot: Slot<ArrayFromAsyncResolveContext, JSAny>,
+  kArrayFromAsyncResolveMapfnSlot: Slot<ArrayFromAsyncResolveContext, JSAny>,
+  kArrayFromAsyncResolveThisArgSlot: Slot<ArrayFromAsyncResolveContext, JSAny>,
+  kArrayFromAsyncResolveLength
+}
+
+macro CreateArrayFromAsyncResolveContext(
+    implicit context: Context)(resumeState: ArrayFromAsyncResumeState,
+    promise: JSPromise, promiseFun: JSReceiver, map: Map, iterator: JSReceiver,
+    next: JSAny, arr: JSReceiver, error: JSAny, mapfn: JSAny, thisArg: JSAny,
+    nativeContext: NativeContext): ArrayFromAsyncResolveContext {
+  const resolveContext = %RawDownCast<ArrayFromAsyncResolveContext>(
+      AllocateSyntheticFunctionContext(
+          nativeContext,
+          ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveLength));
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateStepSlot,
+      SmiTag<ArrayFromAsyncLabels>(resumeState.step));
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateAwaitedValueSlot,
+      resumeState.awaitedValue);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateLenSlot,
+      resumeState.len);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateIndexSlot,
+      resumeState.index);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolvePromiseSlot,
+      promise);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolvePromiseFunctionSlot,
+      promiseFun);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveOnFulfilledFunctionSlot,
+      promise::AllocateFunctionWithMapAndContext(
+          map, ArrayFromAsyncOnFulfilledSharedFunConstant(), resolveContext));
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveOnRejectedFunctionSlot,
+      promise::AllocateFunctionWithMapAndContext(
+          map, ArrayFromAsyncOnRejectedSharedFunConstant(), resolveContext));
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveResultArraySlot,
+      arr);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveIteratorSlot,
+      iterator);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveNextMethodSlot,
+      next);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveErrorSlot,
+      error);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveMapfnSlot,
+      mapfn);
+  InitContextSlot(
+      resolveContext,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveThisArgSlot,
+      thisArg);
+  return resolveContext;
+}
+
+macro GetIteratorRecordFromArrayFromAsyncResolveContext(
+    context: ArrayFromAsyncResolveContext): iterator::IteratorRecord {
+  const iterator = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveIteratorSlot);
+
+  const nextMethod = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveNextMethodSlot);
+
+  return iterator::IteratorRecord{object: iterator, next: nextMethod};
+}
+
+transitioning macro CreateArrayFromIterableAsynchronously(
+    context: ArrayFromAsyncResolveContext): JSAny {
+  try {
+    const fastIteratorResultMap = GetIteratorResultMap();
+
+    const mapfn = *ContextSlot(
+        context,
+        ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveMapfnSlot);
+
+    const thisArg = *ContextSlot(
+        context,
+        ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveThisArgSlot);
+
+    const arr = *ContextSlot(
+        context,
+        ArrayFromAsyncResolveContextSlots::
+            kArrayFromAsyncResolveResultArraySlot);
+
+    let resumeState = ArrayFromAsyncResumeState{
+      step: SmiUntag<ArrayFromAsyncLabels>(
+          %RawDownCast<SmiTagged<ArrayFromAsyncLabels>>(*ContextSlot(
+              context,
+              ArrayFromAsyncResolveContextSlots::
+                  kArrayFromAsyncResolveResumeStateStepSlot))),
+      awaitedValue: *ContextSlot(
+          context,
+          ArrayFromAsyncResolveContextSlots::
+              kArrayFromAsyncResolveResumeStateAwaitedValueSlot),
+      len: *ContextSlot(
+          context,
+          ArrayFromAsyncResolveContextSlots::
+              kArrayFromAsyncResolveResumeStateLenSlot),
+      index: *ContextSlot(
+          context,
+          ArrayFromAsyncResolveContextSlots::
+              kArrayFromAsyncResolveResumeStateIndexSlot)
+    };
+
+    let mappedValue: JSAny = Undefined;
+    let nextValue: JSAny = Undefined;
+
+    // TODO(v8:14290): Replace `if/else` with `switch/case` when the support
+    // for `switch` is added.
+
+    while (true) {
+      if (resumeState.step == ArrayFromAsyncLabels::kGetIteratorStep) {
+        const iteratorRecord =
+            GetIteratorRecordFromArrayFromAsyncResolveContext(context);
+        let next: JSAny;
+        // https://github.com/tc39/proposal-array-from-async/issues/33#issuecomment-1279296963
+        //    3. Let nextResult be ? Call(iteratorRecord.[[NextMethod]],
+        //    iteratorRecord.[[Iterator]]).
+        //    4. Set nextResult to ? Await(nextResult).
+        next = Call(context, iteratorRecord.next, iteratorRecord.object);
+
+        return ArrayFromAsyncAwaitPoint(
+            ArrayFromAsyncLabels::kCheckIteratorValueAndMapping, next);
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kCheckIteratorValueAndMapping) {
+        //    5. If nextResult is not an Object, throw a TypeError exception.
+        const nextJSReceiver = Cast<JSReceiver>(resumeState.awaitedValue)
+            otherwise ThrowTypeError(
+            MessageTemplate::kIteratorResultNotAnObject, 'Array.fromAsync');
+
+        try {
+          //    6. Let done be ? IteratorComplete(nextResult).
+          iterator::IteratorComplete(nextJSReceiver, fastIteratorResultMap)
+              otherwise Done;
+
+          //    8. Let nextValue be ? IteratorValue(nextResult).
+          nextValue =
+              iterator::IteratorValue(nextJSReceiver, fastIteratorResultMap);
+
+          // When mapfn is not undefined, it is guaranteed to be callable as
+          // checked upon entry.
+          const mapping: bool = (mapfn != Undefined);
+
+          //    9. If mapping is true, then
+          if (mapping) {
+            resumeState.step = ArrayFromAsyncLabels::kIteratorMapping;
+          } else {
+            //    10. Else, let mappedValue be nextValue.
+            mappedValue = nextValue;
+            resumeState.step =
+                ArrayFromAsyncLabels::kAddIteratorValueToTheArray;
+          }
+        } label Done {
+          //    7. If done is true,
+          //       a. Perform ? Set(A, "length", 𝔽(k), true).
+          array::SetPropertyLength(arr, resumeState.index);
+          //       b. Return Completion Record { [[Type]]: return, [[Value]]: A,
+          //       [[Target]]: empty }.
+          resumeState.step = ArrayFromAsyncLabels::kDoneAndResolvePromise;
+        }
+      } else if (resumeState.step == ArrayFromAsyncLabels::kIteratorMapping) {
+        //      a. Let mappedValue be Call(mapfn, thisArg, « nextValue, 𝔽(k)
+        //      »).
+        //      b. IfAbruptCloseAsyncIterator(mappedValue,
+        //      iteratorRecord).
+        const mapResult = Call(
+            context, UnsafeCast<Callable>(mapfn), thisArg, nextValue,
+            resumeState.index);
+
+        //      c. Set mappedValue to Await(mappedValue).
+        //      d. IfAbruptCloseAsyncIterator(mappedValue, iteratorRecord).
+        return ArrayFromAsyncAwaitPoint(
+            ArrayFromAsyncLabels::kGetIteratorValueWithMapping, mapResult);
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kGetIteratorValueWithMapping) {
+        mappedValue = resumeState.awaitedValue;
+        resumeState.step = ArrayFromAsyncLabels::kAddIteratorValueToTheArray;
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kAddIteratorValueToTheArray) {
+        //    11. Let defineStatus be CreateDataPropertyOrThrow(A, Pk,
+        //    mappedValue).
+        //    12. If defineStatus is an abrupt completion, return ?
+        //    AsyncIteratorClose(iteratorRecord, defineStatus).
+        FastCreateDataProperty(arr, resumeState.index, mappedValue);
+
+        // 13. Set k to k + 1.
+        resumeState.index++;
+
+        *ContextSlot(
+            context,
+            ArrayFromAsyncResolveContextSlots::
+                kArrayFromAsyncResolveResumeStateIndexSlot) = resumeState.index;
+
+        resumeState.step = ArrayFromAsyncLabels::kGetIteratorStep;
+      } else if (resumeState.step == ArrayFromAsyncLabels::kGetArrayLikeValue) {
+        //   vii. Repeat, while k < len,
+        //     1. Let Pk be ! ToString(𝔽(k)).
+        //     2. Let kValue be ? Get(arrayLike, Pk).
+
+        resumeState.step = ArrayFromAsyncLabels::kCheckArrayLikeValueAndMapping;
+
+        *ContextSlot(
+            context,
+            ArrayFromAsyncResolveContextSlots::
+                kArrayFromAsyncResolveResumeStateStepSlot) =
+            SmiTag<ArrayFromAsyncLabels>(resumeState.step);
+
+        resumeState.index++;
+        *ContextSlot(
+            context,
+            ArrayFromAsyncResolveContextSlots::
+                kArrayFromAsyncResolveResumeStateIndexSlot) = resumeState.index;
+
+        // item.then((result) => asyncFunction(result));
+        return Undefined;
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kCheckArrayLikeValueAndMapping) {
+        if (resumeState.index == resumeState.len) {
+          resumeState.step = ArrayFromAsyncLabels::kDoneAndResolvePromise;
+        }
+
+        let mapping: bool;
+        //  a. If mapfn is undefined, let mapping be false.
+        if (mapfn == Undefined) {
+          mapping = false;
+        } else {
+          //  b. Else,
+          //    i. If IsCallable(mapfn) is false, throw a TypeError exception.
+          if (!Is<Callable>(mapfn)) deferred {
+              ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+            }
+          //    ii. Let mapping be true.
+          mapping = true;
+        }
+
+        //    4. If mapping is true, then
+        if (mapping) {
+          resumeState.step =
+              ArrayFromAsyncLabels::kGetArrayLikeValueWithMapping;
+        } else {
+          resumeState.step = ArrayFromAsyncLabels::kAddArrayLikeValueToTheArray;
+        }
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kGetArrayLikeValueWithMapping) {
+        //      a. Let mappedValue be ? Call(mapfn, thisArg, « kValue, 𝔽(k)
+        //      »). b. Set mappedValue to ? Await(mappedValue).
+        const mapResult = Call(
+            context, UnsafeCast<Callable>(mapfn), thisArg,
+            resumeState.awaitedValue, resumeState.index);
+        return ArrayFromAsyncAwaitPoint(
+            ArrayFromAsyncLabels::kAddArrayLikeValueToTheArray, mapResult);
+      } else if (
+          resumeState.step ==
+          ArrayFromAsyncLabels::kAddArrayLikeValueToTheArray) {
+        //    5. Else, let mappedValue be kValue.
+        //    6. Perform ? CreateDataPropertyOrThrow(A, Pk, mappedValue).
+        mappedValue = resumeState.awaitedValue;
+        FastCreateDataProperty(arr, resumeState.index, mappedValue);
+        resumeState.step = ArrayFromAsyncLabels::kGetArrayLikeValue;
+      } else if (
+          resumeState.step == ArrayFromAsyncLabels::kDoneAndResolvePromise) {
+        const promise = *ContextSlot(
+            context,
+            ArrayFromAsyncResolveContextSlots::
+                kArrayFromAsyncResolvePromiseSlot);
+
+        promise::ResolvePromise(promise, arr);
+        return Undefined;
+      } else if (
+          resumeState.step == ArrayFromAsyncLabels::kCloseAsyncIterator) {
+        resumeState.step = ArrayFromAsyncLabels::kRejectPromise;
+
+        const iteratorRecord =
+            GetIteratorRecordFromArrayFromAsyncResolveContext(context);
+        try {
+          ArrayFromAsyncAsyncIteratorCloseOnException(iteratorRecord)
+              otherwise RejectPromise;
+          return Undefined;
+        } label RejectPromise {
+          // Do nothing so the codeflow continues to the kRejectPromise label.
+        }
+      } else if (resumeState.step == ArrayFromAsyncLabels::kRejectPromise) {
+        return RejectArrayFromAsyncPromise();
+      }
+    }
+  } catch (e, _message) {
+    *ContextSlot(
+        context,
+        ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveErrorSlot) = e;
+
+    const iteratorRecord =
+        GetIteratorRecordFromArrayFromAsyncResolveContext(context);
+    try {
+      ArrayFromAsyncAsyncIteratorCloseOnException(iteratorRecord)
+          otherwise RejectPromise;
+    } label RejectPromise {
+      return RejectArrayFromAsyncPromise();
+    }
+  }
+  return Undefined;
+}
+
+transitioning macro ArrayFromAsyncAwaitPoint(
+    implicit context: Context)(step: ArrayFromAsyncLabels,
+    value: JSAny): JSAny {
+  const context = %RawDownCast<ArrayFromAsyncResolveContext>(context);
+  *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateStepSlot) =
+      SmiTag<ArrayFromAsyncLabels>(step);
+
+  const promiseFun = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolvePromiseFunctionSlot);
+  const resolve = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveOnFulfilledFunctionSlot);
+  const reject = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveOnRejectedFunctionSlot);
+
+  // TODO(v8:13321): Add a fast path for values that are already
+  // built-in promises.
+  const resultPromise = promise::PromiseResolve(promiseFun, value);
+
+  promise::PerformPromiseThenImpl(
+      UnsafeCast<JSPromise>(resultPromise), resolve, reject, Undefined);
+
+  return Undefined;
+}
+
+// `ArrayFromAsyncFulfilled` is the callback function for the fulfilled case of
+// the promise in `then` handler.
+transitioning javascript builtin ArrayFromAsyncOnFulfilled(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    result: JSAny): JSAny {
+  const context = %RawDownCast<ArrayFromAsyncResolveContext>(context);
+  *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateAwaitedValueSlot) = result;
+
+  return CreateArrayFromIterableAsynchronously(context);
+}
+
+// `ArrayFromAsyncRejected` is the callback function for the rejected case of
+// the promise in `then` handler.
+transitioning javascript builtin ArrayFromAsyncOnRejected(
+    js-implicit context: Context, receiver: JSAny, target: JSFunction)(
+    result: JSAny): JSAny {
+  const context = %RawDownCast<ArrayFromAsyncResolveContext>(context);
+
+  *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::
+          kArrayFromAsyncResolveResumeStateStepSlot) =
+      SmiTag<ArrayFromAsyncLabels>(ArrayFromAsyncLabels::kCloseAsyncIterator);
+  *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveErrorSlot) =
+      result;
+
+  return CreateArrayFromIterableAsynchronously(context);
+}
+
+// This macro reject the promise if any exception occurs in the execution of
+// the asynchronous code.
+transitioning macro RejectArrayFromAsyncPromise(
+    implicit context: Context)(): JSAny {
+  const context = %RawDownCast<ArrayFromAsyncResolveContext>(context);
+  const error = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolveErrorSlot);
+  const promise = *ContextSlot(
+      context,
+      ArrayFromAsyncResolveContextSlots::kArrayFromAsyncResolvePromiseSlot);
+
+  return promise::RejectPromise(promise, error, False);
+}
+
+// This is the specialized implementation of `IfAbruptCloseAsyncIterator` for
+// Array.fromAsync
+// https://tc39.es/proposal-array-from-async/#sec-ifabruptcloseasynciterator
+transitioning macro ArrayFromAsyncAsyncIteratorCloseOnException(
+    implicit context: Context)(
+    iterator: iterator::IteratorRecord): void labels RejectPromise {
+  try {
+    const context = %RawDownCast<ArrayFromAsyncResolveContext>(context);
+    // 3. Let innerResult be GetMethod(iterator, "return").
+    const method = GetProperty(iterator.object, kReturnString);
+
+    // 4. If innerResult.[[Type]] is normal, then
+    //   a. Let return be innerResult.[[Value]].
+    //   b. If return is undefined, return Completion(completion).
+    if (method == Undefined || method == Null) {
+      goto RejectPromise;
+    }
+
+    //   c. Set innerResult to Call(return, iterator).
+    // If an exception occurs, the original exception remains bound
+    const innerResult = Call(context, method, iterator.object);
+
+    //   d. If innerResult.[[Type]] is normal, set innerResult to
+    //   Completion(Await(innerResult.[[Value]])).
+    const step = ArrayFromAsyncLabels::kRejectPromise;
+
+    ArrayFromAsyncAwaitPoint(step, innerResult);
+  } catch (_e, _message) {
+    // Swallow the exception.
+  }
+
+  // (5. If completion.[[Type]] is throw) return Completion(completion).
+}
+
+// https://tc39.es/proposal-array-from-async/#sec-array.fromAsync
+// Array.fromAsync ( asyncItems [ , mapfn [ , thisArg ] ] )
+// Since we do not have support for `await` in torque, we handled
+// asynchronous execution flow manually in torque. More information
+// is available in go/array-from-async-implementation.
+transitioning javascript builtin ArrayFromAsync(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let C be the this value.
+  const c = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
+
+  const items = arguments[0];
+  const mapfn = arguments[1];
+  const thisArg = arguments[2];
+
+  // 2. Let promiseCapability be ! NewPromiseCapability(%Promise%).
+  const promise = promise::NewJSPromise();
+
+  // 3. Let fromAsyncClosure be a new Abstract Closure with no parameters that
+  // captures C, mapfn, and thisArg and performs the following steps when
+  // called:
+
+  let usingAsyncIterator: JSAny = Undefined;
+  let usingSyncIterator: JSAny = Undefined;
+  let iteratorRecordObject: JSReceiver;
+  let iteratorRecordNext: JSAny;
+  let arr: JSReceiver;
+  let firstStep: ArrayFromAsyncLabels;
+
+  try {
+    if (mapfn != Undefined) {
+      // i. If IsCallable(mapfn) is false, throw a TypeError exception.
+      if (!Is<Callable>(mapfn)) deferred {
+          ThrowTypeError(MessageTemplate::kCalledNonCallable, mapfn);
+        }
+    }
+
+    try {
+      //  c. Let usingAsyncIterator be ?
+      //  GetMethod(asyncItems, @@asyncIterator).
+      usingAsyncIterator = GetMethod(items, AsyncIteratorSymbolConstant())
+          otherwise AsyncIteratorIsUndefined, AsyncIteratorNotCallable;
+    } label AsyncIteratorIsUndefined {
+      //  d. If usingAsyncIterator is undefined, then
+      //    i. Let usingSyncIterator be ?
+      //    GetMethod(asyncItems, @@iterator).
+
+      usingSyncIterator = GetMethod(items, IteratorSymbolConstant())
+          otherwise SyncIteratorIsUndefined, SyncIteratorNotCallable;
+    } label SyncIteratorIsUndefined deferred {
+      //  i. Else, (iteratorRecord is undefined)
+      //   i. NOTE: asyncItems is neither an AsyncIterable nor an
+      //   Iterable so assume it is an array-like object.
+      //   ii. Let arrayLike be ! ToObject(asyncItems).
+      //   iii. Let len be ? LengthOfArrayLike(arrayLike).
+      //   iv. If IsConstructor(C) is
+      //   true, then
+      //     1. Let A be ? Construct(C, « 𝔽(len) »).
+      //   v. Else,
+      //     1. Let A be ? ArrayCreate(len).
+      //   vi. Let k be 0.
+
+      // TODO(v8:13321): Array-like path will be implemented later.
+      // That means code inside the following labels are incomplete:
+      // kGetArrayLikeValue, kCheckArrayLikeValueAndMapping,
+      // kGetArrayLikeValueWithMapping, kAddArrayLikeValueToTheArray.
+
+      // firstStep = ArrayFromAsyncLabels::kGetArrayLikeValue;
+    } label SyncIteratorNotCallable(_value: JSAny)
+    deferred {
+      ThrowTypeError(
+          MessageTemplate::kFirstArgumentIteratorSymbolNonCallable,
+          'Array.fromAsync');
+    } label AsyncIteratorNotCallable(_value: JSAny)
+    deferred {
+      ThrowTypeError(
+          MessageTemplate::kFirstArgumentAsyncIteratorSymbolNonCallable,
+          'Array.fromAsync');
+    }
+
+    //  e. Let iteratorRecord be undefined.
+    //  f. If usingAsyncIterator is not undefined, then
+    //     i. Set iteratorRecord to ? GetIterator(asyncItems, async,
+    // usingAsyncIterator).
+    //  g. Else if usingSyncIterator is not undefined, then
+    //     i. Set iteratorRecord to ?
+    // CreateAsyncFromSyncIterator(GetIterator(asyncItems, sync,
+    // usingSyncIterator)).
+
+    const iteratorRecord = (usingAsyncIterator != Undefined) ?
+        iterator::GetIterator(items, usingAsyncIterator) :
+        iterator::GetIteratorRecordAfterCreateAsyncFromSyncIterator(
+            iterator::GetIterator(items, usingSyncIterator));
+
+    iteratorRecordObject = iteratorRecord.object;
+    iteratorRecordNext = iteratorRecord.next;
+
+    //  h. If iteratorRecord is not undefined, then
+    typeswitch (c) {
+      case (c: Constructor): {
+        //  i. If IsConstructor(C) is true, then
+        //    1. Let A be ? Construct(C).
+        arr = Construct(c);
+      }
+      case (JSAny): {
+        //  ii. Else,
+        //    1. Let A be ! ArrayCreate(0).
+        arr = ArrayCreate(0);
+      }
+    }
+
+    firstStep = ArrayFromAsyncLabels::kGetIteratorStep;
+  } catch (e, _message) {
+    promise::RejectPromise(promise, e, False);
+    return promise;
+  }
+
+  let resumeState = ArrayFromAsyncResumeState{
+    step: firstStep,
+    awaitedValue: Undefined,
+    len: 0,
+    index: 0
+  };
+
+  const promiseFun = *NativeContextSlot(
+      context, ContextSlot::PROMISE_FUNCTION_INDEX);
+  const map = *NativeContextSlot(
+      context, ContextSlot::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+
+  const resolveContext = CreateArrayFromAsyncResolveContext(
+      resumeState, promise, promiseFun, map, iteratorRecordObject,
+      iteratorRecordNext, arr, Undefined, mapfn, thisArg, context);
+
+  CreateArrayFromIterableAsynchronously(resolveContext);
+  return promise;
+}
+
+extern macro ArrayFromAsyncOnFulfilledSharedFunConstant(): SharedFunctionInfo;
+extern macro ArrayFromAsyncOnRejectedSharedFunConstant(): SharedFunctionInfo;
+}

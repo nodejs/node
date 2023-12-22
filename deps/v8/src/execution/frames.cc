@@ -241,7 +241,7 @@ void DebuggableStackFrameIterator::Advance() {
 int DebuggableStackFrameIterator::FrameFunctionCount() const {
   DCHECK(!done());
   if (!iterator_.frame()->is_optimized()) return 1;
-  std::vector<SharedFunctionInfo> infos;
+  std::vector<Tagged<SharedFunctionInfo>> infos;
   TurbofanFrame::cast(iterator_.frame())->GetFunctions(&infos);
   return static_cast<int>(infos.size());
 }
@@ -300,7 +300,7 @@ base::Optional<bool> IsInterpreterFramePc(Isolate* isolate, Address pc,
     MSAN_MEMORY_IS_INITIALIZED(
         state->fp + StandardFrameConstants::kFunctionOffset,
         kSystemPointerSize);
-    Tagged<Object> maybe_function = Object(
+    Tagged<Object> maybe_function = Tagged<Object>(
         Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
     // There's no need to run a full ContainsSlow if we know the frame can't be
     // an InterpretedFrame,  so we do these fast checks first
@@ -595,16 +595,18 @@ void StackFrameIteratorForProfilerForTesting::Advance() {
 
 namespace {
 
-base::Optional<GcSafeCode> GetContainingCode(Isolate* isolate, Address pc) {
+base::Optional<Tagged<GcSafeCode>> GetContainingCode(Isolate* isolate,
+                                                     Address pc) {
   return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
 }  // namespace
 
 Tagged<GcSafeCode> StackFrame::GcSafeLookupCode() const {
-  base::Optional<GcSafeCode> result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result->InstructionStart(isolate(), pc()));
-  DCHECK_LT(pc(), result->InstructionEnd(isolate(), pc()));
+  base::Optional<Tagged<GcSafeCode>> result =
+      GetContainingCode(isolate(), pc());
+  DCHECK_GE(pc(), result.value()->InstructionStart(isolate(), pc()));
+  DCHECK_LT(pc(), result.value()->InstructionEnd(isolate(), pc()));
   return result.value();
 }
 
@@ -763,7 +765,8 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // Look up the code object to figure out the type of the stack frame.
-  base::Optional<GcSafeCode> lookup_result = GetContainingCode(isolate(), pc);
+  base::Optional<Tagged<GcSafeCode>> lookup_result =
+      GetContainingCode(isolate(), pc);
   if (!lookup_result.has_value()) return StackFrame::NATIVE;
 
   MSAN_MEMORY_IS_INITIALIZED(
@@ -771,7 +774,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       kSystemPointerSize);
   const intptr_t marker = Memory<intptr_t>(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset);
-  switch (lookup_result->kind()) {
+  switch (lookup_result.value()->kind()) {
     case CodeKind::BUILTIN: {
       if (StackFrame::IsTypeMarker(marker)) break;
       return ComputeBuiltinFrameType(lookup_result.value());
@@ -792,7 +795,7 @@ StackFrame::Type StackFrameIterator::ComputeStackFrameType(
       return StackFrame::TURBOFAN;
 #if V8_ENABLE_WEBASSEMBLY
     case CodeKind::JS_TO_WASM_FUNCTION:
-      if (lookup_result->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
+      if (lookup_result.value()->builtin_id() == Builtin::kJSToWasmWrapperAsm) {
         return StackFrame::JS_TO_WASM;
       }
       return StackFrame::TURBOFAN_STUB_WITH_CONTEXT;
@@ -839,8 +842,9 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
   // fast_c_call_caller_pc_address, for which authentication does not work.
   const Address pc = StackFrame::unauthenticated_pc(state->pc_address);
 #if V8_ENABLE_WEBASSEMBLY
-  Code wrapper = isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
-  if (pc >= wrapper.instruction_start() && pc <= wrapper.instruction_end()) {
+  Tagged<Code> wrapper =
+      isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
+  if (pc >= wrapper->instruction_start() && pc <= wrapper->instruction_end()) {
     return StackFrame::WASM_TO_JS;
   }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -860,7 +864,7 @@ StackFrame::Type StackFrameIteratorForProfiler::ComputeStackFrameType(
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + StandardFrameConstants::kFunctionOffset, kSystemPointerSize);
-  Tagged<Object> maybe_function = Object(
+  Tagged<Object> maybe_function = Tagged<Object>(
       Memory<Address>(state->fp + StandardFrameConstants::kFunctionOffset));
   if (IsSmi(maybe_function)) {
     return StackFrame::NATIVE;
@@ -1039,7 +1043,7 @@ Tagged<Object> BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset =
       BuiltinExitFrameConstants::kFirstArgumentOffset + i * kSystemPointerSize;
-  return Object(Memory<Address>(fp() + offset));
+  return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
 int BuiltinExitFrame::ComputeParametersCount() const {
@@ -1118,7 +1122,7 @@ Tagged<Object> ApiCallbackExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
   int offset = ApiCallbackExitFrameConstants::kFirstArgumentOffset +
                i * kSystemPointerSize;
-  return Object(Memory<Address>(fp() + offset));
+  return Tagged<Object>(Memory<Address>(fp() + offset));
 }
 
 int ApiCallbackExitFrame::ComputeParametersCount() const {
@@ -1321,7 +1325,7 @@ void VisitSpillSlot(Isolate* isolate, RootVisitor* v,
       if (DEBUG_BOOL) {
         // Ensure that the spill slot contains correct heap object.
         Tagged<HeapObject> raw =
-            HeapObject::cast(Object(*spill_slot.location()));
+            HeapObject::cast(Tagged<Object>(*spill_slot.location()));
         MapWord map_word = raw->map_word(cage_base, kRelaxedLoad);
         Tagged<HeapObject> forwarded = map_word.IsForwardingAddress()
                                            ? map_word.ToForwardingAddress(raw)
@@ -1521,11 +1525,12 @@ void WasmFrame::Iterate(RootVisitor* v) const {
 }
 
 void TypedFrame::IterateParamsOfWasmToJSWrapper(RootVisitor* v) const {
-  Tagged<Object> maybe_signature = Object(
+  Tagged<Object> maybe_signature = Tagged<Object>(
       Memory<Address>(fp() + WasmToJSWrapperConstants::kSignatureOffset));
-  // The signature slot contains a marker and not a signature, so there is
-  // nothing we have to iterate here.
   if (IsSmi(maybe_signature)) {
+    // The signature slot contains a Smi and not a signature. This means all
+    // incoming parameters have been processed, and we don't have to keep them
+    // alive anymore.
     return;
   }
 
@@ -1873,14 +1878,22 @@ bool CommonFrame::HasTaggedOutgoingParams(
   // determine where there might be tagged parameters.)
   wasm::WasmCode* wasm_callee =
       wasm::GetWasmCodeManager()->LookupCode(callee_pc());
-  return (wasm_callee == nullptr) && code_lookup->has_tagged_outgoing_params();
+  if (wasm_callee) return false;
+
+  Tagged<Code> wrapper =
+      isolate()->builtins()->code(Builtin::kWasmToJsWrapperCSA);
+  if (callee_pc() >= wrapper->instruction_start() &&
+      callee_pc() <= wrapper->instruction_end()) {
+    return false;
+  }
+  return code_lookup->has_tagged_outgoing_params();
 #else
   return code_lookup->has_tagged_outgoing_params();
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 
 Tagged<HeapObject> TurbofanStubWithContextFrame::unchecked_code() const {
-  base::Optional<GcSafeCode> code_lookup =
+  base::Optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -1973,7 +1986,7 @@ void TurbofanFrame::Iterate(RootVisitor* v) const {
 }
 
 Tagged<HeapObject> StubFrame::unchecked_code() const {
-  base::Optional<GcSafeCode> code_lookup =
+  base::Optional<Tagged<GcSafeCode>> code_lookup =
       isolate()->heap()->GcSafeTryFindCodeForInnerPointer(pc());
   if (!code_lookup.has_value()) return {};
   return code_lookup.value();
@@ -1996,6 +2009,9 @@ void StubFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // specifically exist to pretend to be another builtin throwing an
   // exception.
   switch (code->builtin_id()) {
+    case Builtin::kThrowDataViewGetInt32DetachedError:
+    case Builtin::kThrowDataViewGetInt32OutOfBounds:
+    case Builtin::kThrowDataViewGetInt32TypeError:
     case Builtin::kThrowIndexOfCalledOnNull:
     case Builtin::kThrowToLowerCaseCalledOnNull:
     case Builtin::kWasmIntToString: {
@@ -2038,7 +2054,7 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
 }
 
 void JavaScriptFrame::GetFunctions(
-    std::vector<SharedFunctionInfo>* functions) const {
+    std::vector<Tagged<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
   functions->push_back(function()->shared());
 }
@@ -2046,7 +2062,7 @@ void JavaScriptFrame::GetFunctions(
 void JavaScriptFrame::GetFunctions(
     std::vector<Handle<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
-  std::vector<SharedFunctionInfo> raw_functions;
+  std::vector<Tagged<SharedFunctionInfo>> raw_functions;
   GetFunctions(&raw_functions);
   for (const auto& raw_function : raw_functions) {
     functions->push_back(
@@ -2211,7 +2227,7 @@ void JavaScriptFrame::CollectFunctionAndOffsetForICStats(
 }
 
 Tagged<Object> CommonFrameWithJSLinkage::GetParameter(int index) const {
-  return Object(Memory<Address>(GetParameterSlot(index)));
+  return Tagged<Object>(Memory<Address>(GetParameterSlot(index)));
 }
 
 int CommonFrameWithJSLinkage::ComputeParametersCount() const {
@@ -2244,7 +2260,7 @@ Handle<FixedArray> CommonFrameWithJSLinkage::GetParameters() const {
 
 Tagged<JSFunction> JavaScriptBuiltinContinuationFrame::function() const {
   const int offset = BuiltinContinuationFrameConstants::kFunctionOffset;
-  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
+  return JSFunction::cast(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
 int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
@@ -2260,12 +2276,12 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
 intptr_t JavaScriptBuiltinContinuationFrame::GetSPToFPDelta() const {
   Address height_slot =
       fp() + BuiltinContinuationFrameConstants::kFrameSPtoFPDeltaAtDeoptimize;
-  intptr_t height = Smi::ToInt(Smi(Memory<Address>(height_slot)));
+  intptr_t height = Smi::ToInt(Tagged<Smi>(Memory<Address>(height_slot)));
   return height;
 }
 
 Tagged<Object> JavaScriptBuiltinContinuationFrame::context() const {
-  return Object(Memory<Address>(
+  return Tagged<Object>(Memory<Address>(
       fp() + BuiltinContinuationFrameConstants::kBuiltinContextOffset));
 }
 
@@ -2278,7 +2294,7 @@ void JavaScriptBuiltinContinuationWithCatchFrame::SetException(
 
   // Only allow setting exception if previous value was the hole.
   CHECK_EQ(ReadOnlyRoots(isolate()).the_hole_value(),
-           Object(Memory<Address>(exception_argument_slot)));
+           Tagged<Object>(Memory<Address>(exception_argument_slot)));
   Memory<Address>(exception_argument_slot) = exception.ptr();
 }
 
@@ -2742,7 +2758,7 @@ Tagged<DeoptimizationData> OptimizedFrame::GetDeoptimizationData(
 }
 
 void OptimizedFrame::GetFunctions(
-    std::vector<SharedFunctionInfo>* functions) const {
+    std::vector<Tagged<SharedFunctionInfo>>* functions) const {
   DCHECK(functions->empty());
   DCHECK(is_optimized());
 
@@ -2842,7 +2858,8 @@ int InterpretedFrame::GetBytecodeOffset(Address fp) {
             InterpreterFrameConstants::kExpressionsOffset -
                 index * kSystemPointerSize);
   Address expression_offset = fp + offset - index * kSystemPointerSize;
-  int raw_offset = Smi::ToInt(Object(Memory<Address>(expression_offset)));
+  int raw_offset =
+      Smi::ToInt(Tagged<Object>(Memory<Address>(expression_offset)));
   return raw_offset - BytecodeArray::kHeaderSize + kHeapObjectTag;
 }
 
@@ -2882,12 +2899,12 @@ void BaselineFrame::PatchContext(Tagged<Context> value) {
 
 Tagged<JSFunction> BuiltinFrame::function() const {
   const int offset = BuiltinFrameConstants::kFunctionOffset;
-  return JSFunction::cast(Object(base::Memory<Address>(fp() + offset)));
+  return JSFunction::cast(Tagged<Object>(base::Memory<Address>(fp() + offset)));
 }
 
 int BuiltinFrame::ComputeParametersCount() const {
   const int offset = BuiltinFrameConstants::kLengthOffset;
-  return Smi::ToInt(Object(base::Memory<Address>(fp() + offset))) -
+  return Smi::ToInt(Tagged<Object>(base::Memory<Address>(fp() + offset))) -
          kJSArgcReceiverSlots;
 }
 
@@ -3032,13 +3049,18 @@ bool WasmFrame::at_to_number_conversion() const {
       code->builtin_id() != Builtin::kWasmToJsWrapperCSA) {
     return false;
   }
-  // The generic wasm-to-js wrapper initially pushes the signature on the stack,
-  // but overwrites the signature just before the call to JavaScript. Therefore,
-  // if the signature is still there, we are at the to-number conversion, if the
-  // slot is empty, then we are at the call to JavaScript.
-  FullObjectSlot sig_slot(callee_fp() +
-                          WasmToJSWrapperConstants::kSignatureOffset);
-  return *sig_slot.location() != kNullAddress;
+
+  // The generic wasm-to-js wrapper maintains a slot on the stack to indicate
+  // its state. Initially this slot contains the signature, so that incoming
+  // parameters can be scanned. After all parameters have been processed, the
+  // number of parameters gets stored in the stack slot, so that outgoing
+  // parameters can be scanned. After returning from JavaScript, Smi(-1) is
+  // stored in the slot to indicate that any call from now on is a ToNumber
+  // conversion.
+  Tagged<Object> maybe_sig = Tagged<Object>(Memory<Address>(
+      callee_fp() + WasmToJSWrapperConstants::kSignatureOffset));
+
+  return IsSmi(maybe_sig) && Smi::ToInt(maybe_sig) < 0;
 }
 
 int WasmFrame::LookupExceptionHandlerInTable() {
@@ -3424,7 +3446,7 @@ InnerPointerToCodeCache::GetCacheEntry(Address inner_pointer) {
     // the code has been computed.
     entry->code =
         isolate_->heap()->GcSafeFindCodeForInnerPointer(inner_pointer);
-    if (entry->code->is_maglevved()) {
+    if (entry->code.value()->is_maglevved()) {
       entry->maglev_safepoint_entry.Reset();
     } else {
       entry->safepoint_entry.Reset();

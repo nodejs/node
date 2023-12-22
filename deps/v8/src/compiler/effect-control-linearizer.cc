@@ -5074,8 +5074,8 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
     __ GotoIfNot(check, &done, result);
 
     ElementAccess const access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
-                                  Type::NumberOrTheHole(),
-                                  MachineType::Float64(), kNoWriteBarrier};
+                                  Type::NumberOrHole(), MachineType::Float64(),
+                                  kNoWriteBarrier};
     __ StoreElement(access, result, index, the_hole);
 
     // Advance the {index}.

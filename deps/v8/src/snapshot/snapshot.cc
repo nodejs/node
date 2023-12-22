@@ -172,10 +172,6 @@ bool Snapshot::VersionIsValid(const v8::StartupData* data) {
 
 bool Snapshot::Initialize(Isolate* isolate) {
   if (!isolate->snapshot_available()) return false;
-  TRACE_EVENT0("v8", "V8.DeserializeIsolate");
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeIsolate);
-  base::ElapsedTimer timer;
-  if (v8_flags.profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   SnapshotImpl::CheckVersion(blob);
@@ -196,25 +192,15 @@ bool Snapshot::Initialize(Isolate* isolate) {
   SnapshotData shared_heap_snapshot_data(
       MaybeDecompress(isolate, shared_heap_data));
 
-  bool success = isolate->InitWithSnapshot(
+  return isolate->InitWithSnapshot(
       &startup_snapshot_data, &read_only_snapshot_data,
       &shared_heap_snapshot_data, ExtractRehashability(blob));
-  if (v8_flags.profile_deserialization) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    int bytes = startup_data.length();
-    PrintF("[Deserializing isolate (%d bytes) took %0.3f ms]\n", bytes, ms);
-  }
-  return success;
 }
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
-  TRACE_EVENT0("v8", "V8.DeserializeContext");
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kDeserializeContext);
-  base::ElapsedTimer timer;
-  if (v8_flags.profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   bool can_rehash = ExtractRehashability(blob);
@@ -222,20 +208,9 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
       blob, static_cast<uint32_t>(context_index));
   SnapshotData snapshot_data(MaybeDecompress(isolate, context_data));
 
-  MaybeHandle<Context> maybe_result = ContextDeserializer::DeserializeContext(
-      isolate, &snapshot_data, can_rehash, global_proxy,
+  return ContextDeserializer::DeserializeContext(
+      isolate, &snapshot_data, context_index, can_rehash, global_proxy,
       embedder_fields_deserializer);
-
-  Handle<Context> result;
-  if (!maybe_result.ToHandle(&result)) return MaybeHandle<Context>();
-
-  if (v8_flags.profile_deserialization) {
-    double ms = timer.Elapsed().InMillisecondsF();
-    int bytes = context_data.length();
-    PrintF("[Deserializing context #%zu (%d bytes) took %0.3f ms]\n",
-           context_index, bytes, ms);
-  }
-  return result;
 }
 
 // static
@@ -383,7 +358,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
         ((isolate->has_shared_space() || ReadOnlyHeap::IsReadOnlySpaceShared())
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
-    std::vector<Context> contexts{*default_context};
+    std::vector<Tagged<Context>> contexts{*default_context};
     std::vector<SerializeInternalFieldsCallback> callbacks{{}};
     serialized_data = Snapshot::Create(isolate, &contexts, callbacks,
                                        safepoint_scope, no_gc, flags);
@@ -426,7 +401,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 
 // static
 v8::StartupData Snapshot::Create(
-    Isolate* isolate, std::vector<Context>* contexts,
+    Isolate* isolate, std::vector<Tagged<Context>>* contexts,
     const std::vector<SerializeInternalFieldsCallback>&
         embedder_fields_serializers,
     const SafepointScope& safepoint_scope,
@@ -937,7 +912,7 @@ size_t SnapshotCreatorImpl::AddData(Handle<NativeContext> context,
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Object(object), isolate_);
+  Handle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(context->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
@@ -955,7 +930,7 @@ size_t SnapshotCreatorImpl::AddData(Address object) {
   DCHECK_NE(object, kNullAddress);
   DCHECK(!created());
   HandleScope scope(isolate_);
-  Handle<Object> obj(Object(object), isolate_);
+  Handle<Object> obj(Tagged<Object>(object), isolate_);
   Handle<ArrayList> list;
   if (!IsArrayList(isolate_->heap()->serialized_objects())) {
     list = ArrayList::New(isolate_, 1);
@@ -1090,7 +1065,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
   // Note these contexts may be dead after calling Clear(), but will not be
   // collected until serialization completes and the DisallowGarbageCollection
   // scope above goes out of scope.
-  std::vector<Context> raw_contexts;
+  std::vector<Tagged<Context>> raw_contexts;
   raw_contexts.reserve(num_contexts);
   {
     HandleScope scope(isolate_);

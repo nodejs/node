@@ -133,7 +133,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
                                  uint32_t canonical_sig_index,
                                  const wasm::WasmModule* module, bool is_import,
-                                 const WasmFeatures& enabled_features,
+                                 WasmFeatures enabled_features,
                                  AllowGeneric allow_generic);
   ~JSToWasmWrapperCompilationUnit();
 

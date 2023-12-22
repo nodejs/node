@@ -124,8 +124,8 @@ class FastApiCallReducer : public Next {
     GOTO(done, FastApiCallOp::kSuccessValue, fast_call_result);
 
     if (BIND(handle_error)) {
-      // We pass Smi(0) as the value here, although this should never be visible
-      // when calling code reacts to `kFailureValue` properly.
+      // We pass Tagged<Smi>(0) as the value here, although this should never be
+      // visible when calling code reacts to `kFailureValue` properly.
       GOTO(done, FastApiCallOp::kFailureValue, __ TagSmi(0));
     }
 

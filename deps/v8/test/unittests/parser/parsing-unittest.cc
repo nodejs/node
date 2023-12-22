@@ -82,7 +82,7 @@ struct Input {
             .ToHandleChecked());                                              \
     (isolate)->clear_pending_exception();                                     \
                                                                               \
-    String script_source = String::cast((script)->source());                  \
+    Tagged<String> script_source = String::cast((script)->source());          \
                                                                               \
     FATAL(                                                                    \
         "Parser failed on:\n"                                                 \

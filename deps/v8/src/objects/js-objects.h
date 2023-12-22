@@ -248,7 +248,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE base::Optional<NativeContext> GetCreationContextRaw();
+  V8_EXPORT_PRIVATE base::Optional<Tagged<NativeContext>>
+  GetCreationContextRaw();
   V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>

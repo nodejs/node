@@ -28,25 +28,33 @@ namespace internal {
 
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+CAST_ACCESSOR(FixedArrayBase)
+OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
 
+SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
-RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+CAST_ACCESSOR(FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArrayBase)
 
-Tagged<Object> FixedArrayBase::unchecked_length(AcquireLoadTag) const {
-  return ACQUIRE_READ_FIELD(*this, kLengthOffset);
-}
+CAST_ACCESSOR(FixedDoubleArray)
+OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedArrayBase)
+
+CAST_ACCESSOR(ByteArray)
+OBJECT_CONSTRUCTORS_IMPL(ByteArray, FixedArrayBase)
+
+CAST_ACCESSOR(ExternalPointerArray)
+OBJECT_CONSTRUCTORS_IMPL(ExternalPointerArray, FixedArrayBase)
+
+CAST_ACCESSOR(ArrayList)
+OBJECT_CONSTRUCTORS_IMPL(ArrayList, FixedArray)
+
+NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+
+RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
 ObjectSlot FixedArray::GetFirstElementAddress() {
   return RawField(OffsetOfElementAt(0));
@@ -85,7 +93,7 @@ bool FixedArray::is_the_hole(Isolate* isolate, int index) {
 void FixedArray::set(int index, Tagged<Smi> value) {
   DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
@@ -138,7 +146,7 @@ void FixedArray::set(int index, Tagged<Object> value, RelaxedStoreTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, RelaxedStoreTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -162,7 +170,7 @@ void FixedArray::set(int index, Tagged<Object> value, SeqCstAccessTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, SeqCstAccessTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -186,7 +194,7 @@ void FixedArray::set(int index, Tagged<Object> value, ReleaseStoreTag,
 }
 
 void FixedArray::set(int index, Tagged<Smi> value, ReleaseStoreTag tag) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
@@ -293,11 +301,13 @@ void FixedArray::CopyElements(Isolate* isolate, int dst_index,
 // Due to left- and right-trimming, concurrent visitors need to read the length
 // with acquire semantics.
 // TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
-inline int WeakFixedArray::AllocatedSize() {
+inline int FixedArray::AllocatedSize() const {
   return SizeFor(length(kAcquireLoad));
 }
-inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
+inline int WeakFixedArray::AllocatedSize() const {
+  return SizeFor(length(kAcquireLoad));
+}
+inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
@@ -602,7 +612,7 @@ void ArrayList::Set(int index, Tagged<Object> obj, WriteBarrierMode mode) {
 }
 
 void ArrayList::Set(int index, Tagged<Smi> value) {
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   Set(index, value, SKIP_WRITE_BARRIER);
 }
 void ArrayList::Clear(int index, Tagged<Object> undefined) {
@@ -611,7 +621,7 @@ void ArrayList::Clear(int index, Tagged<Object> undefined) {
                                SKIP_WRITE_BARRIER);
 }
 
-int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
+int ByteArray::AllocatedSize() const { return SizeFor(length()); }
 
 uint8_t ByteArray::get(int offset) const {
   DCHECK_GE(offset, 0);
@@ -685,12 +695,14 @@ void ByteArray::copy_out(int offset, uint8_t* buffer, int slice_length) {
 
 void ByteArray::clear_padding() {
   int data_size = length() + kHeaderSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
+  memset(reinterpret_cast<void*>(address() + data_size), 0,
+         AllocatedSize() - data_size);
 }
 
 Tagged<ByteArray> ByteArray::FromDataStartAddress(Address address) {
   DCHECK_TAG_ALIGNED(address);
-  return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
+  return ByteArray::cast(
+      Tagged<Object>(address - kHeaderSize + kHeapObjectTag));
 }
 
 int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
@@ -783,32 +795,17 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
 
 // static
 template <class T>
-Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length) {
+Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
+                                     AllocationType allocation) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
   return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(byte_length, AllocationType::kOld));
+      isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 template <class T>
 int PodArray<T>::length() const {
   return ByteArray::length() / sizeof(T);
-}
-
-int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(*this)->get(kLengthIndex));
-}
-
-Tagged<Object> TemplateList::get(int index) const {
-  return FixedArray::cast(*this)->get(kFirstElementIndex + index);
-}
-
-Tagged<Object> TemplateList::get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this)->get(cage_base, kFirstElementIndex + index);
-}
-
-void TemplateList::set(int index, Tagged<Object> value) {
-  FixedArray::cast(*this)->set(kFirstElementIndex + index, value);
 }
 
 }  // namespace internal

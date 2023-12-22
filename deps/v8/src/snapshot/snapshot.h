@@ -67,7 +67,7 @@ class Snapshot : public AllStatic {
   // associated callback to serialize internal fields. The default context must
   // be passed at index 0.
   static v8::StartupData Create(
-      Isolate* isolate, std::vector<Context>* contexts,
+      Isolate* isolate, std::vector<Tagged<Context>>* contexts,
       const std::vector<SerializeInternalFieldsCallback>&
           embedder_fields_serializers,
       const SafepointScope& safepoint_scope,

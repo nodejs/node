@@ -391,7 +391,7 @@ TEST_F(HeapTest, OptimizedAllocationAlwaysInNewSpace) {
 
 namespace {
 template <RememberedSetType direction>
-static size_t GetRememberedSetSize(HeapObject obj) {
+static size_t GetRememberedSetSize(Tagged<HeapObject> obj) {
   size_t count = 0;
   auto chunk = MemoryChunk::FromHeapObject(obj);
   RememberedSet<direction>::Iterate(
@@ -468,7 +468,7 @@ TEST_F(HeapTest, Regress978156) {
   CHECK_GT(last->length(), 0);
   heap->RightTrimFixedArray(*last, 1);
   // 4. Get the last filler on the page.
-  HeapObject filler = HeapObject::FromAddress(
+  Tagged<HeapObject> filler = HeapObject::FromAddress(
       MemoryChunk::FromHeapObject(*last)->area_end() - kTaggedSize);
   HeapObject::FromAddress(last->address() + last->Size());
   CHECK(IsFiller(filler));

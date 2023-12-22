@@ -900,6 +900,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // the next instructions (which starts at {pc_offset() + kNearJmpInstrSize}).
   static constexpr int kNearJmpInstrSize = 5;
   void near_call(intptr_t disp, RelocInfo::Mode rmode);
+  void near_call(Builtin buitin, RelocInfo::Mode rmode);
   void near_jmp(intptr_t disp, RelocInfo::Mode rmode);
   void near_j(Condition cc, intptr_t disp, RelocInfo::Mode rmode);
 
@@ -1511,6 +1512,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
                    uint8_t lane);
   void vperm2f128(YMMRegister dst, YMMRegister src1, YMMRegister src2,
                   uint8_t lane);
+  void vextractf128(XMMRegister dst, YMMRegister src, uint8_t lane);
 
   void fma_instr(uint8_t op, XMMRegister dst, XMMRegister src1,
                  XMMRegister src2, VectorLength l, SIMDPrefix pp,

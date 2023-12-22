@@ -208,10 +208,10 @@ class TaggedImpl {
 
   // Cast operation is available only for full non-weak tagged values.
   template <typename T>
-  T cast() const {
+  Tagged<T> cast() const {
     CHECK(kIsFull);
     DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
-    return T::cast(Object(ptr_));
+    return T::cast(Tagged<Object>(ptr_));
   }
 
  private:

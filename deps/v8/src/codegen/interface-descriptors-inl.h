@@ -320,6 +320,36 @@ constexpr RegList WriteBarrierDescriptor::ComputeSavedRegisters(
 }
 
 // static
+constexpr auto IndirectPointerWriteBarrierDescriptor::registers() {
+  return WriteBarrierDescriptor::registers();
+}
+// static
+constexpr Register IndirectPointerWriteBarrierDescriptor::ObjectRegister() {
+  return std::get<kObject>(registers());
+}
+// static
+constexpr Register
+IndirectPointerWriteBarrierDescriptor::SlotAddressRegister() {
+  return std::get<kSlotAddress>(registers());
+}
+// static
+constexpr Register
+IndirectPointerWriteBarrierDescriptor::IndirectPointerTagRegister() {
+  return std::get<kIndirectPointerTag>(registers());
+}
+
+// static
+constexpr RegList IndirectPointerWriteBarrierDescriptor::ComputeSavedRegisters(
+    Register object, Register slot_address) {
+  DCHECK(!AreAliased(object, slot_address));
+  // This write barrier behaves identical to the generic one, except that it
+  // passes one additional parameter.
+  RegList saved_registers =
+      WriteBarrierDescriptor::ComputeSavedRegisters(object, slot_address);
+  saved_registers.set(IndirectPointerTagRegister());
+  return saved_registers;
+}
+// static
 constexpr Register ApiGetterDescriptor::ReceiverRegister() {
   return LoadDescriptor::ReceiverRegister();
 }

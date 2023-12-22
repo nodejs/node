@@ -1589,12 +1589,5 @@ BUILTIN(ArrayConcat) {
   return Slow_ArrayConcat(&args, species, isolate);
 }
 
-BUILTIN(ArrayFromAsync) {
-  HandleScope scope(isolate);
-  DCHECK(v8_flags.harmony_array_from_async);
-
-  return ReadOnlyRoots(isolate).undefined_value();
-}
-
 }  // namespace internal
 }  // namespace v8

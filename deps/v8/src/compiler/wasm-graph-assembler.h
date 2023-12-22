@@ -29,19 +29,21 @@ class WasmGraphAssembler : public GraphAssembler {
       : GraphAssembler(mcgraph, zone, BranchSemantics::kMachine),
         simplified_(zone) {}
 
-  // TODOC(mliedtke): What is the difference between CallRuntimeStub and
-  // CallBuiltin and what are the considerations to take into account when
-  // choosing between them?
+  // While CallBuiltin() translates to a direct call to the address of the
+  // builtin, CallBuiltinThroughJumptable instead jumps to a slot in a jump
+  // table that then calls the builtin. As the jump table is "close" to the
+  // generated code, this is encoded as a near call resulting in the instruction
+  // being shorter than a direct call to the builtin.
   template <typename... Args>
-  Node* CallRuntimeStub(wasm::WasmCode::RuntimeStubId stub_id,
-                        Operator::Properties properties, Args... args) {
+  Node* CallBuiltinThroughJumptable(Builtin builtin,
+                                    Operator::Properties properties,
+                                    Args... args) {
     auto* call_descriptor = GetBuiltinCallDescriptor(
-        RuntimeStubIdToBuiltinName(stub_id), temp_zone(),
-        StubCallMode::kCallWasmRuntimeStub, false, properties);
+        builtin, temp_zone(), StubCallMode::kCallWasmRuntimeStub, false,
+        properties);
     // A direct call to a wasm runtime stub defined in this module.
     // Just encode the stub index. This will be patched at relocation.
-    Node* call_target = mcgraph()->RelocatableIntPtrConstant(
-        stub_id, RelocInfo::WASM_STUB_CALL);
+    Node* call_target = mcgraph()->RelocatableWasmBuiltinCallTarget(builtin);
     return Call(call_descriptor, call_target, args...);
   }
 

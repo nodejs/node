@@ -212,14 +212,14 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
   DisallowHeapAllocation no_gc;
 
   struct Entry {
-    Name key;
-    Object value;
+    Tagged<Name> key;
+    Tagged<Object> value;
     PropertyDetails details;
   };
 
   if (Capacity() == 0) return;
 
-  Entry dummy{Name(), Object(), PropertyDetails::Empty()};
+  Entry dummy{Tagged<Name>(), Tagged<Object>(), PropertyDetails::Empty()};
   std::vector<Entry> data(NumberOfElements(), dummy);
 
   ReadOnlyRoots roots(isolate);

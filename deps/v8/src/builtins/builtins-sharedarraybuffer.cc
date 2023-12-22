@@ -125,6 +125,9 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 // ES #sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
+  // TODO(clemensb): This builtin only allocates (an exception) in the case of
+  // an error; we could try to avoid allocating the HandleScope in the non-error
+  // case.
   HandleScope scope(isolate);
   Handle<Object> array = args.atOrUndefined(isolate, 1);
   Handle<Object> index = args.atOrUndefined(isolate, 2);
@@ -163,20 +166,21 @@ BUILTIN(AtomicsNotify) {
 
   // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t wake_addr;
 
-  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
-    return Smi::FromInt(0);
+  if (V8_UNLIKELY(!array_buffer->is_shared())) {
+    return Smi::zero();
   }
 
   // Steps 11-17 performed in FutexEmulation::Wake.
+  size_t wake_addr;
   if (sta->type() == kExternalBigInt64Array) {
     wake_addr = GetAddress64(i, sta->byte_offset());
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
     wake_addr = GetAddress32(i, sta->byte_offset());
   }
-  return FutexEmulation::Wake(array_buffer, wake_addr, c);
+  int num_waiters_woken = FutexEmulation::Wake(*array_buffer, wake_addr, c);
+  return Smi::FromInt(num_waiters_woken);
 }
 
 Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,

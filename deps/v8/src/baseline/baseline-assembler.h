@@ -30,6 +30,7 @@ class BaselineAssembler {
   inline MemOperand ContextOperand();
   inline MemOperand FunctionOperand();
   inline MemOperand FeedbackVectorOperand();
+  inline MemOperand FeedbackCellOperand();
 
   inline void GetCode(LocalIsolate* isolate, CodeDesc* desc);
   inline int pc_offset() const;
@@ -231,6 +232,9 @@ class BaselineAssembler {
   inline void LoadFunction(Register output);
   inline void LoadContext(Register output);
   inline void StoreContext(Register context);
+
+  inline void LoadFeedbackCell(Register output);
+  inline void AssertFeedbackCell(Register object);
 
   inline static void EmitReturn(MacroAssembler* masm);
 

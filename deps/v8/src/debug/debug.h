@@ -191,7 +191,7 @@ class DebugInfoCollection final {
   void Insert(Tagged<SharedFunctionInfo> sfi, Tagged<DebugInfo> debug_info);
 
   bool Contains(Tagged<SharedFunctionInfo> sfi) const;
-  base::Optional<DebugInfo> Find(Tagged<SharedFunctionInfo> sfi) const;
+  base::Optional<Tagged<DebugInfo>> Find(Tagged<SharedFunctionInfo> sfi) const;
 
   void DeleteSlow(Tagged<SharedFunctionInfo> sfi);
 
@@ -273,7 +273,8 @@ class V8_EXPORT_PRIVATE Debug {
   Handle<FixedArray> GetLoadedScripts();
 
   // DebugInfo accessors.
-  base::Optional<DebugInfo> TryGetDebugInfo(Tagged<SharedFunctionInfo> sfi);
+  base::Optional<Tagged<DebugInfo>> TryGetDebugInfo(
+      Tagged<SharedFunctionInfo> sfi);
   bool HasDebugInfo(Tagged<SharedFunctionInfo> sfi);
   bool HasCoverageInfo(Tagged<SharedFunctionInfo> sfi);
   bool HasBreakInfo(Tagged<SharedFunctionInfo> sfi);
@@ -608,7 +609,7 @@ class V8_EXPORT_PRIVATE Debug {
 
     // If set, next PrepareStepIn will ignore this function until stepped into
     // another function, at which point this will be cleared.
-    Object ignore_step_into_function_;
+    Tagged<Object> ignore_step_into_function_;
 
     // If set then we need to repeat StepOut action at return.
     bool fast_forward_to_return_;
@@ -626,10 +627,10 @@ class V8_EXPORT_PRIVATE Debug {
     int target_frame_count_;
 
     // Value of the accumulator at the point of entering the debugger.
-    Object return_value_;
+    Tagged<Object> return_value_;
 
     // The suspended generator object to track when stepping.
-    Object suspended_generator_;
+    Tagged<Object> suspended_generator_;
 
     // Last used inspector breakpoint id.
     int last_breakpoint_id_;
@@ -645,7 +646,7 @@ class V8_EXPORT_PRIVATE Debug {
 
     // Throwing an exception may cause a Promise rejection.  For this purpose
     // we keep track of a stack of nested promises.
-    Object promise_stack_;
+    Tagged<Object> promise_stack_;
 
     // Frame ID for the frame that needs to be restarted. StackFrameId::NO_ID
     // otherwise. The unwinder uses the id to restart execution in this frame

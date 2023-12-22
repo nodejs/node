@@ -15,7 +15,7 @@
 
 // A `SnapshotTable` stores a mapping from keys to values and creates snapshots,
 // which capture the current state efficiently and allow us to return to a
-// previous snapshot later. It is opimized for the case where we switch between
+// previous snapshot later. It is optimized for the case where we switch between
 // similar snapshots with a closeby common ancestor.
 //
 // Complexity:
@@ -118,9 +118,15 @@ class SnapshotTable {
   class MaybeSnapshot {
    public:
     bool has_value() const { return data_ != nullptr; }
-    Snapshot value() const { return Snapshot{data_}; }
+    Snapshot value() const {
+      DCHECK(has_value());
+      return Snapshot{data_};
+    }
 
     void Set(Snapshot snapshot) { data_ = snapshot.data_; }
+
+    MaybeSnapshot() = default;
+    explicit MaybeSnapshot(Snapshot snapshot) : data_(snapshot.data_) {}
 
    private:
     SnapshotData* data_ = nullptr;
@@ -362,7 +368,7 @@ struct SnapshotTable<Value, KeyData>::SnapshotData {
     return self;
   }
   void Seal(size_t log_end) {
-    DCHECK_WITH_MSG(!IsSealed(), "A Snapshot can only be sealed once.");
+    DCHECK_WITH_MSG(!IsSealed(), "A Snapshot can only be sealed once");
     this->log_end = log_end;
   }
 
@@ -425,7 +431,7 @@ SnapshotTable<Value, KeyData>::MoveToNewSnapshot(
     const ChangeCallback& change_callback) {
   DCHECK_WITH_MSG(
       current_snapshot_->IsSealed(),
-      "A new Snapshot was opened before the previous Snapshot was sealed.");
+      "A new Snapshot was opened before the previous Snapshot was sealed");
 
   SnapshotData* common_ancestor;
   if (predecessors.empty()) {

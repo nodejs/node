@@ -612,7 +612,7 @@ Tagged<Object> ScopeInfo::get(PtrComprCageBase cage_base, int index) const {
 
 void ScopeInfo::set(int index, Tagged<Smi> value) {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(IsSmi(Object(value)));
+  DCHECK(IsSmi(Tagged<Object>(value)));
   int offset = OffsetOfElementAt(index);
   RELAXED_WRITE_FIELD(*this, offset, value);
 }
@@ -1006,7 +1006,7 @@ int ScopeInfo::ContextSlotIndex(Handle<String> name) {
   return ContextSlotIndex(name, &lookup_result);
 }
 
-std::pair<String, int> ScopeInfo::SavedClassVariable() const {
+std::pair<Tagged<String>, int> ScopeInfo::SavedClassVariable() const {
   DCHECK(HasSavedClassVariableBit::decode(Flags()));
   if (HasInlinedLocalNames()) {
     // The saved class variable info corresponds to the context slot index.
@@ -1019,7 +1019,7 @@ std::pair<String, int> ScopeInfo::SavedClassVariable() const {
     // The saved class variable info corresponds to the offset in the hash
     // table storage.
     InternalIndex entry(saved_class_variable_info());
-    NameToIndexHashTable table = context_local_names_hashtable();
+    Tagged<NameToIndexHashTable> table = context_local_names_hashtable();
     Tagged<Object> name = table->KeyAt(entry);
     DCHECK(IsString(name));
     return std::make_pair(String::cast(name), table->IndexAt(entry));

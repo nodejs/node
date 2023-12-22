@@ -89,6 +89,8 @@ const char* ToString(SnapshotSpace space) {
       return "Old";
     case SnapshotSpace::kCode:
       return "Code";
+    case SnapshotSpace::kTrusted:
+      return "Trusted";
   }
 }
 
@@ -156,7 +158,7 @@ void Serializer::SerializeObject(Handle<HeapObject> obj, SlotType slot_type) {
   if (IsThinString(*obj, isolate())) {
     obj = handle(ThinString::cast(*obj)->actual(isolate()), isolate());
   } else if (IsCode(*obj, isolate())) {
-    Code code = Code::cast(*obj);
+    Tagged<Code> code = Code::cast(*obj);
     if (code->kind() == CodeKind::BASELINE) {
       // For now just serialize the BytecodeArray instead of baseline code.
       // TODO(v8:11429,pthier): Handle Baseline code in cases we want to
@@ -177,7 +179,7 @@ void Serializer::VisitRootPointers(Root root, const char* description,
 }
 
 void Serializer::SerializeRootObject(FullObjectSlot slot) {
-  Object o = *slot;
+  Tagged<Object> o = *slot;
   if (IsSmi(o)) {
     PutSmiRoot(slot);
   } else {
@@ -553,13 +555,14 @@ uint32_t Serializer::ObjectSerializer::SerializeBackingStore(
 void Serializer::ObjectSerializer::SerializeJSTypedArray() {
   {
     DisallowGarbageCollection no_gc;
-    JSTypedArray typed_array = JSTypedArray::cast(*object_);
+    Tagged<JSTypedArray> typed_array = JSTypedArray::cast(*object_);
     if (typed_array->is_on_heap()) {
       typed_array->RemoveExternalPointerCompensationForSerialization(isolate());
     } else {
       if (!typed_array->IsDetachedOrOutOfBounds()) {
         // Explicitly serialize the backing store now.
-        JSArrayBuffer buffer = JSArrayBuffer::cast(typed_array->buffer());
+        Tagged<JSArrayBuffer> buffer =
+            JSArrayBuffer::cast(typed_array->buffer());
         // We cannot store byte_length or max_byte_length larger than uint32
         // range in the snapshot.
         size_t byte_length_size = buffer->GetByteLength();
@@ -596,7 +599,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   void* backing_store;
   {
     DisallowGarbageCollection no_gc;
-    JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
+    Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(*object_);
     backing_store = buffer->backing_store();
     // We cannot store byte_length or max_byte_length larger than uint32 range
     // in the snapshot.
@@ -624,7 +627,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
   }
   SerializeObject();
   {
-    JSArrayBuffer buffer = JSArrayBuffer::cast(*object_);
+    Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(*object_);
     buffer->set_backing_store(isolate(), backing_store);
     buffer->set_extension(extension);
   }
@@ -738,7 +741,7 @@ class V8_NODISCARD UnlinkWeakNextScope {
 
  private:
   Tagged<HeapObject> object_;
-  Object next_ = Smi::zero();
+  Tagged<Object> next_ = Smi::zero();
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
@@ -850,6 +853,9 @@ SnapshotSpace GetSnapshotSpace(Tagged<HeapObject> object) {
         return SnapshotSpace::kOld;
       case CODE_SPACE:
         return SnapshotSpace::kCode;
+      case TRUSTED_SPACE:
+      case TRUSTED_LO_SPACE:
+        return SnapshotSpace::kTrusted;
       case CODE_LO_SPACE:
       case RO_SPACE:
         UNREACHABLE();
@@ -1076,7 +1082,7 @@ void Serializer::ObjectSerializer::OutputExternalReference(
 }
 
 void Serializer::ObjectSerializer::VisitExternalPointer(
-    Tagged<HeapObject> host, ExternalPointerSlot slot, ExternalPointerTag tag) {
+    Tagged<HeapObject> host, ExternalPointerSlot slot) {
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object_->map(cage_base)->instance_type();
   if (InstanceTypeChecker::IsForeign(instance_type) ||
@@ -1085,10 +1091,10 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
       InstanceTypeChecker::IsCallHandlerInfo(instance_type)) {
     // Output raw data payload, if any.
     OutputRawData(slot.address());
-    Address value = slot.load(isolate(), tag);
+    Address value = slot.load(isolate());
     const bool sandboxify =
-        V8_ENABLE_SANDBOX_BOOL && tag != kExternalPointerNullTag;
-    OutputExternalReference(value, kSystemPointerSize, sandboxify, tag);
+        V8_ENABLE_SANDBOX_BOOL && slot.tag() != kExternalPointerNullTag;
+    OutputExternalReference(value, kSystemPointerSize, sandboxify, slot.tag());
     bytes_processed_so_far_ += kExternalPointerSlotSize;
 
   } else {
@@ -1115,11 +1121,12 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
 void Serializer::ObjectSerializer::VisitIndirectPointer(
     Tagged<HeapObject> host, IndirectPointerSlot slot,
     IndirectPointerMode mode) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
 
   // The slot must be properly initialized at this point, so will always contain
   // a reference to a HeapObject.
-  Handle<HeapObject> slot_value(HeapObject::cast(slot.load()), isolate());
+  Handle<HeapObject> slot_value(HeapObject::cast(slot.load(isolate())),
+                                isolate());
   CHECK(IsHeapObject(*slot_value));
   bytes_processed_so_far_ += kIndirectPointerSlotSize;
 
@@ -1128,7 +1135,7 @@ void Serializer::ObjectSerializer::VisitIndirectPointer(
   // we cannot see pending objects here. However, we'll need to handle pending
   // objects here and in the deserializer once we reference other types of
   // objects through indirect pointers.
-  static_assert(kAllIndirectPointerObjectsAreCode);
+  CHECK_EQ(slot.tag(), kCodeIndirectPointerTag);
   DCHECK(IsJSFunction(host) && IsCode(*slot_value));
   DCHECK(!serializer_->SerializePendingObject(*slot_value));
   sink_->Put(kIndirectPointerPrefix, "IndirectPointer");
@@ -1203,23 +1210,23 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
                                sizeof(field_value),
                                reinterpret_cast<const uint8_t*>(&field_value));
     } else if (IsCode(*object_, cage_base)) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-      // When the sandbox is enabled, this field instead contains the handle to
-      // this Code object's code pointer table entry. This will similarly be
-      // recomputed after deserialization.
+#ifdef V8_ENABLE_SANDBOX
+      // When the sandbox is enabled, this field contains the handle to this
+      // Code object's code pointer table entry. This will be recomputed after
+      // deserialization.
       static uint8_t field_value[kIndirectPointerSlotSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
-                               Code::kCodePointerTableEntryOffset,
+                               Code::kSelfIndirectPointerOffset,
                                sizeof(field_value), field_value);
 #else
-      // instruction_start field contains a raw value that will be recomputed
-      // after deserialization, so write zeros to keep the snapshot
-      // deterministic.
+      // In this case, instruction_start field contains a raw value that will
+      // similarly be recomputed after deserialization, so write zeros to keep
+      // the snapshot deterministic.
       static uint8_t field_value[kSystemPointerSize] = {0};
       OutputRawWithCustomField(sink_, object_start, base, bytes_to_output,
                                Code::kInstructionStartOffset,
                                sizeof(field_value), field_value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
     } else if (IsSeqString(*object_)) {
       // SeqStrings may contain padding. Serialize the padding bytes as 0s to
       // make the snapshot content deterministic.
@@ -1252,7 +1259,7 @@ Handle<FixedArray> ObjectCacheIndexMap::Values(Isolate* isolate) {
   }
   Handle<FixedArray> externals = isolate->factory()->NewFixedArray(size());
   DisallowGarbageCollection no_gc;
-  FixedArray raw = *externals;
+  Tagged<FixedArray> raw = *externals;
   IdentityMap<int, base::DefaultAllocationPolicy>::IteratableScope it_scope(
       &map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {

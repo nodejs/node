@@ -75,7 +75,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 
   // It is invoked from generated code and has to take raw addresses.
   static int MarkingFromCode(Address raw_host, Address raw_slot);
-  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot);
+  static int IndirectPointerMarkingFromCode(Address raw_host, Address raw_slot,
+                                            Address raw_tag);
   static int SharedMarkingFromCode(Address raw_host, Address raw_slot);
   static int SharedFromCode(Address raw_host, Address raw_slot);
 

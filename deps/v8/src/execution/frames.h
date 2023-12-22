@@ -700,7 +700,8 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
              int index) const override;
 
   // Return a list with {SharedFunctionInfo} objects of this frame.
-  virtual void GetFunctions(std::vector<SharedFunctionInfo>* functions) const;
+  virtual void GetFunctions(
+      std::vector<Tagged<SharedFunctionInfo>>* functions) const;
 
   void GetFunctions(std::vector<Handle<SharedFunctionInfo>>* functions) const;
 
@@ -942,7 +943,8 @@ class OptimizedFrame : public JavaScriptFrame {
   // Return a list with {SharedFunctionInfo} objects of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(std::vector<SharedFunctionInfo>* functions) const override;
+  void GetFunctions(
+      std::vector<Tagged<SharedFunctionInfo>>* functions) const override;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
@@ -981,6 +983,8 @@ class UnoptimizedFrame : public JavaScriptFrame {
 
   // Access to the interpreter register file for this frame.
   Tagged<Object> ReadInterpreterRegister(int register_index) const;
+
+  inline void SetFeedbackVector(Tagged<FeedbackVector> feedback_vector);
 
   // Build a list with summaries for this frame including all inlined frames.
   void Summarize(std::vector<FrameSummary>* frames) const override;

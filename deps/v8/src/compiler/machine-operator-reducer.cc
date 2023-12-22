@@ -987,8 +987,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kBranch:
     case IrOpcode::kDeoptimizeIf:
     case IrOpcode::kDeoptimizeUnless:
+#if V8_ENABLE_WEBASSEMBLY
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:
+#endif
       return ReduceConditional(node);
     case IrOpcode::kInt64LessThan: {
       Int64BinopMatcher m(node);
@@ -2887,6 +2889,7 @@ Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
         case IrOpcode::kBranch:
           SwapBranches(node);
           break;
+#if V8_ENABLE_WEBASSEMBLY
         case IrOpcode::kTrapIf: {
           const bool has_frame_state = node->op()->ValueInputCount() > 1;
           NodeProperties::ChangeOp(
@@ -2900,6 +2903,7 @@ Reduction MachineOperatorReducer::SimplifyBranch(Node* node) {
               node, common()->TrapIf(TrapIdOf(node->op()), has_frame_state));
           break;
         }
+#endif  // V8_ENABLE_WEBASSEMBLY
         case IrOpcode::kDeoptimizeIf: {
           DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
           NodeProperties::ChangeOp(

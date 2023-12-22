@@ -324,10 +324,8 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
           isolate->factory()->true_value());
     } else {
       const size_t byte_length = js_array_buffer->byte_length();
-      // TODO(v8:4153): Remove this code once the maximum lengths are equal (and
-      // add a static assertion that it stays that way).
-      static_assert(JSTypedArray::kMaxLength < JSArrayBuffer::kMaxByteLength);
-      CHECK_LE(byte_length, JSArrayBuffer::kMaxByteLength);
+      static_assert(JSTypedArray::kMaxByteLength ==
+                    JSArrayBuffer::kMaxByteLength);
       using DataView = std::tuple<const char*, ExternalArrayType, size_t>;
       for (auto [name, type, elem_size] :
            {DataView{"[[Int8Array]]", kExternalInt8Array, 1},
@@ -336,7 +334,6 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
             DataView{"[[Int32Array]]", kExternalInt32Array, 4}}) {
         if ((byte_length % elem_size) != 0) continue;
         size_t length = byte_length / elem_size;
-        if (length > JSTypedArray::kMaxLength) continue;
         result =
             ArrayList::Add(isolate, result,
                            isolate->factory()->NewStringFromAsciiChecked(name),

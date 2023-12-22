@@ -469,7 +469,7 @@ WasmEngine::~WasmEngine() {
   DCHECK(native_module_cache_.empty());
 }
 
-bool WasmEngine::SyncValidate(Isolate* isolate, const WasmFeatures& enabled,
+bool WasmEngine::SyncValidate(Isolate* isolate, WasmFeatures enabled,
                               ModuleWireBytes bytes) {
   TRACE_EVENT0("v8.wasm", "wasm.SyncValidate");
   if (bytes.length() == 0) return false;
@@ -531,9 +531,10 @@ Handle<WasmModuleObject> WasmEngine::FinalizeTranslatedAsmJs(
   return module_object;
 }
 
-MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(
-    Isolate* isolate, const WasmFeatures& enabled, ErrorThrower* thrower,
-    ModuleWireBytes bytes) {
+MaybeHandle<WasmModuleObject> WasmEngine::SyncCompile(Isolate* isolate,
+                                                      WasmFeatures enabled,
+                                                      ErrorThrower* thrower,
+                                                      ModuleWireBytes bytes) {
   int compilation_id = next_compilation_id_.fetch_add(1);
   TRACE_EVENT1("v8.wasm", "wasm.SyncCompile", "id", compilation_id);
   v8::metrics::Recorder::ContextId context_id =
@@ -637,7 +638,7 @@ void WasmEngine::AsyncInstantiate(
 }
 
 void WasmEngine::AsyncCompile(
-    Isolate* isolate, const WasmFeatures& enabled,
+    Isolate* isolate, WasmFeatures enabled,
     std::shared_ptr<CompilationResultResolver> resolver, ModuleWireBytes bytes,
     bool is_shared, const char* api_method_name_for_errors) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -706,7 +707,7 @@ void WasmEngine::AsyncCompile(
 }
 
 std::shared_ptr<StreamingDecoder> WasmEngine::StartStreamingCompilation(
-    Isolate* isolate, const WasmFeatures& enabled, Handle<Context> context,
+    Isolate* isolate, WasmFeatures enabled, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver) {
   int compilation_id = next_compilation_id_.fetch_add(1);
@@ -967,7 +968,7 @@ CodeTracer* WasmEngine::GetCodeTracer() {
 }
 
 AsyncCompileJob* WasmEngine::CreateAsyncCompileJob(
-    Isolate* isolate, const WasmFeatures& enabled,
+    Isolate* isolate, WasmFeatures enabled,
     base::OwnedVector<const uint8_t> bytes, Handle<Context> context,
     const char* api_method_name,
     std::shared_ptr<CompilationResultResolver> resolver, int compilation_id) {
@@ -1277,7 +1278,7 @@ void WasmEngine::LogOutstandingCodesForIsolate(Isolate* isolate) {
 }
 
 std::shared_ptr<NativeModule> WasmEngine::NewNativeModule(
-    Isolate* isolate, const WasmFeatures& enabled,
+    Isolate* isolate, WasmFeatures enabled,
     std::shared_ptr<const WasmModule> module, size_t code_size_estimate) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.NewNativeModule");
@@ -1346,11 +1347,14 @@ std::shared_ptr<NativeModule> WasmEngine::MaybeGetNativeModule(
       native_module_info = std::make_unique<NativeModuleInfo>(native_module);
     }
     native_module_info->isolates.insert(isolate);
-    isolates_[isolate]->native_modules.insert(native_module.get());
-    if (isolates_[isolate]->keep_in_debug_state &&
-        !native_module->IsInDebugState()) {
+    auto* isolate_data = isolates_[isolate].get();
+    isolate_data->native_modules.insert(native_module.get());
+    if (isolate_data->keep_in_debug_state && !native_module->IsInDebugState()) {
       remove_all_code = true;
       native_module->SetDebugState(kDebugging);
+    }
+    if (isolate_data->log_codes && !native_module->log_code()) {
+      native_module->EnableCodeLogging();
     }
   }
   if (remove_all_code) {
@@ -1375,11 +1379,14 @@ std::shared_ptr<NativeModule> WasmEngine::UpdateNativeModuleCache(
     DCHECK_EQ(1, native_modules_.count(native_module.get()));
     native_modules_[native_module.get()]->isolates.insert(isolate);
     DCHECK_EQ(1, isolates_.count(isolate));
-    isolates_[isolate]->native_modules.insert(native_module.get());
-    if (isolates_[isolate]->keep_in_debug_state &&
-        !native_module->IsInDebugState()) {
+    auto* isolate_data = isolates_[isolate].get();
+    isolate_data->native_modules.insert(native_module.get());
+    if (isolate_data->keep_in_debug_state && !native_module->IsInDebugState()) {
       remove_all_code = true;
       native_module->SetDebugState(kDebugging);
+    }
+    if (isolate_data->log_codes && !native_module->log_code()) {
+      native_module->EnableCodeLogging();
     }
   }
   if (remove_all_code) {

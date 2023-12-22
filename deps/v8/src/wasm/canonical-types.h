@@ -30,7 +30,11 @@ namespace wasm {
 //   rec. group.
 class TypeCanonicalizer {
  public:
-  TypeCanonicalizer() = default;
+  static constexpr uint32_t kPredefinedArrayI8Index = 0;
+  static constexpr uint32_t kPredefinedArrayI16Index = 1;
+  static constexpr uint32_t kNumberOfPredefinedTypes = 2;
+
+  TypeCanonicalizer();
 
   // Singleton class; no copying or moving allowed.
   TypeCanonicalizer(const TypeCanonicalizer& other) = delete;
@@ -115,6 +119,8 @@ class TypeCanonicalizer {
 
     std::vector<CanonicalType> types;
   };
+
+  void AddPredefinedArrayType(uint32_t index, ValueType element_type);
 
   int FindCanonicalGroup(CanonicalGroup&) const;
 

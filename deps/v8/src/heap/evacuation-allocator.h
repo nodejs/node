@@ -31,20 +31,7 @@ class EvacuationAllocator {
 
   // Needs to be called from the main thread to finalize this
   // EvacuationAllocator.
-  void Finalize() {
-    heap_->old_space()->MergeCompactionSpace(compaction_spaces_.Get(OLD_SPACE));
-    heap_->code_space()->MergeCompactionSpace(
-        compaction_spaces_.Get(CODE_SPACE));
-    if (heap_->shared_space()) {
-      heap_->shared_space()->MergeCompactionSpace(
-          compaction_spaces_.Get(SHARED_SPACE));
-    }
-
-    // Give back remaining LAB space if this EvacuationAllocator's new space LAB
-    // sits right next to new space allocation top.
-    const LinearAllocationArea info = new_space_lab_.CloseAndMakeIterable();
-    if (new_space_) new_space_->MaybeFreeUnusedLab(info);
-  }
+  void Finalize();
 
   inline AllocationResult Allocate(AllocationSpace space, int object_size,
                                    AllocationOrigin origin,

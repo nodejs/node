@@ -407,7 +407,43 @@ class MaglevGraphBuilder {
   }
 
  private:
-  class MaglevSubGraphBuilder;
+  // Helper class for building a subgraph with its own control flow, that is not
+  // attached to any bytecode.
+  //
+  // It does this by creating a fake dummy compilation unit and frame state, and
+  // wrapping up all the places where it pretends to be interpreted but isn't.
+  class MaglevSubGraphBuilder {
+   public:
+    class Variable;
+    class Label;
+    class LoopLabel;
+
+    MaglevSubGraphBuilder(MaglevGraphBuilder* builder, int variable_count);
+    LoopLabel BeginLoop(std::initializer_list<Variable*> loop_vars);
+    template <typename ControlNodeT, typename... Args>
+    void GotoIfTrue(Label* true_target,
+                    std::initializer_list<ValueNode*> control_inputs,
+                    Args&&... args);
+    template <typename ControlNodeT, typename... Args>
+    void GotoIfFalse(Label* false_target,
+                     std::initializer_list<ValueNode*> control_inputs,
+                     Args&&... args);
+    void Goto(Label* label);
+    void EndLoop(LoopLabel* loop_label);
+    void Bind(Label* label);
+    void set(Variable& var, ValueNode* value);
+    ValueNode* get(const Variable& var) const;
+
+   private:
+    class BorrowParentKnownNodeAspects;
+    void TakeKnownNodeAspectsFromParent();
+    void MoveKnownNodeAspectsToParent();
+    void MergeIntoLabel(Label* label, BasicBlock* predecessor);
+
+    MaglevGraphBuilder* builder_;
+    MaglevCompilationUnit* compilation_unit_;
+    InterpreterFrameState pseudo_frame_;
+  };
 
   // TODO(olivf): Currently identifying dead code relies on the fact that loops
   // must be entered through the loop header by at least one of the
@@ -823,9 +859,9 @@ class MaglevGraphBuilder {
   void AttachLazyDeoptInfo(NodeT* node) {
     if constexpr (NodeT::kProperties.can_lazy_deopt()) {
       auto [register_result, register_count] = GetResultLocationAndSize();
-      new (node->lazy_deopt_info())
-          LazyDeoptInfo(zone(), GetDeoptFrameForLazyDeopt(), register_result,
-                        register_count, current_speculation_feedback_);
+      new (node->lazy_deopt_info()) LazyDeoptInfo(
+          zone(), GetDeoptFrameForLazyDeopt(register_result, register_count),
+          register_result, register_count, current_speculation_feedback_);
     }
   }
 
@@ -919,6 +955,22 @@ class MaglevGraphBuilder {
     return call_builtin;
   }
 
+  CallCPPBuiltin* BuildCallCPPBuiltin(
+      Builtin builtin, ValueNode* target, ValueNode* new_target,
+      std::initializer_list<ValueNode*> inputs) {
+    DCHECK(Builtins::IsCpp(builtin));
+    const size_t input_count = inputs.size() + CallCPPBuiltin::kFixedInputCount;
+    return AddNewNode<CallCPPBuiltin>(
+        input_count,
+        [&](CallCPPBuiltin* call_builtin) {
+          int arg_index = 0;
+          for (auto* input : inputs) {
+            call_builtin->set_arg(arg_index++, input);
+          }
+        },
+        builtin, target, new_target, GetContext());
+  }
+
   void BuildLoadGlobal(compiler::NameRef name,
                        compiler::FeedbackSource& feedback_source,
                        TypeofMode typeof_mode);
@@ -990,8 +1042,7 @@ class MaglevGraphBuilder {
     return iterator_.GetFlag16Operand(operand_index);
   }
 
-  template <class T, typename = std::enable_if_t<
-                         std::is_convertible<T*, Object*>::value>>
+  template <class T, typename = std::enable_if_t<is_taggable_v<T>>>
   typename compiler::ref_traits<T>::ref_type GetRefOperand(int operand_index) {
     // The BytecodeArray itself was fetched by using a barrier so all reads
     // from the constant pool are safe.
@@ -1345,9 +1396,11 @@ class MaglevGraphBuilder {
 #endif
 
   DeoptFrame* GetParentDeoptFrame();
-  DeoptFrame GetDeoptFrameForLazyDeopt();
-  DeoptFrame GetDeoptFrameForLazyDeoptHelper(DeoptFrameScope* scope,
-                                             bool mark_accumulator_dead);
+  DeoptFrame GetDeoptFrameForLazyDeopt(interpreter::Register result_location,
+                                       int result_size);
+  DeoptFrame GetDeoptFrameForLazyDeoptHelper(
+      interpreter::Register result_location, int result_size,
+      DeoptFrameScope* scope, bool mark_accumulator_dead);
   InterpretedDeoptFrame GetDeoptFrameForEntryStackCheck();
 
   template <typename NodeT>
@@ -1558,6 +1611,7 @@ class MaglevGraphBuilder {
   V(MathFloor)                     \
   V(MathPow)                       \
   V(ArrayPrototypePush)            \
+  V(ArrayPrototypePop)             \
   V(MathRound)                     \
   V(StringConstructor)             \
   V(StringFromCharCode)            \
@@ -1571,6 +1625,15 @@ class MaglevGraphBuilder {
                                CallArguments& args);
   MAGLEV_REDUCED_BUILTIN(DEFINE_BUILTIN_REDUCER)
 #undef DEFINE_BUILTIN_REDUCER
+
+  template <typename MapKindsT, typename IndexToElementsKindFunc,
+            typename BuildKindSpecificFunc>
+  void BuildJSArrayBuiltinMapSwitchOnElementsKind(
+      ValueNode* receiver, const MapKindsT& map_kinds,
+      MaglevSubGraphBuilder& sub_graph,
+      base::Optional<MaglevSubGraphBuilder::Label>& do_return,
+      int unique_kind_count, IndexToElementsKindFunc&& index_to_elements_kind,
+      BuildKindSpecificFunc&& build_kind_specific);
 
   ReduceResult DoTryReduceMathRound(CallArguments& args,
                                     Float64Round::Kind kind);

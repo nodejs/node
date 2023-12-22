@@ -1628,7 +1628,7 @@ void PopArgs(const i::wasm::FunctionSig* sig, Val results[],
       case i::wasm::kRefNull: {
         // TODO(14034): Make sure this works for all heap types.
         i::Address raw = packer->Pop<i::Address>();
-        i::Handle<i::Object> obj(i::Object(raw), store->i_isolate());
+        i::Handle<i::Object> obj(i::Tagged<i::Object>(raw), store->i_isolate());
         results[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }
@@ -1748,7 +1748,8 @@ auto Func::call(const Val args[], Val results[]) const -> own<Trap> {
 i::Address FuncData::v8_callback(i::Address host_data_foreign,
                                  i::Address argv) {
   FuncData* self =
-      i::Managed<FuncData>::cast(i::Object(host_data_foreign))->raw();
+      i::Managed<FuncData>::cast(i::Tagged<i::Object>(host_data_foreign))
+          ->raw();
   StoreImpl* store = impl(self->store);
   i::Isolate* isolate = store->i_isolate();
   v8::Isolate::Scope isolate_scope(store->isolate());
@@ -1787,7 +1788,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
       case FUNCREF: {
         i::Address raw = v8::base::ReadUnalignedValue<i::Address>(p);
         p += sizeof(raw);
-        i::Handle<i::Object> obj(i::Object(raw), isolate);
+        i::Handle<i::Object> obj(i::Tagged<i::Object>(raw), isolate);
         params[i] = Val(V8RefValueToWasm(store, obj));
         break;
       }

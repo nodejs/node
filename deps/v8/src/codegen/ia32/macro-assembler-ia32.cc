@@ -484,7 +484,8 @@ void MacroAssembler::CallRecordWriteStub(Register object, Register slot_address,
 #if V8_ENABLE_WEBASSEMBLY
   if (mode == StubCallMode::kCallWasmRuntimeStub) {
     // Use {wasm_call} for direct Wasm call within a module.
-    auto wasm_target = wasm::WasmCode::GetRecordWriteStub(fp_mode);
+    auto wasm_target =
+        static_cast<Address>(wasm::WasmCode::GetRecordWriteBuiltin(fp_mode));
     wasm_call(wasm_target, RelocInfo::WASM_STUB_CALL);
 #else
   if (false) {
@@ -684,6 +685,27 @@ void MacroAssembler::LoadMap(Register destination, Register object) {
   mov(destination, FieldOperand(object, HeapObject::kMapOffset));
 }
 
+void MacroAssembler::LoadFeedbackVector(Register dst, Register closure,
+                                        Register scratch, Label* fbv_undef,
+                                        Label::Distance distance) {
+  Label done;
+
+  // Load the feedback vector from the closure.
+  mov(dst, FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  mov(dst, FieldOperand(dst, FeedbackCell::kValueOffset));
+
+  // Check if feedback vector is valid.
+  mov(scratch, FieldOperand(dst, HeapObject::kMapOffset));
+  CmpInstanceType(scratch, FEEDBACK_VECTOR_TYPE);
+  j(equal, &done, Label::kNear);
+
+  // Not valid, load undefined.
+  LoadRoot(dst, RootIndex::kUndefinedValue);
+  jmp(fbv_undef, distance);
+
+  bind(&done);
+}
+
 void MacroAssembler::CmpObjectType(Register heap_object, InstanceType type,
                                    Register map) {
   ASM_CODE_COMMENT(this);
@@ -767,6 +789,12 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
 }  // namespace
 
 #ifdef V8_ENABLE_DEBUG_CODE
+void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
+  if (v8_flags.debug_code) {
+    CmpObjectType(object, FEEDBACK_CELL_TYPE, scratch);
+    Assert(equal, AbortReason::kExpectedFeedbackCell);
+  }
+}
 void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
     CmpObjectType(object, FEEDBACK_VECTOR_TYPE, scratch);

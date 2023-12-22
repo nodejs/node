@@ -1683,7 +1683,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases], done, dispatch;
-  Object obj;
+  Tagged<Object> obj;
   int32_t imm32;
 
   auto fn = [&labels, &done, &dispatch, values, &obj,
@@ -1726,7 +1726,8 @@ TEST(jump_tables3) {
 
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
-        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+        Tagged<Object>(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))),
+        isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
     Print(*result, std::cout);

@@ -24,7 +24,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
   ContextSerializer& operator=(const ContextSerializer&) = delete;
 
   // Serialize the objects reachable from a single object pointer.
-  void Serialize(Context* o, const DisallowGarbageCollection& no_gc);
+  void Serialize(Tagged<Context>* o, const DisallowGarbageCollection& no_gc);
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
 
@@ -40,7 +40,7 @@ class V8_EXPORT_PRIVATE ContextSerializer : public Serializer {
   // Indicates whether we only serialized hash tables that we can rehash.
   // TODO(yangguo): generalize rehashing, and remove this flag.
   bool can_be_rehashed_;
-  Context context_;
+  Tagged<Context> context_;
 
   // Used to store serialized data for embedder fields.
   SnapshotByteSink embedder_fields_sink_;

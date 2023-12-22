@@ -484,65 +484,74 @@ PER_ISOLATE_EXTERNAL_POINTER_TAGS(CHECK_NON_SHARED_EXTERNAL_POINTER_TAGS)
 // Indirect Pointers.
 //
 // When the sandbox is enabled, indirect pointers are used to reference
-// HeapObjects that live outside of the sandbox (but are still managed through
-// the GC). When object A references an object B through an indirect pointer,
-// object A will contain a IndirectPointerHandle, i.e. a shifted 32-bit index,
-// which identifies an entry in a pointer table (such as the CodePointerTable).
+// HeapObjects that live outside of the sandbox (but are still managed by V8's
+// garbage collector). When object A references an object B through an indirect
+// pointer, object A will contain a IndirectPointerHandle, i.e. a shifted
+// 32-bit index, which identifies an entry in a pointer table (generally an
+// indirect pointer table, or the code pointer table if it is a Code object).
 // This table entry then contains the actual pointer to object B. Further,
 // object B owns this pointer table entry, and it is responsible for updating
 // the "self-pointer" in the entry when it is relocated in memory. This way, in
 // contrast to "normal" pointers, indirect pointers never need to be tracked by
 // the GC (i.e. there is no remembered set for them).
-// Currently there is only one type of object referenced through indirect
-// pointers (Code objects), but once there are different types of such objects,
-// the pointer table entry would probably also contain the type of the target
-// object (e.g. by XORing the instance type into the top bits of the pointer).
 
 // An IndirectPointerHandle represents a 32-bit index into a pointer table.
 using IndirectPointerHandle = uint32_t;
 
+// The size of the virtual memory reservation for the indirect pointer table.
+// As with the external pointer table, a maximum table size in combination with
+// shifted indices allows omitting bounds checks.
+constexpr size_t kIndirectPointerTableReservationSize = 8 * MB;
+
 // The indirect pointer handles are stores shifted to the left by this amount
 // to guarantee that they are smaller than the maximum table size.
-constexpr uint32_t kIndirectPointerHandleShift = 6;
+constexpr uint32_t kIndirectPointerHandleShift = 12;
 
 // A null handle always references an entry that contains nullptr.
 constexpr IndirectPointerHandle kNullIndirectPointerHandle = 0;
 
-// Currently only Code objects can be referenced through indirect pointers and
-// various places rely on that assumption. They will all static_assert against
-// this constant to make them easy to find and fix once we reference other types
-// of objects indirectly.
-constexpr bool kAllIndirectPointerObjectsAreCode = true;
+// The maximum number of entries in an indirect pointer table.
+constexpr int kIndirectPointerTableEntrySize = 8;
+constexpr int kIndirectPointerTableEntrySizeLog2 = 3;
+constexpr size_t kMaxIndirectPointers =
+    kIndirectPointerTableReservationSize / kIndirectPointerTableEntrySize;
+static_assert((1 << (32 - kIndirectPointerHandleShift)) == kMaxIndirectPointers,
+              "kIndirectPointerTableReservationSize and "
+              "kIndirectPointerHandleShift don't match");
 
 //
 // Code Pointers.
 //
 // When the sandbox is enabled, Code objects are referenced from inside the
 // sandbox through indirect pointers that reference entries in the code pointer
-// table (CPT). Each entry in the CPT contains both a pointer to a Code object
-// as well as a pointer to the Code's entrypoint. This allows calling/jumping
-// into Code with one fewer memory access (compared to the case where the
-// entrypoint pointer needs to be loaded from the Code object).
-// As such, a CodePointerHandle can be used both to obtain the referenced Code
-// object and to directly load its entrypoint pointer.
+// table (CPT) instead of the indirect pointer table (IPT). Each entry in the
+// CPT contains both a pointer to a Code object as well as a pointer to the
+// Code's entrypoint. This allows calling/jumping into Code with one fewer
+// memory access (compared to the case where the entrypoint pointer needs to be
+// loaded from the Code object). As such, a CodePointerHandle can be used both
+// to obtain the referenced Code object and to directly load its entrypoint
+// pointer.
 using CodePointerHandle = IndirectPointerHandle;
-constexpr uint32_t kCodePointerHandleShift = kIndirectPointerHandleShift;
-constexpr CodePointerHandle kNullCodePointerHandle = 0;
 
-// The size of the virtual memory reservation for code pointer table.
-// This determines the maximum number of entries in a table. Using a maximum
-// size allows omitting bounds checks on table accesses if the indices are
-// guaranteed (e.g. through shifting) to be below the maximum index. This
-// value must be a power of two.
+// The size of the virtual memory reservation for the code pointer table.
+// As with the other tables, a maximum table size in combination with shifted
+// indices allows omitting bounds checks.
 constexpr size_t kCodePointerTableReservationSize = 1 * GB;
 
-// The maximum number of entries in an external pointer table.
+// Code pointer handles are shifted by a different amount than indirect pointer
+// handles as the tables have a different maximum size.
+constexpr uint32_t kCodePointerHandleShift = 6;
+
+// A null handle always references an entry that contains nullptr.
+constexpr CodePointerHandle kNullCodePointerHandle = 0;
+
+// The maximum number of entries in a code pointer table.
 constexpr int kCodePointerTableEntrySize = 16;
 constexpr int kCodePointerTableEntrySizeLog2 = 4;
 constexpr size_t kMaxCodePointers =
     kCodePointerTableReservationSize / kCodePointerTableEntrySize;
 static_assert(
-    (1 << (32 - kIndirectPointerHandleShift)) == kMaxCodePointers,
+    (1 << (32 - kCodePointerHandleShift)) == kMaxCodePointers,
     "kCodePointerTableReservationSize and kCodePointerHandleShift don't match");
 
 constexpr int kCodePointerTableEntryEntrypointOffset = 0;
@@ -602,9 +611,11 @@ class Internals {
   static const int kHandleScopeDataSize =
       2 * kApiSystemPointerSize + 2 * kApiInt32Size;
 
-  // ExternalPointerTable layout guarantees.
+  // ExternalPointerTable and IndirectPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
   static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kIndirectPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kIndirectPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
   static const int kIsolateCageBaseOffset = 0;
@@ -639,8 +650,10 @@ class Internals {
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
   static const int kIsolateSharedExternalPointerTableAddressOffset =
       kIsolateExternalPointerTableOffset + kExternalPointerTableSize;
-  static const int kIsolateApiCallbackThunkArgumentOffset =
+  static const int kIsolateIndirectPointerTableOffset =
       kIsolateSharedExternalPointerTableAddressOffset + kApiSystemPointerSize;
+  static const int kIsolateApiCallbackThunkArgumentOffset =
+      kIsolateIndirectPointerTableOffset + kIndirectPointerTableSize;
 #else
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
@@ -761,6 +774,15 @@ class Internals {
     map = UnpackMapWord(map);
 #endif
     return ReadRawField<uint16_t>(map, kMapInstanceTypeOffset);
+  }
+
+  V8_INLINE static Address LoadMap(Address obj) {
+    if (!HasHeapObjectTag(obj)) return kNullAddress;
+    Address map = ReadTaggedPointerField(obj, kHeapObjectMapOffset);
+#ifdef V8_MAP_PACKING
+    map = UnpackMapWord(map);
+#endif
+    return map;
   }
 
   V8_INLINE static int GetOddballKind(Address obj) {

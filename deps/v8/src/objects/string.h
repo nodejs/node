@@ -699,7 +699,7 @@ class SubStringRange {
   inline iterator end();
 
  private:
-  String string_;
+  Tagged<String> string_;
   int first_;
   int length_;
   const DisallowGarbageCollection& no_gc_;
@@ -1106,7 +1106,7 @@ class ConsStringIterator {
   // a non-zero offset.
   inline Tagged<String> Next(int* offset_out) {
     *offset_out = 0;
-    if (depth_ == 0) return String();
+    if (depth_ == 0) return Tagged<String>();
     return Continue(offset_out);
   }
 
@@ -1130,8 +1130,8 @@ class ConsStringIterator {
 
   // Stack must always contain only frames for which right traversal
   // has not yet been performed.
-  ConsString frames_[kStackSize];
-  ConsString root_;
+  Tagged<ConsString> frames_[kStackSize];
+  Tagged<ConsString> root_;
   int depth_;
   int maximum_depth_;
   int consumed_;

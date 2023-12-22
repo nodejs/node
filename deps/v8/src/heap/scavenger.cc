@@ -463,7 +463,7 @@ void ScavengerCollector::CollectGarbage() {
   ProcessWeakReferences(&ephemeron_table_list);
 
   // Set age mark.
-  semi_space_new_space->set_age_mark(semi_space_new_space->top());
+  semi_space_new_space->set_age_mark(heap_->NewSpaceTop());
 
   // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.

@@ -84,7 +84,7 @@ class ReadOnlyHeap {
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
 #endif
 
@@ -123,11 +123,11 @@ class ReadOnlyHeap {
   bool roots_init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The read-only heap has its own code pointer space. Entries in this space
   // are never deallocated.
   CodePointerTable::Space code_pointer_space_;
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   // Returns whether shared memory can be allocated and then remapped to
   // additional addresses.

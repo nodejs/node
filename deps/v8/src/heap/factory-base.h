@@ -146,7 +146,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<FixedArray> NewFixedArrayWithHoles(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocate a new fixed array with Smi(0) entries.
+  // Allocate a new fixed array with Tagged<Smi>(0) entries.
   Handle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 
@@ -207,6 +207,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       Handle<PrimitiveHeapObject> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
+  Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(
+      int length, Handle<Context> context, Handle<FixedArray> arguments,
+      AllocationType allocation = AllocationType::kYoung);
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
 

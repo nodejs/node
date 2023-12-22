@@ -272,7 +272,7 @@ class ConsStringGenerationData {
   int max_leaves_;
   // Cached data.
   Handle<String> building_blocks_[kNumberOfBuildingBlocks];
-  String empty_string_;
+  Tagged<String> empty_string_;
   MyRandomNumberGenerator rng_;
   // Stats.
   ConsStringStats stats_;

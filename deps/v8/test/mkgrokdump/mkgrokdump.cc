@@ -163,8 +163,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::PrintF(out, "\n# List of known V8 objects.\n");
       i::PrintF(out, "KNOWN_OBJECTS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
-      for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
-           object = ro_iterator.Next()) {
+      for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
+           !object.is_null(); object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
         if (IsMap(object)) continue;
         DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
@@ -176,7 +176,8 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE) continue;
         const char* sname = i::ToString(s->identity());
-        for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+        for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null();
+             o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);
         }
       }
@@ -198,6 +199,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::PagedSpace* s = it.Next(); s != nullptr; s = it.Next()) {
         // Code page is different on Windows vs Linux (bug v8:9844), so skip it.
         if (s->identity() == i::CODE_SPACE) {
+          continue;
+        }
+        // Trusted space is allocated in a different part of the address space,
+        // so skip it as well.
+        if (s->identity() == i::TRUSTED_SPACE) {
           continue;
         }
         DumpSpaceFirstPageAddress(out, s);

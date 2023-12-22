@@ -82,8 +82,12 @@ let kStringCompare;
 
 function MakeBuilder() {
   let builder = new WasmModuleBuilder();
-  kArrayI16 = builder.addArray(kWasmI16, true);
-  kArrayI8 = builder.addArray(kWasmI8, true);
+  builder.startRecGroup();
+  kArrayI16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  builder.endRecGroup();
+  builder.startRecGroup();
+  kArrayI8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  builder.endRecGroup();
   let arrayref = wasmRefNullType(kArrayI16);
   let array8ref = wasmRefNullType(kArrayI8);
 

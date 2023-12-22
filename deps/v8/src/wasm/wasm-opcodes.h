@@ -49,7 +49,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(Return, 0x0f, _, "return")                                                 \
   V(Delegate, 0x18, _, "delegate")                                             \
   V(CatchAll, 0x19, _, "catch_all")                                            \
-  V(BrOnNull, 0xd4, _, "br_on_null")        /* typed_funcref prototype */      \
+  V(BrOnNull, 0xd5, _, "br_on_null")        /* typed_funcref prototype */      \
   V(BrOnNonNull, 0xd6, _, "br_on_non_null") /* typed_funcref prototype */      \
   V(NopForTestingUnsupportedInLiftoff, 0x16, _, "nop_for_testing")
 
@@ -78,7 +78,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefNull, 0xd0, _, "ref.null")                                            \
   V(RefIsNull, 0xd1, _, "ref.is_null")                                       \
   V(RefFunc, 0xd2, _, "ref.func")                                            \
-  V(RefAsNonNull, 0xd3, _, "ref.as_non_null") /* typed_funcref prototype */
+  V(RefAsNonNull, 0xd4, _, "ref.as_non_null") /* typed_funcref prototype */
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V)            \
@@ -254,7 +254,7 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
   FOREACH_SIMPLE_NON_CONST_OPCODE(V)
 
-#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd5, i_qq, "ref.eq")
+#define FOREACH_SIMPLE_PROTOTYPE_OPCODE(V) V(RefEq, 0xd3, i_qq, "ref.eq")
 
 // For compatibility with Asm.js.
 // These opcodes are not spec'ed (or visible) externally; the idea is
@@ -689,58 +689,39 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(AtomicFence, 0xfe03, v_v, "atomic.fence", v_v)
 
 #define FOREACH_GC_OPCODE(V) /*              Force 80 columns               */ \
-  V(StructGet, 0xfb03, _, "struct.get")                                        \
-  V(StructGetS, 0xfb04, _, "struct.get_s")                                     \
-  V(StructGetU, 0xfb05, _, "struct.get_u")                                     \
-  V(StructSet, 0xfb06, _, "struct.set")                                        \
-  V(StructNew, 0xfb07, _, "struct.new")                                        \
-  V(StructNewDefault, 0xfb08, _, "struct.new_default")                         \
-  V(ArrayGet, 0xfb13, _, "array.get")                                          \
-  V(ArrayGetS, 0xfb14, _, "array.get_s")                                       \
-  V(ArrayGetU, 0xfb15, _, "array.get_u")                                       \
-  V(ArraySet, 0xfb16, _, "array.set")                                          \
-  V(ArrayCopy, 0xfb18, _, "array.copy")                                        \
-  V(ArrayLen, 0xfb19, _, "array.len")                                          \
-  V(ArrayNewFixed, 0xfb1a, _, "array.new_fixed")                               \
-  V(ArrayNew, 0xfb1b, _, "array.new")                                          \
-  V(ArrayNewDefault, 0xfb1c, _, "array.new_default")                           \
-  V(ArrayNewData, 0xfb1d, _, "array.new_data")                                 \
-  V(ArrayNewElem, 0xfb1f, _, "array.new_elem")                                 \
-  V(ArrayFill, 0xfb0f, _, "array.fill")                                        \
-  V(ArrayInitData, 0xfb54, _, "array.init_data")                               \
-  V(ArrayInitElem, 0xfb55, _, "array.init_elem")                               \
-  V(I31New, 0xfb20, _, "i31.new")                                              \
-  V(I31GetS, 0xfb21, _, "i31.get_s")                                           \
-  V(I31GetU, 0xfb22, _, "i31.get_u")                                           \
-  V(RefTest, 0xfb40, _, "ref.test")                                            \
-  V(RefTestNull, 0xfb48, _, "ref.test null")                                   \
-  V(RefTestDeprecated, 0xfb44, _, "ref.test")                                  \
-  V(RefCast, 0xfb41, _, "ref.cast")                                            \
-  V(RefCastNull, 0xfb49, _, "ref.cast null")                                   \
-  V(RefCastDeprecated, 0xfb45, _, "ref.cast")                                  \
-  V(BrOnCast, 0xfb42, _, "br_on_cast")                                         \
-  V(BrOnCastNull, 0xfb4a, _, "br_on_cast null")                                \
-  V(BrOnCastDeprecated, 0xfb46, _, "br_on_cast")                               \
-  V(BrOnCastFail, 0xfb43, _, "br_on_cast_fail")                                \
-  V(BrOnCastFailNull, 0xfb4b, _, "br_on_cast_fail null")                       \
-  V(BrOnCastFailDeprecated, 0xfb47, _, "br_on_cast_fail")                      \
-  V(BrOnCastGeneric, 0xfb4e, _, "br_on_cast")                                  \
-  V(BrOnCastFailGeneric, 0xfb4f, _, "br_on_cast_fail")                         \
+  V(StructNew, 0xfb00, _, "struct.new")                                        \
+  V(StructNewDefault, 0xfb01, _, "struct.new_default")                         \
+  V(StructGet, 0xfb02, _, "struct.get")                                        \
+  V(StructGetS, 0xfb03, _, "struct.get_s")                                     \
+  V(StructGetU, 0xfb04, _, "struct.get_u")                                     \
+  V(StructSet, 0xfb05, _, "struct.set")                                        \
+  V(ArrayNew, 0xfb06, _, "array.new")                                          \
+  V(ArrayNewDefault, 0xfb07, _, "array.new_default")                           \
+  V(ArrayNewFixed, 0xfb08, _, "array.new_fixed")                               \
+  V(ArrayNewData, 0xfb09, _, "array.new_data")                                 \
+  V(ArrayNewElem, 0xfb0a, _, "array.new_elem")                                 \
+  V(ArrayGet, 0xfb0b, _, "array.get")                                          \
+  V(ArrayGetS, 0xfb0c, _, "array.get_s")                                       \
+  V(ArrayGetU, 0xfb0d, _, "array.get_u")                                       \
+  V(ArraySet, 0xfb0e, _, "array.set")                                          \
+  V(ArrayLen, 0xfb0f, _, "array.len")                                          \
+  V(ArrayFill, 0xfb10, _, "array.fill")                                        \
+  V(ArrayCopy, 0xfb11, _, "array.copy")                                        \
+  V(ArrayInitData, 0xfb12, _, "array.init_data")                               \
+  V(ArrayInitElem, 0xfb13, _, "array.init_elem")                               \
+  V(RefTest, 0xfb14, _, "ref.test")                                            \
+  V(RefTestNull, 0xfb15, _, "ref.test null")                                   \
+  V(RefCast, 0xfb16, _, "ref.cast")                                            \
+  V(RefCastNull, 0xfb17, _, "ref.cast null")                                   \
+  V(BrOnCastGeneric, 0xfb18, _, "br_on_cast")                                  \
+  V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
+  V(ExternInternalize, 0xfb1a, _, "extern.internalize")                        \
+  V(ExternExternalize, 0xfb1b, _, "extern.externalize")                        \
+  V(RefI31, 0xfb1c, _, "ref.i31")                                              \
+  V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
+  V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
   V(RefCastNop, 0xfb4c, _, "ref.cast_nop")                                     \
-  V(RefIsStruct, 0xfb51, _, "ref.is_struct")                                   \
-  V(RefIsI31, 0xfb52, _, "ref.is_i31")                                         \
-  V(RefIsArray, 0xfb53, _, "ref.is_array")                                     \
-  V(RefAsStruct, 0xfb59, _, "ref.as_struct")                                   \
-  V(RefAsI31, 0xfb5a, _, "ref.as_i31")                                         \
-  V(RefAsArray, 0xfb5b, _, "ref.as_array")                                     \
-  V(BrOnStruct, 0xfb61, _, "br_on_struct")                                     \
-  V(BrOnI31, 0xfb62, _, "br_on_i31")                                           \
-  V(BrOnArray, 0xfb66, _, "br_on_array")                                       \
-  V(BrOnNonStruct, 0xfb64, _, "br_on_non_struct")                              \
-  V(BrOnNonI31, 0xfb65, _, "br_on_non_i31")                                    \
-  V(BrOnNonArray, 0xfb67, _, "br_on_non_array")                                \
-  V(ExternInternalize, 0xfb70, _, "extern.internalize")                        \
-  V(ExternExternalize, 0xfb71, _, "extern.externalize")                        \
+  /* Stringref proposal. */                                                    \
   V(StringNewUtf8, 0xfb80, _, "string.new_utf8")                               \
   V(StringNewWtf16, 0xfb81, _, "string.new_wtf16")                             \
   V(StringConst, 0xfb82, _, "string.const")                                    \

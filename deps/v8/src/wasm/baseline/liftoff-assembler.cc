@@ -375,7 +375,7 @@ class StackTransferRecipe {
 class RegisterReuseMap {
  public:
   void Add(LiftoffRegister src, LiftoffRegister dst) {
-    if (auto previous = Lookup(src)) {
+    if ([[maybe_unused]] auto previous = Lookup(src)) {
       DCHECK_EQ(previous, dst);
       return;
     }

@@ -191,16 +191,27 @@ ExternalPointerHandle ExternalPointerTable::AllocateAndInitializeEntry(
 void ExternalPointerTable::Mark(Space* space, ExternalPointerHandle handle,
                                 Address handle_location) {
   DCHECK(space->BelongsTo(this));
+
+  // The handle_location must always contain the given handle. Except:
+  // - If the slot is lazily-initialized, the handle may transition from the
+  //   null handle to a valid handle. In that case, we'll return from this
+  //   function early (see below), which is fine since the newly-allocated
+  //   entry will already have been marked as alive during allocation.
+  // - If the slot is de-initialized, i.e. reset to the null handle. In that
+  //   case, we'll still mark the old entry as alive and potentially mark it for
+  //   evacuation. Both of these things are fine though: the entry is just kept
+  //   alive a little longer and compaction will detect that the slot has been
+  //   de-initialized and not perform the evacuation.
+#ifdef DEBUG
+  ExternalPointerHandle current_handle = base::AsAtomic32::Acquire_Load(
+      reinterpret_cast<ExternalPointerHandle*>(handle_location));
+  DCHECK(handle == kNullExternalPointerHandle ||
+         current_handle == kNullExternalPointerHandle ||
+         handle == current_handle);
+#endif
+
   // The null entry is immortal and immutable, so no need to mark it as alive.
   if (handle == kNullExternalPointerHandle) return;
-
-  // The handle_location must contain the given handle. The only exception to
-  // this is when the handle is zero, which may mean that it hasn't yet been
-  // initialized. However, in that case we'll have already returned from this
-  // function above.
-  DCHECK(handle ==
-         base::AsAtomic32::Acquire_Load(
-             reinterpret_cast<ExternalPointerHandle*>(handle_location)));
 
   uint32_t index = HandleToIndex(handle);
   DCHECK(space->Contains(index));

@@ -56,9 +56,7 @@ void FillPageInPagedSpace(Page* page,
   ManualGCScope manual_gc_scope(heap->isolate());
   DCHECK(page->SweepingDone());
   PagedSpaceBase* paged_space = static_cast<PagedSpaceBase*>(page->owner());
-  // Make sure the LAB is empty to guarantee that all free space is accounted
-  // for in the freelist.
-  DCHECK_EQ(paged_space->limit(), paged_space->top());
+  heap->FreeLinearAllocationAreas();
 
   PauseAllocationObserversScope no_observers_scope(heap);
 
@@ -153,13 +151,15 @@ void FillPageInPagedSpace(Page* page,
 void HeapInternalsBase::SimulateFullSpace(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
+  Heap* heap = space->heap();
+  IsolateSafepointScope safepoint_scope(heap);
+  heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
-  space->FreeLinearAllocationArea();
   if (v8_flags.minor_ms) {
     while (space->AddFreshPage()) {}
     for (Page* page : *space) {
@@ -174,28 +174,29 @@ void HeapInternalsBase::SimulateFullSpace(
 }
 
 void HeapInternalsBase::SimulateFullSpace(v8::internal::PagedSpace* space) {
+  Heap* heap = space->heap();
+  IsolateSafepointScope safepoint_scope(heap);
+  heap->FreeLinearAllocationAreas();
   // If you see this check failing, disable the flag at the start of your test:
   // v8_flags.stress_concurrent_allocation = false;
   // Background thread allocating concurrently interferes with this function.
   CHECK(!v8_flags.stress_concurrent_allocation);
-  Heap* heap = space->heap();
   if (heap->sweeping_in_progress()) {
     heap->EnsureSweepingCompleted(
         Heap::SweepingForcedFinalizationMode::kV8Only);
   }
-  space->FreeLinearAllocationArea();
   space->ResetFreeList();
 }
 
 namespace {
 int GetSpaceRemainingOnCurrentSemiSpacePage(v8::internal::NewSpace* space) {
-  Address top = space->top();
+  const Address top = space->heap()->NewSpaceTop();
   if ((top & kPageAlignmentMask) == 0) {
     // `top` points to the start of a page signifies that there is not room in
     // the current page.
     return 0;
   }
-  return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
+  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
 }
 
 std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
@@ -223,11 +224,11 @@ std::vector<Handle<FixedArray>> CreatePadding(Heap* heap, int padding_size,
       if (length <= 0) {
         // Not enough room to create another FixedArray, so create a filler.
         if (allocation == i::AllocationType::kOld) {
-          heap->CreateFillerObjectAt(
-              *heap->old_space()->allocation_top_address(), free_memory);
+          heap->CreateFillerObjectAt(*heap->OldSpaceAllocationTopAddress(),
+                                     free_memory);
         } else {
-          heap->CreateFillerObjectAt(
-              *heap->new_space()->allocation_top_address(), free_memory);
+          heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
+                                     free_memory);
         }
         break;
       }
@@ -248,8 +249,9 @@ void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
   // We cannot rely on `space->limit()` to point to the end of the current page
   // in the case where inline allocations are disabled, it actually points to
   // the current allocation pointer.
-  DCHECK_IMPLIES(!space->heap()->IsInlineAllocationEnabled(),
-                 space->limit() == space->top());
+  DCHECK_IMPLIES(
+      !space->heap()->IsInlineAllocationEnabled(),
+      space->heap()->NewSpaceTop() == space->heap()->NewSpaceLimit());
   int space_remaining = GetSpaceRemainingOnCurrentSemiSpacePage(space);
   if (space_remaining == 0) return;
   std::vector<Handle<FixedArray>> handles =
@@ -259,13 +261,13 @@ void FillCurrentSemiSpacePage(v8::internal::NewSpace* space,
   }
 }
 
-void FillCurrenPagedSpacePage(v8::internal::NewSpace* space,
-                              std::vector<Handle<FixedArray>>* out_handles) {
-  if (space->top() == kNullAddress) return;
-  Page* page = Page::FromAllocationAreaAddress(space->top());
+void FillCurrentPagedSpacePage(v8::internal::NewSpace* space,
+                               std::vector<Handle<FixedArray>>* out_handles) {
+  const Address top = space->heap()->NewSpaceTop();
+  if (top == kNullAddress) return;
+  Page* page = Page::FromAllocationAreaAddress(top);
   space->heap()->EnsureSweepingCompleted(
       Heap::SweepingForcedFinalizationMode::kV8Only);
-  space->FreeLinearAllocationArea();
   FillPageInPagedSpace(page, out_handles);
 }
 
@@ -275,8 +277,9 @@ void HeapInternalsBase::FillCurrentPage(
     v8::internal::NewSpace* space,
     std::vector<Handle<FixedArray>>* out_handles) {
   PauseAllocationObserversScope pause_observers(space->heap());
+  space->heap()->allocator()->new_space_allocator()->FreeLinearAllocationArea();
   if (v8_flags.minor_ms)
-    FillCurrenPagedSpacePage(space, out_handles);
+    FillCurrentPagedSpacePage(space, out_handles);
   else
     FillCurrentSemiSpacePage(space, out_handles);
 }

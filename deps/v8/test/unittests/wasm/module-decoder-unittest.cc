@@ -1298,28 +1298,38 @@ TEST_F(WasmModuleVerifyTest, CanonicalTypeIds) {
 
   static const uint8_t data[] = {
       SECTION(Type,                               // --
-              ENTRY_COUNT(5),                     // --
+              ENTRY_COUNT(7),                     // --
               WASM_STRUCT_DEF(                    // Struct definition
                   FIELD_COUNT(1),                 // --
                   STRUCT_FIELD(kI32Code, true)),  // --
               SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32
               SIG_ENTRY_x_x(kI32Code, kF64Code),  // f64 -> i32
               SIG_ENTRY_x_x(kI32Code, kF32Code),  // f32 -> i32 (again)
-              WASM_ARRAY_DEF(kI32Code, true))     // Array definition
+              WASM_ARRAY_DEF(kI32Code, true),     // Array definition
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+              WASM_ARRAY_DEF(kI16Code, true),  // Predefined i16 array
+              kWasmRecursiveTypeGroupCode, ENTRY_COUNT(1),
+              WASM_ARRAY_DEF(kI8Code, true))  // Predefined i8 array
   };
 
   ModuleResult result = DecodeModule(base::ArrayVector(data));
   EXPECT_OK(result);
   const WasmModule* module = result.value().get();
 
-  EXPECT_EQ(5u, module->types.size());
-  EXPECT_EQ(5u, module->isorecursive_canonical_type_ids.size());
+  EXPECT_EQ(7u, module->types.size());
+  EXPECT_EQ(7u, module->isorecursive_canonical_type_ids.size());
 
-  EXPECT_EQ(0u, module->isorecursive_canonical_type_ids[0]);
-  EXPECT_EQ(1u, module->isorecursive_canonical_type_ids[1]);
-  EXPECT_EQ(2u, module->isorecursive_canonical_type_ids[2]);
-  EXPECT_EQ(1u, module->isorecursive_canonical_type_ids[3]);
-  EXPECT_EQ(3u, module->isorecursive_canonical_type_ids[4]);
+  static constexpr uint32_t kBase = TypeCanonicalizer::kNumberOfPredefinedTypes;
+  EXPECT_EQ(kBase + 0u, module->isorecursive_canonical_type_ids[0]);
+  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[1]);
+  EXPECT_EQ(kBase + 2u, module->isorecursive_canonical_type_ids[2]);
+  EXPECT_EQ(kBase + 1u, module->isorecursive_canonical_type_ids[3]);
+  EXPECT_EQ(kBase + 3u, module->isorecursive_canonical_type_ids[4]);
+
+  EXPECT_EQ(TypeCanonicalizer::kPredefinedArrayI16Index,
+            module->isorecursive_canonical_type_ids[5]);
+  EXPECT_EQ(TypeCanonicalizer::kPredefinedArrayI8Index,
+            module->isorecursive_canonical_type_ids[6]);
 }
 
 TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {

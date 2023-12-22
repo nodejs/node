@@ -19,6 +19,7 @@
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -749,6 +750,43 @@ TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
       descriptor.wrappable_instance_index, nullptr);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable2::destructor_call_count);
+}
+
+TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
+  if (!v8_flags.minor_ms) return;
+  if (v8_flags.single_generation) return;
+  // Heap verification finalizes sweeping in the atomic pause.
+  if (v8_flags.verify_heap) return;
+  bool single_threaded_gc_flag = v8_flags.single_threaded_gc;
+  // Single threaded gc force non-concurrent sweeping in cppgc, which makes
+  // CppHeap bail out of `FinishSweepingIfOutOfWork`.
+  v8_flags.single_threaded_gc = true;
+  ManualGCScope manual_gc(isolate());
+  Heap* heap = isolate()->heap();
+  CppHeap* cppheap = CppHeap::From(heap->cpp_heap());
+  cppheap->UpdateGCCapabilitiesFromFlagsForTesting();
+  CHECK_NOT_NULL(heap->cpp_heap());
+  heap->CollectGarbage(AllocationSpace::OLD_SPACE,
+                       GarbageCollectionReason::kTesting,
+                       GCCallbackFlags::kNoGCCallbackFlags);
+  CHECK(heap->sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  CHECK(!heap->sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  heap->CollectGarbage(AllocationSpace::NEW_SPACE,
+                       GarbageCollectionReason::kTesting,
+                       GCCallbackFlags::kNoGCCallbackFlags);
+  CHECK(!heap->major_sweeping_in_progress());
+  CHECK(heap->minor_sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  cppheap->sweeper().FinishIfRunning();
+  CHECK(!heap->major_sweeping_in_progress());
+  CHECK(heap->minor_sweeping_in_progress());
+  CHECK(!cppheap->sweeper().IsSweepingInProgress());
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  v8_flags.single_threaded_gc = single_threaded_gc_flag;
 }
 
 }  // namespace v8::internal

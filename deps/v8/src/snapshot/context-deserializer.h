@@ -20,8 +20,8 @@ class V8_EXPORT_PRIVATE ContextDeserializer final
     : public Deserializer<Isolate> {
  public:
   static MaybeHandle<Context> DeserializeContext(
-      Isolate* isolate, const SnapshotData* data, bool can_rehash,
-      Handle<JSGlobalProxy> global_proxy,
+      Isolate* isolate, const SnapshotData* data, size_t context_index,
+      bool can_rehash, Handle<JSGlobalProxy> global_proxy,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
  private:

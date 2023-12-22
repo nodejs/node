@@ -141,7 +141,7 @@ class TestSetup {
 
 }  // namespace
 
-i::AbstractCode CreateCode(i::Isolate* isolate, LocalContext* env) {
+i::Tagged<i::AbstractCode> CreateCode(i::Isolate* isolate, LocalContext* env) {
   static int counter = 0;
   base::EmbeddedVector<char, 256> script;
   base::EmbeddedVector<char, 32> name;
@@ -189,7 +189,7 @@ TEST(CodeEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer.code_entries(),
                                      *code_observer.weak_code_registry());
-  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
+  CHECK(isolate->logger()->AddListener(&profiler_listener));
 
   // Enqueue code creation events.
   const char* aaa_str = "aaa";
@@ -214,7 +214,7 @@ TEST(CodeEvents) {
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->InstructionStart(cage_base));
 
-  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
+  CHECK(isolate->logger()->RemoveListener(&profiler_listener));
   processor->StopSynchronously();
 
   // Check the state of the symbolizer.
@@ -268,7 +268,7 @@ TEST(TickEvents) {
   ProfilerListener profiler_listener(isolate, processor,
                                      *code_observer->code_entries(),
                                      *code_observer->weak_code_registry());
-  isolate->v8_file_logger()->AddLogEventListener(&profiler_listener);
+  CHECK(isolate->logger()->AddListener(&profiler_listener));
 
   profiler_listener.CodeCreateEvent(i::LogEventListener::CodeTag::kBuiltin,
                                     frame1_code, "bbb");
@@ -288,7 +288,7 @@ TEST(TickEvents) {
                          frame2_code->InstructionEnd(cage_base) - 1,
                          frame1_code->InstructionEnd(cage_base) - 1);
 
-  isolate->v8_file_logger()->RemoveLogEventListener(&profiler_listener);
+  CHECK(isolate->logger()->RemoveListener(&profiler_listener));
   processor->StopSynchronously();
   CpuProfile* profile = profiles->StopProfiling(id);
   CHECK(profile);
@@ -1315,7 +1315,7 @@ static void TickLines(bool optimize) {
   CHECK(!optimize || func->HasAttachedOptimizedCode() ||
         !CcTest::i_isolate()->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
-  CHECK(!code->is_null());
+  CHECK(!(*code).is_null());
   i::Address code_address = code->InstructionStart(isolate);
   CHECK_NE(code_address, kNullAddress);
 
@@ -4793,7 +4793,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     CHECK(function->shared()->is_compiled());
 
-    i::BytecodeArray compiled_data =
+    Tagged<BytecodeArray> compiled_data =
         function->shared()->GetBytecodeArray(i_isolate);
     i::Address bytecode_start = compiled_data->GetFirstBytecodeAddress();
 

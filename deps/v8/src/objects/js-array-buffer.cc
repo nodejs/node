@@ -103,7 +103,6 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
                                            : backing_store->byte_length();
   set_max_byte_length(max_byte_len);
   if (backing_store->is_wasm_memory()) set_is_detachable(false);
-  if (!backing_store->free_on_destruct()) set_is_external(true);
   ArrayBufferExtension* extension = EnsureExtension();
   size_t bytes = backing_store->PerIsolateAccountingLength();
   extension->set_accounting_length(bytes);
@@ -177,7 +176,8 @@ size_t JSArrayBuffer::GsabByteLength(Isolate* isolate,
   DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<JSArrayBuffer> buffer = JSArrayBuffer::cast(Object(raw_array_buffer));
+  Tagged<JSArrayBuffer> buffer =
+      JSArrayBuffer::cast(Tagged<Object>(raw_array_buffer));
   CHECK(buffer->is_resizable_by_js());
   CHECK(buffer->is_shared());
   return buffer->GetBackingStore()->byte_length(std::memory_order_seq_cst);
@@ -404,7 +404,7 @@ size_t JSTypedArray::LengthTrackingGsabBackedTypedArrayLength(
   DCHECK(v8_flags.harmony_rab_gsab);
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<JSTypedArray> array = JSTypedArray::cast(Object(raw_array));
+  Tagged<JSTypedArray> array = JSTypedArray::cast(Tagged<Object>(raw_array));
   CHECK(array->is_length_tracking());
   Tagged<JSArrayBuffer> buffer = array->buffer();
   CHECK(buffer->is_resizable_by_js());

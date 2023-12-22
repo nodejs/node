@@ -100,7 +100,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
  private:
   static int ComputeSourcePosition(Handle<CallSiteInfo> info, int offset);
 
-  base::Optional<Script> GetScript() const;
+  base::Optional<Tagged<Script>> GetScript() const;
   Tagged<SharedFunctionInfo> GetSharedFunctionInfo() const;
 
   TQ_OBJECT_CONSTRUCTORS(CallSiteInfo)

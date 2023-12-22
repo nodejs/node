@@ -132,6 +132,15 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
+Node* GraphAssembler::LoadStackPointer() {
+  return AddNode(graph()->NewNode(machine()->LoadStackPointer(), effect()));
+}
+
+Node* GraphAssembler::SetStackPointer(Node* node) {
+  return AddNode(graph()->NewNode(machine()->SetStackPointer(), node, effect(),
+                                  control()));
+}
+
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
   return Load(MachineType::Float64(), heap_number,
               IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));

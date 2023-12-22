@@ -314,7 +314,9 @@ class TypesTest : public TestWithNativeContextAndZone {
     CHECK(T.Constant(s2).Is(T.InternalizedString));
 
     // Typing of special constants
-    CHECK(T.Constant(fac->the_hole_value()).Equals(T.TheHole));
+    CHECK(T.Constant(fac->the_hole_value()).Equals(T.Hole));
+    CHECK(T.Constant(fac->property_cell_hole_value()).Equals(T.Hole));
+    CHECK(T.Constant(fac->hash_table_hole_value()).Equals(T.Hole));
     CHECK(T.Constant(fac->null_value()).Equals(T.Null));
     CHECK(T.Constant(fac->undefined_value()).Equals(T.Undefined));
     CHECK(T.Constant(fac->minus_zero_value()).Equals(T.MinusZero));

@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   Address current_pc_start_offset_;
   Address current_pc_end_offset_;
   int current_bytecode_offset_;
-  BytecodeArray bytecode_handle_storage_;
+  Tagged<BytecodeArray> bytecode_handle_storage_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   LocalHeap* local_heap_;
   base::Optional<DisallowGarbageCollection> no_gc_;

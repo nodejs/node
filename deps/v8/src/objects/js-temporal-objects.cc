@@ -4244,7 +4244,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
       Handle<Object> prop_value;
       ASSIGN_RETURN_ON_EXCEPTION(
           isolate, prop_value,
-          JSReceiver::GetPropertyOrElement(isolate, fields, next_key_string),
+          Object::GetPropertyOrElement(isolate, fields, next_key_string),
           JSReceiver);
       // ii. If propValue is not undefined, then
       if (!IsUndefined(*prop_value)) {
@@ -4273,7 +4273,7 @@ MaybeHandle<JSReceiver> DefaultMergeFields(
     // a. Let propValue be ? Get(additionalFields, nextKey).
     Handle<Object> prop_value;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, prop_value,
-                               JSReceiver::GetPropertyOrElement(
+                               Object::GetPropertyOrElement(
                                    isolate, additional_fields, next_key_string),
                                JSReceiver);
     // b. If propValue is not undefined, then

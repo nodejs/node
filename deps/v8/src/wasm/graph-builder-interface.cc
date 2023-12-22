@@ -282,7 +282,7 @@ class WasmGraphBuildingInterface {
   void StartFunctionBody(FullDecoder* decoder, Control* block) {}
 
   void FinishFunction(FullDecoder* decoder) {
-    if (decoder->enabled_.has_inlining()) {
+    if (inlining_enabled(decoder)) {
       DCHECK_EQ(feedback_instruction_index_, type_feedback_.size());
     }
     if (inlined_status_ == kRegularFunction) {
@@ -900,6 +900,10 @@ class WasmGraphBuildingInterface {
             args[0].node, NullCheckFor(args[0].type));
         decoder->detected_->Add(kFeature_stringref);
         break;
+        // Not implementing for Turbofan.
+      case WKI::kDataViewGetInt32:
+      case WKI::kDataViewSetInt32:
+        return false;
     }
     if (v8_flags.trace_wasm_inlining) {
       PrintF("[function %d: call to %d is well-known %s]\n", func_index_, index,
@@ -913,7 +917,7 @@ class WasmGraphBuildingInterface {
   void CallDirect(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[], Value returns[]) {
     int maybe_call_count = -1;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (inlining_enabled(decoder) && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -928,7 +932,7 @@ class WasmGraphBuildingInterface {
   void ReturnCall(FullDecoder* decoder, const CallFunctionImmediate& imm,
                   const Value args[]) {
     int maybe_call_count = -1;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (inlining_enabled(decoder) && type_feedback_.size() > 0) {
       const CallSiteFeedback& feedback = next_call_feedback();
       DCHECK_EQ(feedback.num_cases(), 1);
       maybe_call_count = feedback.call_count(0);
@@ -959,7 +963,7 @@ class WasmGraphBuildingInterface {
                const FunctionSig* sig, uint32_t sig_index, const Value args[],
                Value returns[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (inlining_enabled(decoder) && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -1053,7 +1057,7 @@ class WasmGraphBuildingInterface {
                      const FunctionSig* sig, uint32_t sig_index,
                      const Value args[]) {
     const CallSiteFeedback* feedback = nullptr;
-    if (decoder->enabled_.has_inlining() && type_feedback_.size() > 0) {
+    if (inlining_enabled(decoder) && type_feedback_.size() > 0) {
       feedback = &next_call_feedback();
     }
     if (feedback == nullptr || feedback->num_cases() == 0) {
@@ -1521,8 +1525,8 @@ class WasmGraphBuildingInterface {
         decoder->position());
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    SetAndTypeNode(result, builder_->I31New(input.node));
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
+    SetAndTypeNode(result, builder_->RefI31(input.node));
   }
 
   void I31GetS(FullDecoder* decoder, const Value& input, Value* result) {
@@ -1749,19 +1753,6 @@ class WasmGraphBuildingInterface {
         false, null_succeeds);
   }
 
-  void RefIsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
-  }
-
-  void RefAsStruct(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kStruct)};
-    TFNode* cast_object =
-        builder_->RefCastAbstract(object.node, config, decoder->position());
-    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
-    SetAndTypeNode(result, rename);
-  }
-
   void BrOnStruct(FullDecoder* decoder, const Value& object,
                   Value* value_on_branch, uint32_t br_depth,
                   bool null_succeeds) {
@@ -1778,19 +1769,6 @@ class WasmGraphBuildingInterface {
         false, null_succeeds);
   }
 
-  void RefIsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
-  }
-
-  void RefAsArray(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kArray)};
-    TFNode* cast_object =
-        builder_->RefCastAbstract(object.node, config, decoder->position());
-    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
-    SetAndTypeNode(result, rename);
-  }
-
   void BrOnArray(FullDecoder* decoder, const Value& object,
                  Value* value_on_branch, uint32_t br_depth,
                  bool null_succeeds) {
@@ -1805,19 +1783,6 @@ class WasmGraphBuildingInterface {
     BrOnCastAbs<&compiler::WasmGraphBuilder::BrOnArray>(
         decoder, HeapType{kBottom}, object, value_on_fallthrough, br_depth,
         false, null_succeeds);
-  }
-
-  void RefIsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kI31)};
-    SetAndTypeNode(result, builder_->RefTestAbstract(object.node, config));
-  }
-
-  void RefAsI31(FullDecoder* decoder, const Value& object, Value* result) {
-    WasmTypeCheckConfig config{object.type, ValueType::Ref(HeapType::kI31)};
-    TFNode* cast_object =
-        builder_->RefCastAbstract(object.node, config, decoder->position());
-    TFNode* rename = builder_->TypeGuard(cast_object, result->type);
-    SetAndTypeNode(result, rename);
   }
 
   void BrOnI31(FullDecoder* decoder, const Value& object,
@@ -2158,6 +2123,10 @@ class WasmGraphBuildingInterface {
   // - When exiting a loop through Delegate.
   bool emit_loop_exits() {
     return v8_flags.wasm_loop_unrolling || v8_flags.wasm_loop_peeling;
+  }
+
+  bool inlining_enabled(FullDecoder* decoder) {
+    return decoder->enabled_.has_inlining() || decoder->module_->is_wasm_gc;
   }
 
   void GetNodes(TFNode** nodes, const Value* values, size_t count) {
@@ -2658,7 +2627,7 @@ class WasmGraphBuildingInterface {
 
 }  // namespace
 
-void BuildTFGraph(AccountingAllocator* allocator, const WasmFeatures& enabled,
+void BuildTFGraph(AccountingAllocator* allocator, WasmFeatures enabled,
                   const WasmModule* module, compiler::WasmGraphBuilder* builder,
                   WasmFeatures* detected, const FunctionBody& body,
                   std::vector<compiler::WasmLoopInfo>* loop_infos,

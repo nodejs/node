@@ -40,11 +40,12 @@ class Impl;
 //   class ExampleShape {
 //    public:
 //     // Tells whether key matches other.
-//     static bool IsMatch(Key key, Object other);
+//     static bool IsMatch(Key key, Tagged<Object> other);
 //     // Returns the hash value for key.
 //     static uint32_t Hash(ReadOnlyRoots roots, Key key);
 //     // Returns the hash value for object.
-//     static uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+//     static uint32_t HashForObject(ReadOnlyRoots roots,
+//                                   Tagged<Object> object);
 //     // Convert key to an object.
 //     static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 //     // The prefix size indicates number of elements in the beginning
@@ -248,7 +249,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
       Isolate* isolate, Handle<Derived> table, int additionalCapacity = 0);
 
   // Rehashes this hash-table into the new table.
-  void Rehash(PtrComprCageBase cage_base, Derived new_table);
+  void Rehash(PtrComprCageBase cage_base, Tagged<Derived> new_table);
 
   inline void set_key(int index, Tagged<Object> value);
   inline void set_key(int index, Tagged<Object> value, WriteBarrierMode mode);
@@ -445,8 +446,9 @@ class ObjectMultiHashTableBase
 
   // Returns the values associated with the given key. Return an std::array of
   // holes if not found.
-  std::array<Object, N> Lookup(Handle<Object> key);
-  std::array<Object, N> Lookup(PtrComprCageBase cage_base, Handle<Object> key);
+  std::array<Tagged<Object>, N> Lookup(Handle<Object> key);
+  std::array<Tagged<Object>, N> Lookup(PtrComprCageBase cage_base,
+                                       Handle<Object> key);
 
   // Adds or overwrites the values associated with the given key.
   static Handle<Derived> Put(Isolate* isolate, Handle<Derived> table,

@@ -350,7 +350,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let global = builder.addGlobal(
       wasmRefType(array_index), true,
       [...values.flatMap(
-        value => [...wasmI32Const(value), kGCPrefix, kExprI31New]),
+        value => [...wasmI32Const(value), kGCPrefix, kExprRefI31]),
        kGCPrefix, kExprArrayNewFixed, array_index, 5]);
 
   for (signed of [true, false]) {
@@ -381,10 +381,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let builder = new WasmModuleBuilder();
 
   builder.addGlobal(kWasmI31Ref, false,
-                    [...wasmI64Const(0), kGCPrefix, kExprI31New]);
+                    [...wasmI64Const(0), kGCPrefix, kExprRefI31]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-               /i31.new\[0\] expected type i32, found i64.const of type i64/);
+               /ref.i31\[0\] expected type i32, found i64.const of type i64/);
 })();
 
 (function TestConstantExprFuncIndexOutOfBounds() {

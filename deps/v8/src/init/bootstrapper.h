@@ -37,7 +37,7 @@ class SourceCodeCache final {
 
  private:
   Script::Type type_;
-  FixedArray cache_;
+  Tagged<FixedArray> cache_;
 };
 
 // The Boostrapper is the public interface for creating a JavaScript global

@@ -470,8 +470,8 @@ class InitExprInterface {
     UNIMPLEMENTED();
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    os_ << "kGCPrefix, kExprI31New, ";
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
+    os_ << "kGCPrefix, kExprRefI31, ";
   }
 
   // Since we treat all instructions as rtt-less, we should not print rtts.

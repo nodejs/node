@@ -13,9 +13,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addFunction("equal", makeSig([], [kWasmI32]))
     .addBody([
       kExprI32Const, 0,
-      kGCPrefix, kExprI31New,
+      kGCPrefix, kExprRefI31,
       kExprI32Const, 0,
-      kGCPrefix, kExprI31New,
+      kGCPrefix, kExprRefI31,
       kGCPrefix, kExprArrayNewFixed, array, 1,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,

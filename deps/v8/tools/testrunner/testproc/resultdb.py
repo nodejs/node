@@ -92,12 +92,17 @@ def strip_ascii_control_characters(unicode_string):
   return re.sub(r'[^\x20-\x7E]', '?', str(unicode_string))
 
 
+TESTING_SINK = None
+
+
 def rdb_sink():
   try:
     import requests
   except:
     log_instantiation_failure('Failed to import requests module.')
     return None
+  if TESTING_SINK:
+    return TESTING_SINK
   luci_context = os.environ.get('LUCI_CONTEXT')
   if not luci_context:
     log_instantiation_failure('No LUCI_CONTEXT found.')

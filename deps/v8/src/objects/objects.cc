@@ -150,9 +150,9 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
 
     // Get the language mode from closure.
     JavaScriptFrame* js_frame = static_cast<JavaScriptFrame*>(it.frame());
-    std::vector<SharedFunctionInfo> functions;
+    std::vector<Tagged<SharedFunctionInfo>> functions;
     js_frame->GetFunctions(&functions);
-    LanguageMode closure_language_mode = functions.back().language_mode();
+    LanguageMode closure_language_mode = functions.back()->language_mode();
     if (closure_language_mode > mode) {
       mode = closure_language_mode;
     }
@@ -1895,6 +1895,9 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
     return FixedArray::SizeFor(
         FixedArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
+  if (instance_type == SLOPPY_ARGUMENTS_ELEMENTS_TYPE) {
+    return SloppyArgumentsElements::unchecked_cast(*this)->AllocatedSize();
+  }
   if (base::IsInRange(instance_type, FIRST_CONTEXT_TYPE, LAST_CONTEXT_TYPE)) {
     if (instance_type == NATIVE_CONTEXT_TYPE) return NativeContext::kSize;
     return Context::SizeFor(Context::unchecked_cast(*this)->length());
@@ -1970,7 +1973,7 @@ int HeapObject::SizeFromMap(Tagged<Map> map) const {
   }
   if (instance_type == PROPERTY_ARRAY_TYPE) {
     return PropertyArray::SizeFor(
-        PropertyArray::cast(*this)->length(kAcquireLoad));
+        PropertyArray::unchecked_cast(*this)->length(kAcquireLoad));
   }
   if (instance_type == FEEDBACK_VECTOR_TYPE) {
     return FeedbackVector::SizeFor(
@@ -2673,18 +2676,19 @@ MaybeHandle<Object> Object::ShareSlow(Isolate* isolate,
   return MaybeHandle<Object>();
 }
 
+namespace {
+
 template <class T>
-static int AppendUniqueCallbacks(Isolate* isolate,
-                                 Handle<TemplateList> callbacks,
-                                 Handle<typename T::Array> array,
-                                 int valid_descriptors) {
-  int nof_callbacks = callbacks->length();
+int AppendUniqueCallbacks(Isolate* isolate, Handle<ArrayList> callbacks,
+                          Handle<typename T::Array> array,
+                          int valid_descriptors) {
+  int nof_callbacks = callbacks->Length();
 
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)), isolate);
+    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->Get(i)), isolate);
     Handle<Name> key(Name::cast(entry->name()), isolate);
     DCHECK(IsUniqueName(*key));
     // Check if a descriptor with this name already exists before writing.
@@ -2713,11 +2717,13 @@ struct FixedArrayAppender {
   }
 };
 
+}  // namespace
+
 int AccessorInfo::AppendUnique(Isolate* isolate, Handle<Object> descriptors,
                                Handle<FixedArray> array,
                                int valid_descriptors) {
-  Handle<TemplateList> callbacks = Handle<TemplateList>::cast(descriptors);
-  DCHECK_GE(array->length(), callbacks->length() + valid_descriptors);
+  Handle<ArrayList> callbacks = Handle<ArrayList>::cast(descriptors);
+  DCHECK_GE(array->length(), callbacks->Length() + valid_descriptors);
   return AppendUniqueCallbacks<FixedArrayAppender>(isolate, callbacks, array,
                                                    valid_descriptors);
 }
@@ -4119,9 +4125,10 @@ Address JSArray::ArrayJoinConcatToSequentialString(Isolate* isolate,
                                                    Address raw_dest) {
   DisallowGarbageCollection no_gc;
   DisallowJavascriptExecution no_js(isolate);
-  Tagged<FixedArray> fixed_array = FixedArray::cast(Object(raw_fixed_array));
-  Tagged<String> separator = String::cast(Object(raw_separator));
-  Tagged<String> dest = String::cast(Object(raw_dest));
+  Tagged<FixedArray> fixed_array =
+      FixedArray::cast(Tagged<Object>(raw_fixed_array));
+  Tagged<String> separator = String::cast(Tagged<Object>(raw_separator));
+  Tagged<String> dest = String::cast(Tagged<Object>(raw_dest));
   DCHECK(IsFixedArray(fixed_array));
   DCHECK(StringShape(dest).IsSequentialOneByte() ||
          StringShape(dest).IsSequentialTwoByte());
@@ -4517,7 +4524,7 @@ Script::Iterator::Iterator(Isolate* isolate)
 
 Tagged<Script> Script::Iterator::Next() {
   Tagged<Object> o = iterator_.Next();
-  if (o != Object()) {
+  if (o != Tagged<Object>()) {
     return Script::cast(o);
   }
   return Script();
@@ -5083,15 +5090,15 @@ Handle<Derived> HashTable<Derived, Shape>::NewInternal(
 
 template <typename Derived, typename Shape>
 void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
-                                       Derived new_table) {
+                                       Tagged<Derived> new_table) {
   DisallowGarbageCollection no_gc;
-  WriteBarrierMode mode = new_table.GetWriteBarrierMode(no_gc);
+  WriteBarrierMode mode = new_table->GetWriteBarrierMode(no_gc);
 
-  DCHECK_LT(NumberOfElements(), new_table.Capacity());
+  DCHECK_LT(NumberOfElements(), new_table->Capacity());
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kElementsStartIndex; i++) {
-    new_table.set(i, get(cage_base, i), mode);
+    new_table->set(i, get(cage_base, i), mode);
   }
 
   // Rehash the elements.
@@ -5102,14 +5109,14 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
     if (!IsKey(roots, k)) continue;
     uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
-        EntryToIndex(new_table.FindInsertionEntry(cage_base, roots, hash));
-    new_table.set_key(insertion_index, get(cage_base, from_index), mode);
+        EntryToIndex(new_table->FindInsertionEntry(cage_base, roots, hash));
+    new_table->set_key(insertion_index, get(cage_base, from_index), mode);
     for (int j = 1; j < Shape::kEntrySize; j++) {
-      new_table.set(insertion_index + j, get(cage_base, from_index + j), mode);
+      new_table->set(insertion_index + j, get(cage_base, from_index + j), mode);
     }
   }
-  new_table.SetNumberOfElements(NumberOfElements());
-  new_table.SetNumberOfDeletedElements(0);
+  new_table->SetNumberOfElements(NumberOfElements());
+  new_table->SetNumberOfDeletedElements(0);
 }
 
 template <typename Derived, typename Shape>
@@ -5132,7 +5139,7 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
                                      WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
-  Object temp[Shape::kEntrySize];
+  Tagged<Object> temp[Shape::kEntrySize];
   Derived* self = static_cast<Derived*>(this);
   for (int j = 0; j < Shape::kEntrySize; j++) {
     temp[j] = get(index1 + j);
@@ -5659,12 +5666,12 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
 template <typename Derived, typename Shape>
 Tagged<Object> Dictionary<Derived, Shape>::SlowReverseLookup(
     Tagged<Object> value) {
-  Derived dictionary = Derived::cast(*this);
-  ReadOnlyRoots roots = dictionary.GetReadOnlyRoots();
-  for (InternalIndex i : dictionary.IterateEntries()) {
+  Tagged<Derived> dictionary = Derived::cast(*this);
+  ReadOnlyRoots roots = dictionary->GetReadOnlyRoots();
+  for (InternalIndex i : dictionary->IterateEntries()) {
     Tagged<Object> k;
-    if (!dictionary.ToKey(roots, i, &k)) continue;
-    Tagged<Object> e = dictionary.ValueAt(i);
+    if (!dictionary->ToKey(roots, i, &k)) continue;
+    Tagged<Object> e = dictionary->ValueAt(i);
     if (e == value) return k;
   }
   return roots.undefined_value();
@@ -5867,13 +5874,13 @@ void ObjectHashTableBase<Derived, Shape>::RemoveEntry(InternalIndex entry) {
 }
 
 template <typename Derived, int N>
-std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     Handle<Object> key) {
   return Lookup(GetPtrComprCageBase(*this), key);
 }
 
 template <typename Derived, int N>
-std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
+std::array<Tagged<Object>, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
     PtrComprCageBase cage_base, Handle<Object> key) {
   DisallowGarbageCollection no_gc;
 
@@ -5893,7 +5900,7 @@ std::array<Object, N> ObjectMultiHashTableBase<Derived, N>::Lookup(
 
   int start_index = this->EntryToIndex(entry) +
                     ObjectMultiHashTableShape<N>::kEntryValueIndex;
-  std::array<Object, N> values;
+  std::array<Tagged<Object>, N> values;
   for (int i = 0; i < N; i++) {
     values[i] = this->get(start_index + i);
     DCHECK(!IsTheHole(values[i]));
@@ -6064,7 +6071,7 @@ Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
 }
 
 void PropertyCell::ClearAndInvalidate(ReadOnlyRoots roots) {
-  DCHECK(!IsTheHole(value(), roots));
+  DCHECK(!IsPropertyCellHole(value(), roots));
   PropertyDetails details = property_details();
   details = details.set_cell_type(PropertyCellType::kConstant);
   Transition(details, roots.property_cell_hole_value_handle());
@@ -6369,8 +6376,8 @@ void JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
     Address raw_weak_cell) {
   DisallowGarbageCollection no_gc;
   Tagged<JSFinalizationRegistry> finalization_registry =
-      JSFinalizationRegistry::cast(Object(raw_finalization_registry));
-  Tagged<WeakCell> weak_cell = WeakCell::cast(Object(raw_weak_cell));
+      JSFinalizationRegistry::cast(Tagged<Object>(raw_finalization_registry));
+  Tagged<WeakCell> weak_cell = WeakCell::cast(Tagged<Object>(raw_weak_cell));
   DCHECK(!IsUndefined(weak_cell->unregister_token(), isolate));
   Tagged<HeapObject> undefined = ReadOnlyRoots(isolate).undefined_value();
 

@@ -37,6 +37,7 @@
 #include "src/objects/js-atomics-synchronization-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
+#include "src/objects/trusted-object.h"
 #include "src/objects/turbofan-types-inl.h"
 #include "src/objects/turboshaft-types-inl.h"
 #include "src/roots/roots.h"
@@ -185,7 +186,7 @@ void TaggedIndex::TaggedIndexVerify(Tagged<TaggedIndex> obj, Isolate* isolate) {
 void HeapObject::HeapObjectVerify(Isolate* isolate) {
   CHECK(IsHeapObject(*this));
   PtrComprCageBase cage_base(isolate);
-  VerifyPointer(isolate, map(cage_base));
+  Object::VerifyPointer(isolate, map(cage_base));
   CHECK(IsMap(map(cage_base), cage_base));
 
   CHECK(CheckRequiredAlignment(isolate));
@@ -364,16 +365,33 @@ void Symbol::SymbolVerify(Isolate* isolate) {
 }
 
 void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
+  FixedArrayBaseVerify(isolate);
+  {
+    auto o = constant_pool();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsFixedArray(o));
+  }
+  {
+    auto o = handler_table();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsByteArray(o));
+  }
+  {
+    auto o = source_position_table(kAcquireLoad);
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsUndefined(o) || IsException(o) || IsByteArray(o));
+  }
+
+  for (int i = 0; i < constant_pool()->length(); ++i) {
+    // No ThinStrings in the constant pool.
+    CHECK(!IsThinString(constant_pool()->get(isolate, i), isolate));
+  }
+
   // TODO(oth): Walk bytecodes and immediate values to validate sanity.
   // - All bytecodes are known and well formed.
   // - Jumps must go to new instructions starts.
   // - No Illegal bytecodes.
   // - No consecutive sequences of prefix Wide / ExtraWide.
-  TorqueGeneratedClassVerifiers::BytecodeArrayVerify(*this, isolate);
-  for (int i = 0; i < constant_pool(isolate)->length(); ++i) {
-    // No ThinStrings in the constant pool.
-    CHECK(!IsThinString(constant_pool(isolate)->get(isolate, i), isolate));
-  }
 }
 
 bool JSObject::ElementsAreSafeToExamine(PtrComprCageBase cage_base) const {
@@ -468,7 +486,8 @@ void JSObject::JSObjectVerify(Isolate* isolate) {
         if (r.IsNone()) {
           CHECK(type_is_none);
         } else if (!type_is_any && !(type_is_none && r.IsHeapObject())) {
-          CHECK(!field_type->NowStable() || field_type->NowContains(value));
+          CHECK(!FieldType::NowStable(field_type) ||
+                FieldType::NowContains(field_type, value));
         }
         CHECK_IMPLIES(is_transitionable_fast_elements_kind,
                       Map::IsMostGeneralFieldType(r, field_type));
@@ -655,8 +674,17 @@ void EmbedderDataArray::EmbedderDataArrayVerify(Isolate* isolate) {
   }
 }
 
+void FixedArrayBase::FixedArrayBaseVerify(Isolate* isolate) {
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+}
+
 void FixedArray::FixedArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::FixedArrayVerify(*this, isolate);
+  FixedArrayBaseVerify(isolate);
+
+  for (int i = 0; i < length(); ++i) {
+    Object::VerifyPointer(isolate, get(i));
+  }
+
   if (*this == ReadOnlyRoots(isolate).empty_fixed_array()) {
     CHECK_EQ(length(), 0);
     CHECK_EQ(map(), ReadOnlyRoots(isolate).fixed_array_map());
@@ -697,8 +725,16 @@ void PropertyArray::PropertyArrayVerify(Isolate* isolate) {
   }
 }
 
+void ByteArray::ByteArrayVerify(Isolate* isolate) {
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
+}
+
+void ExternalPointerArray::ExternalPointerArrayVerify(Isolate* isolate) {
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
+}
+
 void FixedDoubleArray::FixedDoubleArrayVerify(Isolate* isolate) {
-  TorqueGeneratedClassVerifiers::FixedDoubleArrayVerify(*this, isolate);
+  FixedArrayBase::FixedArrayBaseVerify(isolate);
   for (int i = 0; i < length(); i++) {
     if (!is_the_hole(i)) {
       uint64_t value = get_representation(i);
@@ -963,13 +999,13 @@ void JSFunction::JSFunctionVerify(Isolate* isolate) {
 
   JSFunctionOrBoundFunctionOrWrappedFunctionVerify(isolate);
   CHECK(IsJSFunction(*this));
-  VerifyPointer(isolate, shared(isolate));
+  Object::VerifyPointer(isolate, shared(isolate));
   CHECK(IsSharedFunctionInfo(shared(isolate)));
-  VerifyPointer(isolate, context(isolate, kRelaxedLoad));
+  Object::VerifyPointer(isolate, context(isolate, kRelaxedLoad));
   CHECK(IsContext(context(isolate, kRelaxedLoad)));
-  VerifyPointer(isolate, raw_feedback_cell(isolate));
+  Object::VerifyPointer(isolate, raw_feedback_cell(isolate));
   CHECK(IsFeedbackCell(raw_feedback_cell(isolate)));
-  VerifyPointer(isolate, code(isolate));
+  Object::VerifyPointer(isolate, code(isolate));
   CHECK(IsCode(code(isolate)));
   CHECK(map(isolate)->is_callable());
   Handle<JSFunction> function(*this, isolate);
@@ -1096,17 +1132,17 @@ void Oddball::OddballVerify(Isolate* isolate) {
 
   Heap* heap = isolate->heap();
   Tagged<Object> string = to_string();
-  VerifyPointer(isolate, string);
+  Object::VerifyPointer(isolate, string);
   CHECK(IsString(string));
   Tagged<Object> type = type_of();
-  VerifyPointer(isolate, type);
+  Object::VerifyPointer(isolate, type);
   CHECK(IsString(type));
   Tagged<Object> kind_value = TaggedField<Object>::load(*this, kKindOffset);
-  VerifyPointer(isolate, kind_value);
+  Object::VerifyPointer(isolate, kind_value);
   CHECK(IsSmi(kind_value));
 
   Tagged<Object> number = to_number();
-  VerifyPointer(isolate, number);
+  Object::VerifyPointer(isolate, number);
   CHECK(IsSmi(number) || IsHeapNumber(number));
   if (IsHeapObject(number)) {
     CHECK(number == ReadOnlyRoots(heap).nan_value() ||
@@ -1169,7 +1205,31 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
+void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
+#if defined(V8_ENABLE_SANDBOX)
+  // TODO(saelo): check here that the object lives in trusted space once we
+  // actually allocate them there. If possible, also check (elsewhere in this
+  // file) that no other type of object lives in trusted space.
+#endif
+}
+
+void ExposedTrustedObject::ExposedTrustedObjectVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+#if defined(V8_ENABLE_SANDBOX)
+  // Check that the self indirect pointer is consistent, i.e. points back to
+  // this object.
+  InstanceType instance_type = map()->instance_type();
+  IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
+  // We can't use ReadIndirectPointerField here because the tag is not a
+  // compile-time constant.
+  Tagged<Object> self =
+      RawIndirectPointerField(kSelfIndirectPointerOffset, tag).load(isolate);
+  CHECK_EQ(self, *this);
+#endif
+}
+
 void Code::CodeVerify(Isolate* isolate) {
+  ExposedTrustedObjectVerify(isolate);
   CHECK(IsCode(*this));
   if (has_instruction_stream()) {
     Tagged<InstructionStream> istream = instruction_stream();
@@ -1203,12 +1263,6 @@ void Code::CodeVerify(Isolate* isolate) {
     CHECK_EQ(istream->instruction_start(), instruction_start());
 #endif  // V8_COMPRESS_POINTERS && V8_SHORT_BUILTIN_CALLS
   }
-
-#if defined(V8_CODE_POINTER_SANDBOXING)
-  // Check that the code pointer table entry is consistent, i.e. points back to
-  // this Code object.
-  CHECK_EQ(ReadIndirectPointerField(kCodePointerTableEntryOffset), *this);
-#endif
 }
 
 void InstructionStream::InstructionStreamVerify(Isolate* isolate) {
@@ -1520,7 +1574,7 @@ void SmallOrderedHashTable<Derived>::SmallOrderedHashTableVerify(
   for (int entry = 0; entry < NumberOfElements(); entry++) {
     for (int offset = 0; offset < Derived::kEntrySize; offset++) {
       Tagged<Object> val = GetDataEntry(entry, offset);
-      VerifyPointer(isolate, val);
+      Object::VerifyPointer(isolate, val);
     }
   }
 
@@ -1769,7 +1823,7 @@ void JSArrayBufferView::JSArrayBufferViewVerify(Isolate* isolate) {
 
 void JSTypedArray::JSTypedArrayVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::JSTypedArrayVerify(*this, isolate);
-  CHECK_LE(GetLength(), JSTypedArray::kMaxLength);
+  CHECK_LE(GetLength(), JSTypedArray::kMaxByteLength / element_size());
 }
 
 void JSDataView::JSDataViewVerify(Isolate* isolate) {
@@ -1990,10 +2044,10 @@ void DataHandler::DataHandlerVerify(Isolate* isolate) {
 
   StructVerify(isolate);
   CHECK(IsDataHandler(*this));
-  VerifyPointer(isolate, smi_handler(isolate));
+  Object::VerifyPointer(isolate, smi_handler(isolate));
   CHECK_IMPLIES(!IsSmi(smi_handler()),
                 IsStoreHandler(*this) && IsCode(smi_handler()));
-  VerifyPointer(isolate, validity_cell(isolate));
+  Object::VerifyPointer(isolate, validity_cell(isolate));
   CHECK(IsSmi(validity_cell()) || IsCell(validity_cell()));
   int data_count = data_field_count();
   if (data_count >= 1) {
@@ -2076,7 +2130,7 @@ void PreparseData::PreparseDataVerify(Isolate* isolate) {
   for (int i = 0; i < children_length(); ++i) {
     Tagged<Object> child = get_child_raw(i);
     CHECK(IsNull(child) || IsPreparseData(child));
-    VerifyPointer(isolate, child);
+    Object::VerifyPointer(isolate, child);
   }
 }
 
@@ -2106,6 +2160,24 @@ void ErrorStackData::ErrorStackDataVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ErrorStackDataVerify(*this, isolate);
   CHECK_IMPLIES(!IsFixedArray(call_site_infos_or_formatted_stack()),
                 IsFixedArray(limit_or_stack_frame_infos()));
+}
+
+void SloppyArgumentsElements::SloppyArgumentsElementsVerify(Isolate* isolate) {
+  FixedArrayBaseVerify(isolate);
+  {
+    auto o = context();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsContext(o));
+  }
+  {
+    auto o = arguments();
+    Object::VerifyPointer(isolate, o);
+    CHECK(IsFixedArray(o));
+  }
+  for (int i = 0; i < length(); ++i) {
+    auto o = mapped_entries(i, kRelaxedLoad);
+    CHECK(IsSmi(o) || IsTheHole(o));
+  }
 }
 
 // Helper class for verifying the string table.

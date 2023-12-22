@@ -270,7 +270,7 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     BIND(&next);
   }
 
-  void PointerTableWriteBarrier(SaveFPRegsMode fp_mode) {
+  void IndirectPointerWriteBarrier(SaveFPRegsMode fp_mode) {
     // Currently, only objects living in (local) old space are referenced
     // through a pointer table indirection and we have DCHECKs in the CPP write
     // barrier code to check that. This simplifies the write barrier code for
@@ -281,11 +281,15 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     BIND(&marking_is_on);
 
     // For this barrier, the slot contains an index into a pointer table and not
-    // directly a pointer to a HeapObject.
-    TNode<IntPtrT> slot =
-        UncheckedParameter<IntPtrT>(WriteBarrierDescriptor::kSlotAddress);
-    TNode<IntPtrT> object = BitcastTaggedToWord(
-        UncheckedParameter<Object>(WriteBarrierDescriptor::kObject));
+    // directly a pointer to a HeapObject. Further, the slot address is tagged
+    // with the indirect pointer tag of the slot, so it cannot directly be
+    // dereferenced but needs to be decoded first.
+    TNode<IntPtrT> slot = UncheckedParameter<IntPtrT>(
+        IndirectPointerWriteBarrierDescriptor::kSlotAddress);
+    TNode<IntPtrT> object = BitcastTaggedToWord(UncheckedParameter<Object>(
+        IndirectPointerWriteBarrierDescriptor::kObject));
+    TNode<IntPtrT> tag = UncheckedParameter<IntPtrT>(
+        IndirectPointerWriteBarrierDescriptor::kIndirectPointerTag);
 
     TNode<ExternalReference> function = ExternalConstant(
         ExternalReference::
@@ -293,7 +297,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
     CallCFunctionWithCallerSavedRegisters(
         function, MachineTypeOf<Int32T>::value, fp_mode,
         std::make_pair(MachineTypeOf<IntPtrT>::value, object),
-        std::make_pair(MachineTypeOf<IntPtrT>::value, slot));
+        std::make_pair(MachineTypeOf<IntPtrT>::value, slot),
+        std::make_pair(MachineTypeOf<IntPtrT>::value, tag));
     Goto(&next);
 
     BIND(&next);
@@ -561,7 +566,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       return;
     }
 
-    PointerTableWriteBarrier(fp_mode);
+    if (!V8_ENABLE_SANDBOX_BOOL) {
+      Unreachable();
+      return;
+    }
+
+    IndirectPointerWriteBarrier(fp_mode);
     IncrementCounter(isolate()->counters()->write_barriers(), 1);
     Return(TrueConstant());
   }

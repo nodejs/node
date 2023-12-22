@@ -1720,7 +1720,7 @@ void CodeStubAssembler::StoreBoundedSizeToObject(TNode<HeapObject> object,
                                                  TNode<IntPtrT> offset,
                                                  TNode<UintPtrT> value) {
 #ifdef V8_ENABLE_SANDBOX
-  CSA_DCHECK(this, UintPtrLessThan(
+  CSA_DCHECK(this, UintPtrLessThanOrEqual(
                        value, IntPtrConstant(kMaxSafeBufferSizeForSandbox)));
   TNode<Uint64T> raw_value = ReinterpretCast<Uint64T>(value);
   TNode<Uint64T> shift_amount = Uint64Constant(kBoundedSizeShift);
@@ -1806,7 +1806,7 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
   TNode<IndirectPointerHandleT> handle =
@@ -1823,24 +1823,24 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
       Word32Shl(index, UniqueUint32Constant(kCodePointerTableEntrySizeLog2)));
   return offset;
 }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointFromObject(
+TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaIndirectPointerField(
     TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset =
       ComputeCodePointerTableEntryOffset(object, field_offset);
   return Load<RawPtrT>(table, offset);
 #else
-  return LoadObjectField<RawPtrT>(object, field_offset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset =
@@ -1855,16 +1855,16 @@ TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
   return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
 #else
   UNREACHABLE();
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadMaybeIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   return LoadIndirectPointerFromObject(object, field_offset);
 #else
   return LoadObjectField<HeapObject>(object, field_offset);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
@@ -3372,36 +3372,38 @@ void CodeStubAssembler::StoreObjectField(TNode<HeapObject> object,
   }
 }
 
-void CodeStubAssembler::StoreIndirectPointerField(TNode<HeapObject> object,
-                                                  int offset,
-                                                  TNode<Code> value) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
-  OptimizedStoreIndirectPointerField(object, offset, value);
+void CodeStubAssembler::StoreIndirectPointerField(
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
+  OptimizedStoreIndirectPointerField(object, offset, tag, value);
 }
 
 void CodeStubAssembler::StoreIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, TNode<Code> value) {
-  DCHECK(V8_CODE_POINTER_SANDBOXING_BOOL);
-  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
+  DCHECK(V8_ENABLE_SANDBOX_BOOL);
+  OptimizedStoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 }
 
-void CodeStubAssembler::StoreMaybeIndirectPointerField(TNode<HeapObject> object,
-                                                       int offset,
-                                                       TNode<Code> value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  StoreIndirectPointerField(object, offset, value);
+void CodeStubAssembler::StoreMaybeIndirectPointerField(
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
+#ifdef V8_ENABLE_SANDBOX
+  StoreIndirectPointerField(object, offset, tag, value);
 #else
   StoreObjectField(object, offset, value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::StoreMaybeIndirectPointerFieldNoWriteBarrier(
-    TNode<HeapObject> object, int offset, TNode<Code> value) {
-#ifdef V8_CODE_POINTER_SANDBOXING
-  StoreIndirectPointerFieldNoWriteBarrier(object, offset, value);
+    TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+    TNode<ExposedTrustedObject> value) {
+#ifdef V8_ENABLE_SANDBOX
+  StoreIndirectPointerFieldNoWriteBarrier(object, offset, tag, value);
 #else
   StoreObjectFieldNoWriteBarrier(object, offset, value);
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 }
 
 void CodeStubAssembler::UnsafeStoreObjectFieldNoWriteBarrier(
@@ -11423,7 +11425,7 @@ TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorForStub() {
 
 TNode<FeedbackVector> CodeStubAssembler::LoadFeedbackVectorFromBaseline() {
   return CAST(
-      LoadFromParentFrame(InterpreterFrameConstants::kBytecodeOffsetFromFp));
+      LoadFromParentFrame(BaselineFrameConstants::kFeedbackVectorFromFp));
 }
 
 TNode<Context> CodeStubAssembler::LoadContextFromBaseline() {
@@ -14719,7 +14721,8 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   Label return_number(this, Label::kDeferred), if_oddball(this),
       return_function(this), return_undefined(this), return_object(this),
-      return_string(this), return_bigint(this), return_result(this);
+      return_string(this), return_bigint(this), return_symbol(this),
+      return_result(this);
 
   GotoIf(TaggedIsSmi(value), &return_number);
 
@@ -14750,9 +14753,9 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
 
   GotoIf(IsBigIntInstanceType(instance_type), &return_bigint);
 
-  CSA_DCHECK(this, InstanceTypeEqual(instance_type, SYMBOL_TYPE));
-  result_var = HeapConstant(isolate()->factory()->symbol_string());
-  Goto(&return_result);
+  GotoIf(IsSymbolInstanceType(instance_type), &return_symbol);
+
+  Abort(AbortReason::kUnexpectedInstanceType);
 
   BIND(&return_number);
   {
@@ -14795,6 +14798,12 @@ TNode<String> CodeStubAssembler::Typeof(TNode<Object> value) {
   BIND(&return_bigint);
   {
     result_var = HeapConstant(isolate()->factory()->bigint_string());
+    Goto(&return_result);
+  }
+
+  BIND(&return_symbol);
+  {
+    result_var = HeapConstant(isolate()->factory()->symbol_string());
     Goto(&return_result);
   }
 
@@ -16056,7 +16065,14 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
-  return LoadCodeEntrypointFromObject(code, Code::kInstructionStartOffset);
+#ifdef V8_ENABLE_SANDBOX
+  // In this case, the entrypoint is stored in the code pointer table entry
+  // referenced via the Code object's 'self' indirect pointer.
+  return LoadCodeEntrypointViaIndirectPointerField(
+      code, Code::kSelfIndirectPointerOffset);
+#else
+  return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
+#endif
 }
 
 TNode<BoolT> CodeStubAssembler::IsMarkedForDeoptimization(TNode<Code> code) {
@@ -16088,7 +16104,7 @@ TNode<JSFunction> CodeStubAssembler::AllocateFunctionWithMapAndContext(
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreMaybeIndirectPointerFieldNoWriteBarrier(fun, JSFunction::kCodeOffset,
-                                               code);
+                                               kCodeIndirectPointerTag, code);
   return CAST(fun);
 }
 

@@ -216,7 +216,7 @@ bool Heap::CreateMutableHeapObjects() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                       \
   {                                                                         \
-    Map map;                                                                \
+    Tagged<Map> map;                                                        \
     if (!AllocateMap(AllocationType::kMap, (instance_type), size).To(&map)) \
       return false;                                                         \
     set_##field_name##_map(map);                                            \
@@ -342,7 +342,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
 #define ALLOCATE_PARTIAL_MAP(instance_type, size, field_name)                \
   {                                                                          \
-    Map map;                                                                 \
+    Tagged<Map> map;                                                         \
     if (!AllocatePartialMap((instance_type), (size)).To(&map)) return false; \
     set_##field_name##_map(map);                                             \
   }
@@ -471,7 +471,7 @@ bool Heap::CreateEarlyReadOnlyMaps() {
 
 #define ALLOCATE_MAP(instance_type, size, field_name)                  \
   {                                                                    \
-    Map map;                                                           \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size) \
              .To(&map)) {                                              \
       return false;                                                    \
@@ -677,7 +677,7 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
 #define ALLOCATE_ALWAYS_SHARED_SPACE_JSOBJECT_MAP(instance_type, size, \
                                                   field_name)          \
   {                                                                    \
-    Map map;                                                           \
+    Tagged<Map> map;                                                   \
     if (!AllocateMap(AllocationType::kReadOnly, (instance_type), size, \
                      DICTIONARY_ELEMENTS)                              \
              .To(&map)) {                                              \
@@ -984,6 +984,8 @@ bool Heap::CreateReadOnlyObjects() {
                    factory->hole_nan_value());
 
   set_property_cell_hole_value(*factory->NewHole());
+
+  set_hash_table_hole_value(*factory->NewHole());
 
   set_uninitialized_value(
       *factory->NewOddball(factory->uninitialized_map(), "uninitialized",
@@ -1462,6 +1464,17 @@ void Heap::CreateInitialMutableObjects() {
                                     0);
     set_source_text_module_execute_async_module_rejected_sfi(*info);
   }
+
+  // Array.fromAsync:
+  {
+    Handle<SharedFunctionInfo> info = CreateSharedFunctionInfo(
+        isolate_, Builtin::kArrayFromAsyncOnFulfilled, 0);
+    set_array_from_async_on_fulfilled_shared_fun(*info);
+
+    info = CreateSharedFunctionInfo(isolate_,
+                                    Builtin::kArrayFromAsyncOnRejected, 0);
+    set_array_from_async_on_rejected_shared_fun(*info);
+  }
 }
 
 void Heap::CreateInternalAccessorInfoObjects() {
@@ -1475,13 +1488,13 @@ void Heap::CreateInternalAccessorInfoObjects() {
   ACCESSOR_INFO_LIST_GENERATOR(INIT_ACCESSOR_INFO, /* not used */)
 #undef INIT_ACCESSOR_INFO
 
-#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType, \
-                              SetterType)                                 \
-  AccessorInfo::cast(                                                     \
-      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
-      ->set_getter_side_effect_type(SideEffectType::GetterType);          \
-  AccessorInfo::cast(                                                     \
-      Object(roots_table()[RootIndex::k##AccessorName##Accessor]))        \
+#define INIT_SIDE_EFFECT_FLAG(_, accessor_name, AccessorName, GetterType,  \
+                              SetterType)                                  \
+  AccessorInfo::cast(                                                      \
+      Tagged<Object>(roots_table()[RootIndex::k##AccessorName##Accessor])) \
+      ->set_getter_side_effect_type(SideEffectType::GetterType);           \
+  AccessorInfo::cast(                                                      \
+      Tagged<Object>(roots_table()[RootIndex::k##AccessorName##Accessor])) \
       ->set_setter_side_effect_type(SideEffectType::SetterType);
   ACCESSOR_INFO_LIST_GENERATOR(INIT_SIDE_EFFECT_FLAG, /* not used */)
 #undef INIT_SIDE_EFFECT_FLAG

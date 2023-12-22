@@ -897,7 +897,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
   int length = storage->length();
 
   DisallowGarbageCollection no_gc;
-  Dictionary raw_dictionary = *dictionary;
+  Tagged<Dictionary> raw_dictionary = *dictionary;
   Tagged<FixedArray> raw_storage = *storage;
   EnumIndexComparator<Dictionary> cmp(raw_dictionary);
   // Use AtomicSlot wrapper to ensure that std::sort uses atomic load and
@@ -906,7 +906,7 @@ void CopyEnumKeysTo(Isolate* isolate, Handle<Dictionary> dictionary,
   std::sort(start, start + length, cmp);
   for (int i = 0; i < length; i++) {
     InternalIndex index(Smi::ToInt(raw_storage->get(i)));
-    raw_storage->set(i, raw_dictionary.NameAt(index));
+    raw_storage->set(i, raw_dictionary->NameAt(index));
   }
 }
 
@@ -957,10 +957,10 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
     DisallowGarbageCollection no_gc;
     for (InternalIndex i : dictionary->IterateEntries()) {
       Tagged<Object> key;
-      Dictionary raw_dictionary = *dictionary;
-      if (!raw_dictionary.ToKey(roots, i, &key)) continue;
+      Tagged<Dictionary> raw_dictionary = *dictionary;
+      if (!raw_dictionary->ToKey(roots, i, &key)) continue;
       if (Object::FilterKey(key, filter)) continue;
-      PropertyDetails details = raw_dictionary.DetailsAt(i);
+      PropertyDetails details = raw_dictionary->DetailsAt(i);
       if ((int{details.attributes()} & filter) != 0) {
         AllowGarbageCollection gc;
         // This might allocate, but {key} is not used afterwards.
@@ -969,7 +969,7 @@ ExceptionStatus CollectKeysFromDictionary(Handle<Dictionary> dictionary,
       }
       if (filter & ONLY_ALL_CAN_READ) {
         if (details.kind() != PropertyKind::kAccessor) continue;
-        Tagged<Object> accessors = raw_dictionary.ValueAt(i);
+        Tagged<Object> accessors = raw_dictionary->ValueAt(i);
         if (!IsAccessorInfo(accessors)) continue;
         if (!AccessorInfo::cast(accessors)->all_can_read()) continue;
       }
@@ -1161,7 +1161,7 @@ Maybe<bool> KeyAccumulator::CollectOwnKeys(Handle<JSReceiver> receiver,
     }
     // We always have both kinds of interceptors or none.
     if (!access_check_info.is_null() &&
-        access_check_info->named_interceptor() != Object()) {
+        access_check_info->named_interceptor() != Tagged<Object>()) {
       MAYBE_RETURN(CollectAccessCheckInterceptorKeys(access_check_info,
                                                      receiver, object),
                    Nothing<bool>());

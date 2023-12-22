@@ -299,6 +299,7 @@ DEFINE_REGISTER_NAMES(QwNeonRegister, SIMD128_REGISTERS)
 DEFINE_REGISTER_NAMES(CRegister, C_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register kStackPointerRegister = sp;
 constexpr Register kReturnRegister0 = r0;
 constexpr Register kReturnRegister1 = r1;
 constexpr Register kReturnRegister2 = r2;

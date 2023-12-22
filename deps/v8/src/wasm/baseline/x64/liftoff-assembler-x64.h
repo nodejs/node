@@ -177,7 +177,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
 
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
                WasmValue(declared_function_index));
-  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+  CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -264,7 +264,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     j(above_equal, &continuation, Label::kNear);
   }
 
-  near_call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+            RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
   AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
@@ -419,29 +420,31 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
+                                          int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   DCHECK_GE(offset_imm, 0);
   Operand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg,
                                      static_cast<uint32_t>(offset_imm));
-  StoreTaggedField(dst_op, src.gp());
+  StoreTaggedField(dst_op, src);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  // None of the code below uses the {kScratchRegister} (in particular the
+  // {CallRecordWriteStubSaveRegisters} just emits a near call). Hence we can
+  // use it as scratch register here.
   Label exit;
-  CheckPageFlag(dst_addr, scratch,
+  CheckPageFlag(dst_addr, kScratchRegister,
                 MemoryChunk::kPointersFromHereAreInterestingMask, zero, &exit,
                 Label::kNear);
-  JumpIfSmi(src.gp(), &exit, Label::kNear);
-  CheckPageFlag(src.gp(), scratch,
+  JumpIfSmi(src, &exit, Label::kNear);
+  CheckPageFlag(src, kScratchRegister,
                 MemoryChunk::kPointersToHereAreInterestingMask, zero, &exit,
                 Label::kNear);
-  leaq(scratch, dst_op);
+  leaq(kScratchRegister, dst_op);
 
-  CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
+  CallRecordWriteStubSaveRegisters(dst_addr, kScratchRegister,
+                                   SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
 }
@@ -3292,9 +3295,9 @@ void LiftoffAssembler::emit_i32x4_dot_i8x16_i7x16_add_s(LiftoffRegister dst,
                                                         LiftoffRegister acc) {
   static constexpr RegClass tmp_rc = reg_class_for(kS128);
   LiftoffRegister tmp1 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs});
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc});
   LiftoffRegister tmp2 =
-      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, tmp1});
+      GetUnusedRegister(tmp_rc, LiftoffRegList{dst, lhs, rhs, acc, tmp1});
   I32x4DotI8x16I7x16AddS(dst.fp(), lhs.fp(), rhs.fp(), acc.fp(), tmp1.fp(),
                          tmp2.fp());
 }
@@ -4325,10 +4328,10 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
   jmp(target);
 }
 
-void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  near_call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  // A direct call to a builtin. Just encode the builtin index. This will be
+  // patched at relocation.
+  near_call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
@@ -4342,7 +4345,7 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {
   cmpq(liftoff::kOSRTargetSlot, Immediate(0));
-  j(not_equal, static_cast<Address>(WasmCode::kWasmOnStackReplace),
+  j(not_equal, static_cast<Address>(Builtin::kWasmOnStackReplace),
     RelocInfo::WASM_STUB_CALL);
 }
 

@@ -179,8 +179,7 @@ class ObjectVisitor {
                                   RelocInfo* rinfo) {}
 
   virtual void VisitExternalPointer(Tagged<HeapObject> host,
-                                    ExternalPointerSlot slot,
-                                    ExternalPointerTag tag) {}
+                                    ExternalPointerSlot slot) {}
 
   virtual void VisitIndirectPointer(Tagged<HeapObject> host,
                                     IndirectPointerSlot slot,

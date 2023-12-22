@@ -10,6 +10,7 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
@@ -49,6 +50,14 @@ PagedSpace* HeapAllocator::old_space() const {
 
 ReadOnlySpace* HeapAllocator::read_only_space() const {
   return read_only_space_;
+}
+
+PagedSpace* HeapAllocator::trusted_space() const {
+  return static_cast<PagedSpace*>(spaces_[TRUSTED_SPACE]);
+}
+
+OldLargeObjectSpace* HeapAllocator::trusted_lo_space() const {
+  return static_cast<OldLargeObjectSpace*>(spaces_[TRUSTED_LO_SPACE]);
 }
 
 bool HeapAllocator::CanAllocateInReadOnlySpace() const {
@@ -98,21 +107,21 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
     } else {
       switch (type) {
         case AllocationType::kYoung:
-          allocation =
-              new_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = new_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
         case AllocationType::kMap:
         case AllocationType::kOld:
-          allocation =
-              old_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = old_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
         case AllocationType::kCode: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
           CodePageHeaderModificationScope header_modification_scope(
               "Code allocation needs header access.");
-          allocation = code_space()->AllocateRaw(
-              size_in_bytes, AllocationAlignment::kTaggedAligned);
+          allocation = code_space_allocator_->AllocateRaw(
+              size_in_bytes, AllocationAlignment::kTaggedAligned, origin);
           break;
         }
         case AllocationType::kReadOnly:
@@ -124,6 +133,10 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
         case AllocationType::kSharedOld:
           allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
                                                           alignment, origin);
+          break;
+        case AllocationType::kTrusted:
+          allocation = trusted_space_allocator_->AllocateRaw(size_in_bytes,
+                                                             alignment, origin);
           break;
       }
     }
@@ -169,6 +182,9 @@ AllocationResult HeapAllocator::AllocateRaw(int size_in_bytes,
     case AllocationType::kSharedOld:
       return AllocateRaw<AllocationType::kSharedOld>(size_in_bytes, origin,
                                                      alignment);
+    case AllocationType::kTrusted:
+      return AllocateRaw<AllocationType::kTrusted>(size_in_bytes, origin,
+                                                   alignment);
   }
   UNREACHABLE();
 }
@@ -189,6 +205,7 @@ AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();

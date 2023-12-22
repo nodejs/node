@@ -478,15 +478,15 @@ void DebugInfoCollection::Insert(Tagged<SharedFunctionInfo> sfi,
 bool DebugInfoCollection::Contains(Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return false;
-  DCHECK_EQ(DebugInfo::cast(Object(*it->second))->shared(), sfi);
+  DCHECK_EQ(DebugInfo::cast(Tagged<Object>(*it->second))->shared(), sfi);
   return true;
 }
 
-base::Optional<DebugInfo> DebugInfoCollection::Find(
+base::Optional<Tagged<DebugInfo>> DebugInfoCollection::Find(
     Tagged<SharedFunctionInfo> sfi) const {
   auto it = map_.find(sfi->unique_id());
   if (it == map_.end()) return {};
-  Tagged<DebugInfo> di = DebugInfo::cast(Object(*it->second));
+  Tagged<DebugInfo> di = DebugInfo::cast(Tagged<Object>(*it->second));
   DCHECK_EQ(di->shared(), sfi);
   return di;
 }
@@ -504,7 +504,7 @@ void DebugInfoCollection::DeleteSlow(Tagged<SharedFunctionInfo> sfi) {
 
 Tagged<DebugInfo> DebugInfoCollection::EntryAsDebugInfo(size_t index) const {
   DCHECK_LT(index, list_.size());
-  return DebugInfo::cast(Object(*list_[index]));
+  return DebugInfo::cast(Tagged<Object>(*list_[index]));
 }
 
 void DebugInfoCollection::DeleteIndex(size_t index) {
@@ -763,7 +763,7 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
 namespace {
 
 // Convenience helper for easier base::Optional translation.
-bool ToHandle(Isolate* isolate, base::Optional<DebugInfo> debug_info,
+bool ToHandle(Isolate* isolate, base::Optional<Tagged<DebugInfo>> debug_info,
               Handle<DebugInfo>* out) {
   if (!debug_info.has_value()) return false;
   *out = handle(debug_info.value(), isolate);
@@ -1235,7 +1235,7 @@ void Debug::PrepareStepOnThrow() {
   while (!it.done()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->LookupExceptionHandlerInTable(nullptr, nullptr) > 0) break;
-    std::vector<SharedFunctionInfo> infos;
+    std::vector<Tagged<SharedFunctionInfo>> infos;
     frame->GetFunctions(&infos);
     current_frame_count -= infos.size();
     it.Advance();
@@ -1587,7 +1587,7 @@ class DiscardBaselineCodeVisitor : public ThreadVisitor {
   }
 
  private:
-  SharedFunctionInfo shared_;
+  Tagged<SharedFunctionInfo> shared_;
 };
 }  // namespace
 
@@ -1691,9 +1691,10 @@ namespace {
 bool IsJSFunctionAndNeedsTrampoline(Isolate* isolate,
                                     Tagged<Object> maybe_function) {
   if (!IsJSFunction(maybe_function)) return false;
-  base::Optional<DebugInfo> debug_info = isolate->debug()->TryGetDebugInfo(
-      JSFunction::cast(maybe_function)->shared());
-  return debug_info.has_value() && debug_info->CanBreakAtEntry();
+  base::Optional<Tagged<DebugInfo>> debug_info =
+      isolate->debug()->TryGetDebugInfo(
+          JSFunction::cast(maybe_function)->shared());
+  return debug_info.has_value() && debug_info.value()->CanBreakAtEntry();
 }
 
 }  // namespace
@@ -1730,7 +1731,7 @@ void Debug::InstallDebugBreakTrampoline() {
   std::vector<AccessorPairWithContext> needs_instantiate;
   {
     // Deduplicate {needs_instantiate} by recording all collected AccessorPairs.
-    std::set<AccessorPair> recorded;
+    std::set<Tagged<AccessorPair>> recorded;
     HeapObjectIterator iterator(isolate_->heap());
     DisallowGarbageCollection no_gc;
     for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
@@ -1922,8 +1923,8 @@ class SharedFunctionInfoFinder {
   Tagged<JSFunction> ResultClosure() { return current_candidate_closure_; }
 
  private:
-  SharedFunctionInfo current_candidate_;
-  JSFunction current_candidate_closure_;
+  Tagged<SharedFunctionInfo> current_candidate_;
+  Tagged<JSFunction> current_candidate_closure_;
   int current_start_position_;
   int target_position_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
@@ -2151,7 +2152,7 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
     Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
 
-  if (base::Optional<DebugInfo> di = debug_infos_.Find(*shared)) {
+  if (base::Optional<Tagged<DebugInfo>> di = debug_infos_.Find(*shared)) {
     return handle(di.value(), isolate_);
   }
 
@@ -2246,7 +2247,7 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   return FixedArray::ShrinkOrEmpty(isolate_, results, length);
 }
 
-base::Optional<DebugInfo> Debug::TryGetDebugInfo(
+base::Optional<Tagged<DebugInfo>> Debug::TryGetDebugInfo(
     Tagged<SharedFunctionInfo> sfi) {
   return debug_infos_.Find(sfi);
 }
@@ -2256,22 +2257,22 @@ bool Debug::HasDebugInfo(Tagged<SharedFunctionInfo> sfi) {
 }
 
 bool Debug::HasCoverageInfo(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->HasCoverageInfo();
+  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+    return debug_info.value()->HasCoverageInfo();
   }
   return false;
 }
 
 bool Debug::HasBreakInfo(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->HasBreakInfo();
+  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+    return debug_info.value()->HasBreakInfo();
   }
   return false;
 }
 
 bool Debug::BreakAtEntry(Tagged<SharedFunctionInfo> sfi) {
-  if (base::Optional<DebugInfo> debug_info = TryGetDebugInfo(sfi)) {
-    return debug_info->BreakAtEntry();
+  if (base::Optional<Tagged<DebugInfo>> debug_info = TryGetDebugInfo(sfi)) {
+    return debug_info.value()->BreakAtEntry();
   }
   return false;
 }

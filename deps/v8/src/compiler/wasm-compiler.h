@@ -47,7 +47,7 @@ class SourcePositionTable;
 struct WasmCompilationData;
 class WasmDecorator;
 class WasmGraphAssembler;
-enum class TrapId : uint32_t;
+enum class TrapId : int32_t;
 struct Int64LoweringSpecialCase;
 template <size_t VarCount>
 class GraphAssemblerLabel;
@@ -87,7 +87,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
 std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
-    const wasm::WasmFeatures& enabled_features);
+    wasm::WasmFeatures enabled_features);
 
 MaybeHandle<Code> CompileWasmToJSWrapper(Isolate* isolate,
                                          const wasm::FunctionSig* sig,
@@ -472,7 +472,7 @@ class WasmGraphBuilder {
   void ArrayInitSegment(uint32_t segment_index, Node* array, Node* array_index,
                         Node* segment_offset, Node* length, bool is_element,
                         wasm::WasmCodePosition position);
-  Node* I31New(Node* input);
+  Node* RefI31(Node* input);
   Node* I31GetS(Node* input, CheckForNull null_check,
                 wasm::WasmCodePosition position);
   Node* I31GetU(Node* input, CheckForNull null_check,
@@ -836,7 +836,7 @@ class WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
 
-  Node* BuildLoadCodePointerFromObject(Node* object, int field_offset);
+  Node* BuildLoadCodeEntrypoint(Node* code_object);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 

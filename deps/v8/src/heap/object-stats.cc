@@ -124,7 +124,7 @@ class FieldStatsCollector : public ObjectVisitorWithCageBases {
     unsigned embedded_fields_count_ : kDescriptorIndexBitCount;
     unsigned smi_fields_count_ : kDescriptorIndexBitCount;
   };
-  std::unordered_map<Map, JSObjectFieldStats, Object::Hasher>
+  std::unordered_map<Tagged<Map>, JSObjectFieldStats, Object::Hasher>
       field_stats_cache_;
 
   JSObjectFieldStats GetInobjectFieldStats(Tagged<Map> map);
@@ -457,7 +457,7 @@ class ObjectStatsCollectorImpl {
   Heap* const heap_;
   ObjectStats* const stats_;
   NonAtomicMarkingState* const marking_state_;
-  std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>
+  std::unordered_set<Tagged<HeapObject>, Object::Hasher, Object::KeyEqualSafe>
       virtual_objects_;
   std::unordered_set<Address> external_resources_;
   FieldStatsCollector field_stats_collector_;

@@ -126,23 +126,22 @@ class Builtins {
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
-  static constexpr Builtin GetRecordWriteStub(
-      SaveFPRegsMode fp_mode, PointerType type = PointerType::kDirect) {
-    switch (type) {
-      case PointerType::kDirect:
-        switch (fp_mode) {
-          case SaveFPRegsMode::kIgnore:
-            return Builtin::kRecordWriteIgnoreFP;
-          case SaveFPRegsMode::kSave:
-            return Builtin::kRecordWriteSaveFP;
-        }
-      case PointerType::kIndirect:
-        switch (fp_mode) {
-          case SaveFPRegsMode::kIgnore:
-            return Builtin::kIndirectPointerBarrierIgnoreFP;
-          case SaveFPRegsMode::kSave:
-            return Builtin::kIndirectPointerBarrierSaveFP;
-        }
+  static constexpr Builtin GetRecordWriteStub(SaveFPRegsMode fp_mode) {
+    switch (fp_mode) {
+      case SaveFPRegsMode::kIgnore:
+        return Builtin::kRecordWriteIgnoreFP;
+      case SaveFPRegsMode::kSave:
+        return Builtin::kRecordWriteSaveFP;
+    }
+  }
+
+  static constexpr Builtin GetIndirectPointerBarrierStub(
+      SaveFPRegsMode fp_mode) {
+    switch (fp_mode) {
+      case SaveFPRegsMode::kIgnore:
+        return Builtin::kIndirectPointerBarrierIgnoreFP;
+      case SaveFPRegsMode::kSave:
+        return Builtin::kIndirectPointerBarrierSaveFP;
     }
   }
 

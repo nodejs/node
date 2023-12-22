@@ -59,7 +59,8 @@ class V8_EXPORT_PRIVATE StartupSerializer : public RootsSerializer {
 
 class SerializedHandleChecker : public RootVisitor {
  public:
-  SerializedHandleChecker(Isolate* isolate, std::vector<Context>* contexts);
+  SerializedHandleChecker(Isolate* isolate,
+                          std::vector<Tagged<Context>>* contexts);
   void VisitRootPointers(Root root, const char* description,
                          FullObjectSlot start, FullObjectSlot end) override;
   bool CheckGlobalAndEternalHandles();
@@ -68,7 +69,7 @@ class SerializedHandleChecker : public RootVisitor {
   void AddToSet(Tagged<FixedArray> serialized);
 
   Isolate* isolate_;
-  std::unordered_set<Object, Object::Hasher> serialized_;
+  std::unordered_set<Tagged<Object>, Object::Hasher> serialized_;
   bool ok_ = true;
 };
 

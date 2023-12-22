@@ -21,7 +21,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   // On arm64 only internal references and immediate branches need extra work.
   if (RelocInfo::IsInternalReference(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
@@ -675,7 +675,7 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
     return HeapObject::cast(obj);
   } else {
     return HeapObject::cast(
-        Object(Assembler::target_address_at(pc_, constant_pool_)));
+        Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
@@ -688,8 +688,8 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
@@ -708,7 +708,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -733,20 +733,6 @@ Builtin RelocInfo::target_builtin_at(Assembler* origin) {
 Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    WriteUnalignedValue<Address>(pc_, kNullAddress);
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
-                                                kNullAddress);
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
 }
 
 LoadStoreOp Assembler::LoadOpFor(const CPURegister& rt) {

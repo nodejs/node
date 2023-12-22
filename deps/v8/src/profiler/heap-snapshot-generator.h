@@ -568,10 +568,10 @@ class V8_EXPORT_PRIVATE V8HeapExplorer : public HeapEntriesAllocator {
   HeapObjectsMap* heap_object_map_;
   SnapshottingProgressReportingInterface* progress_;
   HeapSnapshotGenerator* generator_ = nullptr;
-  std::unordered_map<JSGlobalObject, const char*, Object::Hasher>
+  std::unordered_map<Tagged<JSGlobalObject>, const char*, Object::Hasher>
       global_object_tag_map_;
   UnorderedHeapObjectMap<const char*> strong_gc_subroot_names_;
-  std::unordered_set<JSGlobalObject, Object::Hasher> user_roots_;
+  std::unordered_set<Tagged<JSGlobalObject>, Object::Hasher> user_roots_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
   std::vector<bool> visited_fields_;
@@ -626,6 +626,7 @@ class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
   HeapSnapshotGenerator(const HeapSnapshotGenerator&) = delete;
   HeapSnapshotGenerator& operator=(const HeapSnapshotGenerator&) = delete;
   bool GenerateSnapshot();
+  bool GenerateSnapshotAfterGC();
 
   HeapEntry* FindEntry(HeapThing ptr) {
     auto it = entries_map_.find(ptr);

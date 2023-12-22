@@ -1207,25 +1207,6 @@ class ObjectMirror final : public ValueMirror {
       return Response::Success();
     }
 
-    // TODO(crbug.com/1420968): remove as deprecated.
-    std::unique_ptr<v8_inspector::WebDriverValue> embedderWebDriverValue =
-        clientFor(context)->serializeToWebDriverValue(m_value, 0);
-
-    if (embedderWebDriverValue) {
-      // Embedder-implemented serialization.
-      (*result)->setString("type",
-                           toString16(embedderWebDriverValue->type->string()));
-      v8::Local<v8::Value> v8Value;
-      if (embedderWebDriverValue->value.ToLocal(&v8Value)) {
-        // Embedder-implemented serialization has value.
-        std::unique_ptr<protocol::Value> protocolValue;
-        Response response = toProtocolValue(context, v8Value, &protocolValue);
-        if (!response.IsSuccess()) return response;
-        (*result)->setValue("value", std::move(protocolValue));
-      }
-      return Response::Success();
-    }
-
     // No embedder-implemented serialization. Serialize as V8 Object.
     return V8DeepSerializer::serializeV8Value(
         m_value, context, maxDepth, additionalParameters, duplicateTracker,

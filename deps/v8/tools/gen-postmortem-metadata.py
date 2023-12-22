@@ -424,13 +424,11 @@ consts_misc = [
     },
     {
         'name': 'off_fp_bytecode_array',
-        'value': 'UnoptimizedFrameConstants::kBytecodeArrayFromFp'
+        'value': 'InterpreterFrameConstants::kBytecodeArrayFromFp'
     },
     {
-        'name':
-            'off_fp_bytecode_offset',
-        'value':
-            'UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackVectorFromFp'
+        'name': 'off_fp_bytecode_offset',
+        'value': 'InterpreterFrameConstants::kBytecodeOffsetFromFp'
     },
     {
         'name': 'scopeinfo_idx_nparams',

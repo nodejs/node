@@ -862,7 +862,9 @@ void UpdateFeatureUseCounts(Isolate* isolate, WasmFeatures detected) {
       {kFeature_eh, Feature::kWasmExceptionHandling},
       {kFeature_memory64, Feature::kWasmMemory64},
       {kFeature_multi_memory, Feature::kWasmMultiMemory},
-      {kFeature_gc, Feature::kWasmGC}};
+      {kFeature_gc, Feature::kWasmGC},
+      {kFeature_imported_strings, Feature::kWasmImportedStrings},
+  };
 
   for (auto& feature : kUseCounters) {
     if (detected.contains(feature.first)) isolate->CountUsage(feature.second);
@@ -1313,7 +1315,7 @@ class TransitiveTypeFeedbackProcessor {
   }
 
   DisallowGarbageCollection no_gc_scope_;
-  WasmInstanceObject instance_;
+  Tagged<WasmInstanceObject> instance_;
   const WasmModule* const module_;
   // TODO(jkummerow): Check if it makes a difference to apply any updates
   // as a single batch at the end.
@@ -1392,7 +1394,7 @@ class FeedbackMaker {
   std::vector<CallSiteFeedback>&& GetResult() && { return std::move(result_); }
 
  private:
-  const WasmInstanceObject instance_;
+  const Tagged<WasmInstanceObject> instance_;
   std::vector<CallSiteFeedback> result_;
   const int num_imported_functions_;
   const int func_index_;
@@ -1477,7 +1479,8 @@ void TriggerTierUp(Tagged<WasmInstanceObject> instance, int func_index) {
 
   // Before adding the tier-up unit or increasing priority, do process type
   // feedback for best code generation.
-  if (native_module->enabled_features().has_inlining()) {
+  if (native_module->enabled_features().has_inlining() ||
+      native_module->module()->is_wasm_gc) {
     // TODO(jkummerow): we could have collisions here if different instances
     // of the same module have collected different feedback. If that ever
     // becomes a problem, figure out a solution.
@@ -1490,7 +1493,8 @@ void TriggerTierUp(Tagged<WasmInstanceObject> instance, int func_index) {
 void TierUpNowForTesting(Isolate* isolate, Tagged<WasmInstanceObject> instance,
                          int func_index) {
   NativeModule* native_module = instance->module_object()->native_module();
-  if (native_module->enabled_features().has_inlining()) {
+  if (native_module->enabled_features().has_inlining() ||
+      native_module->module()->is_wasm_gc) {
     TransitiveTypeFeedbackProcessor::Process(instance, func_index);
   }
   wasm::GetWasmEngine()->CompileFunction(isolate->counters(), native_module,

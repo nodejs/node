@@ -124,6 +124,9 @@ namespace v8 {
 
 namespace {
 
+// Set on worker threads to the current Worker instance.
+thread_local Worker* current_worker_ = nullptr;
+
 #ifdef V8_FUZZILLI
 // REPRL = read-eval-print-reset-loop
 // These file descriptors are being opened when Fuzzilli uses fork & execve to
@@ -1138,8 +1141,8 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
       return MaybeLocal<Module>();
     }
 
-    std::vector<Local<String>> export_names{
-        String::NewFromUtf8(isolate, "default").ToLocalChecked()};
+    auto export_names = v8::to_array<Local<String>>(
+        {String::NewFromUtf8(isolate, "default").ToLocalChecked()});
 
     module = v8::Module::CreateSyntheticModule(
         isolate,
@@ -3867,6 +3870,15 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 
 void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   platform::NotifyIsolateShutdown(g_default_platform, isolate);
+
+  if (Worker* worker = Worker::GetCurrentWorker()) {
+    // When invoking `quit` on a worker isolate, the worker needs to reach
+    // State::kTerminated before invoking Isolate::Dispose. This is because the
+    // main thread tries to terminate all workers at the end, which can happen
+    // concurrently to Isolate::Dispose.
+    worker->EnterTerminatedState();
+  }
+
   isolate->Dispose();
 
   // Simulate errors before disposing V8, as that resets flags (via
@@ -3930,6 +3942,14 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
       std::cout << "+" << std::string(kNameBoxSize, '-') << "+"
                 << std::string(kValueBoxSize, '-') << "+\n";
     }
+  }
+
+  if (options.dump_system_memory_stats) {
+    int peak_memory_usage = base::OS::GetPeakMemoryUsageKb();
+    std::cout << "System peak memory usage (kb): " << peak_memory_usage
+              << std::endl;
+    // TODO(jdapena): call rusage platform independent call, and extract peak
+    // memory usage to print it
   }
 
   // Only delete the counters if we are done executing; after calling `quit`,
@@ -4638,6 +4658,14 @@ void Worker::Terminate() {
   isolate_->TerminateExecution();
 }
 
+void Worker::EnterTerminatedState() {
+  base::MutexGuard lock_guard(&worker_mutex_);
+  state_.store(State::kTerminated);
+  CHECK(!is_running());
+  task_runner_.reset();
+  task_manager_ = nullptr;
+}
+
 void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
   if (!is_running()) return;
   DCHECK_NOT_NULL(isolate_);
@@ -4678,10 +4706,22 @@ void Worker::ProcessMessages() {
   }
 }
 
+// static
+void Worker::SetCurrentWorker(Worker* worker) {
+  CHECK_NULL(current_worker_);
+  current_worker_ = worker;
+}
+
+// static
+Worker* Worker::GetCurrentWorker() { return current_worker_; }
+
 void Worker::ExecuteInThread() {
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   isolate_ = Isolate::New(create_params);
+
+  // Make the Worker instance available to the whole thread.
+  SetCurrentWorker(this);
 
   task_runner_ = g_default_platform->GetForegroundTaskRunner(isolate_);
   task_manager_ =
@@ -4755,13 +4795,7 @@ void Worker::ExecuteInThread() {
       Shell::CollectGarbage(isolate_);
     }
 
-    {
-      base::MutexGuard lock_guard(&worker_mutex_);
-      state_.store(State::kTerminated);
-      CHECK(!is_running());
-      task_runner_.reset();
-      task_manager_ = nullptr;
-    }
+    EnterTerminatedState();
 
     Shell::ResetOnProfileEndListener(isolate_);
     context_.Reset();
@@ -4909,6 +4943,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--dump-counters-nvp") == 0) {
       i::v8_flags.slow_histograms = true;
       options.dump_counters_nvp = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--dump-system-memory-stats") == 0) {
+      options.dump_system_memory_stats = true;
       argv[i] = nullptr;
     } else if (strncmp(argv[i], "--icu-data-file=", 16) == 0) {
       options.icu_data_file = argv[i] + 16;

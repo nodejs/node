@@ -14,9 +14,8 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/regexp-match-info-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo)
+CAST_ACCESSOR(RegExpMatchInfo)
+OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);

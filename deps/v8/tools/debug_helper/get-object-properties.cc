@@ -22,15 +22,11 @@ namespace v8 {
 namespace internal {
 namespace debug_helper_internal {
 
-constexpr char kObject[] = "v8::internal::Object";
 constexpr char kTaggedValue[] = "v8::internal::TaggedValue";
 constexpr char kSmi[] = "v8::internal::Smi";
 constexpr char kHeapObject[] = "v8::internal::HeapObject";
-#ifdef V8_COMPRESS_POINTERS
-constexpr char kObjectAsStoredInHeap[] = "v8::internal::TaggedValue";
-#else
-constexpr char kObjectAsStoredInHeap[] = "v8::internal::Object";
-#endif
+constexpr char kObjectAsStoredInHeap[] =
+    "v8::internal::TaggedMember<v8::internal::Object>";
 
 std::string AppendAddressAndType(const std::string& brief, uintptr_t address,
                                  const char* type) {
@@ -255,7 +251,7 @@ class ReadStringVisitor : public TqObjectVisitor {
     DCHECK(size_per_character_ == 1 || size_per_character_ == 2);
     const char* type = size_per_character_ == 1 ? "char" : "char16_t";
     return std::make_unique<ObjectProperty>(
-        "raw_characters", type, type, raw_characters_address_, num_characters_,
+        "raw_characters", type, raw_characters_address_, num_characters_,
         size_per_character_, std::vector<std::unique_ptr<StructProperty>>(),
         d::PropertyKind::kArrayOfKnownSize);
   }
@@ -571,7 +567,7 @@ class AddInfoVisitor : public TqObjectVisitor {
     int num_properties = instance_size.value - start_offset.value;
     if (num_properties > 0) {
       properties_.push_back(std::make_unique<ObjectProperty>(
-          "in-object properties", kObjectAsStoredInHeap, kObject,
+          "in-object properties", kObjectAsStoredInHeap,
           object->GetMapAddress() + start_offset.value * i::kTaggedSize,
           num_properties, i::kTaggedSize,
           std::vector<std::unique_ptr<StructProperty>>(),
@@ -725,8 +721,8 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
     if (!StackFrame::IsTypeMarker(context_or_frame_type)) {
       props.push_back(std::make_unique<ObjectProperty>(
           "currently_executing_jsfunction",
-          CheckTypeName<v8::internal::JSFunction>("v8::internal::JSFunction"),
-          CheckTypeName<v8::internal::JSFunction*>("v8::internal::JSFunction"),
+          CheckTypeName<v8::internal::Tagged<v8::internal::JSFunction>>(
+              "v8::internal::Tagged<v8::internal::JSFunction>"),
           frame_pointer + StandardFrameConstants::kFunctionOffset, 1,
           sizeof(v8::internal::JSFunction),
           std::vector<std::unique_ptr<StructProperty>>(),
@@ -755,12 +751,12 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                                                 i::InstanceType::SCRIPT_TYPE)) {
               TqScript script(script_ptr.value);
               props.push_back(std::make_unique<ObjectProperty>(
-                  "script_name", kObjectAsStoredInHeap, kObject,
-                  script.GetNameAddress(), 1, i::kTaggedSize,
+                  "script_name", kObjectAsStoredInHeap, script.GetNameAddress(),
+                  1, i::kTaggedSize,
                   std::vector<std::unique_ptr<StructProperty>>(),
                   d::PropertyKind::kSingle));
               props.push_back(std::make_unique<ObjectProperty>(
-                  "script_source", kObjectAsStoredInHeap, kObject,
+                  "script_source", kObjectAsStoredInHeap,
                   script.GetSourceAddress(), 1, i::kTaggedSize,
                   std::vector<std::unique_ptr<StructProperty>>(),
                   d::PropertyKind::kSingle));
@@ -780,7 +776,7 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
               if (indexed_field_slice_function_variable_info.validity ==
                   d::MemoryAccessResult::kOk) {
                 props.push_back(std::make_unique<ObjectProperty>(
-                    "function_name", kObjectAsStoredInHeap, kObject,
+                    "function_name", kObjectAsStoredInHeap,
                     scope_info_address - i::kHeapObjectTag +
                         std::get<1>(
                             indexed_field_slice_function_variable_info.value),
@@ -794,17 +790,17 @@ std::unique_ptr<StackFrameResult> GetStackFrame(
                   position_info_struct_field_list;
               position_info_struct_field_list.push_back(
                   std::make_unique<StructProperty>(
-                      "start", kObjectAsStoredInHeap, kObject, 0, 0, 0));
+                      "start", kObjectAsStoredInHeap, 0, 0, 0));
               position_info_struct_field_list.push_back(
                   std::make_unique<StructProperty>("end", kObjectAsStoredInHeap,
-                                                   kObject, 4, 0, 0));
+                                                   4, 0, 0));
               auto indexed_field_slice_position_info =
                   TqDebugFieldSliceScopeInfoPositionInfo(memory_accessor,
                                                          scope_info_address);
               if (indexed_field_slice_position_info.validity ==
                   d::MemoryAccessResult::kOk) {
                 props.push_back(std::make_unique<ObjectProperty>(
-                    "function_character_offset", "", "",
+                    "function_character_offset", "",
                     scope_info_address - i::kHeapObjectTag +
                         std::get<1>(indexed_field_slice_position_info.value),
                     std::get<2>(indexed_field_slice_position_info.value),

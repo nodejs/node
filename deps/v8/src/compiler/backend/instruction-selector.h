@@ -911,17 +911,26 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(LoadFramePointer)
   DECLARE_GENERATOR_T(LoadParentFramePointer)
   DECLARE_GENERATOR_T(ProtectedLoad)
+  DECLARE_GENERATOR_T(Word32AtomicAdd)
+  DECLARE_GENERATOR_T(Word32AtomicSub)
+  DECLARE_GENERATOR_T(Word32AtomicAnd)
+  DECLARE_GENERATOR_T(Word32AtomicOr)
+  DECLARE_GENERATOR_T(Word32AtomicXor)
+  DECLARE_GENERATOR_T(Word32AtomicExchange)
+  DECLARE_GENERATOR_T(Word32AtomicCompareExchange)
+  DECLARE_GENERATOR_T(Word64AtomicAdd)
+  DECLARE_GENERATOR_T(Word64AtomicSub)
+  DECLARE_GENERATOR_T(Word64AtomicAnd)
+  DECLARE_GENERATOR_T(Word64AtomicOr)
+  DECLARE_GENERATOR_T(Word64AtomicXor)
+  DECLARE_GENERATOR_T(Word64AtomicExchange)
+  DECLARE_GENERATOR_T(Word64AtomicCompareExchange)
+  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
+  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
   DECLARE_GENERATOR(Word32AtomicLoad)
-  DECLARE_GENERATOR(Word32AtomicExchange)
-  DECLARE_GENERATOR(Word32AtomicCompareExchange)
-  DECLARE_GENERATOR(Word32AtomicAdd)
-  DECLARE_GENERATOR(Word32AtomicSub)
-  DECLARE_GENERATOR(Word32AtomicAnd)
-  DECLARE_GENERATOR(Word32AtomicOr)
-  DECLARE_GENERATOR(Word32AtomicXor)
   DECLARE_GENERATOR(Word32AtomicPairLoad)
   DECLARE_GENERATOR(Word32AtomicPairStore)
   DECLARE_GENERATOR(Word32AtomicPairAdd)
@@ -932,16 +941,9 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR(Word32AtomicPairExchange)
   DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
   DECLARE_GENERATOR(Word64AtomicLoad)
-  DECLARE_GENERATOR(Word64AtomicAdd)
-  DECLARE_GENERATOR(Word64AtomicSub)
-  DECLARE_GENERATOR(Word64AtomicAnd)
-  DECLARE_GENERATOR(Word64AtomicOr)
-  DECLARE_GENERATOR(Word64AtomicXor)
-  DECLARE_GENERATOR(Word64AtomicExchange)
-  DECLARE_GENERATOR(Word64AtomicCompareExchange)
   DECLARE_GENERATOR(Simd128ReverseBytes)
-  MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR)
-  MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR)
+  DECLARE_GENERATOR(LoadStackPointer)
+  DECLARE_GENERATOR(SetStackPointer)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.
@@ -1005,6 +1007,7 @@ class InstructionSelectorT final : public Adapter {
   // ===========================================================================
   // ============= Vector instruction (SIMD) helper fns. =======================
   // ===========================================================================
+  void VisitI8x16RelaxedSwizzle(node_t node);
 
 #if V8_ENABLE_WEBASSEMBLY
   // Canonicalize shuffles to make pattern matching simpler. Returns the shuffle

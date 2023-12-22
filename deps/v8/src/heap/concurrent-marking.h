@@ -18,6 +18,7 @@
 #include "src/heap/memory-measurement.h"
 #include "src/heap/slot-set.h"
 #include "src/heap/spaces.h"
+#include "src/heap/young-generation-marking-visitor.h"
 #include "src/init/v8.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
@@ -167,7 +168,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   struct TaskState;
   class JobTaskMinor;
   class JobTaskMajor;
+  class MinorMarkingState;
+
   void RunMinor(JobDelegate* delegate);
+  template <YoungGenerationMarkingVisitationMode marking_mode>
+  size_t RunMinorImpl(JobDelegate* delegate, TaskState* task_state);
   void RunMajor(JobDelegate* delegate,
                 base::EnumSet<CodeFlushMode> code_flush_mode,
                 unsigned mark_compact_epoch, bool should_keep_ages_unchanged);
@@ -184,6 +189,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarking {
   std::atomic<size_t> total_marked_bytes_{0};
   std::atomic<bool> another_ephemeron_iteration_{false};
   base::Optional<uint64_t> current_job_trace_id_;
+  std::unique_ptr<MinorMarkingState> minor_marking_state_;
 
   friend class Heap;
 };

@@ -14,6 +14,7 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-table.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -71,7 +72,9 @@ class Isolate;
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
     external_pointer_table)                                   \
   V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
-    shared_external_pointer_table)
+    shared_external_pointer_table)                            \
+  V(kIndirectPointerTableOffset, IndirectPointerTable::kSize, \
+    indirect_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
@@ -248,10 +251,11 @@ class IsolateData final {
   // runtime checks.
   void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
 
-  // Table containing pointers to external objects.
+  // Tables containing pointers to objects outside of the V8 sandbox.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
+  IndirectPointerTable indirect_pointer_table_;
 #endif
 
   // This is a storage for an additional argument for the Api callback thunk

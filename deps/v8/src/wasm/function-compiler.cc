@@ -215,8 +215,8 @@ bool UseGenericWrapper(const WasmModule* module, const FunctionSig* sig) {
 
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
-    const WasmModule* module, bool is_import,
-    const WasmFeatures& enabled_features, AllowGeneric allow_generic)
+    const WasmModule* module, bool is_import, WasmFeatures enabled_features,
+    AllowGeneric allow_generic)
     : isolate_(isolate),
       is_import_(is_import),
       sig_(sig),

@@ -783,13 +783,14 @@ class TestEnvironment : public HandleAndZoneScope {
       switch (constant.type()) {
         case Constant::kInt32:
           constant_value =
-              Handle<Smi>(Smi(static_cast<Address>(
+              Handle<Smi>(Tagged<Smi>(static_cast<Address>(
                               static_cast<intptr_t>(constant.ToInt32()))),
                           main_isolate());
           break;
         case Constant::kInt64:
-          constant_value = Handle<Smi>(
-              Smi(static_cast<Address>(constant.ToInt64())), main_isolate());
+          constant_value =
+              Handle<Smi>(Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
+                          main_isolate());
           break;
         case Constant::kFloat32:
           constant_value = main_isolate()->factory()->NewHeapNumber(

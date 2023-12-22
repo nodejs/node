@@ -127,7 +127,7 @@ class Expectations {
       os << "Descriptor @ ";
 
       if (kinds_[i] == PropertyKind::kData) {
-        FieldType::cast(*values_[i])->PrintTo(os);
+        FieldType::PrintTo(FieldType::cast(*values_[i]), os);
       } else {
         // kAccessor
         os << "(get: " << Brief(*values_[i])
@@ -625,7 +625,7 @@ static void CheckCodeObjectForDeopt(const CRFTData& from,
                                     Handle<Code> code_field_repr,
                                     Handle<Code> code_field_const,
                                     bool expected_deopt) {
-  if (!(*from.type)->Equals(*expected.type)) {
+  if (!FieldType::Equals(*from.type, *expected.type)) {
     CHECK_EQ(expected_deopt, code_field_type->marked_for_deoptimization());
   } else {
     CHECK(!code_field_type->marked_for_deoptimization());

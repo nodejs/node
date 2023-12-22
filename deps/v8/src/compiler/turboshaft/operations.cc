@@ -17,11 +17,13 @@
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/frame-states.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/turboshaft/deopt-data.h"
 #include "src/compiler/turboshaft/graph.h"
 #include "src/handles/handles-inl.h"
 #include "src/handles/maybe-handles-inl.h"
+#include "src/objects/code-inl.h"
 
 #ifdef DEBUG
 // For InWritableSharedSpace
@@ -39,6 +41,49 @@ namespace v8::internal::compiler::turboshaft {
 void Print(const Operation& op) { std::cout << op << "\n"; }
 
 Zone* get_zone(Graph* graph) { return graph->graph_zone(); }
+
+base::Optional<Builtin> TryGetBuiltinId(const ConstantOp* target,
+                                        JSHeapBroker* broker) {
+  if (!target) return base::nullopt;
+  if (target->kind != ConstantOp::Kind::kHeapObject) return base::nullopt;
+  UnparkedScopeIfNeeded scope(broker);
+  AllowHandleDereference allow_handle_dereference;
+  HeapObjectRef ref = MakeRef(broker, target->handle());
+  if (ref.IsCode()) {
+    CodeRef code = ref.AsCode();
+    if (code.object()->is_builtin()) {
+      return code.object()->builtin_id();
+    }
+  }
+  return base::nullopt;
+}
+
+bool CallOp::IsStackCheck(const Graph& graph, JSHeapBroker* broker,
+                          StackCheckKind kind) const {
+  auto builtin_id =
+      TryGetBuiltinId(graph.Get(callee()).TryCast<ConstantOp>(), broker);
+  if (!builtin_id.has_value()) return false;
+  if (*builtin_id != Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit) {
+    return false;
+  }
+  DCHECK_GE(input_count, 4);
+  Runtime::FunctionId builtin = GetBuiltinForStackCheckKind(kind);
+  auto is_this_builtin = [&](int input_index) {
+    if (const ConstantOp* real_callee =
+            graph.Get(input(input_index)).TryCast<ConstantOp>();
+        real_callee != nullptr &&
+        real_callee->kind == ConstantOp::Kind::kExternal &&
+        real_callee->external_reference() ==
+            ExternalReference::Create(builtin)) {
+      return true;
+    }
+    return false;
+  };
+  // The function called by `CEntry_Return1_ArgvOnStack_NoBuiltinExit` is the
+  // 3rd or the 4th argument of the CallOp (depending on the stack check kind),
+  // so we check both of them.
+  return is_this_builtin(2) || is_this_builtin(3);
+}
 
 bool ValidOpInputRep(
     const Graph& graph, OpIndex input,
@@ -529,6 +574,10 @@ void AtomicWord32PairOp::PrintInputs(std::ostream& os,
 
 void AtomicWord32PairOp::PrintOptions(std::ostream& os) const {
   os << "[opkind: " << op_kind << "]";
+}
+
+void MemoryBarrierOp::PrintOptions(std::ostream& os) const {
+  os << "[memory order: " << memory_order << "]";
 }
 
 void StoreOp::PrintInputs(std::ostream& os,
@@ -1246,6 +1295,24 @@ std::ostream& operator<<(std::ostream& os, FindOrderedHashEntryOp::Kind kind) {
       return os << "FindOrderedHashMapEntryForInt32Key";
     case FindOrderedHashEntryOp::Kind::kFindOrderedHashSetEntry:
       return os << "FindOrderedHashSetEntry";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckOrigin origin) {
+  switch (origin) {
+    case StackCheckOp::CheckOrigin::kFromJS:
+      return os << "JavaScript";
+    case StackCheckOp::CheckOrigin::kFromWasm:
+      return os << "WebAssembly";
+  }
+}
+
+std::ostream& operator<<(std::ostream& os, StackCheckOp::CheckKind kind) {
+  switch (kind) {
+    case StackCheckOp::CheckKind::kFunctionHeaderCheck:
+      return os << "function-entry";
+    case StackCheckOp::CheckKind::kLoopCheck:
+      return os << "loop";
   }
 }
 

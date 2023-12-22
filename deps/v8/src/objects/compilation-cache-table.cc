@@ -210,7 +210,7 @@ class RegExpKey : public HashTableKey {
   }
 
   Handle<String> string_;
-  Smi flags_;
+  Tagged<Smi> flags_;
 };
 
 // CodeKey carries the SharedFunctionInfo key associated with a

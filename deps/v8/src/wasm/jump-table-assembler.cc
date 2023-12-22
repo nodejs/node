@@ -10,9 +10,31 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+// static
+void JumpTableAssembler::GenerateLazyCompileTable(
+    Address base, uint32_t num_slots, uint32_t num_imported_functions,
+    Address wasm_compile_lazy_target) {
+  uint32_t lazy_compile_table_size = num_slots * kLazyCompileTableSlotSize;
+  WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+      base, RoundUp<kCodeAlignment>(lazy_compile_table_size),
+      ThreadIsolation::JitAllocationType::kWasmLazyCompileTable);
+  // Assume enough space, so the Assembler does not try to grow the buffer.
+  JumpTableAssembler jtasm(base, lazy_compile_table_size + 256);
+  for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {
+    DCHECK_EQ(slot_index * kLazyCompileTableSlotSize, jtasm.pc_offset());
+    jtasm.EmitLazyCompileJumpSlot(slot_index + num_imported_functions,
+                                  wasm_compile_lazy_target);
+  }
+  DCHECK_EQ(lazy_compile_table_size, jtasm.pc_offset());
+  FlushInstructionCache(base, lazy_compile_table_size);
+}
+
 void JumpTableAssembler::InitializeJumpsToLazyCompileTable(
     Address base, uint32_t num_slots, Address lazy_compile_table_start) {
   uint32_t jump_table_size = SizeForNumberOfSlots(num_slots);
+  WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+      base, RoundUp<kCodeAlignment>(jump_table_size),
+      ThreadIsolation::JitAllocationType::kWasmJumpTable);
   JumpTableAssembler jtasm(base, jump_table_size + 256);
 
   for (uint32_t slot_index = 0; slot_index < num_slots; ++slot_index) {

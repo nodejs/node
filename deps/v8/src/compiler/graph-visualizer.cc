@@ -219,7 +219,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   os << "\"sources\" : {";
   Handle<Script> script =
       (info->shared_info().is_null() ||
-       info->shared_info()->script() == Object())
+       info->shared_info()->script() == Tagged<Object>())
           ? Handle<Script>()
           : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,
@@ -294,6 +294,7 @@ void JsonPrintAllSourceWithPositionsWasm(
   os << "\"inlinings\": {";
   for (size_t i = 0; i < positions.size(); ++i) {
     if (i != 0) os << ", ";
+    DCHECK(source_map.contains(positions[i].inlinee_func_index));
     size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
     SourcePosition inlining_pos = positions[i].caller_pos;
     os << '"' << i << "\": {\"inliningId\": " << i

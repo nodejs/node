@@ -2534,8 +2534,15 @@ void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
   selector->Emit(code, 1, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Int8()) {
@@ -2554,8 +2561,15 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicExchange(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicExchange(
+    Node* node) {
   ArchOpcode opcode;
   MachineType type = AtomicOpType(node->op());
   if (type == MachineType::Uint8()) {
@@ -2606,8 +2620,14 @@ void VisitAtomicCompareExchange(InstructionSelectorT<Adapter>* selector,
   selector->Emit(code, output_count, outputs, input_count, inputs);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
     Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
@@ -2627,8 +2647,14 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicCompareExchange(
   VisitAtomicCompareExchange(this, node, opcode, AtomicWidth::kWord32);
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicCompareExchange(
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord64AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord64AtomicCompareExchange(
     Node* node) {
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
@@ -2709,12 +2735,16 @@ void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
   }
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                            \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(Node* node) { \
-    VisitWord32AtomicBinaryOperation(                                     \
-        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16,  \
-        kAtomic##op##Uint16, kAtomic##op##Word32);                        \
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      VisitWord32AtomicBinaryOperation(                                    \
+          node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16, \
+          kAtomic##op##Uint16, kAtomic##op##Word32);                       \
+    }                                                                      \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -2748,12 +2778,16 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicBinaryOperation(
   }
 }
 
-#define VISIT_ATOMIC64_BINOP(op)                                               \
-  template <typename Adapter>                                                  \
-  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(Node* node) {      \
-    VisitWord64AtomicBinaryOperation(node, kAtomic##op##Uint8,                 \
-                                     kAtomic##op##Uint16, kAtomic##op##Word32, \
-                                     kS390_Word64Atomic##op##Uint64);          \
+#define VISIT_ATOMIC64_BINOP(op)                                              \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::VisitWord64Atomic##op(node_t node) {    \
+    if constexpr (Adapter::IsTurboshaft) {                                    \
+      UNIMPLEMENTED();                                                        \
+    } else {                                                                  \
+      VisitWord64AtomicBinaryOperation(                                       \
+          node, kAtomic##op##Uint8, kAtomic##op##Uint16, kAtomic##op##Word32, \
+          kS390_Word64Atomic##op##Uint64);                                    \
+    }                                                                         \
   }
 VISIT_ATOMIC64_BINOP(Add)
 VISIT_ATOMIC64_BINOP(Sub)
@@ -2976,11 +3010,15 @@ void InstructionSelectorT<Adapter>::VisitWord64AtomicStore(node_t node) {
 #define SIMD_VISIT_EXTRACT_LANE(Type, Sign)                           \
   template <typename Adapter>                                         \
   void InstructionSelectorT<Adapter>::Visit##Type##ExtractLane##Sign( \
-      Node* node) {                                                   \
-    S390OperandGeneratorT<Adapter> g(this);                           \
-    int32_t lane = OpParameter<int32_t>(node->op());                  \
-    Emit(kS390_##Type##ExtractLane##Sign, g.DefineAsRegister(node),   \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));      \
+      node_t node) {                                                  \
+    if constexpr (Adapter::IsTurboshaft) {                            \
+      UNIMPLEMENTED();                                                \
+    } else {                                                          \
+      S390OperandGeneratorT<Adapter> g(this);                         \
+      int32_t lane = OpParameter<int32_t>(node->op());                \
+      Emit(kS390_##Type##ExtractLane##Sign, g.DefineAsRegister(node), \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));    \
+    }                                                                 \
   }
 SIMD_VISIT_EXTRACT_LANE(F64x2, )
 SIMD_VISIT_EXTRACT_LANE(F32x4, )
@@ -2992,73 +3030,97 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, U)
 SIMD_VISIT_EXTRACT_LANE(I8x16, S)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                        \
-  template <typename Adapter>                                                \
-  void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(Node* node) { \
-    S390OperandGeneratorT<Adapter> g(this);                                  \
-    int32_t lane = OpParameter<int32_t>(node->op());                         \
-    Emit(kS390_##Type##ReplaceLane, g.DefineAsRegister(node),                \
-         g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),              \
-         g.UseRegister(node->InputAt(1)));                                   \
+#define SIMD_VISIT_REPLACE_LANE(Type)                                         \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                    \
+      UNIMPLEMENTED();                                                        \
+    } else {                                                                  \
+      S390OperandGeneratorT<Adapter> g(this);                                 \
+      int32_t lane = OpParameter<int32_t>(node->op());                        \
+      Emit(kS390_##Type##ReplaceLane, g.DefineAsRegister(node),               \
+           g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),             \
+           g.UseRegister(node->InputAt(1)));                                  \
+    }                                                                         \
   }
 SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
 
-#define SIMD_VISIT_BINOP(Opcode)                                            \
-  template <typename Adapter>                                               \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {           \
-    S390OperandGeneratorT<Adapter> g(this);                                 \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                          \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+#define SIMD_VISIT_BINOP(Opcode)                                              \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {            \
+    if constexpr (Adapter::IsTurboshaft) {                                    \
+      UNIMPLEMENTED();                                                        \
+    } else {                                                                  \
+      S390OperandGeneratorT<Adapter> g(this);                                 \
+      Emit(kS390_##Opcode, g.DefineAsRegister(node),                          \
+           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1))); \
+    }                                                                         \
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 #undef SIMD_BINOP_LIST
 
-#define SIMD_VISIT_BINOP_UNIQUE_REGISTER(Opcode)                          \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {         \
-    S390OperandGeneratorT<Adapter> g(this);                               \
-    InstructionOperand temps[] = {g.TempSimd128Register(),                \
-                                  g.TempSimd128Register()};               \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
-         g.UseUniqueRegister(node->InputAt(0)),                           \
-         g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+#define SIMD_VISIT_BINOP_UNIQUE_REGISTER(Opcode)                            \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {          \
+    if constexpr (Adapter::IsTurboshaft) {                                  \
+      UNIMPLEMENTED();                                                      \
+    } else {                                                                \
+      S390OperandGeneratorT<Adapter> g(this);                               \
+      InstructionOperand temps[] = {g.TempSimd128Register(),                \
+                                    g.TempSimd128Register()};               \
+      Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
+           g.UseUniqueRegister(node->InputAt(0)),                           \
+           g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps); \
+    }                                                                       \
   }
 SIMD_BINOP_UNIQUE_REGISTER_LIST(SIMD_VISIT_BINOP_UNIQUE_REGISTER)
 #undef SIMD_VISIT_BINOP_UNIQUE_REGISTER
 #undef SIMD_BINOP_UNIQUE_REGISTER_LIST
 
-#define SIMD_VISIT_UNOP(Opcode)                                   \
-  template <typename Adapter>                                     \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) { \
-    S390OperandGeneratorT<Adapter> g(this);                       \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                \
-         g.UseRegister(node->InputAt(0)));                        \
+#define SIMD_VISIT_UNOP(Opcode)                                    \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                         \
+      UNIMPLEMENTED();                                             \
+    } else {                                                       \
+      S390OperandGeneratorT<Adapter> g(this);                      \
+      Emit(kS390_##Opcode, g.DefineAsRegister(node),               \
+           g.UseRegister(node->InputAt(0)));                       \
+    }                                                              \
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
 #undef SIMD_UNOP_LIST
 
-#define SIMD_VISIT_UNOP_UNIQUE_REGISTER(Opcode)                           \
-  template <typename Adapter>                                             \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {         \
-    S390OperandGeneratorT<Adapter> g(this);                               \
-    InstructionOperand temps[] = {g.TempSimd128Register()};               \
-    Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
-         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+#define SIMD_VISIT_UNOP_UNIQUE_REGISTER(Opcode)                             \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {          \
+    if constexpr (Adapter::IsTurboshaft) {                                  \
+      UNIMPLEMENTED();                                                      \
+    } else {                                                                \
+      S390OperandGeneratorT<Adapter> g(this);                               \
+      InstructionOperand temps[] = {g.TempSimd128Register()};               \
+      Emit(kS390_##Opcode, g.DefineAsRegister(node),                        \
+           g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+    }                                                                       \
   }
 SIMD_UNOP_UNIQUE_REGISTER_LIST(SIMD_VISIT_UNOP_UNIQUE_REGISTER)
 #undef SIMD_VISIT_UNOP_UNIQUE_REGISTER
 #undef SIMD_UNOP_UNIQUE_REGISTER_LIST
 
-#define SIMD_VISIT_QFMOP(Opcode)                                           \
-  template <typename Adapter>                                              \
-  void InstructionSelectorT<Adapter>::Visit##Opcode(Node* node) {          \
-    S390OperandGeneratorT<Adapter> g(this);                                \
-    Emit(kS390_##Opcode, g.DefineSameAsFirst(node),                        \
-         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
-         g.UseRegister(node->InputAt(2)));                                 \
+#define SIMD_VISIT_QFMOP(Opcode)                                             \
+  template <typename Adapter>                                                \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {           \
+    if constexpr (Adapter::IsTurboshaft) {                                   \
+      UNIMPLEMENTED();                                                       \
+    } else {                                                                 \
+      S390OperandGeneratorT<Adapter> g(this);                                \
+      Emit(kS390_##Opcode, g.DefineSameAsFirst(node),                        \
+           g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)), \
+           g.UseRegister(node->InputAt(2)));                                 \
+    }                                                                        \
   }
 SIMD_VISIT_QFMOP(F64x2Qfma)
 SIMD_VISIT_QFMOP(F64x2Qfms)
@@ -3081,10 +3143,10 @@ SIMD_VISIT_QFMOP(F32x4Qfms)
   V(I32x4RelaxedLaneSelect, S128Select)                   \
   V(I64x2RelaxedLaneSelect, S128Select)
 
-#define SIMD_VISIT_RELAXED_OP(name, op)                         \
-  template <typename Adapter>                                   \
-  void InstructionSelectorT<Adapter>::Visit##name(Node* node) { \
-    Visit##op(node);                                            \
+#define SIMD_VISIT_RELAXED_OP(name, op)                          \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##name(node_t node) { \
+    Visit##op(node);                                             \
   }
 SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 #undef SIMD_VISIT_RELAXED_OP
@@ -3093,49 +3155,58 @@ SIMD_RELAXED_OP_LIST(SIMD_VISIT_RELAXED_OP)
 
 #if V8_ENABLE_WEBASSEMBLY
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
-  uint8_t shuffle[kSimd128Size];
-  bool is_swizzle;
-  CanonicalizeShuffle(node, shuffle, &is_swizzle);
-  S390OperandGeneratorT<Adapter> g(this);
-  Node* input0 = node->InputAt(0);
-  Node* input1 = node->InputAt(1);
-  // Remap the shuffle indices to match IBM lane numbering.
-  int max_index = 15;
-  int total_lane_count = 2 * kSimd128Size;
-  uint8_t shuffle_remapped[kSimd128Size];
-  for (int i = 0; i < kSimd128Size; i++) {
-    uint8_t current_index = shuffle[i];
-    shuffle_remapped[i] = (current_index <= max_index
-                               ? max_index - current_index
-                               : total_lane_count - current_index + max_index);
+void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    uint8_t shuffle[kSimd128Size];
+    bool is_swizzle;
+    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    S390OperandGeneratorT<Adapter> g(this);
+    Node* input0 = node->InputAt(0);
+    Node* input1 = node->InputAt(1);
+    // Remap the shuffle indices to match IBM lane numbering.
+    int max_index = 15;
+    int total_lane_count = 2 * kSimd128Size;
+    uint8_t shuffle_remapped[kSimd128Size];
+    for (int i = 0; i < kSimd128Size; i++) {
+      uint8_t current_index = shuffle[i];
+      shuffle_remapped[i] =
+          (current_index <= max_index
+               ? max_index - current_index
+               : total_lane_count - current_index + max_index);
+    }
+    Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
+         g.UseRegister(input1),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
+         g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
   }
-  Emit(kS390_I8x16Shuffle, g.DefineAsRegister(node), g.UseRegister(input0),
-       g.UseRegister(input1),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 4)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 8)),
-       g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  bool relaxed = OpParameter<bool>(node->op());
-  // TODO(miladfarca): Optimize Swizzle if relaxed.
-  USE(relaxed);
+void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    bool relaxed = OpParameter<bool>(node->op());
+    // TODO(miladfarca): Optimize Swizzle if relaxed.
+    USE(relaxed);
 
-  Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)));
+    Emit(kS390_I8x16Swizzle, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
 }
 #else
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   UNREACHABLE();
 }
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(Node* node) {
+void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
   UNREACHABLE();
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -3153,42 +3224,54 @@ static int32_t Pack4Lanes(const uint8_t* shuffle) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Const(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  uint32_t val[kSimd128Size / sizeof(uint32_t)];
-  memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
-  // If all bytes are zeros, avoid emitting code for generic constants.
-  bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
-  bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
-                  val[2] == UINT32_MAX && val[3] == UINT32_MAX;
-  InstructionOperand dst = g.DefineAsRegister(node);
-  if (all_zeros) {
-    Emit(kS390_S128Zero, dst);
-  } else if (all_ones) {
-    Emit(kS390_S128AllOnes, dst);
+void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
-    // Which in this case is ineffective on LE.
-    Emit(kS390_S128Const, dst,
-         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]))),
-         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 4)),
-         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
-         g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
+    S390OperandGeneratorT<Adapter> g(this);
+    uint32_t val[kSimd128Size / sizeof(uint32_t)];
+    memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
+    // If all bytes are zeros, avoid emitting code for generic constants.
+    bool all_zeros = !(val[0] || val[1] || val[2] || val[3]);
+    bool all_ones = val[0] == UINT32_MAX && val[1] == UINT32_MAX &&
+                    val[2] == UINT32_MAX && val[3] == UINT32_MAX;
+    InstructionOperand dst = g.DefineAsRegister(node);
+    if (all_zeros) {
+      Emit(kS390_S128Zero, dst);
+    } else if (all_ones) {
+      Emit(kS390_S128AllOnes, dst);
+    } else {
+      // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
+      // Which in this case is ineffective on LE.
+      Emit(kS390_S128Const, dst,
+           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]))),
+           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 4)),
+           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
+           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
+    }
   }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Zero(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Emit(kS390_S128Zero, g.DefineAsRegister(node));
+void InstructionSelectorT<Adapter>::VisitS128Zero(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Emit(kS390_S128Zero, g.DefineAsRegister(node));
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitS128Select(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Emit(kS390_S128Select, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
+void InstructionSelectorT<Adapter>::VisitS128Select(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Emit(kS390_S128Select, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         g.UseRegister(node->InputAt(2)));
+  }
 }
 
 template <typename Adapter>
@@ -3222,127 +3305,147 @@ void InstructionSelectorT<Adapter>::EmitPrepareResults(
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadLane(Node* node) {
-  LoadLaneParameters params = LoadLaneParametersOf(node->op());
-  InstructionCode opcode;
-  if (params.rep == MachineType::Int8()) {
-    opcode = kS390_S128Load8Lane;
-  } else if (params.rep == MachineType::Int16()) {
-    opcode = kS390_S128Load16Lane;
-  } else if (params.rep == MachineType::Int32()) {
-    opcode = kS390_S128Load32Lane;
-  } else if (params.rep == MachineType::Int64()) {
-    opcode = kS390_S128Load64Lane;
+void InstructionSelectorT<Adapter>::VisitLoadLane(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
-  }
-
-  S390OperandGeneratorT<Adapter> g(this);
-  InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
-  InstructionOperand inputs[5];
-  size_t input_count = 0;
-
-  inputs[input_count++] = g.UseRegister(node->InputAt(2));
-  inputs[input_count++] = g.UseImmediate(params.laneidx);
-
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  opcode |= AddressingModeField::encode(mode);
-  Emit(opcode, 1, outputs, input_count, inputs);
-}
-
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitLoadTransform(Node* node) {
-  LoadTransformParameters params = LoadTransformParametersOf(node->op());
-  ArchOpcode opcode;
-  switch (params.transformation) {
-    case LoadTransformation::kS128Load8Splat:
-      opcode = kS390_S128Load8Splat;
-      break;
-    case LoadTransformation::kS128Load16Splat:
-      opcode = kS390_S128Load16Splat;
-      break;
-    case LoadTransformation::kS128Load32Splat:
-      opcode = kS390_S128Load32Splat;
-      break;
-    case LoadTransformation::kS128Load64Splat:
-      opcode = kS390_S128Load64Splat;
-      break;
-    case LoadTransformation::kS128Load8x8S:
-      opcode = kS390_S128Load8x8S;
-      break;
-    case LoadTransformation::kS128Load8x8U:
-      opcode = kS390_S128Load8x8U;
-      break;
-    case LoadTransformation::kS128Load16x4S:
-      opcode = kS390_S128Load16x4S;
-      break;
-    case LoadTransformation::kS128Load16x4U:
-      opcode = kS390_S128Load16x4U;
-      break;
-    case LoadTransformation::kS128Load32x2S:
-      opcode = kS390_S128Load32x2S;
-      break;
-    case LoadTransformation::kS128Load32x2U:
-      opcode = kS390_S128Load32x2U;
-      break;
-    case LoadTransformation::kS128Load32Zero:
-      opcode = kS390_S128Load32Zero;
-      break;
-    case LoadTransformation::kS128Load64Zero:
-      opcode = kS390_S128Load64Zero;
-      break;
-    default:
+    LoadLaneParameters params = LoadLaneParametersOf(node->op());
+    InstructionCode opcode;
+    if (params.rep == MachineType::Int8()) {
+      opcode = kS390_S128Load8Lane;
+    } else if (params.rep == MachineType::Int16()) {
+      opcode = kS390_S128Load16Lane;
+    } else if (params.rep == MachineType::Int32()) {
+      opcode = kS390_S128Load32Lane;
+    } else if (params.rep == MachineType::Int64()) {
+      opcode = kS390_S128Load64Lane;
+    } else {
       UNREACHABLE();
+    }
+
+    S390OperandGeneratorT<Adapter> g(this);
+    InstructionOperand outputs[] = {g.DefineSameAsFirst(node)};
+    InstructionOperand inputs[5];
+    size_t input_count = 0;
+
+    inputs[input_count++] = g.UseRegister(node->InputAt(2));
+    inputs[input_count++] = g.UseImmediate(params.laneidx);
+
+    AddressingMode mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 1, outputs, input_count, inputs);
   }
-  VisitLoad(node, node, opcode);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStoreLane(Node* node) {
-  StoreLaneParameters params = StoreLaneParametersOf(node->op());
-  InstructionCode opcode;
-  if (params.rep == MachineRepresentation::kWord8) {
-    opcode = kS390_S128Store8Lane;
-  } else if (params.rep == MachineRepresentation::kWord16) {
-    opcode = kS390_S128Store16Lane;
-  } else if (params.rep == MachineRepresentation::kWord32) {
-    opcode = kS390_S128Store32Lane;
-  } else if (params.rep == MachineRepresentation::kWord64) {
-    opcode = kS390_S128Store64Lane;
+void InstructionSelectorT<Adapter>::VisitLoadTransform(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    LoadTransformParameters params = LoadTransformParametersOf(node->op());
+    ArchOpcode opcode;
+    switch (params.transformation) {
+      case LoadTransformation::kS128Load8Splat:
+        opcode = kS390_S128Load8Splat;
+        break;
+      case LoadTransformation::kS128Load16Splat:
+        opcode = kS390_S128Load16Splat;
+        break;
+      case LoadTransformation::kS128Load32Splat:
+        opcode = kS390_S128Load32Splat;
+        break;
+      case LoadTransformation::kS128Load64Splat:
+        opcode = kS390_S128Load64Splat;
+        break;
+      case LoadTransformation::kS128Load8x8S:
+        opcode = kS390_S128Load8x8S;
+        break;
+      case LoadTransformation::kS128Load8x8U:
+        opcode = kS390_S128Load8x8U;
+        break;
+      case LoadTransformation::kS128Load16x4S:
+        opcode = kS390_S128Load16x4S;
+        break;
+      case LoadTransformation::kS128Load16x4U:
+        opcode = kS390_S128Load16x4U;
+        break;
+      case LoadTransformation::kS128Load32x2S:
+        opcode = kS390_S128Load32x2S;
+        break;
+      case LoadTransformation::kS128Load32x2U:
+        opcode = kS390_S128Load32x2U;
+        break;
+      case LoadTransformation::kS128Load32Zero:
+        opcode = kS390_S128Load32Zero;
+        break;
+      case LoadTransformation::kS128Load64Zero:
+        opcode = kS390_S128Load64Zero;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    VisitLoad(node, node, opcode);
   }
-
-  S390OperandGeneratorT<Adapter> g(this);
-  InstructionOperand inputs[5];
-  size_t input_count = 0;
-
-  inputs[input_count++] = g.UseRegister(node->InputAt(2));
-  inputs[input_count++] = g.UseImmediate(params.laneidx);
-
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  opcode |= AddressingModeField::encode(mode);
-  Emit(opcode, 0, nullptr, input_count, inputs);
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  Emit(kS390_I16x8DotI8x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)));
+void InstructionSelectorT<Adapter>::VisitStoreLane(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    StoreLaneParameters params = StoreLaneParametersOf(node->op());
+    InstructionCode opcode;
+    if (params.rep == MachineRepresentation::kWord8) {
+      opcode = kS390_S128Store8Lane;
+    } else if (params.rep == MachineRepresentation::kWord16) {
+      opcode = kS390_S128Store16Lane;
+    } else if (params.rep == MachineRepresentation::kWord32) {
+      opcode = kS390_S128Store32Lane;
+    } else if (params.rep == MachineRepresentation::kWord64) {
+      opcode = kS390_S128Store64Lane;
+    } else {
+      UNREACHABLE();
+    }
+
+    S390OperandGeneratorT<Adapter> g(this);
+    InstructionOperand inputs[5];
+    size_t input_count = 0;
+
+    inputs[input_count++] = g.UseRegister(node->InputAt(2));
+    inputs[input_count++] = g.UseImmediate(params.laneidx);
+
+    AddressingMode mode =
+        g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
+    opcode |= AddressingModeField::encode(mode);
+    Emit(opcode, 0, nullptr, input_count, inputs);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kS390_I32x4DotI8x16AddS, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)),
-       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    Emit(kS390_I16x8DotI8x16S, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kS390_I32x4DotI8x16AddS, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)),
+         g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+  }
 }
 
 template <typename Adapter>

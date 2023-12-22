@@ -2158,8 +2158,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kStringPrototypeIncludes, 1, false);
     SimpleInstallFunction(isolate_, prototype, "indexOf",
                           Builtin::kStringPrototypeIndexOf, 1, false);
-    SimpleInstallFunction(isolate(), prototype, "isWellFormed",
-                          Builtin::kStringPrototypeIsWellFormed, 0, false);
     SimpleInstallFunction(isolate_, prototype, "italics",
                           Builtin::kStringPrototypeItalics, 0, false);
     SimpleInstallFunction(isolate_, prototype, "lastIndexOf",
@@ -2216,8 +2214,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtin::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(isolate_, prototype, "toString",
                           Builtin::kStringPrototypeToString, 0, true);
-    SimpleInstallFunction(isolate(), prototype, "toWellFormed",
-                          Builtin::kStringPrototypeToWellFormed, 0, false);
     SimpleInstallFunction(isolate_, prototype, "trim",
                           Builtin::kStringPrototypeTrim, 0, false);
 
@@ -5010,6 +5006,12 @@ void Genesis::InitializeGlobal_harmony_weak_refs_with_cleanup_some() {
 
 void Genesis::InitializeGlobal_harmony_array_from_async() {
   if (!v8_flags.harmony_array_from_async) return;
+
+  Handle<JSObject> array_function(native_context()->array_function(),
+                                  isolate());
+
+  SimpleInstallFunction(isolate(), array_function, "fromAsync",
+                        Builtin::kArrayFromAsync, 1, false);
 }
 
 void Genesis::InitializeGlobal_regexp_linear_flag() {
@@ -5064,6 +5066,18 @@ void Genesis::InitializeGlobal_harmony_rab_gsab() {
                       Builtin::kSharedArrayBufferPrototypeGetGrowable, false);
   SimpleInstallFunction(isolate(), shared_array_buffer_prototype, "grow",
                         Builtin::kSharedArrayBufferPrototypeGrow, 1, true);
+}
+
+void Genesis::InitializeGlobal_harmony_string_is_well_formed() {
+  if (!v8_flags.harmony_string_is_well_formed) return;
+  Handle<JSFunction> string_function(native_context()->string_function(),
+                                     isolate());
+  Handle<JSObject> string_prototype(
+      JSObject::cast(string_function->initial_map()->prototype()), isolate());
+  SimpleInstallFunction(isolate(), string_prototype, "isWellFormed",
+                        Builtin::kStringPrototypeIsWellFormed, 0, false);
+  SimpleInstallFunction(isolate(), string_prototype, "toWellFormed",
+                        Builtin::kStringPrototypeToWellFormed, 0, false);
 }
 
 void Genesis::InitializeGlobal_harmony_temporal() {
@@ -6308,22 +6322,17 @@ bool Genesis::InstallSpecialObjects(Isolate* isolate,
                                     Handle<Context> native_context) {
   HandleScope scope(isolate);
 
-  Handle<JSObject> Error = isolate->error_function();
-  Handle<String> name = isolate->factory()->stackTraceLimit_string();
-  Handle<Smi> stack_trace_limit(Smi::FromInt(v8_flags.stack_trace_limit),
-                                isolate);
-  JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
+  // Error.stackTraceLimit.
+  {
+    Handle<JSObject> Error = isolate->error_function();
+    Handle<String> name = isolate->factory()->stackTraceLimit_string();
+    Handle<Smi> stack_trace_limit(Smi::FromInt(v8_flags.stack_trace_limit),
+                                  isolate);
+    JSObject::AddProperty(isolate, Error, name, stack_trace_limit, NONE);
+  }
 
 #if V8_ENABLE_WEBASSEMBLY
-  if (v8_flags.expose_wasm) {
-    // Install the internal data structures into the isolate and expose on
-    // the global object.
-    WasmJs::Install(isolate, true);
-  } else if (v8_flags.validate_asm) {
-    // Install the internal data structures only; these are needed for asm.js
-    // translated to Wasm to work correctly.
-    WasmJs::Install(isolate, false);
-  }
+  WasmJs::Install(isolate, v8_flags.expose_wasm);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 #ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
@@ -6804,6 +6813,10 @@ Genesis::Genesis(
     if (!InstallABunchOfRandomThings()) return;
     if (!InstallExtrasBindings()) return;
     if (!ConfigureGlobalObject(global_proxy_template)) return;
+
+#ifdef V8_ENABLE_WEBASSEMBLY
+    WasmJs::PrepareForSnapshot(isolate);
+#endif  // V8_ENABLE_WEBASSEMBLY
 
     if (v8_flags.profile_deserialization) {
       double ms = timer.Elapsed().InMillisecondsF();

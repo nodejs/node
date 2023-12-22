@@ -247,12 +247,16 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ movl(rax, Immediate(id + 3));
     __ j(not_equal, exit);
   }
+  // In this build config we clobber SMIs to stress test consumers, thus
+  // SmiCompare can actually change unused bits.
+#ifndef ENABLE_SLOW_DCHECKS
   __ movl(rax, Immediate(id + 4));
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
   __ incq(rax);
   __ cmpq(rdx, r9);
   __ j(not_equal, exit);
+#endif
 
   if (x != y) {
     __ SmiCompare(rdx, rcx);
@@ -268,9 +272,11 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
     __ cmpq(rcx, rcx);
     __ movl(rax, Immediate(id + 11));
     __ j(not_equal, exit);
+#ifndef ENABLE_SLOW_DCHECKS
     __ incq(rax);
     __ cmpq(rcx, r8);
     __ j(not_equal, exit);
+#endif
   }
 }
 
@@ -546,7 +552,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 #endif
   using myF0 = Address();
   auto f = GeneratedCode<myF0>::FromAddress(isolate, code->instruction_start());
-  Tagged<Object> result = Object(f.Call());
+  Tagged<Object> result = Tagged<Object>(f.Call());
   CHECK_EQ(old_array->ptr(), result.ptr());
 
   // Collect garbage to ensure reloc info can be walked by the heap.
@@ -573,7 +579,7 @@ TEST_F(MacroAssemblerX64Test, EmbeddedObj) {
 TEST_F(MacroAssemblerX64Test, SmiIndex) {
   Isolate* isolate = i_isolate();
   HandleScope handles(isolate);
-  auto buffer = AllocateAssemblerBuffer();
+  auto buffer = AllocateAssemblerBuffer(2 * Assembler::kDefaultBufferSize);
   MacroAssembler assembler(isolate, v8::internal::CodeObjectRequired::kYes,
                            buffer->CreateView());
 

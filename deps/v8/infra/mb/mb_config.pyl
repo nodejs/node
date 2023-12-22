@@ -288,6 +288,7 @@
       'v8_linux64_arm64_no_wasm_compile_dbg': 'debug_arm64_webassembly_disabled',
       'v8_linux64_verify_csa_compile_rel': 'release_x64_verify_csa',
       'v8_linux64_asan_compile_rel': 'release_x64_asan_minimal_symbols',
+      'v8_linux64_asan_sandbox_compile_rel': 'release_x64_asan_symbolized_expose_memory_corruption',
       'v8_linux64_cfi_compile_rel': 'release_x64_cfi',
       'v8_linux64_fuzzilli_compile_rel': 'release_x64_fuzzilli',
       'v8_linux64_loong64_compile_rel': 'release_simulate_loong64',
@@ -750,7 +751,7 @@
 
   'mixins': {
     'android': {
-      'gn_args': 'target_os="android" v8_android_log_stdout=true default_min_sdk_version=19',
+      'gn_args': 'target_os="android" v8_android_log_stdout=true default_min_sdk_version=21',
     },
 
     'android_strip_outputs': {

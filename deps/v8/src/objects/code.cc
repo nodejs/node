@@ -35,8 +35,12 @@ void Code::ClearEmbeddedObjects(Heap* heap) {
   Tagged<InstructionStream> istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
   {
-    CodePageMemoryModificationScope memory_modification_scope(istream);
-    for (RelocIterator it(*this, mode_mask); !it.done(); it.next()) {
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream->address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
+    for (WritableRelocIterator it(jit_allocation, istream, constant_pool(),
+                                  mode_mask);
+         !it.done(); it.next()) {
       DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
       it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
     }

@@ -197,6 +197,7 @@
   'es6/large-classes-*': [PASS, HEAVY],
   'harmony/sharedarraybuffer-stress': [PASS, HEAVY],
   'harmony/sharedarraybuffer-worker-gc-stress': [PASS, HEAVY],
+  'huge-typedarrays': [PASS, HEAVY],
   'ignition/regress-672027': [PASS, HEAVY],
   'json2': [PASS, HEAVY],
   'regress/regress-500980': [PASS, HEAVY],
@@ -210,6 +211,10 @@
   'regress/regress-crbug-941743': [PASS, HEAVY],
   'regress/regress-crbug-1191886': [PASS, HEAVY],
   'wasm/externref-globals': [PASS, HEAVY],
+  'wasm/grow-huge-memory': [PASS, HEAVY],
+  'wasm/huge-memory': [PASS, HEAVY],
+  'wasm/huge-typedarray': [PASS, HEAVY],
+  'wasm/simd-lane-memory64': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
@@ -650,6 +655,10 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
+
+  # BUG(v8:14215).
+  'tzoffset-seoul-noi18n': [PASS, FAIL],
+  'tzoffset-transition-new-york-noi18n': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ##############################################################################
@@ -1249,6 +1258,8 @@
   'd8/d8-worker-shutdown-gc': [SKIP],
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 
   # Tests using a shared heap are inherently non-deterministic.
   'shared-memory/*': [SKIP],
@@ -1643,6 +1654,7 @@
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
   'wasm/simd-*': [SKIP],
+  'wasm/turboshaft/array-new-unreachable': [SKIP],
   'regress/wasm/regress-9447': [SKIP],
   'regress/wasm/regress-10309': [SKIP],
   'regress/wasm/regress-10831': [SKIP],
@@ -1680,6 +1692,9 @@
   'regress/wasm/regress-1408337': [SKIP],
   'regress/wasm/regress-1417516': [SKIP],
   'regress/wasm/regress-1443218': [SKIP],
+  'regress/wasm/regress-1479926': [SKIP],
+  'regress/wasm/regress-1480117': [SKIP],
+  'regress/wasm/regress-1484978': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
@@ -1714,7 +1729,6 @@
 ##############################################################################
 ['variant == experimental_regexp', {
   'regress/regress-779407': [SKIP],
-  'regexp-14098': [FAIL],
 }],  # variant == experimental_regexp
 
 ################################################################################

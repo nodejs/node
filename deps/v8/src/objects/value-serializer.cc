@@ -867,11 +867,12 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> js_map) {
     DisallowGarbageCollection no_gc;
     Tagged<OrderedHashMap> raw_table = *table;
     Tagged<FixedArray> raw_entries = *entries;
-    Tagged<Hole> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Tagged<Hole> hash_table_hole =
+        ReadOnlyRoots(isolate_).hash_table_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table->IterateEntries()) {
       Tagged<Object> key = raw_table->KeyAt(entry);
-      if (key == the_hole) continue;
+      if (key == hash_table_hole) continue;
       raw_entries->set(result_index++, key);
       raw_entries->set(result_index++, raw_table->ValueAt(entry));
     }
@@ -899,11 +900,12 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> js_set) {
     DisallowGarbageCollection no_gc;
     Tagged<OrderedHashSet> raw_table = *table;
     Tagged<FixedArray> raw_entries = *entries;
-    Tagged<Hole> the_hole = ReadOnlyRoots(isolate_).the_hole_value();
+    Tagged<Hole> hash_table_hole =
+        ReadOnlyRoots(isolate_).hash_table_hole_value();
     int result_index = 0;
     for (InternalIndex entry : raw_table->IterateEntries()) {
       Tagged<Object> key = raw_table->KeyAt(entry);
-      if (key == the_hole) continue;
+      if (key == hash_table_hole) continue;
       raw_entries->set(result_index++, key);
     }
     DCHECK_EQ(result_index, length);
@@ -2514,18 +2516,20 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           Representation expected_representation = details.representation();
           if (Object::FitsRepresentation(*value, expected_representation)) {
             if (expected_representation.IsHeapObject() &&
-                !target->instance_descriptors(isolate_)
-                     ->GetFieldType(descriptor)
-                     ->NowContains(value)) {
+                !FieldType::NowContains(
+                    target->instance_descriptors(isolate_)->GetFieldType(
+                        descriptor),
+                    value)) {
               Handle<FieldType> value_type = Object::OptimalType(
                   *value, isolate_, expected_representation);
               MapUpdater::GeneralizeField(isolate_, target, descriptor,
                                           details.constness(),
                                           expected_representation, value_type);
             }
-            DCHECK(target->instance_descriptors(isolate_)
-                       ->GetFieldType(descriptor)
-                       ->NowContains(value));
+            DCHECK(FieldType::NowContains(
+                target->instance_descriptors(isolate_)->GetFieldType(
+                    descriptor),
+                value));
             properties.push_back(value);
             map = target;
             continue;

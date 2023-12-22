@@ -149,7 +149,7 @@ class V8_EXPORT_PRIVATE LocalIsolate final : private HiddenLocalFactory {
   const v8::StartupData* snapshot_blob() const {
     return isolate_->snapshot_blob();
   }
-  Object* pending_message_address() {
+  Tagged<Object>* pending_message_address() {
     return isolate_->pending_message_address();
   }
 
