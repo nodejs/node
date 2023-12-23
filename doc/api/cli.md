@@ -1266,12 +1266,12 @@ Opens the REPL even if stdin does not appear to be a terminal.
 added: v12.0.0
 -->
 
+> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
+> change upstream.
+
 Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
-
-This flag is inherited from V8 and is subject to change upstream. It may
-disappear in a non-semver-major release.
 
 ### `--max-http-header-size=size`
 
