@@ -863,6 +863,20 @@ Use this flag to generate a blob that can be injected into the Node.js
 binary to produce a [single executable application][]. See the documentation
 about [this configuration][`--experimental-sea-config`] for details.
 
+
+### `--experimental-task-ordering`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Enable experimental task ordering. Always drain micro task queue
+before running `process.nextTick` to avoid unintuitive behavior
+and unexpected logical deadlocks when mixing async callback and
+event API's with `Promise`, `async`/`await`` and `queueMicroTask`.
+
 ### `--experimental-shadow-realm`
 
 <!-- YAML
