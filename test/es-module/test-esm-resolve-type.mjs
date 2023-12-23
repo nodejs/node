@@ -38,6 +38,7 @@ try {
    * with the defaultResolver
    */
   [
+    [ '/es-modules/package-ends-node_modules/index.js', 'module' ],
     [ '/es-modules/package-type-module/index.js', 'module' ],
     [ '/es-modules/package-type-commonjs/index.js', 'commonjs' ],
     [ '/es-modules/package-without-type/index.js', 'commonjs' ],
