@@ -230,11 +230,15 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   if (err) {
     delete req_wrap;
   } else {
-    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
+    const char* path_type = (*name)[0] == '\0' ? "abstract socket" : "file";
+    const char* pipe_path = (*name)[0] == '\0' ? (*name) + 1 : *name;
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
                                       "connect",
                                       req_wrap,
+                                      "path_type",
+                                      path_type,
                                       "pipe_path",
-                                      TRACE_STR_COPY(*name));
+                                      TRACE_STR_COPY(pipe_path));
   }
 
   args.GetReturnValue().Set(err);
