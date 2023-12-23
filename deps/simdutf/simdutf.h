@@ -1,4 +1,4 @@
-/* auto-generated on 2023-11-15 17:34:03 -0500. Do not edit! */
+/* auto-generated on 2023-12-01 13:59:01 -0500. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -524,8 +524,8 @@ size_t bom_byte_size(encoding_type bom);
 } // simdutf namespace
 /* end file include/simdutf/encoding_types.h */
 /* begin file include/simdutf/error.h */
-#ifndef ERROR_H
-#define ERROR_H
+#ifndef SIMDUTF_ERROR_H
+#define SIMDUTF_ERROR_H
 namespace simdutf {
 
 enum error_code {
@@ -567,7 +567,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "4.0.4"
+#define SIMDUTF_VERSION "4.0.8"
 
 namespace simdutf {
 enum {
@@ -582,7 +582,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 4
+  SIMDUTF_VERSION_REVISION = 8
 };
 } // namespace simdutf
 
