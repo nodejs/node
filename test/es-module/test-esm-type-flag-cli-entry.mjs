@@ -26,7 +26,7 @@ describe('--experimental-default-type=module should not support extension search
       cwd: fixtures.path('es-modules/package-without-type'),
     });
 
-    match(stderr, /ENOENT.*Did you mean to import .*index\.js\?/s);
+    match(stderr, /ENOENT.*Did you mean to import .*index\.js"\?/s);
     strictEqual(stdout, '');
     strictEqual(code, 1);
     strictEqual(signal, null);
