@@ -3,7 +3,7 @@
 const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
 const { performance } = require('perf_hooks')
-const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
+const { isBlobLike, toUSVString, ReadableStreamFrom, isValidHTTPToken } = require('../core/util')
 const assert = require('assert')
 const { isUint8Array } = require('util/types')
 
@@ -35,7 +35,7 @@ function responseLocationURL (response, requestFragment) {
 
   // 2. Let location be the result of extracting header list values given
   // `Location` and response’s header list.
-  let location = response.headersList.get('location')
+  let location = response.headersList.get('location', true)
 
   // 3. If location is a header value, then set location to the result of
   //    parsing location with response’s URL.
@@ -104,52 +104,6 @@ function isValidReasonPhrase (statusText) {
 }
 
 /**
- * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
- * @param {number} c
- */
-function isTokenCharCode (c) {
-  switch (c) {
-    case 0x22:
-    case 0x28:
-    case 0x29:
-    case 0x2c:
-    case 0x2f:
-    case 0x3a:
-    case 0x3b:
-    case 0x3c:
-    case 0x3d:
-    case 0x3e:
-    case 0x3f:
-    case 0x40:
-    case 0x5b:
-    case 0x5c:
-    case 0x5d:
-    case 0x7b:
-    case 0x7d:
-      // DQUOTE and "(),/:;<=>?@[\]{}"
-      return false
-    default:
-      // VCHAR %x21-7E
-      return c >= 0x21 && c <= 0x7e
-  }
-}
-
-/**
- * @param {string} characters
- */
-function isValidHTTPToken (characters) {
-  if (characters.length === 0) {
-    return false
-  }
-  for (let i = 0; i < characters.length; ++i) {
-    if (!isTokenCharCode(characters.charCodeAt(i))) {
-      return false
-    }
-  }
-  return true
-}
-
-/**
  * @see https://fetch.spec.whatwg.org/#header-name
  * @param {string} potentialValue
  */
@@ -199,7 +153,7 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
   // 2. Let policy be the empty string.
   // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
   // 4. Return policy.
-  const policyHeader = (headersList.get('referrer-policy') ?? '').split(',')
+  const policyHeader = (headersList.get('referrer-policy', true) ?? '').split(',')
 
   // Note: As the referrer-policy can contain multiple policies
   // separated by comma, we need to loop through all of them
@@ -258,7 +212,7 @@ function appendFetchMetadata (httpRequest) {
   header = httpRequest.mode
 
   //  4. Set a structured field value `Sec-Fetch-Mode`/header in r’s header list.
-  httpRequest.headersList.set('sec-fetch-mode', header)
+  httpRequest.headersList.set('sec-fetch-mode', header, true)
 
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-site-header
   //  TODO
@@ -275,7 +229,7 @@ function appendRequestOriginHeader (request) {
   // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
   if (request.responseTainting === 'cors' || request.mode === 'websocket') {
     if (serializedOrigin) {
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
 
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
@@ -306,14 +260,43 @@ function appendRequestOriginHeader (request) {
 
     if (serializedOrigin) {
       // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
   }
 }
 
-function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+// https://w3c.github.io/hr-time/#dfn-coarsen-time
+function coarsenTime (timestamp, crossOriginIsolatedCapability) {
   // TODO
-  return performance.now()
+  return timestamp
+}
+
+// https://fetch.spec.whatwg.org/#clamp-and-coarsen-connection-timing-info
+function clampAndCoursenConnectionTimingInfo (connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
+  if (!connectionTimingInfo?.startTime || connectionTimingInfo.startTime < defaultStartTime) {
+    return {
+      domainLookupStartTime: defaultStartTime,
+      domainLookupEndTime: defaultStartTime,
+      connectionStartTime: defaultStartTime,
+      connectionEndTime: defaultStartTime,
+      secureConnectionStartTime: defaultStartTime,
+      ALPNNegotiatedProtocol: connectionTimingInfo?.ALPNNegotiatedProtocol
+    }
+  }
+
+  return {
+    domainLookupStartTime: coarsenTime(connectionTimingInfo.domainLookupStartTime, crossOriginIsolatedCapability),
+    domainLookupEndTime: coarsenTime(connectionTimingInfo.domainLookupEndTime, crossOriginIsolatedCapability),
+    connectionStartTime: coarsenTime(connectionTimingInfo.connectionStartTime, crossOriginIsolatedCapability),
+    connectionEndTime: coarsenTime(connectionTimingInfo.connectionEndTime, crossOriginIsolatedCapability),
+    secureConnectionStartTime: coarsenTime(connectionTimingInfo.secureConnectionStartTime, crossOriginIsolatedCapability),
+    ALPNNegotiatedProtocol: connectionTimingInfo.ALPNNegotiatedProtocol
+  }
+}
+
+// https://w3c.github.io/hr-time/#dfn-coarsened-shared-current-time
+function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+  return coarsenTime(performance.now(), crossOriginIsolatedCapability)
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
@@ -897,22 +880,27 @@ function isReadableStreamLike (stream) {
   )
 }
 
-const MAXIMUM_ARGUMENT_LENGTH = 65535
-
 /**
  * @see https://infra.spec.whatwg.org/#isomorphic-decode
- * @param {number[]|Uint8Array} input
+ * @param {Uint8Array} input
  */
 function isomorphicDecode (input) {
   // 1. To isomorphic decode a byte sequence input, return a string whose code point
   //    length is equal to input’s length and whose code points have the same values
   //    as the values of input’s bytes, in the same order.
-
-  if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
-    return String.fromCharCode(...input)
+  const length = input.length
+  if ((2 << 15) - 1 > length) {
+    return String.fromCharCode.apply(null, input)
   }
-
-  return input.reduce((previous, current) => previous + String.fromCharCode(current), '')
+  let result = ''; let i = 0
+  let addition = (2 << 15) - 1
+  while (i < length) {
+    if (i + addition > length) {
+      addition = length - i
+    }
+    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
+  }
+  return result
 }
 
 /**
@@ -1186,6 +1174,7 @@ module.exports = {
   ReadableStreamFrom,
   toUSVString,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
+  clampAndCoursenConnectionTimingInfo,
   coarsenedSharedCurrentTime,
   determineRequestsReferrer,
   makePolicyContainer,

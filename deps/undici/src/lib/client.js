@@ -740,6 +740,7 @@ class Parser {
     if (!request) {
       return -1
     }
+    request.onResponseStarted()
   }
 
   onHeaderField (buf) {
@@ -765,11 +766,14 @@ class Parser {
     }
 
     const key = this.headers[len - 2]
-    if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
-      this.keepAlive += buf.toString()
-    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
-      this.connection += buf.toString()
-    } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
+    if (key.length === 10) {
+      const headerName = util.bufferToLowerCasedHeaderName(key)
+      if (headerName === 'keep-alive') {
+        this.keepAlive += buf.toString()
+      } else if (headerName === 'connection') {
+        this.connection += buf.toString()
+      }
+    } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === 'content-length') {
       this.contentLength += buf.toString()
     }
 
@@ -1783,6 +1787,7 @@ function writeH2 (client, session, request) {
 
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
+    request.onResponseStarted()
 
     if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), '') === false) {
       stream.pause()

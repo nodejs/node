@@ -9,7 +9,7 @@ const {
   filterResponse,
   makeResponse
 } = require('./response')
-const { Headers } = require('./headers')
+const { Headers, HeadersList } = require('./headers')
 const { Request, makeRequest } = require('./request')
 const zlib = require('zlib')
 const {
@@ -41,6 +41,7 @@ const {
   urlIsLocal,
   urlIsHttpHttpsScheme,
   urlHasHttpsScheme,
+  clampAndCoursenConnectionTimingInfo,
   simpleRangeHeaderValue,
   buildContentRange
 } = require('./util')
@@ -57,7 +58,7 @@ const {
 const { kHeadersList, kConstruct } = require('../core/symbols')
 const EE = require('events')
 const { Readable, pipeline } = require('stream')
-const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require('../core/util')
+const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../core/util')
 const { dataURLProcessor, serializeAMimeType, parseMIMEType } = require('./dataURL')
 const { getGlobalDispatcher } = require('../global')
 const { webidl } = require('./webidl')
@@ -475,7 +476,7 @@ function fetching ({
   }
 
   // 12. If request’s header list does not contain `Accept`, then:
-  if (!request.headersList.contains('accept')) {
+  if (!request.headersList.contains('accept', true)) {
     // 1. Let value be `*/*`.
     const value = '*/*'
 
@@ -492,14 +493,14 @@ function fetching ({
     // TODO
 
     // 3. Append `Accept`/value to request’s header list.
-    request.headersList.append('accept', value)
+    request.headersList.append('accept', value, true)
   }
 
   // 13. If request’s header list does not contain `Accept-Language`, then
   // user agents should append `Accept-Language`/an appropriate value to
   // request’s header list.
-  if (!request.headersList.contains('accept-language')) {
-    request.headersList.append('accept-language', '*')
+  if (!request.headersList.contains('accept-language', true)) {
+    request.headersList.append('accept-language', '*', true)
   }
 
   // 14. If request’s priority is null, then use request’s initiator and
@@ -718,7 +719,7 @@ async function mainFetch (fetchParams, recursive = false) {
     response.type === 'opaque' &&
     internalResponse.status === 206 &&
     internalResponse.rangeRequested &&
-    !request.headers.contains('range')
+    !request.headers.contains('range', true)
   ) {
     response = internalResponse = makeNetworkError()
   }
@@ -840,7 +841,7 @@ function schemeFetch (fetchParams) {
 
       // 8. If request’s header list does not contain `Range`:
       // 9. Otherwise:
-      if (!request.headersList.contains('range')) {
+      if (!request.headersList.contains('range', true)) {
         // 1. Let bodyWithType be the result of safely extracting blob.
         // Note: in the FileAPI a blob "object" is a Blob *or* a MediaSource.
         // In node, this can only ever be a Blob. Therefore we can safely
@@ -854,14 +855,14 @@ function schemeFetch (fetchParams) {
         response.body = bodyWithType[0]
 
         // 4. Set response’s header list to « (`Content-Length`, serializedFullLength), (`Content-Type`, type) ».
-        response.headersList.set('content-length', serializedFullLength)
-        response.headersList.set('content-type', type)
+        response.headersList.set('content-length', serializedFullLength, true)
+        response.headersList.set('content-type', type, true)
       } else {
         // 1. Set response’s range-requested flag.
         response.rangeRequested = true
 
         // 2. Let rangeHeader be the result of getting `Range` from request’s header list.
-        const rangeHeader = request.headersList.get('range')
+        const rangeHeader = request.headersList.get('range', true)
 
         // 3. Let rangeValue be the result of parsing a single range header value given rangeHeader and true.
         const rangeValue = simpleRangeHeaderValue(rangeHeader, true)
@@ -921,9 +922,9 @@ function schemeFetch (fetchParams) {
 
         // 15. Set response’s header list to « (`Content-Length`, serializedSlicedLength),
         //     (`Content-Type`, type), (`Content-Range`, contentRange) ».
-        response.headersList.set('content-length', serializedSlicedLength)
-        response.headersList.set('content-type', type)
-        response.headersList.set('content-range', contentRange)
+        response.headersList.set('content-length', serializedSlicedLength, true)
+        response.headersList.set('content-type', type, true)
+        response.headersList.set('content-range', contentRange, true)
       }
 
       // 10. Return response.
@@ -1040,7 +1041,7 @@ function fetchFinale (fetchParams, response) {
         responseStatus = response.status
 
         // 2. Let mimeType be the result of extracting a MIME type from response’s header list.
-        const mimeType = parseMIMEType(response.headersList.get('content-type')) // TODO: fix
+        const mimeType = parseMIMEType(response.headersList.get('content-type', true)) // TODO: fix
 
         // 3. If mimeType is not failure, then set bodyInfo’s content type to the result of minimizing a supported MIME type given mimeType.
         if (mimeType !== 'failure') {
@@ -1336,11 +1337,11 @@ function httpRedirectFetch (fetchParams, response) {
   //     delete headerName from request’s header list.
   if (!sameOrigin(requestCurrentURL(request), locationURL)) {
     // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
-    request.headersList.delete('authorization')
+    request.headersList.delete('authorization', true)
 
     // "Cookie" and "Host" are forbidden request-headers, which undici doesn't implement.
-    request.headersList.delete('cookie')
-    request.headersList.delete('host')
+    request.headersList.delete('cookie', true)
+    request.headersList.delete('host', true)
   }
 
   // 14. If request’s body is non-null, then set request’s body to the first return
@@ -1456,7 +1457,7 @@ async function httpNetworkOrCacheFetch (
   //    `Content-Length`/contentLengthHeaderValue to httpRequest’s header
   //    list.
   if (contentLengthHeaderValue != null) {
-    httpRequest.headersList.append('content-length', contentLengthHeaderValue)
+    httpRequest.headersList.append('content-length', contentLengthHeaderValue, true)
   }
 
   //    9. If contentLengthHeaderValue is non-null, then append (`Content-Length`,
@@ -1472,7 +1473,7 @@ async function httpNetworkOrCacheFetch (
   //    `Referer`/httpRequest’s referrer, serialized and isomorphic encoded,
   //     to httpRequest’s header list.
   if (httpRequest.referrer instanceof URL) {
-    httpRequest.headersList.append('referer', isomorphicEncode(httpRequest.referrer.href))
+    httpRequest.headersList.append('referer', isomorphicEncode(httpRequest.referrer.href), true)
   }
 
   //    12. Append a request `Origin` header for httpRequest.
@@ -1484,8 +1485,8 @@ async function httpNetworkOrCacheFetch (
   //    14. If httpRequest’s header list does not contain `User-Agent`, then
   //    user agents should append `User-Agent`/default `User-Agent` value to
   //    httpRequest’s header list.
-  if (!httpRequest.headersList.contains('user-agent')) {
-    httpRequest.headersList.append('user-agent', typeof esbuildDetection === 'undefined' ? 'undici' : 'node')
+  if (!httpRequest.headersList.contains('user-agent', true)) {
+    httpRequest.headersList.append('user-agent', typeof esbuildDetection === 'undefined' ? 'undici' : 'node', true)
   }
 
   //    15. If httpRequest’s cache mode is "default" and httpRequest’s header
@@ -1494,11 +1495,11 @@ async function httpNetworkOrCacheFetch (
   //    httpRequest’s cache mode to "no-store".
   if (
     httpRequest.cache === 'default' &&
-    (httpRequest.headersList.contains('if-modified-since') ||
-      httpRequest.headersList.contains('if-none-match') ||
-      httpRequest.headersList.contains('if-unmodified-since') ||
-      httpRequest.headersList.contains('if-match') ||
-      httpRequest.headersList.contains('if-range'))
+    (httpRequest.headersList.contains('if-modified-since', true) ||
+      httpRequest.headersList.contains('if-none-match', true) ||
+      httpRequest.headersList.contains('if-unmodified-since', true) ||
+      httpRequest.headersList.contains('if-match', true) ||
+      httpRequest.headersList.contains('if-range', true))
   ) {
     httpRequest.cache = 'no-store'
   }
@@ -1510,44 +1511,44 @@ async function httpNetworkOrCacheFetch (
   if (
     httpRequest.cache === 'no-cache' &&
     !httpRequest.preventNoCacheCacheControlHeaderModification &&
-    !httpRequest.headersList.contains('cache-control')
+    !httpRequest.headersList.contains('cache-control', true)
   ) {
-    httpRequest.headersList.append('cache-control', 'max-age=0')
+    httpRequest.headersList.append('cache-control', 'max-age=0', true)
   }
 
   //    17. If httpRequest’s cache mode is "no-store" or "reload", then:
   if (httpRequest.cache === 'no-store' || httpRequest.cache === 'reload') {
     // 1. If httpRequest’s header list does not contain `Pragma`, then append
     // `Pragma`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.contains('pragma')) {
-      httpRequest.headersList.append('pragma', 'no-cache')
+    if (!httpRequest.headersList.contains('pragma', true)) {
+      httpRequest.headersList.append('pragma', 'no-cache', true)
     }
 
     // 2. If httpRequest’s header list does not contain `Cache-Control`,
     // then append `Cache-Control`/`no-cache` to httpRequest’s header list.
-    if (!httpRequest.headersList.contains('cache-control')) {
-      httpRequest.headersList.append('cache-control', 'no-cache')
+    if (!httpRequest.headersList.contains('cache-control', true)) {
+      httpRequest.headersList.append('cache-control', 'no-cache', true)
     }
   }
 
   //    18. If httpRequest’s header list contains `Range`, then append
   //    `Accept-Encoding`/`identity` to httpRequest’s header list.
-  if (httpRequest.headersList.contains('range')) {
-    httpRequest.headersList.append('accept-encoding', 'identity')
+  if (httpRequest.headersList.contains('range', true)) {
+    httpRequest.headersList.append('accept-encoding', 'identity', true)
   }
 
   //    19. Modify httpRequest’s header list per HTTP. Do not append a given
   //    header if httpRequest’s header list contains that header’s name.
   //    TODO: https://github.com/whatwg/fetch/issues/1285#issuecomment-896560129
-  if (!httpRequest.headersList.contains('accept-encoding')) {
+  if (!httpRequest.headersList.contains('accept-encoding', true)) {
     if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
-      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate')
+      httpRequest.headersList.append('accept-encoding', 'br, gzip, deflate', true)
     } else {
-      httpRequest.headersList.append('accept-encoding', 'gzip, deflate')
+      httpRequest.headersList.append('accept-encoding', 'gzip, deflate', true)
     }
   }
 
-  httpRequest.headersList.delete('host')
+  httpRequest.headersList.delete('host', true)
 
   //    20. If includeCredentials is true, then:
   if (includeCredentials) {
@@ -1630,7 +1631,7 @@ async function httpNetworkOrCacheFetch (
 
   // 12. If httpRequest’s header list contains `Range`, then set response’s
   // range-requested flag.
-  if (httpRequest.headersList.contains('range')) {
+  if (httpRequest.headersList.contains('range', true)) {
     response.rangeRequested = true
   }
 
@@ -2075,7 +2076,7 @@ async function httpNetworkFetch (
   // 20. Return response.
   return response
 
-  async function dispatch ({ body }) {
+  function dispatch ({ body }) {
     const url = requestCurrentURL(request)
     /** @type {import('../..').Agent} */
     const agent = fetchParams.controller.dispatcher
@@ -2085,7 +2086,7 @@ async function httpNetworkFetch (
         path: url.pathname + url.search,
         origin: url.origin,
         method: request.method,
-        body: fetchParams.controller.dispatcher.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
+        body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
         headers: request.headersList.entries,
         maxRedirections: 0,
         upgrade: request.mode === 'websocket' ? 'websocket' : undefined
@@ -2098,67 +2099,83 @@ async function httpNetworkFetch (
           // TODO (fix): Do we need connection here?
           const { connection } = fetchParams.controller
 
+          // Set timingInfo’s final connection timing info to the result of calling clamp and coarsen
+          // connection timing info with connection’s timing info, timingInfo’s post-redirect start
+          // time, and fetchParams’s cross-origin isolated capability.
+          // TODO: implement connection timing
+          timingInfo.finalConnectionTimingInfo = clampAndCoursenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
+
           if (connection.destroyed) {
             abort(new DOMException('The operation was aborted.', 'AbortError'))
           } else {
             fetchParams.controller.on('terminated', abort)
             this.abort = connection.abort = abort
           }
+
+          // Set timingInfo’s final network-request start time to the coarsened shared current time given
+          // fetchParams’s cross-origin isolated capability.
+          timingInfo.finalNetworkRequestStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
         },
 
-        onHeaders (status, headersList, resume, statusText) {
+        onResponseStarted () {
+          // Set timingInfo’s final network-response start time to the coarsened shared current
+          // time given fetchParams’s cross-origin isolated capability, immediately after the
+          // user agent’s HTTP parser receives the first byte of the response (e.g., frame header
+          // bytes for HTTP/2 or response status line for HTTP/1.x).
+          timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability)
+        },
+
+        onHeaders (status, rawHeaders, resume, statusText) {
           if (status < 200) {
             return
           }
 
+          /** @type {string[]} */
           let codings = []
           let location = ''
 
-          const headers = new Headers()
+          const headersList = new HeadersList()
 
-          // For H2, the headers are a plain JS object
+          // For H2, the rawHeaders are a plain JS object
           // We distinguish between them and iterate accordingly
-          if (Array.isArray(headersList)) {
-            for (let n = 0; n < headersList.length; n += 2) {
-              const key = headersList[n + 0].toString('latin1')
-              const val = headersList[n + 1].toString('latin1')
-              if (key.toLowerCase() === 'content-encoding') {
-                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-                // "All content-coding values are case-insensitive..."
-                codings = val.toLowerCase().split(',').map((x) => x.trim())
-              } else if (key.toLowerCase() === 'location') {
-                location = val
-              }
-
-              headers[kHeadersList].append(key, val)
+          if (Array.isArray(rawHeaders)) {
+            for (let i = 0; i < rawHeaders.length; i += 2) {
+              headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
             }
+            const contentEncoding = headersList.get('content-encoding', true)
+            if (contentEncoding) {
+              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+              // "All content-coding values are case-insensitive..."
+              codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
+            }
+            location = headersList.get('location', true)
           } else {
-            const keys = Object.keys(headersList)
-            for (const key of keys) {
-              const val = headersList[key]
-              if (key.toLowerCase() === 'content-encoding') {
-                // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-                // "All content-coding values are case-insensitive..."
-                codings = val.toLowerCase().split(',').map((x) => x.trim()).reverse()
-              } else if (key.toLowerCase() === 'location') {
-                location = val
-              }
-
-              headers[kHeadersList].append(key, val)
+            const keys = Object.keys(rawHeaders)
+            for (let i = 0; i < keys.length; ++i) {
+              headersList.append(keys[i], rawHeaders[keys[i]])
             }
+            // For H2, The header names are already in lowercase,
+            // so we can avoid the `HeadersList#get` call here.
+            const contentEncoding = rawHeaders['content-encoding']
+            if (contentEncoding) {
+              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
+              // "All content-coding values are case-insensitive..."
+              codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim()).reverse()
+            }
+            location = rawHeaders.location
           }
 
           this.body = new Readable({ read: resume })
 
           const decoders = []
 
-          const willFollow = request.redirect === 'follow' &&
-            location &&
+          const willFollow = location && request.redirect === 'follow' &&
             redirectStatusSet.has(status)
 
           // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
           if (request.method !== 'HEAD' && request.method !== 'CONNECT' && !nullBodyStatus.includes(status) && !willFollow) {
-            for (const coding of codings) {
+            for (let i = 0; i < codings.length; ++i) {
+              const coding = codings[i]
               // https://www.rfc-editor.org/rfc/rfc9112.html#section-7.2
               if (coding === 'x-gzip' || coding === 'gzip') {
                 decoders.push(zlib.createGunzip({
@@ -2183,7 +2200,7 @@ async function httpNetworkFetch (
           resolve({
             status,
             statusText,
-            headersList: headers[kHeadersList],
+            headersList,
             body: decoders.length
               ? pipeline(this.body, ...decoders, () => { })
               : this.body.on('error', () => {})
@@ -2237,24 +2254,21 @@ async function httpNetworkFetch (
           reject(error)
         },
 
-        onUpgrade (status, headersList, socket) {
+        onUpgrade (status, rawHeaders, socket) {
           if (status !== 101) {
             return
           }
 
-          const headers = new Headers()
+          const headersList = new HeadersList()
 
-          for (let n = 0; n < headersList.length; n += 2) {
-            const key = headersList[n + 0].toString('latin1')
-            const val = headersList[n + 1].toString('latin1')
-
-            headers[kHeadersList].append(key, val)
+          for (let i = 0; i < rawHeaders.length; i += 2) {
+            headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString('latin1'), true)
           }
 
           resolve({
             status,
             statusText: STATUS_CODES[status],
-            headersList: headers[kHeadersList],
+            headersList,
             socket
           })
 

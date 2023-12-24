@@ -104,61 +104,56 @@ var require_errors = __commonJS({
         this.code = "UND_ERR";
       }
     };
-    var ConnectTimeoutError = class _ConnectTimeoutError extends UndiciError {
+    var ConnectTimeoutError = class extends UndiciError {
       static {
         __name(this, "ConnectTimeoutError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _ConnectTimeoutError);
         this.name = "ConnectTimeoutError";
         this.message = message || "Connect Timeout Error";
         this.code = "UND_ERR_CONNECT_TIMEOUT";
       }
     };
-    var HeadersTimeoutError = class _HeadersTimeoutError extends UndiciError {
+    var HeadersTimeoutError = class extends UndiciError {
       static {
         __name(this, "HeadersTimeoutError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _HeadersTimeoutError);
         this.name = "HeadersTimeoutError";
         this.message = message || "Headers Timeout Error";
         this.code = "UND_ERR_HEADERS_TIMEOUT";
       }
     };
-    var HeadersOverflowError = class _HeadersOverflowError extends UndiciError {
+    var HeadersOverflowError = class extends UndiciError {
       static {
         __name(this, "HeadersOverflowError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _HeadersOverflowError);
         this.name = "HeadersOverflowError";
         this.message = message || "Headers Overflow Error";
         this.code = "UND_ERR_HEADERS_OVERFLOW";
       }
     };
-    var BodyTimeoutError = class _BodyTimeoutError extends UndiciError {
+    var BodyTimeoutError = class extends UndiciError {
       static {
         __name(this, "BodyTimeoutError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _BodyTimeoutError);
         this.name = "BodyTimeoutError";
         this.message = message || "Body Timeout Error";
         this.code = "UND_ERR_BODY_TIMEOUT";
       }
     };
-    var ResponseStatusCodeError = class _ResponseStatusCodeError extends UndiciError {
+    var ResponseStatusCodeError = class extends UndiciError {
       static {
         __name(this, "ResponseStatusCodeError");
       }
       constructor(message, statusCode, headers, body) {
         super(message);
-        Error.captureStackTrace(this, _ResponseStatusCodeError);
         this.name = "ResponseStatusCodeError";
         this.message = message || "Response Status Code Error";
         this.code = "UND_ERR_RESPONSE_STATUS_CODE";
@@ -168,122 +163,122 @@ var require_errors = __commonJS({
         this.headers = headers;
       }
     };
-    var InvalidArgumentError = class _InvalidArgumentError extends UndiciError {
+    var InvalidArgumentError = class extends UndiciError {
       static {
         __name(this, "InvalidArgumentError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _InvalidArgumentError);
         this.name = "InvalidArgumentError";
         this.message = message || "Invalid Argument Error";
         this.code = "UND_ERR_INVALID_ARG";
       }
     };
-    var InvalidReturnValueError = class _InvalidReturnValueError extends UndiciError {
+    var InvalidReturnValueError = class extends UndiciError {
       static {
         __name(this, "InvalidReturnValueError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _InvalidReturnValueError);
         this.name = "InvalidReturnValueError";
         this.message = message || "Invalid Return Value Error";
         this.code = "UND_ERR_INVALID_RETURN_VALUE";
       }
     };
-    var RequestAbortedError = class _RequestAbortedError extends UndiciError {
+    var AbortError = class extends UndiciError {
+      static {
+        __name(this, "AbortError");
+      }
+      constructor(message) {
+        super(message);
+        this.name = "AbortError";
+        this.message = message || "The operation was aborted";
+      }
+    };
+    var RequestAbortedError = class extends AbortError {
       static {
         __name(this, "RequestAbortedError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _RequestAbortedError);
         this.name = "AbortError";
         this.message = message || "Request aborted";
         this.code = "UND_ERR_ABORTED";
       }
     };
-    var InformationalError = class _InformationalError extends UndiciError {
+    var InformationalError = class extends UndiciError {
       static {
         __name(this, "InformationalError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _InformationalError);
         this.name = "InformationalError";
         this.message = message || "Request information";
         this.code = "UND_ERR_INFO";
       }
     };
-    var RequestContentLengthMismatchError = class _RequestContentLengthMismatchError extends UndiciError {
+    var RequestContentLengthMismatchError = class extends UndiciError {
       static {
         __name(this, "RequestContentLengthMismatchError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _RequestContentLengthMismatchError);
         this.name = "RequestContentLengthMismatchError";
         this.message = message || "Request body length does not match content-length header";
         this.code = "UND_ERR_REQ_CONTENT_LENGTH_MISMATCH";
       }
     };
-    var ResponseContentLengthMismatchError = class _ResponseContentLengthMismatchError extends UndiciError {
+    var ResponseContentLengthMismatchError = class extends UndiciError {
       static {
         __name(this, "ResponseContentLengthMismatchError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _ResponseContentLengthMismatchError);
         this.name = "ResponseContentLengthMismatchError";
         this.message = message || "Response body length does not match content-length header";
         this.code = "UND_ERR_RES_CONTENT_LENGTH_MISMATCH";
       }
     };
-    var ClientDestroyedError = class _ClientDestroyedError extends UndiciError {
+    var ClientDestroyedError = class extends UndiciError {
       static {
         __name(this, "ClientDestroyedError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _ClientDestroyedError);
         this.name = "ClientDestroyedError";
         this.message = message || "The client is destroyed";
         this.code = "UND_ERR_DESTROYED";
       }
     };
-    var ClientClosedError = class _ClientClosedError extends UndiciError {
+    var ClientClosedError = class extends UndiciError {
       static {
         __name(this, "ClientClosedError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _ClientClosedError);
         this.name = "ClientClosedError";
         this.message = message || "The client is closed";
         this.code = "UND_ERR_CLOSED";
       }
     };
-    var SocketError = class _SocketError extends UndiciError {
+    var SocketError = class extends UndiciError {
       static {
         __name(this, "SocketError");
       }
       constructor(message, socket) {
         super(message);
-        Error.captureStackTrace(this, _SocketError);
         this.name = "SocketError";
         this.message = message || "Socket error";
         this.code = "UND_ERR_SOCKET";
         this.socket = socket;
       }
     };
-    var NotSupportedError = class _NotSupportedError extends UndiciError {
+    var NotSupportedError = class extends UndiciError {
       static {
         __name(this, "NotSupportedError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _NotSupportedError);
         this.name = "NotSupportedError";
         this.message = message || "Not supported error";
         this.code = "UND_ERR_NOT_SUPPORTED";
@@ -295,43 +290,39 @@ var require_errors = __commonJS({
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, NotSupportedError);
         this.name = "MissingUpstreamError";
         this.message = message || "No upstream has been added to the BalancedPool";
         this.code = "UND_ERR_BPL_MISSING_UPSTREAM";
       }
     };
-    var HTTPParserError = class _HTTPParserError extends Error {
+    var HTTPParserError = class extends Error {
       static {
         __name(this, "HTTPParserError");
       }
       constructor(message, code, data) {
         super(message);
-        Error.captureStackTrace(this, _HTTPParserError);
         this.name = "HTTPParserError";
         this.code = code ? `HPE_${code}` : void 0;
         this.data = data ? data.toString() : void 0;
       }
     };
-    var ResponseExceededMaxSizeError = class _ResponseExceededMaxSizeError extends UndiciError {
+    var ResponseExceededMaxSizeError = class extends UndiciError {
       static {
         __name(this, "ResponseExceededMaxSizeError");
       }
       constructor(message) {
         super(message);
-        Error.captureStackTrace(this, _ResponseExceededMaxSizeError);
         this.name = "ResponseExceededMaxSizeError";
         this.message = message || "Response content exceeded max size";
         this.code = "UND_ERR_RES_EXCEEDED_MAX_SIZE";
       }
     };
-    var RequestRetryError = class _RequestRetryError extends UndiciError {
+    var RequestRetryError = class extends UndiciError {
       static {
         __name(this, "RequestRetryError");
       }
       constructor(message, code, { headers, data }) {
         super(message);
-        Error.captureStackTrace(this, _RequestRetryError);
         this.name = "RequestRetryError";
         this.message = message || "Request retry error";
         this.code = "UND_ERR_REQ_RETRY";
@@ -341,6 +332,7 @@ var require_errors = __commonJS({
       }
     };
     module2.exports = {
+      AbortError,
       HTTPParserError,
       UndiciError,
       HeadersTimeoutError,
@@ -368,6 +360,7 @@ var require_errors = __commonJS({
 // lib/core/constants.js
 var require_constants = __commonJS({
   "lib/core/constants.js"(exports2, module2) {
+    "use strict";
     var headerNameLowerCasedRecord = {};
     var wellknownHeaderNames = [
       "Accept",
@@ -479,6 +472,139 @@ var require_constants = __commonJS({
   }
 });
 
+// lib/core/tree.js
+var require_tree = __commonJS({
+  "lib/core/tree.js"(exports2, module2) {
+    "use strict";
+    var {
+      wellknownHeaderNames,
+      headerNameLowerCasedRecord
+    } = require_constants();
+    var TstNode = class _TstNode {
+      static {
+        __name(this, "TstNode");
+      }
+      /** @type {any} */
+      value = null;
+      /** @type {null | TstNode} */
+      left = null;
+      /** @type {null | TstNode} */
+      middle = null;
+      /** @type {null | TstNode} */
+      right = null;
+      /** @type {number} */
+      code;
+      /**
+       * @param {Uint8Array} key
+       * @param {any} value
+       * @param {number} index
+       */
+      constructor(key, value, index) {
+        if (index === void 0 || index >= key.length) {
+          throw new TypeError("Unreachable");
+        }
+        this.code = key[index];
+        if (key.length !== ++index) {
+          this.middle = new _TstNode(key, value, index);
+        } else {
+          this.value = value;
+        }
+      }
+      /**
+       * @param {Uint8Array} key
+       * @param {any} value
+       * @param {number} index
+       */
+      add(key, value, index) {
+        if (index === void 0 || index >= key.length) {
+          throw new TypeError("Unreachable");
+        }
+        const code = key[index];
+        if (this.code === code) {
+          if (key.length === ++index) {
+            this.value = value;
+          } else if (this.middle !== null) {
+            this.middle.add(key, value, index);
+          } else {
+            this.middle = new _TstNode(key, value, index);
+          }
+        } else if (this.code < code) {
+          if (this.left !== null) {
+            this.left.add(key, value, index);
+          } else {
+            this.left = new _TstNode(key, value, index);
+          }
+        } else {
+          if (this.right !== null) {
+            this.right.add(key, value, index);
+          } else {
+            this.right = new _TstNode(key, value, index);
+          }
+        }
+      }
+      /**
+       * @param {Uint8Array} key
+       * @return {TstNode | null}
+       */
+      search(key) {
+        const keylength = key.length;
+        let index = 0;
+        let node = this;
+        while (node !== null && index < keylength) {
+          let code = key[index];
+          if (code >= 65 && code <= 90) {
+            code |= 32;
+          }
+          while (node !== null) {
+            if (code === node.code) {
+              if (keylength === ++index) {
+                return node;
+              }
+              node = node.middle;
+              break;
+            }
+            node = node.code < code ? node.left : node.right;
+          }
+        }
+        return null;
+      }
+    };
+    var TernarySearchTree = class {
+      static {
+        __name(this, "TernarySearchTree");
+      }
+      /** @type {TstNode | null} */
+      node = null;
+      /**
+       * @param {Uint8Array} key
+       * @param {any} value
+       * */
+      insert(key, value) {
+        if (this.node === null) {
+          this.node = new TstNode(key, value, 0);
+        } else {
+          this.node.add(key, value, 0);
+        }
+      }
+      /**
+       * @param {Uint8Array} key
+       */
+      lookup(key) {
+        return this.node?.search(key)?.value ?? null;
+      }
+    };
+    var tree = new TernarySearchTree();
+    for (let i = 0; i < wellknownHeaderNames.length; ++i) {
+      const key = headerNameLowerCasedRecord[wellknownHeaderNames[i]];
+      tree.insert(Buffer.from(key), key);
+    }
+    module2.exports = {
+      TernarySearchTree,
+      tree
+    };
+  }
+});
+
 // lib/core/util.js
 var require_util = __commonJS({
   "lib/core/util.js"(exports2, module2) {
@@ -493,6 +619,7 @@ var require_util = __commonJS({
     var nodeUtil = require("util");
     var { stringify } = require("querystring");
     var { headerNameLowerCasedRecord } = require_constants();
+    var { tree } = require_tree();
     var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
     function nop() {
     }
@@ -652,22 +779,31 @@ var require_util = __commonJS({
       return m ? parseInt(m[1], 10) * 1e3 : null;
     }
     __name(parseKeepAliveTimeout, "parseKeepAliveTimeout");
-    function parseHeaders(headers, obj = {}) {
+    function headerNameToString(value) {
+      return typeof value === "string" ? headerNameLowerCasedRecord[value] ?? value.toLowerCase() : tree.lookup(value) ?? value.toString("latin1").toLowerCase();
+    }
+    __name(headerNameToString, "headerNameToString");
+    function bufferToLowerCasedHeaderName(value) {
+      return tree.lookup(value) ?? value.toString("latin1").toLowerCase();
+    }
+    __name(bufferToLowerCasedHeaderName, "bufferToLowerCasedHeaderName");
+    function parseHeaders(headers, obj) {
       if (!Array.isArray(headers))
         return headers;
+      if (obj === void 0)
+        obj = {};
       for (let i = 0; i < headers.length; i += 2) {
-        const key = headers[i].toString();
-        const lowerCasedKey = headerNameLowerCasedRecord[key] ?? key.toLowerCase();
-        let val = obj[lowerCasedKey];
+        const key = headerNameToString(headers[i]);
+        let val = obj[key];
         if (!val) {
           const headersValue = headers[i + 1];
           if (typeof headersValue === "string") {
-            obj[lowerCasedKey] = headersValue;
+            obj[key] = headersValue;
           } else {
-            obj[lowerCasedKey] = Array.isArray(headersValue) ? headersValue.map((x) => x.toString("utf8")) : headersValue.toString("utf8");
+            obj[key] = Array.isArray(headersValue) ? headersValue.map((x) => x.toString("utf8")) : headersValue.toString("utf8");
           }
         } else {
-          if (!Array.isArray(val)) {
+          if (typeof val === "string") {
             val = [val];
             obj[lowerCasedKey] = val;
           }
@@ -741,15 +877,11 @@ var require_util = __commonJS({
     }
     __name(isDisturbed, "isDisturbed");
     function isErrored(body) {
-      return !!(body && (stream.isErrored ? stream.isErrored(body) : /state: 'errored'/.test(
-        nodeUtil.inspect(body)
-      )));
+      return !!(body && stream.isErrored(body));
     }
     __name(isErrored, "isErrored");
     function isReadable(body) {
-      return !!(body && (stream.isReadable ? stream.isReadable(body) : /state: 'readable'/.test(
-        nodeUtil.inspect(body)
-      )));
+      return !!(body && stream.isReadable(body));
     }
     __name(isReadable, "isReadable");
     function getSocketInfo(socket) {
@@ -799,21 +931,6 @@ var require_util = __commonJS({
       return object && typeof object === "object" && typeof object.append === "function" && typeof object.delete === "function" && typeof object.get === "function" && typeof object.getAll === "function" && typeof object.has === "function" && typeof object.set === "function" && object[Symbol.toStringTag] === "FormData";
     }
     __name(isFormDataLike, "isFormDataLike");
-    function throwIfAborted(signal) {
-      if (!signal) {
-        return;
-      }
-      if (typeof signal.throwIfAborted === "function") {
-        signal.throwIfAborted();
-      } else {
-        if (signal.aborted) {
-          const err = new Error("The operation was aborted");
-          err.name = "AbortError";
-          throw err;
-        }
-      }
-    }
-    __name(throwIfAborted, "throwIfAborted");
     function addAbortListener(signal, listener) {
       if ("addEventListener" in signal) {
         signal.addEventListener("abort", listener, { once: true });
@@ -833,6 +950,43 @@ var require_util = __commonJS({
       return `${val}`;
     }
     __name(toUSVString, "toUSVString");
+    function isTokenCharCode(c) {
+      switch (c) {
+        case 34:
+        case 40:
+        case 41:
+        case 44:
+        case 47:
+        case 58:
+        case 59:
+        case 60:
+        case 61:
+        case 62:
+        case 63:
+        case 64:
+        case 91:
+        case 92:
+        case 93:
+        case 123:
+        case 125:
+          return false;
+        default:
+          return c >= 33 && c <= 126;
+      }
+    }
+    __name(isTokenCharCode, "isTokenCharCode");
+    function isValidHTTPToken(characters) {
+      if (characters.length === 0) {
+        return false;
+      }
+      for (let i = 0; i < characters.length; ++i) {
+        if (!isTokenCharCode(characters.charCodeAt(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isValidHTTPToken, "isValidHTTPToken");
     function parseRangeHeader(range) {
       if (range == null || range === "")
         return { start: 0, end: null, size: null };
@@ -862,6 +1016,8 @@ var require_util = __commonJS({
       isIterable,
       isAsyncIterable,
       isDestroyed,
+      headerNameToString,
+      bufferToLowerCasedHeaderName,
       parseRawHeaders,
       parseHeaders,
       parseKeepAliveTimeout,
@@ -874,8 +1030,9 @@ var require_util = __commonJS({
       getSocketInfo,
       isFormDataLike,
       buildURL,
-      throwIfAborted,
       addAbortListener,
+      isValidHTTPToken,
+      isTokenCharCode,
       parseRangeHeader,
       nodeMajor,
       nodeMinor,
@@ -1101,11 +1258,11 @@ var require_global = __commonJS({
 var require_dataURL = __commonJS({
   "lib/fetch/dataURL.js"(exports2, module2) {
     var assert = require("assert");
-    var { atob } = require("buffer");
     var { isomorphicDecode } = require_util2();
     var encoder = new TextEncoder();
     var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/;
-    var HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/;
+    var HTTP_WHITESPACE_REGEX = /[\u000A|\u000D|\u0009|\u0020]/;
+    var ASCII_WHITESPACE_REPLACE_REGEX = /[\u0009\u000A\u000C\u000D\u0020]/g;
     var HTTP_QUOTED_STRING_TOKENS = /[\u0009|\u0020-\u007E|\u0080-\u00FF]/;
     function dataURLProcessor(dataURL) {
       assert(dataURL.protocol === "data:");
@@ -1183,22 +1340,28 @@ var require_dataURL = __commonJS({
       return percentDecode(bytes);
     }
     __name(stringPercentDecode, "stringPercentDecode");
+    function isHexCharByte(byte) {
+      return byte >= 48 && byte <= 57 || byte >= 65 && byte <= 70 || byte >= 97 && byte <= 102;
+    }
+    __name(isHexCharByte, "isHexCharByte");
     function percentDecode(input) {
-      const output = [];
-      for (let i = 0; i < input.length; i++) {
+      const length = input.length;
+      const output = new Uint8Array(length);
+      let j = 0;
+      for (let i = 0; i < length; ++i) {
         const byte = input[i];
         if (byte !== 37) {
-          output.push(byte);
-        } else if (byte === 37 && !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))) {
-          output.push(37);
+          output[j++] = byte;
+        } else if (byte === 37 && !(isHexCharByte(input[i + 1]) && isHexCharByte(input[i + 2]))) {
+          output[j++] = 37;
         } else {
           const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2]);
           const bytePoint = Number.parseInt(nextTwoBytes, 16);
-          output.push(bytePoint);
+          output[j++] = bytePoint;
           i += 2;
         }
       }
-      return Uint8Array.from(output);
+      return length === j ? output : output.subarray(0, j);
     }
     __name(percentDecode, "percentDecode");
     function parseMIMEType(input) {
@@ -1234,6 +1397,376 @@ var require_dataURL = __commonJS({
         parameters: /* @__PURE__ */ new Map(),
         // https://mimesniff.spec.whatwg.org/#mime-type-essence
         essence: `${typeLowercase}/${subtypeLowercase}`
+      };
+      while (position.position < input.length) {
+        position.position++;
+        collectASequenceOfCodePoints(
+          // https://fetch.spec.whatwg.org/#http-whitespace
+          (char) => HTTP_WHITESPACE_REGEX.test(char),
+          input,
+          position
+        );
+        let parameterName = collectASequenceOfCodePoints(
+          (char) => char !== ";" && char !== "=",
+          input,
+          position
+        );
+        parameterName = parameterName.toLowerCase();
+        if (position.position < input.length) {
+          if (input[position.position] === ";") {
+            continue;
+          }
+          position.position++;
+        }
+        if (position.position > input.length) {
+          break;
+        }
+        let parameterValue = null;
+        if (input[position.position] === '"') {
+          parameterValue = collectAnHTTPQuotedString(input, position, true);
+          collectASequenceOfCodePointsFast(
+            ";",
+            input,
+            position
+          );
+        } else {
+          parameterValue = collectASequenceOfCodePointsFast(
+            ";",
+            input,
+            position
+          );
+          parameterValue = removeHTTPWhitespace(parameterValue, false, true);
+          if (parameterValue.length === 0) {
+            continue;
+          }
+        }
+        if (parameterName.length !== 0 && HTTP_TOKEN_CODEPOINTS.test(parameterName) && (parameterValue.length === 0 || HTTP_QUOTED_STRING_TOKENS.test(parameterValue)) && !mimeType.parameters.has(parameterName)) {
+          mimeType.parameters.set(parameterName, parameterValue);
+        }
+      }
+      return mimeType;
+    }
+    __name(parseMIMEType, "parseMIMEType");
+    function forgivingBase64(data) {
+      data = data.replace(ASCII_WHITESPACE_REPLACE_REGEX, "");
+      let dataLength = data.length;
+      if (dataLength % 4 === 0) {
+        if (data.charCodeAt(dataLength - 1) === 61) {
+          --dataLength;
+          if (data.charCodeAt(dataLength - 1) === 61) {
+            --dataLength;
+          }
+        }
+      }
+      if (dataLength % 4 === 1) {
+        return "failure";
+      }
+      if (/[^+/0-9A-Za-z]/.test(data.length === dataLength ? data : data.substring(0, dataLength))) {
+        return "failure";
+      }
+      const buffer = Buffer.from(data, "base64");
+      return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    }
+    __name(forgivingBase64, "forgivingBase64");
+    function collectAnHTTPQuotedString(input, position, extractValue) {
+      const positionStart = position.position;
+      let value = "";
+      assert(input[position.position] === '"');
+      position.position++;
+      while (true) {
+        value += collectASequenceOfCodePoints(
+          (char) => char !== '"' && char !== "\\",
+          input,
+          position
+        );
+        if (position.position >= input.length) {
+          break;
+        }
+        const quoteOrBackslash = input[position.position];
+        position.position++;
+        if (quoteOrBackslash === "\\") {
+          if (position.position >= input.length) {
+            value += "\\";
+            break;
+          }
+          value += input[position.position];
+          position.position++;
+        } else {
+          assert(quoteOrBackslash === '"');
+          break;
+        }
+      }
+      if (extractValue) {
+        return value;
+      }
+      return input.slice(positionStart, position.position);
+    }
+    __name(collectAnHTTPQuotedString, "collectAnHTTPQuotedString");
+    function serializeAMimeType(mimeType) {
+      assert(mimeType !== "failure");
+      const { parameters, essence } = mimeType;
+      let serialization = essence;
+      for (let [name, value] of parameters.entries()) {
+        serialization += ";";
+        serialization += name;
+        serialization += "=";
+        if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
+          value = value.replace(/(\\|")/g, "\\$1");
+          value = '"' + value;
+          value += '"';
+        }
+        serialization += value;
+      }
+      return serialization;
+    }
+    __name(serializeAMimeType, "serializeAMimeType");
+    function isHTTPWhiteSpace(char) {
+      return char === 13 || char === 10 || char === 9 || char === 32;
+    }
+    __name(isHTTPWhiteSpace, "isHTTPWhiteSpace");
+    function removeHTTPWhitespace(str, leading = true, trailing = true) {
+      let i = 0;
+      let j = str.length;
+      if (leading) {
+        while (j > i && isHTTPWhiteSpace(str.charCodeAt(i)))
+          --i;
+      }
+      if (trailing) {
+        while (j > i && isHTTPWhiteSpace(str.charCodeAt(j - 1)))
+          --j;
+      }
+      return i === 0 && j === str.length ? str : str.substring(i, j);
+    }
+    __name(removeHTTPWhitespace, "removeHTTPWhitespace");
+    function isASCIIWhitespace(char) {
+      return char === 13 || char === 10 || char === 9 || char === 12 || char === 32;
+    }
+    __name(isASCIIWhitespace, "isASCIIWhitespace");
+    function removeASCIIWhitespace(str, leading = true, trailing = true) {
+      let i = 0;
+      let j = str.length;
+      if (leading) {
+        while (j > i && isASCIIWhitespace(str.charCodeAt(i)))
+          --i;
+      }
+      if (trailing) {
+        while (j > i && isASCIIWhitespace(str.charCodeAt(j - 1)))
+          --j;
+      }
+      return i === 0 && j === str.length ? str : str.substring(i, j);
+    }
+    __name(removeASCIIWhitespace, "removeASCIIWhitespace");
+    module2.exports = {
+      dataURLProcessor,
+      URLSerializer,
+      collectASequenceOfCodePoints,
+      collectASequenceOfCodePointsFast,
+      stringPercentDecode,
+      parseMIMEType,
+      collectAnHTTPQuotedString,
+      serializeAMimeType
+    };
+  }
+});
+
+// lib/fetch/util.js
+var require_util2 = __commonJS({
+  "lib/fetch/util.js"(exports2, module2) {
+    "use strict";
+    var { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require_constants2();
+    var { getGlobalOrigin } = require_global();
+    var { performance: performance2 } = require("perf_hooks");
+    var { isBlobLike, toUSVString, ReadableStreamFrom, isValidHTTPToken } = require_util();
+    var assert = require("assert");
+    var { isUint8Array } = require("util/types");
+    var crypto;
+    try {
+      crypto = require("crypto");
+    } catch {
+    }
+    function responseURL(response) {
+      const urlList = response.urlList;
+      const length = urlList.length;
+      return length === 0 ? null : urlList[length - 1].toString();
+    }
+    __name(responseURL, "responseURL");
+    function responseLocationURL(response, requestFragment) {
+      if (!redirectStatusSet.has(response.status)) {
+        return null;
+      }
+      let location = response.headersList.get("location", true);
+      if (location !== null && isValidHeaderValue(location)) {
+        location = new URL(location, responseURL(response));
+      }
+      if (location && !location.hash) {
+        location.hash = requestFragment;
+      }
+      return location;
+    }
+    __name(responseLocationURL, "responseLocationURL");
+    function requestCurrentURL(request) {
+      return request.urlList[request.urlList.length - 1];
+    }
+    __name(requestCurrentURL, "requestCurrentURL");
+    function requestBadPort(request) {
+      const url = requestCurrentURL(request);
+      if (urlIsHttpHttpsScheme(url) && badPortsSet.has(url.port)) {
+        return "blocked";
+      }
+      return "allowed";
+    }
+    __name(requestBadPort, "requestBadPort");
+    function isErrorLike(object) {
+      return object instanceof Error || (object?.constructor?.name === "Error" || object?.constructor?.name === "DOMException");
+    }
+    __name(isErrorLike, "isErrorLike");
+    function isValidReasonPhrase(statusText) {
+      for (let i = 0; i < statusText.length; ++i) {
+        const c = statusText.charCodeAt(i);
+        if (!(c === 9 || // HTAB
+        c >= 32 && c <= 126 || // SP / VCHAR
+        c >= 128 && c <= 255)) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isValidReasonPhrase, "isValidReasonPhrase");
+    function isValidHeaderName(potentialValue) {
+      return isValidHTTPToken(potentialValue);
+    }
+    __name(isValidHeaderName, "isValidHeaderName");
+    function isValidHeaderValue(potentialValue) {
+      if (potentialValue.startsWith("	") || potentialValue.startsWith(" ") || potentialValue.endsWith("	") || potentialValue.endsWith(" ")) {
+        return false;
+      }
+      if (potentialValue.includes("\0") || potentialValue.includes("\r") || potentialValue.includes("\n")) {
+        return false;
+      }
+      return true;
+    }
+    __name(isValidHeaderValue, "isValidHeaderValue");
+    function setRequestReferrerPolicyOnRedirect(request, actualResponse) {
+      const { headersList } = actualResponse;
+      const policyHeader = (headersList.get("referrer-policy", true) ?? "").split(",");
+      let policy = "";
+      if (policyHeader.length > 0) {
+        for (let i = policyHeader.length; i !== 0; i--) {
+          const token = policyHeader[i - 1].trim();
+          if (referrerPolicyTokens.has(token)) {
+            policy = token;
+            break;
+          }
+        }
+      }
+      if (policy !== "") {
+        request.referrerPolicy = policy;
+      }
+    }
+    __name(setRequestReferrerPolicyOnRedirect, "setRequestReferrerPolicyOnRedirect");
+    function crossOriginResourcePolicyCheck() {
+      return "allowed";
+    }
+    __name(crossOriginResourcePolicyCheck, "crossOriginResourcePolicyCheck");
+    function corsCheck() {
+      return "success";
+    }
+    __name(corsCheck, "corsCheck");
+    function TAOCheck() {
+      return "success";
+    }
+    __name(TAOCheck, "TAOCheck");
+    function appendFetchMetadata(httpRequest) {
+      let header = null;
+      header = httpRequest.mode;
+      httpRequest.headersList.set("sec-fetch-mode", header, true);
+    }
+    __name(appendFetchMetadata, "appendFetchMetadata");
+    function appendRequestOriginHeader(request) {
+      let serializedOrigin = request.origin;
+      if (request.responseTainting === "cors" || request.mode === "websocket") {
+        if (serializedOrigin) {
+          request.headersList.append("origin", serializedOrigin, true);
+        }
+      } else if (request.method !== "GET" && request.method !== "HEAD") {
+        switch (request.referrerPolicy) {
+          case "no-referrer":
+            serializedOrigin = null;
+            break;
+          case "no-referrer-when-downgrade":
+          case "strict-origin":
+          case "strict-origin-when-cross-origin":
+            if (request.origin && urlHasHttpsScheme(request.origin) && !urlHasHttpsScheme(requestCurrentURL(request))) {
+              serializedOrigin = null;
+            }
+            break;
+          case "same-origin":
+            if (!sameOrigin(request, requestCurrentURL(request))) {
+              serializedOrigin = null;
+            }
+            break;
+          default:
+        }
+        if (serializedOrigin) {
+          request.headersList.append("origin", serializedOrigin, true);
+        }
+      }
+    }
+    __name(appendRequestOriginHeader, "appendRequestOriginHeader");
+    function coarsenTime(timestamp, crossOriginIsolatedCapability) {
+      return timestamp;
+    }
+    __name(coarsenTime, "coarsenTime");
+    function clampAndCoursenConnectionTimingInfo(connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
+      if (!connectionTimingInfo?.startTime || connectionTimingInfo.startTime < defaultStartTime) {
+        return {
+          domainLookupStartTime: defaultStartTime,
+          domainLookupEndTime: defaultStartTime,
+          connectionStartTime: defaultStartTime,
+          connectionEndTime: defaultStartTime,
+          secureConnectionStartTime: defaultStartTime,
+          ALPNNegotiatedProtocol: connectionTimingInfo?.ALPNNegotiatedProtocol
+        };
+      }
+      return {
+        domainLookupStartTime: coarsenTime(connectionTimingInfo.domainLookupStartTime, crossOriginIsolatedCapability),
+        domainLookupEndTime: coarsenTime(connectionTimingInfo.domainLookupEndTime, crossOriginIsolatedCapability),
+        connectionStartTime: coarsenTime(connectionTimingInfo.connectionStartTime, crossOriginIsolatedCapability),
+        connectionEndTime: coarsenTime(connectionTimingInfo.connectionEndTime, crossOriginIsolatedCapability),
+        secureConnectionStartTime: coarsenTime(connectionTimingInfo.secureConnectionStartTime, crossOriginIsolatedCapability),
+        ALPNNegotiatedProtocol: connectionTimingInfo.ALPNNegotiatedProtocol
+      };
+    }
+    __name(clampAndCoursenConnectionTimingInfo, "clampAndCoursenConnectionTimingInfo");
+    function coarsenedSharedCurrentTime(crossOriginIsolatedCapability) {
+      return coarsenTime(performance2.now(), crossOriginIsolatedCapability);
+    }
+    __name(coarsenedSharedCurrentTime, "coarsenedSharedCurrentTime");
+    function createOpaqueTimingInfo(timingInfo) {
+      return {
+        startTime: timingInfo.startTime ?? 0,
+        redirectStartTime: 0,
+        redirectEndTime: 0,
+        postRedirectStartTime: timingInfo.startTime ?? 0,
+        finalServiceWorkerStartTime: 0,
+        finalNetworkResponseStartTime: 0,
+        finalNetworkRequestStartTime: 0,
+        endTime: 0,
+        encodedBodySize: 0,
+        decodedBodySize: 0,
+        finalConnectionTimingInfo: null
+      };
+    }
+    __name(createOpaqueTimingInfo, "createOpaqueTimingInfo");
+    function makePolicyContainer() {
+      return {
+        referrerPolicy: "strict-origin-when-cross-origin"
+      };
+    }
+    __name(makePolicyContainer, "makePolicyContainer");
+    function clonePolicyContainer(policyContainer) {
+      return {
+        referrerPolicy: policyContainer.referrerPolicy
       };
       while (position.position < input.length) {
         position.position++;
@@ -1438,30 +1971,35 @@ var require_util2 = __commonJS({
       }
       return location;
     }
-    __name(responseLocationURL, "responseLocationURL");
-    function requestCurrentURL(request) {
-      return request.urlList[request.urlList.length - 1];
+    __name(fullyReadBody, "fullyReadBody");
+    function isReadableStreamLike(stream) {
+      return stream instanceof ReadableStream || stream[Symbol.toStringTag] === "ReadableStream" && typeof stream.tee === "function";
     }
-    __name(requestCurrentURL, "requestCurrentURL");
-    function requestBadPort(request) {
-      const url = requestCurrentURL(request);
-      if (urlIsHttpHttpsScheme(url) && badPortsSet.has(url.port)) {
-        return "blocked";
+    __name(isReadableStreamLike, "isReadableStreamLike");
+    function isomorphicDecode(input) {
+      const length = input.length;
+      if ((2 << 15) - 1 > length) {
+        return String.fromCharCode.apply(null, input);
       }
-      return "allowed";
+      let result = "";
+      let i = 0;
+      let addition = (2 << 15) - 1;
+      while (i < length) {
+        if (i + addition > length) {
+          addition = length - i;
+        }
+        result += String.fromCharCode.apply(null, input.subarray(i, i += addition));
+      }
+      return result;
     }
-    __name(requestBadPort, "requestBadPort");
-    function isErrorLike(object) {
-      return object instanceof Error || (object?.constructor?.name === "Error" || object?.constructor?.name === "DOMException");
-    }
-    __name(isErrorLike, "isErrorLike");
-    function isValidReasonPhrase(statusText) {
-      for (let i = 0; i < statusText.length; ++i) {
-        const c = statusText.charCodeAt(i);
-        if (!(c === 9 || // HTAB
-        c >= 32 && c <= 126 || // SP / VCHAR
-        c >= 128 && c <= 255)) {
-          return false;
+    __name(isomorphicDecode, "isomorphicDecode");
+    function readableStreamClose(controller) {
+      try {
+        controller.close();
+        controller.byobRequest?.respond(0);
+      } catch (err) {
+        if (!err.message.includes("Controller is already closed") && !err.message.includes("ReadableStream is already closed")) {
+          throw err;
         }
       }
       return true;
@@ -1507,10 +2045,174 @@ var require_util2 = __commonJS({
     function isValidHeaderName(potentialValue) {
       return isValidHTTPToken(potentialValue);
     }
-    __name(isValidHeaderName, "isValidHeaderName");
-    function isValidHeaderValue(potentialValue) {
-      if (potentialValue.startsWith("	") || potentialValue.startsWith(" ") || potentialValue.endsWith("	") || potentialValue.endsWith(" ")) {
-        return false;
+    __name(urlIsHttpHttpsScheme, "urlIsHttpHttpsScheme");
+    var collectASequenceOfCodePoints;
+    function simpleRangeHeaderValue(value, allowWhitespace) {
+      collectASequenceOfCodePoints ??= require_dataURL().collectASequenceOfCodePoints;
+      const data = value;
+      if (!data.startsWith("bytes")) {
+        return "failure";
+      }
+      const position = { position: 5 };
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      if (data.charCodeAt(position.position) !== 61) {
+        return "failure";
+      }
+      position.position++;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      const rangeStart = collectASequenceOfCodePoints(
+        (char) => {
+          const code = char.charCodeAt(0);
+          return code >= 48 && code <= 57;
+        },
+        data,
+        position
+      );
+      const rangeStartValue = rangeStart.length ? Number(rangeStart) : null;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      if (data.charCodeAt(position.position) !== 45) {
+        return "failure";
+      }
+      position.position++;
+      if (allowWhitespace) {
+        collectASequenceOfCodePoints(
+          (char) => char === "	" || char === " ",
+          data,
+          position
+        );
+      }
+      const rangeEnd = collectASequenceOfCodePoints(
+        (char) => {
+          const code = char.charCodeAt(0);
+          return code >= 48 && code <= 57;
+        },
+        data,
+        position
+      );
+      const rangeEndValue = rangeEnd.length ? Number(rangeEnd) : null;
+      if (position.position < data.length) {
+        return "failure";
+      }
+      if (rangeEndValue === null && rangeStartValue === null) {
+        return "failure";
+      }
+      if (rangeStartValue > rangeEndValue) {
+        return "failure";
+      }
+      return { rangeStartValue, rangeEndValue };
+    }
+    __name(simpleRangeHeaderValue, "simpleRangeHeaderValue");
+    function buildContentRange(rangeStart, rangeEnd, fullLength) {
+      let contentRange = "bytes ";
+      contentRange += isomorphicEncode(`${rangeStart}`);
+      contentRange += "-";
+      contentRange += isomorphicEncode(`${rangeEnd}`);
+      contentRange += "/";
+      contentRange += isomorphicEncode(`${fullLength}`);
+      return contentRange;
+    }
+    __name(buildContentRange, "buildContentRange");
+    module2.exports = {
+      isAborted,
+      isCancelled,
+      createDeferredPromise,
+      ReadableStreamFrom,
+      toUSVString,
+      tryUpgradeRequestToAPotentiallyTrustworthyURL,
+      clampAndCoursenConnectionTimingInfo,
+      coarsenedSharedCurrentTime,
+      determineRequestsReferrer,
+      makePolicyContainer,
+      clonePolicyContainer,
+      appendFetchMetadata,
+      appendRequestOriginHeader,
+      TAOCheck,
+      corsCheck,
+      crossOriginResourcePolicyCheck,
+      createOpaqueTimingInfo,
+      setRequestReferrerPolicyOnRedirect,
+      isValidHTTPToken,
+      requestBadPort,
+      requestCurrentURL,
+      responseURL,
+      responseLocationURL,
+      isBlobLike,
+      isURLPotentiallyTrustworthy,
+      isValidReasonPhrase,
+      sameOrigin,
+      normalizeMethod,
+      serializeJavascriptValueToJSONString,
+      makeIterator,
+      isValidHeaderName,
+      isValidHeaderValue,
+      isErrorLike,
+      fullyReadBody,
+      bytesMatch,
+      isReadableStreamLike,
+      readableStreamClose,
+      isomorphicEncode,
+      isomorphicDecode,
+      urlIsLocal,
+      urlHasHttpsScheme,
+      urlIsHttpHttpsScheme,
+      readAllBytes,
+      normalizeMethodRecord,
+      simpleRangeHeaderValue,
+      buildContentRange
+    };
+  }
+});
+
+// lib/fetch/webidl.js
+var require_webidl = __commonJS({
+  "lib/fetch/webidl.js"(exports2, module2) {
+    "use strict";
+    var { types } = require("util");
+    var { toUSVString } = require_util2();
+    var webidl = {};
+    webidl.converters = {};
+    webidl.util = {};
+    webidl.errors = {};
+    webidl.errors.exception = function(message) {
+      return new TypeError(`${message.header}: ${message.message}`);
+    };
+    webidl.errors.conversionFailed = function(context) {
+      const plural = context.types.length === 1 ? "" : " one of";
+      const message = `${context.argument} could not be converted to${plural}: ${context.types.join(", ")}.`;
+      return webidl.errors.exception({
+        header: context.prefix,
+        message
+      });
+    };
+    webidl.errors.invalidArgument = function(context) {
+      return webidl.errors.exception({
+        header: context.prefix,
+        message: `"${context.value}" is an invalid ${context.type}.`
+      });
+    };
+    webidl.brandCheck = function(V, I, opts = void 0) {
+      if (opts?.strict !== false && !(V instanceof I)) {
+        throw new TypeError("Illegal invocation");
+      } else {
+        return V?.[Symbol.toStringTag] === I.prototype[Symbol.toStringTag];
       }
       if (potentialValue.includes("\0") || potentialValue.includes("\r") || potentialValue.includes("\n")) {
         return false;
@@ -1626,30 +2328,20 @@ var require_util2 = __commonJS({
         if (!globalOrigin || globalOrigin.origin === "null") {
           return "no-referrer";
         }
-        referrerSource = new URL(globalOrigin);
-      } else if (request.referrer instanceof URL) {
-        referrerSource = request.referrer;
-      }
-      let referrerURL = stripURLForReferrer(referrerSource);
-      const referrerOrigin = stripURLForReferrer(referrerSource, true);
-      if (referrerURL.toString().length > 4096) {
-        referrerURL = referrerOrigin;
-      }
-      const areSameOrigin = sameOrigin(request, referrerURL);
-      const isNonPotentiallyTrustWorthy = isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(request.url);
-      switch (policy) {
-        case "origin":
-          return referrerOrigin != null ? referrerOrigin : stripURLForReferrer(referrerSource, true);
-        case "unsafe-url":
-          return referrerURL;
-        case "same-origin":
-          return areSameOrigin ? referrerOrigin : "no-referrer";
-        case "origin-when-cross-origin":
-          return areSameOrigin ? referrerURL : referrerOrigin;
-        case "strict-origin-when-cross-origin": {
-          const currentURL = requestCurrentURL(request);
-          if (sameOrigin(referrerURL, currentURL)) {
-            return referrerURL;
+        for (const options of converters) {
+          const { key, defaultValue, required, converter } = options;
+          if (required === true) {
+            if (!Object.hasOwn(dictionary, key)) {
+              throw webidl.errors.exception({
+                header: "Dictionary",
+                message: `Missing required key "${key}".`
+              });
+            }
+          }
+          let value = dictionary[key];
+          const hasDefault = Object.hasOwn(options, "defaultValue");
+          if (hasDefault && value !== null) {
+            value = value ?? defaultValue;
           }
           if (isURLPotentiallyTrustworthy(referrerURL) && !isURLPotentiallyTrustworthy(currentURL)) {
             return "no-referrer";
@@ -1762,7 +2454,11 @@ var require_util2 = __commonJS({
       if (empty === true) {
         return "no metadata";
       }
-      return result;
+      if (headers[kGuard] === "immutable") {
+        throw new TypeError("immutable");
+      } else if (headers[kGuard] === "request-no-cors") {
+      }
+      return headers[kHeadersList].append(name, value, false);
     }
     __name(parseMetadata, "parseMetadata");
     function tryUpgradeRequestToAPotentiallyTrustworthyURL(request) {
@@ -1772,8 +2468,13 @@ var require_util2 = __commonJS({
       if (A.origin === B.origin && A.origin === "null") {
         return true;
       }
-      if (A.protocol === B.protocol && A.hostname === B.hostname && A.port === B.port) {
-        return true;
+      /**
+       * @see https://fetch.spec.whatwg.org/#header-list-contains
+       * @param {string} name
+       * @param {boolean} isLowerCase
+       */
+      contains(name, isLowerCase) {
+        return this[kHeadersMap].has(isLowerCase ? name : name.toLowerCase());
       }
       return false;
     }
@@ -1820,87 +2521,69 @@ var require_util2 = __commonJS({
       if (result === void 0) {
         throw new TypeError("Value is not JSON serializable");
       }
-      assert(typeof result === "string");
-      return result;
-    }
-    __name(serializeJavascriptValueToJSONString, "serializeJavascriptValueToJSONString");
-    var esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
-    function makeIterator(iterator, name, kind) {
-      const object = {
-        index: 0,
-        kind,
-        target: iterator
-      };
-      const i = {
-        next() {
-          if (Object.getPrototypeOf(this) !== i) {
-            throw new TypeError(
-              `'next' called on an object that does not implement interface ${name} Iterator.`
-            );
-          }
-          const { index, kind: kind2, target } = object;
-          const values = target();
-          const len = values.length;
-          if (index >= len) {
-            return { value: void 0, done: true };
-          }
-          const pair = values[index];
-          object.index = index + 1;
-          return iteratorResult(pair, kind2);
-        },
-        // The class string of an iterator prototype object for a given interface is the
-        // result of concatenating the identifier of the interface and the string " Iterator".
-        [Symbol.toStringTag]: `${name} Iterator`
-      };
-      Object.setPrototypeOf(i, esIteratorPrototype);
-      return Object.setPrototypeOf({}, i);
-    }
-    __name(makeIterator, "makeIterator");
-    function iteratorResult(pair, kind) {
-      let result;
-      switch (kind) {
-        case "key": {
-          result = pair[0];
-          break;
+      /**
+       * @see https://fetch.spec.whatwg.org/#concept-header-list-append
+       * @param {string} name
+       * @param {string} value
+       * @param {boolean} isLowerCase
+       */
+      append(name, value, isLowerCase) {
+        this[kHeadersSortedMap] = null;
+        const lowercaseName = isLowerCase ? name : name.toLowerCase();
+        const exists = this[kHeadersMap].get(lowercaseName);
+        if (exists) {
+          const delimiter = lowercaseName === "cookie" ? "; " : ", ";
+          this[kHeadersMap].set(lowercaseName, {
+            name: exists.name,
+            value: `${exists.value}${delimiter}${value}`
+          });
+        } else {
+          this[kHeadersMap].set(lowercaseName, { name, value });
         }
-        case "value": {
-          result = pair[1];
-          break;
-        }
-        case "key+value": {
-          result = pair;
-          break;
+        if (lowercaseName === "set-cookie") {
+          (this.cookies ??= []).push(value);
         }
       }
-      return { value: result, done: false };
-    }
-    __name(iteratorResult, "iteratorResult");
-    async function fullyReadBody(body, processBody, processBodyError) {
-      const successSteps = processBody;
-      const errorSteps = processBodyError;
-      let reader;
-      try {
-        reader = body.stream.getReader();
-      } catch (e) {
-        errorSteps(e);
-        return;
+      /**
+       * @see https://fetch.spec.whatwg.org/#concept-header-list-set
+       * @param {string} name
+       * @param {string} value
+       * @param {boolean} isLowerCase
+       */
+      set(name, value, isLowerCase) {
+        this[kHeadersSortedMap] = null;
+        const lowercaseName = isLowerCase ? name : name.toLowerCase();
+        if (lowercaseName === "set-cookie") {
+          this.cookies = [value];
+        }
       }
-      try {
-        const result = await readAllBytes(reader);
-        successSteps(result);
-      } catch (e) {
-        errorSteps(e);
+      /**
+       * @see https://fetch.spec.whatwg.org/#concept-header-list-delete
+       * @param {string} name
+       * @param {boolean} isLowerCase
+       */
+      delete(name, isLowerCase) {
+        this[kHeadersSortedMap] = null;
+        if (!isLowerCase)
+          name = name.toLowerCase();
+        if (name === "set-cookie") {
+          this.cookies = null;
+        }
+        this[kHeadersMap].delete(name);
       }
-    }
-    __name(fullyReadBody, "fullyReadBody");
-    function isReadableStreamLike(stream) {
-      return stream instanceof ReadableStream || stream[Symbol.toStringTag] === "ReadableStream" && typeof stream.tee === "function";
-    }
-    __name(isReadableStreamLike, "isReadableStreamLike");
-    var MAXIMUM_ARGUMENT_LENGTH = 65535;
-    function isomorphicDecode(input) {
-      if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
-        return String.fromCharCode(...input);
+      /**
+       * @see https://fetch.spec.whatwg.org/#concept-header-list-get
+       * @param {string} name
+       * @param {boolean} isLowerCase
+       * @returns {string | null}
+       */
+      get(name, isLowerCase) {
+        return this[kHeadersMap].get(isLowerCase ? name : name.toLowerCase())?.value ?? null;
+      }
+      *[Symbol.iterator]() {
+        for (const [name, { value }] of this[kHeadersMap]) {
+          yield [name, value];
+        }
       }
       return input.reduce((previous, current) => previous + String.fromCharCode(current), "");
     }
@@ -1937,33 +2620,88 @@ var require_util2 = __commonJS({
         bytes.push(chunk);
         byteLength += chunk.length;
       }
-    }
-    __name(readAllBytes, "readAllBytes");
-    function urlIsLocal(url) {
-      assert("protocol" in url);
-      const protocol = url.protocol;
-      return protocol === "about:" || protocol === "blob:" || protocol === "data:";
-    }
-    __name(urlIsLocal, "urlIsLocal");
-    function urlHasHttpsScheme(url) {
-      if (typeof url === "string") {
-        return url.startsWith("https:");
+      // https://fetch.spec.whatwg.org/#dom-headers-append
+      append(name, value) {
+        webidl.brandCheck(this, _Headers);
+        webidl.argumentLengthCheck(arguments, 2, { header: "Headers.append" });
+        name = webidl.converters.ByteString(name);
+        value = webidl.converters.ByteString(value);
+        return appendHeader(this, name, value);
       }
-      return url.protocol === "https:";
-    }
-    __name(urlHasHttpsScheme, "urlHasHttpsScheme");
-    function urlIsHttpHttpsScheme(url) {
-      assert("protocol" in url);
-      const protocol = url.protocol;
-      return protocol === "http:" || protocol === "https:";
-    }
-    __name(urlIsHttpHttpsScheme, "urlIsHttpHttpsScheme");
-    var collectASequenceOfCodePoints;
-    function simpleRangeHeaderValue(value, allowWhitespace) {
-      collectASequenceOfCodePoints ??= require_dataURL().collectASequenceOfCodePoints;
-      const data = value;
-      if (!data.startsWith("bytes")) {
-        return "failure";
+      // https://fetch.spec.whatwg.org/#dom-headers-delete
+      delete(name) {
+        webidl.brandCheck(this, _Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.delete" });
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          throw webidl.errors.invalidArgument({
+            prefix: "Headers.delete",
+            value: name,
+            type: "header name"
+          });
+        }
+        if (this[kGuard] === "immutable") {
+          throw new TypeError("immutable");
+        } else if (this[kGuard] === "request-no-cors") {
+        }
+        if (!this[kHeadersList].contains(name, false)) {
+          return;
+        }
+        this[kHeadersList].delete(name, false);
+      }
+      // https://fetch.spec.whatwg.org/#dom-headers-get
+      get(name) {
+        webidl.brandCheck(this, _Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.get" });
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          throw webidl.errors.invalidArgument({
+            prefix: "Headers.get",
+            value: name,
+            type: "header name"
+          });
+        }
+        return this[kHeadersList].get(name, false);
+      }
+      // https://fetch.spec.whatwg.org/#dom-headers-has
+      has(name) {
+        webidl.brandCheck(this, _Headers);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Headers.has" });
+        name = webidl.converters.ByteString(name);
+        if (!isValidHeaderName(name)) {
+          throw webidl.errors.invalidArgument({
+            prefix: "Headers.has",
+            value: name,
+            type: "header name"
+          });
+        }
+        return this[kHeadersList].contains(name, false);
+      }
+      // https://fetch.spec.whatwg.org/#dom-headers-set
+      set(name, value) {
+        webidl.brandCheck(this, _Headers);
+        webidl.argumentLengthCheck(arguments, 2, { header: "Headers.set" });
+        name = webidl.converters.ByteString(name);
+        value = webidl.converters.ByteString(value);
+        value = headerValueNormalize(value);
+        if (!isValidHeaderName(name)) {
+          throw webidl.errors.invalidArgument({
+            prefix: "Headers.set",
+            value: name,
+            type: "header name"
+          });
+        } else if (!isValidHeaderValue(value)) {
+          throw webidl.errors.invalidArgument({
+            prefix: "Headers.set",
+            value,
+            type: "header value"
+          });
+        }
+        if (this[kGuard] === "immutable") {
+          throw new TypeError("immutable");
+        } else if (this[kGuard] === "request-no-cors") {
+        }
+        this[kHeadersList].set(name, value, false);
       }
       const position = { position: 5 };
       if (allowWhitespace) {
@@ -2209,8 +2947,36 @@ var require_webidl = __commonJS({
         }
         return x;
       }
-      if (Number.isNaN(x) || x === 0 && Object.is(0, x) || x === Number.POSITIVE_INFINITY || x === Number.NEGATIVE_INFINITY) {
-        return 0;
+      return true;
+    };
+    module2.exports = SBMH;
+  }
+});
+
+// node_modules/@fastify/busboy/deps/dicer/lib/PartStream.js
+var require_PartStream = __commonJS({
+  "node_modules/@fastify/busboy/deps/dicer/lib/PartStream.js"(exports2, module2) {
+    "use strict";
+    var inherits = require("node:util").inherits;
+    var ReadableStream2 = require("node:stream").Readable;
+    function PartStream(opts) {
+      ReadableStream2.call(this, opts);
+    }
+    __name(PartStream, "PartStream");
+    inherits(PartStream, ReadableStream2);
+    PartStream.prototype._read = function(n) {
+    };
+    module2.exports = PartStream;
+  }
+});
+
+// node_modules/@fastify/busboy/lib/utils/getLimit.js
+var require_getLimit = __commonJS({
+  "node_modules/@fastify/busboy/lib/utils/getLimit.js"(exports2, module2) {
+    "use strict";
+    module2.exports = /* @__PURE__ */ __name(function getLimit(limits, name, defaultLimit) {
+      if (!limits || limits[name] === void 0 || limits[name] === null) {
+        return defaultLimit;
       }
       x = webidl.util.IntegerPart(x);
       x = x % Math.pow(2, bitLength);
@@ -4059,700 +4825,6 @@ var require_parseParams = __commonJS({
         }
         tmp += char;
       }
-      if (charset && tmp.length) {
-        tmp = decodeText(
-          tmp.replace(RE_ENCODED, encodedReplacer),
-          "binary",
-          charset
-        );
-      } else if (tmp) {
-        tmp = decodeText(tmp, "binary", "utf8");
-      }
-      if (res[p] === void 0) {
-        if (tmp) {
-          res[p] = tmp;
-        }
-      } else {
-        res[p][1] = tmp;
-      }
-      return res;
-    }
-    __name(parseParams, "parseParams");
-    module2.exports = parseParams;
-  }
-});
-
-// node_modules/@fastify/busboy/lib/utils/basename.js
-var require_basename = __commonJS({
-  "node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
-    "use strict";
-    module2.exports = /* @__PURE__ */ __name(function basename(path) {
-      if (typeof path !== "string") {
-        return "";
-      }
-      for (var i = path.length - 1; i >= 0; --i) {
-        switch (path.charCodeAt(i)) {
-          case 47:
-          case 92:
-            path = path.slice(i + 1);
-            return path === ".." || path === "." ? "" : path;
-        }
-      }
-      return path === ".." || path === "." ? "" : path;
-    }, "basename");
-  }
-});
-
-// node_modules/@fastify/busboy/lib/types/multipart.js
-var require_multipart = __commonJS({
-  "node_modules/@fastify/busboy/lib/types/multipart.js"(exports2, module2) {
-    "use strict";
-    var { Readable } = require("node:stream");
-    var { inherits } = require("node:util");
-    var Dicer = require_Dicer();
-    var parseParams = require_parseParams();
-    var decodeText = require_decodeText();
-    var basename = require_basename();
-    var getLimit = require_getLimit();
-    var RE_BOUNDARY = /^boundary$/i;
-    var RE_FIELD = /^form-data$/i;
-    var RE_CHARSET = /^charset$/i;
-    var RE_FILENAME = /^filename$/i;
-    var RE_NAME = /^name$/i;
-    Multipart.detect = /^multipart\/form-data/i;
-    function Multipart(boy, cfg) {
-      let i;
-      let len;
-      const self = this;
-      let boundary;
-      const limits = cfg.limits;
-      const isPartAFile = cfg.isPartAFile || ((fieldName, contentType, fileName) => contentType === "application/octet-stream" || fileName !== void 0);
-      const parsedConType = cfg.parsedConType || [];
-      const defCharset = cfg.defCharset || "utf8";
-      const preservePath = cfg.preservePath;
-      const fileOpts = { highWaterMark: cfg.fileHwm };
-      for (i = 0, len = parsedConType.length; i < len; ++i) {
-        if (Array.isArray(parsedConType[i]) && RE_BOUNDARY.test(parsedConType[i][0])) {
-          boundary = parsedConType[i][1];
-          break;
-        }
-      }
-      function checkFinished() {
-        if (nends === 0 && finished && !boy._done) {
-          finished = false;
-          self.end();
-        }
-      }
-      __name(checkFinished, "checkFinished");
-      if (typeof boundary !== "string") {
-        throw new Error("Multipart: Boundary not found");
-      }
-      const fieldSizeLimit = getLimit(limits, "fieldSize", 1 * 1024 * 1024);
-      const fileSizeLimit = getLimit(limits, "fileSize", Infinity);
-      const filesLimit = getLimit(limits, "files", Infinity);
-      const fieldsLimit = getLimit(limits, "fields", Infinity);
-      const partsLimit = getLimit(limits, "parts", Infinity);
-      const headerPairsLimit = getLimit(limits, "headerPairs", 2e3);
-      const headerSizeLimit = getLimit(limits, "headerSize", 80 * 1024);
-      let nfiles = 0;
-      let nfields = 0;
-      let nends = 0;
-      let curFile;
-      let curField;
-      let finished = false;
-      this._needDrain = false;
-      this._pause = false;
-      this._cb = void 0;
-      this._nparts = 0;
-      this._boy = boy;
-      const parserCfg = {
-        boundary,
-        maxHeaderPairs: headerPairsLimit,
-        maxHeaderSize: headerSizeLimit,
-        partHwm: fileOpts.highWaterMark,
-        highWaterMark: cfg.highWaterMark
-      };
-      this.parser = new Dicer(parserCfg);
-      this.parser.on("drain", function() {
-        self._needDrain = false;
-        if (self._cb && !self._pause) {
-          const cb = self._cb;
-          self._cb = void 0;
-          cb();
-        }
-      }).on("part", /* @__PURE__ */ __name(function onPart(part) {
-        if (++self._nparts > partsLimit) {
-          self.parser.removeListener("part", onPart);
-          self.parser.on("part", skipPart);
-          boy.hitPartsLimit = true;
-          boy.emit("partsLimit");
-          return skipPart(part);
-        }
-        if (curField) {
-          const field = curField;
-          field.emit("end");
-          field.removeAllListeners("end");
-        }
-        part.on("header", function(header) {
-          let contype;
-          let fieldname;
-          let parsed;
-          let charset;
-          let encoding;
-          let filename;
-          let nsize = 0;
-          if (header["content-type"]) {
-            parsed = parseParams(header["content-type"][0]);
-            if (parsed[0]) {
-              contype = parsed[0].toLowerCase();
-              for (i = 0, len = parsed.length; i < len; ++i) {
-                if (RE_CHARSET.test(parsed[i][0])) {
-                  charset = parsed[i][1].toLowerCase();
-                  break;
-                }
-              }
-            }
-          }
-          if (contype === void 0) {
-            contype = "text/plain";
-          }
-          if (charset === void 0) {
-            charset = defCharset;
-          }
-          if (header["content-disposition"]) {
-            parsed = parseParams(header["content-disposition"][0]);
-            if (!RE_FIELD.test(parsed[0])) {
-              return skipPart(part);
-            }
-            for (i = 0, len = parsed.length; i < len; ++i) {
-              if (RE_NAME.test(parsed[i][0])) {
-                fieldname = parsed[i][1];
-              } else if (RE_FILENAME.test(parsed[i][0])) {
-                filename = parsed[i][1];
-                if (!preservePath) {
-                  filename = basename(filename);
-                }
-              }
-            }
-          } else {
-            return skipPart(part);
-          }
-          if (header["content-transfer-encoding"]) {
-            encoding = header["content-transfer-encoding"][0].toLowerCase();
-          } else {
-            encoding = "7bit";
-          }
-          let onData, onEnd;
-          if (isPartAFile(fieldname, contype, filename)) {
-            if (nfiles === filesLimit) {
-              if (!boy.hitFilesLimit) {
-                boy.hitFilesLimit = true;
-                boy.emit("filesLimit");
-              }
-              return skipPart(part);
-            }
-            ++nfiles;
-            if (!boy._events.file) {
-              self.parser._ignore();
-              return;
-            }
-            ++nends;
-            const file = new FileStream(fileOpts);
-            curFile = file;
-            file.on("end", function() {
-              --nends;
-              self._pause = false;
-              checkFinished();
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
-                cb();
-              }
-            });
-            file._read = function(n) {
-              if (!self._pause) {
-                return;
-              }
-              self._pause = false;
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
-                cb();
-              }
-            };
-            boy.emit("file", fieldname, file, filename, encoding, contype);
-            onData = /* @__PURE__ */ __name(function(data) {
-              if ((nsize += data.length) > fileSizeLimit) {
-                const extralen = fileSizeLimit - nsize + data.length;
-                if (extralen > 0) {
-                  file.push(data.slice(0, extralen));
-                }
-                file.truncated = true;
-                file.bytesRead = fileSizeLimit;
-                part.removeAllListeners("data");
-                file.emit("limit");
-                return;
-              } else if (!file.push(data)) {
-                self._pause = true;
-              }
-              file.bytesRead = nsize;
-            }, "onData");
-            onEnd = /* @__PURE__ */ __name(function() {
-              curFile = void 0;
-              file.push(null);
-            }, "onEnd");
-          } else {
-            if (nfields === fieldsLimit) {
-              if (!boy.hitFieldsLimit) {
-                boy.hitFieldsLimit = true;
-                boy.emit("fieldsLimit");
-              }
-              return skipPart(part);
-            }
-            ++nfields;
-            ++nends;
-            let buffer = "";
-            let truncated = false;
-            curField = part;
-            onData = /* @__PURE__ */ __name(function(data) {
-              if ((nsize += data.length) > fieldSizeLimit) {
-                const extralen = fieldSizeLimit - (nsize - data.length);
-                buffer += data.toString("binary", 0, extralen);
-                truncated = true;
-                part.removeAllListeners("data");
-              } else {
-                buffer += data.toString("binary");
-              }
-            }, "onData");
-            onEnd = /* @__PURE__ */ __name(function() {
-              curField = void 0;
-              if (buffer.length) {
-                buffer = decodeText(buffer, "binary", charset);
-              }
-              boy.emit("field", fieldname, buffer, false, truncated, encoding, contype);
-              --nends;
-              checkFinished();
-            }, "onEnd");
-          }
-          part._readableState.sync = false;
-          part.on("data", onData);
-          part.on("end", onEnd);
-        }).on("error", function(err) {
-          if (curFile) {
-            curFile.emit("error", err);
-          }
-        });
-      }, "onPart")).on("error", function(err) {
-        boy.emit("error", err);
-      }).on("finish", function() {
-        finished = true;
-        checkFinished();
-      });
-    }
-    __name(Multipart, "Multipart");
-    Multipart.prototype.write = function(chunk, cb) {
-      const r = this.parser.write(chunk);
-      if (r && !this._pause) {
-        cb();
-      } else {
-        this._needDrain = !r;
-        this._cb = cb;
-      }
-    };
-    Multipart.prototype.end = function() {
-      const self = this;
-      if (self.parser.writable) {
-        self.parser.end();
-      } else if (!self._boy._done) {
-        process.nextTick(function() {
-          self._boy._done = true;
-          self._boy.emit("finish");
-        });
-      }
-    };
-    function skipPart(part) {
-      part.resume();
-    }
-    __name(skipPart, "skipPart");
-    function FileStream(opts) {
-      Readable.call(this, opts);
-      this.bytesRead = 0;
-      this.truncated = false;
-    }
-    __name(FileStream, "FileStream");
-    inherits(FileStream, Readable);
-    FileStream.prototype._read = function(n) {
-    };
-    module2.exports = Multipart;
-  }
-});
-
-// node_modules/@fastify/busboy/lib/utils/Decoder.js
-var require_Decoder = __commonJS({
-  "node_modules/@fastify/busboy/lib/utils/Decoder.js"(exports2, module2) {
-    "use strict";
-    var RE_PLUS = /\+/g;
-    var HEX = [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      1,
-      1,
-      1,
-      1,
-      1,
-      1,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ];
-    function Decoder() {
-      this.buffer = void 0;
-    }
-    __name(Decoder, "Decoder");
-    Decoder.prototype.write = function(str) {
-      str = str.replace(RE_PLUS, " ");
-      let res = "";
-      let i = 0;
-      let p = 0;
-      const len = str.length;
-      for (; i < len; ++i) {
-        if (this.buffer !== void 0) {
-          if (!HEX[str.charCodeAt(i)]) {
-            res += "%" + this.buffer;
-            this.buffer = void 0;
-            --i;
-          } else {
-            this.buffer += str[i];
-            ++p;
-            if (this.buffer.length === 2) {
-              res += String.fromCharCode(parseInt(this.buffer, 16));
-              this.buffer = void 0;
-            }
-          }
-        } else if (str[i] === "%") {
-          if (i > p) {
-            res += str.substring(p, i);
-            p = i;
-          }
-          this.buffer = "";
-          ++p;
-        }
-      }
-      if (p < len && this.buffer === void 0) {
-        res += str.substring(p);
-      }
-      return res;
-    };
-    Decoder.prototype.reset = function() {
-      this.buffer = void 0;
-    };
-    module2.exports = Decoder;
-  }
-});
-
-// node_modules/@fastify/busboy/lib/types/urlencoded.js
-var require_urlencoded = __commonJS({
-  "node_modules/@fastify/busboy/lib/types/urlencoded.js"(exports2, module2) {
-    "use strict";
-    var Decoder = require_Decoder();
-    var decodeText = require_decodeText();
-    var getLimit = require_getLimit();
-    var RE_CHARSET = /^charset$/i;
-    UrlEncoded.detect = /^application\/x-www-form-urlencoded/i;
-    function UrlEncoded(boy, cfg) {
-      const limits = cfg.limits;
-      const parsedConType = cfg.parsedConType;
-      this.boy = boy;
-      this.fieldSizeLimit = getLimit(limits, "fieldSize", 1 * 1024 * 1024);
-      this.fieldNameSizeLimit = getLimit(limits, "fieldNameSize", 100);
-      this.fieldsLimit = getLimit(limits, "fields", Infinity);
-      let charset;
-      for (var i = 0, len = parsedConType.length; i < len; ++i) {
-        if (Array.isArray(parsedConType[i]) && RE_CHARSET.test(parsedConType[i][0])) {
-          charset = parsedConType[i][1].toLowerCase();
-          break;
-        }
-      }
-      if (charset === void 0) {
-        charset = cfg.defCharset || "utf8";
-      }
-      this.decoder = new Decoder();
-      this.charset = charset;
-      this._fields = 0;
-      this._state = "key";
-      this._checkingBytes = true;
-      this._bytesKey = 0;
-      this._bytesVal = 0;
-      this._key = "";
-      this._val = "";
-      this._keyTrunc = false;
-      this._valTrunc = false;
-      this._hitLimit = false;
-    }
-    __name(UrlEncoded, "UrlEncoded");
-    UrlEncoded.prototype.write = function(data, cb) {
-      if (this._fields === this.fieldsLimit) {
-        if (!this.boy.hitFieldsLimit) {
-          this.boy.hitFieldsLimit = true;
-          this.boy.emit("fieldsLimit");
-        }
-        return cb();
-      }
-      let idxeq;
-      let idxamp;
-      let i;
-      let p = 0;
-      const len = data.length;
-      while (p < len) {
-        if (this._state === "key") {
-          idxeq = idxamp = void 0;
-          for (i = p; i < len; ++i) {
-            if (!this._checkingBytes) {
-              ++p;
-            }
-            if (data[i] === 61) {
-              idxeq = i;
-              break;
-            } else if (data[i] === 38) {
-              idxamp = i;
-              break;
-            }
-            if (this._checkingBytes && this._bytesKey === this.fieldNameSizeLimit) {
-              this._hitLimit = true;
-              break;
-            } else if (this._checkingBytes) {
-              ++this._bytesKey;
-            }
-          }
-          if (idxeq !== void 0) {
-            if (idxeq > p) {
-              this._key += this.decoder.write(data.toString("binary", p, idxeq));
-            }
-            this._state = "val";
-            this._hitLimit = false;
-            this._checkingBytes = true;
-            this._val = "";
-            this._bytesVal = 0;
-            this._valTrunc = false;
-            this.decoder.reset();
-            p = idxeq + 1;
-          } else if (idxamp !== void 0) {
-            ++this._fields;
-            let key;
-            const keyTrunc = this._keyTrunc;
-            if (idxamp > p) {
-              key = this._key += this.decoder.write(data.toString("binary", p, idxamp));
-            } else {
-              key = this._key;
-            }
-            this._hitLimit = false;
-            this._checkingBytes = true;
-            this._key = "";
-            this._bytesKey = 0;
-            this._keyTrunc = false;
-            this.decoder.reset();
-            if (key.length) {
-              this.boy.emit(
-                "field",
-                decodeText(key, "binary", this.charset),
-                "",
-                keyTrunc,
-                false
-              );
-            }
-            p = idxamp + 1;
-            if (this._fields === this.fieldsLimit) {
-              return cb();
-            }
-          } else if (this._hitLimit) {
-            if (i > p) {
-              this._key += this.decoder.write(data.toString("binary", p, i));
-            }
-            p = i;
-            if ((this._bytesKey = this._key.length) === this.fieldNameSizeLimit) {
-              this._checkingBytes = false;
-              this._keyTrunc = true;
-            }
-          } else {
-            if (p < len) {
-              this._key += this.decoder.write(data.toString("binary", p));
-            }
-            p = len;
-          }
-        } else {
-          idxamp = void 0;
-          for (i = p; i < len; ++i) {
-            if (!this._checkingBytes) {
-              ++p;
-            }
-            if (data[i] === 38) {
-              idxamp = i;
-              break;
-            }
-            if (this._checkingBytes && this._bytesVal === this.fieldSizeLimit) {
-              this._hitLimit = true;
-              break;
-            } else if (this._checkingBytes) {
-              ++this._bytesVal;
-            }
-          }
-          if (idxamp !== void 0) {
-            ++this._fields;
-            if (idxamp > p) {
-              this._val += this.decoder.write(data.toString("binary", p, idxamp));
-            }
-            this.boy.emit(
-              "field",
-              decodeText(this._key, "binary", this.charset),
-              decodeText(this._val, "binary", this.charset),
-              this._keyTrunc,
-              this._valTrunc
-            );
-            this._state = "key";
-            this._hitLimit = false;
-            this._checkingBytes = true;
-            this._key = "";
-            this._bytesKey = 0;
-            this._keyTrunc = false;
-            this.decoder.reset();
-            p = idxamp + 1;
-            if (this._fields === this.fieldsLimit) {
-              return cb();
-            }
-          } else if (this._hitLimit) {
-            if (i > p) {
-              this._val += this.decoder.write(data.toString("binary", p, i));
-            }
-            p = i;
-            if (this._val === "" && this.fieldSizeLimit === 0 || (this._bytesVal = this._val.length) === this.fieldSizeLimit) {
-              this._checkingBytes = false;
-              this._valTrunc = true;
-            }
-          } else {
-            if (p < len) {
-              this._val += this.decoder.write(data.toString("binary", p));
-            }
-            p = len;
-          }
-        }
-      }
       cb();
     };
     UrlEncoded.prototype.end = function() {
@@ -5456,7 +5528,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
           if (/multipart\/form-data/.test(contentType)) {
             const headers = {};
             for (const [key, value] of this.headers)
-              headers[key.toLowerCase()] = value;
+              headers[key] = value;
             const responseFormData = new FormData();
             let busboy;
             try {
@@ -5694,7 +5766,7 @@ var require_response = __commonJS({
         responseObject[kHeaders][kRealm] = relevantRealm;
         responseObject[kState].status = status;
         const value = isomorphicEncode(URLSerializer(parsedURL));
-        responseObject[kState].headersList.append("location", value);
+        responseObject[kState].headersList.append("location", value, true);
         return responseObject;
       }
       // https://fetch.spec.whatwg.org/#dom-response
@@ -5930,8 +6002,8 @@ var require_response = __commonJS({
           });
         }
         response[kState].body = body.body;
-        if (body.type != null && !response[kState].headersList.contains("Content-Type")) {
-          response[kState].headersList.append("content-type", body.type);
+        if (body.type != null && !response[kState].headersList.contains("content-type", true)) {
+          response[kState].headersList.append("content-type", body.type, true);
         }
       }
     }
@@ -7227,7 +7299,7 @@ var require_request2 = __commonJS({
     var assert = require("assert");
     var { kHTTP2BuildRequest, kHTTP2CopyHeaders, kHTTP1BuildRequest } = require_symbols();
     var util = require_util();
-    var tokenRegExp = /^[\^_`a-zA-Z\-0-9!#$%&'*+.|~]+$/;
+    var { headerNameLowerCasedRecord } = require_constants();
     var headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/;
     var invalidPathRegex = /[^\u0021-\u00ff]/;
     var kHandler = Symbol("handler");
@@ -7275,7 +7347,7 @@ var require_request2 = __commonJS({
         }
         if (typeof method !== "string") {
           throw new InvalidArgumentError("method must be a string");
-        } else if (tokenRegExp.exec(method) === null) {
+        } else if (!util.isValidHTTPToken(method)) {
           throw new InvalidArgumentError("invalid request method");
         }
         if (upgrade && typeof upgrade !== "string") {
@@ -7414,6 +7486,9 @@ var require_request2 = __commonJS({
           return this[kHandler].onConnect(abort);
         }
       }
+      onResponseStarted() {
+        return this[kHandler].onResponseStarted?.();
+      }
       onHeaders(statusCode, headers, resume, statusText) {
         assert(!this.aborted);
         assert(!this.completed);
@@ -7539,39 +7614,40 @@ var require_request2 = __commonJS({
       } else if (val === void 0) {
         return;
       }
-      if (request.host === null && key.length === 4 && key.toLowerCase() === "host") {
+      let headerName = headerNameLowerCasedRecord[key];
+      if (headerName === void 0) {
+        headerName = key.toLowerCase();
+        if (headerNameLowerCasedRecord[headerName] === void 0 && !util.isValidHTTPToken(headerName)) {
+          throw new InvalidArgumentError("invalid header key");
+        }
+      }
+      if (request.host === null && headerName === "host") {
         if (headerCharRegex.exec(val) !== null) {
           throw new InvalidArgumentError(`invalid ${key} header`);
         }
         request.host = val;
-      } else if (request.contentLength === null && key.length === 14 && key.toLowerCase() === "content-length") {
+      } else if (request.contentLength === null && headerName === "content-length") {
         request.contentLength = parseInt(val, 10);
         if (!Number.isFinite(request.contentLength)) {
           throw new InvalidArgumentError("invalid content-length header");
         }
-      } else if (request.contentType === null && key.length === 12 && key.toLowerCase() === "content-type") {
+      } else if (request.contentType === null && headerName === "content-type") {
         request.contentType = val;
         if (skipAppend)
           request.headers[key] = processHeaderValue(key, val, skipAppend);
         else
           request.headers += processHeaderValue(key, val);
-      } else if (key.length === 17 && key.toLowerCase() === "transfer-encoding") {
-        throw new InvalidArgumentError("invalid transfer-encoding header");
-      } else if (key.length === 10 && key.toLowerCase() === "connection") {
+      } else if (headerName === "transfer-encoding" || headerName === "keep-alive" || headerName === "upgrade") {
+        throw new InvalidArgumentError(`invalid ${headerName} header`);
+      } else if (headerName === "connection") {
         const value = typeof val === "string" ? val.toLowerCase() : null;
         if (value !== "close" && value !== "keep-alive") {
           throw new InvalidArgumentError("invalid connection header");
         } else if (value === "close") {
           request.reset = true;
         }
-      } else if (key.length === 10 && key.toLowerCase() === "keep-alive") {
-        throw new InvalidArgumentError("invalid keep-alive header");
-      } else if (key.length === 7 && key.toLowerCase() === "upgrade") {
-        throw new InvalidArgumentError("invalid upgrade header");
-      } else if (key.length === 6 && key.toLowerCase() === "expect") {
+      } else if (headerName === "expect") {
         throw new NotSupportedError("expect header not supported");
-      } else if (tokenRegExp.exec(key) === null) {
-        throw new InvalidArgumentError("invalid header key");
       } else {
         if (Array.isArray(val)) {
           for (let i = 0; i < val.length; i++) {
@@ -7607,7 +7683,7 @@ var require_connect = __commonJS({
     var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
     var tls;
     var SessionCache;
-    if (global.FinalizationRegistry && !process.env.NODE_V8_COVERAGE) {
+    if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
       SessionCache = class WeakSessionCache {
         static {
           __name(this, "WeakSessionCache");
@@ -8223,14 +8299,24 @@ var require_RedirectHandler = __commonJS({
         return null;
       }
       for (let i = 0; i < headers.length; i += 2) {
-        if (headers[i].toString().toLowerCase() === "location") {
+        if (headers[i].length === 8 && util.headerNameToString(headers[i]) === "location") {
           return headers[i + 1];
         }
       }
     }
     __name(parseLocation, "parseLocation");
     function shouldRemoveHeader(header, removeContent, unknownOrigin) {
-      return header.length === 4 && header.toString().toLowerCase() === "host" || removeContent && header.toString().toLowerCase().indexOf("content-") === 0 || unknownOrigin && header.length === 13 && header.toString().toLowerCase() === "authorization" || unknownOrigin && header.length === 6 && header.toString().toLowerCase() === "cookie";
+      if (header.length === 4) {
+        return util.headerNameToString(header) === "host";
+      }
+      if (removeContent && util.headerNameToString(header).startsWith("content-")) {
+        return true;
+      }
+      if (unknownOrigin && (header.length === 13 || header.length === 6)) {
+        const name = util.headerNameToString(header);
+        return name === "authorization" || name === "cookie";
+      }
+      return false;
     }
     __name(shouldRemoveHeader, "shouldRemoveHeader");
     function cleanRequestHeaders(headers, removeContent, unknownOrigin) {
@@ -8889,6 +8975,7 @@ var require_client = __commonJS({
         if (!request) {
           return -1;
         }
+        request.onResponseStarted();
       }
       onHeaderField(buf) {
         const len = this.headers.length;
@@ -8908,11 +8995,14 @@ var require_client = __commonJS({
           this.headers[len - 1] = Buffer.concat([this.headers[len - 1], buf]);
         }
         const key = this.headers[len - 2];
-        if (key.length === 10 && key.toString().toLowerCase() === "keep-alive") {
-          this.keepAlive += buf.toString();
-        } else if (key.length === 10 && key.toString().toLowerCase() === "connection") {
-          this.connection += buf.toString();
-        } else if (key.length === 14 && key.toString().toLowerCase() === "content-length") {
+        if (key.length === 10) {
+          const headerName = util.bufferToLowerCasedHeaderName(key);
+          if (headerName === "keep-alive") {
+            this.keepAlive += buf.toString();
+          } else if (headerName === "connection") {
+            this.connection += buf.toString();
+          }
+        } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === "content-length") {
           this.contentLength += buf.toString();
         }
         this.trackHeader(buf.length);
@@ -9644,6 +9734,7 @@ upgrade: ${upgrade}\r
       ++h2State.openStreams;
       stream.once("response", (headers2) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
+        request.onResponseStarted();
         if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), "") === false) {
           stream.pause();
         }
@@ -10137,14 +10228,12 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util = require_util();
     var createRedirectInterceptor = require_redirectInterceptor();
-    var { WeakRef: WeakRef2, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var kOnConnect = Symbol("onConnect");
     var kOnDisconnect = Symbol("onDisconnect");
     var kOnConnectionError = Symbol("onConnectionError");
     var kMaxRedirections = Symbol("maxRedirections");
     var kOnDrain = Symbol("onDrain");
     var kFactory = Symbol("factory");
-    var kFinalizer = Symbol("finalizer");
     var kOptions = Symbol("options");
     function defaultFactory(origin, opts) {
       return opts && opts.connections === 1 ? new Client(origin, opts) : new Pool(origin, opts);
@@ -10174,15 +10263,6 @@ var require_agent = __commonJS({
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
-        this[kFinalizer] = new FinalizationRegistry2(
-          /* istanbul ignore next: gc is undeterministic */
-          (key) => {
-            const ref = this[kClients].get(key);
-            if (ref !== void 0 && ref.deref() === void 0) {
-              this[kClients].delete(key);
-            }
-          }
-        );
         const agent = this;
         this[kOnDrain] = (origin, targets) => {
           agent.emit("drain", origin, [agent, ...targets]);
@@ -10199,11 +10279,8 @@ var require_agent = __commonJS({
       }
       get [kRunning]() {
         let ret = 0;
-        for (const ref of this[kClients].values()) {
-          const client = ref.deref();
-          if (client) {
-            ret += client[kRunning];
-          }
+        for (const client of this[kClients].values()) {
+          ret += client[kRunning];
         }
         return ret;
       }
@@ -10214,33 +10291,27 @@ var require_agent = __commonJS({
         } else {
           throw new InvalidArgumentError("opts.origin must be a non-empty string or URL.");
         }
-        const ref = this[kClients].get(key);
-        let dispatcher = ref ? ref.deref() : null;
+        let dispatcher = this[kClients].get(key);
         if (!dispatcher) {
           dispatcher = this[kFactory](opts.origin, this[kOptions]).on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-          this[kClients].set(key, new WeakRef2(dispatcher));
-          this[kFinalizer].register(dispatcher, key);
+          this[kClients].set(key, dispatcher);
         }
         return dispatcher.dispatch(opts, handler);
       }
       async [kClose]() {
         const closePromises = [];
-        for (const ref of this[kClients].values()) {
-          const client = ref.deref();
-          if (client) {
-            closePromises.push(client.close());
-          }
+        for (const client of this[kClients].values()) {
+          closePromises.push(client.close());
         }
+        this[kClients].clear();
         await Promise.all(closePromises);
       }
       async [kDestroy](err) {
         const destroyPromises = [];
-        for (const ref of this[kClients].values()) {
-          const client = ref.deref();
-          if (client) {
-            destroyPromises.push(client.destroy(err));
-          }
+        for (const client of this[kClients].values()) {
+          destroyPromises.push(client.destroy(err));
         }
+        this[kClients].clear();
         await Promise.all(destroyPromises);
       }
     };
@@ -10292,7 +10363,7 @@ var require_fetch = __commonJS({
       filterResponse,
       makeResponse
     } = require_response();
-    var { Headers } = require_headers();
+    var { Headers, HeadersList } = require_headers();
     var { Request, makeRequest } = require_request();
     var zlib = require("zlib");
     var {
@@ -10324,6 +10395,7 @@ var require_fetch = __commonJS({
       urlIsLocal,
       urlIsHttpHttpsScheme,
       urlHasHttpsScheme,
+      clampAndCoursenConnectionTimingInfo,
       simpleRangeHeaderValue,
       buildContentRange
     } = require_util2();
@@ -10340,7 +10412,7 @@ var require_fetch = __commonJS({
     var { kHeadersList, kConstruct } = require_symbols();
     var EE = require("events");
     var { Readable, pipeline } = require("stream");
-    var { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require_util();
+    var { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require_util();
     var { dataURLProcessor, serializeAMimeType, parseMIMEType } = require_dataURL();
     var { getGlobalDispatcher } = require_global2();
     var { webidl } = require_webidl();
@@ -10562,12 +10634,12 @@ var require_fetch = __commonJS({
           request.policyContainer = makePolicyContainer();
         }
       }
-      if (!request.headersList.contains("accept")) {
+      if (!request.headersList.contains("accept", true)) {
         const value = "*/*";
-        request.headersList.append("accept", value);
+        request.headersList.append("accept", value, true);
       }
-      if (!request.headersList.contains("accept-language")) {
-        request.headersList.append("accept-language", "*");
+      if (!request.headersList.contains("accept-language", true)) {
+        request.headersList.append("accept-language", "*", true);
       }
       if (request.priority === null) {
       }
@@ -10650,7 +10722,7 @@ var require_fetch = __commonJS({
       if (!request.timingAllowFailed) {
         response.timingAllowPassed = true;
       }
-      if (response.type === "opaque" && internalResponse.status === 206 && internalResponse.rangeRequested && !request.headers.contains("range")) {
+      if (response.type === "opaque" && internalResponse.status === 206 && internalResponse.rangeRequested && !request.headers.contains("range", true)) {
         response = internalResponse = makeNetworkError();
       }
       if (response.status !== 0 && (request.method === "HEAD" || request.method === "CONNECT" || nullBodyStatus.includes(internalResponse.status))) {
@@ -10703,15 +10775,15 @@ var require_fetch = __commonJS({
           const fullLength = blob.size;
           const serializedFullLength = isomorphicEncode(`${fullLength}`);
           const type = blob.type;
-          if (!request.headersList.contains("range")) {
+          if (!request.headersList.contains("range", true)) {
             const bodyWithType = extractBody(blob);
             response.statusText = "OK";
             response.body = bodyWithType[0];
-            response.headersList.set("content-length", serializedFullLength);
-            response.headersList.set("content-type", type);
+            response.headersList.set("content-length", serializedFullLength, true);
+            response.headersList.set("content-type", type, true);
           } else {
             response.rangeRequested = true;
-            const rangeHeader = request.headersList.get("range");
+            const rangeHeader = request.headersList.get("range", true);
             const rangeValue = simpleRangeHeaderValue(rangeHeader, true);
             if (rangeValue === "failure") {
               return Promise.resolve(makeNetworkError("failed to fetch the data URL"));
@@ -10735,9 +10807,9 @@ var require_fetch = __commonJS({
             const contentRange = buildContentRange(rangeStart, rangeEnd, fullLength);
             response.status = 206;
             response.statusText = "Partial Content";
-            response.headersList.set("content-length", serializedSlicedLength);
-            response.headersList.set("content-type", type);
-            response.headersList.set("content-range", contentRange);
+            response.headersList.set("content-length", serializedSlicedLength, true);
+            response.headersList.set("content-type", type, true);
+            response.headersList.set("content-range", contentRange, true);
           }
           return Promise.resolve(response);
         }
@@ -10797,7 +10869,7 @@ var require_fetch = __commonJS({
           let responseStatus = 0;
           if (fetchParams.request.mode !== "navigator" || !response.hasCrossOriginRedirects) {
             responseStatus = response.status;
-            const mimeType = parseMIMEType(response.headersList.get("content-type"));
+            const mimeType = parseMIMEType(response.headersList.get("content-type", true));
             if (mimeType !== "failure") {
             }
           }
@@ -10937,9 +11009,9 @@ var require_fetch = __commonJS({
         }
       }
       if (!sameOrigin(requestCurrentURL(request), locationURL)) {
-        request.headersList.delete("authorization");
-        request.headersList.delete("cookie");
-        request.headersList.delete("host");
+        request.headersList.delete("authorization", true);
+        request.headersList.delete("cookie", true);
+        request.headersList.delete("host", true);
       }
       if (request.body != null) {
         assert(request.body.source != null);
@@ -10980,43 +11052,43 @@ var require_fetch = __commonJS({
         contentLengthHeaderValue = isomorphicEncode(`${contentLength}`);
       }
       if (contentLengthHeaderValue != null) {
-        httpRequest.headersList.append("content-length", contentLengthHeaderValue);
+        httpRequest.headersList.append("content-length", contentLengthHeaderValue, true);
       }
       if (contentLength != null && httpRequest.keepalive) {
       }
       if (httpRequest.referrer instanceof URL) {
-        httpRequest.headersList.append("referer", isomorphicEncode(httpRequest.referrer.href));
+        httpRequest.headersList.append("referer", isomorphicEncode(httpRequest.referrer.href), true);
       }
       appendRequestOriginHeader(httpRequest);
       appendFetchMetadata(httpRequest);
-      if (!httpRequest.headersList.contains("user-agent")) {
-        httpRequest.headersList.append("user-agent", false ? "undici" : "node");
+      if (!httpRequest.headersList.contains("user-agent", true)) {
+        httpRequest.headersList.append("user-agent", false ? "undici" : "node", true);
       }
-      if (httpRequest.cache === "default" && (httpRequest.headersList.contains("if-modified-since") || httpRequest.headersList.contains("if-none-match") || httpRequest.headersList.contains("if-unmodified-since") || httpRequest.headersList.contains("if-match") || httpRequest.headersList.contains("if-range"))) {
+      if (httpRequest.cache === "default" && (httpRequest.headersList.contains("if-modified-since", true) || httpRequest.headersList.contains("if-none-match", true) || httpRequest.headersList.contains("if-unmodified-since", true) || httpRequest.headersList.contains("if-match", true) || httpRequest.headersList.contains("if-range", true))) {
         httpRequest.cache = "no-store";
       }
-      if (httpRequest.cache === "no-cache" && !httpRequest.preventNoCacheCacheControlHeaderModification && !httpRequest.headersList.contains("cache-control")) {
-        httpRequest.headersList.append("cache-control", "max-age=0");
+      if (httpRequest.cache === "no-cache" && !httpRequest.preventNoCacheCacheControlHeaderModification && !httpRequest.headersList.contains("cache-control", true)) {
+        httpRequest.headersList.append("cache-control", "max-age=0", true);
       }
       if (httpRequest.cache === "no-store" || httpRequest.cache === "reload") {
-        if (!httpRequest.headersList.contains("pragma")) {
-          httpRequest.headersList.append("pragma", "no-cache");
+        if (!httpRequest.headersList.contains("pragma", true)) {
+          httpRequest.headersList.append("pragma", "no-cache", true);
         }
-        if (!httpRequest.headersList.contains("cache-control")) {
-          httpRequest.headersList.append("cache-control", "no-cache");
+        if (!httpRequest.headersList.contains("cache-control", true)) {
+          httpRequest.headersList.append("cache-control", "no-cache", true);
         }
       }
-      if (httpRequest.headersList.contains("range")) {
-        httpRequest.headersList.append("accept-encoding", "identity");
+      if (httpRequest.headersList.contains("range", true)) {
+        httpRequest.headersList.append("accept-encoding", "identity", true);
       }
-      if (!httpRequest.headersList.contains("accept-encoding")) {
+      if (!httpRequest.headersList.contains("accept-encoding", true)) {
         if (urlHasHttpsScheme(requestCurrentURL(httpRequest))) {
-          httpRequest.headersList.append("accept-encoding", "br, gzip, deflate");
+          httpRequest.headersList.append("accept-encoding", "br, gzip, deflate", true);
         } else {
-          httpRequest.headersList.append("accept-encoding", "gzip, deflate");
+          httpRequest.headersList.append("accept-encoding", "gzip, deflate", true);
         }
       }
-      httpRequest.headersList.delete("host");
+      httpRequest.headersList.delete("host", true);
       if (includeCredentials) {
       }
       if (httpCache == null) {
@@ -11042,7 +11114,7 @@ var require_fetch = __commonJS({
         }
       }
       response.urlList = [...httpRequest.urlList];
-      if (httpRequest.headersList.contains("range")) {
+      if (httpRequest.headersList.contains("range", true)) {
         response.rangeRequested = true;
       }
       response.requestIncludesCredentials = includeCredentials;
@@ -11237,7 +11309,7 @@ var require_fetch = __commonJS({
       }
       __name(onAborted, "onAborted");
       return response;
-      async function dispatch({ body }) {
+      function dispatch({ body }) {
         const url = requestCurrentURL(request);
         const agent = fetchParams.controller.dispatcher;
         return new Promise((resolve, reject) => agent.dispatch(
@@ -11245,7 +11317,7 @@ var require_fetch = __commonJS({
             path: url.pathname + url.search,
             origin: url.origin,
             method: request.method,
-            body: fetchParams.controller.dispatcher.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
+            body: agent.isMockActive ? request.body && (request.body.source || request.body.stream) : body,
             headers: request.headersList.entries,
             maxRedirections: 0,
             upgrade: request.mode === "websocket" ? "websocket" : void 0
@@ -11255,48 +11327,51 @@ var require_fetch = __commonJS({
             abort: null,
             onConnect(abort) {
               const { connection } = fetchParams.controller;
+              timingInfo.finalConnectionTimingInfo = clampAndCoursenConnectionTimingInfo(void 0, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability);
               if (connection.destroyed) {
                 abort(new DOMException("The operation was aborted.", "AbortError"));
               } else {
                 fetchParams.controller.on("terminated", abort);
                 this.abort = connection.abort = abort;
               }
+              timingInfo.finalNetworkRequestStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability);
             },
-            onHeaders(status, headersList, resume, statusText) {
+            onResponseStarted() {
+              timingInfo.finalNetworkResponseStartTime = coarsenedSharedCurrentTime(fetchParams.crossOriginIsolatedCapability);
+            },
+            onHeaders(status, rawHeaders, resume, statusText) {
               if (status < 200) {
                 return;
               }
               let codings = [];
               let location = "";
-              const headers = new Headers();
-              if (Array.isArray(headersList)) {
-                for (let n = 0; n < headersList.length; n += 2) {
-                  const key = headersList[n + 0].toString("latin1");
-                  const val = headersList[n + 1].toString("latin1");
-                  if (key.toLowerCase() === "content-encoding") {
-                    codings = val.toLowerCase().split(",").map((x) => x.trim());
-                  } else if (key.toLowerCase() === "location") {
-                    location = val;
-                  }
-                  headers[kHeadersList].append(key, val);
+              const headersList = new HeadersList();
+              if (Array.isArray(rawHeaders)) {
+                for (let i = 0; i < rawHeaders.length; i += 2) {
+                  headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString("latin1"), true);
                 }
+                const contentEncoding = headersList.get("content-encoding", true);
+                if (contentEncoding) {
+                  codings = contentEncoding.toLowerCase().split(",").map((x) => x.trim());
+                }
+                location = headersList.get("location", true);
               } else {
-                const keys = Object.keys(headersList);
-                for (const key of keys) {
-                  const val = headersList[key];
-                  if (key.toLowerCase() === "content-encoding") {
-                    codings = val.toLowerCase().split(",").map((x) => x.trim()).reverse();
-                  } else if (key.toLowerCase() === "location") {
-                    location = val;
-                  }
-                  headers[kHeadersList].append(key, val);
+                const keys = Object.keys(rawHeaders);
+                for (let i = 0; i < keys.length; ++i) {
+                  headersList.append(keys[i], rawHeaders[keys[i]]);
                 }
+                const contentEncoding = rawHeaders["content-encoding"];
+                if (contentEncoding) {
+                  codings = contentEncoding.toLowerCase().split(",").map((x) => x.trim()).reverse();
+                }
+                location = rawHeaders.location;
               }
               this.body = new Readable({ read: resume });
               const decoders = [];
-              const willFollow = request.redirect === "follow" && location && redirectStatusSet.has(status);
+              const willFollow = location && request.redirect === "follow" && redirectStatusSet.has(status);
               if (request.method !== "HEAD" && request.method !== "CONNECT" && !nullBodyStatus.includes(status) && !willFollow) {
-                for (const coding of codings) {
+                for (let i = 0; i < codings.length; ++i) {
+                  const coding = codings[i];
                   if (coding === "x-gzip" || coding === "gzip") {
                     decoders.push(zlib.createGunzip({
                       // Be less strict when decoding compressed responses, since sometimes
@@ -11319,7 +11394,7 @@ var require_fetch = __commonJS({
               resolve({
                 status,
                 statusText,
-                headersList: headers[kHeadersList],
+                headersList,
                 body: decoders.length ? pipeline(this.body, ...decoders, () => {
                 }) : this.body.on("error", () => {
                 })
@@ -11349,20 +11424,18 @@ var require_fetch = __commonJS({
               fetchParams.controller.terminate(error);
               reject(error);
             },
-            onUpgrade(status, headersList, socket) {
+            onUpgrade(status, rawHeaders, socket) {
               if (status !== 101) {
                 return;
               }
-              const headers = new Headers();
-              for (let n = 0; n < headersList.length; n += 2) {
-                const key = headersList[n + 0].toString("latin1");
-                const val = headersList[n + 1].toString("latin1");
-                headers[kHeadersList].append(key, val);
+              const headersList = new HeadersList();
+              for (let i = 0; i < rawHeaders.length; i += 2) {
+                headersList.append(bufferToLowerCasedHeaderName(rawHeaders[i]), rawHeaders[i + 1].toString("latin1"), true);
               }
               resolve({
                 status,
                 statusText: STATUS_CODES[status],
-                headersList: headers[kHeadersList],
+                headersList,
                 socket
               });
               return true;

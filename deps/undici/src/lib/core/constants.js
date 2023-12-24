@@ -1,3 +1,5 @@
+'use strict'
+
 /** @type {Record<string, string | undefined>} */
 const headerNameLowerCasedRecord = {}
 

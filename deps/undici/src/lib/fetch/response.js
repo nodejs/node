@@ -126,7 +126,7 @@ class Response {
     const value = isomorphicEncode(URLSerializer(parsedURL))
 
     // 7. Append `Location`/value to responseObject’s response’s header list.
-    responseObject[kState].headersList.append('location', value)
+    responseObject[kState].headersList.append('location', value, true)
 
     // 8. Return responseObject.
     return responseObject
@@ -496,8 +496,8 @@ function initializeResponse (response, init, body) {
 
     // 3. If body's type is non-null and response's header list does not contain
     //    `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
-    if (body.type != null && !response[kState].headersList.contains('Content-Type')) {
-      response[kState].headersList.append('content-type', body.type)
+    if (body.type != null && !response[kState].headersList.contains('content-type', true)) {
+      response[kState].headersList.append('content-type', body.type, true)
     }
   }
 }

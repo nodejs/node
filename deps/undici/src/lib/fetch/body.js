@@ -374,7 +374,7 @@ function bodyMixinMethods (instance) {
       // If mimeType’s essence is "multipart/form-data", then:
       if (/multipart\/form-data/.test(contentType)) {
         const headers = {}
-        for (const [key, value] of this.headers) headers[key.toLowerCase()] = value
+        for (const [key, value] of this.headers) headers[key] = value
 
         const responseFormData = new FormData()
 

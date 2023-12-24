@@ -4,11 +4,9 @@
 
 const assert = require('assert')
 const { Readable } = require('stream')
-const { RequestAbortedError, NotSupportedError, InvalidArgumentError } = require('../core/errors')
+const { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require('../core/errors')
 const util = require('../core/util')
-const { ReadableStreamFrom, toUSVString } = require('../core/util')
-
-let Blob
+const { ReadableStreamFrom } = require('../core/util')
 
 const kConsume = Symbol('kConsume')
 const kReading = Symbol('kReading')
@@ -46,11 +44,6 @@ module.exports = class BodyReadable extends Readable {
   }
 
   destroy (err) {
-    if (this.destroyed) {
-      // Node < 16
-      return this
-    }
-
     if (!err && !this._readableState.endEmitted) {
       err = new RequestAbortedError()
     }
@@ -72,17 +65,6 @@ module.exports = class BodyReadable extends Readable {
     queueMicrotask(() => {
       callback(err)
     })
-  }
-
-  emit (ev, ...args) {
-    if (ev === 'data') {
-      // Node < 16.7
-      this._readableState.dataEmitted = true
-    } else if (ev === 'error') {
-      // Node < 16
-      this._readableState.errorEmitted = true
-    }
-    return super.emit(ev, ...args)
   }
 
   on (ev, ...args) {
@@ -163,37 +145,31 @@ module.exports = class BodyReadable extends Readable {
     return this[kBody]
   }
 
-  dump (opts) {
-    let limit = opts && Number.isFinite(opts.limit) ? opts.limit : 262144
-    const signal = opts && opts.signal
+  async dump (opts) {
+    let limit = Number.isFinite(opts?.limit) ? opts.limit : 262144
+    const signal = opts?.signal
 
-    if (signal) {
-      try {
-        if (typeof signal !== 'object' || !('aborted' in signal)) {
-          throw new InvalidArgumentError('signal must be an AbortSignal')
-        }
-        util.throwIfAborted(signal)
-      } catch (err) {
-        return Promise.reject(err)
-      }
+    if (signal != null && (typeof signal !== 'object' || !('aborted' in signal))) {
+      throw new InvalidArgumentError('signal must be an AbortSignal')
     }
+
+    signal?.throwIfAborted()
 
     if (this._readableState.closeEmitted) {
-      return Promise.resolve(null)
+      return null
     }
 
-    return new Promise((resolve, reject) => {
-      const signalListenerCleanup = signal
-        ? util.addAbortListener(signal, () => {
-          this.destroy()
-        })
-        : noop
+    return await new Promise((resolve, reject) => {
+      const onAbort = () => {
+        this.destroy(signal.reason ?? new AbortError())
+      }
+      signal?.addEventListener('abort', onAbort)
 
       this
         .on('close', function () {
-          signalListenerCleanup()
-          if (signal && signal.aborted) {
-            reject(signal.reason || Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }))
+          signal?.removeEventListener('abort', onAbort)
+          if (signal?.aborted) {
+            reject(signal.reason ?? new AbortError())
           } else {
             resolve(null)
           }
@@ -289,14 +265,35 @@ function consumeStart (consume) {
   }
 }
 
+/**
+ * @param {Buffer[]} chunks
+ * @param {number} length
+ */
+function chunksDecode (chunks, length) {
+  if (chunks.length === 0 || length === 0) {
+    return ''
+  }
+  const buffer = chunks.length === 1 ? chunks[0] : Buffer.concat(chunks, length)
+
+  const start =
+   buffer.length >= 3 &&
+   // Skip BOM.
+      buffer[0] === 0xef &&
+      buffer[1] === 0xbb &&
+      buffer[2] === 0xbf
+     ? 3
+     : 0
+  return buffer.utf8Slice(start, buffer.length - start)
+}
+
 function consumeEnd (consume) {
   const { type, body, resolve, stream, length } = consume
 
   try {
     if (type === 'text') {
-      resolve(toUSVString(Buffer.concat(body)))
+      resolve(chunksDecode(body, length))
     } else if (type === 'json') {
-      resolve(JSON.parse(Buffer.concat(body)))
+      resolve(JSON.parse(chunksDecode(body, length)))
     } else if (type === 'arrayBuffer') {
       const dst = new Uint8Array(length)
 
@@ -308,9 +305,6 @@ function consumeEnd (consume) {
 
       resolve(dst.buffer)
     } else if (type === 'blob') {
-      if (!Blob) {
-        Blob = require('buffer').Blob
-      }
       resolve(new Blob(body, { type: stream[kContentType] }))
     }
 
