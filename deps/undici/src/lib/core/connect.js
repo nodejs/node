@@ -15,7 +15,7 @@ let tls // include tls conditionally since it is not always available
 let SessionCache
 // FIXME: remove workaround when the Node bug is fixed
 // https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
-if (global.FinalizationRegistry && !process.env.NODE_V8_COVERAGE) {
+if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
   SessionCache = class WeakSessionCache {
     constructor (maxCachedSessions) {
       this._maxCachedSessions = maxCachedSessions
@@ -183,7 +183,11 @@ function setupTimeout (onConnectTimeout, timeout) {
 }
 
 function onConnectTimeout (socket) {
-  util.destroy(socket, new ConnectTimeoutError())
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message = +` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')})`
+  }
+  util.destroy(socket, new ConnectTimeoutError(message))
 }
 
 module.exports = buildConnector

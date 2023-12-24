@@ -21,16 +21,6 @@ const Dispatcher = require('../dispatcher')
 const Pluralizer = require('./pluralizer')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
 
-class FakeWeakRef {
-  constructor (value) {
-    this.value = value
-  }
-
-  deref () {
-    return this.value
-  }
-}
-
 class MockAgent extends Dispatcher {
   constructor (opts) {
     super(opts)
@@ -103,7 +93,7 @@ class MockAgent extends Dispatcher {
   }
 
   [kMockAgentSet] (origin, dispatcher) {
-    this[kClients].set(origin, new FakeWeakRef(dispatcher))
+    this[kClients].set(origin, dispatcher)
   }
 
   [kFactory] (origin) {
@@ -115,9 +105,9 @@ class MockAgent extends Dispatcher {
 
   [kMockAgentGet] (origin) {
     // First check if we can immediately find it
-    const ref = this[kClients].get(origin)
-    if (ref) {
-      return ref.deref()
+    const client = this[kClients].get(origin)
+    if (client) {
+      return client
     }
 
     // If the origin is not a string create a dummy parent pool and return to user
@@ -128,8 +118,7 @@ class MockAgent extends Dispatcher {
     }
 
     // If we match, create a pool and assign the same dispatches
-    for (const [keyMatcher, nonExplicitRef] of Array.from(this[kClients])) {
-      const nonExplicitDispatcher = nonExplicitRef.deref()
+    for (const [keyMatcher, nonExplicitDispatcher] of Array.from(this[kClients])) {
       if (nonExplicitDispatcher && typeof keyMatcher !== 'string' && matchValue(keyMatcher, origin)) {
         const dispatcher = this[kFactory](origin)
         this[kMockAgentSet](origin, dispatcher)
@@ -147,7 +136,7 @@ class MockAgent extends Dispatcher {
     const mockAgentClients = this[kClients]
 
     return Array.from(mockAgentClients.entries())
-      .flatMap(([origin, scope]) => scope.deref()[kDispatches].map(dispatch => ({ ...dispatch, origin })))
+      .flatMap(([origin, scope]) => scope[kDispatches].map(dispatch => ({ ...dispatch, origin })))
       .filter(({ pending }) => pending)
   }
 

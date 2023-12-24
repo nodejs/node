@@ -1,7 +1,7 @@
 'use strict'
 
 const { types } = require('util')
-const { hasOwn, toUSVString } = require('./util')
+const { toUSVString } = require('./util')
 
 /** @type {import('../../types/webidl').Webidl} */
 const webidl = {}
@@ -346,7 +346,7 @@ webidl.dictionaryConverter = function (converters) {
       const { key, defaultValue, required, converter } = options
 
       if (required === true) {
-        if (!hasOwn(dictionary, key)) {
+        if (!Object.hasOwn(dictionary, key)) {
           throw webidl.errors.exception({
             header: 'Dictionary',
             message: `Missing required key "${key}".`
@@ -355,7 +355,7 @@ webidl.dictionaryConverter = function (converters) {
       }
 
       let value = dictionary[key]
-      const hasDefault = hasOwn(options, 'defaultValue')
+      const hasDefault = Object.hasOwn(options, 'defaultValue')
 
       // Only use defaultValue if value is undefined and
       // a defaultValue options was provided.

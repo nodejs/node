@@ -172,13 +172,22 @@ class RetryHandler {
     this.retryCount += 1
 
     if (statusCode >= 300) {
-      this.abort(
-        new RequestRetryError('Request failed', statusCode, {
-          headers,
-          count: this.retryCount
-        })
-      )
-      return false
+      if (this.retryOpts.statusCodes.includes(statusCode) === false) {
+        return this.handler.onHeaders(
+          statusCode,
+          rawHeaders,
+          resume,
+          statusMessage
+        )
+      } else {
+        this.abort(
+          new RequestRetryError('Request failed', statusCode, {
+            headers,
+            count: this.retryCount
+          })
+        )
+        return false
+      }
     }
 
     // Checkpoint for resume from where we left it

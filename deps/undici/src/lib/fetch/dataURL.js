@@ -1,5 +1,4 @@
 const assert = require('assert')
-const { atob } = require('buffer')
 const { isomorphicDecode } = require('./util')
 
 const encoder = new TextEncoder()
@@ -8,7 +7,8 @@ const encoder = new TextEncoder()
  * @see https://mimesniff.spec.whatwg.org/#http-token-code-point
  */
 const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/
-const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+const HTTP_WHITESPACE_REGEX = /[\u000A|\u000D|\u0009|\u0020]/ // eslint-disable-line
+const ASCII_WHITESPACE_REPLACE_REGEX = /[\u0009\u000A\u000C\u000D\u0020]/g // eslint-disable-line
 /**
  * @see https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
  */
@@ -126,7 +126,13 @@ function URLSerializer (url, excludeFragment = false) {
   const href = url.href
   const hashLength = url.hash.length
 
-  return hashLength === 0 ? href : href.substring(0, href.length - hashLength)
+  const serialized = hashLength === 0 ? href : href.substring(0, href.length - hashLength)
+
+  if (!hashLength && href.endsWith('#')) {
+    return serialized.slice(0, -1)
+  }
+
+  return serialized
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
@@ -182,20 +188,26 @@ function stringPercentDecode (input) {
   return percentDecode(bytes)
 }
 
+function isHexCharByte (byte) {
+  // 0-9 A-F a-f
+  return (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x46) || (byte >= 0x61 && byte <= 0x66)
+}
+
 // https://url.spec.whatwg.org/#percent-decode
 /** @param {Uint8Array} input */
 function percentDecode (input) {
+  const length = input.length
   // 1. Let output be an empty byte sequence.
-  /** @type {number[]} */
-  const output = []
-
+  /** @type {Uint8Array} */
+  const output = new Uint8Array(length)
+  let j = 0
   // 2. For each byte byte in input:
-  for (let i = 0; i < input.length; i++) {
+  for (let i = 0; i < length; ++i) {
     const byte = input[i]
 
     // 1. If byte is not 0x25 (%), then append byte to output.
     if (byte !== 0x25) {
-      output.push(byte)
+      output[j++] = byte
 
     // 2. Otherwise, if byte is 0x25 (%) and the next two bytes
     // after byte in input are not in the ranges
@@ -204,9 +216,9 @@ function percentDecode (input) {
     // to output.
     } else if (
       byte === 0x25 &&
-      !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))
+      !(isHexCharByte(input[i + 1]) && isHexCharByte(input[i + 2]))
     ) {
-      output.push(0x25)
+      output[j++] = 0x25
 
     // 3. Otherwise:
     } else {
@@ -216,7 +228,7 @@ function percentDecode (input) {
       const bytePoint = Number.parseInt(nextTwoBytes, 16)
 
       // 2. Append a byte whose value is bytePoint to output.
-      output.push(bytePoint)
+      output[j++] = bytePoint
 
       // 3. Skip the next two bytes in input.
       i += 2
@@ -224,7 +236,7 @@ function percentDecode (input) {
   }
 
   // 3. Return output.
-  return Uint8Array.from(output)
+  return length === j ? output : output.subarray(0, j)
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type
@@ -404,19 +416,25 @@ function parseMIMEType (input) {
 /** @param {string} data */
 function forgivingBase64 (data) {
   // 1. Remove all ASCII whitespace from data.
-  data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, '')  // eslint-disable-line
+  data = data.replace(ASCII_WHITESPACE_REPLACE_REGEX, '')  // eslint-disable-line
 
+  let dataLength = data.length
   // 2. If data’s code point length divides by 4 leaving
   // no remainder, then:
-  if (data.length % 4 === 0) {
+  if (dataLength % 4 === 0) {
     // 1. If data ends with one or two U+003D (=) code points,
     // then remove them from data.
-    data = data.replace(/=?=$/, '')
+    if (data.charCodeAt(dataLength - 1) === 0x003D) {
+      --dataLength
+      if (data.charCodeAt(dataLength - 1) === 0x003D) {
+        --dataLength
+      }
+    }
   }
 
   // 3. If data’s code point length divides by 4 leaving
   // a remainder of 1, then return failure.
-  if (data.length % 4 === 1) {
+  if (dataLength % 4 === 1) {
     return 'failure'
   }
 
@@ -425,18 +443,12 @@ function forgivingBase64 (data) {
   //  U+002F (/)
   //  ASCII alphanumeric
   // then return failure.
-  if (/[^+/0-9A-Za-z]/.test(data)) {
+  if (/[^+/0-9A-Za-z]/.test(data.length === dataLength ? data : data.substring(0, dataLength))) {
     return 'failure'
   }
 
-  const binary = atob(data)
-  const bytes = new Uint8Array(binary.length)
-
-  for (let byte = 0; byte < binary.length; byte++) {
-    bytes[byte] = binary.charCodeAt(byte)
-  }
-
-  return bytes
+  const buffer = Buffer.from(data, 'base64')
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
 // https://fetch.spec.whatwg.org/#collect-an-http-quoted-string
@@ -543,7 +555,7 @@ function serializeAMimeType (mimeType) {
     // 4. If value does not solely contain HTTP token code
     //    points or value is the empty string, then:
     if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
-      // 1. Precede each occurence of U+0022 (") or
+      // 1. Precede each occurrence of U+0022 (") or
       //    U+005C (\) in value with U+005C (\).
       value = value.replace(/(\\|")/g, '\\$1')
 
@@ -564,55 +576,54 @@ function serializeAMimeType (mimeType) {
 
 /**
  * @see https://fetch.spec.whatwg.org/#http-whitespace
- * @param {string} char
+ * @param {number} char
  */
 function isHTTPWhiteSpace (char) {
-  return char === '\r' || char === '\n' || char === '\t' || char === ' '
+  // "\r\n\t "
+  return char === 0x00d || char === 0x00a || char === 0x009 || char === 0x020
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#http-whitespace
  * @param {string} str
+ * @param {boolean} [leading=true]
+ * @param {boolean} [trailing=true]
  */
 function removeHTTPWhitespace (str, leading = true, trailing = true) {
-  let lead = 0
-  let trail = str.length - 1
-
+  let i = 0; let j = str.length
   if (leading) {
-    for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++);
+    while (j > i && isHTTPWhiteSpace(str.charCodeAt(i))) --i
   }
-
   if (trailing) {
-    for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--);
+    while (j > i && isHTTPWhiteSpace(str.charCodeAt(j - 1))) --j
   }
-
-  return str.slice(lead, trail + 1)
+  return i === 0 && j === str.length ? str : str.substring(i, j)
 }
 
 /**
  * @see https://infra.spec.whatwg.org/#ascii-whitespace
- * @param {string} char
+ * @param {number} char
  */
 function isASCIIWhitespace (char) {
-  return char === '\r' || char === '\n' || char === '\t' || char === '\f' || char === ' '
+  // "\r\n\t\f "
+  return char === 0x00d || char === 0x00a || char === 0x009 || char === 0x00c || char === 0x020
 }
 
 /**
  * @see https://infra.spec.whatwg.org/#strip-leading-and-trailing-ascii-whitespace
+ * @param {string} str
+ * @param {boolean} [leading=true]
+ * @param {boolean} [trailing=true]
  */
 function removeASCIIWhitespace (str, leading = true, trailing = true) {
-  let lead = 0
-  let trail = str.length - 1
-
+  let i = 0; let j = str.length
   if (leading) {
-    for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++);
+    while (j > i && isASCIIWhitespace(str.charCodeAt(i))) --i
   }
-
   if (trailing) {
-    for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--);
+    while (j > i && isASCIIWhitespace(str.charCodeAt(j - 1))) --j
   }
-
-  return str.slice(lead, trail + 1)
+  return i === 0 && j === str.length ? str : str.substring(i, j)
 }
 
 module.exports = {

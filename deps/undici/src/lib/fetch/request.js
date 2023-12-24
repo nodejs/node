@@ -32,8 +32,6 @@ const { kHeadersList, kConstruct } = require('../core/symbols')
 const assert = require('assert')
 const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
 
-let TransformStream = globalThis.TransformStream
-
 const kAbortController = Symbol('abortController')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
@@ -516,10 +514,6 @@ class Request {
       }
 
       // 2. Set finalBody to the result of creating a proxy for inputBody.
-      if (!TransformStream) {
-        TransformStream = require('stream/web').TransformStream
-      }
-
       // https://streams.spec.whatwg.org/#readablestream-create-a-proxy
       const identityTransform = new TransformStream()
       inputBody.stream.pipeThrough(identityTransform)

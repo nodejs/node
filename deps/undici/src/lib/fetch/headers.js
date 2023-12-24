@@ -114,7 +114,7 @@ function appendHeader (headers, name, value) {
   //    forbidden response-header name, return.
 
   // 7. Append (name, value) to headers’s header list.
-  return headers[kHeadersList].append(name, value)
+  return headers[kHeadersList].append(name, value, false)
 
   // 8. If headers’s guard is "request-no-cors", then remove
   //    privileged no-CORS request headers from headers
@@ -135,14 +135,17 @@ class HeadersList {
     }
   }
 
-  // https://fetch.spec.whatwg.org/#header-list-contains
-  contains (name) {
+  /**
+   * @see https://fetch.spec.whatwg.org/#header-list-contains
+   * @param {string} name
+   * @param {boolean} isLowerCase
+   */
+  contains (name, isLowerCase) {
     // A header list list contains a header name name if list
     // contains a header whose name is a byte-case-insensitive
     // match for name.
-    name = name.toLowerCase()
 
-    return this[kHeadersMap].has(name)
+    return this[kHeadersMap].has(isLowerCase ? name : name.toLowerCase())
   }
 
   clear () {
@@ -151,13 +154,18 @@ class HeadersList {
     this.cookies = null
   }
 
-  // https://fetch.spec.whatwg.org/#concept-header-list-append
-  append (name, value) {
+  /**
+   * @see https://fetch.spec.whatwg.org/#concept-header-list-append
+   * @param {string} name
+   * @param {string} value
+   * @param {boolean} isLowerCase
+   */
+  append (name, value, isLowerCase) {
     this[kHeadersSortedMap] = null
 
     // 1. If list contains name, then set name to the first such
     //    header’s name.
-    const lowercaseName = name.toLowerCase()
+    const lowercaseName = isLowerCase ? name : name.toLowerCase()
     const exists = this[kHeadersMap].get(lowercaseName)
 
     // 2. Append (name, value) to list.
@@ -172,15 +180,19 @@ class HeadersList {
     }
 
     if (lowercaseName === 'set-cookie') {
-      this.cookies ??= []
-      this.cookies.push(value)
+      (this.cookies ??= []).push(value)
     }
   }
 
-  // https://fetch.spec.whatwg.org/#concept-header-list-set
-  set (name, value) {
+  /**
+   * @see https://fetch.spec.whatwg.org/#concept-header-list-set
+   * @param {string} name
+   * @param {string} value
+   * @param {boolean} isLowerCase
+   */
+  set (name, value, isLowerCase) {
     this[kHeadersSortedMap] = null
-    const lowercaseName = name.toLowerCase()
+    const lowercaseName = isLowerCase ? name : name.toLowerCase()
 
     if (lowercaseName === 'set-cookie') {
       this.cookies = [value]
@@ -193,11 +205,14 @@ class HeadersList {
     this[kHeadersMap].set(lowercaseName, { name, value })
   }
 
-  // https://fetch.spec.whatwg.org/#concept-header-list-delete
-  delete (name) {
+  /**
+   * @see https://fetch.spec.whatwg.org/#concept-header-list-delete
+   * @param {string} name
+   * @param {boolean} isLowerCase
+   */
+  delete (name, isLowerCase) {
     this[kHeadersSortedMap] = null
-
-    name = name.toLowerCase()
+    if (!isLowerCase) name = name.toLowerCase()
 
     if (name === 'set-cookie') {
       this.cookies = null
@@ -206,15 +221,18 @@ class HeadersList {
     this[kHeadersMap].delete(name)
   }
 
-  // https://fetch.spec.whatwg.org/#concept-header-list-get
-  get (name) {
-    const value = this[kHeadersMap].get(name.toLowerCase())
-
+  /**
+   * @see https://fetch.spec.whatwg.org/#concept-header-list-get
+   * @param {string} name
+   * @param {boolean} isLowerCase
+   * @returns {string | null}
+   */
+  get (name, isLowerCase) {
     // 1. If list does not contain name, then return null.
     // 2. Return the values of all headers in list whose name
     //    is a byte-case-insensitive match for name,
     //    separated from each other by 0x2C 0x20, in order.
-    return value === undefined ? null : value.value
+    return this[kHeadersMap].get(isLowerCase ? name : name.toLowerCase())?.value ?? null
   }
 
   * [Symbol.iterator] () {
@@ -304,14 +322,14 @@ class Headers {
 
     // 6. If this’s header list does not contain name, then
     //    return.
-    if (!this[kHeadersList].contains(name)) {
+    if (!this[kHeadersList].contains(name, false)) {
       return
     }
 
     // 7. Delete name from this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this.
-    this[kHeadersList].delete(name)
+    this[kHeadersList].delete(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-get
@@ -333,7 +351,7 @@ class Headers {
 
     // 2. Return the result of getting name from this’s header
     //    list.
-    return this[kHeadersList].get(name)
+    return this[kHeadersList].get(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-has
@@ -355,7 +373,7 @@ class Headers {
 
     // 2. Return true if this’s header list contains name;
     //    otherwise false.
-    return this[kHeadersList].contains(name)
+    return this[kHeadersList].contains(name, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-set
@@ -404,7 +422,7 @@ class Headers {
     // 7. Set (name, value) in this’s header list.
     // 8. If this’s guard is "request-no-cors", then remove
     //    privileged no-CORS request headers from this
-    this[kHeadersList].set(name, value)
+    this[kHeadersList].set(name, value, false)
   }
 
   // https://fetch.spec.whatwg.org/#dom-headers-getsetcookie
