@@ -17,6 +17,7 @@ import ProxyAgent from'./proxy-agent'
 import RetryHandler from'./retry-handler'
 import { request, pipeline, stream, connect, upgrade } from './api'
 
+export * from './util'
 export * from './cookies'
 export * from './fetch'
 export * from './file'

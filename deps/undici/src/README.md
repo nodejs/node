@@ -180,8 +180,6 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 * https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 * https://fetch.spec.whatwg.org/#fetch-method
 
-Only supported on Node 16.8+.
-
 Basic usage example:
 
 ```js

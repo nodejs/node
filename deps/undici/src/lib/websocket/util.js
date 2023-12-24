@@ -182,6 +182,7 @@ function failWebsocketConnection (ws, reason) {
   }
 
   if (reason) {
+    // TODO: process.nextTick
     fireEvent('error', ws, ErrorEvent, {
       error: new Error(reason)
     })

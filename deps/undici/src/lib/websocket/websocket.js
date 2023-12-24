@@ -1,7 +1,6 @@
 'use strict'
 
 const { webidl } = require('../fetch/webidl')
-const { DOMException } = require('../fetch/constants')
 const { URLSerializer } = require('../fetch/dataURL')
 const { getGlobalOrigin } = require('../fetch/global')
 const { staticPropertyDescriptors, states, opcodes, emptyBuffer } = require('./constants')

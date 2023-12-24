@@ -3,7 +3,7 @@
 const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
 const { performance } = require('perf_hooks')
-const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
+const { isBlobLike, toUSVString, ReadableStreamFrom, isValidHTTPToken } = require('../core/util')
 const assert = require('assert')
 const { isUint8Array } = require('util/types')
 
@@ -35,7 +35,7 @@ function responseLocationURL (response, requestFragment) {
 
   // 2. Let location be the result of extracting header list values given
   // `Location` and response’s header list.
-  let location = response.headersList.get('location')
+  let location = response.headersList.get('location', true)
 
   // 3. If location is a header value, then set location to the result of
   //    parsing location with response’s URL.
@@ -104,52 +104,6 @@ function isValidReasonPhrase (statusText) {
 }
 
 /**
- * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
- * @param {number} c
- */
-function isTokenCharCode (c) {
-  switch (c) {
-    case 0x22:
-    case 0x28:
-    case 0x29:
-    case 0x2c:
-    case 0x2f:
-    case 0x3a:
-    case 0x3b:
-    case 0x3c:
-    case 0x3d:
-    case 0x3e:
-    case 0x3f:
-    case 0x40:
-    case 0x5b:
-    case 0x5c:
-    case 0x5d:
-    case 0x7b:
-    case 0x7d:
-      // DQUOTE and "(),/:;<=>?@[\]{}"
-      return false
-    default:
-      // VCHAR %x21-7E
-      return c >= 0x21 && c <= 0x7e
-  }
-}
-
-/**
- * @param {string} characters
- */
-function isValidHTTPToken (characters) {
-  if (characters.length === 0) {
-    return false
-  }
-  for (let i = 0; i < characters.length; ++i) {
-    if (!isTokenCharCode(characters.charCodeAt(i))) {
-      return false
-    }
-  }
-  return true
-}
-
-/**
  * @see https://fetch.spec.whatwg.org/#header-name
  * @param {string} potentialValue
  */
@@ -199,7 +153,7 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
   // 2. Let policy be the empty string.
   // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
   // 4. Return policy.
-  const policyHeader = (headersList.get('referrer-policy') ?? '').split(',')
+  const policyHeader = (headersList.get('referrer-policy', true) ?? '').split(',')
 
   // Note: As the referrer-policy can contain multiple policies
   // separated by comma, we need to loop through all of them
@@ -258,7 +212,7 @@ function appendFetchMetadata (httpRequest) {
   header = httpRequest.mode
 
   //  4. Set a structured field value `Sec-Fetch-Mode`/header in r’s header list.
-  httpRequest.headersList.set('sec-fetch-mode', header)
+  httpRequest.headersList.set('sec-fetch-mode', header, true)
 
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-site-header
   //  TODO
@@ -275,7 +229,7 @@ function appendRequestOriginHeader (request) {
   // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
   if (request.responseTainting === 'cors' || request.mode === 'websocket') {
     if (serializedOrigin) {
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
 
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
@@ -306,14 +260,43 @@ function appendRequestOriginHeader (request) {
 
     if (serializedOrigin) {
       // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
   }
 }
 
-function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+// https://w3c.github.io/hr-time/#dfn-coarsen-time
+function coarsenTime (timestamp, crossOriginIsolatedCapability) {
   // TODO
-  return performance.now()
+  return timestamp
+}
+
+// https://fetch.spec.whatwg.org/#clamp-and-coarsen-connection-timing-info
+function clampAndCoursenConnectionTimingInfo (connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
+  if (!connectionTimingInfo?.startTime || connectionTimingInfo.startTime < defaultStartTime) {
+    return {
+      domainLookupStartTime: defaultStartTime,
+      domainLookupEndTime: defaultStartTime,
+      connectionStartTime: defaultStartTime,
+      connectionEndTime: defaultStartTime,
+      secureConnectionStartTime: defaultStartTime,
+      ALPNNegotiatedProtocol: connectionTimingInfo?.ALPNNegotiatedProtocol
+    }
+  }
+
+  return {
+    domainLookupStartTime: coarsenTime(connectionTimingInfo.domainLookupStartTime, crossOriginIsolatedCapability),
+    domainLookupEndTime: coarsenTime(connectionTimingInfo.domainLookupEndTime, crossOriginIsolatedCapability),
+    connectionStartTime: coarsenTime(connectionTimingInfo.connectionStartTime, crossOriginIsolatedCapability),
+    connectionEndTime: coarsenTime(connectionTimingInfo.connectionEndTime, crossOriginIsolatedCapability),
+    secureConnectionStartTime: coarsenTime(connectionTimingInfo.secureConnectionStartTime, crossOriginIsolatedCapability),
+    ALPNNegotiatedProtocol: connectionTimingInfo.ALPNNegotiatedProtocol
+  }
+}
+
+// https://w3c.github.io/hr-time/#dfn-coarsened-shared-current-time
+function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+  return coarsenTime(performance.now(), crossOriginIsolatedCapability)
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
@@ -890,36 +873,34 @@ async function fullyReadBody (body, processBody, processBodyError) {
   }
 }
 
-/** @type {ReadableStream} */
-let ReadableStream = globalThis.ReadableStream
-
 function isReadableStreamLike (stream) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
   return stream instanceof ReadableStream || (
     stream[Symbol.toStringTag] === 'ReadableStream' &&
     typeof stream.tee === 'function'
   )
 }
 
-const MAXIMUM_ARGUMENT_LENGTH = 65535
-
 /**
  * @see https://infra.spec.whatwg.org/#isomorphic-decode
- * @param {number[]|Uint8Array} input
+ * @param {Uint8Array} input
  */
 function isomorphicDecode (input) {
   // 1. To isomorphic decode a byte sequence input, return a string whose code point
   //    length is equal to input’s length and whose code points have the same values
   //    as the values of input’s bytes, in the same order.
-
-  if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
-    return String.fromCharCode(...input)
+  const length = input.length
+  if ((2 << 15) - 1 > length) {
+    return String.fromCharCode.apply(null, input)
   }
-
-  return input.reduce((previous, current) => previous + String.fromCharCode(current), '')
+  let result = ''; let i = 0
+  let addition = (2 << 15) - 1
+  while (i < length) {
+    if (i + addition > length) {
+      addition = length - i
+    }
+    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
+  }
+  return result
 }
 
 /**
@@ -928,9 +909,10 @@ function isomorphicDecode (input) {
 function readableStreamClose (controller) {
   try {
     controller.close()
+    controller.byobRequest?.respond(0)
   } catch (err) {
     // TODO: add comment explaining why this error occurs.
-    if (!err.message.includes('Controller is already closed')) {
+    if (!err.message.includes('Controller is already closed') && !err.message.includes('ReadableStream is already closed')) {
       throw err
     }
   }
@@ -1018,10 +1000,172 @@ function urlIsHttpHttpsScheme (url) {
   return protocol === 'http:' || protocol === 'https:'
 }
 
+/** @type {import('./dataURL')['collectASequenceOfCodePoints']} */
+let collectASequenceOfCodePoints
+
 /**
- * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
+ * @see https://fetch.spec.whatwg.org/#simple-range-header-value
+ * @param {string} value
+ * @param {boolean} allowWhitespace
  */
-const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
+function simpleRangeHeaderValue (value, allowWhitespace) {
+  // Note: avoid circular require
+  collectASequenceOfCodePoints ??= require('./dataURL').collectASequenceOfCodePoints
+
+  // 1. Let data be the isomorphic decoding of value.
+  // Note: isomorphic decoding takes a sequence of bytes (ie. a Uint8Array) and turns it into a string,
+  // nothing more. We obviously don't need to do that if value is a string already.
+  const data = value
+
+  // 2. If data does not start with "bytes", then return failure.
+  if (!data.startsWith('bytes')) {
+    return 'failure'
+  }
+
+  // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
+  const position = { position: 5 }
+
+  // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //    from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 5. If the code point at position within data is not U+003D (=), then return failure.
+  if (data.charCodeAt(position.position) !== 0x3D) {
+    return 'failure'
+  }
+
+  // 6. Advance position by 1.
+  position.position++
+
+  // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from
+  //    data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits,
+  //    from data given position.
+  const rangeStart = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the
+  //    empty string; otherwise null.
+  const rangeStartValue = rangeStart.length ? Number(rangeStart) : null
+
+  // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //     from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 11. If the code point at position within data is not U+002D (-), then return failure.
+  if (data.charCodeAt(position.position) !== 0x2D) {
+    return 'failure'
+  }
+
+  // 12. Advance position by 1.
+  position.position++
+
+  // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab
+  //     or space, from data given position.
+  // Note from Khafra: its the same fucking step again lol
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 14. Let rangeEnd be the result of collecting a sequence of code points that are
+  //     ASCII digits, from data given position.
+  // Note from Khafra: you wouldn't guess it, but this is also the same step as #8
+  const rangeEnd = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd
+  //     is not the empty string; otherwise null.
+  // Note from Khafra: THE SAME STEP, AGAIN!!!
+  // Note: why interpret as a decimal if we only collect ascii digits?
+  const rangeEndValue = rangeEnd.length ? Number(rangeEnd) : null
+
+  // 16. If position is not past the end of data, then return failure.
+  if (position.position < data.length) {
+    return 'failure'
+  }
+
+  // 17. If rangeEndValue and rangeStartValue are null, then return failure.
+  if (rangeEndValue === null && rangeStartValue === null) {
+    return 'failure'
+  }
+
+  // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is
+  //     greater than rangeEndValue, then return failure.
+  // Note: ... when can they not be numbers?
+  if (rangeStartValue > rangeEndValue) {
+    return 'failure'
+  }
+
+  // 19. Return (rangeStartValue, rangeEndValue).
+  return { rangeStartValue, rangeEndValue }
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#build-a-content-range
+ * @param {number} rangeStart
+ * @param {number} rangeEnd
+ * @param {number} fullLength
+ */
+function buildContentRange (rangeStart, rangeEnd, fullLength) {
+  // 1. Let contentRange be `bytes `.
+  let contentRange = 'bytes '
+
+  // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
+  contentRange += isomorphicEncode(`${rangeStart}`)
+
+  // 3. Append 0x2D (-) to contentRange.
+  contentRange += '-'
+
+  // 4. Append rangeEnd, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${rangeEnd}`)
+
+  // 5. Append 0x2F (/) to contentRange.
+  contentRange += '/'
+
+  // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${fullLength}`)
+
+  // 7. Return contentRange.
+  return contentRange
+}
 
 module.exports = {
   isAborted,
@@ -1030,6 +1174,7 @@ module.exports = {
   ReadableStreamFrom,
   toUSVString,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
+  clampAndCoursenConnectionTimingInfo,
   coarsenedSharedCurrentTime,
   determineRequestsReferrer,
   makePolicyContainer,
@@ -1055,7 +1200,6 @@ module.exports = {
   makeIterator,
   isValidHeaderName,
   isValidHeaderValue,
-  hasOwn,
   isErrorLike,
   fullyReadBody,
   bytesMatch,
@@ -1067,5 +1211,7 @@ module.exports = {
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
   readAllBytes,
-  normalizeMethodRecord
+  normalizeMethodRecord,
+  simpleRangeHeaderValue,
+  buildContentRange
 }
