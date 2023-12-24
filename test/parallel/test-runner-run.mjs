@@ -465,6 +465,19 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
           code: 'ERR_INVALID_ARG_TYPE'
         }));
     });
+
+    it('should pass instance of stream to setup', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+        setup: common.mustCall((root) => {
+          assert.strictEqual(root.constructor.name, 'TestsStream');
+        }),
+      });
+      stream.on('test:fail', common.mustNotCall());
+      stream.on('test:pass', common.mustCall());
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
   });
 
   it('should run with no files', async () => {
