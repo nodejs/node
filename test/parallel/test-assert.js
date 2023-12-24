@@ -38,7 +38,7 @@ const start = 'Expected values to be strictly deep-equal:';
 const actExp = '+ actual - expected';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
-          'a.AssertionError instanceof Error');
+  'a.AssertionError instanceof Error');
 
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
@@ -55,6 +55,52 @@ assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
   assert.ok(threw, 'Error: ok(false)');
 }
 
+// Throw message if the message is instanceof Error.
+{
+  let threw = false;
+  const context = vm.createContext();
+  try {
+    const errorConstructor = vm.runInContext('Error', context);
+    const customError = new errorConstructor('ok(false)');
+    assert.ok(false, customError.message);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof Error);
+  }
+  assert.ok(threw, 'Error: ok(false)');
+}
+
+// Throw message if the message is instanceof TypeError.
+{
+  let threw = false;
+  const context = vm.createContext();
+  context.TypeError = TypeError;
+  try {
+   const TypeErrorConstructor = vm.runInContext('TypeError', context);
+   const customTypeError = new TypeErrorConstructor('ok(false)');
+   assert.ok(false, customTypeError);
+  } catch (e) {
+   threw = true;
+   assert.ok(e instanceof Error);
+  }
+  assert.ok(threw, 'TypeError: ok(false)');
+}
+
+// Throw message if the message is instanceof SyntaxError.
+{
+  let threw = false;
+  const context = vm.createContext();
+  context.SyntaxError = SyntaxError;
+  try {
+    const SyntaxErrorConstructor = vm.runInContext('SyntaxError', context);
+    const customSyntaxError = new SyntaxErrorConstructor('ok(false)');
+    assert.ok(false, customSyntaxError);
+  } catch (e) {
+    threw = true;
+    assert.ok(e instanceof Error);
+  }
+  assert.ok(threw, 'SyntaxError: ok(false)');
+}
 
 a(true);
 a('test', 'ok(\'test\')');
