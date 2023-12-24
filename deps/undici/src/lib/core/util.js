@@ -9,6 +9,8 @@ const { InvalidArgumentError } = require('./errors')
 const { Blob } = require('buffer')
 const nodeUtil = require('util')
 const { stringify } = require('querystring')
+const { headerNameLowerCasedRecord } = require('./constants')
+const { tree } = require('./tree')
 
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
 
@@ -218,22 +220,49 @@ function parseKeepAliveTimeout (val) {
   return m ? parseInt(m[1], 10) * 1000 : null
 }
 
-function parseHeaders (headers, obj = {}) {
+/**
+ * Retrieves a header name and returns its lowercase value.
+ * @param {string | Buffer} value Header name
+ * @returns {string}
+ */
+function headerNameToString (value) {
+  return typeof value === 'string'
+    ? headerNameLowerCasedRecord[value] ?? value.toLowerCase()
+    : tree.lookup(value) ?? value.toString('latin1').toLowerCase()
+}
+
+/**
+ * Receive the buffer as a string and return its lowercase value.
+ * @param {Buffer} value Header name
+ * @returns {string}
+ */
+function bufferToLowerCasedHeaderName (value) {
+  return tree.lookup(value) ?? value.toString('latin1').toLowerCase()
+}
+
+/**
+ * @param {Record<string, string | string[]> | (Buffer | string | (Buffer | string)[])[]} headers
+ * @param {Record<string, string | string[]>} [obj]
+ * @returns {Record<string, string | string[]>}
+ */
+function parseHeaders (headers, obj) {
   // For H2 support
   if (!Array.isArray(headers)) return headers
 
+  if (obj === undefined) obj = {}
   for (let i = 0; i < headers.length; i += 2) {
-    const key = headers[i].toString().toLowerCase()
+    const key = headerNameToString(headers[i])
     let val = obj[key]
 
     if (!val) {
-      if (Array.isArray(headers[i + 1])) {
-        obj[key] = headers[i + 1].map(x => x.toString('utf8'))
+      const headersValue = headers[i + 1]
+      if (typeof headersValue === 'string') {
+        obj[key] = headersValue
       } else {
-        obj[key] = headers[i + 1].toString('utf8')
+        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
       }
     } else {
-      if (!Array.isArray(val)) {
+      if (typeof val === 'string') {
         val = [val]
         obj[key] = val
       }
@@ -331,19 +360,11 @@ function isDisturbed (body) {
 }
 
 function isErrored (body) {
-  return !!(body && (
-    stream.isErrored
-      ? stream.isErrored(body)
-      : /state: 'errored'/.test(nodeUtil.inspect(body)
-      )))
+  return !!(body && stream.isErrored(body))
 }
 
 function isReadable (body) {
-  return !!(body && (
-    stream.isReadable
-      ? stream.isReadable(body)
-      : /state: 'readable'/.test(nodeUtil.inspect(body)
-      )))
+  return !!(body && stream.isReadable(body))
 }
 
 function getSocketInfo (socket) {
@@ -359,21 +380,9 @@ function getSocketInfo (socket) {
   }
 }
 
-async function * convertIterableToBuffer (iterable) {
-  for await (const chunk of iterable) {
-    yield Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-  }
-}
-
-let ReadableStream
+/** @type {globalThis['ReadableStream']} */
 function ReadableStreamFrom (iterable) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
-  if (ReadableStream.from) {
-    return ReadableStream.from(convertIterableToBuffer(iterable))
-  }
+  // We cannot use ReadableStream.from here because it does not return a byte stream.
 
   let iterator
   return new ReadableStream(
@@ -386,18 +395,21 @@ function ReadableStreamFrom (iterable) {
         if (done) {
           queueMicrotask(() => {
             controller.close()
+            controller.byobRequest?.respond(0)
           })
         } else {
           const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
-          controller.enqueue(new Uint8Array(buf))
+          if (buf.byteLength) {
+            controller.enqueue(new Uint8Array(buf))
+          }
         }
         return controller.desiredSize > 0
       },
       async cancel (reason) {
         await iterator.return()
-      }
-    },
-    0
+      },
+      type: 'bytes'
+    }
   )
 }
 
@@ -415,20 +427,6 @@ function isFormDataLike (object) {
     typeof object.set === 'function' &&
     object[Symbol.toStringTag] === 'FormData'
   )
-}
-
-function throwIfAborted (signal) {
-  if (!signal) { return }
-  if (typeof signal.throwIfAborted === 'function') {
-    signal.throwIfAborted()
-  } else {
-    if (signal.aborted) {
-      // DOMException not available < v17.0.0
-      const err = new Error('The operation was aborted')
-      err.name = 'AbortError'
-      throw err
-    }
-  }
 }
 
 function addAbortListener (signal, listener) {
@@ -453,6 +451,52 @@ function toUSVString (val) {
   }
 
   return `${val}`
+}
+
+/**
+ * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
+ * @param {number} c
+ */
+function isTokenCharCode (c) {
+  switch (c) {
+    case 0x22:
+    case 0x28:
+    case 0x29:
+    case 0x2c:
+    case 0x2f:
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+    case 0x3f:
+    case 0x40:
+    case 0x5b:
+    case 0x5c:
+    case 0x5d:
+    case 0x7b:
+    case 0x7d:
+      // DQUOTE and "(),/:;<=>?@[\]{}"
+      return false
+    default:
+      // VCHAR %x21-7E
+      return c >= 0x21 && c <= 0x7e
+  }
+}
+
+/**
+ * @param {string} characters
+ */
+function isValidHTTPToken (characters) {
+  if (characters.length === 0) {
+    return false
+  }
+  for (let i = 0; i < characters.length; ++i) {
+    if (!isTokenCharCode(characters.charCodeAt(i))) {
+      return false
+    }
+  }
+  return true
 }
 
 // Parsed accordingly to RFC 9110
@@ -489,6 +533,8 @@ module.exports = {
   isIterable,
   isAsyncIterable,
   isDestroyed,
+  headerNameToString,
+  bufferToLowerCasedHeaderName,
   parseRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,
@@ -501,8 +547,9 @@ module.exports = {
   getSocketInfo,
   isFormDataLike,
   buildURL,
-  throwIfAborted,
   addAbortListener,
+  isValidHTTPToken,
+  isTokenCharCode,
   parseRangeHeader,
   nodeMajor,
   nodeMinor,

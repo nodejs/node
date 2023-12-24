@@ -135,7 +135,7 @@ class RedirectHandler {
 
         For status 300, which is "Multiple Choices", the spec mentions both generating a Location
         response header AND a response body with the other possible location to follow.
-        Since the spec explicitily chooses not to specify a format for such body and leave it to
+        Since the spec explicitly chooses not to specify a format for such body and leave it to
         servers and browsers implementors, we ignore the body as there is no specified way to eventually parse it.
       */
     } else {
@@ -151,7 +151,7 @@ class RedirectHandler {
         TLDR: undici always ignores 3xx response trailers as they are not expected in case of redirections
         and neither are useful if present.
 
-        See comment on onData method above for more detailed informations.
+        See comment on onData method above for more detailed information.
       */
 
       this.location = null
@@ -176,7 +176,7 @@ function parseLocation (statusCode, headers) {
   }
 
   for (let i = 0; i < headers.length; i += 2) {
-    if (headers[i].toString().toLowerCase() === 'location') {
+    if (headers[i].length === 8 && util.headerNameToString(headers[i]) === 'location') {
       return headers[i + 1]
     }
   }
@@ -184,12 +184,17 @@ function parseLocation (statusCode, headers) {
 
 // https://tools.ietf.org/html/rfc7231#section-6.4.4
 function shouldRemoveHeader (header, removeContent, unknownOrigin) {
-  return (
-    (header.length === 4 && header.toString().toLowerCase() === 'host') ||
-    (removeContent && header.toString().toLowerCase().indexOf('content-') === 0) ||
-    (unknownOrigin && header.length === 13 && header.toString().toLowerCase() === 'authorization') ||
-    (unknownOrigin && header.length === 6 && header.toString().toLowerCase() === 'cookie')
-  )
+  if (header.length === 4) {
+    return util.headerNameToString(header) === 'host'
+  }
+  if (removeContent && util.headerNameToString(header).startsWith('content-')) {
+    return true
+  }
+  if (unknownOrigin && (header.length === 13 || header.length === 6)) {
+    const name = util.headerNameToString(header)
+    return name === 'authorization' || name === 'cookie'
+  }
+  return false
 }
 
 // https://tools.ietf.org/html/rfc7231#section-6.4

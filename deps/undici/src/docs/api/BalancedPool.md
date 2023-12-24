@@ -50,7 +50,7 @@ Arguments:
 
 ### `BalancedPool.removeUpstream(upstream)`
 
-Removes an upstream that was previously addded.
+Removes an upstream that was previously added.
 
 ### `BalancedPool.close([callback])`
 

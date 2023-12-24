@@ -261,6 +261,7 @@ function onSocketClose () {
   //    attribute initialized to the result of applying UTF-8
   //    decode without BOM to the WebSocket connection close
   //    reason.
+  // TODO: process.nextTick
   fireEvent('close', ws, CloseEvent, {
     wasClean, code, reason
   })
