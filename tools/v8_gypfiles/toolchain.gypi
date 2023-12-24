@@ -138,7 +138,11 @@
         'cflags': [ '-Werror', '-Wno-unknown-pragmas' ],
       },{
         'cflags!': [ '-Wall', '-Wextra' ],
-        'cflags': [ '-Wno-return-type' ],
+        'cflags': [
+          '-Wno-return-type',
+          # On by default in Clang and V8 requires it at least for arm64.
+          '-flax-vector-conversions',
+        ],
       }],
       ['clang or OS!="win"', {
         'cflags': [ '-Wno-invalid-offsetof' ],
