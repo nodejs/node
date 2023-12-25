@@ -89,7 +89,7 @@ Local<Context> ModuleWrap::context() const {
   // If this fails, there is likely a bug e.g. ModuleWrap::context() is accessed
   // before the ModuleWrap constructor completes.
   CHECK(obj->IsObject());
-  return obj.As<Object>()->GetCreationContext().ToLocalChecked();
+  return obj.As<Object>()->GetCreationContextChecked();
 }
 
 ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
