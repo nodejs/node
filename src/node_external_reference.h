@@ -13,6 +13,7 @@ namespace node {
 using CFunctionCallbackWithOneByteString =
     uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
 using CFunctionCallback = void (*)(v8::Local<v8::Value> receiver);
+using CFunctionCallbackReturnVoid = void (*)(v8::Local<v8::Object> receiver);
 using CFunctionCallbackReturnDouble =
     double (*)(v8::Local<v8::Object> receiver);
 using CFunctionCallbackValueReturnDouble =
@@ -39,6 +40,7 @@ class ExternalReferenceRegistry {
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
   V(CFunctionCallback)                                                         \
   V(CFunctionCallbackWithOneByteString)                                        \
+  V(CFunctionCallbackReturnVoid)                                               \
   V(CFunctionCallbackReturnDouble)                                             \
   V(CFunctionCallbackValueReturnDouble)                                        \
   V(CFunctionCallbackWithInt64)                                                \

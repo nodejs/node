@@ -13,6 +13,7 @@
 namespace node {
 
 using errors::TryCatchScope;
+using v8::CFunction;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -142,6 +143,13 @@ static void RunMicrotasks(const FunctionCallbackInfo<Value>& args) {
   env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
 }
 
+static void FastRunMicrotasks(Local<Object> recv) {
+  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
+  env->context()->GetMicrotaskQueue()->PerformCheckpoint(env->isolate());
+}
+
+static CFunction fast_run_microtasks_(CFunction::Make(FastRunMicrotasks));
+
 static void SetTickCallback(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsFunction());
@@ -165,7 +173,8 @@ static void Initialize(Local<Object> target,
 
   SetMethod(context, target, "enqueueMicrotask", EnqueueMicrotask);
   SetMethod(context, target, "setTickCallback", SetTickCallback);
-  SetMethod(context, target, "runMicrotasks", RunMicrotasks);
+  SetFastMethod(
+      context, target, "runMicrotasks", RunMicrotasks, &fast_run_microtasks_);
   target->Set(env->context(),
               FIXED_ONE_BYTE_STRING(isolate, "tickInfo"),
               env->tick_info()->fields().GetJSArray()).Check();
@@ -187,6 +196,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EnqueueMicrotask);
   registry->Register(SetTickCallback);
   registry->Register(RunMicrotasks);
+  registry->Register(FastRunMicrotasks);
+  registry->Register(fast_run_microtasks_.GetTypeInfo());
   registry->Register(SetPromiseRejectCallback);
 }
 
