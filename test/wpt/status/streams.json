@@ -59,12 +59,5 @@
   },
   "readable-streams/read-task-handling.window.js": {
     "skip": "Browser-specific test"
-  },
-  "transform-streams/cancel.any.js": {
-    "fail": {
-      "expected": [
-        "readable.cancel() and a parallel writable.close() should reject if a transformer.cancel() calls controller.error()"
-      ]
-    }
   }
 }
