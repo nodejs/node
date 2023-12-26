@@ -55,7 +55,7 @@ int ngtcp2_ppe_encode_hd(ngtcp2_ppe *ppe, const ngtcp2_pkt_hd *hd) {
   if (hd->flags & NGTCP2_PKT_FLAG_LONG_FORM) {
     ppe->len_offset = 1 + 4 + 1 + hd->dcid.datalen + 1 + hd->scid.datalen;
     if (hd->type == NGTCP2_PKT_INITIAL) {
-      ppe->len_offset += ngtcp2_put_varint_len(hd->token.len) + hd->token.len;
+      ppe->len_offset += ngtcp2_put_uvarintlen(hd->tokenlen) + hd->tokenlen;
     }
     ppe->pkt_num_offset = ppe->len_offset + NGTCP2_PKT_LENGTHLEN;
     rv = ngtcp2_pkt_encode_hd_long(
@@ -115,7 +115,7 @@ ngtcp2_ssize ngtcp2_ppe_final(ngtcp2_ppe *ppe, const uint8_t **ppkt) {
   assert(cc->hp_mask);
 
   if (ppe->len_offset) {
-    ngtcp2_put_varint30(
+    ngtcp2_put_uvarint30(
         buf->begin + ppe->len_offset,
         (uint16_t)(payloadlen + ppe->pkt_numlen + cc->aead.max_overhead));
   }

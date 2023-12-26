@@ -22,8 +22,8 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef NGTCP2_CRYPTO_OPENSSL_H
-#define NGTCP2_CRYPTO_OPENSSL_H
+#ifndef NGTCP2_CRYPTO_QUICTLS_H
+#define NGTCP2_CRYPTO_QUICTLS_H
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -36,57 +36,57 @@ extern "C" {
 /**
  * @macrosection
  *
- * OpenSSL specific error codes
+ * quictls specific error codes
  */
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP` is the
+ * :macro:`NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP` is the
  * error code which indicates that TLS handshake routine is
  * interrupted by X509 certificate lookup.  See
  * :macro:`SSL_ERROR_WANT_X509_LOOKUP` error description from
  * `SSL_do_handshake`.
  */
-#define NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP -10001
+#define NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP -10001
 
 /**
  * @macro
  *
- * :macro:`NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB` is the
+ * :macro:`NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB` is the
  * error code which indicates that TLS handshake routine is
  * interrupted by client hello callback.  See
  * :macro:`SSL_ERROR_WANT_CLIENT_HELLO_CB` error description from
  * `SSL_do_handshake`.
  */
-#define NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB -10002
+#define NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB -10002
 
 /**
  * @function
  *
- * `ngtcp2_crypto_openssl_from_ossl_encryption_level` translates
- * |ossl_level| to :type:`ngtcp2_crypto_level`.  This function is only
- * available for OpenSSL backend.
+ * `ngtcp2_crypto_quictls_from_ossl_encryption_level` translates
+ * |ossl_level| to :type:`ngtcp2_encryption_level`.  This function is
+ * only available for quictls backend.
  */
-NGTCP2_EXTERN ngtcp2_crypto_level
-ngtcp2_crypto_openssl_from_ossl_encryption_level(
+NGTCP2_EXTERN ngtcp2_encryption_level
+ngtcp2_crypto_quictls_from_ossl_encryption_level(
     OSSL_ENCRYPTION_LEVEL ossl_level);
 
 /**
  * @function
  *
- * `ngtcp2_crypto_openssl_from_ngtcp2_crypto_level` translates
- * |crypto_level| to OSSL_ENCRYPTION_LEVEL.  This function is only
- * available for OpenSSL backend.
+ * `ngtcp2_crypto_quictls_from_ngtcp2_encryption_level` translates
+ * |encryption_level| to OSSL_ENCRYPTION_LEVEL.  This function is only
+ * available for quictls backend.
  */
 NGTCP2_EXTERN OSSL_ENCRYPTION_LEVEL
-ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
-    ngtcp2_crypto_level crypto_level);
+ngtcp2_crypto_quictls_from_ngtcp2_encryption_level(
+    ngtcp2_encryption_level encryption_level);
 
 /**
  * @function
  *
- * `ngtcp2_crypto_openssl_configure_server_context` configures
+ * `ngtcp2_crypto_quictls_configure_server_context` configures
  * |ssl_ctx| for server side QUIC connection.  It performs the
  * following modifications:
  *
@@ -102,12 +102,12 @@ ngtcp2_crypto_openssl_from_ngtcp2_crypto_level(
  * It returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int
-ngtcp2_crypto_openssl_configure_server_context(SSL_CTX *ssl_ctx);
+ngtcp2_crypto_quictls_configure_server_context(SSL_CTX *ssl_ctx);
 
 /**
  * @function
  *
- * `ngtcp2_crypto_openssl_configure_client_context` configures
+ * `ngtcp2_crypto_quictls_configure_client_context` configures
  * |ssl_ctx| for client side QUIC connection.  It performs the
  * following modifications:
  *
@@ -123,10 +123,25 @@ ngtcp2_crypto_openssl_configure_server_context(SSL_CTX *ssl_ctx);
  * It returns 0 if it succeeds, or -1.
  */
 NGTCP2_EXTERN int
-ngtcp2_crypto_openssl_configure_client_context(SSL_CTX *ssl_ctx);
+ngtcp2_crypto_quictls_configure_client_context(SSL_CTX *ssl_ctx);
+
+/**
+ * @function
+ *
+ * `ngtcp2_crypto_quictls_init` initializes libngtcp2_crypto_quictls
+ * library.  This initialization is optional.  For quictls >= 3.0, it
+ * is highly recommended to call this function before any use of
+ * libngtcp2_crypto library API to workaround the performance
+ * regression.  Note that calling this function does not solve all
+ * performance issues introduced in 3.x.  For quictls 1.1.1, this
+ * function does nothing, and always succeeds.
+ *
+ * This function returns 0 if it succeeds, or -1.
+ */
+NGTCP2_EXTERN int ngtcp2_crypto_quictls_init(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* NGTCP2_CRYPTO_OPENSSL_H */
+#endif /* NGTCP2_CRYPTO_QUICTLS_H */
