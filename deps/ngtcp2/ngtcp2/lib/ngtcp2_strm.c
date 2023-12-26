@@ -30,6 +30,7 @@
 #include "ngtcp2_rtb.h"
 #include "ngtcp2_pkt.h"
 #include "ngtcp2_vec.h"
+#include "ngtcp2_frame_chain.h"
 
 static int offset_less(const ngtcp2_ksl_key *lhs, const ngtcp2_ksl_key *rhs) {
   return *(int64_t *)lhs < *(int64_t *)rhs;
@@ -46,9 +47,12 @@ void ngtcp2_strm_init(ngtcp2_strm *strm, int64_t stream_id, uint32_t flags,
   strm->tx.streamfrq = NULL;
   strm->tx.offset = 0;
   strm->tx.max_offset = max_tx_offset;
+  strm->tx.last_blocked_offset = UINT64_MAX;
   strm->tx.last_max_stream_data_ts = UINT64_MAX;
   strm->tx.loss_count = 0;
   strm->tx.last_lost_pkt_num = -1;
+  strm->tx.stop_sending_app_error_code = 0;
+  strm->tx.reset_stream_app_error_code = 0;
   strm->rx.rob = NULL;
   strm->rx.cont_offset = 0;
   strm->rx.last_offset = 0;
@@ -120,7 +124,7 @@ uint64_t ngtcp2_strm_rx_offset(ngtcp2_strm *strm) {
 /* strm_rob_heavily_fragmented returns nonzero if the number of gaps
    in |rob| exceeds the limit. */
 static int strm_rob_heavily_fragmented(ngtcp2_rob *rob) {
-  return ngtcp2_ksl_len(&rob->gapksl) >= 1000;
+  return ngtcp2_ksl_len(&rob->gapksl) >= 5000;
 }
 
 int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
@@ -134,10 +138,7 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
     }
 
     if (strm->rx.cont_offset) {
-      rv = ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
-      if (rv != 0) {
-        return rv;
-      }
+      ngtcp2_rob_remove_prefix(strm->rx.rob, strm->rx.cont_offset);
     }
   }
 
@@ -148,13 +149,13 @@ int ngtcp2_strm_recv_reordering(ngtcp2_strm *strm, const uint8_t *data,
   return ngtcp2_rob_push(strm->rx.rob, offset, data, datalen);
 }
 
-int ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
+void ngtcp2_strm_update_rx_offset(ngtcp2_strm *strm, uint64_t offset) {
   if (strm->rx.rob == NULL) {
     strm->rx.cont_offset = offset;
-    return 0;
+    return;
   }
 
-  return ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
+  ngtcp2_rob_remove_prefix(strm->rx.rob, offset);
 }
 
 void ngtcp2_strm_shutdown(ngtcp2_strm *strm, uint32_t flags) {
@@ -177,7 +178,8 @@ static int strm_streamfrq_init(ngtcp2_strm *strm) {
 int ngtcp2_strm_streamfrq_push(ngtcp2_strm *strm, ngtcp2_frame_chain *frc) {
   int rv;
 
-  assert(frc->fr.type == NGTCP2_FRAME_STREAM);
+  assert(frc->fr.type == NGTCP2_FRAME_STREAM ||
+         frc->fr.type == NGTCP2_FRAME_CRYPTO);
   assert(frc->next == NULL);
 
   if (strm->tx.streamfrq == NULL) {
@@ -308,7 +310,7 @@ static int strm_streamfrq_unacked_pop(ngtcp2_strm *strm,
 
     assert(nfr->data[0].len > end_base_offset);
 
-    nfr->type = NGTCP2_FRAME_STREAM;
+    nfr->type = fr->type;
     nfr->flags = 0;
     nfr->fin = fr->fin;
     nfr->stream_id = fr->stream_id;
@@ -379,18 +381,16 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
   fr = &frc->fr.stream;
   datalen = ngtcp2_vec_len(fr->data, fr->datacnt);
 
-  if (left == 0) {
-    /* datalen could be zero if 0 length STREAM has been sent */
-    if (datalen || ngtcp2_ksl_len(strm->tx.streamfrq) > 1) {
-      rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
-      if (rv != 0) {
-        assert(ngtcp2_err_is_fatal(rv));
-        ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
-        return rv;
-      }
-      *pfrc = NULL;
-      return 0;
+  /* datalen could be zero if 0 length STREAM has been sent */
+  if (left == 0 && datalen) {
+    rv = ngtcp2_ksl_insert(strm->tx.streamfrq, NULL, &fr->offset, frc);
+    if (rv != 0) {
+      assert(ngtcp2_err_is_fatal(rv));
+      ngtcp2_frame_chain_objalloc_del(frc, strm->frc_objalloc, strm->mem);
+      return rv;
     }
+    *pfrc = NULL;
+    return 0;
   }
 
   if (datalen > left) {
@@ -412,7 +412,7 @@ int ngtcp2_strm_streamfrq_pop(ngtcp2_strm *strm, ngtcp2_frame_chain **pfrc,
     }
 
     nfr = &nfrc->fr.stream;
-    nfr->type = NGTCP2_FRAME_STREAM;
+    nfr->type = fr->type;
     nfr->flags = 0;
     nfr->fin = fr->fin;
     nfr->stream_id = fr->stream_id;
