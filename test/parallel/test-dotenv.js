@@ -70,3 +70,9 @@ assert.strictEqual(process.env.EMAIL, 'therealnerdybeast@example.tld');
 assert.strictEqual(process.env.SPACED_KEY, 'parsed');
 // Parse inline comments correctly when multiple quotes
 assert.strictEqual(process.env.EDGE_CASE_INLINE_COMMENTS, 'VALUE1');
+// Test multiple-line value
+assert.strictEqual(process.env.MULTI_DOUBLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTRING');
+assert.strictEqual(process.env.MULTI_SINGLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTRING');
+assert.strictEqual(process.env.MULTI_BACKTICKED, 'THIS\nIS\nA\n"MULTILINE\'S"\nSTRING');
+assert.strictEqual(process.env.MULTI_NOT_VALID_QUOTE, '"');
+assert.strictEqual(process.env.MULTI_NOT_VALID, 'THIS');
