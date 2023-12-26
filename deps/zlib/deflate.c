@@ -1345,7 +1345,11 @@ int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) {
     ds->window = (Bytef *) ZALLOC(dest, ds->w_size, 2*sizeof(Byte));
     ds->prev   = (Posf *)  ZALLOC(dest, ds->w_size, sizeof(Pos));
     ds->head   = (Posf *)  ZALLOC(dest, ds->hash_size, sizeof(Pos));
+#ifdef LIT_MEM
+    ds->pending_buf = (uchf *) ZALLOC(dest, ds->lit_bufsize, 5);
+#else
     ds->pending_buf = (uchf *) ZALLOC(dest, ds->lit_bufsize, 4);
+#endif
 
     if (ds->window == Z_NULL || ds->prev == Z_NULL || ds->head == Z_NULL ||
         ds->pending_buf == Z_NULL) {
@@ -1356,7 +1360,11 @@ int ZEXPORT deflateCopy(z_streamp dest, z_streamp source) {
     zmemcpy(ds->window, ss->window, ds->w_size * 2 * sizeof(Byte));
     zmemcpy((voidpf)ds->prev, (voidpf)ss->prev, ds->w_size * sizeof(Pos));
     zmemcpy((voidpf)ds->head, (voidpf)ss->head, ds->hash_size * sizeof(Pos));
+#ifdef LIT_MEM
+    zmemcpy(ds->pending_buf, ss->pending_buf, (uInt)ds->lit_bufsize * 5);
+#else
     zmemcpy(ds->pending_buf, ss->pending_buf, (uInt)ds->pending_buf_size);
+#endif
 
     ds->pending_out = ds->pending_buf + (ss->pending_out - ss->pending_buf);
 #ifdef LIT_MEM
