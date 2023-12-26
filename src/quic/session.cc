@@ -36,6 +36,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BigInt;
+using v8::Boolean;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::HandleScope;
@@ -48,6 +49,7 @@ using v8::Object;
 using v8::PropertyAttribute;
 using v8::String;
 using v8::Uint32;
+using v8::Undefined;
 using v8::Value;
 
 namespace quic {
@@ -299,8 +301,7 @@ Session::Config::Config(Side side,
   settings.initial_ts = uv_hrtime();
 
   if (options.qlog) {
-    if (ocid) settings.qlog.odcid = ocid;
-    settings.qlog.write = on_qlog_write;
+    settings.qlog_write = on_qlog_write;
   }
 
   if (endpoint.env()->enabled_debug_list()->enabled(
@@ -311,7 +312,7 @@ Session::Config::Config(Side side,
   // We pull parts of the settings for the session from the endpoint options.
   auto& config = endpoint.options();
   settings.cc_algo = config.cc_algorithm;
-  settings.max_udp_payload_size = config.max_payload_size;
+  settings.max_tx_udp_payload_size = config.max_payload_size;
   if (config.unacknowledged_packet_threshold > 0) {
     settings.ack_thresh = config.unacknowledged_packet_threshold;
   }
@@ -572,14 +573,12 @@ BaseObjectPtr<LogStream> Session::keylog() const {
 
 TransportParams Session::GetLocalTransportParams() const {
   DCHECK(!is_destroyed());
-  return TransportParams(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                         ngtcp2_conn_get_local_transport_params(*this));
+  return TransportParams(ngtcp2_conn_get_local_transport_params(*this));
 }
 
 TransportParams Session::GetRemoteTransportParams() const {
   DCHECK(!is_destroyed());
-  return TransportParams(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                         ngtcp2_conn_get_remote_transport_params(*this));
+  return TransportParams(ngtcp2_conn_get_remote_transport_params(*this));
 }
 
 void Session::SetLastError(QuicError&& error) {
@@ -629,9 +628,11 @@ void Session::Destroy() {
   // be deconstructed once the stack unwinds and any remaining
   // BaseObjectPtr<Session> instances fall out of scope.
 
-  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_num_scid(*this));
-  std::vector<ngtcp2_cid_token> tokens(ngtcp2_conn_get_num_active_dcid(*this));
+  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_scid(*this, nullptr));
   ngtcp2_conn_get_scid(*this, cids.data());
+
+  std::vector<ngtcp2_cid_token> tokens(
+      ngtcp2_conn_get_active_dcid(*this, nullptr));
   ngtcp2_conn_get_active_dcid(*this, tokens.data());
 
   endpoint_->DisassociateCID(config_.dcid);
@@ -764,7 +765,7 @@ uint64_t Session::SendDatagram(Store&& data) {
       packet = Packet::Create(env(),
                               endpoint_.get(),
                               remote_address_,
-                              ngtcp2_conn_get_max_udp_payload_size(*this),
+                              ngtcp2_conn_get_max_tx_udp_payload_size(*this),
                               "datagram");
       if (!packet) {
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
@@ -961,6 +962,7 @@ void Session::ResumeStream(int64_t id) {
 void Session::ShutdownStream(int64_t id, QuicError error) {
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream(*this,
+                              0,
                               id,
                               error.type() == QuicError::Type::APPLICATION
                                   ? error.code()
@@ -975,6 +977,7 @@ void Session::StreamDataBlocked(int64_t id) {
 void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream_write(*this,
+                                    0,
                                     id,
                                     code.type() == QuicError::Type::APPLICATION
                                         ? code.code()
@@ -1007,11 +1010,11 @@ void Session::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 bool Session::is_in_closing_period() const {
-  return ngtcp2_conn_is_in_closing_period(*this);
+  return ngtcp2_conn_in_closing_period(*this) != 0;
 }
 
 bool Session::is_in_draining_period() const {
-  return ngtcp2_conn_is_in_draining_period(*this);
+  return ngtcp2_conn_in_draining_period(*this) != 0;
 }
 
 bool Session::wants_session_ticket() const {
@@ -1041,7 +1044,7 @@ uint64_t Session::max_data_left() const {
 }
 
 uint64_t Session::max_local_streams_uni() const {
-  return ngtcp2_conn_get_max_local_streams_uni(*this);
+  return ngtcp2_conn_get_streams_uni_left(*this);
 }
 
 uint64_t Session::max_local_streams_bidi() const {
@@ -1094,30 +1097,35 @@ void Session::ExtendOffset(size_t amount) {
 
 void Session::UpdateDataStats() {
   if (state_->destroyed) return;
-  ngtcp2_conn_stat stat;
-  ngtcp2_conn_get_conn_stat(*this, &stat);
-  STAT_SET(Stats, bytes_in_flight, stat.bytes_in_flight);
-  STAT_SET(
-      Stats, congestion_recovery_start_ts, stat.congestion_recovery_start_ts);
-  STAT_SET(Stats, cwnd, stat.cwnd);
-  STAT_SET(Stats, delivery_rate_sec, stat.delivery_rate_sec);
-  STAT_SET(Stats, first_rtt_sample_ts, stat.first_rtt_sample_ts);
-  STAT_SET(Stats, initial_rtt, stat.initial_rtt);
-  STAT_SET(
-      Stats, last_tx_pkt_ts, reinterpret_cast<uint64_t>(stat.last_tx_pkt_ts));
-  STAT_SET(Stats, latest_rtt, stat.latest_rtt);
-  STAT_SET(Stats, loss_detection_timer, stat.loss_detection_timer);
-  STAT_SET(Stats, loss_time, reinterpret_cast<uint64_t>(stat.loss_time));
-  STAT_SET(Stats, max_udp_payload_size, stat.max_udp_payload_size);
-  STAT_SET(Stats, min_rtt, stat.min_rtt);
-  STAT_SET(Stats, pto_count, stat.pto_count);
-  STAT_SET(Stats, rttvar, stat.rttvar);
-  STAT_SET(Stats, smoothed_rtt, stat.smoothed_rtt);
-  STAT_SET(Stats, ssthresh, stat.ssthresh);
+  ngtcp2_conn_info info;
+  ngtcp2_conn_get_conn_info(*this, &info);
+  STAT_SET(Stats, bytes_in_flight, info.bytes_in_flight);
+  STAT_SET(Stats, cwnd, info.cwnd);
+  STAT_SET(Stats, latest_rtt, info.latest_rtt);
+  STAT_SET(Stats, min_rtt, info.min_rtt);
+  STAT_SET(Stats, rttvar, info.rttvar);
+  STAT_SET(Stats, smoothed_rtt, info.smoothed_rtt);
+  STAT_SET(Stats, ssthresh, info.ssthresh);
   STAT_SET(
       Stats,
       max_bytes_in_flight,
-      std::max(STAT_GET(Stats, max_bytes_in_flight), stat.bytes_in_flight));
+      std::max(STAT_GET(Stats, max_bytes_in_flight), info.bytes_in_flight));
+
+  // TODO(@jasnell): Want to see if ngtcp2 provides an alternative way of
+  // getting these before removing them. Will handle that in one of the
+  // follow-up PRs STAT_SET(
+  //     Stats, congestion_recovery_start_ts,
+  //     info.congestion_recovery_start_ts);
+  // STAT_SET(Stats, delivery_rate_sec, info.delivery_rate_sec);
+  // STAT_SET(Stats, first_rtt_sample_ts, stat.first_rtt_sample_ts);
+  // STAT_SET(Stats, initial_rtt, info.initial_rtt);
+  // STAT_SET(
+  //     Stats, last_tx_pkt_ts,
+  //     reinterpret_cast<uint64_t>(stat.last_tx_pkt_ts));
+  // STAT_SET(Stats, loss_detection_timer, info.loss_detection_timer);
+  // STAT_SET(Stats, loss_time, reinterpret_cast<uint64_t>(stat.loss_time));
+  // STAT_SET(Stats, max_udp_payload_size, stat.max_udp_payload_size);
+  // STAT_SET(Stats, pto_count, stat.pto_count);
 }
 
 void Session::SendConnectionClose() {
@@ -1254,7 +1262,7 @@ bool Session::HandshakeCompleted() {
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
 
   if (!tls_context_.early_data_was_accepted())
-    ngtcp2_conn_early_data_rejected(*this);
+    ngtcp2_conn_tls_early_data_rejected(*this);
 
   // When in a server session, handshake completed == handshake confirmed.
   if (is_server()) {
@@ -1429,8 +1437,8 @@ void Session::EmitHandshakeComplete() {
 
 void Session::EmitPathValidation(PathValidationResult result,
                                  PathValidationFlags flags,
-                                 const SocketAddress& local_address,
-                                 const SocketAddress& remote_address) {
+                                 const ValidatedPath& newPath,
+                                 const std::optional<ValidatedPath>& oldPath) {
   DCHECK(!is_destroyed());
   if (!env()->can_call_into_js()) return;
   if (LIKELY(state_->path_validation == 0)) return;
@@ -1451,15 +1459,18 @@ void Session::EmitPathValidation(PathValidationResult result,
     UNREACHABLE();
   };
 
-  Local<Value> argv[4] = {
+  Local<Value> argv[] = {
       resultToString(),
-      SocketAddressBase::Create(env(),
-                                std::make_shared<SocketAddress>(local_address))
-          ->object(),
-      SocketAddressBase::Create(env(),
-                                std::make_shared<SocketAddress>(remote_address))
-          ->object(),
-      v8::Boolean::New(isolate, flags.preferredAddress)};
+      SocketAddressBase::Create(env(), newPath.local)->object(),
+      SocketAddressBase::Create(env(), newPath.remote)->object(),
+      Undefined(isolate),
+      Undefined(isolate),
+      Boolean::New(isolate, flags.preferredAddress)};
+
+  if (oldPath.has_value()) {
+    argv[3] = SocketAddressBase::Create(env(), oldPath->local)->object();
+    argv[4] = SocketAddressBase::Create(env(), oldPath->remote)->object();
+  }
 
   MakeCallback(state.session_path_validation_callback(), arraysize(argv), argv);
 }
@@ -1664,7 +1675,7 @@ struct Session::Impl {
   }
 
   static int on_cid_status(ngtcp2_conn* conn,
-                           int type,
+                           ngtcp2_connection_id_status_type type,
                            uint64_t seq,
                            const ngtcp2_cid* cid,
                            const uint8_t* token,
@@ -1781,26 +1792,37 @@ struct Session::Impl {
   static int on_path_validation(ngtcp2_conn* conn,
                                 uint32_t flags,
                                 const ngtcp2_path* path,
+                                const ngtcp2_path* old_path,
                                 ngtcp2_path_validation_result res,
                                 void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     bool flag_preferred_address =
         flags & NGTCP2_PATH_VALIDATION_FLAG_PREFERRED_ADDR;
+    ValidatedPath newValidatedPath{
+        std::make_shared<SocketAddress>(path->local.addr),
+        std::make_shared<SocketAddress>(path->remote.addr)};
+    std::optional<ValidatedPath> oldValidatedPath = std::nullopt;
+    if (old_path != nullptr) {
+      oldValidatedPath =
+          ValidatedPath{std::make_shared<SocketAddress>(old_path->local.addr),
+                        std::make_shared<SocketAddress>(old_path->remote.addr)};
+    }
     session->EmitPathValidation(static_cast<PathValidationResult>(res),
                                 PathValidationFlags{flag_preferred_address},
-                                SocketAddress(path->local.addr),
-                                SocketAddress(path->remote.addr));
+                                newValidatedPath,
+                                oldValidatedPath);
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_crypto_data(ngtcp2_conn* conn,
-                                    ngtcp2_crypto_level crypto_level,
+                                    ngtcp2_encryption_level level,
                                     uint64_t offset,
                                     const uint8_t* data,
                                     size_t datalen,
                                     void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    return session->tls_context().Receive(crypto_level, offset, data, datalen);
+    return session->tls_context().Receive(
+        static_cast<TLSContext::EncryptionLevel>(level), offset, data, datalen);
   }
 
   static int on_receive_datagram(ngtcp2_conn* conn,
@@ -1810,13 +1832,14 @@ struct Session::Impl {
                                  void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     DatagramReceivedFlags f;
-    f.early = flags & NGTCP2_DATAGRAM_FLAG_EARLY;
+    f.early = flags & NGTCP2_DATAGRAM_FLAG_0RTT;
     session->DatagramReceived(data, datalen, f);
     return NGTCP2_SUCCESS;
   }
 
   static int on_receive_new_token(ngtcp2_conn* conn,
-                                  const ngtcp2_vec* token,
+                                  const uint8_t* token,
+                                  size_t tokenlen,
                                   void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     // We currently do nothing with this callback.
@@ -1824,11 +1847,12 @@ struct Session::Impl {
   }
 
   static int on_receive_rx_key(ngtcp2_conn* conn,
-                               ngtcp2_crypto_level level,
+                               ngtcp2_encryption_level level,
                                void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
 
-    if (!session->is_server() && level == NGTCP2_CRYPTO_LEVEL_APPLICATION) {
+    if (!session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
+                                  level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
       if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
     }
     return NGTCP2_SUCCESS;
@@ -1852,7 +1876,7 @@ struct Session::Impl {
                                     void* stream_user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     Stream::ReceiveDataFlags f;
-    f.early = flags & NGTCP2_STREAM_DATA_FLAG_EARLY;
+    f.early = flags & NGTCP2_STREAM_DATA_FLAG_0RTT;
     f.fin = flags & NGTCP2_STREAM_DATA_FLAG_FIN;
 
     if (stream_user_data == nullptr) {
@@ -1864,7 +1888,7 @@ struct Session::Impl {
             stream.get(), data, datalen, f);
       } else {
         return ngtcp2_conn_shutdown_stream(
-                   *session, stream_id, NGTCP2_APP_NOERROR) == 0
+                   *session, 0, stream_id, NGTCP2_APP_NOERROR) == 0
                    ? NGTCP2_SUCCESS
                    : NGTCP2_ERR_CALLBACK_FAILURE;
       }
@@ -1876,10 +1900,11 @@ struct Session::Impl {
   }
 
   static int on_receive_tx_key(ngtcp2_conn* conn,
-                               ngtcp2_crypto_level level,
+                               ngtcp2_encryption_level level,
                                void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
-    if (session->is_server() && level == NGTCP2_CRYPTO_LEVEL_APPLICATION) {
+    if (session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
+                                 level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
       if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
     }
     return NGTCP2_SUCCESS;
@@ -1970,6 +1995,12 @@ struct Session::Impl {
     CHECK(crypto::CSPRNG(dest, destlen).is_ok());
   }
 
+  static int on_early_data_rejected(ngtcp2_conn* conn, void* user_data) {
+    // TODO(@jasnell): Called when early data was rejected by server during the
+    // TLS handshake or client decided not to attempt early data.
+    return NGTCP2_SUCCESS;
+  }
+
   static constexpr ngtcp2_callbacks CLIENT = {
       ngtcp2_crypto_client_initial_cb,
       nullptr,
@@ -2009,7 +2040,8 @@ struct Session::Impl {
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
-      on_receive_tx_key};
+      on_receive_tx_key,
+      on_early_data_rejected};
 
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
@@ -2050,7 +2082,8 @@ struct Session::Impl {
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
-      on_receive_tx_key};
+      on_receive_tx_key,
+      on_early_data_rejected};
 };
 
 #undef NGTCP2_CALLBACK_SCOPE

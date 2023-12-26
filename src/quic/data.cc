@@ -126,13 +126,15 @@ std::string TypeName(QuicError::Type type) {
 }  // namespace
 
 QuicError::QuicError(const std::string_view reason)
-    : reason_(reason), ptr_(&error_) {}
+    : reason_(reason), error_(), ptr_(&error_) {
+  ngtcp2_ccerr_default(&error_);
+}
 
-QuicError::QuicError(const ngtcp2_connection_close_error* ptr)
+QuicError::QuicError(const ngtcp2_ccerr* ptr)
     : reason_(reinterpret_cast<const char*>(ptr->reason), ptr->reasonlen),
       ptr_(ptr) {}
 
-QuicError::QuicError(const ngtcp2_connection_close_error& error)
+QuicError::QuicError(const ngtcp2_ccerr& error)
     : reason_(reinterpret_cast<const char*>(error.reason), error.reasonlen),
       error_(error),
       ptr_(&error_) {}
@@ -175,11 +177,11 @@ const std::string_view QuicError::reason() const {
   return reason_;
 }
 
-QuicError::operator const ngtcp2_connection_close_error&() const {
+QuicError::operator const ngtcp2_ccerr&() const {
   return *ptr_;
 }
 
-QuicError::operator const ngtcp2_connection_close_error*() const {
+QuicError::operator const ngtcp2_ccerr*() const {
   return ptr_;
 }
 
@@ -212,7 +214,7 @@ void QuicError::MemoryInfo(MemoryTracker* tracker) const {
 QuicError QuicError::ForTransport(error_code code,
                                   const std::string_view reason) {
   QuicError error(reason);
-  ngtcp2_connection_close_error_set_transport_error(
+  ngtcp2_ccerr_set_transport_error(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
@@ -220,7 +222,7 @@ QuicError QuicError::ForTransport(error_code code,
 QuicError QuicError::ForApplication(error_code code,
                                     const std::string_view reason) {
   QuicError error(reason);
-  ngtcp2_connection_close_error_set_application_error(
+  ngtcp2_ccerr_set_application_error(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
@@ -235,22 +237,20 @@ QuicError QuicError::ForIdleClose(const std::string_view reason) {
 
 QuicError QuicError::ForNgtcp2Error(int code, const std::string_view reason) {
   QuicError error(reason);
-  ngtcp2_connection_close_error_set_transport_error_liberr(
+  ngtcp2_ccerr_set_liberr(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
 QuicError QuicError::ForTlsAlert(int code, const std::string_view reason) {
   QuicError error(reason);
-  ngtcp2_connection_close_error_set_transport_error_tls_alert(
+  ngtcp2_ccerr_set_tls_alert(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
 QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
-  QuicError error;
-  ngtcp2_conn_get_connection_close_error(session, &error.error_);
-  return error;
+  return QuicError(ngtcp2_conn_get_ccerr(session));
 }
 
 QuicError QuicError::TRANSPORT_NO_ERROR =

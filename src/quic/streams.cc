@@ -180,7 +180,7 @@ struct Stream::Impl {
     if (stream->is_destroyed()) return;
     stream->EndReadable();
     Session::SendPendingDataScope send_scope(&stream->session());
-    ngtcp2_conn_shutdown_stream_read(stream->session(), stream->id(), code);
+    ngtcp2_conn_shutdown_stream_read(stream->session(), 0, stream->id(), code);
   }
 
   // Sends a reset stream to the peer to tell it we will not be sending any
@@ -205,7 +205,7 @@ struct Stream::Impl {
     stream->outbound_.reset();
     stream->state_->reset = 1;
     Session::SendPendingDataScope send_scope(&stream->session());
-    ngtcp2_conn_shutdown_stream_write(stream->session(), stream->id(), code);
+    ngtcp2_conn_shutdown_stream_write(stream->session(), 0, stream->id(), code);
   }
 
   static void SetPriority(const FunctionCallbackInfo<Value>& args) {
@@ -959,7 +959,7 @@ void Stream::ReceiveStopSending(QuicError error) {
   // Note that this comes from *this* endpoint, not the other side. We handle it
   // if we haven't already shutdown our *receiving* side of the stream.
   if (is_destroyed() || state_->read_ended) return;
-  ngtcp2_conn_shutdown_stream_read(session(), id(), error.code());
+  ngtcp2_conn_shutdown_stream_read(session(), 0, id(), error.code());
   EndReadable();
 }
 

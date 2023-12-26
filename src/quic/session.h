@@ -349,10 +349,16 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void EmitDatagramStatus(uint64_t id, DatagramStatus status);
   void EmitHandshakeComplete();
   void EmitKeylog(const char* line);
+
+  struct ValidatedPath {
+    std::shared_ptr<SocketAddress> local;
+    std::shared_ptr<SocketAddress> remote;
+  };
+
   void EmitPathValidation(PathValidationResult result,
                           PathValidationFlags flags,
-                          const SocketAddress& local_address,
-                          const SocketAddress& remote_address);
+                          const ValidatedPath& newPath,
+                          const std::optional<ValidatedPath>& oldPath);
   void EmitSessionTicket(Store&& ticket);
   void EmitStream(BaseObjectPtr<Stream> stream);
   void EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,

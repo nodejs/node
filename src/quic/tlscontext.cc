@@ -6,7 +6,7 @@
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
@@ -93,7 +93,7 @@ BaseObjectPtr<crypto::SecureContext> InitializeSecureContext(
       ctx.reset(SSL_CTX_new(TLS_server_method()));
       SSL_CTX_set_app_data(ctx.get(), context);
 
-      if (ngtcp2_crypto_openssl_configure_server_context(ctx.get()) != 0) {
+      if (ngtcp2_crypto_quictls_configure_server_context(ctx.get()) != 0) {
         return BaseObjectPtr<crypto::SecureContext>();
       }
 
@@ -123,7 +123,7 @@ BaseObjectPtr<crypto::SecureContext> InitializeSecureContext(
       ctx.reset(SSL_CTX_new(TLS_client_method()));
       SSL_CTX_set_app_data(ctx.get(), context);
 
-      if (ngtcp2_crypto_openssl_configure_client_context(ctx.get()) != 0) {
+      if (ngtcp2_crypto_quictls_configure_client_context(ctx.get()) != 0) {
         return BaseObjectPtr<crypto::SecureContext>();
       }
 
@@ -388,8 +388,7 @@ TLSContext::TLSContext(Environment* env,
 void TLSContext::Start() {
   ngtcp2_conn_set_tls_native_handle(*session_, ssl_.get());
 
-  TransportParams tp(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                     ngtcp2_conn_get_local_transport_params(*session_));
+  TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
   Store store = tp.Encode(env_);
   if (store && store.length() > 0) {
     ngtcp2_vec vec = store;
@@ -401,7 +400,7 @@ void TLSContext::Keylog(const char* line) const {
   session_->EmitKeylog(line);
 }
 
-int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
+int TLSContext::Receive(TLSContext::EncryptionLevel level,
                         uint64_t offset,
                         const uint8_t* data,
                         size_t datalen) {
@@ -414,7 +413,7 @@ int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
   // Internally, this passes the handshake data off to openssl for processing.
   // The handshake may or may not complete.
   int ret = ngtcp2_crypto_read_write_crypto_data(
-      *session_, crypto_level, data, datalen);
+      *session_, static_cast<ngtcp2_encryption_level>(level), data, datalen);
 
   switch (ret) {
     case 0:
@@ -423,9 +422,9 @@ int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
     // In either of following cases, the handshake is being paused waiting for
     // user code to take action (for instance OCSP requests or client hello
     // modification)
-    case NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP:
+    case NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_X509_LOOKUP:
       [[fallthrough]];
-    case NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB:
+    case NGTCP2_CRYPTO_QUICTLS_ERR_TLS_WANT_CLIENT_HELLO_CB:
       return 0;
   }
   return ret;
@@ -468,12 +467,6 @@ int TLSContext::VerifyPeerIdentity() {
 }
 
 void TLSContext::MaybeSetEarlySession(const SessionTicket& sessionTicket) {
-  TransportParams rtp(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                      sessionTicket.transport_params());
-
-  // Ignore invalid remote transport parameters.
-  if (!rtp) return;
-
   uv_buf_t buf = sessionTicket.ticket();
   crypto::SSLSessionPointer ticket = crypto::GetTLSSession(
       reinterpret_cast<unsigned char*>(buf.base), buf.len);
@@ -482,10 +475,17 @@ void TLSContext::MaybeSetEarlySession(const SessionTicket& sessionTicket) {
   if (!ticket || !SSL_SESSION_get_max_early_data(ticket.get())) return;
 
   // The early data will just be ignored if it's invalid.
-  if (crypto::SetTLSSession(ssl_, ticket)) {
-    ngtcp2_conn_set_early_remote_transport_params(*session_, rtp);
-    session_->SetStreamOpenAllowed();
-  }
+  if (!crypto::SetTLSSession(ssl_, ticket)) return;
+
+  ngtcp2_vec rtp = sessionTicket.transport_params();
+  // Decode and attempt to set the early transport parameters configured
+  // for the early session. If non-zero is returned, decoding or setting
+  // failed, in which case we just ignore it.
+  if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
+          *session_, rtp.base, rtp.len) != 0)
+    return;
+
+  session_->SetStreamOpenAllowed();
 }
 
 void TLSContext::MemoryInfo(MemoryTracker* tracker) const {
