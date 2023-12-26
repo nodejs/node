@@ -36,7 +36,6 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   static constexpr auto QUIC_CC_ALGO_RENO = NGTCP2_CC_ALGO_RENO;
   static constexpr auto QUIC_CC_ALGO_CUBIC = NGTCP2_CC_ALGO_CUBIC;
   static constexpr auto QUIC_CC_ALGO_BBR = NGTCP2_CC_ALGO_BBR;
-  static constexpr auto QUIC_CC_ALGO_BBR2 = NGTCP2_CC_ALGO_BBR2;
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
@@ -131,9 +130,9 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 #endif  // DEBUG
 
     // There are several common congestion control algorithms that ngtcp2 uses
-    // to determine how it manages the flow control window: RENO, CUBIC, BBR,
-    // and BBR2. The details of how each works is not relevant here. The choice
-    // of which to use by default is arbitrary and we can choose whichever we'd
+    // to determine how it manages the flow control window: RENO, CUBIC, and
+    // BBR. The details of how each works is not relevant here. The choice of
+    // which to use by default is arbitrary and we can choose whichever we'd
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
     ngtcp2_cc_algo cc_algorithm = NGTCP2_CC_ALGO_CUBIC;

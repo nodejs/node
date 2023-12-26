@@ -151,7 +151,7 @@ BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
   return Packet::Create(env(),
                         session_->endpoint_.get(),
                         session_->remote_address_,
-                        ngtcp2_conn_get_max_udp_payload_size(*session_),
+                        ngtcp2_conn_get_max_tx_udp_payload_size(*session_),
                         "stream data");
 }
 
@@ -291,18 +291,18 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_NONE;
   if (stream_data.remaining > 0) flags |= NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
-  ssize_t ret =
-      ngtcp2_conn_writev_stream(*session_,
-                                &path->path,
-                                nullptr,
-                                buf,
-                                ngtcp2_conn_get_max_udp_payload_size(*session_),
-                                ndatalen,
-                                flags,
-                                stream_data.id,
-                                stream_data.buf,
-                                stream_data.count,
-                                uv_hrtime());
+  ssize_t ret = ngtcp2_conn_writev_stream(
+      *session_,
+      &path->path,
+      nullptr,
+      buf,
+      ngtcp2_conn_get_max_tx_udp_payload_size(*session_),
+      ndatalen,
+      flags,
+      stream_data.id,
+      stream_data.buf,
+      stream_data.count,
+      uv_hrtime());
   return ret;
 }
 

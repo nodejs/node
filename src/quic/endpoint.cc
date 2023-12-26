@@ -73,8 +73,7 @@ namespace quic {
 #define ENDPOINT_CC(V)                                                         \
   V(RENO, reno)                                                                \
   V(CUBIC, cubic)                                                              \
-  V(BBR, bbr)                                                                  \
-  V(BBR2, bbr2)
+  V(BBR, bbr)
 
 struct Endpoint::State {
 #define V(_, name, type) type name;
@@ -427,11 +426,15 @@ int Endpoint::UDP::Bind(const Endpoint::Options& options) {
 }
 
 void Endpoint::UDP::Ref() {
-  if (!is_closed()) uv_ref(reinterpret_cast<uv_handle_t*>(&impl_->handle_));
+  if (!is_closed_or_closing()) {
+    uv_ref(reinterpret_cast<uv_handle_t*>(&impl_->handle_));
+  }
 }
 
 void Endpoint::UDP::Unref() {
-  if (!is_closed()) uv_unref(reinterpret_cast<uv_handle_t*>(&impl_->handle_));
+  if (!is_closed_or_closing()) {
+    uv_unref(reinterpret_cast<uv_handle_t*>(&impl_->handle_));
+  }
 }
 
 int Endpoint::UDP::Start() {
@@ -476,7 +479,7 @@ Endpoint::UDP::operator bool() const {
 }
 
 SocketAddress Endpoint::UDP::local_address() const {
-  DCHECK(!is_closed() && is_bound());
+  DCHECK(!is_closed_or_closing() && is_bound());
   return SocketAddress::FromSockName(impl_->handle_);
 }
 
@@ -1012,7 +1015,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
 
           if (options_.validate_address) {
             // If there is no token, generate and send one.
-            if (hd.token.len == 0) {
+            if (hd.tokenlen == 0) {
               SendRetry(PathDescriptor{
                   version,
                   dcid,
@@ -1027,9 +1030,9 @@ void Endpoint::Receive(const uv_buf_t& buf,
 
             // We have two kinds of tokens, each prefixed with a different magic
             // byte.
-            switch (hd.token.base[0]) {
+            switch (hd.token[0]) {
               case RetryToken::kTokenMagic: {
-                RetryToken token(hd.token.base, hd.token.len);
+                RetryToken token(hd.token, hd.tokenlen);
                 auto ocid = token.Validate(
                     version,
                     remote_address,
@@ -1055,7 +1058,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
                 break;
               }
               case RegularToken::kTokenMagic: {
-                RegularToken token(hd.token.base, hd.token.len);
+                RegularToken token(hd.token, hd.tokenlen);
                 if (!token.Validate(
                         version,
                         remote_address,
@@ -1072,8 +1075,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
                   // if a retry is sent.
                   return true;
                 }
-                hd.token.base = nullptr;
-                hd.token.len = 0;
+                hd.token = nullptr;
+                hd.tokenlen = 0;
                 break;
               }
               default: {
@@ -1093,7 +1096,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
             // so we don't have to do this dance again for this endpoint
             // instance.
             addrLRU_.Upsert(remote_address)->validated = true;
-          } else if (hd.token.len > 0) {
+          } else if (hd.tokenlen > 0) {
             // If validation is turned off and there is a token, that's weird.
             // The peer should only have a token if we sent it to them and we
             // wouldn't have sent it unless validation was turned on. Let's
