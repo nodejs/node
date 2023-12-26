@@ -23,8 +23,8 @@ class Endpoint;
 class Packet;
 
 enum class Side {
-  CLIENT = NGTCP2_CRYPTO_SIDE_CLIENT,
-  SERVER = NGTCP2_CRYPTO_SIDE_SERVER,
+  CLIENT,
+  SERVER,
 };
 
 enum class EndpointLabel {
@@ -119,7 +119,6 @@ constexpr size_t kMaxVectorCount = 16;
   V(alpn, "alpn")                                                              \
   V(application_options, "application")                                        \
   V(bbr, "bbr")                                                                \
-  V(bbr2, "bbr2")                                                              \
   V(ca, "ca")                                                                  \
   V(certs, "certs")                                                            \
   V(cc_algorithm, "cc")                                                        \
