@@ -28,7 +28,6 @@ class DispatchResponse;
 class ErrorSupport;
 class FundamentalValue;
 class ListValue;
-template<typename T> class Maybe;
 class Object;
 using Response = DispatchResponse;
 class SerializedValue;
