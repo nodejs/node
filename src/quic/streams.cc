@@ -851,6 +851,10 @@ void Stream::BeginHeaders(HeadersKind kind) {
   if (is_destroyed()) return;
   headers_length_ = 0;
   headers_.clear();
+  set_headers_kind(kind);
+}
+
+void Stream::set_headers_kind(HeadersKind kind) {
   headers_kind_ = kind;
 }
 
@@ -910,6 +914,8 @@ void Stream::EndReadable(std::optional<uint64_t> maybe_final_size) {
 
 void Stream::Destroy(QuicError error) {
   if (is_destroyed()) return;
+  DCHECK_NOT_NULL(session_.get());
+  Debug(this, "Stream %" PRIi64 " being destroyed with error %s", id(), error);
 
   // End the writable before marking as destroyed.
   EndWritable();
@@ -928,7 +934,10 @@ void Stream::Destroy(QuicError error) {
   // the JavaScript side could still have a reader on the inbound DataQueue,
   // which may keep that data alive a bit longer.
   inbound_->removeBackpressureListener(this);
+
   inbound_.reset();
+
+  CHECK_NOT_NULL(session_.get());
 
   // Finally, remove the stream from the session and clear our reference
   // to the session.

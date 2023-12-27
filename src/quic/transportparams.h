@@ -118,6 +118,8 @@ class TransportParams final {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   explicit TransportParams();
