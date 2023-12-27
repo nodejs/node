@@ -106,6 +106,15 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // changed if you have a really good reason for doing so.
     uint64_t unacknowledged_packet_threshold = 0;
 
+    // The amount of time (in milliseconds) that the endpoint will wait for the
+    // completion of the tls handshake.
+    uint64_t handshake_timeout = UINT64_MAX;
+
+    uint64_t max_stream_window = 0;
+    uint64_t max_window  = 0;
+
+    bool no_udp_payload_size_shaping = true;
+
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
     // should only be disabled in trusted, closed environments as a performance

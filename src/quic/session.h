@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sys/types.h>
+#include "quic/tokens.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -72,6 +74,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     uint64_t qpack_encoder_max_dtable_capacity = 0;
     uint64_t qpack_blocked_streams = 0;
 
+    bool enable_connect_protocol = true;
+    bool enable_datagrams = true;
+
+    operator const nghttp3_settings() const;
+
     SET_NO_MEMORY_INFO()
     SET_MEMORY_INFO_NAME(Application::Options)
     SET_SELF_SIZE(Options)
@@ -141,10 +148,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     SocketAddress local_address;
     SocketAddress remote_address;
 
-    // The destination CID, identifying the remote peer.
+    // The destination CID, identifying the remote peer. This value is always
+    // provided by the remote peer.
     CID dcid = CID::kInvalid;
 
-    // The source CID, identifying this session.
+    // The source CID, identifying this session. This value is always created
+    // locally.
     CID scid = CID::kInvalid;
 
     // Used only by client sessions to identify the original DCID
@@ -179,6 +188,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
            std::optional<SessionTicket> session_ticket = std::nullopt,
            const CID& ocid = CID::kInvalid);
 
+    void set_token(const uint8_t* token,
+                   size_t len,
+                   ngtcp2_token_type type = NGTCP2_TOKEN_TYPE_UNKNOWN);
+    void set_token(const RetryToken& token);
+    void set_token(const RegularToken& token);
+
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Config)
     SET_SELF_SIZE(Config)
@@ -187,14 +202,16 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
-  static void Initialize(Environment* env, v8::Local<v8::Object> target);
+  static void InitPerIsolate(IsolateData* isolate_data,
+                             v8::Local<v8::ObjectTemplate> target);
+  static void InitPerContext(Realm* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  static BaseObjectPtr<Session> Create(BaseObjectPtr<Endpoint> endpoint,
+  static BaseObjectPtr<Session> Create(Endpoint* endpoint,
                                        const Config& config);
 
   // Really should be private but MakeDetachedBaseObject needs visibility.
-  Session(BaseObjectPtr<Endpoint> endpoint,
+  Session(Endpoint* endpoint,
           v8::Local<v8::Object> object,
           const Config& config);
   ~Session() override;
@@ -325,12 +342,13 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   uint64_t max_data_left() const;
   uint64_t max_local_streams_uni() const;
   uint64_t max_local_streams_bidi() const;
-  BaseObjectPtr<LogStream> qlog() const;
-  BaseObjectPtr<LogStream> keylog() const;
 
   bool wants_session_ticket() const;
   void SetStreamOpenAllowed();
 
+  // It's a terrible name but "wrapped" here means that the Session has been
+  // passed out to JavaScript and should be "wrapped" by whatever handler is
+  // defined there to manage it.
   void set_wrapped();
 
   void DoClose(bool silent = false);
@@ -387,7 +405,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   ngtcp2_mem allocator_;
   Config config_;
   QuicConnectionPointer connection_;
-  BaseObjectPtr<Endpoint> endpoint_;
+  BaseObjectWeakPtr<Endpoint> endpoint_;
   TLSContext tls_context_;
   std::unique_ptr<Application> application_;
   SocketAddress local_address_;

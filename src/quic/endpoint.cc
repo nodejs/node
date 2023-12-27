@@ -253,6 +253,8 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       !SET(max_retries) || !SET(max_payload_size) ||
       !SET(unacknowledged_packet_threshold) || !SET(validate_address) ||
       !SET(disable_stateless_reset) || !SET(ipv6_only) ||
+      !SET(handshake_timeout) || !SET(max_stream_window) ||
+      !SET(max_window) || !SET(no_udp_payload_size_shaping) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -639,10 +641,10 @@ void Endpoint::AddSession(const CID& cid, BaseObjectPtr<Session> session) {
   IncrementSocketAddressCounter(session->remote_address());
   if (session->is_server()) {
     STAT_INCREMENT(Stats, server_sessions);
+    EmitNewSession(session);
   } else {
     STAT_INCREMENT(Stats, client_sessions);
   }
-  if (session->is_server()) EmitNewSession(session);
 }
 
 void Endpoint::RemoveSession(const CID& cid) {
@@ -801,6 +803,9 @@ void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
 
 bool Endpoint::Start() {
   if (is_closed() || is_closing()) return false;
+
+  // state_->receiving indicates that we're accepting inbound packets. It
+  // could be for server or client side, or both.
   if (state_->receiving == 1) return true;
 
   int err = 0;
@@ -841,20 +846,25 @@ BaseObjectPtr<Session> Endpoint::Connect(
   // If starting fails, the endpoint will be destroyed.
   if (!Start()) return BaseObjectPtr<Session>();
 
-  auto config = Session::Config(
+  Session::Config config(
       *this, options, local_address(), remote_address, session_ticket);
 
-  auto session = Session::Create(BaseObjectPtr<Endpoint>(this), config);
+  auto session = Session::Create(this, config);
   if (!session) return BaseObjectPtr<Session>();
   session->set_wrapped();
 
+  // Calling SendPendingData here triggers the session to send the initial
+  // handshake packets starting the connection.
   session->application().SendPendingData();
-  return BaseObjectPtr<Session>();
+  return session;
 }
 
 void Endpoint::MaybeDestroy() {
   if (!is_closed() && sessions_.empty() && state_->pending_callbacks == 0 &&
       state_->listening == 0) {
+    // Destroy potentially creates v8 handles so let's make sure
+    // we have a HandleScope on the stack.
+    HandleScope scope(env()->isolate());
     Destroy();
   }
 }
@@ -903,28 +913,30 @@ void Endpoint::CloseGracefully() {
 
 void Endpoint::Receive(const uv_buf_t& buf,
                        const SocketAddress& remote_address) {
-  const auto receive = [&](Store&& store,
+  const auto receive = [&](Session* session,
+                           Store&& store,
                            const SocketAddress& local_address,
                            const SocketAddress& remote_address,
                            const CID& dcid,
                            const CID& scid) {
-    STAT_INCREMENT_N(Stats, bytes_received, store.length());
-    auto session = FindSession(dcid);
-    return session && !session->is_destroyed()
-               ? session->Receive(
-                     std::move(store), local_address, remote_address)
-               : false;
+    DCHECK_NOT_NULL(session);
+    size_t len = store.length();
+    if (session->Receive(std::move(store), local_address, remote_address)) {
+      STAT_INCREMENT_N(Stats, bytes_received, len);
+      STAT_INCREMENT(Stats, packets_received);
+    }
   };
 
   const auto accept = [&](const Session::Config& config, Store&& store) {
-    if (is_closed() || is_closing() || !is_listening()) return false;
+    // One final check. If the endpoint is closed, closing, or is not listening as
+    // a server, then we cannot accept the initial packet.
+    if (is_closed() || is_closing() || !is_listening()) return;
 
-    auto session = Session::Create(BaseObjectPtr<Endpoint>(this), config);
-
-    return session ? session->Receive(std::move(store),
-                                      config.local_address,
-                                      config.remote_address)
-                   : false;
+    auto session = Session::Create(this, config);
+    if (session) {
+      receive(session.get(), std::move(store), config.local_address,
+              config.remote_address, config.dcid, config.scid);
+    }
   };
 
   const auto acceptInitialPacket = [&](const uint32_t version,
@@ -935,80 +947,88 @@ void Endpoint::Receive(const uv_buf_t& buf,
                                        const SocketAddress& remote_address) {
     // Conditionally accept an initial packet to create a new session.
 
-    // If we're not listening, do not accept.
-    if (state_->listening == 0) return false;
+    // If we're not listening as a server, do not accept an initial packet.
+    if (state_->listening == 0) return;
 
     ngtcp2_pkt_hd hd;
 
     // This is our first condition check... A minimal check to see if ngtcp2 can
     // even recognize this packet as a quic packet with the correct version.
     ngtcp2_vec vec = store;
-    switch (ngtcp2_accept(&hd, vec.base, vec.len)) {
-      case 1:
-        // The requested QUIC protocol version is not supported
-        SendVersionNegotiation(
-            PathDescriptor{version, dcid, scid, local_address, remote_address});
-        // The packet was successfully processed, even if we did refuse the
-        // connection and send a version negotiation in response.
-        return true;
-      case -1:
-        // The packet is invalid and we're just going to ignore it.
-        return false;
+    if (ngtcp2_accept(&hd, vec.base, vec.len) != NGTCP2_SUCCESS) {
+      // Per the ngtcp2 docs, ngtcp2_accept returns 0 if the check was successful,
+      // or an error code if it was not. Currently there's only one documented error
+      // code (NGTCP2_ERR_INVALID_ARGUMENT) but we'll handle any error here the same --
+      // by ignoring the packet entirely.
+      return;
     }
 
-    // This is the second condition check... If the server has been marked busy
+    // If ngtcp2_is_supported_version returns a non-zero value, the version is
+    // recognized and supported. If it returns 0, we'll go ahead and send a
+    // version negotiation packet in response.
+    if (ngtcp2_is_supported_version(hd.version) == 0) {
+      SendVersionNegotiation(
+          PathDescriptor{version, dcid, scid, local_address, remote_address});
+      STAT_INCREMENT(Stats, packets_received);
+      return;
+    }
+
+    // This is the next important condition check... If the server has been marked busy
     // or the remote peer has exceeded their maximum number of concurrent
     // connections, any new connections will be shut down immediately.
-    const auto limits_exceeded = [&] {
+    const auto limits_exceeded = ([&] {
       if (sessions_.size() >= options_.max_connections_total) return true;
 
       SocketAddressInfoTraits::Type* counts = addrLRU_.Peek(remote_address);
       auto count = counts != nullptr ? counts->active_connections : 0;
       return count >= options_.max_connections_per_host;
-    };
+    })();
 
-    if (state_->busy || limits_exceeded()) {
+    if (state_->busy || limits_exceeded) {
       // Endpoint is busy or the connection count is exceeded. The connection is
-      // refused.
+      // refused. For the purpose of stats collection, we'll count both of these
+      // the same.
       if (state_->busy) STAT_INCREMENT(Stats, server_busy_count);
       SendImmediateConnectionClose(
           PathDescriptor{version, scid, dcid, local_address, remote_address},
           QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
       // The packet was successfully processed, even if we did refuse the
       // connection.
-      return true;
+      STAT_INCREMENT(Stats, packets_received);
+      return;
     }
 
     // At this point, we start to set up the configuration for our local
-    // session. The second argument to the Config constructor here is the dcid.
-    // We pass the received scid here as the value because that is the value
-    // *this* session will use as it's outbound dcid.
-    auto config = Session::Config(Side::SERVER,
-                                  *this,
-                                  server_options_.value(),
-                                  version,
-                                  local_address,
-                                  remote_address,
-                                  scid,
-                                  dcid);
+    // session. We pass the received scid here as the dcid argument value
+    // because that is the value *this* session will use as the outbound dcid.
+    Session::Config config(Side::SERVER,
+                           *this,
+                           server_options_.value(),
+                           version,
+                           local_address,
+                           remote_address,
+                           scid,
+                           dcid);
 
     // The this point, the config.scid and config.dcid represent *our* views of
     // the CIDs. Specifically, config.dcid identifies the peer and config.scid
     // identifies us. config.dcid should equal scid. config.scid should *not*
     // equal dcid.
+    DCHECK(config.dcid == scid);
+    DCHECK(config.scid != dcid);
 
-    const auto is_remote_address_validated = [&] {
+    const auto is_remote_address_validated = ([&] {
       auto info = addrLRU_.Peek(remote_address);
       return info != nullptr ? info->validated : false;
-    };
+    })();
 
     // QUIC has address validation built in to the handshake but allows for
     // an additional explicit validation request using RETRY frames. If we
     // are using explicit validation, we check for the existence of a valid
     // token in the packet. If one does not exist, we send a retry with
-    // a new token. If it does exist, and if it's valid, we grab the original
+    // a new token. If it does exist, and if it is valid, we grab the original
     // cid and continue.
-    if (!is_remote_address_validated()) {
+    if (!is_remote_address_validated) {
       switch (hd.type) {
         case NGTCP2_PKT_INITIAL:
           // First, let's see if we need to do anything here.
@@ -1025,7 +1045,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
               });
               // We still consider this a successfully handled packet even
               // if we send a retry.
-              return true;
+              STAT_INCREMENT(Stats, packets_received);
+              return;
             }
 
             // We have two kinds of tokens, each prefixed with a different magic
@@ -1039,7 +1060,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
                     dcid,
                     options_.token_secret,
                     options_.retry_token_expiration * NGTCP2_SECONDS);
-                if (ocid == std::nullopt) {
+                if (!ocid.has_value()) {
                   // Invalid retry token was detected. Close the connection.
                   SendImmediateConnectionClose(
                       PathDescriptor{
@@ -1047,7 +1068,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
                       QuicError::ForTransport(NGTCP2_CONNECTION_REFUSED));
                   // We still consider this a successfully handled packet even
                   // if we send a connection close.
-                  return true;
+                  STAT_INCREMENT(Stats, packets_received);
+                  return;
                 }
 
                 // The ocid is the original dcid that was encoded into the
@@ -1055,6 +1077,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
                 // validation.
                 config.ocid = ocid.value();
                 config.retry_scid = dcid;
+                config.set_token(token);
                 break;
               }
               case RegularToken::kTokenMagic: {
@@ -1064,6 +1087,9 @@ void Endpoint::Receive(const uv_buf_t& buf,
                         remote_address,
                         options_.token_secret,
                         options_.token_expiration * NGTCP2_SECONDS)) {
+                  // If the regular token is invalid, let's send a retry to be lenient.
+                  // There's a small risk that a malicious peer is trying to make us do
+                  // some work but the risk is fairly low here.
                   SendRetry(PathDescriptor{
                       version,
                       dcid,
@@ -1073,13 +1099,16 @@ void Endpoint::Receive(const uv_buf_t& buf,
                   });
                   // We still consider this to be a successfully handled packet
                   // if a retry is sent.
-                  return true;
+                  STAT_INCREMENT(Stats, packets_received);
+                  return;
                 }
-                hd.token = nullptr;
-                hd.tokenlen = 0;
+                config.set_token(token);
                 break;
               }
               default: {
+                // If our prefix bit does not match anything we know about, let's send
+                // a retry to be lenient. There's a small risk that a malicious peer is
+                // trying to make us do some work but the risk is fairly low here.
                 SendRetry(PathDescriptor{
                     version,
                     dcid,
@@ -1087,7 +1116,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
                     local_address,
                     remote_address,
                 });
-                return true;
+                STAT_INCREMENT(Stats, packets_received);
+                return;
               }
             }
 
@@ -1102,7 +1132,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
             // wouldn't have sent it unless validation was turned on. Let's
             // assume the peer is buggy or malicious and drop the packet on the
             // floor.
-            return false;
+            return;
           }
           break;
         case NGTCP2_PKT_0RTT:
@@ -1124,11 +1154,12 @@ void Endpoint::Receive(const uv_buf_t& buf,
               local_address,
               remote_address,
           });
-          return true;
+          STAT_INCREMENT(Stats, packets_received);
+          return;
       }
     }
 
-    return accept(config, std::move(store));
+    accept(config, std::move(store));
   };
 
   // When a received packet contains a QUIC short header but cannot be matched
@@ -1147,24 +1178,36 @@ void Endpoint::Receive(const uv_buf_t& buf,
                                        Store& store,
                                        const SocketAddress& local_address,
                                        const SocketAddress& remote_address) {
+    // Support for stateless resets can be disabled by the application. If that
+    // case, or if the packet is too short to contain a reset token, then we skip
+    // the remaining checks.
     if (options_.disable_stateless_reset ||
-        store.length() < NGTCP2_STATELESS_RESET_TOKENLEN)
+        store.length() < NGTCP2_STATELESS_RESET_TOKENLEN) {
       return false;
+    }
 
+    // The stateless reset token itself is the *final* NGTCP2_STATELESS_RESET_TOKENLEN
+    // bytes in the received packet. If it is a stateless reset then then rest of the
+    // bytes in the packet are garbage that we'll ignore.
     ngtcp2_vec vec = store;
-    vec.base += vec.len;
-    vec.base -= NGTCP2_STATELESS_RESET_TOKENLEN;
+    vec.base += (vec.len - NGTCP2_STATELESS_RESET_TOKENLEN);
 
-    Session* session = nullptr;
+    // If a Session has been associated with the token, then it is a valid
+    // stateless reset token. We need to dispatch it to the session to be
+    // processed.
     auto it = token_map_.find(StatelessResetToken(vec.base));
-    if (it != token_map_.end()) session = it->second;
+    if (it != token_map_.end()) {
+      receive(it->second,
+              std::move(store),
+              local_address,
+              remote_address,
+              dcid,
+              scid);
+      return true;
+    }
 
-    return session != nullptr ? receive(std::move(store),
-                                        local_address,
-                                        remote_address,
-                                        dcid,
-                                        scid)
-                              : false;
+    // Otherwise, it's not a valid stateless reset token.
+    return false;
   };
 
 #ifdef DEBUG
@@ -1182,9 +1225,16 @@ void Endpoint::Receive(const uv_buf_t& buf,
   //   return;
   // }
 
+  // The managed buffer here contains the received packet. We do not yet know
+  // at this point if it is a valid QUIC packet. We need to do some basic checks.
+  // It is critical at this point that we do as little work as possible to avoid
+  // a DOS vector.
   std::shared_ptr<BackingStore> backing = env()->release_managed_buffer(buf);
-  if (UNLIKELY(!backing))
+  if (UNLIKELY(!backing)) {
+    // At this point something bad happened and we need to treat this as a fatal
+    // case. There's likely no way to test this specific condition reliably.
     return Destroy(CloseContext::RECEIVE_FAILURE, UV_ENOMEM);
+  }
 
   Store store(backing, buf.len, 0);
 
@@ -1201,13 +1251,12 @@ void Endpoint::Receive(const uv_buf_t& buf,
     return;  // Ignore the packet!
   }
 
-  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. The ngtcp2
-  // API allows non-standard lengths, and we may want to allow non-standard
-  // lengths later. But for now, we're going to ignore any packet with a
-  // non-standard CID length.
-  if (pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
-      pversion_cid.scidlen > NGTCP2_MAX_CIDLEN)
+  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. Ignore any packet
+  // with a non-standard CID length.
+  if (UNLIKELY(pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
+               pversion_cid.scidlen > NGTCP2_MAX_CIDLEN)) {
     return;  // Ignore the packet!
+  }
 
   // Each QUIC peer has two CIDs: The Source Connection ID (or scid), and the
   // Destination Connection ID (or dcid). For each peer, the dcid is the CID
@@ -1227,13 +1276,13 @@ void Endpoint::Receive(const uv_buf_t& buf,
   // impossible) that this randomly selected dcid will be in our index. If we do
   // happen to have a collision, as unlikely as it is, ngtcp2 will do the right
   // thing when it tries to process the packet so we really don't have to worry
-  // about it here. If the dcid is not known, the listener here will be nullptr.
+  // about it here. If the dcid is not known, the session here will be nullptr.
   //
-  // When the session is established, this peer will create it's own scid and
-  // will send that back to the remote peer to use as it's new dcid on
+  // When the session is established, this peer will create its own scid and
+  // will send that back to the remote peer to use as the new dcid on
   // subsequent packets. When that session is added, we will index it by the
   // local scid, so as long as the client sends the subsequent packets with the
-  // right dcid, everything will just work.
+  // right dcid, everything should just work.
 
   auto session = FindSession(dcid);
   auto addr = local_address();
@@ -1252,36 +1301,31 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // stateless reset, the packet will be handled with no additional action
     // necessary here. We want to return immediately without committing any
     // further resources.
-    if (!scid && maybeStatelessReset(dcid, scid, store, addr, remote_address))
+    if (!scid && maybeStatelessReset(dcid, scid, store, addr, remote_address)) {
       return;  // Stateless reset! Don't do any further processing.
-
-    if (acceptInitialPacket(pversion_cid.version,
-                            dcid,
-                            scid,
-                            std::move(store),
-                            addr,
-                            remote_address)) {
-      // Packet was successfully received.
-      STAT_INCREMENT(Stats, packets_received);
     }
-    return;
+
+    // Process the packet as an initial packet...
+    return acceptInitialPacket(pversion_cid.version,
+                               dcid,
+                               scid,
+                               std::move(store),
+                               addr,
+                               remote_address);
   }
 
   // If we got here, the dcid matched the scid of a known local session. Yay!
-  if (receive(std::move(store), addr, remote_address, dcid, scid))
-    STAT_INCREMENT(Stats, packets_received);
+  // The session will take over any further processing of the packet.
+  receive(session.get(), std::move(store), addr, remote_address, dcid, scid);
 }
 
 void Endpoint::PacketDone(int status) {
   if (is_closed()) return;
+  // At this point we should be waiting on at least one packet.
+  DCHECK_GE(state_->pending_callbacks, 1);
   state_->pending_callbacks--;
   // Can we go ahead and close now?
-  if (state_->closing == 1) {
-    // MaybeDestroy potentially creates v8 handles so let's make sure
-    // we have a HandleScope on the stack.
-    HandleScope scope(env()->isolate());
-    MaybeDestroy();
-  }
+  if (state_->closing == 1) MaybeDestroy();
 }
 
 void Endpoint::IncrementSocketAddressCounter(const SocketAddress& addr) {

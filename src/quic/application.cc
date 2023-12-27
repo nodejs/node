@@ -34,11 +34,26 @@ struct Session::Application::StreamData final {
   BaseObjectPtr<Stream> stream;
 };
 
+// ============================================================================
+// Session::Application_Options
 const Session::Application_Options Session::Application_Options::kDefault = {};
+
+Session::Application_Options::operator const nghttp3_settings() const {
+  // In theory, Application_Options might contain options for more than just
+  // HTTP/3. Here we extract only the properties that are relevant to HTTP/3.
+  return nghttp3_settings {
+    max_field_section_size,
+    qpack_max_dtable_capacity,
+    qpack_encoder_max_dtable_capacity,
+    qpack_blocked_streams,
+    enable_connect_protocol,
+    enable_datagrams,
+  };
+}
 
 Maybe<Session::Application_Options> Session::Application_Options::From(
     Environment* env, Local<Value> value) {
-  if (value.IsEmpty()) {
+  if (value.IsEmpty() || (!value->IsUndefined() && !value->IsObject())) {
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
     return Nothing<Application_Options>();
   }
@@ -47,11 +62,6 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
   auto& state = BindingData::Get(env);
   if (value->IsUndefined()) {
     return Just<Application_Options>(options);
-  }
-
-  if (!value->IsObject()) {
-    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
-    return Nothing<Application_Options>();
   }
 
   auto params = value.As<Object>();
@@ -63,7 +73,8 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 
   if (!SET(max_header_pairs) || !SET(max_header_length) ||
       !SET(max_field_section_size) || !SET(qpack_max_dtable_capacity) ||
-      !SET(qpack_encoder_max_dtable_capacity) || !SET(qpack_blocked_streams)) {
+      !SET(qpack_encoder_max_dtable_capacity) || !SET(qpack_blocked_streams) ||
+      !SET(enable_connect_protocol) || !SET(enable_datagrams)) {
     return Nothing<Application_Options>();
   }
 

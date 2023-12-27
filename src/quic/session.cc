@@ -1,3 +1,5 @@
+#include <cstdint>
+#include "quic/tokens.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "session.h"
@@ -93,18 +95,9 @@ namespace quic {
   V(MAX_BYTES_IN_FLIGHT, max_bytes_in_flight)                                  \
   V(BYTES_IN_FLIGHT, bytes_in_flight)                                          \
   V(BLOCK_COUNT, block_count)                                                  \
-  V(CONGESTION_RECOVERY_START_TS, congestion_recovery_start_ts)                \
   V(CWND, cwnd)                                                                \
-  V(DELIVERY_RATE_SEC, delivery_rate_sec)                                      \
-  V(FIRST_RTT_SAMPLE_TS, first_rtt_sample_ts)                                  \
-  V(INITIAL_RTT, initial_rtt)                                                  \
-  V(LAST_TX_PKT_TS, last_tx_pkt_ts)                                            \
   V(LATEST_RTT, latest_rtt)                                                    \
-  V(LOSS_DETECTION_TIMER, loss_detection_timer)                                \
-  V(LOSS_TIME, loss_time)                                                      \
-  V(MAX_UDP_PAYLOAD_SIZE, max_udp_payload_size)                                \
   V(MIN_RTT, min_rtt)                                                          \
-  V(PTO_COUNT, pto_count)                                                      \
   V(RTTVAR, rttvar)                                                            \
   V(SMOOTHED_RTT, smoothed_rtt)                                                \
   V(SSTHRESH, ssthresh)                                                        \
@@ -277,7 +270,6 @@ bool SetOption(Environment* env,
 }  // namespace
 
 // ============================================================================
-
 Session::Config::Config(Side side,
                         const Endpoint& endpoint,
                         const Options& options,
@@ -300,6 +292,12 @@ Session::Config::Config(Side side,
   ngtcp2_settings_default(&settings);
   settings.initial_ts = uv_hrtime();
 
+  // We currently do not support Path MTU Discovery. Once we do, unset this.
+  settings.no_pmtud = 1;
+
+  settings.tokenlen = 0;
+  settings.token = nullptr;
+
   if (options.qlog) {
     settings.qlog_write = on_qlog_write;
   }
@@ -311,6 +309,10 @@ Session::Config::Config(Side side,
 
   // We pull parts of the settings for the session from the endpoint options.
   auto& config = endpoint.options();
+  settings.no_tx_udp_payload_size_shaping = config.no_udp_payload_size_shaping;
+  settings.handshake_timeout = config.handshake_timeout;
+  settings.max_stream_window = config.max_stream_window;
+  settings.max_window = config.max_window;
   settings.cc_algo = config.cc_algorithm;
   settings.max_tx_udp_payload_size = config.max_payload_size;
   if (config.unacknowledged_packet_threshold > 0) {
@@ -347,6 +349,22 @@ void Session::Config::MemoryInfo(MemoryTracker* tracker) const {
     tracker->TrackField("session_ticket", session_ticket.value());
 }
 
+void Session::Config::set_token(const uint8_t* token, size_t len, ngtcp2_token_type type) {
+  settings.token = token;
+  settings.tokenlen = len;
+  settings.token_type = type;
+}
+
+void Session::Config::set_token(const RetryToken& token) {
+  ngtcp2_vec vec = token;
+  set_token(vec.base, vec.len, NGTCP2_TOKEN_TYPE_RETRY);
+}
+
+void Session::Config::set_token(const RegularToken& token) {
+  ngtcp2_vec vec = token;
+  set_token(vec.base, vec.len, NGTCP2_TOKEN_TYPE_NEW_TOKEN);
+}
+
 // ============================================================================
 
 Maybe<Session::Options> Session::Options::From(Environment* env,
@@ -358,7 +376,7 @@ Maybe<Session::Options> Session::Options::From(Environment* env,
 
   auto& state = BindingData::Get(env);
   auto params = value.As<Object>();
-  Options options = Options();
+  Options options;
 
 #define SET(name)                                                              \
   SetOption<Session::Options, &Session::Options::name>(                        \
@@ -391,7 +409,7 @@ bool Session::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-BaseObjectPtr<Session> Session::Create(BaseObjectPtr<Endpoint> endpoint,
+BaseObjectPtr<Session> Session::Create(Endpoint* endpoint,
                                        const Config& config) {
   Local<Object> obj;
   if (!GetConstructorTemplate(endpoint->env())
@@ -401,10 +419,10 @@ BaseObjectPtr<Session> Session::Create(BaseObjectPtr<Endpoint> endpoint,
     return BaseObjectPtr<Session>();
   }
 
-  return MakeDetachedBaseObject<Session>(std::move(endpoint), obj, config);
+  return MakeDetachedBaseObject<Session>(endpoint, obj, config);
 }
 
-Session::Session(BaseObjectPtr<Endpoint> endpoint,
+Session::Session(Endpoint* endpoint,
                  v8::Local<v8::Object> object,
                  const Config& config)
     : AsyncWrap(endpoint->env(), object, AsyncWrap::PROVIDER_QUIC_SESSION),
@@ -412,6 +430,7 @@ Session::Session(BaseObjectPtr<Endpoint> endpoint,
       state_(env()->isolate()),
       config_(config),
       connection_(InitConnection()),
+      endpoint_(BaseObjectWeakPtr<Endpoint>(endpoint)),
       tls_context_(env(), config_.side, this, config_.options.tls_options),
       application_(select_application()),
       local_address_(config.local_address),
@@ -541,7 +560,7 @@ const Session::Options& Session::options() const {
 }
 
 void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
-  if (qlog()) {
+  if (qlog_stream_) {
     // Fun fact... ngtcp2 does not emit the final qlog statement until the
     // ngtcp2_conn object is destroyed. Ideally, destroying is explicit, but
     // sometimes the Session object can be garbage collected without being
@@ -553,7 +572,7 @@ void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
     std::vector<uint8_t> buffer(len);
     memcpy(buffer.data(), data, len);
     env()->SetImmediate(
-        [ptr = qlog(), buffer = std::move(buffer), flags](Environment*) {
+        [ptr = qlog_stream_, buffer = std::move(buffer), flags](Environment*) {
           ptr->Emit(buffer.data(),
                     buffer.size(),
                     flags & NGTCP2_QLOG_WRITE_FLAG_FIN
@@ -561,14 +580,6 @@ void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
                         : LogStream::EmitOption::NONE);
         });
   }
-}
-
-BaseObjectPtr<LogStream> Session::qlog() const {
-  return qlog_stream_;
-}
-
-BaseObjectPtr<LogStream> Session::keylog() const {
-  return keylog_stream_;
 }
 
 TransportParams Session::GetLocalTransportParams() const {
@@ -588,20 +599,27 @@ void Session::SetLastError(QuicError&& error) {
 void Session::Close(Session::CloseMethod method) {
   if (is_destroyed()) return;
   switch (method) {
-    case CloseMethod::DEFAULT:
-      return DoClose();
-    case CloseMethod::SILENT:
-      return DoClose(true);
-    case CloseMethod::GRACEFUL:
+    case CloseMethod::DEFAULT: {
+      DoClose(false);
+      break;
+    }
+    case CloseMethod::SILENT: {
+      DoClose(true);
+      break;
+    }
+    case CloseMethod::GRACEFUL: {
       if (is_graceful_closing()) return;
       // If there are no open streams, then we can close just immediately and
       // not worry about waiting around for the right moment.
-      if (streams_.empty()) return DoClose();
-      state_->graceful_close = 1;
-      STAT_RECORD_TIMESTAMP(Stats, graceful_closing_at);
-      return;
+      if (streams_.empty()) {
+        DoClose();
+      } else {
+        state_->graceful_close = 1;
+        STAT_RECORD_TIMESTAMP(Stats, graceful_closing_at);
+      }
+      break;
+    }
   }
-  UNREACHABLE();
 }
 
 void Session::Destroy() {
@@ -628,35 +646,40 @@ void Session::Destroy() {
   // be deconstructed once the stack unwinds and any remaining
   // BaseObjectPtr<Session> instances fall out of scope.
 
-  std::vector<ngtcp2_cid> cids(ngtcp2_conn_get_scid(*this, nullptr));
-  ngtcp2_conn_get_scid(*this, cids.data());
+  MaybeStackBuffer<ngtcp2_cid, 10> cids(ngtcp2_conn_get_scid(*this, nullptr));
+  ngtcp2_conn_get_scid(*this, cids.out());
 
-  std::vector<ngtcp2_cid_token> tokens(
+  MaybeStackBuffer<ngtcp2_cid_token, 10> tokens(
       ngtcp2_conn_get_active_dcid(*this, nullptr));
-  ngtcp2_conn_get_active_dcid(*this, tokens.data());
+  ngtcp2_conn_get_active_dcid(*this, tokens.out());
 
   endpoint_->DisassociateCID(config_.dcid);
   endpoint_->DisassociateCID(config_.preferred_address_cid);
 
-  for (const auto& cid : cids) endpoint_->DisassociateCID(CID(&cid));
+  for (size_t n = 0; n < cids.length(); n++) {
+    endpoint_->DisassociateCID(CID(cids[n]));
+  }
 
-  for (const auto& token : tokens) {
-    if (token.token_present)
+  for (size_t n = 0; n < tokens.length(); n++) {
+    if (tokens[n].token_present) {
       endpoint_->DisassociateStatelessResetToken(
-          StatelessResetToken(token.token));
+          StatelessResetToken(tokens[n].token));
+    }
   }
 
   state_->destroyed = 1;
 
+  // Removing the session from the endpoint may cause the endpoint to be destroyed
+  // if it is waiting on the last session to be destroyed. Let's grab a reference
+  // just to be safe for the rest of the function.
   BaseObjectPtr<Endpoint> endpoint = std::move(endpoint_);
-
   endpoint->RemoveSession(config_.scid);
 }
 
 bool Session::Receive(Store&& store,
                       const SocketAddress& local_address,
                       const SocketAddress& remote_address) {
-  DCHECK(!is_destroyed());
+  if (is_destroyed()) return false;
 
   const auto receivePacket = [&](ngtcp2_path* path, ngtcp2_vec vec) {
     DCHECK(!is_destroyed());
@@ -674,6 +697,12 @@ bool Session::Receive(Store&& store,
         // sent. This happens when the remote peer has sent a CONNECTION_CLOSE.
         return false;
       }
+      case NGTCP2_ERR_CLOSING: {
+        // Connection has entered the closing state, no further data should be
+        // sent. This happens when the local peer has called
+        // ngtcp2_conn_write_connection_close.
+        return false;
+      }
       case NGTCP2_ERR_CRYPTO: {
         // Crypto error happened! Set the last error to the tls alert
         last_error_ = QuicError::ForTlsAlert(ngtcp2_conn_get_tls_alert(*this));
@@ -681,7 +710,7 @@ bool Session::Receive(Store&& store,
         return false;
       }
       case NGTCP2_ERR_RETRY: {
-        // This should only ever happen on the server. We have to sent a path
+        // This should only ever happen on the server. We have to send a path
         // validation challenge in the form of a RETRY packet to the peer and
         // drop the connection.
         DCHECK(is_server());
@@ -761,12 +790,18 @@ uint64_t Session::SendDatagram(Store&& data) {
   int attempts = 0;
 
   for (;;) {
+    // We may have to make several attempts at encoding and sending the
+    // datagram packet. On each iteration here we'll try to encode the
+    // datagram. It's entirely up to ngtcp2 whether to include the datagram
+    // in the packet on each call to ngtcp2_conn_writev_datagram.
     if (!packet) {
       packet = Packet::Create(env(),
                               endpoint_.get(),
                               remote_address_,
                               ngtcp2_conn_get_max_tx_udp_payload_size(*this),
                               "datagram");
+      // Typically sending datagrams is best effort, but if we cannot create
+      // the packet, then we handle it as a fatal error.
       if (!packet) {
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
         Close(CloseMethod::SILENT);
@@ -786,8 +821,9 @@ uint64_t Session::SendDatagram(Store&& data) {
                                                  &vec,
                                                  1,
                                                  uv_hrtime());
+    ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
 
-    if (nwrite < 1) {
+    if (nwrite <= 0) {
       // Nothing was written to the packet.
       switch (nwrite) {
         case 0: {
@@ -814,6 +850,16 @@ uint64_t Session::SendDatagram(Store&& data) {
           packet->Done(UV_ECANCELED);
           return 0;
         }
+        case NGTCP2_ERR_PKT_NUM_EXHAUSTED: {
+          // We've exhausted the packet number space. Sadly we have to treat it
+          // as a fatal condition.
+          break;
+        }
+        case NGTCP2_ERR_CALLBACK_FAILURE: {
+          // There was an internal failure. Sadly we have to treat it as a fatal
+          // condition.
+          break;
+        }
       }
       packet->Done(UV_ECANCELED);
       last_error_ = QuicError::ForNgtcp2Error(nwrite);
@@ -826,7 +872,6 @@ uint64_t Session::SendDatagram(Store&& data) {
     // datagram! We'll check that next by checking the accepted value.
     packet->Truncate(nwrite);
     Send(std::move(packet));
-    ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
 
     if (accepted != 0) {
       // Yay! The datagram was accepted into the packet we just sent and we can
@@ -1110,22 +1155,6 @@ void Session::UpdateDataStats() {
       Stats,
       max_bytes_in_flight,
       std::max(STAT_GET(Stats, max_bytes_in_flight), info.bytes_in_flight));
-
-  // TODO(@jasnell): Want to see if ngtcp2 provides an alternative way of
-  // getting these before removing them. Will handle that in one of the
-  // follow-up PRs STAT_SET(
-  //     Stats, congestion_recovery_start_ts,
-  //     info.congestion_recovery_start_ts);
-  // STAT_SET(Stats, delivery_rate_sec, info.delivery_rate_sec);
-  // STAT_SET(Stats, first_rtt_sample_ts, stat.first_rtt_sample_ts);
-  // STAT_SET(Stats, initial_rtt, info.initial_rtt);
-  // STAT_SET(
-  //     Stats, last_tx_pkt_ts,
-  //     reinterpret_cast<uint64_t>(stat.last_tx_pkt_ts));
-  // STAT_SET(Stats, loss_detection_timer, info.loss_detection_timer);
-  // STAT_SET(Stats, loss_time, reinterpret_cast<uint64_t>(stat.loss_time));
-  // STAT_SET(Stats, max_udp_payload_size, stat.max_udp_payload_size);
-  // STAT_SET(Stats, pto_count, stat.pto_count);
 }
 
 void Session::SendConnectionClose() {
@@ -1373,7 +1402,7 @@ void Session::EmitDatagramStatus(uint64_t id, quic::DatagramStatus status) {
   CallbackScope<Session> cb_scope(this);
   auto& state = BindingData::Get(env());
 
-  const auto status_to_string = [&] {
+  const auto status_to_string = ([&] {
     switch (status) {
       case quic::DatagramStatus::ACKNOWLEDGED:
         return state.acknowledged_string();
@@ -1381,10 +1410,10 @@ void Session::EmitDatagramStatus(uint64_t id, quic::DatagramStatus status) {
         return state.lost_string();
     }
     UNREACHABLE();
-  };
+  })();
 
   Local<Value> argv[] = {BigInt::NewFromUnsigned(env()->isolate(), id),
-                         status_to_string()};
+                         status_to_string};
   MakeCallback(state.session_datagram_status_callback(), arraysize(argv), argv);
 }
 
@@ -1447,7 +1476,7 @@ void Session::EmitPathValidation(PathValidationResult result,
   CallbackScope<Session> cb_scope(this);
   auto& state = BindingData::Get(env());
 
-  const auto resultToString = [&] {
+  const auto resultToString = ([&] {
     switch (result) {
       case PathValidationResult::ABORTED:
         return state.aborted_string();
@@ -1457,10 +1486,10 @@ void Session::EmitPathValidation(PathValidationResult result,
         return state.success_string();
     }
     UNREACHABLE();
-  };
+  })();
 
   Local<Value> argv[] = {
-      resultToString(),
+      resultToString,
       SocketAddressBase::Create(env(), newPath.local)->object(),
       SocketAddressBase::Create(env(), newPath.remote)->object(),
       Undefined(isolate),
@@ -1955,14 +1984,6 @@ struct Session::Impl {
     return NGTCP2_SUCCESS;
   }
 
-  static int on_stream_open(ngtcp2_conn* conn,
-                            int64_t stream_id,
-                            void* user_data) {
-    // We currently do nothing with this callback. That is because we
-    // implicitly create streams when we receive data on them.
-    return NGTCP2_SUCCESS;
-  }
-
   static int on_stream_reset(ngtcp2_conn* conn,
                              int64_t stream_id,
                              uint64_t final_size,
@@ -2012,7 +2033,7 @@ struct Session::Impl {
       ngtcp2_crypto_hp_mask_cb,
       on_receive_stream_data,
       on_acknowledge_stream_data_offset,
-      on_stream_open,
+      nullptr,
       on_stream_close,
       on_receive_stateless_reset,
       ngtcp2_crypto_recv_retry_cb,
@@ -2054,7 +2075,7 @@ struct Session::Impl {
       ngtcp2_crypto_hp_mask_cb,
       on_receive_stream_data,
       on_acknowledge_stream_data_offset,
-      on_stream_open,
+      nullptr,
       on_stream_close,
       on_receive_stateless_reset,
       nullptr,
@@ -2161,25 +2182,28 @@ Session::QuicConnectionPointer Session::InitConnection() {
   UNREACHABLE();
 }
 
-void Session::Initialize(Environment* env, Local<Object> target) {
+void Session::InitPerIsolate(IsolateData* data, v8::Local<v8::ObjectTemplate> target) {
+  // TODO(@jasnell): Implement the per-isolate state
+}
+
+void Session::InitPerContext(Realm* realm, Local<Object> target) {
   // Make sure the Session constructor template is initialized.
-  USE(GetConstructorTemplate(env));
+  USE(GetConstructorTemplate(realm->env()));
 
-  TransportParams::Initialize(env, target);
-  PreferredAddress::Initialize(env, target);
+  TransportParams::Initialize(realm->env(), target);
+  PreferredAddress::Initialize(realm->env(), target);
 
-  static constexpr uint32_t STREAM_DIRECTION_BIDIRECTIONAL =
+  static constexpr auto STREAM_DIRECTION_BIDIRECTIONAL =
       static_cast<uint32_t>(Direction::BIDIRECTIONAL);
-  static constexpr uint32_t STREAM_DIRECTION_UNIDIRECTIONAL =
+  static constexpr auto STREAM_DIRECTION_UNIDIRECTIONAL =
       static_cast<uint32_t>(Direction::UNIDIRECTIONAL);
+  static constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
+  static constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
 
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_BIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, STREAM_DIRECTION_UNIDIRECTIONAL);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LIST_PAIRS);
   NODE_DEFINE_CONSTANT(target, DEFAULT_MAX_HEADER_LENGTH);
-
-  constexpr auto QUIC_PROTO_MAX = NGTCP2_PROTO_VER_MAX;
-  constexpr auto QUIC_PROTO_MIN = NGTCP2_PROTO_VER_MIN;
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MAX);
   NODE_DEFINE_CONSTANT(target, QUIC_PROTO_MIN);
 
