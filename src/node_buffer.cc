@@ -1193,18 +1193,6 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
 
-void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  if (args[0]->IsArrayBuffer()) {
-    Local<ArrayBuffer> buf = args[0].As<ArrayBuffer>();
-    if (buf->IsDetachable()) {
-      std::shared_ptr<BackingStore> store = buf->GetBackingStore();
-      buf->Detach(Local<Value>()).Check();
-      args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), store));
-    }
-  }
-}
-
 namespace {
 
 std::pair<void*, size_t> DecomposeBufferToParts(Local<Value> buffer) {
@@ -1283,7 +1271,6 @@ void Initialize(Local<Object> target,
   SetMethodNoSideEffect(context, target, "indexOfNumber", IndexOfNumber);
   SetMethodNoSideEffect(context, target, "indexOfString", IndexOfString);
 
-  SetMethod(context, target, "detachArrayBuffer", DetachArrayBuffer);
   SetMethod(context, target, "copyArrayBuffer", CopyArrayBuffer);
 
   SetMethod(context, target, "swap16", Swap16);
@@ -1366,7 +1353,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StringWrite<UTF8>);
   registry->Register(GetZeroFillToggle);
 
-  registry->Register(DetachArrayBuffer);
   registry->Register(CopyArrayBuffer);
 }
 
