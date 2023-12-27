@@ -121,6 +121,28 @@ TEST(SpanFromTest, FromConstCharAndLiteral) {
   EXPECT_EQ(3u, SpanFrom("foo").size());
 }
 
+TEST(SpanComparisons, ByteWiseLexicographicalOrder) {
+  // Compare the empty span.
+  EXPECT_FALSE(SpanLessThan(span<uint8_t>(), span<uint8_t>()));
+  EXPECT_TRUE(SpanEquals(span<uint8_t>(), span<uint8_t>()));
+
+  // Compare message with itself.
+  std::string msg = "Hello, world";
+  EXPECT_FALSE(SpanLessThan(SpanFrom(msg), SpanFrom(msg)));
+  EXPECT_TRUE(SpanEquals(SpanFrom(msg), SpanFrom(msg)));
+
+  // Compare message and copy.
+  EXPECT_FALSE(SpanLessThan(SpanFrom(msg), SpanFrom(std::string(msg))));
+  EXPECT_TRUE(SpanEquals(SpanFrom(msg), SpanFrom(std::string(msg))));
+
+  // Compare two messages. |lesser_msg| < |msg| because of the first
+  // byte ('A' < 'H').
+  std::string lesser_msg = "A lesser message.";
+  EXPECT_TRUE(SpanLessThan(SpanFrom(lesser_msg), SpanFrom(msg)));
+  EXPECT_FALSE(SpanLessThan(SpanFrom(msg), SpanFrom(lesser_msg)));
+  EXPECT_FALSE(SpanEquals(SpanFrom(msg), SpanFrom(lesser_msg)));
+}
+
 // =============================================================================
 // Status and Error codes
 // =============================================================================
