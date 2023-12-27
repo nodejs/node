@@ -69,7 +69,7 @@ for (const arrayPair of equalArrayPairs) {
   assert.deepStrictEqual(arrayPair[0], arrayPair[1]);
 }
 
-for (const arrayPair in looseEqualArrayPairs) {
+for (const arrayPair of looseEqualArrayPairs) {
   // eslint-disable-next-line no-restricted-properties
   assert.deepEqual(arrayPair[0], arrayPair[1]);
   assert.throws(
