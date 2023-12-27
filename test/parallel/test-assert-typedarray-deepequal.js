@@ -78,7 +78,7 @@ for (const arrayPair of looseEqualArrayPairs) {
   );
 }
 
-for (const arrayPair in notEqualArrayPairs) {
+for (const arrayPair of notEqualArrayPairs) {
   assert.throws(
     // eslint-disable-next-line no-restricted-properties
     makeBlock(assert.deepEqual, arrayPair[0], arrayPair[1]),
