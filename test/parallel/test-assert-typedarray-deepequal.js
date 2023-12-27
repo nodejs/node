@@ -82,7 +82,7 @@ for (const arrayPair in notEqualArrayPairs) {
   assert.throws(
     // eslint-disable-next-line no-restricted-properties
     makeBlock(assert.deepEqual, arrayPair[0], arrayPair[1]),
-    assert.AssertionErrorset
+    assert.AssertionError
   );
   assert.throws(
     makeBlock(assert.deepStrictEqual, arrayPair[0], arrayPair[1]),
