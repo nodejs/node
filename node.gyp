@@ -471,6 +471,9 @@
     },
 
     'conditions': [
+      ['target_arch=="arm64"', {
+        'cflags': ['-mbranch-protection=standard'],  # Pointer authentication.
+      }],
       ['OS in "aix os400"', {
         'ldflags': [
           '-Wl,-bnoerrmsg',
