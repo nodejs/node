@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -17,6 +18,7 @@ namespace quic {
 struct Path final : public ngtcp2_path {
   Path(const SocketAddress& local, const SocketAddress& remote);
   inline operator ngtcp2_path*() { return this; }
+  std::string ToString() const;
 };
 
 struct PathStorage final : public ngtcp2_path_storage {

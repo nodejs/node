@@ -5,7 +5,9 @@
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_sockaddr-inl.h>
+#include <string_bytes.h>
 #include <v8.h>
+#include "defs.h"
 #include "util.h"
 
 namespace node {
@@ -24,6 +26,25 @@ namespace quic {
 Path::Path(const SocketAddress& local, const SocketAddress& remote) {
   ngtcp2_addr_init(&this->local, local.data(), local.length());
   ngtcp2_addr_init(&this->remote, remote.data(), remote.length());
+}
+
+std::string Path::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+
+  const sockaddr* local_in = reinterpret_cast<const sockaddr*>(local.addr);
+  auto local_addr = SocketAddress::GetAddress(local_in);
+  auto local_port = SocketAddress::GetPort(local_in);
+
+  const sockaddr* remote_in = reinterpret_cast<const sockaddr*>(remote.addr);
+  auto remote_addr = SocketAddress::GetAddress(remote_in);
+  auto remote_port = SocketAddress::GetPort(remote_in);
+
+  std::string res("{");
+  res += prefix + "local: " + local_addr + ":" + std::to_string(local_port);
+  res += prefix + "remote: " + remote_addr + ":" + std::to_string(remote_port);
+  res += indent.Close();
+  return res;
 }
 
 PathStorage::PathStorage() {

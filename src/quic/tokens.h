@@ -41,11 +41,14 @@ class TokenSecret final : public MemoryRetainer {
   operator const uint8_t*() const;
   uint8_t operator[](int pos) const;
 
+  std::string ToString() const;
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(TokenSecret)
   SET_SELF_SIZE(TokenSecret)
 
  private:
+  operator const char*() const;
   uint8_t buf_[QUIC_TOKENSECRET_LEN];
 };
 
@@ -183,12 +186,16 @@ class RetryToken final : public MemoryRetainer {
 
   operator const ngtcp2_vec&() const;
   operator const ngtcp2_vec*() const;
+  operator bool() const;
+
+  std::string ToString() const;
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RetryToken)
   SET_SELF_SIZE(RetryToken)
 
  private:
+  operator const char*() const;
   uint8_t buf_[kRetryTokenLen];
   const ngtcp2_vec ptr_;
 };
@@ -232,11 +239,14 @@ class RegularToken final : public MemoryRetainer {
 
   operator bool() const;
 
+  std::string ToString() const;
+
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(RetryToken)
   SET_SELF_SIZE(RetryToken)
 
  private:
+  operator const char*() const;
   uint8_t buf_[kRegularTokenLen];
   const ngtcp2_vec ptr_;
 };
