@@ -43,6 +43,18 @@ uint8_t TokenSecret::operator[](int pos) const {
   return buf_[pos];
 }
 
+TokenSecret::operator const char*() const {
+  return reinterpret_cast<const char*>(buf_);
+}
+
+std::string TokenSecret::ToString() const {
+  char dest[QUIC_TOKENSECRET_LEN * 2];
+  size_t written =
+      StringBytes::hex_encode(*this, QUIC_TOKENSECRET_LEN, dest, arraysize(dest));
+  DCHECK_EQ(written, arraysize(dest));
+  return std::string(dest, written);
+}
+
 // ============================================================================
 // StatelessResetToken
 
@@ -214,6 +226,23 @@ RetryToken::operator const ngtcp2_vec*() const {
   return &ptr_;
 }
 
+std::string RetryToken::ToString() const {
+  if (ptr_.base == nullptr) return std::string();
+  MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
+  size_t written =
+      StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
+  DCHECK_EQ(written, arraysize(dest));
+  return std::string(dest.out(), written);
+}
+
+RetryToken::operator const char*() const {
+  return reinterpret_cast<const char*>(ptr_.base);
+}
+
+RetryToken::operator bool() const {
+  return ptr_.base != nullptr && ptr_.len > 0;
+}
+
 RegularToken::RegularToken() : buf_(), ptr_(ngtcp2_vec{nullptr, 0}) {}
 
 RegularToken::RegularToken(uint32_t version,
@@ -254,6 +283,19 @@ RegularToken::operator const ngtcp2_vec&() const {
 }
 RegularToken::operator const ngtcp2_vec*() const {
   return &ptr_;
+}
+
+std::string RegularToken::ToString() const {
+  if (ptr_.base == nullptr) return std::string();
+  MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
+  size_t written =
+      StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
+  DCHECK_EQ(written, arraysize(dest));
+  return std::string(dest.out(), written);
+}
+
+RegularToken::operator const char*() const {
+  return reinterpret_cast<const char*>(ptr_.base);
 }
 
 }  // namespace quic

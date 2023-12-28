@@ -26,6 +26,7 @@ struct PathDescriptor {
   const CID& scid;
   const SocketAddress& local_address;
   const SocketAddress& remote_address;
+  std::string ToString() const;
 };
 
 // A Packet encapsulates serialized outbound QUIC data.

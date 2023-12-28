@@ -2,6 +2,8 @@
 
 #include "tlscontext.h"
 #include <base_object-inl.h>
+#include <async_wrap-inl.h>
+#include <debug_utils-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
@@ -386,6 +388,7 @@ TLSContext::TLSContext(Environment* env,
 }
 
 void TLSContext::Start() {
+  Debug(session_, "Crypto context is starting");
   ngtcp2_conn_set_tls_native_handle(*session_, ssl_.get());
 
   TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
@@ -404,6 +407,7 @@ int TLSContext::Receive(TLSContext::EncryptionLevel level,
                         uint64_t offset,
                         const uint8_t* data,
                         size_t datalen) {
+  Debug(session_, "Crypto context received data");
   // ngtcp2 provides an implementation of this in
   // ngtcp2_crypto_recv_crypto_data_cb but given that we are using the
   // implementation specific error codes below, we can't use it.
@@ -431,6 +435,7 @@ int TLSContext::Receive(TLSContext::EncryptionLevel level,
 }
 
 int TLSContext::OnNewSession(SSL_SESSION* session) {
+  Debug(session_, "Crypto context received new crypto session");
   // Used to generate and emit a SessionTicket for TLS session resumption.
 
   // If there is nothing listening for the session ticket, don't both emitting.
@@ -455,6 +460,7 @@ int TLSContext::OnNewSession(SSL_SESSION* session) {
 }
 
 bool TLSContext::InitiateKeyUpdate() {
+  Debug(session_, "Crypto context initiating key update");
   if (session_->is_destroyed() || in_key_update_) return false;
   auto leave = OnScopeLeave([this] { in_key_update_ = false; });
   in_key_update_ = true;
@@ -463,10 +469,12 @@ bool TLSContext::InitiateKeyUpdate() {
 }
 
 int TLSContext::VerifyPeerIdentity() {
+  Debug(session_, "Crypto context verifying peer identity");
   return crypto::VerifyPeerCertificate(ssl_);
 }
 
 void TLSContext::MaybeSetEarlySession(const SessionTicket& sessionTicket) {
+  Debug(session_, "Crypto context setting early session");
   uv_buf_t buf = sessionTicket.ticket();
   crypto::SSLSessionPointer ticket = crypto::GetTLSSession(
       reinterpret_cast<unsigned char*>(buf.base), buf.len);
@@ -588,6 +596,34 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   }
 
   return Just<Options>(options);
+}
+
+std::string TLSContext::Options::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "alpn: " + alpn;
+  res += prefix + "hostname: " + hostname;
+  res += prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
+  res += prefix + "reject_unauthorized: " +
+         (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "enable_tls_trace: " +
+         (enable_tls_trace ? std::string("yes") : std::string("no"));
+  res += prefix + "request_peer_certificate: " + (request_peer_certificate
+                                                 ? std::string("yes")
+                                                 : std::string("no"));
+  res += prefix + "verify_hostname_identity: " + (verify_hostname_identity
+                                                 ? std::string("yes")
+                                                 : std::string("no"));
+  res += prefix + "session_id_ctx: " + session_id_ctx;
+  res += prefix + "ciphers: " + ciphers;
+  res += prefix + "groups: " + groups;
+  res += prefix + "keys: " + std::to_string(keys.size());
+  res += prefix + "certs: " + std::to_string(certs.size());
+  res += prefix + "ca: " + std::to_string(ca.size());
+  res += prefix + "crl: " + std::to_string(crl.size());
+  res += indent.Close();
+  return res;
 }
 
 }  // namespace quic

@@ -86,6 +86,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     static v8::Maybe<Application_Options> From(Environment* env,
                                                v8::Local<v8::Value> value);
 
+    std::string ToString() const;
+
     static const Application_Options kDefault;
   };
 
@@ -129,6 +131,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   // The additional configuration settings used to create a specific session.
@@ -197,6 +201,11 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     void MemoryInfo(MemoryTracker* tracker) const override;
     SET_MEMORY_INFO_NAME(Session::Config)
     SET_SELF_SIZE(Config)
+
+    std::string ToString() const {
+      // TODO(@jasnell)
+      return std::string("{}");
+    }
   };
 
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);

@@ -13,6 +13,9 @@ namespace quic {
 #define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
 #define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
 
+#define IF_QUIC_DEBUG(env) \
+  if (UNLIKELY(env->enabled_debug_list()->enabled(DebugCategory::QUIC)))
+
 template <typename Opt, std::string Opt::*member>
 bool SetOption(Environment* env,
                Opt* options,
@@ -144,6 +147,29 @@ uint64_t GetStat(Stats* stats) {
 
 #define JS_METHOD(name)                                                        \
   static void name(const v8::FunctionCallbackInfo<v8::Value>& args)
+
+class DebugIndentScope {
+ public:
+  inline DebugIndentScope() { ++indent_; }
+  DebugIndentScope(const DebugIndentScope&) = delete;
+  DebugIndentScope(DebugIndentScope&&) = delete;
+  DebugIndentScope& operator=(const DebugIndentScope&) = delete;
+  DebugIndentScope& operator=(DebugIndentScope&&) = delete;
+  inline ~DebugIndentScope() { --indent_; }
+  std::string Prefix() const {
+    std::string res("\n");
+    res.append(indent_, '\t');
+    return res;
+  }
+  std::string Close() const {
+    std::string res("\n");
+    res.append(indent_ - 1, '\t');
+    res += "}";
+    return res;
+  }
+ private:
+  static int indent_;
+};
 
 }  // namespace quic
 }  // namespace node

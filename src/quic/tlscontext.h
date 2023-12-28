@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -100,6 +101,8 @@ class TLSContext final : public MemoryRetainer {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   static const Options kDefaultOptions;

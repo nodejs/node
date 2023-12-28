@@ -1,6 +1,7 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "packet.h"
+#include "defs.h"
 #include <base_object-inl.h>
 #include <crypto/crypto_util.h>
 #include <env-inl.h>
@@ -28,6 +29,19 @@ static constexpr size_t kRandlen = NGTCP2_MIN_STATELESS_RESET_RANDLEN * 5;
 static constexpr size_t kMinStatelessResetLen = 41;
 static constexpr size_t kMaxFreeList = 100;
 }  // namespace
+
+std::string PathDescriptor::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res = "{";
+  res += prefix + "version: " + std::to_string(version);
+  res += prefix + "dcid: " + dcid.ToString();
+  res += prefix + "scid: " + scid.ToString();
+  res += prefix + "local address: " + local_address.ToString();
+  res += prefix + "remote address: " + remote_address.ToString();
+  res += indent.Close();
+  return res;
+}
 
 struct Packet::Data final : public MemoryRetainer {
   MaybeStackBuffer<uint8_t, kDefaultMaxPacketLength> data_;
@@ -164,7 +178,9 @@ Packet::Packet(Environment* env,
     : ReqWrap<uv_udp_send_t>(env, object, AsyncWrap::PROVIDER_QUIC_PACKET),
       listener_(listener),
       destination_(destination),
-      data_(std::move(data)) {}
+      data_(std::move(data)) {
+  Debug(this, "Created a new packet");
+}
 
 Packet::Packet(Environment* env,
                Listener* listener,
@@ -184,6 +200,7 @@ int Packet::Send(uv_udp_t* handle, BaseObjectPtr<BaseObject> ref) {
   DCHECK(!is_sending());
   handle_ = std::move(ref);
   uv_buf_t buf = *this;
+  Debug(this, "Packet it sending");
   return Dispatch(
       uv_udp_send,
       handle,
@@ -199,6 +216,7 @@ int Packet::Send(uv_udp_t* handle, BaseObjectPtr<BaseObject> ref) {
 }
 
 void Packet::Done(int status) {
+  Debug(this, "Packet is done with status %d", status);
   if (listener_ != nullptr) {
     listener_->PacketDone(status);
   }

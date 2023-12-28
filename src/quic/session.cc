@@ -1,11 +1,10 @@
-#include <cstdint>
-#include "quic/tokens.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "session.h"
 #include <aliased_struct-inl.h>
 #include <async_wrap-inl.h>
 #include <crypto/crypto_util.h>
+#include <debug_utils-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
@@ -137,6 +136,7 @@ struct Session::MaybeCloseConnectionScope final {
   MaybeCloseConnectionScope(Session* session_, bool silent_)
       : session(session_),
         silent(silent_ || session->connection_close_depth_ > 0) {
+    Debug(session_, "Entering maybe close connection scope. Silent? %s", silent ? "yes" : "no");
     session->connection_close_depth_++;
   }
   MaybeCloseConnectionScope(const MaybeCloseConnectionScope&) = delete;
@@ -164,6 +164,7 @@ struct Session::MaybeCloseConnectionScope final {
 
 Session::SendPendingDataScope::SendPendingDataScope(Session* session)
     : session(session) {
+  Debug(session, "Entering send pending data scope");
   session->send_scope_depth_++;
 }
 
@@ -403,6 +404,31 @@ void Session::Options::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("cid_factory_ref", cid_factory_ref);
 }
 
+std::string Session::Options::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "version: " + std::to_string(version);
+  res += prefix + "min version: " + std::to_string(min_version);
+
+  auto policy = ([&] {
+    switch (preferred_address_strategy) {
+      case PreferredAddress::Policy::USE_PREFERRED_ADDRESS:
+        return "use";
+      case PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS:
+        return "ignore";
+    }
+    return "<unknown>";
+  })();
+  res += prefix + "preferred address policy: " + std::string(policy);
+  res += prefix + "transport params: " + transport_params.ToString();
+  res += prefix + "crypto options: " + tls_options.ToString();
+  res += prefix + "application options: " + application_options.ToString();
+  res += prefix + "qlog: " + (qlog ? std::string("yes") : std::string("no"));
+  res += indent.Close();
+  return res;
+}
+
 // ============================================================================
 
 bool Session::HasInstance(Environment* env, Local<Value> value) {
@@ -438,6 +464,9 @@ Session::Session(Endpoint* endpoint,
       timer_(env(),
              [this, self = BaseObjectPtr<Session>(this)] { OnTimeout(); }) {
   MakeWeak();
+
+  Debug(this, "Session created.");
+
   timer_.Unref();
 
   application().ExtendMaxStreams(EndpointLabel::LOCAL,
@@ -481,14 +510,17 @@ Session::Session(Endpoint* endpoint,
 }
 
 Session::~Session() {
+  Debug(this, "Session destroyed.");
   if (conn_closebuf_) {
     conn_closebuf_->Done(0);
   }
   if (qlog_stream_) {
+    Debug(this, "Closing the qlog stream for this session");
     env()->SetImmediate(
         [ptr = std::move(qlog_stream_)](Environment*) { ptr->End(); });
   }
   if (keylog_stream_) {
+    Debug(this, "Closing the keylog stream for this session");
     env()->SetImmediate(
         [ptr = std::move(keylog_stream_)](Environment*) { ptr->End(); });
   }
@@ -571,6 +603,7 @@ void Session::HandleQlog(uint32_t flags, const void* data, size_t len) {
     // the deferring is fine).
     std::vector<uint8_t> buffer(len);
     memcpy(buffer.data(), data, len);
+    Debug(this, "Emitting qlog data to the qlog stream");
     env()->SetImmediate(
         [ptr = qlog_stream_, buffer = std::move(buffer), flags](Environment*) {
           ptr->Emit(buffer.data(),
@@ -593,6 +626,7 @@ TransportParams Session::GetRemoteTransportParams() const {
 }
 
 void Session::SetLastError(QuicError&& error) {
+  Debug(this, "Setting last error to %s", error);
   last_error_ = std::move(error);
 }
 
@@ -600,19 +634,22 @@ void Session::Close(Session::CloseMethod method) {
   if (is_destroyed()) return;
   switch (method) {
     case CloseMethod::DEFAULT: {
+      Debug(this, "Closing session");
       DoClose(false);
       break;
     }
     case CloseMethod::SILENT: {
+      Debug(this, "Closing session silently");
       DoClose(true);
       break;
     }
     case CloseMethod::GRACEFUL: {
       if (is_graceful_closing()) return;
+      Debug(this, "Closing session gracefully");
       // If there are no open streams, then we can close just immediately and
       // not worry about waiting around for the right moment.
       if (streams_.empty()) {
-        DoClose();
+        DoClose(false);
       } else {
         state_->graceful_close = 1;
         STAT_RECORD_TIMESTAMP(Stats, graceful_closing_at);
@@ -624,6 +661,7 @@ void Session::Close(Session::CloseMethod method) {
 
 void Session::Destroy() {
   if (is_destroyed()) return;
+  Debug(this, "Session destroyed");
 
   // The DoClose() method should have already been called.
   DCHECK(state_->closing);
@@ -686,26 +724,31 @@ bool Session::Receive(Store&& store,
 
     uint64_t now = uv_hrtime();
     ngtcp2_pkt_info pi{};  // Not used but required.
+    Debug(this, "Session is receiving packet");
     int err = ngtcp2_conn_read_pkt(*this, path, &pi, vec.base, vec.len, now);
     switch (err) {
       case 0: {
         // Return true so we send after receiving.
+        Debug(this, "Session successfully received packet");
         return true;
       }
       case NGTCP2_ERR_DRAINING: {
         // Connection has entered the draining state, no further data should be
         // sent. This happens when the remote peer has sent a CONNECTION_CLOSE.
+        Debug(this, "Session is draining");
         return false;
       }
       case NGTCP2_ERR_CLOSING: {
         // Connection has entered the closing state, no further data should be
         // sent. This happens when the local peer has called
         // ngtcp2_conn_write_connection_close.
+        Debug(this, "Session is closing");
         return false;
       }
       case NGTCP2_ERR_CRYPTO: {
         // Crypto error happened! Set the last error to the tls alert
         last_error_ = QuicError::ForTlsAlert(ngtcp2_conn_get_tls_alert(*this));
+        Debug(this, "Crypto error while receiving packet: %s", last_error_);
         Close();
         return false;
       }
@@ -714,6 +757,7 @@ bool Session::Receive(Store&& store,
         // validation challenge in the form of a RETRY packet to the peer and
         // drop the connection.
         DCHECK(is_server());
+        Debug(this, "Server must send a retry packet");
         endpoint_->SendRetry(PathDescriptor{
             version(),
             config_.dcid,
@@ -726,12 +770,14 @@ bool Session::Receive(Store&& store,
       }
       case NGTCP2_ERR_DROP_CONN: {
         // There's nothing else to do but drop the connection state.
+        Debug(this, "Session must drop the connection");
         Close(CloseMethod::SILENT);
         return false;
       }
     }
     // Shouldn't happen but just in case.
     last_error_ = QuicError::ForNgtcp2Error(err);
+    Debug(this, "Error while receiving packet: %s", last_error_);
     Close();
     return false;
   };
@@ -756,11 +802,13 @@ void Session::Send(BaseObjectPtr<Packet> packet) {
   DCHECK(!is_in_draining_period());
 
   if (can_send_packets() && packet->length() > 0) {
+    Debug(this, "Session is sending %s", packet->ToString());
     STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
     endpoint_->Send(std::move(packet));
     return;
   }
 
+  Debug(this, "Session could not send %s", packet->ToString());
   packet->Done(packet->length() > 0 ? UV_ECANCELED : 0);
 }
 
@@ -774,9 +822,11 @@ uint64_t Session::SendDatagram(Store&& data) {
   uint64_t max_datagram_size = tp->max_datagram_frame_size;
   if (max_datagram_size == 0 || data.length() > max_datagram_size) {
     // Datagram is too large.
+    Debug(this, "Data is too large to send as a datagram");
     return 0;
   }
 
+  Debug(this, "Session is sending datagram");
   BaseObjectPtr<Packet> packet;
   uint8_t* pos = nullptr;
   int accepted = 0;
@@ -876,6 +926,7 @@ uint64_t Session::SendDatagram(Store&& data) {
     if (accepted != 0) {
       // Yay! The datagram was accepted into the packet we just sent and we can
       // return the datagram ID.
+      Debug(this, "Session successfully encoded datagram");
       STAT_INCREMENT(Stats, datagrams_sent);
       STAT_INCREMENT_N(Stats, bytes_sent, vec.len);
       state_->last_datagram_id = did;
@@ -885,6 +936,7 @@ uint64_t Session::SendDatagram(Store&& data) {
     // We sent a packet, but it wasn't the datagram packet. That can happen.
     // Let's loop around and try again.
     if (++attempts == kMaxAttempts) {
+      Debug(this, "Too many attempts to send the datagram");
       // Too many attempts to send the datagram.
       break;
     }
@@ -896,6 +948,7 @@ uint64_t Session::SendDatagram(Store&& data) {
 void Session::UpdatePath(const PathStorage& storage) {
   remote_address_.Update(storage.path.remote.addr, storage.path.remote.addrlen);
   local_address_.Update(storage.path.local.addr, storage.path.local.addrlen);
+  Debug(this, "path updated. local %s, remote %s", local_address_, remote_address_);
 }
 
 BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
@@ -914,19 +967,24 @@ BaseObjectPtr<Stream> Session::OpenStream(Direction direction) {
   if (!can_create_streams()) return BaseObjectPtr<Stream>();
   int64_t id;
   switch (direction) {
-    case Direction::BIDIRECTIONAL:
+    case Direction::BIDIRECTIONAL: {
+      Debug(this, "Opening bidirectional stream");
       if (ngtcp2_conn_open_bidi_stream(*this, &id, nullptr) == 0)
         return CreateStream(id);
       break;
-    case Direction::UNIDIRECTIONAL:
+    }
+    case Direction::UNIDIRECTIONAL: {
+      Debug(this, "Opening uni-directional stream");
       if (ngtcp2_conn_open_uni_stream(*this, &id, nullptr) == 0)
         return CreateStream(id);
       break;
+    }
   }
   return BaseObjectPtr<Stream>();
 }
 
 void Session::AddStream(const BaseObjectPtr<Stream>& stream) {
+  Debug(this, "Adding stream %" PRIi64 " to session", stream->id());
   ngtcp2_conn_set_stream_user_data(*this, stream->id(), stream.get());
   streams_[stream->id()] = stream;
 
@@ -984,6 +1042,7 @@ void Session::RemoveStream(int64_t id) {
   // ngtcp2 does not extend the max streams count automatically except in very
   // specific conditions, none of which apply once we've gotten this far. We
   // need to manually extend when a remote peer initiated stream is removed.
+  Debug(this, "Removing stream " PRIi64 " from session", id);
   if (!is_in_draining_period() && !is_in_closing_period() &&
       !state_->silent_close &&
       !ngtcp2_conn_is_local_stream(connection_.get(), id)) {
@@ -1000,11 +1059,13 @@ void Session::RemoveStream(int64_t id) {
 }
 
 void Session::ResumeStream(int64_t id) {
+  Debug(this, "Resuming stream %" PRIi64, id);
   SendPendingDataScope send_scope(this);
   application_->ResumeStream(id);
 }
 
 void Session::ShutdownStream(int64_t id, QuicError error) {
+  Debug(this, "Shutting down stream %" PRIi64 " with error %s", id, error);
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream(*this,
                               0,
@@ -1015,11 +1076,13 @@ void Session::ShutdownStream(int64_t id, QuicError error) {
 }
 
 void Session::StreamDataBlocked(int64_t id) {
+  Debug(this, "Stream %" PRIi64 " is blocked", id);
   STAT_INCREMENT(Stats, block_count);
   application_->BlockStream(id);
 }
 
 void Session::ShutdownStreamWrite(int64_t id, QuicError code) {
+  Debug(this, "Shutting down stream %" PRIi64 " write with error %s", id, code);
   SendPendingDataScope send_scope(this);
   ngtcp2_conn_shutdown_stream_write(*this,
                                     0,
@@ -1103,6 +1166,7 @@ void Session::set_wrapped() {
 
 void Session::DoClose(bool silent) {
   DCHECK(!is_destroyed());
+  Debug(this, "Session is closing. Silently %s", silent ? "yes" : "no");
   // Once Close has been called, we cannot re-enter
   if (state_->closing == 1) return;
   state_->closing = 1;
@@ -1133,15 +1197,18 @@ void Session::DoClose(bool silent) {
 }
 
 void Session::ExtendStreamOffset(int64_t id, size_t amount) {
+  Debug(this, "Extending stream %" PRIi64 " offset by %zu", id, amount);
   ngtcp2_conn_extend_max_stream_offset(*this, id, amount);
 }
 
 void Session::ExtendOffset(size_t amount) {
+  Debug(this, "Extending offset by %zu", amount);
   ngtcp2_conn_extend_max_offset(*this, amount);
 }
 
 void Session::UpdateDataStats() {
   if (state_->destroyed) return;
+  Debug(this, "Updating data stats");
   ngtcp2_conn_info info;
   ngtcp2_conn_get_conn_info(*this, &info);
   STAT_SET(Stats, bytes_in_flight, info.bytes_in_flight);
@@ -1161,6 +1228,7 @@ void Session::SendConnectionClose() {
   DCHECK(!NgTcp2CallbackScope::in_ngtcp2_callback(env()));
   if (is_destroyed() || is_in_draining_period() || state_->silent_close) return;
 
+  Debug(this, "Sending connection close");
   auto on_exit = OnScopeLeave([this] { UpdateTimer(); });
 
   switch (config_.side) {
@@ -1209,6 +1277,7 @@ void Session::OnTimeout() {
     return;
   }
 
+  Debug(this, "Session timed out");
   last_error_ = QuicError::ForNgtcp2Error(ret);
   Close(CloseMethod::SILENT);
 }
@@ -1217,6 +1286,7 @@ void Session::UpdateTimer() {
   // Both uv_hrtime and ngtcp2_conn_get_expiry return nanosecond units.
   uint64_t expiry = ngtcp2_conn_get_expiry(*this);
   uint64_t now = uv_hrtime();
+  Debug(this, "Updating timer. Expiry: %" PRIu64 ", now: %" PRIu64, expiry, now);
 
   if (expiry <= now) {
     // The timer has already expired.
@@ -1234,6 +1304,8 @@ bool Session::StartClosingPeriod() {
   if (is_in_closing_period()) return true;
   if (is_destroyed()) return false;
 
+  Debug(this, "Session is entering closing period");
+
   conn_closebuf_ = Packet::CreateConnectionClosePacket(
       env(), endpoint_.get(), remote_address_, *this, last_error_);
 
@@ -1250,12 +1322,16 @@ bool Session::StartClosingPeriod() {
 
 void Session::DatagramStatus(uint64_t datagramId, quic::DatagramStatus status) {
   switch (status) {
-    case quic::DatagramStatus::ACKNOWLEDGED:
+    case quic::DatagramStatus::ACKNOWLEDGED: {
+      Debug(this, "Datagram %" PRIu64 " was acknowledged", datagramId);
       STAT_INCREMENT(Stats, datagrams_acknowledged);
       break;
-    case quic::DatagramStatus::LOST:
+    }
+    case quic::DatagramStatus::LOST: {
+      Debug(this, "Datagram %" PRIu64 " was lost", datagramId);
       STAT_INCREMENT(Stats, datagrams_lost);
       break;
+    }
   }
   EmitDatagramStatus(datagramId, status);
 }
@@ -1268,6 +1344,7 @@ void Session::DatagramReceived(const uint8_t* data,
   if (state_->datagram == 0 || datalen == 0) return;
 
   auto backing = ArrayBuffer::NewBackingStore(env()->isolate(), datalen);
+  Debug(this, "Session is receiving datagram of size %zu", datalen);
   memcpy(backing->Data(), data, datalen);
   STAT_INCREMENT(Stats, datagrams_received);
   STAT_INCREMENT_N(Stats, bytes_received, datalen);
@@ -1278,6 +1355,7 @@ bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
                                       size_t len,
                                       uint8_t* token) {
   CID cid_ = config_.options.cid_factory->Generate(len);
+  Debug(this, "Generated new connection id %s", cid_);
   StatelessResetToken new_token(
       token, endpoint_->options().reset_token_secret, cid_);
   endpoint_->AssociateCID(cid_, config_.scid);
@@ -1288,6 +1366,8 @@ bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
 bool Session::HandshakeCompleted() {
   if (state_->handshake_completed) return false;
   state_->handshake_completed = true;
+
+  Debug(this, "Session handshake completed");
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
 
   if (!tls_context_.early_data_was_accepted())
@@ -1316,6 +1396,9 @@ bool Session::HandshakeCompleted() {
 
 void Session::HandshakeConfirmed() {
   if (state_->handshake_confirmed) return;
+
+  Debug(this, "Session handshake confirmed");
+
   state_->handshake_confirmed = true;
   STAT_RECORD_TIMESTAMP(Stats, handshake_confirmed_at);
 }
@@ -1323,6 +1406,7 @@ void Session::HandshakeConfirmed() {
 void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
   if (config_.options.preferred_address_strategy ==
       PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS) {
+    Debug(this, "Ignoring preferred address");
     return;
   }
 
@@ -1331,6 +1415,7 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
 
   switch (family) {
     case AF_INET: {
+      Debug(this, "Selecting preferred address for AF_INET");
       auto ipv4 = preferredAddress->ipv4();
       if (ipv4.has_value()) {
         if (ipv4->address.empty() || ipv4->port == 0) return;
@@ -1343,6 +1428,7 @@ void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
       break;
     }
     case AF_INET6: {
+      Debug(this, "Selecting preferred address for AF_INET6");
       auto ipv6 = preferredAddress->ipv6();
       if (ipv6.has_value()) {
         if (ipv6->address.empty() || ipv6->port == 0) return;
@@ -1377,6 +1463,7 @@ void Session::EmitClose(const QuicError& error) {
       !ToV8Value(env()->context(), error.reason()).ToLocal(&argv[2])) {
     return;
   }
+  Debug(this, "Notifying JavaScript of session close");
   MakeCallback(
       BindingData::Get(env()).session_close_callback(), arraysize(argv), argv);
 }
@@ -1390,6 +1477,7 @@ void Session::EmitDatagram(Store&& datagram, DatagramReceivedFlags flag) {
   Local<Value> argv[] = {datagram.ToUint8Array(env()),
                          v8::Boolean::New(env()->isolate(), flag.early)};
 
+  Debug(this, "Notifying JavaScript of datagram");
   MakeCallback(BindingData::Get(env()).session_datagram_callback(),
                arraysize(argv),
                argv);
@@ -1414,6 +1502,7 @@ void Session::EmitDatagramStatus(uint64_t id, quic::DatagramStatus status) {
 
   Local<Value> argv[] = {BigInt::NewFromUnsigned(env()->isolate(), id),
                          status_to_string};
+  Debug(this, "Notifying JavaScript of datagram status");
   MakeCallback(state.session_datagram_status_callback(), arraysize(argv), argv);
 }
 
@@ -1459,6 +1548,7 @@ void Session::EmitHandshakeComplete() {
     return;
   }
 
+  Debug(this, "Notifying JavaScript of handshake complete");
   MakeCallback(BindingData::Get(env()).session_handshake_callback(),
                arraysize(argv),
                argv);
@@ -1501,6 +1591,7 @@ void Session::EmitPathValidation(PathValidationResult result,
     argv[4] = SocketAddressBase::Create(env(), oldPath->remote)->object();
   }
 
+  Debug(this, "Notifying JavaScript of path validation");
   MakeCallback(state.session_path_validation_callback(), arraysize(argv), argv);
 }
 
@@ -1521,8 +1612,10 @@ void Session::EmitSessionTicket(Store&& ticket) {
 
   SessionTicket session_ticket(std::move(ticket), std::move(transport_params));
   Local<Value> argv;
-  if (session_ticket.encode(env()).ToLocal(&argv))
+  if (session_ticket.encode(env()).ToLocal(&argv)) {
+    Debug(this, "Notifying JavaScript of session ticket");
     MakeCallback(BindingData::Get(env()).session_ticket_callback(), 1, &argv);
+  }
 }
 
 void Session::EmitStream(BaseObjectPtr<Stream> stream) {
@@ -1531,6 +1624,7 @@ void Session::EmitStream(BaseObjectPtr<Stream> stream) {
   CallbackScope<Session> cb_scope(this);
   Local<Value> arg = stream->object();
 
+  Debug(this, "Notifying JavaScript of stream created");
   MakeCallback(BindingData::Get(env()).stream_created_callback(), 1, &arg);
 }
 
@@ -1567,6 +1661,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
                          // The versions we actually support.
                          Array::New(isolate, supported, arraysize(supported))};
 
+  Debug(this, "Notifying JavaScript of version negotiation");
   MakeCallback(BindingData::Get(env()).session_version_negotiation_callback(),
                arraysize(argv),
                argv);
@@ -1575,6 +1670,7 @@ void Session::EmitVersionNegotiation(const ngtcp2_pkt_hd& hd,
 void Session::EmitKeylog(const char* line) {
   if (!env()->can_call_into_js()) return;
   if (keylog_stream_) {
+    Debug(this, "Emitting keylog line");
     env()->SetImmediate([ptr = keylog_stream_, data = std::string(line) + "\n"](
                             Environment* env) { ptr->Emit(data); });
   }

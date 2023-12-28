@@ -177,6 +177,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   bool HasInstance(Environment* env, v8::Local<v8::Value> value);
