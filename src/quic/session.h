@@ -237,12 +237,17 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool is_destroyed() const;
   bool is_server() const;
 
+  void set_priority_supported(bool on = true);
+
   std::string diagnostic_name() const override;
 
   // Use the configured CID::Factory to generate a new CID.
   CID new_cid(size_t len = CID::kMaxLength) const;
 
   void HandleQlog(uint32_t flags, const void* data, size_t len);
+
+  TransportParams GetLocalTransportParams() const;
+  TransportParams GetRemoteTransportParams() const;
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Session)
@@ -251,20 +256,15 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   struct State;
   struct Stats;
 
- private:
-  struct Impl;
-  struct MaybeCloseConnectionScope;
+  operator ngtcp2_conn*() const;
 
-  using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<Stream>>;
-  using QuicConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
-
-  struct PathValidationFlags {
-    bool preferredAddress = false;
-  };
-
-  struct DatagramReceivedFlags {
-    bool early = false;
-  };
+  BaseObjectPtr<Stream> FindStream(int64_t id) const;
+  BaseObjectPtr<Stream> CreateStream(int64_t id);
+  BaseObjectPtr<Stream> OpenStream(Direction direction);
+  void ExtendStreamOffset(int64_t id, size_t amount);
+  void ExtendOffset(size_t amount);
+  void SetLastError(QuicError&& error);
+  uint64_t max_data_left() const;
 
   enum class CloseMethod {
     // Roundtrip through JavaScript, causing all currently opened streams
@@ -284,27 +284,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // Close() is called.
     GRACEFUL
   };
-
   void Close(CloseMethod method = CloseMethod::DEFAULT);
-  void Destroy();
-
-  bool Receive(Store&& store,
-               const SocketAddress& local_address,
-               const SocketAddress& remote_address);
-
-  void Send(BaseObjectPtr<Packet> packet);
-  void Send(BaseObjectPtr<Packet> packet, const PathStorage& path);
-  uint64_t SendDatagram(Store&& data);
-
-  BaseObjectPtr<Stream> FindStream(int64_t id) const;
-  BaseObjectPtr<Stream> CreateStream(int64_t id);
-  BaseObjectPtr<Stream> OpenStream(Direction direction);
-  void AddStream(const BaseObjectPtr<Stream>& stream);
-  void RemoveStream(int64_t id);
-  void ResumeStream(int64_t id);
-  void ShutdownStream(int64_t id, QuicError error);
-  void StreamDataBlocked(int64_t id);
-  void ShutdownStreamWrite(int64_t id, QuicError code = QuicError());
 
   struct SendPendingDataScope {
     Session* session;
@@ -317,7 +297,37 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     ~SendPendingDataScope();
   };
 
-  operator ngtcp2_conn*() const;
+ private:
+  struct Impl;
+  struct MaybeCloseConnectionScope;
+
+  using StreamsMap = std::unordered_map<int64_t, BaseObjectPtr<Stream>>;
+  using QuicConnectionPointer = DeleteFnPtr<ngtcp2_conn, ngtcp2_conn_del>;
+
+  struct PathValidationFlags {
+    bool preferredAddress = false;
+  };
+
+  struct DatagramReceivedFlags {
+    bool early = false;
+  };
+
+  void Destroy();
+
+  bool Receive(Store&& store,
+               const SocketAddress& local_address,
+               const SocketAddress& remote_address);
+
+  void Send(BaseObjectPtr<Packet> packet);
+  void Send(BaseObjectPtr<Packet> packet, const PathStorage& path);
+  uint64_t SendDatagram(Store&& data);
+
+  void AddStream(const BaseObjectPtr<Stream>& stream);
+  void RemoveStream(int64_t id);
+  void ResumeStream(int64_t id);
+  void ShutdownStream(int64_t id, QuicError error);
+  void StreamDataBlocked(int64_t id);
+  void ShutdownStreamWrite(int64_t id, QuicError code = QuicError());
 
   // Implementation of SessionTicket::AppData::Source
   void CollectSessionTicketAppData(
@@ -345,7 +355,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   // Returns false if the Session is currently in a state where it cannot create
   // new streams.
   bool can_create_streams() const;
-  uint64_t max_data_left() const;
   uint64_t max_local_streams_uni() const;
   uint64_t max_local_streams_bidi() const;
 
@@ -358,8 +367,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   void set_wrapped();
 
   void DoClose(bool silent = false);
-  void ExtendStreamOffset(int64_t id, size_t amount);
-  void ExtendOffset(size_t amount);
   void UpdateDataStats();
   void SendConnectionClose();
   void OnTimeout();
@@ -397,9 +404,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool HandshakeCompleted();
   void HandshakeConfirmed();
   void SelectPreferredAddress(PreferredAddress* preferredAddress);
-  TransportParams GetLocalTransportParams() const;
-  TransportParams GetRemoteTransportParams() const;
-  void SetLastError(QuicError&& error);
   void UpdatePath(const PathStorage& path);
 
   QuicConnectionPointer InitConnection();

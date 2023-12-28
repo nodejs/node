@@ -97,15 +97,15 @@ std::string TransportParams::Options::ToString() const {
   res += prefix + "tinitial max data: " + std::to_string(initial_max_data);
   res += prefix + "initial max streams bidi: " +
          std::to_string(initial_max_streams_bidi);
-  res += prefix + "initial max streams uni: " +
-         std::to_string(initial_max_streams_uni);
+  res += prefix +
+         "initial max streams uni: " + std::to_string(initial_max_streams_uni);
   res += prefix + "max idle timeout: " + std::to_string(max_idle_timeout);
   res += prefix + "active connection id limit: " +
          std::to_string(active_connection_id_limit);
   res += prefix + "ack delay exponent: " + std::to_string(ack_delay_exponent);
   res += prefix + "max ack delay: " + std::to_string(max_ack_delay);
-  res += prefix + "max datagram frame size: " +
-         std::to_string(max_datagram_frame_size);
+  res += prefix +
+         "max datagram frame size: " + std::to_string(max_datagram_frame_size);
   res += prefix + "disable active migration: " +
          (disable_active_migration ? std::string("yes") : std::string("no"));
   res += indent.Close();

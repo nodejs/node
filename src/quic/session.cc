@@ -72,6 +72,7 @@ namespace quic {
   V(HANDSHAKE_COMPLETED, handshake_completed, uint8_t)                         \
   V(HANDSHAKE_CONFIRMED, handshake_confirmed, uint8_t)                         \
   V(STREAM_OPEN_ALLOWED, stream_open_allowed, uint8_t)                         \
+  V(PRIORITY_SUPPORTED, priority_supported, uint8_t)                           \
   /* A Session is wrapped if it has been passed out to JS */                   \
   V(WRAPPED, wrapped, uint8_t)                                                 \
   V(LAST_DATAGRAM_ID, last_datagram_id, uint64_t)
@@ -136,7 +137,9 @@ struct Session::MaybeCloseConnectionScope final {
   MaybeCloseConnectionScope(Session* session_, bool silent_)
       : session(session_),
         silent(silent_ || session->connection_close_depth_ > 0) {
-    Debug(session_, "Entering maybe close connection scope. Silent? %s", silent ? "yes" : "no");
+    Debug(session_,
+          "Entering maybe close connection scope. Silent? %s",
+          silent ? "yes" : "no");
     session->connection_close_depth_++;
   }
   MaybeCloseConnectionScope(const MaybeCloseConnectionScope&) = delete;
@@ -350,7 +353,9 @@ void Session::Config::MemoryInfo(MemoryTracker* tracker) const {
     tracker->TrackField("session_ticket", session_ticket.value());
 }
 
-void Session::Config::set_token(const uint8_t* token, size_t len, ngtcp2_token_type type) {
+void Session::Config::set_token(const uint8_t* token,
+                                size_t len,
+                                ngtcp2_token_type type) {
   settings.token = token;
   settings.tokenlen = len;
   settings.token_type = type;
@@ -371,10 +376,12 @@ std::string Session::Config::ToString() const {
   auto prefix = indent.Prefix();
   std::string res("{");
 
-  auto sidestr = ([&]{
+  auto sidestr = ([&] {
     switch (side) {
-      case Side::CLIENT: return "client";
-      case Side::SERVER: return "server";
+      case Side::CLIENT:
+        return "client";
+      case Side::SERVER:
+        return "server";
     }
     return "<unknown>";
   })();
@@ -741,9 +748,9 @@ void Session::Destroy() {
 
   state_->destroyed = 1;
 
-  // Removing the session from the endpoint may cause the endpoint to be destroyed
-  // if it is waiting on the last session to be destroyed. Let's grab a reference
-  // just to be safe for the rest of the function.
+  // Removing the session from the endpoint may cause the endpoint to be
+  // destroyed if it is waiting on the last session to be destroyed. Let's grab
+  // a reference just to be safe for the rest of the function.
   BaseObjectPtr<Endpoint> endpoint = std::move(endpoint_);
   endpoint->RemoveSession(config_.scid);
 }
@@ -982,7 +989,10 @@ uint64_t Session::SendDatagram(Store&& data) {
 void Session::UpdatePath(const PathStorage& storage) {
   remote_address_.Update(storage.path.remote.addr, storage.path.remote.addrlen);
   local_address_.Update(storage.path.local.addr, storage.path.local.addrlen);
-  Debug(this, "path updated. local %s, remote %s", local_address_, remote_address_);
+  Debug(this,
+        "path updated. local %s, remote %s",
+        local_address_,
+        remote_address_);
 }
 
 BaseObjectPtr<Stream> Session::FindStream(int64_t id) const {
@@ -1198,6 +1208,10 @@ void Session::set_wrapped() {
   state_->wrapped = 1;
 }
 
+void Session::set_priority_supported(bool on) {
+  state_->priority_supported = on ? 1 : 0;
+}
+
 void Session::DoClose(bool silent) {
   DCHECK(!is_destroyed());
   Debug(this, "Session is closing. Silently %s", silent ? "yes" : "no");
@@ -1320,7 +1334,8 @@ void Session::UpdateTimer() {
   // Both uv_hrtime and ngtcp2_conn_get_expiry return nanosecond units.
   uint64_t expiry = ngtcp2_conn_get_expiry(*this);
   uint64_t now = uv_hrtime();
-  Debug(this, "Updating timer. Expiry: %" PRIu64 ", now: %" PRIu64, expiry, now);
+  Debug(
+      this, "Updating timer. Expiry: %" PRIu64 ", now: %" PRIu64, expiry, now);
 
   if (expiry <= now) {
     // The timer has already expired.
@@ -2313,7 +2328,8 @@ Session::QuicConnectionPointer Session::InitConnection() {
   UNREACHABLE();
 }
 
-void Session::InitPerIsolate(IsolateData* data, v8::Local<v8::ObjectTemplate> target) {
+void Session::InitPerIsolate(IsolateData* data,
+                             v8::Local<v8::ObjectTemplate> target) {
   // TODO(@jasnell): Implement the per-isolate state
 }
 

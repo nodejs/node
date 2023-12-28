@@ -111,7 +111,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     uint64_t handshake_timeout = UINT64_MAX;
 
     uint64_t max_stream_window = 0;
-    uint64_t max_window  = 0;
+    uint64_t max_window = 0;
 
     bool no_udp_payload_size_shaping = true;
 

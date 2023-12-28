@@ -1,4 +1,3 @@
-#include "debug_utils.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "endpoint.h"
@@ -255,8 +254,8 @@ Maybe<Endpoint::Options> Endpoint::Options::From(Environment* env,
       !SET(max_retries) || !SET(max_payload_size) ||
       !SET(unacknowledged_packet_threshold) || !SET(validate_address) ||
       !SET(disable_stateless_reset) || !SET(ipv6_only) ||
-      !SET(handshake_timeout) || !SET(max_stream_window) ||
-      !SET(max_window) || !SET(no_udp_payload_size_shaping) ||
+      !SET(handshake_timeout) || !SET(max_stream_window) || !SET(max_window) ||
+      !SET(no_udp_payload_size_shaping) ||
 #ifdef DEBUG
       !SET(rx_loss) || !SET(tx_loss) ||
 #endif
@@ -305,14 +304,17 @@ std::string Endpoint::Options::ToString() const {
 
   std::string res = "{ ";
   res += prefix + "local address: " + local_address->ToString();
-  res += prefix + "retry token expiration: " +
-         std::to_string(retry_token_expiration) + " seconds";
+  res += prefix +
+         "retry token expiration: " + std::to_string(retry_token_expiration) +
+         " seconds";
   res += prefix + "token expiration: " + std::to_string(token_expiration) +
          " seconds";
   res += prefix + "max connections per host: " +
          std::to_string(max_connections_per_host);
-  res += prefix + "max connections total: " + std::to_string(max_connections_total);
-  res += prefix + "max stateless resets: " + std::to_string(max_stateless_resets);
+  res += prefix +
+         "max connections total: " + std::to_string(max_connections_total);
+  res +=
+      prefix + "max stateless resets: " + std::to_string(max_stateless_resets);
   res += prefix + "address lru size: " + std::to_string(address_lru_size);
   res += prefix + "max retries: " + std::to_string(max_retries);
   res += prefix + "max payload size: " + std::to_string(max_payload_size);
@@ -326,9 +328,11 @@ std::string Endpoint::Options::ToString() const {
   }
   res += prefix + "max stream window: " + std::to_string(max_stream_window);
   res += prefix + "max window: " + std::to_string(max_window);
-  res += prefix + "no udp payload size shaping: " + boolToString(no_udp_payload_size_shaping);
+  res += prefix + "no udp payload size shaping: " +
+         boolToString(no_udp_payload_size_shaping);
   res += prefix + "validate address: " + boolToString(validate_address);
-  res += prefix + "disable stateless reset: " + boolToString(disable_stateless_reset);
+  res += prefix +
+         "disable stateless reset: " + boolToString(disable_stateless_reset);
 #ifdef DEBUG
   res += prefix + "rx loss: " + std::to_string(rx_loss);
   res += prefix + "tx loss: " + std::to_string(tx_loss);
@@ -349,9 +353,10 @@ std::string Endpoint::Options::ToString() const {
   res += prefix + "reset token secret: " + reset_token_secret.ToString();
   res += prefix + "token secret: " + token_secret.ToString();
   res += prefix + "ipv6 only: " + boolToString(ipv6_only);
-  res += prefix + "udp receive buffer size: " +
-         std::to_string(udp_receive_buffer_size);
-  res += prefix + "udp send buffer size: " + std::to_string(udp_send_buffer_size);
+  res += prefix +
+         "udp receive buffer size: " + std::to_string(udp_receive_buffer_size);
+  res +=
+      prefix + "udp send buffer size: " + std::to_string(udp_send_buffer_size);
   res += prefix + "udp ttl: " + std::to_string(udp_ttl);
 
   res += indent.Close();
@@ -694,8 +699,10 @@ void Endpoint::MarkAsBusy(bool on) {
 RegularToken Endpoint::GenerateNewToken(uint32_t version,
                                         const SocketAddress& remote_address) {
   IF_QUIC_DEBUG(env()) {
-    Debug(this, "Generating new regular token for version %u and remote address %s",
-          version, remote_address);
+    Debug(this,
+          "Generating new regular token for version %u and remote address %s",
+          version,
+          remote_address);
   }
   DCHECK(!is_closed() && !is_closing());
   return RegularToken(version, remote_address, options_.token_secret);
@@ -704,7 +711,8 @@ RegularToken Endpoint::GenerateNewToken(uint32_t version,
 StatelessResetToken Endpoint::GenerateNewStatelessResetToken(
     uint8_t* token, const CID& cid) const {
   IF_QUIC_DEBUG(env()) {
-    Debug(const_cast<Endpoint*>(this), "Generating new stateless reset token for CID %s",
+    Debug(const_cast<Endpoint*>(this),
+          "Generating new stateless reset token for CID %s",
           cid);
   }
   DCHECK(!is_closed() && !is_closing());
@@ -855,7 +863,10 @@ void Endpoint::SendVersionNegotiation(const PathDescriptor& options) {
 bool Endpoint::SendStatelessReset(const PathDescriptor& options,
                                   size_t source_len) {
   if (UNLIKELY(options_.disable_stateless_reset)) return false;
-  Debug(this, "Sending stateless reset on path %s with len %" PRIu64, options, source_len);
+  Debug(this,
+        "Sending stateless reset on path %s with len %" PRIu64,
+        options,
+        source_len);
 
   const auto exceeds_limits = [&] {
     SocketAddressInfoTraits::Type* counts =
@@ -882,7 +893,9 @@ bool Endpoint::SendStatelessReset(const PathDescriptor& options,
 
 void Endpoint::SendImmediateConnectionClose(const PathDescriptor& options,
                                             QuicError reason) {
-  Debug(this, "Sending immediate connection close on path %s with reason %s", options,
+  Debug(this,
+        "Sending immediate connection close on path %s with reason %s",
+        options,
         reason);
   // While it is possible for a malicious peer to cause us to create a large
   // number of these, generating them is fairly trivial.
@@ -947,8 +960,13 @@ BaseObjectPtr<Session> Endpoint::Connect(
       *this, options, local_address(), remote_address, session_ticket);
 
   IF_QUIC_DEBUG(env()) {
-    Debug(this, "Connecting to %s with options %s and config %s [has 0rtt ticket? %s]",
-          remote_address, options, config, session_ticket.has_value() ? "yes" : "no");
+    Debug(
+        this,
+        "Connecting to %s with options %s and config %s [has 0rtt ticket? %s]",
+        remote_address,
+        options,
+        config,
+        session_ticket.has_value() ? "yes" : "no");
   }
 
   auto session = Session::Create(this, config);
@@ -992,7 +1010,8 @@ void Endpoint::Destroy(CloseContext context, int status) {
       }
       return "<unknown>";
     })();
-    Debug(this, "Destroying endpoint due to \"%s\" with status %d", ctx, status);
+    Debug(
+        this, "Destroying endpoint due to \"%s\" with status %d", ctx, status);
   }
 
   STAT_RECORD_TIMESTAMP(Stats, destroyed_at);
@@ -1054,15 +1073,19 @@ void Endpoint::Receive(const uv_buf_t& buf,
   };
 
   const auto accept = [&](const Session::Config& config, Store&& store) {
-    // One final check. If the endpoint is closed, closing, or is not listening as
-    // a server, then we cannot accept the initial packet.
+    // One final check. If the endpoint is closed, closing, or is not listening
+    // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
 
     Debug(this, "Trying to create new session for initial packet");
     auto session = Session::Create(this, config);
     if (session) {
-      receive(session.get(), std::move(store), config.local_address,
-              config.remote_address, config.dcid, config.scid);
+      receive(session.get(),
+              std::move(store),
+              config.local_address,
+              config.remote_address,
+              config.dcid,
+              config.scid);
     }
   };
 
@@ -1084,10 +1107,10 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // even recognize this packet as a quic packet with the correct version.
     ngtcp2_vec vec = store;
     if (ngtcp2_accept(&hd, vec.base, vec.len) != NGTCP2_SUCCESS) {
-      // Per the ngtcp2 docs, ngtcp2_accept returns 0 if the check was successful,
-      // or an error code if it was not. Currently there's only one documented error
-      // code (NGTCP2_ERR_INVALID_ARGUMENT) but we'll handle any error here the same --
-      // by ignoring the packet entirely.
+      // Per the ngtcp2 docs, ngtcp2_accept returns 0 if the check was
+      // successful, or an error code if it was not. Currently there's only one
+      // documented error code (NGTCP2_ERR_INVALID_ARGUMENT) but we'll handle
+      // any error here the same -- by ignoring the packet entirely.
       Debug(this, "Failed to accept initial packet");
       return;
     }
@@ -1096,16 +1119,18 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // recognized and supported. If it returns 0, we'll go ahead and send a
     // version negotiation packet in response.
     if (ngtcp2_is_supported_version(hd.version) == 0) {
-      Debug(this, "Packet was not accepted because the version is not supported");
+      Debug(this,
+            "Packet was not accepted because the version is not supported");
       SendVersionNegotiation(
           PathDescriptor{version, dcid, scid, local_address, remote_address});
       STAT_INCREMENT(Stats, packets_received);
       return;
     }
 
-    // This is the next important condition check... If the server has been marked busy
-    // or the remote peer has exceeded their maximum number of concurrent
-    // connections, any new connections will be shut down immediately.
+    // This is the next important condition check... If the server has been
+    // marked busy or the remote peer has exceeded their maximum number of
+    // concurrent connections, any new connections will be shut down
+    // immediately.
     const auto limits_exceeded = ([&] {
       if (sessions_.size() >= options_.max_connections_total) return true;
 
@@ -1115,8 +1140,10 @@ void Endpoint::Receive(const uv_buf_t& buf,
     })();
 
     if (state_->busy || limits_exceeded) {
-      Debug(this, "Packet was not accepted because the endpoint is busy or the "
-            "remote peer has exceeded their maximum number of concurrent connections");
+      Debug(this,
+            "Packet was not accepted because the endpoint is busy or the "
+            "remote peer has exceeded their maximum number of concurrent "
+            "connections");
       // Endpoint is busy or the connection count is exceeded. The connection is
       // refused. For the purpose of stats collection, we'll count both of these
       // the same.
@@ -1171,7 +1198,9 @@ void Endpoint::Receive(const uv_buf_t& buf,
           if (options_.validate_address) {
             // If there is no token, generate and send one.
             if (hd.tokenlen == 0) {
-              Debug(this, "Initial packet has no token. Sending retry to start validation");
+              Debug(this,
+                    "Initial packet has no token. Sending retry to start "
+                    "validation");
               SendRetry(PathDescriptor{
                   version,
                   dcid,
@@ -1213,7 +1242,9 @@ void Endpoint::Receive(const uv_buf_t& buf,
                 // The ocid is the original dcid that was encoded into the
                 // original retry packet sent to the client. We use it for
                 // validation.
-                Debug(this, "Retry token is valid. Original dcid %s", ocid.value());
+                Debug(this,
+                      "Retry token is valid. Original dcid %s",
+                      ocid.value());
                 config.ocid = ocid.value();
                 config.retry_scid = dcid;
                 config.set_token(token);
@@ -1228,9 +1259,10 @@ void Endpoint::Receive(const uv_buf_t& buf,
                         options_.token_secret,
                         options_.token_expiration * NGTCP2_SECONDS)) {
                   Debug(this, "Regular token is invalid.");
-                  // If the regular token is invalid, let's send a retry to be lenient.
-                  // There's a small risk that a malicious peer is trying to make us do
-                  // some work but the risk is fairly low here.
+                  // If the regular token is invalid, let's send a retry to be
+                  // lenient. There's a small risk that a malicious peer is
+                  // trying to make us do some work but the risk is fairly low
+                  // here.
                   SendRetry(PathDescriptor{
                       version,
                       dcid,
@@ -1249,9 +1281,10 @@ void Endpoint::Receive(const uv_buf_t& buf,
               }
               default: {
                 Debug(this, "Initial packet has unknown token type");
-                // If our prefix bit does not match anything we know about, let's send
-                // a retry to be lenient. There's a small risk that a malicious peer is
-                // trying to make us do some work but the risk is fairly low here.
+                // If our prefix bit does not match anything we know about,
+                // let's send a retry to be lenient. There's a small risk that a
+                // malicious peer is trying to make us do some work but the risk
+                // is fairly low here.
                 SendRetry(PathDescriptor{
                     version,
                     dcid,
@@ -1325,16 +1358,17 @@ void Endpoint::Receive(const uv_buf_t& buf,
                                        const SocketAddress& local_address,
                                        const SocketAddress& remote_address) {
     // Support for stateless resets can be disabled by the application. If that
-    // case, or if the packet is too short to contain a reset token, then we skip
-    // the remaining checks.
+    // case, or if the packet is too short to contain a reset token, then we
+    // skip the remaining checks.
     if (options_.disable_stateless_reset ||
         store.length() < NGTCP2_STATELESS_RESET_TOKENLEN) {
       return false;
     }
 
-    // The stateless reset token itself is the *final* NGTCP2_STATELESS_RESET_TOKENLEN
-    // bytes in the received packet. If it is a stateless reset then then rest of the
-    // bytes in the packet are garbage that we'll ignore.
+    // The stateless reset token itself is the *final*
+    // NGTCP2_STATELESS_RESET_TOKENLEN bytes in the received packet. If it is a
+    // stateless reset then then rest of the bytes in the packet are garbage
+    // that we'll ignore.
     ngtcp2_vec vec = store;
     vec.base += (vec.len - NGTCP2_STATELESS_RESET_TOKENLEN);
 
@@ -1371,12 +1405,15 @@ void Endpoint::Receive(const uv_buf_t& buf,
   //   return;
   // }
 
-  Debug(this, "Received packet with length %" PRIu64 " from %s", buf.len, remote_address);
+  Debug(this,
+        "Received packet with length %" PRIu64 " from %s",
+        buf.len,
+        remote_address);
 
   // The managed buffer here contains the received packet. We do not yet know
-  // at this point if it is a valid QUIC packet. We need to do some basic checks.
-  // It is critical at this point that we do as little work as possible to avoid
-  // a DOS vector.
+  // at this point if it is a valid QUIC packet. We need to do some basic
+  // checks. It is critical at this point that we do as little work as possible
+  // to avoid a DOS vector.
   std::shared_ptr<BackingStore> backing = env()->release_managed_buffer(buf);
   if (UNLIKELY(!backing)) {
     // At this point something bad happened and we need to treat this as a fatal
@@ -1400,8 +1437,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
     return;  // Ignore the packet!
   }
 
-  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. Ignore any packet
-  // with a non-standard CID length.
+  // QUIC currently requires CID lengths of max NGTCP2_MAX_CIDLEN. Ignore any
+  // packet with a non-standard CID length.
   if (UNLIKELY(pversion_cid.dcidlen > NGTCP2_MAX_CIDLEN ||
                pversion_cid.scidlen > NGTCP2_MAX_CIDLEN)) {
     Debug(this, "Packet had incorrectly sized CIDs, igoring");
@@ -1538,7 +1575,7 @@ void Endpoint::EmitNewSession(const BaseObjectPtr<Session>& session) {
   session->set_wrapped();
   Local<Value> arg = session->object();
 
-  Debug(this, "Notifying JavaScript about new session");;
+  Debug(this, "Notifying JavaScript about new session");
   MakeCallback(BindingData::Get(env()).session_new_callback(), 1, &arg);
 }
 

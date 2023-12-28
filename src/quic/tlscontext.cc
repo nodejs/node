@@ -1,8 +1,8 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "tlscontext.h"
-#include <base_object-inl.h>
 #include <async_wrap-inl.h>
+#include <base_object-inl.h>
 #include <debug_utils-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
@@ -604,17 +604,16 @@ std::string TLSContext::Options::ToString() const {
   std::string res("{");
   res += prefix + "alpn: " + alpn;
   res += prefix + "hostname: " + hostname;
-  res += prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
+  res +=
+      prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
   res += prefix + "reject_unauthorized: " +
          (reject_unauthorized ? std::string("yes") : std::string("no"));
   res += prefix + "enable_tls_trace: " +
          (enable_tls_trace ? std::string("yes") : std::string("no"));
-  res += prefix + "request_peer_certificate: " + (request_peer_certificate
-                                                 ? std::string("yes")
-                                                 : std::string("no"));
-  res += prefix + "verify_hostname_identity: " + (verify_hostname_identity
-                                                 ? std::string("yes")
-                                                 : std::string("no"));
+  res += prefix + "request_peer_certificate: " +
+         (request_peer_certificate ? std::string("yes") : std::string("no"));
+  res += prefix + "verify_hostname_identity: " +
+         (verify_hostname_identity ? std::string("yes") : std::string("no"));
   res += prefix + "session_id_ctx: " + session_id_ctx;
   res += prefix + "ciphers: " + ciphers;
   res += prefix + "groups: " + groups;

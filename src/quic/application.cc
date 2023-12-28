@@ -1,14 +1,15 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "application.h"
-#include <debug_utils-inl.h>
 #include <async_wrap-inl.h>
+#include <debug_utils-inl.h>
 #include <node_bob.h>
 #include <node_sockaddr-inl.h>
 #include <uv.h>
 #include <v8.h>
 #include "defs.h"
 #include "endpoint.h"
+#include "http3.h"
 #include "packet.h"
 #include "session.h"
 
@@ -23,19 +24,6 @@ using v8::Value;
 
 namespace quic {
 
-struct Session::Application::StreamData final {
-  // The actual number of vectors in the struct, up to kMaxVectorCount.
-  size_t count = 0;
-  size_t remaining = 0;
-  // The stream identifier. If this is a negative value then no stream is
-  // identified.
-  int64_t id = -1;
-  int fin = 0;
-  ngtcp2_vec data[kMaxVectorCount]{};
-  ngtcp2_vec* buf = data;
-  BaseObjectPtr<Stream> stream;
-};
-
 // ============================================================================
 // Session::Application_Options
 const Session::Application_Options Session::Application_Options::kDefault = {};
@@ -43,13 +31,13 @@ const Session::Application_Options Session::Application_Options::kDefault = {};
 Session::Application_Options::operator const nghttp3_settings() const {
   // In theory, Application_Options might contain options for more than just
   // HTTP/3. Here we extract only the properties that are relevant to HTTP/3.
-  return nghttp3_settings {
-    max_field_section_size,
-    qpack_max_dtable_capacity,
-    qpack_encoder_max_dtable_capacity,
-    qpack_blocked_streams,
-    enable_connect_protocol,
-    enable_datagrams,
+  return nghttp3_settings{
+      max_field_section_size,
+      qpack_max_dtable_capacity,
+      qpack_encoder_max_dtable_capacity,
+      qpack_blocked_streams,
+      enable_connect_protocol,
+      enable_datagrams,
   };
 }
 
@@ -59,13 +47,14 @@ std::string Session::Application_Options::ToString() const {
   std::string res("{");
   res += prefix + "max header pairs: " + std::to_string(max_header_pairs);
   res += prefix + "max header length: " + std::to_string(max_header_length);
-  res += prefix + "max field section size: " +
-         std::to_string(max_field_section_size);
+  res += prefix +
+         "max field section size: " + std::to_string(max_field_section_size);
   res += prefix + "qpack max dtable capacity: " +
          std::to_string(qpack_max_dtable_capacity);
   res += prefix + "qpack encoder max dtable capacity: " +
          std::to_string(qpack_encoder_max_dtable_capacity);
-  res += prefix + "qpack blocked streams: " + std::to_string(qpack_blocked_streams);
+  res += prefix +
+         "qpack blocked streams: " + std::to_string(qpack_blocked_streams);
   res += prefix + "enable connect protocol: " +
          (enable_connect_protocol ? std::string("yes") : std::string("no"));
   res += prefix + "enable datagrams: " +
@@ -118,7 +107,10 @@ bool Session::Application::Start() {
 
 void Session::Application::AcknowledgeStreamData(Stream* stream,
                                                  size_t datalen) {
-  Debug(session_, "Application acknowledging stream %" PRIi64 " data: %zu", stream->id(), datalen);
+  Debug(session_,
+        "Application acknowledging stream %" PRIi64 " data: %zu",
+        stream->id(),
+        datalen);
   DCHECK_NOT_NULL(stream);
   stream->Acknowledge(datalen);
 }
@@ -184,7 +176,8 @@ Session::Application::ExtractSessionTicketAppData(
 void Session::Application::SetStreamPriority(const Stream& stream,
                                              StreamPriority priority,
                                              StreamPriorityFlags flags) {
-  Debug(session_, "Application setting stream %" PRIi64 " priority", stream.id());
+  Debug(
+      session_, "Application setting stream %" PRIi64 " priority", stream.id());
   // By default do nothing.
 }
 
@@ -201,12 +194,18 @@ BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
 }
 
 void Session::Application::StreamClose(Stream* stream, QuicError error) {
-  Debug(session_, "Application closing stream %" PRIi64 " with error %s", stream->id(), error);
+  Debug(session_,
+        "Application closing stream %" PRIi64 " with error %s",
+        stream->id(),
+        error);
   stream->Destroy(error);
 }
 
 void Session::Application::StreamStopSending(Stream* stream, QuicError error) {
-  Debug(session_, "Application stopping sending on stream %" PRIi64 " with error %s", stream->id(), error);
+  Debug(session_,
+        "Application stopping sending on stream %" PRIi64 " with error %s",
+        stream->id(),
+        error);
   DCHECK_NOT_NULL(stream);
   stream->ReceiveStopSending(error);
 }
@@ -214,7 +213,10 @@ void Session::Application::StreamStopSending(Stream* stream, QuicError error) {
 void Session::Application::StreamReset(Stream* stream,
                                        uint64_t final_size,
                                        QuicError error) {
-  Debug(session_, "Application resetting stream %" PRIi64 " with error %s", stream->id(), error);
+  Debug(session_,
+        "Application resetting stream %" PRIi64 " with error %s",
+        stream->id(),
+        error);
   stream->ReceiveStreamReset(final_size, error);
 }
 
@@ -498,12 +500,13 @@ class DefaultApplication final : public Session::Application {
 };
 
 std::unique_ptr<Session::Application> Session::select_application() {
-  // if (config.options.crypto_options.alpn == NGHTTP3_ALPN_H3)
-  //   return std::make_unique<Http3>(session,
-  //   config.options.application_options);
-
   // In the future, we may end up supporting additional QUIC protocols. As they
   // are added, extend the cases here to create and return them.
+
+  if (config_.options.tls_options.alpn == NGHTTP3_ALPN_H3) {
+    Debug(this, "Selecting HTTP/3 application");
+    return createHttp3Application(this, config_.options.application_options);
+  }
 
   Debug(this, "Selecting default application");
   return std::make_unique<DefaultApplication>(

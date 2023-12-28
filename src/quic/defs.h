@@ -13,7 +13,7 @@ namespace quic {
 #define NGTCP2_ERR(V) (V != NGTCP2_SUCCESS)
 #define NGTCP2_OK(V) (V == NGTCP2_SUCCESS)
 
-#define IF_QUIC_DEBUG(env) \
+#define IF_QUIC_DEBUG(env)                                                     \
   if (UNLIKELY(env->enabled_debug_list()->enabled(DebugCategory::QUIC)))
 
 template <typename Opt, std::string Opt::*member>
@@ -169,6 +169,7 @@ class DebugIndentScope {
     res += "}";
     return res;
   }
+
  private:
   static int indent_;
 };

@@ -851,6 +851,10 @@ void Stream::BeginHeaders(HeadersKind kind) {
   if (is_destroyed()) return;
   headers_length_ = 0;
   headers_.clear();
+  set_headers_kind(kind);
+}
+
+void Stream::set_headers_kind(HeadersKind kind) {
   headers_kind_ = kind;
 }
 

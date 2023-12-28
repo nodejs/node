@@ -1,7 +1,6 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "packet.h"
-#include "defs.h"
 #include <base_object-inl.h>
 #include <crypto/crypto_util.h>
 #include <env-inl.h>
@@ -14,6 +13,7 @@
 #include <string>
 #include "bindingdata.h"
 #include "cid.h"
+#include "defs.h"
 #include "tokens.h"
 
 namespace node {
