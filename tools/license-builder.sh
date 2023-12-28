@@ -105,6 +105,8 @@ addlicense "markupsafe" "tools/inspector_protocol/markupsafe" "$licenseText"
 # Testing tools
 licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/cpplint.py" | tail -n +3)"
 addlicense "cpplint.py" "tools/cpplint.py" "$licenseText"
+licenseText="$(sed -e '/^$/,$d' -e 's/^#$//' -e 's/^# //' "${rootdir}/tools/gypi_to_gn.py" | tail -n +3)"
+addlicense "gypi_to_gn.py" "tools/gypi_to_gn.py" "$licenseText"
 licenseText="$(cat "${rootdir}/tools/node_modules/eslint/LICENSE")"
 addlicense "ESLint" "tools/node_modules/eslint" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/googletest/LICENSE")"
