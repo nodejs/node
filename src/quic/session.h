@@ -202,10 +202,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     SET_MEMORY_INFO_NAME(Session::Config)
     SET_SELF_SIZE(Config)
 
-    std::string ToString() const {
-      // TODO(@jasnell)
-      return std::string("{}");
-    }
+    std::string ToString() const;
   };
 
   static bool HasInstance(Environment* env, v8::Local<v8::Value> value);
@@ -412,9 +409,9 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   AliasedStruct<Stats> stats_;
   AliasedStruct<State> state_;
   ngtcp2_mem allocator_;
+  BaseObjectWeakPtr<Endpoint> endpoint_;
   Config config_;
   QuicConnectionPointer connection_;
-  BaseObjectWeakPtr<Endpoint> endpoint_;
   TLSContext tls_context_;
   std::unique_ptr<Application> application_;
   SocketAddress local_address_;

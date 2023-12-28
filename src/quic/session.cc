@@ -366,6 +366,39 @@ void Session::Config::set_token(const RegularToken& token) {
   set_token(vec.base, vec.len, NGTCP2_TOKEN_TYPE_NEW_TOKEN);
 }
 
+std::string Session::Config::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+
+  auto sidestr = ([&]{
+    switch (side) {
+      case Side::CLIENT: return "client";
+      case Side::SERVER: return "server";
+    }
+    return "<unknown>";
+  })();
+  res += prefix + "side: " + std::string(sidestr);
+  res += prefix + "options: " + options.ToString();
+  res += prefix + "version: " + std::to_string(version);
+  res += prefix + "local address: " + local_address.ToString();
+  res += prefix + "remote address: " + remote_address.ToString();
+  res += prefix + "dcid: " + dcid.ToString();
+  res += prefix + "scid: " + scid.ToString();
+  res += prefix + "ocid: " + ocid.ToString();
+  res += prefix + "retry scid: " + retry_scid.ToString();
+  res += prefix + "preferred address cid: " + preferred_address_cid.ToString();
+
+  if (session_ticket.has_value()) {
+    res += prefix + "session ticket: yes";
+  } else {
+    res += prefix + "session ticket: <none>";
+  }
+
+  res += indent.Close();
+  return res;
+}
+
 // ============================================================================
 
 Maybe<Session::Options> Session::Options::From(Environment* env,
@@ -454,9 +487,10 @@ Session::Session(Endpoint* endpoint,
     : AsyncWrap(endpoint->env(), object, AsyncWrap::PROVIDER_QUIC_SESSION),
       stats_(env()->isolate()),
       state_(env()->isolate()),
+      allocator_(BindingData::Get(env())),
+      endpoint_(BaseObjectWeakPtr<Endpoint>(endpoint)),
       config_(config),
       connection_(InitConnection()),
-      endpoint_(BaseObjectWeakPtr<Endpoint>(endpoint)),
       tls_context_(env(), config_.side, this, config_.options.tls_options),
       application_(select_application()),
       local_address_(config.local_address),
@@ -2243,6 +2277,7 @@ Session::QuicConnectionPointer Session::InitConnection() {
       config_.side, config_.ocid, config_.retry_scid);
   TransportParams transport_params(tp_config, config_.options.transport_params);
   transport_params.GenerateSessionTokens(this);
+
   switch (config_.side) {
     case Side::SERVER: {
       CHECK_EQ(ngtcp2_conn_server_new(&conn,

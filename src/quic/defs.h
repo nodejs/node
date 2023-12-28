@@ -37,7 +37,9 @@ bool SetOption(Environment* env,
                const v8::Local<v8::String>& name) {
   v8::Local<v8::Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
-  options->*member = value->BooleanValue(env->isolate());
+  if (!value->IsUndefined()) {
+    options->*member = value->BooleanValue(env->isolate());
+  }
   return true;
 }
 

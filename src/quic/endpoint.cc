@@ -704,7 +704,7 @@ RegularToken Endpoint::GenerateNewToken(uint32_t version,
 StatelessResetToken Endpoint::GenerateNewStatelessResetToken(
     uint8_t* token, const CID& cid) const {
   IF_QUIC_DEBUG(env()) {
-    Debug(const_cast<Endpoint*>(this), "Generating new stateless reset tokek for CID %s",
+    Debug(const_cast<Endpoint*>(this), "Generating new stateless reset token for CID %s",
           cid);
   }
   DCHECK(!is_closed() && !is_closing());
