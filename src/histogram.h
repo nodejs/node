@@ -69,6 +69,12 @@ class Histogram : public MemoryRetainer {
 
 class HistogramImpl {
  public:
+  enum InternalFields {
+    kSlot = BaseObject::kSlot,
+    kImplField = BaseObject::kInternalFieldCount,
+    kInternalFieldCount
+  };
+
   explicit HistogramImpl(
       const Histogram::Options& options = Histogram::Options {});
   explicit HistogramImpl(std::shared_ptr<Histogram> histogram);
@@ -77,11 +83,36 @@ class HistogramImpl {
 
   const std::shared_ptr<Histogram>& histogram() const { return histogram_; }
 
+  static void DoReset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCountBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMinBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMaxBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetExceedsBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMin(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMax(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetMean(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetExceeds(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentile(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentileBigInt(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentiles(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void GetPercentilesBigInt(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void AddMethods(v8::Isolate* isolate,
+                         v8::Local<v8::FunctionTemplate> tmpl);
+
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
+  static HistogramImpl* FromJSObject(v8::Local<v8::Value> value);
+
  private:
   std::shared_ptr<Histogram> histogram_;
 };
 
-class HistogramBase : public BaseObject, public HistogramImpl {
+class HistogramBase final : public BaseObject, public HistogramImpl {
  public:
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       IsolateData* isolate_data);
@@ -103,26 +134,6 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   SET_MEMORY_INFO_NAME(HistogramBase)
   SET_SELF_SIZE(HistogramBase)
 
-  static void GetCountBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMinBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMaxBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetExceedsBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  static void GetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMin(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMax(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMean(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetExceeds(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentile(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentileBigInt(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentiles(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentilesBigInt(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DoReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -164,7 +175,7 @@ class HistogramBase : public BaseObject, public HistogramImpl {
   };
 };
 
-class IntervalHistogram : public HandleWrap, public HistogramImpl {
+class IntervalHistogram final : public HandleWrap, public HistogramImpl {
  public:
   enum class StartFlags {
     NONE,
@@ -190,26 +201,6 @@ class IntervalHistogram : public HandleWrap, public HistogramImpl {
       std::function<void(Histogram&)> on_interval,
       const Histogram::Options& options = Histogram::Options {});
 
-  static void GetCountBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMinBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMaxBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetExceedsBigInt(const v8::FunctionCallbackInfo<v8::Value>& args);
-
-  static void GetCount(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMin(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMax(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetMean(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetExceeds(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetStddev(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentile(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentileBigInt(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentiles(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void GetPercentilesBigInt(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void DoReset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 

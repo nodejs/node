@@ -91,8 +91,8 @@ class TLSContext final : public MemoryRetainer {
 
     static const Options kDefault;
 
-    static v8::Maybe<const Options> From(Environment* env,
-                                         v8::Local<v8::Value> value);
+    static v8::Maybe<Options> From(Environment* env,
+                                   v8::Local<v8::Value> value);
   };
 
   static const Options kDefaultOptions;

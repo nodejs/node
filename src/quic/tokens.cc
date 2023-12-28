@@ -15,24 +15,6 @@ namespace quic {
 // TokenSecret
 
 TokenSecret::TokenSecret() : buf_() {
-  Reset();
-}
-
-TokenSecret::TokenSecret(const uint8_t* secret) : buf_() {
-  *this = secret;
-}
-
-TokenSecret& TokenSecret::operator=(const uint8_t* other) {
-  CHECK_NOT_NULL(other);
-  memcpy(buf_, other, QUIC_TOKENSECRET_LEN);
-  return *this;
-}
-
-TokenSecret::operator const uint8_t*() const {
-  return buf_;
-}
-
-void TokenSecret::Reset() {
   // As a performance optimization later, we could consider creating an entropy
   // cache here similar to what we use for random CIDs so that we do not have
   // to engage CSPRNG on every call. That, however, is suboptimal for secrets.
@@ -40,6 +22,25 @@ void TokenSecret::Reset() {
   // the secrets for a larger number of tokens, which could be bad. For now,
   // generating on each call is safer, even if less performant.
   CHECK(crypto::CSPRNG(buf_, QUIC_TOKENSECRET_LEN).is_ok());
+}
+
+TokenSecret::TokenSecret(const uint8_t* secret) : buf_() {
+  CHECK_NOT_NULL(secret);
+  memcpy(buf_, secret, QUIC_TOKENSECRET_LEN);
+}
+
+TokenSecret::~TokenSecret() {
+  memset(buf_, 0, QUIC_TOKENSECRET_LEN);
+}
+
+TokenSecret::operator const uint8_t*() const {
+  return buf_;
+}
+
+uint8_t TokenSecret::operator[](int pos) const {
+  CHECK_GE(pos, 0);
+  CHECK_LT(pos, QUIC_TOKENSECRET_LEN);
+  return buf_[pos];
 }
 
 // ============================================================================

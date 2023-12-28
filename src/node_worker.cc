@@ -217,7 +217,13 @@ class WorkerThreadData {
       CHECK(!loop_init_failed_);
       bool platform_finished = false;
 
-      isolate_data_.reset();
+      // https://github.com/nodejs/node/issues/51129 - IsolateData destructor
+      // can kick off GC before teardown, so ensure the isolate is entered.
+      {
+        Locker locker(isolate);
+        Isolate::Scope isolate_scope(isolate);
+        isolate_data_.reset();
+      }
 
       w_->platform_->AddIsolateFinishedCallback(isolate, [](void* data) {
         *static_cast<bool*>(data) = true;
@@ -901,7 +907,7 @@ void GetEnvMessagePort(const FunctionCallbackInfo<Value>& args) {
   Local<Object> port = env->message_port();
   CHECK_IMPLIES(!env->is_main_thread(), !port.IsEmpty());
   if (!port.IsEmpty()) {
-    CHECK_EQ(port->GetCreationContext().ToLocalChecked()->GetIsolate(),
+    CHECK_EQ(port->GetCreationContextChecked()->GetIsolate(),
              args.GetIsolate());
     args.GetReturnValue().Set(port);
   }

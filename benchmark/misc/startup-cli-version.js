@@ -1,6 +1,7 @@
 'use strict';
 const common = require('../common.js');
 const { spawnSync } = require('child_process');
+const { existsSync } = require('fs');
 const path = require('path');
 
 // This benchmarks the startup of various CLI tools that are already
@@ -11,6 +12,7 @@ const path = require('path');
 const bench = common.createBenchmark(main, {
   cli: [
     'tools/node_modules/eslint/bin/eslint.js',
+    'deps/npm/bin/npx-cli.js',
     'deps/npm/bin/npm-cli.js',
     'deps/corepack/dist/corepack.js',
   ],
@@ -45,6 +47,10 @@ function spawnProcess(cli, bench, state) {
 
 function main({ count, cli }) {
   cli = path.resolve(__dirname, '../../', cli);
+  if (!existsSync(cli)) {
+    return;
+  }
+
   const warmup = 3;
   const state = { count, finished: -warmup };
   spawnProcess(cli, bench, state);

@@ -156,13 +156,17 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
 
 Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
     Environment* env, Local<Value> value) {
-  if (value->IsNumber()) {
+  if (value->IsUndefined()) {
+    return Just(PreferredAddress::Policy::USE_PREFERRED_ADDRESS);
+  }
+  if (value->IsUint32()) {
     auto val = value.As<Uint32>()->Value();
     if (val == static_cast<uint32_t>(Policy::IGNORE_PREFERRED_ADDRESS))
       return Just(Policy::IGNORE_PREFERRED_ADDRESS);
     if (val == static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS))
       return Just(Policy::USE_PREFERRED_ADDRESS);
   }
+  THROW_ERR_INVALID_ARG_VALUE(env, "invalid preferred address policy");
   return Nothing<PreferredAddress::Policy>();
 }
 

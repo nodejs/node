@@ -1,10 +1,10 @@
-#include "node_bob.h"
-#include "uv.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
-#include <node_sockaddr-inl.h>
-#include <v8.h>
 #include "application.h"
+#include <node_bob.h>
+#include <node_sockaddr-inl.h>
+#include <uv.h>
+#include <v8.h>
 #include "defs.h"
 #include "endpoint.h"
 #include "packet.h"
@@ -38,14 +38,23 @@ const Session::Application_Options Session::Application_Options::kDefault = {};
 
 Maybe<Session::Application_Options> Session::Application_Options::From(
     Environment* env, Local<Value> value) {
-  if (value.IsEmpty() || !value->IsObject()) {
+  if (value.IsEmpty()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
     return Nothing<Application_Options>();
   }
 
-  auto& state = BindingData::Get(env);
-  auto params = value.As<Object>();
   Application_Options options;
+  auto& state = BindingData::Get(env);
+  if (value->IsUndefined()) {
+    return Just<Application_Options>(options);
+  }
+
+  if (!value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+    return Nothing<Application_Options>();
+  }
+
+  auto params = value.As<Object>();
 
 #define SET(name)                                                              \
   SetOption<Session::Application_Options,                                      \

@@ -25,7 +25,7 @@
 
 /* define LIT_MEM to slightly increase the speed of deflate (order 1% to 2%) at
    the cost of a larger memory footprint */
-/* #define LIT_MEM */
+#define LIT_MEM
 
 /* ===========================================================================
  * Internal compression state.

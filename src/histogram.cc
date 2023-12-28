@@ -4,10 +4,12 @@
 #include "memory_tracker-inl.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "util.h"
 
 namespace node {
 
 using v8::BigInt;
+using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -40,6 +42,48 @@ HistogramImpl::HistogramImpl(const Histogram::Options& options)
 HistogramImpl::HistogramImpl(std::shared_ptr<Histogram> histogram)
     : histogram_(std::move(histogram)) {}
 
+void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
+  SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "maxBigInt", GetMaxBigInt);
+  SetProtoMethodNoSideEffect(
+      isolate, tmpl, "percentileBigInt", GetPercentileBigInt);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
+  SetProtoMethodNoSideEffect(
+      isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
+  SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
+  SetProtoMethod(isolate, tmpl, "reset", DoReset);
+}
+
+void HistogramImpl::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  static bool is_registerd = false;
+  if (is_registerd) return;
+  registry->Register(GetCount);
+  registry->Register(GetCountBigInt);
+  registry->Register(GetExceeds);
+  registry->Register(GetExceedsBigInt);
+  registry->Register(GetMin);
+  registry->Register(GetMinBigInt);
+  registry->Register(GetMax);
+  registry->Register(GetMaxBigInt);
+  registry->Register(GetMean);
+  registry->Register(GetStddev);
+  registry->Register(GetPercentile);
+  registry->Register(GetPercentileBigInt);
+  registry->Register(GetPercentiles);
+  registry->Register(GetPercentilesBigInt);
+  registry->Register(DoReset);
+  is_registerd = true;
+}
+
 HistogramBase::HistogramBase(
     Environment* env,
     Local<Object> wrap,
@@ -47,6 +91,9 @@ HistogramBase::HistogramBase(
     : BaseObject(env, wrap),
       HistogramImpl(options) {
   MakeWeak();
+  wrap->SetAlignedPointerInInternalField(
+      HistogramImpl::InternalFields::kImplField,
+      static_cast<HistogramImpl*>(this));
 }
 
 HistogramBase::HistogramBase(
@@ -56,137 +103,13 @@ HistogramBase::HistogramBase(
     : BaseObject(env, wrap),
       HistogramImpl(std::move(histogram)) {
   MakeWeak();
+  wrap->SetAlignedPointerInInternalField(
+      HistogramImpl::InternalFields::kImplField,
+      static_cast<HistogramImpl*>(this));
 }
 
 void HistogramBase::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("histogram", histogram());
-}
-
-void HistogramBase::GetCount(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>((*histogram)->Count());
-  args.GetReturnValue().Set(value);
-}
-
-void HistogramBase::GetCountBigInt(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(
-      BigInt::NewFromUnsigned(env->isolate(), (*histogram)->Count()));
-}
-
-void HistogramBase::GetMin(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>((*histogram)->Min());
-  args.GetReturnValue().Set(value);
-}
-
-void HistogramBase::GetMinBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Min()));
-}
-
-void HistogramBase::GetMax(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>((*histogram)->Max());
-  args.GetReturnValue().Set(value);
-}
-
-void HistogramBase::GetMaxBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(
-      BigInt::New(env->isolate(), (*histogram)->Max()));
-}
-
-void HistogramBase::GetMean(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set((*histogram)->Mean());
-}
-
-void HistogramBase::GetExceeds(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  double value = static_cast<double>((*histogram)->Exceeds());
-  args.GetReturnValue().Set(value);
-}
-
-void HistogramBase::GetExceedsBigInt(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(
-      BigInt::NewFromUnsigned(env->isolate(), (*histogram)->Exceeds()));
-}
-
-void HistogramBase::GetStddev(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set((*histogram)->Stddev());
-}
-
-void HistogramBase::GetPercentile(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsNumber());
-  double percentile = args[0].As<Number>()->Value();
-  double value = static_cast<double>((*histogram)->Percentile(percentile));
-  args.GetReturnValue().Set(value);
-}
-
-void HistogramBase::GetPercentileBigInt(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsNumber());
-  double percentile = args[0].As<Number>()->Value();
-  int64_t value = (*histogram)->Percentile(percentile);
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), value));
-}
-
-void HistogramBase::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsMap());
-  Local<Map> map = args[0].As<Map>();
-  (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    USE(map->Set(
-          env->context(),
-          Number::New(env->isolate(), key),
-          Number::New(env->isolate(), static_cast<double>(value))));
-  });
-}
-
-void HistogramBase::GetPercentilesBigInt(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  CHECK(args[0]->IsMap());
-  Local<Map> map = args[0].As<Map>();
-  (*histogram)->Percentiles([map, env](double key, int64_t value) {
-    USE(map->Set(
-          env->context(),
-          Number::New(env->isolate(), key),
-          BigInt::New(env->isolate(), value)));
-  });
-}
-
-void HistogramBase::DoReset(const FunctionCallbackInfo<Value>& args) {
-  HistogramBase* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  (*histogram)->Reset();
 }
 
 void HistogramBase::RecordDelta(const FunctionCallbackInfo<Value>& args) {
@@ -288,30 +211,12 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, New);
     Local<String> classname = FIXED_ONE_BYTE_STRING(isolate, "Histogram");
     tmpl->SetClassName(classname);
-
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        HistogramBase::kInternalFieldCount);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "maxBigInt", GetMaxBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "percentileBigInt", GetPercentileBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
-    SetProtoMethod(isolate, tmpl, "reset", DoReset);
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
     SetProtoMethod(isolate, tmpl, "record", Record);
     SetProtoMethod(isolate, tmpl, "recordDelta", RecordDelta);
     SetProtoMethod(isolate, tmpl, "add", Add);
+    HistogramImpl::AddMethods(isolate, tmpl);
     isolate_data->set_histogram_ctor_template(tmpl);
   }
   return tmpl;
@@ -320,24 +225,10 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
 void HistogramBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
-  registry->Register(GetCount);
-  registry->Register(GetCountBigInt);
-  registry->Register(GetExceeds);
-  registry->Register(GetExceedsBigInt);
-  registry->Register(GetMin);
-  registry->Register(GetMinBigInt);
-  registry->Register(GetMax);
-  registry->Register(GetMaxBigInt);
-  registry->Register(GetMean);
-  registry->Register(GetStddev);
-  registry->Register(GetPercentile);
-  registry->Register(GetPercentileBigInt);
-  registry->Register(GetPercentiles);
-  registry->Register(GetPercentilesBigInt);
-  registry->Register(DoReset);
+  registry->Register(Add);
   registry->Register(Record);
   registry->Register(RecordDelta);
-  registry->Register(Add);
+  HistogramImpl::RegisterExternalReferences(registry);
 }
 
 void HistogramBase::Initialize(IsolateData* isolate_data,
@@ -351,7 +242,7 @@ void HistogramBase::Initialize(IsolateData* isolate_data,
 
 BaseObjectPtr<BaseObject> HistogramBase::HistogramTransferData::Deserialize(
     Environment* env,
-    v8::Local<v8::Context> context,
+    Local<Context> context,
     std::unique_ptr<worker::TransferData> self) {
   return Create(env, std::move(histogram_));
 }
@@ -374,25 +265,8 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->SetClassName(OneByteString(isolate, "Histogram"));
     tmpl->InstanceTemplate()->SetInternalFieldCount(
-        HistogramBase::kInternalFieldCount);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "maxBigInt", GetMaxBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "percentileBigInt", GetPercentileBigInt);
-    SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
-    SetProtoMethodNoSideEffect(
-        isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
-    SetProtoMethod(isolate, tmpl, "reset", DoReset);
+        HistogramImpl::kInternalFieldCount);
+    HistogramImpl::AddMethods(isolate, tmpl);
     SetProtoMethod(isolate, tmpl, "start", Start);
     SetProtoMethod(isolate, tmpl, "stop", Stop);
     env->set_intervalhistogram_constructor_template(tmpl);
@@ -402,23 +276,9 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
 
 void IntervalHistogram::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
-  registry->Register(GetCount);
-  registry->Register(GetCountBigInt);
-  registry->Register(GetExceeds);
-  registry->Register(GetExceedsBigInt);
-  registry->Register(GetMin);
-  registry->Register(GetMinBigInt);
-  registry->Register(GetMax);
-  registry->Register(GetMaxBigInt);
-  registry->Register(GetMean);
-  registry->Register(GetStddev);
-  registry->Register(GetPercentile);
-  registry->Register(GetPercentileBigInt);
-  registry->Register(GetPercentiles);
-  registry->Register(GetPercentilesBigInt);
-  registry->Register(DoReset);
   registry->Register(Start);
   registry->Register(Stop);
+  HistogramImpl::RegisterExternalReferences(registry);
 }
 
 IntervalHistogram::IntervalHistogram(
@@ -437,6 +297,9 @@ IntervalHistogram::IntervalHistogram(
       interval_(interval),
       on_interval_(std::move(on_interval)) {
   MakeWeak();
+  wrap->SetAlignedPointerInInternalField(
+      HistogramImpl::InternalFields::kImplField,
+      static_cast<HistogramImpl*>(this));
   uv_timer_init(env->event_loop(), &timer_);
 }
 
@@ -501,103 +364,87 @@ void IntervalHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStop();
 }
 
-void IntervalHistogram::GetCount(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetCount(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   double value = static_cast<double>((*histogram)->Count());
   args.GetReturnValue().Set(value);
 }
 
-void IntervalHistogram::GetCountBigInt(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+void HistogramImpl::GetCountBigInt(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   args.GetReturnValue().Set(
       BigInt::NewFromUnsigned(env->isolate(), (*histogram)->Count()));
 }
 
-void IntervalHistogram::GetMin(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetMin(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   double value = static_cast<double>((*histogram)->Min());
   args.GetReturnValue().Set(value);
 }
 
-void IntervalHistogram::GetMinBigInt(const FunctionCallbackInfo<Value>& args) {
+void HistogramImpl::GetMinBigInt(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Min()));
 }
 
-void IntervalHistogram::GetMax(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetMax(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   double value = static_cast<double>((*histogram)->Max());
   args.GetReturnValue().Set(value);
 }
 
-void IntervalHistogram::GetMaxBigInt(const FunctionCallbackInfo<Value>& args) {
+void HistogramImpl::GetMaxBigInt(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
-  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Min()));
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
+  args.GetReturnValue().Set(BigInt::New(env->isolate(), (*histogram)->Max()));
 }
 
-void IntervalHistogram::GetMean(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetMean(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   args.GetReturnValue().Set((*histogram)->Mean());
 }
 
-void IntervalHistogram::GetExceeds(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetExceeds(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   double value = static_cast<double>((*histogram)->Exceeds());
   args.GetReturnValue().Set(value);
 }
 
-void IntervalHistogram::GetExceedsBigInt(
-    const FunctionCallbackInfo<Value>& args) {
+void HistogramImpl::GetExceedsBigInt(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   args.GetReturnValue().Set(
       BigInt::New(env->isolate(), (*histogram)->Exceeds()));
 }
 
-void IntervalHistogram::GetStddev(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetStddev(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   args.GetReturnValue().Set((*histogram)->Stddev());
 }
 
-void IntervalHistogram::GetPercentile(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::GetPercentile(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   CHECK(args[0]->IsNumber());
   double percentile = args[0].As<Number>()->Value();
   double value = static_cast<double>((*histogram)->Percentile(percentile));
   args.GetReturnValue().Set(value);
 }
 
-void IntervalHistogram::GetPercentileBigInt(
+void HistogramImpl::GetPercentileBigInt(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   CHECK(args[0]->IsNumber());
   double percentile = args[0].As<Number>()->Value();
   int64_t value = (*histogram)->Percentile(percentile);
   args.GetReturnValue().Set(BigInt::New(env->isolate(), value));
 }
 
-void IntervalHistogram::GetPercentiles(
-    const FunctionCallbackInfo<Value>& args) {
+void HistogramImpl::GetPercentiles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
@@ -608,11 +455,10 @@ void IntervalHistogram::GetPercentiles(
   });
 }
 
-void IntervalHistogram::GetPercentilesBigInt(
+void HistogramImpl::GetPercentilesBigInt(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   CHECK(args[0]->IsMap());
   Local<Map> map = args[0].As<Map>();
   (*histogram)->Percentiles([map, env](double key, int64_t value) {
@@ -623,10 +469,16 @@ void IntervalHistogram::GetPercentilesBigInt(
   });
 }
 
-void IntervalHistogram::DoReset(const FunctionCallbackInfo<Value>& args) {
-  IntervalHistogram* histogram;
-  ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+void HistogramImpl::DoReset(const FunctionCallbackInfo<Value>& args) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   (*histogram)->Reset();
+}
+
+HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
+  auto obj = value.As<Object>();
+  DCHECK_GE(obj->InternalFieldCount(), HistogramImpl::kInternalFieldCount);
+  return static_cast<HistogramImpl*>(
+      obj->GetAlignedPointerFromInternalField(HistogramImpl::kImplField));
 }
 
 std::unique_ptr<worker::TransferData>
