@@ -48,7 +48,7 @@ const testCases = [
   },
   {
     title: '--perf-basic-prof compiled',
-    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--always-opt'],
+    nodeFlags: ['--perf-basic-prof', '--no-turbo-inlining', '--always-turbofan'],
     matches: [
       'test-regex',
       '~functionOne .+/linux-perf-logger.js',
@@ -66,7 +66,7 @@ const testCases = [
   },
   {
     title: '--perf-basic-prof-only-functions compiled',
-    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--always-opt'],
+    nodeFlags: ['--perf-basic-prof-only-functions', '--no-turbo-inlining', '--always-turbofan'],
     matches: [
       '~functionOne .+/linux-perf-logger.js',
       '~functionTwo .+/linux-perf-logger.js',
