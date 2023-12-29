@@ -101,6 +101,16 @@ class HistogramImpl {
   static void GetPercentilesBigInt(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void FastReset(v8::Local<v8::Value> receiver);
+  static double FastGetCount(v8::Local<v8::Value> receiver);
+  static double FastGetMin(v8::Local<v8::Value> receiver);
+  static double FastGetMax(v8::Local<v8::Value> receiver);
+  static double FastGetMean(v8::Local<v8::Value> receiver);
+  static double FastGetExceeds(v8::Local<v8::Value> receiver);
+  static double FastGetStddev(v8::Local<v8::Value> receiver);
+  static double FastGetPercentile(v8::Local<v8::Value> receiver,
+                                  const double percentile);
+
   static void AddMethods(v8::Isolate* isolate,
                          v8::Local<v8::FunctionTemplate> tmpl);
 
@@ -110,6 +120,15 @@ class HistogramImpl {
 
  private:
   std::shared_ptr<Histogram> histogram_;
+
+  static v8::CFunction fast_reset_;
+  static v8::CFunction fast_get_count_;
+  static v8::CFunction fast_get_min_;
+  static v8::CFunction fast_get_max_;
+  static v8::CFunction fast_get_mean_;
+  static v8::CFunction fast_get_exceeds_;
+  static v8::CFunction fast_get_stddev_;
+  static v8::CFunction fast_get_percentile_;
 };
 
 class HistogramBase final : public BaseObject, public HistogramImpl {
@@ -137,6 +156,12 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
   static void Record(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RecordDelta(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Add(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void FastRecord(
+      v8::Local<v8::Value> receiver,
+      const int64_t value,
+      v8::FastApiCallbackOptions& options);  // NOLINT(runtime/references)
+  static void FastRecordDelta(v8::Local<v8::Value> receiver);
 
   HistogramBase(
       Environment* env,
@@ -173,6 +198,10 @@ class HistogramBase final : public BaseObject, public HistogramImpl {
    private:
     std::shared_ptr<Histogram> histogram_;
   };
+
+ private:
+  static v8::CFunction fast_record_;
+  static v8::CFunction fast_record_delta_;
 };
 
 class IntervalHistogram final : public HandleWrap, public HistogramImpl {
@@ -204,6 +233,9 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
 
+  static void FastStart(v8::Local<v8::Value> receiver, bool reset);
+  static void FastStop(v8::Local<v8::Value> receiver);
+
   BaseObject::TransferMode GetTransferMode() const override {
     return TransferMode::kCloneable;
   }
@@ -222,6 +254,9 @@ class IntervalHistogram final : public HandleWrap, public HistogramImpl {
   int32_t interval_ = 0;
   std::function<void(Histogram&)> on_interval_;
   uv_timer_t timer_;
+
+  static v8::CFunction fast_start_;
+  static v8::CFunction fast_stop_;
 };
 
 }  // namespace node
