@@ -187,10 +187,14 @@ namespace {
 
 inline const char* getEncryptionLevelName(ngtcp2_encryption_level level) {
   switch (level) {
-    case NGTCP2_ENCRYPTION_LEVEL_1RTT: return "1rtt";
-    case NGTCP2_ENCRYPTION_LEVEL_0RTT: return "0rtt";
-    case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE: return "handshake";
-    case NGTCP2_ENCRYPTION_LEVEL_INITIAL: return "initial";
+    case NGTCP2_ENCRYPTION_LEVEL_1RTT:
+      return "1rtt";
+    case NGTCP2_ENCRYPTION_LEVEL_0RTT:
+      return "0rtt";
+    case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE:
+      return "handshake";
+    case NGTCP2_ENCRYPTION_LEVEL_INITIAL:
+      return "initial";
   }
   return "<unknown>";
 }
@@ -2019,8 +2023,10 @@ struct Session::Impl {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
 
-    Debug(session, "Receiving RX key for level %d for dcid %s",
-          getEncryptionLevelName(level), session->config().dcid);
+    Debug(session,
+          "Receiving RX key for level %d for dcid %s",
+          getEncryptionLevelName(level),
+          session->config().dcid);
 
     if (!session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
                                   level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
@@ -2076,8 +2082,10 @@ struct Session::Impl {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
 
-    Debug(session, "Receiving TX key for level %d for dcid %s",
-          getEncryptionLevelName(level), session->config().dcid);
+    Debug(session,
+          "Receiving TX key for level %d for dcid %s",
+          getEncryptionLevelName(level),
+          session->config().dcid);
 
     if (session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
                                  level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {

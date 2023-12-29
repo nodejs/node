@@ -223,11 +223,10 @@ void Packet::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("data", data_);
 }
 
-Packet* Packet::CreateRetryPacket(
-    Environment* env,
-    Listener* listener,
-    const PathDescriptor& path_descriptor,
-    const TokenSecret& token_secret) {
+Packet* Packet::CreateRetryPacket(Environment* env,
+                                  Listener* listener,
+                                  const PathDescriptor& path_descriptor,
+                                  const TokenSecret& token_secret) {
   auto& random = CID::Factory::random();
   CID cid = random.Generate();
   RetryToken token(path_descriptor.version,
@@ -264,12 +263,11 @@ Packet* Packet::CreateRetryPacket(
   return packet;
 }
 
-Packet* Packet::CreateConnectionClosePacket(
-    Environment* env,
-    Listener* listener,
-    const SocketAddress& destination,
-    ngtcp2_conn* conn,
-    const QuicError& error) {
+Packet* Packet::CreateConnectionClosePacket(Environment* env,
+                                            Listener* listener,
+                                            const SocketAddress& destination,
+                                            ngtcp2_conn* conn,
+                                            const QuicError& error) {
   auto packet = Create(
       env, listener, destination, kDefaultMaxPacketLength, "connection close");
   if (packet == nullptr) return nullptr;

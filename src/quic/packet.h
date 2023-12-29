@@ -92,12 +92,11 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
   // tells us how many of the packets bytes were used.
   void Truncate(size_t len);
 
-  static Packet* Create(
-      Environment* env,
-      Listener* listener,
-      const SocketAddress& destination,
-      size_t length = kDefaultMaxPacketLength,
-      const char* diagnostic_label = "<unknown>");
+  static Packet* Create(Environment* env,
+                        Listener* listener,
+                        const SocketAddress& destination,
+                        size_t length = kDefaultMaxPacketLength,
+                        const char* diagnostic_label = "<unknown>");
 
   Packet* Clone() const;
 
@@ -107,18 +106,16 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
 
   std::string ToString() const;
 
-  static Packet* CreateRetryPacket(
-      Environment* env,
-      Listener* listener,
-      const PathDescriptor& path_descriptor,
-      const TokenSecret& token_secret);
+  static Packet* CreateRetryPacket(Environment* env,
+                                   Listener* listener,
+                                   const PathDescriptor& path_descriptor,
+                                   const TokenSecret& token_secret);
 
-  static Packet* CreateConnectionClosePacket(
-      Environment* env,
-      Listener* listener,
-      const SocketAddress& destination,
-      ngtcp2_conn* conn,
-      const QuicError& error);
+  static Packet* CreateConnectionClosePacket(Environment* env,
+                                             Listener* listener,
+                                             const SocketAddress& destination,
+                                             ngtcp2_conn* conn,
+                                             const QuicError& error);
 
   static Packet* CreateImmediateConnectionClosePacket(
       Environment* env,

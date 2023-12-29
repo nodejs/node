@@ -5,8 +5,8 @@
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <node_sockaddr-inl.h>
 #include <string_bytes.h>
+#include <util-inl.h>
 #include <algorithm>
-#include "util.h"
 
 namespace node {
 namespace quic {
@@ -231,7 +231,7 @@ std::string RetryToken::ToString() const {
   MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
   size_t written =
       StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
-  DCHECK_EQ(written, arraysize(dest));
+  DCHECK_EQ(written, dest.length());
   return std::string(dest.out(), written);
 }
 
@@ -290,7 +290,7 @@ std::string RegularToken::ToString() const {
   MaybeStackBuffer<char, 32> dest(ptr_.len * 2);
   size_t written =
       StringBytes::hex_encode(*this, ptr_.len, dest.out(), dest.length());
-  DCHECK_EQ(written, arraysize(dest));
+  DCHECK_EQ(written, dest.length());
   return std::string(dest.out(), written);
 }
 

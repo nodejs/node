@@ -1,5 +1,6 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
+#include "http3.h"
 #include <async_wrap-inl.h>
 #include <base_object-inl.h>
 #include <debug_utils-inl.h>
@@ -13,7 +14,6 @@
 #include "application.h"
 #include "bindingdata.h"
 #include "defs.h"
-#include "http3.h"
 #include "session.h"
 #include "sessionticket.h"
 
@@ -383,9 +383,9 @@ class Http3Application final : public Session::Application {
     return data.id > -1 && !is_control_stream(data.id) && data.fin == 1;
   }
 
-  SET_NO_MEMORY_INFO();
-  SET_MEMORY_INFO_NAME(Http3Application);
-  SET_SELF_SIZE(Http3Application);
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(Http3Application)
+  SET_SELF_SIZE(Http3Application)
 
  private:
   inline operator nghttp3_conn*() const {

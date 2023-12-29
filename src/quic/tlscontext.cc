@@ -6,10 +6,10 @@
 #include <debug_utils-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
-#include <node_process-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
 #include <ngtcp2/ngtcp2_crypto_quictls.h>
+#include <node_process-inl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
@@ -93,7 +93,10 @@ int AlpnSelectionCallback(SSL* ssl,
 }
 
 BaseObjectPtr<crypto::SecureContext> InitializeSecureContext(
-    Session* session, Side side, Environment* env, const TLSContext::Options& options) {
+    Session* session,
+    Side side,
+    Environment* env,
+    const TLSContext::Options& options) {
   auto context = crypto::SecureContext::Create(env);
 
   auto& ctx = context->ctx();
@@ -292,7 +295,8 @@ bool SetOption(Environment* env,
           (options->*member).push_back(handle->Data());
         } else {
           Utf8Value namestr(env->isolate(), name);
-          THROW_ERR_INVALID_ARG_TYPE(env, "%s value must be a key object", *namestr);
+          THROW_ERR_INVALID_ARG_TYPE(
+              env, "%s value must be a key object", *namestr);
           return false;
         }
       } else if constexpr (std::is_same<T, Store>::value) {
@@ -302,7 +306,8 @@ bool SetOption(Environment* env,
           (options->*member).emplace_back(item.As<v8::ArrayBuffer>());
         } else {
           Utf8Value namestr(env->isolate(), name);
-          THROW_ERR_INVALID_ARG_TYPE(env, "%s value must be an array buffer", *namestr);
+          THROW_ERR_INVALID_ARG_TYPE(
+              env, "%s value must be an array buffer", *namestr);
           return false;
         }
       }
@@ -316,7 +321,8 @@ bool SetOption(Environment* env,
         (options->*member).push_back(handle->Data());
       } else {
         Utf8Value namestr(env->isolate(), name);
-        THROW_ERR_INVALID_ARG_TYPE(env, "%s value must be a key object", *namestr);
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "%s value must be a key object", *namestr);
         return false;
       }
     } else if constexpr (std::is_same<T, Store>::value) {
@@ -326,7 +332,8 @@ bool SetOption(Environment* env,
         (options->*member).emplace_back(value.As<v8::ArrayBuffer>());
       } else {
         Utf8Value namestr(env->isolate(), name);
-        THROW_ERR_INVALID_ARG_TYPE(env, "%s value must be an array buffer", *namestr);
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "%s value must be an array buffer", *namestr);
         return false;
       }
     }
@@ -556,7 +563,9 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
     // We need at least one key and one cert to complete the tls handshake.
     // Why not make this an error? We could but it's not strictly necessary.
     env->EmitProcessEnvWarning();
-    ProcessEmitWarning(env, "The default QUIC TLS options are being used. "
+    ProcessEmitWarning(
+        env,
+        "The default QUIC TLS options are being used. "
         "This means there is no key or certificate configured and the "
         "TLS handshake will fail. This is likely not what you want.");
     return Just<Options>(options);
@@ -591,8 +600,10 @@ Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
   // Why not make this an error? We could but it's not strictly necessary.
   if (options.keys.empty() || options.certs.empty()) {
     env->EmitProcessEnvWarning();
-    ProcessEmitWarning(env, "The QUIC TLS options did not include a key or cert. "
-        "This means the TLS handshake will fail. This is likely not what you want.");
+    ProcessEmitWarning(env,
+                       "The QUIC TLS options did not include a key or cert. "
+                       "This means the TLS handshake will fail. This is likely "
+                       "not what you want.");
   }
 
   return Just<Options>(options);
