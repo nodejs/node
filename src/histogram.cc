@@ -9,7 +9,9 @@
 namespace node {
 
 using v8::BigInt;
+using v8::CFunction;
 using v8::Context;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
 using v8::Integer;
@@ -42,7 +44,34 @@ HistogramImpl::HistogramImpl(const Histogram::Options& options)
 HistogramImpl::HistogramImpl(std::shared_ptr<Histogram> histogram)
     : histogram_(std::move(histogram)) {}
 
+CFunction HistogramImpl::fast_reset_(
+    CFunction::Make(&HistogramImpl::FastReset));
+CFunction HistogramImpl::fast_get_count_(
+    CFunction::Make(&HistogramImpl::FastGetCount));
+CFunction HistogramImpl::fast_get_min_(
+    CFunction::Make(&HistogramImpl::FastGetMin));
+CFunction HistogramImpl::fast_get_max_(
+    CFunction::Make(&HistogramImpl::FastGetMax));
+CFunction HistogramImpl::fast_get_mean_(
+    CFunction::Make(&HistogramImpl::FastGetMean));
+CFunction HistogramImpl::fast_get_exceeds_(
+    CFunction::Make(&HistogramImpl::FastGetExceeds));
+CFunction HistogramImpl::fast_get_stddev_(
+    CFunction::Make(&HistogramImpl::FastGetStddev));
+CFunction HistogramImpl::fast_get_percentile_(
+    CFunction::Make(&HistogramImpl::FastGetPercentile));
+CFunction HistogramBase::fast_record_(
+    CFunction::Make(&HistogramBase::FastRecord));
+CFunction HistogramBase::fast_record_delta_(
+    CFunction::Make(&HistogramBase::FastRecordDelta));
+CFunction IntervalHistogram::fast_start_(
+    CFunction::Make(&IntervalHistogram::FastStart));
+CFunction IntervalHistogram::fast_stop_(
+    CFunction::Make(&IntervalHistogram::FastStop));
+
 void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
+  // TODO(@jasnell): The bigint API variations do not yet support fast
+  // variations since v8 will not return a bigint value from a fast method.
   SetProtoMethodNoSideEffect(isolate, tmpl, "countBigInt", GetCountBigInt);
   SetProtoMethodNoSideEffect(isolate, tmpl, "exceedsBigInt", GetExceedsBigInt);
   SetProtoMethodNoSideEffect(isolate, tmpl, "minBigInt", GetMinBigInt);
@@ -52,14 +81,20 @@ void HistogramImpl::AddMethods(Isolate* isolate, Local<FunctionTemplate> tmpl) {
   SetProtoMethodNoSideEffect(isolate, tmpl, "percentiles", GetPercentiles);
   SetProtoMethodNoSideEffect(
       isolate, tmpl, "percentilesBigInt", GetPercentilesBigInt);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "count", GetCount);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "exceeds", GetExceeds);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "min", GetMin);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "max", GetMax);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "mean", GetMean);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "stddev", GetStddev);
-  SetProtoMethodNoSideEffect(isolate, tmpl, "percentile", GetPercentile);
-  SetProtoMethod(isolate, tmpl, "reset", DoReset);
+  auto instance = tmpl->InstanceTemplate();
+  SetFastMethodNoSideEffect(
+      isolate, instance, "count", GetCount, &fast_get_count_);
+  SetFastMethodNoSideEffect(
+      isolate, instance, "exceeds", GetExceeds, &fast_get_exceeds_);
+  SetFastMethodNoSideEffect(isolate, instance, "min", GetMin, &fast_get_min_);
+  SetFastMethodNoSideEffect(isolate, instance, "max", GetMax, &fast_get_max_);
+  SetFastMethodNoSideEffect(
+      isolate, instance, "mean", GetMean, &fast_get_mean_);
+  SetFastMethodNoSideEffect(
+      isolate, instance, "stddev", GetStddev, &fast_get_stddev_);
+  SetFastMethodNoSideEffect(
+      isolate, instance, "percentile", GetPercentile, &fast_get_percentile_);
+  SetFastMethod(isolate, instance, "reset", DoReset, &fast_reset_);
 }
 
 void HistogramImpl::RegisterExternalReferences(
@@ -81,6 +116,22 @@ void HistogramImpl::RegisterExternalReferences(
   registry->Register(GetPercentiles);
   registry->Register(GetPercentilesBigInt);
   registry->Register(DoReset);
+  registry->Register(fast_reset_.GetTypeInfo());
+  registry->Register(fast_get_count_.GetTypeInfo());
+  registry->Register(fast_get_min_.GetTypeInfo());
+  registry->Register(fast_get_max_.GetTypeInfo());
+  registry->Register(fast_get_mean_.GetTypeInfo());
+  registry->Register(fast_get_exceeds_.GetTypeInfo());
+  registry->Register(fast_get_stddev_.GetTypeInfo());
+  registry->Register(fast_get_percentile_.GetTypeInfo());
+  registry->Register(FastReset);
+  registry->Register(FastGetCount);
+  registry->Register(FastGetMin);
+  registry->Register(FastGetMax);
+  registry->Register(FastGetMean);
+  registry->Register(FastGetExceeds);
+  registry->Register(FastGetStddev);
+  registry->Register(FastGetPercentile);
   is_registerd = true;
 }
 
@@ -118,6 +169,12 @@ void HistogramBase::RecordDelta(const FunctionCallbackInfo<Value>& args) {
   (*histogram)->RecordDelta();
 }
 
+void HistogramBase::FastRecordDelta(Local<Value> receiver) {
+  HistogramBase* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  (*histogram)->RecordDelta();
+}
+
 void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK_IMPLIES(!args[0]->IsNumber(), args[0]->IsBigInt());
@@ -129,6 +186,18 @@ void HistogramBase::Record(const FunctionCallbackInfo<Value>& args) {
     return THROW_ERR_OUT_OF_RANGE(env, "value is out of range");
   HistogramBase* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  (*histogram)->Record(value);
+}
+
+void HistogramBase::FastRecord(Local<Value> receiver,
+                               const int64_t value,
+                               FastApiCallbackOptions& options) {
+  if (value < 1) {
+    options.fallback = true;
+    return;
+  }
+  HistogramBase* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   (*histogram)->Record(value);
 }
 
@@ -213,8 +282,9 @@ Local<FunctionTemplate> HistogramBase::GetConstructorTemplate(
     tmpl->SetClassName(classname);
     auto instance = tmpl->InstanceTemplate();
     instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
-    SetProtoMethod(isolate, tmpl, "record", Record);
-    SetProtoMethod(isolate, tmpl, "recordDelta", RecordDelta);
+    SetFastMethod(isolate, instance, "record", Record, &fast_record_);
+    SetFastMethod(
+        isolate, instance, "recordDelta", RecordDelta, &fast_record_delta_);
     SetProtoMethod(isolate, tmpl, "add", Add);
     HistogramImpl::AddMethods(isolate, tmpl);
     isolate_data->set_histogram_ctor_template(tmpl);
@@ -228,6 +298,10 @@ void HistogramBase::RegisterExternalReferences(
   registry->Register(Add);
   registry->Register(Record);
   registry->Register(RecordDelta);
+  registry->Register(fast_record_.GetTypeInfo());
+  registry->Register(fast_record_delta_.GetTypeInfo());
+  registry->Register(FastRecord);
+  registry->Register(FastRecordDelta);
   HistogramImpl::RegisterExternalReferences(registry);
 }
 
@@ -264,11 +338,11 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
     tmpl->SetClassName(OneByteString(isolate, "Histogram"));
-    tmpl->InstanceTemplate()->SetInternalFieldCount(
-        HistogramImpl::kInternalFieldCount);
+    auto instance = tmpl->InstanceTemplate();
+    instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
     HistogramImpl::AddMethods(isolate, tmpl);
-    SetProtoMethod(isolate, tmpl, "start", Start);
-    SetProtoMethod(isolate, tmpl, "stop", Stop);
+    SetFastMethod(isolate, instance, "start", Start, &fast_start_);
+    SetFastMethod(isolate, instance, "stop", Stop, &fast_stop_);
     env->set_intervalhistogram_constructor_template(tmpl);
   }
   return tmpl;
@@ -278,6 +352,10 @@ void IntervalHistogram::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(Start);
   registry->Register(Stop);
+  registry->Register(fast_start_.GetTypeInfo());
+  registry->Register(fast_stop_.GetTypeInfo());
+  registry->Register(FastStart);
+  registry->Register(FastStop);
   HistogramImpl::RegisterExternalReferences(registry);
 }
 
@@ -358,9 +436,21 @@ void IntervalHistogram::Start(const FunctionCallbackInfo<Value>& args) {
   histogram->OnStart(args[0]->IsTrue() ? StartFlags::RESET : StartFlags::NONE);
 }
 
+void IntervalHistogram::FastStart(Local<Value> receiver, bool reset) {
+  IntervalHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
+  histogram->OnStart(reset ? StartFlags::RESET : StartFlags::NONE);
+}
+
 void IntervalHistogram::Stop(const FunctionCallbackInfo<Value>& args) {
   IntervalHistogram* histogram;
   ASSIGN_OR_RETURN_UNWRAP(&histogram, args.Holder());
+  histogram->OnStop();
+}
+
+void IntervalHistogram::FastStop(Local<Value> receiver) {
+  IntervalHistogram* histogram;
+  ASSIGN_OR_RETURN_UNWRAP(&histogram, receiver);
   histogram->OnStop();
 }
 
@@ -472,6 +562,47 @@ void HistogramImpl::GetPercentilesBigInt(
 void HistogramImpl::DoReset(const FunctionCallbackInfo<Value>& args) {
   HistogramImpl* histogram = HistogramImpl::FromJSObject(args.Holder());
   (*histogram)->Reset();
+}
+
+void HistogramImpl::FastReset(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  (*histogram)->Reset();
+}
+
+double HistogramImpl::FastGetCount(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return static_cast<double>((*histogram)->Count());
+}
+
+double HistogramImpl::FastGetMin(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return static_cast<double>((*histogram)->Min());
+}
+
+double HistogramImpl::FastGetMax(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return static_cast<double>((*histogram)->Max());
+}
+
+double HistogramImpl::FastGetMean(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return (*histogram)->Mean();
+}
+
+double HistogramImpl::FastGetExceeds(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return static_cast<double>((*histogram)->Exceeds());
+}
+
+double HistogramImpl::FastGetStddev(Local<Value> receiver) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return (*histogram)->Stddev();
+}
+
+double HistogramImpl::FastGetPercentile(Local<Value> receiver,
+                                        const double percentile) {
+  HistogramImpl* histogram = HistogramImpl::FromJSObject(receiver);
+  return static_cast<double>((*histogram)->Percentile(percentile));
 }
 
 HistogramImpl* HistogramImpl::FromJSObject(Local<Value> value) {
