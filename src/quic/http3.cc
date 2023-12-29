@@ -82,12 +82,15 @@ class Http3Application final : public Session::Application {
   Http3Application(Session* session,
                    const Session::Application_Options& options)
       : Application(session, options),
+        allocator_(BindingData::Get(env())),
         options_(options),
         conn_(InitializeConnection()) {
     session->set_priority_supported();
   }
 
   bool Start() override {
+    CHECK(!started_);
+    started_ = true;
     Debug(&session(), "Starting HTTP/3 application.");
     auto params = ngtcp2_conn_get_remote_transport_params(session());
     if (params == nullptr) {
@@ -385,7 +388,10 @@ class Http3Application final : public Session::Application {
   SET_SELF_SIZE(Http3Application);
 
  private:
-  inline operator nghttp3_conn*() const { return conn_.get(); }
+  inline operator nghttp3_conn*() const {
+    DCHECK_NOT_NULL(conn_.get());
+    return conn_.get();
+  }
 
   bool CreateAndBindControlStreams() {
     Debug(&session(), "Creating and binding HTTP/3 control streams");
@@ -418,15 +424,14 @@ class Http3Application final : public Session::Application {
 
   Http3ConnectionPointer InitializeConnection() {
     nghttp3_conn* conn = nullptr;
-    nghttp3_mem allocator = BindingData::Get(env());
     nghttp3_settings settings = options_;
     if (session().is_server()) {
       CHECK_EQ(nghttp3_conn_server_new(
-                   &conn, &kCallbacks, &settings, &allocator, this),
+                   &conn, &kCallbacks, &settings, &allocator_, this),
                0);
     } else {
       CHECK_EQ(nghttp3_conn_client_new(
-                   &conn, &kCallbacks, &settings, &allocator, this),
+                   &conn, &kCallbacks, &settings, &allocator_, this),
                0);
     }
     return Http3ConnectionPointer(conn);
@@ -578,6 +583,8 @@ class Http3Application final : public Session::Application {
         &session(), "HTTP/3 application received updated settings ", options_);
   }
 
+  bool started_ = false;
+  nghttp3_mem allocator_;
   Session::Application_Options options_;
   Http3ConnectionPointer conn_;
   int64_t control_stream_id_ = -1;

@@ -120,7 +120,7 @@ class Session::Application : public MemoryRetainer {
   inline Session& session() { return *session_; }
   inline const Session& session() const { return *session_; }
 
-  BaseObjectPtr<Packet> CreateStreamDataPacket();
+  Packet* CreateStreamDataPacket();
 
   struct StreamData;
 

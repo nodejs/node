@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -125,13 +124,6 @@ class TLSContext final : public MemoryRetainer {
   // keylog file that can be consumed by tools like Wireshark to intercept and
   // decrypt QUIC network traffic.
   void Keylog(const char* line) const;
-
-  // Called when a chunk of peer TLS handshake data is received. For every
-  // chunk, we move the TLS handshake further along until it is complete.
-  int Receive(TLSContext::EncryptionLevel level,
-              uint64_t offset,
-              const uint8_t* data,
-              size_t datalen);
 
   v8::MaybeLocal<v8::Object> cert(Environment* env) const;
   v8::MaybeLocal<v8::Object> peer_cert(Environment* env) const;

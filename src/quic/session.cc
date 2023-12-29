@@ -184,6 +184,17 @@ Session::SendPendingDataScope::~SendPendingDataScope() {
 // ============================================================================
 
 namespace {
+
+inline const char* getEncryptionLevelName(ngtcp2_encryption_level level) {
+  switch (level) {
+    case NGTCP2_ENCRYPTION_LEVEL_1RTT: return "1rtt";
+    case NGTCP2_ENCRYPTION_LEVEL_0RTT: return "0rtt";
+    case NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE: return "handshake";
+    case NGTCP2_ENCRYPTION_LEVEL_INITIAL: return "initial";
+  }
+  return "<unknown>";
+}
+
 // Qlog is a JSON-based logging format that is being standardized for low-level
 // debug logging of QUIC connections and dataflows. The qlog output is generated
 // optionally by ngtcp2 for us. The on_qlog_write callback is registered with
@@ -497,11 +508,11 @@ Session::Session(Endpoint* endpoint,
       allocator_(BindingData::Get(env())),
       endpoint_(BaseObjectWeakPtr<Endpoint>(endpoint)),
       config_(config),
+      local_address_(config.local_address),
+      remote_address_(config.remote_address),
       connection_(InitConnection()),
       tls_context_(env(), config_.side, this, config_.options.tls_options),
       application_(select_application()),
-      local_address_(config.local_address),
-      remote_address_(config.remote_address),
       timer_(env(),
              [this, self = BaseObjectPtr<Session>(this)] { OnTimeout(); }) {
   MakeWeak();
@@ -765,7 +776,6 @@ bool Session::Receive(Store&& store,
 
     uint64_t now = uv_hrtime();
     ngtcp2_pkt_info pi{};  // Not used but required.
-    Debug(this, "Session is receiving packet");
     int err = ngtcp2_conn_read_pkt(*this, path, &pi, vec.base, vec.len, now);
     switch (err) {
       case 0: {
@@ -818,7 +828,7 @@ bool Session::Receive(Store&& store,
     }
     // Shouldn't happen but just in case.
     last_error_ = QuicError::ForNgtcp2Error(err);
-    Debug(this, "Error while receiving packet: %s", last_error_);
+    Debug(this, "Error while receiving packet: %s (%d)", last_error_, err);
     Close();
     return false;
   };
@@ -826,6 +836,7 @@ bool Session::Receive(Store&& store,
   auto update_stats = OnScopeLeave([&] { UpdateDataStats(); });
   remote_address_ = remote_address;
   Path path(local_address, remote_address_);
+  Debug(this, "Session is receiving packet received along path %s", path);
   STAT_INCREMENT_N(Stats, bytes_received, store.length());
   if (receivePacket(&path, store)) application().SendPendingData();
 
@@ -834,7 +845,7 @@ bool Session::Receive(Store&& store,
   return true;
 }
 
-void Session::Send(BaseObjectPtr<Packet> packet) {
+void Session::Send(Packet* packet) {
   // Sending a Packet is generally best effort. If we're not in a state
   // where we can send a packet, it's ok to drop it on the floor. The
   // packet loss mechanisms will cause the packet data to be resent later
@@ -845,7 +856,7 @@ void Session::Send(BaseObjectPtr<Packet> packet) {
   if (can_send_packets() && packet->length() > 0) {
     Debug(this, "Session is sending %s", packet->ToString());
     STAT_INCREMENT_N(Stats, bytes_sent, packet->length());
-    endpoint_->Send(std::move(packet));
+    endpoint_->Send(packet);
     return;
   }
 
@@ -853,9 +864,9 @@ void Session::Send(BaseObjectPtr<Packet> packet) {
   packet->Done(packet->length() > 0 ? UV_ECANCELED : 0);
 }
 
-void Session::Send(BaseObjectPtr<Packet> packet, const PathStorage& path) {
+void Session::Send(Packet* packet, const PathStorage& path) {
   UpdatePath(path);
-  Send(std::move(packet));
+  Send(packet);
 }
 
 uint64_t Session::SendDatagram(Store&& data) {
@@ -868,7 +879,7 @@ uint64_t Session::SendDatagram(Store&& data) {
   }
 
   Debug(this, "Session is sending datagram");
-  BaseObjectPtr<Packet> packet;
+  Packet* packet = nullptr;
   uint8_t* pos = nullptr;
   int accepted = 0;
   ngtcp2_vec vec = data;
@@ -885,7 +896,7 @@ uint64_t Session::SendDatagram(Store&& data) {
     // datagram packet. On each iteration here we'll try to encode the
     // datagram. It's entirely up to ngtcp2 whether to include the datagram
     // in the packet on each call to ngtcp2_conn_writev_datagram.
-    if (!packet) {
+    if (packet == nullptr) {
       packet = Packet::Create(env(),
                               endpoint_.get(),
                               remote_address_,
@@ -893,7 +904,7 @@ uint64_t Session::SendDatagram(Store&& data) {
                               "datagram");
       // Typically sending datagrams is best effort, but if we cannot create
       // the packet, then we handle it as a fatal error.
-      if (!packet) {
+      if (packet == nullptr) {
         last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
         Close(CloseMethod::SILENT);
         return 0;
@@ -1086,7 +1097,7 @@ void Session::RemoveStream(int64_t id) {
   // ngtcp2 does not extend the max streams count automatically except in very
   // specific conditions, none of which apply once we've gotten this far. We
   // need to manually extend when a remote peer initiated stream is removed.
-  Debug(this, "Removing stream " PRIi64 " from session", id);
+  Debug(this, "Removing stream %" PRIi64 " from session", id);
   if (!is_in_draining_period() && !is_in_closing_period() &&
       !state_->silent_close &&
       !ngtcp2_conn_is_local_stream(connection_.get(), id)) {
@@ -1936,13 +1947,6 @@ struct Session::Impl {
                : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
-  static int on_get_path_challenge_data(ngtcp2_conn* conn,
-                                        uint8_t* data,
-                                        void* user_data) {
-    CHECK(crypto::CSPRNG(data, NGTCP2_PATH_CHALLENGE_DATALEN).is_ok());
-    return NGTCP2_SUCCESS;
-  }
-
   static int on_handshake_completed(ngtcp2_conn* conn, void* user_data) {
     NGTCP2_CALLBACK_SCOPE(session)
     return session->HandshakeCompleted() ? NGTCP2_SUCCESS
@@ -1988,17 +1992,6 @@ struct Session::Impl {
     return NGTCP2_SUCCESS;
   }
 
-  static int on_receive_crypto_data(ngtcp2_conn* conn,
-                                    ngtcp2_encryption_level level,
-                                    uint64_t offset,
-                                    const uint8_t* data,
-                                    size_t datalen,
-                                    void* user_data) {
-    NGTCP2_CALLBACK_SCOPE(session)
-    return session->tls_context().Receive(
-        static_cast<TLSContext::EncryptionLevel>(level), offset, data, datalen);
-  }
-
   static int on_receive_datagram(ngtcp2_conn* conn,
                                  uint32_t flags,
                                  const uint8_t* data,
@@ -2023,7 +2016,11 @@ struct Session::Impl {
   static int on_receive_rx_key(ngtcp2_conn* conn,
                                ngtcp2_encryption_level level,
                                void* user_data) {
-    NGTCP2_CALLBACK_SCOPE(session)
+    auto session = Impl::From(conn, user_data);
+    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+
+    Debug(session, "Receiving RX key for level %d for dcid %s",
+          getEncryptionLevelName(level), session->config().dcid);
 
     if (!session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
                                   level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
@@ -2076,7 +2073,12 @@ struct Session::Impl {
   static int on_receive_tx_key(ngtcp2_conn* conn,
                                ngtcp2_encryption_level level,
                                void* user_data) {
-    NGTCP2_CALLBACK_SCOPE(session)
+    auto session = Impl::From(conn, user_data);
+    if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+
+    Debug(session, "Receiving TX key for level %d for dcid %s",
+          getEncryptionLevelName(level), session->config().dcid);
+
     if (session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
                                  level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
       if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
@@ -2170,7 +2172,7 @@ struct Session::Impl {
   static constexpr ngtcp2_callbacks CLIENT = {
       ngtcp2_crypto_client_initial_cb,
       nullptr,
-      on_receive_crypto_data,
+      ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
       on_receive_version_negotiation,
       ngtcp2_crypto_encrypt_cb,
@@ -2202,7 +2204,7 @@ struct Session::Impl {
       on_receive_datagram,
       on_acknowledge_datagram,
       on_lost_datagram,
-      on_get_path_challenge_data,
+      ngtcp2_crypto_get_path_challenge_data_cb,
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
@@ -2212,7 +2214,7 @@ struct Session::Impl {
   static constexpr ngtcp2_callbacks SERVER = {
       nullptr,
       ngtcp2_crypto_recv_client_initial_cb,
-      on_receive_crypto_data,
+      ngtcp2_crypto_recv_crypto_data_cb,
       on_handshake_completed,
       nullptr,
       ngtcp2_crypto_encrypt_cb,
@@ -2244,7 +2246,7 @@ struct Session::Impl {
       on_receive_datagram,
       on_acknowledge_datagram,
       on_lost_datagram,
-      on_get_path_challenge_data,
+      ngtcp2_crypto_get_path_challenge_data_cb,
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
@@ -2288,6 +2290,7 @@ void Session::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 Session::QuicConnectionPointer Session::InitConnection() {
   ngtcp2_conn* conn;
   Path path(local_address_, remote_address_);
+  Debug(this, "Initializing session for path %s", path);
   TransportParams::Config tp_config(
       config_.side, config_.ocid, config_.retry_scid);
   TransportParams transport_params(tp_config, config_.options.transport_params);

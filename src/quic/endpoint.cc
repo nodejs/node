@@ -554,20 +554,31 @@ SocketAddress Endpoint::UDP::local_address() const {
   return SocketAddress::FromSockName(impl_->handle_);
 }
 
-int Endpoint::UDP::Send(BaseObjectPtr<Packet> packet) {
+int Endpoint::UDP::Send(Packet* packet) {
   if (is_closed_or_closing()) return UV_EBADF;
-  DCHECK(packet && !packet->is_sending());
+  DCHECK_NOT_NULL(packet);
   uv_buf_t buf = *packet;
-  return packet->Dispatch(
-      uv_udp_send,
-      &impl_->handle_,
-      &buf,
-      1,
-      packet->destination().data(),
-      uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
-        auto ptr = static_cast<Packet*>(ReqWrap<uv_udp_send_t>::from_req(req));
-        ptr->Done(status);
-      }});
+
+  // We don't use the default implementation of Dispatch because the packet
+  // itself is going to be reset and added to a freelist to be reused. The
+  // default implementation of Dispatch will cause the packet to be deleted,
+  // which we don't want. We call ClearWeak here just to be doubly sure.
+  packet->ClearWeak();
+  packet->Dispatched();
+  int err = uv_udp_send(packet->req(), &impl_->handle_, &buf, 1, packet->destination().data(),
+              uv_udp_send_cb{[](uv_udp_send_t* req, int status) {
+                auto ptr =
+                    static_cast<Packet*>(ReqWrap<uv_udp_send_t>::from_req(req));
+                ptr->env()->DecreaseWaitingRequestCounter();
+                ptr->Done(status);
+              }});
+  if (err < 0) {
+    // The packet failed.
+    packet->Done(err);
+  } else {
+    packet->env()->IncreaseWaitingRequestCounter();
+  }
+  return err;
 }
 
 void Endpoint::UDP::MemoryInfo(MemoryTracker* tracker) const {
@@ -788,7 +799,8 @@ void Endpoint::DisassociateStatelessResetToken(
   }
 }
 
-void Endpoint::Send(BaseObjectPtr<Packet> packet) {
+void Endpoint::Send(Packet* packet) {
+  CHECK_NOT_NULL(packet);
 #ifdef DEBUG
   // When diagnostic packet loss is enabled, the packet will be randomly
   // dropped. This can happen to any type of packet. We use this only in
@@ -1077,7 +1089,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
 
-    Debug(this, "Trying to create new session for initial packet");
+    Debug(this, "Trying to create new session for %s", config.dcid);
     auto session = Session::Create(this, config);
     if (session) {
       receive(session.get(),
@@ -1096,7 +1108,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
                                        const SocketAddress& local_address,
                                        const SocketAddress& remote_address) {
     // Conditionally accept an initial packet to create a new session.
-    Debug(this, "Trying to accept initial packet");
+    Debug(this, "Trying to accept initial packet for %s from %s", dcid, remote_address);
 
     // If we're not listening as a server, do not accept an initial packet.
     if (state_->listening == 0) return;
@@ -1111,7 +1123,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
       // successful, or an error code if it was not. Currently there's only one
       // documented error code (NGTCP2_ERR_INVALID_ARGUMENT) but we'll handle
       // any error here the same -- by ignoring the packet entirely.
-      Debug(this, "Failed to accept initial packet");
+      Debug(this, "Failed to accept initial packet from %s", remote_address);
       return;
     }
 
@@ -1120,7 +1132,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // version negotiation packet in response.
     if (ngtcp2_is_supported_version(hd.version) == 0) {
       Debug(this,
-            "Packet was not accepted because the version is not supported");
+            "Packet was not accepted because the version (%d) is not supported",
+            hd.version);
       SendVersionNegotiation(
           PathDescriptor{version, dcid, scid, local_address, remote_address});
       STAT_INCREMENT(Stats, packets_received);
@@ -1142,8 +1155,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
     if (state_->busy || limits_exceeded) {
       Debug(this,
             "Packet was not accepted because the endpoint is busy or the "
-            "remote peer has exceeded their maximum number of concurrent "
-            "connections");
+            "remote address %s has exceeded their maximum number of concurrent "
+            "connections", remote_address);
       // Endpoint is busy or the connection count is exceeded. The connection is
       // refused. For the purpose of stats collection, we'll count both of these
       // the same.
@@ -1190,7 +1203,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // a new token. If it does exist, and if it is valid, we grab the original
     // cid and continue.
     if (!is_remote_address_validated) {
-      Debug(this, "Remote address is not validated");
+      Debug(this, "Remote address %s is not validated", remote_address);
       switch (hd.type) {
         case NGTCP2_PKT_INITIAL:
           // First, let's see if we need to do anything here.
@@ -1199,8 +1212,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
             // If there is no token, generate and send one.
             if (hd.tokenlen == 0) {
               Debug(this,
-                    "Initial packet has no token. Sending retry to start "
-                    "validation");
+                    "Initial packet has no token. Sending retry to %s to start "
+                    "validation", remote_address);
               SendRetry(PathDescriptor{
                   version,
                   dcid,
@@ -1219,7 +1232,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
             switch (hd.token[0]) {
               case RetryToken::kTokenMagic: {
                 RetryToken token(hd.token, hd.tokenlen);
-                Debug(this, "Initial packet has retry token %s", token);
+                Debug(this, "Initial packet from %s has retry token %s", remote_address, token);
                 auto ocid = token.Validate(
                     version,
                     remote_address,
@@ -1227,7 +1240,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
                     options_.token_secret,
                     options_.retry_token_expiration * NGTCP2_SECONDS);
                 if (!ocid.has_value()) {
-                  Debug(this, "Retry token is invalid.");
+                  Debug(this, "Retry token from %s is invalid.", remote_address);
                   // Invalid retry token was detected. Close the connection.
                   SendImmediateConnectionClose(
                       PathDescriptor{
@@ -1243,8 +1256,8 @@ void Endpoint::Receive(const uv_buf_t& buf,
                 // original retry packet sent to the client. We use it for
                 // validation.
                 Debug(this,
-                      "Retry token is valid. Original dcid %s",
-                      ocid.value());
+                      "Retry token from %s is valid. Original dcid %s",
+                      remote_address, ocid.value());
                 config.ocid = ocid.value();
                 config.retry_scid = dcid;
                 config.set_token(token);
@@ -1252,13 +1265,14 @@ void Endpoint::Receive(const uv_buf_t& buf,
               }
               case RegularToken::kTokenMagic: {
                 RegularToken token(hd.token, hd.tokenlen);
-                Debug(this, "Initial packet has regular token %s", token);
+                Debug(this, "Initial packet from %s has regular token %s",
+                      remote_address, token);
                 if (!token.Validate(
                         version,
                         remote_address,
                         options_.token_secret,
                         options_.token_expiration * NGTCP2_SECONDS)) {
-                  Debug(this, "Regular token is invalid.");
+                  Debug(this, "Regular token from %s is invalid.", remote_address);
                   // If the regular token is invalid, let's send a retry to be
                   // lenient. There's a small risk that a malicious peer is
                   // trying to make us do some work but the risk is fairly low
@@ -1275,12 +1289,12 @@ void Endpoint::Receive(const uv_buf_t& buf,
                   STAT_INCREMENT(Stats, packets_received);
                   return;
                 }
-                Debug(this, "Regular token is valid.");
+                Debug(this, "Regular token from %s is valid.", remote_address);
                 config.set_token(token);
                 break;
               }
               default: {
-                Debug(this, "Initial packet has unknown token type");
+                Debug(this, "Initial packet from %s has unknown token type", remote_address);
                 // If our prefix bit does not match anything we know about,
                 // let's send a retry to be lenient. There's a small risk that a
                 // malicious peer is trying to make us do some work but the risk
@@ -1301,10 +1315,11 @@ void Endpoint::Receive(const uv_buf_t& buf,
             // path to the remote address is valid (for now). Let's record that
             // so we don't have to do this dance again for this endpoint
             // instance.
-            Debug(this, "Remote address is validated");
+            Debug(this, "Remote address %s is validated", remote_address);
             addrLRU_.Upsert(remote_address)->validated = true;
           } else if (hd.tokenlen > 0) {
-            Debug(this, "Ignoring initial packet with unexpected token");
+            Debug(this, "Ignoring initial packet from %s with unexpected token",
+                  remote_address);
             // If validation is turned off and there is a token, that's weird.
             // The peer should only have a token if we sent it to them and we
             // wouldn't have sent it unless validation was turned on. Let's
@@ -1314,7 +1329,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
           }
           break;
         case NGTCP2_PKT_0RTT:
-          Debug(this, "Sending retry to initial 0RTT packet");
+          Debug(this, "Sending retry to %s due to initial 0RTT packet", remote_address);
           // If it's a 0RTT packet, we're always going to perform path
           // validation no matter what. This is a bit unfortunate since
           // ORTT is supposed to be, you know, 0RTT, but sending a retry

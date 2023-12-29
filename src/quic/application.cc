@@ -185,7 +185,7 @@ StreamPriority Session::Application::GetStreamPriority(const Stream& stream) {
   return StreamPriority::DEFAULT;
 }
 
-BaseObjectPtr<Packet> Session::Application::CreateStreamDataPacket() {
+Packet* Session::Application::CreateStreamDataPacket() {
   return Packet::Create(env(),
                         session_->endpoint_.get(),
                         session_->remote_address_,
@@ -224,7 +224,7 @@ void Session::Application::SendPendingData() {
   Debug(session_, "Application sending pending data");
   PathStorage path;
 
-  BaseObjectPtr<Packet> packet;
+  Packet* packet = nullptr;
   uint8_t* pos = nullptr;
   int err = 0;
 
@@ -261,9 +261,9 @@ void Session::Application::SendPendingData() {
       return session_->Close(Session::CloseMethod::SILENT);
     }
 
-    if (!packet) {
+    if (packet == nullptr) {
       packet = CreateStreamDataPacket();
-      if (!packet) {
+      if (packet == nullptr) {
         session_->last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
         return session_->Close(Session::CloseMethod::SILENT);
       }
