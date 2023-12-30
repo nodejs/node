@@ -36,11 +36,14 @@ const TLSContext::Options TLSContext::Options::kDefault = {};
 
 namespace {
 
-// One time initialization
-auto _ = []() {
-  CHECK_EQ(ngtcp2_crypto_quictls_init(), 0);
-  return 0;
-}();
+// TODO(@jasnell): One time initialization. ngtcp2 says this is optional but
+// highly recommended to deal with some perf regression. Unfortunately doing
+// this breaks some existing tests and we need to understand the potential
+// impact of calling this.
+// auto _ = []() {
+//   CHECK_EQ(ngtcp2_crypto_quictls_init(), 0);
+//   return 0;
+// }();
 
 constexpr size_t kMaxAlpnLen = 255;
 
