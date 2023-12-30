@@ -2,6 +2,7 @@
 'use strict';
 
 const common = require('../common');
+const path = require('path');
 common.skipIfWorker();
 
 const assert = require('assert');
@@ -14,7 +15,7 @@ const { spawnSync } = require('child_process');
     [
       '--experimental-permission',
       '--allow-fs-read', '*',
-      '--allow-fs-write', '../fixtures/permission/deny/regular-file.md',
+      '--allow-fs-write', path.resolve('../fixtures/permission/deny/regular-file.md'),
       '-e',
       `
       const path = require("path");

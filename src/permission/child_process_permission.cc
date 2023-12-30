@@ -9,7 +9,8 @@ namespace permission {
 
 // Currently, ChildProcess manage a single state
 // Once denied, it's always denied
-void ChildProcessPermission::Apply(const std::vector<std::string>& allow,
+void ChildProcessPermission::Apply(Environment* env,
+                                   const std::vector<std::string>& allow,
                                    PermissionScope scope) {
   deny_all_ = true;
 }
