@@ -9,7 +9,8 @@ namespace permission {
 
 // Currently, PolicyDenyWorker manage a single state
 // Once denied, it's always denied
-void WorkerPermission::Apply(const std::vector<std::string>& allow,
+void WorkerPermission::Apply(Environment* env,
+                             const std::vector<std::string>& allow,
                              PermissionScope scope) {
   deny_all_ = true;
 }

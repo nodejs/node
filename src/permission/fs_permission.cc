@@ -1,7 +1,7 @@
 #include "fs_permission.h"
 #include "base_object-inl.h"
 #include "debug_utils-inl.h"
-#include "util.h"
+#include "path.h"
 #include "v8.h"
 
 #include <fcntl.h>
@@ -117,7 +117,8 @@ namespace permission {
 
 // allow = '*'
 // allow = '/tmp/,/home/example.js'
-void FSPermission::Apply(const std::vector<std::string>& allow,
+void FSPermission::Apply(Environment* env,
+                         const std::vector<std::string>& allow,
                          PermissionScope scope) {
   for (const std::string& res : allow) {
     if (res == "*") {
@@ -130,7 +131,7 @@ void FSPermission::Apply(const std::vector<std::string>& allow,
       }
       return;
     }
-    GrantAccess(scope, res);
+    GrantAccess(scope, PathResolve(env, {res}));
   }
 }
 
