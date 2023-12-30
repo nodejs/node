@@ -189,14 +189,16 @@ class Http3Application final : public Session::Application {
             Debug(&session(),
                   "HTTP/3 application extending max bidi streams to %" PRIu64,
                   max_streams);
-            ngtcp2_conn_extend_max_streams_bidi(session(), max_streams);
+            ngtcp2_conn_extend_max_streams_bidi(
+                session(), static_cast<size_t>(max_streams));
             break;
           }
           case Direction::UNIDIRECTIONAL: {
             Debug(&session(),
                   "HTTP/3 application extending max uni streams to %" PRIu64,
                   max_streams);
-            ngtcp2_conn_extend_max_streams_uni(session(), max_streams);
+            ngtcp2_conn_extend_max_streams_uni(
+                session(), static_cast<size_t>(max_streams));
             break;
           }
         }
@@ -561,7 +563,7 @@ class Http3Application final : public Session::Application {
     // process any more data.
 
     // On the client side, if id is equal to NGHTTP3_SHUTDOWN_NOTICE_STREAM_ID,
-    // or on the server if the id is equal to NGHTTP3_SHUSTDOWN_NOTICE_PUSH_ID,
+    // or on the server if the id is equal to NGHTTP3_SHUTDOWN_NOTICE_PUSH_ID,
     // then this is a request to begin a graceful shutdown.
 
     // This can be called multiple times but the id can only stay the same or
@@ -631,7 +633,7 @@ class Http3Application final : public Session::Application {
     NGHTTP3_CALLBACK_SCOPE(app);
     auto stream = From(stream_id, stream_user_data);
     if (stream == nullptr) return NGHTTP3_ERR_CALLBACK_FAILURE;
-    app->AcknowledgeStreamData(stream, datalen);
+    app->AcknowledgeStreamData(stream, static_cast<size_t>(datalen));
     return NGTCP2_SUCCESS;
   }
 

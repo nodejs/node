@@ -33,9 +33,9 @@ Session::Application_Options::operator const nghttp3_settings() const {
   // HTTP/3. Here we extract only the properties that are relevant to HTTP/3.
   return nghttp3_settings{
       max_field_section_size,
-      qpack_max_dtable_capacity,
-      qpack_encoder_max_dtable_capacity,
-      qpack_blocked_streams,
+      static_cast<size_t>(qpack_max_dtable_capacity),
+      static_cast<size_t>(qpack_encoder_max_dtable_capacity),
+      static_cast<size_t>(qpack_blocked_streams),
       enable_connect_protocol,
       enable_datagrams,
   };
