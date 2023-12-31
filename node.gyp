@@ -415,6 +415,7 @@
       'test/cctest/test_node_crypto.cc',
       'test/cctest/test_node_crypto_env.cc',
       'test/cctest/test_quic_cid.cc',
+      'test/cctest/test_quic_error.cc',
       'test/cctest/test_quic_tokens.cc',
     ],
     'node_cctest_inspector_sources': [
