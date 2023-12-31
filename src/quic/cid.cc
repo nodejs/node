@@ -4,6 +4,7 @@
 #include <memory_tracker-inl.h>
 #include <node_mutex.h>
 #include <string_bytes.h>
+#include "quic/defs.h"
 
 namespace node {
 namespace quic {
@@ -99,10 +100,7 @@ namespace {
 class RandomCIDFactory : public CID::Factory {
  public:
   RandomCIDFactory() = default;
-  RandomCIDFactory(const RandomCIDFactory&) = delete;
-  RandomCIDFactory(RandomCIDFactory&&) = delete;
-  RandomCIDFactory& operator=(const RandomCIDFactory&) = delete;
-  RandomCIDFactory& operator=(RandomCIDFactory&&) = delete;
+  DISALLOW_COPY_AND_MOVE(RandomCIDFactory)
 
   CID Generate(size_t length_hint) const override {
     DCHECK_GE(length_hint, CID::kMinLength);
@@ -114,8 +112,8 @@ class RandomCIDFactory : public CID::Factory {
     return CID(start, length_hint);
   }
 
-  void GenerateInto(ngtcp2_cid* cid,
-                    size_t length_hint = CID::kMaxLength) const override {
+  CID GenerateInto(ngtcp2_cid* cid,
+                   size_t length_hint = CID::kMaxLength) const override {
     DCHECK_GE(length_hint, CID::kMinLength);
     DCHECK_LE(length_hint, CID::kMaxLength);
     Mutex::ScopedLock lock(mutex_);
@@ -123,6 +121,7 @@ class RandomCIDFactory : public CID::Factory {
     auto start = pool_ + pos_;
     pos_ += length_hint;
     ngtcp2_cid_init(cid, start, length_hint);
+    return CID(cid);
   }
 
  private:
