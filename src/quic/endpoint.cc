@@ -72,11 +72,6 @@ namespace quic {
   V(STATELESS_RESET_COUNT, stateless_reset_count)                              \
   V(IMMEDIATE_CLOSE_COUNT, immediate_close_count)
 
-#define ENDPOINT_CC(V)                                                         \
-  V(RENO, reno)                                                                \
-  V(CUBIC, cubic)                                                              \
-  V(BBR, bbr)
-
 struct Endpoint::State {
 #define V(_, name, type) type name;
   ENDPOINT_STATE(V)
@@ -341,12 +336,9 @@ std::string Endpoint::Options::ToString() const {
 
   auto ccalg = ([&] {
     switch (cc_algorithm) {
-      case NGTCP2_CC_ALGO_RENO:
-        return "reno";
-      case NGTCP2_CC_ALGO_CUBIC:
-        return "cubic";
-      case NGTCP2_CC_ALGO_BBR:
-        return "bbr";
+#define V(name, label) case NGTCP2_CC_ALGO_##name: return #label;
+      ENDPOINT_CC(V)
+#undef V
     }
     return "<unknown>";
   })();
@@ -623,8 +615,8 @@ void Endpoint::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
 
 void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
 #define V(name, str)                                                           \
-  NODE_DEFINE_CONSTANT(target, QUIC_CC_ALGO_##name);                           \
-  NODE_DEFINE_STRING_CONSTANT(target, "QUIC_CC_ALGO_" #name "_STR", #str);
+  NODE_DEFINE_CONSTANT(target, CC_ALGO_##name);                           \
+  NODE_DEFINE_STRING_CONSTANT(target, "CC_ALGO_" #name "_STR", #str);
   ENDPOINT_CC(V)
 #undef V
 

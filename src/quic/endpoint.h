@@ -20,6 +20,11 @@
 namespace node {
 namespace quic {
 
+#define ENDPOINT_CC(V)                                                         \
+  V(RENO, reno)                                                                \
+  V(CUBIC, cubic)                                                              \
+  V(BBR, bbr)
+
 // An Endpoint encapsulates the UDP local port binding and is responsible for
 // sending and receiving QUIC packets. A single endpoint can act as both a QUIC
 // client and server simultaneously.
@@ -33,9 +38,10 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
-  static constexpr auto QUIC_CC_ALGO_RENO = NGTCP2_CC_ALGO_RENO;
-  static constexpr auto QUIC_CC_ALGO_CUBIC = NGTCP2_CC_ALGO_CUBIC;
-  static constexpr auto QUIC_CC_ALGO_BBR = NGTCP2_CC_ALGO_BBR;
+#define V(name, _)                                                             \
+  static constexpr auto CC_ALGO_##name = NGTCP2_CC_ALGO_##name;
+  ENDPOINT_CC(V)
+#undef V
 
   // Endpoint configuration options
   struct Options final : public MemoryRetainer {
@@ -144,7 +150,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // which to use by default is arbitrary and we can choose whichever we'd
     // like. Additional performance profiling will be needed to determine which
     // is the better of the two for our needs.
-    ngtcp2_cc_algo cc_algorithm = NGTCP2_CC_ALGO_CUBIC;
+    ngtcp2_cc_algo cc_algorithm = CC_ALGO_CUBIC;
 
     // By default, when the endpoint is created, it will generate a
     // reset_token_secret at random. This is a secret used in generating
