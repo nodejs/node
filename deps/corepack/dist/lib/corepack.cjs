@@ -5439,9 +5439,9 @@ var require_dist = __commonJS({
   }
 });
 
-// .yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/common.js
+// .yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/common.js
 var require_common2 = __commonJS({
-  ".yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/common.js"(exports, module2) {
+  ".yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/common.js"(exports, module2) {
     function setup(env2) {
       createDebug.debug = createDebug;
       createDebug.default = createDebug;
@@ -5602,9 +5602,9 @@ var require_common2 = __commonJS({
   }
 });
 
-// .yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/browser.js
+// .yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/browser.js
 var require_browser2 = __commonJS({
-  ".yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/browser.js"(exports, module2) {
+  ".yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/browser.js"(exports, module2) {
     exports.formatArgs = formatArgs;
     exports.save = save;
     exports.load = load;
@@ -5771,9 +5771,9 @@ var require_browser2 = __commonJS({
   }
 });
 
-// .yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/node.js
+// .yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/node.js
 var require_node2 = __commonJS({
-  ".yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/node.js"(exports, module2) {
+  ".yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/node.js"(exports, module2) {
     var tty3 = require("tty");
     var util = require("util");
     exports.init = init;
@@ -5945,9 +5945,9 @@ var require_node2 = __commonJS({
   }
 });
 
-// .yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/index.js
+// .yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/index.js
 var require_src2 = __commonJS({
-  ".yarn/__virtual__/debug-virtual-a84ae92427/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/index.js"(exports, module2) {
+  ".yarn/__virtual__/debug-virtual-eaebcdc48e/0/cache/debug-npm-4.3.4-4513954577-cedbec4529.zip/node_modules/debug/src/index.js"(exports, module2) {
     if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
       module2.exports = require_browser2();
     } else {
@@ -12109,9 +12109,9 @@ var require_file2 = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseControlResponse.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseControlResponse.js
 var require_parseControlResponse = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseControlResponse.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseControlResponse.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.positiveIntermediate = exports.positiveCompletion = exports.isMultiline = exports.isSingleLine = exports.parseControlResponse = void 0;
@@ -12162,9 +12162,9 @@ var require_parseControlResponse = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/FtpContext.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/FtpContext.js
 var require_FtpContext = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/FtpContext.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/FtpContext.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.FTPContext = exports.FTPError = void 0;
@@ -12481,9 +12481,9 @@ Closing reason: ${this._closingError.stack}`;
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/FileInfo.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/FileInfo.js
 var require_FileInfo = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/FileInfo.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/FileInfo.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.FileInfo = exports.FileType = void 0;
@@ -12493,7 +12493,7 @@ var require_FileInfo = __commonJS({
       FileType2[FileType2["File"] = 1] = "File";
       FileType2[FileType2["Directory"] = 2] = "Directory";
       FileType2[FileType2["SymbolicLink"] = 3] = "SymbolicLink";
-    })(FileType = exports.FileType || (exports.FileType = {}));
+    })(FileType || (exports.FileType = FileType = {}));
     var FileInfo = class {
       constructor(name) {
         this.name = name;
@@ -12529,18 +12529,18 @@ var require_FileInfo = __commonJS({
         this.rawModifiedAt = rawModifiedAt;
       }
     };
+    exports.FileInfo = FileInfo;
     FileInfo.UnixPermission = {
       Read: 4,
       Write: 2,
       Execute: 1
     };
-    exports.FileInfo = FileInfo;
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListDOS.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListDOS.js
 var require_parseListDOS = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListDOS.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListDOS.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.transformList = exports.parseLine = exports.testLine = void 0;
@@ -12582,9 +12582,9 @@ var require_parseListDOS = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListUnix.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListUnix.js
 var require_parseListUnix = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListUnix.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListUnix.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.transformList = exports.parseLine = exports.testLine = void 0;
@@ -12669,9 +12669,9 @@ var require_parseListUnix = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListMLSD.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListMLSD.js
 var require_parseListMLSD = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseListMLSD.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseListMLSD.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.parseMLSxDate = exports.transformList = exports.parseLine = exports.testLine = void 0;
@@ -12681,7 +12681,9 @@ var require_parseListMLSD = __commonJS({
     }
     var factHandlersByName = {
       "size": parseSize,
+      // File size
       "sizd": parseSize,
+      // Directory size
       "unique": (value, info) => {
         info.uniqueID = value;
       },
@@ -12831,9 +12833,9 @@ var require_parseListMLSD = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseList.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseList.js
 var require_parseList = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/parseList.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/parseList.js"(exports) {
     "use strict";
     var __createBinding2 = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -12905,9 +12907,9 @@ var require_parseList = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/ProgressTracker.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/ProgressTracker.js
 var require_ProgressTracker = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/ProgressTracker.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/ProgressTracker.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ProgressTracker = void 0;
@@ -12976,9 +12978,9 @@ var require_ProgressTracker = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/StringWriter.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/StringWriter.js
 var require_StringWriter = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/StringWriter.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/StringWriter.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.StringWriter = void 0;
@@ -13004,9 +13006,9 @@ var require_StringWriter = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/netUtils.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/netUtils.js
 var require_netUtils = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/netUtils.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/netUtils.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.ipIsPrivateV4Address = exports.upgradeSocket = exports.describeAddress = exports.describeTLS = void 0;
@@ -13056,9 +13058,9 @@ var require_netUtils = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/transfer.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/transfer.js
 var require_transfer = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/transfer.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/transfer.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.downloadTo = exports.uploadFrom = exports.connectForPassiveTransfer = exports.parsePasvResponse = exports.enterPassiveModeIPv4 = exports.parseEpsvResponse = exports.enterPassiveModeIPv6 = void 0;
@@ -13295,9 +13297,9 @@ var require_transfer = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/Client.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/Client.js
 var require_Client = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/Client.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/Client.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.Client = void 0;
@@ -13791,10 +13793,12 @@ var require_Client = __commonJS({
       async removeDir(remoteDirPath) {
         return this._exitAtCurrentDirectory(async () => {
           await this.cd(remoteDirPath);
+          const absoluteDirPath = await this.pwd();
           await this.clearWorkingDir();
-          if (remoteDirPath !== "/") {
+          const dirIsRoot = absoluteDirPath === "/";
+          if (!dirIsRoot) {
             await this.cdup();
-            await this.removeEmptyDir(remoteDirPath);
+            await this.removeEmptyDir(absoluteDirPath);
           }
         });
       }
@@ -14014,17 +14018,17 @@ var require_Client = __commonJS({
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/StringEncoding.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/StringEncoding.js
 var require_StringEncoding = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/StringEncoding.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/StringEncoding.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
   }
 });
 
-// .yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/index.js
+// .yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/index.js
 var require_dist6 = __commonJS({
-  ".yarn/cache/basic-ftp-npm-5.0.3-95a5b33162-2b960ea976.zip/node_modules/basic-ftp/dist/index.js"(exports) {
+  ".yarn/cache/basic-ftp-npm-5.0.4-5950651e19-0bd580652a.zip/node_modules/basic-ftp/dist/index.js"(exports) {
     "use strict";
     var __createBinding2 = exports && exports.__createBinding || (Object.create ? function(o, m, k, k2) {
       if (k2 === void 0)
@@ -41948,7 +41952,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.23.0";
+var version = "0.24.0";
 
 // sources/Engine.ts
 var import_fs3 = __toESM(require("fs"));
@@ -41960,7 +41964,7 @@ var import_semver3 = __toESM(require_semver2());
 var config_default = {
   definitions: {
     npm: {
-      default: "10.2.3+sha1.f30ed73c400685ab52bf3f21cd3fcab1c5b007ce",
+      default: "10.2.5+sha1.ef86b9aafd9965e60814ed11a3d4fb00a4e3b006",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -41997,7 +42001,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "8.10.2+sha1.e0b68270e89c817ff88b7be62466a2128c53af02",
+      default: "8.13.1+sha1.90f9b2bb3ed58632bcb7b13c3902d6873ee9501c",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -42055,13 +42059,13 @@ var config_default = {
       }
     },
     yarn: {
-      default: "1.22.19+sha1.4ba7fc5c6e704fce2066ecbfb0b0d8976fe62447",
+      default: "1.22.21+sha1.1959a18351b811cdeedbd484a8f86c3cc3bbaf72",
       fetchLatestFrom: {
         type: "npm",
         package: "yarn"
       },
       transparent: {
-        default: "4.0.1+sha224.ca5d6f5a8aecd0801adc32f775675b01961bdc2383867d36f4732a0a",
+        default: "4.0.2+sha224.4b7a50dfc3384e203b885efe2c3ff5e04e3a9c682c0a2f0df25c5e34",
         commands: [
           [
             "yarn",
@@ -42098,9 +42102,13 @@ var config_default = {
             type: "url",
             url: "https://repo.yarnpkg.com/tags",
             fields: {
-              tags: "latest",
+              tags: "aliases",
               versions: "tags"
             }
+          },
+          npmRegistry: {
+            type: "npm",
+            package: "@yarnpkg/cli-dist"
           },
           commands: {
             use: [
@@ -42164,6 +42172,8 @@ function getTemporaryFolder(target = (0, import_os.tmpdir)()) {
     } catch (error) {
       if (error.code === `EEXIST`) {
         continue;
+      } else if (error.code === `EACCES`) {
+        throw new UsageError(`Failed to create cache directory. Please ensure the user has write access to the target directory (${target}). If the user's home directory does not exist, create it first.`);
       } else {
         throw error;
       }
@@ -42185,15 +42195,20 @@ async function fetchUrlStream(url, options = {}) {
   const { ProxyAgent } = await Promise.resolve().then(() => __toESM(require_dist12()));
   const proxyAgent = new ProxyAgent();
   return new Promise((resolve, reject) => {
-    const request = https.get(url, { ...options, agent: proxyAgent }, (response) => {
-      const statusCode = response.statusCode;
-      if (statusCode != null && statusCode >= 200 && statusCode < 300)
-        return resolve(response);
-      return reject(new Error(`Server answered with HTTP ${statusCode} when performing the request to ${url}; for troubleshooting help, see https://github.com/nodejs/corepack#troubleshooting`));
-    });
-    request.on(`error`, (err) => {
-      reject(new Error(`Error when performing the request to ${url}; for troubleshooting help, see https://github.com/nodejs/corepack#troubleshooting`));
-    });
+    const createRequest = (url2) => {
+      const request = https.get(url2, { ...options, agent: proxyAgent }, (response) => {
+        const statusCode = response.statusCode;
+        if ([301, 302, 307, 308].includes(statusCode) && response.headers.location)
+          return createRequest(response.headers.location);
+        if (statusCode != null && statusCode >= 200 && statusCode < 300)
+          return resolve(response);
+        return reject(new Error(`Server answered with HTTP ${statusCode} when performing the request to ${url2}; for troubleshooting help, see https://github.com/nodejs/corepack#troubleshooting`));
+      });
+      request.on(`error`, (err) => {
+        reject(new Error(`Error when performing the request to ${url2}; for troubleshooting help, see https://github.com/nodejs/corepack#troubleshooting`));
+      });
+    };
+    createRequest(url);
   });
 }
 async function fetchAsBuffer(url, options) {
@@ -42258,6 +42273,9 @@ async function fetchAvailableVersions(packageName) {
 }
 
 // sources/corepackUtils.ts
+function getRegistryFromPackageManagerSpec(spec) {
+  return process.env.COREPACK_NPM_REGISTRY ? spec.npmRegistry ?? spec.registry : spec.registry;
+}
 async function fetchLatestStableVersion2(spec) {
   switch (spec.type) {
     case `npm`: {
@@ -42524,7 +42542,7 @@ var Engine = class {
       lastKnownGood = JSON.parse(await import_fs3.default.promises.readFile(this.getLastKnownGoodFile(), `utf8`));
     } catch {
     }
-    if (typeof lastKnownGood === `object` && lastKnownGood !== null && Object.prototype.hasOwnProperty.call(lastKnownGood, packageManager)) {
+    if (typeof lastKnownGood === `object` && lastKnownGood !== null && Object.hasOwn(lastKnownGood, packageManager)) {
       const override = lastKnownGood[packageManager];
       if (typeof override === `string`) {
         return override;
@@ -42576,8 +42594,10 @@ var Engine = class {
         throw new UsageError(`Packages managers can't be referenced via tags in this context`);
       const ranges = Object.keys(definition.ranges);
       const tagRange = ranges[ranges.length - 1];
-      const tags = await fetchAvailableTags2(definition.ranges[tagRange].registry);
-      if (!Object.prototype.hasOwnProperty.call(tags, descriptor.range))
+      const packageManagerSpec = definition.ranges[tagRange];
+      const registry = getRegistryFromPackageManagerSpec(packageManagerSpec);
+      const tags = await fetchAvailableTags2(registry);
+      if (!Object.hasOwn(tags, descriptor.range))
         throw new UsageError(`Tag not found (${descriptor.range})`);
       finalDescriptor = {
         name: descriptor.name,
@@ -42590,7 +42610,9 @@ var Engine = class {
     if (import_semver3.default.valid(finalDescriptor.range))
       return { name: finalDescriptor.name, reference: finalDescriptor.range };
     const versions = await Promise.all(Object.keys(definition.ranges).map(async (range) => {
-      const versions2 = await fetchAvailableVersions2(definition.ranges[range].registry);
+      const packageManagerSpec = definition.ranges[range];
+      const registry = getRegistryFromPackageManagerSpec(packageManagerSpec);
+      const versions2 = await fetchAvailableVersions2(registry);
       return versions2.filter((version2) => satisfiesWithPrereleases(version2, finalDescriptor.range));
     }));
     const highestVersion = [...new Set(versions.flat())].sort(import_semver3.default.rcompare);
@@ -42760,14 +42782,14 @@ var nodeModulesRegExp = /[\\/]node_modules[\\/](@[^\\/]*[\\/])?([^@\\/][^\\/]*)$
 function parseSpec(raw, source, { enforceExactVersion = true } = {}) {
   if (typeof raw !== `string`)
     throw new UsageError(`Invalid package manager specification in ${source}; expected a string`);
-  const match = raw.match(/^(?!_)(.+)@(.+)$/);
-  if (match === null || enforceExactVersion && !import_semver4.default.valid(match[2]))
-    throw new UsageError(`Invalid package manager specification in ${source}; expected a semver version${enforceExactVersion ? `` : `, range, or tag`}`);
+  const match = raw.match(/^(?!_)([^@]+)(?:@(.+))?$/);
+  if (match === null || enforceExactVersion && (!match[2] || !import_semver4.default.valid(match[2])))
+    throw new UsageError(`Invalid package manager specification in ${source} (${raw}); expected a semver version${enforceExactVersion ? `` : `, range, or tag`}`);
   if (!isSupportedPackageManager(match[1]))
     throw new UsageError(`Unsupported package manager specification (${match})`);
   return {
     name: match[1],
-    range: match[2]
+    range: match[2] ?? `*`
   };
 }
 async function findProjectSpec(initialCwd, locator, { transparent = false } = {}) {
@@ -42780,24 +42802,20 @@ async function findProjectSpec(initialCwd, locator, { transparent = false } = {}
     const result = await loadSpec(initialCwd);
     switch (result.type) {
       case `NoProject`:
-      case `NoSpec`:
-        {
-          return fallbackLocator;
-        }
-        break;
-      case `Found`:
-        {
-          if (result.spec.name !== locator.name) {
-            if (transparent) {
-              return fallbackLocator;
-            } else {
-              throw new UsageError(`This project is configured to use ${result.spec.name}`);
-            }
+      case `NoSpec`: {
+        return fallbackLocator;
+      }
+      case `Found`: {
+        if (result.spec.name !== locator.name) {
+          if (transparent) {
+            return fallbackLocator;
           } else {
-            return result.spec;
+            throw new UsageError(`This project is configured to use ${result.spec.name}`);
           }
+        } else {
+          return result.spec;
         }
-        break;
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.23.0",
+  "version": "0.24.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -16,7 +16,7 @@
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.0-rc.53+sha256.00e0111b9741a6b886c659a49b06d4ccb16e5d568bd1006c2d1f80bc48393c9b",
+  "packageManager": "yarn@4.0.2+sha256.825003a0f561ad09a3b1ac4a3b3ea6207af2796d54f62a9420520915721f5186",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",
@@ -30,7 +30,7 @@
     "@types/which": "^3.0.0",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "@typescript-eslint/parser": "^6.8.0",
-    "@yarnpkg/eslint-config": "^0.6.0-rc.7",
+    "@yarnpkg/eslint-config": "^1.0.0",
     "@yarnpkg/fslib": "^3.0.0-rc.48",
     "@zkochan/cmd-shim": "^6.0.0",
     "babel-plugin-dynamic-import-node": "^2.3.3",
