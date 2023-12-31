@@ -409,8 +409,12 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   const Options options_;
   UDP udp_;
 
+  struct ServerState {
+    Session::Options options;
+    std::shared_ptr<TLSContext> tls_context;
+  };
   // Set if/when the endpoint is configured to listen.
-  std::optional<Session::Options> server_options_{};
+  std::optional<ServerState> server_state_ = std::nullopt;
 
   // A Session is generally identified by one or more CIDs. We use two
   // maps for this rather than one to avoid creating a whole bunch of

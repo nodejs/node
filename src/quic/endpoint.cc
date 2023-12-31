@@ -9,6 +9,7 @@
 #include <ngtcp2/ngtcp2.h>
 #include <node_errors.h>
 #include <node_external_reference.h>
+#include <node_process-inl.h>
 #include <node_sockaddr-inl.h>
 #include <req_wrap-inl.h>
 #include <util-inl.h>
@@ -958,9 +959,32 @@ bool Endpoint::Start() {
 
 void Endpoint::Listen(const Session::Options& options) {
   if (is_closed() || is_closing() || state_->listening == 1) return;
-  server_options_ = options;
+  DCHECK(!server_state_.has_value());
+
+  // We need at least one key and one cert to complete the tls handshake on the
+  // server. Why not make this an error? We could but it's not strictly
+  // necessary.
+  if (options.tls_options.keys.empty() || options.tls_options.certs.empty()) {
+    env()->EmitProcessEnvWarning();
+    ProcessEmitWarning(env(),
+                       "The QUIC TLS options did not include a key or cert. "
+                       "This means the TLS handshake will fail. This is likely "
+                       "not what you want.");
+  }
+
+  auto context = TLSContext::CreateServer(env(), options.tls_options);
+  if (!*context) {
+    THROW_ERR_INVALID_STATE(
+        env(), "Failed to create TLS context: %s", context->validation_error());
+    return;
+  }
+
+  server_state_ = {
+      options,
+      std::move(context),
+  };
   if (Start()) {
-    Debug(this, "Listening with options %s", server_options_.value());
+    Debug(this, "Listening with options %s", server_state_->options);
     state_->listening = 1;
   }
 }
@@ -972,8 +996,7 @@ BaseObjectPtr<Session> Endpoint::Connect(
   // If starting fails, the endpoint will be destroyed.
   if (!Start()) return BaseObjectPtr<Session>();
 
-  Session::Config config(
-      *this, options, local_address(), remote_address, session_ticket);
+  Session::Config config(*this, options, local_address(), remote_address);
 
   IF_QUIC_DEBUG(env()) {
     Debug(
@@ -985,7 +1008,21 @@ BaseObjectPtr<Session> Endpoint::Connect(
         session_ticket.has_value() ? "yes" : "no");
   }
 
-  auto session = Session::Create(this, config);
+  auto tls_context = TLSContext::CreateClient(env(), options.tls_options);
+  if (!*tls_context) {
+    THROW_ERR_INVALID_STATE(env(),
+                            "Failed to create TLS context: %s",
+                            tls_context->validation_error());
+    return BaseObjectPtr<Session>();
+  }
+  auto session =
+      Session::Create(this, config, tls_context.get(), session_ticket);
+  if (!session->tls_session()) {
+    THROW_ERR_INVALID_STATE(env(),
+                            "Failed to create TLS session: %s",
+                            session->tls_session().validation_error());
+    return BaseObjectPtr<Session>();
+  }
   if (!session) return BaseObjectPtr<Session>();
   session->set_wrapped();
 
@@ -1093,9 +1130,19 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // as a server, then we cannot accept the initial packet.
     if (is_closed() || is_closing() || !is_listening()) return;
 
-    Debug(this, "Trying to create new session for %s", config.dcid);
-    auto session = Session::Create(this, config);
+    Debug(this, "Creating new session for %s", config.dcid);
+
+    std::optional<SessionTicket> no_ticket = std::nullopt;
+    auto session = Session::Create(
+        this, config, server_state_->tls_context.get(), no_ticket);
     if (session) {
+      if (!session->tls_session()) {
+        Debug(this,
+              "Failed to create TLS session for %s: %s",
+              config.dcid,
+              session->tls_session().validation_error());
+        return;
+      }
       receive(session.get(),
               std::move(store),
               config.local_address,
@@ -1183,7 +1230,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // because that is the value *this* session will use as the outbound dcid.
     Session::Config config(Side::SERVER,
                            *this,
-                           server_options_.value(),
+                           server_state_->options,
                            version,
                            local_address,
                            remote_address,
@@ -1582,8 +1629,9 @@ bool Endpoint::is_listening() const {
 void Endpoint::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("options", options_);
   tracker->TrackField("udp", udp_);
-  if (server_options_.has_value()) {
-    tracker->TrackField("server_options", server_options_.value());
+  if (server_state_.has_value()) {
+    tracker->TrackField("server_options", server_state_->options);
+    tracker->TrackField("server_tls_context", server_state_->tls_context);
   }
   tracker->TrackField("token_map", token_map_);
   tracker->TrackField("sessions", sessions_);

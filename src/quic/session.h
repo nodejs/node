@@ -166,10 +166,6 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     CID retry_scid = CID::kInvalid;
     CID preferred_address_cid = CID::kInvalid;
 
-    // If this is a client session, the session_ticket is used to resume
-    // a TLS session using a previously established session ticket.
-    std::optional<SessionTicket> session_ticket = std::nullopt;
-
     ngtcp2_settings settings = {};
     operator ngtcp2_settings*() { return &settings; }
     operator const ngtcp2_settings*() const { return &settings; }
@@ -182,14 +178,12 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
            const SocketAddress& remote_address,
            const CID& dcid,
            const CID& scid,
-           std::optional<SessionTicket> session_ticket = std::nullopt,
            const CID& ocid = CID::kInvalid);
 
     Config(const Endpoint& endpoint,
            const Options& options,
            const SocketAddress& local_address,
            const SocketAddress& remote_address,
-           std::optional<SessionTicket> session_ticket = std::nullopt,
            const CID& ocid = CID::kInvalid);
 
     void set_token(const uint8_t* token,
@@ -214,17 +208,21 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
   static BaseObjectPtr<Session> Create(Endpoint* endpoint,
-                                       const Config& config);
+                                       const Config& config,
+                                       TLSContext* tls_context,
+                                       std::optional<SessionTicket>& ticket);
 
   // Really should be private but MakeDetachedBaseObject needs visibility.
   Session(Endpoint* endpoint,
           v8::Local<v8::Object> object,
-          const Config& config);
+          const Config& config,
+          TLSContext* tls_context,
+          std::optional<SessionTicket>& ticket);
   ~Session() override;
 
   uint32_t version() const;
   Endpoint& endpoint() const;
-  TLSContext& tls_context();
+  TLSSession& tls_session();
   Application& application();
   const Config& config() const;
   const Options& options() const;
@@ -418,7 +416,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   SocketAddress local_address_;
   SocketAddress remote_address_;
   QuicConnectionPointer connection_;
-  TLSContext tls_context_;
+  std::unique_ptr<TLSSession> tls_session_;
   std::unique_ptr<Application> application_;
   StreamsMap streams_;
   TimerWrapHandle timer_;
@@ -437,6 +435,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   friend struct SendPendingDataScope;
   friend class Stream;
   friend class TLSContext;
+  friend class TLSSession;
   friend class TransportParams;
 };
 
