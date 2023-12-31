@@ -135,7 +135,6 @@ constexpr size_t kMaxVectorCount = 16;
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
   V(handshake_timeout, "handshakeTimeout")                                     \
-  V(hostname, "hostname")                                                      \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(initial_max_data, "initialMaxData")                                        \
   V(initial_max_stream_data_bidi_local, "initialMaxStreamDataBidiLocal")       \
@@ -172,11 +171,10 @@ constexpr size_t kMaxVectorCount = 16;
   V(reject_unauthorized, "rejectUnauthorized")                                 \
   V(reno, "reno")                                                              \
   V(retry_token_expiration, "retryTokenExpiration")                            \
-  V(request_peer_certificate, "requestPeerCertificate")                        \
   V(reset_token_secret, "resetTokenSecret")                                    \
   V(rx_loss, "rxDiagnosticLoss")                                               \
   V(session, "Session")                                                        \
-  V(session_id_ctx, "sessionIDContext")                                        \
+  V(sni, "sni")                                                                \
   V(stream, "Stream")                                                          \
   V(success, "success")                                                        \
   V(tls_options, "tls")                                                        \
@@ -189,7 +187,8 @@ constexpr size_t kMaxVectorCount = 16;
   V(udp_ttl, "udpTTL")                                                         \
   V(unacknowledged_packet_threshold, "unacknowledgedPacketThreshold")          \
   V(validate_address, "validateAddress")                                       \
-  V(verify_hostname_identity, "verifyHostnameIdentity")                        \
+  V(verify_client, "verifyClient")                                             \
+  V(verify_private_key, "verifyPrivateKey")                                    \
   V(version, "version")
 
 // =============================================================================
