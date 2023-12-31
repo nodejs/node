@@ -1406,7 +1406,7 @@ void Session::DatagramReceived(const uint8_t* data,
 bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
                                       size_t len,
                                       uint8_t* token) {
-  CID cid_ = config_.options.cid_factory->Generate(len);
+  CID cid_ = config_.options.cid_factory->GenerateInto(cid, len);
   Debug(this, "Generated new connection id %s", cid_);
   StatelessResetToken new_token(
       token, endpoint_->options().reset_token_secret, cid_);
@@ -1416,10 +1416,11 @@ bool Session::GenerateNewConnectionId(ngtcp2_cid* cid,
 }
 
 bool Session::HandshakeCompleted() {
-  if (state_->handshake_completed) return false;
-  state_->handshake_completed = true;
-
   Debug(this, "Session handshake completed");
+
+  if (state_->handshake_completed) return false;
+  state_->handshake_completed = 1;
+
   STAT_RECORD_TIMESTAMP(Stats, handshake_completed_at);
 
   if (!tls_session().early_data_was_accepted())
@@ -2012,17 +2013,17 @@ struct Session::Impl {
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    CHECK(!session->is_server());
+
+    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
 
     Debug(session,
           "Receiving RX key for level %d for dcid %s",
           to_string(level),
           session->config().dcid);
 
-    if (!session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
-                                  level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
-      if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-    return NGTCP2_SUCCESS;
+    return session->application().Start() ?
+        NGTCP2_SUCCESS : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_stateless_reset(ngtcp2_conn* conn,
@@ -2071,17 +2072,16 @@ struct Session::Impl {
                                void* user_data) {
     auto session = Impl::From(conn, user_data);
     if (UNLIKELY(session->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
+    CHECK(session->is_server());
+
+    if (level != NGTCP2_ENCRYPTION_LEVEL_1RTT) return NGTCP2_SUCCESS;
 
     Debug(session,
           "Receiving TX key for level %d for dcid %s",
           to_string(level),
           session->config().dcid);
-
-    if (session->is_server() && (level == NGTCP2_ENCRYPTION_LEVEL_0RTT ||
-                                 level == NGTCP2_ENCRYPTION_LEVEL_1RTT)) {
-      if (!session->application().Start()) return NGTCP2_ERR_CALLBACK_FAILURE;
-    }
-    return NGTCP2_SUCCESS;
+    return session->application().Start() ?
+        NGTCP2_SUCCESS : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_version_negotiation(ngtcp2_conn* conn,
@@ -2206,7 +2206,7 @@ struct Session::Impl {
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
       on_receive_rx_key,
-      on_receive_tx_key,
+      nullptr,
       on_early_data_rejected};
 
   static constexpr ngtcp2_callbacks SERVER = {
@@ -2247,7 +2247,7 @@ struct Session::Impl {
       ngtcp2_crypto_get_path_challenge_data_cb,
       on_stream_stop_sending,
       ngtcp2_crypto_version_negotiation_cb,
-      on_receive_rx_key,
+      nullptr,
       on_receive_tx_key,
       on_early_data_rejected};
 };

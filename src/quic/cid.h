@@ -111,10 +111,9 @@ class CID::Factory {
   virtual CID Generate(size_t length_hint = CID::kMaxLength) const = 0;
 
   // Generate a new CID into the given ngtcp2_cid. This variation of
-  // Generate should be used far less commonly. It is provided largely
-  // for a couple of internal cases.
-  virtual void GenerateInto(ngtcp2_cid* cid,
-                            size_t length_hint = CID::kMaxLength) const = 0;
+  // Generate should be used far less commonly.
+  virtual CID GenerateInto(ngtcp2_cid* cid,
+                           size_t length_hint = CID::kMaxLength) const = 0;
 
   // The default random CID generator instance.
   static const Factory& random();
