@@ -1,3 +1,13 @@
+## 8.11.3 (2023-12-29)
+
+### Bug fixes
+
+Add `Function` and `Class` to the `AggregateType` type, so that they can be used in walkers without raising a type error.
+
+Make sure `onToken` get an `import` keyword token when parsing `import.meta`.
+
+Fix a bug where `.loc.start` could be undefined for `new.target` `meta` nodes.
+
 ## 8.11.2 (2023-10-27)
 
 ### Bug fixes
