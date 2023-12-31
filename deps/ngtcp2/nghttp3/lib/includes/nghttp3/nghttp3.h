@@ -2278,9 +2278,6 @@ NGHTTP3_EXTERN void nghttp3_conn_shutdown_stream_write(nghttp3_conn *conn,
  * stream, this function returns 0.  If the stream has already
  * shutdown read-side stream, this function returns 0.
  *
- * This function does not fail if a stream denoted by |stream_id| is
- * not found, although it may fail with the other reasons.
- *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
