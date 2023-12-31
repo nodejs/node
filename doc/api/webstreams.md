@@ -492,7 +492,7 @@ added: v16.5.0
 -->
 
 * Returns: A promise fulfilled with an object:
-  * `value` {ArrayBuffer}
+  * `value` {any}
   * `done` {boolean}
 
 Requests the next chunk of data from the underlying {ReadableStream}
@@ -634,7 +634,7 @@ changes:
     When not set, the promise fulfills when at least one element
     is available.
 * Returns: A promise fulfilled with an object:
-  * `value` {ArrayBuffer}
+  * `value` {TypedArray|DataView}
   * `done` {boolean}
 
 Requests the next chunk of data from the underlying {ReadableStream}
