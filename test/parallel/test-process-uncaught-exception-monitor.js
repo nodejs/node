@@ -1,9 +1,10 @@
 'use strict';
 
 const common = require('../common');
-const assert = require('assert');
-const { execFile } = require('child_process');
 const fixtures = require('../common/fixtures');
+const assert = require('node:assert');
+const { execFile } = require('node:child_process');
+const { EventEmitter } = require('node:events');
 
 {
   // Verify exit behavior is unchanged
@@ -43,6 +44,20 @@ const fixtures = require('../common/fixtures');
 }
 
 const theErr = new Error('MyError');
+
+// Test the unhandled error events
+// Refs: https://github.com/nodejs/node/issues/51202
+{
+  process.on('uncaughtException', common.mustCall((err, origin) => {
+    assert.strictEqual(origin, 'unhandledErrorEvent');
+  }));
+
+  const ee = new EventEmitter();
+  // Handles generic error events
+  ee.emit('error', 'meow');
+  // Handles "Error" typed events
+  ee.emit('error', theErr);
+}
 
 process.on(
   'uncaughtExceptionMonitor',

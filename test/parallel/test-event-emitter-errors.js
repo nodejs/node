@@ -10,7 +10,7 @@ assert.throws(
   () => EE.emit('error', 'Accepts a string'),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    name: 'Error',
+    name: 'TypeError',
     message: "Unhandled error. ('Accepts a string')",
   }
 );
@@ -19,7 +19,7 @@ assert.throws(
   () => EE.emit('error', { message: 'Error!' }),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    name: 'Error',
+    name: 'TypeError',
     message: "Unhandled error. ({ message: 'Error!' })",
   }
 );
@@ -31,7 +31,7 @@ assert.throws(
   }),
   {
     code: 'ERR_UNHANDLED_ERROR',
-    name: 'Error',
+    name: 'TypeError',
     message: 'Unhandled error. ([object Object])',
   }
 );
