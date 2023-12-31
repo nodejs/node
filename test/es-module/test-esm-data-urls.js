@@ -113,6 +113,6 @@ function createBase64URL(mime, body) {
     await import(plainESMURL);
   }
   {
-    await import(`data:text/javascript,'?'#~`);
+    await import('data:text/javascript,\'?\'#~');
   }
 })().then(common.mustCall());
