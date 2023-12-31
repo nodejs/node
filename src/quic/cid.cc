@@ -114,8 +114,8 @@ class RandomCIDFactory : public CID::Factory {
     return CID(start, length_hint);
   }
 
-  void GenerateInto(ngtcp2_cid* cid,
-                    size_t length_hint = CID::kMaxLength) const override {
+  CID GenerateInto(ngtcp2_cid* cid,
+                   size_t length_hint = CID::kMaxLength) const override {
     DCHECK_GE(length_hint, CID::kMinLength);
     DCHECK_LE(length_hint, CID::kMaxLength);
     Mutex::ScopedLock lock(mutex_);
@@ -123,6 +123,7 @@ class RandomCIDFactory : public CID::Factory {
     auto start = pool_ + pos_;
     pos_ += length_hint;
     ngtcp2_cid_init(cid, start, length_hint);
+    return CID(cid);
   }
 
  private:

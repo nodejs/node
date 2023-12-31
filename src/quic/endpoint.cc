@@ -1236,7 +1236,7 @@ void Endpoint::Receive(const uv_buf_t& buf,
     // identifies us. config.dcid should equal scid. config.scid should *not*
     // equal dcid.
     DCHECK(config.dcid == scid);
-    DCHECK(config.scid != dcid);
+    DCHECK(config.scid == dcid);
 
     const auto is_remote_address_validated = ([&] {
       auto info = addrLRU_.Peek(remote_address);

@@ -151,6 +151,8 @@ struct Session::Application::StreamData final {
   BaseObjectPtr<Stream> stream;
 
   inline operator nghttp3_vec() const { return {data[0].base, data[0].len}; }
+
+  std::string ToString() const;
 };
 
 }  // namespace quic

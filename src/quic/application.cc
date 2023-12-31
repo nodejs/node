@@ -1,3 +1,4 @@
+#include "ngtcp2/ngtcp2.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "application.h"
@@ -93,6 +94,20 @@ Maybe<Session::Application_Options> Session::Application_Options::From(
 #undef SET
 
   return Just<Application_Options>(options);
+}
+
+// ============================================================================
+
+std::string Session::Application::StreamData::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "count: " + std::to_string(count);
+  res += prefix + "remaining: " + std::to_string(remaining);
+  res += prefix + "id: " + std::to_string(id);
+  res += prefix + "fin: " + std::to_string(fin);
+  res += indent.Close();
+  return res;
 }
 
 Session::Application::Application(Session* session, const Options& options)
@@ -251,13 +266,15 @@ void Session::Application::SendPendingData() {
   };
 
   for (;;) {
-    ssize_t ndatalen;
+    ssize_t ndatalen = 0;
     StreamData stream_data;
 
     err = GetStreamData(&stream_data);
 
     if (err < 0) {
       session_->last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
+      Debug(session_, "Application failed to get stream data with error %s",
+            session_->last_error_);
       return session_->Close(Session::CloseMethod::SILENT);
     }
 
@@ -270,13 +287,19 @@ void Session::Application::SendPendingData() {
       pos = ngtcp2_vec(*packet).base;
     }
 
+    Debug(session_, "Application using stream data: %s", stream_data);
+    DCHECK_NOT_NULL(pos);
+    DCHECK_NOT_NULL(stream_data.buf);
     ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, stream_data);
+    Debug(session_, "Application accepted %zu bytes", ndatalen);
 
     if (nwrite <= 0) {
       switch (nwrite) {
-        case 0:
+        case 0: {
+          Debug(session_, "Congestion limited. Sending nothing.");
           if (stream_data.id >= 0) ResumeStream(stream_data.id);
           return congestionLimited(std::move(packet));
+        }
         case NGTCP2_ERR_STREAM_DATA_BLOCKED: {
           session().StreamDataBlocked(stream_data.id);
           if (session().max_data_left() == 0) {
@@ -287,6 +310,8 @@ void Session::Application::SendPendingData() {
           continue;
         }
         case NGTCP2_ERR_STREAM_SHUT_WR: {
+          Debug(session_, "Stream %" PRIi64 " is closed for writing",
+                stream_data.id);
           // Indicates that the writable side of the stream has been closed
           // locally or the stream is being reset. In either case, we can't send
           // any stream data!
@@ -299,6 +324,7 @@ void Session::Application::SendPendingData() {
           continue;
         }
         case NGTCP2_ERR_WRITE_MORE: {
+          Debug(session_, "Application should write more to packet");
           CHECK_GT(ndatalen, 0);
           if (!StreamCommit(&stream_data, ndatalen)) return session_->Close();
           pos += ndatalen;
@@ -308,6 +334,8 @@ void Session::Application::SendPendingData() {
 
       packet->Done(UV_ECANCELED);
       session_->last_error_ = QuicError::ForNgtcp2Error(nwrite);
+      Debug(session_, "Application failed to write stream data with error %s",
+            session_->last_error_);
       return session_->Close(Session::CloseMethod::SILENT);
     }
 
@@ -322,9 +350,10 @@ void Session::Application::SendPendingData() {
 
     if (stream_data.id >= 0 && ndatalen < 0) ResumeStream(stream_data.id);
 
+    Debug(session_, "Packet ready to send with %zu bytes", nwrite);
     packet->Truncate(nwrite);
-    session_->Send(std::move(packet), path);
-
+    session_->Send(packet, path);
+    packet = nullptr;
     pos = nullptr;
 
     if (++packetSendCount == maxPacketCount) {
@@ -343,10 +372,12 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_NONE;
   if (stream_data.remaining > 0) flags |= NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
+  ngtcp2_pkt_info pi;
+
   ssize_t ret = ngtcp2_conn_writev_stream(
       *session_,
       &path->path,
-      nullptr,
+      &pi,
       buf,
       ngtcp2_conn_get_max_tx_udp_payload_size(*session_),
       ndatalen,
