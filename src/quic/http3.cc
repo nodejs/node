@@ -367,6 +367,7 @@ class Http3Application final : public Session::Application {
         }
       }
     }
+    DCHECK_NOT_NULL(stream_data.buf);
     return 0;
   }
 
