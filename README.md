@@ -445,8 +445,6 @@ For information about the governance of the Node.js project, see
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
   **Ruy Adorno** <<ruyadorno@google.com>> (he/him)
-* [rvagg](https://github.com/rvagg) -
-  **Rod Vagg** <<rod@vagg.org>>
 * [ryzokuken](https://github.com/ryzokuken) -
   **Ujjwal Sharma** <<ryzokuken@disroot.org>> (he/him)
 * [santigimeno](https://github.com/santigimeno) -
@@ -659,6 +657,8 @@ For information about the governance of the Node.js project, see
   **Ingvar Stepanyan** <<me@rreverser.com>>
 * [rubys](https://github.com/rubys) -
   **Sam Ruby** <<rubys@intertwingly.net>>
+* [rvagg](https://github.com/rvagg) -
+  **Rod Vagg** <<rod@vagg.org>>
 * [saghul](https://github.com/saghul) -
   **Saúl Ibarra Corretgé** <<s@saghul.net>>
 * [sam-github](https://github.com/sam-github) -
