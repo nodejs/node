@@ -815,6 +815,27 @@ changes:
 Specify the `module` containing exported [module customization hooks][].
 `module` may be any string accepted as an [`import` specifier][].
 
+### `--experimental-minimal-test-coverage`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Set the minimum percentage threshold value for code coverage.
+Used with `--experimental-test-coverage` flag. If the minimum threshold
+value is not met, the test will exit with status code 1.
+
+**Note:** The specified minimum coverage value will be applicable for
+lines, branches, and functions. If you need to set different threshold
+values for lines, branches, or functions, you can do so using the
+[test run(\[options\])][test runner].
+
+```console
+$ node --test --experimental-test-coverage --experimental-minimal-test-coverage=80 tests/
+```
+
 ### `--experimental-network-imports`
 
 <!-- YAML
@@ -2994,6 +3015,7 @@ done
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
 [test reporters]: test.md#test-reporters
+[test runner]: test.md#runoptions
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014
 [ways that `TZ` is handled in other environments]: https://www.gnu.org/software/libc/manual/html_node/TZ-Variable.html

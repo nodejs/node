@@ -619,6 +619,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-timeout",
             "specify test runner timeout",
             &EnvironmentOptions::test_runner_timeout);
+  AddOption("--experimental-minimal-test-coverage",
+            "specify minimum code coverage threshold value",
+            &EnvironmentOptions::test_minimum_coverage);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);

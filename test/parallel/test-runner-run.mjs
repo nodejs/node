@@ -513,3 +513,43 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 });
+
+describe('coverage report for test stream', () => {
+  it('should run coverage report', async () => {
+    const stream = run({ files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+                         coverage: true });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall());
+    stream.on('test:coverage', common.mustCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('test coverage with minimum 100% threshold value', async () => {
+    const stream = run({ files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+                         coverage: true,
+                         minimumCoverage: {
+                           lines: 100,
+                           functions: 100,
+                           branches: 100
+                         } });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall());
+    stream.on('test:coverage', common.mustCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
+  it('should not run coverage report', async () => {
+    const stream = run({ files: [join(testFixtures, 'default-behavior/test/random.cjs')],
+                         coverage: false });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:coverage', common.mustNotCall());
+    stream.on('test:pass', common.mustCall());
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+});

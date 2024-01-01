@@ -403,6 +403,10 @@ if (anAlwaysFalseCondition) {
 }
 ```
 
+We can also declare minimum percentage threshold values for code coverage
+using the [`--experimental-minimal-test-coverage`][] command-line flag followed
+by minimum percentage threshold value.
+
 ### Coverage reporters
 
 The tap and spec reporters will print a summary of the coverage statistics.
@@ -1140,6 +1144,15 @@ changes:
       that specifies the index of the shard to run. This option is _required_.
     * `total` {number} is a positive integer that specifies the total number
       of shards to split the test files to. This option is _required_.
+  * `coverage` {boolean} Enable or disable code coverage. **Default:** `false`.
+  * `minimumCoverage` {Object} Specify the minimum percentage threshold value
+    for code coverage.
+    * `line` {number} percent threshold value for lines coverage.
+      **Default** `0`.
+    * `branch` {number} percent threshold value for branch coverage.
+      **Default** `0`.
+    * `function` {number} percent threshold value for functions coverage.
+      **Default** `0`.
 * Returns: {TestsStream}
 
 **Note:** `shard` is used to horizontally parallelize test running across
@@ -1167,6 +1180,52 @@ const { run } = require('node:test');
 const path = require('node:path');
 
 run({ files: [path.resolve('./tests/test.js')] })
+ .on('test:fail', () => {
+   process.exitCode = 1;
+ })
+ .compose(tap)
+ .pipe(process.stdout);
+```
+
+Example to run test runner with code coverage while specifying threshold
+coverage values
+
+```mjs
+import { tap } from 'node:test/reporters';
+import { run } from 'node:test';
+import process from 'node:process';
+import path from 'node:path';
+
+run({
+  files: [path.resolve('./tests/test.js')],
+  coverage: true,
+  minimumCoverage: {
+    line: 50,
+    branch: 50,
+    function: 50,
+  },
+})
+ .on('test:fail', () => {
+   process.exitCode = 1;
+ })
+ .compose(tap)
+ .pipe(process.stdout);
+```
+
+```cjs
+const { tap } = require('node:test/reporters');
+const { run } = require('node:test');
+const path = require('node:path');
+
+run({
+  files: [path.resolve('./tests/test.js')],
+  coverage: true,
+  minimumCoverage: {
+    line: 50,
+    branch: 50,
+    function: 50,
+  },
+})
  .on('test:fail', () => {
    process.exitCode = 1;
  })
@@ -2461,6 +2520,29 @@ object, streaming a series of events representing the execution of the tests.
       * `coveredLinePercent` {number} The percentage of lines covered.
       * `coveredBranchPercent` {number} The percentage of branches covered.
       * `coveredFunctionPercent` {number} The percentage of functions covered.
+    * `minimumCoverage` {Object} An object containing threshold status for
+      minimum code coverage of lines, functions and branches.
+      * `line` {Object} An object containing threshold status for minimum
+        lines coverage.
+        * `status` {boolean} Indicates whether the code coverage meets the
+          minimum threshold for lines.
+        * `actual` {number} Actual percentage of lines covered.
+        * `expected` {number} Expected minimum percentage of lines to be
+          covered.
+      * `branch` {Object} An object containing threshold status for minimum
+        branch coverage.
+        * `status` {boolean} Indicates whether the code coverage meets the
+          minimum threshold for branches.
+        * `actual` {number} Actual percentage of branches covered.
+        * `expected` {number} Expected minimum percentage of branches to be
+          covered.
+      * `function` {Object} An object containing threshold status for minimum
+        functions coverage.
+        * `status` {boolean} Indicates whether the code coverage meets the
+          minimum threshold for functions.
+        * `actual` {number} Actual percentage of functions covered.
+        * `expected` {number} Expected minimum percentage of functions to be
+          covered.
     * `workingDirectory` {string} The working directory when code coverage
       began. This is useful for displaying relative path names in case the tests
       changed the working directory of the Node.js process.
@@ -2966,6 +3048,7 @@ added:
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
+[`--experimental-minimal-test-coverage`]: cli.md#--experimental-minimal-test-coverage
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency

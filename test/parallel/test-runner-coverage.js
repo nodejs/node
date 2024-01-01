@@ -21,22 +21,24 @@ function findCoverageFileForPid(pid) {
   });
 }
 
-function getTapCoverageFixtureReport() {
-  /* eslint-disable max-len */
+function getCoverageFixtureReport(reporter = 'tap', extraReport = []) {
+  const symbol = reporter === 'spec' ? '\u2139' : '#';
+
   const report = [
-    '# start of coverage report',
-    '# -------------------------------------------------------------------------------------------------------------------',
-    '# file                                     | line % | branch % | funcs % | uncovered lines',
-    '# -------------------------------------------------------------------------------------------------------------------',
-    '# test/fixtures/test-runner/coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
-    '# test/fixtures/test-runner/invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
-    '# test/fixtures/v8-coverage/throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
-    '# -------------------------------------------------------------------------------------------------------------------',
-    '# all files                                |  78.35 |    43.75 |   60.00 |',
-    '# -------------------------------------------------------------------------------------------------------------------',
-    '# end of coverage report',
+    `${symbol} start of coverage report`,
+    `${symbol} -------------------------------------------------------------------------------------------------------------------`,
+    `${symbol} file                                     | line % | branch % | funcs % | uncovered lines`,
+    `${symbol} -------------------------------------------------------------------------------------------------------------------`,
+    `${symbol} test/fixtures/test-runner/coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72`,
+    `${symbol} test/fixtures/test-runner/invalid-tap.js | 100.00 |   100.00 |  100.00 | `,
+    `${symbol} test/fixtures/v8-coverage/throw.js       |  71.43 |    50.00 |  100.00 | 5-6`,
+    `${symbol} -------------------------------------------------------------------------------------------------------------------`,
+    `${symbol} all files                                |  78.35 |    43.75 |   60.00 |`,
+    `${symbol} -------------------------------------------------------------------------------------------------------------------`,
+    ...extraReport,
+    `${symbol} end of coverage report`,
   ].join('\n');
-  /* eslint-enable max-len */
+
 
   if (common.isWindows) {
     return report.replaceAll('/', '\\');
@@ -45,29 +47,6 @@ function getTapCoverageFixtureReport() {
   return report;
 }
 
-function getSpecCoverageFixtureReport() {
-  /* eslint-disable max-len */
-  const report = [
-    '\u2139 start of coverage report',
-    '\u2139 -------------------------------------------------------------------------------------------------------------------',
-    '\u2139 file                                     | line % | branch % | funcs % | uncovered lines',
-    '\u2139 -------------------------------------------------------------------------------------------------------------------',
-    '\u2139 test/fixtures/test-runner/coverage.js    |  78.65 |    38.46 |   60.00 | 12-13 16-22 27 39 43-44 61-62 66-67 71-72',
-    '\u2139 test/fixtures/test-runner/invalid-tap.js | 100.00 |   100.00 |  100.00 | ',
-    '\u2139 test/fixtures/v8-coverage/throw.js       |  71.43 |    50.00 |  100.00 | 5-6',
-    '\u2139 -------------------------------------------------------------------------------------------------------------------',
-    '\u2139 all files                                |  78.35 |    43.75 |   60.00 |',
-    '\u2139 -------------------------------------------------------------------------------------------------------------------',
-    '\u2139 end of coverage report',
-  ].join('\n');
-  /* eslint-enable max-len */
-
-  if (common.isWindows) {
-    return report.replaceAll('/', '\\');
-  }
-
-  return report;
-}
 
 test('test coverage report', async (t) => {
   await t.test('handles the inspector not being available', (t) => {
@@ -92,7 +71,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
-    const report = getTapCoverageFixtureReport();
+    const report = getCoverageFixtureReport();
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
     assert.strictEqual(result.status, 0);
@@ -103,7 +82,7 @@ test('test tap coverage reporter', skipIfNoInspector, async (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'tap', fixture];
     const result = spawnSync(process.execPath, args);
-    const report = getTapCoverageFixtureReport();
+    const report = getCoverageFixtureReport();
 
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
@@ -118,7 +97,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
     const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
     const options = { env: { ...process.env, NODE_V8_COVERAGE: tmpdir.path } };
     const result = spawnSync(process.execPath, args, options);
-    const report = getSpecCoverageFixtureReport();
+    const report = getCoverageFixtureReport('spec');
 
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
@@ -130,7 +109,7 @@ test('test spec coverage reporter', skipIfNoInspector, async (t) => {
     const fixture = fixtures.path('test-runner', 'coverage.js');
     const args = ['--experimental-test-coverage', '--test-reporter', 'spec', fixture];
     const result = spawnSync(process.execPath, args);
-    const report = getSpecCoverageFixtureReport();
+    const report = getCoverageFixtureReport('spec');
 
     assert(result.stdout.toString().includes(report));
     assert.strictEqual(result.stderr.toString(), '');
@@ -145,7 +124,7 @@ test('single process coverage is the same with --test', skipIfNoInspector, () =>
     '--test', '--experimental-test-coverage', '--test-reporter', 'tap', fixture,
   ];
   const result = spawnSync(process.execPath, args);
-  const report = getTapCoverageFixtureReport();
+  const report = getCoverageFixtureReport();
 
   assert.strictEqual(result.stderr.toString(), '');
   assert(result.stdout.toString().includes(report));
@@ -241,4 +220,58 @@ test('coverage reports on lines, functions, and branches', skipIfNoInspector, as
       assert.strictEqual(testLine.count, line.count);
     });
   });
+});
+
+test('test coverage for tap reporter with min 100% threshold value', async (t) => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = ['--experimental-test-coverage', '--experimental-minimal-test-coverage', '100',
+                '--test-reporter', 'tap', fixture];
+  const options = { env: { ...process.env } };
+  const result = spawnSync(process.execPath, args, options);
+  const report = getCoverageFixtureReport('tap', [
+    '# minimum coverage failed for line. expected: 100% | actual: 78.35%',
+    '# minimum coverage failed for function. expected: 100% | actual: 60.00%',
+    '# minimum coverage failed for branch. expected: 100% | actual: 43.75%']);
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 1);
+});
+
+test('test coverage for spec reporter with min 100% threshold value', async () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = ['--test', '--experimental-test-coverage', '--experimental-minimal-test-coverage', '100',
+                '--test-reporter', 'spec', fixture];
+  const options = { env: { ...process.env } };
+  const result = spawnSync(process.execPath, args, options);
+  const report = getCoverageFixtureReport('spec', [
+    '\u2139 minimum coverage failed for line. expected: 100% | actual: 78.35%',
+    '\u2139 minimum coverage failed for function. expected: 100% | actual: 60.00%',
+    '\u2139 minimum coverage failed for branch. expected: 100% | actual: 43.75%',
+  ]);
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 1);
+});
+
+
+test('test coverage for tap reporter with min 10% threshold value', async (t) => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = ['--experimental-test-coverage=10', '--test-reporter', 'tap', fixture];
+  const options = { env: { ...process.env } };
+  const result = spawnSync(process.execPath, args, options);
+  const report = getCoverageFixtureReport('tap');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.stderr.toString(), '');
+  assert.strictEqual(result.status, 0);
+});
+
+test('test coverage for spec reporter with  min 10% threshold value', async () => {
+  const fixture = fixtures.path('test-runner', 'coverage.js');
+  const args = ['--test', '--experimental-test-coverage=10', '--test-reporter', 'spec', fixture];
+  const options = { env: { ...process.env } };
+  const result = spawnSync(process.execPath, args, options);
+  const report = getCoverageFixtureReport('spec');
+  assert.strictEqual(result.stderr.toString(), '');
+  assert(result.stdout.toString().includes(report));
+  assert.strictEqual(result.status, 0);
 });
