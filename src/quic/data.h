@@ -24,6 +24,12 @@ struct Path final : public ngtcp2_path {
 struct PathStorage final : public ngtcp2_path_storage {
   PathStorage();
   operator ngtcp2_path();
+
+  void Reset();
+  void CopyTo(PathStorage* path) const;
+
+  bool operator==(const PathStorage& other) const;
+  bool operator!=(const PathStorage& other) const;
 };
 
 class Store final : public MemoryRetainer {

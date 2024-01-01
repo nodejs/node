@@ -572,6 +572,10 @@ Session::~Session() {
   DCHECK(streams_.empty());
 }
 
+size_t Session::max_packet_size() const {
+  return ngtcp2_conn_get_max_tx_udp_payload_size(*this);
+}
+
 Session::operator ngtcp2_conn*() const {
   return connection_.get();
 }
@@ -860,6 +864,10 @@ void Session::Send(Packet* packet) {
 void Session::Send(Packet* packet, const PathStorage& path) {
   UpdatePath(path);
   Send(packet);
+}
+
+void Session::UpdatePacketTxTime() {
+  ngtcp2_conn_update_pkt_tx_time(*this, uv_hrtime());
 }
 
 uint64_t Session::SendDatagram(Store&& data) {
@@ -1322,8 +1330,8 @@ void Session::OnTimeout() {
   if (is_destroyed()) return;
 
   int ret = ngtcp2_conn_handle_expiry(*this, uv_hrtime());
-  if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period() &&
-      env()->can_call_into_js()) {
+  if (NGTCP2_OK(ret) && !is_in_closing_period() && !is_in_draining_period()) {
+    Debug(this, "Sending pending data after timr expiry");
     SendPendingDataScope send_scope(this);
     return;
   }
@@ -1346,6 +1354,7 @@ void Session::UpdateTimer() {
   }
 
   auto timeout = (expiry - now) / NGTCP2_MILLISECONDS;
+  Debug(this, "Updating timeout to %zu milliseconds", timeout);
 
   // If timeout is zero here, it means our timer is less than a millisecond
   // off from expiry. Let's bump the timer to 1.

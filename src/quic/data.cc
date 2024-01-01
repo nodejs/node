@@ -47,11 +47,25 @@ std::string Path::ToString() const {
   return res;
 }
 
-PathStorage::PathStorage() {
-  ngtcp2_path_storage_zero(this);
-}
+PathStorage::PathStorage() { Reset(); }
 PathStorage::operator ngtcp2_path() {
   return path;
+}
+
+void PathStorage::Reset() {
+  ngtcp2_path_storage_zero(this);
+}
+
+void PathStorage::CopyTo(PathStorage* path) const {
+  ngtcp2_path_copy(&path->path, &this->path);
+}
+
+bool PathStorage::operator==(const PathStorage& other) const {
+  return ngtcp2_path_eq(&path, &other.path) != 0;
+}
+
+bool PathStorage::operator!=(const PathStorage& other) const {
+  return ngtcp2_path_eq(&path, &other.path) == 0;
 }
 
 // ============================================================================

@@ -235,6 +235,8 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   bool is_destroyed() const;
   bool is_server() const;
 
+  size_t max_packet_size() const;
+
   void set_priority_supported(bool on = true);
 
   std::string diagnostic_name() const override;
@@ -246,6 +248,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
 
   TransportParams GetLocalTransportParams() const;
   TransportParams GetRemoteTransportParams() const;
+  void UpdatePacketTxTime();
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(Session)

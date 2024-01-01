@@ -204,7 +204,7 @@ Packet* Session::Application::CreateStreamDataPacket() {
   return Packet::Create(env(),
                         session_->endpoint_.get(),
                         session_->remote_address_,
-                        ngtcp2_conn_get_max_tx_udp_payload_size(*session_),
+                        session_->max_packet_size(),
                         "stream data");
 }
 
@@ -238,37 +238,33 @@ void Session::Application::StreamReset(Stream* stream,
 void Session::Application::SendPendingData() {
   Debug(session_, "Application sending pending data");
   PathStorage path;
+  PathStorage prev_path;
 
   Packet* packet = nullptr;
   uint8_t* pos = nullptr;
+  uint8_t* begin = nullptr;
   int err = 0;
+  size_t last_nwrite = 0;
 
-  size_t maxPacketCount = std::min(static_cast<size_t>(64000),
-                                   ngtcp2_conn_get_send_quantum(*session_));
-  size_t packetSendCount = 0;
+  // The maximum size of packet to create.
+  const size_t max_packet_size = session_->max_packet_size();
 
-  const auto updateTimer = [&] {
-    Debug(session_, "Application updating the session timer");
-    ngtcp2_conn_update_pkt_tx_time(*session_, uv_hrtime());
-    session_->UpdateTimer();
-  };
+  // The maximum number of packets to send in this call to SendPendingData.
+  const size_t max_packet_count = std::min(
+      static_cast<size_t>(64000),
+      ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
 
-  const auto congestionLimited = [&](auto packet) {
-    auto len = pos - ngtcp2_vec(*packet).base;
-    // We are either congestion limited or done.
-    if (len) {
-      // Some data was serialized into the packet. We need to send it.
-      packet->Truncate(len);
-      session_->Send(std::move(packet), path);
-    }
-
-    updateTimer();
-  };
+  // The number of packets that have been sent in this call to SendPendingData.
+  size_t packet_send_count = 0;
 
   for (;;) {
+    // ndatalen is the amount of stream data that was accepted into the packet,
+    // if any.
     ssize_t ndatalen = 0;
-    StreamData stream_data;
 
+    // The stream_data is the next block of data from the application stream to
+    // send.
+    StreamData stream_data;
     err = GetStreamData(&stream_data);
 
     if (err < 0) {
@@ -278,115 +274,148 @@ void Session::Application::SendPendingData() {
       return session_->Close(Session::CloseMethod::SILENT);
     }
 
+    // If we got here, we were at least successful in checking for stream data.
+    // There might not be any stream data to send.
+    Debug(session_, "Application using stream data: %s", stream_data);
+
+    // Now let's make sure we have a packet to write data into.
     if (packet == nullptr) {
       packet = CreateStreamDataPacket();
       if (packet == nullptr) {
         session_->last_error_ = QuicError::ForNgtcp2Error(NGTCP2_ERR_INTERNAL);
         return session_->Close(Session::CloseMethod::SILENT);
       }
-      pos = ngtcp2_vec(*packet).base;
+      pos = begin = ngtcp2_vec(*packet).base;
     }
 
-    Debug(session_, "Application using stream data: %s", stream_data);
     DCHECK_NOT_NULL(pos);
+    DCHECK_NOT_NULL(begin);
     DCHECK_NOT_NULL(stream_data.buf);
-    ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, stream_data);
-    Debug(session_, "Application accepted %zu bytes", ndatalen);
 
-    if (nwrite <= 0) {
+    // Awesome, let's write our packet!
+    ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, max_packet_size, stream_data);
+    Debug(session_, "Application accepted %zu bytes into packet", ndatalen);
+
+    // A negative nwrite value indicates either an error or that there is more data
+    // to write into the packet.
+    if (nwrite < 0) {
       switch (nwrite) {
-        case 0: {
-          Debug(session_, "Congestion limited. Sending nothing.");
-          if (stream_data.id >= 0) ResumeStream(stream_data.id);
-          return congestionLimited(std::move(packet));
-        }
         case NGTCP2_ERR_STREAM_DATA_BLOCKED: {
-          session().StreamDataBlocked(stream_data.id);
-          if (session().max_data_left() == 0) {
-            if (stream_data.id >= 0) ResumeStream(stream_data.id);
-            return congestionLimited(std::move(packet));
-          }
-          CHECK_LE(ndatalen, 0);
+          // We could not write any data for this stream into the packet because
+          // the flow control for the stream itself indicates that the stream
+          // is blocked. We'll skip and move on to the next stream.
+          DCHECK_EQ(ndatalen, -1);
+          session_->StreamDataBlocked(stream_data.id);
           continue;
         }
         case NGTCP2_ERR_STREAM_SHUT_WR: {
-          Debug(session_, "Stream %" PRIi64 " is closed for writing",
-                stream_data.id);
-          // Indicates that the writable side of the stream has been closed
+          // Indicates that the writable side of the stream should be closed
           // locally or the stream is being reset. In either case, we can't send
           // any stream data!
-          CHECK_GE(stream_data.id, 0);
-          // We need to notify the stream that the writable side has been closed
-          // and no more outbound data can be sent.
-          CHECK_LE(ndatalen, 0);
-          auto stream = session_->FindStream(stream_data.id);
-          if (stream) stream->EndWritable();
+          Debug(session_, "Stream %" PRIi64 " should be closed for writing",
+                stream_data.id);
+          DCHECK_EQ(ndatalen, -1);
+          // If we got this response, then there should have been a stream associated
+          // with the stream_data, otherwise the response wouldn't make any sense.
+          DCHECK(stream_data.stream);
+          stream_data.stream->EndWritable();
           continue;
         }
         case NGTCP2_ERR_WRITE_MORE: {
           Debug(session_, "Application should write more to packet");
-          CHECK_GT(ndatalen, 0);
-          if (!StreamCommit(&stream_data, ndatalen)) return session_->Close();
-          pos += ndatalen;
+          DCHECK_GE(ndatalen, 0);
+          if (!StreamCommit(&stream_data, ndatalen)) {
+            packet->Done(UV_ECANCELED);
+            return session_->Close(CloseMethod::SILENT);
+          }
           continue;
         }
       }
 
+      // Some other type of error happened.
+      DCHECK_EQ(ndatalen, -1);
+      Debug(session_, "Application encountered error while writing packet: %s",
+            ngtcp2_strerror(nwrite));
       packet->Done(UV_ECANCELED);
-      session_->last_error_ = QuicError::ForNgtcp2Error(nwrite);
-      Debug(session_, "Application failed to write stream data with error %s",
-            session_->last_error_);
+      session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       return session_->Close(Session::CloseMethod::SILENT);
+    } else if (ndatalen >= 0) {
+      // We wrote some data into the packet. We need to update the flow control
+      // by committing the data.
+      if (!StreamCommit(&stream_data, ndatalen)) {
+        packet->Done(UV_ECANCELED);
+        return session_->Close(CloseMethod::SILENT);
+      }
+    }
+
+    // When nwrite is zero, it means we are congestion limited.
+    if (nwrite == 0) {
+      Debug(session_, "Congestion limited.");
+      // There might be a partial packet already prepared. If so, send it.
+      if (pos - begin) {
+        Debug(session_, "Packet has at least some data to send");
+        // At least some data had been written into the packet. We should send it.
+        packet->Truncate(pos - begin);
+        session_->Send(packet, path);
+      } else {
+        packet->Done(UV_ECANCELED);
+      }
+
+      session_->UpdatePacketTxTime();
+      return;
     }
 
     pos += nwrite;
-    if (ndatalen > 0 && !StreamCommit(&stream_data, ndatalen)) {
-      // Since we are closing the session here, we don't worry about updating
-      // the pkt tx time. The failed StreamCommit should have updated the
-      // last_error_ appropriately.
-      packet->Done(UV_ECANCELED);
-      return session_->Close(Session::CloseMethod::SILENT);
+
+    if (packet_send_count == 0) {
+      path.CopyTo(&prev_path);
+      last_nwrite = nwrite;
+    } else if (prev_path != path ||
+               static_cast<size_t>(nwrite) > last_nwrite ||
+               (last_nwrite > max_packet_size && static_cast<size_t>(nwrite) != last_nwrite)) {
+      auto datalen = pos - begin - nwrite;
+      packet->Truncate(datalen);
+      session_->Send(packet->Clone(), prev_path);
+      session_->Send(packet, path);
+      session_->UpdatePacketTxTime();
+      packet = nullptr;
+      pos = nullptr;
+      begin = nullptr;
+      continue;
     }
 
-    if (stream_data.id >= 0 && ndatalen < 0) ResumeStream(stream_data.id);
-
-    Debug(session_, "Packet ready to send with %zu bytes", nwrite);
-    packet->Truncate(nwrite);
-    session_->Send(packet, path);
-    packet = nullptr;
-    pos = nullptr;
-
-    if (++packetSendCount == maxPacketCount) {
-      break;
+    if (++packet_send_count == max_packet_count || static_cast<size_t>(nwrite) < last_nwrite) {
+      auto datalen = pos - begin;
+      packet->Truncate(datalen);
+      session_->Send(packet, path);
+      session_->UpdatePacketTxTime();
+      return;
     }
   }
-
-  updateTimer();
 }
 
 ssize_t Session::Application::WriteVStream(PathStorage* path,
-                                           uint8_t* buf,
+                                           uint8_t* dest,
                                            ssize_t* ndatalen,
+                                           size_t max_packet_size,
                                            const StreamData& stream_data) {
-  CHECK_LE(stream_data.count, kMaxVectorCount);
-  uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_NONE;
-  if (stream_data.remaining > 0) flags |= NGTCP2_WRITE_STREAM_FLAG_MORE;
+  DCHECK_LE(stream_data.count, kMaxVectorCount);
+  uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
   ngtcp2_pkt_info pi;
-
-  ssize_t ret = ngtcp2_conn_writev_stream(
+  Debug(session_, "Writing max %zu bytes to packet", max_packet_size);
+  return ngtcp2_conn_writev_stream(
       *session_,
       &path->path,
       &pi,
-      buf,
-      ngtcp2_conn_get_max_tx_udp_payload_size(*session_),
+      dest,
+      max_packet_size,
       ndatalen,
       flags,
       stream_data.id,
       stream_data.buf,
       stream_data.count,
       uv_hrtime());
-  return ret;
 }
 
 // The DefaultApplication is the default implementation of Session::Application
