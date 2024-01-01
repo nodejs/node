@@ -115,18 +115,18 @@ class Session::Application : public MemoryRetainer {
   // the default stream priority.
   virtual StreamPriority GetStreamPriority(const Stream& stream);
 
- protected:
-  inline Environment* env() const { return session_->env(); }
-  inline Session& session() { return *session_; }
-  inline const Session& session() const { return *session_; }
-
-  Packet* CreateStreamDataPacket();
-
   struct StreamData;
 
   virtual int GetStreamData(StreamData* data) = 0;
   virtual bool StreamCommit(StreamData* data, size_t datalen) = 0;
   virtual bool ShouldSetFin(const StreamData& data) = 0;
+
+  inline Environment* env() const { return session_->env(); }
+  inline Session& session() { return *session_; }
+  inline const Session& session() const { return *session_; }
+
+ private:
+  Packet* CreateStreamDataPacket();
 
   // Write the given stream_data into the buffer.
   ssize_t WriteVStream(PathStorage* path,
@@ -135,7 +135,6 @@ class Session::Application : public MemoryRetainer {
                        size_t max_packet_size,
                        const StreamData& stream_data);
 
- private:
   Session* session_;
 };
 
