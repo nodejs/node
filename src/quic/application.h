@@ -132,6 +132,7 @@ class Session::Application : public MemoryRetainer {
   ssize_t WriteVStream(PathStorage* path,
                        uint8_t* buf,
                        ssize_t* ndatalen,
+                       size_t max_packet_size,
                        const StreamData& stream_data);
 
  private:
