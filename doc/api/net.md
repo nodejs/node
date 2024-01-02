@@ -694,7 +694,7 @@ See [`net.createConnection()`][].
 ### Event: `'connectionAttempt'`
 
 <!-- YAML
-added: REPLACEME
+added: v21.6.0
 -->
 
 * `ip` {number} The IP which the socket is attempting to connect to.
@@ -707,7 +707,7 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 ### Event: `'connectionAttemptFailed'`
 
 <!-- YAML
-added: REPLACEME
+added: v21.6.0
 -->
 
 * `ip` {number} The IP which the socket attempted to connect to.
@@ -721,7 +721,7 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 ### Event: `'connectionAttemptTimeout'`
 
 <!-- YAML
-added: REPLACEME
+added: v21.6.0
 -->
 
 * `ip` {number} The IP which the socket attempted to connect to.
