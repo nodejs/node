@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.24.0](https://github.com/nodejs/corepack/compare/v0.23.0...v0.24.0) (2023-12-29)
+
+
+### Features
+
+* add support for HTTP redirect ([#341](https://github.com/nodejs/corepack/issues/341)) ([6df5063](https://github.com/nodejs/corepack/commit/6df5063b14868ff21499a051e5122fa7211be6ed))
+* add support for rangeless commands ([#338](https://github.com/nodejs/corepack/issues/338)) ([9bee415](https://github.com/nodejs/corepack/commit/9bee4150815113d97f0bd77d62c8d999cfd68ad3))
+* update package manager versions ([#330](https://github.com/nodejs/corepack/issues/330)) ([cfcc280](https://github.com/nodejs/corepack/commit/cfcc28047a788daeef2c0b15ee35a8b1a8149bb6))
+* **yarn:** fallback to npm when `COREPACK_NPM_REGISTRY` is set ([#339](https://github.com/nodejs/corepack/issues/339)) ([0717c6a](https://github.com/nodejs/corepack/commit/0717c6af898e075f57c5694d699a3c51e79a024c))
+
+
+### Bug Fixes
+
+* clarify `EACCES` errors ([#343](https://github.com/nodejs/corepack/issues/343)) ([518bed8](https://github.com/nodejs/corepack/commit/518bed8b7d7c313163c79d31cb9bbc023dba6560))
+
 ## [0.23.0](https://github.com/nodejs/corepack/compare/v0.22.0...v0.23.0) (2023-11-05)
 
 

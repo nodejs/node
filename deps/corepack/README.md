@@ -177,7 +177,7 @@ This command doesn't change the global version used when running the package
 manager from outside the project (use the \`-g,--global\` flag if you wish
 to do this).
 
-### `corepack install <-g,--global> [--all] [... name@version]`
+### `corepack install <-g,--global> [--all] [... name[@<version>]]`
 
 | Option                | Description                                |
 | --------------------- | ------------------------------------------ |
@@ -189,7 +189,7 @@ Package managers thus installed will be configured as the new default when
 calling their respective binaries outside of projects defining the
 `packageManager` field.
 
-### `corepack pack [--all] [... name@version]`
+### `corepack pack [--all] [... name[@<version>]]`
 
 | Option                | Description                                |
 | --------------------- | ------------------------------------------ |
@@ -200,7 +200,7 @@ calling their respective binaries outside of projects defining the
 Download the selected package managers and store them inside a tarball
 suitable for use with `corepack install -g`.
 
-### `corepack use <name@version>`
+### `corepack use <name[@<version>]>`
 
 When run, this command will retrieve the latest release matching the provided
 descriptor, assign it to the project's package.json file, and automatically
@@ -215,7 +215,7 @@ it.
 Unlike `corepack use` this command doesn't take a package manager name nor a
 version range, as it will always select the latest available version from the
 same major line. Should you need to upgrade to a new major, use an explicit
-`corepack use {name}@latest` call.
+`corepack use {name}@latest` call (or simply `corepack use {name}`).
 
 ## Environment Variables
 
