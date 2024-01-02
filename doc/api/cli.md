@@ -106,7 +106,7 @@ If this flag is passed, the behavior can still be set to not abort through
 ### `--allow-addons`
 
 <!-- YAML
-added: REPLACEME
+added: v21.6.0
 -->
 
 > Stability: 1.1 - Active development
@@ -367,7 +367,7 @@ Currently the support for run-time snapshot is experimental in that:
 ### `--build-snapshot-config`
 
 <!-- YAML
-added: REPLACEME
+added: v21.6.0
 -->
 
 > Stability: 1 - Experimental
