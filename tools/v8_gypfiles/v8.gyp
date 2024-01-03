@@ -450,7 +450,6 @@
             '<(INTERMEDIATE_DIR)/snapshot.cc',
             '<(INTERMEDIATE_DIR)/embedded.S',
           ],
-          'process_outputs_as_sources': 1,
           'conditions': [
             ['v8_random_seed', {
               'variables': {
@@ -488,6 +487,24 @@
           'action': [
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
+          ],
+        },
+        {
+          'action_name': 'asm_to_inline_asm',
+          'message': 'generating: >@(_outputs)',
+          'inputs': [
+            '<(INTERMEDIATE_DIR)/embedded.S',
+          ],
+          'outputs': [
+            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(INTERMEDIATE_DIR)/embedded.cc',
+          ],
+          'process_outputs_as_sources': 1,
+          'action': [
+            '<(python)',
+            '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
+            '<@(_inputs)',
+            '<(INTERMEDIATE_DIR)/embedded.cc',
           ],
         },
       ],
