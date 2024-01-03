@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 int main() {
-  const char* target = "./input.txt";
+  const char* target = "./input-in-subdir.txt";
   const char* linkpath = "/sandbox/subdir/test_link";
   char readlink_result[128];
   size_t result_size = sizeof(readlink_result);
