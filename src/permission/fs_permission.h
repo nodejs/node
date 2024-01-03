@@ -33,24 +33,26 @@ class FSPermission final : public PermissionBase {
 
       Node() : wildcard_child(nullptr), is_leaf(false) {}
 
-      Node* CreateChild(const std::string& prefix) {
-        if (prefix.empty() && !is_leaf) {
+      Node* CreateChild(const std::string& path_prefix) {
+        if (path_prefix.empty() && !is_leaf) {
           is_leaf = true;
           return this;
         }
-        char label = prefix[0];
+
+        CHECK(!path_prefix.empty());
+        char label = path_prefix[0];
 
         Node* child = children[label];
         if (child == nullptr) {
-          children[label] = new Node(prefix);
+          children[label] = new Node(path_prefix);
           return children[label];
         }
 
         // swap prefix
         size_t i = 0;
-        size_t prefix_len = prefix.length();
+        size_t prefix_len = path_prefix.length();
         for (; i < child->prefix.length(); ++i) {
-          if (i > prefix_len || prefix[i] != child->prefix[i]) {
+          if (i > prefix_len || path_prefix[i] != child->prefix[i]) {
             std::string parent_prefix = child->prefix.substr(0, i);
             std::string child_prefix = child->prefix.substr(i);
 
@@ -59,11 +61,11 @@ class FSPermission final : public PermissionBase {
             split_child->children[child_prefix[0]] = child;
             children[parent_prefix[0]] = split_child;
 
-            return split_child->CreateChild(prefix.substr(i));
+            return split_child->CreateChild(path_prefix.substr(i));
           }
         }
         child->is_leaf = true;
-        return child->CreateChild(prefix.substr(i));
+        return child->CreateChild(path_prefix.substr(i));
       }
 
       Node* CreateWildcardChild() {
