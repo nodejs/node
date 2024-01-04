@@ -1,6 +1,5 @@
 #include "path.h"
-#include <string>
-#include <vector>
+
 #include "env-inl.h"
 #include "node_internals.h"
 #include "util.h"
@@ -21,8 +20,8 @@ std::string NormalizeString(const std::string_view path,
                             bool allowAboveRoot,
                             const std::string_view separator) {
   std::string res;
-  int lastSegmentLength = 0;
-  int lastSlash = -1;
+  size_t lastSegmentLength = 0;
+  size_t lastSlash = std::string::npos;
   int dots = 0;
   char code = 0;
   for (size_t i = 0; i <= path.size(); ++i) {
@@ -35,10 +34,10 @@ std::string NormalizeString(const std::string_view path,
     }
 
     if (IsPathSeparator(code)) {
-      if (lastSlash == static_cast<int>(i - 1) || dots == 1) {
+      if (i == 0 || i - 1 == lastSlash || dots == 1) {
         // NOOP
       } else if (dots == 2) {
-        int len = res.length();
+        size_t len = res.length();
         if (len < 2 || lastSegmentLength != 2 || res[len - 1] != '.' ||
             res[len - 2] != '.') {
           if (len > 2) {
@@ -68,6 +67,7 @@ std::string NormalizeString(const std::string_view path,
           lastSegmentLength = 2;
         }
       } else {
+        DCHECK_NE(lastSlash, std::string::npos);
         if (!res.empty()) {
           res += std::string(separator) +
                  std::string(path.substr(lastSlash + 1, i - (lastSlash + 1)));
@@ -95,18 +95,16 @@ bool IsWindowsDeviceRoot(const char c) noexcept {
 
 std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths) {
-  std::string resolvedDevice = "";
-  std::string resolvedTail = "";
+  std::string resolvedDevice;
+  std::string resolvedTail;
   bool resolvedAbsolute = false;
-  const size_t numArgs = paths.size();
-  auto cwd = env->GetCwd(env->exec_path());
 
-  for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
+  for (size_t i = paths.size(); i >= 0 && !resolvedAbsolute; i--) {
     std::string path;
-    if (i >= 0) {
-      path = std::string(paths[i]);
+    if (i > 0) {
+      path = std::string(paths[i - 1]);
     } else if (resolvedDevice.empty()) {
-      path = cwd;
+      path = env->GetCwd(env->exec_path());
     } else {
       // Windows has the concept of drive-specific current working
       // directories. If we've resolved a drive letter but not yet an
@@ -116,7 +114,8 @@ std::string PathResolve(Environment* env,
       std::string resolvedDevicePath;
       const std::string envvar = "=" + resolvedDevice;
       credentials::SafeGetenv(envvar.c_str(), &resolvedDevicePath);
-      path = resolvedDevicePath.empty() ? cwd : resolvedDevicePath;
+      path = resolvedDevicePath.empty() ? env->GetCwd(env->exec_path())
+                                        : resolvedDevicePath;
 
       // Verify that a cwd was found and that it actually points
       // to our drive. If not, default to the drive's root.
@@ -128,8 +127,8 @@ std::string PathResolve(Environment* env,
     }
 
     const size_t len = path.length();
-    int rootEnd = 0;
-    std::string device = "";
+    size_t rootEnd = 0;
+    std::string device;
     bool isAbsolute = false;
     const char code = path[0];
 
@@ -236,17 +235,15 @@ std::string PathResolve(Environment* env,
                         const std::vector<std::string_view>& paths) {
   std::string resolvedPath;
   bool resolvedAbsolute = false;
-  auto cwd = env->GetCwd(env->exec_path());
-  const size_t numArgs = paths.size();
 
-  for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
-    const std::string& path =
-        (i >= 0) ? std::string(paths[i]) : env->GetCwd(env->exec_path());
+  for (size_t i = paths.size(); i >= 0 && !resolvedAbsolute; i--) {
+    std::string path =
+        i > 0 ? std::string(paths[i - 1]) : env->GetCwd(env->exec_path());
 
     if (!path.empty()) {
-      resolvedPath = std::string(path) + "/" + resolvedPath;
+      resolvedPath = path + "/" + resolvedPath;
 
-      if (path.front() == '/') {
+      if (path[0] == '/') {
         resolvedAbsolute = true;
         break;
       }
