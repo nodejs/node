@@ -121,7 +121,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context;
   ContextifyContext* contextify_context = nullptr;
   if (args[1]->IsUndefined()) {
-    context = that->GetCreationContext().ToLocalChecked();
+    context = that->GetCreationContextChecked();
   } else {
     CHECK(args[1]->IsObject());
     contextify_context = ContextifyContext::ContextFromContextifiedSandbox(
