@@ -91,6 +91,24 @@ Allow spawning process when using the permission model.
 .It Fl -allow-worker
 Allow creating worker threads when using the permission model.
 .
+.It Fl -check-coverage
+Enforce test coverage threshold checks
+when used with the
+.Fl -experimental-test-coverage
+flag.
+.
+.It Fl -lines
+Enforce a minimum threshold of
+lines of code covered by test coverage (0 - 100).
+.
+.It Fl -branches
+Enforce a minimum threshold of
+branches covered by test coverage (0 - 100).
+.
+.It Fl -functions
+Enforce a minimum threshold of
+functions covered by test coverage (0 - 100).
+.
 .It Fl -completion-bash
 Print source-able bash completion script for Node.js.
 .

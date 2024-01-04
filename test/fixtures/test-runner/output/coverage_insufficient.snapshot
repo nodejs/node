@@ -1,0 +1,26 @@
+TAP version 13
+# Subtest: ok
+ok 1 - ok
+  ---
+  duration_ms: *
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *
+# ERROR: Lines coverage (0.00%) does not meet expected threshold (100%)
+# ERROR: Branches coverage (0.00%) does not meet expected threshold (100%)
+# ERROR: Functions coverage (0.00%) does not meet expected threshold (100%)
+# start of coverage report
+# -----------------------------------------------------
+# file | line % | branch % | funcs % | uncovered lines
+# -----------------------------------------------------
+# -----------------------------------------------------
+# all… |   0.00 |     0.00 |    0.00 |
+# -----------------------------------------------------
+# end of coverage report

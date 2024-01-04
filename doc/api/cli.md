@@ -892,6 +892,69 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
+### `--check-coverage`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `--check-coverage` CLI flag, used in conjunction with
+the `--experimental-test-coverage` command, enforces
+that test coverage thresholds for the specified checks
+(`--lines`, `--branches`, `--functions`) are respected.
+
+### `--lines=threshold`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `--lines` CLI flag, used in conjunction with the `--check-coverage` flag,
+enforces a coverage threshold check for lines of code covered by the test.
+It is expressed as a numerical value between `0` and `100`,
+representing the percentage (e.g., 80 for 80% coverage).
+If the coverage falls below the threshold,
+the test will exit with non zero code.
+
+### `--branches=threshold`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `--branches` CLI flag, used in conjunction with the `--check-coverage` flag,
+enforces a coverage threshold check for branches of code covered by the test.
+It is expressed as a numerical value between `0` and `100`,
+representing the percentage (e.g., 80 for 80% coverage).
+If the coverage falls below the threshold,
+the test will exit with non zero code.
+
+### `--functions=threshold`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `--functions` CLI flag, used in conjunction with
+the `--check-coverage`flag, enforces a coverage threshold check
+for functions covered by the test.
+It is expressed as a numerical value between `0` and `100`,
+representing the percentage (e.g., 80 for 80% coverage).
+If the coverage falls below the threshold,
+the test will exit with non zero code.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML

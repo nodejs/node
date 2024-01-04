@@ -622,6 +622,18 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage);
+  AddOption("--check-coverage",
+            "check that coverage falls within the thresholds provided",
+            &EnvironmentOptions::test_runner_check_coverage);
+  AddOption("--lines",
+            "coverage threshold for lines of code",
+            &EnvironmentOptions::test_runner_check_coverage_lines);
+  AddOption("--branches",
+            "coverage threshold for code branches",
+            &EnvironmentOptions::test_runner_check_coverage_branches);
+  AddOption("--functions",
+            "coverage threshold for functions",
+            &EnvironmentOptions::test_runner_check_coverage_functions);
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern);

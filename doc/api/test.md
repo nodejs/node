@@ -403,6 +403,20 @@ if (anAlwaysFalseCondition) {
 }
 ```
 
+By using the CLI flag [`--check-coverage`][]
+in conjunction with the `--experimental-test-coverage` flag,
+it is possible to enforce specific test coverage threshold checks
+(`--lines`, `--branches`, `--functions`).
+When enabled, it evaluates the test coverage achieved during
+the execution of tests and determines whether it meets
+the specified coverage thresholds.
+If the coverage check falls below the specified threshold,
+the program will exit with a non zero code.
+
+```bash
+node --test --experimental-test-coverage --check-coverage --lines=100 --branches=100 --function=100
+```
+
 ### Coverage reporters
 
 The tap and spec reporters will print a summary of the coverage statistics.
@@ -2966,6 +2980,7 @@ added:
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
+[`--check-coverage`]: cli.md#--check-coverage
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--import`]: cli.md#--importmodule
 [`--test-concurrency`]: cli.md#--test-concurrency

@@ -166,6 +166,10 @@ class EnvironmentOptions : public Options {
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
+  bool test_runner_check_coverage = false;
+  uint64_t test_runner_check_coverage_lines = 0;
+  uint64_t test_runner_check_coverage_branches = 0;
+  uint64_t test_runner_check_coverage_functions = 0;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;

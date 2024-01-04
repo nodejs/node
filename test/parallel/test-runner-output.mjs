@@ -128,6 +128,9 @@ const tests = [
     ),
   },
   process.features.inspector ? { name: 'test-runner/output/coverage_failure.js' } : false,
+  { name: 'test-runner/output/coverage_insufficient.js' },
+  { name: 'test-runner/output/coverage_check.js' },
+  { name: 'test-runner/output/coverage_thresholds_no_check.js' },
 ]
 .filter(Boolean)
 .map(({ name, tty, transform }) => ({
