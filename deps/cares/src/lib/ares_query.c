@@ -39,113 +39,101 @@
 
 struct qquery {
   ares_callback callback;
-  void *arg;
+  void         *arg;
 };
 
-static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen);
+static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf,
+                      int alen);
 
-
-/* a unique query id is generated using an rc4 key. Since the id may already
-   be used by a running query (as infrequent as it may be), a lookup is
-   performed per id generation. In practice this search should happen only
-   once per newly generated id
-*/
-static unsigned short generate_unique_id(ares_channel channel)
-{
-  unsigned short id;
-
-  do {
-    id = ares__generate_new_id(channel->rand_state);
-  } while (ares__htable_stvp_get(channel->queries_by_qid, id, NULL));
-
-  return (unsigned short)id;
-}
-
-int ares_query_qid(ares_channel channel, const char *name,
-                   int dnsclass, int type, ares_callback callback,
-                   void *arg, unsigned short *qid)
+ares_status_t ares_query_qid(ares_channel_t *channel, const char *name,
+                             int dnsclass, int type, ares_callback callback,
+                             void *arg, unsigned short *qid)
 {
   struct qquery *qquery;
   unsigned char *qbuf;
-  int qlen, rd, status;
-  unsigned short id = generate_unique_id(channel);
+  int            qlen;
+  int            rd;
+  ares_status_t  status;
 
   /* Compose the query. */
-  rd = !(channel->flags & ARES_FLAG_NORECURSE);
-  status = ares_create_query(name, dnsclass, type, id, rd, &qbuf,
-              &qlen, (channel->flags & ARES_FLAG_EDNS) ? channel->ednspsz : 0);
-  if (status != ARES_SUCCESS)
-    {
-      if (qbuf != NULL) ares_free(qbuf);
-      callback(arg, status, 0, NULL, 0);
-      return status;
+  rd     = !(channel->flags & ARES_FLAG_NORECURSE);
+  status = (ares_status_t)ares_create_query(
+    name, dnsclass, type, 0, rd, &qbuf, &qlen,
+    (channel->flags & ARES_FLAG_EDNS) ? (int)channel->ednspsz : 0);
+  if (status != ARES_SUCCESS) {
+    if (qbuf != NULL) {
+      ares_free(qbuf);
     }
+    callback(arg, (int)status, 0, NULL, 0);
+    return status;
+  }
 
   /* Allocate and fill in the query structure. */
   qquery = ares_malloc(sizeof(struct qquery));
-  if (!qquery)
-    {
-      ares_free_string(qbuf);
-      callback(arg, ARES_ENOMEM, 0, NULL, 0);
-      return ARES_ENOMEM;
-    }
+  if (!qquery) {
+    ares_free_string(qbuf);
+    callback(arg, ARES_ENOMEM, 0, NULL, 0);
+    return ARES_ENOMEM;
+  }
   qquery->callback = callback;
-  qquery->arg = arg;
+  qquery->arg      = arg;
 
   /* Send it off.  qcallback will be called when we get an answer. */
-  status = ares_send_ex(channel, qbuf, qlen, qcallback, qquery);
+  status = ares_send_ex(channel, qbuf, (size_t)qlen, qcallback, qquery, qid);
   ares_free_string(qbuf);
-
-  if (status == ARES_SUCCESS && qid)
-    *qid = id;
 
   return status;
 }
 
-void ares_query(ares_channel channel, const char *name, int dnsclass,
+void ares_query(ares_channel_t *channel, const char *name, int dnsclass,
                 int type, ares_callback callback, void *arg)
 {
+  if (channel == NULL) {
+    return;
+  }
+  ares__channel_lock(channel);
   ares_query_qid(channel, name, dnsclass, type, callback, arg, NULL);
+  ares__channel_unlock(channel);
 }
 
-
-static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf, int alen)
+static void qcallback(void *arg, int status, int timeouts, unsigned char *abuf,
+                      int alen)
 {
-  struct qquery *qquery = (struct qquery *) arg;
-  unsigned int ancount;
-  int rcode;
+  struct qquery *qquery = (struct qquery *)arg;
+  size_t         ancount;
+  int            rcode;
 
-  if (status != ARES_SUCCESS)
+  if (status != ARES_SUCCESS) {
     qquery->callback(qquery->arg, status, timeouts, abuf, alen);
-  else
-    {
-      /* Pull the response code and answer count from the packet. */
-      rcode = DNS_HEADER_RCODE(abuf);
-      ancount = DNS_HEADER_ANCOUNT(abuf);
+  } else {
+    /* Pull the response code and answer count from the packet. */
+    rcode   = DNS_HEADER_RCODE(abuf);
+    ancount = DNS_HEADER_ANCOUNT(abuf);
 
-      /* Convert errors. */
-      switch (rcode)
-        {
-        case NOERROR:
-          status = (ancount > 0) ? ARES_SUCCESS : ARES_ENODATA;
-          break;
-        case FORMERR:
-          status = ARES_EFORMERR;
-          break;
-        case SERVFAIL:
-          status = ARES_ESERVFAIL;
-          break;
-        case NXDOMAIN:
-          status = ARES_ENOTFOUND;
-          break;
-        case NOTIMP:
-          status = ARES_ENOTIMP;
-          break;
-        case REFUSED:
-          status = ARES_EREFUSED;
-          break;
-        }
-      qquery->callback(qquery->arg, status, timeouts, abuf, alen);
+    /* Convert errors. */
+    switch (rcode) {
+      case NOERROR:
+        status = (ancount > 0) ? ARES_SUCCESS : ARES_ENODATA;
+        break;
+      case FORMERR:
+        status = ARES_EFORMERR;
+        break;
+      case SERVFAIL:
+        status = ARES_ESERVFAIL;
+        break;
+      case NXDOMAIN:
+        status = ARES_ENOTFOUND;
+        break;
+      case NOTIMP:
+        status = ARES_ENOTIMP;
+        break;
+      case REFUSED:
+        status = ARES_EREFUSED;
+        break;
+      default:
+        break;
     }
+    qquery->callback(qquery->arg, status, timeouts, abuf, alen);
+  }
   ares_free(qquery);
 }

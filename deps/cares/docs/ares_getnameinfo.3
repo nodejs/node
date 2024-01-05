@@ -26,7 +26,7 @@ typedef void (*ares_nameinfo_callback)(void *\fIarg\fP, int \fIstatus\fP,
                                        int \fItimeouts\fP, char *\fInode\fP,
                                        char *\fIservice\fP)
 
-void ares_getnameinfo(ares_channel \fIchannel\fP, const struct sockaddr *\fIsa\fP,
+void ares_getnameinfo(ares_channel_t *\fIchannel\fP, const struct sockaddr *\fIsa\fP,
                       ares_socklen_t \fIsalen\fP, int \fIflags\fP,
                       ares_nameinfo_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
@@ -85,6 +85,12 @@ is complete or has
 failed, the ares library will invoke \fIcallback\fP.  Completion or failure of 
 the query may happen immediately, or may happen during a later call to
 \fIares_process(3)\fP, \fIares_destroy(3)\fP or \fIares_cancel(3)\fP.
+.PP
+If this is called from a thread other than which the main program event loop is
+running, care needs to be taken to ensure any file descriptor lists are updated
+immediately within the eventloop.  When the associated callback is called,
+it is called with a channel lock so care must be taken to ensure any processing
+is minimal to prevent DNS channel stalls.
 .PP
 The callback argument
 .I arg

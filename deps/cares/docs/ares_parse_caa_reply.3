@@ -114,7 +114,7 @@ static void dns_callback(void *arg,
     ares_free_data (caa_out);
   }
 
-static void main_loop(ares_channel *channel)
+static void main_loop(ares_channel_t **channel)
   {
     int nfds, count;
     fd_set readers, writers;
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
     if (argc > 1)
       domain = argv[1];
 
-    ares_channel channel;
+    ares_channel_t *channel;
     if ((err = ares_init (&channel)) != ARES_SUCCESS)
       {
         printf ("ares_init() failed (%i)\\n", err);

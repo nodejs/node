@@ -22,7 +22,7 @@ ares_gethostbyname_file \- Lookup a name in the system's hosts file
 .nf
 #include <ares.h>
 
-int ares_gethostbyname_file(ares_channel \fIchannel\fP, const char *\fIname\fP,
+int ares_gethostbyname_file(ares_channel_t *\fIchannel\fP, const char *\fIname\fP,
                             int \fIfamily\fP, struct hostent **host)
 .fi
 .SH DESCRIPTION
