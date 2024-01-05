@@ -265,6 +265,13 @@ const regularFile = __filename;
     permission: 'FileSystemRead',
     resource: path.toNamespacedPath(blockedFile),
   }));
+  assert.throws(() => {
+    fs.watch(blockedFileURL, () => {});
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: path.toNamespacedPath(blockedFile),
+  }));
 
   // doesNotThrow
   fs.readdir(allowedFolder, (err) => {
