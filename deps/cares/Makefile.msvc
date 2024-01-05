@@ -180,7 +180,7 @@ CFLAGS  = /UWIN32 /DWATT32 /I$(WATT_ROOT)\inc
 EX_LIBS_REL = $(WATT_ROOT)\lib\wattcpvc_imp.lib
 EX_LIBS_DBG = $(WATT_ROOT)\lib\wattcpvc_imp_d.lib
 !ELSE
-CFLAGS  = /DWIN32 /D_WIN32_WINNT=0x0600
+CFLAGS  = /DWIN32 /D_WIN32_WINNT=0x0602
 EX_LIBS_REL = ws2_32.lib advapi32.lib kernel32.lib iphlpapi.lib
 EX_LIBS_DBG = ws2_32.lib advapi32.lib kernel32.lib iphlpapi.lib
 !ENDIF
@@ -437,6 +437,7 @@ install:
     @copy /y $(SRCDIR)\include\ares_build.h   "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_rules.h   "$(INSTALL_DIR_INC)" >NUL
     @copy /y $(SRCDIR)\include\ares_version.h "$(INSTALL_DIR_INC)" >NUL
+    @copy /y $(SRCDIR)\include\ares_dns_record.h "$(INSTALL_DIR_INC)" >NUL
     @echo Installed c-ares $(CFG)
 
 !ENDIF

@@ -38,9 +38,9 @@ struct timeval ares__tvnow(void)
   ** increases monotonically and wraps once 49.7 days have elapsed.
   */
   struct timeval now;
-  DWORD milliseconds = GetTickCount();
-  now.tv_sec = milliseconds / 1000;
-  now.tv_usec = (milliseconds % 1000) * 1000;
+  DWORD          milliseconds = GetTickCount();
+  now.tv_sec                  = (long)milliseconds / 1000;
+  now.tv_usec                 = (long)(milliseconds % 1000) * 1000;
   return now;
 }
 
@@ -55,26 +55,26 @@ struct timeval ares__tvnow(void)
   ** in any case the time starting point does not change once that the
   ** system has started up.
   */
-  struct timeval now;
+  struct timeval  now;
   struct timespec tsnow;
-  if(0 == clock_gettime(CLOCK_MONOTONIC, &tsnow)) {
-    now.tv_sec = tsnow.tv_sec;
-    now.tv_usec = tsnow.tv_nsec / 1000;
+  if (0 == clock_gettime(CLOCK_MONOTONIC, &tsnow)) {
+    now.tv_sec  = tsnow.tv_sec;
+    now.tv_usec = (int)(tsnow.tv_nsec / 1000);
   }
   /*
   ** Even when the configure process has truly detected monotonic clock
   ** availability, it might happen that it is not actually available at
   ** run-time. When this occurs simply fallback to other time source.
   */
-#ifdef HAVE_GETTIMEOFDAY
+#  ifdef HAVE_GETTIMEOFDAY
   else
-    (void)gettimeofday(&now, NULL);  /* LCOV_EXCL_LINE */
-#else
+    (void)gettimeofday(&now, NULL); /* LCOV_EXCL_LINE */
+#  else
   else {
-    now.tv_sec = (long)time(NULL);
+    now.tv_sec  = (long)time(NULL);
     now.tv_usec = 0;
   }
-#endif
+#  endif
   return now;
 }
 
@@ -100,24 +100,9 @@ struct timeval ares__tvnow(void)
   ** time() returns the value of time in seconds since the Epoch.
   */
   struct timeval now;
-  now.tv_sec = (long)time(NULL);
+  now.tv_sec  = (long)time(NULL);
   now.tv_usec = 0;
   return now;
 }
 
 #endif
-
-#if 0 /* Not used */
-/*
- * Make sure that the first argument is the more recent time, as otherwise
- * we'll get a weird negative time-diff back...
- *
- * Returns: the time difference in number of milliseconds.
- */
-long ares__tvdiff(struct timeval newer, struct timeval older)
-{
-  return (newer.tv_sec-older.tv_sec)*1000+
-    (newer.tv_usec-older.tv_usec)/1000;
-}
-#endif
-

@@ -26,7 +26,7 @@ typedef void (*ares_host_callback)(void *\fIarg\fP, int \fIstatus\fP,
                                    int \fItimeouts\fP,
                                    struct hostent *\fIhostent\fP)
 
-void ares_gethostbyaddr(ares_channel \fIchannel\fP, const void *\fIaddr\fP,
+void ares_gethostbyaddr(ares_channel_t *\fIchannel\fP, const void *\fIaddr\fP,
                         int \fIaddrlen\fP, int \fIfamily\fP,
                         ares_host_callback \fIcallback\fP, void *\fIarg\fP)
 .fi
@@ -98,6 +98,12 @@ did not complete successfully,
 .I hostent
 will be
 .BR NULL .
+.PP
+If this is called from a thread other than which the main program event loop is
+running, care needs to be taken to ensure any file descriptor lists are updated
+immediately within the eventloop.  When the associated callback is called,
+it is called with a channel lock so care must be taken to ensure any processing
+is minimal to prevent DNS channel stalls.
 .SH SEE ALSO
 .BR ares_process (3),
 .BR ares_gethostbyname (3)
