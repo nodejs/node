@@ -38,6 +38,10 @@ template("ngtcp2_gn_build") {
         "_WINDOWS",
         "HAVE_CONFIG_H",
       ]
+    } else {
+      defines += [
+        "HAVE_UNISTD_H",
+      ]
     }
     if (is_linux) {
       defines += [
@@ -53,9 +57,10 @@ template("ngtcp2_gn_build") {
       "nghttp3/lib/"
     ]
 
-    sources = gypi_values.nghttp3_sources + gypi_values.ngtcp2_sources
+    sources = gypi_values.nghttp3_sources +
+              gypi_values.ngtcp2_sources +
+              gypi_values.ngtcp2_sources_quictls
     if (node_use_openssl) {
-      sources += gypi_values.ngtcp2_sources_openssl
       deps = [ "../openssl" ]
     }
 
@@ -63,6 +68,8 @@ template("ngtcp2_gn_build") {
       cflags_c = [
         "-Wno-extra-semi",
         "-Wno-implicit-fallthrough",
+        # Remove after https://github.com/ngtcp2/ngtcp2/issues/1050 is fixed.
+        "-Wno-sometimes-uninitialized",
       ]
     }
   }
