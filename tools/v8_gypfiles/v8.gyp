@@ -447,10 +447,14 @@
             '<(mksnapshot_exec)',
           ],
           'outputs': [
-            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            # snapshot.cc is always built in the 'asm_to_inline_asm' step.
             '<(INTERMEDIATE_DIR)/embedded.S',
           ],
           'conditions': [
+            # When not under Windows, embedded.S will be compiled directly.
+            ['OS != "win"', {
+                'process_outputs_as_sources': 1,
+            }],
             ['v8_random_seed', {
               'variables': {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -490,14 +494,27 @@
           ],
         },
         {
+          # This action is only useful on Windows.
+          # Under non-Windows systems, we effectively ignore
+          # the output of this action.
           'action_name': 'asm_to_inline_asm',
           'message': 'generating: >@(_outputs)',
           'inputs': [
             '<(INTERMEDIATE_DIR)/embedded.S',
           ],
-          'outputs': [
+          'conditions': [
+            # Under Windows, we need to generate snapshot.cc and embedded.cc.
+            ['OS == "win"', {
+              'outputs': [
             '<(INTERMEDIATE_DIR)/snapshot.cc',
             '<(INTERMEDIATE_DIR)/embedded.cc',
+             ],
+            }],
+            # Under non-Windows systems, we effectively ignore the output of this
+            # action. We do need to build snapshot.cc, however.
+            ['OS != "win"', {
+              'outputs': ['<(INTERMEDIATE_DIR)/snapshot.cc']
+            }],
           ],
           'process_outputs_as_sources': 1,
           'action': [
