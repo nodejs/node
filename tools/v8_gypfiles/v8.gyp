@@ -509,20 +509,22 @@
             '<(INTERMEDIATE_DIR)/snapshot.cc',
             '<(INTERMEDIATE_DIR)/embedded.cc',
              ],
+             'action': [
+              '<(python)',
+              '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
+              '<@(_inputs)',
+              '<(INTERMEDIATE_DIR)/embedded.cc', # important: embedded.cc is only ever generated if OS == "win"
+             ],
             }],
             # Under non-Windows systems, we effectively ignore the output of this
             # action. We do need to build snapshot.cc, however.
             ['OS != "win"', {
-              'outputs': ['<(INTERMEDIATE_DIR)/snapshot.cc']
+              'outputs': ['<(INTERMEDIATE_DIR)/snapshot.cc'],
+              'action': [],
             }],
           ],
           'process_outputs_as_sources': 1,
-          'action': [
-            '<(python)',
-            '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
-            '<@(_inputs)',
-            '<(INTERMEDIATE_DIR)/embedded.cc',
-          ],
+          
         },
       ],
     },  # v8_snapshot
