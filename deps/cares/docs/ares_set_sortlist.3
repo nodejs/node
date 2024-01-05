@@ -16,12 +16,12 @@
 .\"
 .TH ARES_SET_SORTLIST 3 "23 November 2015"
 .SH NAME
-ares_set_sortlist \- Initialize an ares_channel sortlist configuration
+ares_set_sortlist \- Initialize an ares_channel_t *sortlist configuration
 .SH SYNOPSIS
 .nf
 #include <ares.h>
 
-int ares_set_sortlist(ares_channel \fIchannel\fP, const char *\fIsortstr\fP)
+int ares_set_sortlist(ares_channel_t *\fIchannel\fP, const char *\fIsortstr\fP)
 .fi
 .SH DESCRIPTION
 The \fBares_set_sortlist(3)\fP function initializes an address sortlist configuration
@@ -56,6 +56,6 @@ was invalid.
 c-ares library initialization not yet performed.
 .SH SEE ALSO
 .BR ares_init_options (3),
-.BR ares_dup(3)
+.BR ares_dup (3)
 .SH AVAILABILITY
 ares_set_sortlist(3) was added in c-ares 1.11.0
