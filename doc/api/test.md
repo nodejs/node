@@ -406,7 +406,7 @@ if (anAlwaysFalseCondition) {
 By using the CLI flag [`--check-coverage`][]
 in conjunction with the `--experimental-test-coverage` flag,
 it is possible to enforce specific test coverage threshold checks
-(`--lines`, `--branches`, `--functions`).
+(`--lines=threshold`, `--branches=threshold`, `--functions=threshold`).
 When enabled, it evaluates the test coverage achieved during
 the execution of tests and determines whether it meets
 the specified coverage thresholds.
@@ -414,7 +414,7 @@ If the coverage check falls below the specified threshold,
 the program will exit with a non zero code.
 
 ```bash
-node --test --experimental-test-coverage --check-coverage --lines=100 --branches=100 --function=100
+node --test --experimental-test-coverage --check-coverage --lines=100 --branches=100 --functions=100
 ```
 
 ### Coverage reporters

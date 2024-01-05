@@ -902,9 +902,19 @@ added:
 > Stability: 1 - Experimental
 
 The `--check-coverage` CLI flag, used in conjunction with
-the `--experimental-test-coverage` command, enforces
-that test coverage thresholds for the specified checks
-(`--lines`, `--branches`, `--functions`) are respected.
+the `--experimental-test-coverage` command, enforces that
+the test coverage thresholds specified by check
+flags are respected:
+
+* [`--lines=threshold`][]: Sets the threshold for line coverage.
+* [`--branches=threshold`][]: Sets the threshold for branch coverage.
+* [`--functions=threshold`][]: Sets the threshold for function coverage.
+
+To enforce global 100% coverage set the value of the each flag to 100:
+
+```bash
+node --test --experimental-test-coverage --check-coverage --lines=100 --branches=100 --functions=100
+```
 
 ### `--lines=threshold`
 
@@ -922,6 +932,10 @@ representing the percentage (e.g., 80 for 80% coverage).
 If the coverage falls below the threshold,
 the test will exit with non zero code.
 
+```bash
+node --test --experimental-test-coverage --check-coverage --lines=80
+```
+
 ### `--branches=threshold`
 
 <!-- YAML
@@ -937,6 +951,10 @@ It is expressed as a numerical value between `0` and `100`,
 representing the percentage (e.g., 80 for 80% coverage).
 If the coverage falls below the threshold,
 the test will exit with non zero code.
+
+```bash
+node --test --experimental-test-coverage --check-coverage --branches=80
+```
 
 ### `--functions=threshold`
 
@@ -954,6 +972,10 @@ It is expressed as a numerical value between `0` and `100`,
 representing the percentage (e.g., 80 for 80% coverage).
 If the coverage falls below the threshold,
 the test will exit with non zero code.
+
+```bash
+node --test --experimental-test-coverage --check-coverage --functions=80
+```
 
 ### `--experimental-vm-modules`
 
@@ -3008,14 +3030,17 @@ done
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-worker`]: #--allow-worker
+[`--branches=threshold`]: #--branchesthreshold
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
 [`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
+[`--functions=threshold`]: #--functionsthreshold
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
+[`--lines=threshold`]: #--linesthreshold
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
 [`--print`]: #-p---print-script
