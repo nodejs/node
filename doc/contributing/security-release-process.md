@@ -232,8 +232,9 @@ important security vulnerabilities. When breaking changes are made
 it is important to provide a command line option that restores
 the original behaviour.
 
-Node.js includes the command line option `--security-revert` and
-has the boilerplate to make additions easy.
+The existing Node.js codebase supports the command line
+option `--security-revert` and has the boilerplate to make additions
+for a specific CVE easy.
 
 To add an option to revert for a CVE, for example `CVE-2024-1234`
 simply add this line to
