@@ -237,7 +237,7 @@ has the boilerplate to make additions easy.
 
 To add an option to revert for a CVE, for example `CVE-2024-1234`
 simply add this line to
-[node\_revert.h](https://github.com/nodejs/node/blob/main/src/node_revert.h)
+[`node_revert.h`](https://github.com/nodejs/node/blob/main/src/node_revert.h)
 
 ```c
   XX(CVE_2024_1234, "CVE-2024-1234", "Description of cve")
