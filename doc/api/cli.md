@@ -916,6 +916,9 @@ To enforce global 100% coverage set the value of the each flag to 100:
 node --test --experimental-test-coverage --check-coverage --lines=100 --branches=100 --functions=100
 ```
 
+If one of the specified coverage check falls below the threshold,
+the test will exit with non zero code.
+
 ### `--lines=threshold`
 
 <!-- YAML
