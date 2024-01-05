@@ -81,7 +81,7 @@
 
 #ifndef CARES_TYPEOF_ARES_SOCKLEN_T
 #  error "CARES_TYPEOF_ARES_SOCKLEN_T definition is missing!"
-   Error Compilation_aborted_CARES_TYPEOF_ARES_SOCKLEN_T_is_missing
+Error Compilation_aborted_CARES_TYPEOF_ARES_SOCKLEN_T_is_missing
 #endif
 
 /*
@@ -92,15 +92,14 @@
 
 #define CareschkszGE(t1, t2) sizeof(t1) >= sizeof(t2) ? 1 : -1
 
-/*
- * Verify that the size previously defined and expected for
- * ares_socklen_t is actually the same as the one reported
- * by sizeof() at compile time.
- */
+  /*
+   * Verify that the size previously defined and expected for
+   * ares_socklen_t is actually the same as the one reported
+   * by sizeof() at compile time.
+   */
 
-typedef char
-  __cares_rule_02__
-    [CareschkszEQ(ares_socklen_t, sizeof(CARES_TYPEOF_ARES_SOCKLEN_T))];
+  typedef char __cares_rule_02__[CareschkszEQ(
+    ares_socklen_t, sizeof(CARES_TYPEOF_ARES_SOCKLEN_T))];
 
 /*
  * Verify at compile time that the size of ares_socklen_t as reported
@@ -108,9 +107,7 @@ typedef char
  * the current compilation.
  */
 
-typedef char
-  __cares_rule_03__
-    [CareschkszGE(ares_socklen_t, int)];
+typedef char   __cares_rule_03__[CareschkszGE(ares_socklen_t, int)];
 
 /* ================================================================ */
 /*          EXTERNALLY AND INTERNALLY VISIBLE DEFINITIONS           */
