@@ -202,6 +202,71 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 #endif
 }
 
+// crypto.digest(algorithm, algorithmId, algorithmCache,
+//               input, outputEncoding, outputEncodingId)
+void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  CHECK_EQ(args.Length(), 6);
+  CHECK(args[0]->IsString());                                  // algorithm
+  CHECK(args[1]->IsInt32());                                   // algorithmId
+  CHECK(args[2]->IsObject());                                  // algorithmCache
+  CHECK(args[3]->IsString() || args[3]->IsArrayBufferView());  // input
+  CHECK(args[4]->IsString());                                  // outputEncoding
+  CHECK(args[5]->IsUint32() || args[5]->IsUndefined());  // outputEncodingId
+
+  const EVP_MD* md = GetDigestImplementation(env, args[0], args[1], args[2]);
+  if (md == nullptr) {
+    Utf8Value method(isolate, args[0]);
+    std::string message =
+        "Digest method " + method.ToString() + " is not supported";
+    return ThrowCryptoError(env, ERR_get_error(), message.c_str());
+  }
+
+  enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
+
+  int md_len = EVP_MD_size(md);
+  unsigned int result_size;
+  ByteSource::Builder output(md_len);
+  int success;
+  // On smaller inputs, EVP_Digest() can be slower than the
+  // deprecated helpers e.g SHA256_XXX. The speedup may not
+  // be worth using deprecated APIs, however, so we use
+  // EVP_Digest(), unless there's a better alternative
+  // in the future.
+  // https://github.com/openssl/openssl/issues/19612
+  if (args[3]->IsString()) {
+    Utf8Value utf8(isolate, args[3]);
+    success = EVP_Digest(utf8.out(),
+                         utf8.length(),
+                         output.data<unsigned char>(),
+                         &result_size,
+                         md,
+                         nullptr);
+  } else {
+    ArrayBufferViewContents<unsigned char> input(args[3]);
+    success = EVP_Digest(input.data(),
+                         input.length(),
+                         output.data<unsigned char>(),
+                         &result_size,
+                         md,
+                         nullptr);
+  }
+  if (!success) {
+    return ThrowCryptoError(env, ERR_get_error());
+  }
+
+  Local<Value> error;
+  MaybeLocal<Value> rc = StringBytes::Encode(
+      env->isolate(), output.data<char>(), md_len, output_enc, &error);
+  if (rc.IsEmpty()) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return;
+  }
+  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
+}
+
 void Hash::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
@@ -216,6 +281,7 @@ void Hash::Initialize(Environment* env, Local<Object> target) {
 
   SetMethodNoSideEffect(context, target, "getHashes", GetHashes);
   SetMethodNoSideEffect(context, target, "getCachedAliases", GetCachedAliases);
+  SetMethodNoSideEffect(context, target, "oneShotDigest", OneShotDigest);
 
   HashJob::Initialize(env, target);
 
@@ -229,6 +295,7 @@ void Hash::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(HashDigest);
   registry->Register(GetHashes);
   registry->Register(GetCachedAliases);
+  registry->Register(OneShotDigest);
 
   HashJob::RegisterExternalReferences(registry);
 
@@ -294,14 +361,17 @@ bool Hash::HashUpdate(const char* data, size_t len) {
 }
 
 void Hash::HashUpdate(const FunctionCallbackInfo<Value>& args) {
-  Decode<Hash>(args, [](Hash* hash, const FunctionCallbackInfo<Value>& args,
-                        const char* data, size_t size) {
-    Environment* env = Environment::GetCurrent(args);
-    if (UNLIKELY(size > INT_MAX))
-      return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
-    bool r = hash->HashUpdate(data, size);
-    args.GetReturnValue().Set(r);
-  });
+  Decode<Hash>(args,
+               [](Hash* hash,
+                  const FunctionCallbackInfo<Value>& args,
+                  const char* data,
+                  size_t size) {
+                 Environment* env = Environment::GetCurrent(args);
+                 if (UNLIKELY(size > INT_MAX))
+                   return THROW_ERR_OUT_OF_RANGE(env, "data is too long");
+                 bool r = hash->HashUpdate(data, size);
+                 args.GetReturnValue().Set(r);
+               });
 }
 
 void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
