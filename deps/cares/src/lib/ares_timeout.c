@@ -28,26 +28,39 @@
 #include "ares_setup.h"
 
 #ifdef HAVE_LIMITS_H
-#include <limits.h>
+#  include <limits.h>
 #endif
 
 #include "ares.h"
 #include "ares_private.h"
 
-/* return time offset between now and (future) check, in milliseconds */
-static long timeoffset(struct timeval *now, struct timeval *check)
+void ares__timeval_remaining(struct timeval       *remaining,
+                             const struct timeval *now,
+                             const struct timeval *tout)
 {
-  return (check->tv_sec - now->tv_sec)*1000 +
-         (check->tv_usec - now->tv_usec)/1000;
+  memset(remaining, 0, sizeof(*remaining));
+
+  /* Expired! */
+  if (tout->tv_sec < now->tv_sec ||
+      (tout->tv_sec == now->tv_sec && tout->tv_usec < now->tv_usec)) {
+    return;
+  }
+
+  remaining->tv_sec = tout->tv_sec - now->tv_sec;
+  if (tout->tv_usec < now->tv_usec) {
+    remaining->tv_sec  -= 1;
+    remaining->tv_usec  = (tout->tv_usec + 1000000) - now->tv_usec;
+  } else {
+    remaining->tv_usec = tout->tv_usec - now->tv_usec;
+  }
 }
 
-struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
+struct timeval *ares_timeout(ares_channel_t *channel, struct timeval *maxtv,
                              struct timeval *tvbuf)
 {
-  struct query       *query;
+  const struct query *query;
   ares__slist_node_t *node;
   struct timeval      now;
-  long                offset;
 
   /* The minimum timeout of all queries is always the first entry in
    * channel->queries_by_timeout */
@@ -61,27 +74,24 @@ struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
 
   now = ares__tvnow();
 
-  offset = timeoffset(&now, &query->timeout);
-  if (offset < 0)
-    offset = 0;
-  if (offset > (long)INT_MAX)
-    offset = INT_MAX;
+  ares__timeval_remaining(tvbuf, &now, &query->timeout);
 
-  tvbuf->tv_sec = offset / 1000;
-  tvbuf->tv_usec = (offset % 1000) * 1000;
-
-  if (maxtv == NULL)
+  if (maxtv == NULL) {
     return tvbuf;
+  }
 
   /* Return the minimum time between maxtv and tvbuf */
 
-  if (tvbuf->tv_sec > maxtv->tv_sec)
+  if (tvbuf->tv_sec > maxtv->tv_sec) {
     return maxtv;
-  if (tvbuf->tv_sec < maxtv->tv_sec)
+  }
+  if (tvbuf->tv_sec < maxtv->tv_sec) {
     return tvbuf;
+  }
 
-  if (tvbuf->tv_usec > maxtv->tv_usec)
+  if (tvbuf->tv_usec > maxtv->tv_usec) {
     return maxtv;
+  }
 
   return tvbuf;
 }
