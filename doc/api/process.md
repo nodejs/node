@@ -650,18 +650,6 @@ of the custom deprecation.
 The `*-deprecation` command-line flags only affect warnings that use the name
 `'DeprecationWarning'`.
 
-### Event: `'worker'`
-
-<!-- YAML
-added:
-  - v16.2.0
-  - v14.18.0
--->
-
-* `worker` {Worker} The {Worker} that was created.
-
-The `'worker'` event is emitted after a new {Worker} thread has been created.
-
 #### Emitting custom warnings
 
 See the [`process.emitWarning()`][process_emit_warning] method for issuing
@@ -689,6 +677,18 @@ A few of the warning types that are most common include:
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
+
+### Event: `'worker'`
+
+<!-- YAML
+added:
+  - v16.2.0
+  - v14.18.0
+-->
+
+* `worker` {Worker} The {Worker} that was created.
+
+The `'worker'` event is emitted after a new {Worker} thread has been created.
 
 ### Signal events
 
