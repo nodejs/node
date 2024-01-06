@@ -19,8 +19,8 @@ class Session;
 class TLSContext;
 
 // Every QUIC Session has exactly one TLSSession that maintains the state
-// of the TLS handshake and negotiated cipher keys after the handshake has
-// been completed. It is separated out from the main Session class only as a
+// of the TLS handshake and negotiated keys after the handshake has been
+// completed. It is separated out from the main Session class only as a
 // convenience to help make the code more maintainable and understandable.
 // A TLSSession is created from a TLSContext and maintains a reference to
 // the context.
@@ -143,7 +143,8 @@ class TLSContext final : public MemoryRetainer,
     bool enable_tls_trace = false;
 
     // When true, causes the private key passed in for the session to be
-    // verified. JavaScript option name "verifyPrivateKey"
+    // verified.
+    // JavaScript option name "verifyPrivateKey"
     bool verify_private_key = false;
 
     // The TLS private key(s) to use for this session.

@@ -175,8 +175,8 @@ QuicError::QuicError(const ngtcp2_ccerr& error)
       ptr_(&error_) {}
 
 QuicError::operator bool() const {
-  if ((code() == QUIC_NO_ERROR && type() == Type::TRANSPORT) ||
-      ((code() == QUIC_APP_NO_ERROR && type() == Type::APPLICATION))) {
+  if ((code() == NO_ERROR && type() == Type::TRANSPORT) ||
+      ((code() == APP_NO_ERROR && type() == Type::APPLICATION))) {
     return false;
   }
   return true;
@@ -200,7 +200,7 @@ QuicError::Type QuicError::type() const {
   return static_cast<Type>(ptr_->type);
 }
 
-QuicError::error_code QuicError::code() const {
+error_code QuicError::code() const {
   return ptr_->error_code;
 }
 
@@ -220,6 +220,14 @@ QuicError::operator const ngtcp2_ccerr*() const {
   return ptr_;
 }
 
+std::string QuicError::reason_for_liberr(int liberr) {
+  return ngtcp2_strerror(liberr);
+}
+
+std::string QuicError::reason_for_h3_liberr(int liberr) {
+  return nghttp3_strerror(liberr);
+}
+
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   Local<Value> argv[] = {
       Integer::New(env->isolate(), static_cast<int>(type())),
@@ -231,6 +239,7 @@ MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
       !node::ToV8Value(env->context(), reason()).ToLocal(&argv[2])) {
     return MaybeLocal<Value>();
   }
+
   return Array::New(env->isolate(), argv, arraysize(argv)).As<Value>();
 }
 
@@ -289,9 +298,9 @@ QuicError QuicError::FromConnectionClose(ngtcp2_conn* session) {
 }
 
 QuicError QuicError::TRANSPORT_NO_ERROR =
-    QuicError::ForTransport(QuicError::QUIC_NO_ERROR);
+    QuicError::ForTransport(QuicError::NO_ERROR);
 QuicError QuicError::APPLICATION_NO_ERROR =
-    QuicError::ForApplication(QuicError::QUIC_APP_NO_ERROR);
+    QuicError::ForApplication(QuicError::APP_NO_ERROR);
 QuicError QuicError::VERSION_NEGOTIATION = QuicError::ForVersionNegotiation();
 QuicError QuicError::IDLE_CLOSE = QuicError::ForIdleClose();
 QuicError QuicError::INTERNAL_ERROR =

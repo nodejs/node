@@ -1,6 +1,5 @@
 #pragma once
 
-#include <string>
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -11,6 +10,8 @@
 #include <node_internals.h>
 #include <node_sockaddr.h>
 #include <v8.h>
+#include <string>
+#include "defs.h"
 
 namespace node {
 namespace quic {
@@ -73,10 +74,8 @@ class Store final : public MemoryRetainer {
 
 class QuicError final : public MemoryRetainer {
  public:
-  using error_code = uint64_t;
-
-  static constexpr error_code QUIC_NO_ERROR = NGTCP2_NO_ERROR;
-  static constexpr error_code QUIC_APP_NO_ERROR = 65280;
+  static constexpr error_code NO_ERROR = NGTCP2_NO_ERROR;
+  static constexpr error_code APP_NO_ERROR = 65280;
 
   enum class Type {
     TRANSPORT = NGTCP2_CCERR_TYPE_TRANSPORT,
@@ -84,11 +83,6 @@ class QuicError final : public MemoryRetainer {
     VERSION_NEGOTIATION = NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION,
     IDLE_CLOSE = NGTCP2_CCERR_TYPE_IDLE_CLOSE,
   };
-
-  static constexpr error_code QUIC_ERROR_TYPE_TRANSPORT =
-      NGTCP2_CCERR_TYPE_TRANSPORT;
-  static constexpr error_code QUIC_ERROR_TYPE_APPLICATION =
-      NGTCP2_CCERR_TYPE_APPLICATION;
 
   explicit QuicError(const std::string_view reason = "");
   explicit QuicError(const ngtcp2_ccerr* ptr);
@@ -115,6 +109,9 @@ class QuicError final : public MemoryRetainer {
 
   std::string ToString() const;
   v8::MaybeLocal<v8::Value> ToV8Value(Environment* env) const;
+
+  static std::string reason_for_liberr(int liberr);
+  static std::string reason_for_h3_liberr(int liberr);
 
   static QuicError ForTransport(error_code code,
                                 const std::string_view reason = "");

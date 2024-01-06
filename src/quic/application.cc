@@ -1,4 +1,3 @@
-#include "ngtcp2/ngtcp2.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "application.h"
@@ -6,6 +5,7 @@
 #include <debug_utils-inl.h>
 #include <node_bob.h>
 #include <node_sockaddr-inl.h>
+#include <ngtcp2/ngtcp2.h>
 #include <uv.h>
 #include <v8.h>
 #include "defs.h"
