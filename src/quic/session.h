@@ -1,7 +1,5 @@
 #pragma once
 
-#include <sys/types.h>
-#include "quic/tokens.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 

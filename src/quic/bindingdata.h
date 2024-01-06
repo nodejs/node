@@ -12,70 +12,15 @@
 #include <node.h>
 #include <node_mem.h>
 #include <v8.h>
-#include <limits>
 #include <unordered_map>
 #include <vector>
+#include "defs.h"
 
 namespace node {
 namespace quic {
 
 class Endpoint;
 class Packet;
-
-enum class Side {
-  CLIENT,
-  SERVER,
-};
-
-enum class EndpointLabel {
-  LOCAL,
-  REMOTE,
-};
-
-enum class Direction {
-  BIDIRECTIONAL,
-  UNIDIRECTIONAL,
-};
-
-enum class HeadersKind {
-  HINTS,
-  INITIAL,
-  TRAILING,
-};
-
-enum class HeadersFlags {
-  NONE,
-  TERMINAL,
-};
-
-enum class StreamPriority {
-  DEFAULT = NGHTTP3_DEFAULT_URGENCY,
-  LOW = NGHTTP3_URGENCY_LOW,
-  HIGH = NGHTTP3_URGENCY_HIGH,
-};
-
-enum class StreamPriorityFlags {
-  NONE,
-  NON_INCREMENTAL,
-};
-
-enum class PathValidationResult : uint8_t {
-  SUCCESS = NGTCP2_PATH_VALIDATION_RESULT_SUCCESS,
-  FAILURE = NGTCP2_PATH_VALIDATION_RESULT_FAILURE,
-  ABORTED = NGTCP2_PATH_VALIDATION_RESULT_ABORTED,
-};
-
-enum class DatagramStatus {
-  ACKNOWLEDGED,
-  LOST,
-};
-
-constexpr uint64_t NGTCP2_APP_NOERROR = 65280;
-constexpr size_t kDefaultMaxPacketLength = NGTCP2_MAX_UDP_PAYLOAD_SIZE;
-constexpr size_t kMaxSizeT = std::numeric_limits<size_t>::max();
-constexpr uint64_t kMaxSafeJsInteger = 9007199254740991;
-constexpr auto kSocketAddressInfoTimeout = 60 * NGTCP2_SECONDS;
-constexpr size_t kMaxVectorCount = 16;
 
 // ============================================================================
 
@@ -208,6 +153,7 @@ class BindingData final
   static BindingData& Get(Environment* env);
 
   BindingData(Realm* realm, v8::Local<v8::Object> object);
+  DISALLOW_COPY_AND_MOVE(BindingData)
 
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_MEMORY_INFO_NAME(BindingData)
@@ -287,6 +233,7 @@ void IllegalConstructor(const v8::FunctionCallbackInfo<v8::Value>& args);
 struct NgTcp2CallbackScope {
   Environment* env;
   explicit NgTcp2CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgTcp2CallbackScope)
   ~NgTcp2CallbackScope();
   static bool in_ngtcp2_callback(Environment* env);
 };
@@ -294,6 +241,7 @@ struct NgTcp2CallbackScope {
 struct NgHttp3CallbackScope {
   Environment* env;
   explicit NgHttp3CallbackScope(Environment* env);
+  DISALLOW_COPY_AND_MOVE(NgHttp3CallbackScope)
   ~NgHttp3CallbackScope();
   static bool in_nghttp3_callback(Environment* env);
 };
@@ -304,10 +252,7 @@ struct CallbackScopeBase {
   v8::TryCatch try_catch;
 
   explicit CallbackScopeBase(Environment* env);
-  CallbackScopeBase(const CallbackScopeBase&) = delete;
-  CallbackScopeBase(CallbackScopeBase&&) = delete;
-  CallbackScopeBase& operator=(const CallbackScopeBase&) = delete;
-  CallbackScopeBase& operator=(CallbackScopeBase&&) = delete;
+  DISALLOW_COPY_AND_MOVE(CallbackScopeBase)
   ~CallbackScopeBase();
 };
 
@@ -318,6 +263,7 @@ struct CallbackScope final : public CallbackScopeBase {
   BaseObjectPtr<T> ref;
   explicit CallbackScope(const T* ptr)
       : CallbackScopeBase(ptr->env()), ref(ptr) {}
+  DISALLOW_COPY_AND_MOVE(CallbackScope)
   explicit CallbackScope(T* ptr) : CallbackScopeBase(ptr->env()), ref(ptr) {}
 };
 

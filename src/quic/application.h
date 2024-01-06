@@ -1,9 +1,11 @@
 #pragma once
 
+#include "quic/defs.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "bindingdata.h"
+#include "defs.h"
 #include "session.h"
 #include "sessionticket.h"
 #include "streams.h"
@@ -18,10 +20,7 @@ class Session::Application : public MemoryRetainer {
   using Options = Session::Application_Options;
 
   Application(Session* session, const Options& options);
-  Application(const Application&) = delete;
-  Application(Application&&) = delete;
-  Application& operator=(const Application&) = delete;
-  Application& operator=(Application&&) = delete;
+  DISALLOW_COPY_AND_MOVE(Application)
 
   virtual bool Start();
 
