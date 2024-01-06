@@ -1,3 +1,4 @@
+#include "nghttp3/nghttp3.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "data.h"
@@ -160,7 +161,7 @@ std::string TypeName(QuicError::Type type) {
 }
 }  // namespace
 
-QuicError::QuicError(const std::string_view reason)
+QuicError::QuicError(const std::string& reason)
     : reason_(reason), error_(), ptr_(&error_) {
   ngtcp2_ccerr_default(&error_);
 }
@@ -228,6 +229,31 @@ std::string QuicError::reason_for_h3_liberr(int liberr) {
   return nghttp3_strerror(liberr);
 }
 
+bool QuicError::is_fatal_liberror(int liberr) {
+  return ngtcp2_err_is_fatal(liberr) != 0;
+}
+
+bool QuicError::is_fatal_h3_liberror(int liberr) {
+  return nghttp3_err_is_fatal(liberr) != 0;
+}
+
+error_code QuicError::liberr_to_code(int liberr) {
+  return ngtcp2_err_infer_quic_transport_error_code(liberr);
+}
+
+error_code QuicError::h3_liberr_to_code(int liberr) {
+  return nghttp3_err_infer_quic_app_error_code(liberr);
+}
+
+bool QuicError::is_crypto() const {
+  return code() & NGTCP2_CRYPTO_ERROR;
+}
+
+std::optional<int> QuicError::crypto_error() const {
+  if (!is_crypto()) return std::nullopt;
+  return code() & ~NGTCP2_CRYPTO_ERROR;
+}
+
 MaybeLocal<Value> QuicError::ToV8Value(Environment* env) const {
   Local<Value> argv[] = {
       Integer::New(env->isolate(), static_cast<int>(type())),
@@ -256,38 +282,38 @@ void QuicError::MemoryInfo(MemoryTracker* tracker) const {
 }
 
 QuicError QuicError::ForTransport(error_code code,
-                                  const std::string_view reason) {
-  QuicError error(reason);
+                                  std::string reason) {
+  QuicError error(std::move(reason));
   ngtcp2_ccerr_set_transport_error(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
 QuicError QuicError::ForApplication(error_code code,
-                                    const std::string_view reason) {
-  QuicError error(reason);
+                                    std::string reason) {
+  QuicError error(std::move(reason));
   ngtcp2_ccerr_set_application_error(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForVersionNegotiation(const std::string_view reason) {
-  return ForNgtcp2Error(NGTCP2_ERR_RECV_VERSION_NEGOTIATION, reason);
+QuicError QuicError::ForVersionNegotiation(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_RECV_VERSION_NEGOTIATION, std::move(reason));
 }
 
-QuicError QuicError::ForIdleClose(const std::string_view reason) {
-  return ForNgtcp2Error(NGTCP2_ERR_IDLE_CLOSE, reason);
+QuicError QuicError::ForIdleClose(std::string reason) {
+  return ForNgtcp2Error(NGTCP2_ERR_IDLE_CLOSE, std::move(reason));
 }
 
-QuicError QuicError::ForNgtcp2Error(int code, const std::string_view reason) {
-  QuicError error(reason);
+QuicError QuicError::ForNgtcp2Error(int code, std::string reason) {
+  QuicError error(std::move(reason));
   ngtcp2_ccerr_set_liberr(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForTlsAlert(int code, const std::string_view reason) {
-  QuicError error(reason);
+QuicError QuicError::ForTlsAlert(int code, std::string reason) {
+  QuicError error(std::move(reason));
   ngtcp2_ccerr_set_tls_alert(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;

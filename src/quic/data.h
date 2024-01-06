@@ -84,7 +84,7 @@ class QuicError final : public MemoryRetainer {
     IDLE_CLOSE = NGTCP2_CCERR_TYPE_IDLE_CLOSE,
   };
 
-  explicit QuicError(const std::string_view reason = "");
+  explicit QuicError(const std::string& reason = "");
   explicit QuicError(const ngtcp2_ccerr* ptr);
   explicit QuicError(const ngtcp2_ccerr& error);
 
@@ -100,6 +100,9 @@ class QuicError final : public MemoryRetainer {
   // transport or application.
   operator bool() const;
 
+  bool is_crypto() const;
+  std::optional<int> crypto_error() const;
+
   bool operator==(const QuicError& other) const;
   bool operator!=(const QuicError& other) const;
 
@@ -112,15 +115,19 @@ class QuicError final : public MemoryRetainer {
 
   static std::string reason_for_liberr(int liberr);
   static std::string reason_for_h3_liberr(int liberr);
+  static bool is_fatal_liberror(int liberr);
+  static bool is_fatal_h3_liberror(int liberr);
+  static error_code liberr_to_code(int liberr);
+  static error_code h3_liberr_to_code(int liberr);
 
   static QuicError ForTransport(error_code code,
-                                const std::string_view reason = "");
+                                std::string reason = "");
   static QuicError ForApplication(error_code code,
-                                  const std::string_view reason = "");
-  static QuicError ForVersionNegotiation(const std::string_view reason = "");
-  static QuicError ForIdleClose(const std::string_view reason = "");
-  static QuicError ForNgtcp2Error(int code, const std::string_view reason = "");
-  static QuicError ForTlsAlert(int code, const std::string_view reason = "");
+                                  std::string reason = "");
+  static QuicError ForVersionNegotiation(std::string reason = "");
+  static QuicError ForIdleClose(std::string reason = "");
+  static QuicError ForNgtcp2Error(int code, std::string reason = "");
+  static QuicError ForTlsAlert(int code, std::string reason = "");
 
   static QuicError FromConnectionClose(ngtcp2_conn* session);
 
