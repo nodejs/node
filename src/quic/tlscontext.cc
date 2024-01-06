@@ -21,7 +21,6 @@
 namespace node {
 
 using v8::ArrayBuffer;
-using v8::BackingStore;
 using v8::Just;
 using v8::Local;
 using v8::Maybe;
@@ -206,7 +205,8 @@ int TLSContext::OnNewSession(SSL* ssl, SSL_SESSION* sess) {
 
   // If there is nothing listening for the session ticket, do not bother.
   if (session.wants_session_ticket()) {
-    Debug(&session, "Preparing TLS session resumption ticket");;
+    Debug(&session, "Preparing TLS session resumption ticket");
+
     // Pre-fight to see how much space we need to allocate for the session
     // ticket.
     size_t size = i2d_SSL_SESSION(sess, nullptr);
@@ -318,10 +318,11 @@ crypto::SSLCtxPointer TLSContext::Initialize() {
           crypto::BIOPointer bio = crypto::NodeBIO::NewFixed(buf.base, buf.len);
           CHECK(bio);
           X509_STORE* cert_store = SSL_CTX_get_cert_store(ctx.get());
-          while (
-              crypto::X509Pointer x509 =
-                  crypto::X509Pointer(PEM_read_bio_X509_AUX(
-                      bio.get(), nullptr, crypto::NoPasswordCallback, nullptr))) {
+          while (crypto::X509Pointer x509 = crypto::X509Pointer(
+                     PEM_read_bio_X509_AUX(bio.get(),
+                                           nullptr,
+                                           crypto::NoPasswordCallback,
+                                           nullptr))) {
             if (cert_store == crypto::GetOrCreateRootCertStore()) {
               cert_store = crypto::NewRootCertStore();
               SSL_CTX_set_cert_store(ctx.get(), cert_store);

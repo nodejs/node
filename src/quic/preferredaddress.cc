@@ -146,9 +146,11 @@ Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
     return Just(PreferredAddress::Policy::USE);
   }
   if (value->IsUint32()) {
-    switch(value.As<Uint32>()->Value()) {
-      case PREFERRED_ADDRESS_IGNORE: return Just(Policy::IGNORE);
-      case PREFERRED_ADDRESS_USE: return Just(Policy::USE);
+    switch (value.As<Uint32>()->Value()) {
+      case PREFERRED_ADDRESS_IGNORE:
+        return Just(Policy::IGNORE);
+      case PREFERRED_ADDRESS_USE:
+        return Just(Policy::USE);
     }
   }
   THROW_ERR_INVALID_ARG_VALUE(env, "invalid preferred address policy");

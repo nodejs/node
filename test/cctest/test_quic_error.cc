@@ -1,7 +1,7 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#include <env-inl.h>
 #include <gtest/gtest.h>
 #include <quic/data.h>
-#include <env-inl.h>
 #include <util-inl.h>
 #include <string>
 
@@ -69,7 +69,8 @@ TEST(QuicError, NoError) {
 
 TEST(QuicError, ApplicationNoError) {
   CHECK_EQ(QuicError::APPLICATION_NO_ERROR.code(), QuicError::APP_NO_ERROR);
-  CHECK_EQ(QuicError::APPLICATION_NO_ERROR.type(), QuicError::Type::APPLICATION);
+  CHECK_EQ(QuicError::APPLICATION_NO_ERROR.type(),
+           QuicError::Type::APPLICATION);
   CHECK_EQ(QuicError::APPLICATION_NO_ERROR.reason(), "");
 
   auto err = QuicError::ForApplication(QuicError::APP_NO_ERROR, "a reason");
@@ -81,7 +82,8 @@ TEST(QuicError, ApplicationNoError) {
 
 TEST(QuicError, VersionNegotiation) {
   CHECK_EQ(QuicError::VERSION_NEGOTIATION.code(), 0);
-  CHECK_EQ(QuicError::VERSION_NEGOTIATION.type(), QuicError::Type::VERSION_NEGOTIATION);
+  CHECK_EQ(QuicError::VERSION_NEGOTIATION.type(),
+           QuicError::Type::VERSION_NEGOTIATION);
   CHECK_EQ(QuicError::VERSION_NEGOTIATION.reason(), "");
 
   auto err = QuicError::ForVersionNegotiation("a reason");

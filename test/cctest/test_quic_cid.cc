@@ -1,9 +1,9 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
+#include <env-inl.h>
 #include <gtest/gtest.h>
 #include <ngtcp2/ngtcp2.h>
 #include <quic/cid.h>
 #include <util-inl.h>
-#include <env-inl.h>
 #include <string>
 #include <unordered_map>
 

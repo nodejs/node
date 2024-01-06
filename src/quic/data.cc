@@ -1,4 +1,3 @@
-#include "nghttp3/nghttp3.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "data.h"
@@ -48,7 +47,9 @@ std::string Path::ToString() const {
   return res;
 }
 
-PathStorage::PathStorage() { Reset(); }
+PathStorage::PathStorage() {
+  Reset();
+}
 PathStorage::operator ngtcp2_path() {
   return path;
 }
@@ -281,16 +282,14 @@ void QuicError::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("reason", reason_.length());
 }
 
-QuicError QuicError::ForTransport(error_code code,
-                                  std::string reason) {
+QuicError QuicError::ForTransport(error_code code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_transport_error(
       &error.error_, code, error.reason_c_str(), reason.length());
   return error;
 }
 
-QuicError QuicError::ForApplication(error_code code,
-                                    std::string reason) {
+QuicError QuicError::ForApplication(error_code code, std::string reason) {
   QuicError error(std::move(reason));
   ngtcp2_ccerr_set_application_error(
       &error.error_, code, error.reason_c_str(), reason.length());

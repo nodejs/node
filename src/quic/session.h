@@ -205,17 +205,18 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
   static void InitPerContext(Realm* env, v8::Local<v8::Object> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 
-  static BaseObjectPtr<Session> Create(Endpoint* endpoint,
-                                       const Config& config,
-                                       TLSContext* tls_context,
-                                       std::optional<SessionTicket>& ticket);
+  static BaseObjectPtr<Session> Create(
+      Endpoint* endpoint,
+      const Config& config,
+      TLSContext* tls_context,
+      const std::optional<SessionTicket>& ticket);
 
   // Really should be private but MakeDetachedBaseObject needs visibility.
   Session(Endpoint* endpoint,
           v8::Local<v8::Object> object,
           const Config& config,
           TLSContext* tls_context,
-          std::optional<SessionTicket>& ticket);
+          const std::optional<SessionTicket>& ticket);
   ~Session() override;
 
   uint32_t version() const;
@@ -289,7 +290,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     Session* session;
     explicit SendPendingDataScope(Session* session);
     explicit SendPendingDataScope(const BaseObjectPtr<Session>& session);
-    DISALLOW_COPY_AND_MOVE(SendPendingDataScope);
+    DISALLOW_COPY_AND_MOVE(SendPendingDataScope)
     ~SendPendingDataScope();
   };
 

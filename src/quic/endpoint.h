@@ -38,8 +38,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
   static constexpr uint64_t DEFAULT_MAX_STATELESS_RESETS = 10;
   static constexpr uint64_t DEFAULT_MAX_RETRY_LIMIT = 10;
 
-#define V(name, _)                                                             \
-  static constexpr auto CC_ALGO_##name = NGTCP2_CC_ALGO_##name;
+#define V(name, _) static constexpr auto CC_ALGO_##name = NGTCP2_CC_ALGO_##name;
   ENDPOINT_CC(V)
 #undef V
 
