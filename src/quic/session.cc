@@ -231,7 +231,7 @@ bool SetOption(Environment* env,
                const v8::Local<String>& name) {
   Local<Value> value;
   PreferredAddress::Policy policy =
-      PreferredAddress::Policy::USE_PREFERRED_ADDRESS;
+      PreferredAddress::Policy::USE;
   if (!object->Get(env->context(), name).ToLocal(&value) ||
       !PreferredAddress::tryGetPolicy(env, value).To(&policy)) {
     return false;
@@ -454,9 +454,9 @@ std::string Session::Options::ToString() const {
 
   auto policy = ([&] {
     switch (preferred_address_strategy) {
-      case PreferredAddress::Policy::USE_PREFERRED_ADDRESS:
+      case PreferredAddress::Policy::USE:
         return "use";
-      case PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS:
+      case PreferredAddress::Policy::IGNORE:
         return "ignore";
     }
     return "<unknown>";
@@ -1467,7 +1467,7 @@ void Session::HandshakeConfirmed() {
 
 void Session::SelectPreferredAddress(PreferredAddress* preferredAddress) {
   if (config_.options.preferred_address_strategy ==
-      PreferredAddress::Policy::IGNORE_PREFERRED_ADDRESS) {
+      PreferredAddress::Policy::IGNORE) {
     Debug(this, "Ignoring preferred address");
     return;
   }
