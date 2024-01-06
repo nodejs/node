@@ -289,10 +289,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     Session* session;
     explicit SendPendingDataScope(Session* session);
     explicit SendPendingDataScope(const BaseObjectPtr<Session>& session);
-    SendPendingDataScope(const SendPendingDataScope&) = delete;
-    SendPendingDataScope(SendPendingDataScope&&) = delete;
-    SendPendingDataScope& operator=(const SendPendingDataScope&) = delete;
-    SendPendingDataScope& operator=(SendPendingDataScope&&) = delete;
+    DISALLOW_COPY_AND_MOVE(SendPendingDataScope);
     ~SendPendingDataScope();
   };
 

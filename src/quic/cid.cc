@@ -1,3 +1,4 @@
+#include "quic/defs.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #include "cid.h"
 #include <crypto/crypto_util.h>
@@ -99,10 +100,7 @@ namespace {
 class RandomCIDFactory : public CID::Factory {
  public:
   RandomCIDFactory() = default;
-  RandomCIDFactory(const RandomCIDFactory&) = delete;
-  RandomCIDFactory(RandomCIDFactory&&) = delete;
-  RandomCIDFactory& operator=(const RandomCIDFactory&) = delete;
-  RandomCIDFactory& operator=(RandomCIDFactory&&) = delete;
+  DISALLOW_COPY_AND_MOVE(RandomCIDFactory)
 
   CID Generate(size_t length_hint) const override {
     DCHECK_GE(length_hint, CID::kMinLength);
