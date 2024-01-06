@@ -106,7 +106,7 @@ class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
     // By default a client session will use the preferred address advertised by
     // the the server. This option is only relevant for client sessions.
     PreferredAddress::Policy preferred_address_strategy =
-        PreferredAddress::Policy::USE_PREFERRED_ADDRESS;
+        PreferredAddress::Policy::USE;
 
     TransportParams::Options transport_params =
         TransportParams::Options::kDefault;
