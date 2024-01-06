@@ -120,10 +120,8 @@ class QuicError final : public MemoryRetainer {
   static error_code liberr_to_code(int liberr);
   static error_code h3_liberr_to_code(int liberr);
 
-  static QuicError ForTransport(error_code code,
-                                std::string reason = "");
-  static QuicError ForApplication(error_code code,
-                                  std::string reason = "");
+  static QuicError ForTransport(error_code code, std::string reason = "");
+  static QuicError ForApplication(error_code code, std::string reason = "");
   static QuicError ForVersionNegotiation(std::string reason = "");
   static QuicError ForIdleClose(std::string reason = "");
   static QuicError ForNgtcp2Error(int code, std::string reason = "");

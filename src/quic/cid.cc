@@ -1,10 +1,10 @@
-#include "quic/defs.h"
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #include "cid.h"
 #include <crypto/crypto_util.h>
 #include <memory_tracker-inl.h>
 #include <node_mutex.h>
 #include <string_bytes.h>
+#include "quic/defs.h"
 
 namespace node {
 namespace quic {

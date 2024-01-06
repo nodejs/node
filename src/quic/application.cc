@@ -3,9 +3,9 @@
 #include "application.h"
 #include <async_wrap-inl.h>
 #include <debug_utils-inl.h>
+#include <ngtcp2/ngtcp2.h>
 #include <node_bob.h>
 #include <node_sockaddr-inl.h>
-#include <ngtcp2/ngtcp2.h>
 #include <uv.h>
 #include <v8.h>
 #include "defs.h"
@@ -246,8 +246,7 @@ void Session::Application::SendPendingData() {
 
   // The maximum number of packets to send in this call to SendPendingData.
   const size_t max_packet_count = std::min(
-      kMaxPackets,
-      ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
+      kMaxPackets, ngtcp2_conn_get_send_quantum(*session_) / max_packet_size);
 
   // The number of packets that have been sent in this call to SendPendingData.
   size_t packet_send_count = 0;
@@ -295,11 +294,12 @@ void Session::Application::SendPendingData() {
     Debug(session_, "Application using stream data: %s", stream_data);
 
     // Awesome, let's write our packet!
-    ssize_t nwrite = WriteVStream(&path, pos, &ndatalen, max_packet_size, stream_data);
+    ssize_t nwrite =
+        WriteVStream(&path, pos, &ndatalen, max_packet_size, stream_data);
     Debug(session_, "Application accepted %zu bytes into packet", ndatalen);
 
-    // A negative nwrite value indicates either an error or that there is more data
-    // to write into the packet.
+    // A negative nwrite value indicates either an error or that there is more
+    // data to write into the packet.
     if (nwrite < 0) {
       switch (nwrite) {
         case NGTCP2_ERR_STREAM_DATA_BLOCKED: {
@@ -317,7 +317,8 @@ void Session::Application::SendPendingData() {
           // Indicates that the writable side of the stream should be closed
           // locally or the stream is being reset. In either case, we can't send
           // any stream data!
-          Debug(session_, "Stream %" PRIi64 " should be closed for writing",
+          Debug(session_,
+                "Stream %" PRIi64 " should be closed for writing",
                 stream_data.id);
           // ndatalen = -1 means that no stream data was accepted into the
           // packet, which is what we want here.
@@ -341,7 +342,8 @@ void Session::Application::SendPendingData() {
 
       // Some other type of error happened.
       DCHECK_EQ(ndatalen, -1);
-      Debug(session_, "Application encountered error while writing packet: %s",
+      Debug(session_,
+            "Application encountered error while writing packet: %s",
             ngtcp2_strerror(nwrite));
       session_->SetLastError(QuicError::ForNgtcp2Error(nwrite));
       packet->Done(UV_ECANCELED);
@@ -363,14 +365,16 @@ void Session::Application::SendPendingData() {
       size_t datalen = pos - begin;
       if (datalen) {
         Debug(session_, "Packet has %zu bytes to send", datalen);
-        // At least some data had been written into the packet. We should send it.
+        // At least some data had been written into the packet. We should send
+        // it.
         packet->Truncate(datalen);
         session_->Send(packet, path);
       } else {
         packet->Done(UV_ECANCELED);
       }
 
-      // If there was stream data selected, we should reschedule it to try sending again.
+      // If there was stream data selected, we should reschedule it to try
+      // sending again.
       if (stream_data.id >= 0) ResumeStream(stream_data.id);
 
       return session_->UpdatePacketTxTime();
@@ -403,18 +407,17 @@ ssize_t Session::Application::WriteVStream(PathStorage* path,
   uint32_t flags = NGTCP2_WRITE_STREAM_FLAG_MORE;
   if (stream_data.fin) flags |= NGTCP2_WRITE_STREAM_FLAG_FIN;
   ngtcp2_pkt_info pi;
-  return ngtcp2_conn_writev_stream(
-      *session_,
-      &path->path,
-      &pi,
-      dest,
-      max_packet_size,
-      ndatalen,
-      flags,
-      stream_data.id,
-      stream_data.buf,
-      stream_data.count,
-      uv_hrtime());
+  return ngtcp2_conn_writev_stream(*session_,
+                                   &path->path,
+                                   &pi,
+                                   dest,
+                                   max_packet_size,
+                                   ndatalen,
+                                   flags,
+                                   stream_data.id,
+                                   stream_data.buf,
+                                   stream_data.count,
+                                   uv_hrtime());
 }
 
 // The DefaultApplication is the default implementation of Session::Application

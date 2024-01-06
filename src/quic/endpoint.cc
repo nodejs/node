@@ -336,7 +336,9 @@ std::string Endpoint::Options::ToString() const {
 
   auto ccalg = ([&] {
     switch (cc_algorithm) {
-#define V(name, label) case NGTCP2_CC_ALGO_##name: return #label;
+#define V(name, label)                                                         \
+  case NGTCP2_CC_ALGO_##name:                                                  \
+    return #label;
       ENDPOINT_CC(V)
 #undef V
     }
@@ -615,7 +617,7 @@ void Endpoint::InitPerIsolate(IsolateData* data, Local<ObjectTemplate> target) {
 
 void Endpoint::InitPerContext(Realm* realm, Local<Object> target) {
 #define V(name, str)                                                           \
-  NODE_DEFINE_CONSTANT(target, CC_ALGO_##name);                           \
+  NODE_DEFINE_CONSTANT(target, CC_ALGO_##name);                                \
   NODE_DEFINE_STRING_CONSTANT(target, "CC_ALGO_" #name "_STR", #str);
   ENDPOINT_CC(V)
 #undef V

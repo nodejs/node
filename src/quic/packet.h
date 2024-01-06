@@ -77,7 +77,7 @@ class Packet final : public ReqWrap<uv_udp_send_t> {
          const SocketAddress& destination,
          std::shared_ptr<Data> data);
 
-  DISALLOW_COPY_AND_MOVE(Packet);
+  DISALLOW_COPY_AND_MOVE(Packet)
 
   const SocketAddress& destination() const;
   size_t length() const;

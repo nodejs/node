@@ -226,8 +226,7 @@ bool SetOption(Environment* env,
                const v8::Local<Object>& object,
                const v8::Local<String>& name) {
   Local<Value> value;
-  PreferredAddress::Policy policy =
-      PreferredAddress::Policy::USE;
+  PreferredAddress::Policy policy = PreferredAddress::Policy::USE;
   if (!object->Get(env->context(), name).ToLocal(&value) ||
       !PreferredAddress::tryGetPolicy(env, value).To(&policy)) {
     return false;
@@ -472,10 +471,11 @@ bool Session::HasInstance(Environment* env, Local<Value> value) {
   return GetConstructorTemplate(env)->HasInstance(value);
 }
 
-BaseObjectPtr<Session> Session::Create(Endpoint* endpoint,
-                                       const Config& config,
-                                       TLSContext* tls_context,
-                                       std::optional<SessionTicket>& ticket) {
+BaseObjectPtr<Session> Session::Create(
+    Endpoint* endpoint,
+    const Config& config,
+    TLSContext* tls_context,
+    const std::optional<SessionTicket>& ticket) {
   Local<Object> obj;
   if (!GetConstructorTemplate(endpoint->env())
            ->InstanceTemplate()
@@ -492,7 +492,7 @@ Session::Session(Endpoint* endpoint,
                  v8::Local<v8::Object> object,
                  const Config& config,
                  TLSContext* tls_context,
-                 std::optional<SessionTicket>& session_ticket)
+                 const std::optional<SessionTicket>& session_ticket)
     : AsyncWrap(endpoint->env(), object, AsyncWrap::PROVIDER_QUIC_SESSION),
       stats_(env()->isolate()),
       state_(env()->isolate()),
@@ -2027,8 +2027,8 @@ struct Session::Impl {
           to_string(level),
           session->config().dcid);
 
-    return session->application().Start() ?
-        NGTCP2_SUCCESS : NGTCP2_ERR_CALLBACK_FAILURE;
+    return session->application().Start() ? NGTCP2_SUCCESS
+                                          : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_stateless_reset(ngtcp2_conn* conn,
@@ -2085,8 +2085,8 @@ struct Session::Impl {
           "Receiving TX key for level %d for dcid %s",
           to_string(level),
           session->config().dcid);
-    return session->application().Start() ?
-        NGTCP2_SUCCESS : NGTCP2_ERR_CALLBACK_FAILURE;
+    return session->application().Start() ? NGTCP2_SUCCESS
+                                          : NGTCP2_ERR_CALLBACK_FAILURE;
   }
 
   static int on_receive_version_negotiation(ngtcp2_conn* conn,
