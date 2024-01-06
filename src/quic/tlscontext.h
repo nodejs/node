@@ -10,6 +10,7 @@
 #include <ngtcp2/ngtcp2_crypto.h>
 #include "bindingdata.h"
 #include "data.h"
+#include "defs.h"
 #include "sessionticket.h"
 
 namespace node {
@@ -33,10 +34,7 @@ class TLSSession final : public MemoryRetainer {
   TLSSession(Session* session,
              std::shared_ptr<TLSContext> context,
              const std::optional<SessionTicket>& maybeSessionTicket);
-  TLSSession(const TLSSession&) = delete;
-  TLSSession(TLSSession&&) = delete;
-  TLSSession& operator=(const TLSSession&) = delete;
-  TLSSession& operator=(TLSSession&&) = delete;
+  DISALLOW_COPY_AND_MOVE(TLSSession)
 
   inline operator bool() const { return ssl_ != nullptr; }
   inline Session& session() const { return *session_; }
@@ -182,10 +180,7 @@ class TLSContext final : public MemoryRetainer,
                                                   const Options& options);
 
   TLSContext(Environment* env, Side side, const Options& options);
-  TLSContext(const TLSContext&) = delete;
-  TLSContext(TLSContext&&) = delete;
-  TLSContext& operator=(const TLSContext&) = delete;
-  TLSContext& operator=(TLSContext&&) = delete;
+  DISALLOW_COPY_AND_MOVE(TLSContext)
 
   // Each QUIC Session has exactly one TLSSession. Each TLSSession maintains
   // a reference to the TLSContext used to create it.

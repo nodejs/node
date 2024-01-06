@@ -141,11 +141,7 @@ struct Session::MaybeCloseConnectionScope final {
           silent ? "yes" : "no");
     session->connection_close_depth_++;
   }
-  MaybeCloseConnectionScope(const MaybeCloseConnectionScope&) = delete;
-  MaybeCloseConnectionScope(MaybeCloseConnectionScope&&) = delete;
-  MaybeCloseConnectionScope& operator=(const MaybeCloseConnectionScope&) =
-      delete;
-  MaybeCloseConnectionScope& operator=(MaybeCloseConnectionScope&&) = delete;
+  DISALLOW_COPY_AND_MOVE(MaybeCloseConnectionScope)
   ~MaybeCloseConnectionScope() {
     // We only want to trigger the sending the connection close if ...
     // a) Silent is not explicitly true at this scope.

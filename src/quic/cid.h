@@ -5,6 +5,7 @@
 #include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
 #include <string>
+#include "defs.h"
 
 namespace node {
 namespace quic {
@@ -50,9 +51,8 @@ class CID final : public MemoryRetainer {
   explicit CID(const ngtcp2_cid* cid);
 
   CID(const CID& other);
-  CID(CID&& other) = delete;
-
   CID& operator=(const CID& other);
+  CID(CID&&) = delete;
 
   struct Hash final {
     size_t operator()(const CID& cid) const;

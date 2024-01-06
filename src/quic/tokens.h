@@ -8,6 +8,7 @@
 #include <node_internals.h>
 #include <node_sockaddr.h>
 #include "cid.h"
+#include "defs.h"
 
 namespace node {
 namespace quic {
@@ -35,8 +36,7 @@ class TokenSecret final : public MemoryRetainer {
 
   TokenSecret(const TokenSecret&) = default;
   TokenSecret& operator=(const TokenSecret&) = default;
-  TokenSecret(TokenSecret&&) = delete;
-  TokenSecret& operator=(TokenSecret&&) = delete;
+  DISALLOW_MOVE(TokenSecret)
 
   operator const uint8_t*() const;
   uint8_t operator[](int pos) const;
@@ -99,7 +99,7 @@ class StatelessResetToken final : public MemoryRetainer {
   explicit StatelessResetToken(const uint8_t* token);
 
   StatelessResetToken(const StatelessResetToken& other);
-  StatelessResetToken(StatelessResetToken&&) = delete;
+  DISALLOW_MOVE(StatelessResetToken)
 
   std::string ToString() const;
 
