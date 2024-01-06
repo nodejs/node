@@ -24,15 +24,14 @@ std::string NormalizeString(const std::string_view path,
   int lastSegmentLength = 0;
   int lastSlash = -1;
   int dots = 0;
-  char code;
-  const auto pathLen = path.size();
-  for (uint8_t i = 0; i <= pathLen; ++i) {
-    if (i < pathLen) {
+  char code = 0;
+  for (size_t i = 0; i <= path.size(); ++i) {
+    if (i < path.size()) {
       code = path[i];
-    } else if (IsPathSeparator(path[i])) {
+    } else if (IsPathSeparator(code)) {
       break;
     } else {
-      code = node::kPathSeparator;
+      code = '/';
     }
 
     if (IsPathSeparator(code)) {
