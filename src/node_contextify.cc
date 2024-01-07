@@ -489,6 +489,7 @@ bool ContextifyContext::IsStillInitializing(const ContextifyContext* ctx) {
 void ContextifyContext::PropertyGetterCallback(
     Local<Name> property,
     const PropertyCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
   ContextifyContext* ctx = ContextifyContext::Get(args);
 
   // Still initializing
@@ -496,6 +497,8 @@ void ContextifyContext::PropertyGetterCallback(
 
   Local<Context> context = ctx->context();
   Local<Object> sandbox = ctx->sandbox();
+
+  TryCatchScope try_catch(env);
   MaybeLocal<Value> maybe_rv =
       sandbox->GetRealNamedProperty(context, property);
   if (maybe_rv.IsEmpty()) {
@@ -505,6 +508,9 @@ void ContextifyContext::PropertyGetterCallback(
 
   Local<Value> rv;
   if (maybe_rv.ToLocal(&rv)) {
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      try_catch.ReThrow();
+    }
     if (rv == sandbox)
       rv = ctx->global_proxy();
 

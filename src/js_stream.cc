@@ -20,6 +20,7 @@ using v8::Int32;
 using v8::Isolate;
 using v8::Local;
 using v8::Object;
+using v8::TryCatch;
 using v8::Value;
 
 
@@ -169,6 +170,8 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
   const char* data = buffer.data();
   int len = buffer.length();
 
+  TryCatch try_catch(args.GetIsolate());
+
   // Repeatedly ask the stream's owner for memory, copy the data that we
   // just read from JS into those buffers and emit them as reads.
   while (len != 0) {
@@ -181,6 +184,10 @@ void JSStream::ReadBuffer(const FunctionCallbackInfo<Value>& args) {
     data += avail;
     len -= static_cast<int>(avail);
     wrap->EmitRead(avail, buf);
+  }
+
+  if (try_catch.HasCaught()) {
+    try_catch.ReThrow();
   }
 }
 
