@@ -9,22 +9,22 @@ using node::quic::QuicError;
 
 TEST(QuicError, NoError) {
   QuicError err;
-  CHECK_EQ(err.code(), QuicError::NO_ERROR);
+  CHECK_EQ(err.code(), QuicError::QUIC_NO_ERROR);
   CHECK_EQ(err.type(), QuicError::Type::TRANSPORT);
   CHECK_EQ(err.reason(), "");
   CHECK_EQ(err, QuicError::TRANSPORT_NO_ERROR);
   CHECK(!err);
 
   QuicError err2("a reason");
-  CHECK_EQ(err2.code(), QuicError::NO_ERROR);
+  CHECK_EQ(err2.code(), QuicError::QUIC_NO_ERROR);
   CHECK_EQ(err2.type(), QuicError::Type::TRANSPORT);
   CHECK_EQ(err2.reason(), "a reason");
 
   // Equality check ignores the reason
   CHECK_EQ(err2, QuicError::TRANSPORT_NO_ERROR);
 
-  auto err3 = QuicError::ForTransport(QuicError::NO_ERROR);
-  CHECK_EQ(err3.code(), QuicError::NO_ERROR);
+  auto err3 = QuicError::ForTransport(QuicError::QUIC_NO_ERROR);
+  CHECK_EQ(err3.code(), QuicError::QUIC_NO_ERROR);
   CHECK_EQ(err3.type(), QuicError::Type::TRANSPORT);
   CHECK_EQ(err3.reason(), "");
   CHECK_EQ(err3, QuicError::TRANSPORT_NO_ERROR);
@@ -68,13 +68,15 @@ TEST(QuicError, NoError) {
 }
 
 TEST(QuicError, ApplicationNoError) {
-  CHECK_EQ(QuicError::APPLICATION_NO_ERROR.code(), QuicError::APP_NO_ERROR);
+  CHECK_EQ(QuicError::APPLICATION_NO_ERROR.code(),
+           QuicError::QUIC_APP_NO_ERROR);
   CHECK_EQ(QuicError::APPLICATION_NO_ERROR.type(),
            QuicError::Type::APPLICATION);
   CHECK_EQ(QuicError::APPLICATION_NO_ERROR.reason(), "");
 
-  auto err = QuicError::ForApplication(QuicError::APP_NO_ERROR, "a reason");
-  CHECK_EQ(err.code(), QuicError::APP_NO_ERROR);
+  auto err =
+      QuicError::ForApplication(QuicError::QUIC_APP_NO_ERROR, "a reason");
+  CHECK_EQ(err.code(), QuicError::QUIC_APP_NO_ERROR);
   CHECK_EQ(err.type(), QuicError::Type::APPLICATION);
   CHECK_EQ(err.reason(), "a reason");
   CHECK_EQ(err.ToString(), "QuicError(APPLICATION) 65280: a reason");
