@@ -24,12 +24,10 @@ console.log(tag_name.replace('v', ''));
 EOF
 )"
 
-VERSION_HEX=$(grep "#define BROTLI_VERSION" ./deps/brotli/c/common/version.h | sed 's/.* //')
-
-major=$(( ($VERSION_HEX >> 24) & 0xff ))
-minor=$(( ($VERSION_HEX >> 12) & 0xfff ))
-patch=$(( $VERSION_HEX & 0xfff ))
-CURRENT_VERSION="${major}.${minor}.${patch}"
+CURRENT_MAJOR_VERSION=$(grep "#define BROTLI_VERSION_MAJOR" ./deps/brotli/c/common/version.h | sed -n "s/^.*MAJOR \(.*\)/\1/p")
+CURRENT_MINOR_VERSION=$(grep "#define BROTLI_VERSION_MINOR" ./deps/brotli/c/common/version.h | sed -n "s/^.*MINOR \(.*\)/\1/p")
+CURRENT_PATCH_VERSION=$(grep "#define BROTLI_VERSION_PATCH" ./deps/brotli/c/common/version.h | sed -n "s/^.*PATCH \(.*\)/\1/p")
+CURRENT_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_PATCH_VERSION"
 
 # This function exit with 0 if new version and current version are the same
 compare_dependency_version "brotli" "$NEW_VERSION" "$CURRENT_VERSION"
