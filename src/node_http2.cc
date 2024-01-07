@@ -227,7 +227,6 @@ size_t Http2Settings::Init(
 #define V(name) GRABSETTING(entries, count, name);
   HTTP2_SETTINGS(V)
 #undef V
-
   uint32_t numAddSettings = buffer[IDX_SETTINGS_COUNT + 1];
   if (numAddSettings > 0) {
     uint32_t offset = IDX_SETTINGS_COUNT + 1 + 1;
@@ -300,7 +299,7 @@ Local<Value> Http2Settings::Pack(
 
 // Updates the shared TypedArray with the current remote or local settings for
 // the session.
-void Http2Settings::Update(Http2Session* session, get_setting fn) {
+void Http2Settings::Update(Http2Session* session, get_setting fn, bool local) {
   AliasedUint32Array& buffer = session->http2_state()->settings_buffer;
 
 #define V(name)                                                                \
@@ -308,8 +307,37 @@ void Http2Settings::Update(Http2Session* session, get_setting fn) {
       fn(session->session(), NGHTTP2_SETTINGS_ ## name);
   HTTP2_SETTINGS(V)
 #undef V
-  buffer[IDX_SETTINGS_COUNT + 1] =
-      0;  // no additional settings are coming, clear them
+  struct Http2Session::custom_settings_state& custom_settings =
+      session->custom_settings(local);
+  uint32_t count = 0;
+  size_t imax = std::min(custom_settings.number, MAX_ADDITIONAL_SETTINGS);
+  for (size_t i = 0; i < imax; i++) {
+    // We flag unset the settings with a bit above the allowed range
+    if (!(custom_settings.entries[i].settings_id & (~0xffff))) {
+      uint32_t settings_id =
+          (uint32_t)(custom_settings.entries[i].settings_id & 0xffff);
+      size_t j = 0;
+      while (j < count) {
+        if ((buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 1] & 0xffff) ==
+            settings_id) {
+          buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 1] = settings_id;
+          buffer[IDX_SETTINGS_COUNT + 1 + j * 2 + 2] =
+              custom_settings.entries[i].value;
+          break;
+        }
+        j++;
+      }
+      if (j == count && count < MAX_ADDITIONAL_SETTINGS) {
+        buffer[IDX_SETTINGS_COUNT + 1 + count * 2 + 1] = settings_id;
+        buffer[IDX_SETTINGS_COUNT + 1 + count * 2 + 2] =
+            custom_settings.entries[i].value;
+        count++;
+      }
+    }
+    // Comment for code review,
+    // one might also set the javascript object with an undefined value
+  }
+  buffer[IDX_SETTINGS_COUNT + 1] = count;
 }
 
 // Initializes the shared TypedArray with the default settings values.
@@ -332,11 +360,42 @@ void Http2Settings::RefreshDefaults(Http2State* http2_state) {
 
 void Http2Settings::Send() {
   Http2Scope h2scope(session_.get());
+
+  // We have to update the local custom settings
+  session_->UpdateLocalCustomSettings(count_, &entries_[0]);
   CHECK_EQ(nghttp2_submit_settings(
       session_->session(),
       NGHTTP2_FLAG_NONE,
       &entries_[0],
       count_), 0);
+}
+
+void Http2Session::UpdateLocalCustomSettings(size_t count,
+                                             nghttp2_settings_entry* entries) {
+  size_t number = local_custom_settings_.number;
+  for (size_t i = 0; i < count; ++i) {
+    nghttp2_settings_entry& s_entry = entries[i];
+    if (s_entry.settings_id >= IDX_SETTINGS_COUNT) {
+      // look if already included
+      size_t j = 0;
+      while (j < number) {
+        nghttp2_settings_entry& d_entry = local_custom_settings_.entries[j];
+        if (d_entry.settings_id == s_entry.settings_id) {
+          d_entry.value = s_entry.value;
+          break;
+        }
+        j++;
+      }
+      if (j == number && number < MAX_ADDITIONAL_SETTINGS) {
+        nghttp2_settings_entry& d_entry =
+            local_custom_settings_.entries[number];
+        d_entry.settings_id = s_entry.settings_id;
+        d_entry.value = s_entry.value;
+        number++;
+      }
+    }
+  }
+  local_custom_settings_.number = number;
 }
 
 void Http2Settings::Done(bool ack) {
@@ -505,6 +564,11 @@ Http2Session::Http2Session(Http2State* http2_state,
   max_outstanding_pings_ = opts.max_outstanding_pings();
   max_outstanding_settings_ = opts.max_outstanding_settings();
 
+  local_custom_settings_.number = 0;
+  remote_custom_settings_.number = 0;
+  // now, import possible custom_settings
+  FetchAllowedRemoteCustomSettings();
+
   padding_strategy_ = opts.padding_strategy();
 
   bool hasGetPaddingCallback =
@@ -547,6 +611,24 @@ Http2Session::~Http2Session() {
   CHECK_EQ(current_nghttp2_memory_, 0);
 }
 
+void Http2Session::FetchAllowedRemoteCustomSettings() {
+  AliasedUint32Array& buffer = http2_state_->settings_buffer;
+  uint32_t numAddSettings = buffer[IDX_SETTINGS_COUNT + 1];
+  if (numAddSettings > 0) {
+    nghttp2_settings_entry* entries = remote_custom_settings_.entries;
+    uint32_t offset = IDX_SETTINGS_COUNT + 1 + 1;
+    size_t count = 0;
+    for (uint32_t i = 0; i < numAddSettings; i++) {
+      uint32_t key =
+          (buffer[offset + i * 2 + 0] & 0xffff) |
+          (1
+           << 16);  // setting the bit 16 indicates, that no values has been set
+      entries[count++] = nghttp2_settings_entry{(int32_t)key, 0};
+    }
+    remote_custom_settings_.number = count;
+  }
+}
+
 void Http2Session::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TrackField("streams", streams_);
   tracker->TrackField("outstanding_pings", outstanding_pings_);
@@ -561,12 +643,11 @@ void Http2Session::MemoryInfo(MemoryTracker* tracker) const {
 
 std::string Http2Session::diagnostic_name() const {
   return std::string("Http2Session ") + TypeName() + " (" +
-      std::to_string(static_cast<int64_t>(get_async_id())) + ")";
+         std::to_string(static_cast<int64_t>(get_async_id())) + ")";
 }
 
 MaybeLocal<Object> Http2StreamPerformanceEntryTraits::GetDetails(
-    Environment* env,
-    const Http2StreamPerformanceEntry& entry) {
+    Environment* env, const Http2StreamPerformanceEntry& entry) {
   Local<Object> obj = Object::New(env->isolate());
 
 #define SET(name, val)                                                         \
@@ -1554,6 +1635,26 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
   bool ack = frame->hd.flags & NGHTTP2_FLAG_ACK;
   if (!ack) {
     js_fields_->bitfield &= ~(1 << kSessionRemoteSettingsIsUpToDate);
+    // update additional settings
+    if (remote_custom_settings_.number > 0) {
+      nghttp2_settings_entry* iv = frame->settings.iv;
+      size_t niv = frame->settings.niv;
+      size_t numsettings = remote_custom_settings_.number;
+      for (size_t i = 0; i < niv; ++i) {
+        int32_t settings_id = iv[i].settings_id;
+        if (settings_id >=
+            IDX_SETTINGS_COUNT) {  // unsupported, additional settings
+          for (size_t j = 0; j < numsettings; ++j) {
+            if ((remote_custom_settings_.entries[j].settings_id & 0xFFFF) ==
+                settings_id) {
+              remote_custom_settings_.entries[j].settings_id = settings_id;
+              remote_custom_settings_.entries[j].value = iv[i].value;
+              break;
+            }
+          }
+        }
+      }
+    }
     if (!(js_fields_->bitfield & (1 << kSessionHasRemoteSettingsListeners)))
       return;
     // This is not a SETTINGS acknowledgement, notify and return
@@ -2620,11 +2721,11 @@ void Http2Session::SetLocalWindowSize(
 // A TypedArray instance is shared between C++ and JS land to contain the
 // SETTINGS (either remote or local). RefreshSettings updates the current
 // values established for each of the settings so those can be read in JS land.
-template <get_setting fn>
+template <get_setting fn, bool local>
 void Http2Session::RefreshSettings(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
-  Http2Settings::Update(session, fn);
+  Http2Settings::Update(session, fn, local);
   Debug(session, "settings refreshed for session");
 }
 
@@ -3290,12 +3391,13 @@ void Initialize(Local<Object> target,
       isolate,
       session,
       "localSettings",
-      Http2Session::RefreshSettings<nghttp2_session_get_local_settings>);
+      Http2Session::RefreshSettings<nghttp2_session_get_local_settings, true>);
   SetProtoMethod(
       isolate,
       session,
       "remoteSettings",
-      Http2Session::RefreshSettings<nghttp2_session_get_remote_settings>);
+      Http2Session::RefreshSettings<nghttp2_session_get_remote_settings,
+                                    false>);
   SetConstructorFunction(context, target, "Http2Session", session);
 
   Local<Object> constants = Object::New(isolate);

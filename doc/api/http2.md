@@ -2498,6 +2498,11 @@ changes:
     **Default:** `100`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
+  * `remoteCustomSettings` {Array} The array of integer values determines the
+    settings types, which are included in the `CustomSettings`-property of
+    the received remoteSettings. Please see the `CustomSettings`-property of
+    the `Http2Settings` object for more information,
+    on the allowed setting types.
   * `Http1IncomingMessage` {http.IncomingMessage} Specifies the
     `IncomingMessage` class to used for HTTP/1 fallback. Useful for extending
     the original `http.IncomingMessage`. **Default:** `http.IncomingMessage`.
@@ -2652,6 +2657,10 @@ changes:
     **Default:** `100`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
+  * `remoteCustomSettings` {Array} The array of integer values determines the
+    settings types, which are included in the `customSettings`-property of the
+    received remoteSettings. Please see the `customSettings`-property of the
+    `Http2Settings` object for more information, on the allowed setting types.
   * ...: Any [`tls.createServer()`][] options can be provided. For
     servers, the identity options (`pfx` or `key`/`cert`) are usually required.
   * `origins` {string\[]} An array of origin strings to send within an `ORIGIN`
@@ -2780,6 +2789,10 @@ changes:
     `'https:'`
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
+  * `remoteCustomSettings` {Array} The array of integer values determines the
+    settings types, which are included in the `CustomSettings`-property of the
+    received remoteSettings. Please see the `CustomSettings`-property of the
+    `Http2Settings` object for more information, on the allowed setting types.
   * `createConnection` {Function} An optional callback that receives the `URL`
     instance passed to `connect` and the `options` object, and returns any
     [`Duplex`][] stream that is to be used as the connection for this session.
@@ -3022,9 +3035,11 @@ properties.
   it should be greater than 6, although it is not an error.
   The values need to be unsigned integers in the range from 0 to 2^32-1.
   Currently, a maximum of up 10 custom settings is supported.
-  It is only supported for sending SETTINGS.
-  Custom settings are not supported for the functions retrieving remote and
-  local settings as nghttp2 does not pass unknown HTTP/2 settings to Node.js.
+  It is only supported for sending SETTINGS, or for receiving settings values
+  specified in the `remoteCustomSettings` options of the server or client
+  object. Do not mix the `customSettings`-mechanism for a settings id with
+  interfaces for the natively handled settings, in case a setting becomes
+  natively supported in a future node version.
 
 All additional properties on the settings object are ignored.
 
