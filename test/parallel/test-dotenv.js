@@ -76,3 +76,4 @@ assert.strictEqual(process.env.MULTI_SINGLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTR
 assert.strictEqual(process.env.MULTI_BACKTICKED, 'THIS\nIS\nA\n"MULTILINE\'S"\nSTRING');
 assert.strictEqual(process.env.MULTI_NOT_VALID_QUOTE, '"');
 assert.strictEqual(process.env.MULTI_NOT_VALID, 'THIS');
+assert.strictEqual(process.env.EXAMPLE, 'ignore export');
