@@ -74,8 +74,8 @@ class Store final : public MemoryRetainer {
 
 class QuicError final : public MemoryRetainer {
  public:
-  static constexpr error_code NO_ERROR = NGTCP2_NO_ERROR;
-  static constexpr error_code APP_NO_ERROR = 65280;
+  static constexpr error_code QUIC_NO_ERROR = NGTCP2_NO_ERROR;
+  static constexpr error_code QUIC_APP_NO_ERROR = 65280;
 
   enum class Type {
     TRANSPORT = NGTCP2_CCERR_TYPE_TRANSPORT,

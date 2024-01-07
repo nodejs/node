@@ -21,9 +21,9 @@ class PreferredAddress final {
  public:
   enum class Policy : uint32_t {
     // Ignore the server-advertised preferred address.
-    IGNORE,
+    IGNORE_PREFERRED,
     // Use the server-advertised preferred address.
-    USE,
+    USE_PREFERRED,
   };
 
   static v8::Maybe<Policy> tryGetPolicy(Environment* env,
@@ -32,11 +32,11 @@ class PreferredAddress final {
   // The QUIC_* constants are expected to be exported out to be used on
   // the JavaScript side of the API.
   static constexpr auto PREFERRED_ADDRESS_USE =
-      static_cast<uint32_t>(Policy::USE);
+      static_cast<uint32_t>(Policy::USE_PREFERRED);
   static constexpr auto PREFERRED_ADDRESS_IGNORE =
-      static_cast<uint32_t>(Policy::IGNORE);
+      static_cast<uint32_t>(Policy::IGNORE_PREFERRED);
   static constexpr auto DEFAULT_PREFERRED_ADDRESS_POLICY =
-      static_cast<uint32_t>(Policy::USE);
+      static_cast<uint32_t>(Policy::USE_PREFERRED);
 
   static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
