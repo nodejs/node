@@ -102,8 +102,8 @@ Local<Object> Dotenv::ToObject(Environment* env) {
 }
 
 void Dotenv::ParseContent(const std::string_view content) {
-  using std::string_view_literals::operator""sv;
-  auto lines = SplitString(content, "\n"sv);
+  std::string lines = std::string(content);
+  lines = std::regex_replace(lines, std::regex("\r\n?"), "\n");
 
   std::smatch match;
   while (std::regex_search(lines, match, LINE)) {
@@ -131,7 +131,6 @@ void Dotenv::ParseContent(const std::string_view content) {
     store_.insert_or_assign(std::string(key), value);
     lines = match.suffix();
   }
-
 }
 
 Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
@@ -151,7 +150,7 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
     uv_fs_req_cleanup(&close_req);
   });
 
-  std::string lines{};
+  std::string result{};
   char buffer[8192];
   uv_buf_t buf = uv_buf_init(buffer, sizeof(buffer));
 
@@ -165,11 +164,11 @@ Dotenv::ParseResult Dotenv::ParsePath(const std::string_view path) {
     if (r <= 0) {
       break;
     }
-    lines.append(buf.base, r);
+    result.append(buf.base, r);
   }
 
   ParseContent(result);
-  return true;
+  return ParseResult::Valid;
 }
 
 void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
@@ -180,9 +179,10 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
   }
 }
 
-std::string Dotenv::trim_quotes(std::string str) {
+std::string_view Dotenv::trim_quotes(std::string_view str) {
   static const std::unordered_set<char> quotes = {'"', '\'', '`'};
-  if (str.size() >= 2 && quotes.count(str[0]) && quotes.count(str.back())) {
+  if (str.size() >= 2 && quotes.count(str.front()) &&
+      quotes.count(str.back())) {
     str = str.substr(1, str.size() - 2);
   }
   return str;
