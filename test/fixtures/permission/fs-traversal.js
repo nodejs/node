@@ -6,9 +6,12 @@ const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
 
-// This should not affect how the permission model resolves paths.
 const { resolve } = path;
-path.resolve = (s) => s;
+// This should not affect how the permission model resolves paths.
+try {
+  path.resolve = (s) => s;
+  assert.fail('should not be called');
+} catch {}
 
 const blockedFolder = process.env.BLOCKEDFOLDER;
 const allowedFolder = process.env.ALLOWEDFOLDER;
@@ -93,6 +96,26 @@ const uint8ArrayTraversalPath = new TextEncoder().encode(traversalPath);
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemRead',
     resource: resolve(traversalPath),
+  }));
+}
+
+// Monkey-patching path module should also not allow path traversal.
+{
+  const fs = require('fs');
+  const path = require('path');
+
+  const cwd = Buffer.from('.');
+  try {
+    path.toNamespacedPath = (path) => { return traversalPath; };
+    assert.fail('should throw error when pacthing');
+  } catch { }
+
+  assert.throws(() => {
+    fs.readFile(cwd, common.mustNotCall());
+  }, common.expectsError({
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemRead',
+    resource: resolve(cwd.toString()),
   }));
 }
 
