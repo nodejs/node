@@ -4,7 +4,6 @@ const common = require('../common');
 const { mkdtempSync, watch, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { join } = require('node:path');
-const {platformTimeout} = require('../common');
 const tmpDir = mkdtempSync(join(tmpdir(), 'repro-test-'));
 const filename = join(tmpDir, 'test.file');
 const assert = require('assert');
