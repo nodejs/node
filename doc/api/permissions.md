@@ -178,7 +178,7 @@ different strings to point to the same module (such as excluding the extension).
 
 Specifier strings are canonicalized but not resolved prior to be used for
 matching in order to have some compatibility with import maps, for example if a
-resource `file:///C:/app/server.js` was given the following redirection from a
+resource `file:///C:/app/utils.js` was given the following redirection from a
 policy located at `file:///C:/app/policy.json`:
 
 ```json
@@ -303,15 +303,15 @@ delegate to the next relevant scope for `file:///C:/app/bin/main.js`, `"file:"`.
 
 This determines the policy for all file based resources within `"file:///C:/"`.
 This is not in the `"scopes"` field of the policy and would be skipped. It would
-not be used for `file:///C:/app/bin/main.js` unless `"file:///"` is set to
-cascade or is not in the `"scopes"` of the policy.
+not be used for `file:///C:/app/bin/main.js` unless `"file:///C:/app/"` is set
+to cascade or is not in the `"scopes"` of the policy.
 
 4. `"file:///"`
 
 This determines the policy for all file based resources on the `localhost`. This
 is not in the `"scopes"` field of the policy and would be skipped. It would not
-be used for `file:///C:/app/bin/main.js` unless `"file:///"` is set to cascade
-or is not in the `"scopes"` of the policy.
+be used for `file:///C:/app/bin/main.js` unless `"file:///C:/"` is set to
+cascade or is not in the `"scopes"` of the policy.
 
 5. `"file:"`
 
