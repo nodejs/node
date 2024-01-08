@@ -512,13 +512,6 @@ void FreeEnvironment(Environment* env) {
     RunAtExit(env);
   }
 
-  // This call needs to be made while the `Environment` is still alive
-  // because we assume that it is available for async tracking in the
-  // NodePlatform implementation.
-  MultiIsolatePlatform* platform = env->isolate_data()->platform();
-  if (platform != nullptr)
-    platform->DrainTasks(isolate);
-
   delete env;
 }
 
