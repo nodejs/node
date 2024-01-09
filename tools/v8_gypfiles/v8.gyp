@@ -1989,6 +1989,12 @@
           ]
         }],
       ],
+      # -Wno-invalid-offsetof flag is not valid for C.
+      # The flag is initially set in `toolchain.gypi` for all targets.
+      'cflags!': [ '-Wno-invalid-offsetof' ],
+      'xcode_settings': {
+        'WARNING_CFLAGS!': ['-Wno-invalid-offsetof']
+      },
       'direct_dependent_settings': {
         'include_dirs': [
           '<(V8_ROOT)/third_party/zlib',
