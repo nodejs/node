@@ -181,7 +181,7 @@
         }],
         [ 'OS not in "win android"', {
           'cflags': [
-            '--std=gnu89'
+            '--std=gnu11'
           ],
         }],
         [ 'OS=="linux"', {
