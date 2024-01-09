@@ -355,6 +355,13 @@ int llhttp__on_chunk_header(llhttp_t* s, const char* p, const char* endp) {
 }
 
 
+int llhttp__on_chunk_parameters(llhttp_t* s, const char* p, const char* endp) {
+  int err;
+  SPAN_CALLBACK_MAYBE(s, on_chunk_parameters, p, endp - p);
+  return err;
+}
+
+
 int llhttp__on_chunk_complete(llhttp_t* s, const char* p, const char* endp) {
   int err;
   CALLBACK_MAYBE(s, on_chunk_complete);

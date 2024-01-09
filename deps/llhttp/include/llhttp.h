@@ -2,8 +2,8 @@
 #define INCLUDE_LLHTTP_H_
 
 #define LLHTTP_VERSION_MAJOR 6
-#define LLHTTP_VERSION_MINOR 0
-#define LLHTTP_VERSION_PATCH 11
+#define LLHTTP_VERSION_MINOR 1
+#define LLHTTP_VERSION_PATCH 0
 
 #ifndef LLHTTP_STRICT_MODE
 # define LLHTTP_STRICT_MODE 0
@@ -347,6 +347,9 @@ struct llhttp_settings_s {
    * `HPE_PAUSED`
    */
   llhttp_cb      on_headers_complete;
+
+  /* Possible return values 0, -1, HPE_USER */
+  llhttp_data_cb on_chunk_parameters;
 
   /* Possible return values 0, -1, HPE_USER */
   llhttp_data_cb on_body;
