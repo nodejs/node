@@ -632,6 +632,7 @@ const builtins = [
     'Int32Array',
     'Int8Array',
     ...(common.hasIntl ? ['Intl'] : []),
+    'Iterator',
     'inspector',
     'isFinite',
     'isNaN',
