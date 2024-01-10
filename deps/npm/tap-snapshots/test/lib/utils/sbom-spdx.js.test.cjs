@@ -149,33 +149,33 @@ exports[`test/lib/utils/sbom-spdx.js TAP node - with deps > must match snapshot 
       "relationshipType": "DESCRIBES"
     },
     {
-      "spdxElementId": "SPDXRef-Package-root-1.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-dep1-0.0.1",
-      "relationshipType": "HAS_PREREQUISITE"
+      "spdxElementId": "SPDXRef-Package-dep1-0.0.1",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
+      "relationshipType": "PREREQUISITE_FOR"
     },
     {
-      "spdxElementId": "SPDXRef-Package-root-1.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-dep2-0.0.2",
+      "spdxElementId": "SPDXRef-Package-dep2-0.0.2",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
       "relationshipType": "OPTIONAL_DEPENDENCY_OF"
     },
     {
-      "spdxElementId": "SPDXRef-Package-root-1.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-dep3-0.0.3",
+      "spdxElementId": "SPDXRef-Package-dep3-0.0.3",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
       "relationshipType": "DEV_DEPENDENCY_OF"
     },
     {
-      "spdxElementId": "SPDXRef-Package-root-1.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-dep4-0.0.4",
-      "relationshipType": "DEPENDS_ON"
-    },
-    {
       "spdxElementId": "SPDXRef-Package-dep4-0.0.4",
-      "relatedSpdxElement": "SPDXRef-Package-dep5-0.0.5",
-      "relationshipType": "DEPENDS_ON"
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
+      "relationshipType": "DEPENDENCY_OF"
     },
     {
-      "spdxElementId": "SPDXRef-Package-root-1.0.0",
-      "relatedSpdxElement": "SPDXRef-Package-dep6-0.0.6",
+      "spdxElementId": "SPDXRef-Package-dep5-0.0.5",
+      "relatedSpdxElement": "SPDXRef-Package-dep4-0.0.4",
+      "relationshipType": "DEPENDENCY_OF"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-dep6-0.0.6",
+      "relatedSpdxElement": "SPDXRef-Package-root-1.0.0",
       "relationshipType": "OPTIONAL_DEPENDENCY_OF"
     }
   ]

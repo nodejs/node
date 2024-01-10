@@ -11,10 +11,10 @@ const SPDX_IDENTIFER = 'SPDXRef-DOCUMENT'
 const NO_ASSERTION = 'NOASSERTION'
 
 const REL_DESCRIBES = 'DESCRIBES'
-const REL_PREREQ = 'HAS_PREREQUISITE'
+const REL_PREREQ = 'PREREQUISITE_FOR'
 const REL_OPTIONAL = 'OPTIONAL_DEPENDENCY_OF'
 const REL_DEV = 'DEV_DEPENDENCY_OF'
-const REL_DEP = 'DEPENDS_ON'
+const REL_DEP = 'DEPENDENCY_OF'
 
 const REF_CAT_PACKAGE_MANAGER = 'PACKAGE-MANAGER'
 const REF_TYPE_PURL = 'purl'
@@ -147,8 +147,8 @@ const toSpdxRelationship = (node, edge) => {
   }
 
   return {
-    spdxElementId: toSpdxID(node),
-    relatedSpdxElement: toSpdxID(edge.to),
+    spdxElementId: toSpdxID(edge.to),
+    relatedSpdxElement: toSpdxID(node),
     relationshipType: type,
   }
 }
