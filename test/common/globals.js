@@ -63,6 +63,7 @@ const intrinsics = new Set([
   'SharedArrayBuffer',
   'Atomics',
   'WebAssembly',
+  'Iterator',
 ]);
 
 if (global.gc) {
