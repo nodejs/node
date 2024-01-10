@@ -1,0 +1,137 @@
+{
+  "dedicated-worker/eventsource-eventtarget.worker.js": {
+    "skip": "importScripts not supported"
+  },
+  "eventsource-constructor-stringify.window.js": {
+    "skip": "void"
+  },
+  "eventsource-constructor-document-domain.window.js": {
+    "skip": "void"
+  },
+  "eventsource-cross-origin.window.js": {
+    "skip": "void"
+  },
+  "eventsource-constructor-non-same-origin.window.js": {
+    "skip": "void"
+  },
+  "eventsource-reconnect.window.js": {
+    "skip": "void"
+  },
+  "eventsource-close.window.js": {
+    "skip": "void"
+  },
+  "event-data.any.js": {
+    "skip": "void"
+  },
+  "eventsource-constructor-empty-url.any.js": {
+    "skip": "void"
+  },
+  "eventsource-constructor-url-bogus.any.js": {
+    "skip": "void"
+  },
+  "eventsource-eventtarget.any.js": {
+    "skip": "void"
+  },
+  "eventsource-onmessage-trusted.any.js": {
+    "skip": "void"
+  },
+  "eventsource-onmessage.any.js": {
+    "skip": "void"
+  },
+  "eventsource-onopen.any.js": {
+    "skip": "void"
+  },
+  "eventsource-prototype.any.js": {
+    "skip": "void"
+  },
+  "eventsource-request-cancellation.any.window.js": {
+    "skip": "void"
+  },
+  "eventsource-url.any.js": {
+    "skip": "void"
+  },
+  "format-bom-2.any.js": {
+    "skip": "void"
+  },
+  "format-bom.any.js": {
+    "skip": "void"
+  },
+  "format-comments.any.js": {
+    "skip": "void"
+  },
+  "format-data-before-final-empty-line.any.js": {
+    "skip": "void"
+  },
+  "format-field-event-empty.any.js": {
+    "skip": "void"
+  },
+  "format-field-event.any.js": {
+    "skip": "void"
+  },
+  "format-field-id-null.window.js": {
+    "skip": "void"
+  },
+  "format-field-id-3.window.js": {
+    "skip": "void"
+  },
+  "format-field-id-2.any.js": {
+    "skip": "void"
+  },
+  "format-field-data.any.js": {
+    "skip": "void"
+  },
+  "format-field-parsing.any.js": {
+    "skip": "void"
+  },
+  "format-field-retry.any.js": {
+    "skip": "void"
+  },
+  "format-field-retry-bogus.any.js": {
+    "skip": "void"
+  },
+  "format-field-retry-empty.any.js": {
+    "skip": "void"
+  },
+  "format-field-id.any.js": {
+    "skip": "void"
+  },
+  "format-leading-space.any.js": {
+    "skip": "void"
+  },
+  "format-mime-bogus.any.js": {
+    "skip": "void"
+  },
+  "format-field-unknown.any.js": {
+    "skip": "void"
+  },
+  "format-mime-trailing-semicolon.any.js": {
+    "skip": "void"
+  },
+  "format-newlines.any.js": {
+    "skip": "void"
+  },
+  "format-mime-valid-bogus.any.js": {
+    "skip": "void"
+  },
+  "request-accept.any.js": {
+    "skip": "void"
+  },
+  "format-utf-8.any.js": {
+    "skip": "void"
+  },
+  "request-cache-control.any.js": {
+    "skip": "void"
+  },
+  "format-null-character.any.js": {
+    "skip": "void"
+  },
+  "request-redirect.any.window.js": {
+    "skip": "void"
+  },
+  "request-credentials.any.window.js": {
+    "skip": "void"
+  },
+  "request-status-error.window.js": {
+    "skip": "void"
+  }
+}

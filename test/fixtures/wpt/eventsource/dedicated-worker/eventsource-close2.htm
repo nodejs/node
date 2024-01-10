@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <head>
+    <title>dedicated worker - EventSource created after: worker.close()</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      var test = async_test();
+      test.step(function() {
+        var worker = new Worker('eventsource-close2.js')
+        worker.onmessage = function(e) {
+          test.step(function() {
+            assert_equals(e.data, EventSource.CONNECTING, 'this.readyState')
+          })
+          test.done()
+        }
+      })
+    </script>
+  </body>
+</html>

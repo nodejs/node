@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <title>shared worker - EventSource: url</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      var test = async_test();
+      test.step(function() {
+        var url = "resources/message.py"
+        var worker = new SharedWorker('eventsource-url.js')
+        worker.port.onmessage = function(e) {
+          test.step(function() {
+            assert_true(e.data[0], e.data[1]);
+            assert_equals(e.data[1].substr(-(url.length)), url)
+          })
+          test.done()
+        }
+      })
+    </script>
+  </body>
+</html>

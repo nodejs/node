@@ -1,0 +1,24 @@
+<!doctype html>
+<html>
+  <head>
+    <title>shared worker - EventSource: onmessage</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      var test = async_test()
+      test.step(function() {
+        var worker = new SharedWorker('eventsource-onmesage.js')
+        worker.port.onmessage = function(e) {
+          test.step(function() {
+            assert_true(e.data[0], e.data[1])
+            assert_equals(e.data[1], "data", 'e.data')
+          })
+          test.done()
+        }
+      })
+    </script>
+  </body>
+</html>

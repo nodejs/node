@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>shared worker - EventSource: constructor (act as if there is a network error)</title>
+    <meta name=timeout content=long>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      function fetchFail(url) {
+        var test = async_test(document.title + " (" + url + ")")
+        test.step(function() {
+          var worker = new SharedWorker('eventsource-constructor-non-same-origin.js#'+encodeURIComponent(url))
+          worker.port.onmessage = function(e) {
+            test.step(function() {
+              assert_true(e.data[0], e.data[1])
+              assert_equals(e.data[1], EventSource.CLOSED, 'source.readyState')
+              assert_false(e.data[2], "'data' in e");
+            })
+            test.done()
+          }
+        })
+      }
+      fetchFail("ftp://example.not")
+      fetchFail("about:blank")
+      fetchFail("mailto:whatwg@awesome.example")
+      fetchFail("javascript:alert('FAIL')")
+    </script>
+    <!-- This tests "fails the connection" as well as making sure a simple
+         event is dispatched and not a MessageEvent -->
+  </body>
+</html>

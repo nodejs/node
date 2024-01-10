@@ -308,6 +308,10 @@ if (global.gc) {
   knownGlobals.push(global.gc);
 }
 
+if (global.EventSource) {
+  knownGlobals.push(global.EventSource);
+}
+
 if (global.navigator) {
   knownGlobals.push(global.navigator);
 }

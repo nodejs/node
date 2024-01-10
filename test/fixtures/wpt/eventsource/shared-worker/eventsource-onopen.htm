@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+  <head>
+    <title>shared worker - EventSource: onopen (announcing the connection)</title>
+    <script src="/resources/testharness.js"></script>
+    <script src="/resources/testharnessreport.js"></script>
+  </head>
+  <body>
+    <div id="log"></div>
+    <script>
+      var test = async_test()
+      test.step(function() {
+        var worker = new SharedWorker('eventsource-onopen.js')
+        worker.port.onmessage = function(e) {
+          test.step(function() {
+            assert_true(e.data[0], e.data[1])
+            assert_equals(e.data[1], EventSource.OPEN, 'source.readyState')
+            assert_false(e.data[2], "'data' in e")
+            assert_false(e.data[3], 'e.bubbles')
+            assert_false(e.data[4], 'e.calcelable')
+          })
+          test.done()
+        }
+      })
+    </script>
+  </body>
+</html>

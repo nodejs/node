@@ -1,0 +1,5 @@
+spec: https://html.spec.whatwg.org/multipage/server-sent-events.html
+suggested_reviewers:
+  - odinho
+  - Yaffle
+  - annevk

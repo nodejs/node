@@ -16,6 +16,7 @@ Last update:
 - dom/abort: https://github.com/web-platform-tests/wpt/tree/d1f1ecbd52/dom/abort
 - dom/events: https://github.com/web-platform-tests/wpt/tree/ab8999891c/dom/events
 - encoding: https://github.com/web-platform-tests/wpt/tree/a58bbf6d8c/encoding
+- eventsource: https://github.com/web-platform-tests/wpt/tree/9dafa89214/eventsource
 - fetch/data-urls/resources: https://github.com/web-platform-tests/wpt/tree/7c79d998ff/fetch/data-urls/resources
 - FileAPI: https://github.com/web-platform-tests/wpt/tree/e36dbb6f00/FileAPI
 - hr-time: https://github.com/web-platform-tests/wpt/tree/34cafd797e/hr-time
