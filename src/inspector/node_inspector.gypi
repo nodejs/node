@@ -39,7 +39,6 @@
     ],
     'node_protocol_files': [
       '<(protocol_tool_path)/lib/Allocator_h.template',
-      '<(protocol_tool_path)/lib/Array_h.template',
       '<(protocol_tool_path)/lib/base_string_adapter_cc.template',
       '<(protocol_tool_path)/lib/base_string_adapter_h.template',
       '<(protocol_tool_path)/lib/DispatcherBase_cpp.template',
