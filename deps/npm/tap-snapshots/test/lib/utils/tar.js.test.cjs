@@ -23,10 +23,10 @@ bundle-dep
 name:          my-cool-pkg                             
 version:       1.0.0                                   
 filename:      my-cool-pkg-1.0.0.tgz                   
-package size:  271 B
+package size:  {size}
 unpacked size: 126 B
-shasum:        23e31c8ad422f96301c07730e61ff403b10306f1
-integrity:     sha512-/Lg5tEGQv5A5y[...]gq8T9D5+Wat1A==
+shasum:        {sha}
+integrity:     {integrity}
 bundled deps:  1
 bundled files: 0
 own files:     5
@@ -53,10 +53,10 @@ bundle-dep
 name:          @myscope/my-cool-pkg
 version:       1.0.0
 filename:      myscope-my-cool-pkg-1.0.0.tgz
-package size:  280 B
+package size:  {size}
 unpacked size: 135 B
-shasum:        a4f63307f2211e8fde72cd39bc1176b4fe997b71
-integrity:     sha512-b+RavF8JiErJt[...]YpwkJc8ycaabA==
+shasum:        {sha}
+integrity:     {integrity}
 bundled deps:  1                                       
 bundled files: 0                                       
 own files:     5                                       

@@ -126,11 +126,22 @@ t.test('does not open url if canceled', async t => {
 
 t.test('returns error when opener errors', async t => {
   const { error, openerUrl } = await mockOpenUrlPrompt(t, {
-    openerResult: new Error('Opener failed'),
+    openerResult: Object.assign(new Error('Opener failed'), { code: 1 }),
   })
 
   t.match(error, /Opener failed/, 'got the correct error')
   t.equal(openerUrl, 'https://www.npmjs.com', 'did not open')
+})
+
+t.test('does not error when opener can not find command', async t => {
+  const { OUTPUT, error, openerUrl } = await mockOpenUrlPrompt(t, {
+    // openerResult: new Error('Opener failed'),
+    openerResult: Object.assign(new Error('Opener failed'), { code: 127 }),
+  })
+
+  t.notOk(error, 'Did not error')
+  t.equal(openerUrl, 'https://www.npmjs.com', 'did not open')
+  t.matchSnapshot(OUTPUT, 'Outputs extra Browser unavailable message and url')
 })
 
 t.test('throws "canceled" error on SIGINT', async t => {

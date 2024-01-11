@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "November 2023" "" ""
+.TH "CONFIG" "7" "January 2024" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -865,6 +865,16 @@ If a package cannot be installed because of overly strict \fBpeerDependencies\fR
 This differs from \fB--omit=peer\fR, in that \fB--omit=peer\fR will avoid unpacking \fBpeerDependencies\fR on disk, but will still design a tree such that \fBpeerDependencies\fR \fIcould\fR be unpacked in a correct place.
 .P
 Use of \fBlegacy-peer-deps\fR is not recommended, as it will not enforce the \fBpeerDependencies\fR contract that meta-dependencies may rely on.
+.SS "\fBlibc\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override libc of native modules to install. Acceptable values are same as \fBlibc\fR field of package.json
 .SS "\fBlink\fR"
 .RS 0
 .IP \(bu 4
@@ -1374,7 +1384,7 @@ Type: "library", "application", or "framework"
 .RE 0
 
 .P
-The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR fieled. For CycloneDX, this is the value for the \fBtype\fR field.
+The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR field. For CycloneDX, this is the value for the \fBtype\fR field.
 .SS "\fBscope\fR"
 .RS 0
 .IP \(bu 4

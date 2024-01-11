@@ -252,7 +252,8 @@ executable.</li>
 always present in the executed process <code>PATH</code>.</li>
 <li>The <code>--npm</code> option is removed.  <code>npx</code> will always use the <code>npm</code> it ships
 with.</li>
-<li>The <code>--node-arg</code> and <code>-n</code> options are removed.</li>
+<li>The <code>--node-arg</code> and <code>-n</code> options have been removed. Use <a href="https://nodejs.org/api/cli.html#node_optionsoptions"><code>NODE_OPTIONS</code></a> instead: e.g.,
+<code>NODE_OPTIONS="--trace-warnings --trace-exit" npx foo --random=true</code></li>
 <li>The <code>--always-spawn</code> option is redundant, and thus removed.</li>
 <li>The <code>--shell</code> option is replaced with <code>--script-shell</code>, but maintained
 in the <code>npx</code> executable for backwards compatibility.</li>

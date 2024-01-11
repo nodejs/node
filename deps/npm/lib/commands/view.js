@@ -392,20 +392,20 @@ class View extends BaseCommand {
 
     if (info.keywords.length) {
       this.npm.output('')
-      this.npm.output('keywords:', chalk.yellow(info.keywords.join(', ')))
+      this.npm.output(`keywords: ${chalk.yellow(info.keywords.join(', '))}`)
     }
 
     if (info.bins.length) {
       this.npm.output('')
-      this.npm.output('bin:', chalk.yellow(info.bins.join(', ')))
+      this.npm.output(`bin: ${chalk.yellow(info.bins.join(', '))}`)
     }
 
     this.npm.output('')
     this.npm.output('dist')
-    this.npm.output('.tarball:', info.tarball)
-    this.npm.output('.shasum:', info.shasum)
-    info.integrity && this.npm.output('.integrity:', info.integrity)
-    info.unpackedSize && this.npm.output('.unpackedSize:', info.unpackedSize)
+    this.npm.output(`.tarball: ${info.tarball}`)
+    this.npm.output(`.shasum: ${info.shasum}`)
+    info.integrity && this.npm.output(`.integrity: ${info.integrity}`)
+    info.unpackedSize && this.npm.output(`.unpackedSize: ${info.unpackedSize}`)
 
     const maxDeps = 24
     if (info.deps.length) {
@@ -420,7 +420,7 @@ class View extends BaseCommand {
     if (info.maintainers && info.maintainers.length) {
       this.npm.output('')
       this.npm.output('maintainers:')
-      info.maintainers.forEach((u) => this.npm.output('-', u))
+      info.maintainers.forEach((u) => this.npm.output(`- ${u}`))
     }
 
     this.npm.output('')
