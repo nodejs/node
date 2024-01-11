@@ -6,6 +6,16 @@ const { join } = require('node:path');
 const tmpdir = require('../common/tmpdir.js');
 const assert = require('assert');
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
+// fs-watch on folders have limited capability in AIX.
+// The testcase makes use of folder watching, and causes
+// hang. This behavior is documented. Skip this for AIX.
+
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 tmpdir.refresh();
 
 const tmpDir = tmpdir.path;
@@ -23,3 +33,7 @@ const watcher = watch(tmpDir, { recursive: true }, common.mustCall((eventType, _
 }));
 
 writeFileSync(filename, 'foobar2');
+
+process.once('exit', function() {
+  assert(watcherClosed, 'watcher Object was not closed');
+});

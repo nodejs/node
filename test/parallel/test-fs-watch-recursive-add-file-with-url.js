@@ -22,31 +22,28 @@ const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
 tmpdir.refresh();
 
-(async () => {
-  // Add a file to already watching folder, and use URL as the path
+// Add a file to already watching folder, and use URL as the path
 
-  const rootDirectory = fs.mkdtempSync(testDir + path.sep);
-  const testDirectory = path.join(rootDirectory, 'test-5');
-  fs.mkdirSync(testDirectory);
+const rootDirectory = fs.mkdtempSync(testDir + path.sep);
+const testDirectory = path.join(rootDirectory, 'test-5');
+fs.mkdirSync(testDirectory);
 
-  const filePath = path.join(testDirectory, 'file-8.txt');
-  const url = pathToFileURL(testDirectory);
+const filePath = path.join(testDirectory, 'file-8.txt');
+const url = pathToFileURL(testDirectory);
 
-  const watcher = fs.watch(url, { recursive: true });
-  let watcherClosed = false;
-  watcher.on('change', function(event, filename) {
-    assert.strictEqual(event, 'rename');
+const watcher = fs.watch(url, { recursive: true });
+let watcherClosed = false;
+watcher.on('change', function(event, filename) {
+  assert.strictEqual(event, 'rename');
 
-    if (filename === path.basename(filePath)) {
-      watcher.close();
-      watcherClosed = true;
-    }
-  });
+  if (filename === path.basename(filePath)) {
+    watcher.close();
+    watcherClosed = true;
+  }
+});
 
-  await setTimeout(common.platformTimeout(100));
-  fs.writeFileSync(filePath, 'world');
+fs.writeFileSync(filePath, 'world');
 
-  process.on('exit', function() {
-    assert(watcherClosed, 'watcher Object was not closed');
-  });
-})().then(common.mustCall());
+process.on('exit', function() {
+  assert(watcherClosed, 'watcher Object was not closed');
+});
