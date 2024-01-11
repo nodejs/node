@@ -2,7 +2,7 @@
 # building official binaries.
 # Please edit the gyp files if you are making changes to build system.
 
-import("//node/node.gni")
+import("../../node.gni")
 
 # The actual configurations are put inside a template in unofficial.gni to
 # prevent accidental edits from contributors.
