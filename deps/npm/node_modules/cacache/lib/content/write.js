@@ -67,6 +67,7 @@ class CacacheWriteStream extends Flush {
         this.cache,
         this.opts
       )
+      this.handleContentP.catch(error => this.emit('error', error))
     }
     return this.inputStream.write(chunk, encoding, cb)
   }

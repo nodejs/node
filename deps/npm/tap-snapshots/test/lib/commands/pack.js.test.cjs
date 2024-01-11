@@ -16,10 +16,10 @@ Array [
     name:          test-package
     version:       1.0.0
     filename:      test-package-1.0.0.tgz
-    package size:  136 B
+    package size:  {size}
     unpacked size: 41 B
-    shasum:        a92a0679a70a450f14f98a468756948a679e4107
-    integrity:     sha512-Gka9ZV/Bryxky[...]LgMJ+0F+FhXMA==
+    shasum:        {sha}
+    integrity:     {integrity}
     total files:   1
   ),
   "",
@@ -41,14 +41,14 @@ Array [
         Object {
           "mode": 420,
           "path": "package.json",
-          "size": 41,
+          "size": "{size}",
         },
       ],
       "id": "test-package@1.0.0",
-      "integrity": "sha512-Gka9ZV/BryxkypfvMpTvLfaJE1AUi7PK1EAbYqnVzqtucf6QvUK4CFsLVzagY1GwZVx2T1jwWLgMJ+0F+FhXMA==",
+      "integrity": "{integrity}",
       "name": "test-package",
-      "shasum": "a92a0679a70a450f14f98a468756948a679e4107",
-      "size": 136,
+      "shasum": "{sha}",
+      "size": "{size}",
       "unpackedSize": 41,
       "version": "1.0.0",
     },
@@ -71,14 +71,14 @@ Array [
         Object {
           "mode": 420,
           "path": "package.json",
-          "size": 50,
+          "size": "{size}",
         },
       ],
       "id": "@myscope/test-package@1.0.0",
-      "integrity": "sha512-bUu8iTm2E5DZMrwKeyx963K6ViEmaFocXh75EujgI+FHSaJeqvObcdk1KFwdx8CbOgsfNHEvWNQw/bONAJsoNw==",
+      "integrity": "{integrity}",
       "name": "@myscope/test-package",
-      "shasum": "7e6eb2e1ca46bed6b8fa8e144e0fcd1b22fe2d98",
-      "size": 145,
+      "shasum": "{sha}",
+      "size": "{size}",
       "unpackedSize": 50,
       "version": "1.0.0",
     },
@@ -97,10 +97,10 @@ Array [
     name:          test-package
     version:       1.0.0
     filename:      test-package-1.0.0.tgz
-    package size:  136 B
+    package size:  {size}
     unpacked size: 41 B
-    shasum:        a92a0679a70a450f14f98a468756948a679e4107
-    integrity:     sha512-Gka9ZV/Bryxky[...]LgMJ+0F+FhXMA==
+    shasum:        {sha}
+    integrity:     {integrity}
     total files:   1
   ),
   "",
