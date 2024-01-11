@@ -35,6 +35,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "commit-hooks": true,
   "cpu": null,
   "os": null,
+  "libc": null,
   "depth": null,
   "description": true,
   "dev": false,
@@ -245,6 +246,7 @@ json = false
 key = null
 legacy-bundling = false
 legacy-peer-deps = false
+libc = null
 link = false
 local-address = null
 location = "user"

@@ -37,6 +37,7 @@ class Install extends ArboristWorkspaceCmd {
     'dry-run',
     'cpu',
     'os',
+    'libc',
     ...super.params,
   ]
 

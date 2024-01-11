@@ -628,7 +628,7 @@ module.exports = cls => class Reifier extends cls {
     process.emit('time', timer)
     this.addTracker('reify', node.name, node.location)
 
-    const { npmVersion, nodeVersion, cpu, os } = this.options
+    const { npmVersion, nodeVersion, cpu, os, libc } = this.options
     const p = Promise.resolve().then(async () => {
       // when we reify an optional node, check the engine and platform
       // first. be sure to ignore the --force and --engine-strict flags,
@@ -638,7 +638,7 @@ module.exports = cls => class Reifier extends cls {
       // eslint-disable-next-line promise/always-return
       if (node.optional) {
         checkEngine(node.package, npmVersion, nodeVersion, false)
-        checkPlatform(node.package, false, { cpu, os })
+        checkPlatform(node.package, false, { cpu, os, libc })
       }
       await this[_checkBins](node)
       await this[_extractOrLink](node)

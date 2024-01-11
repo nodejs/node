@@ -290,6 +290,16 @@ field of package.json, which comes from `process.platform`.
 
 
 
+#### `libc`
+
+* Default: null
+* Type: null or String
+
+Override libc of native modules to install. Acceptable values are same as
+`libc` field of package.json
+
+
+
 #### `workspace`
 
 * Default:

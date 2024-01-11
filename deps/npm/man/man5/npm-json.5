@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "November 2023" "" ""
+.TH "PACKAGE.JSON" "5" "January 2024" "" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -263,20 +263,10 @@ The file(s) in the "bin" field
 .P
 \fBREADME\fR & \fBLICENSE\fR can have any case and extension.
 .P
-Conversely, some files are always ignored:
+Some files are always ignored by default:
 .RS 0
 .IP \(bu 4
-\fB.git\fR
-.IP \(bu 4
-\fBCVS\fR
-.IP \(bu 4
-\fB.svn\fR
-.IP \(bu 4
-\fB.hg\fR
-.IP \(bu 4
-\fB.lock-wscript\fR
-.IP \(bu 4
-\fB.wafpickle-N\fR
+\fB*.orig\fR
 .IP \(bu 4
 \fB.*.swp\fR
 .IP \(bu 4
@@ -284,19 +274,52 @@ Conversely, some files are always ignored:
 .IP \(bu 4
 \fB._*\fR
 .IP \(bu 4
+\fB.git\fR
+.IP \(bu 4
+\fB.hg\fR
+.IP \(bu 4
+\fB.lock-wscript\fR
+.IP \(bu 4
+\fB.npmrc\fR
+.IP \(bu 4
+\fB.svn\fR
+.IP \(bu 4
+\fB.wafpickle-N\fR
+.IP \(bu 4
+\fBCVS\fR
+.IP \(bu 4
+\fBconfig.gypi\fR
+.IP \(bu 4
+\fBnode_modules\fR
+.IP \(bu 4
 \fBnpm-debug.log\fR
+.IP \(bu 4
+\fBpackage-lock.json\fR (use \fB\fBnpm-shrinkwrap.json\fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR if you wish it to be published)
+.IP \(bu 4
+\fBpnpm-lock.yaml\fR
+.IP \(bu 4
+\fByarn.lock\fR
+.RE 0
+
+.P
+Most of these ignored files can be included specifically if included in the \fBfiles\fR globs. Exceptions to this are:
+.RS 0
+.IP \(bu 4
+\fB.git\fR
 .IP \(bu 4
 \fB.npmrc\fR
 .IP \(bu 4
 \fBnode_modules\fR
 .IP \(bu 4
-\fBconfig.gypi\fR
+\fBpackage-lock.json\fR
 .IP \(bu 4
-\fB*.orig\fR
+\fBpnpm-lock.yaml\fR
 .IP \(bu 4
-\fBpackage-lock.json\fR (use \fB\fBnpm-shrinkwrap.json\fR\fR \fI\(la/configuring-npm/npm-shrinkwrap-json\(ra\fR if you wish it to be published)
+\fByarn.lock\fR
 .RE 0
 
+.P
+These can not be included.
 .SS "main"
 .P
 The main field is a module ID that is the primary entry point to your program. That is, if your package is named \fBfoo\fR, and a user installs it, and then does \fBrequire("foo")\fR, then your main module's exports object will be returned.
