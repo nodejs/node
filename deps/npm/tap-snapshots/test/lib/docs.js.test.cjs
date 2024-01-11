@@ -903,6 +903,16 @@ Use of \`legacy-peer-deps\` is not recommended, as it will not enforce the
 
 
 
+#### \`libc\`
+
+* Default: null
+* Type: null or String
+
+Override libc of native modules to install. Acceptable values are same as
+\`libc\` field of package.json
+
+
+
 #### \`link\`
 
 * Default: false
@@ -1421,7 +1431,7 @@ SBOM format to use when generating SBOMs.
 * Type: "library", "application", or "framework"
 
 The type of package described by the generated SBOM. For SPDX, this is the
-value for the \`primaryPackagePurpose\` fieled. For CycloneDX, this is the
+value for the \`primaryPackagePurpose\` field. For CycloneDX, this is the
 value for the \`type\` field.
 
 
@@ -2049,6 +2059,7 @@ Array [
   "commit-hooks",
   "cpu",
   "os",
+  "libc",
   "depth",
   "description",
   "dev",
@@ -2206,6 +2217,7 @@ Array [
   "commit-hooks",
   "cpu",
   "os",
+  "libc",
   "depth",
   "description",
   "dev",
@@ -2395,6 +2407,7 @@ Object {
   "json": false,
   "key": null,
   "legacyPeerDeps": false,
+  "libc": null,
   "localAddress": null,
   "location": "user",
   "lockfileVersion": null,
@@ -3240,7 +3253,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
 [--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
+[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>] [--libc <libc>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3274,6 +3287,7 @@ aliases: add, i, in, ins, inst, insta, instal, isnt, isnta, isntal, isntall
 #### \`dry-run\`
 #### \`cpu\`
 #### \`os\`
+#### \`libc\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
@@ -3337,7 +3351,7 @@ Options:
 [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
 [--strict-peer-deps] [--prefer-dedupe] [--no-package-lock] [--package-lock-only]
 [--foreground-scripts] [--ignore-scripts] [--no-audit] [--no-bin-links]
-[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>]
+[--no-fund] [--dry-run] [--cpu <cpu>] [--os <os>] [--libc <libc>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [-ws|--workspaces] [--include-workspace-root] [--install-links]
 
@@ -3371,6 +3385,7 @@ alias: it
 #### \`dry-run\`
 #### \`cpu\`
 #### \`os\`
+#### \`libc\`
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`

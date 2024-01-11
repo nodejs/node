@@ -6,6 +6,7 @@ const { Minipass } = require('minipass')
 const fsMiniPass = require('fs-minipass')
 const fs = require('fs/promises')
 const log = require('./log-shim')
+const Display = require('./display')
 
 const padZero = (n, length) => n.toString().padStart(length.toString().length, '0')
 const globify = pattern => pattern.split('\\').join('/')
@@ -49,6 +50,7 @@ class LogFiles {
 
     return format(...args)
       .split(/\r?\n/)
+      .map(Display.clean)
       .reduce((lines, line) =>
         lines += prefix + (line ? ' ' : '') + line + os.EOL,
       ''

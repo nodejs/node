@@ -100,8 +100,8 @@ const spawnWithShell = (cmd, args, opts, extra) => {
     let pathToInitial
     try {
       pathToInitial = which.sync(initialCmd, {
-        path: (options.env && options.env.PATH) || process.env.PATH,
-        pathext: (options.env && options.env.PATHEXT) || process.env.PATHEXT,
+        path: (options.env && findInObject(options.env, 'PATH')) || process.env.PATH,
+        pathext: (options.env && findInObject(options.env, 'PATHEXT')) || process.env.PATHEXT,
       }).toLowerCase()
     } catch (err) {
       pathToInitial = initialCmd.toLowerCase()
@@ -190,6 +190,16 @@ const stdioResult = (stdout, stderr, { stdioString = true, stdio }) => {
   }
 
   return result
+}
+
+// case insensitive lookup in an object
+const findInObject = (obj, key) => {
+  key = key.toLowerCase()
+  for (const objKey of Object.keys(obj).sort()) {
+    if (objKey.toLowerCase() === key) {
+      return obj[objKey]
+    }
+  }
 }
 
 module.exports = promiseSpawn

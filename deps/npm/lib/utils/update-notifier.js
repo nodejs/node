@@ -24,6 +24,7 @@ const updateCheck = async (npm, spec, version, current) => {
     // always prefer latest, even if doing --tag=whatever on the cmd
     defaultTag: 'latest',
     ...npm.flatOptions,
+    cache: false,
   }).catch(() => null)
 
   // if pacote failed, give up

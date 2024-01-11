@@ -341,10 +341,10 @@ class YarnLock {
   }
 }
 
-const _specs = Symbol('_specs')
 class YarnLockEntry {
+  #specs
   constructor (specs) {
-    this[_specs] = new Set(specs)
+    this.#specs = new Set(specs)
     this.resolved = null
     this.version = null
     this.integrity = null
@@ -354,7 +354,7 @@ class YarnLockEntry {
 
   toString () {
     // sort objects to the bottom, then alphabetical
-    return ([...this[_specs]]
+    return ([...this.#specs]
       .sort(localeCompare)
       .map(quoteIfNeeded).join(', ') +
       ':\n' +
@@ -370,7 +370,7 @@ class YarnLockEntry {
   }
 
   addSpec (spec) {
-    this[_specs].add(spec)
+    this.#specs.add(spec)
   }
 }
 
