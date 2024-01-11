@@ -1,7 +1,7 @@
 'use strict';
 
 const common = require('../common');
-const { mkdtempSync, watch, writeFileSync } = require('node:fs');
+const { watch, writeFileSync } = require('node:fs');
 const { join } = require('node:path');
 const tmpdir = require('../common/tmpdir.js');
 const assert = require('assert');
