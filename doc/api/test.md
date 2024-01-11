@@ -1250,6 +1250,10 @@ However, the return value from subtests should be used to prevent the parent
 test from finishing first and cancelling the subtest
 as shown in the following example.
 
+**Note:** Running a `todo` test does not terminate the execution of the test
+function. The test function is run without affecting the test result, and
+if it fails, it does not end process with exitCode 1.
+
 ```js
 test('top level test', async (t) => {
   // The setTimeout() in the following subtest would cause it to outlive its
