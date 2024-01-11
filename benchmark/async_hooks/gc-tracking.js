@@ -3,7 +3,7 @@ const common = require('../common.js');
 const { createHook, AsyncResource } = require('async_hooks');
 
 const bench = common.createBenchmark(main, {
-  n: [1e6],
+  n: [1e7],
   method: [
     'trackingEnabled',
     'trackingEnabledWithDestroyHook',
