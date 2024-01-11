@@ -22,7 +22,6 @@
 namespace {{namespace}} {
 {% endfor %}
 
-template<typename T> class Array;
 class DictionaryValue;
 class DispatchResponse;
 class ErrorSupport;
@@ -34,6 +33,26 @@ class SerializedValue;
 class StringValue;
 class UberDispatcher;
 class Value;
+
+namespace detail {
+template <typename T>
+struct ArrayTypedef { typedef std::vector<std::unique_ptr<T>> type; };
+
+template <>
+struct ArrayTypedef<String> { typedef std::vector<String> type; };
+
+template <>
+struct ArrayTypedef<int> { typedef std::vector<int> type; };
+
+template <>
+struct ArrayTypedef<double> { typedef std::vector<double> type; };
+
+template <>
+struct ArrayTypedef<bool> { typedef std::vector<bool> type; };
+}  // namespace detail
+
+template <typename T>
+using Array = typename detail::ArrayTypedef<T>::type;
 
 {% for namespace in config.protocol.namespace %}
 } // namespace {{namespace}}
