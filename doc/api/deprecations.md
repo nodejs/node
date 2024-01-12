@@ -3528,7 +3528,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/99999
+    pr-url: https://github.com/nodejs/node/pull/51442
     description: End-of-Life.
   - version:
     - v21.3.0
