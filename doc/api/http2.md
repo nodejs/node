@@ -3659,6 +3659,36 @@ message) to the response.
 Attempting to set a header field name or value that contains invalid characters
 will result in a [`TypeError`][] being thrown.
 
+#### `response.appendHeader(name, value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `value` {string|string\[]}
+
+Append a single header value to the header object.
+
+If the value is an array, this is equivalent to calling this method multiple
+times.
+
+If there were no previous values for the header, this is equivalent to calling
+[`response.setHeader()`][].
+
+Attempting to set a header field name or value that contains invalid characters
+will result in a [`TypeError`][] being thrown.
+
+```js
+// Returns headers including "set-cookie: a" and "set-cookie: b"
+const server = http2.createServer((req, res) => {
+  res.setHeader('set-cookie', 'a');
+  res.appendHeader('set-cookie', 'b');
+  res.writeHead(200);
+  res.end('ok');
+});
+```
+
 #### `response.connection`
 
 <!-- YAML

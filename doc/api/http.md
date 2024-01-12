@@ -2991,12 +2991,12 @@ added:
 * `value` {string|string\[]} Header value
 * Returns: {this}
 
-Append a single header value for the header object.
+Append a single header value to the header object.
 
-If the value is an array, this is equivalent of calling this method multiple
+If the value is an array, this is equivalent to calling this method multiple
 times.
 
-If there were no previous value for the header, this is equivalent of calling
+If there were no previous values for the header, this is equivalent to calling
 [`outgoingMessage.setHeader(name, value)`][].
 
 Depending of the value of `options.uniqueHeaders` when the client request or the
