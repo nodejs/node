@@ -869,11 +869,9 @@ static ExitCode InitializeNodeWithArgsInternal(
 
   if (!file_paths.empty()) {
     CHECK(!per_process::v8_initialized);
-    auto cwd = Environment::GetCwd(Environment::GetExecPath(*argv));
 
     for (const auto& file_path : file_paths) {
-      std::string path = cwd + kPathSeparator + file_path;
-      auto path_exists = per_process::dotenv_file.ParsePath(path);
+      bool path_exists = per_process::dotenv_file.ParsePath(file_path);
 
       if (!path_exists) errors->push_back(file_path + ": not found");
     }
