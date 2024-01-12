@@ -2,6 +2,7 @@
 
 const common = require('../common');
 const assert = require('node:assert');
+const path = require('node:path');
 const { describe, it } = require('node:test');
 
 const validEnvFilePath = '../fixtures/dotenv/valid.env';
@@ -20,6 +21,18 @@ describe('.env supports edge cases', () => {
       process.execPath,
       [ `--env-file=${nodeOptionsEnvFilePath}`, `--env-file=${validEnvFilePath}`, '--eval', code ],
       { cwd: __dirname },
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('supports absolute paths', async () => {
+    const code = `
+      require('assert').strictEqual(process.env.BASIC, 'basic');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${path.resolve(__dirname, validEnvFilePath)}`, '--eval', code ],
     );
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
