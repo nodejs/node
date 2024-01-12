@@ -3540,7 +3540,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
 The `util.types.isWebAssemblyCompiledModule` API has been removed.
 Please use `value instanceof WebAssembly.Module` instead.
