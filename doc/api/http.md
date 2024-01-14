@@ -3943,9 +3943,9 @@ the following events will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (connection closed here)
 * `'aborted'` on the `res` object
+* `'close'`
 * `'error'` on the `res` object with an error with message
   `'Error: aborted'` and code `'ECONNRESET'`
-* `'close'`
 * `'close'` on the `res` object
 
 If `req.destroy()` is called before a socket is assigned, the following
@@ -3973,9 +3973,9 @@ events will be emitted in the following order:
   * `'data'` any number of times, on the `res` object
 * (`req.destroy()` called here)
 * `'aborted'` on the `res` object
+* `'close'`
 * `'error'` on the `res` object with an error with message `'Error: aborted'`
   and code `'ECONNRESET'`, or the error with which `req.destroy()` was called
-* `'close'`
 * `'close'` on the `res` object
 
 If `req.abort()` is called before a socket is assigned, the following
