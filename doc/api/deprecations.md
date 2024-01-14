@@ -3527,6 +3527,9 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51442
+    description: End-of-Life.
   - version:
     - v21.3.0
     - v20.11.0
@@ -3537,10 +3540,10 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`util.types.isWebAssemblyCompiledModule`][] API is deprecated. Please use
-`value instanceof WebAssembly.Module` instead.
+The `util.types.isWebAssemblyCompiledModule` API has been removed.
+Please use `value instanceof WebAssembly.Module` instead.
 
 ### DEP0178: `dirent.path`
 
@@ -3715,7 +3718,6 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 [`util.log()`]: util.md#utillogstring
 [`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.toUSVString()`]: util.md#utiltousvstringstring
-[`util.types.isWebAssemblyCompiledModule`]: util.md#utiltypesiswebassemblycompiledmodulevalue
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
