@@ -13,9 +13,19 @@ Minizip provides API on top of zlib that can enumerate and extract ZIP archive
 files. See minizip.md for chromium build instructions.
 
 Local Modifications:
+- Fixed uncompressing files with wrong uncompressed size set
+  crrev.com/268940
+  0014-minizip-unzip-with-incorrect-size.patch
+
+- Enable traditional PKWARE decryption in zlib/contrib/minizip
+	Correct the value of rest_read_compressed when decompressing an encrypted
+  zip. (crrev.com/580862)
+  0015-minizip-unzip-enable-decryption.patch
+
 - Add parsing of the 'Info-ZIP Unicode Path Extra Field' as described in
   https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT section 4.6.9.
   (see crrev.com/1002476)
+  0016-minizip-parse-unicode-path-extra-field.patch
 
 - Check for overly long filename, comment, or extra field in
   zipOpenNewFileInZip4_64 (crbug.com/1470539).
