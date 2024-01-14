@@ -7,6 +7,7 @@ const {
 const assert = require('assert')
 const { kHTTP2BuildRequest, kHTTP2CopyHeaders, kHTTP1BuildRequest } = require('./symbols')
 const util = require('./util')
+const { channels } = require('./diagnostics.js')
 const { headerNameLowerCasedRecord } = require('./constants')
 
 // headerCharRegex have been lifted from
@@ -25,24 +26,7 @@ const invalidPathRegex = /[^\u0021-\u00ff]/
 
 const kHandler = Symbol('handler')
 
-const channels = {}
-
 let extractBody
-
-try {
-  const diagnosticsChannel = require('diagnostics_channel')
-  channels.create = diagnosticsChannel.channel('undici:request:create')
-  channels.bodySent = diagnosticsChannel.channel('undici:request:bodySent')
-  channels.headers = diagnosticsChannel.channel('undici:request:headers')
-  channels.trailers = diagnosticsChannel.channel('undici:request:trailers')
-  channels.error = diagnosticsChannel.channel('undici:request:error')
-} catch {
-  channels.create = { hasSubscribers: false }
-  channels.bodySent = { hasSubscribers: false }
-  channels.headers = { hasSubscribers: false }
-  channels.trailers = { hasSubscribers: false }
-  channels.error = { hasSubscribers: false }
-}
 
 class Request {
   constructor (origin, {

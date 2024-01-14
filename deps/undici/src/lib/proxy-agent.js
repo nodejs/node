@@ -66,7 +66,7 @@ class ProxyAgent extends DispatcherBase {
     this[kProxyHeaders] = opts.headers || {}
 
     const resolvedUrl = new URL(opts.uri)
-    const { origin, port, host, username, password } = resolvedUrl
+    const { origin, port, username, password } = resolvedUrl
 
     if (opts.auth && opts.token) {
       throw new InvalidArgumentError('opts.auth cannot be used in combination with opts.token')
@@ -97,7 +97,7 @@ class ProxyAgent extends DispatcherBase {
             signal: opts.signal,
             headers: {
               ...this[kProxyHeaders],
-              host
+              host: requestedHost
             }
           })
           if (statusCode !== 200) {
