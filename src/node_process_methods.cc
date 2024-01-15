@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -463,6 +464,38 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::string path = ".env";
+  if (args.Length() == 1) {
+    Utf8Value path_value(args.GetIsolate(), args[0]);
+    path = path_value.ToString();
+  }
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path);
+
+  Dotenv dotenv{};
+
+  switch (dotenv.ParsePath(path)) {
+    case dotenv.ParseResult::Valid: {
+      dotenv.SetEnvironment(env);
+      break;
+    }
+    case dotenv.ParseResult::InvalidContent: {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Contents of '%s' should be a valid string.", path.c_str());
+      break;
+    }
+    case dotenv.ParseResult::FileError: {
+      env->ThrowUVException(UV_ENOENT, "Failed to load '%s'.", path.c_str());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 namespace process {
 
 BindingData::BindingData(Realm* realm,
@@ -616,6 +649,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "reallyExit", ReallyExit);
   SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
+
+  SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -653,6 +688,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
+
+  registry->Register(LoadEnvFile);
 }
 
 }  // namespace process

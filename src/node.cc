@@ -871,9 +871,18 @@ static ExitCode InitializeNodeWithArgsInternal(
     CHECK(!per_process::v8_initialized);
 
     for (const auto& file_path : file_paths) {
-      bool path_exists = per_process::dotenv_file.ParsePath(file_path);
-
-      if (!path_exists) errors->push_back(file_path + ": not found");
+      switch (per_process::dotenv_file.ParsePath(file_path)) {
+        case Dotenv::ParseResult::Valid:
+          break;
+        case Dotenv::ParseResult::InvalidContent:
+          errors->push_back(file_path + ": invalid format");
+          break;
+        case Dotenv::ParseResult::FileError:
+          errors->push_back(file_path + ": not found");
+          break;
+        default:
+          UNREACHABLE();
+      }
     }
 
     per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
