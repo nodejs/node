@@ -875,9 +875,7 @@ normally without the process being held open by the open IPC channel._
 
 On Unix-like operating systems, the [`child_process.spawn()`][] method
 performs memory operations synchronously before decoupling the event loop
-from the child. Applications with a large memory footprint may find frequent
-[`child_process.spawn()`][] calls to be a bottleneck. For more information,
-see [V8 issue 7381](https://bugs.chromium.org/p/v8/issues/detail?id=7381).
+from the child.
 
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
