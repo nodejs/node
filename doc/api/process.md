@@ -1219,6 +1219,74 @@ const process = require('node:process');
 process.debugPort = 5858;
 ```
 
+## `process.deferTick(callback[, ...args])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `callback` {Function}
+* `...args` {any} Additional arguments to pass when invoking the `callback`
+
+`process.deferTick()` adds `callback` to the "defer tick queue". This queue is
+fully drained after the current operation on the JavaScript stack runs to
+completion and before the event loop is allowed to continue. It's possible to
+create an infinite loop if one were to recursively call `process.deferTick()`.
+See the [Event Loop][] guide for more background.
+
+Unlike `process.nextTick`, `process.deferTick()` will run after the "next tick
+queue" and the microtask queue has been fully drained as to avoid Zalgo when
+combinding traditional node asynchronous code with Promises.
+
+Consider the following example:
+
+```js
+// uncaughtException!
+setImmediate(async () => {
+  const e = await new Promise((resolve) => {
+    const e = new EventEmitter();
+    resolve(e);
+    process.nextTick(() => {
+      e.emit('error', new Error('process.nextTick'));
+    });
+  });
+  e.on('error', () => {}); // e.emit executes before we reach this...
+});
+
+// uncaughtException!
+setImmediate(async () => {
+  const e = await new Promise((resolve) => {
+    const e = new EventEmitter();
+    resolve(e);
+    queueMicrotask(() => {
+      e.emit('error', new Error('queueMicrotask'));
+    });
+  });
+  e.on('error', () => {}); // e.emit executes before we reach this...
+});
+```
+
+In both of these cases the user will encounter an
+`uncaughtException` error since the inner task
+will execute before control is returned to the
+caller of `await`. In order to fix this one should
+use `process.deferTick` which will execute in the
+expected order:
+
+```js
+// OK!
+setImmediate(async () => {
+  const e = await new Promise((resolve) => {
+    const e = new EventEmitter();
+    resolve(e);
+    process.deferTick(() => {
+      e.emit('error', new Error('process.deferTick'));
+    });
+  });
+  e.on('error', () => {}); // e.emit executes *after* we reach this.
+});
+```
+
 ## `process.disconnect()`
 
 <!-- YAML
