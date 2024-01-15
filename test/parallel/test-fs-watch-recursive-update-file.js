@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const { setTimeout } = require('timers/promises');
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -31,14 +30,12 @@ const testFile = path.join(testDirectory, 'file-1.txt');
 fs.writeFileSync(testFile, 'hello');
 
 const watcher = fs.watch(testDirectory, { recursive: true });
-let watcherClosed = false;
 watcher.on('change', common.mustCallAtLeast(function(event, filename) {
   // Libuv inconsistenly emits a rename event for the file we are watching
   assert.ok(event === 'change' || event === 'rename');
 
   if (filename === path.basename(testFile)) {
     watcher.close();
-    watcherClosed = true;
   }
 }));
 

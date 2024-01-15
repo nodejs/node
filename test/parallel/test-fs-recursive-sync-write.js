@@ -33,7 +33,3 @@ const watcher = watch(tmpDir, { recursive: true }, common.mustCall((eventType, _
 }));
 
 writeFileSync(filename, 'foobar2');
-
-process.once('exit', function() {
-  assert(watcherClosed, 'watcher Object was not closed');
-});

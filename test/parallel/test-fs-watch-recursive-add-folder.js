@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const { setTimeout } = require('timers/promises');
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
