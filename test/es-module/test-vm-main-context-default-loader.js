@@ -124,8 +124,8 @@ async function main() {
         importModuleDynamically: USE_MAIN_CONTEXT_DEFAULT_LOADER,
       };
       const ctx = createContext({}, options);
-      const modulePath = fixtures.path('es-modules', 'message.mjs');
-      const namespace = await import(modulePath);
+      const moduleUrl = fixtures.fileURL('es-modules', 'message.mjs');
+      const namespace = await import(moduleUrl.href);
       const script = new Script('Promise.resolve("import(\'./message.mjs\')").then(eval)', {
         importModuleDynamically: common.mustNotCall(),
       });
