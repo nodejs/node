@@ -697,7 +697,7 @@ See [`net.createConnection()`][].
 added: v21.6.0
 -->
 
-* `ip` {number} The IP which the socket is attempting to connect to.
+* `ip` {string} The IP which the socket is attempting to connect to.
 * `port` {number} The port which the socket is attempting to connect to.
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 
@@ -710,7 +710,7 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 added: v21.6.0
 -->
 
-* `ip` {number} The IP which the socket attempted to connect to.
+* `ip` {string} The IP which the socket attempted to connect to.
 * `port` {number} The port which the socket attempted to connect to.
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
   \* `error` {Error} The error associated with the failure.
@@ -724,7 +724,7 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 added: v21.6.0
 -->
 
-* `ip` {number} The IP which the socket attempted to connect to.
+* `ip` {string} The IP which the socket attempted to connect to.
 * `port` {number} The port which the socket attempted to connect to.
 * `family` {number} The family of the IP. It can be `6` for IPv6 or `4` for IPv4.
 
