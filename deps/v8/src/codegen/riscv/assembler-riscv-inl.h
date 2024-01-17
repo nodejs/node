@@ -128,9 +128,9 @@ Handle<HeapObject> Assembler::compressed_embedded_object_handle_at(
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Tagged<Code> code, Address target) {
+    Address instruction_payload, Code code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code->constant_pool() : kNullAddress,
+                        !code.is_null() ? code.constant_pool() : kNullAddress,
                         target);
 }
 
@@ -159,13 +159,12 @@ void Assembler::deserialization_set_target_internal_reference_at(
   }
 }
 
-Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
+HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(
-        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-            cage_base,
-            Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
+        cage_base,
+        Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return HeapObject::cast(
         Object(Assembler::target_address_at(pc_, constant_pool_)));
@@ -187,7 +186,8 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Tagged<HeapObject> target,
+void RelocInfo::set_target_object(Heap* heap, HeapObject target,
+                                  WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
