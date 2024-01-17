@@ -812,6 +812,14 @@ int ProcessGlobalArgs(std::vector<std::string>* args,
       ProcessGlobalArgsInternal(args, exec_args, errors, settings));
 }
 
+void GetFromDotenvFileOrSystem(const char* key, std::string* value) {
+  if (credentials::SafeGetenv(key, value)) {
+    return;
+  }
+
+  per_process::dotenv_file.AssignValueIfAvailable(key, value);
+}
+
 static std::atomic_bool init_called{false};
 
 // TODO(addaleax): Turn this into a wrapper around InitializeOncePerProcess()
@@ -885,7 +893,8 @@ static ExitCode InitializeNodeWithArgsInternal(
       }
     }
 
-    per_process::dotenv_file.AssignNodeOptionsIfAvailable(&node_options);
+    per_process::dotenv_file.AssignValueIfAvailable("NODE_OPTIONS",
+                                                    &node_options);
   }
 
 #if !defined(NODE_WITHOUT_NODE_OPTIONS)
@@ -1144,8 +1153,8 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 
     {
       std::string extra_ca_certs;
-      if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
-        crypto::UseExtraCaCerts(extra_ca_certs);
+      GetFromDotenvFileOrSystem("NODE_EXTRA_CA_CERTS", &extra_ca_certs);
+      crypto::UseExtraCaCerts(extra_ca_certs);
     }
 #endif  // HAVE_OPENSSL && !defined(OPENSSL_IS_BORINGSSL)
   }
