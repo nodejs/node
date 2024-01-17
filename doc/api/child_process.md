@@ -873,10 +873,6 @@ child registers an event handler for the [`'disconnect'`][] event
 or the [`'message'`][] event. This allows the child to exit
 normally without the process being held open by the open IPC channel._
 
-On Unix-like operating systems, the [`child_process.spawn()`][] method
-performs memory operations synchronously before decoupling the event loop
-from the child.
-
 See also: [`child_process.exec()`][] and [`child_process.fork()`][].
 
 ## Synchronous process creation
