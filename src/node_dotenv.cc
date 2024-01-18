@@ -142,7 +142,7 @@ void Dotenv::ParseLine(const std::string_view line) {
     auto quote_character = value[quotation_index];
     value.erase(0, 1);
 
-    auto end_quotation_index = value.find_last_of(quote_character);
+    auto end_quotation_index = value.find(quote_character);
 
     // We couldn't find the closing quotation character. Terminate.
     if (end_quotation_index == std::string::npos) {
