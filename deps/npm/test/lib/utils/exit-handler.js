@@ -344,12 +344,12 @@ t.test('no logs dir', async (t) => {
   const { exitHandler, logs } = await mockExitHandler(t, {
     config: { 'logs-max': 0 },
   })
-
   await exitHandler(new Error())
 
   t.match(logs.error.filter(([t]) => t === ''), [
     ['', 'Log files were not written due to the config logs-max=0'],
   ])
+  t.match(logs.filter(([_, task]) => task === 'npm.load.mkdirplogs'), [])
 })
 
 t.test('timers fail to write', async (t) => {

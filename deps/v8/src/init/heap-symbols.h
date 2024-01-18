@@ -693,6 +693,8 @@
   F(MC_SWEEP_OLD)                             \
   F(MC_SWEEP_SHARED)                          \
   F(MC_SWEEP_SHARED_LO)                       \
+  F(MC_SWEEP_TRUSTED)                         \
+  F(MC_SWEEP_TRUSTED_LO)                      \
   F(MC_SWEEP_START_JOBS)
 
 #define TRACER_SCOPES(F)                 \

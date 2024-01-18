@@ -3,14 +3,9 @@
 # found in the LICENSE file.
 
 from collections import namedtuple
-from http.server import BaseHTTPRequestHandler, HTTPServer
-from threading import Thread
-from typing import Any
 
 import json
 import os
-import requests
-import socket
 import sys
 import unittest
 
@@ -21,45 +16,10 @@ sys.path.append(TOOLS_PATH)
 
 # Standard library imports...
 from testrunner.testproc.resultdb import ResultDBIndicator
+from testrunner.testproc.resultdb_server_mock import RDBMockServer
+
 from testrunner.local.command import BaseCommand
 from testrunner.objects.output import Output
-
-
-class RDBRequestHandler(BaseHTTPRequestHandler):
-
-  def do_POST(self):
-    content_length = int(self.headers['Content-Length'])
-    post_data = self.rfile.read(content_length)
-    self.server.register_post_data(post_data)
-    self.send_response(requests.codes.ok)
-    self.end_headers()
-    return
-
-
-def get_free_port():
-  s = socket.socket(socket.AF_INET, type=socket.SOCK_STREAM)
-  s.bind(('localhost', 0))
-  _, port = s.getsockname()
-  s.close()
-  return port
-
-
-class RDBMockServer(HTTPServer):
-
-  def __init__(self) -> None:
-    self.port = get_free_port()
-    super().__init__(('localhost', self.port), RDBRequestHandler)
-    self.thread = Thread(target=self.serve_forever)
-    self.thread.daemon = True
-    self.thread.start()
-    self.post_data = []
-
-  def register_post_data(self, data):
-    self.post_data.append(data)
-
-  @property
-  def address(self):
-    return f'localhost:{self.port}'
 
 
 def mock_test262(is_fail, rdb_test_id):

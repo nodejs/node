@@ -30,7 +30,7 @@ Tagged<InstructionStream> InstructionStream::Initialize(
     Tagged<HeapObject> self, Tagged<Map> map, uint32_t body_size,
     Tagged<ByteArray> reloc_info) {
   {
-    ThreadIsolation::WritableJitAllocation writable_allocation =
+    WritableJitAllocation writable_allocation =
         ThreadIsolation::RegisterInstructionStreamAllocation(
             self.address(), InstructionStream::SizeFor(body_size));
     CHECK_EQ(InstructionStream::SizeFor(body_size), writable_allocation.size());
@@ -110,7 +110,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
             static_cast<size_t>(desc.reloc_size));
 
   {
-    ThreadIsolation::WritableJitAllocation writable_allocation =
+    WritableJitAllocation writable_allocation =
         ThreadIsolation::LookupJitAllocation(
             address(), InstructionStream::SizeFor(body_size()),
             ThreadIsolation::JitAllocationType::kInstructionStream);
@@ -126,7 +126,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
     DCHECK_EQ(code->body_size(),
               code->instruction_size() + code->metadata_size());
 
-    promise.emplace(RelocateFromDesc(heap, desc, code->constant_pool(), no_gc));
+    promise.emplace(RelocateFromDesc(writable_allocation, heap, desc,
+                                     code->constant_pool(), no_gc));
 
     // Publish the code pointer after the istream has been fully initialized.
     writable_allocation.WriteHeaderSlot<Code, kCodeOffset>(code, kReleaseStore);

@@ -32,7 +32,7 @@ CustomArgumentsBase::CustomArgumentsBase(Isolate* isolate)
 
 template <typename T>
 CustomArguments<T>::~CustomArguments() {
-  slot_at(kReturnValueIndex).store(Object(kHandleZapValue));
+  slot_at(kReturnValueIndex).store(Tagged<Object>(kHandleZapValue));
 }
 
 template <typename T>

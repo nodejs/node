@@ -28,7 +28,7 @@ AllocationSpace GetSpaceFromObject(Tagged<Object> object) {
 }  // namespace
 
 #define CHECK_IN_RO_SPACE(type, name, CamelName) \
-  HeapObject name = roots.name();                \
+  Tagged<HeapObject> name = roots.name();        \
   CHECK_EQ(RO_SPACE, GetSpaceFromObject(name));
 
 // The following tests check that all the roots accessible via ReadOnlyRoots are

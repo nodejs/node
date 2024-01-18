@@ -21,18 +21,44 @@ class DebugFeatureLoweringReducer : public Next {
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
   OpIndex REDUCE(DebugPrint)(OpIndex input, RegisterRepresentation rep) {
-    switch (rep.value()) {
-      case RegisterRepresentation::PointerSized():
-        __ CallBuiltin_DebugPrintWordPtr(isolate_, __ NoContextConstant(),
-                                         input);
-        break;
-      case RegisterRepresentation::Float64():
-        __ CallBuiltin_DebugPrintFloat64(isolate_, __ NoContextConstant(),
-                                         input);
-        break;
-      default:
-        // TODO(nicohartmann@): Support other representations.
-        UNIMPLEMENTED();
+    if (isolate_ != nullptr) {
+      switch (rep.value()) {
+        case RegisterRepresentation::PointerSized():
+          __ CallBuiltin_DebugPrintWordPtr(isolate_, __ NoContextConstant(),
+                                           input);
+          break;
+        case RegisterRepresentation::Float64():
+          __ CallBuiltin_DebugPrintFloat64(isolate_, __ NoContextConstant(),
+                                           input);
+          break;
+        default:
+          // TODO(nicohartmann@): Support other representations.
+          UNIMPLEMENTED();
+      }
+    } else {
+#if V8_ENABLE_WEBASSEMBLY
+      DCHECK(PipelineData::Get().is_wasm());
+      V<WasmInstanceObject> instance_node = __ WasmInstanceParameter();
+      V<Tagged> native_context =
+          __ Load(instance_node, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::TaggedPointer(),
+                  WasmInstanceObject::kNativeContextOffset);
+      switch (rep.value()) {
+        case RegisterRepresentation::Float64():
+          __ CallBuiltin(Builtin::kDebugPrintFloat64, {input, native_context},
+                         Operator::kNoProperties);
+          break;
+        case RegisterRepresentation::PointerSized():
+          __ CallBuiltin(Builtin::kDebugPrintWordPtr, {input, native_context},
+                         Operator::kNoProperties);
+          break;
+        default:
+          // TODO(mliedtke): Support other representations.
+          UNIMPLEMENTED();
+      }
+#else
+      UNREACHABLE();
+#endif
     }
     return {};
   }

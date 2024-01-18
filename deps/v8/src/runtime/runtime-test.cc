@@ -1107,13 +1107,13 @@ int FixedArrayLenFromSize(int size) {
 }
 
 int GetSpaceRemainingOnCurrentPage(v8::internal::NewSpace* space) {
-  Address top = space->top();
+  const Address top = space->heap()->NewSpaceTop();
   if ((top & kPageAlignmentMask) == 0) {
     // `top` points to the start of a page signifies that there is not room in
     // the current page.
     return 0;
   }
-  return static_cast<int>(Page::FromAddress(space->top())->area_end() - top);
+  return static_cast<int>(Page::FromAddress(top)->area_end() - top);
 }
 
 void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
@@ -1130,7 +1130,7 @@ void FillUpOneNewSpacePage(Isolate* isolate, Heap* heap) {
       space_remaining -= padding->Size();
     } else {
       // Not enough room to create another fixed array. Create a filler.
-      heap->CreateFillerObjectAt(*heap->new_space()->allocation_top_address(),
+      heap->CreateFillerObjectAt(*heap->NewSpaceAllocationTopAddress(),
                                  space_remaining);
       break;
     }
@@ -1472,7 +1472,7 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   Handle<String> message = args.at<String>(0);
   if (v8_flags.disable_abortjs) {
     base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
-    return Object();
+    return Tagged<Object>();
   }
   base::OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
@@ -1878,14 +1878,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferMaxByteLength) {
     return CrashUnlessFuzzing(isolate);
   }
   return *isolate->factory()->NewNumber(JSArrayBuffer::kMaxByteLength);
-}
-
-RUNTIME_FUNCTION(Runtime_TypedArrayMaxLength) {
-  HandleScope shs(isolate);
-  if (args.length() != 0) {
-    return CrashUnlessFuzzing(isolate);
-  }
-  return *isolate->factory()->NewNumber(JSTypedArray::kMaxLength);
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {

@@ -405,8 +405,7 @@ bool ScopeIterator::NeedsContext() const {
   // context should the function need one. In that case the function has already
   // pushed the context and we are good.
   CHECK_IMPLIES(needs_context && current_scope_ == closure_scope_ &&
-                    current_scope_->is_function_scope() &&
-                    !function_->is_null(),
+                    current_scope_->is_function_scope() && !function_.is_null(),
                 function_->context() != *context_);
 
   return needs_context;
@@ -607,8 +606,8 @@ Handle<JSObject> ScopeIterator::ScopeObject(Mode mode) {
     }
     // Overwrite properties. Sometimes names in the same scope can collide, e.g.
     // with extension objects introduced via local eval.
-    JSObject::SetPropertyOrElement(isolate_, scope, name, value,
-                                   Just(ShouldThrow::kDontThrow))
+    Object::SetPropertyOrElement(isolate_, scope, name, value,
+                                 Just(ShouldThrow::kDontThrow))
         .Check();
     return false;
   };

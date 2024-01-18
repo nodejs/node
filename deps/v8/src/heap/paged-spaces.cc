@@ -81,12 +81,39 @@ Page* PagedSpaceBase::InitializePage(MemoryChunk* chunk) {
 
 PagedSpaceBase::PagedSpaceBase(
     Heap* heap, AllocationSpace space, Executability executable,
-    std::unique_ptr<FreeList> free_list, AllocationCounter& allocation_counter,
-    LinearAllocationArea& allocation_info,
-    LinearAreaOriginalData& linear_area_original_data,
-    CompactionSpaceKind compaction_space_kind)
-    : SpaceWithLinearArea(heap, space, std::move(free_list), allocation_counter,
-                          allocation_info, linear_area_original_data),
+    std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab,
+    LinearAllocationArea& allocation_info)
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind, supports_extending_lab,
+                          allocation_info),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
+  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  accounting_stats_.Clear();
+}
+
+PagedSpaceBase::PagedSpaceBase(Heap* heap, AllocationSpace space,
+                               Executability executable,
+                               std::unique_ptr<FreeList> free_list,
+                               CompactionSpaceKind compaction_space_kind,
+                               MainAllocator* allocator)
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind, allocator),
+      executable_(executable),
+      compaction_space_kind_(compaction_space_kind) {
+  area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
+  accounting_stats_.Clear();
+}
+
+PagedSpaceBase::PagedSpaceBase(
+    Heap* heap, AllocationSpace space, Executability executable,
+    std::unique_ptr<FreeList> free_list,
+    CompactionSpaceKind compaction_space_kind,
+    MainAllocator::SupportsExtendingLAB supports_extending_lab)
+    : SpaceWithLinearArea(heap, space, std::move(free_list),
+                          compaction_space_kind, supports_extending_lab),
       executable_(executable),
       compaction_space_kind_(compaction_space_kind) {
   area_size_ = MemoryChunkLayout::AllocatableMemoryInMemoryChunk(space);
@@ -114,14 +141,9 @@ void PagedSpaceBase::MergeCompactionSpace(CompactionSpace* other) {
   //   area_size_
   other->FreeLinearAllocationArea();
 
-  for (int i = static_cast<int>(AllocationOrigin::kFirstAllocationOrigin);
-       i <= static_cast<int>(AllocationOrigin::kLastAllocationOrigin); i++) {
-    allocations_origins_[i] += other->allocations_origins_[i];
-  }
-
   // The linear allocation area of {other} should be destroyed now.
-  DCHECK_EQ(kNullAddress, other->top());
-  DCHECK_EQ(kNullAddress, other->limit());
+  DCHECK_EQ(kNullAddress, other->allocator_->top());
+  DCHECK_EQ(kNullAddress, other->allocator_->limit());
 
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
@@ -161,7 +183,7 @@ size_t PagedSpaceBase::CommittedPhysicalMemory() const {
   CodePageHeaderModificationScope rwx_write_scope(
       "Updating high water mark for Code pages requires write access to "
       "the Code page headers");
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
   return committed_physical_memory();
 }
 
@@ -279,19 +301,9 @@ void PagedSpaceBase::SetTopAndLimit(Address top, Address limit, Address end) {
   DCHECK_GE(end, limit);
   DCHECK(top == limit ||
          Page::FromAddress(top) == Page::FromAddress(limit - 1));
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(top, limit);
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->top());
 
-  base::Optional<base::SharedMutexGuard<base::kExclusive>> optional_guard;
-  if (!is_compaction_space()) optional_guard.emplace(linear_area_lock());
-  linear_area_original_data_.set_original_limit_relaxed(end);
-  linear_area_original_data_.set_original_top_release(top);
-}
-
-void PagedSpaceBase::SetLimit(Address limit) {
-  DCHECK(SupportsExtendingLAB());
-  DCHECK_LE(limit, original_limit_relaxed());
-  allocation_info_.SetLimit(limit);
+  allocator_->ResetLab(top, limit, end);
 }
 
 size_t PagedSpaceBase::ShrinkPageToHighWaterMark(Page* page) {
@@ -316,7 +328,7 @@ void PagedSpaceBase::ShrinkImmortalImmovablePages() {
         "ShrinkImmortalImmovablePages writes to the page header.");
   }
   DCHECK(!heap()->deserialization_complete());
-  BasicMemoryChunk::UpdateHighWaterMark(allocation_info_.top());
+  BasicMemoryChunk::UpdateHighWaterMark(allocator_->allocation_info().top());
   FreeLinearAllocationArea();
   ResetFreeList();
   for (Page* page : *this) {
@@ -393,8 +405,8 @@ void PagedSpaceBase::SetLinearAllocationArea(Address top, Address limit,
 }
 
 void PagedSpaceBase::DecreaseLimit(Address new_limit) {
-  Address old_limit = limit();
-  DCHECK_LE(top(), new_limit);
+  Address old_limit = allocator_->limit();
+  DCHECK_LE(allocator_->top(), new_limit);
   DCHECK_GE(old_limit, new_limit);
   if (new_limit != old_limit) {
     base::Optional<CodePageHeaderModificationScope> optional_scope;
@@ -403,14 +415,14 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
     }
 
     ConcurrentAllocationMutex guard(this);
-    Address old_max_limit = original_limit_relaxed();
-    if (!SupportsExtendingLAB()) {
+    Address old_max_limit = allocator_->original_limit_relaxed();
+    if (!allocator_->supports_extending_lab()) {
       DCHECK_EQ(old_max_limit, old_limit);
-      SetTopAndLimit(top(), new_limit, new_limit);
+      SetTopAndLimit(allocator_->top(), new_limit, new_limit);
       Free(new_limit, old_max_limit - new_limit,
            SpaceAccountingMode::kSpaceAccounted);
     } else {
-      SetLimit(new_limit);
+      allocator_->ExtendLAB(new_limit);
       heap()->CreateFillerObjectAt(new_limit,
                                    static_cast<int>(old_max_limit - new_limit));
     }
@@ -422,38 +434,6 @@ void PagedSpaceBase::DecreaseLimit(Address new_limit) {
   }
 }
 
-void PagedSpaceBase::MarkLinearAllocationAreaBlack() {
-  DCHECK(heap()->incremental_marking()->black_allocation());
-  Address current_top = top();
-  Address current_limit = limit();
-  if (current_top != kNullAddress && current_top != current_limit) {
-    Page::FromAllocationAreaAddress(current_top)
-        ->CreateBlackArea(current_top, current_limit);
-  }
-}
-
-void PagedSpaceBase::UnmarkLinearAllocationArea() {
-  Address current_top = top();
-  Address current_limit = limit();
-  if (current_top != kNullAddress && current_top != current_limit) {
-    Page::FromAllocationAreaAddress(current_top)
-        ->DestroyBlackArea(current_top, current_limit);
-  }
-}
-
-void PagedSpaceBase::MakeLinearAllocationAreaIterable() {
-  Address current_top = top();
-  Address current_limit = original_limit_relaxed();
-  DCHECK_GE(current_limit, limit());
-  // Only new space supports LAB extensions. For all other spaces,
-  // `original_limit_relaxed()` and `limit()` should be equivalent.
-  DCHECK_IMPLIES(!SupportsExtendingLAB(), current_limit == limit());
-  if (current_top != kNullAddress && current_top != current_limit) {
-    heap_->CreateFillerObjectAt(current_top,
-                                static_cast<int>(current_limit - current_top));
-  }
-}
-
 size_t PagedSpaceBase::Available() const {
   ConcurrentAllocationMutex guard(this);
   return free_list_->Available();
@@ -462,16 +442,17 @@ size_t PagedSpaceBase::Available() const {
 void PagedSpaceBase::FreeLinearAllocationArea() {
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.
-  Address current_top = top();
-  Address current_limit = limit();
+  Address current_top = allocator_->top();
+  Address current_limit = allocator_->limit();
   if (current_top == kNullAddress) {
     DCHECK_EQ(kNullAddress, current_limit);
     return;
   }
-  Address current_max_limit = original_limit_relaxed();
-  DCHECK_IMPLIES(!SupportsExtendingLAB(), current_max_limit == current_limit);
+  Address current_max_limit = allocator_->original_limit_relaxed();
+  DCHECK_IMPLIES(!allocator_->supports_extending_lab(),
+                 current_max_limit == current_limit);
 
-  AdvanceAllocationObservers();
+  allocator_->AdvanceAllocationObservers();
 
   base::Optional<CodePageHeaderModificationScope> optional_scope;
   if (identity() == CODE_SPACE) {
@@ -511,7 +492,8 @@ void PagedSpaceBase::ReleasePageImpl(Page* page,
 
   free_list_->EvictFreeListItems(page);
 
-  if (Page::FromAllocationAreaAddress(allocation_info_.top()) == page) {
+  if (Page::FromAllocationAreaAddress(allocator_->allocation_info().top()) ==
+      page) {
     SetTopAndLimit(kNullAddress, kNullAddress, kNullAddress);
   }
 
@@ -550,14 +532,16 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
                                                    AllocationOrigin origin) {
   ConcurrentAllocationMutex guard(this);
   DCHECK(IsAligned(size_in_bytes, kTaggedSize));
-  DCHECK_LE(top(), limit());
+  DCHECK_LE(allocator_->top(), allocator_->limit());
 #ifdef DEBUG
-  if (top() != limit()) {
-    DCHECK_EQ(Page::FromAddress(top()), Page::FromAddress(limit() - 1));
+  if (allocator_->top() != allocator_->limit()) {
+    DCHECK_EQ(Page::FromAddress(allocator_->top()),
+              Page::FromAddress(allocator_->limit() - 1));
   }
 #endif
   // Don't free list allocate if there is linear space available.
-  DCHECK_LT(static_cast<size_t>(limit() - top()), size_in_bytes);
+  DCHECK_LT(static_cast<size_t>(allocator_->limit() - allocator_->top()),
+            size_in_bytes);
 
   // Mark the old linear allocation area with a free space map so it can be
   // skipped when scanning the heap.  This also puts it back in the free list
@@ -580,14 +564,15 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   Page* page = Page::FromHeapObject(new_node);
   IncreaseAllocatedBytes(new_node_size, page);
 
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocator_->allocation_info().start(),
+            allocator_->allocation_info().top());
   Address start = new_node.address();
   Address end = new_node.address() + new_node_size;
-  Address limit = ComputeLimit(start, end, size_in_bytes);
+  Address limit = allocator_->ComputeLimit(start, end, size_in_bytes);
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
-    if (!SupportsExtendingLAB()) {
+    if (!allocator_->supports_extending_lab()) {
       Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
       end = limit;
     } else {
@@ -601,46 +586,6 @@ bool PagedSpaceBase::TryAllocationFromFreeListMain(size_t size_in_bytes,
   return true;
 }
 
-base::Optional<std::pair<Address, size_t>>
-PagedSpaceBase::TryAllocationFromFreeListBackground(size_t min_size_in_bytes,
-                                                    size_t max_size_in_bytes,
-                                                    AllocationOrigin origin) {
-  base::MutexGuard lock(&space_mutex_);
-  DCHECK_LE(min_size_in_bytes, max_size_in_bytes);
-  DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == SHARED_SPACE);
-
-  size_t new_node_size = 0;
-  Tagged<FreeSpace> new_node =
-      free_list_->Allocate(min_size_in_bytes, &new_node_size, origin);
-  if (new_node.is_null()) return {};
-  DCHECK_GE(new_node_size, min_size_in_bytes);
-
-  // The old-space-step might have finished sweeping and restarted marking.
-  // Verify that it did not turn the page of the new node into an evacuation
-  // candidate.
-  DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
-
-  // Memory in the linear allocation area is counted as allocated.  We may free
-  // a little of this again immediately - see below.
-  Page* page = Page::FromHeapObject(new_node);
-  IncreaseAllocatedBytes(new_node_size, page);
-
-  size_t used_size_in_bytes = std::min(new_node_size, max_size_in_bytes);
-
-  Address start = new_node.address();
-  Address end = new_node.address() + new_node_size;
-  Address limit = new_node.address() + used_size_in_bytes;
-  DCHECK_LE(limit, end);
-  DCHECK_LE(min_size_in_bytes, limit - start);
-  if (limit != end) {
-    Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
-  }
-  AddRangeToActiveSystemPages(page, start, limit);
-
-  return std::make_pair(start, used_size_in_bytes);
-}
-
 #ifdef DEBUG
 void PagedSpaceBase::Print() {}
 #endif
@@ -651,7 +596,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
   CHECK_IMPLIES(identity() != NEW_SPACE, size_at_last_gc_ == 0);
 
   bool allocation_pointer_found_in_space =
-      (allocation_info_.top() == allocation_info_.limit());
+      (allocator_->allocation_info().top() ==
+       allocator_->allocation_info().limit());
   size_t external_space_bytes[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   PtrComprCageBase cage_base(isolate);
@@ -663,7 +609,8 @@ void PagedSpaceBase::Verify(Isolate* isolate,
     CHECK_IMPLIES(identity() != NEW_SPACE, page->AllocatedLabSize() == 0);
     visitor->VerifyPage(page);
 
-    if (page == Page::FromAllocationAreaAddress(allocation_info_.top())) {
+    if (page ==
+        Page::FromAllocationAreaAddress(allocator_->allocation_info().top())) {
       allocation_pointer_found_in_space = true;
     }
     CHECK(page->SweepingDone());
@@ -751,7 +698,7 @@ void PagedSpaceBase::VerifyCountersAfterSweeping(Heap* heap) const {
     DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
     size_t real_allocated = 0;
-    for (HeapObject object : HeapObjectRange(page)) {
+    for (Tagged<HeapObject> object : HeapObjectRange(page)) {
       if (!IsFreeSpaceOrFiller(object)) {
         real_allocated +=
             ALIGN_TO_ALLOCATION_ALIGNMENT(object->Size(cage_base));
@@ -784,12 +731,44 @@ void PagedSpaceBase::VerifyCountersBeforeConcurrentSweeping() const {
 
 void PagedSpaceBase::UpdateInlineAllocationLimit() {
   // Ensure there are no unaccounted allocations.
-  DCHECK_EQ(allocation_info_.start(), allocation_info_.top());
+  DCHECK_EQ(allocator_->allocation_info().start(),
+            allocator_->allocation_info().top());
 
-  Address new_limit = ComputeLimit(top(), limit(), 0);
-  DCHECK_LE(top(), new_limit);
-  DCHECK_LE(new_limit, limit());
+  Address new_limit =
+      allocator_->ComputeLimit(allocator_->top(), allocator_->limit(), 0);
+  DCHECK_LE(allocator_->top(), new_limit);
+  DCHECK_LE(new_limit, allocator_->limit());
   DecreaseLimit(new_limit);
+}
+
+bool PagedSpaceBase::EnsureAllocation(int size_in_bytes,
+                                      AllocationAlignment alignment,
+                                      AllocationOrigin origin,
+                                      int* out_max_aligned_size) {
+  if (!is_compaction_space() &&
+      !((identity() == NEW_SPACE) && heap_->ShouldOptimizeForLoadTime())) {
+    // Start incremental marking before the actual allocation, this allows the
+    // allocation function to mark the object black when incremental marking is
+    // running.
+    heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        heap()->GCFlagsForIncrementalMarking(),
+        kGCCallbackScheduleIdleGarbageCollection);
+  }
+  if (identity() == NEW_SPACE && heap()->incremental_marking()->IsStopped()) {
+    heap()->StartMinorMSIncrementalMarkingIfNeeded();
+  }
+
+  // We don't know exactly how much filler we need to align until space is
+  // allocated, so assume the worst case.
+  size_in_bytes += Heap::GetMaximumFillToAlign(alignment);
+  if (out_max_aligned_size) {
+    *out_max_aligned_size = size_in_bytes;
+  }
+  if (allocator_->allocation_info().top() + size_in_bytes <=
+      allocator_->allocation_info().limit()) {
+    return true;
+  }
+  return RefillLabMain(size_in_bytes, origin);
 }
 
 bool PagedSpaceBase::RefillLabMain(int size_in_bytes, AllocationOrigin origin) {
@@ -815,17 +794,18 @@ bool PagedSpaceBase::TryExpand(int size_in_bytes, AllocationOrigin origin) {
 }
 
 bool PagedSpaceBase::TryExtendLAB(int size_in_bytes) {
-  Address current_top = top();
+  Address current_top = allocator_->top();
   if (current_top == kNullAddress) return false;
-  Address current_limit = limit();
-  Address max_limit = original_limit_relaxed();
+  Address current_limit = allocator_->limit();
+  Address max_limit = allocator_->original_limit_relaxed();
   if (current_top + size_in_bytes > max_limit) {
     return false;
   }
-  DCHECK(SupportsExtendingLAB());
-  AdvanceAllocationObservers();
-  Address new_limit = ComputeLimit(current_top, max_limit, size_in_bytes);
-  SetLimit(new_limit);
+  DCHECK(allocator_->supports_extending_lab());
+  allocator_->AdvanceAllocationObservers();
+  Address new_limit =
+      allocator_->ComputeLimit(current_top, max_limit, size_in_bytes);
+  allocator_->ExtendLAB(new_limit);
   DCHECK(heap()->IsMainThread());
   heap()->CreateFillerObjectAt(new_limit,
                                static_cast<int>(max_limit - new_limit));
@@ -1004,7 +984,8 @@ void DropFreeListCategories(Page* page, FreeList* free_list) {
 void PagedSpaceBase::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList.
   DCHECK(identity() == OLD_SPACE || identity() == CODE_SPACE ||
-         identity() == SHARED_SPACE || identity() == NEW_SPACE);
+         identity() == SHARED_SPACE || identity() == NEW_SPACE ||
+         identity() == TRUSTED_SPACE);
   DCHECK_IMPLIES(
       identity() == NEW_SPACE,
       heap_->IsMainThread() || (heap_->IsSharedMainThread() &&

@@ -249,7 +249,7 @@ class Client extends DispatcherBase {
     }
 
     if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
-      throw new InvalidArgumentError('maxConcurrentStreams must be a possitive integer, greater than 0')
+      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
     if (typeof connect !== 'function') {
@@ -296,7 +296,7 @@ class Client extends DispatcherBase {
       ? null
       : {
         // streams: null, // Fixed queue of streams - For future support of `push`
-          openStreams: 0, // Keep track of them to decide wether or not unref the session
+          openStreams: 0, // Keep track of them to decide whether or not unref the session
           maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
         }
     this[kHost] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}`
@@ -740,6 +740,7 @@ class Parser {
     if (!request) {
       return -1
     }
+    request.onResponseStarted()
   }
 
   onHeaderField (buf) {
@@ -765,11 +766,14 @@ class Parser {
     }
 
     const key = this.headers[len - 2]
-    if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
-      this.keepAlive += buf.toString()
-    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
-      this.connection += buf.toString()
-    } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
+    if (key.length === 10) {
+      const headerName = util.bufferToLowerCasedHeaderName(key)
+      if (headerName === 'keep-alive') {
+        this.keepAlive += buf.toString()
+      } else if (headerName === 'connection') {
+        this.connection += buf.toString()
+      }
+    } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === 'content-length') {
       this.contentLength += buf.toString()
     }
 
@@ -1706,7 +1710,7 @@ function writeH2 (client, session, request) {
   }
 
   // https://tools.ietf.org/html/rfc7540#section-8.3
-  // :path and :scheme headers must be omited when sending CONNECT
+  // :path and :scheme headers must be omitted when sending CONNECT
 
   headers[HTTP2_HEADER_PATH] = path
   headers[HTTP2_HEADER_SCHEME] = 'https'
@@ -1783,6 +1787,7 @@ function writeH2 (client, session, request) {
 
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
+    request.onResponseStarted()
 
     if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), '') === false) {
       stream.pause()
@@ -1833,7 +1838,7 @@ function writeH2 (client, session, request) {
   // })
 
   // stream.on('push', headers => {
-  //   // TODO(HTTP/2): Suppor push
+  //   // TODO(HTTP/2): Support push
   // })
 
   // stream.on('trailers', headers => {
@@ -1963,12 +1968,19 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
       body.resume()
     }
   }
-  const onAbort = function () {
-    if (finished) {
-      return
+  const onClose = function () {
+    // 'close' might be emitted *before* 'error' for
+    // broken streams. Wait a tick to avoid this case.
+    queueMicrotask(() => {
+      // It's only safe to remove 'error' listener after
+      // 'close'.
+      body.removeListener('error', onFinished)
+    })
+
+    if (!finished) {
+      const err = new RequestAbortedError()
+      queueMicrotask(() => onFinished(err))
     }
-    const err = new RequestAbortedError()
-    queueMicrotask(() => onFinished(err))
   }
   const onFinished = function (err) {
     if (finished) {
@@ -1986,8 +1998,7 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
     body
       .removeListener('data', onData)
       .removeListener('end', onFinished)
-      .removeListener('error', onFinished)
-      .removeListener('close', onAbort)
+      .removeListener('close', onClose)
 
     if (!err) {
       try {
@@ -2010,7 +2021,7 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
     .on('data', onData)
     .on('end', onFinished)
     .on('error', onFinished)
-    .on('close', onAbort)
+    .on('close', onClose)
 
   if (body.resume) {
     body.resume()

@@ -29,6 +29,9 @@ AllocationResult EvacuationAllocator::Allocate(AllocationSpace space,
     case SHARED_SPACE:
       return compaction_spaces_.Get(SHARED_SPACE)
           ->AllocateRaw(object_size, alignment, origin);
+    case TRUSTED_SPACE:
+      return compaction_spaces_.Get(TRUSTED_SPACE)
+          ->AllocateRaw(object_size, alignment, origin);
     default:
       UNREACHABLE();
   }
@@ -64,8 +67,8 @@ void EvacuationAllocator::FreeLastInNewSpace(Tagged<HeapObject> object,
 void EvacuationAllocator::FreeLastInCompactionSpace(AllocationSpace space,
                                                     Tagged<HeapObject> object,
                                                     int object_size) {
-  if (!compaction_spaces_.Get(space)->TryFreeLast(object.address(),
-                                                  object_size)) {
+  if (!compaction_spaces_.Get(space)->main_allocator()->TryFreeLast(
+          object.address(), object_size)) {
     // We couldn't free the last object so we have to write a proper filler.
     heap_->CreateFillerObjectAt(object.address(), object_size);
   }

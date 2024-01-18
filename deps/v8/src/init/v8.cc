@@ -257,9 +257,7 @@ void V8::Initialize() {
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
 
-#if defined(V8_CODE_POINTER_SANDBOXING)
   GetProcessWideCodePointerTable()->Initialize();
-#endif
 #endif
 
 #if defined(V8_USE_PERFETTO)

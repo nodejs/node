@@ -29,8 +29,8 @@ namespace {
 
 enum class RedeclarationType { kSyntaxError = 0, kTypeError = 1 };
 
-Object ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
-                               RedeclarationType redeclaration_type) {
+Tagged<Object> ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
+                                       RedeclarationType redeclaration_type) {
   HandleScope scope(isolate);
   if (redeclaration_type == RedeclarationType::kSyntaxError) {
     THROW_NEW_ERROR_RETURN_FAILURE(
@@ -42,10 +42,10 @@ Object ThrowRedeclarationError(Isolate* isolate, Handle<String> name,
 }
 
 // May throw a RedeclarationError.
-Object DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
-                     Handle<String> name, Handle<Object> value,
-                     PropertyAttributes attr, bool is_var,
-                     RedeclarationType redeclaration_type) {
+Tagged<Object> DeclareGlobal(Isolate* isolate, Handle<JSGlobalObject> global,
+                             Handle<String> name, Handle<Object> value,
+                             PropertyAttributes attr, bool is_var,
+                             RedeclarationType redeclaration_type) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table(), isolate);
   VariableLookupResult lookup;
@@ -140,9 +140,9 @@ RUNTIME_FUNCTION(Runtime_DeclareModuleExports) {
 
   int length = declarations->length();
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i++, {
-    Object decl = declarations->get(i);
+    Tagged<Object> decl = declarations->get(i);
     int index;
-    Object value;
+    Tagged<Object> value;
     if (IsSmi(decl)) {
       index = Smi::ToInt(decl);
       value = ReadOnlyRoots(isolate).the_hole_value();
@@ -208,7 +208,7 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
     // Compute the property attributes. According to ECMA-262,
     // the property must be non-configurable except in eval.
-    Script script = Script::cast(closure->shared()->script());
+    Tagged<Script> script = Script::cast(closure->shared()->script());
     PropertyAttributes attr =
         script->compilation_type() == Script::CompilationType::kEval
             ? NONE
@@ -216,8 +216,9 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
     // ES#sec-globaldeclarationinstantiation 5.d:
     // If hasRestrictedGlobal is true, throw a SyntaxError exception.
-    Object result = DeclareGlobal(isolate, global, name, value, attr, is_var,
-                                  RedeclarationType::kSyntaxError);
+    Tagged<Object> result =
+        DeclareGlobal(isolate, global, name, value, attr, is_var,
+                      RedeclarationType::kSyntaxError);
     if (isolate->has_pending_exception()) return result;
   });
 
@@ -226,8 +227,8 @@ RUNTIME_FUNCTION(Runtime_DeclareGlobals) {
 
 namespace {
 
-Object DeclareEvalHelper(Isolate* isolate, Handle<String> name,
-                         Handle<Object> value) {
+Tagged<Object> DeclareEvalHelper(Isolate* isolate, Handle<String> name,
+                                 Handle<Object> value) {
   // Declarations are always made in a function, native, eval, or script
   // context, or a declaration block scope. Since this is called from eval, the
   // context passed is the context of the caller, which may be some nested
@@ -350,7 +351,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   // Find frame containing arguments passed to the caller.
   JavaScriptStackFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  std::vector<SharedFunctionInfo> functions;
+  std::vector<Tagged<SharedFunctionInfo>> functions;
   frame->GetFunctions(&functions);
   if (functions.size() > 1) {
     int inlined_jsframe_index = static_cast<int>(functions.size()) - 1;
@@ -455,7 +456,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
         int parameter = scope_info->ContextLocalParameterNumber(i);
         if (parameter >= mapped_count) continue;
         arguments->set_the_hole(parameter);
-        Smi slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
+        Tagged<Smi> slot = Smi::FromInt(scope_info->ContextHeaderLength() + i);
         parameter_map->set_mapped_entries(parameter, slot);
       }
     } else {
@@ -475,7 +476,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
 class HandleArguments {
  public:
   explicit HandleArguments(Handle<Object>* array) : array_(array) {}
-  Object operator[](int index) { return *array_[index]; }
+  Tagged<Object> operator[](int index) { return *array_[index]; }
 
  private:
   Handle<Object>* array_;
@@ -484,7 +485,7 @@ class HandleArguments {
 class ParameterArguments {
  public:
   explicit ParameterArguments(Address parameters) : parameters_(parameters) {}
-  Object operator[](int index) {
+  Tagged<Object> operator[](int index) {
     return *FullObjectSlot(parameters_ - (index + 1) * kSystemPointerSize);
   }
 
@@ -549,7 +550,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
       ArrayStorageAllocationMode::DONT_INITIALIZE_ARRAY_ELEMENTS);
   {
     DisallowGarbageCollection no_gc;
-    FixedArray elements = FixedArray::cast(result->elements());
+    Tagged<FixedArray> elements = FixedArray::cast(result->elements());
     WriteBarrierMode mode = elements->GetWriteBarrierMode(no_gc);
     for (int i = 0; i < num_elements; i++) {
       elements->set(i, *arguments[i + start_index], mode);
@@ -757,7 +758,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, value, LoadLookupSlot(isolate, name, kThrowOnError, &receiver),
-      MakePair(ReadOnlyRoots(isolate).exception(), Object()));
+      MakePair(ReadOnlyRoots(isolate).exception(), Tagged<Object>()));
   return MakePair(*value, *receiver);
 }
 
@@ -774,7 +775,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotForCall_Baseline) {
            .ToHandle(&value)) {
     DCHECK((isolate)->has_pending_exception());
     value_ret.store(ReadOnlyRoots(isolate).exception());
-    receiver_ret.store(Object());
+    receiver_ret.store(Tagged<Object>());
     return ReadOnlyRoots(isolate).exception();
   }
   value_ret.store(*value);

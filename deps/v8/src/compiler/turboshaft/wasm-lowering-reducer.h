@@ -9,6 +9,7 @@
 #ifndef V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_WASM_LOWERING_REDUCER_H_
 
+#include "src/compiler/globals.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
@@ -108,6 +109,96 @@ class WasmLoweringReducer : public Next {
     }
   }
 
+  OpIndex REDUCE(ExternInternalize)(V<Tagged> object) {
+    Label<Tagged> end_label(&Asm());
+    Label<> null_label(&Asm());
+    Label<> smi_label(&Asm());
+    Label<> int_to_smi_label(&Asm());
+    Label<> heap_number_label(&Asm());
+
+    constexpr int32_t kInt31MaxValue = 0x3fffffff;
+    constexpr int32_t kInt31MinValue = -kInt31MaxValue - 1;
+
+    GOTO_IF(__ IsNull(object, wasm::kWasmExternRef), null_label);
+    GOTO_IF(__ IsSmi(object), smi_label);
+    GOTO_IF(__ HasInstanceType(object, HEAP_NUMBER_TYPE), heap_number_label);
+    // For anything else, just pass through the value.
+    GOTO(end_label, object);
+
+    BIND(null_label);
+    GOTO(end_label, Null(wasm::kWasmAnyRef));
+
+    // Canonicalize SMI.
+    BIND(smi_label);
+    if constexpr (SmiValuesAre31Bits()) {
+      GOTO(end_label, object);
+    } else {
+      Label<> convert_to_heap_number_label(&Asm());
+      V<Word32> int_value = __ UntagSmi(object);
+
+      // Convert to heap number if the int32 does not fit into an i31ref.
+      GOTO_IF(__ Int32LessThan(__ Word32Constant(kInt31MaxValue), int_value),
+              convert_to_heap_number_label);
+      GOTO_IF(__ Int32LessThan(int_value, __ Word32Constant(kInt31MinValue)),
+              convert_to_heap_number_label);
+      GOTO(end_label, object);
+
+      BIND(convert_to_heap_number_label);
+      V<Tagged> heap_number = __ CallBuiltin(Builtin::kWasmInt32ToHeapNumber,
+                                             {int_value}, Operator::kPure);
+      GOTO(end_label, heap_number);
+    }
+
+    // Convert HeapNumber to SMI if possible.
+    BIND(heap_number_label);
+    V<Float64> float_value =
+        __ Load(object, LoadOp::Kind::TaggedBase(),
+                MemoryRepresentation::Float64(), HeapNumber::kValueOffset);
+    // Check range of float value.
+    GOTO_IF(__ Float64LessThan(float_value, __ Float64Constant(kInt31MinValue)),
+            end_label, object);
+    GOTO_IF(__ Float64LessThan(__ Float64Constant(kInt31MaxValue), float_value),
+            end_label, object);
+    // Check if value is -0.
+    V<Word32> is_minus_zero;
+    if constexpr (Is64()) {
+      V<Word64> minus_zero = __ Word64Constant(kMinusZeroBits);
+      V<Word64> float_bits = __ BitcastFloat64ToWord64(float_value);
+      is_minus_zero = __ Word64Equal(float_bits, minus_zero);
+    } else {
+      Label<Word32> done(&Asm());
+
+      V<Word32> value_lo = __ Float64ExtractLowWord32(float_value);
+      GOTO_IF_NOT(__ Word32Equal(value_lo, __ Word32Constant(kMinusZeroLoBits)),
+                  done, __ Word32Constant(0));
+      V<Word32> value_hi = __ Float64ExtractHighWord32(float_value);
+      GOTO(done, __ Word32Equal(value_hi, __ Word32Constant(kMinusZeroHiBits)));
+      BIND(done, phi_is_minus_zero);
+      is_minus_zero = phi_is_minus_zero;
+    }
+    GOTO_IF(is_minus_zero, end_label, object);
+    // Check if value is integral.
+    V<Word32> int_value =
+        __ TruncateFloat64ToInt32OverflowUndefined(float_value);
+    GOTO_IF(__ Float64Equal(float_value, __ ChangeInt32ToFloat64(int_value)),
+            int_to_smi_label);
+    GOTO(end_label, object);
+
+    BIND(int_to_smi_label);
+    GOTO(end_label, __ TagSmi(int_value));
+
+    BIND(end_label, result);
+    return result;
+  }
+
+  OpIndex REDUCE(ExternExternalize)(V<Tagged> object) {
+    Label<Tagged> end(&Asm());
+    GOTO_IF_NOT(__ IsNull(object, wasm::kWasmAnyRef), end, object);
+    GOTO(end, Null(wasm::kWasmExternRef));
+    BIND(end, result);
+    return result;
+  }
+
   OpIndex REDUCE(StructGet)(OpIndex object, const wasm::StructType* type,
                             int field_index, bool is_signed,
                             CheckForNull null_check) {
@@ -189,6 +280,133 @@ class WasmLoweringReducer : public Next {
                    WasmArray::kLengthOffset);
   }
 
+  OpIndex REDUCE(StringAsWtf16)(OpIndex string) {
+    Label<Tagged> done(&Asm());
+    V<Word32> instance_type = __ LoadInstanceTypeField(__ LoadMapField(string));
+    V<Word32> string_representation = __ Word32BitwiseAnd(
+        instance_type, __ Word32Constant(kStringRepresentationMask));
+    GOTO_IF(__ Word32Equal(string_representation, kSeqStringTag), done, string);
+    GOTO(done, __ CallBuiltin(Builtin::kWasmStringAsWtf16, {string},
+                              Operator::kPure));
+    BIND(done, result);
+    return result;
+  }
+
+  OpIndex REDUCE(StringPrepareForGetCodeUnit)(V<Tagged> original_string) {
+    LoopLabel<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+        dispatch(&Asm());
+    Label<Tagged /*string*/, Word32 /*instance type*/, Word32 /*offset*/>
+        direct_string(&Asm());
+
+    // These values will be used to replace the original node's projections.
+    // The first, "string", is either a SeqString or Tagged<Smi>(0) (in case of
+    // external string). Notably this makes it GC-safe: if that string moves,
+    // this pointer will be updated accordingly. The second, "offset", has full
+    // register width so that it can be used to store external pointers: for
+    // external strings, we add up the character backing store's base address
+    // and any slice offset. The third, "character width", is a shift width,
+    // i.e. it is 0 for one-byte strings, 1 for two-byte strings,
+    // kCharWidthBailoutSentinel for uncached external strings (for which
+    // "string"/"offset" are invalid and unusable).
+    Label<Tagged /*string*/, WordPtr /*offset*/, Word32 /*character width*/>
+        done(&Asm());
+
+    V<Word32> original_type =
+        __ LoadInstanceTypeField(__ LoadMapField(original_string));
+    GOTO(dispatch, original_string, original_type, __ Word32Constant(0));
+
+    LOOP(dispatch, string, instance_type, offset) {
+      Label<> thin_string(&Asm());
+      Label<> cons_string(&Asm());
+
+      static_assert(kIsIndirectStringTag == 1);
+      static constexpr int kIsDirectStringTag = 0;
+      GOTO_IF(__ Word32Equal(
+                  __ Word32BitwiseAnd(instance_type, kIsIndirectStringMask),
+                  kIsDirectStringTag),
+              direct_string, string, instance_type, offset);
+
+      // Handle indirect strings.
+      V<Word32> string_representation =
+          __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
+      GOTO_IF(__ Word32Equal(string_representation, kThinStringTag),
+              thin_string);
+      GOTO_IF(__ Word32Equal(string_representation, kConsStringTag),
+              cons_string);
+
+      // Sliced string.
+      V<Word32> new_offset = __ Word32Add(
+          offset,
+          __ UntagSmi(__ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                              MemoryRepresentation::TaggedSigned(),
+                              SlicedString::kOffsetOffset)));
+      V<Tagged> parent = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                 MemoryRepresentation::TaggedPointer(),
+                                 SlicedString::kParentOffset);
+      V<Word32> parent_type = __ LoadInstanceTypeField(__ LoadMapField(parent));
+      GOTO(dispatch, parent, parent_type, new_offset);
+
+      // Thin string.
+      BIND(thin_string);
+      V<Tagged> actual = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                 MemoryRepresentation::TaggedPointer(),
+                                 ThinString::kActualOffset);
+      V<Word32> actual_type = __ LoadInstanceTypeField(__ LoadMapField(actual));
+      // ThinStrings always reference (internalized) direct strings.
+      GOTO(direct_string, actual, actual_type, offset);
+
+      // Flat cons string. (Non-flat cons strings are ruled out by
+      // string.as_wtf16.)
+      BIND(cons_string);
+      V<Tagged> first = __ Load(string, LoadOp::Kind::TaggedBase().Immutable(),
+                                MemoryRepresentation::TaggedPointer(),
+                                ConsString::kFirstOffset);
+      V<Word32> first_type = __ LoadInstanceTypeField(__ LoadMapField(first));
+      GOTO(dispatch, first, first_type, offset);
+    }
+    {
+      BIND(direct_string, string, instance_type, offset);
+
+      V<Word32> is_onebyte =
+          __ Word32BitwiseAnd(instance_type, kStringEncodingMask);
+      // Char width shift is 1 - (is_onebyte).
+      static_assert(kStringEncodingMask == 1 << 3);
+      V<Word32> charwidth_shift =
+          __ Word32Sub(1, __ Word32ShiftRightLogical(is_onebyte, 3));
+
+      Label<> external(&Asm());
+      V<Word32> string_representation =
+          __ Word32BitwiseAnd(instance_type, kStringRepresentationMask);
+      GOTO_IF(__ Word32Equal(string_representation, kExternalStringTag),
+              external);
+
+      // Sequential string.
+      static_assert(SeqOneByteString::kCharsOffset ==
+                    SeqTwoByteString::kCharsOffset);
+      V<Word32> final_offset =
+          __ Word32Add(SeqOneByteString::kCharsOffset - kHeapObjectTag,
+                       __ Word32ShiftLeft(offset, charwidth_shift));
+      GOTO(done, string, __ ChangeInt32ToIntPtr(final_offset), charwidth_shift);
+
+      // External string.
+      BIND(external);
+      GOTO_IF(__ Word32BitwiseAnd(instance_type, kUncachedExternalStringMask),
+              done, string, /*offset*/ 0, kCharWidthBailoutSentinel);
+      V<WordPtr> resource = BuildLoadExternalPointerFromObject(
+          string, ExternalString::kResourceDataOffset,
+          kExternalStringResourceDataTag);
+      V<Word32> shifted_offset = __ Word32ShiftLeft(offset, charwidth_shift);
+      V<WordPtr> final_offset_external =
+          __ WordPtrAdd(resource, __ ChangeInt32ToIntPtr(shifted_offset));
+      GOTO(done, __ SmiConstant(Smi::FromInt(0)), final_offset_external,
+           charwidth_shift);
+    }
+    {
+      BIND(done, base, final_offset, charwidth_shift);
+      return __ Tuple({base, final_offset, charwidth_shift});
+    }
+  }
+
  private:
   enum class GlobalMode { kLoad, kStore };
 
@@ -224,6 +442,20 @@ class WasmLoweringReducer : public Next {
       case wasm::kBottom:
         UNREACHABLE();
     }
+  }
+
+  V<WordPtr> BuildLoadExternalPointerFromObject(V<Tagged> object,
+                                                int field_offset,
+                                                ExternalPointerTag tag) {
+#ifdef V8_ENABLE_SANDBOX
+    DCHECK_NE(tag, kExternalPointerNullTag);
+    V<Word32> handle = __ Load(object, LoadOp::Kind::TaggedBase(),
+                               MemoryRepresentation::Uint32(), field_offset);
+    return __ DecodeExternalPointer(handle, tag);
+#else
+    return __ Load(object, LoadOp::Kind::TaggedBase(),
+                   MemoryRepresentation::PointerSized(), field_offset);
+#endif  // V8_ENABLE_SANDBOX
   }
 
   OpIndex ReduceWasmTypeCheckAbstract(V<Tagged> object,
@@ -276,11 +508,11 @@ class WasmLoweringReducer : public Next {
         GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(0));
       }
       if (to_rep == wasm::HeapType::kArray) {
-        result = HasInstanceType(object, WASM_ARRAY_TYPE);
+        result = __ HasInstanceType(object, WASM_ARRAY_TYPE);
         break;
       }
       if (to_rep == wasm::HeapType::kStruct) {
-        result = HasInstanceType(object, WASM_STRUCT_TYPE);
+        result = __ HasInstanceType(object, WASM_STRUCT_TYPE);
         break;
       }
       if (to_rep == wasm::HeapType::kString) {
@@ -293,7 +525,7 @@ class WasmLoweringReducer : public Next {
       UNREACHABLE();
     } while (false);
 
-    DCHECK(result.valid());
+    DCHECK(__ generating_unreachable_operations() || result.valid());
     GOTO(end_label, result);
     BIND(end_label, final_result);
     return final_result;
@@ -350,7 +582,7 @@ class WasmLoweringReducer : public Next {
                   TrapId::kTrapIllegalCast);
       }
       if (to_rep == wasm::HeapType::kArray) {
-        __ TrapIfNot(HasInstanceType(object, WASM_ARRAY_TYPE),
+        __ TrapIfNot(__ HasInstanceType(object, WASM_ARRAY_TYPE),
                      OpIndex::Invalid(), TrapId::kTrapIllegalCast);
         break;
       }
@@ -517,12 +749,6 @@ class WasmLoweringReducer : public Next {
 
     BIND(end_label, result);
     return result;
-  }
-
-  V<Word32> HasInstanceType(V<Tagged> object, InstanceType instance_type) {
-    // TODO(mliedtke): These loads should be immutable.
-    return __ Word32Equal(__ LoadInstanceTypeField(__ LoadMapField(object)),
-                          __ Word32Constant(instance_type));
   }
 
   OpIndex LowerGlobalSetOrGet(OpIndex instance, OpIndex value,

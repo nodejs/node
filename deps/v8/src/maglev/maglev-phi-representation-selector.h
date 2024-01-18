@@ -84,7 +84,8 @@ class MaglevPhiRepresentationSelector {
         // untagged. Depending on the conversion, it might need to be replaced
         // by another untagged->untagged conversion, or it might need to be
         // removed alltogether (or rather, replaced by an identity node).
-        UpdateUntaggingOfPhi(n->template Cast<ValueNode>());
+        UpdateUntaggingOfPhi(node->input(0).node()->Cast<Phi>(),
+                             n->template Cast<ValueNode>());
       }
     } else {
       result = UpdateNonUntaggingNodeInputs(n, state);
@@ -155,7 +156,7 @@ class MaglevPhiRepresentationSelector {
 
   // Updates {old_untagging} to reflect that its Phi input has been untagged and
   // that a different conversion is now needed.
-  void UpdateUntaggingOfPhi(ValueNode* old_untagging);
+  void UpdateUntaggingOfPhi(Phi* phi, ValueNode* old_untagging);
 
   // NewNodePosition is used to represent where a new node should be inserted:
   // at the start of a block (kStart), or at the end of a block (kEnd).

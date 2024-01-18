@@ -97,7 +97,7 @@ class DeoptimizationFrameTranslation::Iterator {
   void SkipOpcodeAndItsOperandsAtPreviousIndex();
 
   std::vector<int32_t> uncompressed_contents_;
-  DeoptimizationFrameTranslation buffer_;
+  Tagged<DeoptimizationFrameTranslation> buffer_;
   int index_;
 
   // This decrementing counter indicates how many more times to read operations

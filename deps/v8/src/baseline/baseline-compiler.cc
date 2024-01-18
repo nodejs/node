@@ -78,7 +78,7 @@ namespace detail {
 #ifdef DEBUG
 bool Clobbers(Register target, Register reg) { return target == reg; }
 bool Clobbers(Register target, Handle<Object> handle) { return false; }
-bool Clobbers(Register target, Smi smi) { return false; }
+bool Clobbers(Register target, Tagged<Smi> smi) { return false; }
 bool Clobbers(Register target, Tagged<TaggedIndex> index) { return false; }
 bool Clobbers(Register target, int32_t imm) { return false; }
 bool Clobbers(Register target, RootIndex index) { return false; }
@@ -92,7 +92,7 @@ bool MachineTypeMatches(MachineType type, MemOperand reg) { return true; }
 bool MachineTypeMatches(MachineType type, Handle<HeapObject> handle) {
   return type.IsTagged() && !type.IsTaggedSigned();
 }
-bool MachineTypeMatches(MachineType type, Smi handle) {
+bool MachineTypeMatches(MachineType type, Tagged<Smi> handle) {
   return type.IsTagged() && !type.IsTaggedPointer();
 }
 bool MachineTypeMatches(MachineType type, Tagged<TaggedIndex> handle) {
@@ -712,7 +712,7 @@ void BaselineCompiler::VisitLdaZero() {
 }
 
 void BaselineCompiler::VisitLdaSmi() {
-  Smi constant = Smi::FromInt(iterator().GetImmediateOperand(0));
+  Tagged<Smi> constant = Smi::FromInt(iterator().GetImmediateOperand(0));
   __ Move(kInterpreterAccumulatorRegister, constant);
 }
 

@@ -999,6 +999,17 @@ Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
   // Create a %Promise% instance and resolve it with {value}.
   Node* promise = effect =
       graph()->NewNode(javascript()->CreatePromise(), context, effect);
+
+  // Create a nested frame state inside the current method's most-recent
+  // {frame_state} that will ensure that lazy deoptimizations at this
+  // point will still return the {promise} instead of the result of the
+  // ResolvePromise operation (which yields undefined).
+  Node* parameters[] = {promise};
+  frame_state = CreateStubBuiltinContinuationFrameState(
+      jsgraph(), Builtin::kAsyncFunctionLazyDeoptContinuation, context,
+      parameters, arraysize(parameters), frame_state,
+      ContinuationFrameStateMode::LAZY);
+
   effect = graph()->NewNode(javascript()->ResolvePromise(), promise, value,
                             context, frame_state, effect, control);
   ReplaceWithValue(node, promise, effect, control);
@@ -3250,7 +3261,7 @@ JSNativeContextSpecialization::BuildElementAccess(
     // of holey backing stores.
     if (IsHoleyElementsKind(elements_kind)) {
       element_access.type =
-          Type::Union(element_type, Type::TheHole(), graph()->zone());
+          Type::Union(element_type, Type::Hole(), graph()->zone());
     }
     if (elements_kind == HOLEY_ELEMENTS ||
         elements_kind == HOLEY_SMI_ELEMENTS) {
@@ -3366,7 +3377,7 @@ JSNativeContextSpecialization::BuildElementAccess(
       Node* vfalse = jsgraph()->FalseConstant();
 
       element_access.type =
-          Type::Union(element_type, Type::TheHole(), graph()->zone());
+          Type::Union(element_type, Type::Hole(), graph()->zone());
 
       if (elements_kind == HOLEY_ELEMENTS ||
           elements_kind == HOLEY_SMI_ELEMENTS) {

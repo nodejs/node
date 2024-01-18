@@ -122,6 +122,7 @@ class UniformReducerAdapter : public Next {
 #define REDUCE(op)                                                           \
   struct Reduce##op##Continuation final {                                    \
     explicit Reduce##op##Continuation(Next* _this) : this_(_this) {}         \
+    using Op = op##Op;                                                       \
     OpIndex ReduceInputGraph(OpIndex ig_index, const op##Op& operation) {    \
       return this_->ReduceInputGraph##op(ig_index, operation);               \
     }                                                                        \

@@ -6,6 +6,7 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/dead-code-elimination-reducer.h"
+#include "src/compiler/turboshaft/stack-check-reducer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/compiler/turboshaft/wasm-js-lowering-reducer.h"

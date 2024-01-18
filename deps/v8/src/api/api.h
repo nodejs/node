@@ -408,11 +408,11 @@ class HandleScopeImplementer {
   // `is_microtask_context_[i]` is 1.
   // TODO(tzik): Remove |is_microtask_context_| after the deprecated
   // v8::Isolate::GetEnteredContext() is removed.
-  DetachableVector<NativeContext> entered_contexts_;
+  DetachableVector<Tagged<NativeContext>> entered_contexts_;
   DetachableVector<int8_t> is_microtask_context_;
 
   // Used as a stack to keep track of saved contexts.
-  DetachableVector<Context> saved_contexts_;
+  DetachableVector<Tagged<Context>> saved_contexts_;
   Address* spare_;
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.

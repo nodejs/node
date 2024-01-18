@@ -70,7 +70,7 @@ int DebugStackTraceIterator::GetContextId() const {
   DCHECK(!Done());
   Handle<Object> context = frame_inspector_->GetContext();
   if (IsContext(*context)) {
-    Object value =
+    Tagged<Object> value =
         Context::cast(*context)->native_context()->debug_context_id();
     if (IsSmi(value)) return Smi::ToInt(value);
   }

@@ -1022,7 +1022,7 @@ void ResetBlackboxedStateCache(Isolate* v8_isolate, Local<Script> script) {
   for (i::Tagged<i::SharedFunctionInfo> info = iter.Next(); !info.is_null();
        info = iter.Next()) {
     if (auto debug_info = isolate->debug()->TryGetDebugInfo(info)) {
-      debug_info->set_computed_debug_is_blackboxed(false);
+      debug_info.value()->set_computed_debug_is_blackboxed(false);
     }
   }
 }

@@ -114,6 +114,9 @@ class V8_EXPORT_PRIVATE LocalHeap {
   ConcurrentAllocator* shared_old_space_allocator() {
     return shared_old_space_allocator_.get();
   }
+  ConcurrentAllocator* trusted_space_allocator() {
+    return trusted_space_allocator_.get();
+  }
 
   // Mark/Unmark linear allocation areas black. Used for black allocation.
   void MarkLinearAllocationAreaBlack();
@@ -369,6 +372,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
   std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
+  std::unique_ptr<ConcurrentAllocator> trusted_space_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
 

@@ -2079,7 +2079,7 @@ class InspectionPadawan(object):
     value = self.heap.SmiUntag(address)
     # On 32-bit systems almost everything looks like a Smi.
     if not self.reader.Is64() or value == 0: return None
-    return "Smi(%d)" % value
+    return "Tagged<Smi>(%d)" % value
 
   def SenseObject(self, address, slot=None):
     if self.IsFrameMarker(slot, address):

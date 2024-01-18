@@ -45,8 +45,8 @@ class DescriptorLookupCache {
 
   static const int kLength = 64;
   struct Key {
-    Map source;
-    Name name;
+    Tagged<Map> source;
+    Tagged<Name> name;
   };
 
   Key keys_[kLength];

@@ -46,6 +46,7 @@
 #include "src/roots/roots.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-table.h"
 #include "src/utils/allocation.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -127,6 +128,8 @@ class SharedSpace;
 class Space;
 class StressScavengeObserver;
 class TimedHistogram;
+class TrustedLargeObjectSpace;
+class TrustedSpace;
 class WeakObjectRetainer;
 
 enum class ClearRecordedSlots { kYes, kNo };
@@ -180,11 +183,12 @@ struct CommentStatistic {
 };
 #endif
 
-// An alias for std::unordered_map<HeapObject, T> which also sets proper
-// Hash and KeyEqual functions.
+// An alias for std::unordered_map<Tagged<HeapObject>, T> which also
+// sets proper Hash and KeyEqual functions.
 template <typename T>
 using UnorderedHeapObjectMap =
-    std::unordered_map<HeapObject, T, Object::Hasher, Object::KeyEqualSafe>;
+    std::unordered_map<Tagged<HeapObject>, T, Object::Hasher,
+                       Object::KeyEqualSafe>;
 
 enum class GCFlag : uint8_t {
   kNoFlags = 0,
@@ -652,8 +656,8 @@ class Heap final {
 
   void CompactWeakArrayLists();
 
-  V8_EXPORT_PRIVATE void AddRetainedMap(Handle<NativeContext> context,
-                                        Handle<Map> map);
+  V8_EXPORT_PRIVATE void AddRetainedMaps(Handle<NativeContext> context,
+                                         GlobalHandleVector<Map> maps);
 
   // This event is triggered after object is moved to a new place.
   void OnMoveEvent(Tagged<HeapObject> source, Tagged<HeapObject> target,
@@ -747,7 +751,8 @@ class Heap final {
   // Getters for spaces. =======================================================
   // ===========================================================================
 
-  inline Address NewSpaceTop();
+  V8_INLINE Address NewSpaceTop();
+  V8_INLINE Address NewSpaceLimit();
 
   NewSpace* new_space() const { return new_space_; }
   inline PagedNewSpace* paged_new_space() const;
@@ -759,6 +764,10 @@ class Heap final {
   SharedLargeObjectSpace* shared_lo_space() const { return shared_lo_space_; }
   NewLargeObjectSpace* new_lo_space() const { return new_lo_space_; }
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
+  TrustedSpace* trusted_space() const { return trusted_space_; }
+  TrustedLargeObjectSpace* trusted_lo_space() const {
+    return trusted_lo_space_;
+  }
 
   PagedSpace* shared_allocation_space() const {
     return shared_allocation_space_;
@@ -777,11 +786,15 @@ class Heap final {
   ExternalPointerTable::Space* read_only_external_pointer_space() {
     return &read_only_external_pointer_space_;
   }
+
+  IndirectPointerTable::Space* indirect_pointer_space() {
+    return &indirect_pointer_space_;
+  }
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   // ===========================================================================
   // Getters to other components. ==============================================
@@ -1484,12 +1497,12 @@ class Heap final {
   V8_EXPORT_PRIVATE Tagged<Code> FindCodeForInnerPointer(Address inner_pointer);
   // Use the GcSafe family of functions if called while GC is in progress.
   Tagged<GcSafeCode> GcSafeFindCodeForInnerPointer(Address inner_pointer);
-  base::Optional<GcSafeCode> GcSafeTryFindCodeForInnerPointer(
+  base::Optional<Tagged<GcSafeCode>> GcSafeTryFindCodeForInnerPointer(
       Address inner_pointer);
-  base::Optional<InstructionStream>
+  base::Optional<Tagged<InstructionStream>>
   GcSafeTryFindInstructionStreamForInnerPointer(Address inner_pointer);
   // Only intended for use from the `jco` gdb macro.
-  base::Optional<Code> TryFindCodeForInnerPointerForPrinting(
+  base::Optional<Tagged<Code>> TryFindCodeForInnerPointerForPrinting(
       Address inner_pointer);
 
   // Returns true if {addr} is contained within {instruction_stream} and false
@@ -1709,6 +1722,11 @@ class Heap final {
                                 GarbageCollectionReason gc_reason,
                                 const char* collector_reason);
 
+  void PerformHeapVerification();
+  std::vector<Isolate*> PauseConcurrentThreadsInClients(
+      GarbageCollector collector);
+  void ResumeConcurrentThreadsInClients(std::vector<Isolate*> paused_clients);
+
   // For static-roots builds, pads the object to the required size.
   void StaticRootsEnsureAllocatedSize(Handle<HeapObject> obj, int required);
   bool CreateEarlyReadOnlyMaps();
@@ -1924,7 +1942,7 @@ class Heap final {
 
   base::Optional<size_t> GlobalMemoryAvailable();
 
-  void RecomputeLimits(GarbageCollector collector);
+  void RecomputeLimits(GarbageCollector collector, base::TimeTicks time);
 
   // ===========================================================================
   // GC Tasks. =================================================================
@@ -2012,7 +2030,7 @@ class Heap final {
 #endif  // DEBUG
 
   std::vector<Handle<NativeContext>> FindAllNativeContexts();
-  std::vector<WeakArrayList> FindAllRetainedMaps();
+  std::vector<Tagged<WeakArrayList>> FindAllRetainedMaps();
   MemoryMeasurement* memory_measurement() { return memory_measurement_.get(); }
 
   AllocationType allocation_type_for_in_place_internalizable_strings() const {
@@ -2098,6 +2116,8 @@ class Heap final {
   NewLargeObjectSpace* new_lo_space_ = nullptr;
   SharedLargeObjectSpace* shared_lo_space_ = nullptr;
   ReadOnlySpace* read_only_space_ = nullptr;
+  TrustedSpace* trusted_space_ = nullptr;
+  TrustedLargeObjectSpace* trusted_lo_space_ = nullptr;
 
   // Either pointer to owned shared spaces or pointer to unowned shared spaces
   // in another isolate.
@@ -2116,12 +2136,15 @@ class Heap final {
   ExternalPointerTable::Space external_pointer_space_;
   // Likewise but for slots in host objects in ReadOnlySpace.
   ExternalPointerTable::Space read_only_external_pointer_space_;
+
+  // Likewise but for the indirect pointer table.
+  IndirectPointerTable::Space indirect_pointer_space_;
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   // The space in the process-wide code pointer table managed by this heap.
   CodePointerTable::Space code_pointer_space_;
-#endif  // V8_CODE_POINTER_SANDBOXING
+#endif  // V8_ENABLE_SANDBOX
 
   LocalHeap* main_thread_local_heap_ = nullptr;
 
@@ -2315,11 +2338,11 @@ class Heap final {
   bool force_gc_on_next_allocation_ = false;
   bool delay_sweeper_tasks_for_testing_ = false;
 
-  UnorderedHeapObjectMap<HeapObject> retainer_;
+  UnorderedHeapObjectMap<Tagged<HeapObject>> retainer_;
   UnorderedHeapObjectMap<Root> retaining_root_;
   // If an object is retained by an ephemeron, then the retaining key of the
   // ephemeron is stored in this map.
-  UnorderedHeapObjectMap<HeapObject> ephemeron_retainer_;
+  UnorderedHeapObjectMap<Tagged<HeapObject>> ephemeron_retainer_;
   // For each index in the retaining_path_targets_ array this map
   // stores the option of the corresponding target.
   std::unordered_map<int, RetainingPathOption> retaining_path_target_option_;
@@ -2366,6 +2389,7 @@ class Heap final {
   template <typename ConcreteVisitor>
   friend class MarkingVisitorBase;
   friend class MarkCompactCollector;
+  friend class MemoryBalancer;
   friend class MinorGCJob;
   friend class MinorGCTaskObserver;
   friend class MinorMarkSweepCollector;
@@ -2403,8 +2427,9 @@ class Heap final {
 
   // Used in cctest.
   friend class heap::HeapTester;
-
-  friend class MemoryBalancer;
+  FRIEND_TEST(SpacesTest, InlineAllocationObserverCadence);
+  FRIEND_TEST(SpacesTest, AllocationObserver);
+  friend class HeapInternalsBase;
 };
 
 class HeapStats {
@@ -2656,8 +2681,8 @@ class StrongRootBlockAllocator {
 
   explicit StrongRootBlockAllocator(Heap* heap) : heap_(heap) {}
 
-  Address* allocate(size_t n);
-  void deallocate(Address* p, size_t n) noexcept;
+  V8_EXPORT_PRIVATE Address* allocate(size_t n);
+  V8_EXPORT_PRIVATE void deallocate(Address* p, size_t n) noexcept;
 
  private:
   Heap* heap_;

@@ -757,7 +757,7 @@ static_assert(SharedFunctionInfo::kSize == kStaticRootsSFISize);
 struct SourceCodeOf {
   explicit SourceCodeOf(Tagged<SharedFunctionInfo> v, int max = -1)
       : value(v), max_length(max) {}
-  const SharedFunctionInfo value;
+  const Tagged<SharedFunctionInfo> value;
   int max_length;
 };
 

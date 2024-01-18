@@ -247,8 +247,7 @@ class TurboshaftSpecialRPONumberer {
       while (!stack.empty()) {
         const Block* block = stack.top();
         stack.pop();
-        for (const Block* pred = block->LastPredecessor(); pred;
-             pred = pred->NeighboringPredecessor()) {
+        for (const Block* pred : block->PredecessorsIterable()) {
           if (pred != header) {
             if (!loops_[loop_num].members->Contains(pred->index().id())) {
               loops_[loop_num].members->Add(pred->index().id());

@@ -702,7 +702,7 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
 }
 
 TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
-  return CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure());
+  return CAST(LoadRegister(Register::feedback_vector()));
 }
 
 void InterpreterAssembler::CallPrologue() {
@@ -1036,7 +1036,7 @@ InterpreterAssembler::CallRuntimeN(TNode<Uint32T> function_id,
 
 TNode<Int32T> InterpreterAssembler::UpdateInterruptBudget(
     TNode<Int32T> weight) {
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   TNode<FeedbackCell> feedback_cell =
       LoadObjectField<FeedbackCell>(function, JSFunction::kFeedbackCellOffset);
   TNode<Int32T> old_budget = LoadObjectField<Int32T>(
@@ -1066,7 +1066,7 @@ void InterpreterAssembler::DecreaseInterruptBudget(
          &interrupt_check);
 
   BIND(&interrupt_check);
-  TNode<JSFunction> function = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> function = LoadFunctionClosure();
   CallRuntime(stack_check_behavior == kEnableStackCheck
                   ? Runtime::kBytecodeBudgetInterruptWithStackCheck_Ignition
                   : Runtime::kBytecodeBudgetInterrupt_Ignition,

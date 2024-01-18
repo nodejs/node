@@ -144,7 +144,7 @@ class StructuralOptimizationReducer : public Next {
 
       // The current_if_true block becomes the corresponding switch case block.
       uint32_t value = const_op.word32();
-      cases.emplace_back(value, current_if_true->MapToNextGraph(),
+      cases.emplace_back(value, Asm().MapToNewGraph(current_if_true),
                          current_branch->hint);
 
       // All pure ops from the if_false block should be executed before
@@ -194,7 +194,7 @@ class StructuralOptimizationReducer : public Next {
     Asm().Switch(
         Asm().MapToNewGraph(switch_var),
         Asm().output_graph().graph_zone()->CloneVector(base::VectorOf(cases)),
-        default_block->MapToNextGraph(), default_hint);
+        Asm().MapToNewGraph(default_block), default_hint);
     return OpIndex::Invalid();
   }
 

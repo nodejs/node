@@ -14,7 +14,6 @@
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/baseline/liftoff-register.h"
 #include "src/wasm/function-body-decoder.h"
-#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-value.h"
@@ -815,7 +814,7 @@ class LiftoffAssembler : public MacroAssembler {
     kNoSkipWriteBarrier = false
   };
   inline void StoreTaggedPointer(Register dst_addr, Register offset_reg,
-                                 int32_t offset_imm, LiftoffRegister src,
+                                 int32_t offset_imm, Register src,
                                  LiftoffRegList pinned,
                                  SkipWriteBarrier = kNoSkipWriteBarrier);
   void LoadFixedArrayLengthAsInt32(LiftoffRegister dst, Register array,
@@ -1624,7 +1623,7 @@ class LiftoffAssembler : public MacroAssembler {
                            compiler::CallDescriptor* call_descriptor,
                            Register target);
   inline void TailCallIndirect(Register target);
-  inline void CallRuntimeStub(WasmCode::RuntimeStubId sid);
+  inline void CallBuiltin(Builtin builtin);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);

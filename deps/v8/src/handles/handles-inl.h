@@ -35,7 +35,7 @@ bool HandleBase::is_identical_to(const HandleBase& that) const {
               (that.location_ == nullptr || that.IsDereferenceAllowed()));
   if (this->location_ == that.location_) return true;
   if (this->location_ == nullptr || that.location_ == nullptr) return false;
-  return Object(*this->location_) == Object(*that.location_);
+  return Tagged<Object>(*this->location_) == Tagged<Object>(*that.location_);
 }
 
 // Allocate a new handle for the object, do not canonicalize.
@@ -110,7 +110,7 @@ V8_INLINE DirectHandle<T>::DirectHandle(Tagged<T> object)
 template <typename T>
 template <typename S>
 V8_INLINE const DirectHandle<T> DirectHandle<T>::cast(DirectHandle<S> that) {
-  T::cast(Object(that.address()));
+  T::cast(Tagged<Object>(that.address()));
   return DirectHandle<T>(that.address());
 }
 
@@ -230,7 +230,7 @@ void HandleScope::CloseScope(Isolate* isolate, Address* prev_next,
 template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
-  T value = *handle_value;
+  Tagged<T> value = *handle_value;
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
@@ -299,7 +299,7 @@ bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   if (this->address() == kTaggedNullAddress ||
       that.address() == kTaggedNullAddress)
     return false;
-  return Object(this->address()) == Object(that.address());
+  return Tagged<Object>(this->address()) == Tagged<Object>(that.address());
 }
 #endif  // V8_ENABLE_DIRECT_HANDLE
 

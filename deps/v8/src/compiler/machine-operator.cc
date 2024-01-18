@@ -214,7 +214,8 @@ AtomicOpParameters AtomicOpParametersOf(Operator const* op) {
 StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
          IrOpcode::kProtectedStore == op->opcode() ||
-         IrOpcode::kStoreTrapOnNull == op->opcode());
+         IrOpcode::kStoreTrapOnNull == op->opcode() ||
+         IrOpcode::kStoreIndirectPointer == op->opcode());
   return OpParameter<StoreRepresentation>(op);
 }
 
@@ -879,7 +880,6 @@ std::ostream& operator<<(std::ostream& os, TruncateKind kind) {
   V(kTagged)                           \
   V(kCompressedPointer)                \
   V(kSandboxedPointer)                 \
-  V(kIndirectPointer)                  \
   V(kCompressed)                       \
   V(kSimd256)
 
@@ -1311,11 +1311,6 @@ struct MachineOperatorGlobalCache {
     Store##Type##PointerWriteBarrier##Operator()                           \
         : Store##Type##Operator(kPointerWriteBarrier) {}                   \
   };                                                                       \
-  struct Store##Type##IndirectPointerWriteBarrier##Operator final          \
-      : public Store##Type##Operator {                                     \
-    Store##Type##IndirectPointerWriteBarrier##Operator()                   \
-        : Store##Type##Operator(kIndirectPointerWriteBarrier) {}           \
-  };                                                                       \
   struct Store##Type##EphemeronKeyWriteBarrier##Operator final             \
       : public Store##Type##Operator {                                     \
     Store##Type##EphemeronKeyWriteBarrier##Operator()                      \
@@ -1371,8 +1366,6 @@ struct MachineOperatorGlobalCache {
   Store##Type##MapWriteBarrier##Operator kStore##Type##MapWriteBarrier;    \
   Store##Type##PointerWriteBarrier##Operator                               \
       kStore##Type##PointerWriteBarrier;                                   \
-  Store##Type##IndirectPointerWriteBarrier##Operator                       \
-      kStore##Type##IndirectPointerWriteBarrier;                           \
   Store##Type##EphemeronKeyWriteBarrier##Operator                          \
       kStore##Type##EphemeronKeyWriteBarrier;                              \
   Store##Type##FullWriteBarrier##Operator kStore##Type##FullWriteBarrier;  \
@@ -1419,6 +1412,34 @@ struct MachineOperatorGlobalCache {
 
   STORE_PAIR_MACHINE_REPRESENTATION_LIST(STORE_PAIR)
 #undef STORE_PAIR
+
+  // Indirect pointer stores have an additional value input (the
+  // IndirectPointerTag associated with the field being stored to), but
+  // otherwise are identical to regular stores.
+  struct StoreIndirectPointerOperator : public Operator1<StoreRepresentation> {
+    explicit StoreIndirectPointerOperator(WriteBarrierKind write_barrier_kind)
+        : Operator1<StoreRepresentation>(
+              IrOpcode::kStoreIndirectPointer,
+              Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,
+              "StoreIndirectPointer", 4, 1, 1, 0, 1, 0,
+              StoreRepresentation(MachineRepresentation::kIndirectPointer,
+                                  write_barrier_kind)) {}
+  };
+  struct StoreIndirectPointerNoWriteBarrierOperator final
+      : public StoreIndirectPointerOperator {
+    StoreIndirectPointerNoWriteBarrierOperator()
+        : StoreIndirectPointerOperator(kNoWriteBarrier) {}
+  };
+  struct StoreIndirectPointerWithIndirectPointerWriteBarrierOperator final
+      : public StoreIndirectPointerOperator {
+    StoreIndirectPointerWithIndirectPointerWriteBarrierOperator()
+        : StoreIndirectPointerOperator(kIndirectPointerWriteBarrier) {}
+  };
+
+  StoreIndirectPointerNoWriteBarrierOperator
+      kStoreIndirectPointerNoWriteBarrier;
+  StoreIndirectPointerWithIndirectPointerWriteBarrierOperator
+      kStoreIndirectPointerIndirectPointerWriteBarrier;
 
 #define ATOMIC_LOAD_WITH_KIND(Type, Kind)                           \
   struct Word32SeqCstLoad##Type##Kind##Operator                     \
@@ -1750,6 +1771,7 @@ const Operator* MachineOperatorBuilder::UnalignedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
       break;
   }
@@ -1991,33 +2013,48 @@ const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep,
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {
   DCHECK_NE(store_rep.representation(), MachineRepresentation::kMapWord);
+  DCHECK_NE(store_rep.representation(),
+            MachineRepresentation::kIndirectPointer);
   switch (store_rep.representation()) {
-#define STORE(kRep)                                                 \
-  case MachineRepresentation::kRep:                                 \
-    switch (store_rep.write_barrier_kind()) {                       \
-      case kNoWriteBarrier:                                         \
-        return &cache_.k##Store##kRep##NoWriteBarrier;              \
-      case kAssertNoWriteBarrier:                                   \
-        return &cache_.k##Store##kRep##AssertNoWriteBarrier;        \
-      case kMapWriteBarrier:                                        \
-        return &cache_.k##Store##kRep##MapWriteBarrier;             \
-      case kPointerWriteBarrier:                                    \
-        return &cache_.k##Store##kRep##PointerWriteBarrier;         \
-      case kIndirectPointerWriteBarrier:                            \
-        return &cache_.k##Store##kRep##IndirectPointerWriteBarrier; \
-      case kEphemeronKeyWriteBarrier:                               \
-        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier;    \
-      case kFullWriteBarrier:                                       \
-        return &cache_.k##Store##kRep##FullWriteBarrier;            \
-    }                                                               \
+#define STORE(kRep)                                              \
+  case MachineRepresentation::kRep:                              \
+    switch (store_rep.write_barrier_kind()) {                    \
+      case kNoWriteBarrier:                                      \
+        return &cache_.k##Store##kRep##NoWriteBarrier;           \
+      case kAssertNoWriteBarrier:                                \
+        return &cache_.k##Store##kRep##AssertNoWriteBarrier;     \
+      case kMapWriteBarrier:                                     \
+        return &cache_.k##Store##kRep##MapWriteBarrier;          \
+      case kPointerWriteBarrier:                                 \
+        return &cache_.k##Store##kRep##PointerWriteBarrier;      \
+      case kIndirectPointerWriteBarrier:                         \
+        UNREACHABLE();                                           \
+      case kEphemeronKeyWriteBarrier:                            \
+        return &cache_.k##Store##kRep##EphemeronKeyWriteBarrier; \
+      case kFullWriteBarrier:                                    \
+        return &cache_.k##Store##kRep##FullWriteBarrier;         \
+    }                                                            \
     break;
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
       break;
   }
   UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::StoreIndirectPointer(
+    WriteBarrierKind write_barrier_kind) {
+  switch (write_barrier_kind) {
+    case kNoWriteBarrier:
+      return &cache_.kStoreIndirectPointerNoWriteBarrier;
+    case kIndirectPointerWriteBarrier:
+      return &cache_.kStoreIndirectPointerIndirectPointerWriteBarrier;
+    default:
+      UNREACHABLE();
+  }
 }
 
 base::Optional<const Operator*> MachineOperatorBuilder::TryStorePair(
@@ -2050,6 +2087,7 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
       break;
   }
@@ -2070,6 +2108,7 @@ const Operator* MachineOperatorBuilder::StoreTrapOnNull(
     MACHINE_REPRESENTATION_LIST(STORE)
 #undef STORE
     case MachineRepresentation::kBit:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kNone:
       break;
   }
@@ -2612,6 +2651,26 @@ const Operator* MachineOperatorBuilder::ExtractF128(int32_t lane_index) {
     int32_t lane_index_;
   };
   return zone_->New<ExtractF128Operator>(lane_index);
+}
+
+const Operator* MachineOperatorBuilder::LoadStackPointer() {
+  class LoadStackPointerOperator final : public Operator {
+   public:
+    LoadStackPointerOperator()
+        : Operator(IrOpcode::kLoadStackPointer, kNoProperties,
+                   "LoadStackPointer", 0, 1, 0, 1, 1, 0) {}
+  };
+  return zone_->New<LoadStackPointerOperator>();
+}
+
+const Operator* MachineOperatorBuilder::SetStackPointer() {
+  class SetStackPointerOperator final : public Operator {
+   public:
+    SetStackPointerOperator()
+        : Operator(IrOpcode::kSetStackPointer, kNoProperties, "SetStackPointer",
+                   1, 1, 0, 0, 1, 0) {}
+  };
+  return zone_->New<SetStackPointerOperator>();
 }
 
 #undef PURE_BINARY_OP_LIST_32

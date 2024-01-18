@@ -1,7 +1,10 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
+const { cleanZlib } = require('../../fixtures/clean-snapshot')
 const path = require('path')
 const fs = require('fs')
+
+t.cleanSnapshot = data => cleanZlib(data)
 
 t.test('should pack current directory with no arguments', async t => {
   const { npm, outputs, logs } = await loadMockNpm(t, {

@@ -130,9 +130,8 @@ struct SharedWasmMemoryData {
 BackingStore::BackingStore(void* buffer_start, size_t byte_length,
                            size_t max_byte_length, size_t byte_capacity,
                            SharedFlag shared, ResizableFlag resizable,
-                           bool is_wasm_memory, bool free_on_destruct,
-                           bool has_guard_regions, bool custom_deleter,
-                           bool empty_deleter)
+                           bool is_wasm_memory, bool has_guard_regions,
+                           bool custom_deleter, bool empty_deleter)
     : buffer_start_(buffer_start),
       byte_length_(byte_length),
       max_byte_length_(max_byte_length),
@@ -142,7 +141,6 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
       is_resizable_by_js_(resizable == ResizableFlag::kResizable),
       is_wasm_memory_(is_wasm_memory),
       holds_shared_ptr_to_allocator_(false),
-      free_on_destruct_(free_on_destruct),
       has_guard_regions_(has_guard_regions),
       globally_registered_(false),
       custom_deleter_(custom_deleter),
@@ -150,7 +148,6 @@ BackingStore::BackingStore(void* buffer_start, size_t byte_length,
   // TODO(v8:11111): RAB / GSAB - Wasm integration.
   DCHECK_IMPLIES(is_wasm_memory_, !is_resizable_by_js_);
   DCHECK_IMPLIES(is_resizable_by_js_, !custom_deleter_);
-  DCHECK_IMPLIES(is_resizable_by_js_, free_on_destruct_);
   DCHECK_IMPLIES(!is_wasm_memory && !is_resizable_by_js_,
                  byte_length_ == max_byte_length_);
   DCHECK_GE(max_byte_length_, byte_length_);
@@ -179,7 +176,6 @@ BackingStore::~BackingStore() {
   if (buffer_start_ == nullptr) return;
 
   auto FreeResizableMemory = [this] {
-    DCHECK(free_on_destruct_);
     DCHECK(!custom_deleter_);
     DCHECK(is_resizable_by_js_ || is_wasm_memory_);
     auto region =
@@ -218,7 +214,6 @@ BackingStore::~BackingStore() {
   }
 
   if (custom_deleter_) {
-    DCHECK(free_on_destruct_);
     TRACE_BS("BS:custom deleter bs=%p mem=%p (length=%zu, capacity=%zu)\n",
              this, buffer_start_, byte_length(), byte_capacity_);
     type_specific_data_.deleter.callback(buffer_start_, byte_length_,
@@ -226,13 +221,11 @@ BackingStore::~BackingStore() {
     return;
   }
 
-  if (free_on_destruct_) {
-    // JSArrayBuffer backing store. Deallocate through the embedder's allocator.
-    auto allocator = get_v8_api_array_buffer_allocator();
-    TRACE_BS("BS:free   bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
-             buffer_start_, byte_length(), byte_capacity_);
-    allocator->Free(buffer_start_, byte_length_);
-  }
+  // JSArrayBuffer backing store. Deallocate through the embedder's allocator.
+  auto allocator = get_v8_api_array_buffer_allocator();
+  TRACE_BS("BS:free   bs=%p mem=%p (length=%zu, capacity=%zu)\n", this,
+           buffer_start_, byte_length(), byte_capacity_);
+  allocator->Free(buffer_start_, byte_length_);
 }
 
 // Allocate a backing store using the array buffer allocator from the embedder.
@@ -294,7 +287,6 @@ std::unique_ptr<BackingStore> BackingStore::Allocate(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,   // is_wasm_memory
-                                 true,    // free_on_destruct
                                  false,   // has_guard_regions
                                  false,   // custom_deleter
                                  false);  // empty_deleter
@@ -426,7 +418,6 @@ std::unique_ptr<BackingStore> BackingStore::TryAllocateAndPartiallyCommitMemory(
                                  shared,           // shared
                                  resizable,        // resizable
                                  is_wasm_memory,   // is_wasm_memory
-                                 true,             // free_on_destruct
                                  guards,           // has_guard_regions
                                  false,            // custom_deleter
                                  false);           // empty_deleter
@@ -570,7 +561,7 @@ base::Optional<size_t> BackingStore::GrowWasmMemoryInPlace(Isolate* isolate,
     }
   }
 
-  if (!is_shared_ && free_on_destruct_) {
+  if (!is_shared_) {
     // Only do per-isolate accounting for non-shared backing stores.
     reinterpret_cast<v8::Isolate*>(isolate)
         ->AdjustAmountOfExternalAllocatedMemory(new_length - old_length);
@@ -662,7 +653,6 @@ BackingStore::ResizeOrGrowResult BackingStore::ResizeInPlace(
   }
 
   // Do per-isolate accounting for non-shared backing stores.
-  DCHECK(free_on_destruct_);
   reinterpret_cast<v8::Isolate*>(isolate)
       ->AdjustAmountOfExternalAllocatedMemory(new_byte_length - byte_length_);
   byte_length_ = new_byte_length;
@@ -720,26 +710,6 @@ BackingStore::ResizeOrGrowResult BackingStore::GrowInPlace(
 }
 
 std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
-    Isolate* isolate, void* allocation_base, size_t allocation_length,
-    SharedFlag shared, bool free_on_destruct) {
-  auto result = new BackingStore(allocation_base,               // start
-                                 allocation_length,             // length
-                                 allocation_length,             // max length
-                                 allocation_length,             // capacity
-                                 shared,                        // shared
-                                 ResizableFlag::kNotResizable,  // resizable
-                                 false,             // is_wasm_memory
-                                 free_on_destruct,  // free_on_destruct
-                                 false,             // has_guard_regions
-                                 false,             // custom_deleter
-                                 false);            // empty_deleter
-  result->SetAllocatorFromIsolate(isolate);
-  TRACE_BS("BS:wrap   bs=%p mem=%p (length=%zu)\n", result,
-           result->buffer_start(), result->byte_length());
-  return std::unique_ptr<BackingStore>(result);
-}
-
-std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
     void* allocation_base, size_t allocation_length,
     v8::BackingStore::DeleterCallback deleter, void* deleter_data,
     SharedFlag shared) {
@@ -751,7 +721,6 @@ std::unique_ptr<BackingStore> BackingStore::WrapAllocation(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,              // is_wasm_memory
-                                 true,               // free_on_destruct
                                  false,              // has_guard_regions
                                  true,               // custom_deleter
                                  is_empty_deleter);  // empty_deleter
@@ -770,7 +739,6 @@ std::unique_ptr<BackingStore> BackingStore::EmptyBackingStore(
                                  shared,                        // shared
                                  ResizableFlag::kNotResizable,  // resizable
                                  false,   // is_wasm_memory
-                                 true,    // free_on_destruct
                                  false,   // has_guard_regions
                                  false,   // custom_deleter
                                  false);  // empty_deleter

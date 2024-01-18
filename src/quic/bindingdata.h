@@ -127,11 +127,14 @@ constexpr size_t kMaxVectorCount = 16;
   V(cubic, "cubic")                                                            \
   V(disable_active_migration, "disableActiveMigration")                        \
   V(disable_stateless_reset, "disableStatelessReset")                          \
+  V(enable_connect_protocol, "enableConnectProtocol")                          \
+  V(enable_datagrams, "enableDatagrams")                                       \
   V(enable_tls_trace, "tlsTrace")                                              \
   V(endpoint, "Endpoint")                                                      \
   V(endpoint_udp, "Endpoint::UDP")                                             \
   V(failure, "failure")                                                        \
   V(groups, "groups")                                                          \
+  V(handshake_timeout, "handshakeTimeout")                                     \
   V(hostname, "hostname")                                                      \
   V(http3_alpn, &NGHTTP3_ALPN_H3[1])                                           \
   V(initial_max_data, "initialMaxData")                                        \
@@ -156,7 +159,10 @@ constexpr size_t kMaxVectorCount = 16;
   V(max_payload_size, "maxPayloadSize")                                        \
   V(max_retries, "maxRetries")                                                 \
   V(max_stateless_resets, "maxStatelessResetsPerHost")                         \
+  V(max_stream_window, "maxStreamWindow")                                      \
+  V(max_window, "maxWindow")                                                   \
   V(min_version, "minVersion")                                                 \
+  V(no_udp_payload_size_shaping, "noUdpPayloadSizeShaping")                    \
   V(packetwrap, "PacketWrap")                                                  \
   V(preferred_address_strategy, "preferredAddressPolicy")                      \
   V(qlog, "qlog")                                                              \
@@ -219,7 +225,7 @@ class BindingData final
   // bridge out to the JS API.
   static void SetCallbacks(const v8::FunctionCallbackInfo<v8::Value>& args);
 
-  std::vector<BaseObjectPtr<BaseObject>> packet_freelist;
+  std::vector<Packet*> packet_freelist;
 
   std::unordered_map<Endpoint*, BaseObjectPtr<BaseObject>> listening_endpoints;
 

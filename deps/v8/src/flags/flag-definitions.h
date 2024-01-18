@@ -281,8 +281,7 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
   V(harmony_set_methods, "harmony Set Methods") \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
-  V(js_promise_withresolvers, "Promise.withResolvers")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -305,7 +304,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_rab_gsab_transfer, "harmony ArrayBuffer.transfer")         \
   V(harmony_array_grouping, "harmony array grouping")
 
-#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V)
+#define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
+  V(js_promise_withresolvers, "Promise.withResolvers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
@@ -534,6 +534,8 @@ DEFINE_WEAK_IMPLICATION(maglev_build_code_on_background,
                         maglev_deopt_data_on_background)
 DEFINE_BOOL(maglev_destroy_on_background, true,
             "Destroy compilation jobs on background thread")
+DEFINE_BOOL(maglev_inline_api_calls, false,
+            "Inline CallApiCallback builtin into generated code")
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_inlining)
 DEFINE_WEAK_IMPLICATION(maglev_future, maglev_loop_peeling)
 
@@ -1209,7 +1211,7 @@ DEFINE_BOOL_READONLY(
     "compress deoptimization frame translations (experimental)")
 #endif  // V8_USE_ZLIB
 DEFINE_BOOL(turbo_inline_js_wasm_calls, true, "inline JS->Wasm calls")
-DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, true,
+DEFINE_BOOL(turbo_use_mid_tier_regalloc_for_huge_functions, false,
             "fall back to the mid-tier register allocator for huge functions")
 DEFINE_BOOL(turbo_force_mid_tier_regalloc, false,
             "always use the mid-tier register allocator (for testing)")
@@ -1224,34 +1226,37 @@ DEFINE_BOOL(turbo_collect_feedback_in_generic_lowering, false,
 DEFINE_BOOL(turboshaft, false, "enable TurboFan's Turboshaft phases for JS")
 DEFINE_WEAK_IMPLICATION(future, turboshaft)
 
-DEFINE_BOOL(turboshaft_trace_reduction, false,
-            "trace individual Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_enable_debug_features, false,
             "enables Turboshaft's DebugPrint, StaticAssert and "
             "CheckTurboshaftTypeOf operations")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_wasm,
                             "enable TurboFan's Turboshaft phases for wasm")
+DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_load_elimination)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_typed_optimizations,
                             "enable an additional Turboshaft phase that "
                             "performs optimizations based on type information")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_instruction_selection,
     "run instruction selection on Turboshaft IR directly")
+DEFINE_EXPERIMENTAL_FEATURE(
+    turboshaft_wasm_instruction_selection,
+    "run instruction selection on Turboshaft IR directly for wasm")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_load_elimination,
                             "enable Turboshaft's low-level load elimination")
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_machine_lowering_opt,
                             "enable MachineOptimization during MachineLowering")
+DEFINE_EXPERIMENTAL_FEATURE(turboshaft_loop_unrolling,
+                            "enable Turboshaft's loop unrolling")
 DEFINE_EXPERIMENTAL_FEATURE(
     turboshaft_future,
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turboshaft_future, turboshaft)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
-// TODO(nicohartmann): re-enable turboshaft instruction selection behind
-// turboshaft future.
-// #ifdef V8_TARGET_ARCH_X64
-// DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
-// #endif
+DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_instruction_selection)
+#endif
 
 #ifdef DEBUG
 DEFINE_UINT64(turboshaft_opt_bisect_limit, std::numeric_limits<uint64_t>::max(),
@@ -1265,6 +1270,11 @@ DEFINE_BOOL(turboshaft_verify_reductions, false,
             "inferred types")
 DEFINE_BOOL(turboshaft_trace_typing, false,
             "print typing steps of turboshaft type inference")
+DEFINE_BOOL(turboshaft_trace_reduction, false,
+            "trace individual Turboshaft reduction steps")
+#else
+DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
+                     "trace individual Turboshaft reduction steps")
 #endif  // DEBUG
 
 // Favor memory over execution speed.
@@ -1282,6 +1292,7 @@ DEFINE_BOOL(wasm_generic_wrapper, true,
 DEFINE_BOOL(wasm_to_js_generic_wrapper, false,
             "allow use of the generic wasm-to-js wrapper instead of "
             "per-signature wrappers")
+DEFINE_WEAK_IMPLICATION(future, wasm_to_js_generic_wrapper)
 DEFINE_BOOL(enable_wasm_arm64_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers on arm64")
@@ -1373,6 +1384,7 @@ DEFINE_INT(
 DEFINE_BOOL(
     experimental_wasm_pgo_to_file, false,
     "experimental: dump Wasm PGO information to a local file (for testing)")
+DEFINE_NEG_IMPLICATION(experimental_wasm_pgo_to_file, single_threaded)
 DEFINE_BOOL(
     experimental_wasm_pgo_from_file, false,
     "experimental: read and use Wasm PGO data from a local file (for testing)")
@@ -1450,14 +1462,8 @@ DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
               "wasm_inlinining_factor does not apply")
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
-DEFINE_BOOL(wasm_final_types, false,
-            "enable final types as default for wasm-gc")
-// Disable GC proposal prototype instructions that are not part of the prototype
-// spec any more but are kept in V8 until the final op-code reshuffling.
-DEFINE_BOOL(wasm_disable_deprecated, false,
-            "disable deprecated gc instructions")
+DEFINE_BOOL(wasm_final_types, true, "enable final types as default for wasm-gc")
 
-DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_inlining)
 DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
 // Stage wasm inlining in --future.
 DEFINE_WEAK_IMPLICATION(future, experimental_wasm_inlining)
@@ -1597,11 +1603,6 @@ DEFINE_BOOL(trace_gc_heap_layout_ignore_minor_gc, true,
             "do not print trace line before and after minor-gc")
 DEFINE_BOOL(trace_evacuation_candidates, false,
             "Show statistics about the pages evacuation by the compaction")
-DEFINE_BOOL(
-    trace_allocations_origins, false,
-    "Show statistics about the origins of allocations. "
-    "Combine with --no-inline-new to track allocations from generated code")
-DEFINE_NEG_IMPLICATION(trace_allocations_origins, inline_new)
 
 DEFINE_BOOL(trace_pending_allocations, false,
             "trace calls to Heap::IsAllocationPending that return true")
@@ -1842,6 +1843,7 @@ DEFINE_FLOAT(memory_balancer_c_value, 3e-10,
              "A special constant to balance between memory and space tradeoff. "
              "The smaller the more memory it uses.")
 DEFINE_NEG_IMPLICATION(memory_balancer, memory_reducer)
+DEFINE_BOOL(trace_memory_balancer, false, "print memory balancer behavior.")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-arm64.cc / assembler-x64.cc
 #ifdef V8_ENABLE_DEBUG_CODE
@@ -2088,6 +2090,8 @@ DEFINE_BOOL(heap_profiler_trace_objects, false,
             "Dump heap object allocations/movements/size_updates")
 DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
             "Use the new EmbedderGraph API to get embedder nodes")
+DEFINE_BOOL(heap_snapshot_on_oom, false,
+            "Write a heap snapshot to disk on last-resort GCs")
 DEFINE_INT(heap_snapshot_string_limit, 1024,
            "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
@@ -2117,6 +2121,14 @@ DEFINE_BOOL_READONLY(fast_map_update, false,
                      "enable fast map update by caching the migration target")
 DEFINE_INT(max_valid_polymorphic_map_count, 4,
            "maximum number of valid maps to track in POLYMORPHIC state")
+
+// map-inl.h
+DEFINE_INT(fast_properties_soft_limit, 12,
+           "limits the number of properties that can be added to an object "
+           "using keyed store before transitioning to dictionary mode")
+DEFINE_INT(max_fast_properties, 128,
+           "limits the number of mutable properties that can be added to an "
+           "object before transitioning to dictionary mode")
 
 DEFINE_BOOL(native_code_counters, DEBUG_BOOL,
             "generate extra code for manipulating stats counters")
@@ -2185,7 +2197,7 @@ DEFINE_BOOL(correctness_fuzzer_suppressions, false,
             "fuzzing: Abort program when the stack overflows or a string "
             "exceeds maximum length (as opposed to throwing RangeError). "
             "Use a fixed suppression string for error messages.")
-DEFINE_BOOL(rehash_snapshot, true,
+DEFINE_BOOL(rehash_snapshot, false,
             "rehash strings from the snapshot to override the baked-in seed")
 DEFINE_UINT64(hash_seed, 0,
               "Fixed seed to use to hash property keys (0 means random)"
@@ -2393,10 +2405,9 @@ DEFINE_BOOL(minor_ms, false, "perform young generation mark sweep GCs")
 DEFINE_IMPLICATION(minor_ms, separate_gc_phases)
 DEFINE_IMPLICATION(minor_ms, page_promotion)
 
-DEFINE_BOOL(concurrent_minor_ms_marking, false,
+DEFINE_BOOL(concurrent_minor_ms_marking, true,
             "perform young generation marking concurrently")
 DEFINE_NEG_NEG_IMPLICATION(concurrent_marking, concurrent_minor_ms_marking)
-DEFINE_IMPLICATION(concurrent_minor_ms_marking, minor_ms)
 
 #ifndef DEBUG
 #define V8_MINOR_MS_CONCURRENT_MARKING_MIN_CAPACITY_DEFAULT 8

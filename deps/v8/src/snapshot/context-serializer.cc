@@ -39,20 +39,22 @@ class V8_NODISCARD SanitizeNativeContextScope final {
 #endif
     microtask_queue_external_pointer_ =
         native_context
-            ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+            ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
+                                      kNativeContextMicrotaskQueueTag)
             .GetAndClearContentForSerialization(no_gc);
   }
 
   ~SanitizeNativeContextScope() {
     // Restore saved fields.
     native_context_
-        ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset)
+        ->RawExternalPointerField(NativeContext::kMicrotaskQueueOffset,
+                                  kNativeContextMicrotaskQueueTag)
         .RestoreContentAfterSerialization(microtask_queue_external_pointer_,
                                           no_gc_);
   }
 
  private:
-  NativeContext native_context_;
+  Tagged<NativeContext> native_context_;
   ExternalPointerSlot::RawContent microtask_queue_external_pointer_;
   const DisallowGarbageCollection& no_gc_;
 };
@@ -74,7 +76,7 @@ ContextSerializer::~ContextSerializer() {
   OutputStatistics("ContextSerializer");
 }
 
-void ContextSerializer::Serialize(Context* o,
+void ContextSerializer::Serialize(Tagged<Context>* o,
                                   const DisallowGarbageCollection& no_gc) {
   context_ = *o;
   DCHECK(IsNativeContext(context_));

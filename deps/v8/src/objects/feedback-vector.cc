@@ -397,7 +397,7 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   DCHECK(!slot.IsInvalid());
   auto current = GetOptimizedOsrCode(isolate, slot);
-  if (V8_UNLIKELY(current && current->kind() > code->kind())) {
+  if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
   Set(slot, HeapObjectReference::Weak(code));

@@ -111,7 +111,7 @@ class FreeListCategory {
   uint32_t available_ = 0;
 
   // |top_|: Points to the top FreeSpace in the free list category.
-  FreeSpace top_;
+  Tagged<FreeSpace> top_;
 
   FreeListCategory* prev_ = nullptr;
   FreeListCategory* next_ = nullptr;

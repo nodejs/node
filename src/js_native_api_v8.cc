@@ -1705,6 +1705,18 @@ napi_status NAPI_CDECL node_api_create_external_string_utf16(
       });
 }
 
+napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
+                                                          const char16_t* str,
+                                                          size_t length,
+                                                          napi_value* result) {
+  return v8impl::NewString(env, str, length, result, [&](v8::Isolate* isolate) {
+    return v8::String::NewFromTwoByte(isolate,
+                                      reinterpret_cast<const uint16_t*>(str),
+                                      v8::NewStringType::kInternalized,
+                                      static_cast<int>(length));
+  });
+}
+
 napi_status NAPI_CDECL napi_create_double(napi_env env,
                                           double value,
                                           napi_value* result) {

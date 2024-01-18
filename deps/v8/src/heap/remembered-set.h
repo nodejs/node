@@ -329,7 +329,7 @@ class UpdateTypedSlotHelper {
   // Updates a code target slot using an untyped slot callback.
   // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
-  static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
+  static SlotCallbackResult UpdateCodeTarget(WritableRelocInfo* rinfo,
                                              Callback callback) {
     DCHECK(RelocInfo::IsCodeTargetMode(rinfo->rmode()));
     Tagged<InstructionStream> old_target =
@@ -347,7 +347,8 @@ class UpdateTypedSlotHelper {
   // Updates an embedded pointer slot using an untyped slot callback.
   // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
-  static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap, RelocInfo* rinfo,
+  static SlotCallbackResult UpdateEmbeddedPointer(Heap* heap,
+                                                  WritableRelocInfo* rinfo,
                                                   Callback callback) {
     DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
     Tagged<HeapObject> old_target = rinfo->target_object(heap->isolate());

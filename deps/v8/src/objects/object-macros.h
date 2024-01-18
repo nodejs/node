@@ -16,6 +16,33 @@
 
 #include "src/base/memory.h"
 
+// V8 objects are defined as:
+//
+//     V8_OBJECT class Foo : class Base {
+//       ...
+//     } V8_OBJECT_END;
+//
+// These macros are to enable warnings which ensure that there is no unwanted
+// within-object padding.
+#if V8_CC_GNU
+#define V8_OBJECT \
+  _Pragma("GCC diagnostic push") _Pragma("GCC diagnostic error \"-Wpadded\"")
+
+// GCC wants this pragma to be a new statement, but we prefer to have
+// V8_OBJECT_END look like part of the definition. Insert a semicolon before the
+// pragma to make gcc happy, and use static_assert(true) to swallow the next
+// semicolon.
+#define V8_OBJECT_END \
+  ;                   \
+  _Pragma("GCC diagnostic pop") static_assert(true)
+#elif V8_CC_MSVC
+#define V8_OBJECT __pragma(warning(push)) __pragma(warning(default : 4820))
+#define V8_OBJECT_END __pragma(warning(pop))
+#else
+#define V8_OBJECT
+#define V8_OBJECT_END
+#endif
+
 // Since this changes visibility, it should always be last in a class
 // definition.
 #define OBJECT_CONSTRUCTORS(Type, ...)                                         \
@@ -28,14 +55,12 @@
   const Type* operator->() const { return this; }                              \
                                                                                \
  protected:                                                                    \
-  template <typename TFieldType, int kFieldOffset, typename CompressionScheme> \
-  friend class TaggedField;                                                    \
   friend class Tagged<Type>;                                                   \
                                                                                \
   /* Special constructor for constexpr construction which allows skipping type \
    * checks. */                                                                \
-  explicit constexpr inline Type(Address ptr, Object::SkipTypeCheckTag)        \
-      : __VA_ARGS__(ptr, Object::SkipTypeCheckTag()) {}                        \
+  explicit constexpr inline Type(Address ptr, HeapObject::SkipTypeCheckTag)    \
+      : __VA_ARGS__(ptr, HeapObject::SkipTypeCheckTag()) {}                    \
                                                                                \
   explicit inline Type(Address ptr)
 
@@ -91,9 +116,6 @@
 #define DECL_RELAXED_UINT16_ACCESSORS(name) \
   DECL_RELAXED_PRIMITIVE_ACCESSORS(name, uint16_t)
 
-// TODO(ishell): eventually isolate-less getters should not be used anymore.
-// For full pointer-mode the C++ compiler should optimize away unused isolate
-// parameter.
 #define DECL_GETTER(name, type) \
   inline type name() const;     \
   inline type name(PtrComprCageBase cage_base) const;
@@ -244,6 +266,20 @@
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
 
+// TODO(jgruber): Eventually, all accessors should be ported to the NOCAGE
+// variant (which doesn't define a PtrComprCageBase overload). Once that's
+// done, remove the cage-ful macros (e.g. ACCESSORS) and rename the cage-less
+// macros (e.g. ACCESSORS_NOCAGE).
+#define ACCESSORS_NOCAGE(holder, name, type, offset)           \
+  type holder::name() const {                                  \
+    PtrComprCageBase cage_base = GetPtrComprCageBase(*this);   \
+    return TaggedField<type, offset>::load(cage_base, *this);  \
+  }                                                            \
+  void holder::set_##name(type value, WriteBarrierMode mode) { \
+    TaggedField<type, offset>::store(*this, value);            \
+    CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);     \
+  }
+
 #define RENAME_TORQUE_ACCESSORS(holder, name, torque_name, type)      \
   inline type holder::name() const {                                  \
     return TorqueGeneratedClass::torque_name();                       \
@@ -382,7 +418,7 @@
 #define SMI_ACCESSORS_CHECKED(holder, name, offset, condition)   \
   int holder::name() const {                                     \
     DCHECK(condition);                                           \
-    Smi value = TaggedField<Smi, offset>::load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::load(*this);   \
     return value.value();                                        \
   }                                                              \
   void holder::set_##name(int value) {                           \
@@ -399,7 +435,7 @@
 
 #define RELEASE_ACQUIRE_SMI_ACCESSORS(holder, name, offset)              \
   int holder::name(AcquireLoadTag) const {                               \
-    Smi value = TaggedField<Smi, offset>::Acquire_Load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::Acquire_Load(*this);   \
     return value.value();                                                \
   }                                                                      \
   void holder::set_##name(int value, ReleaseStoreTag) {                  \
@@ -412,7 +448,7 @@
 
 #define RELAXED_SMI_ACCESSORS(holder, name, offset)                      \
   int holder::name(RelaxedLoadTag) const {                               \
-    Smi value = TaggedField<Smi, offset>::Relaxed_Load(*this);           \
+    Tagged<Smi> value = TaggedField<Smi, offset>::Relaxed_Load(*this);   \
     return value.value();                                                \
   }                                                                      \
   void holder::set_##name(int value, RelaxedStoreTag) {                  \
@@ -581,14 +617,14 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)
 #else
-#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, value)           \
-  do {                                                                  \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                 \
-    IndirectPointerWriteBarrier(                                        \
-        object, Tagged(object)->RawIndirectPointerField(offset), value, \
-        UPDATE_WRITE_BARRIER);                                          \
+#define INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value)           \
+  do {                                                                       \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                      \
+    IndirectPointerWriteBarrier(                                             \
+        object, Tagged(object)->RawIndirectPointerField(offset, tag), value, \
+        UPDATE_WRITE_BARRIER);                                               \
   } while (false)
 #endif
 
@@ -631,14 +667,15 @@
 #endif
 
 #ifdef V8_DISABLE_WRITE_BARRIERS
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, mode)
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                   mode)
 #else
-#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, value, \
-                                                   mode)                  \
-  do {                                                                    \
-    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                   \
-    IndirectPointerWriteBarrier(                                          \
-        object, (object).RawIndirectPointerField(offset), value, mode);   \
+#define CONDITIONAL_INDIRECT_POINTER_WRITE_BARRIER(object, offset, tag, value, \
+                                                   mode)                       \
+  do {                                                                         \
+    DCHECK_NOT_NULL(GetHeapFromWritableObject(object));                        \
+    IndirectPointerWriteBarrier(                                               \
+        object, (object).RawIndirectPointerField(offset, tag), value, mode);   \
   } while (false)
 #endif
 

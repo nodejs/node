@@ -29,7 +29,6 @@
 #include "src/objects/smi.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -254,10 +253,11 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     __ Movsd(MemOperand(rsp, 0), input_);
 #if V8_ENABLE_WEBASSEMBLY
     if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
-      // A direct call to a wasm runtime stub defined in this module.
-      // Just encode the stub index. This will be patched when the code
-      // is added to the native module and copied into wasm code space.
-      __ near_call(wasm::WasmCode::kDoubleToI, RelocInfo::WASM_STUB_CALL);
+      // A direct call to a builtin. Just encode the builtin index. This will be
+      // patched when the code is added to the native module and copied into
+      // wasm code space.
+      __ near_call(static_cast<intptr_t>(Builtin::kDoubleToI),
+                   RelocInfo::WASM_STUB_CALL);
 #else
     // For balance.
     if (false) {
@@ -286,9 +286,11 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
 
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
-  OutOfLineRecordWrite(CodeGenerator* gen, Register object, Operand operand,
-                       Register value, Register scratch0, Register scratch1,
-                       RecordWriteMode mode, StubCallMode stub_mode)
+  OutOfLineRecordWrite(
+      CodeGenerator* gen, Register object, Operand operand, Register value,
+      Register scratch0, Register scratch1, RecordWriteMode mode,
+      StubCallMode stub_mode,
+      IndirectPointerTag indirect_pointer_tag = kIndirectPointerNullTag)
       : OutOfLineCode(gen),
         object_(object),
         operand_(operand),
@@ -299,7 +301,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 #if V8_ENABLE_WEBASSEMBLY
         stub_mode_(stub_mode),
 #endif  // V8_ENABLE_WEBASSEMBLY
-        zone_(gen->zone()) {
+        zone_(gen->zone()),
+        indirect_pointer_tag_(indirect_pointer_tag) {
     DCHECK(!AreAliased(object, scratch0, scratch1));
     DCHECK(!AreAliased(value, scratch0, scratch1));
   }
@@ -325,9 +328,9 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (mode_ == RecordWriteMode::kValueIsEphemeronKey) {
       __ CallEphemeronKeyBarrier(object_, scratch1_, save_fp_mode);
     } else if (mode_ == RecordWriteMode::kValueIsIndirectPointer) {
-      __ CallRecordWriteStubSaveRegisters(object_, scratch1_, save_fp_mode,
-                                          StubCallMode::kCallBuiltinPointer,
-                                          PointerType::kIndirect);
+      DCHECK(IsValidIndirectPointerTag(indirect_pointer_tag_));
+      __ CallIndirectPointerBarrier(object_, scratch1_, save_fp_mode,
+                                    indirect_pointer_tag_);
 #if V8_ENABLE_WEBASSEMBLY
     } else if (stub_mode_ == StubCallMode::kCallWasmRuntimeStub) {
       // A direct call to a wasm runtime stub defined in this module.
@@ -352,6 +355,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   StubCallMode const stub_mode_;
 #endif  // V8_ENABLE_WEBASSEMBLY
   Zone* zone_;
+  IndirectPointerTag indirect_pointer_tag_;
 };
 
 template <std::memory_order order>
@@ -637,10 +641,10 @@ Register GetTSANValueRegister(MacroAssembler* masm, Register value,
   } else if (rep == MachineRepresentation::kIndirectPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
-    static_assert(kAllIndirectPointerObjectsAreCode);
     Register value_reg = i.TempRegister(1);
-    masm->movl(value_reg,
-               FieldOperand(value, Code::kCodePointerTableEntryOffset));
+    masm->movl(
+        value_reg,
+        FieldOperand(value, ExposedTrustedObject::kSelfIndirectPointerOffset));
     return value_reg;
   }
   return value;
@@ -663,9 +667,9 @@ Register GetTSANValueRegister<std::memory_order_relaxed>(
   } else if (rep == MachineRepresentation::kIndirectPointer) {
     // Indirect pointer fields contain an index to a pointer table entry, which
     // is obtained from the referenced object.
-    static_assert(kAllIndirectPointerObjectsAreCode);
     masm->movl(value_reg,
-               FieldOperand(value_reg, Code::kCodePointerTableEntryOffset));
+               FieldOperand(value_reg,
+                            ExposedTrustedObject::kSelfIndirectPointerOffset));
   }
   return value_reg;
 }
@@ -1549,6 +1553,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchFramePointer:
       __ movq(i.OutputRegister(), rbp);
       break;
+    case kArchStackPointer:
+      __ movq(i.OutputRegister(), rsp);
+      break;
+    case kArchSetStackPointer:
+      if (instr->InputAt(0)->IsRegister()) {
+        __ movq(rsp, i.InputRegister(0));
+      } else {
+        __ movq(rsp, i.InputOperand(0));
+      }
+      break;
     case kArchParentFramePointer:
       if (frame_access_state()->has_frame()) {
         __ movq(i.OutputRegister(), Operand(rbp, 0));
@@ -1643,13 +1657,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register object = i.InputRegister(0);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
-      Register value = i.InputRegister(index);
+      Register value = i.InputRegister(index++);
+      IndirectPointerTag tag =
+          static_cast<IndirectPointerTag>(i.InputInt64(index));
+      DCHECK(IsValidIndirectPointerTag(tag));
       Register scratch0 = i.TempRegister(0);
       Register scratch1 = i.TempRegister(1);
 
-      auto ool = zone()->New<OutOfLineRecordWrite>(this, object, operand, value,
-                                                   scratch0, scratch1, mode,
-                                                   DetermineStubCallMode());
+      auto ool = zone()->New<OutOfLineRecordWrite>(
+          this, object, operand, value, scratch0, scratch1, mode,
+          DetermineStubCallMode(), tag);
       EmitTSANAwareStore<std::memory_order_relaxed>(
           zone(), this, masm(), operand, value, i, DetermineStubCallMode(),
           MachineRepresentation::kIndirectPointer, instr);
@@ -6595,6 +6612,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SetupSimd256ImmediateInRegister(masm(), imm, dst, kScratchDoubleReg);
       break;
     }
+    case kX64ExtractF128: {
+      CpuFeatureScope avx_scope(masm(), AVX);
+      uint8_t lane = i.InputInt8(1);
+      __ vextractf128(i.OutputSimd128Register(), i.InputSimd256Register(0),
+                      lane);
+      break;
+    }
   }
   return kSuccess;
 }  // NOLadability/fn_size)
@@ -6980,7 +7004,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ j(above_equal, &done, Label::kNear);
       }
 
-      __ near_call(wasm::WasmCode::kWasmStackOverflow,
+      __ near_call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
                    RelocInfo::WASM_STUB_CALL);
       // The call does not return, hence we can ignore any references and just
       // define an empty safepoint.

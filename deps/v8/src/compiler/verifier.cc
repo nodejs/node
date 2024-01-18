@@ -1259,7 +1259,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kNumberIsFinite:
@@ -1582,7 +1582,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kCheckFloat64Hole:
-      CheckValueInputIs(node, 0, Type::NumberOrTheHole());
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
       break;
     case IrOpcode::kCheckNotTaggedHole:
@@ -1738,6 +1738,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kStore:
     case IrOpcode::kStorePair:
+    case IrOpcode::kStoreIndirectPointer:
     case IrOpcode::kStackSlot:
     case IrOpcode::kWord32And:
     case IrOpcode::kWord32Or:
@@ -1917,6 +1918,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairSar:
     case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
+    case IrOpcode::kLoadStackPointer:
+    case IrOpcode::kSetStackPointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kLoadRootRegister:
     case IrOpcode::kUnalignedLoad:

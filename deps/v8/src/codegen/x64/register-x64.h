@@ -267,6 +267,7 @@ DEFINE_REGISTER_NAMES(XMMRegister, DOUBLE_REGISTERS)
 DEFINE_REGISTER_NAMES(YMMRegister, YMM_REGISTERS)
 
 // Give alias names to registers for calling conventions.
+constexpr Register kStackPointerRegister = rsp;
 constexpr Register kReturnRegister0 = rax;
 constexpr Register kReturnRegister1 = rdx;
 constexpr Register kReturnRegister2 = r8;

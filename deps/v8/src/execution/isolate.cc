@@ -442,7 +442,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
   // Hash data sections of builtin code objects.
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins()->code(builtin);
+    Tagged<Code> code = builtins()->code(builtin);
 
     DCHECK(Internals::HasHeapObjectTag(code.ptr()));
     uint8_t* const code_ptr = reinterpret_cast<uint8_t*>(code.address());
@@ -451,10 +451,7 @@ size_t Isolate::HashIsolateForEmbeddedBlob() {
     // instruction_start, but other data fields must remain the same.
     static_assert(Code::kEndOfStrongFieldsOffset ==
                   Code::kInstructionStartOffset);
-#ifdef V8_CODE_POINTER_SANDBOXING
-    static_assert(Code::kCodePointerTableEntryOffsetEnd + 1 ==
-                  Code::kFlagsOffset);
-#else
+#ifndef V8_ENABLE_SANDBOX
     static_assert(Code::kInstructionStartOffsetEnd + 1 == Code::kFlagsOffset);
 #endif
     static_assert(Code::kFlagsOffsetEnd + 1 == Code::kInstructionSizeOffset);
@@ -960,7 +957,7 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 bool IsBuiltinFunction(Isolate* isolate, Tagged<HeapObject> object,
                        Builtin builtin) {
   if (!IsJSFunction(object)) return false;
-  JSFunction const function = JSFunction::cast(object);
+  Tagged<JSFunction> const function = JSFunction::cast(object);
   return function->code() == isolate->builtins()->code(builtin);
 }
 
@@ -1284,9 +1281,9 @@ MaybeHandle<JSObject> Isolate::CaptureAndSetErrorStack(
 
   RETURN_ON_EXCEPTION(
       this,
-      JSObject::SetProperty(this, error_object, factory()->error_stack_symbol(),
-                            error_stack, StoreOrigin::kMaybeKeyed,
-                            Just(ShouldThrow::kThrowOnError)),
+      Object::SetProperty(this, error_object, factory()->error_stack_symbol(),
+                          error_stack, StoreOrigin::kMaybeKeyed,
+                          Just(ShouldThrow::kThrowOnError)),
       JSObject);
   return error_object;
 }
@@ -1518,7 +1515,8 @@ MaybeHandle<Object> Isolate::ReportFailedAccessCheck(
   Handle<Object> data;
   {
     DisallowGarbageCollection no_gc;
-    AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
+    Tagged<AccessCheckInfo> access_check_info =
+        AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) {
       no_gc.Release();
       THROW_NEW_ERROR(this, NewTypeError(MessageTemplate::kNoAccess), Object);
@@ -1567,7 +1565,8 @@ bool Isolate::MayAccess(Handle<NativeContext> accessing_context,
   v8::AccessCheckCallback callback = nullptr;
   {
     DisallowGarbageCollection no_gc;
-    AccessCheckInfo access_check_info = AccessCheckInfo::Get(this, receiver);
+    Tagged<AccessCheckInfo> access_check_info =
+        AccessCheckInfo::Get(this, receiver);
     if (access_check_info.is_null()) return false;
     Tagged<Object> fun_obj = access_check_info->callback();
     callback = v8::ToCData<v8::AccessCheckCallback>(fun_obj);
@@ -1593,7 +1592,7 @@ Tagged<Object> Isolate::StackOverflow() {
 #if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER)
   // Allow for a bit more overflow in sanitizer builds, because C++ frames take
   // significantly more space there.
-  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 32 * KB);
+  DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 64 * KB);
 #else
   DCHECK_GE(GetCurrentStackPosition(), stack_guard()->real_climit() - 8 * KB);
 #endif
@@ -1950,7 +1949,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #endif  // V8_ENABLE_WEBASSEMBLY
   Tagged<Object> exception = pending_exception();
 
-  auto FoundHandler = [&](Context context, Address instruction_start,
+  auto FoundHandler = [&](Tagged<Context> context, Address instruction_start,
                           intptr_t handler_offset,
                           Address constant_pool_address, Address handler_sp,
                           Address handler_fp, int num_frames_above_handler) {
@@ -2003,7 +2002,8 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 #if V8_ENABLE_WEBASSEMBLY
     if (v8_flags.experimental_wasm_stack_switching &&
         iter.frame()->type() == StackFrame::STACK_SWITCH) {
-      Code code = builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
+      Tagged<Code> code =
+          builtins()->code(Builtin::kWasmReturnPromiseOnSuspendAsm);
       HandlerTable table(code);
       Address instruction_start =
           code->InstructionStart(this, iter.frame()->pc());
@@ -2029,7 +2029,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       CHECK(frame->is_java_script());
 
       if (frame->is_optimized()) {
-        Code code = frame->LookupCode();
+        Tagged<Code> code = frame->LookupCode();
         // The debugger triggers lazy deopt for the "to-be-restarted" frame
         // immediately when the CDP event arrives while paused.
         CHECK(code->marked_for_deoptimization());
@@ -2052,7 +2052,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       }
 
       debug()->clear_restart_frame();
-      Code code = *BUILTIN_CODE(this, RestartFrameTrampoline);
+      Tagged<Code> code = *BUILTIN_CODE(this, RestartFrameTrampoline);
       return FoundHandler(Context(), code->instruction_start(), 0,
                           code->constant_pool(), kNullAddress, frame->fp(),
                           visited_frames);
@@ -2068,7 +2068,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         thread_local_top()->handler_ = handler->next_address();
 
         // Gather information from the handler.
-        Code code = frame->LookupCode();
+        Tagged<Code> code = frame->LookupCode();
         HandlerTable table(code);
         return FoundHandler(Context(),
                             code->InstructionStart(this, frame->pc()),
@@ -2081,7 +2081,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
       case StackFrame::C_WASM_ENTRY: {
         StackHandler* handler = frame->top_handler();
         thread_local_top()->handler_ = handler->next_address();
-        Code code = frame->LookupCode();
+        Tagged<Code> code = frame->LookupCode();
         HandlerTable table(code);
         Address instruction_start = code->instruction_start();
         int return_offset = static_cast<int>(frame->pc() - instruction_start);
@@ -2154,7 +2154,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         int offset = opt_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
         if (offset < 0) break;
         // The code might be an optimized code or a turbofanned builtin.
-        Code code = frame->LookupCode();
+        Tagged<Code> code = frame->LookupCode();
         // Compute the stack pointer from the frame pointer. This ensures
         // that argument slots on the stack are dropped as returning would.
         Address return_sp = frame->fp() +
@@ -2188,7 +2188,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
         // The code might be a dynamically generated stub or a turbofanned
         // embedded builtin.
-        Code code = stub_frame->LookupCode();
+        Tagged<Code> code = stub_frame->LookupCode();
         if (!code->is_turbofanned() || !code->has_handler_table()) {
           break;
         }
@@ -2231,13 +2231,13 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
         // position of the exception handler. The special builtin below will
         // take care of continuing to dispatch at that position. Also restore
         // the correct context for the handler from the interpreter register.
-        Context context =
+        Tagged<Context> context =
             Context::cast(js_frame->ReadInterpreterRegister(context_reg));
         DCHECK(IsContext(context));
 
         if (frame->is_baseline()) {
           BaselineFrame* sp_frame = BaselineFrame::cast(js_frame);
-          Code code = sp_frame->LookupCode();
+          Tagged<Code> code = sp_frame->LookupCode();
           intptr_t pc_offset = sp_frame->GetPCForBytecodeOffset(offset);
           // Patch the context register directly on the frame, so that we don't
           // need to have a context read + write in the baseline code.
@@ -2249,7 +2249,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
           InterpretedFrame::cast(js_frame)->PatchBytecodeOffset(
               static_cast<int>(offset));
 
-          Code code = *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
+          Tagged<Code> code = *BUILTIN_CODE(this, InterpreterEnterAtBytecode);
           // We subtract a frame from visited_frames because otherwise the
           // shadow stack will drop the underlying interpreter entry trampoline
           // in which the handler runs.
@@ -2281,7 +2281,7 @@ Tagged<Object> Isolate::UnwindAndFindHandler() {
 
         // Reconstruct the stack pointer from the frame pointer.
         Address return_sp = js_frame->fp() - js_frame->GetSPToFPDelta();
-        Code code = js_frame->LookupCode();
+        Tagged<Code> code = js_frame->LookupCode();
         return FoundHandler(Context(), code->instruction_start(), 0,
                             code->constant_pool(), return_sp, frame->fp(),
                             visited_frames);
@@ -2373,7 +2373,7 @@ Isolate::CatchType ToCatchType(HandlerTable::CatchPrediction prediction) {
 
 Isolate::CatchType Isolate::PredictExceptionCatcher() {
   Address external_handler = thread_local_top()->try_catch_handler_address();
-  if (TopExceptionHandlerType(Object()) ==
+  if (TopExceptionHandlerType(Tagged<Object>()) ==
       ExceptionHandlerType::kExternalTryCatch) {
     return CAUGHT_BY_EXTERNAL;
   }
@@ -2410,7 +2410,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::STUB: {
-        base::Optional<Code> code = frame->LookupCode();
+        Tagged<Code> code = *frame->LookupCode();
         if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
             !code->is_turbofanned()) {
           break;
@@ -2422,7 +2422,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       }
 
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION_WITH_CATCH: {
-        base::Optional<Code> code = frame->LookupCode();
+        Tagged<Code> code = *frame->LookupCode();
         auto prediction = ToCatchType(CatchPredictionFor(code->builtin_id()));
         if (prediction != NOT_CAUGHT) return prediction;
         break;
@@ -2893,7 +2893,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     if (frame->is_java_script()) {
       catch_prediction = PredictException(JavaScriptFrame::cast(frame));
     } else if (frame->type() == StackFrame::STUB) {
-      base::Optional<Code> code = frame->LookupCode();
+      Tagged<Code> code = *frame->LookupCode();
       if (code->kind() != CodeKind::BUILTIN || !code->has_handler_table() ||
           !code->is_turbofanned()) {
         continue;
@@ -3037,13 +3037,22 @@ bool Isolate::IsCompileHintsMagicEnabled(Handle<NativeContext> context) {
 }
 
 bool Isolate::IsWasmStringRefEnabled(Handle<NativeContext> context) {
-  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
 #ifdef V8_ENABLE_WEBASSEMBLY
-  v8::WasmGCEnabledCallback callback = wasm_gc_enabled_callback();
-  if (callback) {
+  // If Wasm GC is explicitly enabled via a callback, also enable stringref.
+  v8::WasmGCEnabledCallback callback_gc = wasm_gc_enabled_callback();
+  if (callback_gc) {
     v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
-    if (callback(api_context)) return true;
+    if (callback_gc(api_context)) return true;
   }
+  // If Wasm imported strings are explicitly enabled via a callback, also enable
+  // stringref.
+  v8::WasmImportedStringsEnabledCallback callback_imported_strings =
+      wasm_imported_strings_enabled_callback();
+  if (callback_imported_strings) {
+    v8::Local<v8::Context> api_context = v8::Utils::ToLocal(context);
+    if (callback_imported_strings(api_context)) return true;
+  }
+  // Otherwise use the runtime flag.
   return v8_flags.experimental_wasm_stringref;
 #else
   return false;
@@ -3105,7 +3114,7 @@ Handle<NativeContext> Isolate::GetIncumbentContext() {
           : 0;
   if (!it.done() &&
       (!top_backup_incumbent || it.frame()->sp() < top_backup_incumbent)) {
-    Context context = Context::cast(it.frame()->context());
+    Tagged<Context> context = Context::cast(it.frame()->context());
     return Handle<NativeContext>(context->native_context(), this);
   }
 
@@ -3215,6 +3224,21 @@ void Isolate::SyncStackLimit() {
   RecordStackSwitchForScanning();
 }
 
+namespace {
+bool IsOnCentralStack(Isolate* isolate, Address addr) {
+#ifdef USE_SIMULATOR
+  auto simulator_stack = Simulator::current(isolate)->GetCurrentStackView();
+  uint8_t* addr_ptr = reinterpret_cast<uint8_t*>(addr);
+  return simulator_stack.begin() < addr_ptr &&
+         addr_ptr <= simulator_stack.end();
+#else
+  uintptr_t upper_bound = base::Stack::GetStackStart();
+  uintptr_t lower_bound = upper_bound - v8_flags.stack_size * KB;
+  return lower_bound < addr && addr <= upper_bound;
+#endif
+}
+}  // namespace
+
 void Isolate::RecordStackSwitchForScanning() {
   Tagged<Object> current = root(RootIndex::kActiveContinuation);
   DCHECK(!IsUndefined(current));
@@ -3227,6 +3251,8 @@ void Isolate::RecordStackSwitchForScanning() {
   current = WasmContinuationObject::cast(current)->parent();
   heap()->SetStackStart(reinterpret_cast<void*>(wasm_stack->base()));
   thread_local_top()->is_on_central_stack_flag_ = IsUndefined(current);
+  // Update the central stack info on switch. Only consider the innermost stack
+  bool updated_central_stack = false;
   // We don't need to add all inactive stacks. Only the ones in the active chain
   // may contain cpp heap pointers.
   while (!IsUndefined(current)) {
@@ -3237,12 +3263,15 @@ void Isolate::RecordStackSwitchForScanning() {
         reinterpret_cast<const void*>(wasm_stack->base()),
         reinterpret_cast<const void*>(wasm_stack->jmpbuf()->sp));
     current = cont->parent();
-    // If the parent is undefined, wasm_stack is the central stack.
-    // Update the central stack SP for switching in CEntry.
-    if (IsUndefined(current)) {
+    if (!updated_central_stack &&
+        IsOnCentralStack(this, wasm_stack->jmpbuf()->sp)) {
+      // This is the most recent use of the central stack in the call chain.
+      // Switch to this SP if we need to switch to the central stack in the
+      // future.
       thread_local_top()->central_stack_sp_ = wasm_stack->jmpbuf()->sp;
       thread_local_top()->central_stack_limit_ =
           reinterpret_cast<Address>(wasm_stack->jmpbuf()->stack_limit);
+      updated_central_stack = true;
     }
   }
 }
@@ -3549,10 +3578,16 @@ void Isolate::CheckIsolateLayout() {
 #ifdef V8_ENABLE_SANDBOX
   CHECK_EQ(static_cast<int>(OFFSET_OF(ExternalPointerTable, base_)),
            Internals::kExternalPointerTableBasePointerOffset);
+  CHECK_EQ(static_cast<int>(OFFSET_OF(IndirectPointerTable, base_)),
+           Internals::kIndirectPointerTableBasePointerOffset);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            Internals::kExternalPointerTableSize);
   CHECK_EQ(static_cast<int>(sizeof(ExternalPointerTable)),
            ExternalPointerTable::kSize);
+  CHECK_EQ(static_cast<int>(sizeof(IndirectPointerTable)),
+           Internals::kIndirectPointerTableSize);
+  CHECK_EQ(static_cast<int>(sizeof(IndirectPointerTable)),
+           IndirectPointerTable::kSize);
 #endif
 
   CHECK_EQ(OFFSET_OF(Isolate, isolate_data_), 0);
@@ -3598,6 +3633,9 @@ void Isolate::CheckIsolateLayout() {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.external_pointer_table_)),
            Internals::kIsolateExternalPointerTableOffset);
+  CHECK_EQ(static_cast<int>(
+               OFFSET_OF(Isolate, isolate_data_.indirect_pointer_table_)),
+           Internals::kIsolateIndirectPointerTableOffset);
 #endif
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, isolate_data_.api_callback_thunk_argument_)),
@@ -3810,9 +3848,11 @@ void Isolate::Deinit() {
     delete shared_external_pointer_space_;
     shared_external_pointer_space_ = nullptr;
   }
+  indirect_pointer_table().TearDownSpace(heap()->indirect_pointer_space());
+  indirect_pointer_table().TearDown();
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->TearDownSpace(heap()->code_pointer_space());
 #endif
 
@@ -3853,7 +3893,8 @@ Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
   // The entry stack must be empty when we get here.
-  DCHECK(entry_stack_ == nullptr || entry_stack_->previous_item == nullptr);
+  DCHECK(entry_stack_ == nullptr ||
+         entry_stack_.load()->previous_item == nullptr);
 
   delete entry_stack_;
   entry_stack_ = nullptr;
@@ -4319,7 +4360,7 @@ void Isolate::VerifyStaticRoots() {
   for (auto idx = RootIndex::kFirstRoot; idx <= RootIndex::kLastRoot; ++idx) {
     Tagged<Object> obj = roots_table().slot(idx).load(this);
     if (obj.ptr() == kNullAddress || !IsMap(obj)) continue;
-    Map map = Map::cast(obj);
+    Tagged<Map> map = Map::cast(obj);
 
 #define INSTANCE_TYPE_CHECKER_SINGLE(type, _)  \
   CHECK_EQ(InstanceTypeChecker::Is##type(map), \
@@ -4519,6 +4560,9 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
     external_pointer_table().AttachSpaceToReadOnlySegment(
         heap()->read_only_external_pointer_space());
     external_pointer_table().InitializeSpace(heap()->external_pointer_space());
+
+    indirect_pointer_table().Initialize();
+    indirect_pointer_table().InitializeSpace(heap()->indirect_pointer_space());
 #endif  // V8_COMPRESS_POINTERS
   }
   ReadOnlyHeap::SetUp(this, read_only_snapshot_data, can_rehash);
@@ -4590,7 +4634,7 @@ bool Isolate::Init(SnapshotData* startup_snapshot_data,
   }
 #endif  // V8_COMPRESS_POINTERS
 
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(
       heap()->code_pointer_space());
 #endif
@@ -4794,12 +4838,13 @@ void Isolate::Enter() {
     DCHECK_NOT_NULL(current_isolate);
     if (current_isolate == this) {
       DCHECK(Current() == this);
-      DCHECK_NOT_NULL(entry_stack_);
-      DCHECK(entry_stack_->previous_thread_data == nullptr ||
-             entry_stack_->previous_thread_data->thread_id() ==
+      auto entry_stack = entry_stack_.load();
+      DCHECK_NOT_NULL(entry_stack);
+      DCHECK(entry_stack->previous_thread_data == nullptr ||
+             entry_stack->previous_thread_data->thread_id() ==
                  ThreadId::Current());
       // Same thread re-enters the isolate, no need to re-init anything.
-      entry_stack_->entry_count++;
+      entry_stack->entry_count++;
       return;
     }
   }
@@ -4819,24 +4864,25 @@ void Isolate::Enter() {
 }
 
 void Isolate::Exit() {
-  DCHECK_NOT_NULL(entry_stack_);
-  DCHECK(entry_stack_->previous_thread_data == nullptr ||
-         entry_stack_->previous_thread_data->thread_id() ==
+  auto current_entry_stack = entry_stack_.load();
+  DCHECK_NOT_NULL(current_entry_stack);
+  DCHECK(current_entry_stack->previous_thread_data == nullptr ||
+         current_entry_stack->previous_thread_data->thread_id() ==
              ThreadId::Current());
 
-  if (--entry_stack_->entry_count > 0) return;
+  if (--current_entry_stack->entry_count > 0) return;
 
   DCHECK_NOT_NULL(CurrentPerIsolateThreadData());
   DCHECK(CurrentPerIsolateThreadData()->isolate_ == this);
 
   // Pop the stack.
-  EntryStackItem* item = entry_stack_;
-  entry_stack_ = item->previous_item;
+  entry_stack_ = current_entry_stack->previous_item;
 
-  PerIsolateThreadData* previous_thread_data = item->previous_thread_data;
-  Isolate* previous_isolate = item->previous_isolate;
+  PerIsolateThreadData* previous_thread_data =
+      current_entry_stack->previous_thread_data;
+  Isolate* previous_isolate = current_entry_stack->previous_isolate;
 
-  delete item;
+  delete current_entry_stack;
 
   // Reinit the current thread for the isolate it was running before this one.
   SetIsolateThreadLocals(previous_isolate, previous_thread_data);
@@ -5008,6 +5054,7 @@ bool Isolate::NeedsSourcePositions() const {
       v8_flags.trace_turbo_graph || v8_flags.turbo_profiling ||
       v8_flags.print_maglev_code || v8_flags.perf_prof || v8_flags.log_maps ||
       v8_flags.log_ic || v8_flags.log_function_events ||
+      v8_flags.heap_snapshot_on_oom ||
       // Dynamic conditions; changing any of these conditions triggers source
       // position collection for the entire heap
       // (CollectSourcePositionsForAllBytecodeArrays).
@@ -5035,8 +5082,8 @@ void Isolate::MaybeInitializeVectorListFromHeap() {
          !current_obj.is_null(); current_obj = heap_iterator.Next()) {
       if (!IsFeedbackVector(current_obj)) continue;
 
-      FeedbackVector vector = FeedbackVector::cast(current_obj);
-      SharedFunctionInfo shared = vector->shared_function_info();
+      Tagged<FeedbackVector> vector = FeedbackVector::cast(current_obj);
+      Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
 
       // No need to preserve the feedback vector for non-user-visible functions.
       if (!shared->IsSubjectToDebugging()) continue;
@@ -5063,7 +5110,7 @@ Isolate::KnownPrototype Isolate::IsArrayOrObjectOrStringPrototype(
     Tagged<Object> object) {
   Tagged<Object> context = heap()->native_contexts_list();
   while (!IsUndefined(context, this)) {
-    Context current_context = Context::cast(context);
+    Tagged<Context> current_context = Context::cast(context);
     if (current_context->initial_object_prototype() == object) {
       return KnownPrototype::kObject;
     } else if (current_context->initial_array_prototype() == object) {
@@ -5080,7 +5127,7 @@ bool Isolate::IsInAnyContext(Tagged<Object> object, uint32_t index) {
   DisallowGarbageCollection no_gc;
   Tagged<Object> context = heap()->native_contexts_list();
   while (!IsUndefined(context, this)) {
-    Context current_context = Context::cast(context);
+    Tagged<Context> current_context = Context::cast(context);
     if (current_context->get(index) == object) {
       return true;
     }
@@ -6005,7 +6052,7 @@ void Isolate::CollectSourcePositionsForAllBytecodeArrays() {
     for (Tagged<HeapObject> obj = iterator.Next(); !obj.is_null();
          obj = iterator.Next()) {
       if (!IsSharedFunctionInfo(obj)) continue;
-      SharedFunctionInfo sfi = SharedFunctionInfo::cast(obj);
+      Tagged<SharedFunctionInfo> sfi = SharedFunctionInfo::cast(obj);
       // If the script is a Smi, then the SharedFunctionInfo is in
       // the process of being deserialized.
       Tagged<Object> script = sfi->raw_script(kAcquireLoad);
@@ -6232,7 +6279,7 @@ bool Isolate::RequiresCodeRange() const {
 v8::metrics::Recorder::ContextId Isolate::GetOrRegisterRecorderContextId(
     Handle<NativeContext> context) {
   if (serializer_enabled_) return v8::metrics::Recorder::ContextId::Empty();
-  i::Object id = context->recorder_context_id();
+  i::Tagged<i::Object> id = context->recorder_context_id();
   if (IsNullOrUndefined(id)) {
     CHECK_LT(last_recorder_context_id_, i::Smi::kMaxValue);
     context->set_recorder_context_id(

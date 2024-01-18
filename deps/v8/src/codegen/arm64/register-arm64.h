@@ -45,9 +45,6 @@ namespace internal {
   ALWAYS_ALLOCATABLE_GENERAL_REGISTERS(V) \
   MAYBE_ALLOCATABLE_GENERAL_REGISTERS(V)
 
-#define MAGLEV_SCRATCH_GENERAL_REGISTERS(R)               \
-  R(x16) R(x17)
-
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \
   V(s8)  V(s9)  V(s10) V(s11) V(s12) V(s13) V(s14) V(s15) \
@@ -494,6 +491,7 @@ GENERAL_REGISTER_CODE_LIST(DEFINE_VREGISTERS)
 #undef DEFINE_REGISTER
 
 // Registers aliases.
+ALIAS_REGISTER(Register, kStackPointerRegister, sp);
 ALIAS_REGISTER(VRegister, v8_, v8);  // Avoid conflicts with namespace v8.
 ALIAS_REGISTER(Register, ip0, x16);
 ALIAS_REGISTER(Register, ip1, x17);

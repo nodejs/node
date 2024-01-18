@@ -2760,7 +2760,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
         return;
       }
       Generate(kWasmI32, data);
-      builder_->EmitWithPrefix(kExprI31New);
+      builder_->EmitWithPrefix(kExprRefI31);
       return;
     }
     case HeapType::kExtern:
@@ -3099,7 +3099,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
                   ValueType::RefMaybeNull(HeapType::kAny, type.nullability()),
                   num_structs, num_arrays, recursion_depth + 1));
         case HeapType::kI31:
-          return WasmInitExpr::I31New(
+          return WasmInitExpr::RefI31(
               zone,
               GenerateInitExpr(zone, range, builder, kWasmI32, num_structs,
                                num_arrays, recursion_depth + 1));

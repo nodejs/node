@@ -590,7 +590,7 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
   result = Node::New<Phi>(builder->zone(), predecessor_count_, this, owner);
   if (v8_flags.trace_maglev_graph_building) {
     for (int i = 0; i < predecessor_count_; i++) {
-      result->set_input(i, nullptr);
+      result->initialize_input_null(i);
     }
   }
 
@@ -669,7 +669,7 @@ ValueNode* MergePointInterpreterFrameState::NewLoopPhi(
 
   if (v8_flags.trace_maglev_graph_building) {
     for (int i = 0; i < predecessor_count_; i++) {
-      result->set_input(i, nullptr);
+      result->initialize_input_null(i);
     }
   }
   phis_.Add(result);

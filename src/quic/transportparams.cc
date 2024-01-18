@@ -71,6 +71,47 @@ Maybe<TransportParams::Options> TransportParams::Options::From(
   return Just<Options>(options);
 }
 
+std::string TransportParams::Options::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "version: " + std::to_string(transportParamsVersion);
+  if (preferred_address_ipv4.has_value()) {
+    res += prefix + "preferred_address_ipv4: " +
+           preferred_address_ipv4.value().ToString();
+  } else {
+    res += prefix + "preferred_address_ipv4: <none>";
+  }
+  if (preferred_address_ipv6.has_value()) {
+    res += prefix + "preferred_address_ipv6: " +
+           preferred_address_ipv6.value().ToString();
+  } else {
+    res += prefix + "preferred_address_ipv6: <none>";
+  }
+  res += prefix + "initial max stream data bidi local: " +
+         std::to_string(initial_max_stream_data_bidi_local);
+  res += prefix + "initial max stream data bidi remote: " +
+         std::to_string(initial_max_stream_data_bidi_remote);
+  res += prefix + "initial max stream data uni: " +
+         std::to_string(initial_max_stream_data_uni);
+  res += prefix + "tinitial max data: " + std::to_string(initial_max_data);
+  res += prefix + "initial max streams bidi: " +
+         std::to_string(initial_max_streams_bidi);
+  res += prefix +
+         "initial max streams uni: " + std::to_string(initial_max_streams_uni);
+  res += prefix + "max idle timeout: " + std::to_string(max_idle_timeout);
+  res += prefix + "active connection id limit: " +
+         std::to_string(active_connection_id_limit);
+  res += prefix + "ack delay exponent: " + std::to_string(ack_delay_exponent);
+  res += prefix + "max ack delay: " + std::to_string(max_ack_delay);
+  res += prefix +
+         "max datagram frame size: " + std::to_string(max_datagram_frame_size);
+  res += prefix + "disable active migration: " +
+         (disable_active_migration ? std::string("yes") : std::string("no"));
+  res += indent.Close();
+  return res;
+}
+
 void TransportParams::Options::MemoryInfo(MemoryTracker* tracker) const {
   if (preferred_address_ipv4.has_value()) {
     tracker->TrackField("preferred_address_ipv4",

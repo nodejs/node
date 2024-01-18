@@ -1675,7 +1675,7 @@ class ArrayFlattenAssembler : public CodeStubAssembler {
           // 2. Perform ? CreateDataPropertyOrThrow(target,
           //                                        ! ToString(targetIndex),
           //                                        element).
-          CallRuntime(Runtime::kCreateDataProperty, context, target,
+          CallBuiltin(Builtin::kFastCreateDataProperty, context, target,
                       target_index, element);
 
           // 3. Increase targetIndex by 1.

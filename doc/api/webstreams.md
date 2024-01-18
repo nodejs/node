@@ -492,7 +492,7 @@ added: v16.5.0
 -->
 
 * Returns: A promise fulfilled with an object:
-  * `value` {ArrayBuffer}
+  * `value` {any}
   * `done` {boolean}
 
 Requests the next chunk of data from the underlying {ReadableStream}
@@ -617,15 +617,24 @@ added: v16.5.0
   {ReadableStream} is closed or rejected if the stream errors or the reader's
   lock is released before the stream finishes closing.
 
-#### `readableStreamBYOBReader.read(view)`
+#### `readableStreamBYOBReader.read(view[, options])`
 
 <!-- YAML
 added: v16.5.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/50888
+    description: Added `min` option.
 -->
 
 * `view` {Buffer|TypedArray|DataView}
+* `options` {Object}
+  * `min` {number} When set, the returned promise will only be
+    fulfilled as soon as `min` number of elements are available.
+    When not set, the promise fulfills when at least one element
+    is available.
 * Returns: A promise fulfilled with an object:
-  * `value` {ArrayBuffer}
+  * `value` {TypedArray|DataView}
   * `done` {boolean}
 
 Requests the next chunk of data from the underlying {ReadableStream}

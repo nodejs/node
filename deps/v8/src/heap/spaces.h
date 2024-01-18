@@ -18,6 +18,7 @@
 #include "src/heap/free-list.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/heap/list.h"
+#include "src/heap/main-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
 #include "src/heap/memory-chunk.h"
 #include "src/heap/page.h"
@@ -68,21 +69,13 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   static inline void MoveExternalBackingStoreBytes(
       ExternalBackingStoreType type, Space* from, Space* to, size_t amount);
 
-  Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
-        AllocationCounter& allocation_counter)
-      : BaseSpace(heap, id),
-        free_list_(std::move(free_list)),
-        allocation_counter_(allocation_counter) {}
+  Space(Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list)
+      : BaseSpace(heap, id), free_list_(std::move(free_list)) {}
 
   ~Space() override = default;
 
   Space(const Space&) = delete;
   Space& operator=(const Space&) = delete;
-
-  virtual void AddAllocationObserver(AllocationObserver* observer);
-  virtual void RemoveAllocationObserver(AllocationObserver* observer);
-  virtual void PauseAllocationObservers() {}
-  virtual void ResumeAllocationObservers() {}
 
   // Returns size of objects. Can differ from the allocated size
   // (e.g. see OldLargeObjectSpace).
@@ -90,16 +83,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
 
   // Return the available bytes without growing.
   virtual size_t Available() const = 0;
-
-  virtual int RoundSizeDownToObjectAlignment(int size) const {
-    if (id_ == CODE_SPACE) {
-      return RoundDown(size, kCodeAlignment);
-    } else if (V8_COMPRESS_POINTERS_8GB_BOOL) {
-      return RoundDown(size, kObjectAlignment8GbHeap);
-    } else {
-      return RoundDown(size, kTaggedSize);
-    }
-  }
 
   virtual std::unique_ptr<ObjectIterator> GetObjectIterator(Heap* heap) = 0;
 
@@ -148,7 +131,6 @@ class V8_EXPORT_PRIVATE Space : public BaseSpace {
   std::atomic<size_t> external_backing_store_bytes_[static_cast<int>(
       ExternalBackingStoreType::kNumValues)] = {0};
   std::unique_ptr<FreeList> free_list_;
-  AllocationCounter& allocation_counter_;
 };
 
 static_assert(sizeof(std::atomic<intptr_t>) == kSystemPointerSize);
@@ -197,7 +179,6 @@ class PageRange {
   using iterator = PageIterator;
   PageRange(Page* begin, Page* end) : begin_(begin), end_(end) {}
   inline explicit PageRange(Page* page);
-  inline PageRange(Address start, Address limit);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
@@ -213,7 +194,6 @@ class ConstPageRange {
   ConstPageRange(const Page* begin, const Page* end)
       : begin_(begin), end_(end) {}
   inline explicit ConstPageRange(const Page* page);
-  inline ConstPageRange(Address start, Address limit);
 
   iterator begin() { return iterator(begin_); }
   iterator end() { return iterator(end_); }
@@ -297,142 +277,36 @@ class LocalAllocationBuffer {
   LinearAllocationArea allocation_info_;
 };
 
-class LinearAreaOriginalData {
+class V8_EXPORT_PRIVATE SpaceWithLinearArea : public Space {
  public:
-  Address get_original_top_acquire() const {
-    return original_top_.load(std::memory_order_acquire);
-  }
-  Address get_original_limit_relaxed() const {
-    return original_limit_.load(std::memory_order_relaxed);
-  }
+  // Creates this space with a new MainAllocator instance.
+  SpaceWithLinearArea(
+      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+      CompactionSpaceKind compaction_space_kind,
+      MainAllocator::SupportsExtendingLAB supports_extending_lab);
 
-  void set_original_top_release(Address top) {
-    original_top_.store(top, std::memory_order_release);
-  }
-  void set_original_limit_relaxed(Address limit) {
-    original_limit_.store(limit, std::memory_order_relaxed);
-  }
+  // Creates this space with a new MainAllocator instance and passes
+  // `allocation_info` to its constructor.
+  SpaceWithLinearArea(
+      Heap* heap, AllocationSpace id, std::unique_ptr<FreeList> free_list,
+      CompactionSpaceKind compaction_space_kind,
+      MainAllocator::SupportsExtendingLAB supports_extending_lab,
+      LinearAllocationArea& allocation_info);
 
-  base::SharedMutex* linear_area_lock() { return &linear_area_lock_; }
-
- private:
-  // The top and the limit at the time of setting the linear allocation area.
-  // These values can be accessed by background tasks. Protected by
-  // pending_allocation_mutex_.
-  std::atomic<Address> original_top_ = 0;
-  std::atomic<Address> original_limit_ = 0;
-
-  // Protects original_top_ and original_limit_.
-  base::SharedMutex linear_area_lock_;
-};
-
-class SpaceWithLinearArea : public Space {
- public:
+  // Creates this space and uses the existing `allocator`. It doesn't create a
+  // new MainAllocator instance.
   SpaceWithLinearArea(Heap* heap, AllocationSpace id,
                       std::unique_ptr<FreeList> free_list,
-                      AllocationCounter& allocation_counter,
-                      LinearAllocationArea& allocation_info,
-                      LinearAreaOriginalData& linear_area_original_data)
-      : Space(heap, id, std::move(free_list), allocation_counter),
-        allocation_info_(allocation_info),
-        linear_area_original_data_(linear_area_original_data) {}
+                      CompactionSpaceKind compaction_space_kind,
+                      MainAllocator* allocator);
 
-  virtual bool SupportsAllocationObserver() const = 0;
-
-  // Returns the allocation pointer in this space.
-  Address top() const { return allocation_info_.top(); }
-  Address limit() const { return allocation_info_.limit(); }
-
-  // The allocation top address.
-  Address* allocation_top_address() const {
-    return allocation_info_.top_address();
-  }
-
-  // The allocation limit address.
-  Address* allocation_limit_address() const {
-    return allocation_info_.limit_address();
-  }
-
-  // Methods needed for allocation observers.
-  V8_EXPORT_PRIVATE void AddAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void RemoveAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void ResumeAllocationObservers() override;
-  V8_EXPORT_PRIVATE void PauseAllocationObservers() override;
-
-  V8_EXPORT_PRIVATE void AdvanceAllocationObservers();
-  V8_EXPORT_PRIVATE void InvokeAllocationObservers(Address soon_object,
-                                                   size_t size_in_bytes,
-                                                   size_t aligned_size_in_bytes,
-                                                   size_t allocation_size);
-
-  void MarkLabStartInitialized();
-  virtual void FreeLinearAllocationArea() = 0;
-
-  // When allocation observers are active we may use a lower limit to allow the
-  // observers to 'interrupt' earlier than the natural limit. Given a linear
-  // area bounded by [start, end), this function computes the limit to use to
-  // allow proper observation based on existing observers. min_size specifies
-  // the minimum size that the limited area should have.
-  Address ComputeLimit(Address start, Address end, size_t min_size) const;
-  V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit() = 0;
-
-  void PrintAllocationsOrigins() const;
+  MainAllocator* main_allocator() { return allocator_; }
 
   V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
   AllocateRaw(int size_in_bytes, AllocationAlignment alignment,
               AllocationOrigin origin = AllocationOrigin::kRuntime);
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult AllocateRawUnaligned(
-      int size_in_bytes, AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  // Allocate the requested number of bytes in the space double aligned if
-  // possible, return a failure object if not.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawAligned(int size_in_bytes, AllocationAlignment alignment,
-                     AllocationOrigin origin = AllocationOrigin::kRuntime);
-
-  base::SharedMutex* linear_area_lock() {
-    return linear_area_original_data_.linear_area_lock();
-  }
-
-  Address original_top_acquire() const {
-    return linear_area_original_data_.get_original_top_acquire();
-  }
-  Address original_limit_relaxed() const {
-    return linear_area_original_data_.get_original_limit_relaxed();
-  }
-
-  void MoveOriginalTopForward() {
-    base::SharedMutexGuard<base::kExclusive> guard(linear_area_lock());
-    DCHECK_GE(top(), linear_area_original_data_.get_original_top_acquire());
-    DCHECK_LE(top(), linear_area_original_data_.get_original_limit_relaxed());
-    linear_area_original_data_.set_original_top_release(top());
-  }
-
  protected:
-  V8_EXPORT_PRIVATE void UpdateAllocationOrigins(AllocationOrigin origin);
-
-  // Allocates an object from the linear allocation area. Assumes that the
-  // linear allocation area is large enough to fit the object.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastUnaligned(int size_in_bytes, AllocationOrigin origin);
-  // Tries to allocate an aligned object from the linear allocation area.
-  // Returns nullptr if the linear allocation area does not fit the object.
-  // Otherwise, returns the object pointer and writes the allocation size
-  // (object size + alignment filler size) to the size_in_bytes.
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateFastAligned(int size_in_bytes, int* aligned_size_in_bytes,
-                      AllocationAlignment alignment, AllocationOrigin origin);
-
-  // Slow path of allocation function
-  V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult
-  AllocateRawSlow(int size_in_bytes, AllocationAlignment alignment,
-                  AllocationOrigin origin);
-
   // Sets up a linear allocation area that fits the given number of bytes.
   // Returns false if there is not enough space and the caller has to retry
   // after collecting garbage.
@@ -443,15 +317,15 @@ class SpaceWithLinearArea : public Space {
                                 AllocationOrigin origin,
                                 int* out_max_aligned_size) = 0;
 
-#if DEBUG
-  V8_EXPORT_PRIVATE virtual void VerifyTop() const;
-#endif  // DEBUG
+  virtual void FreeLinearAllocationArea() = 0;
 
-  LinearAllocationArea& allocation_info_;
-  LinearAreaOriginalData& linear_area_original_data_;
+  virtual void UpdateInlineAllocationLimit() = 0;
 
-  size_t allocations_origins_[static_cast<int>(
-      AllocationOrigin::kNumberOfAllocationOrigins)] = {0};
+  // TODO(chromium:1480975): Move the LAB out of the space.
+  MainAllocator* allocator_;
+  base::Optional<MainAllocator> owned_allocator_;
+
+  friend class MainAllocator;
 };
 
 class V8_EXPORT_PRIVATE SpaceIterator : public Malloced {

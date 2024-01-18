@@ -224,7 +224,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
                                       DisallowGarbageCollection* no_gc);
 
   Isolate* isolate_;
-  Map map_;
+  Tagged<Map> map_;
   MaybeObject raw_transitions_;
   Encoding encoding_;
   bool concurrent_access_;
@@ -238,7 +238,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
 // should use TransitionsAccessors.
 // TransitionArrays have the following format:
 // [0] Link to next TransitionArray (for weak handling support) (strong ref)
-// [1] Smi(0) or WeakFixedArray of prototype transitions (strong ref)
+// [1] Tagged<Smi>(0) or WeakFixedArray of prototype transitions (strong ref)
 // [2] Number of transitions (can be zero after trimming)
 // [3] First transition key (strong ref)
 // [4] First transition target (weak ref)

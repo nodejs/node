@@ -44,7 +44,8 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
 //     [kHeaderSize + 1]: first descriptor details (see PropertyDetails)
-//     [kHeaderSize + 2]: first value for constants / Smi(1) when not used
+//     [kHeaderSize + 2]: first value for constants / Tagged<Smi>(1) when not
+//     used
 //   Slack:
 //     [kHeaderSize + number of descriptors * 3]: start of slack
 // The "value" fields store either values or field types. A field type is either

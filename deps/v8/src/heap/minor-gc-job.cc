@@ -72,6 +72,7 @@ void MinorGCJob::SchedulePreviouslyRequestedTask() {
 }
 
 void MinorGCJob::CancelTaskIfScheduled() {
+  task_requested_ = false;
   if (current_task_id_ == CancelableTaskManager::kInvalidTaskId) return;
   // The task may have ran and bailed out already if major incremental marking
   // was running, in which `TryAbort` will return `kTaskRemoved`.
@@ -87,7 +88,10 @@ void MinorGCJob::Task::RunInternal() {
   job_->current_task_id_ = CancelableTaskManager::kInvalidTaskId;
 
   Heap* heap = isolate()->heap();
-  DCHECK_IMPLIES(v8_flags.minor_ms, !heap->ShouldOptimizeForLoadTime());
+  if (v8_flags.minor_ms && heap->ShouldOptimizeForLoadTime()) {
+    job_->task_requested_ = true;
+    return;
+  }
 
   if (v8_flags.minor_ms &&
       isolate()->heap()->incremental_marking()->IsMajorMarking()) {

@@ -18,26 +18,6 @@ bool FixedArrayBase::IsCowArray() const {
   return map() == GetReadOnlyRoots().fixed_cow_array_map();
 }
 
-// static
-Handle<TemplateList> TemplateList::New(Isolate* isolate, int size) {
-  Handle<FixedArray> list = isolate->factory()->NewFixedArray(
-      kLengthIndex + size, AllocationType::kOld);
-  list->set(kLengthIndex, Smi::zero());
-  return Handle<TemplateList>::cast(list);
-}
-
-// static
-Handle<TemplateList> TemplateList::Add(Isolate* isolate,
-                                       Handle<TemplateList> list,
-                                       Handle<i::Object> value) {
-  static_assert(kFirstElementIndex == 1);
-  int index = list->length() + 1;
-  Handle<i::FixedArray> fixed_array = Handle<FixedArray>::cast(list);
-  fixed_array = FixedArray::SetAndGrow(isolate, fixed_array, index, value);
-  fixed_array->set(kLengthIndex, Smi::FromInt(index));
-  return Handle<TemplateList>::cast(fixed_array);
-}
-
 Handle<FixedArray> FixedArray::SetAndGrow(Isolate* isolate,
                                           Handle<FixedArray> array, int index,
                                           Handle<Object> value) {

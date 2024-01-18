@@ -76,7 +76,8 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
     Handle<Code> code) {
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
-    entries->IterateAndCompact([](Code, DependencyGroups) { return false; });
+    entries->IterateAndCompact(
+        [](Tagged<Code>, DependencyGroups) { return false; });
   }
 
   MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
@@ -122,7 +123,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](Code code, DependencyGroups groups) {
+  IterateAndCompact([&](Tagged<Code> code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code->marked_for_deoptimization()) {

@@ -139,7 +139,7 @@ void WriteHeader(Writer* writer) {
 // index). On Intel, that means accessing the raw displacement.
 // On ARM64, call sites are encoded as either a literal load or a direct branch.
 // Other platforms simply require accessing the target address.
-void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
+void SetWasmCalleeTag(WritableRelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   DCHECK(rinfo->HasTargetAddressAddress());
   DCHECK(!RelocInfo::IsCompressedEmbeddedObject(rinfo->rmode()));
@@ -440,8 +440,13 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
   RelocIterator orig_iter(code->instructions(), code->reloc_info(),
                           code->constant_pool(), mask);
-  for (RelocIterator iter(
-           {code_start, code->instructions().size()}, code->reloc_info(),
+  WritableJitAllocation jit_allocation =
+      WritableJitAllocation::ForNonExecutableMemory(
+          reinterpret_cast<Address>(code_start), code->instructions().size(),
+          ThreadIsolation::JitAllocationType::kWasmCode);
+  for (WritableRelocIterator iter(
+           jit_allocation, {code_start, code->instructions().size()},
+           code->reloc_info(),
            reinterpret_cast<Address>(code_start) + code->constant_pool_offset(),
            mask);
        !iter.done(); iter.next(), orig_iter.next()) {
@@ -455,8 +460,8 @@ void NativeModuleSerializer::WriteCode(const WasmCode* code, Writer* writer) {
       } break;
       case RelocInfo::WASM_STUB_CALL: {
         Address target = orig_iter.rinfo()->wasm_stub_call_address();
-        uint32_t tag = native_module_->GetRuntimeStubId(target);
-        DCHECK_GT(WasmCode::kRuntimeStubCount, tag);
+        uint32_t tag = static_cast<uint32_t>(
+            native_module_->GetBuiltinInJumptableSlot(target));
         SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::EXTERNAL_REFERENCE: {
@@ -828,12 +833,13 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
 
 void NativeModuleDeserializer::CopyAndRelocate(
     const DeserializationUnit& unit) {
-  CodeSpaceWriteScope write_scope;
-  ThreadIsolation::RegisterWasmAllocation(
+  WritableJitAllocation jit_allocation = ThreadIsolation::RegisterJitAllocation(
       reinterpret_cast<Address>(unit.code->instructions().begin()),
-      unit.src_code_buffer.size());
-  memcpy(unit.code->instructions().begin(), unit.src_code_buffer.begin(),
-         unit.src_code_buffer.size());
+      unit.code->instructions().size(),
+      ThreadIsolation::JitAllocationType::kWasmCode);
+
+  jit_allocation.CopyCode(0, unit.src_code_buffer.begin(),
+                          unit.src_code_buffer.size());
 
   // Relocate the code.
   int mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
@@ -841,8 +847,9 @@ void NativeModuleDeserializer::CopyAndRelocate(
              RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
              RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED);
-  for (RelocIterator iter(unit.code->instructions(), unit.code->reloc_info(),
-                          unit.code->constant_pool(), mask);
+  for (WritableRelocIterator iter(jit_allocation, unit.code->instructions(),
+                                  unit.code->reloc_info(),
+                                  unit.code->constant_pool(), mask);
        !iter.done(); iter.next()) {
     RelocInfo::Mode mode = iter.rinfo()->rmode();
     switch (mode) {
@@ -855,9 +862,8 @@ void NativeModuleDeserializer::CopyAndRelocate(
       }
       case RelocInfo::WASM_STUB_CALL: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
-        DCHECK_LT(tag, WasmCode::kRuntimeStubCount);
-        Address target = native_module_->GetNearRuntimeStubEntry(
-            static_cast<WasmCode::RuntimeStubId>(tag), unit.jump_tables);
+        Address target = native_module_->GetJumpTableEntryForBuiltin(
+            static_cast<Builtin>(tag), unit.jump_tables);
         iter.rinfo()->set_wasm_stub_call_address(target, SKIP_ICACHE_FLUSH);
         break;
       }

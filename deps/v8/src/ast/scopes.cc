@@ -204,7 +204,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
   // If the class variable is context-allocated and its index is
   // saved for deserialization, deserialize it.
   if (scope_info->HasSavedClassVariable()) {
-    String name;
+    Tagged<String> name;
     int index;
     std::tie(name, index) = scope_info->SavedClassVariable();
     DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
@@ -475,7 +475,7 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
       DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
       DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
       DCHECK(scope_info->HasInlinedLocalNames());
-      String name = scope_info->ContextInlinedLocalName(0);
+      Tagged<String> name = scope_info->ContextInlinedLocalName(0);
       MaybeAssignedFlag maybe_assigned =
           scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope =
@@ -976,8 +976,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
-  ScopeInfo scope_info = *scope_info_;
+  Tagged<String> name_handle = *name->string();
+  Tagged<ScopeInfo> scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.

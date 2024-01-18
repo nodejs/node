@@ -219,7 +219,7 @@ void JsonPrintAllSourceWithPositions(std::ostream& os,
   os << "\"sources\" : {";
   Handle<Script> script =
       (info->shared_info().is_null() ||
-       info->shared_info()->script() == Object())
+       info->shared_info()->script() == Tagged<Object>())
           ? Handle<Script>()
           : handle(Script::cast(info->shared_info()->script()), isolate);
   JsonPrintFunctionSource(os, -1,

@@ -85,10 +85,15 @@ class PipelineData : public base::ContextualClass<PipelineData> {
     DCHECK(wasm_sig_ != nullptr);
     return wasm_sig_;
   }
-  void set_wasm_sig(const wasm::FunctionSig* sig) { wasm_sig_ = sig; }
+
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
-  void set_wasm_module(const wasm::WasmModule* module) {
+
+  bool is_wasm() const { return is_wasm_; }
+
+  void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig) {
     wasm_module_ = module;
+    wasm_sig_ = sig;
+    is_wasm_ = true;
   }
 #endif
 
@@ -131,6 +136,7 @@ class PipelineData : public base::ContextualClass<PipelineData> {
   // if we need many of them.
   const wasm::FunctionSig* wasm_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
+  bool is_wasm_ = false;
 #endif
 
   std::unique_ptr<turboshaft::Graph> graph_;

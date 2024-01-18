@@ -82,6 +82,19 @@ IFACEMETHODIMP V8CachedObject::GetCachedV8HeapObject(
   return S_OK;
 }
 
+bool TryUnwrapTaggedMemberType(const std::u16string& type,
+                               std::u16string* result) {
+  std::u16string prefix = u"v8::internal::TaggedMember<";
+  if (type.substr(0, prefix.length()) == prefix && type.back() == u'>') {
+    if (result) {
+      *result =
+          type.substr(prefix.length(), type.length() - prefix.length() - 1);
+    }
+    return true;
+  }
+  return false;
+}
+
 IndexedFieldData::IndexedFieldData(Property property)
     : property_(std::move(property)) {}
 
@@ -187,12 +200,17 @@ HRESULT CreateSyntheticObjectForV8Object(IDebugHostContext* ctx,
 // Creates an IModelObject to represent a field that is not a struct or array.
 HRESULT GetModelForBasicField(const uint64_t address,
                               const std::u16string& type_name,
-                              const std::string& uncompressed_type_name,
                               WRL::ComPtr<IDebugHostContext>& sp_ctx,
                               IModelObject** result) {
-  if (type_name == ConvertToU16String(uncompressed_type_name)) {
-    // For untagged and uncompressed tagged fields, create an IModelObject
-    // representing a normal native data type.
+  // We can't currently look up TaggedMember types for two reasons:
+  // 1. We need to insert the default template parameter; TaggedMember<T> is
+  //    actually TaggedMember<T, V8HeapCompressionScheme>.
+  // 2. No TaggedMember classes are currently instantiated in the V8 module,
+  //    and the debugger won't invent new template types.
+  // Thus, we must check using string manipulation whether this field is a
+  // TaggedMember, and create a synthetic object for the field.
+  std::u16string unwrapped_type_name;
+  if (!TryUnwrapTaggedMemberType(type_name, &unwrapped_type_name)) {
     WRL::ComPtr<IDebugHostType> type =
         Extension::Current()->GetTypeFromV8Module(sp_ctx, type_name.c_str());
     if (type == nullptr) return E_FAIL;
@@ -200,14 +218,14 @@ HRESULT GetModelForBasicField(const uint64_t address,
         sp_ctx.Get(), Location{address}, type.Get(), result);
   }
 
-  // For compressed tagged fields, we need to do something a little more
+  // For tagged fields, we need to do something a little more
   // complicated. We could just use CreateTypedObject with the type
   // v8::internal::TaggedValue, but then we'd sacrifice any other data
   // that we've learned about the field's specific type. So instead we
   // create a synthetic object.
   WRL::ComPtr<V8CachedObject> cached_object = WRL::Make<V8CachedObject>(
-      Location(address), uncompressed_type_name, sp_ctx,
-      /*is_compressed=*/true);
+      Location(address), ConvertFromU16String(unwrapped_type_name), sp_ctx,
+      COMPRESS_POINTERS_BOOL);
   return CreateSyntheticObjectForV8Object(sp_ctx.Get(), cached_object.Get(),
                                           result);
 }
@@ -278,8 +296,7 @@ HRESULT GetModelForStruct(const uint64_t address,
     WRL::ComPtr<IModelObject> field_model;
     if (field.num_bits == 0) {
       if (FAILED(GetModelForBasicField(address + field.offset, field.type_name,
-                                       field.uncompressed_type_name, sp_ctx,
-                                       &field_model))) {
+                                       sp_ctx, &field_model))) {
         continue;
       }
     } else {
@@ -365,9 +382,7 @@ HRESULT GetModelForCustomArrayElement(IModelObject* context_object,
 
   switch (prop->type) {
     case PropertyType::kArray:
-      return GetModelForBasicField(address, prop->type_name,
-                                   prop->uncompressed_type_name, sp_ctx,
-                                   object);
+      return GetModelForBasicField(address, prop->type_name, sp_ctx, object);
     case PropertyType::kStructArray:
       return GetModelForStruct(address, prop->fields, sp_ctx, object);
     default:
@@ -682,14 +697,16 @@ HRESULT GetModelForProperty(const Property& prop,
                             IModelObject** result) {
   switch (prop.type) {
     case PropertyType::kPointer:
-      return GetModelForBasicField(prop.addr_value, prop.type_name,
-                                   prop.uncompressed_type_name, sp_ctx, result);
+      return GetModelForBasicField(prop.addr_value, prop.type_name, sp_ctx,
+                                   result);
     case PropertyType::kStruct:
       return GetModelForStruct(prop.addr_value, prop.fields, sp_ctx, result);
     case PropertyType::kArray:
     case PropertyType::kStructArray:
+      // We can't currently look up types for TaggedMember and must use custom
+      // arrays; see comments in GetModelForBasicField for more details.
       if (prop.type == PropertyType::kArray &&
-          prop.type_name == ConvertToU16String(prop.uncompressed_type_name)) {
+          !TryUnwrapTaggedMemberType(prop.type_name, nullptr)) {
         // An array of things that are not structs or compressed tagged values
         // is most cleanly represented by a native array.
         return GetModelForNativeArray(prop.addr_value, prop.type_name,

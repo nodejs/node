@@ -37,7 +37,7 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
 
 namespace {
 
-V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, JSReceiver recv) {
+V8_INLINE bool HasInitialRegExpMap(Isolate* isolate, Tagged<JSReceiver> recv) {
   return recv->map() == isolate->regexp_function()->initial_map();
 }
 
@@ -128,16 +128,16 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   if (!IsJSReceiver(*obj)) return false;
 
-  JSReceiver recv = JSReceiver::cast(*obj);
+  Tagged<JSReceiver> recv = JSReceiver::cast(*obj);
 
   if (!HasInitialRegExpMap(isolate, recv)) return false;
 
   // Check the receiver's prototype's map.
-  Object proto = recv->map()->prototype();
+  Tagged<Object> proto = recv->map()->prototype();
   if (!IsJSReceiver(proto)) return false;
 
   Handle<Map> initial_proto_initial_map = isolate->regexp_prototype_map();
-  Map proto_map = JSReceiver::cast(proto)->map();
+  Tagged<Map> proto_map = JSReceiver::cast(proto)->map();
   if (proto_map != *initial_proto_initial_map) {
     return false;
   }
@@ -164,7 +164,7 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
 
   // The smi check is required to omit ToLength(lastIndex) calls with possible
   // user-code execution on the fast path.
-  Object last_index = JSRegExp::cast(recv)->last_index();
+  Tagged<Object> last_index = JSRegExp::cast(recv)->last_index();
   return IsSmi(last_index) && Smi::ToInt(last_index) >= 0;
 }
 

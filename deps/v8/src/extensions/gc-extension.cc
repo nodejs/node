@@ -140,8 +140,8 @@ class AsyncGC final : public CancelableTask {
 
  private:
   v8::Isolate* isolate_;
-  v8::Persistent<v8::Context> ctx_;
-  v8::Persistent<v8::Promise::Resolver> resolver_;
+  v8::Global<v8::Context> ctx_;
+  v8::Global<v8::Promise::Resolver> resolver_;
   v8::Isolate::GarbageCollectionType type_;
 };
 

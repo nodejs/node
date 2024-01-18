@@ -188,19 +188,19 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
 bool Context::IsDetached() const { return global_object()->IsDetached(); }
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)   \
-  void Context::set_##name(type value) {                    \
+  void Context::set_##name(Tagged<type> value) {            \
     DCHECK(IsNativeContext(*this));                         \
     set(index, value, UPDATE_WRITE_BARRIER, kReleaseStore); \
   }                                                         \
-  bool Context::is_##name(type value) const {               \
+  bool Context::is_##name(Tagged<type> value) const {       \
     DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index)) == value;                 \
   }                                                         \
-  type Context::name() const {                              \
+  Tagged<type> Context::name() const {                      \
     DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index));                          \
   }                                                         \
-  type Context::name(AcquireLoadTag tag) const {            \
+  Tagged<type> Context::name(AcquireLoadTag tag) const {    \
     DCHECK(IsNativeContext(*this));                         \
     return type::cast(get(index, tag));                     \
   }

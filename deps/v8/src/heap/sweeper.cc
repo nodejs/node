@@ -517,8 +517,8 @@ class PromotedPageRecordMigratedSlotVisitor final
                               RelocInfo* rinfo) final {}
   void VisitInternalReference(Tagged<InstructionStream> host,
                               RelocInfo* rinfo) final {}
-  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                            ExternalPointerTag tag) final {}
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) final {}
 
   // Maps can be shared, so we need to visit them to record old to shared slots.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
@@ -921,6 +921,7 @@ int Sweeper::RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
   DCHECK_NOT_NULL(space);
   DCHECK(space->identity() == OLD_SPACE || space->identity() == CODE_SPACE ||
          space->identity() == SHARED_SPACE ||
+         space->identity() == TRUSTED_SPACE ||
          (space->identity() == NEW_SPACE && v8_flags.minor_ms));
   DCHECK(!p->IsEvacuationCandidate());
   DCHECK(!p->SweepingDone());

@@ -199,7 +199,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
   if (UnusedPropertyFields() != 0) return false;
   if (is_prototype_map()) return false;
   if (store_origin == StoreOrigin::kNamed) {
-    int limit = std::max({kMaxFastProperties, GetInObjectProperties()});
+    int limit = std::max(
+        {v8_flags.max_fast_properties.value(), GetInObjectProperties()});
     FieldCounts counts = GetFieldCounts();
     // Only count mutable fields so that objects with large numbers of
     // constant functions do not go to dictionary mode. That would be bad
@@ -207,7 +208,8 @@ bool Map::TooManyFastProperties(StoreOrigin store_origin) const {
     int external = counts.mutable_count() - GetInObjectProperties();
     return external > limit || counts.GetTotal() > kMaxNumberOfDescriptors;
   } else {
-    int limit = std::max({kFastPropertiesSoftLimit, GetInObjectProperties()});
+    int limit = std::max(
+        {v8_flags.fast_properties_soft_limit.value(), GetInObjectProperties()});
     int external =
         NumberOfFields(ConcurrencyMode::kSynchronous) - GetInObjectProperties();
     return external > limit;
@@ -791,7 +793,7 @@ void Map::AppendDescriptor(Isolate* isolate, Descriptor* desc) {
 }
 
 bool Map::ConcurrentIsMap(PtrComprCageBase cage_base,
-                          const Object& object) const {
+                          Tagged<Object> object) const {
   return IsHeapObject(object) && HeapObject::cast(object)->map(cage_base) ==
                                      GetReadOnlyRoots(cage_base).meta_map();
 }
@@ -903,13 +905,14 @@ DEF_GETTER(Map, GetConstructor, Tagged<Object>) {
   return maybe_constructor;
 }
 
-Tagged<Object> Map::TryGetConstructor(Isolate* isolate, int max_steps) {
-  Tagged<Object> maybe_constructor = constructor_or_back_pointer(isolate);
+Tagged<Object> Map::TryGetConstructor(PtrComprCageBase cage_base,
+                                      int max_steps) {
+  Tagged<Object> maybe_constructor = constructor_or_back_pointer(cage_base);
   // Follow any back pointers.
-  while (IsMap(maybe_constructor, isolate)) {
+  while (IsMap(maybe_constructor, cage_base)) {
     if (max_steps-- == 0) return Smi::FromInt(0);
     maybe_constructor =
-        Map::cast(maybe_constructor)->constructor_or_back_pointer(isolate);
+        Map::cast(maybe_constructor)->constructor_or_back_pointer(cage_base);
   }
   if (IsTuple2(maybe_constructor)) {
     // Get constructor from the {constructor, non-instance_prototype} tuple.

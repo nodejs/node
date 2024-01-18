@@ -371,6 +371,10 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForFeedbackVectorFlags();
   static FieldAccess ForFeedbackVectorClosureFeedbackCellArray();
 
+#if V8_ENABLE_WEBASSEMBLY
+  static FieldAccess ForWasmArrayLength();
+#endif
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

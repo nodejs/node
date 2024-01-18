@@ -72,8 +72,8 @@ inline MemOperand GetMemOp(LiftoffAssembler* assm, Register addr,
     return MemOperand(addr, offset_imm32);
   } else {
     assm->li(kScratchReg2, Operand(offset_imm));
-    assm->daddu(kScratchReg2, addr, kScratchReg2);
-    return MemOperand(kScratchReg2, 0);
+    assm->daddu(kScratchReg, addr, kScratchReg2);
+    return MemOperand(kScratchReg, 0);
   }
 }
 
@@ -299,7 +299,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
                WasmValue(declared_function_index));
-  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+  CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -386,7 +386,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
 
-  Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  Call(static_cast<Address>(Builtin::kWasmStackOverflow),
+       RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
   if (v8_flags.debug_code) stop();
@@ -540,23 +541,22 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
+                                          int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   static_assert(kTaggedSize == kInt64Size);
-  Register scratch = pinned.set(GetUnusedRegister(kGpReg, pinned)).gp();
+  Register scratch = kScratchReg2;
   MemOperand dst_op = liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm);
-  Sd(src.gp(), dst_op);
+  Sd(src, dst_op);
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
 
   Label exit;
   CheckPageFlag(dst_addr, scratch,
                 MemoryChunk::kPointersFromHereAreInterestingMask, kZero, &exit);
-  JumpIfSmi(src.gp(), &exit);
-  CheckPageFlag(src.gp(), scratch,
-                MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, scratch, MemoryChunk::kPointersToHereAreInterestingMask,
+                eq, &exit);
   Daddu(scratch, dst_op.rm(), dst_op.offset());
   CallRecordWriteStubSaveRegisters(dst_addr, scratch, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
@@ -632,7 +632,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 #if defined(V8_TARGET_BIG_ENDIAN)
   if (is_store_mem) {
     pinned.set(dst_op.rm());
-    LiftoffRegister tmp = GetUnusedRegister(src.reg_class(), pinned);
+    LiftoffRegister tmp = kScratchReg2;
     // Save original value.
     Move(tmp, src, type.value_type());
 
@@ -3769,10 +3769,10 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
   }
 }
 
-void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  // A direct call to a builtin. Just encode the builtin index. This will be
+  // patched at relocation.
+  Call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {

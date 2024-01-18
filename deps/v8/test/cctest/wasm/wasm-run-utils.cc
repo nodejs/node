@@ -14,6 +14,7 @@
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/module-instantiate.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-import-wrapper-cache.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -208,6 +209,15 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 void TestingModuleBuilder::InitializeWrapperCache() {
   isolate_->heap()->EnsureWasmCanonicalRttsSize(
       test_module_->MaxCanonicalTypeIndex() + 1);
+  if (enabled_features_.has_gc()) {
+    Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
+        static_cast<int>(test_module_->types.size()));
+    for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+      CreateMapForType(isolate_, test_module_.get(), index, instance_object(),
+                       maps);
+    }
+    instance_object()->set_managed_object_maps(*maps);
+  }
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {

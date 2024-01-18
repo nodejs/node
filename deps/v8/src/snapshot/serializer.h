@@ -25,11 +25,11 @@ namespace internal {
 class CodeAddressMap : public CodeEventLogger {
  public:
   explicit CodeAddressMap(Isolate* isolate) : CodeEventLogger(isolate) {
-    isolate->v8_file_logger()->AddLogEventListener(this);
+    CHECK(isolate->logger()->AddListener(this));
   }
 
   ~CodeAddressMap() override {
-    isolate_->v8_file_logger()->RemoveLogEventListener(this);
+    CHECK(isolate_->logger()->RemoveListener(this));
   }
 
   void CodeMoveEvent(Tagged<InstructionStream> from,
@@ -487,8 +487,8 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void VisitOffHeapTarget(Tagged<InstructionStream> host,
                           RelocInfo* target) override;
 
-  void VisitExternalPointer(Tagged<HeapObject> host, ExternalPointerSlot slot,
-                            ExternalPointerTag tag) override;
+  void VisitExternalPointer(Tagged<HeapObject> host,
+                            ExternalPointerSlot slot) override;
   void VisitIndirectPointer(Tagged<HeapObject> host, IndirectPointerSlot slot,
                             IndirectPointerMode mode) override;
 

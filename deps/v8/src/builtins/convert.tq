@@ -117,12 +117,6 @@ FromConstexpr<int8, constexpr int31>(i: constexpr int31): int8 {
 FromConstexpr<char8, constexpr int31>(i: constexpr int31): char8 {
   return %RawDownCast<char8>(FromConstexpr<uint8>(i));
 }
-FromConstexpr<Number, constexpr Smi>(s: constexpr Smi): Number {
-  return SmiConstant(s);
-}
-FromConstexpr<Smi, constexpr Smi>(s: constexpr Smi): Smi {
-  return SmiConstant(s);
-}
 FromConstexpr<uint32, constexpr int31>(i: constexpr int31): uint32 {
   return Unsigned(Int32Constant(i));
 }

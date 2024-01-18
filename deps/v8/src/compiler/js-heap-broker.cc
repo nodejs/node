@@ -490,7 +490,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
       if (map.is_deprecated()) {
         // TODO(ishell): support fast map updating if we enable it.
         CHECK(!v8_flags.fast_map_update);
-        base::Optional<Map> maybe_map = MapUpdater::TryUpdateNoLock(
+        base::Optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
             isolate(), *map.object(), ConcurrencyMode::kConcurrent);
         if (maybe_map.has_value()) {
           map = MakeRefAssumeMemoryFence(this, maybe_map.value());

@@ -216,7 +216,7 @@ class RegExpResultsCache final : public AllStatic {
   // On success, the returned result is guaranteed to be a COW-array.
   static Tagged<Object> Lookup(Heap* heap, Tagged<String> key_string,
                                Tagged<Object> key_pattern,
-                               FixedArray* last_match_out,
+                               Tagged<FixedArray>* last_match_out,
                                ResultsCacheType type);
   // Attempt to add value_array to the cache specified by type.  On success,
   // value_array is turned into a COW-array.

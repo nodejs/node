@@ -94,6 +94,8 @@ namespace internal {
      kMaxExternalPointers, 101)                                                \
   HR(code_pointers_count, V8.SandboxedCodePointersCount, 0, kMaxCodePointers,  \
      101)                                                                      \
+  HR(indirect_pointers_count, V8.IndirectPointersCount, 0,                     \
+     kMaxIndirectPointers, 101)                                                \
   HR(wasm_num_lazy_compilations_5sec, V8.WasmNumLazyCompilations5Sec, 0,       \
      200000, 50)                                                               \
   HR(wasm_num_lazy_compilations_20sec, V8.WasmNumLazyCompilations20Sec, 0,     \

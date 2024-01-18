@@ -356,7 +356,7 @@ void MicrotaskQueueBuiltinsAssembler::IncrementFinishedMicrotaskCount(
 TNode<Context> MicrotaskQueueBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference::Create(kContextAddress, isolate());
   // TODO(delphick): Add a checked cast. For now this is not possible as context
-  // can actually be Smi(0).
+  // can actually be Tagged<Smi>(0).
   return TNode<Context>::UncheckedCast(LoadFullTagged(ExternalConstant(ref)));
 }
 

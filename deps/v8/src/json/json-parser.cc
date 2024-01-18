@@ -564,18 +564,26 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
 MaybeHandle<Object> InternalizeJsonProperty(Handle<JSObject> holder,
                                             Handle<String> key);
 
+namespace {
+template <typename Char>
+JsonToken GetTokenForCharacter(Char c) {
+  return V8_LIKELY(c <= unibrow::Latin1::kMaxChar) ? one_char_json_tokens[c]
+                                                   : JsonToken::ILLEGAL;
+}
+}  // namespace
+
 template <typename Char>
 void JsonParser<Char>::SkipWhitespace() {
-  next_ = JsonToken::EOS;
+  JsonToken local_next = JsonToken::EOS;
 
-  cursor_ = std::find_if(cursor_, end_, [this](Char c) {
-    JsonToken current = V8_LIKELY(c <= unibrow::Latin1::kMaxChar)
-                            ? one_char_json_tokens[c]
-                            : JsonToken::ILLEGAL;
+  cursor_ = std::find_if(cursor_, end_, [&](Char c) {
+    JsonToken current = GetTokenForCharacter(c);
     bool result = current != JsonToken::WHITESPACE;
-    if (result) next_ = current;
+    if (V8_LIKELY(result)) local_next = current;
     return result;
   });
+
+  next_ = local_next;
 }
 
 template <typename Char>
@@ -772,9 +780,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
                                   details.constness(), representation,
                                   value_type);
     } else if (expected_representation.IsHeapObject() &&
-               !target->instance_descriptors(isolate())
-                    ->GetFieldType(descriptor_index)
-                    ->NowContains(value)) {
+               !FieldType::NowContains(
+                   target->instance_descriptors(isolate())->GetFieldType(
+                       descriptor_index),
+                   value)) {
       Handle<FieldType> value_type =
           Object::OptimalType(*value, isolate(), expected_representation);
       MapUpdater::GeneralizeField(isolate(), target, descriptor_index,
@@ -784,9 +793,9 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
       new_mutable_double++;
     }
 
-    DCHECK(target->instance_descriptors(isolate())
-               ->GetFieldType(descriptor_index)
-               ->NowContains(value));
+    DCHECK(FieldType::NowContains(
+        target->instance_descriptors(isolate())->GetFieldType(descriptor_index),
+        value));
     map = target;
     descriptor++;
   }
@@ -959,9 +968,7 @@ bool JsonParser<Char>::ParseRawJson() {
         MessageTemplate::kInvalidRawJsonValue));
     return false;
   }
-  next_ = V8_LIKELY(*cursor_ <= unibrow::Latin1::kMaxChar)
-              ? one_char_json_tokens[*cursor_]
-              : JsonToken::ILLEGAL;
+  next_ = GetTokenForCharacter(*cursor_);
   switch (peek()) {
     case JsonToken::STRING:
       Consume(JsonToken::STRING);
@@ -1215,7 +1222,9 @@ MaybeHandle<Object> JsonParser<Char>::ParseJsonValue(Handle<Object> reviver) {
             if constexpr (should_track_json_source) {
               property_val_node_stack.emplace_back(Handle<Object>());
             }
-            ExpectNext(JsonToken::COLON);
+            ExpectNext(
+                JsonToken::COLON,
+                MessageTemplate::kJsonParseExpectedColonAfterPropertyName);
 
             // Break to start producing the subsequent property value.
             break;

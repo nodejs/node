@@ -1067,10 +1067,10 @@ MaybeHandle<Object> ErrorUtils::GetFormattedStack(
         Object);
     RETURN_ON_EXCEPTION(
         isolate,
-        JSObject::SetProperty(isolate, error_object,
-                              isolate->factory()->error_stack_symbol(),
-                              formatted_stack, StoreOrigin::kMaybeKeyed,
-                              Just(ShouldThrow::kThrowOnError)),
+        Object::SetProperty(isolate, error_object,
+                            isolate->factory()->error_stack_symbol(),
+                            formatted_stack, StoreOrigin::kMaybeKeyed,
+                            Just(ShouldThrow::kThrowOnError)),
         Object);
     return formatted_stack;
   }
@@ -1096,10 +1096,10 @@ void ErrorUtils::SetFormattedStack(Isolate* isolate,
     ErrorStackData::EnsureStackFrameInfos(isolate, error_stack_data);
     error_stack_data->set_formatted_stack(*formatted_stack);
   } else {
-    JSObject::SetProperty(isolate, error_object,
-                          isolate->factory()->error_stack_symbol(),
-                          formatted_stack, StoreOrigin::kMaybeKeyed,
-                          Just(ShouldThrow::kThrowOnError))
+    Object::SetProperty(isolate, error_object,
+                        isolate->factory()->error_stack_symbol(),
+                        formatted_stack, StoreOrigin::kMaybeKeyed,
+                        Just(ShouldThrow::kThrowOnError))
         .Check();
   }
 }

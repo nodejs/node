@@ -260,12 +260,13 @@ zip_fileinfo TimeToZipFileInfo(const base::Time& file_time) {
     // It assumes that dates below 1980 are in the double digit format.
     // Hence the fail safe option is to leave the date unset. Some programs
     // might show the unset date as 1980-0-0 which is invalid.
-    zip_info.tmz_date.tm_year = file_time_parts.year;
-    zip_info.tmz_date.tm_mon = file_time_parts.month - 1;
-    zip_info.tmz_date.tm_mday = file_time_parts.day_of_month;
-    zip_info.tmz_date.tm_hour = file_time_parts.hour;
-    zip_info.tmz_date.tm_min = file_time_parts.minute;
-    zip_info.tmz_date.tm_sec = file_time_parts.second;
+    zip_info.tmz_date = {
+        .tm_sec = static_cast<uInt>(file_time_parts.second),
+        .tm_min = static_cast<uInt>(file_time_parts.minute),
+        .tm_hour = static_cast<uInt>(file_time_parts.hour),
+        .tm_mday = static_cast<uInt>(file_time_parts.day_of_month),
+        .tm_mon = static_cast<uInt>(file_time_parts.month - 1),
+        .tm_year = static_cast<uInt>(file_time_parts.year)};
   }
 
   return zip_info;

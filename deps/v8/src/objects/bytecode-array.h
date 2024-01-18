@@ -17,12 +17,26 @@ namespace interpreter {
 class Register;
 }  // namespace interpreter
 
+// TODO(jgruber): These should no longer be included here; instead, all
+// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
 #include "torque-generated/src/objects/bytecode-array-tq.inc"
 
 // BytecodeArray represents a sequence of interpreter bytecodes.
-class BytecodeArray
-    : public TorqueGeneratedBytecodeArray<BytecodeArray, FixedArrayBase> {
+class BytecodeArray : public FixedArrayBase {
  public:
+  DECL_ACCESSORS(constant_pool, Tagged<FixedArray>)
+  // The handler table contains offsets of exception handlers.
+  DECL_ACCESSORS(handler_table, Tagged<ByteArray>)
+  // Source position table. Can contain:
+  // * undefined (initial value)
+  // * empty_byte_array (for bytecode generated for functions that will never
+  // have source positions, e.g. native functions).
+  // * ByteArray (when source positions have been collected for the bytecode)
+  // * exception (when an error occurred while explicitly collecting source
+  // positions for pre-existing bytecode).
+  DECL_RELEASE_ACQUIRE_ACCESSORS(source_position_table, Tagged<HeapObject>)
+  DECL_INT32_ACCESSORS(frame_size)
+
   static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
@@ -31,9 +45,6 @@ class BytecodeArray
   inline void set(int index, uint8_t value);
 
   inline Address GetFirstBytecodeAddress();
-
-  inline int32_t frame_size() const;
-  inline void set_frame_size(int32_t frame_size);
 
   // Note: The register count is derived from frame_size.
   inline int register_count() const;
@@ -71,6 +82,7 @@ class BytecodeArray
   // bytecode, constant pool, source position table, and handler table.
   DECL_GETTER(SizeIncludingMetadata, int)
 
+  DECL_CAST(BytecodeArray)
   DECL_PRINTER(BytecodeArray)
   DECL_VERIFIER(BytecodeArray)
 
@@ -91,13 +103,22 @@ class BytecodeArray
   // Maximal length of a single BytecodeArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
 
+#define FIELD_LIST(V)                                                   \
+  V(kConstantPoolOffset, kTaggedSize)                                   \
+  V(kHandlerTableOffset, kTaggedSize)                                   \
+  V(kSourcePositionTableOffset, kTaggedSize)                            \
+  V(kFrameSizeOffset, kInt32Size)                                       \
+  V(kParameterSizeOffset, kInt32Size)                                   \
+  V(kIncomingNewTargetOrGeneratorRegisterOffset, kInt32Size)            \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
   class BodyDescriptor;
 
- private:
-  // Hide accessors inherited from generated class. Use parameter_count instead.
-  DECL_INT_ACCESSORS(parameter_size)
-
-  TQ_OBJECT_CONSTRUCTORS(BytecodeArray)
+  OBJECT_CONSTRUCTORS(BytecodeArray, FixedArrayBase);
 };
 
 }  // namespace internal

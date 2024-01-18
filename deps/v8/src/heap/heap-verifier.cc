@@ -105,7 +105,7 @@ void VerifyPointersVisitor::VisitPointers(Tagged<HeapObject> host,
 
 void VerifyPointersVisitor::VisitInstructionStreamPointer(
     Tagged<Code> host, InstructionStreamSlot slot) {
-  Object maybe_code = slot.load(code_cage_base());
+  Tagged<Object> maybe_code = slot.load(code_cage_base());
   Tagged<HeapObject> code;
   // The slot might contain smi during Code creation.
   if (maybe_code.GetHeapObject(&code)) {
@@ -220,7 +220,7 @@ class VerifySharedHeapObjectVisitor : public VerifyPointersVisitor {
   void VerifyPointers(Tagged<HeapObject> host, MaybeObjectSlot start,
                       MaybeObjectSlot end) override {
     if (!host.is_null()) {
-      Map map = host->map();
+      Tagged<Map> map = host->map();
       CHECK(ReadOnlyHeap::Contains(map) || shared_space_->Contains(map));
     }
     VerifyPointersVisitor::VerifyPointers(host, start, end);
@@ -266,7 +266,6 @@ class HeapVerification final : public SpaceVerificationVisitor {
   NewSpace* new_space() const { return heap_->new_space(); }
   OldSpace* old_space() const { return heap_->old_space(); }
   SharedSpace* shared_space() const { return heap_->shared_space(); }
-
   CodeSpace* code_space() const { return heap_->code_space(); }
   LargeObjectSpace* lo_space() const { return heap_->lo_space(); }
   SharedLargeObjectSpace* shared_lo_space() const {
@@ -274,6 +273,10 @@ class HeapVerification final : public SpaceVerificationVisitor {
   }
   CodeLargeObjectSpace* code_lo_space() const { return heap_->code_lo_space(); }
   NewLargeObjectSpace* new_lo_space() const { return heap_->new_lo_space(); }
+  TrustedSpace* trusted_space() const { return heap_->trusted_space(); }
+  TrustedLargeObjectSpace* trusted_lo_space() const {
+    return heap_->trusted_lo_space();
+  }
 
   Isolate* isolate() const { return isolate_; }
   Heap* heap() const { return heap_; }
@@ -308,7 +311,7 @@ void HeapVerification::Verify() {
 
   if (!isolate()->context().is_null() &&
       !isolate()->raw_native_context().is_null()) {
-    Object normalized_map_cache =
+    Tagged<Object> normalized_map_cache =
         isolate()->raw_native_context()->normalized_map_cache();
 
     if (IsNormalizedMapCache(normalized_map_cache)) {
@@ -336,6 +339,9 @@ void HeapVerification::Verify() {
   VerifySpace(new_lo_space());
   VerifySpace(shared_lo_space());
   VerifySpace(code_lo_space());
+
+  VerifySpace(trusted_space());
+  VerifySpace(trusted_lo_space());
 
   isolate()->string_table()->VerifyIfOwnedBy(isolate());
 
@@ -413,7 +419,7 @@ void HeapVerification::VerifyOutgoingPointers(Tagged<HeapObject> object) {
 void HeapVerification::VerifyObjectMap(Tagged<HeapObject> object) {
   // The first word should be a map, and we expect all map pointers to be
   // in map space or read-only space.
-  Map map = object->map(cage_base_);
+  Tagged<Map> map = object->map(cage_base_);
   CHECK(IsMap(map, cage_base_));
   CHECK(ReadOnlyHeap::Contains(map) || old_space()->Contains(map) ||
         (shared_space() && shared_space()->Contains(map)));
@@ -446,7 +452,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
                      ObjectSlot end) override {
 #ifdef DEBUG
     for (ObjectSlot slot = start; slot < end; ++slot) {
-      Object obj = slot.load(cage_base());
+      Tagged<Object> obj = slot.load(cage_base());
       CHECK(!MapWord::IsPacked(obj.ptr()) || !HasWeakHeapObjectTag(obj));
     }
 #endif  // DEBUG
@@ -472,7 +478,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
   void VisitCodeTarget(Tagged<InstructionStream> host,
                        RelocInfo* rinfo) override {
-    Object target =
+    Tagged<Object> target =
         InstructionStream::FromTargetAddress(rinfo->target_address());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kCodeEntry, rinfo->pc()) ||
@@ -484,7 +490,7 @@ class SlotVerifyingVisitor : public ObjectVisitorWithCageBases {
 
   void VisitEmbeddedPointer(Tagged<InstructionStream> host,
                             RelocInfo* rinfo) override {
-    Object target = rinfo->target_object(cage_base());
+    Tagged<Object> target = rinfo->target_object(cage_base());
     if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(SlotType::kEmbeddedObjectFull, rinfo->pc()) ||
             InTypedSet(SlotType::kEmbeddedObjectCompressed, rinfo->pc()) ||
@@ -533,9 +539,9 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
     if (v8_flags.minor_ms) return;
     // Keys are handled separately and should never appear in this set.
     CHECK(!InUntypedSet(key));
-    Object k = *key;
+    Tagged<Object> k = *key;
     if (!ObjectInYoungGeneration(host) && ObjectInYoungGeneration(k)) {
-      EphemeronHashTable table = EphemeronHashTable::cast(host);
+      Tagged<EphemeronHashTable> table = EphemeronHashTable::cast(host);
       auto it = ephemeron_remembered_set_->find(table);
       CHECK(it != ephemeron_remembered_set_->end());
       int slot_index =

@@ -22,7 +22,7 @@ ares_timeout \- return maximum time to wait
 .nf
 #include <ares.h>
 
-struct timeval *ares_timeout(ares_channel \fIchannel\fP,
+struct timeval *ares_timeout(ares_channel_t *\fIchannel\fP,
                              struct timeval *\fImaxtv\fP,
                              struct timeval *\fItv\fP)
 .fi

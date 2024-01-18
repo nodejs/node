@@ -2,23 +2,11 @@
 .\" Copyright 1998 by the Massachusetts Institute of Technology.
 .\" Copyright (C) 2004-2010 by Daniel Stenberg
 .\"
-.\" Permission to use, copy, modify, and distribute this
-.\" software and its documentation for any purpose and without
-.\" fee is hereby granted, provided that the above copyright
-.\" notice appear in all copies and that both that copyright
-.\" notice and this permission notice appear in supporting
-.\" documentation, and that the name of M.I.T. not be used in
-.\" advertising or publicity pertaining to distribution of the
-.\" software without specific, written prior permission.
-.\" M.I.T. makes no representations about the suitability of
-.\" this software for any purpose.  It is provided "as is"
-.\" without express or implied warranty.
-.\"
 .\" SPDX-License-Identifier: MIT
 .\"
-.TH ARES_INIT 3 "5 March 2010"
+.TH ARES_INIT_OPTIONS 3 "5 March 2010"
 .SH NAME
-ares_init_options \- Initialize a resolver channel
+ares_init_options, ares_init \- Initialize a resolver channel
 .SH SYNOPSIS
 .nf
 #include <ares.h>
@@ -45,13 +33,23 @@ struct ares_options {
   char *resolvconf_path;
   char *hosts_path;
   int udp_max_queries;
+  int maxtimeout; /* in milliseconds */
+  unsigned int qcache_max_ttl; /* in seconds */
 };
 
-int ares_init_options(ares_channel *\fIchannelptr\fP,
-                      struct ares_options *\fIoptions\fP,
-                      int \fIoptmask\fP)
+int ares_init_options(ares_channel_t **\fIchannelptr\fP,
+                      const struct ares_options *\fIoptions\fP,
+                      int \fIoptmask\fP);
+
+int ares_init(ares_channel_t **\fIchannelptr\fP);
+
 .fi
 .SH DESCRIPTION
+The \fBares_init(3)\fP function is equivalent to calling
+\fBares_init_options(NULL, 0)\fP.  It is recommended to use
+\fBares_init_options(3)\fP instead and to set or make configurable the
+appropriate options for your application.
+
 The \fBares_init_options(3)\fP function initializes a communications channel
 for name service lookups.  If it returns successfully,
 \fBares_init_options(3)\fP will set the variable pointed to by
@@ -59,14 +57,69 @@ for name service lookups.  If it returns successfully,
 caller should invoke \fIares_destroy(3)\fP on the handle when the channel is
 no longer needed.
 
+It is recommended for an application to have at most one ares channel and use
+this for all DNS queries for the life of the application.  When system
+configuration changes, \fIares_reinit(3)\fP can be called to reload the
+configuration if necessary.  The recommended concurrent query limit is about
+32k queries, but remembering that when specifying AF_UNSPEC for
+\fBares_getaddrinfo(3)\fP or \fBares_gethostbyname(3)\fP, they may spawn
+2 queries internally.  The reason for the limit is c-ares does not allow
+duplicate DNS query ids (which have a maximum of 64k) to be oustanding at a
+given time, and it must randomly search for an available id thus 32k will limit
+the number of searches.  This limitation should not be a concern for most
+implementations and c-ares may implement queuing in future releases to lift this
+limitation.
+
 The \fIoptmask\fP parameter generally specifies which fields in the structure pointed to
 by \fIoptions\fP are set, as follows:
 .TP 18
 .B ARES_OPT_FLAGS
 .B int \fIflags\fP;
 .br
-Flags controlling the behavior of the resolver.  See below for a
-description of possible flag values.
+Flags controlling the behavior of the resolver:
+.RS 4
+.TP 23
+.B ARES_FLAG_USEVC
+Always use TCP queries (the "virtual circuit") instead of UDP
+queries.  Normally, TCP is only used if a UDP query yields a truncated
+result.
+.TP 23
+.B ARES_FLAG_PRIMARY
+Only query the first server in the list of servers to query.
+.TP 23
+.B ARES_FLAG_IGNTC
+If a truncated response to a UDP query is received, do not fall back
+to TCP; simply continue on with the truncated response.
+.TP 23
+.B ARES_FLAG_NORECURSE
+Do not set the "recursion desired" bit on outgoing queries, so that the name
+server being contacted will not try to fetch the answer from other servers if
+it doesn't know the answer locally. Be aware that ares will not do the
+recursion for you.  Recursion must be handled by the application calling ares
+if \fIARES_FLAG_NORECURSE\fP is set.
+.TP 23
+.B ARES_FLAG_STAYOPEN
+Do not close communications sockets when the number of active queries
+drops to zero.
+.TP 23
+.B ARES_FLAG_NOSEARCH
+Do not use the default search domains; only query hostnames as-is or
+as aliases.
+.TP 23
+.B ARES_FLAG_NOALIASES
+Do not honor the HOSTALIASES environment variable, which normally
+specifies a file of hostname translations.
+.TP 23
+.B ARES_FLAG_NOCHECKRESP
+Do not discard responses with the SERVFAIL, NOTIMP, or REFUSED
+response code or responses whose questions don't match the questions
+in the request.  Primarily useful for writing clients which might be
+used to test or debug name servers.
+.TP 23
+.B ARES_FLAG_EDNS
+Include an EDNS pseudo-resource record (RFC 2671) in generated requests.  As of
+v1.22, this is on by default if flags are otherwise not set.
+.RE
 .TP 18
 .B ARES_OPT_TIMEOUT
 .B int \fItimeout\fP;
@@ -102,6 +155,13 @@ queried for "as is" prior to querying for it with the default domain
 extensions appended.  The default value is 1 unless set otherwise by
 resolv.conf or the RES_OPTIONS environment variable.
 .TP 18
+.B ARES_OPT_MAXTIMEOUTMS
+.B int \fImaxtimeout\fP;
+.br
+The upper bound for timeout between sequential retry attempts.  When retrying
+queries, the timeout is increased from the requested timeout parameter, this
+caps the value.
+.TP 18
 .B ARES_OPT_UDP_PORT
 .B unsigned short \fIudp_port\fP;
 .br
@@ -120,10 +180,9 @@ The default value is 53, the standard name service port.
 .B int \fInservers\fP;
 .br
 The list of IPv4 servers to contact, instead of the servers specified in
-resolv.conf or the local named. In order to allow specification of either
-IPv4 or IPv6 name servers, the
-.BR ares_set_servers(3)
-function must be used instead.
+resolv.conf or the local named. In order to allow specification of either IPv4
+or IPv6 name servers, the \Bares_set_servers(3)\fP function must be used
+instead.
 .TP 18
 .B ARES_OPT_DOMAINS
 .B char **\fIdomains\fP;
@@ -184,9 +243,9 @@ The receive buffer size to set for the socket.
 .B ARES_OPT_EDNSPSZ
 .B int \fIednspsz\fP;
 .br
-The message size to be advertized in EDNS; only takes effect if the
+The message size to be advertised in EDNS; only takes effect if the
 .B ARES_FLAG_EDNS
-flag is set.
+flag is set.  Defaults to 1280, the recommended size.
 .TP 18
 .B ARES_OPT_RESOLVCONF
 .B char *\fIresolvconf_path\fP;
@@ -215,6 +274,18 @@ The maximum number of udp queries that can be sent on a single ephemeral port
 to a given DNS server before a new ephemeral port is assigned.  Any value of 0
 or less will be considered unlimited, and is the default.
 .br
+.TP 18
+.B ARES_OPT_QUERY_CACHE
+.B unsigned int \fIqcache_max_ttl\fP;
+.br
+Enable the built-in query cache.  Will cache queries based on the returned TTL
+in the DNS message.  Only fully successful and NXDOMAIN query results will be
+cached.  Fill in the \fIqcache_max_ttl\fP with the maximum number of seconds
+a query result may be cached which will override a larger TTL in the response
+message. This must be a non-zero value otherwise the cache will be disabled.
+Choose a reasonable value for your application such as 300 (5 minutes) or
+3600 (1 hour).
+.br
 .PP
 The \fIoptmask\fP parameter also includes options without a corresponding
 field in the
@@ -229,51 +300,10 @@ for each resolution.
 Do not perform round-robin nameserver selection; always use the list of
 nameservers in the same order.
 .PP
-The
-.I flags
-field should be the bitwise or of some subset of the following values:
-.TP 23
-.B ARES_FLAG_USEVC
-Always use TCP queries (the "virtual circuit") instead of UDP
-queries.  Normally, TCP is only used if a UDP query yields a truncated
-result.
-.TP 23
-.B ARES_FLAG_PRIMARY
-Only query the first server in the list of servers to query.
-.TP 23
-.B ARES_FLAG_IGNTC
-If a truncated response to a UDP query is received, do not fall back
-to TCP; simply continue on with the truncated response.
-.TP 23
-.B ARES_FLAG_NORECURSE
-Do not set the "recursion desired" bit on outgoing queries, so that the name
-server being contacted will not try to fetch the answer from other servers if
-it doesn't know the answer locally. Be aware that ares will not do the
-recursion for you.  Recursion must be handled by the application calling ares
-if \fIARES_FLAG_NORECURSE\fP is set.
-.TP 23
-.B ARES_FLAG_STAYOPEN
-Do not close communications sockets when the number of active queries
-drops to zero.
-.TP 23
-.B ARES_FLAG_NOSEARCH
-Do not use the default search domains; only query hostnames as-is or
-as aliases.
-.TP 23
-.B ARES_FLAG_NOALIASES
-Do not honor the HOSTALIASES environment variable, which normally
-specifies a file of hostname translations.
-.TP 23
-.B ARES_FLAG_NOCHECKRESP
-Do not discard responses with the SERVFAIL, NOTIMP, or REFUSED
-response code or responses whose questions don't match the questions
-in the request.  Primarily useful for writing clients which might be
-used to test or debug name servers.
-.TP 23
-.B ARES_FLAG_EDNS
-Include an EDNS pseudo-resource record (RFC 2671) in generated requests.
+
 .SH RETURN VALUES
-\fBares_init_options(3)\fP can return any of the following values:
+\fBares_init_options(3)\fP and \fBares_init(3)\fP can return any of the
+following values:
 .TP 14
 .B ARES_SUCCESS
 Initialization succeeded.
@@ -292,21 +322,22 @@ When initializing from
 (or, alternatively when specified by the
 .I resolvconf_path
 path location)
-\fBares_init_options(3)\fP reads the \fIdomain\fP and \fIsearch\fP directives
-to allow lookups of short names relative to the domains specified. The
-\fIdomain\fP and \fIsearch\fP directives override one another. If more than
-one instance of either \fIdomain\fP or \fIsearch\fP directives is specified,
-the last occurrence wins. For more information, please see the
+\fBares_init_options(3)\fP and \fBares_init(3)\fP reads the \fIdomain\fP and
+\fIsearch\fP directives to allow lookups of short names relative to the domains
+specified. The \fIdomain\fP and \fIsearch\fP directives override one another.
+If more than one instance of either \fIdomain\fP or \fIsearch\fP directives is
+specified, the last occurrence wins. For more information, please see the
 .BR resolv.conf (5)
 manual page.
 .SH SEE ALSO
-.BR ares_init(3),
-.BR ares_destroy(3),
-.BR ares_dup(3),
-.BR ares_library_init(3),
-.BR ares_save_options(3),
-.BR ares_set_servers(3),
-.BR ares_set_sortlist(3)
+.BR ares_reinit (3),
+.BR ares_destroy (3),
+.BR ares_dup (3),
+.BR ares_library_init (3),
+.BR ares_save_options (3),
+.BR ares_set_servers (3),
+.BR ares_set_sortlist (3),
+.BR ares_threadsafety (3)
 .SH AUTHOR
 Greg Hudson, MIT Information Systems
 .br

@@ -636,7 +636,7 @@ Handle<String> JSReceiver::GetConstructorName(Isolate* isolate,
   return GetConstructorHelper(isolate, receiver).second;
 }
 
-base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
+base::Optional<Tagged<NativeContext>> JSReceiver::GetCreationContextRaw() {
   DisallowGarbageCollection no_gc;
   Tagged<JSFunction> function;
   {
@@ -667,7 +667,7 @@ base::Optional<NativeContext> JSReceiver::GetCreationContextRaw() {
 }
 
 MaybeHandle<NativeContext> JSReceiver::GetCreationContext() {
-  base::Optional<NativeContext> maybe_context = GetCreationContextRaw();
+  base::Optional<Tagged<NativeContext>> maybe_context = GetCreationContextRaw();
   if (!maybe_context.has_value()) return {};
   return handle(maybe_context.value(), GetIsolate());
 }
@@ -5141,7 +5141,7 @@ void InvalidateOnePrototypeValidityCellInternal(Tagged<Map> map) {
   }
   Tagged<PrototypeInfo> prototype_info;
   if (map->TryGetPrototypeInfo(&prototype_info)) {
-    prototype_info->set_prototype_chain_enum_cache(Object());
+    prototype_info->set_prototype_chain_enum_cache(Tagged<Object>());
   }
 
   // We may inline accesses to constants stored in dictionary mode prototypes in
@@ -5427,7 +5427,7 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   Tagged<FixedArrayBase> elements = object->elements(isolate);
   ElementsKind dictionary_kind = DICTIONARY_ELEMENTS;
   if (IsSloppyArgumentsElementsKind(kind)) {
-    elements = SloppyArgumentsElements::cast(elements)->arguments(isolate);
+    elements = SloppyArgumentsElements::cast(elements)->arguments();
     dictionary_kind = SLOW_SLOPPY_ARGUMENTS_ELEMENTS;
   } else if (IsStringWrapperElementsKind(kind)) {
     dictionary_kind = SLOW_STRING_WRAPPER_ELEMENTS;

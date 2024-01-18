@@ -424,9 +424,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
       Address recv = (*params.receiver).ptr();
       Address** argv = reinterpret_cast<Address**>(params.argv);
       RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
-      value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
-                                     orig_func, func, recv,
-                                     JSParameterCount(params.argc), argv));
+      value = Tagged<Object>(
+          stub_entry.Call(isolate->isolate_data()->isolate_root(), orig_func,
+                          func, recv, JSParameterCount(params.argc), argv));
     } else {
       DCHECK_EQ(Execution::Target::kRunMicrotasks, params.execution_target);
 
@@ -440,8 +440,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> Invoke(Isolate* isolate,
           JSEntryFunction::FromAddress(isolate, code->instruction_start());
 
       RCS_SCOPE(isolate, RuntimeCallCounterId::kJS_Execution);
-      value = Object(stub_entry.Call(isolate->isolate_data()->isolate_root(),
-                                     params.microtask_queue));
+      value = Tagged<Object>(stub_entry.Call(
+          isolate->isolate_data()->isolate_root(), params.microtask_queue));
     }
   }
 
@@ -651,7 +651,7 @@ void Execution::CallWasm(Isolate* isolate, Handle<Code> wrapper_code,
     Address result = stub_entry.Call(wasm_call_target, (*object_ref).ptr(),
                                      packed_args, saved_c_entry_fp);
     if (result != kNullAddress) {
-      isolate->set_pending_exception(Object(result));
+      isolate->set_pending_exception(Tagged<Object>(result));
     }
   }
 

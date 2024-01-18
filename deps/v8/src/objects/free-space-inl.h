@@ -34,7 +34,7 @@ Tagged<FreeSpace> FreeSpace::next() const {
     return FreeSpace();
   }
   Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
-  return FreeSpace::unchecked_cast(Object(next_ptr));
+  return FreeSpace::unchecked_cast(Tagged<Object>(next_ptr));
 #else
   return FreeSpace::unchecked_cast(
       TaggedField<Object, kNextOffset>::load(*this));

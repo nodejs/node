@@ -106,6 +106,15 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     // changed if you have a really good reason for doing so.
     uint64_t unacknowledged_packet_threshold = 0;
 
+    // The amount of time (in milliseconds) that the endpoint will wait for the
+    // completion of the tls handshake.
+    uint64_t handshake_timeout = UINT64_MAX;
+
+    uint64_t max_stream_window = 0;
+    uint64_t max_window = 0;
+
+    bool no_udp_payload_size_shaping = true;
+
     // The validate_address parameter instructs the Endpoint to perform explicit
     // address validation using retry tokens. This is strongly recommended and
     // should only be disabled in trusted, closed environments as a performance
@@ -168,6 +177,8 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
 
     static v8::Maybe<Options> From(Environment* env,
                                    v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   bool HasInstance(Environment* env, v8::Local<v8::Value> value);
@@ -217,7 +228,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
                                     Session* session);
   void DisassociateStatelessResetToken(const StatelessResetToken& token);
 
-  void Send(BaseObjectPtr<Packet> packet);
+  void Send(Packet* packet);
 
   // Generates and sends a retry packet. This is terminal for the connection.
   // Retry packets are used to force explicit path validation by issuing a token
@@ -283,7 +294,7 @@ class Endpoint final : public AsyncWrap, public Packet::Listener {
     int Start();
     void Stop();
     void Close();
-    int Send(BaseObjectPtr<Packet> packet);
+    int Send(Packet* packet);
 
     // Returns the local UDP socket address to which we are bound,
     // or fail with an assert if we are not bound.

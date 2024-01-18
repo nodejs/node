@@ -17,17 +17,21 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/bytecode-array-tq-inl.inc"
+CAST_ACCESSOR(BytecodeArray)
+OBJECT_CONSTRUCTORS_IMPL(BytecodeArray, FixedArrayBase)
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(BytecodeArray)
+ACCESSORS(BytecodeArray, constant_pool, Tagged<FixedArray>, kConstantPoolOffset)
+ACCESSORS(BytecodeArray, handler_table, Tagged<ByteArray>, kHandlerTableOffset)
+RELEASE_ACQUIRE_ACCESSORS(BytecodeArray, source_position_table,
+                          Tagged<HeapObject>, kSourcePositionTableOffset)
 
 uint8_t BytecodeArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   return ReadField<uint8_t>(kHeaderSize + index * kCharSize);
 }
 
 void BytecodeArray::set(int index, uint8_t value) {
-  DCHECK(index >= 0 && index < this->length());
+  DCHECK(index >= 0 && index < length());
   WriteField<uint8_t>(kHeaderSize + index * kCharSize, value);
 }
 
@@ -153,13 +157,13 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   }
   Tagged<Object> maybe_handler_table = raw_handler_table(cage_base);
   if (IsByteArray(maybe_handler_table)) {
-    size += ByteArray::cast(maybe_handler_table)->Size();
+    size += ByteArray::cast(maybe_handler_table)->AllocatedSize();
   } else {
     DCHECK_EQ(maybe_handler_table, Smi::zero());
   }
   Tagged<Object> maybe_table = raw_source_position_table(cage_base);
   if (IsByteArray(maybe_table)) {
-    size += ByteArray::cast(maybe_table)->Size();
+    size += ByteArray::cast(maybe_table)->AllocatedSize();
   }
   return size;
 }

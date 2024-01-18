@@ -48,19 +48,9 @@ function BasicMemory64Tests(num_pages, use_atomic_ops) {
   let store = module.exports.store;
 
   assertEquals(num_bytes, memory.buffer.byteLength);
-  // TODO(v8:4153): Enable for all sizes once the TypedArray size limit is
-  // raised.
-  const kMaxTypedArraySize = Math.pow(2, 32);
-  if (num_bytes > kMaxTypedArraySize) {
-    // TODO(v8:4153): Fix the error message below, if we don't decide to bump
-    // the limit soon.
-    assertThrows(
-        () => new Int8Array(memory.buffer), RangeError,
-        'Invalid typed array length: undefined');
-  } else {
-    let array = new Int8Array(memory.buffer);
-    assertEquals(num_bytes, array.length);
-  }
+  // Test that we can create a TypedArray from that large buffer.
+  let array = new Int8Array(memory.buffer);
+  assertEquals(num_bytes, array.length);
 
   const GB = Math.pow(2, 30);
   assertEquals(0, load(num_bytes - 4));
@@ -443,14 +433,8 @@ function allowOOM(fn) {
 
 (function TestMemory64SharedBetweenWorkers() {
   print(arguments.callee.name);
-  // Generate a shared memory64 by instantiating an module that exports one.
-  // TODO(clemensb): Use the proper API once that's decided.
-  let shared_mem64 = (function() {
-    let builder = new WasmModuleBuilder();
-    builder.addMemory64(1, 10, true);
-    builder.exportMemoryAs('memory');
-    return builder.instantiate().exports.memory;
-  })();
+  let shared_mem64 = new WebAssembly.Memory(
+      {initial: 1, maximum: 10, shared: true, index: 'i64'});
 
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory('imp', 'mem', 1, 10, true, true);

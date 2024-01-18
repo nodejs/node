@@ -258,6 +258,12 @@
 }],  # 'tsan == True'
 
 ##############################################################################
+['ubsan', {
+  # https://crbug.com/v8/14309
+  'test-run-wasm-simd/RunWasm*': [SKIP],
+}],  # 'ubsan'
+
+##############################################################################
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],
@@ -1050,8 +1056,8 @@
   # and these tests don't make sense.
   # TODO(14108): Remove once we remove '--no-liftoff' from the 'turboshaft'
   # variant.
-  'test-streaming-compilation/AsyncTestIncrementalCaching': [FAIL],
-  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [FAIL],
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 
   # Revectorization is not supported yet in Turboshaft.
   # TODO(14108): Remove once supported.
@@ -1117,12 +1123,14 @@
   'test-run-wasm-simd/RunWasmTurbofan_S256Load16Splat': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load32Splat': [FAIL],
   'test-run-wasm-simd/RunWasmTurbofan_S256Load64Splat': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_ShuffleVpshufd': [FAIL],
   'test-run-wasm-simd/S128Load8x8S': [FAIL],
   'test-run-wasm-simd/S128Load8x8U': [FAIL],
   'test-run-wasm-simd/S128Load16x4S': [FAIL],
   'test-run-wasm-simd/S128Load16x4U': [FAIL],
   'test-run-wasm-simd/S128Load32x2S': [FAIL],
   'test-run-wasm-simd/S128Load32x2U': [FAIL],
+  'test-run-wasm-simd/RunWasmTurbofan_ExtractF128': [FAIL],
 }],  # variant == turboshaft
 
 ##############################################################################

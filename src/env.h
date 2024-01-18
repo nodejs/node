@@ -49,6 +49,10 @@
 #include "uv.h"
 #include "v8.h"
 
+#if HAVE_OPENSSL
+#include <openssl/evp.h>
+#endif
+
 #include <array>
 #include <atomic>
 #include <cstdint>
@@ -1028,15 +1032,20 @@ class Environment : public MemoryRetainer {
     kExitInfoFieldCount
   };
 
+#if HAVE_OPENSSL
+#if OPENSSL_VERSION_MAJOR >= 3
+  // We declare another alias here to avoid having to include crypto_util.h
+  using EVPMDPointer = DeleteFnPtr<EVP_MD, EVP_MD_free>;
+  std::vector<EVPMDPointer> evp_md_cache;
+#endif  // OPENSSL_VERSION_MAJOR >= 3
+  std::unordered_map<std::string, size_t> alias_to_md_id_map;
+  std::vector<std::string> supported_hash_algorithms;
+#endif  // HAVE_OPENSSL
+
  private:
-  // V8 has changed the constructor of exceptions, support both APIs before Node
-  // updates to V8 12.1.
-  using V8ExceptionConstructorOld =
-      v8::Local<v8::Value> (*)(v8::Local<v8::String>);
-  using V8ExceptionConstructorNew =
-      v8::Local<v8::Value> (*)(v8::Local<v8::String>, v8::Local<v8::Value>);
-  inline void ThrowError(V8ExceptionConstructorOld fun, const char* errmsg);
-  inline void ThrowError(V8ExceptionConstructorNew fun, const char* errmsg);
+  inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
+                                                     v8::Local<v8::Value>),
+                         const char* errmsg);
   void TrackContext(v8::Local<v8::Context> context);
   void UntrackContext(v8::Local<v8::Context> context);
 

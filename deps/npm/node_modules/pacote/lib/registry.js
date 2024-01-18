@@ -14,6 +14,10 @@ const sigstore = require('sigstore')
 const corgiDoc = 'application/vnd.npm.install-v1+json; q=1.0, application/json; q=0.8, */*'
 const fullDoc = 'application/json'
 
+// Some really old packages have no time field in their packument so we need a
+// cutoff date.
+const MISSING_TIME_CUTOFF = '2015-01-01T00:00:00.000Z'
+
 const fetch = require('npm-registry-fetch')
 
 const _headers = Symbol('_headers')
@@ -115,6 +119,13 @@ class RegistryFetcher extends Fetcher {
       return this.package
     }
 
+    // When verifying signatures, we need to fetch the full/uncompressed
+    // packument to get publish time as this is not included in the
+    // corgi/compressed packument.
+    if (this.opts.verifySignatures) {
+      this.fullMetadata = true
+    }
+
     const packument = await this.packument()
     let mani = await pickManifest(packument, this.spec.fetchSpec, {
       ...this.opts,
@@ -123,6 +134,12 @@ class RegistryFetcher extends Fetcher {
     })
     mani = rpj.normalize(mani)
     /* XXX add ETARGET and E403 revalidation of cached packuments here */
+
+    // add _time from packument if fetched with fullMetadata
+    const time = packument.time?.[mani.version]
+    if (time) {
+      mani._time = time
+    }
 
     // add _resolved and _integrity from dist object
     const { dist } = mani
@@ -171,8 +188,10 @@ class RegistryFetcher extends Fetcher {
                   'but no corresponding public key can be found'
               ), { code: 'EMISSINGSIGNATUREKEY' })
             }
-            const validPublicKey =
-              !publicKey.expires || (Date.parse(publicKey.expires) > Date.now())
+
+            const publishedTime = Date.parse(mani._time || MISSING_TIME_CUTOFF)
+            const validPublicKey = !publicKey.expires ||
+              publishedTime < Date.parse(publicKey.expires)
             if (!validPublicKey) {
               throw Object.assign(new Error(
                   `${mani._id} has a registry signature with keyid: ${signature.keyid} ` +
@@ -254,8 +273,13 @@ class RegistryFetcher extends Fetcher {
                 ), { code: 'EMISSINGSIGNATUREKEY' })
               }
 
-              const validPublicKey =
-                !publicKey.expires || (Date.parse(publicKey.expires) > Date.now())
+              const integratedTime = new Date(
+                Number(
+                  bundle.verificationMaterial.tlogEntries[0].integratedTime
+                ) * 1000
+              )
+              const validPublicKey = !publicKey.expires ||
+                (integratedTime < Date.parse(publicKey.expires))
               if (!validPublicKey) {
                 throw Object.assign(new Error(
                   `${mani._id} has attestations with keyid: ${keyid} ` +

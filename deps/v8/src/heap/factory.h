@@ -802,7 +802,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   // Interface for creating error objects.
   Handle<JSObject> NewError(Handle<JSFunction> constructor,
-                            Handle<String> message);
+                            Handle<String> message,
+                            Handle<Object> options = Handle<Object>());
 
   Handle<Object> NewInvalidStringLengthError();
 

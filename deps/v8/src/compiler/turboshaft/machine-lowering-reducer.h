@@ -14,7 +14,6 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
 #include "src/compiler/linkage.h"
-#include "src/compiler/node-matchers.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -1443,7 +1442,7 @@ class MachineLoweringReducer : public Next {
         size_log2 = kDoubleSizeLog2;
         array_map = factory_->fixed_double_array_map();
         access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
-                  compiler::Type::NumberOrTheHole(), MachineType::Float64(),
+                  compiler::Type::NumberOrHole(), MachineType::Float64(),
                   kNoWriteBarrier};
         STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
                                           Oddball::kToNumberRawOffset);
@@ -1971,7 +1970,9 @@ class MachineLoweringReducer : public Next {
     return result;
   }
 
-  OpIndex REDUCE(LoadDataViewElement)(V<Object> object, V<Object> storage,
+  // TODO(evih): The `LoadDataViewElement()` is used for Wasm compilation.
+  // Extract it to Wasm.
+  OpIndex REDUCE(LoadDataViewElement)(V<Object> object, V<WordPtr> storage,
                                       V<WordPtr> index,
                                       V<Word32> is_little_endian,
                                       ExternalArrayType element_type) {
@@ -2354,6 +2355,10 @@ class MachineLoweringReducer : public Next {
       case FloatUnaryOp::Kind::kRoundDown:
       case FloatUnaryOp::Kind::kRoundTiesEven:
       case FloatUnaryOp::Kind::kRoundToZero: {
+        // TODO(14108): Implement for Float32.
+        if (rep == FloatRepresentation::Float32()) {
+          goto no_change;
+        }
         DCHECK_EQ(rep, FloatRepresentation::Float64());
         if (FloatUnaryOp::IsSupported(kind, rep)) {
           // If we have a fast machine operation for this, we can just keep it.
@@ -3034,7 +3039,7 @@ class MachineLoweringReducer : public Next {
   }
 
   V<WordPtr> BuildTypedArrayDataPointer(V<Object> base, V<WordPtr> external) {
-    if (__ MatchZero(base)) return external;
+    if (__ matcher().MatchZero(base)) return external;
     V<WordPtr> untagged_base = __ BitcastTaggedToWord(base);
     if (COMPRESS_POINTERS_BOOL) {
       // Zero-extend Tagged_t to UintPtr according to current compression
@@ -3132,7 +3137,7 @@ class MachineLoweringReducer : public Next {
   }
 
   Isolate* isolate_ = PipelineData::Get().isolate();
-  Factory* factory_ = isolate_->factory();
+  Factory* factory_ = isolate_ ? isolate_->factory() : nullptr;
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

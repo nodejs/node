@@ -72,6 +72,10 @@ class V8_EXPORT_PRIVATE StringTable {
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
 
+  // Insert a range of strings. Only for use during isolate deserialization.
+  void InsertForIsolateDeserialization(
+      Isolate* isolate, const std::vector<Handle<String>>& strings);
+
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
 

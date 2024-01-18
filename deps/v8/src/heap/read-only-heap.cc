@@ -49,7 +49,7 @@ std::shared_ptr<ReadOnlyArtifacts> InitializeSharedReadOnlyArtifacts() {
 }  // namespace
 
 ReadOnlyHeap::~ReadOnlyHeap() {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->TearDownSpace(&code_pointer_space_);
 #endif
 }
@@ -239,7 +239,7 @@ void ReadOnlyHeap::InitFromIsolate(Isolate* isolate) {
 
 ReadOnlyHeap::ReadOnlyHeap(ReadOnlySpace* ro_space)
     : read_only_space_(ro_space) {
-#ifdef V8_CODE_POINTER_SANDBOXING
+#ifdef V8_ENABLE_SANDBOX
   GetProcessWideCodePointerTable()->InitializeSpace(&code_pointer_space_);
 #endif
 }

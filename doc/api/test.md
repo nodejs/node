@@ -105,9 +105,12 @@ If any tests fail, the process exit code is set to `1`.
 
 ## Subtests
 
-The test context's `test()` method allows subtests to be created. This method
-behaves identically to the top level `test()` function. The following example
-demonstrates the creation of a top level test with two subtests.
+The test context's `test()` method allows subtests to be created.
+It allows you to structure your tests in a hierarchical manner,
+where you can create nested tests within a larger test.
+This method behaves identically to the top level `test()` function.
+The following example demonstrates the creation of a
+top level test with two subtests.
 
 ```js
 test('top level test', async (t) => {
@@ -121,9 +124,13 @@ test('top level test', async (t) => {
 });
 ```
 
+> **Note:** `beforeEach` and `afterEach` hooks are triggered
+> between each subtest execution.
+
 In this example, `await` is used to ensure that both subtests have completed.
 This is necessary because parent tests do not wait for their subtests to
-complete. Any subtests that are still outstanding when their parent finishes
+complete, unlike tests created with the `describe` and `it` syntax.
+Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
 
@@ -1830,7 +1837,9 @@ added:
   - v20.4.0
   - v18.19.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.11.0
     pr-url: https://github.com/nodejs/node/pull/48638
     description: Updated parameters to be an option object with available APIs
                  and the default initial epoch.
@@ -2320,6 +2329,7 @@ clocks or actual timers outside of the mocking environment.
 <!-- YAML
 added:
   - v21.2.0
+  - v20.11.0
 -->
 
 Sets the current Unix timestamp that will be used as reference for any mocked

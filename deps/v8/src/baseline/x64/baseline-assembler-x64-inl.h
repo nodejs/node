@@ -70,6 +70,9 @@ void BaselineAssembler::RegisterFrameAddress(
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(rbp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
+MemOperand BaselineAssembler::FeedbackCellOperand() {
+  return MemOperand(rbp, BaselineFrameConstants::kFeedbackCellFromFp);
+}
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
@@ -398,11 +401,8 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFunction(feedback_cell);
-  // Decompresses pointer by complex addressing mode when necessary.
-  TaggedRegister tagged(feedback_cell);
-  LoadTaggedField(tagged, feedback_cell, JSFunction::kFeedbackCellOffset);
-  __ addl(FieldOperand(tagged, FeedbackCell::kInterruptBudgetOffset),
+  LoadFeedbackCell(feedback_cell);
+  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
           Immediate(weight));
   if (skip_interrupt_label) {
     DCHECK_LT(weight, 0);
@@ -415,11 +415,9 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFunction(feedback_cell);
-  // Decompresses pointer by complex addressing mode when necessary.
-  TaggedRegister tagged(feedback_cell);
-  LoadTaggedField(tagged, feedback_cell, JSFunction::kFeedbackCellOffset);
-  __ addl(FieldOperand(tagged, FeedbackCell::kInterruptBudgetOffset), weight);
+  LoadFeedbackCell(feedback_cell);
+  __ addl(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
+          weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
 }
 

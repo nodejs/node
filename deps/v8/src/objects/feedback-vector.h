@@ -273,8 +273,8 @@ class FeedbackVector
 
   // Optimized OSR'd code is cached in JumpLoop feedback vector slots. The
   // slots either contain a Code object or the ClearedValue.
-  inline base::Optional<Code> GetOptimizedOsrCode(Isolate* isolate,
-                                                  FeedbackSlot slot);
+  inline base::Optional<Tagged<Code>> GetOptimizedOsrCode(Isolate* isolate,
+                                                          FeedbackSlot slot);
   void SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
                            Tagged<Code> code);
 
@@ -953,7 +953,7 @@ class V8_EXPORT_PRIVATE FeedbackIterator final {
   enum State { kMonomorphic, kPolymorphic, kOther };
 
   Handle<WeakFixedArray> polymorphic_feedback_;
-  Map map_;
+  Tagged<Map> map_;
   MaybeObject handler_;
   bool done_;
   int index_;

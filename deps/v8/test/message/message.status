@@ -35,6 +35,9 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'fail/modules-skip*': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'wasm-trace-memory64*': [PASS, HEAVY],
 }],  # ALWAYS
 
 # Skip Liftoff tests on platforms that don't support Liftoff.

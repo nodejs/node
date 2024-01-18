@@ -74,8 +74,8 @@ class InfoCellPair {
 
  private:
   IsCompiledScope is_compiled_scope_;
-  SharedFunctionInfo shared_;
-  FeedbackCell feedback_cell_;
+  Tagged<SharedFunctionInfo> shared_;
+  Tagged<FeedbackCell> feedback_cell_;
 };
 
 // A lookup result from the compilation cache for scripts. There are three
@@ -93,7 +93,7 @@ class CompilationCacheScriptLookupResult {
   MaybeHandle<SharedFunctionInfo> toplevel_sfi() const { return toplevel_sfi_; }
   IsCompiledScope is_compiled_scope() const { return is_compiled_scope_; }
 
-  using RawObjects = std::pair<Script, SharedFunctionInfo>;
+  using RawObjects = std::pair<Tagged<Script>, Tagged<SharedFunctionInfo>>;
 
   RawObjects GetRawObjects() const;
 

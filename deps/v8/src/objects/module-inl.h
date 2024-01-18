@@ -36,7 +36,7 @@ ACCESSORS(SourceTextModule, async_parent_modules, Tagged<ArrayList>,
           kAsyncParentModulesOffset)
 
 struct Module::Hash {
-  V8_INLINE size_t operator()(Module const& module) const {
+  V8_INLINE size_t operator()(Tagged<Module> module) const {
     return module->hash();
   }
 };

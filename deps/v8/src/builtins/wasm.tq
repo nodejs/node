@@ -23,7 +23,9 @@ extern runtime WasmFunctionTableSet(
     Context, WasmInstanceObject, Smi, Smi, Object): JSAny;
 extern runtime ThrowRangeError(Context, Smi): never;
 extern runtime ThrowWasmError(Context, Smi): never;
+extern runtime WasmThrowRangeError(Context, Smi): never;
 extern runtime WasmThrowTypeError(Context, Smi, JSAny): never;
+extern runtime WasmThrowTypeErrorTwoArgs(Context, Smi, JSAny, JSAny): never;
 extern runtime WasmThrow(Context, Object, FixedArray): JSAny;
 extern runtime WasmReThrow(Context, Object): JSAny;
 extern runtime WasmTriggerTierUp(Context, WasmInstanceObject): JSAny;
@@ -329,6 +331,14 @@ builtin WasmRefFunc(index: uint32): Object {
 builtin WasmInternalFunctionCreateExternal(
     context: Context, func: WasmInternalFunction): JSFunction {
   return runtime::WasmInternalFunctionCreateExternal(context, func);
+}
+
+builtin WasmAllocateZeroedFixedArray(size: intptr): FixedArray {
+  if (size == 0) return kEmptyFixedArray;
+  const result = UnsafeCast<FixedArray>(AllocateFixedArray(
+      ElementsKind::PACKED_ELEMENTS, size, AllocationFlag::kNone));
+  FillEntireFixedArrayWithSmiZero(ElementsKind::PACKED_ELEMENTS, result, size);
+  return result;
 }
 
 builtin WasmAllocateFixedArray(size: intptr): FixedArray {
@@ -1072,6 +1082,26 @@ builtin ThrowIndexOfCalledOnNull(): JSAny {
   const error = MessageTemplate::kCalledOnNullOrUndefined;
   const name = StringConstant('String.prototype.indexOf');
   runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
+builtin ThrowDataViewGetInt32DetachedError(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kDetachedOperation;
+  const name = StringConstant('DataView.prototype.getInt32');
+  runtime::WasmThrowTypeError(context, SmiConstant(error), name);
+}
+
+builtin ThrowDataViewGetInt32OutOfBounds(): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kInvalidDataViewAccessorOffset;
+  runtime::WasmThrowRangeError(context, SmiConstant(error));
+}
+
+builtin ThrowDataViewGetInt32TypeError(value: JSAny): JSAny {
+  const context = LoadContextFromFrame();
+  const error = MessageTemplate::kIncompatibleMethodReceiver;
+  const name = StringConstant('DataView.prototype.getInt32');
+  runtime::WasmThrowTypeErrorTwoArgs(context, SmiConstant(error), name, value);
 }
 
 builtin WasmStringConcat(a: String, b: String): String {

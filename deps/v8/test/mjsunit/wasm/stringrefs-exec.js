@@ -93,6 +93,8 @@ function decodeWtf8(wtf8, start, end) {
 // We iterate over every one of these strings and every substring of it,
 // so to keep test execution times fast on slow platforms, keep both this
 // list and the individual strings reasonably short.
+let externalString = "I'm an external string";
+externalizeString(externalString);
 let interestingStrings = [
   '',
   'ascii',
@@ -106,6 +108,7 @@ let interestingStrings = [
   'ab \ud800',         // Lone lead surrogate at the end.
   'ab \udc00',         // Lone trail surrogate at the end.
   'a \udc00\ud800 b',  // Swapped surrogate pair.
+  externalString,      // External string.
 ];
 
 function IsSurrogate(codepoint) {
@@ -154,6 +157,7 @@ function makeWtf8TestDataSegment() {
 };
 
 (function TestStringNewWtf8() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -222,6 +226,7 @@ function makeWtf8TestDataSegment() {
 })();
 
 (function TestStringNewUtf8TryNullCheck() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -274,6 +279,7 @@ function makeWtf16TestDataSegment() {
 };
 
 (function TestStringNewWtf16() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -294,6 +300,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringConst() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   for (let [index, str] of interestingStrings.entries()) {
     builder.addLiteralStringRef(encodeWtf8(str));
@@ -315,6 +322,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringMeasureUtf8AndWtf8() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("string_measure_utf8", kSig_i_w)
@@ -363,6 +371,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringMeasureWtf16() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("string_measure_wtf16", kSig_i_w)
@@ -389,6 +398,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringEncodeWtf8() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -488,6 +498,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringEncodeWtf16() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -570,6 +581,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringConcat() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("concat", kSig_w_ww)
@@ -610,6 +622,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringEq() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("eq", kSig_i_ww)
@@ -658,6 +671,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringIsUSVSequence() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addFunction("is_usv_sequence", kSig_i_w)
@@ -686,6 +700,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringViewWtf16() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -897,6 +912,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringViewWtf8() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   builder.addMemory(1, undefined);
@@ -1111,6 +1127,7 @@ function makeWtf16TestDataSegment() {
 })();
 
 (function TestStringViewIter() {
+  print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
   let global = builder.addGlobal(kWasmStringViewIter, true);

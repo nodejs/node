@@ -191,6 +191,12 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
   uint32_t old_index = HandleToIndex(old_handle);
   ExternalPointerHandle new_handle = IndexToHandle(new_index);
 
+  // While external pointer slots should not be initialized twice (see below),
+  // it is ok for a slot to be "de-initialized", i.e. set to the null handle,
+  // as long as it is not re-initialized later. If a slot has been
+  // de-initialized in this way, no action is necessary here
+  if (old_handle == kNullExternalPointerHandle) return;
+
   // For the compaction algorithm to work optimally, double initialization
   // of entries is forbidden, see below. This DCHECK can detect double
   // initialization of external pointer fields in debug builds by checking

@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 
+class FixedArray;
 class JSArrayBuffer;
 class WasmModuleObject;
 class WasmInstanceObject;
@@ -27,6 +28,7 @@ class Zone;
 namespace wasm {
 class ErrorThrower;
 enum Suspend : bool;
+struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
@@ -115,6 +117,12 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t segment_index);
+
+V8_EXPORT_PRIVATE void CreateMapForType(Isolate* isolate,
+                                        const WasmModule* module,
+                                        int type_index,
+                                        Handle<WasmInstanceObject> instance,
+                                        Handle<FixedArray> maps);
 
 }  // namespace wasm
 }  // namespace internal

@@ -199,12 +199,12 @@ class InnerPointerResolutionTest
       case ObjectRequest::LARGE: {
         DCHECK_LE(2 * kTaggedSize, object.size);
         ReadOnlyRoots roots(heap());
-        HeapObject heap_object(HeapObject::FromAddress(object.address));
-        heap_object.set_map_after_allocation(roots.unchecked_fixed_array_map(),
-                                             SKIP_WRITE_BARRIER);
-        FixedArray arr(FixedArray::cast(heap_object));
-        arr.set_length((object.size - FixedArray::SizeFor(0)) / kTaggedSize);
-        DCHECK_EQ(object.size, arr.AllocatedSize());
+        Tagged<HeapObject> heap_object(HeapObject::FromAddress(object.address));
+        heap_object->set_map_after_allocation(roots.unchecked_fixed_array_map(),
+                                              SKIP_WRITE_BARRIER);
+        Tagged<FixedArray> arr(FixedArray::cast(heap_object));
+        arr->set_length((object.size - FixedArray::SizeFor(0)) / kTaggedSize);
+        DCHECK_EQ(object.size, arr->AllocatedSize());
         break;
       }
       case ObjectRequest::FREE:
@@ -674,7 +674,7 @@ TEST_F(InnerPointerResolutionHeapTest, UnusedRegularYoungPages) {
     }
 
     // Ensure the young generation space is iterable.
-    heap()->new_space()->MakeLinearAllocationAreaIterable();
+    heap()->new_space()->main_allocator()->MakeLinearAllocationAreaIterable();
 
     // Inner pointer resolution should work now, finding the objects in the
     // case of the inner pointers.

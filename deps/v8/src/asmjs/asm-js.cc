@@ -72,7 +72,8 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
         base::StaticCharVector(#fname)));                                  \
     Handle<Object> value = StdlibMathMember(isolate, stdlib, name);        \
     if (!IsJSFunction(*value)) return false;                               \
-    SharedFunctionInfo shared = Handle<JSFunction>::cast(value)->shared(); \
+    Tagged<SharedFunctionInfo> shared =                                    \
+        Handle<JSFunction>::cast(value)->shared();                         \
     if (!shared->HasBuiltinId() ||                                         \
         shared->builtin_id() != Builtin::kMath##FName) {                   \
       return false;                                                        \

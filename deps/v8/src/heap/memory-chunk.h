@@ -159,7 +159,7 @@ class MemoryChunk : public BasicMemoryChunk {
     return typed_slot_set;
   }
 
-  int FreeListsLength();
+  int ComputeFreeListsLength();
 
   // Approximate amount of physical memory committed for this chunk.
   V8_EXPORT_PRIVATE size_t CommittedPhysicalMemory() const;

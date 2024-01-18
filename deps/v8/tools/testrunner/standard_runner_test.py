@@ -31,6 +31,8 @@ from testrunner import standard_runner
 from testrunner import num_fuzzer
 from testrunner.testproc import base
 from testrunner.testproc import fuzzer
+from testrunner.testproc import resultdb
+from testrunner.testproc.resultdb_server_mock import RDBMockServer
 from testrunner.utils.test_utils import (
     temp_base,
     TestRunnerTest,
@@ -38,7 +40,17 @@ from testrunner.utils.test_utils import (
     FakeOSContext,
 )
 
+
 class StandardRunnerTest(TestRunnerTest):
+
+  def setUp(self):
+    self.mock_rdb_server = RDBMockServer()
+    resultdb.TESTING_SINK = dict(
+        auth_token='none', address=self.mock_rdb_server.address)
+
+  def tearDown(self):
+    resultdb.TESTING_SINK = None
+
   def get_runner_class(self):
     return standard_runner.StandardTestRunner
 

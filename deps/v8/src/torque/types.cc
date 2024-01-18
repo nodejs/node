@@ -1333,9 +1333,9 @@ base::Optional<NameAndType> ExtractSimpleFieldArraySize(
 }
 
 std::string Type::GetRuntimeType() const {
-  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "Smi";
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "Tagged<Smi>";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return GetGeneratedTNodeTypeName();
+    return "Tagged<" + GetGeneratedTNodeTypeName() + ">";
   }
   if (base::Optional<const StructType*> struct_type = StructSupertype()) {
     std::stringstream result;

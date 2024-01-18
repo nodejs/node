@@ -101,8 +101,12 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let kSig_e_rr = makeSig([kWasmExternRef, kWasmExternRef], [kRefExtern]);
 
   let builder = new WasmModuleBuilder();
-  let kArrayI16 = builder.addArray(kWasmI16, true);
-  let kArrayI8 = builder.addArray(kWasmI8, true);
+  builder.startRecGroup();
+  let kArrayI16 = builder.addArray(kWasmI16, true, kNoSuperType, true);
+  builder.endRecGroup();
+  builder.startRecGroup();
+  let kArrayI8 = builder.addArray(kWasmI8, true, kNoSuperType, true);
+  builder.endRecGroup();
   let a16ref = wasmRefNullType(kArrayI16);
   let a8ref = wasmRefNullType(kArrayI8);
 

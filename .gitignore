@@ -32,6 +32,7 @@
 /perf.data
 /perf.data.old
 /tags
+/tags.*
 /doc/api.xml
 /node
 /node_g

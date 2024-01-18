@@ -170,6 +170,10 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
   Local<Context> context_local = Context::New(isolate());
   Context::Scope context_scope(context_local);
   i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
+  const bool expect_gc = i::v8_flags.experimental_wasm_gc;
+  // Inlining is enabled in --future.
+  const bool expect_inlining =
+      i::v8_flags.future || i::v8_flags.experimental_wasm_inlining;
   // When using the flags, stringref and GC are controlled independently.
   {
     i::FlagScope<bool> flag_gc(&i::v8_flags.experimental_wasm_gc, false);
@@ -199,17 +203,14 @@ TEST_F(ApiWasmTest, WasmEnableDisableGC) {
     EXPECT_TRUE(enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback([](auto) { return false; });
-  EXPECT_FALSE(i_isolate()->IsWasmGCEnabled(context));
+  EXPECT_EQ(expect_gc, i_isolate()->IsWasmGCEnabled(context));
   EXPECT_FALSE(i_isolate()->IsWasmStringRefEnabled(context));
-  // Inlining is enabled in --future.
-  // TODO(chromium:1424350): Change this once inlining is enabled by default.
-  const bool expect_inlining = i::v8_flags.future;
   EXPECT_EQ(expect_inlining, i_isolate()->IsWasmInliningEnabled(context));
   {
     auto enabled_features = i::wasm::WasmFeatures::FromIsolate(i_isolate());
-    EXPECT_FALSE(enabled_features.has_gc());
+    EXPECT_EQ(expect_gc, enabled_features.has_gc());
     EXPECT_FALSE(enabled_features.has_stringref());
-    EXPECT_FALSE(enabled_features.has_typed_funcref());
+    EXPECT_EQ(expect_gc, enabled_features.has_typed_funcref());
     EXPECT_EQ(expect_inlining, enabled_features.has_inlining());
   }
   isolate()->SetWasmGCEnabledCallback(nullptr);

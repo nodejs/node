@@ -822,7 +822,7 @@ async function getPackageType(url) {
     .catch((err) => {
       if (err?.code !== 'ENOENT') console.error(err);
     });
-  // Ff package.json existed and contained a `type` field with a value, voila
+  // If package.json existed and contained a `type` field with a value, voilà
   if (type) return type;
   // Otherwise, (if not at the root) continue checking the next directory up
   // If at the root, stop and return false

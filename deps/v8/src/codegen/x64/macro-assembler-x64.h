@@ -290,6 +290,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Condition CheckSmi(Register src);
   Condition CheckSmi(Operand src);
 
+  // This can be used in testing to ensure we never rely on what is in the
+  // unused smi bits.
+  void ClobberDecompressedSmiBits(Register smi);
+
   // Abort execution if argument is a smi, enabled via --debug-code.
   void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
 
@@ -354,6 +358,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadMap(Register destination, Register object);
   void LoadCompressedMap(Register destination, Register object);
+
+  void LoadFeedbackVector(Register dst, Register closure, Label* fbv_undef,
+                          Label::Distance distance);
 
   void Move(Register dst, intptr_t x) {
     if (x == 0) {
@@ -593,14 +600,16 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void CallEphemeronKeyBarrier(Register object, Register slot_address,
                                SaveFPRegsMode fp_mode);
 
+  void CallIndirectPointerBarrier(Register object, Register slot_address,
+                                  SaveFPRegsMode fp_mode,
+                                  IndirectPointerTag tag);
+
   void CallRecordWriteStubSaveRegisters(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
-      PointerType type = PointerType::kDirect);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
   void CallRecordWriteStub(
       Register object, Register slot_address, SaveFPRegsMode fp_mode,
-      StubCallMode mode = StubCallMode::kCallBuiltinPointer,
-      PointerType type = PointerType::kDirect);
+      StubCallMode mode = StubCallMode::kCallBuiltinPointer);
 
 #ifdef V8_IS_TSAN
   void CallTSANStoreStub(Register address, Register value,
@@ -714,7 +723,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   // Loads an indirect pointer from the heap.
   void LoadIndirectPointerField(Register destination, Operand field_operand,
-                                Register scratch);
+                                IndirectPointerTag tag, Register scratch);
 
   // Store an indirect pointer to the given object in the destination field.
   void StoreIndirectPointerField(Operand dst_field_operand, Register value);
@@ -724,10 +733,11 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void StoreMaybeIndirectPointerField(Operand dst_field_operand,
                                       Register value);
 
-  // Laod a pointer to a code entrypoint from the heap.
-  // When the sandbox is enabled the pointer is loaded indirectly via the code
-  // pointer table, otherwise it is loaded direclty as a raw pointer.
-  void LoadCodeEntrypointField(Register destination, Operand field_operand);
+  // Load the pointer to a Code's entrypoint via an indirect pointer to the
+  // Code object.
+  // Only available when the sandbox is enabled.
+  void LoadCodeEntrypointViaIndirectPointer(Register destination,
+                                            Operand field_operand);
 
   // Loads and stores the value of an external reference.
   // Special case code for load and store to take advantage of
@@ -779,20 +789,20 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // stored.  value and scratch registers are clobbered by the operation.
   // The offset is the offset from the start of the object, not the offset from
   // the tagged HeapObject pointer.  For use with FieldOperand(reg, off).
-  void RecordWriteField(Register object, int offset, Register value,
-                        Register slot_address, SaveFPRegsMode save_fp,
-                        SmiCheck smi_check = SmiCheck::kInline,
-                        PointerType type = PointerType::kDirect);
+  void RecordWriteField(
+      Register object, int offset, Register value, Register slot_address,
+      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. The address and value registers are clobbered by the
   // operation.  RecordWrite filters out smis so it does not update
   // the write barrier if the value is a smi.
-  void RecordWrite(Register object, Register slot_address, Register value,
-                   SaveFPRegsMode save_fp,
-                   SmiCheck smi_check = SmiCheck::kInline,
-                   PointerType type = PointerType::kDirect);
+  void RecordWrite(
+      Register object, Register slot_address, Register value,
+      SaveFPRegsMode save_fp, SmiCheck smi_check = SmiCheck::kInline,
+      SlotDescriptor slot = SlotDescriptor::ForDirectPointerSlot());
 
   // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
   // of slots in non-GCed area.
@@ -892,6 +902,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Immediate ClearedValue() const;
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
@@ -1094,7 +1106,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, Operand* stack_space_operand,
-                              Operand return_value_operand);
+                              Operand return_value_operand, Label* done);
 
 #define ACCESS_MASM(masm) masm->
 

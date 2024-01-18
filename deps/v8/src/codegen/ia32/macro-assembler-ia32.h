@@ -176,6 +176,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
 
   void LoadMap(Register destination, Register object);
 
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef, Label::Distance distance);
+
   void Trap();
   void DebugBreak();
 
@@ -549,6 +552,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Immediate ClearedValue() const;
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,

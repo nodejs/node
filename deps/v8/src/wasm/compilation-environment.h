@@ -60,7 +60,7 @@ struct CompilationEnv {
   const DynamicTiering dynamic_tiering;
 
   constexpr CompilationEnv(const WasmModule* module,
-                           const WasmFeatures& enabled_features,
+                           WasmFeatures enabled_features,
                            DynamicTiering dynamic_tiering)
       : module(module),
         enabled_features(enabled_features),

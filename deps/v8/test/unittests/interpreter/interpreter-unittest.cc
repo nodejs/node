@@ -4747,7 +4747,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
 
   i::FakeCodeEventLogger code_event_logger(i_isolate());
   i::v8_flags.interpreted_frames_native_stack = true;
-  i_isolate()->v8_file_logger()->AddLogEventListener(&code_event_logger);
+  CHECK(i_isolate()->logger()->AddListener(&code_event_logger));
 
   const char* source_text =
       "function testInterpreterWithNativeStack(a,b) { return a + b };";
@@ -4769,7 +4769,7 @@ TEST_F(InterpreterTest, InterpreterWithNativeStack) {
   CHECK(code->is_interpreter_trampoline_builtin());
   CHECK_NE(code.address(), interpreter_entry_trampoline->address());
 
-  i_isolate()->v8_file_logger()->RemoveLogEventListener(&code_event_logger);
+  CHECK(i_isolate()->logger()->RemoveListener(&code_event_logger));
 }
 #endif  // V8_TARGET_ARCH_ARM
 

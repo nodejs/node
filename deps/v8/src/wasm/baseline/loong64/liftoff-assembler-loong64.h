@@ -181,7 +181,7 @@ void LiftoffAssembler::CallFrameSetupStub(int declared_function_index) {
   EnterFrame(StackFrame::WASM);
   LoadConstant(LiftoffRegister(kLiftoffFrameSetupFunctionReg),
                WasmValue(declared_function_index));
-  CallRuntimeStub(WasmCode::kWasmLiftoffFrameSetup);
+  CallBuiltin(Builtin::kWasmLiftoffFrameSetup);
 }
 
 void LiftoffAssembler::PrepareTailCall(int num_callee_stack_params,
@@ -269,7 +269,8 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     Branch(&continuation, uge, sp, Operand(stack_limit));
   }
 
-  Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+  Call(static_cast<Address>(Builtin::kWasmStackOverflow),
+       RelocInfo::WASM_STUB_CALL);
   // The call will not return; just define an empty safepoint.
   safepoint_table_builder->DefineSafepoint(this);
   if (v8_flags.debug_code) stop();
@@ -423,8 +424,7 @@ void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
 
 void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
                                           Register offset_reg,
-                                          int32_t offset_imm,
-                                          LiftoffRegister src,
+                                          int32_t offset_imm, Register src,
                                           LiftoffRegList pinned,
                                           SkipWriteBarrier skip_write_barrier) {
   UseScratchRegisterScope temps(this);
@@ -439,9 +439,9 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
     offset_op = Operand(effective_offset);
   }
   if (offset_op.is_reg()) {
-    StoreTaggedField(src.gp(), MemOperand(dst_addr, offset_op.rm()));
+    StoreTaggedField(src, MemOperand(dst_addr, offset_op.rm()));
   } else {
-    StoreTaggedField(src.gp(), MemOperand(dst_addr, offset_imm));
+    StoreTaggedField(src, MemOperand(dst_addr, offset_imm));
   }
 
   if (skip_write_barrier || v8_flags.disable_write_barriers) return;
@@ -449,9 +449,8 @@ void LiftoffAssembler::StoreTaggedPointer(Register dst_addr,
   Label exit;
   CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
                 kZero, &exit);
-  JumpIfSmi(src.gp(), &exit);
-  CheckPageFlag(src.gp(), MemoryChunk::kPointersToHereAreInterestingMask, eq,
-                &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
   CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
                                    StubCallMode::kCallWasmRuntimeStub);
   bind(&exit);
@@ -462,11 +461,11 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             LoadType type, uint32_t* protected_load_pc,
                             bool is_load_mem, bool i64_offset,
                             bool needs_shift) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   unsigned shift_amount = needs_shift ? type.size_log_2() : 0;
   MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm,
                                         i64_offset, shift_amount);
 
-  if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
     case LoadType::kI64Load8U:
@@ -506,6 +505,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     default:
       UNREACHABLE();
   }
+  // protected_store_pc should be the address of the load/store instruction.
+  // The MacroAssembler load/store may contain some instructions for adjusting
+  // MemOperand, so use pc_offset-4 to locate.
+  if (protected_load_pc) *protected_load_pc = pc_offset() - 4;
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
@@ -513,10 +516,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc, bool is_store_mem,
                              bool i64_offset) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   MemOperand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, i64_offset);
 
-  if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
     case StoreType::kI64Store8:
@@ -545,6 +548,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+  // protected_store_pc should be the address of the load/store instruction.
+  // The MacroAssembler load/store may contain some instructions for adjusting
+  // MemOperand, so use pc_offset-4 to locate.
+  if (protected_store_pc) *protected_store_pc = pc_offset() - 4;
 }
 
 void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
@@ -3038,7 +3045,7 @@ void LiftoffAssembler::StackCheck(Label* ool_code, Register limit_address) {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  if (v8_flags.debug_code) Abort(reason);
+  MacroAssembler::AssertUnreachable(reason);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -3234,10 +3241,10 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
   }
 }
 
-void LiftoffAssembler::CallRuntimeStub(WasmCode::RuntimeStubId sid) {
-  // A direct call to a wasm runtime stub defined in this module.
-  // Just encode the stub index. This will be patched at relocation.
-  Call(static_cast<Address>(sid), RelocInfo::WASM_STUB_CALL);
+void LiftoffAssembler::CallBuiltin(Builtin builtin) {
+  // A direct call to a builtin. Just encode the builtin index. This will be
+  // patched at relocation.
+  Call(static_cast<Address>(builtin), RelocInfo::WASM_STUB_CALL);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {

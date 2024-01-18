@@ -421,6 +421,10 @@ class FloatRepresentation : public RegisterRepresentation {
   explicit constexpr FloatRepresentation(Enum value)
       : RegisterRepresentation(
             static_cast<RegisterRepresentation::Enum>(value)) {}
+  explicit constexpr FloatRepresentation(RegisterRepresentation rep)
+      : FloatRepresentation(static_cast<Enum>(rep.value())) {
+    DCHECK(rep.IsFloat());
+  }
   FloatRepresentation() = default;
 
   constexpr Enum value() const {

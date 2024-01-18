@@ -334,7 +334,7 @@ class TranslatedFrame {
 
   Kind kind_;
   BytecodeOffset bytecode_offset_;
-  SharedFunctionInfo raw_shared_info_;
+  Tagged<SharedFunctionInfo> raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
   int return_value_offset_;
@@ -489,7 +489,7 @@ class TranslatedState {
   };
   std::deque<ObjectPosition> object_positions_;
   Handle<FeedbackVector> feedback_vector_handle_;
-  FeedbackVector feedback_vector_;
+  Tagged<FeedbackVector> feedback_vector_;
   FeedbackSlot feedback_slot_;
 };
 

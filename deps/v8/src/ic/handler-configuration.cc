@@ -533,7 +533,7 @@ void LoadHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
   } else if (IsSymbol(handler)) {
     os << "LoadHandler(Symbol)(" << Brief(Symbol::cast(handler)) << ")";
   } else if (IsLoadHandler(handler)) {
-    LoadHandler load_handler = LoadHandler::cast(handler);
+    Tagged<LoadHandler> load_handler = LoadHandler::cast(handler);
     int raw_handler = Smi::cast(load_handler->smi_handler()).value();
     os << "LoadHandler(do access check on lookup start object = "
        << DoAccessCheckOnLookupStartObjectBits::decode(raw_handler)
@@ -569,9 +569,9 @@ void StoreHandler::PrintHandler(Tagged<Object> handler, std::ostream& os) {
     os << ")" << std::endl;
   } else if (IsStoreHandler(handler)) {
     os << "StoreHandler(";
-    StoreHandler store_handler = StoreHandler::cast(handler);
+    Tagged<StoreHandler> store_handler = StoreHandler::cast(handler);
     if (IsCode(store_handler->smi_handler())) {
-      Code code = Code::cast(store_handler->smi_handler());
+      Tagged<Code> code = Code::cast(store_handler->smi_handler());
       os << "builtin = ";
       ShortPrint(code, os);
     } else {
