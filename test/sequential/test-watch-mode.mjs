@@ -632,6 +632,7 @@ process.on('message', (message) => {
       await seenPromise;
     }
 
+    await waitForText("running");
     await waitForEcho('first message');
     const stopRestarts = restart(file);
     await waitForText('running');
