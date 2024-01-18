@@ -124,7 +124,7 @@ out a better way, forward the email you receive to
 `oss-security@lists.openwall.com` as a CC.
 
 * [ ] Post in the [nodejs-social channel][]
-  in the OpenJS slack asking for amplication of the blog post.
+  in the OpenJS slack asking for amplification of the blog post.
 
   ```text
   Security release pre-alert:
@@ -184,7 +184,7 @@ out a better way, forward the email you receive to
   ```
 
 * [ ] Post in the [nodejs-social channel][]
-  in the OpenJS slack asking for amplication of the blog post.
+  in the OpenJS slack asking for amplification of the blog post.
   ```text
   Security release:
 
