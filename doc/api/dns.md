@@ -205,7 +205,7 @@ changes:
   * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
     backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
     and `6` respectively. The value `0` indicates that either IPv4 or IPv6
-    address is returned. Noted if value `0` is used with `{family: true}`,
+    address is returned. Noted if value `0` is used with `{ all: true }`,
     both IPv4 and IPv6 addresses are returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
@@ -955,7 +955,7 @@ added: v10.6.0
 * `options` {integer | Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
     `0` indicates that either IPv4 or IPv6 address is returned. Noted if
-    value `0` used with `{family: true}`, both IPv4 and IPv6 addresses
+    value `0` used with `{ all: true }`, both IPv4 and IPv6 addresses
     are returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
