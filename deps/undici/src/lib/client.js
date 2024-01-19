@@ -1769,7 +1769,7 @@ function writeH2 (client, session, request) {
 
   session.ref()
 
-  const shouldEndStream = method === 'GET' || method === 'HEAD'
+  const shouldEndStream = method === 'GET' || method === 'HEAD' || body === null
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
     stream = session.request(headers, { endStream: shouldEndStream, signal })
