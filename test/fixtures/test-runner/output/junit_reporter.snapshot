@@ -155,6 +155,7 @@ true !== false
 		<testcase name="+sync throw fail" time="*" classname="test" failure="thrown from subtest sync throw fail">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fail">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fail
+    *
     * {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',
@@ -338,6 +339,7 @@ Error [ERR_TEST_FAILURE]: thrown from callback async throw
 		<testcase name="sync throw fails at first" time="*" classname="test" failure="thrown from subtest sync throw fails at first">
 			<failure type="testCodeFailure" message="thrown from subtest sync throw fails at first">
 Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at first
+    *
     * {
   code: 'ERR_TEST_FAILURE',
   failureType: 'testCodeFailure',

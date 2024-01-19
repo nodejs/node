@@ -258,6 +258,20 @@
    2 (*ms)
  afterEach when test fails (*ms)
 
+ afterEach context when test passes
+   1 (*ms)
+ afterEach context when test passes (*ms)
+
+ afterEach context when test fails
+   1 (*ms)
+    Error: test
+        *
+        *
+        *
+        *
+
+ afterEach context when test fails (*ms)
+
  afterEach throws and test fails
    1 (*ms)
     Error: test
@@ -315,10 +329,10 @@
  before 2 called
  after 1 called
  after 2 called
- tests 39
+ tests 43
  suites 9
- pass 14
- fail 22
+ pass 16
+ fail 24
  cancelled 3
  skipped 0
  todo 0
@@ -546,6 +560,14 @@
       *
       *
       *
+      *
+      *
+      *
+      *
+
+*
+ 1 (*ms)
+  Error: test
       *
       *
       *

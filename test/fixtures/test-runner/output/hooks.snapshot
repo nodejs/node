@@ -505,6 +505,41 @@ not ok 12 - afterEach when test fails
   error: '1 subtest failed'
   code: 'ERR_TEST_FAILURE'
   ...
+# Subtest: afterEach context when test passes
+    # Subtest: 1
+    ok 1 - 1
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 13 - afterEach context when test passes
+  ---
+  duration_ms: *
+  ...
+# Subtest: afterEach context when test fails
+    # Subtest: 1
+    not ok 1 - 1
+      ---
+      duration_ms: *
+      location: '/test/fixtures/test-runner/output/hooks.js:(LINE):11'
+      failureType: 'testCodeFailure'
+      error: 'test'
+      code: 'ERR_TEST_FAILURE'
+      stack: |-
+        *
+        *
+        *
+        *
+      ...
+    1..1
+not ok 14 - afterEach context when test fails
+  ---
+  duration_ms: *
+  location: '/test/fixtures/test-runner/output/hooks.js:(LINE):1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
 # Subtest: afterEach throws and test fails
     # Subtest: 1
     not ok 1 - 1
@@ -546,7 +581,7 @@ not ok 12 - afterEach when test fails
         *
       ...
     1..2
-not ok 13 - afterEach throws and test fails
+not ok 15 - afterEach throws and test fails
   ---
   duration_ms: *
   location: '/test/fixtures/test-runner/output/hooks.js:(LINE):1'
@@ -555,7 +590,7 @@ not ok 13 - afterEach throws and test fails
   code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: t.after() is called if test body throws
-not ok 14 - t.after() is called if test body throws
+not ok 16 - t.after() is called if test body throws
   ---
   duration_ms: *
   location: '/test/fixtures/test-runner/output/hooks.js:(LINE):1'
@@ -580,7 +615,7 @@ not ok 14 - t.after() is called if test body throws
       code: 'ERR_TEST_FAILURE'
       ...
     1..1
-not ok 15 - run after when before throws
+not ok 17 - run after when before throws
   ---
   duration_ms: *
   type: 'suite'
@@ -599,15 +634,15 @@ not ok 15 - run after when before throws
     *
     *
   ...
-1..15
+1..17
 # before 1 called
 # before 2 called
 # after 1 called
 # after 2 called
-# tests 39
+# tests 43
 # suites 9
-# pass 14
-# fail 22
+# pass 16
+# fail 24
 # cancelled 3
 # skipped 0
 # todo 0
