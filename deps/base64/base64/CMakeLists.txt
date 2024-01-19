@@ -17,7 +17,7 @@ if (POLICY CMP0127)
     cmake_policy(SET CMP0127 NEW)
 endif()
 
-project(base64 LANGUAGES C VERSION 0.5.1)
+project(base64 LANGUAGES C VERSION 0.5.2)
 
 include(GNUInstallDirs)
 include(CMakeDependentOption)
