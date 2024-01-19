@@ -1,4 +1,19 @@
-#define _XOPEN_SOURCE		// IOV_MAX
+// Test for MinGW.
+#if defined(__MINGW32__) || defined(__MINGW64__)
+#  define MINGW
+#endif
+
+// Decide if the writev(2) system call needs to be emulated as a series of
+// write(2) calls. At least MinGW does not support writev(2).
+#ifdef MINGW
+#  define EMULATE_WRITEV
+#endif
+
+// Include the necessary system header when using the system's writev(2).
+#ifndef EMULATE_WRITEV
+#  define _XOPEN_SOURCE		// Unlock IOV_MAX
+#  include <sys/uio.h>
+#endif
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -8,7 +23,7 @@
 #include <getopt.h>
 #include <errno.h>
 #include <limits.h>
-#include <sys/uio.h>
+
 #include "../include/libbase64.h"
 
 // Size of the buffer for the "raw" (not base64-encoded) data in bytes.
@@ -49,6 +64,59 @@ struct buffer {
 	// Runtime-allocated buffer for base64-encoded data.
 	char *enc;
 };
+
+// Optionally emulate writev(2) as a series of write calls.
+#ifdef EMULATE_WRITEV
+
+// Quick and dirty definition of IOV_MAX as it is probably not defined.
+#ifndef IOV_MAX
+#  define IOV_MAX 1024
+#endif
+
+// Quick and dirty definition of this system struct, for local use only.
+struct iovec {
+
+	// Opaque data pointer.
+	void *iov_base;
+
+	// Length of the data in bytes.
+	size_t iov_len;
+};
+
+static ssize_t
+writev (const int fd, const struct iovec *iov, int iovcnt)
+{
+	ssize_t r, nwrite = 0;
+
+	// Reset the error marker.
+	errno = 0;
+
+	while (iovcnt-- > 0) {
+
+		// Write the vector; propagate errors back to the caller. Note
+		// that this loses information about how much vectors have been
+		// successfully written, but that also seems to be the case
+		// with the real function. The API is somewhat flawed.
+		if ((r = write(fd, iov->iov_base, iov->iov_len)) < 0) {
+			return r;
+		}
+
+		// Update the total write count.
+		nwrite += r;
+
+		// Return early after a partial write; the caller should retry.
+		if ((size_t) r != iov->iov_len) {
+			break;
+		}
+
+		// Move to the next vector.
+		iov++;
+	}
+
+	return nwrite;
+}
+
+#endif	// EMULATE_WRITEV
 
 static bool
 buffer_alloc (const struct config *config, struct buffer *buf)
@@ -272,10 +340,23 @@ encode (const struct config *config, struct buffer *buf)
 	return true;
 }
 
-static int
+static inline size_t
+find_newline (const char *p, const size_t avail)
+{
+	// This is very naive and can probably be improved by vectorization.
+	for (size_t len = 0; len < avail; len++) {
+		if (p[len] == '\n') {
+			return len;
+		}
+	}
+
+	return avail;
+}
+
+static bool
 decode (const struct config *config, struct buffer *buf)
 {
-	size_t nread, nout;
+	size_t avail;
 	struct base64_state state;
 
 	// Initialize the decoder's state structure.
@@ -283,18 +364,51 @@ decode (const struct config *config, struct buffer *buf)
 
 	// Read encoded data into the buffer. Use the smallest buffer size to
 	// be on the safe side: the decoded output will fit the raw buffer.
-	while ((nread = fread(buf->enc, 1, BUFFER_RAW_SIZE, config->fp)) > 0) {
+	while ((avail = fread(buf->enc, 1, BUFFER_RAW_SIZE, config->fp)) > 0) {
+		char  *start  = buf->enc;
+		char  *outbuf = buf->raw;
+		size_t ototal = 0;
 
-		// Decode the input into the raw buffer.
-		if (base64_stream_decode(&state, buf->enc, nread,
-		                         buf->raw, &nout) == 0) {
-			fprintf(stderr, "%s: %s: decoding error\n",
-			        config->name, config->file);
-			return false;
+		// By popular demand, this utility tries to be bug-compatible
+		// with GNU `base64'. That includes silently ignoring newlines
+		// in the input. Tokenize the input on newline characters.
+		while (avail > 0) {
+
+			// Find the offset of the next newline character, which
+			// is also the length of the next chunk.
+			size_t outlen, len = find_newline(start, avail);
+
+			// Ignore empty chunks.
+			if (len == 0) {
+				start++;
+				avail--;
+				continue;
+			}
+
+			// Decode the chunk into the raw buffer.
+			if (base64_stream_decode(&state, start, len,
+			                         outbuf, &outlen) == 0) {
+				fprintf(stderr, "%s: %s: decoding error\n",
+				        config->name, config->file);
+				return false;
+			}
+
+			// Update the output buffer pointer and total size.
+			outbuf += outlen;
+			ototal += outlen;
+
+			// Bail out if the whole string has been consumed.
+			if (len == avail) {
+				break;
+			}
+
+			// Move the start pointer past the newline.
+			start += len + 1;
+			avail -= len + 1;
 		}
 
 		// Append the raw data to the output stream.
-		if (write_stdout(config, buf->raw, nout) == false) {
+		if (write_stdout(config, buf->raw, ototal) == false) {
 			return false;
 		}
 	}
