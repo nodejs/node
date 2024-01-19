@@ -1420,6 +1420,13 @@ describe('tests', async () => {
 });
 ```
 
+**Note:** The `after` hook is executed once after all the tests
+in a test suite have completed, regardless of whether the tests
+passed or failed. This hook is useful for performing cleanup tasks
+or actions that should occur after the entire test suite has been run.
+It's important to note that the `after` hook is guaranteed to run,
+even if tests within the suite fail.
+
 ## `beforeEach([fn][, options])`
 
 <!-- YAML
