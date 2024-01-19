@@ -1,4 +1,4 @@
-CFLAGS += -std=c99 -O3 -Wall -Wextra -pedantic
+CFLAGS += -std=c99 -O3 -Wall -Wextra -pedantic -DBASE64_STATIC_DEFINE
 
 # Set OBJCOPY if not defined by environment:
 OBJCOPY ?= objcopy
@@ -56,6 +56,7 @@ ifdef OPENMP
   CFLAGS += -fopenmp
 endif
 
+TARGET := $(shell $(CC) -dumpmachine)
 
 .PHONY: all analyze clean
 
@@ -64,9 +65,17 @@ all: bin/base64 lib/libbase64.o
 bin/base64: bin/base64.o lib/libbase64.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-lib/libbase64.o: $(OBJS)
-	$(LD) -r -o $@ $^
-	$(OBJCOPY) --keep-global-symbols=lib/exports.txt $@
+# Workaround: mangle exported function names on MinGW32.
+lib/exports.build.txt: lib/exports.txt
+ifeq (i686-w64-mingw32, $(TARGET))
+	sed -e 's/^/_/' $< > $@
+else
+	cp -f $< $@
+endif
+
+lib/libbase64.o: lib/exports.build.txt $(OBJS)
+	$(LD) -r -o $@ $(OBJS)
+	$(OBJCOPY) --keep-global-symbols=$< $@
 
 lib/config.h:
 	@echo "#define HAVE_AVX512 $(HAVE_AVX512)"  > $@
@@ -97,4 +106,4 @@ analyze: clean
 	scan-build --use-analyzer=`which clang` --status-bugs make
 
 clean:
-	rm -f bin/base64 bin/base64.o lib/libbase64.o lib/config.h $(OBJS)
+	rm -f bin/base64 bin/base64.o lib/libbase64.o lib/config.h lib/exports.build.txt $(OBJS)
