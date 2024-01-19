@@ -36,7 +36,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V21.md#21.6.0">21.6.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V21.md#21.6.1">21.6.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V21.md#21.6.0">21.6.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V21.md#21.5.0">21.5.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V21.md#21.4.0">21.4.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V21.md#21.3.0">21.3.0</a><br/>

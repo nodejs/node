@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#21.6.1">21.6.1</a><br/>
 <a href="#21.6.0">21.6.0</a><br/>
 <a href="#21.5.0">21.5.0</a><br/>
 <a href="#21.4.0">21.4.0</a><br/>
@@ -41,6 +42,19 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.6.1"></a>
+
+## 2024-01-22, Version 21.6.1 (Current), @RafaelGSS
+
+### Notable Changes
+
+This release fixes a bug in `undici` using WebStreams
+
+### Commits
+
+* \[[`662ac95729`](https://github.com/nodejs/node/commit/662ac95729)] - _**Revert**_ "**stream**: fix cloned webstreams not being unref'd" (Matteo Collina) [#51491](https://github.com/nodejs/node/pull/51491)
+* \[[`1b8bba8aee`](https://github.com/nodejs/node/commit/1b8bba8aee)] - **test**: add regression test for 51586 (Matteo Collina) [#51491](https://github.com/nodejs/node/pull/51491)
 
 <a id="21.6.0"></a>
 
