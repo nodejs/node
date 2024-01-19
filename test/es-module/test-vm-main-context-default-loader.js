@@ -45,11 +45,11 @@ async function testLoader(options) {
     assert.strictEqual(result.constants.F_OK, fs.constants.F_OK);
   }
 
-  const modulePath = fixtures.path('es-modules', 'message.mjs');
-  fs.copyFileSync(modulePath, tmpdir.resolve('message.mjs'));
+  const moduleUrl = fixtures.fileURL('es-modules', 'message.mjs');
+  fs.copyFileSync(moduleUrl, tmpdir.resolve('message.mjs'));
 
   {
-    const namespace = await import(modulePath);
+    const namespace = await import(moduleUrl);
     const script = new Script('import("./message.mjs")', options);
     const result = await script.runInThisContext();
     assert.deepStrictEqual(result, namespace);
