@@ -43,6 +43,18 @@ assert.strictEqual(sp.toString(), serialized);
 
 assert.strictEqual(m.search, `?${serialized}`);
 
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.href, `http://example.org/?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.toString(), `http://example.org/?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.toJSON(), `http://example.org/?${serialized}`);
+
 assert.strictEqual(sp[Symbol.iterator], sp.entries);
 
 let key, val;
