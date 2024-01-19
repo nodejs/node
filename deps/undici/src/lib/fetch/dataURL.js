@@ -188,9 +188,26 @@ function stringPercentDecode (input) {
   return percentDecode(bytes)
 }
 
+/**
+ * @param {number} byte
+ */
 function isHexCharByte (byte) {
   // 0-9 A-F a-f
   return (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x46) || (byte >= 0x61 && byte <= 0x66)
+}
+
+/**
+ * @param {number} byte
+ */
+function hexByteToNumber (byte) {
+  return (
+    // 0-9
+    byte >= 0x30 && byte <= 0x39
+      ? (byte - 48)
+    // Convert to uppercase
+    // ((byte & 0xDF) - 65) + 10
+      : ((byte & 0xDF) - 55)
+  )
 }
 
 // https://url.spec.whatwg.org/#percent-decode
@@ -224,11 +241,8 @@ function percentDecode (input) {
     } else {
       // 1. Let bytePoint be the two bytes after byte in input,
       // decoded, and then interpreted as hexadecimal number.
-      const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2])
-      const bytePoint = Number.parseInt(nextTwoBytes, 16)
-
       // 2. Append a byte whose value is bytePoint to output.
-      output[j++] = bytePoint
+      output[j++] = (hexByteToNumber(input[i + 1]) << 4) | hexByteToNumber(input[i + 2])
 
       // 3. Skip the next two bytes in input.
       i += 2
@@ -590,14 +604,18 @@ function isHTTPWhiteSpace (char) {
  * @param {boolean} [trailing=true]
  */
 function removeHTTPWhitespace (str, leading = true, trailing = true) {
-  let i = 0; let j = str.length
+  let lead = 0
+  let trail = str.length - 1
+
   if (leading) {
-    while (j > i && isHTTPWhiteSpace(str.charCodeAt(i))) --i
+    while (lead < str.length && isHTTPWhiteSpace(str.charCodeAt(lead))) lead++
   }
+
   if (trailing) {
-    while (j > i && isHTTPWhiteSpace(str.charCodeAt(j - 1))) --j
+    while (trail > 0 && isHTTPWhiteSpace(str.charCodeAt(trail))) trail--
   }
-  return i === 0 && j === str.length ? str : str.substring(i, j)
+
+  return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
 }
 
 /**
@@ -616,14 +634,18 @@ function isASCIIWhitespace (char) {
  * @param {boolean} [trailing=true]
  */
 function removeASCIIWhitespace (str, leading = true, trailing = true) {
-  let i = 0; let j = str.length
+  let lead = 0
+  let trail = str.length - 1
+
   if (leading) {
-    while (j > i && isASCIIWhitespace(str.charCodeAt(i))) --i
+    while (lead < str.length && isASCIIWhitespace(str.charCodeAt(lead))) lead++
   }
+
   if (trailing) {
-    while (j > i && isASCIIWhitespace(str.charCodeAt(j - 1))) --j
+    while (trail > 0 && isASCIIWhitespace(str.charCodeAt(trail))) trail--
   }
-  return i === 0 && j === str.length ? str : str.substring(i, j)
+
+  return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
 }
 
 module.exports = {

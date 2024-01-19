@@ -1,9 +1,9 @@
 'use strict'
 
 const { Writable } = require('stream')
-const diagnosticsChannel = require('diagnostics_channel')
 const { parserStates, opcodes, states, emptyBuffer } = require('./constants')
 const { kReadyState, kSentClose, kResponse, kReceivedClose } = require('./symbols')
+const { channels } = require('../core/diagnostics')
 const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = require('./util')
 const { WebsocketFrameSend } = require('./frame')
 
@@ -11,10 +11,6 @@ const { WebsocketFrameSend } = require('./frame')
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 // Copyright (c) 2013 Arnout Kazemier and contributors
 // Copyright (c) 2016 Luigi Pinca and contributors
-
-const channels = {}
-channels.ping = diagnosticsChannel.channel('undici:websocket:ping')
-channels.pong = diagnosticsChannel.channel('undici:websocket:pong')
 
 class ByteParser extends Writable {
   #buffers = []

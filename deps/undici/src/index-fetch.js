@@ -4,7 +4,9 @@ const fetchImpl = require('./lib/fetch').fetch
 
 module.exports.fetch = function fetch (resource, init = undefined) {
   return fetchImpl(resource, init).catch((err) => {
-    Error.captureStackTrace(err, this)
+    if (typeof err === 'object') {
+      Error.captureStackTrace(err, this)
+    }
     throw err
   })
 }

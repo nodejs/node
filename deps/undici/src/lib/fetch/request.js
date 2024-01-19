@@ -38,6 +38,8 @@ const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
 })
 
+let patchMethodWarning = false
+
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
@@ -313,21 +315,36 @@ class Request {
       // 1. Let method be init["method"].
       let method = init.method
 
-      // 2. If method is not a method or method is a forbidden method, then
-      // throw a TypeError.
-      if (!isValidHTTPToken(method)) {
-        throw new TypeError(`'${method}' is not a valid HTTP method.`)
+      const mayBeNormalized = normalizeMethodRecord[method]
+
+      if (mayBeNormalized !== undefined) {
+        // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
+        request.method = mayBeNormalized
+      } else {
+        // 2. If method is not a method or method is a forbidden method, then
+        // throw a TypeError.
+        if (!isValidHTTPToken(method)) {
+          throw new TypeError(`'${method}' is not a valid HTTP method.`)
+        }
+
+        if (forbiddenMethodsSet.has(method.toUpperCase())) {
+          throw new TypeError(`'${method}' HTTP method is unsupported.`)
+        }
+
+        // 3. Normalize method.
+        method = normalizeMethod(method)
+
+        // 4. Set request’s method to method.
+        request.method = method
       }
 
-      if (forbiddenMethodsSet.has(method.toUpperCase())) {
-        throw new TypeError(`'${method}' HTTP method is unsupported.`)
+      if (!patchMethodWarning && request.method === 'patch') {
+        process.emitWarning('Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.', {
+          code: 'UNDICI-FETCH-patch'
+        })
+
+        patchMethodWarning = true
       }
-
-      // 3. Normalize method.
-      method = normalizeMethodRecord[method] ?? normalizeMethod(method)
-
-      // 4. Set request’s method to method.
-      request.method = method
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -371,6 +388,18 @@ class Request {
         const abort = function () {
           const ac = acRef.deref()
           if (ac !== undefined) {
+            // Currently, there is a problem with FinalizationRegistry.
+            // https://github.com/nodejs/node/issues/49344
+            // https://github.com/nodejs/node/issues/47748
+            // In the case of abort, the first step is to unregister from it.
+            // If the controller can refer to it, it is still registered.
+            // It will be removed in the future.
+            requestFinalizer.unregister(abort)
+
+            // Unsubscribe a listener.
+            // FinalizationRegistry will no longer be called, so this must be done.
+            this.removeEventListener('abort', abort)
+
             ac.abort(this.reason)
           }
         }
@@ -388,7 +417,11 @@ class Request {
         } catch {}
 
         util.addAbortListener(signal, abort)
-        requestFinalizer.register(ac, { signal, abort })
+        // The third argument must be a registry key to be unregistered.
+        // Without it, you cannot unregister.
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+        // abort is used as the unregister key. (because it is unique)
+        requestFinalizer.register(ac, { signal, abort }, abort)
       }
     }
 
@@ -471,7 +504,7 @@ class Request {
       // 3, If Content-Type is non-null and this’s headers’s header list does
       // not contain `Content-Type`, then append `Content-Type`/Content-Type to
       // this’s headers.
-      if (contentType && !this[kHeaders][kHeadersList].contains('content-type')) {
+      if (contentType && !this[kHeaders][kHeadersList].contains('content-type', true)) {
         this[kHeaders].append('content-type', contentType)
       }
     }

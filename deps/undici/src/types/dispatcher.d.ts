@@ -121,6 +121,7 @@ declare namespace Dispatcher {
     expectContinue?: boolean;
   }
   export interface ConnectOptions {
+    origin: string | URL;
     path: string;
     /** Default: `null` */
     headers?: IncomingHttpHeaders | string[] | null;

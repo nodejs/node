@@ -524,7 +524,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V) {
     return webidl.converters.Blob(V, { strict: false })
   }
 
-  if (types.isArrayBuffer(V) || types.isTypedArray(V) || types.isDataView(V)) {
+  if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
     return webidl.converters.BufferSource(V)
   }
 
