@@ -584,7 +584,7 @@ function bytesMatch (bytes, metadataList) {
 // https://w3c.github.io/webappsec-subresource-integrity/#grammardef-hash-with-options
 // https://www.w3.org/TR/CSP2/#source-list-syntax
 // https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
-const parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={0,2}))( +[\x21-\x7e]?)?/i
+const parseHashWithOptions = /(?<algo>sha256|sha384|sha512)-(?<hash>[A-Za-z0-9+/]+={0,2}(?=\s|$))( +[!-~]*)?/i
 
 /**
  * @see https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
@@ -681,7 +681,7 @@ function isCancelled (fetchParams) {
     fetchParams.controller.state === 'terminated'
 }
 
-const normalizeMethodRecord = {
+const normalizeMethodRecordBase = {
   delete: 'DELETE',
   DELETE: 'DELETE',
   get: 'GET',
@@ -696,7 +696,14 @@ const normalizeMethodRecord = {
   PUT: 'PUT'
 }
 
+const normalizeMethodRecord = {
+  ...normalizeMethodRecordBase,
+  patch: 'patch',
+  PATCH: 'PATCH'
+}
+
 // Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizeMethodRecordBase, null)
 Object.setPrototypeOf(normalizeMethodRecord, null)
 
 /**
@@ -704,7 +711,7 @@ Object.setPrototypeOf(normalizeMethodRecord, null)
  * @param {string} method
  */
 function normalizeMethod (method) {
-  return normalizeMethodRecord[method.toLowerCase()] ?? method
+  return normalizeMethodRecordBase[method.toLowerCase()] ?? method
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
@@ -1213,5 +1220,6 @@ module.exports = {
   readAllBytes,
   normalizeMethodRecord,
   simpleRangeHeaderValue,
-  buildContentRange
+  buildContentRange,
+  parseMetadata
 }

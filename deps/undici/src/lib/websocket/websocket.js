@@ -627,7 +627,7 @@ webidl.converters.WebSocketSendData = function (V) {
       return webidl.converters.Blob(V, { strict: false })
     }
 
-    if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
+    if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
       return webidl.converters.BufferSource(V)
     }
   }

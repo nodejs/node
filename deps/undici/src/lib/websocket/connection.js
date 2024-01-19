@@ -1,6 +1,5 @@
 'use strict'
 
-const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
 const {
   kReadyState,
@@ -9,17 +8,13 @@ const {
   kReceivedClose
 } = require('./symbols')
 const { fireEvent, failWebsocketConnection } = require('./util')
+const { channels } = require('../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
 const { Headers } = require('../fetch/headers')
 const { getGlobalDispatcher } = require('../global')
 const { kHeadersList } = require('../core/symbols')
-
-const channels = {}
-channels.open = diagnosticsChannel.channel('undici:websocket:open')
-channels.close = diagnosticsChannel.channel('undici:websocket:close')
-channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error')
 
 /** @type {import('crypto')} */
 let crypto
