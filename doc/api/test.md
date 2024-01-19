@@ -1480,6 +1480,12 @@ added:
 This function is used to create a hook running
 after each subtest of the current test.
 
+**Note:** The `afterEach` hook is executed after each individual test
+in a test suite, regardless of whether the test passed or failed.
+This hook is commonly used for cleaning up resources or resetting state
+between tests. It's important to note that the `afterEach` hook
+is guaranteed to run after every test, even if any of the tests fail.
+
 ```js
 describe('tests', async () => {
   afterEach(() => console.log('finished running a test'));
