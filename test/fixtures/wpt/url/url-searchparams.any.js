@@ -61,13 +61,12 @@ function runURLSearchParamTests() {
     assert_equals(searchParams.get('e'), 'updated')
 
     var url2 = bURL('http://example.org/file??a=b&c=d')
-    var searchParams2 = url2.searchParams
-    assert_equals(url2.search, '?%3Fa=b&c=d')
-    assert_equals(searchParams2.toString(), '%3Fa=b&c=d')
+    assert_equals(url2.search, '??a=b&c=d')
+    assert_equals(url2.searchParams.toString(), '%3Fa=b&c=d')
 
     url2.href = 'http://example.org/file??a=b'
-    assert_equals(url2.search, '?%3Fa=b')
-    assert_equals(searchParams2.toString(), '%3Fa=b')
+    assert_equals(url2.search, '??a=b')
+    assert_equals(url2.searchParams.toString(), '%3Fa=b')
   }, 'URL.searchParams and URL.search setters, update propagation')
 }
 runURLSearchParamTests()

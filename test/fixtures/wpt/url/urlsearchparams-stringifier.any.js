@@ -125,7 +125,7 @@ test(() => {
     const url = new URL('http://www.example.com/?a=b,c');
     const params = url.searchParams;
 
-    assert_equals(url.toString(), 'http://www.example.com/?a=b%2Cc');
+    assert_equals(url.toString(), 'http://www.example.com/?a=b,c');
     assert_equals(params.toString(), 'a=b%2Cc');
 
     params.append('x', 'y');
