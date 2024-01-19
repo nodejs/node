@@ -1424,8 +1424,7 @@ describe('tests', async () => {
 in a test suite have completed, regardless of whether the tests
 passed or failed. This hook is useful for performing cleanup tasks
 or actions that should occur after the entire test suite has been run.
-It's important to note that the `after` hook is guaranteed to run,
-even if tests within the suite fail.
+The `after` hook is guaranteed to run, even if tests within the suite fail.
 
 ## `beforeEach([fn][, options])`
 
@@ -1483,8 +1482,8 @@ after each subtest of the current test.
 **Note:** The `afterEach` hook is executed after each individual test
 in a test suite, regardless of whether the test passed or failed.
 This hook is commonly used for cleaning up resources or resetting state
-between tests. It's important to note that the `afterEach` hook
-is guaranteed to run after every test, even if any of the tests fail.
+between tests. The `afterEach` hook is guaranteed to run after every test,
+even if any of the tests fail.
 
 ```js
 describe('tests', async () => {
