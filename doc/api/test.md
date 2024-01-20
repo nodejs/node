@@ -1409,7 +1409,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running after  running a suite.
+This function is used to create a hook running after running a suite. Hooks
+are executed even if tests fail.
 
 ```js
 describe('tests', async () => {
@@ -1470,8 +1471,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-after each subtest of the current test.
+This function is used to create a hook running after each subtest of the
+current test. Hooks are executed even if tests fail.
 
 ```js
 describe('tests', async () => {
