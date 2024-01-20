@@ -1,0 +1,19 @@
+node:internal*assert:*
+    throw new ERR_INTERNAL_ASSERTION(message);
+    ^
+
+Error [ERR_INTERNAL_ASSERTION]: This is caused by either a bug in Node.js or incorrect usage of Node.js internals.
+Please open an issue with this stack trace at https:*github.com*nodejs*node*issues
+
+    at assert (node:internal*assert:*:*)
+    at Object.<anonymous> (*internal_assert.js:*:*)
+    at Module._compile (node:internal*modules*cjs*loader:*:*)
+    at Module._extensions..js (node:internal*modules*cjs*loader:*:*)
+    at Module.load (node:internal*modules*cjs*loader:*:*)
+    at Module._load (node:internal*modules*cjs*loader:*:*)
+    at Function.executeUserEntryPoint [as runMain] (node:internal*modules*run_main:*:*)
+    at node:internal*main*run_main_module:*:* {
+  code: 'ERR_INTERNAL_ASSERTION'
+}
+
+Node.js *
