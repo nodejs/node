@@ -478,7 +478,7 @@ added:
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-global-fetch` CLI flag.
+    description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -505,7 +505,7 @@ added:
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-global-fetch` CLI flag.
+    description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -541,7 +541,7 @@ added:
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-global-fetch` CLI flag.
+    description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -778,7 +778,7 @@ added:
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-global-fetch` CLI flag.
+    description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
@@ -795,7 +795,7 @@ added:
 changes:
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41811
-    description: No longer behind `--experimental-global-fetch` CLI flag.
+    description: No longer behind `--experimental-fetch` CLI flag.
 -->
 
 > Stability: 1 - Experimental. Disable this API with the [`--no-experimental-fetch`][]
