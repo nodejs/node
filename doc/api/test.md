@@ -1420,7 +1420,8 @@ describe('tests', async () => {
 });
 ```
 
-**Note:** The `after` hook is guaranteed to run, even if tests within the suite fail.
+**Note:** The `after` hook is guaranteed to run,
+even if tests within the suite fail.
 
 ## `beforeEach([fn][, options])`
 
