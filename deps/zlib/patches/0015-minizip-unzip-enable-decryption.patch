@@ -15,7 +15,7 @@ Date:   Mon Aug 6 14:09:22 2018 +0000
     Cr-Commit-Position: refs/heads/master@{#580862}
 
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index 199b4723fcfcf..e8b2bc5c766c8 100644
+index 82275d6c1775d..c8a01b23efd42 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
 @@ -68,10 +68,6 @@
@@ -29,7 +29,7 @@ index 199b4723fcfcf..e8b2bc5c766c8 100644
  #include "zlib.h"
  #include "unzip.h"
  
-@@ -1630,6 +1626,7 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
+@@ -1502,6 +1498,7 @@ extern int ZEXPORT unzOpenCurrentFile3(unzFile file, int* method,
              zdecode(s->keys,s->pcrc_32_tab,source[i]);
  
          s->pfile_in_zip_read->pos_in_zipfile+=12;

@@ -17,10 +17,10 @@ Date:   Wed May 7 20:53:02 2014 +0000
     git-svn-id: svn://svn.chromium.org/chrome/trunk/src@268940 0039d316-1c4b-4281-b951-d872f2087c98
 
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index 22481a2d6c4c6..af59b8029443c 100644
+index ed763f89f1f87..82275d6c1775d 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -1705,11 +1705,6 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
+@@ -1572,11 +1572,6 @@ extern int ZEXPORT unzReadCurrentFile(unzFile file, voidp buf, unsigned len) {
  
      pfile_in_zip_read_info->stream.avail_out = (uInt)len;
  

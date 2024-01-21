@@ -22,80 +22,38 @@ Date:   Thu May 12 03:29:52 2022 +0000
     Cr-Commit-Position: refs/heads/main@{#1002476}
 
 diff --git a/third_party/zlib/contrib/minizip/unzip.c b/third_party/zlib/contrib/minizip/unzip.c
-index e8b2bc5c766c8..0a1d8b4fe2cf7 100644
+index c8a01b23efd42..42677cff82c96 100644
 --- a/third_party/zlib/contrib/minizip/unzip.c
 +++ b/third_party/zlib/contrib/minizip/unzip.c
-@@ -1023,46 +1023,102 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
-         while(acc < file_info.size_file_extra)
-         {
-             uLong headerId;
--                                                uLong dataSize;
-+            uLong dataSize;
+@@ -193,6 +193,26 @@ typedef struct
+    Reads a long in LSB order from the given gz_stream. Sets
+ */
  
-             if (unz64local_getShort(&s->z_filefunc, s->filestream,&headerId) != UNZ_OK)
-                 err=UNZ_ERRNO;
- 
-             if (unz64local_getShort(&s->z_filefunc, s->filestream,&dataSize) != UNZ_OK)
-                 err=UNZ_ERRNO;
--
-+            
-             /* ZIP64 extra fields */
-             if (headerId == 0x0001)
-             {
--                                                        uLong uL;
--
--                                                                if(file_info.uncompressed_size == MAXU32)
--                                                                {
--                                                                        if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info.uncompressed_size) != UNZ_OK)
--                                                                                        err=UNZ_ERRNO;
--                                                                }
--
--                                                                if(file_info.compressed_size == MAXU32)
--                                                                {
--                                                                        if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info.compressed_size) != UNZ_OK)
--                                                                                  err=UNZ_ERRNO;
--                                                                }
--
--                                                                if(file_info_internal.offset_curfile == MAXU32)
--                                                                {
--                                                                        /* Relative Header offset */
--                                                                        if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info_internal.offset_curfile) != UNZ_OK)
--                                                                                err=UNZ_ERRNO;
--                                                                }
--
--                                                                if(file_info.disk_num_start == MAXU32)
--                                                                {
--                                                                        /* Disk Start Number */
--                                                                        if (unz64local_getLong(&s->z_filefunc, s->filestream,&uL) != UNZ_OK)
--                                                                                err=UNZ_ERRNO;
--                                                                }
-+                uLong uL;
++local int unz64local_getByte(const zlib_filefunc64_32_def* pzlib_filefunc_def,
++                             voidpf filestream,
++                             int *pi) {
++    unsigned char c;
++    int err = (int)ZREAD64(*pzlib_filefunc_def,filestream,&c,1);
++    if (err==1)
++    {
++        *pi = (int)c;
++        return UNZ_OK;
++    }
++    else
++    {
++        *pi = 0;
++        if (ZERROR64(*pzlib_filefunc_def,filestream))
++            return UNZ_ERRNO;
++        else
++            return UNZ_EOF;
++    }
++}
 +
-+                if(file_info.uncompressed_size == MAXU32)
-+                {
-+                    if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info.uncompressed_size) != UNZ_OK)
-+                        err=UNZ_ERRNO;
-+                }
-+
-+                if(file_info.compressed_size == MAXU32)
-+                {
-+                    if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info.compressed_size) != UNZ_OK)
-+                        err=UNZ_ERRNO;
-+                }
-+
-+                if(file_info_internal.offset_curfile == MAXU32)
-+                {
-+                    /* Relative Header offset */
-+                    if (unz64local_getLong64(&s->z_filefunc, s->filestream,&file_info_internal.offset_curfile) != UNZ_OK)
-+                        err=UNZ_ERRNO;
-+                }
-+
-+                if(file_info.disk_num_start == MAXU32)
-+                {
-+                    /* Disk Start Number */
-+                    if (unz64local_getLong(&s->z_filefunc, s->filestream,&uL) != UNZ_OK)
-+                        err=UNZ_ERRNO;
-+                }
+ local int unz64local_getShort(const zlib_filefunc64_32_def* pzlib_filefunc_def,
+                               voidpf filestream,
+                               uLong *pX) {
+@@ -948,6 +968,62 @@ local int unz64local_GetCurrentFileInfoInternal(unzFile file,
+                 }
  
              }
 +            else if (headerId == 0x7075) /* Info-ZIP Unicode Path Extra Field */
