@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common');
+const { setTimeout } = require('timers/promises');
 
 if (common.isIBMi)
   common.skip('IBMi does not support `fs.watch()`');
@@ -20,7 +21,7 @@ const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
 tmpdir.refresh();
 
-{
+(async () => {
   // Add a recursive symlink to the parent folder
 
   const testDirectory = fs.mkdtempSync(testDir + path.sep);
@@ -47,14 +48,15 @@ tmpdir.refresh();
     }
   });
 
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(filePath, 'world');
 
   process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
-}
+})().then(common.mustCall());
 
-{
+(async () => {
   // This test checks how a symlink to outside the tracking folder can trigger change
   // tmp/sub-directory/tracking-folder/symlink-folder -> tmp/sub-directory
 
@@ -87,10 +89,12 @@ tmpdir.refresh();
     }
   });
 
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(forbiddenFile, 'world');
+  await setTimeout(common.platformTimeout(100));
   fs.writeFileSync(acceptableFile, 'acceptable');
 
   process.once('exit', function() {
     assert(watcherClosed, 'watcher Object was not closed');
   });
-}
+})().then(common.mustCall());
