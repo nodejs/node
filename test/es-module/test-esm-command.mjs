@@ -1,10 +1,10 @@
-import '../common/index.mjs';
+import { spawnPromisified } from '../common/index.mjs';
 import { spawnSync } from 'node:child_process';
 import { strictEqual } from 'node:assert';
 import { fileURLToPath } from 'node:url';
 
 {
-  const child = spawnSync(process.execPath, [
+  const { code, stderr, stdout } = await spawnPromisified(process.execPath, [
     '--input-type',
     'module',
     '-e',
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 }
 
 {
-  const child = spawnSync(process.execPath, [
+  const { code, stderr, stdout } = await spawnPromisified(process.execPath, [
     fileURLToPath(new URL('../fixtures/es-modules/command-main.mjs', import.meta.url)),
   ]);
 
