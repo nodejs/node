@@ -538,25 +538,31 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 #endif
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    StartExecutionCallback cb) {
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  StartExecutionCallback cb,
+                                  EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
+  if (preload) {
+    env->set_embedder_preload(std::move(preload));
+  }
 
   return StartExecution(env, cb);
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
-                                  std::string_view main_script_source_utf8) {
+                                  std::string_view main_script_source_utf8,
+                                  EmbedderPreloadCallback preload) {
   CHECK_NOT_NULL(main_script_source_utf8.data());
   return LoadEnvironment(
-      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+      env,
+      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         Local<Value> main_script =
             ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
-      });
+      },
+      std::move(preload));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
