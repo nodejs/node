@@ -32,3 +32,6 @@ assert.match(import.meta.filename, fileReg);
 // Verify that `data:` imports do not behave like `file:` imports.
 import dataDirname from 'data:text/javascript,export default "dirname" in import.meta';
 assert.strictEqual(dataDirname, false);
+
+// Verify that command is never set (property only exists and is truthy for command main)
+assert(!('command' in import.meta));
