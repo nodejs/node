@@ -1,5 +1,4 @@
 import { spawnPromisified } from '../common/index.mjs';
-import { spawnSync } from 'node:child_process';
 import { strictEqual } from 'node:assert';
 import { fileURLToPath } from 'node:url';
 
@@ -11,11 +10,11 @@ import { fileURLToPath } from 'node:url';
     'console.log(import.meta.command)',
   ]);
 
-  if (child.status !== 0) {
-    console.error(child.stderr.toString());
+  if (code !== 0) {
+    console.error(stderr.toString());
   }
 
-  strictEqual(child.stdout.toString().trim(), 'true');
+  strictEqual(stdout.toString().trim(), 'true');
 }
 
 {
@@ -23,9 +22,9 @@ import { fileURLToPath } from 'node:url';
     fileURLToPath(new URL('../fixtures/es-modules/command-main.mjs', import.meta.url)),
   ]);
 
-  if (child.status !== 0) {
-    console.error(child.stderr?.toString() ?? child.error);
+  if (code !== 0) {
+    console.error(stderr.toString());
   }
 
-  strictEqual(child.stdout.toString().trim(), 'ok');
+  strictEqual(stdout.toString().trim(), 'ok');
 }
