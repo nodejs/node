@@ -4287,7 +4287,13 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  * deletion is done when the remote endpoint sends acknowledgement.
  * Calling this function is equivalent to call
  * `ngtcp2_conn_shutdown_stream_read`, and
- * `ngtcp2_conn_shutdown_stream_write` sequentially.
+ * `ngtcp2_conn_shutdown_stream_write` sequentially with the following
+ * differences.  If |stream_id| refers to a local unidirectional
+ * stream, this function only shutdowns write side of the stream.  If
+ * |stream_id| refers to a remote unidirectional stream, this function
+ * only shutdowns read side of the stream.
+ *
+ * |flags| is currently unused, and should be set to 0.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4305,9 +4311,11 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn,
  * `ngtcp2_conn_shutdown_stream_write` closes write-side of stream
  * denoted by |stream_id| abruptly.  |app_error_code| is one of
  * application error codes, and indicates the reason of shutdown.  If
- * this function succeeds, no application data is sent to the remote
- * endpoint.  It discards all data which has not been acknowledged
- * yet.
+ * this function succeeds, no further application data is sent to the
+ * remote endpoint.  It discards all data which has not been
+ * acknowledged yet.
+ *
+ * |flags| is currently unused, and should be set to 0.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4325,8 +4333,10 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * `ngtcp2_conn_shutdown_stream_read` closes read-side of stream
  * denoted by |stream_id| abruptly.  |app_error_code| is one of
  * application error codes, and indicates the reason of shutdown.  If
- * this function succeeds, no application data is forwarded to an
- * application layer.
+ * this function succeeds, no further application data is forwarded to
+ * an application layer.
+ *
+ * |flags| is currently unused, and should be set to 0.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4649,8 +4659,10 @@ NGTCP2_EXTERN int ngtcp2_conn_is_in_draining_period(ngtcp2_conn *conn);
 /**
  * @function
  *
- * `ngtcp2_conn_extend_max_stream_offset` extends stream's max stream
- * data value by |datalen|.
+ * `ngtcp2_conn_extend_max_stream_offset` extends the maximum stream
+ * data that a remote endpoint can send by |datalen|.  |stream_id|
+ * specifies the stream ID.  This function only extends stream-level
+ * flow control window.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
