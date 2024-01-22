@@ -1,4 +1,4 @@
-/* auto-generated on 2023-11-19 13:35:02 -0500. Do not edit! */
+/* auto-generated on 2024-01-22 09:15:53 -0500. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -11277,7 +11277,7 @@ bool url::parse_ipv4(std::string_view input) {
       // We have the last value.
       // At this stage, ipv4 contains digit_count*8 bits.
       // So we have 32-digit_count*8 bits left.
-      if (segment_result > (uint64_t(1) << (32 - digit_count * 8))) {
+      if (segment_result >= (uint64_t(1) << (32 - digit_count * 8))) {
         return is_valid = false;
       }
       ipv4 <<= (32 - digit_count * 8);
@@ -14058,7 +14058,7 @@ bool url_aggregator::parse_ipv4(std::string_view input) {
       // We have the last value.
       // At this stage, ipv4 contains digit_count*8 bits.
       // So we have 32-digit_count*8 bits left.
-      if (segment_result > (uint64_t(1) << (32 - digit_count * 8))) {
+      if (segment_result >= (uint64_t(1) << (32 - digit_count * 8))) {
         return is_valid = false;
       }
       ipv4 <<= (32 - digit_count * 8);
