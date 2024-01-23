@@ -56,7 +56,7 @@ async function testLoader(options) {
   }
 
   {
-    const namespace = await import(modulePath);
+    const namespace = await import(moduleUrl);
     const imported = compileFunction('return import("./message.mjs")', [], options)();
     const result = await imported;
     assert.deepStrictEqual(result, namespace);
