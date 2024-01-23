@@ -43,4 +43,5 @@ export interface UtilBinding {
   shouldAbortOnUncaughtToggle: [shouldAbort: 0 | 1];
   WeakReference: typeof InternalUtilBinding.WeakReference;
   guessHandleType(fd: number): 'TCP' | 'TTY' | 'UDP' | 'FILE' | 'PIPE' | 'UNKNOWN';
+  parseEnv(content: string): Record<string, string>;
 }

@@ -1593,6 +1593,36 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 { logfile: 'test.log', color: false }
 ```
 
+## `util.parseEnv(content)`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `content` {string}
+
+The raw contents of a `.env` file.
+
+* Returns: {Object}
+
+Given an example `.env` file:
+
+```cjs
+const { parseEnv } = require('node:util');
+
+parseEnv('HELLO=world\nHELLO=oh my\n');
+// Returns: { HELLO: 'oh my' }
+```
+
+```mjs
+import { parseEnv } from 'node:util';
+
+parseEnv('HELLO=world\nHELLO=oh my\n');
+// Returns: { HELLO: 'oh my' }
+```
+
 ## `util.promisify(original)`
 
 <!-- YAML
