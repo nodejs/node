@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "util-inl.h"
@@ -237,6 +238,16 @@ static uint32_t FastGuessHandleType(Local<Value> receiver, const uint32_t fd) {
 
 CFunction fast_guess_handle_type_(CFunction::Make(FastGuessHandleType));
 
+static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);  // content
+  CHECK(args[0]->IsString());
+  Utf8Value content(env->isolate(), args[0]);
+  Dotenv dotenv{};
+  dotenv.ParseContent(content.ToStringView());
+  args.GetReturnValue().Set(dotenv.ToObject(env));
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -251,6 +262,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GuessHandleType);
   registry->Register(FastGuessHandleType);
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
+  registry->Register(ParseEnv);
 }
 
 void Initialize(Local<Object> target,
@@ -348,6 +360,7 @@ void Initialize(Local<Object> target,
       context, target, "getConstructorName", GetConstructorName);
   SetMethodNoSideEffect(context, target, "getExternalValue", GetExternalValue);
   SetMethod(context, target, "sleep", Sleep);
+  SetMethod(context, target, "parseEnv", ParseEnv);
 
   SetMethod(
       context, target, "arrayBufferViewHasBuffer", ArrayBufferViewHasBuffer);
