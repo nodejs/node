@@ -88,6 +88,19 @@ def rebuild_addons(args):
   with ThreadPoolExecutor() as executor:
     executor.map(node_gyp_rebuild, test_dirs)
 
+def get_default_out_dir(args):
+  default_out_dir = os.path.join('out', 'Release')
+  if not args.is_win:
+    # POSIX platforms only have one out dir.
+    return default_out_dir
+  # On Windows depending on the args of GYP and configure script, the out dir
+  # could be 'out/Release' or just 'Release'.
+  if os.path.exists(default_out_dir):
+    return default_out_dir
+  if os.path.exists('Release'):
+    return 'Release'
+  raise RuntimeError('Can not find out dir, did you run configure?')
+
 def main():
   if sys.platform == 'cygwin':
     raise RuntimeError('This script does not support running with cygwin python.')
@@ -100,7 +113,7 @@ def main():
                            'new headers will be generated for building',
                       default=None)
   parser.add_argument('--out-dir', help='path to the output directory',
-                      default='out/Release')
+                      default=None)
   parser.add_argument('--loglevel', help='loglevel of node-gyp',
                       default='silent')
   parser.add_argument('--skip-tests', help='skip building tests',
@@ -112,6 +125,9 @@ def main():
   parser.add_argument('--is-win', help='build for Windows target',
                       action='store_true', default=(sys.platform == 'win32'))
   args, unknown_args = parser.parse_known_args()
+
+  if not args.out_dir:
+    args.out_dir = get_default_out_dir(args)
 
   if args.headers_dir:
     rebuild_addons(args)
