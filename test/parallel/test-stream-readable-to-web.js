@@ -2,15 +2,29 @@
 require('../common');
 const { Readable } = require('stream');
 const process = require('process');
-const fs = require('fs');
+const { randomBytes } = require('crypto');
 const assert = require('assert');
 
 // Based on: https://github.com/nodejs/node/issues/46347#issuecomment-1413886707
+// edit: make it cross-platform as /dev/urandom is not available on Windows
 {
   let currentMemoryUsage = process.memoryUsage().arrayBuffers;
 
   // We initialize a stream, but not start consuming it
-  const randomNodeStream = fs.createReadStream('/dev/urandom');
+  const randomNodeStream = new Readable({
+    read(size) {
+      randomBytes(size, (err, buffer) => {
+        if (err) {
+          // If an error occurs, emit an 'error' event
+          this.emit('error', err);
+          return;
+        }
+  
+        // Push the random bytes to the stream
+        this.push(buffer);
+      }); 
+    }
+  });
   // after 2 seconds, it'll get converted to web stream
   let randomWebStream;
 
