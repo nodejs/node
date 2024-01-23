@@ -1,11 +1,6 @@
 'use strict';
-require('../common');
-
-// https://github.com/nodejs/node/pull/25147/files
-const hasCrypto = Boolean(process.versions.openssl);
-if (!hasCrypto) {
-  process.exit(0);
-}
+const common = require('../common');
+if (!common.hasCrypto) { common.skip('missing crypto'); }
 
 const { Readable } = require('stream');
 const process = require('process');
