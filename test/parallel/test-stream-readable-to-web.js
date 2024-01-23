@@ -1,5 +1,12 @@
 'use strict';
 require('../common');
+
+// https://github.com/nodejs/node/pull/25147/files
+const hasCrypto = Boolean(process.versions.openssl);
+if (!hasCrypto) {
+  process.exit(0);
+}
+
 const { Readable } = require('stream');
 const process = require('process');
 const { randomBytes } = require('crypto');
@@ -19,10 +26,10 @@ const assert = require('assert');
           this.emit('error', err);
           return;
         }
-  
+
         // Push the random bytes to the stream
         this.push(buffer);
-      }); 
+      });
     }
   });
   // after 2 seconds, it'll get converted to web stream
