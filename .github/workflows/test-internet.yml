@@ -50,6 +50,6 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn"
       - name: Test Internet
-        run: make test-internet -j2 V=1;
+        run: make test-internet -j4 V=1;

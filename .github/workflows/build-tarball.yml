@@ -90,8 +90,8 @@ jobs:
       - name: Build
         run: |
           cd $TAR_DIR
-          make build-ci -j2 V=1
+          make build-ci -j4 V=1
       - name: Test
         run: |
           cd $TAR_DIR
-          make run-ci -j2 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9"
+          make run-ci -j4 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9"
