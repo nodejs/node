@@ -33,11 +33,11 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
   });
   assert.throws(() => {
     fs.writeFile(blockedFileURL, 'example', () => {});
-  }, common.expectsError({
+  }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(blockedFile),
-  }));
+  });
   assert.throws(() => {
     fs.writeFile(relativeProtectedFile, 'example', () => {});
   }, {
@@ -101,11 +101,11 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
   });
   assert.throws(() => {
     fs.utimes(blockedFileURL, new Date(), new Date(), () => {});
-  }, common.expectsError({
+  }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(blockedFile),
-  }));
+  });
   assert.throws(() => {
     fs.utimes(relativeProtectedFile, new Date(), new Date(), () => {});
   }, {
@@ -134,11 +134,11 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
   });
   assert.throws(() => {
     fs.lutimes(blockedFileURL, new Date(), new Date(), () => {});
-  }, common.expectsError({
+  }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(blockedFile),
-  }));
+  });
 }
 
 // fs.mkdir
@@ -195,11 +195,11 @@ const absoluteProtectedFolder = path.resolve(relativeProtectedFolder);
     fs.rename(blockedFileURL, path.join(blockedFile, 'renamed'), (err) => {
       assert.ifError(err);
     });
-  }, common.expectsError({
+  }, {
     code: 'ERR_ACCESS_DENIED',
     permission: 'FileSystemWrite',
     resource: path.toNamespacedPath(blockedFile),
-  }));
+  });
   assert.throws(() => {
     fs.rename(relativeProtectedFile, path.join(relativeProtectedFile, 'renamed'), (err) => {
       assert.ifError(err);
