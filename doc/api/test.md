@@ -267,6 +267,23 @@ allows regular expression flags to be used. In the previous example, starting
 Node.js with `--test-name-pattern="/test [4-5]/i"` would match `Test 4` and
 `Test 5` because the pattern is case-insensitive.
 
+To match a single test with a pattern, you can prefix it with all its ancestor
+test names separated by space, to ensure it is unique.
+For example, given the following test file:
+
+```js
+describe('test 1', (t) => {
+  it('some test');
+});
+
+describe('test 2', (t) => {
+  it('some test');
+});
+```
+
+Starting Node.js with `--test-name-pattern="test 1 some test"` would match
+only `some test` in `test 1`.
+
 Test name patterns do not change the set of files that the test runner executes.
 
 ## Extraneous asynchronous activity
