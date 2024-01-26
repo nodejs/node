@@ -1365,6 +1365,9 @@ ImportAssertions* Parser::ParseImportAssertClause() {
              !scanner()->HasLineTerminatorBeforeNext() &&
              CheckContextualKeyword(ast_value_factory()->assert_string())) {
     // 'assert' keyword consumed
+    info_->pending_error_handler()->ReportWarningAt(
+        position(), end_position(), MessageTemplate::kImportAssertDeprecated,
+        "a future version");
   } else {
     return import_assertions;
   }
