@@ -113,6 +113,9 @@ namespace internal {
   T(IllegalInvocation, "Illegal invocation")                                   \
   T(ImmutablePrototypeSet,                                                     \
     "Immutable prototype object '%' cannot have their prototype set")          \
+  T(ImportAssertDeprecated,                                                    \
+    "'assert' is deprecated in import statements and support will be removed " \
+    "in %; use 'with' instead")                                                \
   T(ImportAssertionDuplicateKey, "Import assertion has duplicate key '%'")     \
   T(ImportCallNotNewExpression, "Cannot use new with import")                  \
   T(ImportOutsideModule, "Cannot use import statement outside a module")       \
