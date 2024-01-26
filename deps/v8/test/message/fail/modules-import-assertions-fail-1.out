@@ -1,1 +1,2 @@
+*%(basename)s:9: 'assert' is deprecated in import statements and support will be removed in a future version; use 'with' instead
 undefined:0: Error: Invalid module type was asserted
