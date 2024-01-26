@@ -20,6 +20,7 @@ npm i undici
 The benchmark is a simple `hello world` [example](benchmarks/benchmark.js) using a
 50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
+```
 │ Tests               │ Samples │          Result │ Tolerance │ Difference with slowest │
 |─────────────────────|─────────|─────────────────|───────────|─────────────────────────|
 │ got                 │      45 │ 1661.71 req/sec │  ± 2.93 % │                       - │
@@ -33,6 +34,7 @@ The benchmark is a simple `hello world` [example](benchmarks/benchmark.js) using
 │ undici - request    │      55 │ 7773.98 req/sec │  ± 2.93 % │              + 367.83 % │
 │ undici - stream     │      70 │ 8425.96 req/sec │  ± 2.91 % │              + 407.07 % │
 │ undici - dispatch   │      50 │ 9488.99 req/sec │  ± 2.85 % │              + 471.04 % │
+```
 
 ## Quick Start
 

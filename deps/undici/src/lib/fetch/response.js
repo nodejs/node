@@ -364,6 +364,16 @@ function makeNetworkError (reason) {
   })
 }
 
+// @see https://fetch.spec.whatwg.org/#concept-network-error
+function isNetworkError (response) {
+  return (
+    // A network error is a response whose type is "error",
+    response.type === 'error' &&
+    // status is 0
+    response.status === 0
+  )
+}
+
 function makeFilteredResponse (response, state) {
   state = {
     internalResponse: response,
@@ -572,6 +582,7 @@ webidl.converters.ResponseInit = webidl.dictionaryConverter([
 ])
 
 module.exports = {
+  isNetworkError,
   makeNetworkError,
   makeResponse,
   makeAppropriateNetworkError,

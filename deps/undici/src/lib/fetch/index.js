@@ -374,6 +374,9 @@ function fetching ({
   useParallelQueue = false,
   dispatcher // undici
 }) {
+  // This has bitten me in the ass more times than I'd like to admit.
+  assert(dispatcher)
+
   // 1. Let taskDestination be null.
   let taskDestination = null
 

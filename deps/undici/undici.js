@@ -6047,6 +6047,14 @@ var require_response = __commonJS({
       });
     }
     __name(makeNetworkError, "makeNetworkError");
+    function isNetworkError(response) {
+      return (
+        // A network error is a response whose type is "error",
+        response.type === "error" && // status is 0
+        response.status === 0
+      );
+    }
+    __name(isNetworkError, "isNetworkError");
     function makeFilteredResponse(response, state) {
       state = {
         internalResponse: response,
@@ -6186,6 +6194,7 @@ var require_response = __commonJS({
       }
     ]);
     module2.exports = {
+      isNetworkError,
       makeNetworkError,
       makeResponse,
       makeAppropriateNetworkError,
@@ -10918,6 +10927,7 @@ var require_fetch = __commonJS({
       dispatcher
       // undici
     }) {
+      assert(dispatcher);
       let taskDestination = null;
       let crossOriginIsolatedCapability = false;
       if (request.client != null) {
