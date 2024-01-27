@@ -954,10 +954,8 @@ added: v10.6.0
 * `hostname` {string}
 * `options` {integer | Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
-    `0` indicates that either an IPv4 or IPv6 address is returned. If
-    value `0` used with `{ all: true }` (see below), both IPv4 and IPv6 addresses
-    are returned. **Default:** `0`.
-    value `0` used with `{ all: true }`, both IPv4 and IPv6 addresses
+    `0` indicates that either an IPv4 or IPv6 address is returned. If the
+    value `0` is used with `{ all: true }` (see below), both IPv4 and IPv6 addresses
     are returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
