@@ -552,6 +552,10 @@ int AppropriateResolution(FloatType val) {
   int full = std::numeric_limits<FloatType>::max_digits10;
   if (val < 0) val = -val;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
   if (val < 1000000) {
     FloatType mulfor6 = 1e10;
     if (val >= 100000.0) {  // 100,000 to 999,999
@@ -595,6 +599,9 @@ int AppropriateResolution(FloatType val) {
         val)
       return 6;
   }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
   return full;
 }
 

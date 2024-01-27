@@ -162,6 +162,10 @@
 #define GTEST_HAS_BUILTIN(x) 0
 #endif  // defined(__has_builtin)
 
+#if defined(GTEST_HAS_ABSL) && !defined(GTEST_NO_ABSL_FLAGS)
+#define GTEST_HAS_ABSL_FLAGS
+#endif
+
 namespace testing {
 
 using internal::CountIf;
@@ -459,7 +463,12 @@ void AssertHelper::operator=(const Message& message) const {
   UnitTest::GetInstance()->AddTestPartResult(
       data_->type, data_->file, data_->line,
       AppendUserMessage(data_->message, message),
-      UnitTest::GetInstance()->impl()->CurrentOsStackTraceExceptTop(1)
+      // Suppress emission of the stack trace for GTEST_SKIP() since skipping is
+      // an intentional act by the developer rather than a failure requiring
+      // investigation.
+      data_->type != TestPartResult::kSkip
+          ? UnitTest::GetInstance()->impl()->CurrentOsStackTraceExceptTop(1)
+          : ""
       // Skips the stack frame for this function itself.
   );  // NOLINT
 }
@@ -3283,11 +3292,9 @@ static void ColoredPrintf(GTestColor color, const char* fmt, ...) {
   va_start(args, fmt);
 
   static const bool in_color_mode =
-#if GTEST_HAS_FILE_SYSTEM
+      // We don't condition this on GTEST_HAS_FILE_SYSTEM because we still need
+      // to be able to detect terminal I/O regardless.
       ShouldUseColor(posix::IsATTY(posix::FileNo(stdout)) != 0);
-#else
-      false;
-#endif  // GTEST_HAS_FILE_SYSTEM
 
   const bool use_color = in_color_mode && (color != GTestColor::kDefault);
 
@@ -6685,7 +6692,7 @@ void ParseGoogleTestFlagsOnlyImpl(int* argc, CharType** argv) {
 // remain in place. Unrecognized flags are not reported and do not cause the
 // program to exit.
 void ParseGoogleTestFlagsOnly(int* argc, char** argv) {
-#ifdef GTEST_HAS_ABSL
+#ifdef GTEST_HAS_ABSL_FLAGS
   if (*argc <= 0) return;
 
   std::vector<char*> positional_args;
@@ -6771,11 +6778,13 @@ void InitGoogleTestImpl(int* argc, CharType** argv) {
 #ifdef GTEST_HAS_ABSL
   absl::InitializeSymbolizer(g_argvs[0].c_str());
 
+#ifdef GTEST_HAS_ABSL_FLAGS
   // When using the Abseil Flags library, set the program usage message to the
   // help message, but remove the color-encoding from the message first.
   absl::SetProgramUsageMessage(absl::StrReplaceAll(
       kColorEncodedHelpMessage,
       {{"@D", ""}, {"@R", ""}, {"@G", ""}, {"@Y", ""}, {"@@", "@"}}));
+#endif  // GTEST_HAS_ABSL_FLAGS
 #endif  // GTEST_HAS_ABSL
 
   ParseGoogleTestFlagsOnly(argc, argv);
