@@ -401,6 +401,11 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/check_syntax");
   }
 
+  if (env->options()->test_isolation == "none" &&
+      env->env_vars()->Get("NODE_TEST_FILES").IsJust()) {
+    return StartExecution(env, "internal/main/tests_entry");
+  }
+
   if (env->options()->test_runner) {
     return StartExecution(env, "internal/main/test_runner");
   }

@@ -273,6 +273,20 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     });
   });
 
+  it('should run multiple files in same process', async () => {
+    const stream = run({
+      files: [
+        join(testFixtures, 'no-isolation/a.test.js'),
+        join(testFixtures, 'no-isolation/b.test.js')],
+      concurrency: 2,
+      isolation: 'none'
+    });
+    stream.on('test:fail', common.mustNotCall());
+    stream.on('test:pass', common.mustCall(2));
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  });
+
   describe('sharding', () => {
     const shardsTestsFixtures = fixtures.path('test-runner', 'shards');
     const shardsTestsFiles = [

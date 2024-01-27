@@ -96,3 +96,15 @@ test('--test multiple files', { skip: os.availableParallelism() < 3 }, async () 
   assert.strictEqual(stderr, '');
   assert.strictEqual(code, 0);
 });
+
+test('--test multiple files with --test-isolation=none', { skip: os.availableParallelism() < 3 }, async () => {
+  await fs.writeFile(tmpdir.resolve('test-runner-concurrency'), '');
+  const { code, stderr } = await common.spawnPromisified(process.execPath, [
+    '--test',
+    '--experimental-test-isolation=none',
+    fixtures.path('test-runner', 'concurrency', 'a.mjs'),
+    fixtures.path('test-runner', 'concurrency', 'b.mjs'),
+  ]);
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
+});

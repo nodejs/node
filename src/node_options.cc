@@ -641,6 +641,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
             kAllowedInEnvvar);
+  AddOption("--experimental-test-isolation",
+            "isolation mode of test runner",
+            &EnvironmentOptions::test_isolation,
+            kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",

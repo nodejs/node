@@ -912,6 +912,18 @@ generated as part of the test runner output. If no tests are run, a coverage
 report is not generated. See the documentation on
 [collecting code coverage from tests][] for more details.
 
+### `--experimental-test-isolation`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+When running tests with the `node:test` module,
+each test file is run in its own process.
+Running `--experimental-test-isolation=none` will run all
+files in the same process.
+
 ### `--experimental-vm-modules`
 
 <!-- YAML
@@ -2505,6 +2517,7 @@ Node.js options that are allowed are:
 * `--experimental-policy`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
+* `--experimental-test-isolation`
 * `--experimental-top-level-await`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`

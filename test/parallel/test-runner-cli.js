@@ -36,6 +36,20 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /ok 6 - this should be executed/);
 }
 
+
+{
+  // Test test files with --experimental-test-isolation=none
+  const args = ['--test', '--experimental-test-isolation=none'];
+  const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'no-isolation') });
+
+  assert.strictEqual(child.status, 0);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  const stdout = child.stdout.toString();
+  assert.match(stdout, /ok 1 - a/);
+  assert.match(stdout, /ok 2 - b/);
+}
+
 {
   // Same but with a prototype mutation in require scripts.
   const args = ['--require', join(testFixtures, 'protoMutation.js'), '--test'];
