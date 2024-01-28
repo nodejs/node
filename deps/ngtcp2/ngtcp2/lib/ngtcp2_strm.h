@@ -81,6 +81,10 @@ typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
 /* NGTCP2_STRM_FLAG_SEND_RESET_STREAM is set when RESET_STREAM frame
    should be sent. */
 #define NGTCP2_STRM_FLAG_SEND_RESET_STREAM 0x400u
+/* NGTCP2_STRM_FLAG_STOP_SENDING_RECVED indicates that STOP_SENDING is
+   received from the remote endpoint.  In this case,
+   NGTCP2_STRM_FLAG_SHUT_WR is also set. */
+#define NGTCP2_STRM_FLAG_STOP_SENDING_RECVED 0x800u
 
 typedef struct ngtcp2_strm ngtcp2_strm;
 

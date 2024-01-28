@@ -36,6 +36,7 @@
 #include "ngtcp2_mem.h"
 #include "ngtcp2_rcvry.h"
 #include "ngtcp2_conn_stat.h"
+#include "ngtcp2_unreachable.h"
 
 /* NGTCP2_CC_DELIVERY_RATE_SEC_FILTERLEN is the window length of
    delivery rate filter driven by ACK clocking. */
@@ -247,6 +248,8 @@ uint64_t ngtcp2_cbrt(uint64_t n) {
 #  if defined(_WIN64)
     if (_BitScanReverse64(&index, n)) {
       d = 61 - index;
+    } else {
+      ngtcp2_unreachable();
     }
 #  else  /* !defined(_WIN64) */
     if (_BitScanReverse(&index, (unsigned int)(n >> 32))) {

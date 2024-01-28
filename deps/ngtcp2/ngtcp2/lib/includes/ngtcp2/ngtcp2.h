@@ -4269,6 +4269,9 @@ NGTCP2_EXTERN int ngtcp2_conn_open_uni_stream(ngtcp2_conn *conn,
  *
  * |flags| is currently unused, and should be set to 0.
  *
+ * This function returns 0 if a stream denoted by |stream_id| is not
+ * found.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -4290,6 +4293,9 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream(ngtcp2_conn *conn, uint32_t flags,
  * acknowledged yet.
  *
  * |flags| is currently unused, and should be set to 0.
+ *
+ * This function returns 0 if a stream denoted by |stream_id| is not
+ * found.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4314,6 +4320,9 @@ NGTCP2_EXTERN int ngtcp2_conn_shutdown_stream_write(ngtcp2_conn *conn,
  * an application layer.
  *
  * |flags| is currently unused, and should be set to 0.
+ *
+ * This function returns 0 if a stream denoted by |stream_id| is not
+ * found.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -4674,6 +4683,9 @@ NGTCP2_EXTERN int ngtcp2_conn_in_draining_period(ngtcp2_conn *conn);
  * data that a remote endpoint can send by |datalen|.  |stream_id|
  * specifies the stream ID.  This function only extends stream-level
  * flow control window.
+ *
+ * This function returns 0 if a stream denoted by |stream_id| is not
+ * found.
  *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
@@ -5339,6 +5351,11 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_application_error(ngtcp2_ccerr *ccerr,
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_APPLICATION`, it sends
  * CONNECTION_CLOSE (type 0x1d) frame.  Otherwise, it does not produce
  * any data, and returns 0.
+ *
+ * |destlen| could be shorten by some factors (e.g., server side
+ * amplification limit).  This function returns
+ * :macro:`NGTCP2_ERR_NOBUF` if the resulting buffer is too small even
+ * if the given buffer has enough space.
  *
  * This function must not be called from inside the callback
  * functions.
