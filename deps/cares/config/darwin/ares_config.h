@@ -14,7 +14,7 @@
 #define CARES_TYPEOF_ARES_SSIZE_T ssize_t
 
 /* Use resolver library to configure cares */
-#define CARES_USE_LIBRESOLV 1
+/* #undef CARES_USE_LIBRESOLV */
 
 /* if a /etc/inet dir is being used */
 /* #undef ETC_INET */
