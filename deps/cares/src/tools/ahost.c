@@ -43,7 +43,7 @@
 #include "ares_ipv6.h"
 
 #ifndef HAVE_STRDUP
-#  include "ares_strdup.h"
+#  include "ares_str.h"
 #  define strdup(ptr) ares_strdup(ptr)
 #endif
 

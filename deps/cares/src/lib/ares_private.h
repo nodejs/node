@@ -117,6 +117,7 @@ typedef struct ares_rand_state ares_rand_state;
 #include "ares__buf.h"
 #include "ares_dns_private.h"
 #include "ares__iface_ips.h"
+#include "ares__threads.h"
 
 #ifndef HAVE_GETENV
 #  include "ares_getenv.h"
@@ -231,9 +232,6 @@ typedef struct ares__qcache ares__qcache_t;
 struct ares_hosts_file;
 typedef struct ares_hosts_file ares_hosts_file_t;
 
-struct ares__thread_mutex;
-typedef struct ares__thread_mutex ares__thread_mutex_t;
-
 struct ares_channeldata {
   /* Configuration data */
   unsigned int          flags;
@@ -253,6 +251,7 @@ struct ares_channeldata {
   char                 *lookups;
   size_t                ednspsz;
   unsigned int          qcache_max_ttl;
+  ares_evsys_t          evsys;
   unsigned int          optmask;
 
   /* For binding to local devices and/or IP addresses.  Leave
@@ -580,6 +579,13 @@ ares_status_t ares__channel_threading_init(ares_channel_t *channel);
 void          ares__channel_threading_destroy(ares_channel_t *channel);
 void          ares__channel_lock(ares_channel_t *channel);
 void          ares__channel_unlock(ares_channel_t *channel);
+
+struct ares_event_thread;
+typedef struct ares_event_thread ares_event_thread_t;
+
+void ares_event_thread_destroy(ares_channel_t *channel);
+ares_status_t ares_event_thread_init(ares_channel_t *channel);
+
 
 #ifdef _MSC_VER
 typedef __int64          ares_int64_t;
