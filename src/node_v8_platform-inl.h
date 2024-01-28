@@ -9,8 +9,8 @@
 #include "env-inl.h"
 #include "node.h"
 #include "node_metadata.h"
-#include "node_platform.h"
 #include "node_options.h"
+#include "node_platform.h"
 #include "tracing/node_trace_writer.h"
 #include "tracing/trace_event.h"
 #include "tracing/traced_value.h"
@@ -84,10 +84,12 @@ class NodeTraceStateObserver
 struct V8Platform {
   bool initialized_ = false;
 
-#if NODE_USE_V8_PLATFORM
+#if
+  // 我们可以通过命令后参数指定 thread_pool_size 大小，从而指定线程池大小
   inline void Initialize(int thread_pool_size) {
     CHECK(!initialized_);
     initialized_ = true;
+    // 创建并记录 trace agent
     tracing_agent_ = std::make_unique<tracing::Agent>();
     node::tracing::TraceEventHelper::SetAgent(tracing_agent_.get());
     node::tracing::TracingController* controller =
@@ -97,18 +99,20 @@ struct V8Platform {
     controller->AddTraceStateObserver(trace_state_observer_.get());
     tracing_file_writer_ = tracing_agent_->DefaultHandle();
     // Only start the tracing agent if we enabled any tracing categories.
+    // 如果命令行设置了 trace event category 则开启 trace agent
     if (!per_process::cli_options->trace_event_categories.empty()) {
       StartTracingAgent();
     }
     // Tracing must be initialized before platform threads are created.
+    // 创建 Platform 对象
     platform_ = new NodePlatform(thread_pool_size, controller);
+    // 保存到 V8，V8 会使用该 Platform
     v8::V8::InitializePlatform(platform_);
   }
   // Make sure V8Platform don not call into Libuv threadpool,
   // see DefaultProcessExitHandlerInternal in environment.cc
   inline void Dispose() {
-    if (!initialized_)
-      return;
+    if (!initialized_) return;
     initialized_ = false;
     node::tracing::TraceEventHelper::SetAgent(nullptr);
     StopTracingAgent();

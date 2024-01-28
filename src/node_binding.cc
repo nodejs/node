@@ -133,16 +133,14 @@ struct dl_wrap {
   };
 
   struct equal {
-    bool operator()(const dl_wrap* a,
-                    const dl_wrap* b) const {
+    bool operator()(const dl_wrap* a, const dl_wrap* b) const {
       return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
     }
   };
 };
 
 static Mutex dlhandles_mutex;
-static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal>
-    dlhandles;
+static std::unordered_set<dl_wrap*, dl_wrap::hash, dl_wrap::equal> dlhandles;
 static thread_local std::string dlerror_storage;
 
 char* wrapped_dlerror() {
@@ -162,11 +160,7 @@ void* wrapped_dlopen(const char* filename, int flags) {
     return nullptr;
   }
 
-  dl_wrap search = {
-    req.statbuf.st_dev,
-    req.statbuf.st_ino,
-    0, nullptr
-  };
+  dl_wrap search = {req.statbuf.st_dev, req.statbuf.st_ino, 0, nullptr};
 
   auto it = dlhandles.find(&search);
   if (it != dlhandles.end()) {
@@ -222,14 +216,16 @@ void* wrapped_dlsym(void* handle, const char* symbol) {
 #ifdef __linux__
 static bool libc_may_be_musl() {
   static std::atomic_bool retval;  // Cache the return value.
-  static std::atomic_bool has_cached_retval { false };
+  static std::atomic_bool has_cached_retval{false};
   if (has_cached_retval) return retval;
   retval = dlsym(RTLD_DEFAULT, "gnu_get_libc_version") == nullptr;
   has_cached_retval = true;
   return retval;
 }
 #elif defined(__POSIX__)
-static bool libc_may_be_musl() { return false; }
+static bool libc_may_be_musl() {
+  return false;
+}
 #endif  // __linux__
 
 namespace node {
@@ -308,8 +304,7 @@ static struct global_handle_map_t {
     if (it == map_.end()) return;
     CHECK_GE(it->second.refcount, 1);
     if (--it->second.refcount == 0) {
-      if (it->second.wants_delete_module)
-        delete it->second.module;
+      if (it->second.wants_delete_module) delete it->second.module;
       map_.erase(handle);
     }
   }
@@ -349,8 +344,7 @@ void DLib::Close() {
 
   int err = dlclose(handle_);
   if (err == 0) {
-    if (has_entry_in_global_handle_map_)
-      global_handle_map.erase(handle_);
+    if (has_entry_in_global_handle_map_) global_handle_map.erase(handle_);
   }
   handle_ = nullptr;
 }
@@ -372,8 +366,7 @@ bool DLib::Open() {
 
 void DLib::Close() {
   if (handle_ == nullptr) return;
-  if (has_entry_in_global_handle_map_)
-    global_handle_map.erase(handle_);
+  if (has_entry_in_global_handle_map_) global_handle_map.erase(handle_);
   uv_dlclose(&lib_);
   handle_ = nullptr;
 }
@@ -428,7 +421,7 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
 
   if (env->no_native_addons()) {
     return THROW_ERR_DLOPEN_DISABLED(
-      env, "Cannot load native addon because loading addons is disabled.");
+        env, "Cannot load native addon because loading addons is disabled.");
   }
 
   auto context = env->context();
@@ -436,8 +429,8 @@ void DLOpen(const FunctionCallbackInfo<Value>& args) {
   CHECK_NULL(thread_local_modpending);
 
   if (args.Length() < 2) {
-    return THROW_ERR_MISSING_ARGS(
-        env, "process.dlopen needs at least 2 arguments");
+    return THROW_ERR_MISSING_ARGS(env,
+                                  "process.dlopen needs at least 2 arguments");
   }
 
   int32_t flags = DLib::kDefaultFlags;
@@ -660,8 +653,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
     cur_env = cur_env->worker_parent_env();
   }
 
-  if (mod == nullptr)
-    mod = FindModule(modlist_linked, name, NM_F_LINKED);
+  if (mod == nullptr) mod = FindModule(modlist_linked, name, NM_F_LINKED);
 
   if (mod == nullptr) {
     return THROW_ERR_INVALID_MODULE(
@@ -692,6 +684,7 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
 // Call built-in bindings' _register_<module name> function to
 // do binding registration explicitly.
+// 注册 C++ 模块
 void RegisterBuiltinBindings() {
 #define V(modname) _register_##modname();
   NODE_BUILTIN_BINDINGS(V)

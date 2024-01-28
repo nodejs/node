@@ -92,6 +92,7 @@ ExitCode NodeMainInstance::Run() {
   HandleScope handle_scope(isolate_);
 
   ExitCode exit_code = ExitCode::kNoFailure;
+  // 创建 Environment 对象
   DeleteFnPtr<Environment, FreeEnvironment> env =
       CreateMainEnvironment(&exit_code);
   CHECK_NOT_NULL(env);
@@ -110,6 +111,7 @@ void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
       if (!sea.use_snapshot()) {
         runs_sea_code = true;
         std::string_view code = sea.main_code_or_snapshot;
+        // 加载 Environment
         LoadEnvironment(env, code);
       }
     }
@@ -117,9 +119,11 @@ void NodeMainInstance::Run(ExitCode* exit_code, Environment* env) {
     // Either there is already a snapshot main function from SEA, or it's not
     // a SEA at all.
     if (!runs_sea_code) {
+      // 加载 Environment
       LoadEnvironment(env, StartExecutionCallback{});
     }
 
+    // 开启事件循环
     *exit_code =
         SpinEventLoopInternal(env).FromMaybe(ExitCode::kGenericUserError);
   }
@@ -153,6 +157,7 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
     crypto::InitCryptoOnce(isolate_);
 #endif  // HAVE_OPENSSL
   } else {
+    // 创建 V8 Context
     context = NewContext(isolate_);
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);

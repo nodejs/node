@@ -96,10 +96,9 @@
 #include <sys/types.h>
 
 #if defined(NODE_HAVE_I18N_SUPPORT)
-#include <unicode/uvernum.h>
 #include <unicode/utypes.h>
+#include <unicode/uvernum.h>
 #endif
-
 
 #if defined(LEAK_SANITIZER)
 #include <sanitizer/lsan_interface.h>
@@ -211,17 +210,18 @@ void Environment::InitializeInspector(
 }
 #endif  // HAVE_INSPECTOR
 
-#define ATOMIC_WAIT_EVENTS(V)                                               \
-  V(kStartWait,           "started")                                        \
-  V(kWokenUp,             "was woken up by another thread")                 \
-  V(kTimedOut,            "timed out")                                      \
-  V(kTerminatedExecution, "was stopped by terminated execution")            \
-  V(kAPIStopped,          "was stopped through the embedder API")           \
-  V(kNotEqual,            "did not wait because the values mismatched")     \
+#define ATOMIC_WAIT_EVENTS(V)                                                  \
+  V(kStartWait, "started")                                                     \
+  V(kWokenUp, "was woken up by another thread")                                \
+  V(kTimedOut, "timed out")                                                    \
+  V(kTerminatedExecution, "was stopped by terminated execution")               \
+  V(kAPIStopped, "was stopped through the embedder API")                       \
+  V(kNotEqual, "did not wait because the values mismatched")
 
 static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
                                 Local<v8::SharedArrayBuffer> array_buffer,
-                                size_t offset_in_bytes, int64_t value,
+                                size_t offset_in_bytes,
+                                int64_t value,
                                 double timeout_in_ms,
                                 Isolate::AtomicsWaitWakeHandle* stop_handle,
                                 void* data) {
@@ -229,10 +229,10 @@ static void AtomicsWaitCallback(Isolate::AtomicsWaitEvent event,
 
   const char* message = "(unknown event)";
   switch (event) {
-#define V(key, msg)                         \
-    case Isolate::AtomicsWaitEvent::key:    \
-      message = msg;                        \
-      break;
+#define V(key, msg)                                                            \
+  case Isolate::AtomicsWaitEvent::key:                                         \
+    message = msg;                                                             \
+    break;
     ATOMIC_WAIT_EVENTS(V)
 #undef V
   }
@@ -263,18 +263,20 @@ void Environment::InitializeDiagnostics() {
         "The flag --trace-atomics-wait is deprecated.",
         "DEP0165");
     isolate_->SetAtomicsWaitCallback(AtomicsWaitCallback, this);
-    AddCleanupHook([](void* data) {
-      Environment* env = static_cast<Environment*>(data);
-      env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
-    }, this);
+    AddCleanupHook(
+        [](void* data) {
+          Environment* env = static_cast<Environment*>(data);
+          env->isolate()->SetAtomicsWaitCallback(nullptr, nullptr);
+        },
+        this);
   }
   if (options_->trace_promises) {
     isolate_->SetPromiseHook(TracePromises);
   }
 }
 
-static
-MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
+static MaybeLocal<Value> StartExecution(Environment* env,
+                                        const char* main_script_id) {
   EscapableHandleScope scope(env->isolate());
   CHECK_NOT_NULL(main_script_id);
   Realm* realm = env->principal_realm();
@@ -283,11 +285,10 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
 }
 
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
-  InternalCallbackScope callback_scope(
-      env,
-      Object::New(env->isolate()),
-      { 1, 0 },
-      InternalCallbackScope::kSkipAsyncHooks);
+  InternalCallbackScope callback_scope(env,
+                                       Object::New(env->isolate()),
+                                       {1, 0},
+                                       InternalCallbackScope::kSkipAsyncHooks);
 
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
@@ -367,6 +368,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/watch_mode");
   }
 
+  // run_main_module 中执行用户 JS 代码
   if (!first_argv.empty() && first_argv != "-") {
     return StartExecution(env, "internal/main/run_main_module");
   }
@@ -471,8 +473,7 @@ void ResetSignalHandlers() {
   // it evaluates to 32, 34 or 64, depending on whether RT signals are enabled.
   // Counting up to SIGRTMIN doesn't work for the same reason.
   for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-    if (nr == SIGKILL || nr == SIGSTOP)
-      continue;
+    if (nr == SIGKILL || nr == SIGSTOP) continue;
     act.sa_handler = (nr == SIGPIPE || nr == SIGXFSZ) ? SIG_IGN : SIG_DFL;
     if (act.sa_handler == SIG_DFL) {
       // The only bad handler value we can inhert from before exec is SIG_IGN
@@ -678,8 +679,7 @@ void ResetStdio() {
     if (!is_same_file) continue;  // Program reopened file descriptor.
 
     int flags;
-    do
-      flags = fcntl(fd, F_GETFL);
+    do flags = fcntl(fd, F_GETFL);
     while (flags == -1 && errno == EINTR);  // NOLINT
     CHECK_NE(flags, -1);
 
@@ -689,8 +689,7 @@ void ResetStdio() {
       flags |= s.flags & O_NONBLOCK;
 
       int err;
-      do
-        err = fcntl(fd, F_SETFL, flags);
+      do err = fcntl(fd, F_SETFL, flags);
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_NE(err, -1);
     }
@@ -705,8 +704,7 @@ void ResetStdio() {
       sigaddset(&sa, SIGTTOU);
 
       CHECK_EQ(0, pthread_sigmask(SIG_BLOCK, &sa, nullptr));
-      do
-        err = tcsetattr(fd, TCSANOW, &s.termios);
+      do err = tcsetattr(fd, TCSANOW, &s.termios);
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
 
@@ -726,13 +724,12 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   std::vector<std::string> v8_args;
 
   Mutex::ScopedLock lock(per_process::cli_options_mutex);
-  options_parser::Parse(
-      args,
-      exec_args,
-      &v8_args,
-      per_process::cli_options.get(),
-      settings,
-      errors);
+  options_parser::Parse(args,
+                        exec_args,
+                        &v8_args,
+                        per_process::cli_options.get(),
+                        settings,
+                        errors);
 
   if (!errors->empty()) return ExitCode::kInvalidCommandLineArgument;
 
@@ -756,7 +753,8 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   // TODO(aduh95): remove this when the harmony-import-assertions flag
   // is removed in V8.
-  if (std::find(v8_args.begin(), v8_args.end(),
+  if (std::find(v8_args.begin(),
+                v8_args.end(),
                 "--no-harmony-import-assertions") == v8_args.end()) {
     v8_args.emplace_back("--harmony-import-assertions");
   }
@@ -769,9 +767,11 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
-  if (std::find(v8_args.begin(), v8_args.end(),
+  if (std::find(v8_args.begin(),
+                v8_args.end(),
                 "--abort-on-uncaught-exception") != v8_args.end() ||
-      std::find(v8_args.begin(), v8_args.end(),
+      std::find(v8_args.begin(),
+                v8_args.end(),
                 "--abort_on_uncaught_exception") != v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
@@ -828,6 +828,7 @@ static ExitCode InitializeNodeWithArgsInternal(
   per_process::node_start_time = uv_hrtime();
 
   // Register built-in bindings
+  // 注册 C++ 模块
   binding::RegisterBuiltinBindings();
 
   // Make inherited handles noninheritable.
@@ -958,12 +959,12 @@ static ExitCode InitializeNodeWithArgsInternal(
     per_process::metadata.versions.InitializeIntlVersions();
   }
 
-# ifndef __POSIX__
+#ifndef __POSIX__
   std::string tz;
   if (credentials::SafeGetenv("TZ", &tz) && !tz.empty()) {
     i18n::SetDefaultTimeZone(tz.c_str());
   }
-# endif
+#endif
 
 #endif  // defined(NODE_HAVE_I18N_SUPPORT)
 
@@ -998,6 +999,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   PlatformInit(flags);
 
   // This needs to run *before* V8::Initialize().
+  // 包括 注册 C++ 模块
   {
     result->exit_code_ = InitializeNodeWithArgsInternal(
         &result->args_, &result->exec_args_, &result->errors_, flags);
@@ -1151,12 +1153,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeNodeV8Platform)) {
+    // 初始化 V8 Platform
     per_process::v8_platform.Initialize(
         static_cast<int>(per_process::cli_options->v8_thread_pool_size));
     result->platform_ = per_process::v8_platform.Platform();
   }
 
   if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
+    // 初始化 V8
     V8::Initialize();
   }
 
@@ -1380,6 +1384,7 @@ static ExitCode StartInternal(int argc, char** argv) {
   // Hack around with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
+  // 注册 C++ 模块、解析命令行参数、初始化 V8
   std::unique_ptr<InitializationResultImpl> result =
       InitializeOncePerProcessInternal(
           std::vector<std::string>(argv, argv + argc));

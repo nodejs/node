@@ -35,9 +35,9 @@ static void ProcessTitleGetter(Local<Name> property,
                                const PropertyCallbackInfo<Value>& info) {
   std::string title = GetProcessTitle("node");
   info.GetReturnValue().Set(
-      String::NewFromUtf8(info.GetIsolate(), title.data(),
-                          NewStringType::kNormal, title.size())
-      .ToLocalChecked());
+      String::NewFromUtf8(
+          info.GetIsolate(), title.data(), NewStringType::kNormal, title.size())
+          .ToLocalChecked());
 }
 
 static void ProcessTitleSetter(Local<Name> property,
@@ -65,8 +65,7 @@ static void DebugPortSetter(Local<Name> property,
 
   if ((port != 0 && port < 1024) || port > 65535) {
     return THROW_ERR_OUT_OF_RANGE(
-      env,
-      "process.debugPort must be 0 or in range 1024 to 65535");
+        env, "process.debugPort must be 0 or in range 1024 to 65535");
   }
 
   ExclusiveAccess<HostPort>::Scoped host_port(env->inspector_host_port());
@@ -83,10 +82,12 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
   EscapableHandleScope scope(isolate);
   Local<Context> context = realm->context();
 
+  // 创建一个函数模版
   Local<FunctionTemplate> process_template = FunctionTemplate::New(isolate);
   process_template->SetClassName(realm->env()->process_string());
   Local<Function> process_ctor;
   Local<Object> process;
+  // 基于函数模版创建一个函数，并通过这个函数创建一个对象
   if (!process_template->GetFunction(context).ToLocal(&process_ctor) ||
       !process_ctor->NewInstance(context).ToLocal(&process)) {
     return MaybeLocal<Object>();
@@ -101,6 +102,7 @@ MaybeLocal<Object> CreateProcessObject(Realm* realm) {
     return {};
   }
 
+  // 给 process 对象设置属性，就是我们在 JS 层可以获取的那些字段
   // process.version
   READONLY_PROPERTY(
       process, "version", FIXED_ONE_BYTE_STRING(isolate, NODE_VERSION));
@@ -195,29 +197,33 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
             .FromJust());
 
   // process.argv
-  process->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "argv"),
-               ToV8Value(context, env->argv()).ToLocalChecked()).Check();
+  process
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "argv"),
+            ToV8Value(context, env->argv()).ToLocalChecked())
+      .Check();
 
   // process.execArgv
-  process->Set(context,
-               FIXED_ONE_BYTE_STRING(isolate, "execArgv"),
-               ToV8Value(context, env->exec_argv())
-                   .ToLocalChecked()).Check();
+  process
+      ->Set(context,
+            FIXED_ONE_BYTE_STRING(isolate, "execArgv"),
+            ToV8Value(context, env->exec_argv()).ToLocalChecked())
+      .Check();
 
-  READONLY_PROPERTY(process, "pid",
-                    Integer::New(isolate, uv_os_getpid()));
+  READONLY_PROPERTY(process, "pid", Integer::New(isolate, uv_os_getpid()));
 
-  CHECK(process->SetAccessor(context,
-                             FIXED_ONE_BYTE_STRING(isolate, "ppid"),
-                             GetParentProcessId).FromJust());
+  CHECK(process
+            ->SetAccessor(context,
+                          FIXED_ONE_BYTE_STRING(isolate, "ppid"),
+                          GetParentProcessId)
+            .FromJust());
 
   // --security-revert flags
-#define V(code, _, __)                                                        \
-  do {                                                                        \
-    if (IsReverted(SECURITY_REVERT_ ## code)) {                               \
-      READONLY_PROPERTY(process, "REVERT_" #code, True(isolate));             \
-    }                                                                         \
+#define V(code, _, __)                                                         \
+  do {                                                                         \
+    if (IsReverted(SECURITY_REVERT_##code)) {                                  \
+      READONLY_PROPERTY(process, "REVERT_" #code, True(isolate));              \
+    }                                                                          \
   } while (0);
   SECURITY_REVERSIONS(V)
 #undef V

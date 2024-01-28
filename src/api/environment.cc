@@ -44,8 +44,7 @@ using v8::SealHandleScope;
 using v8::String;
 using v8::Value;
 
-bool AllowWasmCodeGenerationCallback(Local<Context> context,
-                                     Local<String>) {
+bool AllowWasmCodeGenerationCallback(Local<Context> context, Local<String>) {
   Local<Value> wasm_code_gen =
       context->GetEmbedderData(ContextEmbedderIndex::kAllowWasmCodeGeneration);
   return wasm_code_gen->IsUndefined() || wasm_code_gen->IsTrue();
@@ -54,8 +53,7 @@ bool AllowWasmCodeGenerationCallback(Local<Context> context,
 bool ShouldAbortOnUncaughtException(Isolate* isolate) {
   DebugSealHandleScope scope(isolate);
   Environment* env = Environment::GetCurrent(isolate);
-  return env != nullptr &&
-         (env->is_main_thread() || !env->is_stopping()) &&
+  return env != nullptr && (env->is_main_thread() || !env->is_stopping()) &&
          env->abort_on_uncaught_exception() &&
          env->should_abort_on_uncaught_toggle()[0] &&
          !env->inside_should_not_abort_on_uncaught_scope();
@@ -119,8 +117,9 @@ void* NodeArrayBufferAllocator::AllocateUninitialized(size_t size) {
   return ret;
 }
 
-void* NodeArrayBufferAllocator::Reallocate(
-    void* data, size_t old_size, size_t size) {
+void* NodeArrayBufferAllocator::Reallocate(void* data,
+                                           size_t old_size,
+                                           size_t size) {
   void* ret = allocator_->Reallocate(data, old_size, size);
   if (LIKELY(ret != nullptr) || UNLIKELY(size == 0))
     total_mem_usage_.fetch_add(size - old_size, std::memory_order_relaxed);
@@ -230,9 +229,10 @@ void FreeArrayBufferAllocator(ArrayBufferAllocator* allocator) {
 
 void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
   const uint64_t constrained_memory = uv_get_constrained_memory();
-  const uint64_t total_memory = constrained_memory > 0 ?
-      std::min(uv_get_total_memory(), constrained_memory) :
-      uv_get_total_memory();
+  const uint64_t total_memory =
+      constrained_memory > 0
+          ? std::min(uv_get_total_memory(), constrained_memory)
+          : uv_get_total_memory();
   if (total_memory > 0 &&
       params->constraints.max_old_generation_size_in_bytes() == 0) {
     // V8 defaults to 700MB or 1.4GB on 32 and 64 bit platforms respectively.
@@ -251,23 +251,24 @@ void SetIsolateCreateParamsForNode(Isolate::CreateParams* params) {
 void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   if (s.flags & MESSAGE_LISTENER_WITH_ERROR_LEVEL)
     isolate->AddMessageListenerWithErrorLevel(
-            errors::PerIsolateMessageListener,
-            Isolate::MessageErrorLevel::kMessageError |
-                Isolate::MessageErrorLevel::kMessageWarning);
+        errors::PerIsolateMessageListener,
+        Isolate::MessageErrorLevel::kMessageError |
+            Isolate::MessageErrorLevel::kMessageWarning);
 
-  auto* abort_callback = s.should_abort_on_uncaught_exception_callback ?
-      s.should_abort_on_uncaught_exception_callback :
-      ShouldAbortOnUncaughtException;
+  auto* abort_callback = s.should_abort_on_uncaught_exception_callback
+                             ? s.should_abort_on_uncaught_exception_callback
+                             : ShouldAbortOnUncaughtException;
   isolate->SetAbortOnUncaughtExceptionCallback(abort_callback);
 
-  auto* fatal_error_cb = s.fatal_error_callback ?
-      s.fatal_error_callback : OnFatalError;
+  auto* fatal_error_cb =
+      s.fatal_error_callback ? s.fatal_error_callback : OnFatalError;
   isolate->SetFatalErrorHandler(fatal_error_cb);
   isolate->SetOOMErrorHandler(OOMErrorHandler);
 
   if ((s.flags & SHOULD_NOT_SET_PREPARE_STACK_TRACE_CALLBACK) == 0) {
-    auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback ?
-        s.prepare_stack_trace_callback : PrepareStackTraceCallback;
+    auto* prepare_stack_trace_cb = s.prepare_stack_trace_callback
+                                       ? s.prepare_stack_trace_callback
+                                       : PrepareStackTraceCallback;
     isolate->SetPrepareStackTraceCallback(prepare_stack_trace_cb);
   }
 }
@@ -275,8 +276,9 @@ void SetIsolateErrorHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
 void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   isolate->SetMicrotasksPolicy(s.policy);
 
-  auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback ?
-    s.allow_wasm_code_generation_callback : AllowWasmCodeGenerationCallback;
+  auto* allow_wasm_codegen_cb = s.allow_wasm_code_generation_callback
+                                    ? s.allow_wasm_code_generation_callback
+                                    : AllowWasmCodeGenerationCallback;
   isolate->SetAllowWasmCodeGenerationCallback(allow_wasm_codegen_cb);
 
   auto* modify_code_generation_from_strings_callback =
@@ -302,8 +304,9 @@ void SetIsolateMiscHandlers(v8::Isolate* isolate, const IsolateSettings& s) {
   }
 
   if ((s.flags & SHOULD_NOT_SET_PROMISE_REJECTION_CALLBACK) == 0) {
-    auto* promise_reject_cb = s.promise_reject_callback ?
-      s.promise_reject_callback : PromiseRejectCallback;
+    auto* promise_reject_cb = s.promise_reject_callback
+                                  ? s.promise_reject_callback
+                                  : PromiseRejectCallback;
     isolate->SetPromiseRejectCallback(promise_reject_cb);
   }
 
@@ -420,7 +423,7 @@ struct InspectorParentHandleImpl : public InspectorParentHandle {
 
   explicit InspectorParentHandleImpl(
       std::unique_ptr<inspector::ParentInspectorHandle>&& impl)
-    : impl(std::move(impl)) {}
+      : impl(std::move(impl)) {}
 };
 #endif
 
@@ -477,15 +480,19 @@ Environment* CreateEnvironment(
 #if HAVE_INSPECTOR
   if (env->should_create_inspector()) {
     if (inspector_parent_handle) {
+      // 初始化 Inspector 相关
       env->InitializeInspector(std::move(
           static_cast<InspectorParentHandleImpl*>(inspector_parent_handle.get())
               ->impl));
     } else {
+      // 初始化 Inspector 相关
       env->InitializeInspector({});
     }
   }
 #endif
 
+  // 初始化模块加载器(BootstrapInternalLoaders())和执行内部 JS
+  // 代码(BootstrapNode())
   if (!use_snapshot && env->principal_realm()->RunBootstrapping().IsEmpty()) {
     FreeEnvironment(env);
     return nullptr;
@@ -496,8 +503,8 @@ Environment* CreateEnvironment(
 
 void FreeEnvironment(Environment* env) {
   Isolate* isolate = env->isolate();
-  Isolate::DisallowJavascriptExecutionScope disallow_js(isolate,
-      Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
+  Isolate::DisallowJavascriptExecutionScope disallow_js(
+      isolate, Isolate::DisallowJavascriptExecutionScope::THROW_ON_FAILURE);
   {
     HandleScope handle_scope(isolate);  // For env->context().
     Context::Scope context_scope(env->context());
@@ -516,9 +523,7 @@ void FreeEnvironment(Environment* env) {
 }
 
 NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
-    Environment* env,
-    ThreadId thread_id,
-    const char* url) {
+    Environment* env, ThreadId thread_id, const char* url) {
   return GetInspectorParentHandle(env, thread_id, url, "");
 }
 
@@ -538,10 +543,10 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 #endif
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    StartExecutionCallback cb) {
+MaybeLocal<Value> LoadEnvironment(Environment* env, StartExecutionCallback cb) {
+  // 初始化 Libuv 相关的结构体
   env->InitializeLibuv();
+  // 初始化诊断相关的能力
   env->InitializeDiagnostics();
 
   return StartExecution(env, cb);
@@ -592,10 +597,8 @@ MultiIsolatePlatform* CreatePlatform(
 }
 
 MultiIsolatePlatform* CreatePlatform(
-    int thread_pool_size,
-    v8::TracingController* tracing_controller) {
-  return MultiIsolatePlatform::Create(thread_pool_size,
-                                      tracing_controller)
+    int thread_pool_size, v8::TracingController* tracing_controller) {
+  return MultiIsolatePlatform::Create(thread_pool_size, tracing_controller)
       .release();
 }
 
@@ -607,9 +610,8 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
     int thread_pool_size,
     v8::TracingController* tracing_controller,
     v8::PageAllocator* page_allocator) {
-  return std::make_unique<NodePlatform>(thread_pool_size,
-                                        tracing_controller,
-                                        page_allocator);
+  return std::make_unique<NodePlatform>(
+      thread_pool_size, tracing_controller, page_allocator);
 }
 
 MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
@@ -617,7 +619,8 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   EscapableHandleScope handle_scope(isolate);
 
   Local<Object> global = context->Global();
-  Local<Private> key = Private::ForApi(isolate,
+  Local<Private> key = Private::ForApi(
+      isolate,
       FIXED_ONE_BYTE_STRING(isolate, "node:per_context_binding_exports"));
 
   Local<Value> existing_value;
@@ -679,50 +682,42 @@ Maybe<bool> InitializeContextRuntime(Local<Context> context) {
   // https://github.com/nodejs/node/issues/31951
   Local<Object> prototype;
   {
-    Local<String> object_string =
-      FIXED_ONE_BYTE_STRING(isolate, "Object");
+    Local<String> object_string = FIXED_ONE_BYTE_STRING(isolate, "Object");
     Local<String> prototype_string =
-      FIXED_ONE_BYTE_STRING(isolate, "prototype");
+        FIXED_ONE_BYTE_STRING(isolate, "prototype");
 
     Local<Value> object_v;
-    if (!context->Global()
-        ->Get(context, object_string)
-        .ToLocal(&object_v)) {
+    if (!context->Global()->Get(context, object_string).ToLocal(&object_v)) {
       return Nothing<bool>();
     }
 
     Local<Value> prototype_v;
     if (!object_v.As<Object>()
-        ->Get(context, prototype_string)
-        .ToLocal(&prototype_v)) {
+             ->Get(context, prototype_string)
+             .ToLocal(&prototype_v)) {
       return Nothing<bool>();
     }
 
     prototype = prototype_v.As<Object>();
   }
 
-  Local<String> proto_string =
-    FIXED_ONE_BYTE_STRING(isolate, "__proto__");
+  Local<String> proto_string = FIXED_ONE_BYTE_STRING(isolate, "__proto__");
 
   if (per_process::cli_options->disable_proto == "delete") {
-    if (prototype
-        ->Delete(context, proto_string)
-        .IsNothing()) {
+    if (prototype->Delete(context, proto_string).IsNothing()) {
       return Nothing<bool>();
     }
   } else if (per_process::cli_options->disable_proto == "throw") {
     Local<Value> thrower;
-    if (!Function::New(context, ProtoThrower)
-        .ToLocal(&thrower)) {
+    if (!Function::New(context, ProtoThrower).ToLocal(&thrower)) {
       return Nothing<bool>();
     }
 
     PropertyDescriptor descriptor(thrower, thrower);
     descriptor.set_enumerable(false);
     descriptor.set_configurable(true);
-    if (prototype
-        ->DefineProperty(context, proto_string, descriptor)
-        .IsNothing()) {
+    if (prototype->DefineProperty(context, proto_string, descriptor)
+            .IsNothing()) {
       return Nothing<bool>();
     }
   } else if (per_process::cli_options->disable_proto != "") {
@@ -855,15 +850,15 @@ void AddLinkedBinding(Environment* env,
                       addon_context_register_func fn,
                       void* priv) {
   node_module mod = {
-    NODE_MODULE_VERSION,
-    NM_F_LINKED,
-    nullptr,  // nm_dso_handle
-    nullptr,  // nm_filename
-    nullptr,  // nm_register_func
-    fn,
-    name,
-    priv,
-    nullptr   // nm_link
+      NODE_MODULE_VERSION,
+      NM_F_LINKED,
+      nullptr,  // nm_dso_handle
+      nullptr,  // nm_filename
+      nullptr,  // nm_register_func
+      fn,
+      name,
+      priv,
+      nullptr  // nm_link
   };
   AddLinkedBinding(env, mod);
 }
@@ -889,7 +884,7 @@ void AddLinkedBinding(Environment* env,
 static std::atomic<uint64_t> next_thread_id{0};
 
 ThreadId AllocateEnvironmentThreadId() {
-  return ThreadId { next_thread_id++ };
+  return ThreadId{next_thread_id++};
 }
 
 [[noreturn]] void Exit(ExitCode exit_code) {
