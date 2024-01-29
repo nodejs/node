@@ -390,7 +390,7 @@ For information about the governance of the Node.js project, see
 * [legendecas](https://github.com/legendecas) -
   **Chengzhong Wu** <<legendecas@gmail.com>> (he/him)
 * [lemire](https://github.com/lemire) -
-  **Daniel Lemire** <<lemire@gmail.com>>
+  **Daniel Lemire** <<daniel@lemire.me>>
 * [linkgoron](https://github.com/linkgoron) -
   **Nitzan Uziely** <<linkgoron@gmail.com>>
 * [LiviaMedeiros](https://github.com/LiviaMedeiros) -
