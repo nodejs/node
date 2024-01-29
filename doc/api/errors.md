@@ -2964,11 +2964,20 @@ import 'package-name'; // supported
 ### `ERR_UNSUPPORTED_RESOLVE_REQUEST`
 
 An attempt was made to resolve an invalid module referrer. This can happen when
-calling `import()` or `import.meta.resolve()` with either:
+importing or calling `import.meta.resolve()` with either:
 
 * a bare specifier that is not a builtin module from a module whose URL scheme
   is not `file`.
 * a [relative URL][] from a module whose URL scheme is not a [special scheme][].
+
+```js
+try {
+  // Trying to import the package 'bare-specifier' from a `data:` URL module:
+  await import("data:text/javascript,import%22bare-specifier%22");
+} catch(e) {
+  console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
+}
+```
 
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
