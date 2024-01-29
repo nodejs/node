@@ -2970,11 +2970,11 @@ importing or calling `import.meta.resolve()` with either:
   is not `file`.
 * a [relative URL][] from a module whose URL scheme is not a [special scheme][].
 
-```js
+```mjs
 try {
   // Trying to import the package 'bare-specifier' from a `data:` URL module:
-  await import("data:text/javascript,import%22bare-specifier%22");
-} catch(e) {
+  await import('data:text/javascript,import "bare-specifier"');
+} catch (e) {
   console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
 }
 ```
