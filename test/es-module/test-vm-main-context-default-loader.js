@@ -1,6 +1,10 @@
 'use strict';
 
 const common = require('../common');
+
+// Can't process.chdir() in worker.
+common.skipIfWorker();
+
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
 const url = require('url');
