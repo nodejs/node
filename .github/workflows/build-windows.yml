@@ -8,7 +8,6 @@ on:
       - src/**/*.cc
       - src/**/*.h
       - tools/gyp/**
-      - tools/test.py
       - .github/workflows/build-windows.yml
     types: [opened, synchronize, reopened, ready_for_review]
   push:
@@ -23,7 +22,6 @@ on:
       - src/**/*.cc
       - src/**/*.h
       - tools/gyp/**
-      - tools/test.py
       - .github/workflows/build-windows.yml
 
 concurrency:
