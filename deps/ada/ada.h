@@ -1,4 +1,4 @@
-/* auto-generated on 2024-01-22 09:15:53 -0500. Do not edit! */
+/* auto-generated on 2024-01-29 13:13:24 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -4868,10 +4868,12 @@ struct url_aggregator : url_base {
   }
 
   /**
-   * Return true on success.
+   * Return true on success. The 'in_place' parameter indicates whether the
+   * the string_view input is pointing in the buffer. When in_place is false,
+   * we must nearly always update the buffer.
    * @see https://url.spec.whatwg.org/#concept-ipv4-parser
    */
-  [[nodiscard]] bool parse_ipv4(std::string_view input);
+  [[nodiscard]] bool parse_ipv4(std::string_view input, bool in_place);
 
   /**
    * Return true on success.
@@ -7078,14 +7080,14 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.7.5"
+#define ADA_VERSION "2.7.6"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 7,
-  ADA_VERSION_REVISION = 5,
+  ADA_VERSION_REVISION = 6,
 };
 
 }  // namespace ada
