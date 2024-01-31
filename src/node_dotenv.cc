@@ -1,4 +1,6 @@
 #include "node_dotenv.h"
+#include <regex>  // NOLINT(build/c++11)
+#include <unordered_set>
 #include "env-inl.h"
 #include "node_file.h"
 #include "uv.h"
@@ -9,6 +11,15 @@ using v8::Local;
 using v8::NewStringType;
 using v8::Object;
 using v8::String;
+
+/**
+ * The inspiration for this implementation comes from the original dotenv code,
+ * available at https://github.com/motdotla/dotenv
+ */
+const std::regex LINE(
+    "\\s*(?:export\\s+)?([\\w.-]+)(?:\\s*=\\s*?|:\\s+?)(\\s*'(?:\\\\'|[^']"
+    ")*'|\\s*\"(?:\\\\\"|[^\"])*\"|\\s*`(?:\\\\`|[^`])*`|[^#\r\n]+)?\\s*(?"
+    ":#.*)?");  // NOLINT(whitespace/line_length)
 
 std::vector<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
@@ -91,11 +102,34 @@ Local<Object> Dotenv::ToObject(Environment* env) {
 }
 
 void Dotenv::ParseContent(const std::string_view content) {
-  using std::string_view_literals::operator""sv;
-  auto lines = SplitString(content, "\n"sv);
+  std::string lines = std::string(content);
+  lines = std::regex_replace(lines, std::regex("\r\n?"), "\n");
 
-  for (const auto& line : lines) {
-    ParseLine(line);
+  std::smatch match;
+  while (std::regex_search(lines, match, LINE)) {
+    const std::string key = match[1].str();
+
+    // Default undefined or null to an empty string
+    std::string value = match[2].str();
+
+    // Remove leading whitespaces
+    value.erase(0, value.find_first_not_of(" \t"));
+
+    // Remove trailing whitespaces
+    value.erase(value.find_last_not_of(" \t") + 1);
+
+    const char maybeQuote = value.front();
+
+    if (maybeQuote == '"') {
+      value = std::regex_replace(value, std::regex("\\\\n"), "\n");
+      value = std::regex_replace(value, std::regex("\\\\r"), "\r");
+    }
+
+    // Remove surrounding quotes
+    value = trim_quotes(value);
+
+    store_.insert_or_assign(std::string(key), value);
+    lines = match.suffix();
   }
 }
 
@@ -145,56 +179,13 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
   }
 }
 
-void Dotenv::ParseLine(const std::string_view line) {
-  auto equal_index = line.find('=');
-
-  if (equal_index == std::string_view::npos) {
-    return;
+std::string_view Dotenv::trim_quotes(std::string_view str) {
+  static const std::unordered_set<char> quotes = {'"', '\'', '`'};
+  if (str.size() >= 2 && quotes.count(str.front()) &&
+      quotes.count(str.back())) {
+    str = str.substr(1, str.size() - 2);
   }
-
-  auto key = line.substr(0, equal_index);
-
-  // Remove leading and trailing space characters from key.
-  while (!key.empty() && std::isspace(key.front())) key.remove_prefix(1);
-  while (!key.empty() && std::isspace(key.back())) key.remove_suffix(1);
-
-  // Omit lines with comments
-  if (key.front() == '#' || key.empty()) {
-    return;
-  }
-
-  auto value = std::string(line.substr(equal_index + 1));
-
-  // Might start and end with `"' characters.
-  auto quotation_index = value.find_first_of("`\"'");
-
-  if (quotation_index == 0) {
-    auto quote_character = value[quotation_index];
-    value.erase(0, 1);
-
-    auto end_quotation_index = value.find(quote_character);
-
-    // We couldn't find the closing quotation character. Terminate.
-    if (end_quotation_index == std::string::npos) {
-      return;
-    }
-
-    value.erase(end_quotation_index);
-  } else {
-    auto hash_index = value.find('#');
-
-    // Remove any inline comments
-    if (hash_index != std::string::npos) {
-      value.erase(hash_index);
-    }
-
-    // Remove any leading/trailing spaces from unquoted values.
-    while (!value.empty() && std::isspace(value.front())) value.erase(0, 1);
-    while (!value.empty() && std::isspace(value.back()))
-      value.erase(value.size() - 1);
-  }
-
-  store_.insert_or_assign(std::string(key), value);
+  return str;
 }
 
 }  // namespace node
