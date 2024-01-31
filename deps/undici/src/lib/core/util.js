@@ -349,14 +349,8 @@ function validateHandler (handler, method, upgrade) {
 // A body is disturbed if it has been read from and it cannot
 // be re-used without losing state or data.
 function isDisturbed (body) {
-  return !!(body && (
-    stream.isDisturbed
-      ? stream.isDisturbed(body) || body[kBodyUsed] // TODO (fix): Why is body[kBodyUsed] needed?
-      : body[kBodyUsed] ||
-        body.readableDidRead ||
-        (body._readableState && body._readableState.dataEmitted) ||
-        isReadableAborted(body)
-  ))
+  // TODO (fix): Why is body[kBodyUsed] needed?
+  return !!(body && (stream.isDisturbed(body) || body[kBodyUsed]))
 }
 
 function isErrored (body) {

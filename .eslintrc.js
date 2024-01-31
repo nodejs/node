@@ -341,6 +341,7 @@ module.exports = {
     Crypto: 'readable',
     CryptoKey: 'readable',
     DecompressionStream: 'readable',
+    EventSource: 'readable',
     fetch: 'readable',
     FormData: 'readable',
     navigator: 'readable',

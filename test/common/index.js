@@ -373,6 +373,10 @@ if (global.WebSocket) {
   knownGlobals.push(WebSocket);
 }
 
+if (global.EventSource) {
+  knownGlobals.push(EventSource);
+}
+
 function allowGlobals(...allowlist) {
   knownGlobals = knownGlobals.concat(allowlist);
 }

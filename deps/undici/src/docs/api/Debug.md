@@ -53,7 +53,7 @@ This flag enables debug statements for the `Websocket` API.
 > **Note**: statements can overlap with `UNDICI` ones if `undici` or `fetch` flag has been enabled as well.
 
 ```sh
-NODE_DEBUG=fetch node script.js
+NODE_DEBUG=websocket node script.js
 
 WEBSOCKET 18309: connecting to echo.websocket.org using https:h1
 WEBSOCKET 18309: connected to echo.websocket.org using https:h1

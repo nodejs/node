@@ -94,7 +94,7 @@ module.exports = class BodyReadable extends Readable {
   }
 
   push (chunk) {
-    if (this[kConsume] && chunk !== null && this.readableLength === 0) {
+    if (this[kConsume] && chunk !== null) {
       consumePush(this[kConsume], chunk)
       return this[kReading] ? super.push(chunk) : true
     }
@@ -215,26 +215,28 @@ async function consume (stream, type) {
         reject(rState.errored ?? new TypeError('unusable'))
       }
     } else {
-      stream[kConsume] = {
-        type,
-        stream,
-        resolve,
-        reject,
-        length: 0,
-        body: []
-      }
+      queueMicrotask(() => {
+        stream[kConsume] = {
+          type,
+          stream,
+          resolve,
+          reject,
+          length: 0,
+          body: []
+        }
 
-      stream
-        .on('error', function (err) {
-          consumeFinish(this[kConsume], err)
-        })
-        .on('close', function () {
-          if (this[kConsume].body !== null) {
-            consumeFinish(this[kConsume], new RequestAbortedError())
-          }
-        })
+        stream
+          .on('error', function (err) {
+            consumeFinish(this[kConsume], err)
+          })
+          .on('close', function () {
+            if (this[kConsume].body !== null) {
+              consumeFinish(this[kConsume], new RequestAbortedError())
+            }
+          })
 
-      queueMicrotask(() => consumeStart(stream[kConsume]))
+        consumeStart(stream[kConsume])
+      })
     }
   })
 }
@@ -246,8 +248,16 @@ function consumeStart (consume) {
 
   const { _readableState: state } = consume.stream
 
-  for (const chunk of state.buffer) {
-    consumePush(consume, chunk)
+  if (state.bufferIndex) {
+    const start = state.bufferIndex
+    const end = state.buffer.length
+    for (let n = start; n < end; n++) {
+      consumePush(consume, state.buffer[n])
+    }
+  } else {
+    for (const chunk of state.buffer) {
+      consumePush(consume, chunk)
+    }
   }
 
   if (state.endEmitted) {
