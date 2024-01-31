@@ -41952,7 +41952,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.24.0";
+var version = "0.24.1";
 
 // sources/Engine.ts
 var import_fs3 = __toESM(require("fs"));
@@ -41964,7 +41964,7 @@ var import_semver3 = __toESM(require_semver2());
 var config_default = {
   definitions: {
     npm: {
-      default: "10.2.5+sha1.ef86b9aafd9965e60814ed11a3d4fb00a4e3b006",
+      default: "10.3.0+sha1.554e1f13e4c09d581ad27cdc4a92f085ab74ce1a",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -42001,7 +42001,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "8.13.1+sha1.90f9b2bb3ed58632bcb7b13c3902d6873ee9501c",
+      default: "8.14.1+sha1.d039b38e0b20ad012ed548e44267b8d4c88b447a",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -42829,9 +42829,14 @@ async function loadSpec(initialCwd) {
     if (nodeModulesRegExp.test(currCwd))
       continue;
     const manifestPath = import_path6.default.join(currCwd, `package.json`);
-    if (!import_fs6.default.existsSync(manifestPath))
-      continue;
-    const content = await import_fs6.default.promises.readFile(manifestPath, `utf8`);
+    let content;
+    try {
+      content = await import_fs6.default.promises.readFile(manifestPath, `utf8`);
+    } catch (err) {
+      if (err?.code === `ENOENT`)
+        continue;
+      throw err;
+    }
     let data;
     try {
       data = JSON.parse(content);
@@ -42916,7 +42921,7 @@ var BaseCommand = class extends Command {
   }
   async setLocalPackageManager(info) {
     const lookup = await loadSpec(this.context.cwd);
-    const content = lookup.target !== `NoProject` ? await import_fs7.default.promises.readFile(lookup.target, `utf8`) : ``;
+    const content = lookup.type !== `NoProject` ? await import_fs7.default.promises.readFile(lookup.target, `utf8`) : ``;
     const { data, indent } = readPackageJson(content);
     const previousPackageManager = data.packageManager ?? `unknown`;
     data.packageManager = `${info.locator.name}@${info.locator.reference}+${info.hash}`;
@@ -43195,7 +43200,7 @@ var UseCommand = class extends BaseCommand {
     `,
     examples: [[
       `Configure the project to use the latest Yarn release`,
-      `corepack use 'yarn@*'`
+      `corepack use yarn`
     ]]
   });
   pattern = options_exports.String();
