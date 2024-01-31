@@ -949,16 +949,6 @@ added: v12.3.0
 
 Enable experimental WebAssembly module support.
 
-### `--experimental-websocket`
-
-<!-- YAML
-added:
-  - v21.0.0
-  - v20.10.0
--->
-
-Enable experimental [`WebSocket`][] support.
-
 ### `--force-context-aware`
 
 <!-- YAML
@@ -1376,6 +1366,14 @@ added: v16.6.0
 -->
 
 Use this flag to disable top-level await in REPL.
+
+### `--no-experimental-websocket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to disable experimental [`WebSocket`][] support.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -2511,7 +2509,6 @@ Node.js options that are allowed are:
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
 * `--experimental-wasm-modules`
-* `--experimental-websocket`
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -2536,6 +2533,7 @@ Node.js options that are allowed are:
 * `--no-experimental-global-navigator`
 * `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
+* `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`

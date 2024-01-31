@@ -1097,12 +1097,16 @@ The object that acts as the namespace for all W3C
 added:
   - v21.0.0
   - v20.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51594
+    description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
 > Stability: 1 - Experimental.
 
-A browser-compatible implementation of [`WebSocket`][]. Enable this API
-with the [`--experimental-websocket`][] CLI flag.
+A browser-compatible implementation of [`WebSocket`][]. Disable this API
+with the [`--no-experimental-websocket`][] CLI flag.
 
 ## Class: `WritableStream`
 
@@ -1139,10 +1143,10 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [Navigator API]: https://html.spec.whatwg.org/multipage/system-state.html#the-navigator-object
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
-[`--experimental-websocket`]: cli.md#--experimental-websocket
 [`--no-experimental-global-customevent`]: cli.md#--no-experimental-global-customevent
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-global-webcrypto`]: cli.md#--no-experimental-global-webcrypto
+[`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
 [`AbortController`]: https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
