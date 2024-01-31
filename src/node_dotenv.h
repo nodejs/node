@@ -31,8 +31,8 @@ class Dotenv {
       const std::vector<std::string>& args);
 
  private:
-  void ParseLine(const std::string_view line);
   std::map<std::string, std::string> store_;
+  std::string_view trim_quotes(std::string_view str);
 };
 
 }  // namespace node
