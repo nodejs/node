@@ -22,7 +22,7 @@ void LoopUnrollingPhase::Run(Zone* temp_zone) {
                              turboshaft::VariableReducer,
                              turboshaft::MachineOptimizationReducer,
                              turboshaft::RequiredOptimizationReducer,
-                             turboshaft::ValueNumberingReducer>::Run(temp_zone);
+                             turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
     PipelineData::Get().clear_loop_unrolling_analyzer();
   }
 }
