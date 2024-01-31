@@ -32,7 +32,8 @@ void CodeEliminationAndSimplificationPhase::Run(Zone* temp_zone) {
                // (which, for simplificy, doesn't use the Assembler helper
                // methods, but only calls Next::ReduceLoad/Store).
                DuplicationOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               VariableReducerHotfix,
+               ValueNumberingReducer>::Run<false>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -36,6 +36,18 @@ struct PaddingSpace {
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            PaddingSpace padding);
 
+template <class Next>
+class VariableReducerHotfix : public Next {
+public:
+  TURBOSHAFT_REDUCER_BOILERPLATE()
+
+  void SetVariable(Variable var, OpIndex new_index) {}
+  Variable NewLoopInvariantVariable(MaybeRegisterRepresentation rep) { return Variable(); }
+
+  OpIndex GetVariable(Variable var) { return OpIndex(); }
+  OpIndex GetPredecessorValue(Variable var, int predecessor_index) { return OpIndex(); }
+};
+
 template <typename Next>
 class ReducerBaseForwarder;
 template <typename Next>
@@ -45,6 +57,9 @@ template <class Next>
 class GraphVisitor : public Next {
   template <typename N>
   friend class ReducerBaseForwarder;
+
+ private:
+  bool contains_variable_reducer_;
 
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
@@ -66,7 +81,8 @@ class GraphVisitor : public Next {
   // `trace_reduction` is a template parameter to avoid paying for tracing at
   // runtime.
   template <bool trace_reduction>
-  void VisitGraph() {
+  void VisitGraph(bool contains_variable_reducer) {
+    contains_variable_reducer_ = contains_variable_reducer;
     Asm().Analyze();
 
     // Creating initial old-to-new Block mapping.
@@ -177,8 +193,7 @@ class GraphVisitor : public Next {
     DCHECK(old_index.valid());
     OpIndex result = op_mapping_[old_index];
 
-    if constexpr (reducer_list_contains<typename Next::ReducerList,
-                                        VariableReducer>::value) {
+    if (contains_variable_reducer_) {
       if (!result.valid()) {
         // {op_mapping} doesn't have a mapping for {old_index}. The assembler
         // should provide the mapping.
@@ -1294,8 +1309,7 @@ class GraphVisitor : public Next {
     DCHECK(Asm().input_graph().BelongsToThisGraph(old_index));
     DCHECK_IMPLIES(new_index.valid(),
                    Asm().output_graph().BelongsToThisGraph(new_index));
-    if constexpr (reducer_list_contains<typename Next::ReducerList,
-                                        VariableReducer>::value) {
+    if (contains_variable_reducer_) {
       if (current_block_needs_variables_) {
         MaybeVariable var = GetVariableFor(old_index);
         if (!var.has_value()) {
@@ -1393,17 +1407,17 @@ template <template <class> class... Reducers>
 class CopyingPhaseImpl {
  public:
   static void Run(Graph& input_graph, Zone* phase_zone,
-                  bool trace_reductions = false) {
+                  bool contains_variable_reducer, bool trace_reductions = false) {
     TSAssembler<GraphVisitor, Reducers...> phase(
         input_graph, input_graph.GetOrCreateCompanion(), phase_zone);
 #ifdef DEBUG
     if (trace_reductions) {
-      phase.template VisitGraph<true>();
+      phase.template VisitGraph<true>(contains_variable_reducer);
     } else {
-      phase.template VisitGraph<false>();
+      phase.template VisitGraph<false>(contains_variable_reducer);
     }
 #else
-    phase.template VisitGraph<false>();
+    phase.template VisitGraph<false>(contains_variable_reducer);
 #endif  // DEBUG
   }
 };
@@ -1411,11 +1425,12 @@ class CopyingPhaseImpl {
 template <template <typename> typename... Reducers>
 class CopyingPhase {
  public:
+  template <bool contains_variable_reducer>
   static void Run(Zone* phase_zone) {
     PipelineData& data = PipelineData::Get();
     Graph& input_graph = data.graph();
     CopyingPhaseImpl<Reducers...>::Run(
-        input_graph, phase_zone, data.info()->turboshaft_trace_reduction());
+        input_graph, phase_zone, contains_variable_reducer, data.info()->turboshaft_trace_reduction());
   }
 };
 

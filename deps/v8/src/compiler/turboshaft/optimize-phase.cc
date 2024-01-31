@@ -30,7 +30,7 @@ void OptimizePhase::Run(Zone* temp_zone) {
                            turboshaft::MemoryOptimizationReducer,
                            turboshaft::MachineOptimizationReducer,
                            turboshaft::RequiredOptimizationReducer,
-                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
+                           turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

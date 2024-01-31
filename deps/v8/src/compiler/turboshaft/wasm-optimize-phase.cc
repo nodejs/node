@@ -27,7 +27,7 @@ void WasmOptimizePhase::Run(Zone* temp_zone) {
                MemoryOptimizationReducer, VariableReducer,
                RequiredOptimizationReducer, BranchEliminationReducer,
                LateLoadEliminationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

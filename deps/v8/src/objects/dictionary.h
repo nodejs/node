@@ -32,8 +32,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
   using DerivedHashTable = HashTable<Derived, Shape>;
 
  public:
-  using TodoShape = Shape;
-  using Key = typename TodoShape::Key;
+  using Key = typename Shape::Key;
   inline Tagged<Object> ValueAt(InternalIndex entry);
   inline Tagged<Object> ValueAt(PtrComprCageBase cage_base,
                                 InternalIndex entry);
@@ -126,7 +125,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) Dictionary
                              Key key, Handle<Object> value,
                              PropertyDetails details);
 
-  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, TodoShape>);
+  OBJECT_CONSTRUCTORS(Dictionary, HashTable<Derived, Shape>);
 };
 
 #define EXTERN_DECLARE_DICTIONARY(DERIVED, SHAPE)                  \

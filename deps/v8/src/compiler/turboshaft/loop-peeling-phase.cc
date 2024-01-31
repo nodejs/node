@@ -23,7 +23,7 @@ void LoopPeelingPhase::Run(Zone* temp_zone) {
                            turboshaft::VariableReducer,
                            turboshaft::MachineOptimizationReducer,
                            turboshaft::RequiredOptimizationReducer,
-                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
+                           turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

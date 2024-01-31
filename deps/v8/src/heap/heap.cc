@@ -3565,7 +3565,7 @@ void Heap::RightTrimArray(Tagged<Array> object, int new_capacity,
   }
 
   const int bytes_to_trim =
-      (old_capacity - new_capacity) * Array::Shape::kElementSize;
+      (old_capacity - new_capacity) * Array::HotfixShape::kElementSize;
 
   // Calculate location of new array end.
   const int old_size = Array::SizeFor(old_capacity);

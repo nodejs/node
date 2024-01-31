@@ -15,7 +15,7 @@ namespace v8::internal::compiler::turboshaft {
 void WasmGCOptimizePhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
-  CopyingPhase<WasmLoadEliminationReducer, WasmGCTypeReducer>::Run(temp_zone);
+  CopyingPhase<WasmLoadEliminationReducer, WasmGCTypeReducer, VariableReducerHotfix>::Run<false>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

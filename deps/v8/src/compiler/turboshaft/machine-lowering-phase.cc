@@ -20,11 +20,11 @@ void MachineLoweringPhase::Run(Zone* temp_zone) {
     CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
                  FastApiCallReducer, RequiredOptimizationReducer,
                  SelectLoweringReducer,
-                 MachineOptimizationReducer>::Run(temp_zone);
+                 MachineOptimizationReducer>::Run<true>(temp_zone);
   } else {
     CopyingPhase<DataViewReducer, VariableReducer, MachineLoweringReducer,
                  FastApiCallReducer, RequiredOptimizationReducer,
-                 SelectLoweringReducer>::Run(temp_zone);
+                 SelectLoweringReducer>::Run<true>(temp_zone);
   }
 }
 

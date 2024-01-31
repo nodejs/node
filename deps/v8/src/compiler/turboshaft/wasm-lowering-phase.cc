@@ -21,7 +21,7 @@ void WasmLoweringPhase::Run(Zone* temp_zone) {
   // Also run the MachineOptimizationReducer as it can help the late load
   // elimination that follows this phase eliminate more loads.
   CopyingPhase<WasmLoweringReducer, VariableReducer, MachineOptimizationReducer,
-               RequiredOptimizationReducer>::Run(temp_zone);
+               RequiredOptimizationReducer>::Run<true>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft
