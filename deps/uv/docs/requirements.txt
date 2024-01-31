@@ -6,7 +6,7 @@ Sphinx==6.1.3
 alabaster==0.7.13
 Babel==2.11.0
 beautifulsoup4==4.12.2
-certifi==2022.12.7
+certifi==2023.7.22
 charset-normalizer==3.0.1
 colorama==0.4.6
 docutils==0.19
