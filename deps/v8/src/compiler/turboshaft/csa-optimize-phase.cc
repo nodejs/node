@@ -25,23 +25,23 @@ namespace v8::internal::compiler::turboshaft {
 void CsaLoadEliminationPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, MachineOptimizationReducer,
                RequiredOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 
   CopyingPhase<VariableReducer, LateLoadEliminationReducer,
                MachineOptimizationReducer, RequiredOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 void CsaLateEscapeAnalysisPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, LateEscapeAnalysisReducer,
                MachineOptimizationReducer, RequiredOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 void CsaBranchEliminationPhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, MachineOptimizationReducer,
                BranchEliminationReducer, RequiredOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 void CsaOptimizePhase::Run(Zone* temp_zone) {
@@ -51,7 +51,7 @@ void CsaOptimizePhase::Run(Zone* temp_zone) {
   CopyingPhase<VariableReducer, PretenuringPropagationReducer,
                MachineOptimizationReducer, MemoryOptimizationReducer,
                RequiredOptimizationReducer,
-               ValueNumberingReducer>::Run(temp_zone);
+               ValueNumberingReducer>::Run<true>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft
