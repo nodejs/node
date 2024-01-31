@@ -68,8 +68,7 @@ void ngtcp2_log_init(ngtcp2_log *log, const ngtcp2_cid *scid,
  *   Source Connection ID in hex string.
  *
  * <EVENT>:
- *   Event.  pkt=packet, frm=frame, ldc=loss-detection, cry=crypto,
- *   con=connection(catch all)
+ *   Event.  See ngtcp2_log_event.
  *
  * # Frame event
  *

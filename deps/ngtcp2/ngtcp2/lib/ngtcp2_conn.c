@@ -5329,7 +5329,6 @@ static int conn_recv_ack(ngtcp2_conn *conn, ngtcp2_pktns *pktns, ngtcp2_ack *fr,
   num_acked = ngtcp2_rtb_recv_ack(&pktns->rtb, fr, &conn->cstat, conn, pktns,
                                   pkt_ts, ts);
   if (num_acked < 0) {
-    /* TODO assert this */
     assert(ngtcp2_err_is_fatal((int)num_acked));
     return (int)num_acked;
   }
@@ -5790,9 +5789,8 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   if (!(pv->flags & NGTCP2_PV_FLAG_DONT_CARE)) {
-    if (!(pv->flags & NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE)) {
+    if (pv->dcid.seq != conn->dcid.current.seq) {
       assert(!conn->server);
-      assert(pv->dcid.seq != conn->dcid.current.seq);
       assert(conn->dcid.current.cid.datalen);
 
       rv = conn_retire_dcid(conn, &conn->dcid.current, ts);
@@ -5869,25 +5867,6 @@ static int conn_recv_path_response(ngtcp2_conn *conn, ngtcp2_path_response *fr,
   }
 
   return conn_stop_pv(conn, ts);
-}
-
-/*
- * pkt_num_bits returns the number of bits available when packet
- * number is encoded in |pkt_numlen| bytes.
- */
-static size_t pkt_num_bits(size_t pkt_numlen) {
-  switch (pkt_numlen) {
-  case 1:
-    return 8;
-  case 2:
-    return 16;
-  case 3:
-    return 24;
-  case 4:
-    return 32;
-  default:
-    ngtcp2_unreachable();
-  }
 }
 
 /*
@@ -6020,9 +5999,7 @@ static int conn_verify_fixed_bit(ngtcp2_conn *conn, ngtcp2_pkt_hd *hd) {
     case NGTCP2_PKT_INITIAL:
     case NGTCP2_PKT_0RTT:
     case NGTCP2_PKT_HANDSHAKE:
-      /* TODO we cannot determine whether a token comes from NEW_TOKEN
-         frame or Retry packet.  RFC 9287 requires that a token from
-         NEW_TOKEN. */
+      /* RFC 9287 requires that a token from NEW_TOKEN. */
       if (!(conn->flags & NGTCP2_CONN_FLAG_INITIAL_PKT_PROCESSED) &&
           (conn->local.settings.token_type != NGTCP2_TOKEN_TYPE_NEW_TOKEN ||
            !conn->local.settings.tokenlen)) {
@@ -6145,7 +6122,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
     return NGTCP2_ERR_DISCARD_PKT;
   }
 
-  if (hd.type == NGTCP2_PKT_VERSION_NEGOTIATION) {
+  switch (hd.type) {
+  case NGTCP2_PKT_VERSION_NEGOTIATION:
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -6181,7 +6159,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
       return NGTCP2_ERR_DISCARD_PKT;
     }
     return NGTCP2_ERR_RECV_VERSION_NEGOTIATION;
-  } else if (hd.type == NGTCP2_PKT_RETRY) {
+  case NGTCP2_PKT_RETRY:
     hdpktlen = (size_t)nread;
 
     ngtcp2_log_rx_pkt_hd(&conn->log, &hd);
@@ -6402,10 +6380,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
     break;
   default:
-    /* unknown packet type */
-    ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
-                    "packet was ignored because of unknown packet type");
-    return (ngtcp2_ssize)pktlen;
+    ngtcp2_unreachable();
   }
 
   hp_mask = conn->callbacks.hp_mask;
@@ -6438,7 +6413,7 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   payloadlen = hd.len - hd.pkt_numlen;
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
-                                         pkt_num_bits(hd.pkt_numlen));
+                                         hd.pkt_numlen);
   if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);
@@ -6624,14 +6599,8 @@ conn_recv_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  /* TODO Initial and Handshake are always acknowledged without
-     delay. */
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
+  /* Initial and Handshake are always acknowledged without delay.  No
+     need to call ngtcp2_acktr_immediate_ack(). */
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd.pkt_num, require_ack,
                              pkt_ts);
   if (rv != 0) {
@@ -7057,7 +7026,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
     if (strm == NULL) {
       return NGTCP2_ERR_NOMEM;
     }
-    /* TODO Perhaps, call new_stream callback? */
+
     rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
       ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
@@ -7464,7 +7433,7 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
       return 0;
     }
 
-    /* Frame is received reset before we create ngtcp2_strm
+    /* STOP_SENDING frame is received before we create ngtcp2_strm
        object. */
     strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
     if (strm == NULL) {
@@ -7482,6 +7451,10 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
+  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING_RECVED) {
+    return 0;
+  }
+
   ngtcp2_strm_set_app_error_code(strm, fr->app_error_code);
 
   /* No RESET_STREAM is required if we have sent FIN and all data have
@@ -7494,7 +7467,9 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
     }
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_RESET_STREAM;
+  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR |
+                 NGTCP2_STRM_FLAG_STOP_SENDING_RECVED |
+                 NGTCP2_STRM_FLAG_RESET_STREAM;
 
   ngtcp2_strm_streamfrq_clear(strm);
 
@@ -8751,12 +8726,8 @@ conn_recv_delayed_handshake_pkt(ngtcp2_conn *conn, const ngtcp2_pkt_info *pi,
 
   pktns_increase_ecn_counts(pktns, pi);
 
-  if (require_ack &&
-      (++pktns->acktr.rx_npkt >= conn->local.settings.ack_thresh ||
-       (pi->ecn & NGTCP2_ECN_MASK) == NGTCP2_ECN_CE)) {
-    ngtcp2_acktr_immediate_ack(&pktns->acktr);
-  }
-
+  /* Initial and Handshake are always acknowledged without delay.  No
+     need to call ngtcp2_acktr_immediate_ack(). */
   rv = ngtcp2_conn_sched_ack(conn, &pktns->acktr, hd->pkt_num, require_ack,
                              pkt_ts);
   if (rv != 0) {
@@ -9020,7 +8991,7 @@ static ngtcp2_ssize conn_recv_pkt(ngtcp2_conn *conn, const ngtcp2_path *path,
   payloadlen = pktlen - hdpktlen;
 
   hd.pkt_num = ngtcp2_pkt_adjust_pkt_num(pktns->rx.max_pkt_num, hd.pkt_num,
-                                         pkt_num_bits(hd.pkt_numlen));
+                                         hd.pkt_numlen);
   if (hd.pkt_num > NGTCP2_MAX_PKT_NUM) {
     ngtcp2_log_info(&conn->log, NGTCP2_LOG_EVENT_PKT,
                     "pkn=%" PRId64 " is greater than maximum pkn", hd.pkt_num);
@@ -12551,7 +12522,8 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
                                      uint64_t app_error_code) {
   ngtcp2_strm_set_app_error_code(strm, app_error_code);
 
-  if (strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING) {
+  if (strm->flags &
+      (NGTCP2_STRM_FLAG_STOP_SENDING | NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
     return 0;
   }
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
