@@ -15,7 +15,7 @@ const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
 const {
   spawnSyncAndExit,
-  spawnSyncAndExitWithoutError
+  spawnSyncAndExitWithoutError,
 } = require('../common/child_process');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');

@@ -77,7 +77,6 @@ const binaryAssetOnDisk = readFileSync(process.env.__TEST_PERSON_JPG);
 {
   const actualAsset = getAsset('utf8_test_text.txt', 'utf8')
   assert.strictEqual(actualAsset, textAssetOnDisk);
-  console.log(actualAsset);
 }
 
 // Check getAssetAsBlob().
