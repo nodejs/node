@@ -1006,7 +1006,9 @@ static int rtb_detect_lost_pkt(ngtcp2_rtb *rtb, uint64_t *ppkt_lost,
     if (rtb_pkt_lost(rtb, cstat, ent, loss_delay, (size_t)pkt_thres, ts)) {
       /* All entries from ent are considered to be lost. */
       latest_ts = oldest_ts = ent->ts;
-      last_lost_pkt_num = ent->hd.pkt_num;
+      /* +1 to pick this packet for persistent congestion in the
+         following loop. */
+      last_lost_pkt_num = ent->hd.pkt_num + 1;
       max_ack_delay = conn->remote.transport_params
                           ? conn->remote.transport_params->max_ack_delay
                           : 0;
