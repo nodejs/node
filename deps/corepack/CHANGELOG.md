@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.24.1](https://github.com/nodejs/corepack/compare/v0.24.0...v0.24.1) (2024-01-13)
+
+
+### Features
+
+* update package manager versions ([#348](https://github.com/nodejs/corepack/issues/348)) ([cc3ada7](https://github.com/nodejs/corepack/commit/cc3ada73bccd0a5b0ff16834e518efa521c9eea4))
+
+
+### Bug Fixes
+
+* **use:** create `package.json` when calling `corepack use` on empty dir ([#350](https://github.com/nodejs/corepack/issues/350)) ([2950a8a](https://github.com/nodejs/corepack/commit/2950a8a30b64b4598abc354e45400e83d56e541b))
+
 ## [0.24.0](https://github.com/nodejs/corepack/compare/v0.23.0...v0.24.0) (2023-12-29)
 
 
