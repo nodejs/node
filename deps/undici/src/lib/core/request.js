@@ -4,7 +4,7 @@ const {
   InvalidArgumentError,
   NotSupportedError
 } = require('./errors')
-const assert = require('assert')
+const assert = require('node:assert')
 const { kHTTP2BuildRequest, kHTTP2CopyHeaders, kHTTP1BuildRequest } = require('./symbols')
 const util = require('./util')
 const { channels } = require('./diagnostics.js')
@@ -369,8 +369,11 @@ class Request {
 
       if (value == null || value.length === 0) continue
 
-      if (headers[key]) headers[key] += `,${value}`
-      else headers[key] = value
+      if (headers[key]) {
+        headers[key] += `,${value}`
+      } else {
+        headers[key] = value
+      }
     }
 
     return headers
@@ -433,20 +436,22 @@ function processHeader (request, key, val, skipAppend = false) {
     }
   } else if (headerName === 'expect') {
     throw new NotSupportedError('expect header not supported')
-  } else {
-    if (Array.isArray(val)) {
-      for (let i = 0; i < val.length; i++) {
-        if (skipAppend) {
-          if (request.headers[key]) request.headers[key] += `,${processHeaderValue(key, val[i], skipAppend)}`
-          else request.headers[key] = processHeaderValue(key, val[i], skipAppend)
+  } else if (Array.isArray(val)) {
+    for (let i = 0; i < val.length; i++) {
+      if (skipAppend) {
+        if (request.headers[key]) {
+          request.headers[key] += `,${processHeaderValue(key, val[i], skipAppend)}`
         } else {
-          request.headers += processHeaderValue(key, val[i])
+          request.headers[key] = processHeaderValue(key, val[i], skipAppend)
         }
+      } else {
+        request.headers += processHeaderValue(key, val[i])
       }
-    } else {
-      if (skipAppend) request.headers[key] = processHeaderValue(key, val, skipAppend)
-      else request.headers += processHeaderValue(key, val)
     }
+  } else if (skipAppend) {
+    request.headers[key] = processHeaderValue(key, val, skipAppend)
+  } else {
+    request.headers += processHeaderValue(key, val)
   }
 }
 

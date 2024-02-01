@@ -23,8 +23,8 @@ const { FormData } = require('./formdata')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList, kConstruct } = require('../core/symbols')
-const assert = require('assert')
-const { types } = require('util')
+const assert = require('node:assert')
+const { types } = require('node:util')
 
 const textEncoder = new TextEncoder('utf-8')
 
@@ -38,13 +38,8 @@ class Response {
     // The static error() method steps are to return the result of creating a
     // Response object, given a new network error, "immutable", and this’s
     // relevant Realm.
-    const responseObject = new Response(kConstruct)
-    responseObject[kState] = makeNetworkError()
-    responseObject[kRealm] = relevantRealm
-    responseObject[kHeaders] = new Headers(kConstruct)
-    responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
-    responseObject[kHeaders][kGuard] = 'immutable'
-    responseObject[kHeaders][kRealm] = relevantRealm
+    const responseObject = fromInnerResponse(makeNetworkError(), 'immutable', relevantRealm)
+
     return responseObject
   }
 
@@ -67,13 +62,7 @@ class Response {
     // 3. Let responseObject be the result of creating a Response object, given a new response,
     //    "response", and this’s relevant Realm.
     const relevantRealm = { settingsObject: {} }
-    const responseObject = new Response(kConstruct)
-    responseObject[kState] = makeResponse({})
-    responseObject[kRealm] = relevantRealm
-    responseObject[kHeaders] = new Headers(kConstruct)
-    responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
-    responseObject[kHeaders][kGuard] = 'response'
-    responseObject[kHeaders][kRealm] = relevantRealm
+    const responseObject = fromInnerResponse(makeResponse({}), 'response', relevantRealm)
 
     // 4. Perform initialize a response given responseObject, init, and (body, "application/json").
     initializeResponse(responseObject, init, { body: body[0], type: 'application/json' })
@@ -99,25 +88,17 @@ class Response {
     try {
       parsedURL = new URL(url, getGlobalOrigin())
     } catch (err) {
-      throw Object.assign(new TypeError('Failed to parse URL from ' + url), {
-        cause: err
-      })
+      throw new TypeError(`Failed to parse URL from ${url}`, { cause: err })
     }
 
     // 3. If status is not a redirect status, then throw a RangeError.
     if (!redirectStatusSet.has(status)) {
-      throw new RangeError('Invalid status code ' + status)
+      throw new RangeError(`Invalid status code ${status}`)
     }
 
     // 4. Let responseObject be the result of creating a Response object,
     // given a new response, "immutable", and this’s relevant Realm.
-    const responseObject = new Response(kConstruct)
-    responseObject[kState] = makeResponse({})
-    responseObject[kRealm] = relevantRealm
-    responseObject[kHeaders] = new Headers(kConstruct)
-    responseObject[kHeaders][kHeadersList] = responseObject[kState].headersList
-    responseObject[kHeaders][kGuard] = 'immutable'
-    responseObject[kHeaders][kRealm] = relevantRealm
+    const responseObject = fromInnerResponse(makeResponse({}), 'immutable', relevantRealm)
 
     // 5. Set responseObject’s response’s status to status.
     responseObject[kState].status = status
@@ -257,7 +238,7 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // 1. If this is unusable, then throw a TypeError.
-    if (this.bodyUsed || (this.body && this.body.locked)) {
+    if (this.bodyUsed || this.body?.locked) {
       throw webidl.errors.exception({
         header: 'Response.clone',
         message: 'Body has already been consumed.'
@@ -269,15 +250,7 @@ class Response {
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    const clonedResponseObject = new Response(kConstruct)
-    clonedResponseObject[kState] = clonedResponse
-    clonedResponseObject[kRealm] = this[kRealm]
-    clonedResponseObject[kHeaders] = new Headers(kConstruct)
-    clonedResponseObject[kHeaders][kHeadersList] = clonedResponse.headersList
-    clonedResponseObject[kHeaders][kGuard] = this[kHeaders][kGuard]
-    clonedResponseObject[kHeaders][kRealm] = this[kHeaders][kRealm]
-
-    return clonedResponseObject
+    return fromInnerResponse(clonedResponse, this[kHeaders][kGuard], this[kRealm])
   }
 }
 
@@ -497,7 +470,7 @@ function initializeResponse (response, init, body) {
     if (nullBodyStatus.includes(response.status)) {
       throw webidl.errors.exception({
         header: 'Response constructor',
-        message: 'Invalid response status code ' + response.status
+        message: `Invalid response status code ${response.status}`
       })
     }
 
@@ -510,6 +483,24 @@ function initializeResponse (response, init, body) {
       response[kState].headersList.append('content-type', body.type, true)
     }
   }
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#response-create
+ * @param {any} innerResponse
+ * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
+ * @param {any} [realm]
+ * @returns {Response}
+ */
+function fromInnerResponse (innerResponse, guard, realm) {
+  const response = new Response(kConstruct)
+  response[kState] = innerResponse
+  response[kRealm] = realm
+  response[kHeaders] = new Headers(kConstruct)
+  response[kHeaders][kHeadersList] = innerResponse.headersList
+  response[kHeaders][kGuard] = guard
+  response[kHeaders][kRealm] = realm
+  return response
 }
 
 webidl.converters.ReadableStream = webidl.interfaceConverter(
@@ -588,5 +579,6 @@ module.exports = {
   makeAppropriateNetworkError,
   filterResponse,
   Response,
-  cloneResponse
+  cloneResponse,
+  fromInnerResponse
 }

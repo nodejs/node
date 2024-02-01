@@ -11,9 +11,9 @@ The server option `rejectUnauthorized: false` allows us to handle any invalid ce
 ### Client Certificate Authentication
 
 ```js
-const { readFileSync } = require('fs')
-const { join } = require('path')
-const { createServer } = require('https')
+const { readFileSync } = require('node:fs')
+const { join } = require('node:path')
+const { createServer } = require('node:https')
 const { Client } = require('undici')
 
 const serverOptions = {

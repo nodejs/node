@@ -1,6 +1,6 @@
 'use strict'
 
-const { AsyncResource } = require('async_hooks')
+const { AsyncResource } = require('node:async_hooks')
 const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
@@ -96,7 +96,7 @@ function connect (opts, callback) {
     if (typeof callback !== 'function') {
       throw err
     }
-    const opaque = opts && opts.opaque
+    const opaque = opts?.opaque
     queueMicrotask(() => callback(err, { opaque }))
   }
 }

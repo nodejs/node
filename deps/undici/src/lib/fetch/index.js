@@ -3,15 +3,15 @@
 'use strict'
 
 const {
-  Response,
   makeNetworkError,
   makeAppropriateNetworkError,
   filterResponse,
-  makeResponse
+  makeResponse,
+  fromInnerResponse
 } = require('./response')
-const { Headers, HeadersList } = require('./headers')
+const { HeadersList } = require('./headers')
 const { Request, makeRequest } = require('./request')
-const zlib = require('zlib')
+const zlib = require('node:zlib')
 const {
   bytesMatch,
   makePolicyContainer,
@@ -41,12 +41,14 @@ const {
   urlIsLocal,
   urlIsHttpHttpsScheme,
   urlHasHttpsScheme,
-  clampAndCoursenConnectionTimingInfo,
+  clampAndCoarsenConnectionTimingInfo,
   simpleRangeHeaderValue,
-  buildContentRange
+  buildContentRange,
+  createInflate,
+  extractMimeType
 } = require('./util')
-const { kState, kHeaders, kGuard, kRealm } = require('./symbols')
-const assert = require('assert')
+const { kState } = require('./symbols')
+const assert = require('node:assert')
 const { safelyExtractBody, extractBody } = require('./body')
 const {
   redirectStatusSet,
@@ -55,14 +57,13 @@ const {
   requestBodyHeader,
   subresourceSet
 } = require('./constants')
-const { kHeadersList, kConstruct } = require('../core/symbols')
-const EE = require('events')
-const { Readable, pipeline } = require('stream')
+const EE = require('node:events')
+const { Readable, pipeline } = require('node:stream')
 const { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor, bufferToLowerCasedHeaderName } = require('../core/util')
-const { dataURLProcessor, serializeAMimeType, parseMIMEType } = require('./dataURL')
+const { dataURLProcessor, serializeAMimeType, minimizeSupportedMimeType } = require('./dataURL')
 const { getGlobalDispatcher } = require('../global')
 const { webidl } = require('./webidl')
-const { STATUS_CODES } = require('http')
+const { STATUS_CODES } = require('node:http')
 const GET_OR_HEAD = ['GET', 'HEAD']
 
 /** @type {import('buffer').resolveObjectURL} */
@@ -224,21 +225,13 @@ function fetch (input, init = undefined) {
     // 3. If response is a network error, then reject p with a TypeError
     // and terminate these substeps.
     if (response.type === 'error') {
-      p.reject(
-        Object.assign(new TypeError('fetch failed'), { cause: response.error })
-      )
+      p.reject(new TypeError('fetch failed', { cause: response.error }))
       return Promise.resolve()
     }
 
     // 4. Set responseObject to the result of creating a Response object,
     // given response, "immutable", and relevantRealm.
-    responseObject = new Response(kConstruct)
-    responseObject[kState] = response
-    responseObject[kRealm] = relevantRealm
-    responseObject[kHeaders] = new Headers(kConstruct)
-    responseObject[kHeaders][kHeadersList] = response.headersList
-    responseObject[kHeaders][kGuard] = 'immutable'
-    responseObject[kHeaders][kRealm] = relevantRealm
+    responseObject = fromInnerResponse(response, 'immutable', relevantRealm)
 
     // 5. Resolve p with responseObject.
     p.resolve(responseObject)
@@ -311,7 +304,7 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
   // global, and cacheState.
   markResourceTiming(
     timingInfo,
-    originalURL,
+    originalURL.href,
     initiatorType,
     globalThis,
     cacheState
@@ -319,11 +312,9 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
 }
 
 // https://w3c.github.io/resource-timing/#dfn-mark-resource-timing
-function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis, cacheState) {
-  if (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2)) {
-    performance.markResourceTiming(timingInfo, originalURL.href, initiatorType, globalThis, cacheState)
-  }
-}
+const markResourceTiming = (nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 2))
+  ? performance.markResourceTiming
+  : () => {}
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject, error) {
@@ -800,7 +791,7 @@ function schemeFetch (fetchParams) {
     }
     case 'blob:': {
       if (!resolveObjectURL) {
-        resolveObjectURL = require('buffer').resolveObjectURL
+        resolveObjectURL = require('node:buffer').resolveObjectURL
       }
 
       // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
@@ -1037,11 +1028,11 @@ function fetchFinale (fetchParams, response) {
         responseStatus = response.status
 
         // 2. Let mimeType be the result of extracting a MIME type from response’s header list.
-        const mimeType = parseMIMEType(response.headersList.get('content-type', true)) // TODO: fix
+        const mimeType = extractMimeType(response.headersList)
 
         // 3. If mimeType is not failure, then set bodyInfo’s content type to the result of minimizing a supported MIME type given mimeType.
         if (mimeType !== 'failure') {
-          // TODO
+          bodyInfo.contentType = minimizeSupportedMimeType(mimeType)
         }
       }
 
@@ -1050,7 +1041,7 @@ function fetchFinale (fetchParams, response) {
       //    and responseStatus.
       if (fetchParams.request.initiatorType != null) {
         // TODO: update markresourcetiming
-        markResourceTiming(timingInfo, fetchParams.request.url, fetchParams.request.initiatorType, globalThis, cacheState, bodyInfo, responseStatus)
+        markResourceTiming(timingInfo, fetchParams.request.url.href, fetchParams.request.initiatorType, globalThis, cacheState, bodyInfo, responseStatus)
       }
     }
 
@@ -1096,7 +1087,7 @@ function fetchFinale (fetchParams, response) {
     // 3. Set up transformStream with transformAlgorithm set to identityTransformAlgorithm and flushAlgorithm
     //    set to processResponseEndOfBody.
     const transformStream = new TransformStream({
-      start () {},
+      start () { },
       transform (chunk, controller) {
         controller.enqueue(chunk)
       },
@@ -2101,7 +2092,7 @@ async function httpNetworkFetch (
           // connection timing info with connection’s timing info, timingInfo’s post-redirect start
           // time, and fetchParams’s cross-origin isolated capability.
           // TODO: implement connection timing
-          timingInfo.finalConnectionTimingInfo = clampAndCoursenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
+          timingInfo.finalConnectionTimingInfo = clampAndCoarsenConnectionTimingInfo(undefined, timingInfo.postRedirectStartTime, fetchParams.crossOriginIsolatedCapability)
 
           if (connection.destroyed) {
             abort(new DOMException('The operation was aborted.', 'AbortError'))
@@ -2186,7 +2177,7 @@ async function httpNetworkFetch (
                   finishFlush: zlib.constants.Z_SYNC_FLUSH
                 }))
               } else if (coding === 'deflate') {
-                decoders.push(zlib.createInflate())
+                decoders.push(createInflate())
               } else if (coding === 'br') {
                 decoders.push(zlib.createBrotliDecompress())
               } else {
@@ -2202,7 +2193,7 @@ async function httpNetworkFetch (
             headersList,
             body: decoders.length
               ? pipeline(this.body, ...decoders, () => { })
-              : this.body.on('error', () => {})
+              : this.body.on('error', () => { })
           })
 
           return true

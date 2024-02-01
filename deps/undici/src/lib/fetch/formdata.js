@@ -4,7 +4,7 @@ const { isBlobLike, toUSVString, makeIterator } = require('./util')
 const { kState } = require('./symbols')
 const { File: UndiciFile, FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
-const { Blob, File: NativeFile } = require('buffer')
+const { Blob, File: NativeFile } = require('node:buffer')
 
 /** @type {globalThis['File']} */
 const File = NativeFile ?? UndiciFile

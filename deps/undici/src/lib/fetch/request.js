@@ -29,8 +29,8 @@ const { webidl } = require('./webidl')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList, kConstruct } = require('../core/symbols')
-const assert = require('assert')
-const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
+const assert = require('node:assert')
+const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('node:events')
 
 const kAbortController = Symbol('abortController')
 
@@ -836,6 +836,7 @@ function cloneRequest (request) {
 }
 
 /**
+ * @see https://fetch.spec.whatwg.org/#request-create
  * @param {any} innerRequest
  * @param {AbortSignal} signal
  * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard

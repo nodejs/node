@@ -337,7 +337,7 @@ class EventSourceStream extends Transform {
         if (event[field] === undefined) {
           event[field] = value
         } else {
-          event[field] += '\n' + value
+          event[field] += `\n${value}`
         }
         break
       case 'retry':

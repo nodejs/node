@@ -8,18 +8,19 @@ const {
   isReadableStreamLike,
   readableStreamClose,
   createDeferredPromise,
-  fullyReadBody
+  fullyReadBody,
+  extractMimeType
 } = require('./util')
 const { FormData } = require('./formdata')
 const { kState } = require('./symbols')
 const { webidl } = require('./webidl')
-const { Blob, File: NativeFile } = require('buffer')
-const { kBodyUsed, kHeadersList } = require('../core/symbols')
-const assert = require('assert')
+const { Blob, File: NativeFile } = require('node:buffer')
+const { kBodyUsed } = require('../core/symbols')
+const assert = require('node:assert')
 const { isErrored } = require('../core/util')
 const { isUint8Array, isArrayBuffer } = require('util/types')
 const { File: UndiciFile } = require('./file')
-const { parseMIMEType, serializeAMimeType } = require('./dataURL')
+const { serializeAMimeType } = require('./dataURL')
 
 /** @type {globalThis['File']} */
 const File = NativeFile ?? UndiciFile
@@ -167,7 +168,7 @@ function extractBody (object, keepalive = false) {
     // Set type to `multipart/form-data; boundary=`,
     // followed by the multipart/form-data boundary string generated
     // by the multipart/form-data encoding algorithm.
-    type = 'multipart/form-data; boundary=' + boundary
+    type = `multipart/form-data; boundary=${boundary}`
   } else if (isBlobLike(object)) {
     // Blob
 
@@ -330,7 +331,7 @@ function bodyMixinMethods (instance) {
       return specConsumeBody(this, (bytes) => {
         let mimeType = bodyMimeType(this)
 
-        if (mimeType === 'failure') {
+        if (mimeType === null) {
           mimeType = ''
         } else if (mimeType) {
           mimeType = serializeAMimeType(mimeType)
@@ -369,12 +370,11 @@ function bodyMixinMethods (instance) {
 
       throwIfAborted(this[kState])
 
-      const contentType = this.headers[kHeadersList].get('content-type', true)
-
-      const mimeType = contentType !== null ? parseMIMEType(contentType) : 'failure'
+      // 1. Let mimeType be the result of get the MIME type with this.
+      const mimeType = bodyMimeType(this)
 
       // If mimeType’s essence is "multipart/form-data", then:
-      if (mimeType !== 'failure' && mimeType.essence === 'multipart/form-data') {
+      if (mimeType !== null && mimeType.essence === 'multipart/form-data') {
         const headers = {}
         for (const [key, value] of this.headers) headers[key] = value
 
@@ -432,7 +432,7 @@ function bodyMixinMethods (instance) {
         await busboyResolve
 
         return responseFormData
-      } else if (mimeType !== 'failure' && mimeType.essence === 'application/x-www-form-urlencoded') {
+      } else if (mimeType !== null && mimeType.essence === 'application/x-www-form-urlencoded') {
         // Otherwise, if mimeType’s essence is "application/x-www-form-urlencoded", then:
 
         // 1. Let entries be the result of parsing bytes.
@@ -455,7 +455,7 @@ function bodyMixinMethods (instance) {
         } catch (err) {
           // istanbul ignore next: Unclear when new URLSearchParams can fail on a string.
           // 2. If entries is failure, then throw a TypeError.
-          throw Object.assign(new TypeError(), { cause: err })
+          throw new TypeError(undefined, { cause: err })
         }
 
         // 3. Return a new FormData object whose entries are entries.
@@ -581,17 +581,25 @@ function parseJSONFromBytes (bytes) {
 
 /**
  * @see https://fetch.spec.whatwg.org/#concept-body-mime-type
- * @param {import('./response').Response|import('./request').Request} object
+ * @param {import('./response').Response|import('./request').Request} requestOrResponse
  */
-function bodyMimeType (object) {
-  const { headersList } = object[kState]
-  const contentType = headersList.get('content-type')
+function bodyMimeType (requestOrResponse) {
+  // 1. Let headers be null.
+  // 2. If requestOrResponse is a Request object, then set headers to requestOrResponse’s request’s header list.
+  // 3. Otherwise, set headers to requestOrResponse’s response’s header list.
+  /** @type {import('./headers').HeadersList} */
+  const headers = requestOrResponse[kState].headersList
 
-  if (contentType === null) {
-    return 'failure'
+  // 4. Let mimeType be the result of extracting a MIME type from headers.
+  const mimeType = extractMimeType(headers)
+
+  // 5. If mimeType is failure, then return null.
+  if (mimeType === 'failure') {
+    return null
   }
 
-  return parseMIMEType(contentType)
+  // 6. Return mimeType.
+  return mimeType
 }
 
 module.exports = {
