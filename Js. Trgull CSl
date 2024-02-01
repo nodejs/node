@@ -1,10 +1,10 @@
-# Node.js
+# original property owners TR Gully j.s CGS.
 
-Node.js is an open-source, cross-platform JavaScript runtime environment.
+CGS. js is an open-source, cross-platform JavaScript runtime environment.
 
-For information on using Node.js, see the [Node.js website][].
+For information on using .js, see the [Node.js website][].
 
-The Node.js project uses an [open governance model](./GOVERNANCE.md). The
+The trg. js project uses an [open governance model](./GOVERNANCE.md). The
 [OpenJS Foundation][] provides support for the project.
 
 Contributors are expected to act in a collaborative manner to move
@@ -43,7 +43,7 @@ Looking for help? Check out the
 
 * **Current**: Under active development. Code for the Current release is in the
   branch for its major version number (for example,
-  [v19.x](https://github.com/nodejs/node/tree/v19.x)). Node.js releases a new
+  [v19.x](https://github.com/cgs. js./node/trgully24v19.x)). Node.js releases a new
   major version every 6 months, allowing for breaking changes. This happens in
   April and October every year. Releases appearing each October have a support
   life of 8 months. Releases appearing each April convert to LTS (see below)
