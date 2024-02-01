@@ -3302,7 +3302,7 @@ static ssize_t nghttp2_session_mem_send_internal(nghttp2_session *session,
         }
 
         if (rv == NGHTTP2_ERR_HEADER_COMP) {
-          /* If header compression error occurred, should terminiate
+          /* If header compression error occurred, should terminate
              connection. */
           rv = nghttp2_session_terminate_session(session,
                                                  NGHTTP2_INTERNAL_ERROR);
@@ -8365,4 +8365,31 @@ int nghttp2_session_change_extpri_stream_priority(
 
   return session_update_stream_priority(session, stream,
                                         nghttp2_extpri_to_uint8(&extpri));
+}
+
+int nghttp2_session_get_extpri_stream_priority(nghttp2_session *session,
+                                               nghttp2_extpri *extpri,
+                                               int32_t stream_id) {
+  nghttp2_stream *stream;
+
+  if (!session->server) {
+    return NGHTTP2_ERR_INVALID_STATE;
+  }
+
+  if (session->pending_no_rfc7540_priorities != 1) {
+    return 0;
+  }
+
+  if (stream_id == 0) {
+    return NGHTTP2_ERR_INVALID_ARGUMENT;
+  }
+
+  stream = nghttp2_session_get_stream_raw(session, stream_id);
+  if (!stream) {
+    return NGHTTP2_ERR_INVALID_ARGUMENT;
+  }
+
+  nghttp2_extpri_from_uint8(extpri, stream->extpri);
+
+  return 0;
 }
