@@ -107,7 +107,6 @@ expected.atRunTime = new Set([
   'NativeModule internal/net',
   'NativeModule internal/dns/utils',
   'NativeModule internal/process/pre_execution',
-  'NativeModule internal/vm/module',
   'NativeModule internal/modules/esm/utils',
 ]);
 

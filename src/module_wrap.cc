@@ -601,6 +601,7 @@ static MaybeLocal<Promise> ImportModuleDynamically(
       id,
       Local<Value>(specifier),
       attributes,
+      resource_name,
   };
 
   Local<Value> result;
