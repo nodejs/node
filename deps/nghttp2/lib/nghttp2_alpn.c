@@ -22,13 +22,13 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nghttp2_npn.h"
+#include "nghttp2_alpn.h"
 
 #include <string.h>
 
-static int select_next_protocol(unsigned char **out, unsigned char *outlen,
-                                const unsigned char *in, unsigned int inlen,
-                                const char *key, unsigned int keylen) {
+static int select_alpn(const unsigned char **out, unsigned char *outlen,
+                       const unsigned char *in, unsigned int inlen,
+                       const char *key, unsigned int keylen) {
   unsigned int i;
   for (i = 0; i + keylen <= inlen; i += (unsigned int)(in[i] + 1)) {
     if (memcmp(&in[i], key, keylen) == 0) {
@@ -45,12 +45,25 @@ static int select_next_protocol(unsigned char **out, unsigned char *outlen,
 
 int nghttp2_select_next_protocol(unsigned char **out, unsigned char *outlen,
                                  const unsigned char *in, unsigned int inlen) {
-  if (select_next_protocol(out, outlen, in, inlen, NGHTTP2_PROTO_ALPN,
-                           NGHTTP2_PROTO_ALPN_LEN) == 0) {
+  if (select_alpn((const unsigned char **)out, outlen, in, inlen,
+                  NGHTTP2_PROTO_ALPN, NGHTTP2_PROTO_ALPN_LEN) == 0) {
     return 1;
   }
-  if (select_next_protocol(out, outlen, in, inlen, NGHTTP2_HTTP_1_1_ALPN,
-                           NGHTTP2_HTTP_1_1_ALPN_LEN) == 0) {
+  if (select_alpn((const unsigned char **)out, outlen, in, inlen,
+                  NGHTTP2_HTTP_1_1_ALPN, NGHTTP2_HTTP_1_1_ALPN_LEN) == 0) {
+    return 0;
+  }
+  return -1;
+}
+
+int nghttp2_select_alpn(const unsigned char **out, unsigned char *outlen,
+                        const unsigned char *in, unsigned int inlen) {
+  if (select_alpn(out, outlen, in, inlen, NGHTTP2_PROTO_ALPN,
+                  NGHTTP2_PROTO_ALPN_LEN) == 0) {
+    return 1;
+  }
+  if (select_alpn(out, outlen, in, inlen, NGHTTP2_HTTP_1_1_ALPN,
+                  NGHTTP2_HTTP_1_1_ALPN_LEN) == 0) {
     return 0;
   }
   return -1;
