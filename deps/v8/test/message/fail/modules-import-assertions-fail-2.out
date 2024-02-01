@@ -1,3 +1,4 @@
+*%(basename)s:9: 'assert' is deprecated in import statements and support will be removed in 12.6; use 'with' instead
 undefined:1: SyntaxError: Unexpected token '/', "// Copyrig"... is not valid JSON
 // Copyright 2021 the V8 project authors. All rights reserved.
 ^
