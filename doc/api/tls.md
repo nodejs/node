@@ -1651,7 +1651,7 @@ changes:
     * hint: {string} optional message sent from the server to help client
       decide which identity to use during negotiation.
       Always `null` if TLS 1.3 is used.
-    * Returns: {Object} in the form
+    * Returns: {Object} An object in the form
       `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }`
       or `null` to stop the negotiation process. `psk` must be
       compatible with the selected cipher's digest.

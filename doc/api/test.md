@@ -2825,8 +2825,9 @@ added:
   - v16.17.0
 -->
 
-* {AbortSignal} Can be used to abort test subtasks when the test has been
-  aborted.
+* Type: {AbortSignal}
+
+Can be used to abort test subtasks when the test has been aborted.
 
 ```js
 test('top level test', async (t) => {
@@ -2971,8 +2972,9 @@ added:
   - v16.17.0
 -->
 
-* {AbortSignal} Can be used to abort test subtasks when the test has been
-  aborted.
+* Type: {AbortSignal}
+
+Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
