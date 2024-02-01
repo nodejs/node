@@ -24,13 +24,11 @@
  */
 #include "nghttp2_time.h"
 
-#ifdef HAVE_TIME_H
-#  include <time.h>
-#endif /* HAVE_TIME_H */
+#ifdef HAVE_WINDOWS_H
+#  include <windows.h>
+#endif /* HAVE_WINDOWS_H */
 
-#ifdef HAVE_SYSINFOAPI_H
-#  include <sysinfoapi.h>
-#endif /* HAVE_SYSINFOAPI_H */
+#include <time.h>
 
 #if !defined(HAVE_GETTICKCOUNT64) || defined(__CYGWIN__)
 static uint64_t time_now_sec(void) {
@@ -46,7 +44,8 @@ static uint64_t time_now_sec(void) {
 
 #if defined(HAVE_GETTICKCOUNT64) && !defined(__CYGWIN__)
 uint64_t nghttp2_time_now_sec(void) { return GetTickCount64() / 1000; }
-#elif defined(HAVE_CLOCK_GETTIME)
+#elif defined(HAVE_CLOCK_GETTIME) && defined(HAVE_DECL_CLOCK_MONOTONIC) &&     \
+    HAVE_DECL_CLOCK_MONOTONIC
 uint64_t nghttp2_time_now_sec(void) {
   struct timespec tp;
   int rv = clock_gettime(CLOCK_MONOTONIC, &tp);
@@ -57,6 +56,8 @@ uint64_t nghttp2_time_now_sec(void) {
 
   return (uint64_t)tp.tv_sec;
 }
-#else  /* (!HAVE_CLOCK_GETTIME || __CYGWIN__) && !HAVE_GETTICKCOUNT64 */
+#else  /* (!HAVE_CLOCK_GETTIME || !HAVE_DECL_CLOCK_MONOTONIC) &&               \
+          (!HAVE_GETTICKCOUNT64 || __CYGWIN__)) */
 uint64_t nghttp2_time_now_sec(void) { return time_now_sec(); }
-#endif /* (!HAVE_CLOCK_GETTIME || __CYGWIN__) && !HAVE_GETTICKCOUNT64 */
+#endif /* (!HAVE_CLOCK_GETTIME || !HAVE_DECL_CLOCK_MONOTONIC) &&               \
+         (!HAVE_GETTICKCOUNT64 || __CYGWIN__)) */

@@ -1997,7 +1997,7 @@ typedef int (*nghttp2_on_extension_chunk_recv_callback)(
  * ``NULL``.  The |*payload| is available as ``frame->ext.payload`` in
  * :type:`nghttp2_on_frame_recv_callback`.  Therefore if application
  * can free that memory inside :type:`nghttp2_on_frame_recv_callback`
- * callback.  Of course, application has a liberty not ot use
+ * callback.  Of course, application has a liberty not to use
  * |*payload|, and do its own mechanism to process extension frames.
  *
  * To abort processing this extension frame, return
@@ -4961,6 +4961,55 @@ NGHTTP2_EXTERN int nghttp2_session_change_extpri_stream_priority(
 /**
  * @function
  *
+ * Stores the stream priority of the existing stream denoted by
+ * |stream_id| in the object pointed by |extpri|.  This function is
+ * meant to be used by server for :rfc:`9218` extensible
+ * prioritization scheme.
+ *
+ * If |session| is initialized as client, this function returns
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_STATE`.
+ *
+ * If
+ * :enum:`nghttp2_settings_id.NGHTTP2_SETTINGS_NO_RFC7540_PRIORITIES`
+ * of value of 1 is not submitted via `nghttp2_submit_settings()`,
+ * this function does nothing and returns 0.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_STATE`
+ *     The |session| is initialized as client.
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
+ *     |stream_id| is zero; or a stream denoted by |stream_id| is not
+ *     found.
+ */
+NGHTTP2_EXTERN int nghttp2_session_get_extpri_stream_priority(
+    nghttp2_session *session, nghttp2_extpri *extpri, int32_t stream_id);
+
+/**
+ * @function
+ *
+ * Parses Priority header field value pointed by |value| of length
+ * |len|, and stores the result in the object pointed by |extpri|.
+ * Priority header field is defined in :rfc:`9218`.
+ *
+ * This function does not initialize the object pointed by |extpri|
+ * before storing the result.  It only assigns the values that the
+ * parser correctly extracted to fields.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :enum:`nghttp2_error.NGHTTP2_ERR_INVALID_ARGUMENT`
+ *     Failed to parse the header field value.
+ */
+NGHTTP2_EXTERN int nghttp2_extpri_parse_priority(nghttp2_extpri *extpri,
+                                                 const uint8_t *value,
+                                                 size_t len);
+
+/**
+ * @function
+ *
  * Compares ``lhs->name`` of length ``lhs->namelen`` bytes and
  * ``rhs->name`` of length ``rhs->namelen`` bytes.  Returns negative
  * integer if ``lhs->name`` is found to be less than ``rhs->name``; or
@@ -4973,11 +5022,14 @@ NGHTTP2_EXTERN int nghttp2_nv_compare_name(const nghttp2_nv *lhs,
 /**
  * @function
  *
- * A helper function for dealing with NPN in client side or ALPN in
- * server side.  The |in| contains peer's protocol list in preferable
- * order.  The format of |in| is length-prefixed and not
- * null-terminated.  For example, ``h2`` and
- * ``http/1.1`` stored in |in| like this::
+ * .. warning::
+ *
+ *   Deprecated.  Use `nghttp2_select_alpn` instead.
+ *
+ * A helper function for dealing with ALPN in server side.  The |in|
+ * contains peer's protocol list in preferable order.  The format of
+ * |in| is length-prefixed and not null-terminated.  For example,
+ * ``h2`` and ``http/1.1`` stored in |in| like this::
  *
  *     in[0] = 2
  *     in[1..2] = "h2"
@@ -5002,20 +5054,18 @@ NGHTTP2_EXTERN int nghttp2_nv_compare_name(const nghttp2_nv *lhs,
  *
  * For ALPN, refer to https://tools.ietf.org/html/rfc7301
  *
- * See http://technotes.googlecode.com/git/nextprotoneg.html for more
- * details about NPN.
+ * To use this method you should do something like::
  *
- * For NPN, to use this method you should do something like::
- *
- *     static int select_next_proto_cb(SSL* ssl,
- *                                     unsigned char **out,
+ *     static int alpn_select_proto_cb(SSL* ssl,
+ *                                     const unsigned char **out,
  *                                     unsigned char *outlen,
  *                                     const unsigned char *in,
  *                                     unsigned int inlen,
  *                                     void *arg)
  *     {
  *         int rv;
- *         rv = nghttp2_select_next_protocol(out, outlen, in, inlen);
+ *         rv = nghttp2_select_next_protocol((unsigned char**)out, outlen,
+ *                                           in, inlen);
  *         if (rv == -1) {
  *             return SSL_TLSEXT_ERR_NOACK;
  *         }
@@ -5025,13 +5075,72 @@ NGHTTP2_EXTERN int nghttp2_nv_compare_name(const nghttp2_nv *lhs,
  *         return SSL_TLSEXT_ERR_OK;
  *     }
  *     ...
- *     SSL_CTX_set_next_proto_select_cb(ssl_ctx, select_next_proto_cb, my_obj);
+ *     SSL_CTX_set_alpn_select_cb(ssl_ctx, alpn_select_proto_cb, my_obj);
  *
  */
 NGHTTP2_EXTERN int nghttp2_select_next_protocol(unsigned char **out,
                                                 unsigned char *outlen,
                                                 const unsigned char *in,
                                                 unsigned int inlen);
+
+/**
+ * @function
+ *
+ * A helper function for dealing with ALPN in server side.  The |in|
+ * contains peer's protocol list in preferable order.  The format of
+ * |in| is length-prefixed and not null-terminated.  For example,
+ * ``h2`` and ``http/1.1`` stored in |in| like this::
+ *
+ *     in[0] = 2
+ *     in[1..2] = "h2"
+ *     in[3] = 8
+ *     in[4..11] = "http/1.1"
+ *     inlen = 12
+ *
+ * The selection algorithm is as follows:
+ *
+ * 1. If peer's list contains HTTP/2 protocol the library supports,
+ *    it is selected and returns 1. The following step is not taken.
+ *
+ * 2. If peer's list contains ``http/1.1``, this function selects
+ *    ``http/1.1`` and returns 0.  The following step is not taken.
+ *
+ * 3. This function selects nothing and returns -1 (So called
+ *    non-overlap case).  In this case, |out| and |outlen| are left
+ *    untouched.
+ *
+ * Selecting ``h2`` means that ``h2`` is written into |*out| and its
+ * length (which is 2) is assigned to |*outlen|.
+ *
+ * For ALPN, refer to https://tools.ietf.org/html/rfc7301
+ *
+ * To use this method you should do something like::
+ *
+ *     static int alpn_select_proto_cb(SSL* ssl,
+ *                                     const unsigned char **out,
+ *                                     unsigned char *outlen,
+ *                                     const unsigned char *in,
+ *                                     unsigned int inlen,
+ *                                     void *arg)
+ *     {
+ *         int rv;
+ *         rv = nghttp2_select_alpn(out, outlen, in, inlen);
+ *         if (rv == -1) {
+ *             return SSL_TLSEXT_ERR_NOACK;
+ *         }
+ *         if (rv == 1) {
+ *             ((MyType*)arg)->http2_selected = 1;
+ *         }
+ *         return SSL_TLSEXT_ERR_OK;
+ *     }
+ *     ...
+ *     SSL_CTX_set_alpn_select_cb(ssl_ctx, alpn_select_proto_cb, my_obj);
+ *
+ */
+NGHTTP2_EXTERN int nghttp2_select_alpn(const unsigned char **out,
+                                       unsigned char *outlen,
+                                       const unsigned char *in,
+                                       unsigned int inlen);
 
 /**
  * @function
