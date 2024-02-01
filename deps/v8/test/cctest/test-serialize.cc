@@ -2799,6 +2799,78 @@ TEST(CodeSerializerFlagChange) {
   isolate2->Dispose();
 }
 
+TEST(CachedDataCompatibilityCheck) {
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    // Hand-craft a zero-filled cached data which cannot be valid.
+    int length = 64;
+    uint8_t* payload = new uint8_t[length];
+    memset(payload, 0, length);
+    v8::ScriptCompiler::CachedData cache(
+        payload, length, v8::ScriptCompiler::CachedData::BufferOwned);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::ScriptCompiler::CachedData::CompatibilityCheckResult result =
+          cache.CompatibilityCheck(isolate);
+      CHECK_NE(result, v8::ScriptCompiler::CachedData::kSuccess);
+    }
+    isolate->Dispose();
+  }
+
+  const char* js_source = "function f() { return 'abc'; }; f() + 'def'";
+  std::unique_ptr<v8::ScriptCompiler::CachedData> cache;
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::ScriptCompiler::Source source(v8_str(js_source),
+                                        {isolate, v8_str("test")});
+      v8::Local<v8::UnboundScript> script =
+          v8::ScriptCompiler::CompileUnboundScript(
+              isolate, &source, v8::ScriptCompiler::kEagerCompile)
+              .ToLocalChecked();
+      cache.reset(ScriptCompiler::CreateCodeCache(script));
+    }
+    isolate->Dispose();
+  }
+
+  {
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::ScriptCompiler::CachedData::CompatibilityCheckResult result =
+          cache->CompatibilityCheck(isolate);
+      CHECK_EQ(result, v8::ScriptCompiler::CachedData::kSuccess);
+    }
+    isolate->Dispose();
+  }
+
+  {
+    v8_flags.allow_natives_syntax =
+        true;  // Flag change should trigger cache reject.
+    FlagList::EnforceFlagImplications();
+    v8::Isolate::CreateParams create_params;
+    create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    {
+      v8::Isolate::Scope iscope(isolate);
+      v8::ScriptCompiler::CachedData::CompatibilityCheckResult result =
+          cache->CompatibilityCheck(isolate);
+      CHECK_EQ(result, v8::ScriptCompiler::CachedData::kFlagsMismatch);
+    }
+    isolate->Dispose();
+  }
+}
+
 TEST(CodeSerializerBitFlip) {
   i::v8_flags.verify_snapshot_checksum = true;
   const char* js_source = "function f() { return 'abc'; }; f() + 'def'";

@@ -49,22 +49,9 @@ class V8_EXPORT_PRIVATE AlignedCachedData {
   int length_;
 };
 
-enum class SerializedCodeSanityCheckResult {
-  // Don't change order/existing values of this enum since it keys into the
-  // `code_cache_reject_reason` histogram. Append-only!
-  kSuccess = 0,
-  kMagicNumberMismatch = 1,
-  kVersionMismatch = 2,
-  kSourceMismatch = 3,
-  kFlagsMismatch = 5,
-  kChecksumMismatch = 6,
-  kInvalidHeader = 7,
-  kLengthMismatch = 8,
-  kReadOnlySnapshotChecksumMismatch = 9,
+typedef v8::ScriptCompiler::CachedData::CompatibilityCheckResult
+    SerializedCodeSanityCheckResult;
 
-  // This should always point at the last real enum value.
-  kLast = kReadOnlySnapshotChecksumMismatch
-};
 // If this fails, update the static_assert AND the code_cache_reject_reason
 // histogram definition.
 static_assert(static_cast<int>(SerializedCodeSanityCheckResult::kLast) == 9);
