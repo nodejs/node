@@ -751,14 +751,6 @@ class Request {
 
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
-    const clonedRequestObject = new Request(kConstruct)
-    clonedRequestObject[kState] = clonedRequest
-    clonedRequestObject[kRealm] = this[kRealm]
-    clonedRequestObject[kHeaders] = new Headers(kConstruct)
-    clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList
-    clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard]
-    clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm]
-
     // 4. Make clonedRequestObject’s signal follow this’s signal.
     const ac = new AbortController()
     if (this.signal.aborted) {
@@ -771,10 +763,9 @@ class Request {
         }
       )
     }
-    clonedRequestObject[kSignal] = ac.signal
 
     // 4. Return clonedRequestObject.
-    return clonedRequestObject
+    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm])
   }
 }
 
@@ -842,6 +833,26 @@ function cloneRequest (request) {
 
   // 3. Return newRequest.
   return newRequest
+}
+
+/**
+ * @param {any} innerRequest
+ * @param {AbortSignal} signal
+ * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
+ * @param {any} [realm]
+ * @returns {Request}
+ */
+function fromInnerRequest (innerRequest, signal, guard, realm) {
+  const request = new Request(kConstruct)
+  request[kState] = innerRequest
+  request[kRealm] = realm
+  request[kSignal] = signal
+  request[kSignal][kRealm] = realm
+  request[kHeaders] = new Headers(kConstruct)
+  request[kHeaders][kHeadersList] = innerRequest.headersList
+  request[kHeaders][kGuard] = guard
+  request[kHeaders][kRealm] = realm
+  return request
 }
 
 Object.defineProperties(Request.prototype, {
@@ -970,4 +981,4 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   }
 ])
 
-module.exports = { Request, makeRequest }
+module.exports = { Request, makeRequest, fromInnerRequest }

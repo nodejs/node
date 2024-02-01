@@ -873,7 +873,7 @@ var require_util = __commonJS({
     }
     __name(validateHandler, "validateHandler");
     function isDisturbed(body) {
-      return !!(body && (stream.isDisturbed ? stream.isDisturbed(body) || body[kBodyUsed] : body[kBodyUsed] || body.readableDidRead || body._readableState && body._readableState.dataEmitted || isReadableAborted(body)));
+      return !!(body && (stream.isDisturbed(body) || body[kBodyUsed]));
     }
     __name(isDisturbed, "isDisturbed");
     function isErrored(body) {
@@ -6090,6 +6090,14 @@ var require_response = __commonJS({
       });
     }
     __name(makeNetworkError, "makeNetworkError");
+    function isNetworkError(response) {
+      return (
+        // A network error is a response whose type is "error",
+        response.type === "error" && // status is 0
+        response.status === 0
+      );
+    }
+    __name(isNetworkError, "isNetworkError");
     function makeFilteredResponse(response, state) {
       state = {
         internalResponse: response,
@@ -6229,6 +6237,7 @@ var require_response = __commonJS({
       }
     ]);
     module2.exports = {
+      isNetworkError,
       makeNetworkError,
       makeResponse,
       makeAppropriateNetworkError,
@@ -6744,13 +6753,6 @@ var require_request = __commonJS({
           throw new TypeError("unusable");
         }
         const clonedRequest = cloneRequest(this[kState]);
-        const clonedRequestObject = new _Request(kConstruct);
-        clonedRequestObject[kState] = clonedRequest;
-        clonedRequestObject[kRealm] = this[kRealm];
-        clonedRequestObject[kHeaders] = new Headers(kConstruct);
-        clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList;
-        clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard];
-        clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm];
         const ac = new AbortController();
         if (this.signal.aborted) {
           ac.abort(this.signal.reason);
@@ -6762,8 +6764,7 @@ var require_request = __commonJS({
             }
           );
         }
-        clonedRequestObject[kSignal] = ac.signal;
-        return clonedRequestObject;
+        return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm]);
       }
     };
     mixinBody(Request);
@@ -6819,6 +6820,19 @@ var require_request = __commonJS({
       return newRequest;
     }
     __name(cloneRequest, "cloneRequest");
+    function fromInnerRequest(innerRequest, signal, guard, realm) {
+      const request = new Request(kConstruct);
+      request[kState] = innerRequest;
+      request[kRealm] = realm;
+      request[kSignal] = signal;
+      request[kSignal][kRealm] = realm;
+      request[kHeaders] = new Headers(kConstruct);
+      request[kHeaders][kHeadersList] = innerRequest.headersList;
+      request[kHeaders][kGuard] = guard;
+      request[kHeaders][kRealm] = realm;
+      return request;
+    }
+    __name(fromInnerRequest, "fromInnerRequest");
     Object.defineProperties(Request.prototype, {
       method: kEnumerableProperty,
       url: kEnumerableProperty,
@@ -6936,7 +6950,7 @@ var require_request = __commonJS({
         allowedValues: requestDuplex
       }
     ]);
-    module2.exports = { Request, makeRequest };
+    module2.exports = { Request, makeRequest, fromInnerRequest };
   }
 });
 
@@ -8580,6 +8594,7 @@ var require_RedirectHandler = __commonJS({
         this.maxRedirections = maxRedirections;
         this.handler = handler;
         this.history = [];
+        this.redirectionLimitReached = false;
         if (util.isStream(this.opts.body)) {
           if (util.bodyLength(this.opts.body) === 0) {
             this.opts.body.on("data", function() {
@@ -8610,6 +8625,14 @@ var require_RedirectHandler = __commonJS({
       }
       onHeaders(statusCode, headers, resume, statusText) {
         this.location = this.history.length >= this.maxRedirections || util.isDisturbed(this.opts.body) ? null : parseLocation(statusCode, headers);
+        if (this.opts.throwOnMaxRedirect && this.history.length >= this.maxRedirections) {
+          if (this.request) {
+            this.request.abort(new Error("max redirects"));
+          }
+          this.redirectionLimitReached = true;
+          this.abort(new Error("max redirects"));
+          return;
+        }
         if (this.opts.origin) {
           this.history.push(new URL(this.opts.path, this.opts.origin));
         }
@@ -10073,7 +10096,7 @@ upgrade: ${upgrade}\r
         headers[HTTP2_HEADER_CONTENT_LENGTH] = `${contentLength}`;
       }
       session.ref();
-      const shouldEndStream = method === "GET" || method === "HEAD";
+      const shouldEndStream = method === "GET" || method === "HEAD" || body === null;
       if (expectContinue) {
         headers[HTTP2_HEADER_EXPECT] = "100-continue";
         stream = session.request(headers, { endStream: shouldEndStream, signal });
@@ -10807,7 +10830,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", error);
       }
     };
-    function fetch2(input, init = {}) {
+    function fetch2(input, init = void 0) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
@@ -10867,7 +10890,7 @@ var require_fetch = __commonJS({
         request,
         processResponseEndOfBody: handleFetchDone,
         processResponse,
-        dispatcher: init.dispatcher ?? getGlobalDispatcher()
+        dispatcher: init?.dispatcher ?? getGlobalDispatcher()
         // undici
       });
       return p.promise;
@@ -10913,9 +10936,6 @@ var require_fetch = __commonJS({
     }
     __name(markResourceTiming, "markResourceTiming");
     function abortFetch(p, request, responseObject, error) {
-      if (!error) {
-        error = new DOMException("The operation was aborted.", "AbortError");
-      }
       p.reject(error);
       if (request.body != null && isReadable(request.body?.stream)) {
         request.body.stream.cancel(error).catch((err) => {
@@ -10950,6 +10970,7 @@ var require_fetch = __commonJS({
       dispatcher
       // undici
     }) {
+      assert(dispatcher);
       let taskDestination = null;
       let crossOriginIsolatedCapability = false;
       if (request.client != null) {

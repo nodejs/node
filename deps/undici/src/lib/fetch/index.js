@@ -122,7 +122,7 @@ class Fetch extends EE {
 }
 
 // https://fetch.spec.whatwg.org/#fetch-method
-function fetch (input, init = {}) {
+function fetch (input, init = undefined) {
   webidl.argumentLengthCheck(arguments, 1, { header: 'globalThis.fetch' })
 
   // 1. Let p be a new promise.
@@ -248,7 +248,7 @@ function fetch (input, init = {}) {
     request,
     processResponseEndOfBody: handleFetchDone,
     processResponse,
-    dispatcher: init.dispatcher ?? getGlobalDispatcher() // undici
+    dispatcher: init?.dispatcher ?? getGlobalDispatcher() // undici
   })
 
   // 14. Return p.
@@ -327,13 +327,6 @@ function markResourceTiming (timingInfo, originalURL, initiatorType, globalThis,
 
 // https://fetch.spec.whatwg.org/#abort-fetch
 function abortFetch (p, request, responseObject, error) {
-  // Note: AbortSignal.reason was added in node v17.2.0
-  // which would give us an undefined error to reject with.
-  // Remove this once node v16 is no longer supported.
-  if (!error) {
-    error = new DOMException('The operation was aborted.', 'AbortError')
-  }
-
   // 1. Reject promise with error.
   p.reject(error)
 
@@ -381,6 +374,9 @@ function fetching ({
   useParallelQueue = false,
   dispatcher // undici
 }) {
+  // This has bitten me in the ass more times than I'd like to admit.
+  assert(dispatcher)
+
   // 1. Let taskDestination be null.
   let taskDestination = null
 
