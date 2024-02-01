@@ -14,7 +14,7 @@ set(NGHTTP2_SOURCES
   nghttp2_stream.c nghttp2_outbound_item.c
   nghttp2_session.c nghttp2_submit.c
   nghttp2_helper.c
-  nghttp2_npn.c
+  nghttp2_alpn.c
   nghttp2_hd.c nghttp2_hd_huffman.c nghttp2_hd_huffman_data.c
   nghttp2_version.c
   nghttp2_priority_spec.c
