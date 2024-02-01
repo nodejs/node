@@ -9,8 +9,6 @@ prefix parallel
 [$system==win32]
 # https://github.com/nodejs/node/issues/41206
 test-crypto-keygen: PASS,FLAKY
-# https://github.com/nodejs/node/issues/41201
-test-fs-rmdir-recursive: PASS, FLAKY
 # https://github.com/nodejs/node/issues/49985
 test-runner-watch-mode: PASS, FLAKY
 # https://github.com/nodejs/node/issues/50295
