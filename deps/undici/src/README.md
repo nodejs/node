@@ -18,34 +18,23 @@ npm i undici
 ## Benchmarks
 
 The benchmark is a simple `hello world` [example](benchmarks/benchmark.js) using a
-number of unix sockets (connections) with a pipelining depth of 10 running on Node 20.6.0.
+50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
-### Connections 1
-
-
-| Tests               | Samples |        Result | Tolerance | Difference with slowest |
-|---------------------|---------|---------------|-----------|-------------------------|
-| http - no keepalive |      15 |  5.32 req/sec |  ± 2.61 % |                       - |
-| http - keepalive    |      10 |  5.35 req/sec |  ± 2.47 % |                + 0.44 % |
-| undici - fetch      |      15 | 41.85 req/sec |  ± 2.49 % |              + 686.04 % |
-| undici - pipeline   |      40 | 50.36 req/sec |  ± 2.77 % |              + 845.92 % |
-| undici - stream     |      15 | 60.58 req/sec |  ± 2.75 % |             + 1037.72 % |
-| undici - request    |      10 | 61.19 req/sec |  ± 2.60 % |             + 1049.24 % |
-| undici - dispatch   |      20 | 64.84 req/sec |  ± 2.81 % |             + 1117.81 % |
-
-
-### Connections 50
-
-| Tests               | Samples |           Result | Tolerance | Difference with slowest |
-|---------------------|---------|------------------|-----------|-------------------------|
-| undici - fetch      |      30 |  2107.19 req/sec |  ± 2.69 % |                       - |
-| http - no keepalive |      10 |  2698.90 req/sec |  ± 2.68 % |               + 28.08 % |
-| http - keepalive    |      10 |  4639.49 req/sec |  ± 2.55 % |              + 120.17 % |
-| undici - pipeline   |      40 |  6123.33 req/sec |  ± 2.97 % |              + 190.59 % |
-| undici - stream     |      50 |  9426.51 req/sec |  ± 2.92 % |              + 347.35 % |
-| undici - request    |      10 | 10162.88 req/sec |  ± 2.13 % |              + 382.29 % |
-| undici - dispatch   |      50 | 11191.11 req/sec |  ± 2.98 % |              + 431.09 % |
-
+```
+│ Tests               │ Samples │          Result │ Tolerance │ Difference with slowest │
+|─────────────────────|─────────|─────────────────|───────────|─────────────────────────|
+│ got                 │      45 │ 1661.71 req/sec │  ± 2.93 % │                       - │
+│ node-fetch          │      20 │ 2164.81 req/sec │  ± 2.63 % │               + 30.28 % │
+│ undici - fetch      │      35 │ 2274.27 req/sec │  ± 2.70 % │               + 36.86 % │
+│ http - no keepalive │      15 │ 2376.04 req/sec │  ± 2.99 % │               + 42.99 % │
+│ axios               │      25 │ 2612.93 req/sec │  ± 2.89 % │               + 57.24 % │
+│ request             │      40 │ 2712.19 req/sec │  ± 2.92 % │               + 63.22 % │
+│ http - keepalive    │      45 │ 4393.25 req/sec │  ± 2.86 % │              + 164.38 % │
+│ undici - pipeline   │      45 │ 5484.69 req/sec │  ± 2.87 % │              + 230.06 % │
+│ undici - request    │      55 │ 7773.98 req/sec │  ± 2.93 % │              + 367.83 % │
+│ undici - stream     │      70 │ 8425.96 req/sec │  ± 2.91 % │              + 407.07 % │
+│ undici - dispatch   │      50 │ 9488.99 req/sec │  ± 2.85 % │              + 471.04 % │
+```
 
 ## Quick Start
 
@@ -62,9 +51,7 @@ const {
 console.log('response received', statusCode)
 console.log('headers', headers)
 
-for await (const data of body) {
-  console.log('data', data)
-}
+for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```

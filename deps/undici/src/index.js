@@ -21,14 +21,6 @@ const DecoratorHandler = require('./lib/handler/DecoratorHandler')
 const RedirectHandler = require('./lib/handler/RedirectHandler')
 const createRedirectInterceptor = require('./lib/interceptor/redirectInterceptor')
 
-let hasCrypto
-try {
-  require('crypto')
-  hasCrypto = true
-} catch {
-  hasCrypto = false
-}
-
 Object.assign(Dispatcher.prototype, api)
 
 module.exports.Dispatcher = Dispatcher
@@ -102,14 +94,10 @@ function makeDispatcher (fn) {
 module.exports.setGlobalDispatcher = setGlobalDispatcher
 module.exports.getGlobalDispatcher = getGlobalDispatcher
 
-let fetchImpl = null
-module.exports.fetch = async function fetch (resource) {
-  if (!fetchImpl) {
-    fetchImpl = require('./lib/fetch').fetch
-  }
-
+const fetchImpl = require('./lib/fetch').fetch
+module.exports.fetch = async function fetch (init, options = undefined) {
   try {
-    return await fetchImpl(...arguments)
+    return await fetchImpl(init, options)
   } catch (err) {
     if (typeof err === 'object') {
       Error.captureStackTrace(err, this)
@@ -149,11 +137,7 @@ const { parseMIMEType, serializeAMimeType } = require('./lib/fetch/dataURL')
 module.exports.parseMIMEType = parseMIMEType
 module.exports.serializeAMimeType = serializeAMimeType
 
-if (hasCrypto) {
-  const { WebSocket } = require('./lib/websocket/websocket')
-
-  module.exports.WebSocket = WebSocket
-}
+module.exports.WebSocket = require('./lib/websocket/websocket').WebSocket
 
 module.exports.request = makeDispatcher(api.request)
 module.exports.stream = makeDispatcher(api.stream)
@@ -165,3 +149,7 @@ module.exports.MockClient = MockClient
 module.exports.MockPool = MockPool
 module.exports.MockAgent = MockAgent
 module.exports.mockErrors = mockErrors
+
+const { EventSource } = require('./lib/eventsource/eventsource')
+
+module.exports.EventSource = EventSource

@@ -38,6 +38,7 @@ class RedirectHandler {
     this.maxRedirections = maxRedirections
     this.handler = handler
     this.history = []
+    this.redirectionLimitReached = false
 
     if (util.isStream(this.opts.body)) {
       // TODO (fix): Provide some way for the user to cache the file to e.g. /tmp
@@ -90,6 +91,16 @@ class RedirectHandler {
     this.location = this.history.length >= this.maxRedirections || util.isDisturbed(this.opts.body)
       ? null
       : parseLocation(statusCode, headers)
+
+    if (this.opts.throwOnMaxRedirect && this.history.length >= this.maxRedirections) {
+      if (this.request) {
+        this.request.abort(new Error('max redirects'))
+      }
+
+      this.redirectionLimitReached = true
+      this.abort(new Error('max redirects'))
+      return
+    }
 
     if (this.opts.origin) {
       this.history.push(new URL(this.opts.path, this.opts.origin))
