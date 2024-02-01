@@ -5469,6 +5469,20 @@ MaybeHandle<FixedArray> Isolate::GetImportAssertionsFromArgument(
       // an error.
       return MaybeHandle<FixedArray>();
     }
+
+    if (V8_UNLIKELY(!IsUndefined(*import_assertions_object))) {
+      MessageLocation* location = nullptr;
+      MessageLocation computed_location;
+      if (ComputeLocation(&computed_location)) {
+        location = &computed_location;
+      }
+      Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+          this, MessageTemplate::kImportAssertDeprecated, location,
+          factory()->NewStringFromAsciiChecked("12.6"),
+          Handle<FixedArray>::null());
+      message->set_error_level(v8::Isolate::kMessageWarning);
+      MessageHandler::ReportMessage(this, location, message);
+    }
   }
 
   // If there is no 'with' or 'assert' option in the options bag, it's not an
