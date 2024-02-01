@@ -609,11 +609,14 @@ void ContextifyContext::PropertyDefinerCallback(
   bool read_only =
       static_cast<int>(attributes) &
           static_cast<int>(PropertyAttribute::ReadOnly);
+  bool dont_delete = static_cast<int>(attributes) &
+                     static_cast<int>(PropertyAttribute::DontDelete);
 
-  // If the property is set on the global as read_only, don't change it on
-  // the global or sandbox.
-  if (is_declared && read_only)
+  // If the property is set on the global as neither writable nor
+  // configurable, don't change it on the global or sandbox.
+  if (is_declared && read_only && dont_delete) {
     return;
+  }
 
   Local<Object> sandbox = ctx->sandbox();
 
