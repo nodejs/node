@@ -32,5 +32,5 @@ sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-serializinghtml==1.1.5
 sphinxcontrib.applehelp==1.0.3
 tornado==6.3.2
-urllib3==1.26.14
+urllib3==2.0.7
 zipp==3.11.0
