@@ -1,3 +1,5 @@
+'use strict';
+require('../common');
 const { fileURLToPath } = require('url');
 const assert = require('assert');
 
@@ -11,10 +13,9 @@ const assert = require('assert');
     let parsedPath;
     try {
       parsedPath = fileURLToPath(url);
+      assert.ok(parsedPath !== null, `Failed to parse URL: ${url}`);
     } catch (error) {
-      parsedPath = null;
+      throw new Error(`Failed to parse URL: ${url}. Error: ${error}`);
     }
-
-    assert.ok(parsedPath !== null, `Failed to parse URL: ${url}`);
   });
 }
