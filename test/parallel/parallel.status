@@ -7,8 +7,6 @@ prefix parallel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/49985
-test-runner-watch-mode: PASS, FLAKY
 # https://github.com/nodejs/node/issues/50295
 test-cli-node-options: PASS, FLAKY
 
