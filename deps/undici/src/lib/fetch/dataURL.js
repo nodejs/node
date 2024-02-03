@@ -1,5 +1,4 @@
-const assert = require('assert')
-const { isomorphicDecode } = require('./util')
+const assert = require('node:assert')
 
 const encoder = new TextEncoder()
 
@@ -604,18 +603,7 @@ function isHTTPWhiteSpace (char) {
  * @param {boolean} [trailing=true]
  */
 function removeHTTPWhitespace (str, leading = true, trailing = true) {
-  let lead = 0
-  let trail = str.length - 1
-
-  if (leading) {
-    while (lead < str.length && isHTTPWhiteSpace(str.charCodeAt(lead))) lead++
-  }
-
-  if (trailing) {
-    while (trail > 0 && isHTTPWhiteSpace(str.charCodeAt(trail))) trail--
-  }
-
-  return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
+  return removeChars(str, leading, trailing, isHTTPWhiteSpace)
 }
 
 /**
@@ -634,18 +622,108 @@ function isASCIIWhitespace (char) {
  * @param {boolean} [trailing=true]
  */
 function removeASCIIWhitespace (str, leading = true, trailing = true) {
+  return removeChars(str, leading, trailing, isASCIIWhitespace)
+}
+
+/**
+ *
+ * @param {string} str
+ * @param {boolean} leading
+ * @param {boolean} trailing
+ * @param {(charCode: number) => boolean} predicate
+ * @returns
+ */
+function removeChars (str, leading, trailing, predicate) {
   let lead = 0
   let trail = str.length - 1
 
   if (leading) {
-    while (lead < str.length && isASCIIWhitespace(str.charCodeAt(lead))) lead++
+    while (lead < str.length && predicate(str.charCodeAt(lead))) lead++
   }
 
   if (trailing) {
-    while (trail > 0 && isASCIIWhitespace(str.charCodeAt(trail))) trail--
+    while (trail > 0 && predicate(str.charCodeAt(trail))) trail--
   }
 
   return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
+}
+
+/**
+ * @see https://infra.spec.whatwg.org/#isomorphic-decode
+ * @param {Uint8Array} input
+ * @returns {string}
+ */
+function isomorphicDecode (input) {
+  // 1. To isomorphic decode a byte sequence input, return a string whose code point
+  //    length is equal to input’s length and whose code points have the same values
+  //    as the values of input’s bytes, in the same order.
+  const length = input.length
+  if ((2 << 15) - 1 > length) {
+    return String.fromCharCode.apply(null, input)
+  }
+  let result = ''; let i = 0
+  let addition = (2 << 15) - 1
+  while (i < length) {
+    if (i + addition > length) {
+      addition = length - i
+    }
+    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
+  }
+  return result
+}
+
+/**
+ * @see https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
+ * @param {Exclude<ReturnType<typeof parseMIMEType>, 'failure'>} mimeType
+ */
+function minimizeSupportedMimeType (mimeType) {
+  switch (mimeType.essence) {
+    case 'application/ecmascript':
+    case 'application/javascript':
+    case 'application/x-ecmascript':
+    case 'application/x-javascript':
+    case 'text/ecmascript':
+    case 'text/javascript':
+    case 'text/javascript1.0':
+    case 'text/javascript1.1':
+    case 'text/javascript1.2':
+    case 'text/javascript1.3':
+    case 'text/javascript1.4':
+    case 'text/javascript1.5':
+    case 'text/jscript':
+    case 'text/livescript':
+    case 'text/x-ecmascript':
+    case 'text/x-javascript':
+      // 1. If mimeType is a JavaScript MIME type, then return "text/javascript".
+      return 'text/javascript'
+    case 'application/json':
+    case 'text/json':
+      // 2. If mimeType is a JSON MIME type, then return "application/json".
+      return 'application/json'
+    case 'image/svg+xml':
+      // 3. If mimeType’s essence is "image/svg+xml", then return "image/svg+xml".
+      return 'image/svg+xml'
+    case 'text/xml':
+    case 'application/xml':
+      // 4. If mimeType is an XML MIME type, then return "application/xml".
+      return 'application/xml'
+  }
+
+  // 2. If mimeType is a JSON MIME type, then return "application/json".
+  if (mimeType.subtype.endsWith('+json')) {
+    return 'application/json'
+  }
+
+  // 4. If mimeType is an XML MIME type, then return "application/xml".
+  if (mimeType.subtype.endsWith('+xml')) {
+    return 'application/xml'
+  }
+
+  // 5. If mimeType is supported by the user agent, then return mimeType’s essence.
+  // Technically, node doesn't support any mimetypes.
+
+  // 6. Return the empty string.
+  return ''
 }
 
 module.exports = {
@@ -656,5 +734,7 @@ module.exports = {
   stringPercentDecode,
   parseMIMEType,
   collectAnHTTPQuotedString,
-  serializeAMimeType
+  serializeAMimeType,
+  removeChars,
+  minimizeSupportedMimeType
 }

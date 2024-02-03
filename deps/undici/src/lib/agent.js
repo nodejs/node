@@ -42,7 +42,7 @@ class Agent extends DispatcherBase {
       connect = { ...connect }
     }
 
-    this[kInterceptors] = options.interceptors && options.interceptors.Agent && Array.isArray(options.interceptors.Agent)
+    this[kInterceptors] = options.interceptors?.Agent && Array.isArray(options.interceptors.Agent)
       ? options.interceptors.Agent
       : [createRedirectInterceptor({ maxRedirections })]
 
@@ -54,22 +54,20 @@ class Agent extends DispatcherBase {
     this[kFactory] = factory
     this[kClients] = new Map()
 
-    const agent = this
-
     this[kOnDrain] = (origin, targets) => {
-      agent.emit('drain', origin, [agent, ...targets])
+      this.emit('drain', origin, [this, ...targets])
     }
 
     this[kOnConnect] = (origin, targets) => {
-      agent.emit('connect', origin, [agent, ...targets])
+      this.emit('connect', origin, [this, ...targets])
     }
 
     this[kOnDisconnect] = (origin, targets, err) => {
-      agent.emit('disconnect', origin, [agent, ...targets], err)
+      this.emit('disconnect', origin, [this, ...targets], err)
     }
 
     this[kOnConnectionError] = (origin, targets, err) => {
-      agent.emit('connectionError', origin, [agent, ...targets], err)
+      this.emit('connectionError', origin, [this, ...targets], err)
     }
   }
 

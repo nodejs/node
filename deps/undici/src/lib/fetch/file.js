@@ -1,7 +1,7 @@
 'use strict'
 
-const { Blob, File: NativeFile } = require('buffer')
-const { types } = require('util')
+const { Blob, File: NativeFile } = require('node:buffer')
+const { types } = require('node:util')
 const { kState } = require('./symbols')
 const { isBlobLike } = require('./util')
 const { webidl } = require('./webidl')
@@ -283,12 +283,12 @@ function processBlobParts (parts, options) {
       // 2. If element is a BufferSource, get a copy of the
       //    bytes held by the buffer source, and append those
       //    bytes to bytes.
-      if (!element.buffer) { // ArrayBuffer
-        bytes.push(new Uint8Array(element))
-      } else {
+      if (element.buffer) {
         bytes.push(
           new Uint8Array(element.buffer, element.byteOffset, element.byteLength)
         )
+      } else { // ArrayBuffer
+        bytes.push(new Uint8Array(element))
       }
     } else if (isBlobLike(element)) {
       // 3. If element is a Blob, append the bytes it represents

@@ -1,14 +1,14 @@
 'use strict'
 
-const assert = require('assert')
+const assert = require('node:assert')
 const { kDestroyed, kBodyUsed } = require('./symbols')
-const { IncomingMessage } = require('http')
-const stream = require('stream')
-const net = require('net')
+const { IncomingMessage } = require('node:http')
+const stream = require('node:stream')
+const net = require('node:net')
 const { InvalidArgumentError } = require('./errors')
-const { Blob } = require('buffer')
-const nodeUtil = require('util')
-const { stringify } = require('querystring')
+const { Blob } = require('node:buffer')
+const nodeUtil = require('node:util')
+const { stringify } = require('node:querystring')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
@@ -187,7 +187,7 @@ function isDestroyed (stream) {
 }
 
 function isReadableAborted (stream) {
-  const state = stream && stream._readableState
+  const state = stream?._readableState
   return isDestroyed(stream) && state && !state.endEmitted
 }
 
@@ -254,19 +254,19 @@ function parseHeaders (headers, obj) {
     const key = headerNameToString(headers[i])
     let val = obj[key]
 
-    if (!val) {
+    if (val) {
+      if (typeof val === 'string') {
+        val = [val]
+        obj[key] = val
+      }
+      val.push(headers[i + 1].toString('utf8'))
+    } else {
       const headersValue = headers[i + 1]
       if (typeof headersValue === 'string') {
         obj[key] = headersValue
       } else {
         obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
       }
-    } else {
-      if (typeof val === 'string') {
-        val = [val]
-        obj[key] = val
-      }
-      val.push(headers[i + 1].toString('utf8'))
     }
   }
 

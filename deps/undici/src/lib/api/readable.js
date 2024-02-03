@@ -2,8 +2,8 @@
 
 'use strict'
 
-const assert = require('assert')
-const { Readable } = require('stream')
+const assert = require('node:assert')
+const { Readable } = require('node:stream')
 const { RequestAbortedError, NotSupportedError, InvalidArgumentError, AbortError } = require('../core/errors')
 const util = require('../core/util')
 const { ReadableStreamFrom } = require('../core/util')

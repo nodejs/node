@@ -1,7 +1,7 @@
 'use strict'
 
-const net = require('net')
-const assert = require('assert')
+const net = require('node:net')
+const assert = require('node:assert')
 const util = require('./util')
 const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 
@@ -86,7 +86,7 @@ function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, ...o
     let socket
     if (protocol === 'https:') {
       if (!tls) {
-        tls = require('tls')
+        tls = require('node:tls')
       }
       servername = servername || options.servername || util.getServerName(host) || null
 

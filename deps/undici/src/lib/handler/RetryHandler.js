@@ -1,4 +1,4 @@
-const assert = require('assert')
+const assert = require('node:assert')
 
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
 const { RequestRetryError } = require('../core/errors')
@@ -148,10 +148,10 @@ class RetryHandler {
       return
     }
 
-    let retryAfterHeader = headers != null && headers['retry-after']
+    let retryAfterHeader = headers?.['retry-after']
     if (retryAfterHeader) {
       retryAfterHeader = Number(retryAfterHeader)
-      retryAfterHeader = isNaN(retryAfterHeader)
+      retryAfterHeader = Number.isNaN(retryAfterHeader)
         ? calculateRetryAfterHeader(retryAfterHeader)
         : retryAfterHeader * 1e3 // Retry-After is in seconds
     }

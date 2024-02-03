@@ -1,10 +1,10 @@
 'use strict'
 
 const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
-const { AsyncResource } = require('async_hooks')
+const { AsyncResource } = require('node:async_hooks')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
-const assert = require('assert')
+const assert = require('node:assert')
 
 class UpgradeHandler extends AsyncResource {
   constructor (opts, callback) {
@@ -97,7 +97,7 @@ function upgrade (opts, callback) {
     if (typeof callback !== 'function') {
       throw err
     }
-    const opaque = opts && opts.opaque
+    const opaque = opts?.opaque
     queueMicrotask(() => callback(err, { opaque }))
   }
 }

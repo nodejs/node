@@ -1,7 +1,7 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy, kInterceptors } = require('./core/symbols')
-const { URL } = require('url')
+const { URL } = require('node:url')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
@@ -43,7 +43,7 @@ class ProxyAgent extends DispatcherBase {
     super(opts)
     this[kProxy] = buildProxyOptions(opts)
     this[kAgent] = new Agent(opts)
-    this[kInterceptors] = opts.interceptors && opts.interceptors.ProxyAgent && Array.isArray(opts.interceptors.ProxyAgent)
+    this[kInterceptors] = opts.interceptors?.ProxyAgent && Array.isArray(opts.interceptors.ProxyAgent)
       ? opts.interceptors.ProxyAgent
       : []
 
