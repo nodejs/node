@@ -1435,6 +1435,9 @@ describe('tests', async () => {
 });
 ```
 
+**Note:** The `after` hook is guaranteed to run,
+even if tests within the suite fail.
+
 ## `beforeEach([fn][, options])`
 
 <!-- YAML
@@ -1487,6 +1490,9 @@ added:
 
 This function is used to create a hook running
 after each subtest of the current test.
+
+**Note:** The `afterEach` hook is guaranteed to run after every test,
+even if any of the tests fail.
 
 ```js
 describe('tests', async () => {
