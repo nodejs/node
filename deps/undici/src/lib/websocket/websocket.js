@@ -19,7 +19,7 @@ const { WebsocketFrameSend } = require('./frame')
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../core/util')
 const { getGlobalDispatcher } = require('../global')
-const { types } = require('util')
+const { types } = require('node:util')
 
 let experimentalWarned = false
 

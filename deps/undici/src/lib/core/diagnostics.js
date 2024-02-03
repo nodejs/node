@@ -1,6 +1,6 @@
 'use strict'
-const diagnosticsChannel = require('diagnostics_channel')
-const util = require('util')
+const diagnosticsChannel = require('node:diagnostics_channel')
+const util = require('node:util')
 
 const undiciDebugLog = util.debuglog('undici')
 const fetchDebuglog = util.debuglog('fetch')

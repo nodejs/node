@@ -57,12 +57,10 @@ class TstNode {
       } else {
         this.left = new TstNode(key, value, index)
       }
+    } else if (this.right !== null) {
+      this.right.add(key, value, index)
     } else {
-      if (this.right !== null) {
-        this.right.add(key, value, index)
-      } else {
-        this.right = new TstNode(key, value, index)
-      }
+      this.right = new TstNode(key, value, index)
     }
   }
 

@@ -9,12 +9,12 @@ const {
   kGetNetConnect
 } = require('./mock-symbols')
 const { buildURL, nop } = require('../core/util')
-const { STATUS_CODES } = require('http')
+const { STATUS_CODES } = require('node:http')
 const {
   types: {
     isPromise
   }
-} = require('util')
+} = require('node:util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {

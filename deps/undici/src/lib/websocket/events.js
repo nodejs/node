@@ -2,7 +2,7 @@
 
 const { webidl } = require('../fetch/webidl')
 const { kEnumerableProperty } = require('../core/util')
-const { MessagePort } = require('worker_threads')
+const { MessagePort } = require('node:worker_threads')
 
 /**
  * @see https://html.spec.whatwg.org/multipage/comms.html#messageevent

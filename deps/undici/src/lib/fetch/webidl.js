@@ -1,6 +1,6 @@
 'use strict'
 
-const { types } = require('util')
+const { types } = require('node:util')
 const { toUSVString } = require('./util')
 
 /** @type {import('../../types/webidl').Webidl} */

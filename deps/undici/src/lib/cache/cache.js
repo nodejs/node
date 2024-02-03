@@ -3,15 +3,13 @@
 const { kConstruct } = require('./symbols')
 const { urlEquals, fieldValues: getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../core/util')
-const { kHeadersList } = require('../core/symbols')
 const { webidl } = require('../fetch/webidl')
-const { Response, cloneResponse } = require('../fetch/response')
+const { Response, cloneResponse, fromInnerResponse } = require('../fetch/response')
 const { Request, fromInnerRequest } = require('../fetch/request')
-const { Headers } = require('../fetch/headers')
-const { kState, kHeaders, kGuard } = require('../fetch/symbols')
+const { kState } = require('../fetch/symbols')
 const { fetching } = require('../fetch/index')
 const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
-const assert = require('assert')
+const assert = require('node:assert')
 const { getGlobalDispatcher } = require('../global')
 
 /**
@@ -783,11 +781,7 @@ class Cache {
     // 5.5.2
     for (const response of responses) {
       // 5.5.2.1
-      const responseObject = new Response(kConstruct)
-      responseObject[kState] = response
-      responseObject[kHeaders] = new Headers(kConstruct)
-      responseObject[kHeaders][kHeadersList] = response.headersList
-      responseObject[kHeaders][kGuard] = 'immutable'
+      const responseObject = fromInnerResponse(response, 'immutable', { settingsObject: {} })
 
       responseList.push(responseObject.clone())
 

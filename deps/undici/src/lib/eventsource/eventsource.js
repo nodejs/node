@@ -1,6 +1,5 @@
 'use strict'
 
-const { setTimeout } = require('node:timers/promises')
 const { pipeline } = require('node:stream')
 const { fetching } = require('../fetch')
 const { makeRequest } = require('../fetch/request')
@@ -11,6 +10,7 @@ const { parseMIMEType } = require('../fetch/dataURL')
 const { MessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
 const { getGlobalDispatcher } = require('../global')
+const { delay } = require('./util')
 
 let experimentalWarned = false
 
@@ -344,7 +344,7 @@ class EventSource extends EventTarget {
     this.dispatchEvent(new Event('error'))
 
     // 2. Wait a delay equal to the reconnection time of the event source.
-    await setTimeout(this.#settings.reconnectionTime, { ref: false })
+    await delay(this.#settings.reconnectionTime)
 
     // 5. Queue a task to run the following steps:
 

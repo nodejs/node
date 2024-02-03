@@ -29,10 +29,10 @@ class MockAgent extends Dispatcher {
     this[kIsMockActive] = true
 
     // Instantiate Agent and encapsulate
-    if ((opts && opts.agent && typeof opts.agent.dispatch !== 'function')) {
+    if ((opts?.agent && typeof opts.agent.dispatch !== 'function')) {
       throw new InvalidArgumentError('Argument opts.agent must implement Agent')
     }
-    const agent = opts && opts.agent ? opts.agent : new Agent(opts)
+    const agent = opts?.agent ? opts.agent : new Agent(opts)
     this[kAgent] = agent
 
     this[kClients] = agent[kClients]

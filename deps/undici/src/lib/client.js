@@ -4,10 +4,10 @@
 
 /* global WebAssembly */
 
-const assert = require('assert')
-const net = require('net')
-const http = require('http')
-const { pipeline } = require('stream')
+const assert = require('node:assert')
+const net = require('node:net')
+const http = require('node:http')
+const { pipeline } = require('node:stream')
 const util = require('./core/util')
 const { channels } = require('./core/diagnostics')
 const timers = require('./timers')
@@ -84,7 +84,7 @@ const {
 /** @type {import('http2')} */
 let http2
 try {
-  http2 = require('http2')
+  http2 = require('node:http2')
 } catch {
   // @ts-ignore
   http2 = { constants: {} }
@@ -250,7 +250,7 @@ class Client extends DispatcherBase {
       })
     }
 
-    this[kInterceptors] = interceptors && interceptors.Client && Array.isArray(interceptors.Client)
+    this[kInterceptors] = interceptors?.Client && Array.isArray(interceptors.Client)
       ? interceptors.Client
       : [createRedirectInterceptor({ maxRedirections })]
     this[kUrl] = util.parseOrigin(url)
@@ -370,10 +370,10 @@ class Client extends DispatcherBase {
     // TODO: for H2 we need to gracefully flush the remaining enqueued
     // request and close each stream.
     return new Promise((resolve) => {
-      if (!this[kSize]) {
-        resolve(null)
-      } else {
+      if (this[kSize]) {
         this[kClosedResolve] = resolve
+      } else {
+        resolve(null)
       }
     })
   }
@@ -401,10 +401,10 @@ class Client extends DispatcherBase {
         this[kHTTP2SessionState] = null
       }
 
-      if (!this[kSocket]) {
-        queueMicrotask(callback)
-      } else {
+      if (this[kSocket]) {
         util.destroy(this[kSocket].on('close', callback), err)
+      } else {
+        queueMicrotask(callback)
       }
 
       resume(this)
@@ -479,7 +479,7 @@ async function lazyllhttp () {
 
   let mod
   try {
-    mod = await WebAssembly.compile(Buffer.from(require('./llhttp/llhttp_simd-wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(require('./llhttp/llhttp_simd-wasm.js'))
   } catch (e) {
     /* istanbul ignore next */
 
@@ -487,7 +487,7 @@ async function lazyllhttp () {
     // being enabled, but the occurring of this other error
     // * https://github.com/emscripten-core/emscripten/issues/11495
     // got me to remove that check to avoid breaking Node 12.
-    mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require('./llhttp/llhttp-wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(llhttpWasmData || require('./llhttp/llhttp-wasm.js'))
   }
 
   return await WebAssembly.instantiate(mod, {

@@ -4,16 +4,16 @@ const {
   Readable,
   Duplex,
   PassThrough
-} = require('stream')
+} = require('node:stream')
 const {
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
-const { AsyncResource } = require('async_hooks')
+const { AsyncResource } = require('node:async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
-const assert = require('assert')
+const assert = require('node:assert')
 
 const kResume = Symbol('resume')
 
@@ -100,7 +100,7 @@ class PipelineHandler extends AsyncResource {
       read: () => {
         const { body } = this
 
-        if (body && body.resume) {
+        if (body?.resume) {
           body.resume()
         }
       },

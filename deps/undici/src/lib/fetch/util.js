@@ -1,10 +1,13 @@
 'use strict'
 
+const { Transform } = require('node:stream')
+const zlib = require('node:zlib')
 const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
-const { performance } = require('perf_hooks')
+const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./dataURL')
+const { performance } = require('node:perf_hooks')
 const { isBlobLike, toUSVString, ReadableStreamFrom, isValidHTTPToken } = require('../core/util')
-const assert = require('assert')
+const assert = require('node:assert')
 const { isUint8Array } = require('util/types')
 
 // https://nodejs.org/api/crypto.html#determining-if-crypto-support-is-unavailable
@@ -12,7 +15,7 @@ const { isUint8Array } = require('util/types')
 let crypto
 
 try {
-  crypto = require('crypto')
+  crypto = require('node:crypto')
 } catch {
 
 }
@@ -272,7 +275,7 @@ function coarsenTime (timestamp, crossOriginIsolatedCapability) {
 }
 
 // https://fetch.spec.whatwg.org/#clamp-and-coarsen-connection-timing-info
-function clampAndCoursenConnectionTimingInfo (connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
+function clampAndCoarsenConnectionTimingInfo (connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
   if (!connectionTimingInfo?.startTime || connectionTimingInfo.startTime < defaultStartTime) {
     return {
       domainLookupStartTime: defaultStartTime,
@@ -888,29 +891,6 @@ function isReadableStreamLike (stream) {
 }
 
 /**
- * @see https://infra.spec.whatwg.org/#isomorphic-decode
- * @param {Uint8Array} input
- */
-function isomorphicDecode (input) {
-  // 1. To isomorphic decode a byte sequence input, return a string whose code point
-  //    length is equal to input’s length and whose code points have the same values
-  //    as the values of input’s bytes, in the same order.
-  const length = input.length
-  if ((2 << 15) - 1 > length) {
-    return String.fromCharCode.apply(null, input)
-  }
-  let result = ''; let i = 0
-  let addition = (2 << 15) - 1
-  while (i < length) {
-    if (i + addition > length) {
-      addition = length - i
-    }
-    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
-  }
-  return result
-}
-
-/**
  * @param {ReadableStreamController<Uint8Array>} controller
  */
 function readableStreamClose (controller) {
@@ -1007,18 +987,12 @@ function urlIsHttpHttpsScheme (url) {
   return protocol === 'http:' || protocol === 'https:'
 }
 
-/** @type {import('./dataURL')['collectASequenceOfCodePoints']} */
-let collectASequenceOfCodePoints
-
 /**
  * @see https://fetch.spec.whatwg.org/#simple-range-header-value
  * @param {string} value
  * @param {boolean} allowWhitespace
  */
 function simpleRangeHeaderValue (value, allowWhitespace) {
-  // Note: avoid circular require
-  collectASequenceOfCodePoints ??= require('./dataURL').collectASequenceOfCodePoints
-
   // 1. Let data be the isomorphic decoding of value.
   // Note: isomorphic decoding takes a sequence of bytes (ie. a Uint8Array) and turns it into a string,
   // nothing more. We obviously don't need to do that if value is a string already.
@@ -1174,6 +1148,191 @@ function buildContentRange (rangeStart, rangeEnd, fullLength) {
   return contentRange
 }
 
+// A Stream, which pipes the response to zlib.createInflate() or
+// zlib.createInflateRaw() depending on the first byte of the Buffer.
+// If the lower byte of the first byte is 0x08, then the stream is
+// interpreted as a zlib stream, otherwise it's interpreted as a
+// raw deflate stream.
+class InflateStream extends Transform {
+  _transform (chunk, encoding, callback) {
+    if (!this._inflateStream) {
+      if (chunk.length === 0) {
+        callback()
+        return
+      }
+      this._inflateStream = (chunk[0] & 0x0F) === 0x08
+        ? zlib.createInflate()
+        : zlib.createInflateRaw()
+
+      this._inflateStream.on('data', this.push.bind(this))
+      this._inflateStream.on('end', () => this.push(null))
+      this._inflateStream.on('error', (err) => this.destroy(err))
+    }
+
+    this._inflateStream.write(chunk, encoding, callback)
+  }
+
+  _final (callback) {
+    if (this._inflateStream) {
+      this._inflateStream.end()
+      this._inflateStream = null
+    }
+    callback()
+  }
+}
+
+function createInflate () {
+  return new InflateStream()
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-header-extract-mime-type
+ * @param {import('./headers').HeadersList} headers
+ */
+function extractMimeType (headers) {
+  // 1. Let charset be null.
+  let charset = null
+
+  // 2. Let essence be null.
+  let essence = null
+
+  // 3. Let mimeType be null.
+  let mimeType = null
+
+  // 4. Let values be the result of getting, decoding, and splitting `Content-Type` from headers.
+  const values = getDecodeSplit('content-type', headers)
+
+  // 5. If values is null, then return failure.
+  if (values === null) {
+    return 'failure'
+  }
+
+  // 6. For each value of values:
+  for (const value of values) {
+    // 6.1. Let temporaryMimeType be the result of parsing value.
+    const temporaryMimeType = parseMIMEType(value)
+
+    // 6.2. If temporaryMimeType is failure or its essence is "*/*", then continue.
+    if (temporaryMimeType === 'failure' || temporaryMimeType.essence === '*/*') {
+      continue
+    }
+
+    // 6.3. Set mimeType to temporaryMimeType.
+    mimeType = temporaryMimeType
+
+    // 6.4. If mimeType’s essence is not essence, then:
+    if (mimeType.essence !== essence) {
+      // 6.4.1. Set charset to null.
+      charset = null
+
+      // 6.4.2. If mimeType’s parameters["charset"] exists, then set charset to
+      //        mimeType’s parameters["charset"].
+      if (mimeType.parameters.has('charset')) {
+        charset = mimeType.parameters.get('charset')
+      }
+
+      // 6.4.3. Set essence to mimeType’s essence.
+      essence = mimeType.essence
+    } else if (!mimeType.parameters.has('charset') && charset !== null) {
+      // 6.5. Otherwise, if mimeType’s parameters["charset"] does not exist, and
+      //      charset is non-null, set mimeType’s parameters["charset"] to charset.
+      mimeType.parameters.set('charset', charset)
+    }
+  }
+
+  // 7. If mimeType is null, then return failure.
+  if (mimeType == null) {
+    return 'failure'
+  }
+
+  // 8. Return mimeType.
+  return mimeType
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
+ * @param {string|null} value
+ */
+function gettingDecodingSplitting (value) {
+  // 1. Let input be the result of isomorphic decoding value.
+  const input = value
+
+  // 2. Let position be a position variable for input, initially pointing at the start of input.
+  const position = { position: 0 }
+
+  // 3. Let values be a list of strings, initially empty.
+  const values = []
+
+  // 4. Let temporaryValue be the empty string.
+  let temporaryValue = ''
+
+  // 5. While position is not past the end of input:
+  while (position.position < input.length) {
+    // 5.1. Append the result of collecting a sequence of code points that are not U+0022 (")
+    //      or U+002C (,) from input, given position, to temporaryValue.
+    temporaryValue += collectASequenceOfCodePoints(
+      (char) => char !== '"' && char !== ',',
+      input,
+      position
+    )
+
+    // 5.2. If position is not past the end of input, then:
+    if (position.position < input.length) {
+      // 5.2.1. If the code point at position within input is U+0022 ("), then:
+      if (input.charCodeAt(position.position) === 0x22) {
+        // 5.2.1.1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
+        temporaryValue += collectAnHTTPQuotedString(
+          input,
+          position
+        )
+
+        // 5.2.1.2. If position is not past the end of input, then continue.
+        if (position.position < input.length) {
+          continue
+        }
+      } else {
+        // 5.2.2. Otherwise:
+
+        // 5.2.2.1. Assert: the code point at position within input is U+002C (,).
+        assert(input.charCodeAt(position.position) === 0x2C)
+
+        // 5.2.2.2. Advance position by 1.
+        position.position++
+      }
+    }
+
+    // 5.3. Remove all HTTP tab or space from the start and end of temporaryValue.
+    temporaryValue = removeChars(temporaryValue, true, true, (char) => char === 0x9 || char === 0x20)
+
+    // 5.4. Append temporaryValue to values.
+    values.push(temporaryValue)
+
+    // 5.6. Set temporaryValue to the empty string.
+    temporaryValue = ''
+  }
+
+  // 6. Return values.
+  return values
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-header-list-get-decode-split
+ * @param {string} name lowercase header name
+ * @param {import('./headers').HeadersList} list
+ */
+function getDecodeSplit (name, list) {
+  // 1. Let value be the result of getting name from list.
+  const value = list.get(name, true)
+
+  // 2. If value is null, then return null.
+  if (value === null) {
+    return null
+  }
+
+  // 3. Return the result of getting, decoding, and splitting value.
+  return gettingDecodingSplitting(value)
+}
+
 module.exports = {
   isAborted,
   isCancelled,
@@ -1181,7 +1340,7 @@ module.exports = {
   ReadableStreamFrom,
   toUSVString,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
-  clampAndCoursenConnectionTimingInfo,
+  clampAndCoarsenConnectionTimingInfo,
   coarsenedSharedCurrentTime,
   determineRequestsReferrer,
   makePolicyContainer,
@@ -1213,7 +1372,6 @@ module.exports = {
   isReadableStreamLike,
   readableStreamClose,
   isomorphicEncode,
-  isomorphicDecode,
   urlIsLocal,
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
@@ -1221,5 +1379,7 @@ module.exports = {
   normalizeMethodRecord,
   simpleRangeHeaderValue,
   buildContentRange,
-  parseMetadata
+  parseMetadata,
+  createInflate,
+  extractMimeType
 }

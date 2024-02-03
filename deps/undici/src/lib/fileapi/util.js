@@ -10,9 +10,9 @@ const {
 const { ProgressEvent } = require('./progressevent')
 const { getEncoding } = require('./encoding')
 const { serializeAMimeType, parseMIMEType } = require('../fetch/dataURL')
-const { types } = require('util')
+const { types } = require('node:util')
 const { StringDecoder } = require('string_decoder')
-const { btoa } = require('buffer')
+const { btoa } = require('node:buffer')
 
 /** @type {PropertyDescriptor} */
 const staticPropertyDescriptors = {

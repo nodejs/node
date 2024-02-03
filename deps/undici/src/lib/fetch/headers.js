@@ -11,7 +11,7 @@ const {
   isValidHeaderValue
 } = require('./util')
 const { webidl } = require('./webidl')
-const assert = require('assert')
+const assert = require('node:assert')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')

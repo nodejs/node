@@ -19,7 +19,7 @@ const { kHeadersList } = require('../core/symbols')
 /** @type {import('crypto')} */
 let crypto
 try {
-  crypto = require('crypto')
+  crypto = require('node:crypto')
 } catch {
 
 }
