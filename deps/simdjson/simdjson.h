@@ -1,4 +1,4 @@
-/* auto-generated on 2023-12-07 12:42:28 -0500. Do not edit! */
+/* auto-generated on 2024-01-28 12:42:59 -0500. Do not edit! */
 /* including simdjson.h:  */
 /* begin file simdjson.h */
 #ifndef SIMDJSON_H
@@ -545,7 +545,7 @@ SIMDJSON_PUSH_DISABLE_ALL_WARNINGS
 // Distributed under the Boost Software License, Version 1.0.
 // (See accompanying file LICENSE.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
 
-#pragma once
+// #pragma once // We remove #pragma once here as it generates a warning in some cases. We rely on the include guard.
 
 #ifndef NONSTD_SV_LITE_H_INCLUDED
 #define NONSTD_SV_LITE_H_INCLUDED
@@ -606,6 +606,10 @@ SIMDJSON_PUSH_DISABLE_ALL_WARNINGS
 
 #ifndef  nssv_CONFIG_NO_STREAM_INSERTION
 # define nssv_CONFIG_NO_STREAM_INSERTION  0
+#endif
+
+#ifndef  nssv_CONFIG_CONSTEXPR11_STD_SEARCH
+# define nssv_CONFIG_CONSTEXPR11_STD_SEARCH  1
 #endif
 
 // Control presence of exception handling (try and auto discover):
@@ -806,7 +810,7 @@ using std::operator<<;
 # define nssv_HAS_CPP0X  0
 #endif
 
-// Unless defined otherwise below, consider VC14 as C++11 for variant-lite:
+// Unless defined otherwise below, consider VC14 as C++11 for string-view-lite:
 
 #if nssv_COMPILER_MSVC_VER >= 1900
 # undef  nssv_CPP11_OR_GREATER
@@ -973,9 +977,9 @@ using std::operator<<;
 # pragma clang diagnostic ignored "-Wreserved-user-defined-literal"
 # pragma clang diagnostic push
 # pragma clang diagnostic ignored "-Wuser-defined-literals"
-#elif defined(__GNUC__)
-# pragma  GCC  diagnostic push
-# pragma  GCC  diagnostic ignored "-Wliteral-suffix"
+#elif nssv_COMPILER_GNUC_VERSION >= 480
+#  pragma  GCC  diagnostic push
+#  pragma  GCC  diagnostic ignored "-Wliteral-suffix"
 #endif // __clang__
 
 #if nssv_COMPILER_MSVC_VERSION >= 140
@@ -990,8 +994,8 @@ using std::operator<<;
 
 #if defined(__clang__)
 # define nssv_RESTORE_WARNINGS()  _Pragma("clang diagnostic pop")
-#elif defined(__GNUC__)
-# define nssv_RESTORE_WARNINGS()  _Pragma("GCC diagnostic pop")
+#elif nssv_COMPILER_GNUC_VERSION >= 480
+#  define nssv_RESTORE_WARNINGS()  _Pragma("GCC diagnostic pop")
 #elif nssv_COMPILER_MSVC_VERSION >= 140
 # define nssv_RESTORE_WARNINGS()  __pragma(warning(pop ))
 #else
@@ -1106,11 +1110,30 @@ constexpr const CharT* search( basic_string_view<CharT, Traits> haystack, basic_
 
 // non-recursive:
 
+#if nssv_CONFIG_CONSTEXPR11_STD_SEARCH
+
 template< class CharT, class Traits = std::char_traits<CharT> >
 constexpr const CharT* search( basic_string_view<CharT, Traits> haystack, basic_string_view<CharT, Traits> needle )
 {
     return std::search( haystack.begin(), haystack.end(), needle.begin(), needle.end() );
 }
+
+#else // nssv_CONFIG_CONSTEXPR11_STD_SEARCH
+
+template< class CharT, class Traits = std::char_traits<CharT> >
+nssv_constexpr14 const CharT* search( basic_string_view<CharT, Traits> haystack, basic_string_view<CharT, Traits> needle )
+{
+    while ( needle.size() <= haystack.size() )
+    {
+        if  ( haystack.starts_with(needle) )
+        {
+            return haystack.cbegin();
+        }
+        haystack = basic_string_view<CharT, Traits>{ haystack.begin() + 1, haystack.size() - 1U };
+    }
+    return haystack.cend();
+}
+#endif // nssv_CONFIG_CONSTEXPR11_STD_SEARCH
 
 #endif // OPTIMIZE
 #endif // nssv_CPP11_OR_GREATER && ! nssv_CPP17_OR_GREATER
@@ -1384,7 +1407,7 @@ public:
 
     // find(), 4x:
 
-    nssv_constexpr size_type find( basic_string_view v, size_type pos = 0 ) const nssv_noexcept  // (1)
+    nssv_constexpr14 size_type find( basic_string_view v, size_type pos = 0 ) const nssv_noexcept  // (1)
     {
         return assert( v.size() == 0 || v.data() != nssv_nullptr )
             , pos >= size()
@@ -2321,7 +2344,7 @@ namespace std {
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION "3.6.3"
+#define SIMDJSON_VERSION "3.6.4"
 
 namespace simdjson {
 enum {
@@ -2336,7 +2359,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
-  SIMDJSON_VERSION_REVISION = 3
+  SIMDJSON_VERSION_REVISION = 4
 };
 } // namespace simdjson
 
@@ -4449,6 +4472,53 @@ public:
    */
   inline simdjson_result<element> load(const std::string &path) & noexcept;
   inline simdjson_result<element> load(const std::string &path) &&  = delete ;
+
+  /**
+   * Load a JSON document from a file into a provide document instance and return a temporary reference to it.
+   * It is similar to the function `load` except that instead of parsing into the internal
+   * `document` instance associated with the parser, it allows the user to provide a document
+   * instance.
+   *
+   *   dom::parser parser;
+   *   dom::document doc;
+   *   element doc_root = parser.load_into_document(doc, "jsonexamples/twitter.json");
+   *
+   * The function is eager: the file's content is loaded in memory inside the parser instance
+   * and immediately parsed. The file can be deleted after the `parser.load_into_document` call.
+   *
+   * ### IMPORTANT: Document Lifetime
+   *
+   * After the call to load_into_document, the parser is no longer needed.
+   *
+   * The JSON document lives in the document instance: you must keep the document
+   * instance alive while you navigate through it (i.e., used the returned value from
+   * load_into_document). You are encourage to reuse the document instance
+   * many times with new data to avoid reallocations:
+   *
+   *   dom::document doc;
+   *   element doc_root1 = parser.load_into_document(doc, "jsonexamples/twitter.json");
+   *   //... doc_root1 is a pointer inside doc
+   *   element doc_root2 = parser.load_into_document(doc, "jsonexamples/twitter.json");
+   *   //... doc_root2 is a pointer inside doc
+   *   // at this point doc_root1 is no longer safe
+   *
+   * Moving the document instance is safe, but it invalidates the element instances. After
+   * moving a document, you can recover safe access to the document root with its `root()` method.
+   *
+   * @param doc The document instance where the parsed data will be stored (on success).
+   * @param path The path to load.
+   * @return The document, or an error:
+   *         - IO_ERROR if there was an error opening or reading the file.
+   *           Be mindful that on some 32-bit systems,
+   *           the file size might be limited to 2 GB.
+   *         - MEMALLOC if the parser does not have enough capacity and memory allocation fails.
+   *         - CAPACITY if the parser does not have enough capacity and len > max_capacity.
+   *         - other json errors if parsing fails. You should not rely on these errors to always the same for the
+   *           same document: they may vary under runtime dispatch (so they may vary depending on your system and hardware).
+   */
+  inline simdjson_result<element> load_into_document(document& doc, const std::string &path) & noexcept;
+  inline simdjson_result<element> load_into_document(document& doc, const std::string &path) && =delete;
+
   /**
    * Parse a JSON document and return a temporary reference to it.
    *
@@ -5484,7 +5554,7 @@ public:
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are Boolean (bool), numbers (double, uint64_t, int64_t), "
       "strings (std::string_view, const char *), arrays (dom::array) and objects (dom::object). "
-      "We recommand you use get_double(), get_bool(), get_uint64(), get_int64(), "
+      "We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
       "get_object(), get_array() or get_string() instead of the get template.");
   }
 
@@ -7556,10 +7626,14 @@ inline simdjson_result<size_t> parser::read_file(const std::string &path) noexce
 }
 
 inline simdjson_result<element> parser::load(const std::string &path) & noexcept {
+  return load_into_document(doc, path);
+}
+
+inline simdjson_result<element> parser::load_into_document(document& provided_doc, const std::string &path) & noexcept {
   size_t len;
   auto _error = read_file(path).get(len);
   if (_error) { return _error; }
-  return parse(loaded_bytes.get(), len, false);
+  return parse_into_document(provided_doc, loaded_bytes.get(), len, false);
 }
 
 inline simdjson_result<document_stream> parser::load_many(const std::string &path, size_t batch_size) noexcept {
@@ -12109,11 +12183,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -12137,13 +12208,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -14161,11 +14232,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -14189,13 +14257,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -16705,11 +16773,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -16733,13 +16798,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -19248,11 +19313,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -19276,13 +19338,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -21906,11 +21968,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -21934,13 +21993,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -24887,11 +24946,8 @@ simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t d
 } // unnamed namespace
 
 /** @private */
-template<typename W>
-error_code slow_float_parsing(simdjson_unused const uint8_t * src, W writer) {
-  double d;
-  if (parse_float_fallback(src, &d)) {
-    writer.append_double(d);
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
     return SUCCESS;
   }
   return INVALID_NUMBER(src);
@@ -24915,13 +24971,13 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
     // 10000000000000000000000000000000000000000000e+308
     // 3.1415926535897932384626433832795028841971693993751
     //
-    // NOTE: This makes a *copy* of the writer and passes it to slow_float_parsing. This happens
-    // because slow_float_parsing is a non-inlined function. If we passed our writer reference to
-    // it, it would force it to be stored in memory, preventing the compiler from picking it apart
-    // and putting into registers. i.e. if we pass it as reference, it gets slow.
-    // This is what forces the skip_double, as well.
-    error_code error = slow_float_parsing(src, writer);
-    writer.skip_double();
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
     return error;
   }
   // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
@@ -28612,8 +28668,6 @@ protected:
    * of the core simdjson library.
    */
   friend class value_iterator;
-  template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
   template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
@@ -38533,8 +38587,6 @@ protected:
    * of the core simdjson library.
    */
   friend class value_iterator;
-  template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
   template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
@@ -48947,8 +48999,6 @@ protected:
    */
   friend class value_iterator;
   template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
-  template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
   friend error_code numberparsing::parse_number(const uint8_t *const src, W &writer);
@@ -59358,8 +59408,6 @@ protected:
    * of the core simdjson library.
    */
   friend class value_iterator;
-  template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
   template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
@@ -69885,8 +69933,6 @@ protected:
    * of the core simdjson library.
    */
   friend class value_iterator;
-  template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
   template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
@@ -80735,8 +80781,6 @@ protected:
    * of the core simdjson library.
    */
   friend class value_iterator;
-  template<typename W>
-  friend error_code numberparsing::slow_float_parsing(simdjson_unused const uint8_t * src, W writer);
   template<typename W>
   friend error_code numberparsing::write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer);
   template<typename W>
