@@ -1,4 +1,4 @@
-/* auto-generated on 2023-12-01 13:59:01 -0500. Do not edit! */
+/* auto-generated on 2024-01-29 10:40:15 -0500. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 /* begin file src/implementation.cpp */
@@ -1151,7 +1151,7 @@ namespace icelake {
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 SIMDUTF_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
@@ -1568,7 +1568,7 @@ public:
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 SIMDUTF_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
@@ -2498,7 +2498,7 @@ public:
 // We should not get warnings while including <x86intrin.h> yet we do
 // under some versions of GCC.
 // If the x86intrin.h header has uninitialized values that are problematic,
-// it is a GCC issue, we want to ignore these warnigns.
+// it is a GCC issue, we want to ignore these warnings.
 SIMDUTF_DISABLE_GCC_WARNING(-Wuninitialized)
 #endif
 
@@ -11655,7 +11655,7 @@ inline result convert_with_errors(const char* buf, size_t len, char16_t* utf16_o
  *
  * The caller is responsible to ensure that len > 0.
  *
- * If the error is believed to have occured prior to 'buf', the count value contain in the result
+ * If the error is believed to have occurred prior to 'buf', the count value contain in the result
  * will be SIZE_T - 1, SIZE_T - 2, or SIZE_T - 3.
  */
 template <endianness endian>
@@ -11934,7 +11934,7 @@ inline result convert_with_errors(const char* buf, size_t len, char32_t* utf32_o
  *
  * The caller is responsible to ensure that len > 0.
  *
- * If the error is believed to have occured prior to 'buf', the count value contain in the result
+ * If the error is believed to have occurred prior to 'buf', the count value contain in the result
  * will be SIZE_T - 1, SIZE_T - 2, or SIZE_T - 3.
  */
 inline result rewind_and_convert_with_errors(size_t prior_bytes, const char* buf, size_t len, char32_t* utf32_output) {
@@ -16084,11 +16084,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -16158,11 +16158,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -17930,7 +17930,7 @@ simdutf_really_inline bool process_block_utf8_to_utf16(const char *&in, char16_t
       __m512i indexofthirdlastbytes = _mm512_add_epi16(mask_ffffffff,
                                                        indexofsecondlastbytes); // indices of the second last bytes
       __m512i thirdlastbyte = _mm512_maskz_mov_epi8(m34,
-                                                    clearedbytes); // only those that are the third last byte of a sequece
+                                                    clearedbytes); // only those that are the third last byte of a sequence
       __m512i thirdlastbytes = _mm512_maskz_permutexvar_epi8(0x5555555555555555, indexofthirdlastbytes,
                                                              thirdlastbyte); // the third last bytes (of three byte sequences, hi
                                                                              // surrogate)
@@ -17992,7 +17992,7 @@ simdutf_really_inline bool process_block_utf8_to_utf16(const char *&in, char16_t
     __m512i indexofthirdlastbytes = _mm512_add_epi16(mask_ffffffff,
                                                      indexofsecondlastbytes); // indices of the second last bytes
     __m512i thirdlastbyte = _mm512_maskz_mov_epi8(m34,
-                                                  clearedbytes); // only those that are the third last byte of a sequece
+                                                  clearedbytes); // only those that are the third last byte of a sequence
     __m512i thirdlastbytes = _mm512_maskz_permutexvar_epi8(0x5555555555555555, indexofthirdlastbytes,
                                                            thirdlastbyte); // the third last bytes (of three byte sequences, hi
                                                                            // surrogate)
@@ -18048,7 +18048,7 @@ simdutf_really_inline bool process_block_utf8_to_utf16(const char *&in, char16_t
   }
   // Fast path 2: all ASCII or 2 byte
   __mmask64 continuation_or_ascii = (tail == SIMDUTF_FULL) ? _knot_mask64(m234) : _kand_mask64(_knot_mask64(m234), b);
-  // on top of -0xc0 we substract -2 which we get back later of the
+  // on top of -0xc0 we subtract -2 which we get back later of the
   // continuation byte tags
   __m512i leading2byte = _mm512_maskz_sub_epi8(m234, input, mask_c2c2c2c2);
   __mmask64 leading = tail == (tail == SIMDUTF_FULL) ? _kor_mask64(m1, m234) : _kand_mask64(_kor_mask64(m1, m234), b); // first bytes of each sequence
@@ -18296,7 +18296,7 @@ __m512i rotate_by_N_epi8(const __m512i input) {
     stored at separate 32-bit lanes.
 
     For each lane we have also a character class (`char_class), given in form
-    0x8080800N, where N is 4 higest bits from the leading byte; 0x80 resets
+    0x8080800N, where N is 4 highest bits from the leading byte; 0x80 resets
     corresponding bytes during pshufb.
 */
 simdutf_really_inline __m512i expanded_utf8_to_utf32(__m512i char_class, __m512i utf8) {
@@ -19214,7 +19214,7 @@ simdutf_really_inline size_t process_block_from_utf8_to_latin1(const char *buf, 
   //  _mm512_storeu_si512((__m512i *)latin_output, output); I tried using
   //  _mm512_storeu_si512 and have the next process_block start from the
   //  "written_out" point but the compiler shuffles memory in such a way that it
-  //  is signifcantly slower...
+  //  is significantly slower...
   // ****************************
   _mm512_mask_storeu_epi8((__m512i *)latin_output, store_mask, output);
 
@@ -22028,10 +22028,9 @@ simdutf_unused simdutf_really_inline simd8<bool> must_be_continuation(const simd
 }
 
 simdutf_really_inline simd8<bool> must_be_2_3_continuation(const simd8<uint8_t> prev2, const simd8<uint8_t> prev3) {
-  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0b11100000u-1); // Only 111_____ will be > 0
-  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0b11110000u-1); // Only 1111____ will be > 0
-  // Caller requires a bool (all 1's). All values resulting from the subtraction will be <= 64, so signed comparison is fine.
-  return simd8<int8_t>(is_third_byte | is_fourth_byte) > int8_t(0);
+  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0xe0u-0x80); // Only 111_____ will be > 0x80
+  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0xf0u-0x80); // Only 1111____ will be > 0x80
+  return simd8<bool>(is_third_byte | is_fourth_byte);
 }
 
 /* begin file src/haswell/avx2_detect_encodings.cpp */
@@ -25495,11 +25494,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -25569,11 +25568,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -26887,10 +26886,10 @@ simdutf_unused simdutf_really_inline simd8<bool> must_be_continuation(const simd
 }
 
 simdutf_really_inline simd8<bool> must_be_2_3_continuation(const simd8<uint8_t> prev2, const simd8<uint8_t> prev3) {
-  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0b11100000u-1); // Only 111_____ will be > 0
-  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0b11110000u-1); // Only 1111____ will be > 0
+  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0xe0u-0x80); // Only 111_____ will be >= 0x80
+  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0xf0u-0x80); // Only 1111____ will be >= 0x80
   // Caller requires a bool (all 1's). All values resulting from the subtraction will be <= 64, so signed comparison is fine.
-  return simd8<int8_t>(is_third_byte | is_fourth_byte) > int8_t(0);
+  return simd8<bool>(is_third_byte | is_fourth_byte);
 }
 
 } // unnamed namespace
@@ -27867,11 +27866,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -27941,11 +27940,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -28407,10 +28406,9 @@ simdutf_unused simdutf_really_inline simd8<bool> must_be_continuation(const simd
 }
 
 simdutf_really_inline simd8<bool> must_be_2_3_continuation(const simd8<uint8_t> prev2, const simd8<uint8_t> prev3) {
-  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0b11100000u-1); // Only 111_____ will be > 0
-  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0b11110000u-1); // Only 1111____ will be > 0
-  // Caller requires a bool (all 1's). All values resulting from the subtraction will be <= 64, so signed comparison is fine.
-  return simd8<int8_t>(is_third_byte | is_fourth_byte) > int8_t(0);
+  simd8<uint8_t> is_third_byte  = prev2.saturating_sub(0xe0u-0x80); // Only 111_____ will be >= 0x80
+  simd8<uint8_t> is_fourth_byte = prev3.saturating_sub(0xf0u-0x80); // Only 1111____ will be >= 0x80
+  return simd8<bool>(is_third_byte | is_fourth_byte);
 }
 
 /* begin file src/westmere/internal/loader.cpp */
@@ -31874,11 +31872,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
@@ -31948,11 +31946,11 @@ using namespace simd;
       // 8 bytes when calling convert_masked_utf8_to_utf32. If you skip the last 16 bytes,
       // and if the data is valid, then it is entirely safe because 16 UTF-8 bytes generate
       // much more than 8 bytes. However, you cannot generally assume that you have valid
-      // UTF-8 input, so we are going to go back from the end counting 4 leading bytes,
+      // UTF-8 input, so we are going to go back from the end counting 8 leading bytes,
       // to give us a good margin.
       size_t leading_byte = 0;
       size_t margin = size;
-      for(; margin > 0 && leading_byte < 4; margin--) {
+      for(; margin > 0 && leading_byte < 8; margin--) {
         leading_byte += (int8_t(in[margin-1]) > -65);
       }
       // If the input is long enough, then we have that margin-1 is the fourth last leading byte.
