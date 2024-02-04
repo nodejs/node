@@ -2,24 +2,12 @@ import platform
 import sys
 import os
 
-# TODO: In next version, it will be a JSON file listing all the patches, and then it will iterate through to apply them.
-def patch_android():
-    print("- Patches List -")
-    print("[1] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
-    if platform.system() == "Linux":
-        os.system('patch -f ./deps/v8/src/trap-handler/trap-handler.h < ./android-patches/trap-handler.h.patch')
-    print("\033[92mInfo: \033[0m" + "Tried to patch.")
-
 if platform.system() == "Windows":
     print("android-configure is not supported on Windows yet.")
     sys.exit(1)
 
-if len(sys.argv) == 2 and sys.argv[1] == "patch":
-    patch_android()
-    sys.exit(0)
-
 if len(sys.argv) != 4:
-    print("Usage: ./android-configure [patch] <path to the Android NDK> <Android SDK version> <target architecture>")
+    print("Usage: ./android-configure <path to the Android NDK> <Android SDK version> <target architecture>")
     sys.exit(1)
 
 if not os.path.exists(sys.argv[1]) or not os.listdir(sys.argv[1]):
