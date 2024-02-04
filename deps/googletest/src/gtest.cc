@@ -451,6 +451,19 @@ static bool ShouldRunTestSuite(const TestSuite* test_suite) {
   return test_suite->should_run();
 }
 
+namespace {
+
+// Returns true if test part results of type `type` should include a stack
+// trace.
+bool ShouldEmitStackTraceForResultType(TestPartResult::Type type) {
+  // Suppress emission of the stack trace for SUCCEED() since it likely never
+  // requires investigation, and GTEST_SKIP() since skipping is an intentional
+  // act by the developer rather than a failure requiring investigation.
+  return type != TestPartResult::kSuccess && type != TestPartResult::kSkip;
+}
+
+}  // namespace
+
 // AssertHelper constructor.
 AssertHelper::AssertHelper(TestPartResult::Type type, const char* file,
                            int line, const char* message)
@@ -463,10 +476,7 @@ void AssertHelper::operator=(const Message& message) const {
   UnitTest::GetInstance()->AddTestPartResult(
       data_->type, data_->file, data_->line,
       AppendUserMessage(data_->message, message),
-      // Suppress emission of the stack trace for GTEST_SKIP() since skipping is
-      // an intentional act by the developer rather than a failure requiring
-      // investigation.
-      data_->type != TestPartResult::kSkip
+      ShouldEmitStackTraceForResultType(data_->type)
           ? UnitTest::GetInstance()->impl()->CurrentOsStackTraceExceptTop(1)
           : ""
       // Skips the stack frame for this function itself.
