@@ -1,4 +1,3 @@
-// Flags: --experimental-websocket
 'use strict';
 
 require('../common');
