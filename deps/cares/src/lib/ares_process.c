@@ -837,7 +837,6 @@ static size_t ares__calc_query_timeout(const struct query *query)
   /* For each trip through the entire server list, we want to double the
    * retry from the last retry */
   rounds = (query->try_count / num_servers);
-
   if (rounds > 0) {
     timeplus <<= rounds;
   }
@@ -1002,7 +1001,6 @@ ares_status_t ares__send_query(struct query *query, struct timeval *now)
   }
 
   timeplus = ares__calc_query_timeout(query);
-
   /* Keep track of queries bucketed by timeout, so we can process
    * timeout events quickly.
    */

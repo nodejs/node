@@ -76,6 +76,24 @@
 /* Define to 1 if you have the <errno.h> header file. */
 #cmakedefine HAVE_ERRNO_H
 
+/* Define to 1 if you have the <poll.h> header file. */
+#cmakedefine HAVE_POLL_H
+
+/* Define to 1 if you have the poll function. */
+#cmakedefine HAVE_POLL
+
+/* Define to 1 if you have the pipe function. */
+#cmakedefine HAVE_PIPE
+
+/* Define to 1 if you have the pipe2 function. */
+#cmakedefine HAVE_PIPE2
+
+/* Define to 1 if you have the kqueue function. */
+#cmakedefine HAVE_KQUEUE
+
+/* Define to 1 if you have the epoll{_create,ctl,wait} functions. */
+#cmakedefine HAVE_EPOLL
+
 /* Define to 1 if you have the fcntl function. */
 #cmakedefine HAVE_FCNTL
 
@@ -181,6 +199,9 @@
 
 /* Define to 1 if you have the memory.h header file. */
 #cmakedefine HAVE_MEMORY_H
+
+/* Define to 1 if you have the AvailabilityMacros.h header file. */
+#cmakedefine HAVE_AVAILABILITYMACROS_H
 
 /* Define to 1 if you have the MSG_NOSIGNAL flag. */
 #cmakedefine HAVE_MSG_NOSIGNAL
@@ -290,6 +311,12 @@
 /* Define to 1 if you have the <sys/random.h> header file. */
 #cmakedefine HAVE_SYS_RANDOM_H
 
+/* Define to 1 if you have the <sys/event.h> header file. */
+#cmakedefine HAVE_SYS_EVENT_H
+
+/* Define to 1 if you have the <sys/epoll.h> header file. */
+#cmakedefine HAVE_SYS_EPOLL_H
+
 /* Define to 1 if you have the <sys/select.h> header file. */
 #cmakedefine HAVE_SYS_SELECT_H
 
@@ -325,6 +352,18 @@
 
 /* Define to 1 if you have the winsock.h header file. */
 #cmakedefine HAVE_WINSOCK_H
+
+/* Define to 1 if you have the mswsock.h header file. */
+#cmakedefine HAVE_MSWSOCK_H
+
+/* Define to 1 if you have the winternl.h header file. */
+#cmakedefine HAVE_WINTERNL_H
+
+/* Define to 1 if you have the ntstatus.h header file. */
+#cmakedefine HAVE_NTSTATUS_H
+
+/* Define to 1 if you have the ntdef.h header file. */
+#cmakedefine HAVE_NTDEF_H
 
 /* Define to 1 if you have the writev function. */
 #cmakedefine HAVE_WRITEV

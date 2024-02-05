@@ -110,6 +110,18 @@ ares__htable_t *ares__htable_create(ares__htable_hashfunc_t    hash_func,
  */
 size_t          ares__htable_num_keys(const ares__htable_t *htable);
 
+/*! Retrieve an array of buckets from the hashtable.  This is mainly used as
+ *  a helper for retrieving an array of keys.
+ *
+ *  \param[in]  htable   Initialized hashtable
+ *  \param[out] num      Count of returned buckets
+ *  \return Array of pointers to the buckets.  These are internal pointers
+ *          to data within the hashtable, so if the key is removed, there
+ *          will be a dangling pointer.  It is expected wrappers will make
+ *          such values safe by duplicating them.
+ */
+const void **ares__htable_all_buckets(const ares__htable_t *htable, size_t *num);
+
 /*! Insert bucket into hashtable
  *
  *  \param[in] htable  Initialized hashtable.

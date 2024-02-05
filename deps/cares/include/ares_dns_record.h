@@ -384,6 +384,16 @@ typedef enum {
   ARES_OPT_DATATYPE_NAME = 11
 } ares_dns_opt_datatype_t;
 
+/*! Data type for flags to ares_dns_parse() */
+typedef enum {
+  ARES_DNS_PARSE_AN_BASE_RAW = 1 << 0,  /*!< Parse Answers from RFC 1035 that allow name compression as RAW */
+  ARES_DNS_PARSE_NS_BASE_RAW = 1 << 1,  /*!< Parse Authority from RFC 1035 that allow name compression as RAW */
+  ARES_DNS_PARSE_AR_BASE_RAW = 1 << 2,  /*!< Parse Additional from RFC 1035 that allow name compression as RAW */
+  ARES_DNS_PARSE_AN_EXT_RAW = 1 << 3,  /*!< Parse Answers from later RFCs (no name compression) RAW */
+  ARES_DNS_PARSE_NS_EXT_RAW = 1 << 4,  /*!< Parse Authority from later RFCs (no name compression) as RAW */
+  ARES_DNS_PARSE_AR_EXT_RAW = 1 << 5,  /*!< Parse Additional from later RFCs (no name compression) as RAW */
+} ares_dns_parse_flags_t;
+
 /*! String representation of DNS Record Type
  *
  *  \param[in] type  DNS Record Type
@@ -430,7 +440,7 @@ CARES_EXTERN ares_bool_t ares_dns_class_fromstr(ares_dns_class_t *qclass,
 
 /*! Convert DNS record type as string to ares_dns_rec_type_t
  *
- *  \param[out] qclass  Pointer passed by reference to write record type
+ *  \param[out] qtype   Pointer passed by reference to write record type
  *  \param[in]  str     String to convert
  *  \return ARES_TRUE on success
  */
@@ -926,7 +936,7 @@ CARES_EXTERN ares_bool_t   ares_dns_rr_get_opt_byid(const ares_dns_rr_t  *dns_rr
  *
  *  \param[in]  buf      pointer to bytes to be parsed
  *  \param[in]  buf_len  Length of buf provided
- *  \param[in]  flags    Flags dictating how the message should be parsed. TBD.
+ *  \param[in]  flags    Flags dictating how the message should be parsed.
  *  \param[out] dnsrec   Pointer passed by reference for a new DNS record object
  *                       that must be ares_dns_record_destroy()'d by caller.
  *  \return ARES_SUCCESS on success
