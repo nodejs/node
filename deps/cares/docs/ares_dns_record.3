@@ -252,6 +252,28 @@ zone denoted by the Zone Section.
 .br
 .RE
 
+.B ares_dns_parse_flags_t -
+Flags for altering \fIares_dns_parse(3)\fP behaviour:
+.RS 4
+.B ARES_DNS_PARSE_AN_BASE_RAW
+- Parse Answer Section from RFC 1035 that allow name compression as RAW RR type
+.br
+.B ARES_DNS_PARSE_NS_BASE_RAW
+- Parse Authority Section from RFC 1035 that allow name compression as RAW RR type
+.br
+.B ARES_DNS_PARSE_AR_BASE_RAW
+- Parse Additional Section from RFC 1035 that allow name compression as RAW RR type
+.br
+.B ARES_DNS_PARSE_AN_EXT_RAW
+- Parse Answer Section from later RFCs (no name compression) as RAW RR type
+.br
+.B ARES_DNS_PARSE_NS_EXT_RAW
+- Parse Authority Section from later RFCs (no name compression) as RAW RR type
+.br
+.B ARES_DNS_PARSE_AR_EXT_RAW
+- Parse Additional Section from later RFCs (no name compression) as RAW RR type
+.br
+.RE
 
 .SH DESCRIPTION
 

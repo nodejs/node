@@ -17,8 +17,10 @@ thread safety enabled or not.
 As of c-ares 1.23.0, this simply means that every public function which
 references an \fIares_channel_t\fP object will lock the channel on entry and
 release the lock on exit of the function.  This will prevent concurrent
-thread access to the channel, thus ensuring no corruption can occur.  Future
-versions will likely implement more threading-specific features.
+thread access to the channel, thus ensuring no corruption can occur.
+
+As of c-ares 1.26.0, this also indicates if \fBARES_OPT_EVENT_THREAD\fP can
+be passed to \fIares_init_options(3)\fP.
 
 .SH RETURN VALUES
 \fIares_threadsafety(3)\fP can return any of the following values:

@@ -1,18 +1,5 @@
 .\"
 .\" Copyright 1998 by the Massachusetts Institute of Technology.
-.\"
-.\" Permission to use, copy, modify, and distribute this
-.\" software and its documentation for any purpose and without
-.\" fee is hereby granted, provided that the above copyright
-.\" notice appear in all copies and that both that copyright
-.\" notice and this permission notice appear in supporting
-.\" documentation, and that the name of M.I.T. not be used in
-.\" advertising or publicity pertaining to distribution of the
-.\" software without specific, written prior permission.
-.\" M.I.T. makes no representations about the suitability of
-.\" this software for any purpose.  It is provided "as is"
-.\" without express or implied warranty.
-.\"
 .\" SPDX-License-Identifier: MIT
 .\"
 .TH ARES_GETADDRINFO 3 "4 November 2018"
@@ -91,11 +78,15 @@ Completion or failure of the query may happen immediately, or may happen
 during a later call to \fIares_process(3)\fP, \fIares_destroy(3)\fP or
 \fIares_cancel(3)\fP.
 .PP
-If this is called from a thread other than which the main program event loop is
-running, care needs to be taken to ensure any file descriptor lists are updated
-immediately within the eventloop.  When the associated callback is called,
-it is called with a channel lock so care must be taken to ensure any processing
-is minimal to prevent DNS channel stalls.
+When the associated callback is called, it is called with a channel lock so care
+must be taken to ensure any processing is minimal to prevent DNS channel stalls.
+
+The callback may be triggered from a different thread than the one which
+called \fIares_getaddrinfo(3)\fP.
+
+For integrators running their own event loops and not using \fBARES_OPT_EVENT_THREAD\fP,
+care needs to be taken to ensure any file descriptor lists are updated immediately
+within the eventloop when notified.
 .PP
 The callback argument
 .I arg

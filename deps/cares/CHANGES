@@ -1,5 +1,143 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.26.0 (25 Jan 2024)
+
+Brad House (25 Jan 2024)
+- clusterfuzz: enforce maximum DNS packet size due to long parser time
+
+GitHub (24 Jan 2024)
+- [Brad House brought this change]
+
+  Release prep for c-ares 1.26.0 (#698)
+  
+  release prep
+
+Brad House (24 Jan 2024)
+- adig: Differentiate between internal and server error
+  
+  Should not output "Got answer" if there was no answer from the
+  server, instead should just output the internal error.
+  
+  Fix By: Gisle Vanem (@gvanem)
+
+GitHub (24 Jan 2024)
+- [Brad House brought this change]
+
+  Event Subsystem: No longer require integrators to have their own (#696)
+  
+  This PR implements an event thread to process all events on file descriptors registered by c-ares. Prior to this feature, integrators were required to understand the internals of c-ares and how to monitor file descriptors and timeouts and process events.
+  
+  Implements OS-specific efficient polling such as epoll(), kqueue(), or IOCP, and falls back to poll() or select() if otherwise unsupported. At this point, it depends on basic threading primitives such as pthreads or windows threads.
+  
+  If enabled via the ARES_OPT_EVENT_THREAD option passed to ares_init_options(), then socket callbacks cannot be used.
+  
+  Fixes Bug: #611
+  Fix By: Brad House (@bradh352)
+
+- [Erik Lax brought this change]
+
+  Added flags to are_dns_parse to force RAW packet parsing (#693)
+  
+  This pull request adds six flags to instruct the parser under various circumstances to skip parsing of the returned RR records so the raw data can be retrieved.
+  
+  Fixes Bug: #686
+  Fix By: Erik Lax (@eriklax)
+
+- [Brad House brought this change]
+
+  Autotools allow make to override CFLAGS/CPPFLAGS/CXXFLAGS (#695)
+  
+  The previous build system allowed overwriting of CFLAGS/CPPFLAGS/CXXFLAGS on the make command line. Switch to using AM_CFLAGS/AM_CPPFLAGS/AM_CXXFLAGS when we set our own flags for building which ensures they are kept even when a user tries to override.
+  
+  Fixes Bug: #694
+  Fix By: Brad House (@bradh352)
+
+Brad House (16 Jan 2024)
+- fix doxygen typo
+
+GitHub (16 Jan 2024)
+- [Brad House brought this change]
+
+  man ares_fds(3): mark as deprecated and add explanation (#691)
+  
+  ares_fds(3) is not safe to use, mark as deprecated.
+  
+  Fixes Issue: #687
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  autotools: fix building for 32bit windows due to stdcall symbol mangling (#689)
+  
+  Use AC_CHECK_DECL not AC_CHECK_FUNCS, while this doesn't do a linkage test, it just makes sure the headers define it, this is the only thing without a complex workaround on Windows that will do what we need.
+  
+  See:
+  
+  https://github.com/msys2/msys2/wiki/Porting/f87a222118b1008ebc166ad237f04edb759c8f4c#calling-conventions-stdcall-and-autotools
+  
+  and
+  
+  https://lists.gnu.org/archive/html/autoconf/2013-05/msg00085.html
+  
+  and for a more complex workaround, we'd need to use AC_LINK_IFELSE like:
+  
+  https://mailman.videolan.org/pipermail/vlc-devel/2015-March/101802.html
+  
+  which would require we check each individually and provide function arguments for the test.  I don't think that is worthwhile.
+  
+  Fixes Issue: #688
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  Do not sanity check RR Name vs Question (#685)
+  
+  It appears as though we should never sanity check the RR name vs the question name as some DNS servers may return results for alias records.
+  
+  Fixes Bug: #683
+  Fix By: Brad House (@bradh352)
+
+- [Brad House brought this change]
+
+  no reason to include sys/random.h all the time (#684)
+  
+  External integrations don't need sys/random.h in order to compile, remove the dependency.  Try to fix building on legacy MacOS versions.
+  
+  Fixes Issue: #682
+  Fix By: Brad House (@bradh352)
+
+- [Gregor Jasny brought this change]
+
+  cmake: improve some include related code (#680)
+  
+  * cmake: avoid warning about non-existing include dir
+  
+  In the Debian build logs I noticed the following warning:
+  cc1: warning: /build/c-ares-1.25.0/test/include: No such file or directory [-Wmissing-include-dirs]
+  
+  This happened because ${CMAKE_INSTALL_INCLUDEDIR} had been added to
+  caresinternal. I believe it has been copied from the "real" lib
+  where it's used in the INSTALL_INTERFACE context. But because
+  caresinternal is never installed we don't need that include here.
+  
+  * cmake: drop CARES_TOPLEVEL_DIR variable
+  
+  The CARES_TOPLEVEL_DIR variable is the same as the automatically
+  created PROJECT_SOURCE_DIR variable. Let's stick to the official
+  one. Also because it is already used at places where CARES_TOPLEVEL_DIR
+  is used as well.
+  
+  Fix By: Gregor Jasny (@gjasny)
+
+Brad House (5 Jan 2024)
+- test: fix outdated license headers
+
+- RELEASE-NOTES -> RELEASE-NOTES.md
+
+- update format slightly
+
+- update release notes format
+
 Version 1.25.0 (2 Jan 2024)
 
 GitHub (2 Jan 2024)
@@ -6007,71 +6145,3 @@ Yang Tse (30 Jan 2013)
   Some HP-UX system headers require TRUE defined to 1 and FALSE to 0.
 
 - ares_timeout.c: fix compiler warning
-
-- ares_create_query.c: IRIX compilation fix
-
-- c-ares/nameser.h: add some T_* defines for ns_t_* values
-
-Daniel Stenberg (7 Nov 2012)
-- Revert "ares_parse_aaaa_reply: fix memory leak"
-  
-  This reverts commit 50f25d8a4b2d16f4c5e0ef620238688b7a315c7a.
-
-- ares_parse_aaaa_reply: fix memory leak
-  
-  an allocated buffer was not freed in the successful case.
-
-- [Gisle Vanem brought this change]
-
-  adig: perror() doesn't work for socket errors on windows
-  
-  ... so print the SOCKERRNO instead
-
-- get_DNS_AdaptersAddresses: fix IPv6 parsing
-  
-  Use of the wrong define made the function not parse IPv6 addresses
-  properly.
-  
-  Bug: http://c-ares.haxx.se/mail/c-ares-archive-2012-06/0028.shtml
-  Reported by: Saúl Ibarra Corretgé
-
-- version: bumped to 1.10.0
-  
-  Due to the newly added function: ares_create_query()
-
-- AUTHORS: synced with 83093ac450
-  
-  Added 21 authors since this document was last updated
-
-- ares_create_query.3: mention when this is added
-
-- [hpopescu@ixiacom.com brought this change]
-
-  Added new feature (rfc2671)
-
-- code police: fix indents, < 80 columns, reflowed comments
-
-Guenter Knauf (11 Jul 2012)
-- Cleaned up version awk script.
-
-Daniel Stenberg (30 Jun 2012)
-- [Gisle Vanem brought this change]
-
-  read_udp_packets: bail out loop on bad sockets
-  
-  I can see that recvfrom() in ares_process.c many times is called with
-  'udp_socket' == ARES_SOCKET_BAD. The code takes care not to call
-  recv/recvfrom with ARES_SOCKET_BAD in the outer-loop. So should the
-  inner-loop.
-
-Yang Tse (29 Jun 2012)
-- cares-compilers.m4: remove -Wstrict-aliasing=3 from clang
-  
-  Currently it is unknown if there is any version of clang that
-  actually supports -Wstrict-aliasing. What is known is that there
-  are several that don't support it.
-
-- cares-compilers.m4: -Wstrict-aliasing=3 for warning enabled gcc and clang builds
-
-Daniel Stenberg (18 Jun 2012)
-- version: work towards 1.9.2 (at least)

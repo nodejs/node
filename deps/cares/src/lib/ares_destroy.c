@@ -75,6 +75,11 @@ void ares_destroy(ares_channel_t *channel)
   /* No more callbacks will be triggered after this point, unlock */
   ares__channel_unlock(channel);
 
+  /* Shut down the event thread */
+  if (channel->optmask & ARES_OPT_EVENT_THREAD) {
+    ares_event_thread_destroy(channel);
+  }
+
   if (channel->domains) {
     for (i = 0; i < channel->ndomains; i++) {
       ares_free(channel->domains[i]);

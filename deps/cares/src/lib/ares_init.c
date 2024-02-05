@@ -389,6 +389,14 @@ int ares_init_options(ares_channel_t           **channelptr,
                    ares_strerror(status)));
   }
 
+  /* Initialize the event thread */
+  if (channel->optmask & ARES_OPT_EVENT_THREAD) {
+    status = ares_event_thread_init(channel);
+    if (status != ARES_SUCCESS) {
+      goto done;
+    }
+  }
+
 done:
   if (status != ARES_SUCCESS) {
     ares_destroy(channel);

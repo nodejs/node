@@ -1,6 +1,6 @@
 /* MIT License
  *
- * Copyright (c) Daniel Stenberg
+ * Copyright (c) 2023 Brad House
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -23,27 +23,23 @@
  *
  * SPDX-License-Identifier: MIT
  */
+#ifndef __ARES__THREADS_H
+#define __ARES__THREADS_H
 
-#ifndef ARES__VERSION_H
-#define ARES__VERSION_H
+struct ares__thread_mutex;
+typedef struct ares__thread_mutex ares__thread_mutex_t;
 
-/* This is the global package copyright */
-#define ARES_COPYRIGHT "2004 - 2024 Daniel Stenberg, <daniel@haxx.se>."
+ares__thread_mutex_t             *ares__thread_mutex_create(void);
+void ares__thread_mutex_destroy(ares__thread_mutex_t *mut);
+void ares__thread_mutex_lock(ares__thread_mutex_t *mut);
+void ares__thread_mutex_unlock(ares__thread_mutex_t *mut);
 
-#define ARES_VERSION_MAJOR 1
-#define ARES_VERSION_MINOR 26
-#define ARES_VERSION_PATCH 0
-#define ARES_VERSION                                        \
-  ((ARES_VERSION_MAJOR << 16) | (ARES_VERSION_MINOR << 8) | \
-   (ARES_VERSION_PATCH))
-#define ARES_VERSION_STR "1.26.0"
+struct ares__thread;
+typedef struct ares__thread ares__thread_t;
 
-#if (ARES_VERSION >= 0x010700)
-#  define CARES_HAVE_ARES_LIBRARY_INIT    1
-#  define CARES_HAVE_ARES_LIBRARY_CLEANUP 1
-#else
-#  undef CARES_HAVE_ARES_LIBRARY_INIT
-#  undef CARES_HAVE_ARES_LIBRARY_CLEANUP
-#endif
+typedef void               *(*ares__thread_func_t)(void *arg);
+ares_status_t               ares__thread_create(ares__thread_t    **thread,
+                                                ares__thread_func_t func, void *arg);
+ares_status_t ares__thread_join(ares__thread_t *thread, void **rv);
 
 #endif

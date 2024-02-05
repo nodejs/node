@@ -42,7 +42,7 @@
 /* Define to 1 if you have AF_INET6 */
 #undef HAVE_AF_INET6
 
-/* Define to 1 if you have the `arc4random_buf' function. */
+/* Define to 1 if you have `arc4random_buf` */
 #undef HAVE_ARC4RANDOM_BUF
 
 /* Define to 1 if you have the <arpa/inet.h> header file. */
@@ -57,22 +57,28 @@
 /* Define to 1 if you have the <assert.h> header file. */
 #undef HAVE_ASSERT_H
 
-/* Define to 1 if you have the `clock_gettime' function. */
+/* Define to 1 if you have the <AvailabilityMacros.h> header file. */
+#undef HAVE_AVAILABILITYMACROS_H
+
+/* Define to 1 if you have `clock_gettime` */
 #undef HAVE_CLOCK_GETTIME
 
 /* clock_gettime() with CLOCK_MONOTONIC support */
 #undef HAVE_CLOCK_GETTIME_MONOTONIC
 
-/* Define to 1 if you have the `CloseSocket' function. */
+/* Define to 1 if you have `closesocket` */
 #undef HAVE_CLOSESOCKET
 
-/* Define to 1 if you have the `connect' function. */
+/* Define to 1 if you have `CloseSocket` */
+#undef HAVE_CLOSESOCKET_CAMEL
+
+/* Define to 1 if you have `connect` */
 #undef HAVE_CONNECT
 
-/* Define to 1 if you have the `ConvertInterfaceIndexToLuid' function. */
+/* Define to 1 if you have `ConvertInterfaceIndexToLuid` */
 #undef HAVE_CONVERTINTERFACEINDEXTOLUID
 
-/* Define to 1 if you have the `ConvertInterfaceLuidToNameA' function. */
+/* Define to 1 if you have `ConvertInterfaceLuidToNameA` */
 #undef HAVE_CONVERTINTERFACELUIDTONAMEA
 
 /* define if the compiler supports basic C++14 syntax */
@@ -81,10 +87,13 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #undef HAVE_DLFCN_H
 
+/* Define to 1 if you have `epoll_{create1,ctl,wait}` */
+#undef HAVE_EPOLL
+
 /* Define to 1 if you have the <errno.h> header file. */
 #undef HAVE_ERRNO_H
 
-/* Define to 1 if you have the `fcntl' function. */
+/* Define to 1 if you have `fcntl` */
 #undef HAVE_FCNTL
 
 /* Define to 1 if you have the <fcntl.h> header file. */
@@ -93,53 +102,56 @@
 /* fcntl() with O_NONBLOCK support */
 #undef HAVE_FCNTL_O_NONBLOCK
 
-/* Define to 1 if you have the `getenv' function. */
+/* Define to 1 if you have `getenv` */
 #undef HAVE_GETENV
 
-/* Define to 1 if you have the `gethostname' function. */
+/* Define to 1 if you have `gethostname` */
 #undef HAVE_GETHOSTNAME
 
-/* Define to 1 if you have the `getifaddrs' function. */
+/* Define to 1 if you have `getifaddrs` */
 #undef HAVE_GETIFADDRS
 
-/* Define to 1 if you have the `getnameinfo' function. */
+/* Define to 1 if you have `getnameinfo` */
 #undef HAVE_GETNAMEINFO
 
-/* Define to 1 if you have the `getrandom' function. */
+/* Define to 1 if you have `getrandom` */
 #undef HAVE_GETRANDOM
 
-/* Define to 1 if you have the `getservbyport_r' function. */
+/* Define to 1 if you have `getservbyport_r` */
 #undef HAVE_GETSERVBYPORT_R
 
-/* Define to 1 if you have the `gettimeofday' function. */
+/* Define to 1 if you have `gettimeofday` */
 #undef HAVE_GETTIMEOFDAY
 
 /* Define to 1 if you have the <ifaddrs.h> header file. */
 #undef HAVE_IFADDRS_H
 
-/* Define to 1 if you have the `if_indextoname' function. */
+/* Define to 1 if you have `if_indextoname` */
 #undef HAVE_IF_INDEXTONAME
 
-/* Define to 1 if you have the `if_nametoindex' function. */
+/* Define to 1 if you have `if_nametoindex` */
 #undef HAVE_IF_NAMETOINDEX
 
-/* Define to 1 if you have the `inet_net_pton' function. */
+/* Define to 1 if you have `inet_net_pton` */
 #undef HAVE_INET_NET_PTON
 
-/* Define to 1 if you have the `inet_ntop' function. */
+/* Define to 1 if you have `inet_ntop` */
 #undef HAVE_INET_NTOP
 
-/* Define to 1 if you have the `inet_pton' function. */
+/* Define to 1 if you have `inet_pton` */
 #undef HAVE_INET_PTON
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `ioctl' function. */
+/* Define to 1 if you have `ioctl` */
 #undef HAVE_IOCTL
 
-/* Define to 1 if you have the `ioctlsocket' function. */
+/* Define to 1 if you have `ioctlsocket` */
 #undef HAVE_IOCTLSOCKET
+
+/* Define to 1 if you have `IoctlSocket` */
+#undef HAVE_IOCTLSOCKET_CAMEL
 
 /* ioctlsocket() with FIONBIO support */
 #undef HAVE_IOCTLSOCKET_FIONBIO
@@ -149,6 +161,9 @@
 
 /* Define to 1 if you have the <iphlpapi.h> header file. */
 #undef HAVE_IPHLPAPI_H
+
+/* Define to 1 if you have `kqueue` */
+#undef HAVE_KQUEUE
 
 /* Define to 1 if you have the <limits.h> header file. */
 #undef HAVE_LIMITS_H
@@ -165,6 +180,9 @@
 /* Define to 1 if you have the <minix/config.h> header file. */
 #undef HAVE_MINIX_CONFIG_H
 
+/* Define to 1 if you have the <mswsock.h> header file. */
+#undef HAVE_MSWSOCK_H
+
 /* Define to 1 if you have the <netdb.h> header file. */
 #undef HAVE_NETDB_H
 
@@ -180,8 +198,26 @@
 /* Define to 1 if you have the <net/if.h> header file. */
 #undef HAVE_NET_IF_H
 
+/* Define to 1 if you have the <ntdef.h> header file. */
+#undef HAVE_NTDEF_H
+
+/* Define to 1 if you have the <ntstatus.h> header file. */
+#undef HAVE_NTSTATUS_H
+
 /* Define to 1 if you have PF_INET6 */
 #undef HAVE_PF_INET6
+
+/* Define to 1 if you have `pipe` */
+#undef HAVE_PIPE
+
+/* Define to 1 if you have `pipe2` */
+#undef HAVE_PIPE2
+
+/* Define to 1 if you have `poll` */
+#undef HAVE_POLL
+
+/* Define to 1 if you have the <poll.h> header file. */
+#undef HAVE_POLL_H
 
 /* Define to 1 if you have the <pthread.h> header file. */
 #undef HAVE_PTHREAD_H
@@ -192,22 +228,22 @@
 /* Have PTHREAD_PRIO_INHERIT. */
 #undef HAVE_PTHREAD_PRIO_INHERIT
 
-/* Define to 1 if you have the `recv' function. */
+/* Define to 1 if you have `recv` */
 #undef HAVE_RECV
 
-/* Define to 1 if you have the `recvfrom' function. */
+/* Define to 1 if you have `recvfrom` */
 #undef HAVE_RECVFROM
 
-/* Define to 1 if you have the `send' function. */
+/* Define to 1 if you have `send` */
 #undef HAVE_SEND
 
-/* Define to 1 if you have the `setsockopt' function. */
+/* Define to 1 if you have `setsockopt` */
 #undef HAVE_SETSOCKOPT
 
 /* setsockopt() with SO_NONBLOCK support */
 #undef HAVE_SETSOCKOPT_SO_NONBLOCK
 
-/* Define to 1 if you have the `socket' function. */
+/* Define to 1 if you have `socket` */
 #undef HAVE_SOCKET
 
 /* Define to 1 if you have the <socket.h> header file. */
@@ -216,7 +252,7 @@
 /* socklen_t */
 #undef HAVE_SOCKLEN_T
 
-/* Define to 1 if you have the `stat' function. */
+/* Define to 1 if you have `stat` */
 #undef HAVE_STAT
 
 /* Define to 1 if you have the <stdbool.h> header file. */
@@ -231,13 +267,13 @@
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strcasecmp' function. */
+/* Define to 1 if you have `strcasecmp` */
 #undef HAVE_STRCASECMP
 
-/* Define to 1 if you have the `strdup' function. */
+/* Define to 1 if you have `strdup` */
 #undef HAVE_STRDUP
 
-/* Define to 1 if you have the `stricmp' function. */
+/* Define to 1 if you have `stricmp` */
 #undef HAVE_STRICMP
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -246,13 +282,13 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define to 1 if you have the `strncasecmp' function. */
+/* Define to 1 if you have `strncasecmp` */
 #undef HAVE_STRNCASECMP
 
-/* Define to 1 if you have the `strncmpi' function. */
+/* Define to 1 if you have `strncmpi` */
 #undef HAVE_STRNCMPI
 
-/* Define to 1 if you have the `strnicmp' function. */
+/* Define to 1 if you have `strnicmp` */
 #undef HAVE_STRNICMP
 
 /* Define to 1 if the system has the type `struct addrinfo'. */
@@ -275,6 +311,12 @@
 
 /* Define to 1 if the system has the type `struct timeval'. */
 #undef HAVE_STRUCT_TIMEVAL
+
+/* Define to 1 if you have the <sys/epoll.h> header file. */
+#undef HAVE_SYS_EPOLL_H
+
+/* Define to 1 if you have the <sys/event.h> header file. */
+#undef HAVE_SYS_EVENT_H
 
 /* Define to 1 if you have the <sys/filio.h> header file. */
 #undef HAVE_SYS_FILIO_H
@@ -327,7 +369,10 @@
 /* Define to 1 if you have the <winsock2.h> header file. */
 #undef HAVE_WINSOCK2_H
 
-/* Define to 1 if you have the `writev' function. */
+/* Define to 1 if you have the <winternl.h> header file. */
+#undef HAVE_WINTERNL_H
+
+/* Define to 1 if you have `writev` */
 #undef HAVE_WRITEV
 
 /* Define to 1 if you have the <ws2ipdef.h> header file. */
@@ -336,7 +381,7 @@
 /* Define to 1 if you have the <ws2tcpip.h> header file. */
 #undef HAVE_WS2TCPIP_H
 
-/* Define to 1 if you have the `__system_property_get' function. */
+/* Define to 1 if you have `__system_property_get` */
 #undef HAVE___SYSTEM_PROPERTY_GET
 
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
