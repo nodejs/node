@@ -10618,6 +10618,7 @@ var require_fetch = __commonJS({
       }
       if (!sameOrigin(requestCurrentURL(request), locationURL)) {
         request.headersList.delete("authorization");
+        request.headersList.delete("proxy-authorization", true);
         request.headersList.delete("cookie");
         request.headersList.delete("host");
       }
