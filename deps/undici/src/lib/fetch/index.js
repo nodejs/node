@@ -1099,11 +1099,12 @@ function fetchFinale (fetchParams, response) {
 
     const byteStream = new ReadableStream({
       readableStream: transformStream.readable,
-      async start (controller) {
-        const reader = this.readableStream.getReader()
-
-        while (true) {
-          const { done, value } = await reader.read()
+      async start () {
+        this._bodyReader = this.readableStream.getReader()
+      },
+      async pull (controller) {
+        while (controller.desiredSize >= 0) {
+          const { done, value } = await this._bodyReader.read()
 
           if (done) {
             queueMicrotask(() => readableStreamClose(controller))
@@ -1113,6 +1114,7 @@ function fetchFinale (fetchParams, response) {
           controller.enqueue(value)
         }
       },
+      queuingStrategy: new ByteLengthQueuingStrategy({ highWaterMark: 16384 }),
       type: 'bytes'
     })
 
@@ -1325,6 +1327,9 @@ function httpRedirectFetch (fetchParams, response) {
   if (!sameOrigin(requestCurrentURL(request), locationURL)) {
     // https://fetch.spec.whatwg.org/#cors-non-wildcard-request-header-name
     request.headersList.delete('authorization', true)
+
+    // https://fetch.spec.whatwg.org/#authentication-entries
+    request.headersList.delete('proxy-authorization', true)
 
     // "Cookie" and "Host" are forbidden request-headers, which undici doesn't implement.
     request.headersList.delete('cookie', true)
@@ -1901,8 +1906,8 @@ async function httpNetworkFetch (
 
   // 11. Let pullAlgorithm be an action that resumes the ongoing fetch
   // if it is suspended.
-  const pullAlgorithm = () => {
-    fetchParams.controller.resume()
+  const pullAlgorithm = async () => {
+    await fetchParams.controller.resume()
   }
 
   // 12. Let cancelAlgorithm be an algorithm that aborts fetchParams’s
@@ -1924,6 +1929,7 @@ async function httpNetworkFetch (
   //     cancelAlgorithm set to cancelAlgorithm.
   const stream = new ReadableStream(
     {
+      highWaterMark: 16384,
       async start (controller) {
         fetchParams.controller.controller = controller
       },
@@ -1933,7 +1939,8 @@ async function httpNetworkFetch (
       async cancel (reason) {
         await cancelAlgorithm(reason)
       },
-      type: 'bytes'
+      type: 'bytes',
+      queuingStrategy: new ByteLengthQueuingStrategy({ highWaterMark: 16384 })
     }
   )
 
@@ -2026,7 +2033,7 @@ async function httpNetworkFetch (
 
       // 9. If stream doesn’t need more data ask the user agent to suspend
       // the ongoing fetch.
-      if (!fetchParams.controller.controller.desiredSize) {
+      if (fetchParams.controller.controller.desiredSize <= 0) {
         return
       }
     }

@@ -14,4 +14,7 @@ module.exports.FormData = require('./lib/fetch/formdata').FormData
 module.exports.Headers = require('./lib/fetch/headers').Headers
 module.exports.Response = require('./lib/fetch/response').Response
 module.exports.Request = require('./lib/fetch/request').Request
+
 module.exports.WebSocket = require('./lib/websocket/websocket').WebSocket
+
+module.exports.EventSource = require('./lib/eventsource/eventsource').EventSource

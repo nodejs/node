@@ -739,19 +739,23 @@ const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbo
 
 /**
  * @see https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
- * @param {() => unknown[]} iterator
+ * @param {() => unknown} iterator
  * @param {string} name name of the instance
  * @param {'key'|'value'|'key+value'} kind
+ * @param {string | number} [keyIndex]
+ * @param {string | number} [valueIndex]
  */
-function makeIterator (iterator, name, kind) {
+function makeIterator (iterator, name, kind, keyIndex = 0, valueIndex = 1) {
   const object = {
     index: 0,
     kind,
     target: iterator
   }
+  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
+  const iteratorObject = Object.create(esIteratorPrototype)
 
-  const i = {
-    next () {
+  Object.defineProperty(iteratorObject, 'next', {
+    value: function next () {
       // 1. Let interface be the interface for which the iterator prototype object exists.
 
       // 2. Let thisValue be the this value.
@@ -763,7 +767,7 @@ function makeIterator (iterator, name, kind) {
 
       // 5. If object is not a default iterator object for interface,
       //    then throw a TypeError.
-      if (Object.getPrototypeOf(this) !== i) {
+      if (Object.getPrototypeOf(this) !== iteratorObject) {
         throw new TypeError(
           `'next' called on an object that does not implement interface ${name} Iterator.`
         )
@@ -783,68 +787,66 @@ function makeIterator (iterator, name, kind) {
       if (index >= len) {
         return { value: undefined, done: true }
       }
-
       // 11. Let pair be the entry in values at index index.
-      const pair = values[index]
-
+      const { [keyIndex]: key, [valueIndex]: value } = values[index]
       // 12. Set object’s index to index + 1.
       object.index = index + 1
-
       // 13. Return the iterator result for pair and kind.
-      return iteratorResult(pair, kind)
+      // https://webidl.spec.whatwg.org/#iterator-result
+      // 1. Let result be a value determined by the value of kind:
+      let result
+      switch (kind) {
+        case 'key':
+          // 1. Let idlKey be pair’s key.
+          // 2. Let key be the result of converting idlKey to an
+          //    ECMAScript value.
+          // 3. result is key.
+          result = key
+          break
+        case 'value':
+          // 1. Let idlValue be pair’s value.
+          // 2. Let value be the result of converting idlValue to
+          //    an ECMAScript value.
+          // 3. result is value.
+          result = value
+          break
+        case 'key+value':
+          // 1. Let idlKey be pair’s key.
+          // 2. Let idlValue be pair’s value.
+          // 3. Let key be the result of converting idlKey to an
+          //    ECMAScript value.
+          // 4. Let value be the result of converting idlValue to
+          //    an ECMAScript value.
+          // 5. Let array be ! ArrayCreate(2).
+          // 6. Call ! CreateDataProperty(array, "0", key).
+          // 7. Call ! CreateDataProperty(array, "1", value).
+          // 8. result is array.
+          result = [key, value]
+          break
+      }
+      // 2. Return CreateIterResultObject(result, false).
+      return {
+        value: result,
+        done: false
+      }
     },
-    // The class string of an iterator prototype object for a given interface is the
-    // result of concatenating the identifier of the interface and the string " Iterator".
-    [Symbol.toStringTag]: `${name} Iterator`
-  }
+    writable: true,
+    enumerable: true,
+    configurable: true
+  })
 
-  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
-  Object.setPrototypeOf(i, esIteratorPrototype)
-  // esIteratorPrototype needs to be the prototype of i
+  // The class string of an iterator prototype object for a given interface is the
+  // result of concatenating the identifier of the interface and the string " Iterator".
+  Object.defineProperty(iteratorObject, Symbol.toStringTag, {
+    value: `${name} Iterator`,
+    writable: false,
+    enumerable: false,
+    configurable: true
+  })
+
+  // esIteratorPrototype needs to be the prototype of iteratorObject
   // which is the prototype of an empty object. Yes, it's confusing.
-  return Object.setPrototypeOf({}, i)
-}
-
-// https://webidl.spec.whatwg.org/#iterator-result
-function iteratorResult (pair, kind) {
-  let result
-
-  // 1. Let result be a value determined by the value of kind:
-  switch (kind) {
-    case 'key': {
-      // 1. Let idlKey be pair’s key.
-      // 2. Let key be the result of converting idlKey to an
-      //    ECMAScript value.
-      // 3. result is key.
-      result = pair[0]
-      break
-    }
-    case 'value': {
-      // 1. Let idlValue be pair’s value.
-      // 2. Let value be the result of converting idlValue to
-      //    an ECMAScript value.
-      // 3. result is value.
-      result = pair[1]
-      break
-    }
-    case 'key+value': {
-      // 1. Let idlKey be pair’s key.
-      // 2. Let idlValue be pair’s value.
-      // 3. Let key be the result of converting idlKey to an
-      //    ECMAScript value.
-      // 4. Let value be the result of converting idlValue to
-      //    an ECMAScript value.
-      // 5. Let array be ! ArrayCreate(2).
-      // 6. Call ! CreateDataProperty(array, "0", key).
-      // 7. Call ! CreateDataProperty(array, "1", value).
-      // 8. result is array.
-      result = pair
-      break
-    }
-  }
-
-  // 2. Return CreateIterResultObject(result, false).
-  return { value: result, done: false }
+  return Object.create(iteratorObject)
 }
 
 /**

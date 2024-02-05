@@ -2039,15 +2039,16 @@ var require_util2 = __commonJS({
     }
     __name(serializeJavascriptValueToJSONString, "serializeJavascriptValueToJSONString");
     var esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]()));
-    function makeIterator(iterator, name, kind) {
+    function makeIterator(iterator, name, kind, keyIndex = 0, valueIndex = 1) {
       const object = {
         index: 0,
         kind,
         target: iterator
       };
-      const i = {
-        next() {
-          if (Object.getPrototypeOf(this) !== i) {
+      const iteratorObject = Object.create(esIteratorPrototype);
+      Object.defineProperty(iteratorObject, "next", {
+        value: /* @__PURE__ */ __name(function next() {
+          if (Object.getPrototypeOf(this) !== iteratorObject) {
             throw new TypeError(
               `'next' called on an object that does not implement interface ${name} Iterator.`
             );
@@ -2058,37 +2059,38 @@ var require_util2 = __commonJS({
           if (index >= len) {
             return { value: void 0, done: true };
           }
-          const pair = values[index];
+          const { [keyIndex]: key, [valueIndex]: value } = values[index];
           object.index = index + 1;
-          return iteratorResult(pair, kind2);
-        },
-        // The class string of an iterator prototype object for a given interface is the
-        // result of concatenating the identifier of the interface and the string " Iterator".
-        [Symbol.toStringTag]: `${name} Iterator`
-      };
-      Object.setPrototypeOf(i, esIteratorPrototype);
-      return Object.setPrototypeOf({}, i);
+          let result;
+          switch (kind2) {
+            case "key":
+              result = key;
+              break;
+            case "value":
+              result = value;
+              break;
+            case "key+value":
+              result = [key, value];
+              break;
+          }
+          return {
+            value: result,
+            done: false
+          };
+        }, "next"),
+        writable: true,
+        enumerable: true,
+        configurable: true
+      });
+      Object.defineProperty(iteratorObject, Symbol.toStringTag, {
+        value: `${name} Iterator`,
+        writable: false,
+        enumerable: false,
+        configurable: true
+      });
+      return Object.create(iteratorObject);
     }
     __name(makeIterator, "makeIterator");
-    function iteratorResult(pair, kind) {
-      let result;
-      switch (kind) {
-        case "key": {
-          result = pair[0];
-          break;
-        }
-        case "value": {
-          result = pair[1];
-          break;
-        }
-        case "key+value": {
-          result = pair;
-          break;
-        }
-      }
-      return { value: result, done: false };
-    }
-    __name(iteratorResult, "iteratorResult");
     async function fullyReadBody(body, processBody, processBodyError) {
       const successSteps = processBody;
       const errorSteps = processBodyError;
@@ -2426,10 +2428,14 @@ var require_webidl = __commonJS({
       });
     };
     webidl.brandCheck = function(V, I, opts = void 0) {
-      if (opts?.strict !== false && !(V instanceof I)) {
-        throw new TypeError("Illegal invocation");
+      if (opts?.strict !== false) {
+        if (!(V instanceof I)) {
+          throw new TypeError("Illegal invocation");
+        }
       } else {
-        return V?.[Symbol.toStringTag] === I.prototype[Symbol.toStringTag];
+        if (V?.[Symbol.toStringTag] !== I.prototype[Symbol.toStringTag]) {
+          throw new TypeError("Illegal invocation");
+        }
       }
     };
     webidl.argumentLengthCheck = function({ length }, min, ctx) {
@@ -3080,50 +3086,32 @@ var require_headers = __commonJS({
       }
       keys() {
         webidl.brandCheck(this, _Headers);
-        if (this[kGuard] === "immutable") {
-          const value = this[kHeadersSortedMap];
-          return makeIterator(
-            () => value,
-            "Headers",
-            "key"
-          );
-        }
         return makeIterator(
-          () => [...this[kHeadersSortedMap].values()],
+          () => this[kHeadersSortedMap],
           "Headers",
-          "key"
+          "key",
+          0,
+          1
         );
       }
       values() {
         webidl.brandCheck(this, _Headers);
-        if (this[kGuard] === "immutable") {
-          const value = this[kHeadersSortedMap];
-          return makeIterator(
-            () => value,
-            "Headers",
-            "value"
-          );
-        }
         return makeIterator(
-          () => [...this[kHeadersSortedMap].values()],
+          () => this[kHeadersSortedMap],
           "Headers",
-          "value"
+          "value",
+          0,
+          1
         );
       }
       entries() {
         webidl.brandCheck(this, _Headers);
-        if (this[kGuard] === "immutable") {
-          const value = this[kHeadersSortedMap];
-          return makeIterator(
-            () => value,
-            "Headers",
-            "key+value"
-          );
-        }
         return makeIterator(
-          () => [...this[kHeadersSortedMap].values()],
+          () => this[kHeadersSortedMap],
           "Headers",
-          "key+value"
+          "key+value",
+          0,
+          1
         );
       }
       /**
@@ -3139,7 +3127,7 @@ var require_headers = __commonJS({
           );
         }
         for (const [key, value] of this) {
-          callbackFn.apply(thisArg, [value, key, this]);
+          callbackFn.call(thisArg, value, key, this);
         }
       }
       [Symbol.for("nodejs.util.inspect.custom")]() {
@@ -5391,9 +5379,10 @@ var require_formdata = __commonJS({
     "use strict";
     var { isBlobLike, toUSVString, makeIterator } = require_util2();
     var { kState } = require_symbols2();
+    var { kEnumerableProperty } = require_util();
     var { File: UndiciFile, FileLike, isFileLike } = require_file();
     var { webidl } = require_webidl();
-    var { Blob: Blob2, File: NativeFile } = require("node:buffer");
+    var { File: NativeFile } = require("node:buffer");
     var File = NativeFile ?? UndiciFile;
     var FormData = class _FormData {
       static {
@@ -5477,24 +5466,30 @@ var require_formdata = __commonJS({
       entries() {
         webidl.brandCheck(this, _FormData);
         return makeIterator(
-          () => this[kState].map((pair) => [pair.name, pair.value]),
+          () => this[kState],
           "FormData",
-          "key+value"
+          "key+value",
+          "name",
+          "value"
         );
       }
       keys() {
         webidl.brandCheck(this, _FormData);
         return makeIterator(
-          () => this[kState].map((pair) => [pair.name, pair.value]),
+          () => this[kState],
           "FormData",
-          "key"
+          "key",
+          "name",
+          "value"
         );
       }
       values() {
         webidl.brandCheck(this, _FormData);
         return makeIterator(
-          () => this[kState].map((pair) => [pair.name, pair.value]),
+          () => this[kState],
           "FormData",
+          "value",
+          "name",
           "value"
         );
       }
@@ -5511,12 +5506,23 @@ var require_formdata = __commonJS({
           );
         }
         for (const [key, value] of this) {
-          callbackFn.apply(thisArg, [value, key, this]);
+          callbackFn.call(thisArg, value, key, this);
         }
       }
     };
     FormData.prototype[Symbol.iterator] = FormData.prototype.entries;
     Object.defineProperties(FormData.prototype, {
+      append: kEnumerableProperty,
+      delete: kEnumerableProperty,
+      get: kEnumerableProperty,
+      getAll: kEnumerableProperty,
+      has: kEnumerableProperty,
+      set: kEnumerableProperty,
+      entries: kEnumerableProperty,
+      keys: kEnumerableProperty,
+      values: kEnumerableProperty,
+      forEach: kEnumerableProperty,
+      [Symbol.iterator]: { enumerable: false },
       [Symbol.toStringTag]: {
         value: "FormData",
         configurable: true
@@ -5528,7 +5534,7 @@ var require_formdata = __commonJS({
         value = Buffer.from(value).toString("utf8");
       } else {
         if (!isFileLike(value)) {
-          value = value instanceof Blob2 ? new File([value], "blob", { type: value.type }) : new FileLike(value, "blob", { type: value.type });
+          value = value instanceof Blob ? new File([value], "blob", { type: value.type }) : new FileLike(value, "blob", { type: value.type });
         }
         if (filename !== void 0) {
           const options = {
@@ -11345,10 +11351,12 @@ var require_fetch = __commonJS({
         internalResponse.body.stream.pipeThrough(transformStream);
         const byteStream = new ReadableStream({
           readableStream: transformStream.readable,
-          async start(controller) {
-            const reader = this.readableStream.getReader();
-            while (true) {
-              const { done, value } = await reader.read();
+          async start() {
+            this._bodyReader = this.readableStream.getReader();
+          },
+          async pull(controller) {
+            while (controller.desiredSize >= 0) {
+              const { done, value } = await this._bodyReader.read();
               if (done) {
                 queueMicrotask(() => readableStreamClose(controller));
                 break;
@@ -11356,6 +11364,7 @@ var require_fetch = __commonJS({
               controller.enqueue(value);
             }
           },
+          queuingStrategy: new ByteLengthQueuingStrategy({ highWaterMark: 16384 }),
           type: "bytes"
         });
         internalResponse.body.stream = byteStream;
@@ -11449,6 +11458,7 @@ var require_fetch = __commonJS({
       }
       if (!sameOrigin(requestCurrentURL(request), locationURL)) {
         request.headersList.delete("authorization", true);
+        request.headersList.delete("proxy-authorization", true);
         request.headersList.delete("cookie", true);
         request.headersList.delete("host", true);
       }
@@ -11668,14 +11678,15 @@ var require_fetch = __commonJS({
         }
         return makeNetworkError(err);
       }
-      const pullAlgorithm = /* @__PURE__ */ __name(() => {
-        fetchParams.controller.resume();
+      const pullAlgorithm = /* @__PURE__ */ __name(async () => {
+        await fetchParams.controller.resume();
       }, "pullAlgorithm");
       const cancelAlgorithm = /* @__PURE__ */ __name((reason) => {
         fetchParams.controller.abort(reason);
       }, "cancelAlgorithm");
       const stream = new ReadableStream(
         {
+          highWaterMark: 16384,
           async start(controller) {
             fetchParams.controller.controller = controller;
           },
@@ -11685,7 +11696,8 @@ var require_fetch = __commonJS({
           async cancel(reason) {
             await cancelAlgorithm(reason);
           },
-          type: "bytes"
+          type: "bytes",
+          queuingStrategy: new ByteLengthQueuingStrategy({ highWaterMark: 16384 })
         }
       );
       response.body = { stream };
@@ -11726,7 +11738,7 @@ var require_fetch = __commonJS({
             fetchParams.controller.terminate();
             return;
           }
-          if (!fetchParams.controller.controller.desiredSize) {
+          if (fetchParams.controller.controller.desiredSize <= 0) {
             return;
           }
         }
@@ -13159,6 +13171,564 @@ var require_websocket = __commonJS({
   }
 });
 
+// lib/eventsource/util.js
+var require_util4 = __commonJS({
+  "lib/eventsource/util.js"(exports2, module2) {
+    "use strict";
+    function isValidLastEventId(value) {
+      return value.indexOf("\0") === -1;
+    }
+    __name(isValidLastEventId, "isValidLastEventId");
+    function isASCIINumber(value) {
+      if (value.length === 0)
+        return false;
+      for (let i = 0; i < value.length; i++) {
+        if (value.charCodeAt(i) < 48 || value.charCodeAt(i) > 57)
+          return false;
+      }
+      return true;
+    }
+    __name(isASCIINumber, "isASCIINumber");
+    function delay(ms) {
+      return new Promise((resolve) => {
+        setTimeout(resolve, ms).unref();
+      });
+    }
+    __name(delay, "delay");
+    module2.exports = {
+      isValidLastEventId,
+      isASCIINumber,
+      delay
+    };
+  }
+});
+
+// lib/eventsource/eventsource-stream.js
+var require_eventsource_stream = __commonJS({
+  "lib/eventsource/eventsource-stream.js"(exports2, module2) {
+    "use strict";
+    var { Transform } = require("node:stream");
+    var { isASCIINumber, isValidLastEventId } = require_util4();
+    var BOM = [239, 187, 191];
+    var LF = 10;
+    var CR = 13;
+    var COLON = 58;
+    var SPACE = 32;
+    var EventSourceStream = class extends Transform {
+      static {
+        __name(this, "EventSourceStream");
+      }
+      /**
+       * @type {eventSourceSettings}
+       */
+      state = null;
+      /**
+       * Leading byte-order-mark check.
+       * @type {boolean}
+       */
+      checkBOM = true;
+      /**
+       * @type {boolean}
+       */
+      crlfCheck = false;
+      /**
+       * @type {boolean}
+       */
+      eventEndCheck = false;
+      /**
+       * @type {Buffer}
+       */
+      buffer = null;
+      pos = 0;
+      event = {
+        data: void 0,
+        event: void 0,
+        id: void 0,
+        retry: void 0
+      };
+      /**
+       * @param {object} options
+       * @param {eventSourceSettings} options.eventSourceSettings
+       * @param {Function} [options.push]
+       */
+      constructor(options = {}) {
+        options.readableObjectMode = true;
+        super(options);
+        this.state = options.eventSourceSettings || {};
+        if (options.push) {
+          this.push = options.push;
+        }
+      }
+      /**
+       * @param {Buffer} chunk
+       * @param {string} _encoding
+       * @param {Function} callback
+       * @returns {void}
+       */
+      _transform(chunk, _encoding, callback) {
+        if (chunk.length === 0) {
+          callback();
+          return;
+        }
+        if (this.buffer) {
+          this.buffer = Buffer.concat([this.buffer, chunk]);
+        } else {
+          this.buffer = chunk;
+        }
+        if (this.checkBOM) {
+          switch (this.buffer.length) {
+            case 1:
+              if (this.buffer[0] === BOM[0]) {
+                callback();
+                return;
+              }
+              this.checkBOM = false;
+              callback();
+              return;
+            case 2:
+              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1]) {
+                callback();
+                return;
+              }
+              this.checkBOM = false;
+              break;
+            case 3:
+              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
+                this.buffer = Buffer.alloc(0);
+                this.checkBOM = false;
+                callback();
+                return;
+              }
+              this.checkBOM = false;
+              break;
+            default:
+              if (this.buffer[0] === BOM[0] && this.buffer[1] === BOM[1] && this.buffer[2] === BOM[2]) {
+                this.buffer = this.buffer.subarray(3);
+              }
+              this.checkBOM = false;
+              break;
+          }
+        }
+        while (this.pos < this.buffer.length) {
+          if (this.eventEndCheck) {
+            if (this.crlfCheck) {
+              if (this.buffer[this.pos] === LF) {
+                this.buffer = this.buffer.subarray(this.pos + 1);
+                this.pos = 0;
+                this.crlfCheck = false;
+                continue;
+              }
+              this.crlfCheck = false;
+            }
+            if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
+              if (this.buffer[this.pos] === CR) {
+                this.crlfCheck = true;
+              }
+              this.buffer = this.buffer.subarray(this.pos + 1);
+              this.pos = 0;
+              if (this.event.data !== void 0 || this.event.event || this.event.id || this.event.retry) {
+                this.processEvent(this.event);
+              }
+              this.clearEvent();
+              continue;
+            }
+            this.eventEndCheck = false;
+            continue;
+          }
+          if (this.buffer[this.pos] === LF || this.buffer[this.pos] === CR) {
+            if (this.buffer[this.pos] === CR) {
+              this.crlfCheck = true;
+            }
+            this.parseLine(this.buffer.subarray(0, this.pos), this.event);
+            this.buffer = this.buffer.subarray(this.pos + 1);
+            this.pos = 0;
+            this.eventEndCheck = true;
+            continue;
+          }
+          this.pos++;
+        }
+        callback();
+      }
+      /**
+       * @param {Buffer} line
+       * @param {EventStreamEvent} event
+       */
+      parseLine(line, event) {
+        if (line.length === 0) {
+          return;
+        }
+        const colonPosition = line.indexOf(COLON);
+        if (colonPosition === 0) {
+          return;
+        }
+        let field = "";
+        let value = "";
+        if (colonPosition !== -1) {
+          field = line.subarray(0, colonPosition).toString("utf8");
+          let valueStart = colonPosition + 1;
+          if (line[valueStart] === SPACE) {
+            ++valueStart;
+          }
+          value = line.subarray(valueStart).toString("utf8");
+        } else {
+          field = line.toString("utf8");
+          value = "";
+        }
+        switch (field) {
+          case "data":
+            if (event[field] === void 0) {
+              event[field] = value;
+            } else {
+              event[field] += `
+${value}`;
+            }
+            break;
+          case "retry":
+            if (isASCIINumber(value)) {
+              event[field] = value;
+            }
+            break;
+          case "id":
+            if (isValidLastEventId(value)) {
+              event[field] = value;
+            }
+            break;
+          case "event":
+            if (value.length > 0) {
+              event[field] = value;
+            }
+            break;
+        }
+      }
+      /**
+       * @param {EventSourceStreamEvent} event
+       */
+      processEvent(event) {
+        if (event.retry && isASCIINumber(event.retry)) {
+          this.state.reconnectionTime = parseInt(event.retry, 10);
+        }
+        if (event.id && isValidLastEventId(event.id)) {
+          this.state.lastEventId = event.id;
+        }
+        if (event.data !== void 0) {
+          this.push({
+            type: event.event || "message",
+            options: {
+              data: event.data,
+              lastEventId: this.state.lastEventId,
+              origin: this.state.origin
+            }
+          });
+        }
+      }
+      clearEvent() {
+        this.event = {
+          data: void 0,
+          event: void 0,
+          id: void 0,
+          retry: void 0
+        };
+      }
+    };
+    module2.exports = {
+      EventSourceStream
+    };
+  }
+});
+
+// lib/eventsource/eventsource.js
+var require_eventsource = __commonJS({
+  "lib/eventsource/eventsource.js"(exports2, module2) {
+    "use strict";
+    var { pipeline } = require("node:stream");
+    var { fetching } = require_fetch();
+    var { makeRequest } = require_request();
+    var { getGlobalOrigin } = require_global();
+    var { webidl } = require_webidl();
+    var { EventSourceStream } = require_eventsource_stream();
+    var { parseMIMEType } = require_dataURL();
+    var { MessageEvent } = require_events();
+    var { isNetworkError } = require_response();
+    var { getGlobalDispatcher } = require_global2();
+    var { delay } = require_util4();
+    var experimentalWarned = false;
+    var defaultReconnectionTime = 3e3;
+    var CONNECTING = 0;
+    var OPEN = 1;
+    var CLOSED = 2;
+    var ANONYMOUS = "anonymous";
+    var USE_CREDENTIALS = "use-credentials";
+    var EventSource = class _EventSource extends EventTarget {
+      static {
+        __name(this, "EventSource");
+      }
+      #events = {
+        open: null,
+        error: null,
+        message: null
+      };
+      #url = null;
+      #withCredentials = false;
+      #readyState = CONNECTING;
+      #request = null;
+      #controller = null;
+      /**
+       * @type {object}
+       * @property {string} lastEventId
+       * @property {number} reconnectionTime
+       * @property {any} reconnectionTimer
+       */
+      #settings = null;
+      /**
+       * Creates a new EventSource object.
+       * @param {string} url
+       * @param {EventSourceInit} [eventSourceInitDict]
+       * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface
+       */
+      constructor(url, eventSourceInitDict = {}) {
+        super();
+        webidl.argumentLengthCheck(arguments, 1, { header: "EventSource constructor" });
+        if (!experimentalWarned) {
+          experimentalWarned = true;
+          process.emitWarning("EventSource is experimental, expect them to change at any time.", {
+            code: "UNDICI-ES"
+          });
+        }
+        url = webidl.converters.USVString(url);
+        eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict);
+        this.#settings = {
+          origin: getGlobalOrigin(),
+          policyContainer: {
+            referrerPolicy: "no-referrer"
+          },
+          lastEventId: "",
+          reconnectionTime: defaultReconnectionTime
+        };
+        let urlRecord;
+        try {
+          urlRecord = new URL(url, this.#settings.origin);
+          this.#settings.origin = urlRecord.origin;
+        } catch (e) {
+          throw new DOMException(e, "SyntaxError");
+        }
+        this.#url = urlRecord.href;
+        let corsAttributeState = ANONYMOUS;
+        if (eventSourceInitDict.withCredentials) {
+          corsAttributeState = USE_CREDENTIALS;
+          this.#withCredentials = true;
+        }
+        const initRequest = {
+          redirect: "follow",
+          keepalive: true,
+          // @see https://html.spec.whatwg.org/multipage/urls-and-fetching.html#cors-settings-attributes
+          mode: "cors",
+          credentials: corsAttributeState === "anonymous" ? "same-origin" : "omit",
+          referrer: "no-referrer"
+        };
+        initRequest.client = this.#settings;
+        initRequest.headersList = [["accept", { name: "accept", value: "text/event-stream" }]];
+        initRequest.cache = "no-store";
+        initRequest.initiator = "other";
+        initRequest.urlList = [new URL(this.#url)];
+        this.#request = makeRequest(initRequest);
+        this.#connect();
+      }
+      /**
+       * Returns the state of this EventSource object's connection. It can have the
+       * values described below.
+       * @returns {0|1|2}
+       * @readonly
+       */
+      get readyState() {
+        return this.#readyState;
+      }
+      /**
+       * Returns the URL providing the event stream.
+       * @readonly
+       * @returns {string}
+       */
+      get url() {
+        return this.#url;
+      }
+      /**
+       * Returns a boolean indicating whether the EventSource object was
+       * instantiated with CORS credentials set (true), or not (false, the default).
+       */
+      get withCredentials() {
+        return this.#withCredentials;
+      }
+      #connect() {
+        if (this.#readyState === CLOSED)
+          return;
+        this.#readyState = CONNECTING;
+        const fetchParam = {
+          request: this.#request
+        };
+        const processEventSourceEndOfBody = /* @__PURE__ */ __name((response) => {
+          if (isNetworkError(response)) {
+            this.dispatchEvent(new Event("error"));
+            this.close();
+          }
+          this.#reconnect();
+        }, "processEventSourceEndOfBody");
+        fetchParam.processResponseEndOfBody = processEventSourceEndOfBody;
+        fetchParam.processResponse = (response) => {
+          if (isNetworkError(response)) {
+            if (response.aborted) {
+              this.close();
+              this.dispatchEvent(new Event("error"));
+              return;
+            } else {
+              this.#reconnect();
+              return;
+            }
+          }
+          const contentType = response.headersList.get("content-type", true);
+          const mimeType = contentType !== null ? parseMIMEType(contentType) : "failure";
+          const contentTypeValid = mimeType !== "failure" && mimeType.essence === "text/event-stream";
+          if (response.status !== 200 || contentTypeValid === false) {
+            this.close();
+            this.dispatchEvent(new Event("error"));
+            return;
+          }
+          this.#readyState = OPEN;
+          this.dispatchEvent(new Event("open"));
+          this.#settings.origin = response.urlList[response.urlList.length - 1].origin;
+          const eventSourceStream = new EventSourceStream({
+            eventSourceSettings: this.#settings,
+            push: (event) => {
+              this.dispatchEvent(new MessageEvent(
+                event.type,
+                event.options
+              ));
+            }
+          });
+          pipeline(
+            response.body.stream,
+            eventSourceStream,
+            (error) => {
+              if (error?.aborted === false) {
+                this.close();
+                this.dispatchEvent(new Event("error"));
+              }
+            }
+          );
+        };
+        this.#controller = fetching({
+          ...fetchParam,
+          dispatcher: getGlobalDispatcher()
+        });
+      }
+      /**
+       * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#sse-processing-model
+       * @returns {Promise<void>}
+       */
+      async #reconnect() {
+        if (this.#readyState === CLOSED)
+          return;
+        this.#readyState = CONNECTING;
+        this.dispatchEvent(new Event("error"));
+        await delay(this.#settings.reconnectionTime);
+        if (this.#readyState !== CONNECTING)
+          return;
+        if (this.#settings.lastEventId !== "") {
+          this.#request.headersList.set("last-event-id", this.#settings.lastEventId, true);
+        }
+        this.#connect();
+      }
+      /**
+       * Closes the connection, if any, and sets the readyState attribute to
+       * CLOSED.
+       */
+      close() {
+        webidl.brandCheck(this, _EventSource);
+        if (this.#readyState === CLOSED)
+          return;
+        this.#readyState = CLOSED;
+        clearTimeout(this.#settings.reconnectionTimer);
+        this.#controller.abort();
+        if (this.#request) {
+          this.#request = null;
+        }
+      }
+      get onopen() {
+        return this.#events.open;
+      }
+      set onopen(fn) {
+        if (this.#events.open) {
+          this.removeEventListener("open", this.#events.open);
+        }
+        if (typeof fn === "function") {
+          this.#events.open = fn;
+          this.addEventListener("open", fn);
+        } else {
+          this.#events.open = null;
+        }
+      }
+      get onmessage() {
+        return this.#events.message;
+      }
+      set onmessage(fn) {
+        if (this.#events.message) {
+          this.removeEventListener("message", this.#events.message);
+        }
+        if (typeof fn === "function") {
+          this.#events.message = fn;
+          this.addEventListener("message", fn);
+        } else {
+          this.#events.message = null;
+        }
+      }
+      get onerror() {
+        return this.#events.error;
+      }
+      set onerror(fn) {
+        if (this.#events.error) {
+          this.removeEventListener("error", this.#events.error);
+        }
+        if (typeof fn === "function") {
+          this.#events.error = fn;
+          this.addEventListener("error", fn);
+        } else {
+          this.#events.error = null;
+        }
+      }
+    };
+    var constantsPropertyDescriptors = {
+      CONNECTING: {
+        __proto__: null,
+        configurable: false,
+        enumerable: true,
+        value: CONNECTING,
+        writable: false
+      },
+      OPEN: {
+        __proto__: null,
+        configurable: false,
+        enumerable: true,
+        value: OPEN,
+        writable: false
+      },
+      CLOSED: {
+        __proto__: null,
+        configurable: false,
+        enumerable: true,
+        value: CLOSED,
+        writable: false
+      }
+    };
+    Object.defineProperties(EventSource, constantsPropertyDescriptors);
+    Object.defineProperties(EventSource.prototype, constantsPropertyDescriptors);
+    webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
+      { key: "withCredentials", converter: webidl.converters.boolean, defaultValue: false }
+    ]);
+    module2.exports = {
+      EventSource,
+      defaultReconnectionTime
+    };
+  }
+});
+
 // index-fetch.js
 var fetchImpl = require_fetch().fetch;
 module.exports.fetch = /* @__PURE__ */ __name(function fetch(resource, init = void 0) {
@@ -13174,6 +13744,7 @@ module.exports.Headers = require_headers().Headers;
 module.exports.Response = require_response().Response;
 module.exports.Request = require_request().Request;
 module.exports.WebSocket = require_websocket().WebSocket;
+module.exports.EventSource = require_eventsource().EventSource;
 /*! Bundled license information:
 
 undici/lib/fetch/body.js:
