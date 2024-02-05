@@ -95,10 +95,6 @@
 #  endif
 #endif
 
-#ifdef HAVE_SYS_RANDOM_H
-#  include <sys/random.h>
-#endif
-
 #ifdef HAVE_SYS_SOCKET_H
 #  include <sys/socket.h>
 #endif

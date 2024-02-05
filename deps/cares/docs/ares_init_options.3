@@ -35,6 +35,7 @@ struct ares_options {
   int udp_max_queries;
   int maxtimeout; /* in milliseconds */
   unsigned int qcache_max_ttl; /* in seconds */
+  ares_evsys_t evsys;
 };
 
 int ares_init_options(ares_channel_t **\fIchannelptr\fP,
@@ -217,6 +218,8 @@ The value of
 will be passed as the
 .I data
 argument.
+
+Cannot be used with \fBARES_OPT_EVENT_THREAD\fP.
 .TP 18
 .B ARES_OPT_SORTLIST
 .B struct apattern *\fIsortlist\fP;
@@ -285,6 +288,29 @@ a query result may be cached which will override a larger TTL in the response
 message. This must be a non-zero value otherwise the cache will be disabled.
 Choose a reasonable value for your application such as 300 (5 minutes) or
 3600 (1 hour).
+.br
+.TP 18
+.B ARES_OPT_EVENT_THREAD
+.B ares_evsys_t \fIevsys\fP;
+.br
+Enable the built-in event thread (Recommended). Introduced in c-ares 1.26.0.
+Set the \fIevsys\fP parameter to \fBARES_EVSYS_DEFAULT\fP (0).  Other values are
+reserved for testing and should not be used by integrators.
+
+This option cannot be used with the \fBARES_OPT_SOCK_STATE_CB\fP option, nor the
+\fIares_set_socket_functions(3)\fP or
+\fIares_set_socket_configure_callback(3)\fP functions.
+
+When enabled, the integrator is no longer responsible for notifying c-ares of
+any events on the file descriptors, so \fIares_process(3)\fP nor
+\fIares_process_fd(3)\fP should ever be called when this option is enabled.
+
+Use \fIares_threadsafety(3)\fP to determine if this option is available to be
+used.
+
+Returns \fBARES_ENOTIMP\fP if this option is passed but not available, and
+\fBARES_ESERVFAIL\fP if there is a critical failure during initialization of
+the event thread.
 .br
 .PP
 The \fIoptmask\fP parameter also includes options without a corresponding

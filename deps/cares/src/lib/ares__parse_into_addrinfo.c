@@ -81,7 +81,6 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
   }
 
   for (i = 0; i < ancount; i++) {
-    const char          *rname = NULL;
     ares_dns_rec_type_t  rtype;
     const ares_dns_rr_t *rr =
       ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
@@ -91,13 +90,18 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
     }
 
     rtype = ares_dns_rr_get_type(rr);
-    rname = ares_dns_rr_get_name(rr);
 
-    /* Old code did this hostname sanity check */
-    if ((rtype == ARES_REC_TYPE_A || rtype == ARES_REC_TYPE_AAAA) &&
-        strcasecmp(rname, hostname) != 0) {
-      continue;
-    }
+    /* Issue #683
+     * Old code did this hostname sanity check, however it appears this is
+     * flawed logic.  Other resolvers don't do this sanity check.  Leaving
+     * this code commented out for future reference.
+     *
+     * rname = ares_dns_rr_get_name(rr);
+     * if ((rtype == ARES_REC_TYPE_A || rtype == ARES_REC_TYPE_AAAA) &&
+     *     strcasecmp(rname, hostname) != 0) {
+     *   continue;
+     * }
+     */
 
     if (rtype == ARES_REC_TYPE_CNAME) {
       struct ares_addrinfo_cname *cname;

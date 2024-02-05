@@ -23,6 +23,8 @@ void ares_set_socket_functions(ares_channel_t *\fIchannel\fP,
 .SH DESCRIPTION
 .PP
 This function sets a set of callback \fIfunctions\fP in the given ares channel handle.
+Cannot be used when \fBARES_OPT_EVENT_THREAD\fP is passed to \fIares_init_options(3)\fP.
+
 These callback functions will be invoked to create/destroy socket objects and perform
 io, instead of the normal system calls. A client application can override normal network
 operation fully through this functionality, and provide its own transport layer. You

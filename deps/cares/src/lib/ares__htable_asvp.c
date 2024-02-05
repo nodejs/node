@@ -112,6 +112,39 @@ fail:
   return NULL;
 }
 
+ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable, size_t *num)
+{
+  const void   **buckets = NULL;
+  size_t         cnt     = 0;
+  ares_socket_t *out     = NULL;
+  size_t         i;
+
+  if (htable == NULL || num == NULL)
+    return NULL;
+
+  *num = 0;
+
+  buckets = ares__htable_all_buckets(htable->hash, &cnt);
+  if (buckets == NULL || cnt == 0) {
+    return NULL;
+  }
+
+  out = ares_malloc_zero(sizeof(*out) * cnt);
+  if (out == NULL) {
+    ares_free(buckets);
+    return NULL;
+  }
+
+  for (i=0; i<cnt; i++) {
+    out[i] = ((const ares__htable_asvp_bucket_t *)buckets[i])->key;
+  }
+
+  ares_free(buckets);
+  *num = cnt;
+  return out;
+}
+
+
 ares_bool_t ares__htable_asvp_insert(ares__htable_asvp_t *htable,
                                      ares_socket_t key, void *val)
 {

@@ -450,6 +450,8 @@ ares_ssize_t ares__socket_write(ares_channel_t *channel, ares_socket_t s,
 void ares_set_socket_callback(ares_channel_t           *channel,
                               ares_sock_create_callback cb, void *data)
 {
+  if (channel == NULL)
+    return;
   channel->sock_create_cb      = cb;
   channel->sock_create_cb_data = data;
 }
@@ -458,6 +460,8 @@ void ares_set_socket_configure_callback(ares_channel_t           *channel,
                                         ares_sock_config_callback cb,
                                         void                     *data)
 {
+  if (channel == NULL || channel->optmask & ARES_OPT_EVENT_THREAD)
+    return;
   channel->sock_config_cb      = cb;
   channel->sock_config_cb_data = data;
 }
@@ -466,6 +470,8 @@ void ares_set_socket_functions(ares_channel_t                     *channel,
                                const struct ares_socket_functions *funcs,
                                void                               *data)
 {
+  if (channel == NULL || channel->optmask & ARES_OPT_EVENT_THREAD)
+    return;
   channel->sock_funcs        = funcs;
   channel->sock_func_cb_data = data;
 }
