@@ -113,7 +113,6 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen_int,
 
   /* Cycle through answers */
   for (i = 0; i < ancount; i++) {
-    const char          *rname = NULL;
     const ares_dns_rr_t *rr =
       ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
 
@@ -141,17 +140,20 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen_int,
       continue;
     }
 
-    /* Old code compared the name in the rr to the ptrname, so we'll do that
-     * check here, but I'm not sure its necessary */
-    rname = ares_dns_rr_get_name(rr);
-    if (rname == NULL) {
-      /* Shouldn't be possible */
-      status = ARES_EBADRESP;
-      goto done;
-    }
-    if (strcasecmp(ptrname, rname) != 0) {
-      continue;
-    }
+    /* Issue #683
+     * Old code compared the name in the rr to the ptrname, but I think this
+     * is wrong since it was proven wrong for A & AAAA records.  Leaving
+     * this code commented out for future reference
+     *
+     * rname = ares_dns_rr_get_name(rr);
+     * if (rname == NULL) {
+     *   status = ARES_EBADRESP;
+     *   goto done;
+     * }
+     * if (strcasecmp(ptrname, rname) != 0) {
+     *   continue;
+     * }
+     */
 
     /* Save most recent PTR record as the hostname */
     hostname = ares_dns_rr_get_str(rr, ARES_RR_PTR_DNAME);

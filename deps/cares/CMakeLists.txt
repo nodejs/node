@@ -12,10 +12,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.25.0" )
+PROJECT (c-ares LANGUAGES C VERSION "1.26.0" )
 
 # Set this version before release
-SET (CARES_VERSION "1.25.0")
+SET (CARES_VERSION "1.26.0")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "12:1:10")
+SET (CARES_LIB_VERSIONINFO "13:0:11")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -186,6 +186,7 @@ CARES_FUNCTION_IN_LIBRARY (clock_gettime rt HAVE_LIBRT)
 
 
 # Look for necessary includes
+CHECK_INCLUDE_FILES (AvailabilityMacros.h  HAVE_AVAILABILITYMACROS_H)
 CHECK_INCLUDE_FILES (sys/types.h           HAVE_SYS_TYPES_H)
 CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
 CHECK_INCLUDE_FILES (sys/socket.h          HAVE_SYS_SOCKET_H)
@@ -223,8 +224,11 @@ CHECK_INCLUDE_FILES (sys/stat.h            HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES (sys/time.h            HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILES (sys/uio.h             HAVE_SYS_UIO_H)
 CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
+CHECK_INCLUDE_FILES (sys/event.h           HAVE_SYS_EVENT_H)
+CHECK_INCLUDE_FILES (sys/epoll.h           HAVE_SYS_EPOLL_H)
 CHECK_INCLUDE_FILES (ifaddrs.h             HAVE_IFADDRS_H)
 CHECK_INCLUDE_FILES (time.h                HAVE_TIME_H)
+CHECK_INCLUDE_FILES (poll.h                HAVE_POLL_H)
 CHECK_INCLUDE_FILES (dlfcn.h               HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (unistd.h              HAVE_UNISTD_H)
 # On OpenBSD, you must include sys/types.h before netinet/tcp.h
@@ -242,8 +246,14 @@ CHECK_INCLUDE_FILES ("winsock2.h;windows.h"            HAVE_WINSOCK2_H)
 CHECK_INCLUDE_FILES ("winsock2.h;ws2tcpip.h;windows.h" HAVE_WS2TCPIP_H)
 CHECK_INCLUDE_FILES ("winsock2.h;iphlpapi.h;windows.h" HAVE_IPHLPAPI_H)
 CHECK_INCLUDE_FILES ("winsock2.h;netioapi.h;windows.h" HAVE_NETIOAPI_H)
+CHECK_INCLUDE_FILES ("winsock2.h;mswsock.h;windows.h"  HAVE_MSWSOCK_H)
 CHECK_INCLUDE_FILES ("winsock.h;windows.h"             HAVE_WINSOCK_H)
 CHECK_INCLUDE_FILES (windows.h                         HAVE_WINDOWS_H)
+CHECK_INCLUDE_FILES ("windows.h;winternl.h"            HAVE_WINTERNL_H)
+CHECK_INCLUDE_FILES ("windows.h;ntdef.h"               HAVE_NTDEF_H)
+CHECK_INCLUDE_FILES ("windows.h;ntdef.h;ntstatus.h"    HAVE_NTSTATUS_H)
+
+
 ENDIF ()
 
 # Set system-specific compiler flags
@@ -300,6 +310,7 @@ MACRO (CARES_EXTRAINCLUDE_IFSET var include)
 	ENDIF ()
 ENDMACRO ()
 
+CARES_EXTRAINCLUDE_IFSET (HAVE_AVAILABILITYMACROS_H AvailabilityMacros.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STDBOOL_H      stdbool.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_TYPES_H    sys/types.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_ARPA_INET_H    arpa/inet.h)
@@ -322,7 +333,10 @@ CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_TIME_H     sys/time.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_STAT_H     sys/stat.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_UIO_H      sys/uio.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_RANDOM_H   sys/random.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EVENT_H    sys/event.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EPOLL_H    sys/epoll.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_TIME_H         time.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_POLL_H         poll.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_FCNTL_H        fcntl.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_UNISTD_H       unistd.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_WINSOCK2_H     winsock2.h)
@@ -429,6 +443,12 @@ CHECK_SYMBOL_EXISTS (writev          "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_WRITEV)
 CHECK_SYMBOL_EXISTS (arc4random_buf  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_ARC4RANDOM_BUF)
 CHECK_SYMBOL_EXISTS (stat            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_STAT)
 CHECK_SYMBOL_EXISTS (getifaddrs      "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETIFADDRS)
+CHECK_SYMBOL_EXISTS (poll            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_POLL)
+CHECK_SYMBOL_EXISTS (pipe            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PIPE)
+CHECK_SYMBOL_EXISTS (pipe2           "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PIPE2)
+CHECK_SYMBOL_EXISTS (kqueue          "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_KQUEUE)
+CHECK_SYMBOL_EXISTS (epoll_create1   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_EPOLL)
+
 
 # On Android, the system headers may define __system_property_get(), but excluded
 # from libc.  We need to perform a link test instead of a header/symbol test.
@@ -633,9 +653,6 @@ ENDIF ()
 IF (HAVE_SYS_TYPES_H)
 	SET (CARES_HAVE_SYS_TYPES_H 1)
 ENDIF ()
-IF (HAVE_SYS_RANDOM_H)
-	SET (CARES_HAVE_SYS_RANDOM_H 1)
-ENDIF()
 IF (HAVE_SYS_SOCKET_H)
 	SET (CARES_HAVE_SYS_SOCKET_H 1)
 ENDIF()
@@ -654,10 +671,6 @@ ENDIF()
 IF (HAVE_ARPA_NAMESER_COMPAT_H)
 	SET (CARES_HAVE_ARPA_NAMESER_COMPAT_H 1)
 ENDIF()
-
-# Record toplevel CMakeLists.txt path
-set(CARES_TOPLEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-
 
 # TRANSFORM_MAKEFILE_INC
 #

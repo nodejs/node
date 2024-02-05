@@ -28,6 +28,13 @@
 #include "ares.h"
 #include "ares_private.h"
 #include <stdlib.h>
+
+/* Older MacOS versions require including AvailabilityMacros.h before
+ * sys/random.h */
+#ifdef HAVE_AVAILABILITYMACROS_H
+#  include <AvailabilityMacros.h>
+#endif
+
 #ifdef HAVE_SYS_RANDOM_H
 #  include <sys/random.h>
 #endif
