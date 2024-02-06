@@ -342,7 +342,6 @@ void ContextifyContext::CreatePerIsolateProperties(
     IsolateData* isolate_data, Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
   SetMethod(isolate, target, "makeContext", MakeContext);
-  SetMethod(isolate, target, "isContext", IsContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
   SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
 }
@@ -350,7 +349,6 @@ void ContextifyContext::CreatePerIsolateProperties(
 void ContextifyContext::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(MakeContext);
-  registry->Register(IsContext);
   registry->Register(CompileFunction);
   registry->Register(ContainsModuleSyntax);
   registry->Register(PropertyGetterCallback);
@@ -414,20 +412,6 @@ void ContextifyContext::MakeContext(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 }
-
-
-void ContextifyContext::IsContext(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK(args[0]->IsObject());
-  Local<Object> sandbox = args[0].As<Object>();
-
-  Maybe<bool> result =
-      sandbox->HasPrivate(env->context(),
-                          env->contextify_context_private_symbol());
-  args.GetReturnValue().Set(result.FromJust());
-}
-
 
 void ContextifyContext::WeakCallback(
     const WeakCallbackInfo<ContextifyContext>& data) {
