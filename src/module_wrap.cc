@@ -226,6 +226,13 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         try_catch.ReThrow();
         return;
       }
+
+      if (that->Set(context,
+                    realm->env()->source_map_url_string(),
+                    module->GetUnboundModuleScript()->GetSourceMappingURL())
+              .IsNothing()) {
+        return;
+      }
     }
   }
 
