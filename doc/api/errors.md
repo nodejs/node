@@ -3174,7 +3174,9 @@ an `Error` with this code will be emitted.
 ### `HPE_CHUNK_EXTENSIONS_OVERFLOW`
 
 <!-- YAML
-added: v18.19.1
+added:
+ - v20.11.1
+ - v18.19.1
 -->
 
 Too much data was received for a chunk extensions. In order to protect against

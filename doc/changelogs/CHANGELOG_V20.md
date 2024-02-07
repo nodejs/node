@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.11.1">20.11.1</a><br/>
 <a href="#20.11.0">20.11.0</a><br/>
 <a href="#20.10.0">20.10.0</a><br/>
 <a href="#20.9.0">20.9.0</a><br/>
@@ -53,6 +54,45 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.11.1"></a>
+
+## 2024-02-14, Version 20.11.1 'Iron' (LTS), @RafaelGSS prepared by @marco-ippolito
+
+### Notable changes
+
+This is a security release.
+
+### Notable changes
+
+* CVE-2024-21892 - Code injection and privilege escalation through Linux capabilities- (High)
+* CVE-2024-22019 - http: Reading unprocessed HTTP request with unbounded chunk extension allows DoS attacks- (High)
+* CVE-2024-21896 - Path traversal by monkey-patching Buffer internals- (High)
+* CVE-2024-22017 - setuid() does not drop all privileges due to io\_uring - (High)
+* CVE-2023-46809 - Node.js is vulnerable to the Marvin Attack (timing variant of the Bleichenbacher attack against PKCS#1 v1.5 padding) - (Medium)
+* CVE-2024-21891 - Multiple permission model bypasses due to improper path traversal sequence sanitization - (Medium)
+* CVE-2024-21890 - Improper handling of wildcards in --allow-fs-read and --allow-fs-write (Medium)
+* CVE-2024-22025 - Denial of Service by resource exhaustion in fetch() brotli decoding - (Medium)
+* undici version 5.28.3
+* libuv version 1.48.0
+* OpenSSL version 3.0.13+quic1
+
+### Commits
+
+* \[[`7079c062bb`](https://github.com/nodejs/node/commit/7079c062bb)] - **crypto**: disable PKCS#1 padding for privateDecrypt (Michael Dawson) [nodejs-private/node-private#525](https://github.com/nodejs-private/node-private/pull/525)
+* \[[`186a6e1ffb`](https://github.com/nodejs/node/commit/186a6e1ffb)] - **deps**: fix GHSA-f74f-cvh7-c6q6/CVE-2024-24806 (Santiago Gimeno) [#51737](https://github.com/nodejs/node/pull/51737)
+* \[[`686da19abb`](https://github.com/nodejs/node/commit/686da19abb)] - **deps**: disable io\_uring support in libuv by default (Tobias Nießen) [nodejs-private/node-private#529](https://github.com/nodejs-private/node-private/pull/529)
+* \[[`f7b44bfbce`](https://github.com/nodejs/node/commit/f7b44bfbce)] - **deps**: update archs files for openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`7a30fecea2`](https://github.com/nodejs/node/commit/7a30fecea2)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`480fc169a8`](https://github.com/nodejs/node/commit/480fc169a8)] - **fs**: protect against modified Buffer internals in possiblyTransformPath (Tobias Nießen) [nodejs-private/node-private#497](https://github.com/nodejs-private/node-private/pull/497)
+* \[[`77ac7c3153`](https://github.com/nodejs/node/commit/77ac7c3153)] - **http**: add maximum chunk extension size (Paolo Insogna) [nodejs-private/node-private#519](https://github.com/nodejs-private/node-private/pull/519)
+* \[[`ed7d149675`](https://github.com/nodejs/node/commit/ed7d149675)] - **lib**: use cache fs internals against path traversal (RafaelGSS) [nodejs-private/node-private#516](https://github.com/nodejs-private/node-private/pull/516)
+* \[[`89bd5fc38f`](https://github.com/nodejs/node/commit/89bd5fc38f)] - **lib**: update undici to v5.28.3 (Matteo Collina) [nodejs-private/node-private#539](https://github.com/nodejs-private/node-private/pull/539)
+* \[[`d01dd4291d`](https://github.com/nodejs/node/commit/d01dd4291d)] - **permission**: fix wildcard when children > 1 (Rafael Gonzaga) [#51209](https://github.com/nodejs/node/pull/51209)
+* \[[`40ff37dfcc`](https://github.com/nodejs/node/commit/40ff37dfcc)] - **src**: fix HasOnly(capability) in node::credentials (Tobias Nießen) [nodejs-private/node-private#505](https://github.com/nodejs-private/node-private/pull/505)
+* \[[`3f6addd590`](https://github.com/nodejs/node/commit/3f6addd590)] - **src,deps**: disable setuid() etc if io\_uring enabled (Tobias Nießen) [nodejs-private/node-private#529](https://github.com/nodejs-private/node-private/pull/529)
+* \[[`d6da413aa4`](https://github.com/nodejs/node/commit/d6da413aa4)] - **test,doc**: clarify wildcard usage (RafaelGSS) [nodejs-private/node-private#517](https://github.com/nodejs-private/node-private/pull/517)
+* \[[`c213910aea`](https://github.com/nodejs/node/commit/c213910aea)] - **zlib**: pause stream if outgoing buffer is full (Matteo Collina) [nodejs-private/node-private#541](https://github.com/nodejs-private/node-private/pull/541)
 
 <a id="20.11.0"></a>
 
