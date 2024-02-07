@@ -1466,6 +1466,48 @@ int uv_os_setpriority(uv_pid_t pid, int priority) {
   return r;
 }
 
+int uv_thread_getpriority(uv_thread_t tid, int* priority) {
+  int r;
+
+  if (priority == NULL)
+    return UV_EINVAL;
+
+  r = GetThreadPriority(tid);
+  if (r == THREAD_PRIORITY_ERROR_RETURN)
+    return uv_translate_sys_error(GetLastError());
+
+  *priority = r;
+  return 0;
+}
+
+int uv_thread_setpriority(uv_thread_t tid, int priority) {
+  int r;
+
+  switch (priority) {
+    case UV_THREAD_PRIORITY_HIGHEST:
+      r = SetThreadPriority(tid, THREAD_PRIORITY_HIGHEST);
+      break;
+    case UV_THREAD_PRIORITY_ABOVE_NORMAL:
+      r = SetThreadPriority(tid, THREAD_PRIORITY_ABOVE_NORMAL);
+      break;
+    case UV_THREAD_PRIORITY_NORMAL:
+      r = SetThreadPriority(tid, THREAD_PRIORITY_NORMAL);
+      break;
+    case UV_THREAD_PRIORITY_BELOW_NORMAL:
+      r = SetThreadPriority(tid, THREAD_PRIORITY_BELOW_NORMAL);
+      break;
+    case UV_THREAD_PRIORITY_LOWEST:
+      r = SetThreadPriority(tid, THREAD_PRIORITY_LOWEST);
+      break;
+    default:
+      return 0;
+  }
+
+  if (r == 0)
+    return uv_translate_sys_error(GetLastError());
+
+  return 0;
+}
 
 int uv_os_uname(uv_utsname_t* buffer) {
   /* Implementation loosely based on
