@@ -22,6 +22,10 @@
 #include "uv.h"
 #include "task.h"
 
+#ifdef _WIN32
+# define putenv _putenv
+#endif
+
 #define INIT_CANCEL_INFO(ci, what)                                            \
   do {                                                                        \
     (ci)->reqs = (what);                                                      \

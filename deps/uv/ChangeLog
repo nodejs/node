@@ -1,4 +1,95 @@
-2023.11.06, Version 1.47.0 (Stable)
+2024.02.07, Version 1.48.0 (Stable)
+
+Changes since version 1.47.0:
+
+* misc: remove deprecated stalebot file (Jameson Nash)
+
+* build: disable windows asan buildbot (Ben Noordhuis)
+
+* test: don't run tcp_writealot under msan (Ben Noordhuis)
+
+* build,win: remove extraneous -lshell32 (Ben Noordhuis)
+
+* unix: ignore ifaddrs with NULL ifa_addr (Stephen Gallagher)
+
+* unix,win: utility for setting priority for thread (Hao Hu)
+
+* pipe: add back error handling to connect / bind (Jameson Nash)
+
+* test: check if ipv6 link-local traffic is routable (Ben Noordhuis)
+
+* win: remove check for UV_PIPE_NO_TRUNCATE (Jameson Nash)
+
+* linux: disable io_uring on hppa below kernel 6.1.51 (matoro)
+
+* unix,win: fix read past end of pipe name buffer (Ben Noordhuis)
+
+* unix: unbreak macOS < 10.14 (Sergey Fedorov)
+
+* aix: disable ipv6 link local (Abdirahim Musse)
+
+* doc: move cjihrig to emeriti (cjihrig)
+
+* unix: correct pwritev conditional (Bo Anderson)
+
+* test_fs.c: Fix issue on 32-bit systems using btrfs (Stephen Gallagher)
+
+* misc: ignore libuv-release-tool files (Jameson Nash)
+
+* win: honor NoDefaultCurrentDirectoryInExePath env var (Ardi Nugraha)
+
+* idna: fix compilation warning (Saúl Ibarra Corretgé)
+
+* linux: remove HAVE_IFADDRS_H macro (Ben Noordhuis)
+
+* test: skip tcp-write-in-a-row on IBM i (Abdirahim Musse)
+
+* build,win: work around missing uuid.dll on MinGW (Anton Bachin)
+
+* win: stop using deprecated names (Matheus Izvekov)
+
+* unix,win: fix busy loop with zero timeout timers (Matheus Izvekov)
+
+* aix,ibmi: use uv_interface_addresses instead of getifaddrs (Abdirahim Musse)
+
+* linux: fix bind/connect for abstract sockets (Santiago Gimeno)
+
+* win: replace c99 comments with c89 comments (Trevor Flynn)
+
+* build: add .cache clangd folder to .gitignore (Juan José Arboleda)
+
+* unix: support full TCP keep-alive on Solaris (Andy Pan)
+
+* freebsd: fix F_KINFO file path handling (David Carlier)
+
+* linux: retry fs op if unsupported by io_uring (Santiago Gimeno)
+
+* freebsd: fix build on non-intel archs (David Carlier)
+
+* unix: optimize uv__tcp_keepalive cpp directives (Andy Pan)
+
+* linux: disable io_uring on ppc64 and ppc64le (Brad King)
+
+* doc: add very basic Security Policy document (Santiago Gimeno)
+
+* build: re-enable msvc-asan job on CI (Jameson Nash)
+
+* win/spawn: optionally run executable paths with no file extension (Brad King)
+
+* win: fix ESRCH implementation (Jameson Nash)
+
+* unix,win: reset the timer queue on stop (Santiago Gimeno)
+
+* fix: always zero-terminate idna output (Ben Noordhuis)
+
+* fix: reject zero-length idna inputs (Ben Noordhuis)
+
+* test: empty strings are not valid IDNA (Santiago Gimeno)
+
+* Merge pull request from GHSA-f74f-cvh7-c6q6 (Ben Noordhuis)
+
+
+2023.11.06, Version 1.47.0 (Stable), be6b81a352d17513c95be153afcb3148f1a451cd
 
 Changes since version 1.46.0:
 
