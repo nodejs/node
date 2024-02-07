@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#21.6.2">21.6.2</a><br/>
 <a href="#21.6.1">21.6.1</a><br/>
 <a href="#21.6.0">21.6.0</a><br/>
 <a href="#21.5.0">21.5.0</a><br/>
@@ -42,6 +43,44 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.6.2"></a>
+
+## 2024-02-14, Version 21.6.2 (Current), @RafaelGSS
+
+### Notable changes
+
+This is a security release.
+
+### Notable changes
+
+* CVE-2024-21892 - Code injection and privilege escalation through Linux capabilities- (High)
+* CVE-2024-22019 - http: Reading unprocessed HTTP request with unbounded chunk extension allows DoS attacks- (High)
+* CVE-2024-21896 - Path traversal by monkey-patching Buffer internals- (High)
+* CVE-2024-22017 - setuid() does not drop all privileges due to io\_uring - (High)
+* CVE-2023-46809 - Node.js is vulnerable to the Marvin Attack (timing variant of the Bleichenbacher attack against PKCS#1 v1.5 padding) - (Medium)
+* CVE-2024-21891 - Multiple permission model bypasses due to improper path traversal sequence sanitization - (Medium)
+* CVE-2024-21890 - Improper handling of wildcards in --allow-fs-read and --allow-fs-write (Medium)
+* CVE-2024-22025 - Denial of Service by resource exhaustion in fetch() brotli decoding - (Medium)
+* undici version 5.28.3
+* libuv version 1.48.0
+* OpenSSL version 3.0.13+quic1
+
+### Commits
+
+* \[[`8344719369`](https://github.com/nodejs/node/commit/8344719369)] - **crypto**: disable PKCS#1 padding for privateDecrypt (Michael Dawson) [nodejs-private/node-private#525](https://github.com/nodejs-private/node-private/pull/525)
+* \[[`d093600ac4`](https://github.com/nodejs/node/commit/d093600ac4)] - **deps**: update archs files for openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`6cd930e5e8`](https://github.com/nodejs/node/commit/6cd930e5e8)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`9590c15d3d`](https://github.com/nodejs/node/commit/9590c15d3d)] - **deps**: upgrade libuv to 1.48.0 (Santiago Gimeno) [#51698](https://github.com/nodejs/node/pull/51698)
+* \[[`666096298c`](https://github.com/nodejs/node/commit/666096298c)] - **deps**: disable io\_uring support in libuv by default (Tobias Nießen) [nodejs-private/node-private#528](https://github.com/nodejs-private/node-private/pull/528)
+* \[[`a4edd22e30`](https://github.com/nodejs/node/commit/a4edd22e30)] - **fs**: protect against modified Buffer internals in possiblyTransformPath (Tobias Nießen) [nodejs-private/node-private#497](https://github.com/nodejs-private/node-private/pull/497)
+* \[[`6155a1ffaf`](https://github.com/nodejs/node/commit/6155a1ffaf)] - **http**: add maximum chunk extension size (Paolo Insogna) [nodejs-private/node-private#518](https://github.com/nodejs-private/node-private/pull/518)
+* \[[`777509495e`](https://github.com/nodejs/node/commit/777509495e)] - **lib**: use cache fs internals against path traversal (RafaelGSS) [nodejs-private/node-private#516](https://github.com/nodejs-private/node-private/pull/516)
+* \[[`9d2ac2b3fc`](https://github.com/nodejs/node/commit/9d2ac2b3fc)] - **lib**: update undici to v5.28.3 (Matteo Collina) [nodejs-private/node-private#538](https://github.com/nodejs-private/node-private/pull/538)
+* \[[`208b3940c7`](https://github.com/nodejs/node/commit/208b3940c7)] - **src**: fix HasOnly(capability) in node::credentials (Tobias Nießen) [nodejs-private/node-private#505](https://github.com/nodejs-private/node-private/pull/505)
+* \[[`fc2454f29c`](https://github.com/nodejs/node/commit/fc2454f29c)] - **src,deps**: disable setuid() etc if io\_uring enabled (Tobias Nießen) [nodejs-private/node-private#528](https://github.com/nodejs-private/node-private/pull/528)
+* \[[`ef3eea20be`](https://github.com/nodejs/node/commit/ef3eea20be)] - **test,doc**: clarify wildcard usage (RafaelGSS) [nodejs-private/node-private#517](https://github.com/nodejs-private/node-private/pull/517)
+* \[[`8547196964`](https://github.com/nodejs/node/commit/8547196964)] - **zlib**: pause stream if outgoing buffer is full (Matteo Collina) [nodejs-private/node-private#540](https://github.com/nodejs-private/node-private/pull/540)
 
 <a id="21.6.1"></a>
 

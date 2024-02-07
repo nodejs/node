@@ -3175,6 +3175,7 @@ an `Error` with this code will be emitted.
 
 <!-- YAML
 added:
+ - v21.6.2
  - v20.11.1
  - v18.19.1
 -->
