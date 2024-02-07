@@ -31,6 +31,7 @@ static int repeat_cb_called = 0;
 static int repeat_close_cb_called = 0;
 static int order_cb_called = 0;
 static int timer_check_double_call_called = 0;
+static int zero_timeout_cb_calls = 0;
 static uint64_t start_time;
 static uv_timer_t tiny_timer;
 static uv_timer_t huge_timer1;
@@ -238,6 +239,31 @@ TEST_IMPL(timer_order) {
   ASSERT_EQ(2, order_cb_called);
 
   MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+static void zero_timeout_cb(uv_timer_t* handle) {
+  ASSERT_OK(uv_timer_start(handle, zero_timeout_cb, 0, 0));
+  uv_stop(handle->loop);
+  zero_timeout_cb_calls++;
+}
+
+
+TEST_IMPL(timer_zero_timeout) {
+  uv_timer_t timer;
+  uv_loop_t* loop;
+
+  loop = uv_default_loop();
+  ASSERT_OK(uv_timer_init(loop, &timer));
+  ASSERT_OK(uv_timer_start(&timer, zero_timeout_cb, 0, 0));
+  ASSERT_EQ(1, uv_run(loop, UV_RUN_DEFAULT));  /* because of uv_stop() */
+  ASSERT_EQ(1, zero_timeout_cb_calls);
+  uv_close((uv_handle_t*) &timer, NULL);
+  ASSERT_OK(uv_run(loop, UV_RUN_DEFAULT));
+  ASSERT_EQ(1, zero_timeout_cb_calls);
+
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 

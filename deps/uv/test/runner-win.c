@@ -310,7 +310,7 @@ static int clear_line(void) {
   COORD coord;
   DWORD written;
 
-  handle = (HANDLE)_get_osfhandle(fileno(stderr));
+  handle = (HANDLE)_get_osfhandle(_fileno(stderr));
   if (handle == INVALID_HANDLE_VALUE)
     return -1;
 

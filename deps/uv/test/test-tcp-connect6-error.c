@@ -23,6 +23,7 @@
 #include "task.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 static int connect_cb_called = 0;
@@ -75,9 +76,13 @@ TEST_IMPL(tcp_connect6_error_fault) {
 
 
 TEST_IMPL(tcp_connect6_link_local) {
+  uv_interface_address_t* ifs;
+  uv_interface_address_t* p;
   struct sockaddr_in6 addr;
   uv_connect_t req;
   uv_tcp_t server;
+  int ok;
+  int n;
 
   if (!can_ipv6())
     RETURN_SKIP("IPv6 not supported");
@@ -89,6 +94,18 @@ TEST_IMPL(tcp_connect6_link_local) {
    */
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif  /* defined(__QEMU__) */
+
+  /* Check there's an interface that routes link-local (fe80::/10) traffic. */
+  ASSERT_OK(uv_interface_addresses(&ifs, &n));
+  for (p = ifs; p < &ifs[n]; p++)
+    if (p->address.address6.sin6_family == AF_INET6)
+      if (!memcmp(&p->address.address6.sin6_addr, "\xfe\x80", 2))
+        break;
+  ok = (p < &ifs[n]);
+  uv_free_interface_addresses(ifs, n);
+
+  if (!ok)
+    RETURN_SKIP("IPv6 link-local traffic not supported");
 
   ASSERT_OK(uv_ip6_addr("fe80::0bad:babe", 1337, &addr));
   ASSERT_OK(uv_tcp_init(uv_default_loop(), &server));

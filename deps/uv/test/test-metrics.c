@@ -217,7 +217,7 @@ static void prepare_cb(uv_prepare_t* handle) {
   ASSERT_OK(uv_fs_open(uv_default_loop(),
                        &fs_reqs.open_req,
                        "test_file",
-                       O_WRONLY | O_CREAT, S_IRUSR | S_IWUSR,
+                       UV_FS_O_WRONLY | UV_FS_O_CREAT, S_IRUSR | S_IWUSR,
                        create_cb));
 }
 
@@ -329,9 +329,7 @@ TEST_IMPL(metrics_pool_events) {
 
   pool_events_counter = 0;
   fd = uv_fs_open(NULL,
-                  &open_req,
-                  "test_file",
-                  O_WRONLY | O_CREAT,
+                  &open_req, "test_file", UV_FS_O_WRONLY | UV_FS_O_CREAT,
                   S_IRUSR | S_IWUSR,
                   NULL);
   ASSERT_GT(fd, 0);

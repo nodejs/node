@@ -32,6 +32,9 @@
 # include <shellapi.h>
 # include <wchar.h>
   typedef BOOL (WINAPI *sCompareObjectHandles)(_In_ HANDLE, _In_ HANDLE);
+# define unlink _unlink
+# define putenv _putenv
+# define close _close
 #else
 # include <unistd.h>
 # include <sys/wait.h>
@@ -322,7 +325,7 @@ TEST_IMPL(spawn_stdout_to_file) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  r = uv_fs_open(NULL, &fs_req, "stdout_file", O_CREAT | O_RDWR,
+  r = uv_fs_open(NULL, &fs_req, "stdout_file", UV_FS_O_CREAT | UV_FS_O_RDWR,
       S_IRUSR | S_IWUSR, NULL);
   ASSERT_NE(r, -1);
   uv_fs_req_cleanup(&fs_req);
@@ -376,7 +379,7 @@ TEST_IMPL(spawn_stdout_and_stderr_to_file) {
 
   init_process_options("spawn_helper6", exit_cb);
 
-  r = uv_fs_open(NULL, &fs_req, "stdout_file", O_CREAT | O_RDWR,
+  r = uv_fs_open(NULL, &fs_req, "stdout_file", UV_FS_O_CREAT | UV_FS_O_RDWR,
       S_IRUSR | S_IWUSR, NULL);
   ASSERT_NE(r, -1);
   uv_fs_req_cleanup(&fs_req);
@@ -1394,6 +1397,67 @@ TEST_IMPL(spawn_no_path) {
   MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
+
+
+TEST_IMPL(spawn_no_ext) {
+  char new_exepath[1024];
+
+  init_process_options("spawn_helper1", exit_cb);
+  options.flags |= UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME;
+  snprintf(new_exepath, sizeof(new_exepath), "%.*s_no_ext",
+           (int) (exepath_size - sizeof(".exe") + 1),
+           exepath);
+  options.file = options.args[0] = new_exepath;
+
+  ASSERT_OK(uv_spawn(uv_default_loop(), &process, &options));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  ASSERT_EQ(1, exit_cb_called);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+TEST_IMPL(spawn_path_no_ext) {
+  int r;
+  int len;
+  int file_len;
+  char file[64];
+  char path[1024];
+  char* env[2];
+
+  /* Set up the process, but make sure that the file to run is relative and
+   * requires a lookup into PATH. */
+  init_process_options("spawn_helper1", exit_cb);
+  options.flags |= UV_PROCESS_WINDOWS_FILE_PATH_EXACT_NAME;
+
+  /* Set up the PATH env variable */
+  for (len = strlen(exepath), file_len = 0;
+       exepath[len - 1] != '/' && exepath[len - 1] != '\\';
+       len--, file_len++);
+  snprintf(file, sizeof(file), "%.*s_no_ext",
+           (int) (file_len - sizeof(".exe") + 1),
+           exepath + len);
+  exepath[len] = 0;
+  snprintf(path, sizeof(path), "PATH=%s", exepath);
+
+  env[0] = path;
+  env[1] = NULL;
+
+  options.file = options.args[0] = file;
+  options.env = env;
+
+  r = uv_spawn(uv_default_loop(), &process, &options);
+  ASSERT(r == UV_ENOENT || r == UV_EACCES);
+  ASSERT_OK(uv_is_active((uv_handle_t*) &process));
+  uv_close((uv_handle_t*) &process, NULL);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
 #endif
 
 #ifndef _WIN32
@@ -1621,7 +1685,7 @@ TEST_IMPL(spawn_fs_open) {
   const char dev_null[] = "/dev/null";
 #endif
 
-  r = uv_fs_open(NULL, &fs_req, dev_null, O_RDWR, 0, NULL);
+  r = uv_fs_open(NULL, &fs_req, dev_null, UV_FS_O_RDWR, 0, NULL);
   ASSERT_NE(r, -1);
   fd = uv_get_osfhandle((uv_file) fs_req.result);
   uv_fs_req_cleanup(&fs_req);
