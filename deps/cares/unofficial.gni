@@ -69,6 +69,8 @@ template("cares_gn_build") {
       cflags_c = [
         "-Wno-implicit-fallthrough",
         "-Wno-unreachable-code",
+        # Remove after https://github.com/c-ares/c-ares/pull/709 lands in Node.
+        "-Wno-unused-result",
       ]
     }
   }
