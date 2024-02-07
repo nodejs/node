@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.19.1">18.19.1</a><br/>
 <a href="#18.19.0">18.19.0</a><br/>
 <a href="#18.18.2">18.18.2</a><br/>
 <a href="#18.18.1">18.18.1</a><br/>
@@ -62,6 +63,44 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.19.1"></a>
+
+## 2024-02-14, Version 18.19.1 'Hydrogen' (LTS), @RafaelGSS prepared by @marco-ippolito
+
+### Notable changes
+
+This is a security release.
+
+### Notable changes
+
+* CVE-2024-21892 - Code injection and privilege escalation through Linux capabilities- (High)
+* CVE-2024-22019 - http: Reading unprocessed HTTP request with unbounded chunk extension allows DoS attacks- (High)
+* CVE-2023-46809 - Node.js is vulnerable to the Marvin Attack (timing variant of the Bleichenbacher attack against PKCS#1 v1.5 padding) - (Medium)
+* CVE-2024-22025 - Denial of Service by resource exhaustion in fetch() brotli decoding - (Medium)
+* undici version 5.28.3
+* npm version 10.2.4
+
+### Commits
+
+* \[[`69e0a1dba8`](https://github.com/nodejs/node/commit/69e0a1dba8)] - **crypto**: update root certificates to NSS 3.95 (Node.js GitHub Bot) [#50805](https://github.com/nodejs/node/pull/50805)
+* \[[`d3d357ab09`](https://github.com/nodejs/node/commit/d3d357ab09)] - **crypto**: disable PKCS#1 padding for privateDecrypt (Michael Dawson) [nodejs-private/node-private#525](https://github.com/nodejs-private/node-private/pull/525)
+* \[[`3d27175c42`](https://github.com/nodejs/node/commit/3d27175c42)] - **deps**: fix GHSA-f74f-cvh7-c6q6/CVE-2024-24806 (Santiago Gimeno) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`331558b8ab`](https://github.com/nodejs/node/commit/331558b8ab)] - **deps**: update archs files for openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`99b77dfb9c`](https://github.com/nodejs/node/commit/99b77dfb9c)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.13+quic1 (Node.js GitHub Bot) [#51614](https://github.com/nodejs/node/pull/51614)
+* \[[`6cdc71bff1`](https://github.com/nodejs/node/commit/6cdc71bff1)] - **deps**: upgrade npm to 10.2.4 (npm team) [#50751](https://github.com/nodejs/node/pull/50751)
+* \[[`911cb33cda`](https://github.com/nodejs/node/commit/911cb33cda)] - **http**: add maximum chunk extension size (Paolo Insogna) [nodejs-private/node-private#520](https://github.com/nodejs-private/node-private/pull/520)
+* \[[`f48b89689d`](https://github.com/nodejs/node/commit/f48b89689d)] - **lib**: update undici to v5.28.3 (Matteo Collina) [nodejs-private/node-private#536](https://github.com/nodejs-private/node-private/pull/536)
+* \[[`e6b4c105e0`](https://github.com/nodejs/node/commit/e6b4c105e0)] - **src**: fix HasOnly(capability) in node::credentials (Tobias Nießen) [nodejs-private/node-private#505](https://github.com/nodejs-private/node-private/pull/505)
+* \[[`97c49076cd`](https://github.com/nodejs/node/commit/97c49076cd)] - **test**: skip test-child-process-stdio-reuse-readable-stdio on Windows (Joyee Cheung) [#49621](https://github.com/nodejs/node/pull/49621)
+* \[[`60affdde8e`](https://github.com/nodejs/node/commit/60affdde8e)] - **tools**: add macOS notarization verification step (Ulises Gascón) [#50833](https://github.com/nodejs/node/pull/50833)
+* \[[`ccc676a327`](https://github.com/nodejs/node/commit/ccc676a327)] - **tools**: use macOS keychain to notarize the releases (Ulises Gascón) [#50715](https://github.com/nodejs/node/pull/50715)
+* \[[`31f1ceb380`](https://github.com/nodejs/node/commit/31f1ceb380)] - **tools**: remove unused file (Ulises Gascon) [#50622](https://github.com/nodejs/node/pull/50622)
+* \[[`bd5f6fb92a`](https://github.com/nodejs/node/commit/bd5f6fb92a)] - **tools**: add macOS notarization stapler (Ulises Gascón) [#50625](https://github.com/nodejs/node/pull/50625)
+* \[[`4168c4f71b`](https://github.com/nodejs/node/commit/4168c4f71b)] - **tools**: improve macOS notarization process output readability (Ulises Gascón) [#50389](https://github.com/nodejs/node/pull/50389)
+* \[[`4622f775aa`](https://github.com/nodejs/node/commit/4622f775aa)] - **tools**: remove unused `version` function (Ulises Gascón) [#50390](https://github.com/nodejs/node/pull/50390)
+* \[[`b90804b1e7`](https://github.com/nodejs/node/commit/b90804b1e7)] - **win,tools**: upgrade Windows signing to smctl (Stefan Stojanovic) [#50956](https://github.com/nodejs/node/pull/50956)
+* \[[`f31d47e135`](https://github.com/nodejs/node/commit/f31d47e135)] - **zlib**: pause stream if outgoing buffer is full (Matteo Collina) [nodejs-private/node-private#542](https://github.com/nodejs-private/node-private/pull/542)
 
 <a id="18.19.0"></a>
 
