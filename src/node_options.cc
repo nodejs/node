@@ -706,6 +706,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "run in watch mode",
             &EnvironmentOptions::watch_mode,
             kAllowedInEnvvar);
+  AddAlias("-w", "--watch");
   AddOption("--watch-path",
             "path to watch",
             &EnvironmentOptions::watch_mode_paths,
