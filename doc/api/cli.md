@@ -2298,6 +2298,10 @@ changes:
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51696
+    description: With this pull request, node -w also will be activate watch mode alongside node --watch.
 -->
 
 > Stability: 1 - Experimental
