@@ -1488,6 +1488,73 @@ describe('tests', async () => {
 });
 ```
 
+## `beforeEachSuite([fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+before each subsuite of the current suite.
+
+```js
+describe('tests', async () => {
+  beforeEachSuite(() => console.log('about to run a suite'));
+  describe('suite', () => {
+    it('is a subtest', () => {
+      assert.ok('some relevant assertion here');
+    });
+  });
+});
+```
+
+
+## `afterEachSuite([fn][, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fn` {Function|AsyncFunction} The hook function.
+  If the hook uses callbacks,
+  the callback function is passed as the second argument. **Default:** A no-op
+  function.
+* `options` {Object} Configuration options for the hook. The following
+  properties are supported:
+  * `signal` {AbortSignal} Allows aborting an in-progress hook.
+  * `timeout` {number} A number of milliseconds the hook will fail after.
+    If unspecified, subtests inherit this value from their parent.
+    **Default:** `Infinity`.
+
+This function is used to create a hook running
+after each subsuite of the current suite.
+
+**Note:** The `afterEachSuite` hook is guaranteed to run after every test,
+even if any of the tests fail.
+
+```js
+describe('tests', async () => {
+  afterEachSuite(() => console.log('finished running a suite'));
+  describe('suite', () => {
+    it('is a subtest', () => {
+      assert.ok('some relevant assertion here');
+    });
+  });
+});
+```
+
+
 ## Class: `MockFunctionContext`
 
 <!-- YAML
