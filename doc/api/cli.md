@@ -2597,7 +2597,7 @@ Node.js options that are allowed are:
 * `--v8-pool-size`
 * `--watch-path`
 * `--watch-preserve-output`
-* `--watch`
+* `--watch`, `-w`
 * `--zero-fill-buffers`
 
 <!-- node-options-node end -->
