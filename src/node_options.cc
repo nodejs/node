@@ -785,6 +785,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvvar);
+
+  AddOption("--report-exclude-network",
+            "exclude network interface diagnostics."
+            " (default: false)",
+            &EnvironmentOptions::report_exclude_network,
+            kAllowedInEnvvar);
 }
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
