@@ -880,7 +880,10 @@ Environment::Environment(IsolateData* isolate_data,
   destroy_async_id_list_.reserve(512);
 
   performance_state_ = std::make_unique<performance::PerformanceState>(
-      isolate, time_origin_, MAYBE_FIELD_PTR(env_info, performance_state));
+      isolate,
+      time_origin_,
+      time_origin_timestamp_,
+      MAYBE_FIELD_PTR(env_info, performance_state));
 
   if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
           TRACING_CATEGORY_NODE1(environment)) != 0) {
@@ -1837,7 +1840,7 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   immediate_info_.Deserialize(ctx);
   timeout_info_.Deserialize(ctx);
   tick_info_.Deserialize(ctx);
-  performance_state_->Deserialize(ctx, time_origin_);
+  performance_state_->Deserialize(ctx, time_origin_, time_origin_timestamp_);
   exit_info_.Deserialize(ctx);
   stream_base_state_.Deserialize(ctx);
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
