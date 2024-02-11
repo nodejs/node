@@ -1023,7 +1023,7 @@ struct DateTimePatternGenerator::AvailableFormatsSink : public ResourceSink {
     AvailableFormatsSink(DateTimePatternGenerator& _dtpg) : dtpg(_dtpg) {}
     virtual ~AvailableFormatsSink();
 
-    virtual void put(const char *key, ResourceValue &value, UBool isRoot,
+    virtual void put(const char *key, ResourceValue &value, UBool /*isRoot*/,
             UErrorCode &errorCode) override {
         const UnicodeString formatKey(key, -1, US_INV);
         if (!dtpg.isAvailableFormatSet(formatKey) ) {
@@ -1032,7 +1032,7 @@ struct DateTimePatternGenerator::AvailableFormatsSink : public ResourceSink {
             // derived from std patterns, but not a previous availableFormats entry:
             const UnicodeString& formatValue = value.getUnicodeString(errorCode);
             conflictingPattern.remove();
-            dtpg.addPatternWithSkeleton(formatValue, &formatKey, !isRoot, conflictingPattern, errorCode);
+            dtpg.addPatternWithSkeleton(formatValue, &formatKey, true, conflictingPattern, errorCode);
         }
     }
 };
