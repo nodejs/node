@@ -84,7 +84,9 @@
 
 #if defined(__CYGWIN__) ||                                                    \
     (defined(__HAIKU__) && B_HAIKU_VERSION < B_HAIKU_VERSION_1_PRE_BETA_5) || \
-    (defined(__sun) && !defined(__illumos__))
+    (defined(__sun) && !defined(__illumos__)) ||                              \
+    (defined(__APPLE__) && !TARGET_OS_IPHONE &&                               \
+     MAC_OS_X_VERSION_MIN_REQUIRED < 110000)
 #define preadv(fd, bufs, nbufs, off)                                          \
   pread(fd, (bufs)->iov_base, (bufs)->iov_len, off)
 #define pwritev(fd, bufs, nbufs, off)                                         \
@@ -1625,6 +1627,16 @@ static void uv__fs_done(struct uv__work* w, int status) {
   }
 
   req->cb(req);
+}
+
+
+void uv__fs_post(uv_loop_t* loop, uv_fs_t* req) {
+  uv__req_register(loop, req);
+  uv__work_submit(loop,
+                  &req->work_req,
+                  UV__WORK_FAST_IO,
+                  uv__fs_work,
+                  uv__fs_done);
 }
 
 
