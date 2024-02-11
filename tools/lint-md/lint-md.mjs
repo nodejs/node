@@ -175,7 +175,7 @@ function wrap(middleware, callback) {
       return done(exception)
     }
     if (!fnExpectsCallback) {
-      if (result instanceof Promise) {
+      if (result && result.then && typeof result.then === 'function') {
         result.then(then, done);
       } else if (result instanceof Error) {
         done(result);
@@ -3083,35 +3083,32 @@ function normalizeIdentifier$1(value) {
   )
 }
 
-const unicodePunctuationInternal = regexCheck(/\p{P}/u);
 const asciiAlpha = regexCheck(/[A-Za-z]/);
 const asciiAlphanumeric = regexCheck(/[\dA-Za-z]/);
 const asciiAtext = regexCheck(/[#-'*+\--9=?A-Z^-~]/);
 function asciiControl(code) {
   return (
     code !== null && (code < 32 || code === 127)
-  )
+  );
 }
 const asciiDigit = regexCheck(/\d/);
 const asciiHexDigit = regexCheck(/[\dA-Fa-f]/);
 const asciiPunctuation = regexCheck(/[!-/:-@[-`{-~]/);
 function markdownLineEnding(code) {
-  return code !== null && code < -2
+  return code !== null && code < -2;
 }
 function markdownLineEndingOrSpace(code) {
-  return code !== null && (code < 0 || code === 32)
+  return code !== null && (code < 0 || code === 32);
 }
 function markdownSpace(code) {
-  return code === -2 || code === -1 || code === 32
+  return code === -2 || code === -1 || code === 32;
 }
-function unicodePunctuation(code) {
-  return asciiPunctuation(code) || unicodePunctuationInternal(code)
-}
+const unicodePunctuation = regexCheck(/\p{P}|\p{S}/u);
 const unicodeWhitespace = regexCheck(/\s/);
 function regexCheck(regex) {
-  return check
+  return check;
   function check(code) {
-    return code !== null && code > -1 && regex.test(String.fromCharCode(code))
+    return code !== null && code > -1 && regex.test(String.fromCharCode(code));
   }
 }
 
@@ -8993,10 +8990,14 @@ const phrasing =
       'image',
       'imageReference',
       'inlineCode',
+      'inlineMath',
       'link',
       'linkReference',
+      'mdxJsxTextElement',
+      'mdxTextExpression',
       'strong',
-      'text'
+      'text',
+      'textDirective'
     ])
   );
 
@@ -24440,12 +24441,17 @@ var re$1 = {exports: {}};
 	                        `)?)?`);
 	createToken('XRANGE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
 	createToken('XRANGELOOSE', `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-	createToken('COERCE', `${'(^|[^\\d])' +
+	createToken('COERCEPLAIN', `${'(^|[^\\d])' +
 	              '(\\d{1,'}${MAX_SAFE_COMPONENT_LENGTH}})` +
 	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
-	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?` +
+	              `(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
+	createToken('COERCE', `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
+	createToken('COERCEFULL', src[t.COERCEPLAIN] +
+	              `(?:${src[t.PRERELEASE]})?` +
+	              `(?:${src[t.BUILD]})?` +
 	              `(?:$|[^\\d])`);
 	createToken('COERCERTL', src[t.COERCE], true);
+	createToken('COERCERTLFULL', src[t.COERCEFULL], true);
 	createToken('LONETILDE', '(?:~>?)');
 	createToken('TILDETRIM', `(\\s*)${src[t.LONETILDE]}\\s+`, true);
 	exports.tildeTrimReplace = '$1~';
