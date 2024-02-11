@@ -2308,7 +2308,8 @@ TestInfo* RegisterTest(const char* test_suite_name, const char* test_name,
 // tests are successful, or 1 otherwise.
 //
 // RUN_ALL_TESTS() should be invoked after the command line has been
-// parsed by InitGoogleTest().
+// parsed by InitGoogleTest(). RUN_ALL_TESTS will tear down and delete any
+// installed environments and should only be called once per binary.
 //
 // This function was formerly a macro; thus, it is in the global
 // namespace and has an all-caps name.
