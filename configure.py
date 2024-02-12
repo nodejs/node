@@ -803,7 +803,7 @@ parser.add_argument('--v8-lite-mode',
 parser.add_argument('--v8-enable-object-print',
     action='store_true',
     dest='v8_enable_object_print',
-    default=True,
+    default=False,
     help='compile V8 with auxiliary functions for native debuggers')
 
 parser.add_argument('--v8-disable-object-print',
