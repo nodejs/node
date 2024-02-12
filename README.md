@@ -333,8 +333,6 @@ For information about the governance of the Node.js project, see
   **Debadree Chatterjee** <<debadree333@gmail.com>> (he/him)
 * [deokjinkim](https://github.com/deokjinkim) -
   **Deokjin Kim** <<deokjin81.kim@gmail.com>> (he/him)
-* [devnexen](https://github.com/devnexen) -
-  **David Carlier** <<devnexen@gmail.com>>
 * [devsnek](https://github.com/devsnek) -
   **Gus Caplan** <<me@gus.host>> (they/them)
 * [edsadr](https://github.com/edsadr) -
@@ -413,8 +411,6 @@ For information about the governance of the Node.js project, see
   **Mestery** <<mestery@protonmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
   **Michael Dawson** <<midawson@redhat.com>> (he/him)
-* [miladfarca](https://github.com/miladfarca) -
-  **Milad Fa** <<mfarazma@redhat.com>> (he/him)
 * [mildsunrise](https://github.com/mildsunrise) -
   **Alba Mendez** <<me@alba.sh>> (she/her)
 * [MoLow](https://github.com/MoLow) -
@@ -521,6 +517,8 @@ For information about the governance of the Node.js project, see
   **David Cai** <<davidcai1993@yahoo.com>> (he/him)
 * [davisjam](https://github.com/davisjam) -
   **Jamie Davis** <<davisjam@vt.edu>> (he/him)
+* [devnexen](https://github.com/devnexen) -
+  **David Carlier** <<devnexen@gmail.com>>
 * [digitalinfinity](https://github.com/digitalinfinity) -
   **Hitesh Kanwathirtha** <<digitalinfinity@gmail.com>> (he/him)
 * [dmabupt](https://github.com/dmabupt) -
@@ -603,6 +601,8 @@ For information about the governance of the Node.js project, see
   **Nicu Micleușanu** <<micnic90@gmail.com>> (he/him)
 * [mikeal](https://github.com/mikeal) -
   **Mikeal Rogers** <<mikeal.rogers@gmail.com>>
+* [miladfarca](https://github.com/miladfarca) -
+  **Milad Fa** <<mfarazma@redhat.com>> (he/him)
 * [misterdjules](https://github.com/misterdjules) -
   **Julien Gilli** <<jgilli@netflix.com>>
 * [mmarchini](https://github.com/mmarchini) -
