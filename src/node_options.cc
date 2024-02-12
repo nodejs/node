@@ -543,6 +543,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "emit pending deprecation warnings",
             &EnvironmentOptions::pending_deprecation,
             kAllowedInEnvvar);
+  AddOption("--deprecated-process-binding",
+            "enable the deprecated process.binding(...) api",
+            &EnvironmentOptions::deprecated_process_binding,
+            kAllowedInEnvvar,
+            true);
   AddOption("--preserve-symlinks",
             "preserve symbolic links when resolving",
             &EnvironmentOptions::preserve_symlinks,
