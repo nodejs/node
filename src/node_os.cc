@@ -159,6 +159,18 @@ static void GetUptime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(uptime);
 }
 
+// NOLINTNEXTLINE(runtime/references) This is V8 api.
+static double FastGetUptime(v8::FastApiCallbackOptions& options) {
+  double uptime;
+  int er = uv_uptime(&uptime);
+  if (er != 0) {
+    options.fallback = true;
+    return 0;
+  }
+  return uptime;
+}
+
+v8::CFunction fast_uptime_(v8::CFunction::Make(FastGetUptime));
 
 static void GetLoadAvg(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFloat64Array());
@@ -392,7 +404,6 @@ void Initialize(Local<Object> target,
   Environment* env = Environment::GetCurrent(context);
   SetMethod(context, target, "getHostname", GetHostname);
   SetMethod(context, target, "getLoadAvg", GetLoadAvg);
-  SetMethod(context, target, "getUptime", GetUptime);
   SetMethod(context, target, "getTotalMem", GetTotalMemory);
   SetMethod(context, target, "getFreeMem", GetFreeMemory);
   SetMethod(context, target, "getCPUs", GetCPUInfo);
@@ -409,12 +420,16 @@ void Initialize(Local<Object> target,
             FIXED_ONE_BYTE_STRING(env->isolate(), "isBigEndian"),
             Boolean::New(env->isolate(), IsBigEndian()))
       .Check();
+
+  SetFastMethod(context, target, "getUptime", GetUptime, &fast_uptime_);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetHostname);
   registry->Register(GetLoadAvg);
   registry->Register(GetUptime);
+  registry->Register(FastGetUptime);
+  registry->Register(fast_uptime_.GetTypeInfo());
   registry->Register(GetTotalMemory);
   registry->Register(GetFreeMemory);
   registry->Register(GetCPUInfo);
