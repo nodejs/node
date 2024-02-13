@@ -401,6 +401,29 @@ inline char* UncheckedCalloc(size_t n) { return UncheckedCalloc<char>(n); }
 // headers than we really need to.
 void ThrowErrStringTooLong(v8::Isolate* isolate);
 
+struct ArrayIterationData {
+  std::vector<v8::Global<v8::Value>>* out;
+  v8::Isolate* isolate = nullptr;
+};
+
+inline v8::Array::CallbackResult PushItemToVector(uint32_t index,
+                                                  v8::Local<v8::Value> element,
+                                                  void* data) {
+  auto vec = static_cast<ArrayIterationData*>(data)->out;
+  auto isolate = static_cast<ArrayIterationData*>(data)->isolate;
+  vec->push_back(v8::Global<v8::Value>(isolate, element));
+  return v8::Array::CallbackResult::kContinue;
+}
+
+v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                            v8::Local<v8::Array> js_array,
+                            std::vector<v8::Global<v8::Value>>* out) {
+  uint32_t count = js_array->Length();
+  out->reserve(count);
+  ArrayIterationData data{out, context->GetIsolate()};
+  return js_array->Iterate(context, PushItemToVector, &data);
+}
+
 v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                     std::string_view str,
                                     v8::Isolate* isolate) {
