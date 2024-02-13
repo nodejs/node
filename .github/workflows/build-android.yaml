@@ -15,7 +15,7 @@ on:
       - AUTHORS
       - doc/**
       - .github/**
-      - '!.github/workflows/android_ci.yml'
+      - '!.github/workflows/build-android.yml'
   push:
     branches:
       - main
