@@ -444,7 +444,7 @@ changes:
   **Default:** what was specified on the CLI.
 * `wait` {boolean} Block until a client has connected. Optional.
   **Default:** `false`.
-* Returns: {Disposable} that calls [`inspector.close()`][].
+* Returns: {Disposable} A Disposable that calls [`inspector.close()`][].
 
 Activate inspector on host and port. Equivalent to
 `node --inspect=[[host:]port]`, but can be done programmatically after node has
