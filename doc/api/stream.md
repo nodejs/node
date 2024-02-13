@@ -2647,10 +2647,8 @@ changes:
                  finished before the call to `finished(stream, cb)`.
 -->
 
-* `stream` {Stream|ReadableStream|WritableStream}
-
-A readable and/or writable stream/webstream.
-
+* `stream` {Stream|ReadableStream|WritableStream} A readable and/or writable
+  stream/webstream.
 * `options` {Object}
   * `error` {boolean} If set to `false`, then a call to `emit('error', err)` is
     not treated as finished. **Default:** `true`.
@@ -2666,10 +2664,8 @@ A readable and/or writable stream/webstream.
     listeners added by this function will also be removed.
   * `cleanup` {boolean} remove all registered stream listeners.
     **Default:** `false`.
-
 * `callback` {Function} A callback function that takes an optional error
   argument.
-
 * Returns: {Function} A cleanup function which removes all registered
   listeners.
 
@@ -3280,9 +3276,8 @@ changes:
 -->
 
 * `signal` {AbortSignal} A signal representing possible cancellation
-* `stream` {Stream|ReadableStream|WritableStream}
-
-A stream to attach a signal to.
+* `stream` {Stream|ReadableStream|WritableStream} A stream to attach a signal
+  to.
 
 Attaches an AbortSignal to a readable or writeable stream. This lets code
 control stream destruction using an `AbortController`.
