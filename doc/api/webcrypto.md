@@ -553,7 +553,7 @@ added: v15.0.0
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 Using the method and parameters specified in `algorithm` and the keying
 material provided by `key`, `subtle.decrypt()` attempts to decipher the
@@ -584,7 +584,7 @@ changes:
 * `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
 * `length`: {number|null}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -629,7 +629,7 @@ changes:
 * `derivedKeyAlgorithm`: {HmacKeyGenParams|AesKeyGenParams}
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} containing {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -658,7 +658,7 @@ added: v15.0.0
 
 * `algorithm`: {string|Object}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 Using the method identified by `algorithm`, `subtle.digest()` attempts to
 generate a digest of `data`. If successful, the returned promise is resolved
@@ -683,7 +683,7 @@ added: v15.0.0
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 Using the method and parameters specified by `algorithm` and the keying
 material provided by `key`, `subtle.encrypt()` attempts to encipher `data`.
@@ -715,7 +715,7 @@ changes:
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
-* Returns: {Promise} containing {ArrayBuffer|Object}.
+* Returns: {Promise} Fulfills with an {ArrayBuffer|Object}.
 
 Exports the given key into the specified format, if supported.
 
@@ -760,7 +760,7 @@ added: v15.0.0
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} containing {CryptoKey|CryptoKeyPair}
+* Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair}
 
 Using the method and parameters provided in `algorithm`, `subtle.generateKey()`
 attempts to generate new keying material. Depending the method used, the method
@@ -814,7 +814,7 @@ changes:
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} containing {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey}
 
 The `subtle.importKey()` method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
@@ -861,7 +861,7 @@ changes:
 * `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -898,7 +898,7 @@ added: v15.0.0
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} containing {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey}
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. The `subtle.unwrapKey()` method attempts to decrypt a wrapped
@@ -952,7 +952,7 @@ changes:
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} containing {boolean}
+* Returns: {Promise} Fulfills with a {boolean}
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -982,7 +982,7 @@ added: v15.0.0
 * `key`: {CryptoKey}
 * `wrappingKey`: {CryptoKey}
 * `wrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* Returns: {Promise} containing {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer}
 
 <!--lint enable maximum-line-length remark-lint-->
 

@@ -1809,7 +1809,7 @@ added: v20.5.0
 
 * `signal` {AbortSignal}
 * `listener` {Function|EventListener}
-* Returns: {Disposable} that removes the `abort` listener.
+* Returns: {Disposable} A Disposable that removes the `abort` listener.
 
 Listens once to the `abort` event on the provided `signal`.
 

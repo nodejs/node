@@ -3442,7 +3442,7 @@ added: v19.8.0
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `type` {string} An optional mime type for the blob.
-* Return: {Promise} containing {Blob}
+* Returns: {Promise} Fulfills with a {Blob} upon success.
 
 Returns a {Blob} whose data is backed by the given file.
 
@@ -6410,7 +6410,7 @@ The read-only path of this directory as was provided to [`fs.opendir()`][],
 added: v12.12.0
 -->
 
-* Returns: {Promise} containing {fs.Dirent|null}
+* Returns: {Promise} Fulfills with a {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 {fs.Dirent}.
@@ -6468,7 +6468,7 @@ included in the iteration results.
 added: v12.12.0
 -->
 
-* Returns: {AsyncIterator} of {fs.Dirent}
+* Returns: {AsyncIterator} An AsyncIterator of {fs.Dirent}
 
 Asynchronously iterates over the directory until all entries have
 been read. Refer to the POSIX readdir(3) documentation for more detail.
