@@ -296,7 +296,7 @@ added:
 
 * `fn` {Function} **Default:** A no-op function.
 * `exact` {number} **Default:** `1`.
-* Returns: {Function} that wraps `fn`.
+* Returns: {Function} A function that wraps `fn`.
 
 The wrapper function is expected to be called exactly `exact` times. If the
 function has not been called exactly `exact` times when
@@ -337,9 +337,9 @@ added:
   - v16.18.0
 -->
 
-* `fn` {Function}.
+* `fn` {Function}
 
-* Returns: {Array} with all the calls to a tracked function.
+* Returns: {Array} An array with all the calls to a tracked function.
 
 * Object {Object}
   * `thisArg` {Object}
@@ -380,8 +380,8 @@ added:
   - v12.19.0
 -->
 
-* Returns: {Array} of objects containing information about the wrapper functions
-  returned by [`tracker.calls()`][].
+* Returns: {Array} An array of objects containing information about the wrapper
+  functions returned by [`tracker.calls()`][].
 * Object {Object}
   * `message` {string}
   * `actual` {number} The actual number of times the function was called.
@@ -457,7 +457,7 @@ added:
 
 Reset calls of the call tracker.
 If a tracked function is passed as an argument, the calls will be reset for it.
-If no arguments are passed, all tracked functions will be reset
+If no arguments are passed, all tracked functions will be reset.
 
 ```mjs
 import assert from 'node:assert';

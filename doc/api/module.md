@@ -1020,16 +1020,16 @@ columnNumber)`
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
-* `columnOffset` {number} The 1-indexed column number
+* `columnNumber` {number} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
-Given a 1-indexed lineNumber and columnNumber from a call site in
+Given a 1-indexed `lineNumber` and `columnNumber` from a call site in
 the generated source, find the corresponding call site location
 in the original source.
 
-If the lineNumber and columnNumber provided are not found in any
-source map, then an empty object is returned.  Otherwise, the
+If the `lineNumber` and `columnNumber` provided are not found in any
+source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
 * name: {string | undefined} The name of the range in the
