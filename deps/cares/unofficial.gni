@@ -69,6 +69,7 @@ template("cares_gn_build") {
       cflags_c = [
         "-Wno-implicit-fallthrough",
         "-Wno-unreachable-code",
+        "-Wno-unused-result",
       ]
     }
   }
