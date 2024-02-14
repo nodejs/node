@@ -118,9 +118,7 @@ void Dotenv::ParseContent(const std::string_view content) {
     // Remove trailing whitespaces
     value.erase(value.find_last_not_of(" \t") + 1);
 
-    const char maybeQuote = value.front();
-
-    if (maybeQuote == '"') {
+    if (!value.empty() && value.front() == '"') {
       value = std::regex_replace(value, std::regex("\\\\n"), "\n");
       value = std::regex_replace(value, std::regex("\\\\r"), "\r");
     }
