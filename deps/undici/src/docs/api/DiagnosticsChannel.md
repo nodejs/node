@@ -105,7 +105,7 @@ You can not assume that this event is related to any specific request.
 import diagnosticsChannel from 'diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:beforeConnect').subscribe(({ connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername } = connectParams
+  // const { host, hostname, protocol, port, servername, version } = connectParams
   // connector is a function that creates the socket
 })
 ```
@@ -118,7 +118,7 @@ This message is published after a connection is established.
 import diagnosticsChannel from 'diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:connected').subscribe(({ socket, connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername } = connectParams
+  // const { host, hostname, protocol, port, servername, version } = connectParams
  // connector is a function that creates the socket
 })
 ```
@@ -131,7 +131,7 @@ This message is published if it did not succeed to create new connection
 import diagnosticsChannel from 'diagnostics_channel'
 
 diagnosticsChannel.channel('undici:client:connectError').subscribe(({ error, socket, connectParams, connector }) => {
-  // const { host, hostname, protocol, port, servername } = connectParams
+  // const { host, hostname, protocol, port, servername, version } = connectParams
   // connector is a function that creates the socket
   console.log(`Connect failed with ${error.message}`)
 })

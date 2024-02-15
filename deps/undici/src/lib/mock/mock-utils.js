@@ -9,12 +9,12 @@ const {
   kGetNetConnect
 } = require('./mock-symbols')
 const { buildURL, nop } = require('../core/util')
-const { STATUS_CODES } = require('http')
+const { STATUS_CODES } = require('node:http')
 const {
   types: {
     isPromise
   }
-} = require('util')
+} = require('node:util')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -188,11 +188,21 @@ function buildKey (opts) {
 }
 
 function generateKeyValues (data) {
-  return Object.entries(data).reduce((keyValuePairs, [key, value]) => [
-    ...keyValuePairs,
-    Buffer.from(`${key}`),
-    Array.isArray(value) ? value.map(x => Buffer.from(`${x}`)) : Buffer.from(`${value}`)
-  ], [])
+  const keys = Object.keys(data)
+  const result = []
+  for (let i = 0; i < keys.length; ++i) {
+    const key = keys[i]
+    const value = data[key]
+    const name = Buffer.from(`${key}`)
+    if (Array.isArray(value)) {
+      for (let j = 0; j < value.length; ++j) {
+        result.push(name, Buffer.from(`${value[j]}`))
+      }
+    } else {
+      result.push(name, Buffer.from(`${value}`))
+    }
+  }
+  return result
 }
 
 /**

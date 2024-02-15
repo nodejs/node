@@ -29,16 +29,16 @@ const { webidl } = require('./webidl')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
 const { kHeadersList, kConstruct } = require('../core/symbols')
-const assert = require('assert')
-const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
-
-let TransformStream = globalThis.TransformStream
+const assert = require('node:assert')
+const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('node:events')
 
 const kAbortController = Symbol('abortController')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
 })
+
+let patchMethodWarning = false
 
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
@@ -315,21 +315,36 @@ class Request {
       // 1. Let method be init["method"].
       let method = init.method
 
-      // 2. If method is not a method or method is a forbidden method, then
-      // throw a TypeError.
-      if (!isValidHTTPToken(method)) {
-        throw new TypeError(`'${method}' is not a valid HTTP method.`)
+      const mayBeNormalized = normalizeMethodRecord[method]
+
+      if (mayBeNormalized !== undefined) {
+        // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
+        request.method = mayBeNormalized
+      } else {
+        // 2. If method is not a method or method is a forbidden method, then
+        // throw a TypeError.
+        if (!isValidHTTPToken(method)) {
+          throw new TypeError(`'${method}' is not a valid HTTP method.`)
+        }
+
+        if (forbiddenMethodsSet.has(method.toUpperCase())) {
+          throw new TypeError(`'${method}' HTTP method is unsupported.`)
+        }
+
+        // 3. Normalize method.
+        method = normalizeMethod(method)
+
+        // 4. Set request’s method to method.
+        request.method = method
       }
 
-      if (forbiddenMethodsSet.has(method.toUpperCase())) {
-        throw new TypeError(`'${method}' HTTP method is unsupported.`)
+      if (!patchMethodWarning && request.method === 'patch') {
+        process.emitWarning('Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.', {
+          code: 'UNDICI-FETCH-patch'
+        })
+
+        patchMethodWarning = true
       }
-
-      // 3. Normalize method.
-      method = normalizeMethodRecord[method] ?? normalizeMethod(method)
-
-      // 4. Set request’s method to method.
-      request.method = method
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -373,6 +388,18 @@ class Request {
         const abort = function () {
           const ac = acRef.deref()
           if (ac !== undefined) {
+            // Currently, there is a problem with FinalizationRegistry.
+            // https://github.com/nodejs/node/issues/49344
+            // https://github.com/nodejs/node/issues/47748
+            // In the case of abort, the first step is to unregister from it.
+            // If the controller can refer to it, it is still registered.
+            // It will be removed in the future.
+            requestFinalizer.unregister(abort)
+
+            // Unsubscribe a listener.
+            // FinalizationRegistry will no longer be called, so this must be done.
+            this.removeEventListener('abort', abort)
+
             ac.abort(this.reason)
           }
         }
@@ -390,7 +417,11 @@ class Request {
         } catch {}
 
         util.addAbortListener(signal, abort)
-        requestFinalizer.register(ac, { signal, abort })
+        // The third argument must be a registry key to be unregistered.
+        // Without it, you cannot unregister.
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+        // abort is used as the unregister key. (because it is unique)
+        requestFinalizer.register(ac, { signal, abort }, abort)
       }
     }
 
@@ -473,7 +504,7 @@ class Request {
       // 3, If Content-Type is non-null and this’s headers’s header list does
       // not contain `Content-Type`, then append `Content-Type`/Content-Type to
       // this’s headers.
-      if (contentType && !this[kHeaders][kHeadersList].contains('content-type')) {
+      if (contentType && !this[kHeaders][kHeadersList].contains('content-type', true)) {
         this[kHeaders].append('content-type', contentType)
       }
     }
@@ -516,10 +547,6 @@ class Request {
       }
 
       // 2. Set finalBody to the result of creating a proxy for inputBody.
-      if (!TransformStream) {
-        TransformStream = require('stream/web').TransformStream
-      }
-
       // https://streams.spec.whatwg.org/#readablestream-create-a-proxy
       const identityTransform = new TransformStream()
       inputBody.stream.pipeThrough(identityTransform)
@@ -724,14 +751,6 @@ class Request {
 
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
-    const clonedRequestObject = new Request(kConstruct)
-    clonedRequestObject[kState] = clonedRequest
-    clonedRequestObject[kRealm] = this[kRealm]
-    clonedRequestObject[kHeaders] = new Headers(kConstruct)
-    clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList
-    clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard]
-    clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm]
-
     // 4. Make clonedRequestObject’s signal follow this’s signal.
     const ac = new AbortController()
     if (this.signal.aborted) {
@@ -744,10 +763,9 @@ class Request {
         }
       )
     }
-    clonedRequestObject[kSignal] = ac.signal
 
     // 4. Return clonedRequestObject.
-    return clonedRequestObject
+    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm])
   }
 }
 
@@ -815,6 +833,27 @@ function cloneRequest (request) {
 
   // 3. Return newRequest.
   return newRequest
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#request-create
+ * @param {any} innerRequest
+ * @param {AbortSignal} signal
+ * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
+ * @param {any} [realm]
+ * @returns {Request}
+ */
+function fromInnerRequest (innerRequest, signal, guard, realm) {
+  const request = new Request(kConstruct)
+  request[kState] = innerRequest
+  request[kRealm] = realm
+  request[kSignal] = signal
+  request[kSignal][kRealm] = realm
+  request[kHeaders] = new Headers(kConstruct)
+  request[kHeaders][kHeadersList] = innerRequest.headersList
+  request[kHeaders][kGuard] = guard
+  request[kHeaders][kRealm] = realm
+  return request
 }
 
 Object.defineProperties(Request.prototype, {
@@ -943,4 +982,4 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   }
 ])
 
-module.exports = { Request, makeRequest }
+module.exports = { Request, makeRequest, fromInnerRequest }

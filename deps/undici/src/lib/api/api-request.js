@@ -7,7 +7,7 @@ const {
 } = require('../core/errors')
 const util = require('../core/util')
 const { getResolveErrorBodyCallback } = require('./util')
-const { AsyncResource } = require('async_hooks')
+const { AsyncResource } = require('node:async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
 
 class RequestHandler extends AsyncResource {
@@ -171,7 +171,7 @@ function request (opts, callback) {
     if (typeof callback !== 'function') {
       throw err
     }
-    const opaque = opts && opts.opaque
+    const opaque = opts?.opaque
     queueMicrotask(() => callback(err, { opaque }))
   }
 }

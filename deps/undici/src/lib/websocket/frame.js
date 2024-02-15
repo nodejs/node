@@ -5,7 +5,7 @@ const { maxUnsigned16Bit } = require('./constants')
 /** @type {import('crypto')} */
 let crypto
 try {
-  crypto = require('crypto')
+  crypto = require('node:crypto')
 } catch {
 
 }
