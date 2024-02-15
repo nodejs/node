@@ -1,7 +1,5 @@
 'use strict'
 
-/* istanbul ignore file: only for Node 12 */
-
 const { kConnected, kSize } = require('../core/symbols')
 
 class CompatWeakRef {
@@ -30,6 +28,8 @@ class CompatFinalizer {
       })
     }
   }
+
+  unregister (key) {}
 }
 
 module.exports = function () {
@@ -41,8 +41,5 @@ module.exports = function () {
       FinalizationRegistry: CompatFinalizer
     }
   }
-  return {
-    WeakRef: global.WeakRef || CompatWeakRef,
-    FinalizationRegistry: global.FinalizationRegistry || CompatFinalizer
-  }
+  return { WeakRef, FinalizationRegistry }
 }

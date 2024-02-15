@@ -1,7 +1,6 @@
 'use strict'
 
 const { webidl } = require('../fetch/webidl')
-const { DOMException } = require('../fetch/constants')
 const { URLSerializer } = require('../fetch/dataURL')
 const { getGlobalOrigin } = require('../fetch/global')
 const { staticPropertyDescriptors, states, opcodes, emptyBuffer } = require('./constants')
@@ -20,7 +19,7 @@ const { WebsocketFrameSend } = require('./frame')
 const { ByteParser } = require('./receiver')
 const { kEnumerableProperty, isBlobLike } = require('../core/util')
 const { getGlobalDispatcher } = require('../global')
-const { types } = require('util')
+const { types } = require('node:util')
 
 let experimentalWarned = false
 
@@ -628,7 +627,7 @@ webidl.converters.WebSocketSendData = function (V) {
       return webidl.converters.Blob(V, { strict: false })
     }
 
-    if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
+    if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
       return webidl.converters.BufferSource(V)
     }
   }

@@ -1,7 +1,7 @@
 'use strict'
 
-const { types } = require('util')
-const { hasOwn, toUSVString } = require('./util')
+const { types } = require('node:util')
+const { toUSVString } = require('./util')
 
 /** @type {import('../../types/webidl').Webidl} */
 const webidl = {}
@@ -34,10 +34,14 @@ webidl.errors.invalidArgument = function (context) {
 
 // https://webidl.spec.whatwg.org/#implements
 webidl.brandCheck = function (V, I, opts = undefined) {
-  if (opts?.strict !== false && !(V instanceof I)) {
-    throw new TypeError('Illegal invocation')
+  if (opts?.strict !== false) {
+    if (!(V instanceof I)) {
+      throw new TypeError('Illegal invocation')
+    }
   } else {
-    return V?.[Symbol.toStringTag] === I.prototype[Symbol.toStringTag]
+    if (V?.[Symbol.toStringTag] !== I.prototype[Symbol.toStringTag]) {
+      throw new TypeError('Illegal invocation')
+    }
   }
 }
 
@@ -346,7 +350,7 @@ webidl.dictionaryConverter = function (converters) {
       const { key, defaultValue, required, converter } = options
 
       if (required === true) {
-        if (!hasOwn(dictionary, key)) {
+        if (!Object.hasOwn(dictionary, key)) {
           throw webidl.errors.exception({
             header: 'Dictionary',
             message: `Missing required key "${key}".`
@@ -355,7 +359,7 @@ webidl.dictionaryConverter = function (converters) {
       }
 
       let value = dictionary[key]
-      const hasDefault = hasOwn(options, 'defaultValue')
+      const hasDefault = Object.hasOwn(options, 'defaultValue')
 
       // Only use defaultValue if value is undefined and
       // a defaultValue options was provided.
@@ -614,15 +618,15 @@ webidl.converters.DataView = function (V, opts = {}) {
 // https://webidl.spec.whatwg.org/#BufferSource
 webidl.converters.BufferSource = function (V, opts = {}) {
   if (types.isAnyArrayBuffer(V)) {
-    return webidl.converters.ArrayBuffer(V, opts)
+    return webidl.converters.ArrayBuffer(V, { ...opts, allowShared: false })
   }
 
   if (types.isTypedArray(V)) {
-    return webidl.converters.TypedArray(V, V.constructor)
+    return webidl.converters.TypedArray(V, V.constructor, { ...opts, allowShared: false })
   }
 
   if (types.isDataView(V)) {
-    return webidl.converters.DataView(V, opts)
+    return webidl.converters.DataView(V, opts, { ...opts, allowShared: false })
   }
 
   throw new TypeError(`Could not convert ${V} to a BufferSource.`)

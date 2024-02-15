@@ -63,7 +63,7 @@ class Pool extends PoolBase {
       })
     }
 
-    this[kInterceptors] = options.interceptors && options.interceptors.Pool && Array.isArray(options.interceptors.Pool)
+    this[kInterceptors] = options.interceptors?.Pool && Array.isArray(options.interceptors.Pool)
       ? options.interceptors.Pool
       : []
     this[kConnections] = connections || null
@@ -76,18 +76,17 @@ class Pool extends PoolBase {
   }
 
   [kGetDispatcher] () {
-    let dispatcher = this[kClients].find(dispatcher => !dispatcher[kNeedDrain])
-
-    if (dispatcher) {
-      return dispatcher
+    for (const client of this[kClients]) {
+      if (!client[kNeedDrain]) {
+        return client
+      }
     }
 
     if (!this[kConnections] || this[kClients].length < this[kConnections]) {
-      dispatcher = this[kFactory](this[kUrl], this[kOptions])
+      const dispatcher = this[kFactory](this[kUrl], this[kOptions])
       this[kAddClient](dispatcher)
+      return dispatcher
     }
-
-    return dispatcher
   }
 }
 

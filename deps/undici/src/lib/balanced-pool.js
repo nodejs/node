@@ -53,7 +53,7 @@ class BalancedPool extends PoolBase {
       throw new InvalidArgumentError('factory must be a function.')
     }
 
-    this[kInterceptors] = opts.interceptors && opts.interceptors.BalancedPool && Array.isArray(opts.interceptors.BalancedPool)
+    this[kInterceptors] = opts.interceptors?.BalancedPool && Array.isArray(opts.interceptors.BalancedPool)
       ? opts.interceptors.BalancedPool
       : []
     this[kFactory] = factory

@@ -1,7 +1,7 @@
 'use strict'
 
 const { kProxy, kClose, kDestroy, kInterceptors } = require('./core/symbols')
-const { URL } = require('url')
+const { URL } = require('node:url')
 const Agent = require('./agent')
 const Pool = require('./pool')
 const DispatcherBase = require('./dispatcher-base')
@@ -43,7 +43,7 @@ class ProxyAgent extends DispatcherBase {
     super(opts)
     this[kProxy] = buildProxyOptions(opts)
     this[kAgent] = new Agent(opts)
-    this[kInterceptors] = opts.interceptors && opts.interceptors.ProxyAgent && Array.isArray(opts.interceptors.ProxyAgent)
+    this[kInterceptors] = opts.interceptors?.ProxyAgent && Array.isArray(opts.interceptors.ProxyAgent)
       ? opts.interceptors.ProxyAgent
       : []
 
@@ -66,7 +66,7 @@ class ProxyAgent extends DispatcherBase {
     this[kProxyHeaders] = opts.headers || {}
 
     const resolvedUrl = new URL(opts.uri)
-    const { origin, port, host, username, password } = resolvedUrl
+    const { origin, port, username, password } = resolvedUrl
 
     if (opts.auth && opts.token) {
       throw new InvalidArgumentError('opts.auth cannot be used in combination with opts.token')
@@ -97,7 +97,7 @@ class ProxyAgent extends DispatcherBase {
             signal: opts.signal,
             headers: {
               ...this[kProxyHeaders],
-              host
+              host: requestedHost
             }
           })
           if (statusCode !== 200) {

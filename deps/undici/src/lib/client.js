@@ -4,11 +4,12 @@
 
 /* global WebAssembly */
 
-const assert = require('assert')
-const net = require('net')
-const http = require('http')
-const { pipeline } = require('stream')
+const assert = require('node:assert')
+const net = require('node:net')
+const http = require('node:http')
+const { pipeline } = require('node:stream')
 const util = require('./core/util')
+const { channels } = require('./core/diagnostics')
 const timers = require('./timers')
 const Request = require('./core/request')
 const DispatcherBase = require('./dispatcher-base')
@@ -83,7 +84,7 @@ const {
 /** @type {import('http2')} */
 let http2
 try {
-  http2 = require('http2')
+  http2 = require('node:http2')
 } catch {
   // @ts-ignore
   http2 = { constants: {} }
@@ -107,21 +108,6 @@ let h2ExperimentalWarned = false
 const FastBuffer = Buffer[Symbol.species]
 
 const kClosedResolve = Symbol('kClosedResolve')
-
-const channels = {}
-
-try {
-  const diagnosticsChannel = require('diagnostics_channel')
-  channels.sendHeaders = diagnosticsChannel.channel('undici:client:sendHeaders')
-  channels.beforeConnect = diagnosticsChannel.channel('undici:client:beforeConnect')
-  channels.connectError = diagnosticsChannel.channel('undici:client:connectError')
-  channels.connected = diagnosticsChannel.channel('undici:client:connected')
-} catch {
-  channels.sendHeaders = { hasSubscribers: false }
-  channels.beforeConnect = { hasSubscribers: false }
-  channels.connectError = { hasSubscribers: false }
-  channels.connected = { hasSubscribers: false }
-}
 
 /**
  * @type {import('../types/client').default}
@@ -249,7 +235,7 @@ class Client extends DispatcherBase {
     }
 
     if (maxConcurrentStreams != null && (typeof maxConcurrentStreams !== 'number' || maxConcurrentStreams < 1)) {
-      throw new InvalidArgumentError('maxConcurrentStreams must be a possitive integer, greater than 0')
+      throw new InvalidArgumentError('maxConcurrentStreams must be a positive integer, greater than 0')
     }
 
     if (typeof connect !== 'function') {
@@ -264,7 +250,7 @@ class Client extends DispatcherBase {
       })
     }
 
-    this[kInterceptors] = interceptors && interceptors.Client && Array.isArray(interceptors.Client)
+    this[kInterceptors] = interceptors?.Client && Array.isArray(interceptors.Client)
       ? interceptors.Client
       : [createRedirectInterceptor({ maxRedirections })]
     this[kUrl] = util.parseOrigin(url)
@@ -296,7 +282,7 @@ class Client extends DispatcherBase {
       ? null
       : {
         // streams: null, // Fixed queue of streams - For future support of `push`
-          openStreams: 0, // Keep track of them to decide wether or not unref the session
+          openStreams: 0, // Keep track of them to decide whether or not unref the session
           maxConcurrentStreams: maxConcurrentStreams != null ? maxConcurrentStreams : 100 // Max peerConcurrentStreams for a Node h2 server
         }
     this[kHost] = `${this[kUrl].hostname}${this[kUrl].port ? `:${this[kUrl].port}` : ''}`
@@ -384,10 +370,10 @@ class Client extends DispatcherBase {
     // TODO: for H2 we need to gracefully flush the remaining enqueued
     // request and close each stream.
     return new Promise((resolve) => {
-      if (!this[kSize]) {
-        resolve(null)
-      } else {
+      if (this[kSize]) {
         this[kClosedResolve] = resolve
+      } else {
+        resolve(null)
       }
     })
   }
@@ -415,10 +401,10 @@ class Client extends DispatcherBase {
         this[kHTTP2SessionState] = null
       }
 
-      if (!this[kSocket]) {
-        queueMicrotask(callback)
-      } else {
+      if (this[kSocket]) {
         util.destroy(this[kSocket].on('close', callback), err)
+      } else {
+        queueMicrotask(callback)
       }
 
       resume(this)
@@ -493,7 +479,7 @@ async function lazyllhttp () {
 
   let mod
   try {
-    mod = await WebAssembly.compile(Buffer.from(require('./llhttp/llhttp_simd-wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(require('./llhttp/llhttp_simd-wasm.js'))
   } catch (e) {
     /* istanbul ignore next */
 
@@ -501,7 +487,7 @@ async function lazyllhttp () {
     // being enabled, but the occurring of this other error
     // * https://github.com/emscripten-core/emscripten/issues/11495
     // got me to remove that check to avoid breaking Node 12.
-    mod = await WebAssembly.compile(Buffer.from(llhttpWasmData || require('./llhttp/llhttp-wasm.js'), 'base64'))
+    mod = await WebAssembly.compile(llhttpWasmData || require('./llhttp/llhttp-wasm.js'))
   }
 
   return await WebAssembly.instantiate(mod, {
@@ -740,6 +726,7 @@ class Parser {
     if (!request) {
       return -1
     }
+    request.onResponseStarted()
   }
 
   onHeaderField (buf) {
@@ -765,11 +752,14 @@ class Parser {
     }
 
     const key = this.headers[len - 2]
-    if (key.length === 10 && key.toString().toLowerCase() === 'keep-alive') {
-      this.keepAlive += buf.toString()
-    } else if (key.length === 10 && key.toString().toLowerCase() === 'connection') {
-      this.connection += buf.toString()
-    } else if (key.length === 14 && key.toString().toLowerCase() === 'content-length') {
+    if (key.length === 10) {
+      const headerName = util.bufferToLowerCasedHeaderName(key)
+      if (headerName === 'keep-alive') {
+        this.keepAlive += buf.toString()
+      } else if (headerName === 'connection') {
+        this.connection += buf.toString()
+      }
+    } else if (key.length === 14 && util.bufferToLowerCasedHeaderName(key) === 'content-length') {
       this.contentLength += buf.toString()
     }
 
@@ -1187,6 +1177,7 @@ async function connect (client) {
         hostname,
         protocol,
         port,
+        version: client[kHTTPConnVersion],
         servername: client[kServerName],
         localAddress: client[kLocalAddress]
       },
@@ -1280,6 +1271,7 @@ async function connect (client) {
           hostname,
           protocol,
           port,
+          version: client[kHTTPConnVersion],
           servername: client[kServerName],
           localAddress: client[kLocalAddress]
         },
@@ -1302,6 +1294,7 @@ async function connect (client) {
           hostname,
           protocol,
           port,
+          version: client[kHTTPConnVersion],
           servername: client[kServerName],
           localAddress: client[kLocalAddress]
         },
@@ -1654,19 +1647,6 @@ function writeH2 (client, session, request) {
     return false
   }
 
-  try {
-    // TODO(HTTP/2): Should we call onConnect immediately or on stream ready event?
-    request.onConnect((err) => {
-      if (request.aborted || request.completed) {
-        return
-      }
-
-      errorRequest(client, request, err || new RequestAbortedError())
-    })
-  } catch (err) {
-    errorRequest(client, request, err)
-  }
-
   if (request.aborted) {
     return false
   }
@@ -1678,9 +1658,34 @@ function writeH2 (client, session, request) {
   headers[HTTP2_HEADER_AUTHORITY] = host || client[kHost]
   headers[HTTP2_HEADER_METHOD] = method
 
+  try {
+    // We are already connected, streams are pending.
+    // We can call on connect, and wait for abort
+    request.onConnect((err) => {
+      if (request.aborted || request.completed) {
+        return
+      }
+
+      err = err || new RequestAbortedError()
+
+      if (stream != null) {
+        util.destroy(stream, err)
+
+        h2State.openStreams -= 1
+        if (h2State.openStreams === 0) {
+          session.unref()
+        }
+      }
+
+      errorRequest(client, request, err)
+    })
+  } catch (err) {
+    errorRequest(client, request, err)
+  }
+
   if (method === 'CONNECT') {
     session.ref()
-    // we are already connected, streams are pending, first request
+    // We are already connected, streams are pending, first request
     // will create a new stream. We trigger a request to create the stream and wait until
     // `ready` event is triggered
     // We disabled endStream to allow the user to write to the stream
@@ -1706,7 +1711,7 @@ function writeH2 (client, session, request) {
   }
 
   // https://tools.ietf.org/html/rfc7540#section-8.3
-  // :path and :scheme headers must be omited when sending CONNECT
+  // :path and :scheme headers must be omitted when sending CONNECT
 
   headers[HTTP2_HEADER_PATH] = path
   headers[HTTP2_HEADER_SCHEME] = 'https'
@@ -1764,7 +1769,7 @@ function writeH2 (client, session, request) {
 
   session.ref()
 
-  const shouldEndStream = method === 'GET' || method === 'HEAD'
+  const shouldEndStream = method === 'GET' || method === 'HEAD' || body === null
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
     stream = session.request(headers, { endStream: shouldEndStream, signal })
@@ -1783,6 +1788,7 @@ function writeH2 (client, session, request) {
 
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
+    request.onResponseStarted()
 
     if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), '') === false) {
       stream.pause()
@@ -1833,7 +1839,7 @@ function writeH2 (client, session, request) {
   // })
 
   // stream.on('push', headers => {
-  //   // TODO(HTTP/2): Suppor push
+  //   // TODO(HTTP/2): Support push
   // })
 
   // stream.on('trailers', headers => {
@@ -1963,12 +1969,19 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
       body.resume()
     }
   }
-  const onAbort = function () {
-    if (finished) {
-      return
+  const onClose = function () {
+    // 'close' might be emitted *before* 'error' for
+    // broken streams. Wait a tick to avoid this case.
+    queueMicrotask(() => {
+      // It's only safe to remove 'error' listener after
+      // 'close'.
+      body.removeListener('error', onFinished)
+    })
+
+    if (!finished) {
+      const err = new RequestAbortedError()
+      queueMicrotask(() => onFinished(err))
     }
-    const err = new RequestAbortedError()
-    queueMicrotask(() => onFinished(err))
   }
   const onFinished = function (err) {
     if (finished) {
@@ -1986,8 +1999,7 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
     body
       .removeListener('data', onData)
       .removeListener('end', onFinished)
-      .removeListener('error', onFinished)
-      .removeListener('close', onAbort)
+      .removeListener('close', onClose)
 
     if (!err) {
       try {
@@ -2010,7 +2022,7 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
     .on('data', onData)
     .on('end', onFinished)
     .on('error', onFinished)
-    .on('close', onAbort)
+    .on('close', onClose)
 
   if (body.resume) {
     body.resume()

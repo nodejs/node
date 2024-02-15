@@ -1,6 +1,5 @@
 'use strict'
 
-const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
 const {
   kReadyState,
@@ -9,6 +8,7 @@ const {
   kReceivedClose
 } = require('./symbols')
 const { fireEvent, failWebsocketConnection } = require('./util')
+const { channels } = require('../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
@@ -16,15 +16,10 @@ const { Headers } = require('../fetch/headers')
 const { getGlobalDispatcher } = require('../global')
 const { kHeadersList } = require('../core/symbols')
 
-const channels = {}
-channels.open = diagnosticsChannel.channel('undici:websocket:open')
-channels.close = diagnosticsChannel.channel('undici:websocket:close')
-channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error')
-
 /** @type {import('crypto')} */
 let crypto
 try {
-  crypto = require('crypto')
+  crypto = require('node:crypto')
 } catch {
 
 }
@@ -261,6 +256,7 @@ function onSocketClose () {
   //    attribute initialized to the result of applying UTF-8
   //    decode without BOM to the WebSocket connection close
   //    reason.
+  // TODO: process.nextTick
   fireEvent('close', ws, CloseEvent, {
     wasClean, code, reason
   })
