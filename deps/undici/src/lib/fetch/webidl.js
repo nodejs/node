@@ -34,10 +34,14 @@ webidl.errors.invalidArgument = function (context) {
 
 // https://webidl.spec.whatwg.org/#implements
 webidl.brandCheck = function (V, I, opts = undefined) {
-  if (opts?.strict !== false && !(V instanceof I)) {
-    throw new TypeError('Illegal invocation')
+  if (opts?.strict !== false) {
+    if (!(V instanceof I)) {
+      throw new TypeError('Illegal invocation')
+    }
   } else {
-    return V?.[Symbol.toStringTag] === I.prototype[Symbol.toStringTag]
+    if (V?.[Symbol.toStringTag] !== I.prototype[Symbol.toStringTag]) {
+      throw new TypeError('Illegal invocation')
+    }
   }
 }
 
