@@ -492,48 +492,33 @@ class Headers {
   keys () {
     webidl.brandCheck(this, Headers)
 
-    if (this[kGuard] === 'immutable') {
-      const value = this[kHeadersSortedMap]
-      return makeIterator(() => value, 'Headers',
-        'key')
-    }
-
     return makeIterator(
-      () => [...this[kHeadersSortedMap].values()],
+      () => this[kHeadersSortedMap],
       'Headers',
-      'key'
+      'key',
+      0, 1
     )
   }
 
   values () {
     webidl.brandCheck(this, Headers)
 
-    if (this[kGuard] === 'immutable') {
-      const value = this[kHeadersSortedMap]
-      return makeIterator(() => value, 'Headers',
-        'value')
-    }
-
     return makeIterator(
-      () => [...this[kHeadersSortedMap].values()],
+      () => this[kHeadersSortedMap],
       'Headers',
-      'value'
+      'value',
+      0, 1
     )
   }
 
   entries () {
     webidl.brandCheck(this, Headers)
 
-    if (this[kGuard] === 'immutable') {
-      const value = this[kHeadersSortedMap]
-      return makeIterator(() => value, 'Headers',
-        'key+value')
-    }
-
     return makeIterator(
-      () => [...this[kHeadersSortedMap].values()],
+      () => this[kHeadersSortedMap],
       'Headers',
-      'key+value'
+      'key+value',
+      0, 1
     )
   }
 
@@ -553,7 +538,7 @@ class Headers {
     }
 
     for (const [key, value] of this) {
-      callbackFn.apply(thisArg, [value, key, this])
+      callbackFn.call(thisArg, value, key, this)
     }
   }
 
