@@ -1257,6 +1257,8 @@
         'deps/histogram/histogram.gyp:histogram',
         'deps/uvwasi/uvwasi.gyp:uvwasi',
         'deps/ada/ada.gyp:ada',
+        'deps/simdjson/simdjson.gyp:simdjson',
+        'deps/simdutf/simdutf.gyp:simdutf',
       ],
 
       'includes': [
