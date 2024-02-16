@@ -5,6 +5,8 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/51772
+test-zlib-brotli-16GB: PASS, FLAKY
 
 [$system==win32]
 # https://github.com/nodejs/node/issues/50295
