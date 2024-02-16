@@ -335,7 +335,7 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     if (!info.has_value()) {
       MaybeLocal<Value>();
     }
-#ifdef HAVE_INSPECTOR
+#if HAVE_INSPECTOR
     if (env->options()->debug_options().break_first_line) {
       env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
     }
