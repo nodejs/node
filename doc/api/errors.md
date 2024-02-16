@@ -2214,6 +2214,15 @@ documentation for [policy][] manifests for more information.
 An attempt was made to load a policy manifest, but the manifest was unable to
 be parsed. See the documentation for [policy][] manifests for more information.
 
+<a id="ERR_MANIFEST_SYSTEM_CI_VIOLATION"></a>
+
+### `ERR_MANIFEST_SYSTEM_CI_VIOLATION`
+
+The manifest does not match the signature provided or the signature
+does not conform to system code integrity policy.
+
+See the documentation for [policy][] manifests for more information.
+
 <a id="ERR_MANIFEST_TDZ"></a>
 
 ### `ERR_MANIFEST_TDZ`
