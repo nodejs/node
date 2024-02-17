@@ -73,6 +73,7 @@
       'src/connection_wrap.cc',
       'src/dataqueue/queue.cc',
       'src/debug_utils.cc',
+      'src/embedded_data.cc',
       'src/encoding_binding.cc',
       'src/env.cc',
       'src/fs_event_wrap.cc',
@@ -193,6 +194,7 @@
       'src/dataqueue/queue.h',
       'src/debug_utils.h',
       'src/debug_utils-inl.h',
+      'src/embeded_data.h',
       'src/encoding_binding.h',
       'src/env_properties.h',
       'src/env.h',
@@ -1214,11 +1216,14 @@
         'deps/simdutf/simdutf.gyp:simdutf#host',
       ],
       'include_dirs': [
-        'tools'
+        'tools',
+        'src',
       ],
       'sources': [
         'tools/js2c.cc',
-        'tools/executable_wrapper.h'
+        'tools/executable_wrapper.h',
+        'src/embedded_data.h',
+        'src/embedded_data.cc',
       ],
       'conditions': [
         [ 'node_shared_libuv=="false"', {
