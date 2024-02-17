@@ -15,7 +15,7 @@ changes:
     description: Added support for "useCodeCache".
 -->
 
-> Stability: 1 - Experimental: This feature is being designed and will change.
+> Stability: 1.1 - Active development
 
 <!-- source_link=src/node_sea.cc -->
 
