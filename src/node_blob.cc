@@ -196,8 +196,8 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
     Local<Value> entry = sources[i].Get(isolate);
 
     const auto entryFromArrayBuffer = [isolate](v8::Local<v8::ArrayBuffer> buf,
-                                            size_t byte_length,
-                                            size_t byte_offset = 0) {
+                                                size_t byte_length,
+                                                size_t byte_offset = 0) {
       if (buf->IsDetachable()) {
         std::shared_ptr<BackingStore> store = buf->GetBackingStore();
         USE(buf->Detach(Local<Value>()));

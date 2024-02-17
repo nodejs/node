@@ -406,19 +406,21 @@ struct ArrayIterationData {
   v8::Isolate* isolate = nullptr;
 };
 
-inline v8::Array::CallbackResult PushItemToVector(uint32_t index, v8::Local<v8::Value> element, void* data) {
+inline v8::Array::CallbackResult PushItemToVector(uint32_t index,
+                                                  v8::Local<v8::Value> element,
+                                                  void* data) {
   auto vec = static_cast<ArrayIterationData*>(data)->out;
   auto isolate = static_cast<ArrayIterationData*>(data)->isolate;
   vec->push_back(v8::Global<v8::Value>(isolate, element));
   return v8::Array::CallbackResult::kContinue;
 }
 
-v8::Maybe<void> FromV8Array(
-    v8::Local<v8::Context> context, v8::Local<v8::Array> js_array,
-    std::vector<v8::Global<v8::Value>>* out) {
+v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                            v8::Local<v8::Array> js_array,
+                            std::vector<v8::Global<v8::Value>>* out) {
   uint32_t count = js_array->Length();
   out->reserve(count);
-  ArrayIterationData data { out, context->GetIsolate() };
+  ArrayIterationData data{out, context->GetIsolate()};
   return js_array->Iterate(context, PushItemToVector, &data);
 }
 
