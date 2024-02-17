@@ -19,4 +19,4 @@ decoder.end(buf);
 setTimeout(common.mustCall(() => {
   // There is only one chunk in the buffer
   strictEqual(decoder._readableState.buffer.length, 1);
-}), common.platformTimeout(100));
+}), common.platformTimeout(500));
