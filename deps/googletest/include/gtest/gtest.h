@@ -60,16 +60,16 @@
 #include <type_traits>
 #include <vector>
 
-#include "gtest/gtest-assertion-result.h"
-#include "gtest/gtest-death-test.h"
-#include "gtest/gtest-matchers.h"
-#include "gtest/gtest-message.h"
-#include "gtest/gtest-param-test.h"
-#include "gtest/gtest-printers.h"
-#include "gtest/gtest-test-part.h"
-#include "gtest/gtest-typed-test.h"
-#include "gtest/gtest_pred_impl.h"
-#include "gtest/gtest_prod.h"
+#include "gtest/gtest-assertion-result.h"  // IWYU pragma: export
+#include "gtest/gtest-death-test.h"  // IWYU pragma: export
+#include "gtest/gtest-matchers.h"  // IWYU pragma: export
+#include "gtest/gtest-message.h"  // IWYU pragma: export
+#include "gtest/gtest-param-test.h"  // IWYU pragma: export
+#include "gtest/gtest-printers.h"  // IWYU pragma: export
+#include "gtest/gtest-test-part.h"  // IWYU pragma: export
+#include "gtest/gtest-typed-test.h"  // IWYU pragma: export
+#include "gtest/gtest_pred_impl.h"  // IWYU pragma: export
+#include "gtest/gtest_prod.h"  // IWYU pragma: export
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-string.h"
 
