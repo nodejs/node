@@ -532,6 +532,22 @@ describe('Mock Timers Test Suite', () => {
           await nodeTimersPromises.setImmediate(); // let promises settle
           assert.strictEqual(f2.mock.callCount(), 1);
         });
+
+        it('should not affect other timers when clearing timeout inside own callback', (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const f = t.mock.fn();
+
+          const timer = nodeTimers.setTimeout(() => {
+            f();
+            // Clearing the already-expired timeout should do nothing
+            nodeTimers.clearTimeout(timer);
+          }, 50);
+          nodeTimers.setTimeout(f, 50);
+          nodeTimers.setTimeout(f, 50);
+
+          t.mock.timers.runAll();
+          assert.strictEqual(f.mock.callCount(), 3);
+        });
       });
 
       describe('setInterval Suite', () => {
