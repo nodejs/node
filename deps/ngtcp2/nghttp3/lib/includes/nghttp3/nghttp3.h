@@ -624,7 +624,7 @@ typedef struct nghttp3_buf {
    */
   uint8_t *end;
   /**
-   * :member:`pos` pointers to the start of data.  Typically, this
+   * :member:`pos` points to the start of data.  Typically, this
    * points to the address that next data should be read.  Initially,
    * it points to :member:`begin`.
    */
@@ -2198,6 +2198,9 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  * If a stream denoted by |stream_id| is not found, this function
  * returns 0.
  *
+ * Alternatively, `nghttp3_conn_update_ack_offset` can be used to
+ * accomplish the same thing.
+ *
  * This function returns 0 if it succeeds, or one of the following
  * negative error codes:
  *
@@ -2206,6 +2209,31 @@ NGHTTP3_EXTERN int nghttp3_conn_add_write_offset(nghttp3_conn *conn,
  */
 NGHTTP3_EXTERN int nghttp3_conn_add_ack_offset(nghttp3_conn *conn,
                                                int64_t stream_id, uint64_t n);
+
+/**
+ * @function
+ *
+ * `nghttp3_conn_update_ack_offset` tells |conn| that QUIC stack has
+ * acknowledged the stream data up to |offset| for a stream denoted by
+ * |stream_id|.
+ *
+ * If a stream denoted by |stream_id| is not found, this function
+ * returns 0.
+ *
+ * Alternatively, `nghttp3_conn_add_ack_offset` can be used to
+ * accomplish the same thing.
+ *
+ * This function returns 0 if it succeeds, or one of the following
+ * negative error codes:
+ *
+ * :macro:`NGHTTP3_ERR_INVALID_ARGUMENT`
+ *     |offset| is less than the number of bytes acknowledged so far.
+ * :macro:`NGHTTP3_ERR_CALLBACK_FAILURE`
+ *     User callback failed.
+ */
+NGHTTP3_EXTERN int nghttp3_conn_update_ack_offset(nghttp3_conn *conn,
+                                                  int64_t stream_id,
+                                                  uint64_t offset);
 
 /**
  * @function

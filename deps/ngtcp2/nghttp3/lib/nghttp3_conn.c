@@ -2098,6 +2098,21 @@ int nghttp3_conn_add_ack_offset(nghttp3_conn *conn, int64_t stream_id,
   return nghttp3_stream_add_ack_offset(stream, n);
 }
 
+int nghttp3_conn_update_ack_offset(nghttp3_conn *conn, int64_t stream_id,
+                                   uint64_t offset) {
+  nghttp3_stream *stream = nghttp3_conn_find_stream(conn, stream_id);
+
+  if (stream == NULL) {
+    return 0;
+  }
+
+  if (stream->ack_total > offset) {
+    return NGHTTP3_ERR_INVALID_ARGUMENT;
+  }
+
+  return nghttp3_stream_add_ack_offset(stream, offset - stream->ack_total);
+}
+
 static int conn_submit_headers_data(nghttp3_conn *conn, nghttp3_stream *stream,
                                     const nghttp3_nv *nva, size_t nvlen,
                                     const nghttp3_data_reader *dr) {

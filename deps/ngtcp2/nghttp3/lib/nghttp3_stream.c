@@ -979,6 +979,7 @@ int nghttp3_stream_add_ack_offset(nghttp3_stream *stream, uint64_t n) {
   }
 
   stream->ack_offset = offset;
+  stream->ack_total += n;
 
   return 0;
 }

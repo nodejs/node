@@ -880,19 +880,19 @@ int nghttp3_qpack_decoder_dtable_duplicate_add(nghttp3_qpack_decoder *decoder);
 int nghttp3_qpack_decoder_dtable_literal_add(nghttp3_qpack_decoder *decoder);
 
 struct nghttp3_qpack_stream_context {
-  /* state is a current state of reading request stream. */
-  nghttp3_qpack_request_stream_state state;
   /* rstate is a set of intermediate state which are used to process
      request stream. */
   nghttp3_qpack_read_state rstate;
   const nghttp3_mem *mem;
-  /* opcode is a request stream opcode being processed. */
-  nghttp3_qpack_request_stream_opcode opcode;
   int64_t stream_id;
   /* ricnt is Required Insert Count to decode this header block. */
   uint64_t ricnt;
   /* base is Base in Header Block Prefix. */
   uint64_t base;
+  /* state is a current state of reading request stream. */
+  nghttp3_qpack_request_stream_state state;
+  /* opcode is a request stream opcode being processed. */
+  nghttp3_qpack_request_stream_opcode opcode;
   /* dbase_sign is the delta base sign in Header Block Prefix. */
   int dbase_sign;
 };
