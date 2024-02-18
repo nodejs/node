@@ -4388,6 +4388,12 @@ An array of supported digest functions can be retrieved using
 <!-- YAML
 added: v0.11.14
 changes:
+  - version:
+      - v21.6.2
+      - v20.11.1
+      - v18.19.1
+    pr-url: https://github.com/nodejs-private/node-private/pull/525
+    description: The `RSA_PKCS1_PADDING` padding was disabled.
   - version: v15.0.0
     pr-url: https://github.com/nodejs/node/pull/35093
     description: Added string, ArrayBuffer, and CryptoKey as allowable key
@@ -4428,6 +4434,9 @@ If `privateKey` is not a [`KeyObject`][], this function behaves as if
 `privateKey` had been passed to [`crypto.createPrivateKey()`][]. If it is an
 object, the `padding` property can be passed. Otherwise, this function uses
 `RSA_PKCS1_OAEP_PADDING`.
+
+The `crypto.constants.RSA_PKCS1_PADDING` padding is disabled in
+[`crypto.privateDecrypt()`][] since the February 2024 security releases. <span class="deprecated-inline"></span>
 
 ### `crypto.privateEncrypt(privateKey, buffer)`
 
