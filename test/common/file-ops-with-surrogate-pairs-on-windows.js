@@ -1,10 +1,10 @@
 'use strict';
 
 const fs = require('fs');
-const { describe, it } = require('node:test');
-const assert = require('assert').strict;
 const os = require('os');
 const path = require('path');
+const assert = require('assert').strict;
+const { describe, it } = require('node:test');
 
 describe('File operations with filenames containing surrogate pairs on Windows', () => {
   it('should write, read, and delete a file with surrogate pairs in the filename', () => {
