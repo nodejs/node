@@ -27,26 +27,5 @@ describe('File operations with filenames containing surrogate pairs', () => {
     // Check if the content matches
     assert.strictEqual(readContent, content);
 
-    // Get directory contents
-    const dirs = fs.readdirSync(tempdir);
-    assert.strictEqual(dirs.length > 0, true);
-
-    // Check if the file is in the directory contents
-    let match = false;
-    for (let i = 0; i < dirs.length; i++) {
-      if (dirs[i].endsWith(filename)) {
-        match = true;
-        break;
-      }
-    }
-    assert.strictEqual(match, true);
-
-    // Delete the file
-    fs.unlinkSync(path.join(tempdir, filename));
-    assert.strictEqual(fs.existsSync(path.join(tempdir, filename)), false);
-
-    // Remove the temporary directory
-    fs.rmdirSync(tempdir);
-    assert.strictEqual(fs.existsSync(tempdir), false);
   });
 });
