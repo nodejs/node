@@ -6,7 +6,7 @@ const path = require('path');
 const assert = require('assert').strict;
 const { describe, it } = require('node:test');
 
-describe('File operations with filenames containing surrogate pairs on Windows', () => {
+describe('File operations with filenames containing surrogate pairs', () => {
   it('should write, read, and delete a file with surrogate pairs in the filename', () => {
     // Create a temporary directory
     const tempdir = fs.mkdtempSync(path.join(os.tmpdir(), 'emoji-fruit-🍇 🍈 🍉 🍊 🍋'));
