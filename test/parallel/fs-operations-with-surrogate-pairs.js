@@ -1,8 +1,8 @@
 'use strict';
 
 const fs = require('node:fs');
-const path = require('path');
-const assert = require('assert/strict');
+const path = require('node:path');
+const assert = require('node:assert');
 const { describe, it } = require('node:test');
 
 describe('File operations with filenames containing surrogate pairs', () => {
