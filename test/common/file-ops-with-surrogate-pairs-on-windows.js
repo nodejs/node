@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('os');
 const path = require('path');
-const assert = require('assert').strict;
+const assert = require('assert/strict');
 const { describe, it } = require('node:test');
 
 describe('File operations with filenames containing surrogate pairs', () => {
