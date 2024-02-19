@@ -27,8 +27,6 @@
 #include <tuple>
 #include <vector>
 
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-
 using node::ExitCode;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -189,6 +187,7 @@ SeaResource SeaDeserializer::Read() {
 }
 
 std::string_view FindSingleExecutableBlob() {
+#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
   CHECK(IsSingleExecutable());
   static const std::string_view result = []() -> std::string_view {
     size_t size;
@@ -209,6 +208,9 @@ std::string_view FindSingleExecutableBlob() {
                      result.data(),
                      result.size());
   return result;
+#else
+  UNREACHABLE();
+#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 }
 
 }  // anonymous namespace
@@ -668,5 +670,3 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(sea, node::sea::Initialize)
 NODE_BINDING_EXTERNAL_REFERENCE(sea, node::sea::RegisterExternalReferences)
-
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)

@@ -3,8 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-
 #include <cinttypes>
 #include <optional>
 #include <string>
@@ -51,8 +49,6 @@ node::ExitCode BuildSingleExecutableBlob(
     const std::vector<std::string>& exec_args);
 }  // namespace sea
 }  // namespace node
-
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
