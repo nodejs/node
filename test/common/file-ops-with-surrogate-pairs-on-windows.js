@@ -1,6 +1,6 @@
 'use strict';
 
-const fs = require('fs');
+const fs = require('node:fs');
 const os = require('os');
 const path = require('path');
 const assert = require('assert').strict;
