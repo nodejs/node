@@ -12,7 +12,7 @@ tmpdir.refresh();
 describe('File operations with filenames containing surrogate pairs', () => {
   it('should write, read, and delete a file with surrogate pairs in the filename', () => {
     // Create a temporary directory
-    const tempdir = fs.mkdtempSync('emoji-fruit-🍇 🍈 🍉 🍊 🍋');
+    const tempdir = fs.mkdtempSync(tmpdir.resolve('emoji-fruit-🍇 🍈 🍉 🍊 🍋'));
     assert.strictEqual(fs.existsSync(tempdir), true);
 
     const filename = '🚀🔥🛸.txt';
