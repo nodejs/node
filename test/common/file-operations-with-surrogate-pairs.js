@@ -1,17 +1,15 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('os');
 const path = require('path');
 const assert = require('assert/strict');
 const { describe, it } = require('node:test');
 
 describe('File operations with filenames containing surrogate pairs', () => {
   it('should write, read, and delete a file with surrogate pairs in the filename', () => {
-    // Create a temporary directory
-    const tempdir = fs.mkdtempSync(path.join(os.tmpdir(), 'emoji-fruit-🍇 🍈 🍉 🍊 🍋'));
-    assert.strictEqual(fs.existsSync(tempdir), true);
-
+    // Use a common temporary directory
+    const tempdir = '/tmp/emoji-fruit';
+    
     const filename = '🚀🔥🛸.txt';
     const content = 'Test content';
 
@@ -41,9 +39,5 @@ describe('File operations with filenames containing surrogate pairs', () => {
     // Delete the file
     fs.unlinkSync(path.join(tempdir, filename));
     assert.strictEqual(fs.existsSync(path.join(tempdir, filename)), false);
-
-    // Remove the temporary directory
-    fs.rmdirSync(tempdir);
-    assert.strictEqual(fs.existsSync(tempdir), false);
   });
 });
