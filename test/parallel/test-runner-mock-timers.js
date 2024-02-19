@@ -844,4 +844,38 @@ describe('Mock Timers Test Suite', () => {
       clearTimeout(id);
     });
   });
+
+  describe('Api should have same public properties as original', () => {
+    it('should have hasRef', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.strictEqual(typeof timer.hasRef, 'function');
+      assert.strictEqual(timer.hasRef(), true);
+      clearTimeout(timer);
+    });
+
+    it('should have ref', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.ref === 'function');
+      assert.deepStrictEqual(timer.ref(), timer);
+      clearTimeout(timer);
+    });
+
+    it('should have unref', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.unref === 'function');
+      assert.deepStrictEqual(timer.unref(), timer);
+      clearTimeout(timer);
+    });
+
+    it('should have refresh', (t) => {
+      t.mock.timers.enable();
+      const timer = setTimeout();
+      assert.ok(typeof timer.refresh === 'function');
+      assert.deepStrictEqual(timer.refresh(), timer);
+      clearTimeout(timer);
+    });
+  });
 });
