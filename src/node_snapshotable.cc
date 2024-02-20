@@ -1132,6 +1132,14 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
         fprintf(stderr, "Environment = %p\n", env);
       }
 
+      // Clean up the states left by the inspector because V8 cannot serialize
+      // them. They don't need to be persisted and can be created from scratch
+      // after snapshot deserialization.
+      RunAtExit(env);
+#if HAVE_INSPECTOR
+      env->StopInspector();
+#endif
+
       // Serialize the native states
       out->isolate_data_info = setup->isolate_data()->Serialize(creator);
       out->env_info = env->Serialize(creator);
