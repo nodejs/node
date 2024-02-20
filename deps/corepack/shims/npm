@@ -1,6 +1,12 @@
 #!/bin/sh
 basedir=$(dirname "$(echo "$0" | sed -e 's,\\,/,g')")
 
+# Check if the Corepack script exists in the expected location
+if [ ! -f "$basedir/node_modules/corepack/dist/corepack.js" ]; then
+  echo "Error: Corepack script not found in $basedir."
+  exit 1
+fi
+
 case `uname` in
     *CYGWIN*) basedir=`cygpath -w "$basedir"`;;
 esac
