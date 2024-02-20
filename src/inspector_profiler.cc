@@ -11,6 +11,7 @@
 #include "v8-inspector.h"
 
 #include <cinttypes>
+#include <limits>
 #include <sstream>
 #include "simdutf.h"
 
@@ -44,6 +45,10 @@ uint64_t V8ProfilerConnection::DispatchMessage(const char* method,
                                                bool is_profile_request) {
   std::stringstream ss;
   uint64_t id = next_id();
+  // V8's inspector protocol cannot take an integer beyond the int32_t limit.
+  // In practice the id we use is up to 3-5 for the profilers we have
+  // here.
+  CHECK_LT(id, static_cast<uint64_t>(std::numeric_limits<int32_t>::max()));
   ss << R"({ "id": )" << id;
   DCHECK(method != nullptr);
   ss << R"(, "method": ")" << method << '"';
@@ -83,12 +88,13 @@ static void WriteResult(Environment* env,
 
 bool StringViewToUTF8(const v8_inspector::StringView& source,
                       std::vector<char>* utf8_out,
-                      size_t* utf8_length) {
+                      size_t* utf8_length,
+                      size_t padding) {
   size_t source_len = source.length();
   if (source.is8Bit()) {
     const char* latin1 = reinterpret_cast<const char*>(source.characters8());
     *utf8_length = simdutf::utf8_length_from_latin1(latin1, source_len);
-    utf8_out->resize(*utf8_length);
+    utf8_out->resize(*utf8_length + padding);
     size_t result_len =
         simdutf::convert_latin1_to_utf8(latin1, source_len, utf8_out->data());
     return *utf8_length == result_len;
@@ -97,7 +103,7 @@ bool StringViewToUTF8(const v8_inspector::StringView& source,
   const char16_t* utf16 =
       reinterpret_cast<const char16_t*>(source.characters16());
   *utf8_length = simdutf::utf8_length_from_utf16(utf16, source_len);
-  utf8_out->resize(*utf8_length);
+  utf8_out->resize(*utf8_length + padding);
   size_t result_len =
       simdutf::convert_utf16_to_utf8(utf16, source_len, utf8_out->data());
   return *utf8_length == result_len;
@@ -119,13 +125,14 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
 
   std::vector<char> message_utf8;
   size_t message_utf8_length;
-  if (!StringViewToUTF8(message, &message_utf8, &message_utf8_length)) {
+  if (!StringViewToUTF8(message,
+                        &message_utf8,
+                        &message_utf8_length,
+                        simdjson::SIMDJSON_PADDING)) {
     fprintf(
         stderr, "Failed to convert %s profile message to UTF8 string\n", type);
     return;
   }
-  // Allocate extra padding for JSON parsing.
-  message_utf8.resize(message_utf8_length + simdjson::SIMDJSON_PADDING);
 
   simdjson::ondemand::document parsed;
   simdjson::ondemand::object response;
