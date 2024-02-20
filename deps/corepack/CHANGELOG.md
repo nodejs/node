@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.25.0](https://github.com/nodejs/corepack/compare/v0.24.1...v0.25.0) (2024-02-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `--all` flag ([#351](https://github.com/nodejs/corepack/issues/351))
+* remove Node.js 19.x from the range of supported versions ([#375](https://github.com/nodejs/corepack/issues/375))
+* use `fetch` ([#365](https://github.com/nodejs/corepack/issues/365))
+* remove old install folder migration ([#373](https://github.com/nodejs/corepack/issues/373))
+* prompt user before downloading software ([#360](https://github.com/nodejs/corepack/issues/360))
+
+### Features
+
+* add `corepack cache` command ([#363](https://github.com/nodejs/corepack/issues/363)) ([f442366](https://github.com/nodejs/corepack/commit/f442366c1c00d0c3f388b757c3797504f9a6b62e))
+* add support for URL in `"packageManager"` ([#359](https://github.com/nodejs/corepack/issues/359)) ([4a8ce6d](https://github.com/nodejs/corepack/commit/4a8ce6d42f081047a341f36067696346c9f3e1ea))
+* bump Known Good Release when downloading new version ([#364](https://github.com/nodejs/corepack/issues/364)) ([a56c13b](https://github.com/nodejs/corepack/commit/a56c13bd0b1c11e50361b8b4b6f8a53571e3981a))
+* prompt user before downloading software ([#360](https://github.com/nodejs/corepack/issues/360)) ([6b8d87f](https://github.com/nodejs/corepack/commit/6b8d87f2374f79855b24d659f2a2579d6b39f54f))
+* remove `--all` flag ([#351](https://github.com/nodejs/corepack/issues/351)) ([d9c70b9](https://github.com/nodejs/corepack/commit/d9c70b91f698787d693406626a73dc95cb18bc1d))
+* remove old install folder migration ([#373](https://github.com/nodejs/corepack/issues/373)) ([54e9510](https://github.com/nodejs/corepack/commit/54e9510cdaf6ed08c9dea1ed3999fa65116cb4c7))
+* use `fetch` ([#365](https://github.com/nodejs/corepack/issues/365)) ([fe6a307](https://github.com/nodejs/corepack/commit/fe6a3072f64efa810b90e4ee52e0b3ff14c63184))
+
+
+### Bug Fixes
+
+* remove unsafe remove of install folder ([#372](https://github.com/nodejs/corepack/issues/372)) ([65880ca](https://github.com/nodejs/corepack/commit/65880cafed5f4195f8e7656ca9af4cbcbb7682d3))
+
+
+### Miscellaneous Chores
+
+* remove Node.js 19.x from the range of supported versions ([#375](https://github.com/nodejs/corepack/issues/375)) ([9a1cb38](https://github.com/nodejs/corepack/commit/9a1cb385bba9ade8e9fbf5517c2bdff60295f9ed))
+
 ## [0.24.1](https://github.com/nodejs/corepack/compare/v0.24.0...v0.24.1) (2024-01-13)
 
 

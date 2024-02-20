@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.24.1",
+  "version": "0.25.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,7 +10,7 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": ">=18.17.1"
+    "node": "^18.17.1 | >=20.10.0"
   },
   "exports": {
     "./package.json": "./package.json"
@@ -25,6 +25,7 @@
     "@types/debug": "^4.1.5",
     "@types/jest": "^29.0.0",
     "@types/node": "^20.4.6",
+    "@types/proxy-from-env": "^1",
     "@types/semver": "^7.1.0",
     "@types/tar": "^6.0.0",
     "@types/which": "^3.0.0",
@@ -40,13 +41,13 @@
     "eslint": "^8.0.0",
     "eslint-plugin-arca": "^0.16.0",
     "jest": "^29.0.0",
-    "nock": "^13.0.4",
-    "proxy-agent": "^6.2.2",
+    "proxy-from-env": "^1.1.0",
     "semver": "^7.5.2",
     "supports-color": "^9.0.0",
     "tar": "^6.0.1",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.4",
+    "undici": "^6.6.1",
     "v8-compile-cache": "^2.3.0",
     "which": "^4.0.0"
   },
@@ -94,9 +95,6 @@
       "./shims/yarnpkg",
       "./shims/yarnpkg.ps1"
     ]
-  },
-  "resolutions": {
-    "vm2": "portal:./vm2"
   },
   "bin": {
     "corepack": "./dist/corepack.js",
