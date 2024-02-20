@@ -881,6 +881,9 @@ class Environment : public MemoryRetainer {
   inline inspector::Agent* inspector_agent() const {
     return inspector_agent_.get();
   }
+  inline void StopInspector() {
+    inspector_agent_.reset();
+  }
 
   inline bool is_in_inspector_console_call() const;
   inline void set_is_in_inspector_console_call(bool value);
