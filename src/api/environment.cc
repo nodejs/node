@@ -802,6 +802,9 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
   thread_local builtins::BuiltinLoader builtin_loader;
+  // Primordials can always be just eagerly compiled.
+  builtin_loader.SetEagerCompile();
+
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
     if (builtin_loader

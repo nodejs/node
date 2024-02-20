@@ -1041,10 +1041,12 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
   Context::Scope context_scope(context);
   builtins::BuiltinLoader builtin_loader;
   // Regenerate all the code cache.
-  if (!builtin_loader.CompileAllBuiltins(context)) {
+  if (!builtin_loader.CompileAllBuiltinsAndCopyCodeCache(
+          context,
+          out->env_info.principal_realm.builtins,
+          &(out->code_cache))) {
     return ExitCode::kGenericUserError;
   }
-  builtin_loader.CopyCodeCache(&(out->code_cache));
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
     for (const auto& item : out->code_cache) {
       std::string size_str = FormatSize(item.data.length);
@@ -1070,6 +1072,9 @@ ExitCode SnapshotBuilder::Generate(
   }
 
   if (!WithoutCodeCache(snapshot_config)) {
+    per_process::Debug(
+        DebugCategory::CODE_CACHE,
+        "---\nGenerate code cache to complement snapshot\n---\n");
     // Deserialize the snapshot to recompile code cache. We need to do this in
     // the second pass because V8 requires the code cache to be compiled with a
     // finalized read-only space.
