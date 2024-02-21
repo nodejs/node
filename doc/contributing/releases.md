@@ -883,6 +883,12 @@ same GPG key!**
 Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
 need to ensure you've loaded the correct ssh key, or you'll see the following:
 
+If your GPG key is protected by a password, you might need to run:
+
+```console
+$ export GPG_TTY=$(tty)
+```
+
 ```console
 # Checking for releases ...
 Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
