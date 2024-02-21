@@ -203,7 +203,6 @@ For information about the governance of the Node.js project, see
 * [tniessen](https://github.com/tniessen) -
   **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
 
-
 #### TSC regular members
 
 * [BethGriggs](https://github.com/BethGriggs) -
