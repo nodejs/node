@@ -418,12 +418,9 @@ void StartProfilers(Environment* env) {
     EndStartedProfilers(static_cast<Environment*>(env));
   }, env);
 
-  Isolate* isolate = env->isolate();
-  Local<String> coverage_str = env->env_vars()->Get(
-      isolate, FIXED_ONE_BYTE_STRING(isolate, "NODE_V8_COVERAGE"))
-      .FromMaybe(Local<String>());
-  if ((!coverage_str.IsEmpty() && coverage_str->Length() > 0) ||
-      env->options()->test_runner_coverage) {
+  std::string coverage_str =
+      env->env_vars()->Get("NODE_V8_COVERAGE").FromMaybe(std::string());
+  if (!coverage_str.empty() || env->options()->test_runner_coverage) {
     CHECK_NULL(env->coverage_connection());
     env->set_coverage_connection(std::make_unique<V8CoverageConnection>(env));
     env->coverage_connection()->Start();
