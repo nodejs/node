@@ -184,7 +184,7 @@ void V8ProfilerConnection::V8ProfilerSessionDelegate::SendMessageToFrontend(
     return;
   }
 
-  connection_->WriteProfile(result);
+  connection_->WriteProfile(&result);
   connection_->RemoveProfileId(id);
 }
 
@@ -215,9 +215,9 @@ std::string V8CoverageConnection::GetFilename() const {
 }
 
 std::optional<std::string_view> V8ProfilerConnection::GetProfile(
-    simdjson::ondemand::object& result) {
+    simdjson::ondemand::object* result) {
   simdjson::ondemand::object profile_object;
-  if (result["profile"].get_object().get(profile_object)) {
+  if ((*result)["profile"].get_object().get(profile_object)) {
     fprintf(
         stderr, "'profile' from %s profile result is not an Object\n", type());
     return std::nullopt;
@@ -232,7 +232,7 @@ std::optional<std::string_view> V8ProfilerConnection::GetProfile(
   return profile_raw;
 }
 
-void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object& result) {
+void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object* result) {
   // Generate the profile output from the subclass.
   auto profile_opt = GetProfile(result);
   if (!profile_opt.has_value()) {
@@ -254,7 +254,7 @@ void V8ProfilerConnection::WriteProfile(simdjson::ondemand::object& result) {
   WriteResult(env_, path.c_str(), profile);
 }
 
-void V8CoverageConnection::WriteProfile(simdjson::ondemand::object& result) {
+void V8CoverageConnection::WriteProfile(simdjson::ondemand::object* result) {
   Isolate* isolate = env_->isolate();
   HandleScope handle_scope(isolate);
 
@@ -350,9 +350,9 @@ void V8CoverageConnection::WriteProfile(simdjson::ondemand::object& result) {
 }
 
 std::optional<std::string_view> V8CoverageConnection::GetProfile(
-    simdjson::ondemand::object& result) {
+    simdjson::ondemand::object* result) {
   std::string_view profile_raw;
-  if (result.raw_json().get(profile_raw)) {
+  if (result->raw_json().get(profile_raw)) {
     fprintf(stderr,
             "Cannot get raw string of the 'profile' field from %s profile\n",
             type());

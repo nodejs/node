@@ -62,8 +62,8 @@ class V8ProfilerConnection {
   // Return the profile object parsed from `message.result`,
   // which will be then written as a JSON.
   virtual std::optional<std::string_view> GetProfile(
-      simdjson::ondemand::object& result);
-  virtual void WriteProfile(simdjson::ondemand::object& result);
+      simdjson::ondemand::object* result);
+  virtual void WriteProfile(simdjson::ondemand::object* result);
 
   bool HasProfileId(uint64_t id) const {
     return profile_ids_.find(id) != profile_ids_.end();
@@ -95,8 +95,8 @@ class V8CoverageConnection : public V8ProfilerConnection {
   std::string GetDirectory() const override;
   std::string GetFilename() const override;
   std::optional<std::string_view> GetProfile(
-      simdjson::ondemand::object& result) override;
-  void WriteProfile(simdjson::ondemand::object& result) override;
+      simdjson::ondemand::object* result) override;
+  void WriteProfile(simdjson::ondemand::object* result) override;
   void WriteSourceMapCache();
   void TakeCoverage();
   void StopCoverage();
