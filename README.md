@@ -196,12 +196,13 @@ For information about the governance of the Node.js project, see
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
   **Ruy Adorno** <<ruyadorno@google.com>> (he/him)
+* [ShogunPanda](https://github.com/ShogunPanda) -
+  **Paolo Insogna** <<paolo@cowtech.it>> (he/him)
 * [targos](https://github.com/targos) -
   **Michaël Zasso** <<targos@protonmail.com>> (he/him)
 * [tniessen](https://github.com/tniessen) -
   **Tobias Nießen** <<tniessen@tnie.de>> (he/him)
-* [ShogunPanda](https://github.com/ShogunPanda) -
-  **Paolo Insogna** <<paolo@cowtech.it>> (he/him)
+
 
 #### TSC regular members
 
