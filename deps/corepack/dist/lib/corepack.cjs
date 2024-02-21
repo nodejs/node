@@ -1037,9 +1037,9 @@ var init_lib = __esm({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/constants.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/constants.js
 var require_constants = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/constants.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/constants.js"(exports, module2) {
     var SEMVER_SPEC_VERSION = "2.0.0";
     var MAX_LENGTH = 256;
     var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || /* istanbul ignore next */
@@ -1068,18 +1068,18 @@ var require_constants = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/debug.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/debug.js
 var require_debug = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/debug.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/debug.js"(exports, module2) {
     var debug2 = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
     module2.exports = debug2;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/re.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/re.js
 var require_re = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/re.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/re.js"(exports, module2) {
     var {
       MAX_SAFE_COMPONENT_LENGTH,
       MAX_SAFE_BUILD_LENGTH,
@@ -1135,8 +1135,11 @@ var require_re = __commonJS({
     createToken("XRANGEPLAINLOOSE", `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:${src[t.PRERELEASELOOSE]})?${src[t.BUILD]}?)?)?`);
     createToken("XRANGE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
     createToken("XRANGELOOSE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("COERCE", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:$|[^\\d])`);
+    createToken("COERCEPLAIN", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
+    createToken("COERCE", `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
+    createToken("COERCEFULL", src[t.COERCEPLAIN] + `(?:${src[t.PRERELEASE]})?(?:${src[t.BUILD]})?(?:$|[^\\d])`);
     createToken("COERCERTL", src[t.COERCE], true);
+    createToken("COERCERTLFULL", src[t.COERCEFULL], true);
     createToken("LONETILDE", "(?:~>?)");
     createToken("TILDETRIM", `(\\s*)${src[t.LONETILDE]}\\s+`, true);
     exports.tildeTrimReplace = "$1~";
@@ -1159,9 +1162,9 @@ var require_re = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/parse-options.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/parse-options.js
 var require_parse_options = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/parse-options.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/parse-options.js"(exports, module2) {
     var looseOption = Object.freeze({ loose: true });
     var emptyOpts = Object.freeze({});
     var parseOptions = (options) => {
@@ -1177,9 +1180,9 @@ var require_parse_options = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/identifiers.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/identifiers.js
 var require_identifiers = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/internal/identifiers.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/internal/identifiers.js"(exports, module2) {
     var numeric = /^[0-9]+$/;
     var compareIdentifiers = (a, b) => {
       const anum = numeric.test(a);
@@ -1198,9 +1201,9 @@ var require_identifiers = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/semver.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/semver.js
 var require_semver = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/semver.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/semver.js"(exports, module2) {
     var debug2 = require_debug();
     var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants();
     var { safeRe: re, t } = require_re();
@@ -1440,9 +1443,9 @@ var require_semver = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/parse.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/parse.js
 var require_parse = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/parse.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/parse.js"(exports, module2) {
     var SemVer = require_semver();
     var parse = (version2, options, throwErrors = false) => {
       if (version2 instanceof SemVer) {
@@ -1461,9 +1464,9 @@ var require_parse = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/valid.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/valid.js
 var require_valid = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/valid.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/valid.js"(exports, module2) {
     var parse = require_parse();
     var valid = (version2, options) => {
       const v = parse(version2, options);
@@ -1473,9 +1476,9 @@ var require_valid = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/clean.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/clean.js
 var require_clean = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/clean.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/clean.js"(exports, module2) {
     var parse = require_parse();
     var clean = (version2, options) => {
       const s = parse(version2.trim().replace(/^[=v]+/, ""), options);
@@ -1485,9 +1488,9 @@ var require_clean = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/inc.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/inc.js
 var require_inc = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/inc.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/inc.js"(exports, module2) {
     var SemVer = require_semver();
     var inc = (version2, release, options, identifier, identifierBase) => {
       if (typeof options === "string") {
@@ -1508,9 +1511,9 @@ var require_inc = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/diff.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/diff.js
 var require_diff = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/diff.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/diff.js"(exports, module2) {
     var parse = require_parse();
     var diff = (version1, version2) => {
       const v1 = parse(version1, null, true);
@@ -1552,36 +1555,36 @@ var require_diff = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/major.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/major.js
 var require_major = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/major.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/major.js"(exports, module2) {
     var SemVer = require_semver();
     var major = (a, loose) => new SemVer(a, loose).major;
     module2.exports = major;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/minor.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/minor.js
 var require_minor = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/minor.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/minor.js"(exports, module2) {
     var SemVer = require_semver();
     var minor = (a, loose) => new SemVer(a, loose).minor;
     module2.exports = minor;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/patch.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/patch.js
 var require_patch = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/patch.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/patch.js"(exports, module2) {
     var SemVer = require_semver();
     var patch = (a, loose) => new SemVer(a, loose).patch;
     module2.exports = patch;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/prerelease.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/prerelease.js
 var require_prerelease = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/prerelease.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/prerelease.js"(exports, module2) {
     var parse = require_parse();
     var prerelease = (version2, options) => {
       const parsed = parse(version2, options);
@@ -1591,36 +1594,36 @@ var require_prerelease = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare.js
 var require_compare = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare.js"(exports, module2) {
     var SemVer = require_semver();
     var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
     module2.exports = compare;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/rcompare.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/rcompare.js
 var require_rcompare = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/rcompare.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/rcompare.js"(exports, module2) {
     var compare = require_compare();
     var rcompare = (a, b, loose) => compare(b, a, loose);
     module2.exports = rcompare;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare-loose.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare-loose.js
 var require_compare_loose = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare-loose.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare-loose.js"(exports, module2) {
     var compare = require_compare();
     var compareLoose = (a, b) => compare(a, b, true);
     module2.exports = compareLoose;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare-build.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare-build.js
 var require_compare_build = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/compare-build.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/compare-build.js"(exports, module2) {
     var SemVer = require_semver();
     var compareBuild = (a, b, loose) => {
       const versionA = new SemVer(a, loose);
@@ -1631,81 +1634,81 @@ var require_compare_build = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/sort.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/sort.js
 var require_sort = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/sort.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/sort.js"(exports, module2) {
     var compareBuild = require_compare_build();
     var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
     module2.exports = sort;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/rsort.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/rsort.js
 var require_rsort = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/rsort.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/rsort.js"(exports, module2) {
     var compareBuild = require_compare_build();
     var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
     module2.exports = rsort;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/gt.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/gt.js
 var require_gt = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/gt.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/gt.js"(exports, module2) {
     var compare = require_compare();
     var gt = (a, b, loose) => compare(a, b, loose) > 0;
     module2.exports = gt;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/lt.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/lt.js
 var require_lt = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/lt.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/lt.js"(exports, module2) {
     var compare = require_compare();
     var lt = (a, b, loose) => compare(a, b, loose) < 0;
     module2.exports = lt;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/eq.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/eq.js
 var require_eq = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/eq.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/eq.js"(exports, module2) {
     var compare = require_compare();
     var eq = (a, b, loose) => compare(a, b, loose) === 0;
     module2.exports = eq;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/neq.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/neq.js
 var require_neq = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/neq.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/neq.js"(exports, module2) {
     var compare = require_compare();
     var neq = (a, b, loose) => compare(a, b, loose) !== 0;
     module2.exports = neq;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/gte.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/gte.js
 var require_gte = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/gte.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/gte.js"(exports, module2) {
     var compare = require_compare();
     var gte = (a, b, loose) => compare(a, b, loose) >= 0;
     module2.exports = gte;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/lte.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/lte.js
 var require_lte = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/lte.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/lte.js"(exports, module2) {
     var compare = require_compare();
     var lte = (a, b, loose) => compare(a, b, loose) <= 0;
     module2.exports = lte;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/cmp.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/cmp.js
 var require_cmp = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/cmp.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/cmp.js"(exports, module2) {
     var eq = require_eq();
     var neq = require_neq();
     var gt = require_gt();
@@ -1752,9 +1755,9 @@ var require_cmp = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/coerce.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/coerce.js
 var require_coerce = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/coerce.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/coerce.js"(exports, module2) {
     var SemVer = require_semver();
     var parse = require_parse();
     var { safeRe: re, t } = require_re();
@@ -1771,21 +1774,27 @@ var require_coerce = __commonJS({
       options = options || {};
       let match = null;
       if (!options.rtl) {
-        match = version2.match(re[t.COERCE]);
+        match = version2.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
       } else {
+        const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
         let next;
-        while ((next = re[t.COERCERTL].exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
+        while ((next = coerceRtlRegex.exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
           if (!match || next.index + next[0].length !== match.index + match[0].length) {
             match = next;
           }
-          re[t.COERCERTL].lastIndex = next.index + next[1].length + next[2].length;
+          coerceRtlRegex.lastIndex = next.index + next[1].length + next[2].length;
         }
-        re[t.COERCERTL].lastIndex = -1;
+        coerceRtlRegex.lastIndex = -1;
       }
       if (match === null) {
         return null;
       }
-      return parse(`${match[2]}.${match[3] || "0"}.${match[4] || "0"}`, options);
+      const major = match[2];
+      const minor = match[3] || "0";
+      const patch = match[4] || "0";
+      const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
+      const build = options.includePrerelease && match[6] ? `+${match[6]}` : "";
+      return parse(`${major}.${minor}.${patch}${prerelease}${build}`, options);
     };
     module2.exports = coerce;
   }
@@ -2444,9 +2453,9 @@ var require_lru_cache = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/range.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/range.js
 var require_range = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/range.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/range.js"(exports, module2) {
     var Range = class _Range {
       constructor(range, options) {
         options = parseOptions(options);
@@ -2801,9 +2810,9 @@ var require_range = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/comparator.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/comparator.js
 var require_comparator = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/classes/comparator.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/classes/comparator.js"(exports, module2) {
     var ANY = Symbol("SemVer ANY");
     var Comparator = class _Comparator {
       static get ANY() {
@@ -2913,9 +2922,9 @@ var require_comparator = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/satisfies.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/satisfies.js
 var require_satisfies = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/functions/satisfies.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/functions/satisfies.js"(exports, module2) {
     var Range = require_range();
     var satisfies = (version2, range, options) => {
       try {
@@ -2929,18 +2938,18 @@ var require_satisfies = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/to-comparators.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/to-comparators.js
 var require_to_comparators = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/to-comparators.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/to-comparators.js"(exports, module2) {
     var Range = require_range();
     var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
     module2.exports = toComparators;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/max-satisfying.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/max-satisfying.js
 var require_max_satisfying = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/max-satisfying.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/max-satisfying.js"(exports, module2) {
     var SemVer = require_semver();
     var Range = require_range();
     var maxSatisfying = (versions, range, options) => {
@@ -2966,9 +2975,9 @@ var require_max_satisfying = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/min-satisfying.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/min-satisfying.js
 var require_min_satisfying = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/min-satisfying.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/min-satisfying.js"(exports, module2) {
     var SemVer = require_semver();
     var Range = require_range();
     var minSatisfying = (versions, range, options) => {
@@ -2994,9 +3003,9 @@ var require_min_satisfying = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/min-version.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/min-version.js
 var require_min_version = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/min-version.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/min-version.js"(exports, module2) {
     var SemVer = require_semver();
     var Range = require_range();
     var gt = require_gt();
@@ -3050,9 +3059,9 @@ var require_min_version = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/valid.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/valid.js
 var require_valid2 = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/valid.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/valid.js"(exports, module2) {
     var Range = require_range();
     var validRange = (range, options) => {
       try {
@@ -3065,9 +3074,9 @@ var require_valid2 = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/outside.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/outside.js
 var require_outside = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/outside.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/outside.js"(exports, module2) {
     var SemVer = require_semver();
     var Comparator = require_comparator();
     var { ANY } = Comparator;
@@ -3133,27 +3142,27 @@ var require_outside = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/gtr.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/gtr.js
 var require_gtr = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/gtr.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/gtr.js"(exports, module2) {
     var outside = require_outside();
     var gtr = (version2, range, options) => outside(version2, range, ">", options);
     module2.exports = gtr;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/ltr.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/ltr.js
 var require_ltr = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/ltr.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/ltr.js"(exports, module2) {
     var outside = require_outside();
     var ltr = (version2, range, options) => outside(version2, range, "<", options);
     module2.exports = ltr;
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/intersects.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/intersects.js
 var require_intersects = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/intersects.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/intersects.js"(exports, module2) {
     var Range = require_range();
     var intersects = (r1, r2, options) => {
       r1 = new Range(r1, options);
@@ -3164,9 +3173,9 @@ var require_intersects = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/simplify.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/simplify.js
 var require_simplify = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/simplify.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/simplify.js"(exports, module2) {
     var satisfies = require_satisfies();
     var compare = require_compare();
     module2.exports = (versions, range, options) => {
@@ -3213,9 +3222,9 @@ var require_simplify = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/subset.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/subset.js
 var require_subset = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/ranges/subset.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/ranges/subset.js"(exports, module2) {
     var Range = require_range();
     var Comparator = require_comparator();
     var { ANY } = Comparator;
@@ -3375,9 +3384,9 @@ var require_subset = __commonJS({
   }
 });
 
-// .yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/index.js
+// .yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/index.js
 var require_semver2 = __commonJS({
-  ".yarn/cache/semver-npm-7.5.4-c4ad957fcd-5160b06975.zip/node_modules/semver/index.js"(exports, module2) {
+  ".yarn/cache/semver-npm-7.6.0-f4630729f6-fbfe717094.zip/node_modules/semver/index.js"(exports, module2) {
     var internalRe = require_re();
     var constants = require_constants();
     var SemVer = require_semver();
@@ -22627,7 +22636,7 @@ function String2(descriptor, ...args) {
 }
 
 // package.json
-var version = "0.25.0";
+var version = "0.25.2";
 
 // sources/Engine.ts
 var import_fs3 = __toESM(require("fs"));
@@ -22639,7 +22648,7 @@ var import_semver3 = __toESM(require_semver2());
 var config_default = {
   definitions: {
     npm: {
-      default: "10.3.0+sha1.554e1f13e4c09d581ad27cdc4a92f085ab74ce1a",
+      default: "10.4.0+sha1.904025b4d932cfaed8799e644a1c5ae7f02729fc",
       fetchLatestFrom: {
         type: "npm",
         package: "npm"
@@ -22676,7 +22685,7 @@ var config_default = {
       }
     },
     pnpm: {
-      default: "8.14.1+sha1.d039b38e0b20ad012ed548e44267b8d4c88b447a",
+      default: "8.15.3+sha1.64838798f519c18029c1e8a1310e16101fc2eda0",
       fetchLatestFrom: {
         type: "npm",
         package: "pnpm"
@@ -22740,7 +22749,7 @@ var config_default = {
         package: "yarn"
       },
       transparent: {
-        default: "4.0.2+sha224.4b7a50dfc3384e203b885efe2c3ff5e04e3a9c682c0a2f0df25c5e34",
+        default: "4.1.0+sha224.bc24d7f5afc738464f3d4e95f4e6e7829a35cee54a0fd527ea5baa83",
         commands: [
           [
             "yarn",
@@ -22863,20 +22872,6 @@ async function fetch(input, init) {
   if (process.env.COREPACK_ENABLE_NETWORK === `0`)
     throw new UsageError(`Network access disabled by the environment; can't reach ${input}`);
   const agent = await getProxyAgent(input);
-  if (process.env.COREPACK_ENABLE_DOWNLOAD_PROMPT === `1`) {
-    console.error(`Corepack is about to download ${input}.`);
-    if (import_process2.stdin.isTTY && !process.env.CI) {
-      import_process2.stderr.write(`
-Do you want to continue? [Y/n] `);
-      import_process2.stdin.resume();
-      const chars = await (0, import_events.once)(import_process2.stdin, `data`);
-      import_process2.stdin.pause();
-      if (chars[0][0] === 110 || // n
-      chars[0][0] === 78) {
-        throw new UsageError(`Aborted by the user`);
-      }
-    }
-  }
   let response;
   try {
     response = await globalThis.fetch(input, {
@@ -22902,6 +22897,20 @@ async function fetchAsJson(input, init) {
   return response.json();
 }
 async function fetchUrlStream(input, init) {
+  if (process.env.COREPACK_ENABLE_DOWNLOAD_PROMPT === `1`) {
+    console.error(`Corepack is about to download ${input}.`);
+    if (import_process2.stdin.isTTY && !process.env.CI) {
+      import_process2.stderr.write(`
+Do you want to continue? [Y/n] `);
+      import_process2.stdin.resume();
+      const chars = await (0, import_events.once)(import_process2.stdin, `data`);
+      import_process2.stdin.pause();
+      if (chars[0][0] === 110 || // n
+      chars[0][0] === 78) {
+        throw new UsageError(`Aborted by the user`);
+      }
+    }
+  }
   const response = await fetch(input, init);
   const webStream = response.body;
   (0, import_assert.default)(webStream, `Expected stream to be set`);
@@ -23230,6 +23239,10 @@ function isSupportedPackageManager(value) {
 function getLastKnownGoodFile(flag = `r`) {
   return import_fs3.default.promises.open(import_path3.default.join(getCorepackHomeFolder(), `lastKnownGood.json`), flag);
 }
+async function createLastKnownGoodFile() {
+  await import_fs3.default.promises.mkdir(getCorepackHomeFolder(), { recursive: true });
+  return getLastKnownGoodFile(`w`);
+}
 async function getJSONFileContent(fh) {
   let lastKnownGood;
   try {
@@ -23321,29 +23334,30 @@ var Engine = class {
     const definition = this.config.definitions[packageManager];
     if (typeof definition === `undefined`)
       throw new UsageError(`This package manager (${packageManager}) isn't supported by this corepack build`);
-    let emptyFile = false;
-    const lastKnownGoodFile = await getLastKnownGoodFile(`r+`).catch((err) => {
-      if (err?.code === `ENOENT`) {
-        emptyFile = true;
-        return getLastKnownGoodFile(`w`);
+    let lastKnownGoodFile = await getLastKnownGoodFile(`r+`).catch((err) => {
+      if (err?.code !== `ENOENT`) {
+        throw err;
       }
-      throw err;
     });
     try {
-      const lastKnownGood = emptyFile || await getJSONFileContent(lastKnownGoodFile);
+      const lastKnownGood = lastKnownGoodFile == null || await getJSONFileContent(lastKnownGoodFile);
       const lastKnownGoodForThisPackageManager = getLastKnownGoodFromFileContent(lastKnownGood, packageManager);
       if (lastKnownGoodForThisPackageManager)
         return lastKnownGoodForThisPackageManager;
       if (import_process3.default.env.COREPACK_DEFAULT_TO_LATEST === `0`)
         return definition.default;
       const reference = await fetchLatestStableVersion2(definition.fetchLatestFrom);
-      await activatePackageManagerFromFileHandle(lastKnownGoodFile, lastKnownGood, {
-        name: packageManager,
-        reference
-      });
+      try {
+        lastKnownGoodFile ??= await createLastKnownGoodFile();
+        await activatePackageManagerFromFileHandle(lastKnownGoodFile, lastKnownGood, {
+          name: packageManager,
+          reference
+        });
+      } catch {
+      }
       return reference;
     } finally {
-      await lastKnownGoodFile.close();
+      await lastKnownGoodFile?.close();
     }
   }
   async activatePackageManager(locator) {

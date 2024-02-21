@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.25.0",
+  "version": "0.25.2",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -10,13 +10,13 @@
     "url": "https://github.com/nodejs/corepack.git"
   },
   "engines": {
-    "node": "^18.17.1 | >=20.10.0"
+    "node": "^18.17.1 || >=20.10.0"
   },
   "exports": {
     "./package.json": "./package.json"
   },
   "license": "MIT",
-  "packageManager": "yarn@4.0.2+sha256.825003a0f561ad09a3b1ac4a3b3ea6207af2796d54f62a9420520915721f5186",
+  "packageManager": "yarn@4.1.0+sha224.bc24d7f5afc738464f3d4e95f4e6e7829a35cee54a0fd527ea5baa83",
   "devDependencies": {
     "@babel/core": "^7.14.3",
     "@babel/plugin-transform-modules-commonjs": "^7.14.0",

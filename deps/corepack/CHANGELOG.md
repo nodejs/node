@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.25.2](https://github.com/nodejs/corepack/compare/v0.25.1...v0.25.2) (2024-02-21)
+
+
+### Features
+
+* update package manager versions ([#362](https://github.com/nodejs/corepack/issues/362)) ([1423312](https://github.com/nodejs/corepack/commit/1423312a0eb7844dcdd43ae8a63cf12dcacedb2b))
+
+
+### Bug Fixes
+
+* do not hard fail if Corepack home folder cannot be created ([#382](https://github.com/nodejs/corepack/issues/382)) ([9834f57](https://github.com/nodejs/corepack/commit/9834f5790a99ce2c6c283321bb38b02e5561b7ca))
+* do not show download prompt when downloading JSON ([#383](https://github.com/nodejs/corepack/issues/383)) ([bc137a0](https://github.com/nodejs/corepack/commit/bc137a0073c3343ce2d552b6e13bfd2a48f08351))
+
+## [0.25.1](https://github.com/nodejs/corepack/compare/v0.25.0...v0.25.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* use valid semver range for `engines.node` ([#378](https://github.com/nodejs/corepack/issues/378)) ([f2185fe](https://github.com/nodejs/corepack/commit/f2185fefa145cc75fca082acc169f8aaef637ca2))
+
 ## [0.25.0](https://github.com/nodejs/corepack/compare/v0.24.1...v0.25.0) (2024-02-20)
 
 
