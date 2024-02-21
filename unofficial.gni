@@ -266,7 +266,10 @@ template("node_gn_build") {
     sources = [
       "tools/js2c.cc",
       "tools/executable_wrapper.h",
+      "src/embedded_data.cc",
+      "src/embedded_data.h",
     ]
+    include_dirs = [ "src" ]
   }
 
   action("run_node_js2c") {
