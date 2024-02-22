@@ -27,7 +27,7 @@ on:
       - AUTHORS
       - doc/**
       - .github/**
-      - '!.github/workflows/android_ci.yml'
+      - '!.github/workflows/build-android.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
