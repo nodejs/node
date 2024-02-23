@@ -112,15 +112,17 @@ fail:
   return NULL;
 }
 
-ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable, size_t *num)
+ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable,
+                                      size_t                    *num)
 {
   const void   **buckets = NULL;
   size_t         cnt     = 0;
   ares_socket_t *out     = NULL;
   size_t         i;
 
-  if (htable == NULL || num == NULL)
+  if (htable == NULL || num == NULL) {
     return NULL;
+  }
 
   *num = 0;
 
@@ -135,7 +137,7 @@ ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable, size_t 
     return NULL;
   }
 
-  for (i=0; i<cnt; i++) {
+  for (i = 0; i < cnt; i++) {
     out[i] = ((const ares__htable_asvp_bucket_t *)buckets[i])->key;
   }
 
@@ -143,7 +145,6 @@ ares_socket_t *ares__htable_asvp_keys(const ares__htable_asvp_t *htable, size_t 
   *num = cnt;
   return out;
 }
-
 
 ares_bool_t ares__htable_asvp_insert(ares__htable_asvp_t *htable,
                                      ares_socket_t key, void *val)

@@ -624,6 +624,7 @@ static ares_status_t ares__init_sysconfig_windows(ares_sysconfig_t *sysconfig)
 
   if (get_SuffixList_Windows(&line)) {
     sysconfig->domains = ares__strsplit(line, ", ", &sysconfig->ndomains);
+    ares_free(line);
     if (sysconfig->domains == NULL) {
       status = ARES_EFILE;
     }
