@@ -154,7 +154,7 @@ if (process.argv[2] === 'child') {
       child1.kill();
       child2.kill();
       child3.kill();
-    } catch (e) {
+    } catch {
       debug('child process already terminated');
     }
   }));
