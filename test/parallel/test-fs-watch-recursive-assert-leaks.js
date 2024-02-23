@@ -42,4 +42,9 @@ watcher.on('change', common.mustCallAtLeast(async (event, filename) => {
 process.on('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');
 });
-fs.writeFileSync(filePath, 'content');
+
+// Do the write with a delay to ensure that the OS is ready to notify us.
+(async () => {
+  await setTimeout(200);
+  fs.writeFileSync(filePath, 'content');
+})().then(common.mustCall());

@@ -39,4 +39,7 @@ watcher.on('change', common.mustCallAtLeast(function(event, filename) {
   }
 }));
 
-fs.writeFileSync(testFile, 'hello');
+// Do the write with a delay to ensure that the OS is ready to notify us.
+setTimeout(() => {
+  fs.writeFileSync(testFile, 'hello');
+}, common.platformTimeout(200));

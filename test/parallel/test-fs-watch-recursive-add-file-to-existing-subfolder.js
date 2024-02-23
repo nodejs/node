@@ -48,7 +48,10 @@ watcher.on('change', function(event, filename) {
   }
 });
 
-fs.writeFileSync(childrenAbsolutePath, 'world');
+// Do the write with a delay to ensure that the OS is ready to notify us.
+setTimeout(() => {
+  fs.writeFileSync(childrenAbsolutePath, 'world');
+}, common.platformTimeout(200));
 
 process.once('exit', function() {
   assert(watcherClosed, 'watcher Object was not closed');
