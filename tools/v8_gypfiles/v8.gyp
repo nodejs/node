@@ -1246,7 +1246,7 @@
               ['_toolset=="host" and host_os=="linux"', {
                 'libraries': [
                   '-ldl',
-                  '-lrt'
+                  '-lc'
                 ],
               }],
             ],
