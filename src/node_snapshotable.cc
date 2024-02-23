@@ -41,7 +41,6 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
@@ -1411,25 +1410,6 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-static void RunEmbedderEntryPoint(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Local<Value> process_obj = args[0];
-  Local<Value> require_fn = args[1];
-  Local<Value> runcjs_fn = args[2];
-  CHECK(process_obj->IsObject());
-  CHECK(require_fn->IsFunction());
-  CHECK(runcjs_fn->IsFunction());
-
-  const node::StartExecutionCallback& callback = env->embedder_entry_point();
-  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
-                                        require_fn.As<Function>(),
-                                        runcjs_fn.As<Function>()};
-  MaybeLocal<Value> retval = callback(info);
-  if (!retval.IsEmpty()) {
-    args.GetReturnValue().Set(retval.ToLocalChecked());
-  }
-}
-
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Local<String> filename = args[0].As<String>();
@@ -1553,7 +1533,6 @@ void CreatePerContextProperties(Local<Object> target,
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(isolate, target, "runEmbedderEntryPoint", RunEmbedderEntryPoint);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1566,7 +1545,6 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(RunEmbedderEntryPoint);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);
