@@ -1118,6 +1118,8 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> buffer = v8impl::V8LocalValueFromJsValue(value);
+  RETURN_STATUS_IF_FALSE(
+      env, node::Buffer::HasInstance(buffer), napi_invalid_arg);
 
   if (data != nullptr) {
     *data = node::Buffer::Data(buffer);
