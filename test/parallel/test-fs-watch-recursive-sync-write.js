@@ -32,4 +32,7 @@ const watcher = watch(tmpDir, { recursive: true }, common.mustCall((eventType, _
   assert.strictEqual(join(tmpDir, _filename), filename);
 }));
 
-writeFileSync(filename, 'foobar2');
+// Do the write with a delay to ensure that the OS is ready to notify us.
+setTimeout(() => {
+  writeFileSync(filename, 'foobar2');
+}, common.platformTimeout(200));
