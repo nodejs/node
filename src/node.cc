@@ -131,7 +131,10 @@
 
 namespace node {
 
+using v8::Array;
+using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Function;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
@@ -282,6 +285,29 @@ MaybeLocal<Value> StartExecution(Environment* env, const char* main_script_id) {
   return scope.EscapeMaybe(realm->ExecuteBootstrapper(main_script_id));
 }
 
+// Convert the result returned by an intermediate main script into
+// StartExecutionCallbackInfo. Currently the result is an array containing
+// [process, requireFunction, cjsRunner]
+std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
+    Local<Context> context, Local<Value> result) {
+  CHECK(result->IsArray());
+  Local<Array> args = result.As<Array>();
+  CHECK_EQ(args->Length(), 3);
+  Local<Value> process_obj, require_fn, runcjs_fn;
+  if (!args->Get(context, 0).ToLocal(&process_obj) ||
+      !args->Get(context, 1).ToLocal(&require_fn) ||
+      !args->Get(context, 2).ToLocal(&runcjs_fn)) {
+    return std::nullopt;
+  }
+  CHECK(process_obj->IsObject());
+  CHECK(require_fn->IsFunction());
+  CHECK(runcjs_fn->IsFunction());
+  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
+                                        require_fn.As<Function>(),
+                                        runcjs_fn.As<Function>()};
+  return info;
+}
+
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   InternalCallbackScope callback_scope(
       env,
@@ -289,19 +315,35 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
       { 1, 0 },
       InternalCallbackScope::kSkipAsyncHooks);
 
+  // Only snapshot builder or embedder applications set the
+  // callback.
   if (cb != nullptr) {
     EscapableHandleScope scope(env->isolate());
-    // TODO(addaleax): pass the callback to the main script more directly,
-    // e.g. by making StartExecution(env, builtin) parametrizable
-    env->set_embedder_entry_point(std::move(cb));
-    auto reset_entry_point =
-        OnScopeLeave([&]() { env->set_embedder_entry_point({}); });
 
-    const char* entry = env->isolate_data()->is_building_snapshot()
-                            ? "internal/main/mksnapshot"
-                            : "internal/main/embedding";
+    Local<Value> result;
+    if (env->isolate_data()->is_building_snapshot()) {
+      if (!StartExecution(env, "internal/main/mksnapshot").ToLocal(&result)) {
+        return MaybeLocal<Value>();
+      }
+    } else {
+      if (!StartExecution(env, "internal/main/embedding").ToLocal(&result)) {
+        return MaybeLocal<Value>();
+      }
+    }
 
-    return scope.EscapeMaybe(StartExecution(env, entry));
+    auto info = CallbackInfoFromArray(env->context(), result);
+    if (!info.has_value()) {
+      MaybeLocal<Value>();
+    }
+#if HAVE_INSPECTOR
+    if (env->options()->debug_options().break_first_line) {
+      env->inspector_agent()->PauseOnNextJavascriptStatement("Break on start");
+    }
+#endif
+
+    env->performance_state()->Mark(
+        performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
+    return scope.EscapeMaybe(cb(info.value()));
   }
 
   CHECK(!env->isolate_data()->is_building_snapshot());
