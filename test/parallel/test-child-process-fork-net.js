@@ -152,7 +152,15 @@ if (process.argv[2] === 'child') {
     // Clean up child processes.
     try {
       child1.kill();
+    } catch {
+      debug('child process already terminated');
+    }
+    try {
       child2.kill();
+    } catch {
+      debug('child process already terminated');
+    }
+    try {
       child3.kill();
     } catch {
       debug('child process already terminated');
