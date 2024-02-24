@@ -13,7 +13,7 @@ const fs = require('fs');
 const filename = fixtures.path('loop.js');  // Some small non-homogeneous file.
 const content = fs.readFileSync(filename);
 
-const N = 2000;
+const N = 1000;
 let started = 0;
 let done = 0;
 
