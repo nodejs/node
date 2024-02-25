@@ -603,6 +603,7 @@ bool Simplify(const std::vector<char>& code,
           simplified_count++;
           break;
         }
+        [[fallthrough]];
       }
       default: {
         simplified->push_back(code[i]);
