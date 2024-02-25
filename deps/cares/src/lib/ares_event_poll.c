@@ -78,8 +78,9 @@ static size_t ares_evsys_poll_wait(ares_event_thread_t *e,
   if (num_fds) {
     pollfd = ares_malloc_zero(sizeof(*pollfd) * num_fds);
     for (i = 0; i < num_fds; i++) {
-      ares_event_t *ev = ares__htable_asvp_get_direct(e->ev_handles, fdlist[i]);
-      pollfd[i].fd     = ev->fd;
+      const ares_event_t *ev =
+        ares__htable_asvp_get_direct(e->ev_handles, fdlist[i]);
+      pollfd[i].fd = ev->fd;
       if (ev->flags & ARES_EVENT_FLAG_READ) {
         pollfd[i].events |= POLLIN;
       }
