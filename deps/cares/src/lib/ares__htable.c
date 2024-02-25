@@ -135,23 +135,24 @@ fail:
   return NULL;
 }
 
-
 const void **ares__htable_all_buckets(const ares__htable_t *htable, size_t *num)
 {
   const void **out = NULL;
   size_t       cnt = 0;
   size_t       i;
 
-  if (htable == NULL || num == NULL)
+  if (htable == NULL || num == NULL) {
     return NULL;
+  }
 
   *num = 0;
 
   out = ares_malloc_zero(sizeof(*out) * htable->num_keys);
-  if (out == NULL)
+  if (out == NULL) {
     return NULL;
+  }
 
-  for (i=0; i<htable->size; i++) {
+  for (i = 0; i < htable->size; i++) {
     ares__llist_node_t *node;
     for (node = ares__llist_node_first(htable->buckets[i]); node != NULL;
          node = ares__llist_node_next(node)) {
@@ -162,7 +163,6 @@ const void **ares__htable_all_buckets(const ares__htable_t *htable, size_t *num)
   *num = cnt;
   return out;
 }
-
 
 /*! Grabs the Hashtable index from the key and length.  The h index is
  *  the hash of the function reduced to the size of the bucket list.
