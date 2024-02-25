@@ -138,9 +138,9 @@ typedef struct ares_rand_state ares_rand_state;
 #endif
 
 /********* EDNS defines section ******/
-#define EDNSPACKETSZ                                                  \
-  1280                   /* Reasonable UDP payload size, as suggested \
-                            in RFC2671 */
+#define EDNSPACKETSZ                                          \
+  1232 /* Reasonable UDP payload size, as agreed by operators \
+          https://www.dnsflagday.net/2020/#faq */
 #define MAXENDSSZ   4096 /* Maximum (local) limit for edns packet size */
 #define EDNSFIXEDSZ 11   /* Size of EDNS header */
 
@@ -263,6 +263,9 @@ struct ares_channeldata {
 
   /* Thread safety lock */
   ares__thread_mutex_t *lock;
+
+  /* Conditional to wake waiters when queue is empty */
+  ares__thread_cond_t  *cond_empty;
 
   /* Server addresses and communications state. Sorted by least consecutive
    * failures, followed by the configuration order if failures are equal. */
@@ -532,6 +535,16 @@ ares_status_t ares__dns_name_write(ares__buf_t *buf, ares__llist_t **list,
                                    ares_bool_t validate_hostname,
                                    const char *name);
 
+/*! Check if the queue is empty, if so, wake any waiters.  This is only
+ *  effective if built with threading support.
+ *
+ *  Must be holding a channel lock when calling this function.
+ *
+ *  \param[in]  channel Initialized ares channel object
+ */
+void          ares_queue_notify_empty(ares_channel_t *channel);
+
+
 #define ARES_SWAP_BYTE(a, b)           \
   do {                                 \
     unsigned char swapByte = *(a);     \
@@ -583,7 +596,7 @@ void          ares__channel_unlock(ares_channel_t *channel);
 struct ares_event_thread;
 typedef struct ares_event_thread ares_event_thread_t;
 
-void ares_event_thread_destroy(ares_channel_t *channel);
+void          ares_event_thread_destroy(ares_channel_t *channel);
 ares_status_t ares_event_thread_init(ares_channel_t *channel);
 
 

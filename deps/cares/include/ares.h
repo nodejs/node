@@ -109,9 +109,9 @@ extern "C" {
 #  endif
 #else
 #  if defined(__GNUC__) && __GNUC__ >= 4
-#    define CARES_EXTERN __attribute__ ((visibility ("default")))
+#    define CARES_EXTERN __attribute__((visibility("default")))
 #  elif defined(__INTEL_COMPILER) && __INTEL_COMPILER >= 900
-#    define CARES_EXTERN __attribute__ ((visibility ("default")))
+#    define CARES_EXTERN __attribute__((visibility("default")))
 #  elif defined(__SUNPRO_C)
 #    define CARES_EXTERN _global
 #  else
@@ -161,8 +161,10 @@ typedef enum {
   ARES_ECANCELLED = 24, /* introduced in 1.7.0 */
 
   /* More ares_getaddrinfo error codes */
-  ARES_ESERVICE = 25 /* ares_getaddrinfo() was passed a text service name that
-                      * is not recognized. introduced in 1.16.0 */
+  ARES_ESERVICE = 25, /* ares_getaddrinfo() was passed a text service name that
+                       * is not recognized. introduced in 1.16.0 */
+
+  ARES_ENOSERVER = 26 /* No DNS servers were configured */
 } ares_status_t;
 
 typedef enum {
@@ -175,15 +177,15 @@ typedef enum {
   /*! Default (best choice) event system */
   ARES_EVSYS_DEFAULT = 0,
   /*! Win32 IOCP/AFD_POLL event system */
-  ARES_EVSYS_WIN32   = 1,
+  ARES_EVSYS_WIN32 = 1,
   /*! Linux epoll */
-  ARES_EVSYS_EPOLL   = 2,
+  ARES_EVSYS_EPOLL = 2,
   /*! BSD/MacOS kqueue */
-  ARES_EVSYS_KQUEUE  = 3,
+  ARES_EVSYS_KQUEUE = 3,
   /*! POSIX poll() */
-  ARES_EVSYS_POLL    = 4,
+  ARES_EVSYS_POLL = 4,
   /*! last fallback on Unix-like systems, select() */
-  ARES_EVSYS_SELECT  = 5
+  ARES_EVSYS_SELECT = 5
 } ares_evsys_t;
 
 /* Flag values */
@@ -196,6 +198,7 @@ typedef enum {
 #define ARES_FLAG_NOALIASES   (1 << 6)
 #define ARES_FLAG_NOCHECKRESP (1 << 7)
 #define ARES_FLAG_EDNS        (1 << 8)
+#define ARES_FLAG_NO_DFLT_SVR (1 << 9)
 
 /* Option mask values */
 #define ARES_OPT_FLAGS           (1 << 0)
@@ -333,7 +336,7 @@ struct ares_options {
   int                udp_max_queries;
   int                maxtimeout; /* in milliseconds */
   unsigned int qcache_max_ttl;   /* Maximum TTL for query cache, 0=disabled */
-  ares_evsys_t       evsys;
+  ares_evsys_t evsys;
 };
 
 struct hostent;
@@ -747,31 +750,54 @@ struct ares_addr_port_node {
 CARES_EXTERN int ares_set_servers(ares_channel_t              *channel,
                                   const struct ares_addr_node *servers);
 CARES_EXTERN int
-                         ares_set_servers_ports(ares_channel_t                   *channel,
-                                                const struct ares_addr_port_node *servers);
+                           ares_set_servers_ports(ares_channel_t                   *channel,
+                                                  const struct ares_addr_port_node *servers);
 
 /* Incoming string format: host[:port][,host[:port]]... */
-CARES_EXTERN int         ares_set_servers_csv(ares_channel_t *channel,
-                                              const char     *servers);
-CARES_EXTERN int         ares_set_servers_ports_csv(ares_channel_t *channel,
-                                                    const char     *servers);
-CARES_EXTERN char       *ares_get_servers_csv(ares_channel_t *channel);
+CARES_EXTERN int           ares_set_servers_csv(ares_channel_t *channel,
+                                                const char     *servers);
+CARES_EXTERN int           ares_set_servers_ports_csv(ares_channel_t *channel,
+                                                      const char     *servers);
+CARES_EXTERN char         *ares_get_servers_csv(ares_channel_t *channel);
 
-CARES_EXTERN int         ares_get_servers(ares_channel_t         *channel,
-                                          struct ares_addr_node **servers);
-CARES_EXTERN int         ares_get_servers_ports(ares_channel_t              *channel,
-                                                struct ares_addr_port_node **servers);
+CARES_EXTERN int           ares_get_servers(ares_channel_t         *channel,
+                                            struct ares_addr_node **servers);
+CARES_EXTERN int           ares_get_servers_ports(ares_channel_t              *channel,
+                                                  struct ares_addr_port_node **servers);
 
-CARES_EXTERN const char *ares_inet_ntop(int af, const void *src, char *dst,
-                                        ares_socklen_t size);
+CARES_EXTERN const char   *ares_inet_ntop(int af, const void *src, char *dst,
+                                          ares_socklen_t size);
 
-CARES_EXTERN int         ares_inet_pton(int af, const char *src, void *dst);
+CARES_EXTERN int           ares_inet_pton(int af, const char *src, void *dst);
 
 /*! Whether or not the c-ares library was built with threadsafety
  *
  *  \return ARES_TRUE if built with threadsafety, ARES_FALSE if not
  */
-CARES_EXTERN ares_bool_t ares_threadsafety(void);
+CARES_EXTERN ares_bool_t   ares_threadsafety(void);
+
+
+/*! Block until notified that there are no longer any queries in queue, or
+ *  the specified timeout has expired.
+ *
+ *  \param[in] channel    Initialized ares channel
+ *  \param[in] timeout_ms Number of milliseconds to wait for the queue to be
+ *                        empty. -1 for Infinite.
+ *  \return ARES_ENOTIMP if not built with threading support, ARES_ETIMEOUT
+ *          if requested timeout expires, ARES_SUCCESS when queue is empty.
+ */
+CARES_EXTERN ares_status_t ares_queue_wait_empty(ares_channel_t *channel,
+                                                 int             timeout_ms);
+
+
+/*! Retrieve the total number of active queries pending answers from servers.
+ *  Some c-ares requests may spawn multiple queries, such as ares_getaddrinfo()
+ *  when using AF_UNSPEC, which will be reflected in this number.
+ *
+ *  \param[in] channel Initialized ares channel
+ *  \return Number of active queries to servers
+ */
+CARES_EXTERN size_t        ares_queue_active_queries(ares_channel_t *channel);
 
 #ifdef __cplusplus
 }

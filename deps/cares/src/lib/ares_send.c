@@ -66,8 +66,8 @@ ares_status_t ares_send_ex(ares_channel_t *channel, const unsigned char *qbuf,
     return ARES_EBADQUERY;
   }
   if (ares__slist_len(channel->servers) == 0) {
-    callback(arg, ARES_ESERVFAIL, 0, NULL, 0);
-    return ARES_ESERVFAIL;
+    callback(arg, ARES_ENOSERVER, 0, NULL, 0);
+    return ARES_ENOSERVER;
   }
 
   /* Check query cache */
@@ -162,4 +162,21 @@ void ares_send(ares_channel_t *channel, const unsigned char *qbuf, int qlen,
   ares_send_ex(channel, qbuf, (size_t)qlen, callback, arg, NULL);
 
   ares__channel_unlock(channel);
+}
+
+size_t ares_queue_active_queries(ares_channel_t *channel)
+{
+  size_t len;
+
+  if (channel == NULL) {
+    return 0;
+  }
+
+  ares__channel_lock(channel);
+
+  len = ares__llist_len(channel->all_queries);
+
+  ares__channel_unlock(channel);
+
+  return len;
 }

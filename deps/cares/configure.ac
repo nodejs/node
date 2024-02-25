@@ -2,10 +2,10 @@ dnl Copyright (C) The c-ares project and its contributors
 dnl SPDX-License-Identifier: MIT
 AC_PREREQ([2.69])
 
-AC_INIT([c-ares], [1.26.0],
+AC_INIT([c-ares], [1.27.0],
   [c-ares mailing list: http://lists.haxx.se/listinfo/c-ares])
 
-CARES_VERSION_INFO="13:0:11"
+CARES_VERSION_INFO="14:0:12"
 dnl This flag accepts an argument of the form current[:revision[:age]]. So,
 dnl passing -version-info 3:12:1 sets current to 3, revision to 12, and age to
 dnl 1.
@@ -200,6 +200,7 @@ if test "x$enable_shared" = "xno" -a "x$enable_static" = "xyes" ; then
   AC_MSG_CHECKING([whether we need CARES_STATICLIB definition])
   if test "$ac_cv_native_windows" = "yes" ; then
     AX_APPEND_FLAG([-DCARES_STATICLIB], [AM_CPPFLAGS])
+    PKGCONFIG_CFLAGS="-DCARES_STATICLIB"
     AC_MSG_RESULT([yes])
   else
     AC_MSG_RESULT([no])
@@ -906,6 +907,7 @@ AM_CONDITIONAL(BUILD_TESTS, test "x$build_tests" = "xyes")
 
 AC_SUBST(AM_CFLAGS)
 AC_SUBST(AM_CPPFLAGS)
+AC_SUBST(PKGCONFIG_CFLAGS)
 AC_SUBST(BUILD_SUBDIRS)
 
 AC_CONFIG_FILES([Makefile           \

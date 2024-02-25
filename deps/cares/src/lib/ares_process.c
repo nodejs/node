@@ -67,11 +67,11 @@ static ares_bool_t   same_questions(const ares_dns_record_t *qrec,
                                     const ares_dns_record_t *arec);
 static ares_bool_t   same_address(const struct sockaddr  *sa,
                                   const struct ares_addr *aa);
-static void end_query(const ares_channel_t *channel, struct query *query,
-                      ares_status_t status, const unsigned char *abuf,
-                      size_t alen);
+static void          end_query(ares_channel_t *channel, struct query *query,
+                               ares_status_t status, const unsigned char *abuf,
+                               size_t alen);
 
-static void server_increment_failures(struct server_state *server)
+static void          server_increment_failures(struct server_state *server)
 {
   ares__slist_node_t   *node;
   const ares_channel_t *channel = server->channel;
@@ -715,6 +715,7 @@ static ares_status_t process_answer(ares_channel_t      *channel,
         default:
           break;
       }
+
       server_increment_failures(server);
       ares__requeue_query(query, now);
 
@@ -759,8 +760,8 @@ static void handle_conn_error(struct server_connection *conn,
 
 ares_status_t ares__requeue_query(struct query *query, struct timeval *now)
 {
-  const ares_channel_t *channel = query->channel;
-  size_t max_tries = ares__slist_len(channel->servers) * channel->tries;
+  ares_channel_t *channel = query->channel;
+  size_t max_tries        = ares__slist_len(channel->servers) * channel->tries;
 
   query->try_count++;
 
@@ -892,8 +893,8 @@ ares_status_t ares__send_query(struct query *query, struct timeval *now)
   }
 
   if (server == NULL) {
-    end_query(channel, query, ARES_ESERVFAIL /* ? */, NULL, 0);
-    return ARES_ECONNREFUSED;
+    end_query(channel, query, ARES_ENOSERVER /* ? */, NULL, 0);
+    return ARES_ENOSERVER;
   }
 
   if (query->using_tcp) {
@@ -1122,18 +1123,23 @@ static void ares_detach_query(struct query *query)
   query->node_all_queries        = NULL;
 }
 
-static void end_query(const ares_channel_t *channel, struct query *query,
+static void end_query(ares_channel_t *channel, struct query *query,
                       ares_status_t status, const unsigned char *abuf,
                       size_t alen)
 {
-  (void)channel;
-
   /* Invoke the callback. */
   query->callback(query->arg, (int)status, (int)query->timeouts,
                   /* due to prior design flaws, abuf isn't meant to be modified,
                    * but bad prototypes, ugh.  Lets cast off constfor compat. */
                   (unsigned char *)((void *)((size_t)abuf)), (int)alen);
   ares__free_query(query);
+
+  /* Check and notify if no other queries are enqueued on the channel.  This
+   * must come after the callback and freeing the query for 2 reasons.
+   *  1) The callback itself may enqueue a new query
+   *  2) Technically the current query isn't detached until it is free()'d.
+   */
+  ares_queue_notify_empty(channel);
 }
 
 void ares__free_query(struct query *query)

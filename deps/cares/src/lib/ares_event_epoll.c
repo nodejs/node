@@ -94,9 +94,9 @@ static ares_bool_t ares_evsys_epoll_init(ares_event_thread_t *e)
 
 static ares_bool_t ares_evsys_epoll_event_add(ares_event_t *event)
 {
-  ares_event_thread_t *e  = event->e;
-  ares_evsys_epoll_t  *ep = e->ev_sys_data;
-  struct epoll_event   epev;
+  const ares_event_thread_t *e  = event->e;
+  const ares_evsys_epoll_t  *ep = e->ev_sys_data;
+  struct epoll_event         epev;
 
   memset(&epev, 0, sizeof(epev));
   epev.data.fd = event->fd;
@@ -115,9 +115,9 @@ static ares_bool_t ares_evsys_epoll_event_add(ares_event_t *event)
 
 static void ares_evsys_epoll_event_del(ares_event_t *event)
 {
-  ares_event_thread_t *e  = event->e;
-  ares_evsys_epoll_t  *ep = e->ev_sys_data;
-  struct epoll_event   epev;
+  const ares_event_thread_t *e  = event->e;
+  const ares_evsys_epoll_t  *ep = e->ev_sys_data;
+  struct epoll_event         epev;
 
   memset(&epev, 0, sizeof(epev));
   epev.data.fd = event->fd;
@@ -127,9 +127,9 @@ static void ares_evsys_epoll_event_del(ares_event_t *event)
 static void ares_evsys_epoll_event_mod(ares_event_t      *event,
                                        ares_event_flags_t new_flags)
 {
-  ares_event_thread_t *e  = event->e;
-  ares_evsys_epoll_t  *ep = e->ev_sys_data;
-  struct epoll_event   epev;
+  const ares_event_thread_t *e  = event->e;
+  const ares_evsys_epoll_t  *ep = e->ev_sys_data;
+  struct epoll_event         epev;
 
   memset(&epev, 0, sizeof(epev));
   epev.data.fd = event->fd;
@@ -146,12 +146,12 @@ static void ares_evsys_epoll_event_mod(ares_event_t      *event,
 static size_t ares_evsys_epoll_wait(ares_event_thread_t *e,
                                     unsigned long        timeout_ms)
 {
-  struct epoll_event  events[8];
-  size_t              nevents = sizeof(events) / sizeof(*events);
-  ares_evsys_epoll_t *ep      = e->ev_sys_data;
-  int                 rv;
-  size_t              i;
-  size_t              cnt = 0;
+  struct epoll_event        events[8];
+  size_t                    nevents = sizeof(events) / sizeof(*events);
+  const ares_evsys_epoll_t *ep      = e->ev_sys_data;
+  int                       rv;
+  size_t                    i;
+  size_t                    cnt = 0;
 
   memset(events, 0, sizeof(events));
 

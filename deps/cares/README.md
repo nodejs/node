@@ -1,7 +1,6 @@
-c-ares
-======
+# [![c-ares logo](https://c-ares.org/art/c-ares-logo.svg)](https://c-ares.org/)
 
-[![Build Status](https://api.cirrus-ci.com/github/c-ares/c-ares.svg)](https://cirrus-ci.com/github/c-ares/c-ares)
+[![Build Status](https://api.cirrus-ci.com/github/c-ares/c-ares.svg?branch=main)](https://cirrus-ci.com/github/c-ares/c-ares)
 [![Windows Build Status](https://ci.appveyor.com/api/projects/status/aevgc5914tm72pvs/branch/master?svg=true)](https://ci.appveyor.com/project/c-ares/c-ares/branch/master)
 [![Coverage Status](https://coveralls.io/repos/github/c-ares/c-ares/badge.svg)](https://coveralls.io/github/c-ares/c-ares)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/291/badge)](https://bestpractices.coreinfrastructure.org/projects/291)
@@ -29,8 +28,7 @@ You'll find all c-ares details and news here:
         https://c-ares.org/
 
 
-Notes for c-ares hackers
-------------------------
+## Notes for c-ares hackers
 
 * The distributed `ares_build.h` file is only intended to be used on systems
   which can not run the also distributed configure script.

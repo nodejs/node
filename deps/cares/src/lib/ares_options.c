@@ -275,10 +275,12 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
   /* Event Thread requires threading support and is incompatible with socket
    * state callbacks */
   if (optmask & ARES_OPT_EVENT_THREAD) {
-    if (!ares_threadsafety())
+    if (!ares_threadsafety()) {
       return ARES_ENOTIMP;
-    if (optmask & ARES_OPT_SOCK_STATE_CB)
+    }
+    if (optmask & ARES_OPT_SOCK_STATE_CB) {
       return ARES_EFORMERR;
+    }
     channel->evsys = options->evsys;
   }
 
