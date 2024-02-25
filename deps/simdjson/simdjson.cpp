@@ -1,4 +1,4 @@
-/* auto-generated on 2024-01-28 12:42:59 -0500. Do not edit! */
+/* auto-generated on 2024-02-18 11:50:12 -0500. Do not edit! */
 /* including simdjson.cpp:  */
 /* begin file simdjson.cpp */
 #define SIMDJSON_SRC_SIMDJSON_CPP
@@ -7134,6 +7134,38 @@ static const simdjson::westmere::implementation* get_westmere_singleton() {
 namespace simdjson {
 namespace internal {
 
+// When there is a single implementation, we should not pay a price
+// for dispatching to the best implementation. We should just use the
+// one we have. This is a compile-time check.
+#define SIMDJSON_SINGLE_IMPLEMENTATION (SIMDJSON_IMPLEMENTATION_ICELAKE \
+             + SIMDJSON_IMPLEMENTATION_HASWELL + SIMDJSON_IMPLEMENTATION_WESTMERE \
+             + SIMDJSON_IMPLEMENTATION_ARM64 + SIMDJSON_IMPLEMENTATION_PPC64 \
+             + SIMDJSON_IMPLEMENTATION_FALLBACK == 1)
+
+#if SIMDJSON_SINGLE_IMPLEMENTATION
+  static const implementation* get_single_implementation() {
+    return
+#if SIMDJSON_IMPLEMENTATION_ICELAKE
+    get_icelake_singleton();
+#endif
+#if SIMDJSON_IMPLEMENTATION_HASWELL
+    get_haswell_singleton();
+#endif
+#if SIMDJSON_IMPLEMENTATION_WESTMERE
+    get_westmere_singleton();
+#endif
+#if SIMDJSON_IMPLEMENTATION_ARM64
+    get_arm64_singleton();
+#endif
+#if SIMDJSON_IMPLEMENTATION_PPC64
+    get_ppc64_singleton();
+#endif
+#if SIMDJSON_IMPLEMENTATION_FALLBACK
+    get_fallback_singleton();
+#endif
+}
+#endif
+
 // Static array of known implementations. We're hoping these get baked into the executable
 // without requiring a static initializer.
 
@@ -7263,9 +7295,16 @@ SIMDJSON_DLLIMPORTEXPORT const internal::available_implementation_list& get_avai
 }
 
 SIMDJSON_DLLIMPORTEXPORT internal::atomic_ptr<const implementation>& get_active_implementation() {
-    static const internal::detect_best_supported_implementation_on_first_use detect_best_supported_implementation_on_first_use_singleton;
-    static internal::atomic_ptr<const implementation> active_implementation{&detect_best_supported_implementation_on_first_use_singleton};
-    return active_implementation;
+#if SIMDJSON_SINGLE_IMPLEMENTATION
+  // We immediately select the only implementation we have, skipping the
+  // detect_best_supported_implementation_on_first_use_singleton.
+  static internal::atomic_ptr<const implementation> active_implementation{internal::get_single_implementation()};
+  return active_implementation;
+#else
+  static const internal::detect_best_supported_implementation_on_first_use detect_best_supported_implementation_on_first_use_singleton;
+  static internal::atomic_ptr<const implementation> active_implementation{&detect_best_supported_implementation_on_first_use_singleton};
+  return active_implementation;
+#endif
 }
 
 simdjson_warn_unused error_code minify(const char *buf, size_t len, char *dst, size_t &dst_len) noexcept {
@@ -9014,7 +9053,7 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   // If there were more than 18 digits, we may have overflowed the integer. We have to do
   // something!!!!
   if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
     while (*start_exp == '0') { start_exp++; }
     // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
     // support exponents smaller than -999,999,999,999,999,999 and bigger
@@ -9211,7 +9250,7 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
     }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
   }
 
-  // Write unsigned if it doesn't fit in a signed integer.
+  // Write unsigned if it does not fit in a signed integer.
   if (i > uint64_t(INT64_MAX)) {
     WRITE_UNSIGNED(i, src, writer);
   } else {
@@ -12115,7 +12154,7 @@ simdjson_inline size_t trim_partial_utf8(const uint8_t *buf, size_t len) {
 //    up enough CPU: the second half of the functions is highly serial, only using 1 execution core
 //    at a time. The second input's scans has some dependency on the first ones finishing it, but
 //    they can make a lot of progress before they need that information.
-// 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
+// 3. Step 1 does not use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
 //
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
@@ -13706,3913 +13745,6 @@ simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *
 
 #endif // SIMDJSON_SRC_ARM64_CPP
 /* end file arm64.cpp */
-#endif
-#if SIMDJSON_IMPLEMENTATION_FALLBACK
-/* including fallback.cpp: #include <fallback.cpp> */
-/* begin file fallback.cpp */
-#ifndef SIMDJSON_SRC_FALLBACK_CPP
-#define SIMDJSON_SRC_FALLBACK_CPP
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include <base.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-/* including simdjson/fallback.h: #include <simdjson/fallback.h> */
-/* begin file simdjson/fallback.h */
-#ifndef SIMDJSON_FALLBACK_H
-#define SIMDJSON_FALLBACK_H
-
-/* including simdjson/fallback/begin.h: #include "simdjson/fallback/begin.h" */
-/* begin file simdjson/fallback/begin.h */
-/* defining SIMDJSON_IMPLEMENTATION to "fallback" */
-#define SIMDJSON_IMPLEMENTATION fallback
-/* including simdjson/fallback/base.h: #include "simdjson/fallback/base.h" */
-/* begin file simdjson/fallback/base.h */
-#ifndef SIMDJSON_FALLBACK_BASE_H
-#define SIMDJSON_FALLBACK_BASE_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-/**
- * Fallback implementation (runs on any machine).
- */
-namespace fallback {
-
-class implementation;
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_BASE_H
-/* end file simdjson/fallback/base.h */
-/* including simdjson/fallback/bitmanipulation.h: #include "simdjson/fallback/bitmanipulation.h" */
-/* begin file simdjson/fallback/bitmanipulation.h */
-#ifndef SIMDJSON_FALLBACK_BITMANIPULATION_H
-#define SIMDJSON_FALLBACK_BITMANIPULATION_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-
-#if defined(_MSC_VER) && !defined(_M_ARM64) && !defined(_M_X64)
-static inline unsigned char _BitScanForward64(unsigned long* ret, uint64_t x) {
-  unsigned long x0 = (unsigned long)x, top, bottom;
-  _BitScanForward(&top, (unsigned long)(x >> 32));
-  _BitScanForward(&bottom, x0);
-  *ret = x0 ? bottom : 32 + top;
-  return x != 0;
-}
-static unsigned char _BitScanReverse64(unsigned long* ret, uint64_t x) {
-  unsigned long x1 = (unsigned long)(x >> 32), top, bottom;
-  _BitScanReverse(&top, x1);
-  _BitScanReverse(&bottom, (unsigned long)x);
-  *ret = x1 ? top + 32 : bottom;
-  return x != 0;
-}
-#endif
-
-/* result might be undefined when input_num is zero */
-simdjson_inline int leading_zeroes(uint64_t input_num) {
-#ifdef _MSC_VER
-  unsigned long leading_zero = 0;
-  // Search the mask data from most significant bit (MSB)
-  // to least significant bit (LSB) for a set bit (1).
-  if (_BitScanReverse64(&leading_zero, input_num))
-    return (int)(63 - leading_zero);
-  else
-    return 64;
-#else
-  return __builtin_clzll(input_num);
-#endif// _MSC_VER
-}
-
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_BITMANIPULATION_H
-/* end file simdjson/fallback/bitmanipulation.h */
-/* including simdjson/fallback/stringparsing_defs.h: #include "simdjson/fallback/stringparsing_defs.h" */
-/* begin file simdjson/fallback/stringparsing_defs.h */
-#ifndef SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-#define SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-
-// Holds backslashes and quotes locations.
-struct backslash_and_quote {
-public:
-  static constexpr uint32_t BYTES_PROCESSED = 1;
-  simdjson_inline static backslash_and_quote copy_and_find(const uint8_t *src, uint8_t *dst);
-
-  simdjson_inline bool has_quote_first() { return c == '"'; }
-  simdjson_inline bool has_backslash() { return c == '\\'; }
-  simdjson_inline int quote_index() { return c == '"' ? 0 : 1; }
-  simdjson_inline int backslash_index() { return c == '\\' ? 0 : 1; }
-
-  uint8_t c;
-}; // struct backslash_and_quote
-
-simdjson_inline backslash_and_quote backslash_and_quote::copy_and_find(const uint8_t *src, uint8_t *dst) {
-  // store to dest unconditionally - we can overwrite the bits we don't like later
-  dst[0] = src[0];
-  return { src[0] };
-}
-
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-/* end file simdjson/fallback/stringparsing_defs.h */
-/* including simdjson/fallback/numberparsing_defs.h: #include "simdjson/fallback/numberparsing_defs.h" */
-/* begin file simdjson/fallback/numberparsing_defs.h */
-#ifndef SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-#define SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <cstring>
-
-#ifdef JSON_TEST_NUMBERS // for unit testing
-void found_invalid_number(const uint8_t *buf);
-void found_integer(int64_t result, const uint8_t *buf);
-void found_unsigned_integer(uint64_t result, const uint8_t *buf);
-void found_float(double result, const uint8_t *buf);
-#endif
-
-namespace simdjson {
-namespace fallback {
-namespace numberparsing {
-
-// credit: https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
-/** @private */
-static simdjson_inline uint32_t parse_eight_digits_unrolled(const char *chars) {
-  uint64_t val;
-  memcpy(&val, chars, sizeof(uint64_t));
-  val = (val & 0x0F0F0F0F0F0F0F0F) * 2561 >> 8;
-  val = (val & 0x00FF00FF00FF00FF) * 6553601 >> 16;
-  return uint32_t((val & 0x0000FFFF0000FFFF) * 42949672960001 >> 32);
-}
-
-/** @private */
-static simdjson_inline uint32_t parse_eight_digits_unrolled(const uint8_t *chars) {
-  return parse_eight_digits_unrolled(reinterpret_cast<const char *>(chars));
-}
-
-#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
-// this is a slow emulation routine for 32-bit
-//
-static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
-  return x * (uint64_t)y;
-}
-static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
-  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
-  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
-  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
-  uint64_t adbc_carry = !!(adbc < ad);
-  uint64_t lo = bd + (adbc << 32);
-  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
-        (adbc_carry << 32) + !!(lo < bd);
-  return lo;
-}
-#endif
-
-/** @private */
-simdjson_inline internal::value128 full_multiplication(uint64_t value1, uint64_t value2) {
-  internal::value128 answer;
-#if SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
-#ifdef _M_ARM64
-  // ARM64 has native support for 64-bit multiplications, no need to emultate
-  answer.high = __umulh(value1, value2);
-  answer.low = value1 * value2;
-#else
-  answer.low = _umul128(value1, value2, &answer.high); // _umul128 not available on ARM64
-#endif // _M_ARM64
-#else // SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
-  __uint128_t r = (static_cast<__uint128_t>(value1)) * value2;
-  answer.low = uint64_t(r);
-  answer.high = uint64_t(r >> 64);
-#endif
-  return answer;
-}
-
-} // namespace numberparsing
-} // namespace fallback
-} // namespace simdjson
-
-#define SIMDJSON_SWAR_NUMBER_PARSING 1
-
-#endif // SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-/* end file simdjson/fallback/numberparsing_defs.h */
-/* end file simdjson/fallback/begin.h */
-/* including simdjson/generic/amalgamated.h for fallback: #include "simdjson/generic/amalgamated.h" */
-/* begin file simdjson/generic/amalgamated.h for fallback */
-#if defined(SIMDJSON_CONDITIONAL_INCLUDE) && !defined(SIMDJSON_GENERIC_DEPENDENCIES_H)
-#error simdjson/generic/dependencies.h must be included before simdjson/generic/amalgamated.h!
-#endif
-
-/* including simdjson/generic/base.h for fallback: #include "simdjson/generic/base.h" */
-/* begin file simdjson/generic/base.h for fallback */
-#ifndef SIMDJSON_GENERIC_BASE_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_BASE_H */
-/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
-/* amalgamation skipped (editor-only): // If we haven't got an implementation yet, we're in the editor, editing a generic file! Just */
-/* amalgamation skipped (editor-only): // use the most advanced one we can so the most possible stuff can be tested. */
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_IMPLEMENTATION */
-/* amalgamation skipped (editor-only): #include "simdjson/implementation_detection.h" */
-/* amalgamation skipped (editor-only): #if SIMDJSON_IMPLEMENTATION_ICELAKE */
-/* amalgamation skipped (editor-only): #include "simdjson/icelake/begin.h" */
-/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_HASWELL */
-/* amalgamation skipped (editor-only): #include "simdjson/haswell/begin.h" */
-/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_WESTMERE */
-/* amalgamation skipped (editor-only): #include "simdjson/westmere/begin.h" */
-/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_ARM64 */
-/* amalgamation skipped (editor-only): #include "simdjson/arm64/begin.h" */
-/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_PPC64 */
-/* amalgamation skipped (editor-only): #include "simdjson/ppc64/begin.h" */
-/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_FALLBACK */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/begin.h" */
-/* amalgamation skipped (editor-only): #else */
-/* amalgamation skipped (editor-only): #error "All possible implementations (including fallback) have been disabled! simdjson will not run." */
-/* amalgamation skipped (editor-only): #endif */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_IMPLEMENTATION */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-
-struct open_container;
-class dom_parser_implementation;
-
-/**
- * The type of a JSON number
- */
-enum class number_type {
-    floating_point_number=1, /// a binary64 number
-    signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
-};
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_BASE_H
-/* end file simdjson/generic/base.h for fallback */
-/* including simdjson/generic/jsoncharutils.h for fallback: #include "simdjson/generic/jsoncharutils.h" */
-/* begin file simdjson/generic/jsoncharutils.h for fallback */
-#ifndef SIMDJSON_GENERIC_JSONCHARUTILS_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_JSONCHARUTILS_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/jsoncharutils_tables.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace jsoncharutils {
-
-// return non-zero if not a structural or whitespace char
-// zero otherwise
-simdjson_inline uint32_t is_not_structural_or_whitespace(uint8_t c) {
-  return internal::structural_or_whitespace_negated[c];
-}
-
-simdjson_inline uint32_t is_structural_or_whitespace(uint8_t c) {
-  return internal::structural_or_whitespace[c];
-}
-
-// returns a value with the high 16 bits set if not valid
-// otherwise returns the conversion of the 4 hex digits at src into the bottom
-// 16 bits of the 32-bit return register
-//
-// see
-// https://lemire.me/blog/2019/04/17/parsing-short-hexadecimal-strings-efficiently/
-static inline uint32_t hex_to_u32_nocheck(
-    const uint8_t *src) { // strictly speaking, static inline is a C-ism
-  uint32_t v1 = internal::digit_to_val32[630 + src[0]];
-  uint32_t v2 = internal::digit_to_val32[420 + src[1]];
-  uint32_t v3 = internal::digit_to_val32[210 + src[2]];
-  uint32_t v4 = internal::digit_to_val32[0 + src[3]];
-  return v1 | v2 | v3 | v4;
-}
-
-// given a code point cp, writes to c
-// the utf-8 code, outputting the length in
-// bytes, if the length is zero, the code point
-// is invalid
-//
-// This can possibly be made faster using pdep
-// and clz and table lookups, but JSON documents
-// have few escaped code points, and the following
-// function looks cheap.
-//
-// Note: we assume that surrogates are treated separately
-//
-simdjson_inline size_t codepoint_to_utf8(uint32_t cp, uint8_t *c) {
-  if (cp <= 0x7F) {
-    c[0] = uint8_t(cp);
-    return 1; // ascii
-  }
-  if (cp <= 0x7FF) {
-    c[0] = uint8_t((cp >> 6) + 192);
-    c[1] = uint8_t((cp & 63) + 128);
-    return 2; // universal plane
-    //  Surrogates are treated elsewhere...
-    //} //else if (0xd800 <= cp && cp <= 0xdfff) {
-    //  return 0; // surrogates // could put assert here
-  } else if (cp <= 0xFFFF) {
-    c[0] = uint8_t((cp >> 12) + 224);
-    c[1] = uint8_t(((cp >> 6) & 63) + 128);
-    c[2] = uint8_t((cp & 63) + 128);
-    return 3;
-  } else if (cp <= 0x10FFFF) { // if you know you have a valid code point, this
-                               // is not needed
-    c[0] = uint8_t((cp >> 18) + 240);
-    c[1] = uint8_t(((cp >> 12) & 63) + 128);
-    c[2] = uint8_t(((cp >> 6) & 63) + 128);
-    c[3] = uint8_t((cp & 63) + 128);
-    return 4;
-  }
-  // will return 0 when the code point was too large.
-  return 0; // bad r
-}
-
-#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
-// this is a slow emulation routine for 32-bit
-//
-static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
-  return x * (uint64_t)y;
-}
-static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
-  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
-  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
-  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
-  uint64_t adbc_carry = !!(adbc < ad);
-  uint64_t lo = bd + (adbc << 32);
-  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
-        (adbc_carry << 32) + !!(lo < bd);
-  return lo;
-}
-#endif
-
-} // namespace jsoncharutils
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_JSONCHARUTILS_H
-/* end file simdjson/generic/jsoncharutils.h for fallback */
-/* including simdjson/generic/atomparsing.h for fallback: #include "simdjson/generic/atomparsing.h" */
-/* begin file simdjson/generic/atomparsing.h for fallback */
-#ifndef SIMDJSON_GENERIC_ATOMPARSING_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_ATOMPARSING_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/jsoncharutils.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <cstring>
-
-namespace simdjson {
-namespace fallback {
-namespace {
-/// @private
-namespace atomparsing {
-
-// The string_to_uint32 is exclusively used to map literal strings to 32-bit values.
-// We use memcpy instead of a pointer cast to avoid undefined behaviors since we cannot
-// be certain that the character pointer will be properly aligned.
-// You might think that using memcpy makes this function expensive, but you'd be wrong.
-// All decent optimizing compilers (GCC, clang, Visual Studio) will compile string_to_uint32("false");
-// to the compile-time constant 1936482662.
-simdjson_inline uint32_t string_to_uint32(const char* str) { uint32_t val; std::memcpy(&val, str, sizeof(uint32_t)); return val; }
-
-
-// Again in str4ncmp we use a memcpy to avoid undefined behavior. The memcpy may appear expensive.
-// Yet all decent optimizing compilers will compile memcpy to a single instruction, just about.
-simdjson_warn_unused
-simdjson_inline uint32_t str4ncmp(const uint8_t *src, const char* atom) {
-  uint32_t srcval; // we want to avoid unaligned 32-bit loads (undefined in C/C++)
-  static_assert(sizeof(uint32_t) <= SIMDJSON_PADDING, "SIMDJSON_PADDING must be larger than 4 bytes");
-  std::memcpy(&srcval, src, sizeof(uint32_t));
-  return srcval ^ string_to_uint32(atom);
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_true_atom(const uint8_t *src) {
-  return (str4ncmp(src, "true") | jsoncharutils::is_not_structural_or_whitespace(src[4])) == 0;
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_true_atom(const uint8_t *src, size_t len) {
-  if (len > 4) { return is_valid_true_atom(src); }
-  else if (len == 4) { return !str4ncmp(src, "true"); }
-  else { return false; }
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_false_atom(const uint8_t *src) {
-  return (str4ncmp(src+1, "alse") | jsoncharutils::is_not_structural_or_whitespace(src[5])) == 0;
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_false_atom(const uint8_t *src, size_t len) {
-  if (len > 5) { return is_valid_false_atom(src); }
-  else if (len == 5) { return !str4ncmp(src+1, "alse"); }
-  else { return false; }
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_null_atom(const uint8_t *src) {
-  return (str4ncmp(src, "null") | jsoncharutils::is_not_structural_or_whitespace(src[4])) == 0;
-}
-
-simdjson_warn_unused
-simdjson_inline bool is_valid_null_atom(const uint8_t *src, size_t len) {
-  if (len > 4) { return is_valid_null_atom(src); }
-  else if (len == 4) { return !str4ncmp(src, "null"); }
-  else { return false; }
-}
-
-} // namespace atomparsing
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_ATOMPARSING_H
-/* end file simdjson/generic/atomparsing.h for fallback */
-/* including simdjson/generic/dom_parser_implementation.h for fallback: #include "simdjson/generic/dom_parser_implementation.h" */
-/* begin file simdjson/generic/dom_parser_implementation.h for fallback */
-#ifndef SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/dom_parser_implementation.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-
-// expectation: sizeof(open_container) = 64/8.
-struct open_container {
-  uint32_t tape_index; // where, on the tape, does the scope ([,{) begins
-  uint32_t count; // how many elements in the scope
-}; // struct open_container
-
-static_assert(sizeof(open_container) == 64/8, "Open container must be 64 bits");
-
-class dom_parser_implementation final : public internal::dom_parser_implementation {
-public:
-  /** Tape location of each open { or [ */
-  std::unique_ptr<open_container[]> open_containers{};
-  /** Whether each open container is a [ or { */
-  std::unique_ptr<bool[]> is_array{};
-  /** Buffer passed to stage 1 */
-  const uint8_t *buf{};
-  /** Length passed to stage 1 */
-  size_t len{0};
-  /** Document passed to stage 2 */
-  dom::document *doc{};
-
-  inline dom_parser_implementation() noexcept;
-  inline dom_parser_implementation(dom_parser_implementation &&other) noexcept;
-  inline dom_parser_implementation &operator=(dom_parser_implementation &&other) noexcept;
-  dom_parser_implementation(const dom_parser_implementation &) = delete;
-  dom_parser_implementation &operator=(const dom_parser_implementation &) = delete;
-
-  simdjson_warn_unused error_code parse(const uint8_t *buf, size_t len, dom::document &doc) noexcept final;
-  simdjson_warn_unused error_code stage1(const uint8_t *buf, size_t len, stage1_mode partial) noexcept final;
-  simdjson_warn_unused error_code stage2(dom::document &doc) noexcept final;
-  simdjson_warn_unused error_code stage2_next(dom::document &doc) noexcept final;
-  simdjson_warn_unused uint8_t *parse_string(const uint8_t *src, uint8_t *dst, bool allow_replacement) const noexcept final;
-  simdjson_warn_unused uint8_t *parse_wobbly_string(const uint8_t *src, uint8_t *dst) const noexcept final;
-  inline simdjson_warn_unused error_code set_capacity(size_t capacity) noexcept final;
-  inline simdjson_warn_unused error_code set_max_depth(size_t max_depth) noexcept final;
-private:
-  simdjson_inline simdjson_warn_unused error_code set_capacity_stage1(size_t capacity);
-
-};
-
-} // namespace fallback
-} // namespace simdjson
-
-namespace simdjson {
-namespace fallback {
-
-inline dom_parser_implementation::dom_parser_implementation() noexcept = default;
-inline dom_parser_implementation::dom_parser_implementation(dom_parser_implementation &&other) noexcept = default;
-inline dom_parser_implementation &dom_parser_implementation::operator=(dom_parser_implementation &&other) noexcept = default;
-
-// Leaving these here so they can be inlined if so desired
-inline simdjson_warn_unused error_code dom_parser_implementation::set_capacity(size_t capacity) noexcept {
-  if(capacity > SIMDJSON_MAXSIZE_BYTES) { return CAPACITY; }
-  // Stage 1 index output
-  size_t max_structures = SIMDJSON_ROUNDUP_N(capacity, 64) + 2 + 7;
-  structural_indexes.reset( new (std::nothrow) uint32_t[max_structures] );
-  if (!structural_indexes) { _capacity = 0; return MEMALLOC; }
-  structural_indexes[0] = 0;
-  n_structural_indexes = 0;
-
-  _capacity = capacity;
-  return SUCCESS;
-}
-
-inline simdjson_warn_unused error_code dom_parser_implementation::set_max_depth(size_t max_depth) noexcept {
-  // Stage 2 stacks
-  open_containers.reset(new (std::nothrow) open_container[max_depth]);
-  is_array.reset(new (std::nothrow) bool[max_depth]);
-  if (!is_array || !open_containers) { _max_depth = 0; return MEMALLOC; }
-
-  _max_depth = max_depth;
-  return SUCCESS;
-}
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H
-/* end file simdjson/generic/dom_parser_implementation.h for fallback */
-/* including simdjson/generic/implementation_simdjson_result_base.h for fallback: #include "simdjson/generic/implementation_simdjson_result_base.h" */
-/* begin file simdjson/generic/implementation_simdjson_result_base.h for fallback */
-#ifndef SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-
-// This is a near copy of include/error.h's implementation_simdjson_result_base, except it doesn't use std::pair
-// so we can avoid inlining errors
-// TODO reconcile these!
-/**
- * The result of a simdjson operation that could fail.
- *
- * Gives the option of reading error codes, or throwing an exception by casting to the desired result.
- *
- * This is a base class for implementations that want to add functions to the result type for
- * chaining.
- *
- * Override like:
- *
- *   struct simdjson_result<T> : public internal::implementation_simdjson_result_base<T> {
- *     simdjson_result() noexcept : internal::implementation_simdjson_result_base<T>() {}
- *     simdjson_result(error_code error) noexcept : internal::implementation_simdjson_result_base<T>(error) {}
- *     simdjson_result(T &&value) noexcept : internal::implementation_simdjson_result_base<T>(std::forward(value)) {}
- *     simdjson_result(T &&value, error_code error) noexcept : internal::implementation_simdjson_result_base<T>(value, error) {}
- *     // Your extra methods here
- *   }
- *
- * Then any method returning simdjson_result<T> will be chainable with your methods.
- */
-template<typename T>
-struct implementation_simdjson_result_base {
-
-  /**
-   * Create a new empty result with error = UNINITIALIZED.
-   */
-  simdjson_inline implementation_simdjson_result_base() noexcept = default;
-
-  /**
-   * Create a new error result.
-   */
-  simdjson_inline implementation_simdjson_result_base(error_code error) noexcept;
-
-  /**
-   * Create a new successful result.
-   */
-  simdjson_inline implementation_simdjson_result_base(T &&value) noexcept;
-
-  /**
-   * Create a new result with both things (use if you don't want to branch when creating the result).
-   */
-  simdjson_inline implementation_simdjson_result_base(T &&value, error_code error) noexcept;
-
-  /**
-   * Move the value and the error to the provided variables.
-   *
-   * @param value The variable to assign the value to. May not be set if there is an error.
-   * @param error The variable to assign the error to. Set to SUCCESS if there is no error.
-   */
-  simdjson_inline void tie(T &value, error_code &error) && noexcept;
-
-  /**
-   * Move the value to the provided variable.
-   *
-   * @param value The variable to assign the value to. May not be set if there is an error.
-   */
-  simdjson_inline error_code get(T &value) && noexcept;
-
-  /**
-   * The error.
-   */
-  simdjson_inline error_code error() const noexcept;
-
-#if SIMDJSON_EXCEPTIONS
-
-  /**
-   * Get the result value.
-   *
-   * @throw simdjson_error if there was an error.
-   */
-  simdjson_inline T& value() & noexcept(false);
-
-  /**
-   * Take the result value (move it).
-   *
-   * @throw simdjson_error if there was an error.
-   */
-  simdjson_inline T&& value() && noexcept(false);
-
-  /**
-   * Take the result value (move it).
-   *
-   * @throw simdjson_error if there was an error.
-   */
-  simdjson_inline T&& take_value() && noexcept(false);
-
-  /**
-   * Cast to the value (will throw on error).
-   *
-   * @throw simdjson_error if there was an error.
-   */
-  simdjson_inline operator T&&() && noexcept(false);
-
-
-#endif // SIMDJSON_EXCEPTIONS
-
-  /**
-   * Get the result value. This function is safe if and only
-   * the error() method returns a value that evaluates to false.
-   */
-  simdjson_inline const T& value_unsafe() const& noexcept;
-  /**
-   * Get the result value. This function is safe if and only
-   * the error() method returns a value that evaluates to false.
-   */
-  simdjson_inline T& value_unsafe() & noexcept;
-  /**
-   * Take the result value (move it). This function is safe if and only
-   * the error() method returns a value that evaluates to false.
-   */
-  simdjson_inline T&& value_unsafe() && noexcept;
-protected:
-  /** users should never directly access first and second. **/
-  T first{}; /** Users should never directly access 'first'. **/
-  error_code second{UNINITIALIZED}; /** Users should never directly access 'second'. **/
-}; // struct implementation_simdjson_result_base
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H
-/* end file simdjson/generic/implementation_simdjson_result_base.h for fallback */
-/* including simdjson/generic/numberparsing.h for fallback: #include "simdjson/generic/numberparsing.h" */
-/* begin file simdjson/generic/numberparsing.h for fallback */
-#ifndef SIMDJSON_GENERIC_NUMBERPARSING_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_NUMBERPARSING_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/jsoncharutils.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <limits>
-#include <ostream>
-#include <cstring>
-
-namespace simdjson {
-namespace fallback {
-namespace numberparsing {
-
-#ifdef JSON_TEST_NUMBERS
-#define INVALID_NUMBER(SRC) (found_invalid_number((SRC)), NUMBER_ERROR)
-#define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
-#define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
-#define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
-#else
-#define INVALID_NUMBER(SRC) (NUMBER_ERROR)
-#define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
-#define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
-#define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
-#endif
-
-namespace {
-
-// Convert a mantissa, an exponent and a sign bit into an ieee64 double.
-// The real_exponent needs to be in [0, 2046] (technically real_exponent = 2047 would be acceptable).
-// The mantissa should be in [0,1<<53). The bit at index (1ULL << 52) while be zeroed.
-simdjson_inline double to_double(uint64_t mantissa, uint64_t real_exponent, bool negative) {
-    double d;
-    mantissa &= ~(1ULL << 52);
-    mantissa |= real_exponent << 52;
-    mantissa |= ((static_cast<uint64_t>(negative)) << 63);
-    std::memcpy(&d, &mantissa, sizeof(d));
-    return d;
-}
-
-// Attempts to compute i * 10^(power) exactly; and if "negative" is
-// true, negate the result.
-// This function will only work in some cases, when it does not work, success is
-// set to false. This should work *most of the time* (like 99% of the time).
-// We assume that power is in the [smallest_power,
-// largest_power] interval: the caller is responsible for this check.
-simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, double &d) {
-  // we start with a fast path
-  // It was described in
-  // Clinger WD. How to read floating point numbers accurately.
-  // ACM SIGPLAN Notices. 1990
-#ifndef FLT_EVAL_METHOD
-#error "FLT_EVAL_METHOD should be defined, please include cfloat."
-#endif
-#if (FLT_EVAL_METHOD != 1) && (FLT_EVAL_METHOD != 0)
-  // We cannot be certain that x/y is rounded to nearest.
-  if (0 <= power && power <= 22 && i <= 9007199254740991)
-#else
-  if (-22 <= power && power <= 22 && i <= 9007199254740991)
-#endif
-  {
-    // convert the integer into a double. This is lossless since
-    // 0 <= i <= 2^53 - 1.
-    d = double(i);
-    //
-    // The general idea is as follows.
-    // If 0 <= s < 2^53 and if 10^0 <= p <= 10^22 then
-    // 1) Both s and p can be represented exactly as 64-bit floating-point
-    // values
-    // (binary64).
-    // 2) Because s and p can be represented exactly as floating-point values,
-    // then s * p
-    // and s / p will produce correctly rounded values.
-    //
-    if (power < 0) {
-      d = d / simdjson::internal::power_of_ten[-power];
-    } else {
-      d = d * simdjson::internal::power_of_ten[power];
-    }
-    if (negative) {
-      d = -d;
-    }
-    return true;
-  }
-  // When 22 < power && power <  22 + 16, we could
-  // hope for another, secondary fast path.  It was
-  // described by David M. Gay in  "Correctly rounded
-  // binary-decimal and decimal-binary conversions." (1990)
-  // If you need to compute i * 10^(22 + x) for x < 16,
-  // first compute i * 10^x, if you know that result is exact
-  // (e.g., when i * 10^x < 2^53),
-  // then you can still proceed and do (i * 10^x) * 10^22.
-  // Is this worth your time?
-  // You need  22 < power *and* power <  22 + 16 *and* (i * 10^(x-22) < 2^53)
-  // for this second fast path to work.
-  // If you you have 22 < power *and* power <  22 + 16, and then you
-  // optimistically compute "i * 10^(x-22)", there is still a chance that you
-  // have wasted your time if i * 10^(x-22) >= 2^53. It makes the use cases of
-  // this optimization maybe less common than we would like. Source:
-  // http://www.exploringbinary.com/fast-path-decimal-to-floating-point-conversion/
-  // also used in RapidJSON: https://rapidjson.org/strtod_8h_source.html
-
-  // The fast path has now failed, so we are failing back on the slower path.
-
-  // In the slow path, we need to adjust i so that it is > 1<<63 which is always
-  // possible, except if i == 0, so we handle i == 0 separately.
-  if(i == 0) {
-    d = negative ? -0.0 : 0.0;
-    return true;
-  }
-
-
-  // The exponent is 1024 + 63 + power
-  //     + floor(log(5**power)/log(2)).
-  // The 1024 comes from the ieee64 standard.
-  // The 63 comes from the fact that we use a 64-bit word.
-  //
-  // Computing floor(log(5**power)/log(2)) could be
-  // slow. Instead we use a fast function.
-  //
-  // For power in (-400,350), we have that
-  // (((152170 + 65536) * power ) >> 16);
-  // is equal to
-  //  floor(log(5**power)/log(2)) + power when power >= 0
-  // and it is equal to
-  //  ceil(log(5**-power)/log(2)) + power when power < 0
-  //
-  // The 65536 is (1<<16) and corresponds to
-  // (65536 * power) >> 16 ---> power
-  //
-  // ((152170 * power ) >> 16) is equal to
-  // floor(log(5**power)/log(2))
-  //
-  // Note that this is not magic: 152170/(1<<16) is
-  // approximatively equal to log(5)/log(2).
-  // The 1<<16 value is a power of two; we could use a
-  // larger power of 2 if we wanted to.
-  //
-  int64_t exponent = (((152170 + 65536) * power) >> 16) + 1024 + 63;
-
-
-  // We want the most significant bit of i to be 1. Shift if needed.
-  int lz = leading_zeroes(i);
-  i <<= lz;
-
-
-  // We are going to need to do some 64-bit arithmetic to get a precise product.
-  // We use a table lookup approach.
-  // It is safe because
-  // power >= smallest_power
-  // and power <= largest_power
-  // We recover the mantissa of the power, it has a leading 1. It is always
-  // rounded down.
-  //
-  // We want the most significant 64 bits of the product. We know
-  // this will be non-zero because the most significant bit of i is
-  // 1.
-  const uint32_t index = 2 * uint32_t(power - simdjson::internal::smallest_power);
-  // Optimization: It may be that materializing the index as a variable might confuse some compilers and prevent effective complex-addressing loads. (Done for code clarity.)
-  //
-  // The full_multiplication function computes the 128-bit product of two 64-bit words
-  // with a returned value of type value128 with a "low component" corresponding to the
-  // 64-bit least significant bits of the product and with a "high component" corresponding
-  // to the 64-bit most significant bits of the product.
-  simdjson::internal::value128 firstproduct = full_multiplication(i, simdjson::internal::power_of_five_128[index]);
-  // Both i and power_of_five_128[index] have their most significant bit set to 1 which
-  // implies that the either the most or the second most significant bit of the product
-  // is 1. We pack values in this manner for efficiency reasons: it maximizes the use
-  // we make of the product. It also makes it easy to reason about the product: there
-  // is 0 or 1 leading zero in the product.
-
-  // Unless the least significant 9 bits of the high (64-bit) part of the full
-  // product are all 1s, then we know that the most significant 55 bits are
-  // exact and no further work is needed. Having 55 bits is necessary because
-  // we need 53 bits for the mantissa but we have to have one rounding bit and
-  // we can waste a bit if the most significant bit of the product is zero.
-  if((firstproduct.high & 0x1FF) == 0x1FF) {
-    // We want to compute i * 5^q, but only care about the top 55 bits at most.
-    // Consider the scenario where q>=0. Then 5^q may not fit in 64-bits. Doing
-    // the full computation is wasteful. So we do what is called a "truncated
-    // multiplication".
-    // We take the most significant 64-bits, and we put them in
-    // power_of_five_128[index]. Usually, that's good enough to approximate i * 5^q
-    // to the desired approximation using one multiplication. Sometimes it does not suffice.
-    // Then we store the next most significant 64 bits in power_of_five_128[index + 1], and
-    // then we get a better approximation to i * 5^q.
-    //
-    // That's for when q>=0. The logic for q<0 is somewhat similar but it is somewhat
-    // more complicated.
-    //
-    // There is an extra layer of complexity in that we need more than 55 bits of
-    // accuracy in the round-to-even scenario.
-    //
-    // The full_multiplication function computes the 128-bit product of two 64-bit words
-    // with a returned value of type value128 with a "low component" corresponding to the
-    // 64-bit least significant bits of the product and with a "high component" corresponding
-    // to the 64-bit most significant bits of the product.
-    simdjson::internal::value128 secondproduct = full_multiplication(i, simdjson::internal::power_of_five_128[index + 1]);
-    firstproduct.low += secondproduct.high;
-    if(secondproduct.high > firstproduct.low) { firstproduct.high++; }
-    // As it has been proven by Noble Mushtak and Daniel Lemire in "Fast Number Parsing Without
-    // Fallback" (https://arxiv.org/abs/2212.06644), at this point we are sure that the product
-    // is sufficiently accurate, and more computation is not needed.
-  }
-  uint64_t lower = firstproduct.low;
-  uint64_t upper = firstproduct.high;
-  // The final mantissa should be 53 bits with a leading 1.
-  // We shift it so that it occupies 54 bits with a leading 1.
-  ///////
-  uint64_t upperbit = upper >> 63;
-  uint64_t mantissa = upper >> (upperbit + 9);
-  lz += int(1 ^ upperbit);
-
-  // Here we have mantissa < (1<<54).
-  int64_t real_exponent = exponent - lz;
-  if (simdjson_unlikely(real_exponent <= 0)) { // we have a subnormal?
-    // Here have that real_exponent <= 0 so -real_exponent >= 0
-    if(-real_exponent + 1 >= 64) { // if we have more than 64 bits below the minimum exponent, you have a zero for sure.
-      d = negative ? -0.0 : 0.0;
-      return true;
-    }
-    // next line is safe because -real_exponent + 1 < 0
-    mantissa >>= -real_exponent + 1;
-    // Thankfully, we can't have both "round-to-even" and subnormals because
-    // "round-to-even" only occurs for powers close to 0.
-    mantissa += (mantissa & 1); // round up
-    mantissa >>= 1;
-    // There is a weird scenario where we don't have a subnormal but just.
-    // Suppose we start with 2.2250738585072013e-308, we end up
-    // with 0x3fffffffffffff x 2^-1023-53 which is technically subnormal
-    // whereas 0x40000000000000 x 2^-1023-53  is normal. Now, we need to round
-    // up 0x3fffffffffffff x 2^-1023-53  and once we do, we are no longer
-    // subnormal, but we can only know this after rounding.
-    // So we only declare a subnormal if we are smaller than the threshold.
-    real_exponent = (mantissa < (uint64_t(1) << 52)) ? 0 : 1;
-    d = to_double(mantissa, real_exponent, negative);
-    return true;
-  }
-  // We have to round to even. The "to even" part
-  // is only a problem when we are right in between two floats
-  // which we guard against.
-  // If we have lots of trailing zeros, we may fall right between two
-  // floating-point values.
-  //
-  // The round-to-even cases take the form of a number 2m+1 which is in (2^53,2^54]
-  // times a power of two. That is, it is right between a number with binary significand
-  // m and another number with binary significand m+1; and it must be the case
-  // that it cannot be represented by a float itself.
-  //
-  // We must have that w * 10 ^q == (2m+1) * 2^p for some power of two 2^p.
-  // Recall that 10^q = 5^q * 2^q.
-  // When q >= 0, we must have that (2m+1) is divible by 5^q, so 5^q <= 2^54. We have that
-  //  5^23 <=  2^54 and it is the last power of five to qualify, so q <= 23.
-  // When q<0, we have  w  >=  (2m+1) x 5^{-q}.  We must have that w<2^{64} so
-  // (2m+1) x 5^{-q} < 2^{64}. We have that 2m+1>2^{53}. Hence, we must have
-  // 2^{53} x 5^{-q} < 2^{64}.
-  // Hence we have 5^{-q} < 2^{11}$ or q>= -4.
-  //
-  // We require lower <= 1 and not lower == 0 because we could not prove that
-  // that lower == 0 is implied; but we could prove that lower <= 1 is a necessary and sufficient test.
-  if (simdjson_unlikely((lower <= 1) && (power >= -4) && (power <= 23) && ((mantissa & 3) == 1))) {
-    if((mantissa  << (upperbit + 64 - 53 - 2)) ==  upper) {
-      mantissa &= ~1;             // flip it so that we do not round up
-    }
-  }
-
-  mantissa += mantissa & 1;
-  mantissa >>= 1;
-
-  // Here we have mantissa < (1<<53), unless there was an overflow
-  if (mantissa >= (1ULL << 53)) {
-    //////////
-    // This will happen when parsing values such as 7.2057594037927933e+16
-    ////////
-    mantissa = (1ULL << 52);
-    real_exponent++;
-  }
-  mantissa &= ~(1ULL << 52);
-  // we have to check that real_exponent is in range, otherwise we bail out
-  if (simdjson_unlikely(real_exponent > 2046)) {
-    // We have an infinite value!!! We could actually throw an error here if we could.
-    return false;
-  }
-  d = to_double(mantissa, real_exponent, negative);
-  return true;
-}
-
-// We call a fallback floating-point parser that might be slow. Note
-// it will accept JSON numbers, but the JSON spec. is more restrictive so
-// before you call parse_float_fallback, you need to have validated the input
-// string with the JSON grammar.
-// It will return an error (false) if the parsed number is infinite.
-// The string parsing itself always succeeds. We know that there is at least
-// one digit.
-static bool parse_float_fallback(const uint8_t *ptr, double *outDouble) {
-  *outDouble = simdjson::internal::from_chars(reinterpret_cast<const char *>(ptr));
-  // We do not accept infinite values.
-
-  // Detecting finite values in a portable manner is ridiculously hard, ideally
-  // we would want to do:
-  // return !std::isfinite(*outDouble);
-  // but that mysteriously fails under legacy/old libc++ libraries, see
-  // https://github.com/simdjson/simdjson/issues/1286
-  //
-  // Therefore, fall back to this solution (the extra parens are there
-  // to handle that max may be a macro on windows).
-  return !(*outDouble > (std::numeric_limits<double>::max)() || *outDouble < std::numeric_limits<double>::lowest());
-}
-
-static bool parse_float_fallback(const uint8_t *ptr, const uint8_t *end_ptr, double *outDouble) {
-  *outDouble = simdjson::internal::from_chars(reinterpret_cast<const char *>(ptr), reinterpret_cast<const char *>(end_ptr));
-  // We do not accept infinite values.
-
-  // Detecting finite values in a portable manner is ridiculously hard, ideally
-  // we would want to do:
-  // return !std::isfinite(*outDouble);
-  // but that mysteriously fails under legacy/old libc++ libraries, see
-  // https://github.com/simdjson/simdjson/issues/1286
-  //
-  // Therefore, fall back to this solution (the extra parens are there
-  // to handle that max may be a macro on windows).
-  return !(*outDouble > (std::numeric_limits<double>::max)() || *outDouble < std::numeric_limits<double>::lowest());
-}
-
-// check quickly whether the next 8 chars are made of digits
-// at a glance, it looks better than Mula's
-// http://0x80.pl/articles/swar-digits-validate.html
-simdjson_inline bool is_made_of_eight_digits_fast(const uint8_t *chars) {
-  uint64_t val;
-  // this can read up to 7 bytes beyond the buffer size, but we require
-  // SIMDJSON_PADDING of padding
-  static_assert(7 <= SIMDJSON_PADDING, "SIMDJSON_PADDING must be bigger than 7");
-  std::memcpy(&val, chars, 8);
-  // a branchy method might be faster:
-  // return (( val & 0xF0F0F0F0F0F0F0F0 ) == 0x3030303030303030)
-  //  && (( (val + 0x0606060606060606) & 0xF0F0F0F0F0F0F0F0 ) ==
-  //  0x3030303030303030);
-  return (((val & 0xF0F0F0F0F0F0F0F0) |
-           (((val + 0x0606060606060606) & 0xF0F0F0F0F0F0F0F0) >> 4)) ==
-          0x3333333333333333);
-}
-
-template<typename I>
-SIMDJSON_NO_SANITIZE_UNDEFINED // We deliberately allow overflow here and check later
-simdjson_inline bool parse_digit(const uint8_t c, I &i) {
-  const uint8_t digit = static_cast<uint8_t>(c - '0');
-  if (digit > 9) {
-    return false;
-  }
-  // PERF NOTE: multiplication by 10 is cheaper than arbitrary integer multiplication
-  i = 10 * i + digit; // might overflow, we will handle the overflow later
-  return true;
-}
-
-simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
-  // we continue with the fiction that we have an integer. If the
-  // floating point number is representable as x * 10^z for some integer
-  // z that fits in 53 bits, then we will be able to convert back the
-  // the integer into a float in a lossless manner.
-  const uint8_t *const first_after_period = p;
-
-#ifdef SIMDJSON_SWAR_NUMBER_PARSING
-#if SIMDJSON_SWAR_NUMBER_PARSING
-  // this helps if we have lots of decimals!
-  // this turns out to be frequent enough.
-  if (is_made_of_eight_digits_fast(p)) {
-    i = i * 100000000 + parse_eight_digits_unrolled(p);
-    p += 8;
-  }
-#endif // SIMDJSON_SWAR_NUMBER_PARSING
-#endif // #ifdef SIMDJSON_SWAR_NUMBER_PARSING
-  // Unrolling the first digit makes a small difference on some implementations (e.g. westmere)
-  if (parse_digit(*p, i)) { ++p; }
-  while (parse_digit(*p, i)) { p++; }
-  exponent = first_after_period - p;
-  // Decimal without digits (123.) is illegal
-  if (exponent == 0) {
-    return INVALID_NUMBER(src);
-  }
-  return SUCCESS;
-}
-
-simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const src, const uint8_t *&p, int64_t &exponent) {
-  // Exp Sign: -123.456e[-]78
-  bool neg_exp = ('-' == *p);
-  if (neg_exp || '+' == *p) { p++; } // Skip + as well
-
-  // Exponent: -123.456e-[78]
-  auto start_exp = p;
-  int64_t exp_number = 0;
-  while (parse_digit(*p, exp_number)) { ++p; }
-  // It is possible for parse_digit to overflow.
-  // In particular, it could overflow to INT64_MIN, and we cannot do - INT64_MIN.
-  // Thus we *must* check for possible overflow before we negate exp_number.
-
-  // Performance notes: it may seem like combining the two "simdjson_unlikely checks" below into
-  // a single simdjson_unlikely path would be faster. The reasoning is sound, but the compiler may
-  // not oblige and may, in fact, generate two distinct paths in any case. It might be
-  // possible to do uint64_t(p - start_exp - 1) >= 18 but it could end up trading off
-  // instructions for a simdjson_likely branch, an unconclusive gain.
-
-  // If there were no digits, it's an error.
-  if (simdjson_unlikely(p == start_exp)) {
-    return INVALID_NUMBER(src);
-  }
-  // We have a valid positive exponent in exp_number at this point, except that
-  // it may have overflowed.
-
-  // If there were more than 18 digits, we may have overflowed the integer. We have to do
-  // something!!!!
-  if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
-    while (*start_exp == '0') { start_exp++; }
-    // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
-    // support exponents smaller than -999,999,999,999,999,999 and bigger
-    // than 999,999,999,999,999,999.
-    // We can truncate.
-    // Note that 999999999999999999 is assuredly too large. The maximal ieee64 value before
-    // infinity is ~1.8e308. The smallest subnormal is ~5e-324. So, actually, we could
-    // truncate at 324.
-    // Note that there is no reason to fail per se at this point in time.
-    // E.g., 0e999999999999999999999 is a fine number.
-    if (p > start_exp+18) { exp_number = 999999999999999999; }
-  }
-  // At this point, we know that exp_number is a sane, positive, signed integer.
-  // It is <= 999,999,999,999,999,999. As long as 'exponent' is in
-  // [-8223372036854775808, 8223372036854775808], we won't overflow. Because 'exponent'
-  // is bounded in magnitude by the size of the JSON input, we are fine in this universe.
-  // To sum it up: the next line should never overflow.
-  exponent += (neg_exp ? -exp_number : exp_number);
-  return SUCCESS;
-}
-
-simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
-  // It is possible that the integer had an overflow.
-  // We have to handle the case where we have 0.0000somenumber.
-  const uint8_t *start = start_digits;
-  while ((*start == '0') || (*start == '.')) { ++start; }
-  // we over-decrement by one when there is a '.'
-  return digit_count - size_t(start - start_digits);
-}
-
-} // unnamed namespace
-
-/** @private */
-static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
-  if (parse_float_fallback(src, answer)) {
-    return SUCCESS;
-  }
-  return INVALID_NUMBER(src);
-}
-
-/** @private */
-template<typename W>
-simdjson_inline error_code write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer) {
-  // If we frequently had to deal with long strings of digits,
-  // we could extend our code by using a 128-bit integer instead
-  // of a 64-bit integer. However, this is uncommon in practice.
-  //
-  // 9999999999999999999 < 2**64 so we can accommodate 19 digits.
-  // If we have a decimal separator, then digit_count - 1 is the number of digits, but we
-  // may not have a decimal separator!
-  if (simdjson_unlikely(digit_count > 19 && significant_digits(start_digits, digit_count) > 19)) {
-    // Ok, chances are good that we had an overflow!
-    // this is almost never going to get called!!!
-    // we start anew, going slowly!!!
-    // This will happen in the following examples:
-    // 10000000000000000000000000000000000000000000e+308
-    // 3.1415926535897932384626433832795028841971693993751
-    //
-    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
-    // reference to it, it would force it to be stored in memory, preventing the compiler from
-    // picking it apart and putting into registers. i.e. if we pass it as reference,
-    // it gets slow.
-    double d;
-    error_code error = slow_float_parsing(src, &d);
-    writer.append_double(d);
-    return error;
-  }
-  // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
-  // way we've tried: https://github.com/simdjson/simdjson/pull/990#discussion_r448497331
-  // To future reader: we'd love if someone found a better way, or at least could explain this result!
-  if (simdjson_unlikely(exponent < simdjson::internal::smallest_power) || (exponent > simdjson::internal::largest_power)) {
-    //
-    // Important: smallest_power is such that it leads to a zero value.
-    // Observe that 18446744073709551615e-343 == 0, i.e. (2**64 - 1) e -343 is zero
-    // so something x 10^-343 goes to zero, but not so with  something x 10^-342.
-    static_assert(simdjson::internal::smallest_power <= -342, "smallest_power is not small enough");
-    //
-    if((exponent < simdjson::internal::smallest_power) || (i == 0)) {
-      // E.g. Parse "-0.0e-999" into the same value as "-0.0". See https://en.wikipedia.org/wiki/Signed_zero
-      WRITE_DOUBLE(negative ? -0.0 : 0.0, src, writer);
-      return SUCCESS;
-    } else { // (exponent > largest_power) and (i != 0)
-      // We have, for sure, an infinite value and simdjson refuses to parse infinite values.
-      return INVALID_NUMBER(src);
-    }
-  }
-  double d;
-  if (!compute_float_64(exponent, i, negative, d)) {
-    // we are almost never going to get here.
-    if (!parse_float_fallback(src, &d)) { return INVALID_NUMBER(src); }
-  }
-  WRITE_DOUBLE(d, src, writer);
-  return SUCCESS;
-}
-
-// for performance analysis, it is sometimes  useful to skip parsing
-#ifdef SIMDJSON_SKIPNUMBERPARSING
-
-template<typename W>
-simdjson_inline error_code parse_number(const uint8_t *const, W &writer) {
-  writer.append_s64(0);        // always write zero
-  return SUCCESS;              // always succeeds
-}
-
-simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned_in_string(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer_in_string(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(const uint8_t * const src) noexcept { return 0; }
-simdjson_unused simdjson_inline bool is_negative(const uint8_t * src) noexcept  { return false; }
-simdjson_unused simdjson_inline simdjson_result<bool> is_integer(const uint8_t * src) noexcept  { return false; }
-simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(const uint8_t * src) noexcept { return number_type::signed_integer; }
-#else
-
-// parse the number at src
-// define JSON_TEST_NUMBERS for unit testing
-//
-// It is assumed that the number is followed by a structural ({,},],[) character
-// or a white space character. If that is not the case (e.g., when the JSON
-// document is made of a single number), then it is necessary to copy the
-// content and append a space before calling this function.
-//
-// Our objective is accurate parsing (ULP of 0) at high speed.
-template<typename W>
-simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
-
-  //
-  // Check for minus sign
-  //
-  bool negative = (*src == '-');
-  const uint8_t *p = src + uint8_t(negative);
-
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while (parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  if (digit_count == 0 || ('0' == *start_digits && digit_count > 1)) { return INVALID_NUMBER(src); }
-
-  //
-  // Handle floats if there is a . or e (or both)
-  //
-  int64_t exponent = 0;
-  bool is_float = false;
-  if ('.' == *p) {
-    is_float = true;
-    ++p;
-    SIMDJSON_TRY( parse_decimal_after_separator(src, p, i, exponent) );
-    digit_count = int(p - start_digits); // used later to guard against overflows
-  }
-  if (('e' == *p) || ('E' == *p)) {
-    is_float = true;
-    ++p;
-    SIMDJSON_TRY( parse_exponent(src, p, exponent) );
-  }
-  if (is_float) {
-    const bool dirty_end = jsoncharutils::is_not_structural_or_whitespace(*p);
-    SIMDJSON_TRY( write_float(src, negative, i, start_digits, digit_count, exponent, writer) );
-    if (dirty_end) { return INVALID_NUMBER(src); }
-    return SUCCESS;
-  }
-
-  // The longest negative 64-bit number is 19 digits.
-  // The longest positive 64-bit number is 20 digits.
-  // We do it this way so we don't trigger this branch unless we must.
-  size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
-  if (digit_count == longest_digit_count) {
-    if (negative) {
-      // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
-      WRITE_INTEGER(~i+1, src, writer);
-      if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
-      return SUCCESS;
-    // Positive overflow check:
-    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
-    //   biggest uint64_t.
-    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
-    //   If we got here, it's a 20 digit number starting with the digit "1".
-    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
-    //   than 1,553,255,926,290,448,384.
-    // - That is smaller than the smallest possible 20-digit number the user could write:
-    //   10,000,000,000,000,000,000.
-    // - Therefore, if the number is positive and lower than that, it's overflow.
-    // - The value we are looking at is less than or equal to INT64_MAX.
-    //
-    }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
-  }
-
-  // Write unsigned if it doesn't fit in a signed integer.
-  if (i > uint64_t(INT64_MAX)) {
-    WRITE_UNSIGNED(i, src, writer);
-  } else {
-    WRITE_INTEGER(negative ? (~i+1) : i, src, writer);
-  }
-  if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
-  return SUCCESS;
-}
-
-// Inlineable functions
-namespace {
-
-// This table can be used to characterize the final character of an integer
-// string. For JSON structural character and allowable white space characters,
-// we return SUCCESS. For 'e', '.' and 'E', we return INCORRECT_TYPE. Otherwise
-// we return NUMBER_ERROR.
-// Optimization note: we could easily reduce the size of the table by half (to 128)
-// at the cost of an extra branch.
-// Optimization note: we want the values to use at most 8 bits (not, e.g., 32 bits):
-static_assert(error_code(uint8_t(NUMBER_ERROR))== NUMBER_ERROR, "bad NUMBER_ERROR cast");
-static_assert(error_code(uint8_t(SUCCESS))== SUCCESS, "bad NUMBER_ERROR cast");
-static_assert(error_code(uint8_t(INCORRECT_TYPE))== INCORRECT_TYPE, "bad NUMBER_ERROR cast");
-
-const uint8_t integer_string_finisher[256] = {
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, SUCCESS,
-    SUCCESS,      NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   SUCCESS,      NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, SUCCESS,
-    NUMBER_ERROR, INCORRECT_TYPE, NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, INCORRECT_TYPE,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, SUCCESS,        NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, INCORRECT_TYPE, NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
-    SUCCESS,      NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
-    NUMBER_ERROR};
-
-// Parse any number from 0 to 18,446,744,073,709,551,615
-simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src) noexcept {
-  const uint8_t *p = src;
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while (parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  // The longest positive 64-bit number is 20 digits.
-  // We do it this way so we don't trigger this branch unless we must.
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > 20))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
-  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if (integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
-
-  if (digit_count == 20) {
-    // Positive overflow check:
-    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
-    //   biggest uint64_t.
-    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
-    //   If we got here, it's a 20 digit number starting with the digit "1".
-    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
-    //   than 1,553,255,926,290,448,384.
-    // - That is smaller than the smallest possible 20-digit number the user could write:
-    //   10,000,000,000,000,000,000.
-    // - Therefore, if the number is positive and lower than that, it's overflow.
-    // - The value we are looking at is less than or equal to INT64_MAX.
-    //
-    if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
-  }
-
-  return i;
-}
-
-
-// Parse any number from 0 to 18,446,744,073,709,551,615
-// Never read at src_end or beyond
-simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src, const uint8_t * const src_end) noexcept {
-  const uint8_t *p = src;
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while ((p != src_end) && parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  // The longest positive 64-bit number is 20 digits.
-  // We do it this way so we don't trigger this branch unless we must.
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > 20))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
-  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if ((p != src_end) && integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
-
-  if (digit_count == 20) {
-    // Positive overflow check:
-    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
-    //   biggest uint64_t.
-    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
-    //   If we got here, it's a 20 digit number starting with the digit "1".
-    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
-    //   than 1,553,255,926,290,448,384.
-    // - That is smaller than the smallest possible 20-digit number the user could write:
-    //   10,000,000,000,000,000,000.
-    // - Therefore, if the number is positive and lower than that, it's overflow.
-    // - The value we are looking at is less than or equal to INT64_MAX.
-    //
-    if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
-  }
-
-  return i;
-}
-
-// Parse any number from 0 to 18,446,744,073,709,551,615
-simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned_in_string(const uint8_t * const src) noexcept {
-  const uint8_t *p = src + 1;
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while (parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  // The longest positive 64-bit number is 20 digits.
-  // We do it this way so we don't trigger this branch unless we must.
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > 20))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
-  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if (*p != '"') { return NUMBER_ERROR; }
-
-  if (digit_count == 20) {
-    // Positive overflow check:
-    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
-    //   biggest uint64_t.
-    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
-    //   If we got here, it's a 20 digit number starting with the digit "1".
-    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
-    //   than 1,553,255,926,290,448,384.
-    // - That is smaller than the smallest possible 20-digit number the user could write:
-    //   10,000,000,000,000,000,000.
-    // - Therefore, if the number is positive and lower than that, it's overflow.
-    // - The value we are looking at is less than or equal to INT64_MAX.
-    //
-    // Note: we use src[1] and not src[0] because src[0] is the quote character in this
-    // instance.
-    if (src[1] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
-  }
-
-  return i;
-}
-
-// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t *src) noexcept {
-  //
-  // Check for minus sign
-  //
-  bool negative = (*src == '-');
-  const uint8_t *p = src + uint8_t(negative);
-
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while (parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  // We go from
-  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-  // so we can never represent numbers that have more than 19 digits.
-  size_t longest_digit_count = 19;
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > longest_digit_count))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
-  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if(integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
-  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
-  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
-  // so cheap that we might as well always make it.
-  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
-  return negative ? (~i+1) : i;
-}
-
-// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-// Never read at src_end or beyond
-simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t * const src, const uint8_t * const src_end) noexcept {
-  //
-  // Check for minus sign
-  //
-  if(src == src_end) { return NUMBER_ERROR; }
-  bool negative = (*src == '-');
-  const uint8_t *p = src + uint8_t(negative);
-
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = p;
-  uint64_t i = 0;
-  while ((p != src_end) && parse_digit(*p, i)) { p++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(p - start_digits);
-  // We go from
-  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-  // so we can never represent numbers that have more than 19 digits.
-  size_t longest_digit_count = 19;
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > longest_digit_count))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
-  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if((p != src_end) && integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
-  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
-  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
-  // so cheap that we might as well always make it.
-  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
-  return negative ? (~i+1) : i;
-}
-
-// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer_in_string(const uint8_t *src) noexcept {
-  //
-  // Check for minus sign
-  //
-  bool negative = (*(src + 1) == '-');
-  src += uint8_t(negative) + 1;
-
-  //
-  // Parse the integer part.
-  //
-  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
-  const uint8_t *const start_digits = src;
-  uint64_t i = 0;
-  while (parse_digit(*src, i)) { src++; }
-
-  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
-  // Optimization note: size_t is expected to be unsigned.
-  size_t digit_count = size_t(src - start_digits);
-  // We go from
-  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
-  // so we can never represent numbers that have more than 19 digits.
-  size_t longest_digit_count = 19;
-  // Optimization note: the compiler can probably merge
-  // ((digit_count == 0) || (digit_count > longest_digit_count))
-  // into a single  branch since digit_count is unsigned.
-  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
-  // Here digit_count > 0.
-  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
-  // We can do the following...
-  // if (!jsoncharutils::is_structural_or_whitespace(*src)) {
-  //  return (*src == '.' || *src == 'e' || *src == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
-  // }
-  // as a single table lookup:
-  if(*src != '"') { return NUMBER_ERROR; }
-  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
-  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
-  // so cheap that we might as well always make it.
-  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
-  return negative ? (~i+1) : i;
-}
-
-simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * src) noexcept {
-  //
-  // Check for minus sign
-  //
-  bool negative = (*src == '-');
-  src += uint8_t(negative);
-
-  //
-  // Parse the integer part.
-  //
-  uint64_t i = 0;
-  const uint8_t *p = src;
-  p += parse_digit(*p, i);
-  bool leading_zero = (i == 0);
-  while (parse_digit(*p, i)) { p++; }
-  // no integer digits, or 0123 (zero must be solo)
-  if ( p == src ) { return INCORRECT_TYPE; }
-  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
-
-  //
-  // Parse the decimal part.
-  //
-  int64_t exponent = 0;
-  bool overflow;
-  if (simdjson_likely(*p == '.')) {
-    p++;
-    const uint8_t *start_decimal_digits = p;
-    if (!parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
-    p++;
-    while (parse_digit(*p, i)) { p++; }
-    exponent = -(p - start_decimal_digits);
-
-    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
-    overflow = p-src-1 > 19;
-    if (simdjson_unlikely(overflow && leading_zero)) {
-      // Skip leading 0.00000 and see if it still overflows
-      const uint8_t *start_digits = src + 2;
-      while (*start_digits == '0') { start_digits++; }
-      overflow = p-start_digits > 19;
-    }
-  } else {
-    overflow = p-src > 19;
-  }
-
-  //
-  // Parse the exponent
-  //
-  if (*p == 'e' || *p == 'E') {
-    p++;
-    bool exp_neg = *p == '-';
-    p += exp_neg || *p == '+';
-
-    uint64_t exp = 0;
-    const uint8_t *start_exp_digits = p;
-    while (parse_digit(*p, exp)) { p++; }
-    // no exp digits, or 20+ exp digits
-    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
-
-    exponent += exp_neg ? 0-exp : exp;
-  }
-
-  if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
-
-  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
-
-  //
-  // Assemble (or slow-parse) the float
-  //
-  double d;
-  if (simdjson_likely(!overflow)) {
-    if (compute_float_64(exponent, i, negative, d)) { return d; }
-  }
-  if (!parse_float_fallback(src - uint8_t(negative), &d)) {
-    return NUMBER_ERROR;
-  }
-  return d;
-}
-
-simdjson_unused simdjson_inline bool is_negative(const uint8_t * src) noexcept {
-  return (*src == '-');
-}
-
-simdjson_unused simdjson_inline simdjson_result<bool> is_integer(const uint8_t * src) noexcept {
-  bool negative = (*src == '-');
-  src += uint8_t(negative);
-  const uint8_t *p = src;
-  while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
-  if ( p == src ) { return NUMBER_ERROR; }
-  if (jsoncharutils::is_structural_or_whitespace(*p)) { return true; }
-  return false;
-}
-
-simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(const uint8_t * src) noexcept {
-  bool negative = (*src == '-');
-  src += uint8_t(negative);
-  const uint8_t *p = src;
-  while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
-  if ( p == src ) { return NUMBER_ERROR; }
-  if (jsoncharutils::is_structural_or_whitespace(*p)) {
-    // We have an integer.
-    // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
-    // We want values larger or equal to 9223372036854775808 to be unsigned
-    // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
-    }
-    return number_type::signed_integer;
-  }
-  // Hopefully, we have 'e' or 'E' or '.'.
-  return number_type::floating_point_number;
-}
-
-// Never read at src_end or beyond
-simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * src, const uint8_t * const src_end) noexcept {
-  if(src == src_end) { return NUMBER_ERROR; }
-  //
-  // Check for minus sign
-  //
-  bool negative = (*src == '-');
-  src += uint8_t(negative);
-
-  //
-  // Parse the integer part.
-  //
-  uint64_t i = 0;
-  const uint8_t *p = src;
-  if(p == src_end) { return NUMBER_ERROR; }
-  p += parse_digit(*p, i);
-  bool leading_zero = (i == 0);
-  while ((p != src_end) && parse_digit(*p, i)) { p++; }
-  // no integer digits, or 0123 (zero must be solo)
-  if ( p == src ) { return INCORRECT_TYPE; }
-  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
-
-  //
-  // Parse the decimal part.
-  //
-  int64_t exponent = 0;
-  bool overflow;
-  if (simdjson_likely((p != src_end) && (*p == '.'))) {
-    p++;
-    const uint8_t *start_decimal_digits = p;
-    if ((p == src_end) || !parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
-    p++;
-    while ((p != src_end) && parse_digit(*p, i)) { p++; }
-    exponent = -(p - start_decimal_digits);
-
-    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
-    overflow = p-src-1 > 19;
-    if (simdjson_unlikely(overflow && leading_zero)) {
-      // Skip leading 0.00000 and see if it still overflows
-      const uint8_t *start_digits = src + 2;
-      while (*start_digits == '0') { start_digits++; }
-      overflow = start_digits-src > 19;
-    }
-  } else {
-    overflow = p-src > 19;
-  }
-
-  //
-  // Parse the exponent
-  //
-  if ((p != src_end) && (*p == 'e' || *p == 'E')) {
-    p++;
-    if(p == src_end) { return NUMBER_ERROR; }
-    bool exp_neg = *p == '-';
-    p += exp_neg || *p == '+';
-
-    uint64_t exp = 0;
-    const uint8_t *start_exp_digits = p;
-    while ((p != src_end) && parse_digit(*p, exp)) { p++; }
-    // no exp digits, or 20+ exp digits
-    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
-
-    exponent += exp_neg ? 0-exp : exp;
-  }
-
-  if ((p != src_end) && jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
-
-  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
-
-  //
-  // Assemble (or slow-parse) the float
-  //
-  double d;
-  if (simdjson_likely(!overflow)) {
-    if (compute_float_64(exponent, i, negative, d)) { return d; }
-  }
-  if (!parse_float_fallback(src - uint8_t(negative), src_end, &d)) {
-    return NUMBER_ERROR;
-  }
-  return d;
-}
-
-simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(const uint8_t * src) noexcept {
-  //
-  // Check for minus sign
-  //
-  bool negative = (*(src + 1) == '-');
-  src += uint8_t(negative) + 1;
-
-  //
-  // Parse the integer part.
-  //
-  uint64_t i = 0;
-  const uint8_t *p = src;
-  p += parse_digit(*p, i);
-  bool leading_zero = (i == 0);
-  while (parse_digit(*p, i)) { p++; }
-  // no integer digits, or 0123 (zero must be solo)
-  if ( p == src ) { return INCORRECT_TYPE; }
-  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
-
-  //
-  // Parse the decimal part.
-  //
-  int64_t exponent = 0;
-  bool overflow;
-  if (simdjson_likely(*p == '.')) {
-    p++;
-    const uint8_t *start_decimal_digits = p;
-    if (!parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
-    p++;
-    while (parse_digit(*p, i)) { p++; }
-    exponent = -(p - start_decimal_digits);
-
-    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
-    overflow = p-src-1 > 19;
-    if (simdjson_unlikely(overflow && leading_zero)) {
-      // Skip leading 0.00000 and see if it still overflows
-      const uint8_t *start_digits = src + 2;
-      while (*start_digits == '0') { start_digits++; }
-      overflow = p-start_digits > 19;
-    }
-  } else {
-    overflow = p-src > 19;
-  }
-
-  //
-  // Parse the exponent
-  //
-  if (*p == 'e' || *p == 'E') {
-    p++;
-    bool exp_neg = *p == '-';
-    p += exp_neg || *p == '+';
-
-    uint64_t exp = 0;
-    const uint8_t *start_exp_digits = p;
-    while (parse_digit(*p, exp)) { p++; }
-    // no exp digits, or 20+ exp digits
-    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
-
-    exponent += exp_neg ? 0-exp : exp;
-  }
-
-  if (*p != '"') { return NUMBER_ERROR; }
-
-  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
-
-  //
-  // Assemble (or slow-parse) the float
-  //
-  double d;
-  if (simdjson_likely(!overflow)) {
-    if (compute_float_64(exponent, i, negative, d)) { return d; }
-  }
-  if (!parse_float_fallback(src - uint8_t(negative), &d)) {
-    return NUMBER_ERROR;
-  }
-  return d;
-}
-
-} // unnamed namespace
-#endif // SIMDJSON_SKIPNUMBERPARSING
-
-} // namespace numberparsing
-
-inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
-    switch (type) {
-        case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
-        case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
-        case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
-        default: SIMDJSON_UNREACHABLE();
-    }
-    return out;
-}
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_NUMBERPARSING_H
-/* end file simdjson/generic/numberparsing.h for fallback */
-
-/* including simdjson/generic/implementation_simdjson_result_base-inl.h for fallback: #include "simdjson/generic/implementation_simdjson_result_base-inl.h" */
-/* begin file simdjson/generic/implementation_simdjson_result_base-inl.h for fallback */
-#ifndef SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/generic/implementation_simdjson_result_base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-
-//
-// internal::implementation_simdjson_result_base<T> inline implementation
-//
-
-template<typename T>
-simdjson_inline void implementation_simdjson_result_base<T>::tie(T &value, error_code &error) && noexcept {
-  error = this->second;
-  if (!error) {
-    value = std::forward<implementation_simdjson_result_base<T>>(*this).first;
-  }
-}
-
-template<typename T>
-simdjson_warn_unused simdjson_inline error_code implementation_simdjson_result_base<T>::get(T &value) && noexcept {
-  error_code error;
-  std::forward<implementation_simdjson_result_base<T>>(*this).tie(value, error);
-  return error;
-}
-
-template<typename T>
-simdjson_inline error_code implementation_simdjson_result_base<T>::error() const noexcept {
-  return this->second;
-}
-
-#if SIMDJSON_EXCEPTIONS
-
-template<typename T>
-simdjson_inline T& implementation_simdjson_result_base<T>::value() & noexcept(false) {
-  if (error()) { throw simdjson_error(error()); }
-  return this->first;
-}
-
-template<typename T>
-simdjson_inline T&& implementation_simdjson_result_base<T>::value() && noexcept(false) {
-  return std::forward<implementation_simdjson_result_base<T>>(*this).take_value();
-}
-
-template<typename T>
-simdjson_inline T&& implementation_simdjson_result_base<T>::take_value() && noexcept(false) {
-  if (error()) { throw simdjson_error(error()); }
-  return std::forward<T>(this->first);
-}
-
-template<typename T>
-simdjson_inline implementation_simdjson_result_base<T>::operator T&&() && noexcept(false) {
-  return std::forward<implementation_simdjson_result_base<T>>(*this).take_value();
-}
-
-#endif // SIMDJSON_EXCEPTIONS
-
-template<typename T>
-simdjson_inline const T& implementation_simdjson_result_base<T>::value_unsafe() const& noexcept {
-  return this->first;
-}
-
-template<typename T>
-simdjson_inline T& implementation_simdjson_result_base<T>::value_unsafe() & noexcept {
-  return this->first;
-}
-
-template<typename T>
-simdjson_inline T&& implementation_simdjson_result_base<T>::value_unsafe() && noexcept {
-  return std::forward<T>(this->first);
-}
-
-template<typename T>
-simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(T &&value, error_code error) noexcept
-    : first{std::forward<T>(value)}, second{error} {}
-template<typename T>
-simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(error_code error) noexcept
-    : implementation_simdjson_result_base(T{}, error) {}
-template<typename T>
-simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(T &&value) noexcept
-    : implementation_simdjson_result_base(std::forward<T>(value), SUCCESS) {}
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H
-/* end file simdjson/generic/implementation_simdjson_result_base-inl.h for fallback */
-/* end file simdjson/generic/amalgamated.h for fallback */
-/* including simdjson/fallback/end.h: #include "simdjson/fallback/end.h" */
-/* begin file simdjson/fallback/end.h */
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-/* undefining SIMDJSON_IMPLEMENTATION from "fallback" */
-#undef SIMDJSON_IMPLEMENTATION
-/* end file simdjson/fallback/end.h */
-
-#endif // SIMDJSON_FALLBACK_H
-/* end file simdjson/fallback.h */
-/* including simdjson/fallback/implementation.h: #include <simdjson/fallback/implementation.h> */
-/* begin file simdjson/fallback/implementation.h */
-#ifndef SIMDJSON_FALLBACK_IMPLEMENTATION_H
-#define SIMDJSON_FALLBACK_IMPLEMENTATION_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/implementation.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-
-/**
- * @private
- */
-class implementation final : public simdjson::implementation {
-public:
-  simdjson_inline implementation() : simdjson::implementation(
-      "fallback",
-      "Generic fallback implementation",
-      0
-  ) {}
-  simdjson_warn_unused error_code create_dom_parser_implementation(
-    size_t capacity,
-    size_t max_length,
-    std::unique_ptr<simdjson::internal::dom_parser_implementation>& dst
-  ) const noexcept final;
-  simdjson_warn_unused error_code minify(const uint8_t *buf, size_t len, uint8_t *dst, size_t &dst_len) const noexcept final;
-  simdjson_warn_unused bool validate_utf8(const char *buf, size_t len) const noexcept final;
-};
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_IMPLEMENTATION_H
-/* end file simdjson/fallback/implementation.h */
-
-/* including simdjson/fallback/begin.h: #include <simdjson/fallback/begin.h> */
-/* begin file simdjson/fallback/begin.h */
-/* defining SIMDJSON_IMPLEMENTATION to "fallback" */
-#define SIMDJSON_IMPLEMENTATION fallback
-/* including simdjson/fallback/base.h: #include "simdjson/fallback/base.h" */
-/* begin file simdjson/fallback/base.h */
-#ifndef SIMDJSON_FALLBACK_BASE_H
-#define SIMDJSON_FALLBACK_BASE_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-/**
- * Fallback implementation (runs on any machine).
- */
-namespace fallback {
-
-class implementation;
-
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_BASE_H
-/* end file simdjson/fallback/base.h */
-/* including simdjson/fallback/bitmanipulation.h: #include "simdjson/fallback/bitmanipulation.h" */
-/* begin file simdjson/fallback/bitmanipulation.h */
-#ifndef SIMDJSON_FALLBACK_BITMANIPULATION_H
-#define SIMDJSON_FALLBACK_BITMANIPULATION_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-
-#if defined(_MSC_VER) && !defined(_M_ARM64) && !defined(_M_X64)
-static inline unsigned char _BitScanForward64(unsigned long* ret, uint64_t x) {
-  unsigned long x0 = (unsigned long)x, top, bottom;
-  _BitScanForward(&top, (unsigned long)(x >> 32));
-  _BitScanForward(&bottom, x0);
-  *ret = x0 ? bottom : 32 + top;
-  return x != 0;
-}
-static unsigned char _BitScanReverse64(unsigned long* ret, uint64_t x) {
-  unsigned long x1 = (unsigned long)(x >> 32), top, bottom;
-  _BitScanReverse(&top, x1);
-  _BitScanReverse(&bottom, (unsigned long)x);
-  *ret = x1 ? top + 32 : bottom;
-  return x != 0;
-}
-#endif
-
-/* result might be undefined when input_num is zero */
-simdjson_inline int leading_zeroes(uint64_t input_num) {
-#ifdef _MSC_VER
-  unsigned long leading_zero = 0;
-  // Search the mask data from most significant bit (MSB)
-  // to least significant bit (LSB) for a set bit (1).
-  if (_BitScanReverse64(&leading_zero, input_num))
-    return (int)(63 - leading_zero);
-  else
-    return 64;
-#else
-  return __builtin_clzll(input_num);
-#endif// _MSC_VER
-}
-
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_BITMANIPULATION_H
-/* end file simdjson/fallback/bitmanipulation.h */
-/* including simdjson/fallback/stringparsing_defs.h: #include "simdjson/fallback/stringparsing_defs.h" */
-/* begin file simdjson/fallback/stringparsing_defs.h */
-#ifndef SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-#define SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-
-// Holds backslashes and quotes locations.
-struct backslash_and_quote {
-public:
-  static constexpr uint32_t BYTES_PROCESSED = 1;
-  simdjson_inline static backslash_and_quote copy_and_find(const uint8_t *src, uint8_t *dst);
-
-  simdjson_inline bool has_quote_first() { return c == '"'; }
-  simdjson_inline bool has_backslash() { return c == '\\'; }
-  simdjson_inline int quote_index() { return c == '"' ? 0 : 1; }
-  simdjson_inline int backslash_index() { return c == '\\' ? 0 : 1; }
-
-  uint8_t c;
-}; // struct backslash_and_quote
-
-simdjson_inline backslash_and_quote backslash_and_quote::copy_and_find(const uint8_t *src, uint8_t *dst) {
-  // store to dest unconditionally - we can overwrite the bits we don't like later
-  dst[0] = src[0];
-  return { src[0] };
-}
-
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
-/* end file simdjson/fallback/stringparsing_defs.h */
-/* including simdjson/fallback/numberparsing_defs.h: #include "simdjson/fallback/numberparsing_defs.h" */
-/* begin file simdjson/fallback/numberparsing_defs.h */
-#ifndef SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-#define SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <cstring>
-
-#ifdef JSON_TEST_NUMBERS // for unit testing
-void found_invalid_number(const uint8_t *buf);
-void found_integer(int64_t result, const uint8_t *buf);
-void found_unsigned_integer(uint64_t result, const uint8_t *buf);
-void found_float(double result, const uint8_t *buf);
-#endif
-
-namespace simdjson {
-namespace fallback {
-namespace numberparsing {
-
-// credit: https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
-/** @private */
-static simdjson_inline uint32_t parse_eight_digits_unrolled(const char *chars) {
-  uint64_t val;
-  memcpy(&val, chars, sizeof(uint64_t));
-  val = (val & 0x0F0F0F0F0F0F0F0F) * 2561 >> 8;
-  val = (val & 0x00FF00FF00FF00FF) * 6553601 >> 16;
-  return uint32_t((val & 0x0000FFFF0000FFFF) * 42949672960001 >> 32);
-}
-
-/** @private */
-static simdjson_inline uint32_t parse_eight_digits_unrolled(const uint8_t *chars) {
-  return parse_eight_digits_unrolled(reinterpret_cast<const char *>(chars));
-}
-
-#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
-// this is a slow emulation routine for 32-bit
-//
-static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
-  return x * (uint64_t)y;
-}
-static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
-  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
-  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
-  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
-  uint64_t adbc_carry = !!(adbc < ad);
-  uint64_t lo = bd + (adbc << 32);
-  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
-        (adbc_carry << 32) + !!(lo < bd);
-  return lo;
-}
-#endif
-
-/** @private */
-simdjson_inline internal::value128 full_multiplication(uint64_t value1, uint64_t value2) {
-  internal::value128 answer;
-#if SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
-#ifdef _M_ARM64
-  // ARM64 has native support for 64-bit multiplications, no need to emultate
-  answer.high = __umulh(value1, value2);
-  answer.low = value1 * value2;
-#else
-  answer.low = _umul128(value1, value2, &answer.high); // _umul128 not available on ARM64
-#endif // _M_ARM64
-#else // SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
-  __uint128_t r = (static_cast<__uint128_t>(value1)) * value2;
-  answer.low = uint64_t(r);
-  answer.high = uint64_t(r >> 64);
-#endif
-  return answer;
-}
-
-} // namespace numberparsing
-} // namespace fallback
-} // namespace simdjson
-
-#define SIMDJSON_SWAR_NUMBER_PARSING 1
-
-#endif // SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
-/* end file simdjson/fallback/numberparsing_defs.h */
-/* end file simdjson/fallback/begin.h */
-/* including generic/stage1/find_next_document_index.h for fallback: #include <generic/stage1/find_next_document_index.h> */
-/* begin file generic/stage1/find_next_document_index.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H */
-/* amalgamation skipped (editor-only): #include <generic/stage1/base.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace stage1 {
-
-/**
-  * This algorithm is used to quickly identify the last structural position that
-  * makes up a complete document.
-  *
-  * It does this by going backwards and finding the last *document boundary* (a
-  * place where one value follows another without a comma between them). If the
-  * last document (the characters after the boundary) has an equal number of
-  * start and end brackets, it is considered complete.
-  *
-  * Simply put, we iterate over the structural characters, starting from
-  * the end. We consider that we found the end of a JSON document when the
-  * first element of the pair is NOT one of these characters: '{' '[' ':' ','
-  * and when the second element is NOT one of these characters: '}' ']' ':' ','.
-  *
-  * This simple comparison works most of the time, but it does not cover cases
-  * where the batch's structural indexes contain a perfect amount of documents.
-  * In such a case, we do not have access to the structural index which follows
-  * the last document, therefore, we do not have access to the second element in
-  * the pair, and that means we cannot identify the last document. To fix this
-  * issue, we keep a count of the open and closed curly/square braces we found
-  * while searching for the pair. When we find a pair AND the count of open and
-  * closed curly/square braces is the same, we know that we just passed a
-  * complete document, therefore the last json buffer location is the end of the
-  * batch.
-  */
-simdjson_inline uint32_t find_next_document_index(dom_parser_implementation &parser) {
-  // Variant: do not count separately, just figure out depth
-  if(parser.n_structural_indexes == 0) { return 0; }
-  auto arr_cnt = 0;
-  auto obj_cnt = 0;
-  for (auto i = parser.n_structural_indexes - 1; i > 0; i--) {
-    auto idxb = parser.structural_indexes[i];
-    switch (parser.buf[idxb]) {
-    case ':':
-    case ',':
-      continue;
-    case '}':
-      obj_cnt--;
-      continue;
-    case ']':
-      arr_cnt--;
-      continue;
-    case '{':
-      obj_cnt++;
-      break;
-    case '[':
-      arr_cnt++;
-      break;
-    }
-    auto idxa = parser.structural_indexes[i - 1];
-    switch (parser.buf[idxa]) {
-    case '{':
-    case '[':
-    case ':':
-    case ',':
-      continue;
-    }
-    // Last document is complete, so the next document will appear after!
-    if (!arr_cnt && !obj_cnt) {
-      return parser.n_structural_indexes;
-    }
-    // Last document is incomplete; mark the document at i + 1 as the next one
-    return i;
-  }
-  // If we made it to the end, we want to finish counting to see if we have a full document.
-  switch (parser.buf[parser.structural_indexes[0]]) {
-    case '}':
-      obj_cnt--;
-      break;
-    case ']':
-      arr_cnt--;
-      break;
-    case '{':
-      obj_cnt++;
-      break;
-    case '[':
-      arr_cnt++;
-      break;
-  }
-  if (!arr_cnt && !obj_cnt) {
-    // We have a complete document.
-    return parser.n_structural_indexes;
-  }
-  return 0;
-}
-
-} // namespace stage1
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H
-/* end file generic/stage1/find_next_document_index.h for fallback */
-/* including generic/stage2/stringparsing.h for fallback: #include <generic/stage2/stringparsing.h> */
-/* begin file generic/stage2/stringparsing.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H */
-/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/jsoncharutils.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-// This file contains the common code every implementation uses
-// It is intended to be included multiple times and compiled multiple times
-
-namespace simdjson {
-namespace fallback {
-namespace {
-/// @private
-namespace stringparsing {
-
-// begin copypasta
-// These chars yield themselves: " \ /
-// b -> backspace, f -> formfeed, n -> newline, r -> cr, t -> horizontal tab
-// u not handled in this table as it's complex
-static const uint8_t escape_map[256] = {
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x0.
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0x22, 0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0x2f,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x4.
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0x5c, 0, 0,    0, // 0x5.
-    0, 0, 0x08, 0, 0,    0, 0x0c, 0, 0, 0, 0, 0, 0,    0, 0x0a, 0, // 0x6.
-    0, 0, 0x0d, 0, 0x09, 0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x7.
-
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
-};
-
-// handle a unicode codepoint
-// write appropriate values into dest
-// src will advance 6 bytes or 12 bytes
-// dest will advance a variable amount (return via pointer)
-// return true if the unicode codepoint was valid
-// We work in little-endian then swap at write time
-simdjson_warn_unused
-simdjson_inline bool handle_unicode_codepoint(const uint8_t **src_ptr,
-                                            uint8_t **dst_ptr, bool allow_replacement) {
-  // Use the default Unicode Character 'REPLACEMENT CHARACTER' (U+FFFD)
-  constexpr uint32_t substitution_code_point = 0xfffd;
-  // jsoncharutils::hex_to_u32_nocheck fills high 16 bits of the return value with 1s if the
-  // conversion isn't valid; we defer the check for this to inside the
-  // multilingual plane check
-  uint32_t code_point = jsoncharutils::hex_to_u32_nocheck(*src_ptr + 2);
-  *src_ptr += 6;
-
-  // If we found a high surrogate, we must
-  // check for low surrogate for characters
-  // outside the Basic
-  // Multilingual Plane.
-  if (code_point >= 0xd800 && code_point < 0xdc00) {
-    const uint8_t *src_data = *src_ptr;
-    /* Compiler optimizations convert this to a single 16-bit load and compare on most platforms */
-    if (((src_data[0] << 8) | src_data[1]) != ((static_cast<uint8_t> ('\\') << 8) | static_cast<uint8_t> ('u'))) {
-      if(!allow_replacement) { return false; }
-      code_point = substitution_code_point;
-    } else {
-      uint32_t code_point_2 = jsoncharutils::hex_to_u32_nocheck(src_data + 2);
-
-      // We have already checked that the high surrogate is valid and
-      // (code_point - 0xd800) < 1024.
-      //
-      // Check that code_point_2 is in the range 0xdc00..0xdfff
-      // and that code_point_2 was parsed from valid hex.
-      uint32_t low_bit = code_point_2 - 0xdc00;
-      if (low_bit >> 10) {
-        if(!allow_replacement) { return false; }
-        code_point = substitution_code_point;
-      } else {
-        code_point =  (((code_point - 0xd800) << 10) | low_bit) + 0x10000;
-        *src_ptr += 6;
-      }
-
-    }
-  } else if (code_point >= 0xdc00 && code_point <= 0xdfff) {
-      // If we encounter a low surrogate (not preceded by a high surrogate)
-      // then we have an error.
-      if(!allow_replacement) { return false; }
-      code_point = substitution_code_point;
-  }
-  size_t offset = jsoncharutils::codepoint_to_utf8(code_point, *dst_ptr);
-  *dst_ptr += offset;
-  return offset > 0;
-}
-
-
-// handle a unicode codepoint using the wobbly convention
-// https://simonsapin.github.io/wtf-8/
-// write appropriate values into dest
-// src will advance 6 bytes or 12 bytes
-// dest will advance a variable amount (return via pointer)
-// return true if the unicode codepoint was valid
-// We work in little-endian then swap at write time
-simdjson_warn_unused
-simdjson_inline bool handle_unicode_codepoint_wobbly(const uint8_t **src_ptr,
-                                            uint8_t **dst_ptr) {
-  // It is not ideal that this function is nearly identical to handle_unicode_codepoint.
-  //
-  // jsoncharutils::hex_to_u32_nocheck fills high 16 bits of the return value with 1s if the
-  // conversion isn't valid; we defer the check for this to inside the
-  // multilingual plane check
-  uint32_t code_point = jsoncharutils::hex_to_u32_nocheck(*src_ptr + 2);
-  *src_ptr += 6;
-  // If we found a high surrogate, we must
-  // check for low surrogate for characters
-  // outside the Basic
-  // Multilingual Plane.
-  if (code_point >= 0xd800 && code_point < 0xdc00) {
-    const uint8_t *src_data = *src_ptr;
-    /* Compiler optimizations convert this to a single 16-bit load and compare on most platforms */
-    if (((src_data[0] << 8) | src_data[1]) == ((static_cast<uint8_t> ('\\') << 8) | static_cast<uint8_t> ('u'))) {
-      uint32_t code_point_2 = jsoncharutils::hex_to_u32_nocheck(src_data + 2);
-      uint32_t low_bit = code_point_2 - 0xdc00;
-      if ((low_bit >> 10) ==  0) {
-        code_point =
-          (((code_point - 0xd800) << 10) | low_bit) + 0x10000;
-        *src_ptr += 6;
-      }
-    }
-  }
-
-  size_t offset = jsoncharutils::codepoint_to_utf8(code_point, *dst_ptr);
-  *dst_ptr += offset;
-  return offset > 0;
-}
-
-
-/**
- * Unescape a valid UTF-8 string from src to dst, stopping at a final unescaped quote. There
- * must be an unescaped quote terminating the string. It returns the final output
- * position as pointer. In case of error (e.g., the string has bad escaped codes),
- * then null_nullptrptr is returned. It is assumed that the output buffer is large
- * enough. E.g., if src points at 'joe"', then dst needs to have four free bytes +
- * SIMDJSON_PADDING bytes.
- */
-simdjson_warn_unused simdjson_inline uint8_t *parse_string(const uint8_t *src, uint8_t *dst, bool allow_replacement) {
-  while (1) {
-    // Copy the next n bytes, and find the backslash and quote in them.
-    auto bs_quote = backslash_and_quote::copy_and_find(src, dst);
-    // If the next thing is the end quote, copy and return
-    if (bs_quote.has_quote_first()) {
-      // we encountered quotes first. Move dst to point to quotes and exit
-      return dst + bs_quote.quote_index();
-    }
-    if (bs_quote.has_backslash()) {
-      /* find out where the backspace is */
-      auto bs_dist = bs_quote.backslash_index();
-      uint8_t escape_char = src[bs_dist + 1];
-      /* we encountered backslash first. Handle backslash */
-      if (escape_char == 'u') {
-        /* move src/dst up to the start; they will be further adjusted
-           within the unicode codepoint handling code. */
-        src += bs_dist;
-        dst += bs_dist;
-        if (!handle_unicode_codepoint(&src, &dst, allow_replacement)) {
-          return nullptr;
-        }
-      } else {
-        /* simple 1:1 conversion. Will eat bs_dist+2 characters in input and
-         * write bs_dist+1 characters to output
-         * note this may reach beyond the part of the buffer we've actually
-         * seen. I think this is ok */
-        uint8_t escape_result = escape_map[escape_char];
-        if (escape_result == 0u) {
-          return nullptr; /* bogus escape value is an error */
-        }
-        dst[bs_dist] = escape_result;
-        src += bs_dist + 2;
-        dst += bs_dist + 1;
-      }
-    } else {
-      /* they are the same. Since they can't co-occur, it means we
-       * encountered neither. */
-      src += backslash_and_quote::BYTES_PROCESSED;
-      dst += backslash_and_quote::BYTES_PROCESSED;
-    }
-  }
-}
-
-simdjson_warn_unused simdjson_inline uint8_t *parse_wobbly_string(const uint8_t *src, uint8_t *dst) {
-  // It is not ideal that this function is nearly identical to parse_string.
-  while (1) {
-    // Copy the next n bytes, and find the backslash and quote in them.
-    auto bs_quote = backslash_and_quote::copy_and_find(src, dst);
-    // If the next thing is the end quote, copy and return
-    if (bs_quote.has_quote_first()) {
-      // we encountered quotes first. Move dst to point to quotes and exit
-      return dst + bs_quote.quote_index();
-    }
-    if (bs_quote.has_backslash()) {
-      /* find out where the backspace is */
-      auto bs_dist = bs_quote.backslash_index();
-      uint8_t escape_char = src[bs_dist + 1];
-      /* we encountered backslash first. Handle backslash */
-      if (escape_char == 'u') {
-        /* move src/dst up to the start; they will be further adjusted
-           within the unicode codepoint handling code. */
-        src += bs_dist;
-        dst += bs_dist;
-        if (!handle_unicode_codepoint_wobbly(&src, &dst)) {
-          return nullptr;
-        }
-      } else {
-        /* simple 1:1 conversion. Will eat bs_dist+2 characters in input and
-         * write bs_dist+1 characters to output
-         * note this may reach beyond the part of the buffer we've actually
-         * seen. I think this is ok */
-        uint8_t escape_result = escape_map[escape_char];
-        if (escape_result == 0u) {
-          return nullptr; /* bogus escape value is an error */
-        }
-        dst[bs_dist] = escape_result;
-        src += bs_dist + 2;
-        dst += bs_dist + 1;
-      }
-    } else {
-      /* they are the same. Since they can't co-occur, it means we
-       * encountered neither. */
-      src += backslash_and_quote::BYTES_PROCESSED;
-      dst += backslash_and_quote::BYTES_PROCESSED;
-    }
-  }
-}
-
-} // namespace stringparsing
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H
-/* end file generic/stage2/stringparsing.h for fallback */
-/* including generic/stage2/logger.h for fallback: #include <generic/stage2/logger.h> */
-/* begin file generic/stage2/logger.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H */
-/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <cstring>
-
-
-// This is for an internal-only stage 2 specific logger.
-// Set LOG_ENABLED = true to log what stage 2 is doing!
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace logger {
-
-  static constexpr const char * DASHES = "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------";
-
-#if SIMDJSON_VERBOSE_LOGGING
-  static constexpr const bool LOG_ENABLED = true;
-#else
-  static constexpr const bool LOG_ENABLED = false;
-#endif
-  static constexpr const int LOG_EVENT_LEN = 20;
-  static constexpr const int LOG_BUFFER_LEN = 30;
-  static constexpr const int LOG_SMALL_BUFFER_LEN = 10;
-  static constexpr const int LOG_INDEX_LEN = 5;
-
-  static int log_depth; // Not threadsafe. Log only.
-
-  // Helper to turn unprintable or newline characters into spaces
-  static simdjson_inline char printable_char(char c) {
-    if (c >= 0x20) {
-      return c;
-    } else {
-      return ' ';
-    }
-  }
-
-  // Print the header and set up log_start
-  static simdjson_inline void log_start() {
-    if (LOG_ENABLED) {
-      log_depth = 0;
-      printf("\n");
-      printf("| %-*s | %-*s | %-*s | %-*s | Detail |\n", LOG_EVENT_LEN, "Event", LOG_BUFFER_LEN, "Buffer", LOG_SMALL_BUFFER_LEN, "Next", 5, "Next#");
-      printf("|%.*s|%.*s|%.*s|%.*s|--------|\n", LOG_EVENT_LEN+2, DASHES, LOG_BUFFER_LEN+2, DASHES, LOG_SMALL_BUFFER_LEN+2, DASHES, 5+2, DASHES);
-    }
-  }
-
-  simdjson_unused static simdjson_inline void log_string(const char *message) {
-    if (LOG_ENABLED) {
-      printf("%s\n", message);
-    }
-  }
-
-  // Logs a single line from the stage 2 DOM parser
-  template<typename S>
-  static simdjson_inline void log_line(S &structurals, const char *title_prefix, const char *title, const char *detail) {
-    if (LOG_ENABLED) {
-      printf("| %*s%s%-*s ", log_depth*2, "", title_prefix, LOG_EVENT_LEN - log_depth*2 - int(strlen(title_prefix)), title);
-      auto current_index = structurals.at_beginning() ? nullptr : structurals.next_structural-1;
-      auto next_index = structurals.next_structural;
-      auto current = current_index ? &structurals.buf[*current_index] : reinterpret_cast<const uint8_t*>("                                                       ");
-      auto next = &structurals.buf[*next_index];
-      {
-        // Print the next N characters in the buffer.
-        printf("| ");
-        // Otherwise, print the characters starting from the buffer position.
-        // Print spaces for unprintable or newline characters.
-        for (int i=0;i<LOG_BUFFER_LEN;i++) {
-          printf("%c", printable_char(current[i]));
-        }
-        printf(" ");
-        // Print the next N characters in the buffer.
-        printf("| ");
-        // Otherwise, print the characters starting from the buffer position.
-        // Print spaces for unprintable or newline characters.
-        for (int i=0;i<LOG_SMALL_BUFFER_LEN;i++) {
-          printf("%c", printable_char(next[i]));
-        }
-        printf(" ");
-      }
-      if (current_index) {
-        printf("| %*u ", LOG_INDEX_LEN, *current_index);
-      } else {
-        printf("| %-*s ", LOG_INDEX_LEN, "");
-      }
-      // printf("| %*u ", LOG_INDEX_LEN, structurals.next_tape_index());
-      printf("| %-s ", detail);
-      printf("|\n");
-    }
-  }
-
-} // namespace logger
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H
-/* end file generic/stage2/logger.h for fallback */
-/* including generic/stage2/json_iterator.h for fallback: #include <generic/stage2/json_iterator.h> */
-/* begin file generic/stage2/json_iterator.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H */
-/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
-/* amalgamation skipped (editor-only): #include <generic/stage2/logger.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace stage2 {
-
-class json_iterator {
-public:
-  const uint8_t* const buf;
-  uint32_t *next_structural;
-  dom_parser_implementation &dom_parser;
-  uint32_t depth{0};
-
-  /**
-   * Walk the JSON document.
-   *
-   * The visitor receives callbacks when values are encountered. All callbacks pass the iterator as
-   * the first parameter; some callbacks have other parameters as well:
-   *
-   * - visit_document_start() - at the beginning.
-   * - visit_document_end() - at the end (if things were successful).
-   *
-   * - visit_array_start() - at the start `[` of a non-empty array.
-   * - visit_array_end() - at the end `]` of a non-empty array.
-   * - visit_empty_array() - when an empty array is encountered.
-   *
-   * - visit_object_end() - at the start `]` of a non-empty object.
-   * - visit_object_start() - at the end `]` of a non-empty object.
-   * - visit_empty_object() - when an empty object is encountered.
-   * - visit_key(const uint8_t *key) - when a key in an object field is encountered. key is
-   *                                   guaranteed to point at the first quote of the string (`"key"`).
-   * - visit_primitive(const uint8_t *value) - when a value is a string, number, boolean or null.
-   * - visit_root_primitive(iter, uint8_t *value) - when the top-level value is a string, number, boolean or null.
-   *
-   * - increment_count(iter) - each time a value is found in an array or object.
-   */
-  template<bool STREAMING, typename V>
-  simdjson_warn_unused simdjson_inline error_code walk_document(V &visitor) noexcept;
-
-  /**
-   * Create an iterator capable of walking a JSON document.
-   *
-   * The document must have already passed through stage 1.
-   */
-  simdjson_inline json_iterator(dom_parser_implementation &_dom_parser, size_t start_structural_index);
-
-  /**
-   * Look at the next token.
-   *
-   * Tokens can be strings, numbers, booleans, null, or operators (`[{]},:`)).
-   *
-   * They may include invalid JSON as well (such as `1.2.3` or `ture`).
-   */
-  simdjson_inline const uint8_t *peek() const noexcept;
-  /**
-   * Advance to the next token.
-   *
-   * Tokens can be strings, numbers, booleans, null, or operators (`[{]},:`)).
-   *
-   * They may include invalid JSON as well (such as `1.2.3` or `ture`).
-   */
-  simdjson_inline const uint8_t *advance() noexcept;
-  /**
-   * Get the remaining length of the document, from the start of the current token.
-   */
-  simdjson_inline size_t remaining_len() const noexcept;
-  /**
-   * Check if we are at the end of the document.
-   *
-   * If this is true, there are no more tokens.
-   */
-  simdjson_inline bool at_eof() const noexcept;
-  /**
-   * Check if we are at the beginning of the document.
-   */
-  simdjson_inline bool at_beginning() const noexcept;
-  simdjson_inline uint8_t last_structural() const noexcept;
-
-  /**
-   * Log that a value has been found.
-   *
-   * Set LOG_ENABLED=true in logger.h to see logging.
-   */
-  simdjson_inline void log_value(const char *type) const noexcept;
-  /**
-   * Log the start of a multipart value.
-   *
-   * Set LOG_ENABLED=true in logger.h to see logging.
-   */
-  simdjson_inline void log_start_value(const char *type) const noexcept;
-  /**
-   * Log the end of a multipart value.
-   *
-   * Set LOG_ENABLED=true in logger.h to see logging.
-   */
-  simdjson_inline void log_end_value(const char *type) const noexcept;
-  /**
-   * Log an error.
-   *
-   * Set LOG_ENABLED=true in logger.h to see logging.
-   */
-  simdjson_inline void log_error(const char *error) const noexcept;
-
-  template<typename V>
-  simdjson_warn_unused simdjson_inline error_code visit_root_primitive(V &visitor, const uint8_t *value) noexcept;
-  template<typename V>
-  simdjson_warn_unused simdjson_inline error_code visit_primitive(V &visitor, const uint8_t *value) noexcept;
-};
-
-template<bool STREAMING, typename V>
-simdjson_warn_unused simdjson_inline error_code json_iterator::walk_document(V &visitor) noexcept {
-  logger::log_start();
-
-  //
-  // Start the document
-  //
-  if (at_eof()) { return EMPTY; }
-  log_start_value("document");
-  SIMDJSON_TRY( visitor.visit_document_start(*this) );
-
-  //
-  // Read first value
-  //
-  {
-    auto value = advance();
-
-    // Make sure the outer object or array is closed before continuing; otherwise, there are ways we
-    // could get into memory corruption. See https://github.com/simdjson/simdjson/issues/906
-    if (!STREAMING) {
-      switch (*value) {
-        case '{': if (last_structural() != '}') { log_value("starting brace unmatched"); return TAPE_ERROR; }; break;
-        case '[': if (last_structural() != ']') { log_value("starting bracket unmatched"); return TAPE_ERROR; }; break;
-      }
-    }
-
-    switch (*value) {
-      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
-      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
-      default: SIMDJSON_TRY( visitor.visit_root_primitive(*this, value) ); break;
-    }
-  }
-  goto document_end;
-
-//
-// Object parser states
-//
-object_begin:
-  log_start_value("object");
-  depth++;
-  if (depth >= dom_parser.max_depth()) { log_error("Exceeded max depth!"); return DEPTH_ERROR; }
-  dom_parser.is_array[depth] = false;
-  SIMDJSON_TRY( visitor.visit_object_start(*this) );
-
-  {
-    auto key = advance();
-    if (*key != '"') { log_error("Object does not start with a key"); return TAPE_ERROR; }
-    SIMDJSON_TRY( visitor.increment_count(*this) );
-    SIMDJSON_TRY( visitor.visit_key(*this, key) );
-  }
-
-object_field:
-  if (simdjson_unlikely( *advance() != ':' )) { log_error("Missing colon after key in object"); return TAPE_ERROR; }
-  {
-    auto value = advance();
-    switch (*value) {
-      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
-      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
-      default: SIMDJSON_TRY( visitor.visit_primitive(*this, value) ); break;
-    }
-  }
-
-object_continue:
-  switch (*advance()) {
-    case ',':
-      SIMDJSON_TRY( visitor.increment_count(*this) );
-      {
-        auto key = advance();
-        if (simdjson_unlikely( *key != '"' )) { log_error("Key string missing at beginning of field in object"); return TAPE_ERROR; }
-        SIMDJSON_TRY( visitor.visit_key(*this, key) );
-      }
-      goto object_field;
-    case '}': log_end_value("object"); SIMDJSON_TRY( visitor.visit_object_end(*this) ); goto scope_end;
-    default: log_error("No comma between object fields"); return TAPE_ERROR;
-  }
-
-scope_end:
-  depth--;
-  if (depth == 0) { goto document_end; }
-  if (dom_parser.is_array[depth]) { goto array_continue; }
-  goto object_continue;
-
-//
-// Array parser states
-//
-array_begin:
-  log_start_value("array");
-  depth++;
-  if (depth >= dom_parser.max_depth()) { log_error("Exceeded max depth!"); return DEPTH_ERROR; }
-  dom_parser.is_array[depth] = true;
-  SIMDJSON_TRY( visitor.visit_array_start(*this) );
-  SIMDJSON_TRY( visitor.increment_count(*this) );
-
-array_value:
-  {
-    auto value = advance();
-    switch (*value) {
-      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
-      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
-      default: SIMDJSON_TRY( visitor.visit_primitive(*this, value) ); break;
-    }
-  }
-
-array_continue:
-  switch (*advance()) {
-    case ',': SIMDJSON_TRY( visitor.increment_count(*this) ); goto array_value;
-    case ']': log_end_value("array"); SIMDJSON_TRY( visitor.visit_array_end(*this) ); goto scope_end;
-    default: log_error("Missing comma between array values"); return TAPE_ERROR;
-  }
-
-document_end:
-  log_end_value("document");
-  SIMDJSON_TRY( visitor.visit_document_end(*this) );
-
-  dom_parser.next_structural_index = uint32_t(next_structural - &dom_parser.structural_indexes[0]);
-
-  // If we didn't make it to the end, it's an error
-  if ( !STREAMING && dom_parser.next_structural_index != dom_parser.n_structural_indexes ) {
-    log_error("More than one JSON value at the root of the document, or extra characters at the end of the JSON!");
-    return TAPE_ERROR;
-  }
-
-  return SUCCESS;
-
-} // walk_document()
-
-simdjson_inline json_iterator::json_iterator(dom_parser_implementation &_dom_parser, size_t start_structural_index)
-  : buf{_dom_parser.buf},
-    next_structural{&_dom_parser.structural_indexes[start_structural_index]},
-    dom_parser{_dom_parser} {
-}
-
-simdjson_inline const uint8_t *json_iterator::peek() const noexcept {
-  return &buf[*(next_structural)];
-}
-simdjson_inline const uint8_t *json_iterator::advance() noexcept {
-  return &buf[*(next_structural++)];
-}
-simdjson_inline size_t json_iterator::remaining_len() const noexcept {
-  return dom_parser.len - *(next_structural-1);
-}
-
-simdjson_inline bool json_iterator::at_eof() const noexcept {
-  return next_structural == &dom_parser.structural_indexes[dom_parser.n_structural_indexes];
-}
-simdjson_inline bool json_iterator::at_beginning() const noexcept {
-  return next_structural == dom_parser.structural_indexes.get();
-}
-simdjson_inline uint8_t json_iterator::last_structural() const noexcept {
-  return buf[dom_parser.structural_indexes[dom_parser.n_structural_indexes - 1]];
-}
-
-simdjson_inline void json_iterator::log_value(const char *type) const noexcept {
-  logger::log_line(*this, "", type, "");
-}
-
-simdjson_inline void json_iterator::log_start_value(const char *type) const noexcept {
-  logger::log_line(*this, "+", type, "");
-  if (logger::LOG_ENABLED) { logger::log_depth++; }
-}
-
-simdjson_inline void json_iterator::log_end_value(const char *type) const noexcept {
-  if (logger::LOG_ENABLED) { logger::log_depth--; }
-  logger::log_line(*this, "-", type, "");
-}
-
-simdjson_inline void json_iterator::log_error(const char *error) const noexcept {
-  logger::log_line(*this, "", "ERROR", error);
-}
-
-template<typename V>
-simdjson_warn_unused simdjson_inline error_code json_iterator::visit_root_primitive(V &visitor, const uint8_t *value) noexcept {
-  switch (*value) {
-    case '"': return visitor.visit_root_string(*this, value);
-    case 't': return visitor.visit_root_true_atom(*this, value);
-    case 'f': return visitor.visit_root_false_atom(*this, value);
-    case 'n': return visitor.visit_root_null_atom(*this, value);
-    case '-':
-    case '0': case '1': case '2': case '3': case '4':
-    case '5': case '6': case '7': case '8': case '9':
-      return visitor.visit_root_number(*this, value);
-    default:
-      log_error("Document starts with a non-value character");
-      return TAPE_ERROR;
-  }
-}
-template<typename V>
-simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V &visitor, const uint8_t *value) noexcept {
-  // Use the fact that most scalars are going to be either strings or numbers.
-  if(*value == '"') {
-    return visitor.visit_string(*this, value);
-  } else if (((*value - '0')  < 10) || (*value == '-')) {
-    return visitor.visit_number(*this, value);
-  }
-  // true, false, null are uncommon.
-  switch (*value) {
-    case 't': return visitor.visit_true_atom(*this, value);
-    case 'f': return visitor.visit_false_atom(*this, value);
-    case 'n': return visitor.visit_null_atom(*this, value);
-    default:
-      log_error("Non-value found when value was expected!");
-      return TAPE_ERROR;
-  }
-}
-
-} // namespace stage2
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H
-/* end file generic/stage2/json_iterator.h for fallback */
-/* including generic/stage2/tape_writer.h for fallback: #include <generic/stage2/tape_writer.h> */
-/* begin file generic/stage2/tape_writer.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H */
-/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/internal/tape_type.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-#include <cstring>
-
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace stage2 {
-
-struct tape_writer {
-  /** The next place to write to tape */
-  uint64_t *next_tape_loc;
-
-  /** Write a signed 64-bit value to tape. */
-  simdjson_inline void append_s64(int64_t value) noexcept;
-
-  /** Write an unsigned 64-bit value to tape. */
-  simdjson_inline void append_u64(uint64_t value) noexcept;
-
-  /** Write a double value to tape. */
-  simdjson_inline void append_double(double value) noexcept;
-
-  /**
-   * Append a tape entry (an 8-bit type,and 56 bits worth of value).
-   */
-  simdjson_inline void append(uint64_t val, internal::tape_type t) noexcept;
-
-  /**
-   * Skip the current tape entry without writing.
-   *
-   * Used to skip the start of the container, since we'll come back later to fill it in when the
-   * container ends.
-   */
-  simdjson_inline void skip() noexcept;
-
-  /**
-   * Skip the number of tape entries necessary to write a large u64 or i64.
-   */
-  simdjson_inline void skip_large_integer() noexcept;
-
-  /**
-   * Skip the number of tape entries necessary to write a double.
-   */
-  simdjson_inline void skip_double() noexcept;
-
-  /**
-   * Write a value to a known location on tape.
-   *
-   * Used to go back and write out the start of a container after the container ends.
-   */
-  simdjson_inline static void write(uint64_t &tape_loc, uint64_t val, internal::tape_type t) noexcept;
-
-private:
-  /**
-   * Append both the tape entry, and a supplementary value following it. Used for types that need
-   * all 64 bits, such as double and uint64_t.
-   */
-  template<typename T>
-  simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
-}; // struct tape_writer
-
-simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
-  append2(0, value, internal::tape_type::INT64);
-}
-
-simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
-  append(0, internal::tape_type::UINT64);
-  *next_tape_loc = value;
-  next_tape_loc++;
-}
-
-/** Write a double value to tape. */
-simdjson_inline void tape_writer::append_double(double value) noexcept {
-  append2(0, value, internal::tape_type::DOUBLE);
-}
-
-simdjson_inline void tape_writer::skip() noexcept {
-  next_tape_loc++;
-}
-
-simdjson_inline void tape_writer::skip_large_integer() noexcept {
-  next_tape_loc += 2;
-}
-
-simdjson_inline void tape_writer::skip_double() noexcept {
-  next_tape_loc += 2;
-}
-
-simdjson_inline void tape_writer::append(uint64_t val, internal::tape_type t) noexcept {
-  *next_tape_loc = val | ((uint64_t(char(t))) << 56);
-  next_tape_loc++;
-}
-
-template<typename T>
-simdjson_inline void tape_writer::append2(uint64_t val, T val2, internal::tape_type t) noexcept {
-  append(val, t);
-  static_assert(sizeof(val2) == sizeof(*next_tape_loc), "Type is not 64 bits!");
-  memcpy(next_tape_loc, &val2, sizeof(val2));
-  next_tape_loc++;
-}
-
-simdjson_inline void tape_writer::write(uint64_t &tape_loc, uint64_t val, internal::tape_type t) noexcept {
-  tape_loc = val | ((uint64_t(char(t))) << 56);
-}
-
-} // namespace stage2
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H
-/* end file generic/stage2/tape_writer.h for fallback */
-/* including generic/stage2/tape_builder.h for fallback: #include <generic/stage2/tape_builder.h> */
-/* begin file generic/stage2/tape_builder.h for fallback */
-#ifndef SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H
-
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H */
-/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
-/* amalgamation skipped (editor-only): #include <generic/stage2/json_iterator.h> */
-/* amalgamation skipped (editor-only): #include <generic/stage2/stringparsing.h> */
-/* amalgamation skipped (editor-only): #include <generic/stage2/tape_writer.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/dom/document.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/atomparsing.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
-/* amalgamation skipped (editor-only): #include <simdjson/generic/numberparsing.h> */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-
-namespace simdjson {
-namespace fallback {
-namespace {
-namespace stage2 {
-
-struct tape_builder {
-  template<bool STREAMING>
-  simdjson_warn_unused static simdjson_inline error_code parse_document(
-    dom_parser_implementation &dom_parser,
-    dom::document &doc) noexcept;
-
-  /** Called when a non-empty document starts. */
-  simdjson_warn_unused simdjson_inline error_code visit_document_start(json_iterator &iter) noexcept;
-  /** Called when a non-empty document ends without error. */
-  simdjson_warn_unused simdjson_inline error_code visit_document_end(json_iterator &iter) noexcept;
-
-  /** Called when a non-empty array starts. */
-  simdjson_warn_unused simdjson_inline error_code visit_array_start(json_iterator &iter) noexcept;
-  /** Called when a non-empty array ends. */
-  simdjson_warn_unused simdjson_inline error_code visit_array_end(json_iterator &iter) noexcept;
-  /** Called when an empty array is found. */
-  simdjson_warn_unused simdjson_inline error_code visit_empty_array(json_iterator &iter) noexcept;
-
-  /** Called when a non-empty object starts. */
-  simdjson_warn_unused simdjson_inline error_code visit_object_start(json_iterator &iter) noexcept;
-  /**
-   * Called when a key in a field is encountered.
-   *
-   * primitive, visit_object_start, visit_empty_object, visit_array_start, or visit_empty_array
-   * will be called after this with the field value.
-   */
-  simdjson_warn_unused simdjson_inline error_code visit_key(json_iterator &iter, const uint8_t *key) noexcept;
-  /** Called when a non-empty object ends. */
-  simdjson_warn_unused simdjson_inline error_code visit_object_end(json_iterator &iter) noexcept;
-  /** Called when an empty object is found. */
-  simdjson_warn_unused simdjson_inline error_code visit_empty_object(json_iterator &iter) noexcept;
-
-  /**
-   * Called when a string, number, boolean or null is found.
-   */
-  simdjson_warn_unused simdjson_inline error_code visit_primitive(json_iterator &iter, const uint8_t *value) noexcept;
-  /**
-   * Called when a string, number, boolean or null is found at the top level of a document (i.e.
-   * when there is no array or object and the entire document is a single string, number, boolean or
-   * null.
-   *
-   * This is separate from primitive() because simdjson's normal primitive parsing routines assume
-   * there is at least one more token after the value, which is only true in an array or object.
-   */
-  simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
-
-  simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
-
-  simdjson_warn_unused simdjson_inline error_code visit_root_string(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_root_number(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_root_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_root_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
-  simdjson_warn_unused simdjson_inline error_code visit_root_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
-
-  /** Called each time a new field or element in an array or object is found. */
-  simdjson_warn_unused simdjson_inline error_code increment_count(json_iterator &iter) noexcept;
-
-  /** Next location to write to tape */
-  tape_writer tape;
-private:
-  /** Next write location in the string buf for stage 2 parsing */
-  uint8_t *current_string_buf_loc;
-
-  simdjson_inline tape_builder(dom::document &doc) noexcept;
-
-  simdjson_inline uint32_t next_tape_index(json_iterator &iter) const noexcept;
-  simdjson_inline void start_container(json_iterator &iter) noexcept;
-  simdjson_warn_unused simdjson_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_warn_unused simdjson_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
-  simdjson_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
-  simdjson_inline void on_end_string(uint8_t *dst) noexcept;
-}; // struct tape_builder
-
-template<bool STREAMING>
-simdjson_warn_unused simdjson_inline error_code tape_builder::parse_document(
-    dom_parser_implementation &dom_parser,
-    dom::document &doc) noexcept {
-  dom_parser.doc = &doc;
-  json_iterator iter(dom_parser, STREAMING ? dom_parser.next_structural_index : 0);
-  tape_builder builder(doc);
-  return iter.walk_document<STREAMING>(builder);
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept {
-  return iter.visit_root_primitive(*this, value);
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_primitive(json_iterator &iter, const uint8_t *value) noexcept {
-  return iter.visit_primitive(*this, value);
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_empty_object(json_iterator &iter) noexcept {
-  return empty_container(iter, internal::tape_type::START_OBJECT, internal::tape_type::END_OBJECT);
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_empty_array(json_iterator &iter) noexcept {
-  return empty_container(iter, internal::tape_type::START_ARRAY, internal::tape_type::END_ARRAY);
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_document_start(json_iterator &iter) noexcept {
-  start_container(iter);
-  return SUCCESS;
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_object_start(json_iterator &iter) noexcept {
-  start_container(iter);
-  return SUCCESS;
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_array_start(json_iterator &iter) noexcept {
-  start_container(iter);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_object_end(json_iterator &iter) noexcept {
-  return end_container(iter, internal::tape_type::START_OBJECT, internal::tape_type::END_OBJECT);
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_array_end(json_iterator &iter) noexcept {
-  return end_container(iter, internal::tape_type::START_ARRAY, internal::tape_type::END_ARRAY);
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_document_end(json_iterator &iter) noexcept {
-  constexpr uint32_t start_tape_index = 0;
-  tape.append(start_tape_index, internal::tape_type::ROOT);
-  tape_writer::write(iter.dom_parser.doc->tape[start_tape_index], next_tape_index(iter), internal::tape_type::ROOT);
-  return SUCCESS;
-}
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_key(json_iterator &iter, const uint8_t *key) noexcept {
-  return visit_string(iter, key, true);
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::increment_count(json_iterator &iter) noexcept {
-  iter.dom_parser.open_containers[iter.depth].count++; // we have a key value pair in the object at parser.dom_parser.depth - 1
-  return SUCCESS;
-}
-
-simdjson_inline tape_builder::tape_builder(dom::document &doc) noexcept : tape{doc.tape.get()}, current_string_buf_loc{doc.string_buf.get()} {}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
-  iter.log_value(key ? "key" : "string");
-  uint8_t *dst = on_start_string(iter);
-  dst = stringparsing::parse_string(value+1, dst, false); // We do not allow replacement when the escape characters are invalid.
-  if (dst == nullptr) {
-    iter.log_error("Invalid escape in string");
-    return STRING_ERROR;
-  }
-  on_end_string(dst);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(json_iterator &iter, const uint8_t *value) noexcept {
-  return visit_string(iter, value);
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("number");
-  return numberparsing::parse_number(value, tape);
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
-  //
-  // We need to make a copy to make sure that the string is space terminated.
-  // This is not about padding the input, which should already padded up
-  // to len + SIMDJSON_PADDING. However, we have no control at this stage
-  // on how the padding was done. What if the input string was padded with nulls?
-  // It is quite common for an input string to have an extra null character (C string).
-  // We do not want to allow 9\0 (where \0 is the null character) inside a JSON
-  // document, but the string "9\0" by itself is fine. So we make a copy and
-  // pad the input with spaces when we know that there is just one input element.
-  // This copy is relatively expensive, but it will almost never be called in
-  // practice unless you are in the strange scenario where you have many JSON
-  // documents made of single atoms.
-  //
-  std::unique_ptr<uint8_t[]>copy(new (std::nothrow) uint8_t[iter.remaining_len() + SIMDJSON_PADDING]);
-  if (copy.get() == nullptr) { return MEMALLOC; }
-  std::memcpy(copy.get(), value, iter.remaining_len());
-  std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
-  error_code error = visit_number(iter, copy.get());
-  return error;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("true");
-  if (!atomparsing::is_valid_true_atom(value)) { return T_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::TRUE_VALUE);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_true_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("true");
-  if (!atomparsing::is_valid_true_atom(value, iter.remaining_len())) { return T_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::TRUE_VALUE);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("false");
-  if (!atomparsing::is_valid_false_atom(value)) { return F_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::FALSE_VALUE);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_false_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("false");
-  if (!atomparsing::is_valid_false_atom(value, iter.remaining_len())) { return F_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::FALSE_VALUE);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("null");
-  if (!atomparsing::is_valid_null_atom(value)) { return N_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::NULL_VALUE);
-  return SUCCESS;
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_null_atom(json_iterator &iter, const uint8_t *value) noexcept {
-  iter.log_value("null");
-  if (!atomparsing::is_valid_null_atom(value, iter.remaining_len())) { return N_ATOM_ERROR; }
-  tape.append(0, internal::tape_type::NULL_VALUE);
-  return SUCCESS;
-}
-
-// private:
-
-simdjson_inline uint32_t tape_builder::next_tape_index(json_iterator &iter) const noexcept {
-  return uint32_t(tape.next_tape_loc - iter.dom_parser.doc->tape.get());
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept {
-  auto start_index = next_tape_index(iter);
-  tape.append(start_index+2, start);
-  tape.append(start_index, end);
-  return SUCCESS;
-}
-
-simdjson_inline void tape_builder::start_container(json_iterator &iter) noexcept {
-  iter.dom_parser.open_containers[iter.depth].tape_index = next_tape_index(iter);
-  iter.dom_parser.open_containers[iter.depth].count = 0;
-  tape.skip(); // We don't actually *write* the start element until the end.
-}
-
-simdjson_warn_unused simdjson_inline error_code tape_builder::end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept {
-  // Write the ending tape element, pointing at the start location
-  const uint32_t start_tape_index = iter.dom_parser.open_containers[iter.depth].tape_index;
-  tape.append(start_tape_index, end);
-  // Write the start tape element, pointing at the end location (and including count)
-  // count can overflow if it exceeds 24 bits... so we saturate
-  // the convention being that a cnt of 0xffffff or more is undetermined in value (>=  0xffffff).
-  const uint32_t count = iter.dom_parser.open_containers[iter.depth].count;
-  const uint32_t cntsat = count > 0xFFFFFF ? 0xFFFFFF : count;
-  tape_writer::write(iter.dom_parser.doc->tape[start_tape_index], next_tape_index(iter) | (uint64_t(cntsat) << 32), start);
-  return SUCCESS;
-}
-
-simdjson_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
-  // we advance the point, accounting for the fact that we have a NULL termination
-  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
-  return current_string_buf_loc + sizeof(uint32_t);
-}
-
-simdjson_inline void tape_builder::on_end_string(uint8_t *dst) noexcept {
-  uint32_t str_length = uint32_t(dst - (current_string_buf_loc + sizeof(uint32_t)));
-  // TODO check for overflow in case someone has a crazy string (>=4GB?)
-  // But only add the overflow check when the document itself exceeds 4GB
-  // Currently unneeded because we refuse to parse docs larger or equal to 4GB.
-  memcpy(current_string_buf_loc, &str_length, sizeof(uint32_t));
-  // NULL termination is still handy if you expect all your strings to
-  // be NULL terminated? It comes at a small cost
-  *dst = 0;
-  current_string_buf_loc = dst + 1;
-}
-
-} // namespace stage2
-} // unnamed namespace
-} // namespace fallback
-} // namespace simdjson
-
-#endif // SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H
-/* end file generic/stage2/tape_builder.h for fallback */
-
-//
-// Stage 1
-//
-
-namespace simdjson {
-namespace fallback {
-
-simdjson_warn_unused error_code implementation::create_dom_parser_implementation(
-  size_t capacity,
-  size_t max_depth,
-  std::unique_ptr<internal::dom_parser_implementation>& dst
-) const noexcept {
-  dst.reset( new (std::nothrow) fallback::dom_parser_implementation() );
-  if (!dst) { return MEMALLOC; }
-  if (auto err = dst->set_capacity(capacity))
-    return err;
-  if (auto err = dst->set_max_depth(max_depth))
-    return err;
-  return SUCCESS;
-}
-
-namespace {
-namespace stage1 {
-
-class structural_scanner {
-public:
-
-simdjson_inline structural_scanner(dom_parser_implementation &_parser, stage1_mode _partial)
-  : buf{_parser.buf},
-    next_structural_index{_parser.structural_indexes.get()},
-    parser{_parser},
-    len{static_cast<uint32_t>(_parser.len)},
-    partial{_partial} {
-}
-
-simdjson_inline void add_structural() {
-  *next_structural_index = idx;
-  next_structural_index++;
-}
-
-simdjson_inline bool is_continuation(uint8_t c) {
-  return (c & 0xc0) == 0x80;
-}
-
-simdjson_inline void validate_utf8_character() {
-  // Continuation
-  if (simdjson_unlikely((buf[idx] & 0x40) == 0)) {
-    // extra continuation
-    error = UTF8_ERROR;
-    idx++;
-    return;
-  }
-
-  // 2-byte
-  if ((buf[idx] & 0x20) == 0) {
-    // missing continuation
-    if (simdjson_unlikely(idx+1 > len || !is_continuation(buf[idx+1]))) {
-      if (idx+1 > len && is_streaming(partial)) { idx = len; return; }
-      error = UTF8_ERROR;
-      idx++;
-      return;
-    }
-    // overlong: 1100000_ 10______
-    if (buf[idx] <= 0xc1) { error = UTF8_ERROR; }
-    idx += 2;
-    return;
-  }
-
-  // 3-byte
-  if ((buf[idx] & 0x10) == 0) {
-    // missing continuation
-    if (simdjson_unlikely(idx+2 > len || !is_continuation(buf[idx+1]) || !is_continuation(buf[idx+2]))) {
-      if (idx+2 > len && is_streaming(partial)) { idx = len; return; }
-      error = UTF8_ERROR;
-      idx++;
-      return;
-    }
-    // overlong: 11100000 100_____ ________
-    if (buf[idx] == 0xe0 && buf[idx+1] <= 0x9f) { error = UTF8_ERROR; }
-    // surrogates: U+D800-U+DFFF 11101101 101_____
-    if (buf[idx] == 0xed && buf[idx+1] >= 0xa0) { error = UTF8_ERROR; }
-    idx += 3;
-    return;
-  }
-
-  // 4-byte
-  // missing continuation
-  if (simdjson_unlikely(idx+3 > len || !is_continuation(buf[idx+1]) || !is_continuation(buf[idx+2]) || !is_continuation(buf[idx+3]))) {
-    if (idx+2 > len && is_streaming(partial)) { idx = len; return; }
-    error = UTF8_ERROR;
-    idx++;
-    return;
-  }
-  // overlong: 11110000 1000____ ________ ________
-  if (buf[idx] == 0xf0 && buf[idx+1] <= 0x8f) { error = UTF8_ERROR; }
-  // too large: > U+10FFFF:
-  // 11110100 (1001|101_)____
-  // 1111(1___|011_|0101) 10______
-  // also includes 5, 6, 7 and 8 byte characters:
-  // 11111___
-  if (buf[idx] == 0xf4 && buf[idx+1] >= 0x90) { error = UTF8_ERROR; }
-  if (buf[idx] >= 0xf5) { error = UTF8_ERROR; }
-  idx += 4;
-}
-
-// Returns true if the string is unclosed.
-simdjson_inline bool validate_string() {
-  idx++; // skip first quote
-  while (idx < len && buf[idx] != '"') {
-    if (buf[idx] == '\\') {
-      idx += 2;
-    } else if (simdjson_unlikely(buf[idx] & 0x80)) {
-      validate_utf8_character();
-    } else {
-      if (buf[idx] < 0x20) { error = UNESCAPED_CHARS; }
-      idx++;
-    }
-  }
-  if (idx >= len) { return true; }
-  return false;
-}
-
-simdjson_inline bool is_whitespace_or_operator(uint8_t c) {
-  switch (c) {
-    case '{': case '}': case '[': case ']': case ',': case ':':
-    case ' ': case '\r': case '\n': case '\t':
-      return true;
-    default:
-      return false;
-  }
-}
-
-//
-// Parse the entire input in STEP_SIZE-byte chunks.
-//
-simdjson_inline error_code scan() {
-  bool unclosed_string = false;
-  for (;idx<len;idx++) {
-    switch (buf[idx]) {
-      // String
-      case '"':
-        add_structural();
-        unclosed_string |= validate_string();
-        break;
-      // Operator
-      case '{': case '}': case '[': case ']': case ',': case ':':
-        add_structural();
-        break;
-      // Whitespace
-      case ' ': case '\r': case '\n': case '\t':
-        break;
-      // Primitive or invalid character (invalid characters will be checked in stage 2)
-      default:
-        // Anything else, add the structural and go until we find the next one
-        add_structural();
-        while (idx+1<len && !is_whitespace_or_operator(buf[idx+1])) {
-          idx++;
-        };
-        break;
-    }
-  }
-  // We pad beyond.
-  // https://github.com/simdjson/simdjson/issues/906
-  // See json_structural_indexer.h for an explanation.
-  *next_structural_index = len; // assumed later in partial == stage1_mode::streaming_final
-  next_structural_index[1] = len;
-  next_structural_index[2] = 0;
-  parser.n_structural_indexes = uint32_t(next_structural_index - parser.structural_indexes.get());
-  if (simdjson_unlikely(parser.n_structural_indexes == 0)) { return EMPTY; }
-  parser.next_structural_index = 0;
-  if (partial == stage1_mode::streaming_partial) {
-    if(unclosed_string) {
-      parser.n_structural_indexes--;
-      if (simdjson_unlikely(parser.n_structural_indexes == 0)) { return CAPACITY; }
-    }
-    // We truncate the input to the end of the last complete document (or zero).
-    auto new_structural_indexes = find_next_document_index(parser);
-    if (new_structural_indexes == 0 && parser.n_structural_indexes > 0) {
-      if(parser.structural_indexes[0] == 0) {
-        // If the buffer is partial and we started at index 0 but the document is
-        // incomplete, it's too big to parse.
-        return CAPACITY;
-      } else {
-        // It is possible that the document could be parsed, we just had a lot
-        // of white space.
-        parser.n_structural_indexes = 0;
-        return EMPTY;
-      }
-    }
-    parser.n_structural_indexes = new_structural_indexes;
-  } else if(partial == stage1_mode::streaming_final) {
-    if(unclosed_string) { parser.n_structural_indexes--; }
-    // We truncate the input to the end of the last complete document (or zero).
-    // Because partial == stage1_mode::streaming_final, it means that we may
-    // silently ignore trailing garbage. Though it sounds bad, we do it
-    // deliberately because many people who have streams of JSON documents
-    // will truncate them for processing. E.g., imagine that you are uncompressing
-    // the data from a size file or receiving it in chunks from the network. You
-    // may not know where exactly the last document will be. Meanwhile the
-    // document_stream instances allow people to know the JSON documents they are
-    // parsing (see the iterator.source() method).
-    parser.n_structural_indexes = find_next_document_index(parser);
-    // We store the initial n_structural_indexes so that the client can see
-    // whether we used truncation. If initial_n_structural_indexes == parser.n_structural_indexes,
-    // then this will query parser.structural_indexes[parser.n_structural_indexes] which is len,
-    // otherwise, it will copy some prior index.
-    parser.structural_indexes[parser.n_structural_indexes + 1] = parser.structural_indexes[parser.n_structural_indexes];
-    // This next line is critical, do not change it unless you understand what you are
-    // doing.
-    parser.structural_indexes[parser.n_structural_indexes] = uint32_t(len);
-    if (parser.n_structural_indexes == 0) { return EMPTY; }
-  } else if(unclosed_string) { error = UNCLOSED_STRING; }
-  return error;
-}
-
-private:
-  const uint8_t *buf;
-  uint32_t *next_structural_index;
-  dom_parser_implementation &parser;
-  uint32_t len;
-  uint32_t idx{0};
-  error_code error{SUCCESS};
-  stage1_mode partial;
-}; // structural_scanner
-
-} // namespace stage1
-} // unnamed namespace
-
-simdjson_warn_unused error_code dom_parser_implementation::stage1(const uint8_t *_buf, size_t _len, stage1_mode partial) noexcept {
-  this->buf = _buf;
-  this->len = _len;
-  stage1::structural_scanner scanner(*this, partial);
-  return scanner.scan();
-}
-
-// big table for the minifier
-static uint8_t jump_table[256 * 3] = {
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0,
-    1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
-    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
-    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
-};
-
-simdjson_warn_unused error_code implementation::minify(const uint8_t *buf, size_t len, uint8_t *dst, size_t &dst_len) const noexcept {
-  size_t i = 0, pos = 0;
-  uint8_t quote = 0;
-  uint8_t nonescape = 1;
-
-  while (i < len) {
-    unsigned char c = buf[i];
-    uint8_t *meta = jump_table + 3 * c;
-
-    quote = quote ^ (meta[0] & nonescape);
-    dst[pos] = c;
-    pos += meta[2] | quote;
-
-    i += 1;
-    nonescape = uint8_t(~nonescape) | (meta[1]);
-  }
-  dst_len = pos; // we intentionally do not work with a reference
-  // for fear of aliasing
-  return quote ? UNCLOSED_STRING : SUCCESS;
-}
-
-// credit: based on code from Google Fuchsia (Apache Licensed)
-simdjson_warn_unused bool implementation::validate_utf8(const char *buf, size_t len) const noexcept {
-  const uint8_t *data = reinterpret_cast<const uint8_t *>(buf);
-  uint64_t pos = 0;
-  uint32_t code_point = 0;
-  while (pos < len) {
-    // check of the next 8 bytes are ascii.
-    uint64_t next_pos = pos + 16;
-    if (next_pos <= len) { // if it is safe to read 8 more bytes, check that they are ascii
-      uint64_t v1;
-      memcpy(&v1, data + pos, sizeof(uint64_t));
-      uint64_t v2;
-      memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
-      uint64_t v{v1 | v2};
-      if ((v & 0x8080808080808080) == 0) {
-        pos = next_pos;
-        continue;
-      }
-    }
-    unsigned char byte = data[pos];
-    if (byte < 0x80) {
-      pos++;
-      continue;
-    } else if ((byte & 0xe0) == 0xc0) {
-      next_pos = pos + 2;
-      if (next_pos > len) { return false; }
-      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
-      // range check
-      code_point = (byte & 0x1f) << 6 | (data[pos + 1] & 0x3f);
-      if (code_point < 0x80 || 0x7ff < code_point) { return false; }
-    } else if ((byte & 0xf0) == 0xe0) {
-      next_pos = pos + 3;
-      if (next_pos > len) { return false; }
-      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
-      if ((data[pos + 2] & 0xc0) != 0x80) { return false; }
-      // range check
-      code_point = (byte & 0x0f) << 12 |
-                   (data[pos + 1] & 0x3f) << 6 |
-                   (data[pos + 2] & 0x3f);
-      if (code_point < 0x800 || 0xffff < code_point ||
-          (0xd7ff < code_point && code_point < 0xe000)) {
-        return false;
-      }
-    } else if ((byte & 0xf8) == 0xf0) { // 0b11110000
-      next_pos = pos + 4;
-      if (next_pos > len) { return false; }
-      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
-      if ((data[pos + 2] & 0xc0) != 0x80) { return false; }
-      if ((data[pos + 3] & 0xc0) != 0x80) { return false; }
-      // range check
-      code_point =
-          (byte & 0x07) << 18 | (data[pos + 1] & 0x3f) << 12 |
-          (data[pos + 2] & 0x3f) << 6 | (data[pos + 3] & 0x3f);
-      if (code_point <= 0xffff || 0x10ffff < code_point) { return false; }
-    } else {
-      // we may have a continuation
-      return false;
-    }
-    pos = next_pos;
-  }
-  return true;
-}
-
-} // namespace fallback
-} // namespace simdjson
-
-//
-// Stage 2
-//
-
-namespace simdjson {
-namespace fallback {
-
-simdjson_warn_unused error_code dom_parser_implementation::stage2(dom::document &_doc) noexcept {
-  return stage2::tape_builder::parse_document<false>(*this, _doc);
-}
-
-simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::document &_doc) noexcept {
-  return stage2::tape_builder::parse_document<true>(*this, _doc);
-}
-
-simdjson_warn_unused uint8_t *dom_parser_implementation::parse_string(const uint8_t *src, uint8_t *dst, bool replacement_char) const noexcept {
-  return fallback::stringparsing::parse_string(src, dst, replacement_char);
-}
-
-simdjson_warn_unused uint8_t *dom_parser_implementation::parse_wobbly_string(const uint8_t *src, uint8_t *dst) const noexcept {
-  return fallback::stringparsing::parse_wobbly_string(src, dst);
-}
-
-simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
-  auto error = stage1(_buf, _len, stage1_mode::regular);
-  if (error) { return error; }
-  return stage2(_doc);
-}
-
-} // namespace fallback
-} // namespace simdjson
-
-/* including simdjson/fallback/end.h: #include <simdjson/fallback/end.h> */
-/* begin file simdjson/fallback/end.h */
-/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
-/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
-/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
-
-/* undefining SIMDJSON_IMPLEMENTATION from "fallback" */
-#undef SIMDJSON_IMPLEMENTATION
-/* end file simdjson/fallback/end.h */
-
-#endif // SIMDJSON_SRC_FALLBACK_CPP
-/* end file fallback.cpp */
 #endif
 #if SIMDJSON_IMPLEMENTATION_HASWELL
 /* including haswell.cpp: #include <haswell.cpp> */
@@ -19209,7 +15341,7 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   // If there were more than 18 digits, we may have overflowed the integer. We have to do
   // something!!!!
   if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
     while (*start_exp == '0') { start_exp++; }
     // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
     // support exponents smaller than -999,999,999,999,999,999 and bigger
@@ -19406,7 +15538,7 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
     }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
   }
 
-  // Write unsigned if it doesn't fit in a signed integer.
+  // Write unsigned if it does not fit in a signed integer.
   if (i > uint64_t(INT64_MAX)) {
     WRITE_UNSIGNED(i, src, writer);
   } else {
@@ -22187,7 +18319,7 @@ simdjson_inline size_t trim_partial_utf8(const uint8_t *buf, size_t len) {
 //    up enough CPU: the second half of the functions is highly serial, only using 1 execution core
 //    at a time. The second input's scans has some dependency on the first ones finishing it, but
 //    they can make a lot of progress before they need that information.
-// 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
+// 3. Step 1 does not use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
 //
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
@@ -25369,7 +21501,7 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   // If there were more than 18 digits, we may have overflowed the integer. We have to do
   // something!!!!
   if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
     while (*start_exp == '0') { start_exp++; }
     // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
     // support exponents smaller than -999,999,999,999,999,999 and bigger
@@ -25566,7 +21698,7 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
     }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
   }
 
-  // Write unsigned if it doesn't fit in a signed integer.
+  // Write unsigned if it does not fit in a signed integer.
   if (i > uint64_t(INT64_MAX)) {
     WRITE_UNSIGNED(i, src, writer);
   } else {
@@ -28345,7 +24477,7 @@ simdjson_inline size_t trim_partial_utf8(const uint8_t *buf, size_t len) {
 //    up enough CPU: the second half of the functions is highly serial, only using 1 execution core
 //    at a time. The second input's scans has some dependency on the first ones finishing it, but
 //    they can make a lot of progress before they need that information.
-// 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
+// 3. Step 1 does not use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
 //
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
@@ -31685,7 +27817,7 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   // If there were more than 18 digits, we may have overflowed the integer. We have to do
   // something!!!!
   if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
     while (*start_exp == '0') { start_exp++; }
     // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
     // support exponents smaller than -999,999,999,999,999,999 and bigger
@@ -31882,7 +28014,7 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
     }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
   }
 
-  // Write unsigned if it doesn't fit in a signed integer.
+  // Write unsigned if it does not fit in a signed integer.
   if (i > uint64_t(INT64_MAX)) {
     WRITE_UNSIGNED(i, src, writer);
   } else {
@@ -34774,7 +30906,7 @@ simdjson_inline size_t trim_partial_utf8(const uint8_t *buf, size_t len) {
 //    up enough CPU: the second half of the functions is highly serial, only using 1 execution core
 //    at a time. The second input's scans has some dependency on the first ones finishing it, but
 //    they can make a lot of progress before they need that information.
-// 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
+// 3. Step 1 does not use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
 //
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
@@ -38367,7 +34499,7 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   // If there were more than 18 digits, we may have overflowed the integer. We have to do
   // something!!!!
   if (simdjson_unlikely(p > start_exp+18)) {
-    // Skip leading zeroes: 1e000000000000000000001 is technically valid and doesn't overflow
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
     while (*start_exp == '0') { start_exp++; }
     // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
     // support exponents smaller than -999,999,999,999,999,999 and bigger
@@ -38564,7 +34696,7 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
     }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
   }
 
-  // Write unsigned if it doesn't fit in a signed integer.
+  // Write unsigned if it does not fit in a signed integer.
   if (i > uint64_t(INT64_MAX)) {
     WRITE_UNSIGNED(i, src, writer);
   } else {
@@ -41777,7 +37909,7 @@ simdjson_inline size_t trim_partial_utf8(const uint8_t *buf, size_t len) {
 //    up enough CPU: the second half of the functions is highly serial, only using 1 execution core
 //    at a time. The second input's scans has some dependency on the first ones finishing it, but
 //    they can make a lot of progress before they need that information.
-// 3. Step 1 doesn't use enough capacity, so we run some extra stuff while we're waiting for that
+// 3. Step 1 does not use enough capacity, so we run some extra stuff while we're waiting for that
 //    to finish: utf-8 checks and generating the output from the last iteration.
 //
 // The reason we run 2 inputs at a time, is steps 2 and 3 are *still* not enough to soak up all
@@ -43374,7 +39506,3913 @@ SIMDJSON_UNTARGET_REGION
 #endif // SIMDJSON_SRC_WESTMERE_CPP
 /* end file westmere.cpp */
 #endif
+#if SIMDJSON_IMPLEMENTATION_FALLBACK
+/* including fallback.cpp: #include <fallback.cpp> */
+/* begin file fallback.cpp */
+#ifndef SIMDJSON_SRC_FALLBACK_CPP
+#define SIMDJSON_SRC_FALLBACK_CPP
 
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include <base.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+/* including simdjson/fallback.h: #include <simdjson/fallback.h> */
+/* begin file simdjson/fallback.h */
+#ifndef SIMDJSON_FALLBACK_H
+#define SIMDJSON_FALLBACK_H
+
+/* including simdjson/fallback/begin.h: #include "simdjson/fallback/begin.h" */
+/* begin file simdjson/fallback/begin.h */
+/* defining SIMDJSON_IMPLEMENTATION to "fallback" */
+#define SIMDJSON_IMPLEMENTATION fallback
+/* including simdjson/fallback/base.h: #include "simdjson/fallback/base.h" */
+/* begin file simdjson/fallback/base.h */
+#ifndef SIMDJSON_FALLBACK_BASE_H
+#define SIMDJSON_FALLBACK_BASE_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+/**
+ * Fallback implementation (runs on any machine).
+ */
+namespace fallback {
+
+class implementation;
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_BASE_H
+/* end file simdjson/fallback/base.h */
+/* including simdjson/fallback/bitmanipulation.h: #include "simdjson/fallback/bitmanipulation.h" */
+/* begin file simdjson/fallback/bitmanipulation.h */
+#ifndef SIMDJSON_FALLBACK_BITMANIPULATION_H
+#define SIMDJSON_FALLBACK_BITMANIPULATION_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+
+#if defined(_MSC_VER) && !defined(_M_ARM64) && !defined(_M_X64)
+static inline unsigned char _BitScanForward64(unsigned long* ret, uint64_t x) {
+  unsigned long x0 = (unsigned long)x, top, bottom;
+  _BitScanForward(&top, (unsigned long)(x >> 32));
+  _BitScanForward(&bottom, x0);
+  *ret = x0 ? bottom : 32 + top;
+  return x != 0;
+}
+static unsigned char _BitScanReverse64(unsigned long* ret, uint64_t x) {
+  unsigned long x1 = (unsigned long)(x >> 32), top, bottom;
+  _BitScanReverse(&top, x1);
+  _BitScanReverse(&bottom, (unsigned long)x);
+  *ret = x1 ? top + 32 : bottom;
+  return x != 0;
+}
+#endif
+
+/* result might be undefined when input_num is zero */
+simdjson_inline int leading_zeroes(uint64_t input_num) {
+#ifdef _MSC_VER
+  unsigned long leading_zero = 0;
+  // Search the mask data from most significant bit (MSB)
+  // to least significant bit (LSB) for a set bit (1).
+  if (_BitScanReverse64(&leading_zero, input_num))
+    return (int)(63 - leading_zero);
+  else
+    return 64;
+#else
+  return __builtin_clzll(input_num);
+#endif// _MSC_VER
+}
+
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_BITMANIPULATION_H
+/* end file simdjson/fallback/bitmanipulation.h */
+/* including simdjson/fallback/stringparsing_defs.h: #include "simdjson/fallback/stringparsing_defs.h" */
+/* begin file simdjson/fallback/stringparsing_defs.h */
+#ifndef SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+#define SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+
+// Holds backslashes and quotes locations.
+struct backslash_and_quote {
+public:
+  static constexpr uint32_t BYTES_PROCESSED = 1;
+  simdjson_inline static backslash_and_quote copy_and_find(const uint8_t *src, uint8_t *dst);
+
+  simdjson_inline bool has_quote_first() { return c == '"'; }
+  simdjson_inline bool has_backslash() { return c == '\\'; }
+  simdjson_inline int quote_index() { return c == '"' ? 0 : 1; }
+  simdjson_inline int backslash_index() { return c == '\\' ? 0 : 1; }
+
+  uint8_t c;
+}; // struct backslash_and_quote
+
+simdjson_inline backslash_and_quote backslash_and_quote::copy_and_find(const uint8_t *src, uint8_t *dst) {
+  // store to dest unconditionally - we can overwrite the bits we don't like later
+  dst[0] = src[0];
+  return { src[0] };
+}
+
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+/* end file simdjson/fallback/stringparsing_defs.h */
+/* including simdjson/fallback/numberparsing_defs.h: #include "simdjson/fallback/numberparsing_defs.h" */
+/* begin file simdjson/fallback/numberparsing_defs.h */
+#ifndef SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+#define SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <cstring>
+
+#ifdef JSON_TEST_NUMBERS // for unit testing
+void found_invalid_number(const uint8_t *buf);
+void found_integer(int64_t result, const uint8_t *buf);
+void found_unsigned_integer(uint64_t result, const uint8_t *buf);
+void found_float(double result, const uint8_t *buf);
+#endif
+
+namespace simdjson {
+namespace fallback {
+namespace numberparsing {
+
+// credit: https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
+/** @private */
+static simdjson_inline uint32_t parse_eight_digits_unrolled(const char *chars) {
+  uint64_t val;
+  memcpy(&val, chars, sizeof(uint64_t));
+  val = (val & 0x0F0F0F0F0F0F0F0F) * 2561 >> 8;
+  val = (val & 0x00FF00FF00FF00FF) * 6553601 >> 16;
+  return uint32_t((val & 0x0000FFFF0000FFFF) * 42949672960001 >> 32);
+}
+
+/** @private */
+static simdjson_inline uint32_t parse_eight_digits_unrolled(const uint8_t *chars) {
+  return parse_eight_digits_unrolled(reinterpret_cast<const char *>(chars));
+}
+
+#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
+// this is a slow emulation routine for 32-bit
+//
+static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
+  return x * (uint64_t)y;
+}
+static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
+  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
+  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
+  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
+  uint64_t adbc_carry = !!(adbc < ad);
+  uint64_t lo = bd + (adbc << 32);
+  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
+        (adbc_carry << 32) + !!(lo < bd);
+  return lo;
+}
+#endif
+
+/** @private */
+simdjson_inline internal::value128 full_multiplication(uint64_t value1, uint64_t value2) {
+  internal::value128 answer;
+#if SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
+#ifdef _M_ARM64
+  // ARM64 has native support for 64-bit multiplications, no need to emultate
+  answer.high = __umulh(value1, value2);
+  answer.low = value1 * value2;
+#else
+  answer.low = _umul128(value1, value2, &answer.high); // _umul128 not available on ARM64
+#endif // _M_ARM64
+#else // SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
+  __uint128_t r = (static_cast<__uint128_t>(value1)) * value2;
+  answer.low = uint64_t(r);
+  answer.high = uint64_t(r >> 64);
+#endif
+  return answer;
+}
+
+} // namespace numberparsing
+} // namespace fallback
+} // namespace simdjson
+
+#define SIMDJSON_SWAR_NUMBER_PARSING 1
+
+#endif // SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+/* end file simdjson/fallback/numberparsing_defs.h */
+/* end file simdjson/fallback/begin.h */
+/* including simdjson/generic/amalgamated.h for fallback: #include "simdjson/generic/amalgamated.h" */
+/* begin file simdjson/generic/amalgamated.h for fallback */
+#if defined(SIMDJSON_CONDITIONAL_INCLUDE) && !defined(SIMDJSON_GENERIC_DEPENDENCIES_H)
+#error simdjson/generic/dependencies.h must be included before simdjson/generic/amalgamated.h!
+#endif
+
+/* including simdjson/generic/base.h for fallback: #include "simdjson/generic/base.h" */
+/* begin file simdjson/generic/base.h for fallback */
+#ifndef SIMDJSON_GENERIC_BASE_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_BASE_H */
+/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
+/* amalgamation skipped (editor-only): // If we haven't got an implementation yet, we're in the editor, editing a generic file! Just */
+/* amalgamation skipped (editor-only): // use the most advanced one we can so the most possible stuff can be tested. */
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_IMPLEMENTATION */
+/* amalgamation skipped (editor-only): #include "simdjson/implementation_detection.h" */
+/* amalgamation skipped (editor-only): #if SIMDJSON_IMPLEMENTATION_ICELAKE */
+/* amalgamation skipped (editor-only): #include "simdjson/icelake/begin.h" */
+/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_HASWELL */
+/* amalgamation skipped (editor-only): #include "simdjson/haswell/begin.h" */
+/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_WESTMERE */
+/* amalgamation skipped (editor-only): #include "simdjson/westmere/begin.h" */
+/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_ARM64 */
+/* amalgamation skipped (editor-only): #include "simdjson/arm64/begin.h" */
+/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_PPC64 */
+/* amalgamation skipped (editor-only): #include "simdjson/ppc64/begin.h" */
+/* amalgamation skipped (editor-only): #elif SIMDJSON_IMPLEMENTATION_FALLBACK */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/begin.h" */
+/* amalgamation skipped (editor-only): #else */
+/* amalgamation skipped (editor-only): #error "All possible implementations (including fallback) have been disabled! simdjson will not run." */
+/* amalgamation skipped (editor-only): #endif */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_IMPLEMENTATION */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+
+struct open_container;
+class dom_parser_implementation;
+
+/**
+ * The type of a JSON number
+ */
+enum class number_type {
+    floating_point_number=1, /// a binary64 number
+    signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
+    unsigned_integer         /// a positive integer larger or equal to 1<<63
+};
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_BASE_H
+/* end file simdjson/generic/base.h for fallback */
+/* including simdjson/generic/jsoncharutils.h for fallback: #include "simdjson/generic/jsoncharutils.h" */
+/* begin file simdjson/generic/jsoncharutils.h for fallback */
+#ifndef SIMDJSON_GENERIC_JSONCHARUTILS_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_JSONCHARUTILS_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/jsoncharutils_tables.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace jsoncharutils {
+
+// return non-zero if not a structural or whitespace char
+// zero otherwise
+simdjson_inline uint32_t is_not_structural_or_whitespace(uint8_t c) {
+  return internal::structural_or_whitespace_negated[c];
+}
+
+simdjson_inline uint32_t is_structural_or_whitespace(uint8_t c) {
+  return internal::structural_or_whitespace[c];
+}
+
+// returns a value with the high 16 bits set if not valid
+// otherwise returns the conversion of the 4 hex digits at src into the bottom
+// 16 bits of the 32-bit return register
+//
+// see
+// https://lemire.me/blog/2019/04/17/parsing-short-hexadecimal-strings-efficiently/
+static inline uint32_t hex_to_u32_nocheck(
+    const uint8_t *src) { // strictly speaking, static inline is a C-ism
+  uint32_t v1 = internal::digit_to_val32[630 + src[0]];
+  uint32_t v2 = internal::digit_to_val32[420 + src[1]];
+  uint32_t v3 = internal::digit_to_val32[210 + src[2]];
+  uint32_t v4 = internal::digit_to_val32[0 + src[3]];
+  return v1 | v2 | v3 | v4;
+}
+
+// given a code point cp, writes to c
+// the utf-8 code, outputting the length in
+// bytes, if the length is zero, the code point
+// is invalid
+//
+// This can possibly be made faster using pdep
+// and clz and table lookups, but JSON documents
+// have few escaped code points, and the following
+// function looks cheap.
+//
+// Note: we assume that surrogates are treated separately
+//
+simdjson_inline size_t codepoint_to_utf8(uint32_t cp, uint8_t *c) {
+  if (cp <= 0x7F) {
+    c[0] = uint8_t(cp);
+    return 1; // ascii
+  }
+  if (cp <= 0x7FF) {
+    c[0] = uint8_t((cp >> 6) + 192);
+    c[1] = uint8_t((cp & 63) + 128);
+    return 2; // universal plane
+    //  Surrogates are treated elsewhere...
+    //} //else if (0xd800 <= cp && cp <= 0xdfff) {
+    //  return 0; // surrogates // could put assert here
+  } else if (cp <= 0xFFFF) {
+    c[0] = uint8_t((cp >> 12) + 224);
+    c[1] = uint8_t(((cp >> 6) & 63) + 128);
+    c[2] = uint8_t((cp & 63) + 128);
+    return 3;
+  } else if (cp <= 0x10FFFF) { // if you know you have a valid code point, this
+                               // is not needed
+    c[0] = uint8_t((cp >> 18) + 240);
+    c[1] = uint8_t(((cp >> 12) & 63) + 128);
+    c[2] = uint8_t(((cp >> 6) & 63) + 128);
+    c[3] = uint8_t((cp & 63) + 128);
+    return 4;
+  }
+  // will return 0 when the code point was too large.
+  return 0; // bad r
+}
+
+#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
+// this is a slow emulation routine for 32-bit
+//
+static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
+  return x * (uint64_t)y;
+}
+static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
+  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
+  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
+  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
+  uint64_t adbc_carry = !!(adbc < ad);
+  uint64_t lo = bd + (adbc << 32);
+  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
+        (adbc_carry << 32) + !!(lo < bd);
+  return lo;
+}
+#endif
+
+} // namespace jsoncharutils
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_JSONCHARUTILS_H
+/* end file simdjson/generic/jsoncharutils.h for fallback */
+/* including simdjson/generic/atomparsing.h for fallback: #include "simdjson/generic/atomparsing.h" */
+/* begin file simdjson/generic/atomparsing.h for fallback */
+#ifndef SIMDJSON_GENERIC_ATOMPARSING_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_ATOMPARSING_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/jsoncharutils.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <cstring>
+
+namespace simdjson {
+namespace fallback {
+namespace {
+/// @private
+namespace atomparsing {
+
+// The string_to_uint32 is exclusively used to map literal strings to 32-bit values.
+// We use memcpy instead of a pointer cast to avoid undefined behaviors since we cannot
+// be certain that the character pointer will be properly aligned.
+// You might think that using memcpy makes this function expensive, but you'd be wrong.
+// All decent optimizing compilers (GCC, clang, Visual Studio) will compile string_to_uint32("false");
+// to the compile-time constant 1936482662.
+simdjson_inline uint32_t string_to_uint32(const char* str) { uint32_t val; std::memcpy(&val, str, sizeof(uint32_t)); return val; }
+
+
+// Again in str4ncmp we use a memcpy to avoid undefined behavior. The memcpy may appear expensive.
+// Yet all decent optimizing compilers will compile memcpy to a single instruction, just about.
+simdjson_warn_unused
+simdjson_inline uint32_t str4ncmp(const uint8_t *src, const char* atom) {
+  uint32_t srcval; // we want to avoid unaligned 32-bit loads (undefined in C/C++)
+  static_assert(sizeof(uint32_t) <= SIMDJSON_PADDING, "SIMDJSON_PADDING must be larger than 4 bytes");
+  std::memcpy(&srcval, src, sizeof(uint32_t));
+  return srcval ^ string_to_uint32(atom);
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_true_atom(const uint8_t *src) {
+  return (str4ncmp(src, "true") | jsoncharutils::is_not_structural_or_whitespace(src[4])) == 0;
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_true_atom(const uint8_t *src, size_t len) {
+  if (len > 4) { return is_valid_true_atom(src); }
+  else if (len == 4) { return !str4ncmp(src, "true"); }
+  else { return false; }
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_false_atom(const uint8_t *src) {
+  return (str4ncmp(src+1, "alse") | jsoncharutils::is_not_structural_or_whitespace(src[5])) == 0;
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_false_atom(const uint8_t *src, size_t len) {
+  if (len > 5) { return is_valid_false_atom(src); }
+  else if (len == 5) { return !str4ncmp(src+1, "alse"); }
+  else { return false; }
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_null_atom(const uint8_t *src) {
+  return (str4ncmp(src, "null") | jsoncharutils::is_not_structural_or_whitespace(src[4])) == 0;
+}
+
+simdjson_warn_unused
+simdjson_inline bool is_valid_null_atom(const uint8_t *src, size_t len) {
+  if (len > 4) { return is_valid_null_atom(src); }
+  else if (len == 4) { return !str4ncmp(src, "null"); }
+  else { return false; }
+}
+
+} // namespace atomparsing
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_ATOMPARSING_H
+/* end file simdjson/generic/atomparsing.h for fallback */
+/* including simdjson/generic/dom_parser_implementation.h for fallback: #include "simdjson/generic/dom_parser_implementation.h" */
+/* begin file simdjson/generic/dom_parser_implementation.h for fallback */
+#ifndef SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/dom_parser_implementation.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+
+// expectation: sizeof(open_container) = 64/8.
+struct open_container {
+  uint32_t tape_index; // where, on the tape, does the scope ([,{) begins
+  uint32_t count; // how many elements in the scope
+}; // struct open_container
+
+static_assert(sizeof(open_container) == 64/8, "Open container must be 64 bits");
+
+class dom_parser_implementation final : public internal::dom_parser_implementation {
+public:
+  /** Tape location of each open { or [ */
+  std::unique_ptr<open_container[]> open_containers{};
+  /** Whether each open container is a [ or { */
+  std::unique_ptr<bool[]> is_array{};
+  /** Buffer passed to stage 1 */
+  const uint8_t *buf{};
+  /** Length passed to stage 1 */
+  size_t len{0};
+  /** Document passed to stage 2 */
+  dom::document *doc{};
+
+  inline dom_parser_implementation() noexcept;
+  inline dom_parser_implementation(dom_parser_implementation &&other) noexcept;
+  inline dom_parser_implementation &operator=(dom_parser_implementation &&other) noexcept;
+  dom_parser_implementation(const dom_parser_implementation &) = delete;
+  dom_parser_implementation &operator=(const dom_parser_implementation &) = delete;
+
+  simdjson_warn_unused error_code parse(const uint8_t *buf, size_t len, dom::document &doc) noexcept final;
+  simdjson_warn_unused error_code stage1(const uint8_t *buf, size_t len, stage1_mode partial) noexcept final;
+  simdjson_warn_unused error_code stage2(dom::document &doc) noexcept final;
+  simdjson_warn_unused error_code stage2_next(dom::document &doc) noexcept final;
+  simdjson_warn_unused uint8_t *parse_string(const uint8_t *src, uint8_t *dst, bool allow_replacement) const noexcept final;
+  simdjson_warn_unused uint8_t *parse_wobbly_string(const uint8_t *src, uint8_t *dst) const noexcept final;
+  inline simdjson_warn_unused error_code set_capacity(size_t capacity) noexcept final;
+  inline simdjson_warn_unused error_code set_max_depth(size_t max_depth) noexcept final;
+private:
+  simdjson_inline simdjson_warn_unused error_code set_capacity_stage1(size_t capacity);
+
+};
+
+} // namespace fallback
+} // namespace simdjson
+
+namespace simdjson {
+namespace fallback {
+
+inline dom_parser_implementation::dom_parser_implementation() noexcept = default;
+inline dom_parser_implementation::dom_parser_implementation(dom_parser_implementation &&other) noexcept = default;
+inline dom_parser_implementation &dom_parser_implementation::operator=(dom_parser_implementation &&other) noexcept = default;
+
+// Leaving these here so they can be inlined if so desired
+inline simdjson_warn_unused error_code dom_parser_implementation::set_capacity(size_t capacity) noexcept {
+  if(capacity > SIMDJSON_MAXSIZE_BYTES) { return CAPACITY; }
+  // Stage 1 index output
+  size_t max_structures = SIMDJSON_ROUNDUP_N(capacity, 64) + 2 + 7;
+  structural_indexes.reset( new (std::nothrow) uint32_t[max_structures] );
+  if (!structural_indexes) { _capacity = 0; return MEMALLOC; }
+  structural_indexes[0] = 0;
+  n_structural_indexes = 0;
+
+  _capacity = capacity;
+  return SUCCESS;
+}
+
+inline simdjson_warn_unused error_code dom_parser_implementation::set_max_depth(size_t max_depth) noexcept {
+  // Stage 2 stacks
+  open_containers.reset(new (std::nothrow) open_container[max_depth]);
+  is_array.reset(new (std::nothrow) bool[max_depth]);
+  if (!is_array || !open_containers) { _max_depth = 0; return MEMALLOC; }
+
+  _max_depth = max_depth;
+  return SUCCESS;
+}
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_DOM_PARSER_IMPLEMENTATION_H
+/* end file simdjson/generic/dom_parser_implementation.h for fallback */
+/* including simdjson/generic/implementation_simdjson_result_base.h for fallback: #include "simdjson/generic/implementation_simdjson_result_base.h" */
+/* begin file simdjson/generic/implementation_simdjson_result_base.h for fallback */
+#ifndef SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+
+// This is a near copy of include/error.h's implementation_simdjson_result_base, except it doesn't use std::pair
+// so we can avoid inlining errors
+// TODO reconcile these!
+/**
+ * The result of a simdjson operation that could fail.
+ *
+ * Gives the option of reading error codes, or throwing an exception by casting to the desired result.
+ *
+ * This is a base class for implementations that want to add functions to the result type for
+ * chaining.
+ *
+ * Override like:
+ *
+ *   struct simdjson_result<T> : public internal::implementation_simdjson_result_base<T> {
+ *     simdjson_result() noexcept : internal::implementation_simdjson_result_base<T>() {}
+ *     simdjson_result(error_code error) noexcept : internal::implementation_simdjson_result_base<T>(error) {}
+ *     simdjson_result(T &&value) noexcept : internal::implementation_simdjson_result_base<T>(std::forward(value)) {}
+ *     simdjson_result(T &&value, error_code error) noexcept : internal::implementation_simdjson_result_base<T>(value, error) {}
+ *     // Your extra methods here
+ *   }
+ *
+ * Then any method returning simdjson_result<T> will be chainable with your methods.
+ */
+template<typename T>
+struct implementation_simdjson_result_base {
+
+  /**
+   * Create a new empty result with error = UNINITIALIZED.
+   */
+  simdjson_inline implementation_simdjson_result_base() noexcept = default;
+
+  /**
+   * Create a new error result.
+   */
+  simdjson_inline implementation_simdjson_result_base(error_code error) noexcept;
+
+  /**
+   * Create a new successful result.
+   */
+  simdjson_inline implementation_simdjson_result_base(T &&value) noexcept;
+
+  /**
+   * Create a new result with both things (use if you don't want to branch when creating the result).
+   */
+  simdjson_inline implementation_simdjson_result_base(T &&value, error_code error) noexcept;
+
+  /**
+   * Move the value and the error to the provided variables.
+   *
+   * @param value The variable to assign the value to. May not be set if there is an error.
+   * @param error The variable to assign the error to. Set to SUCCESS if there is no error.
+   */
+  simdjson_inline void tie(T &value, error_code &error) && noexcept;
+
+  /**
+   * Move the value to the provided variable.
+   *
+   * @param value The variable to assign the value to. May not be set if there is an error.
+   */
+  simdjson_inline error_code get(T &value) && noexcept;
+
+  /**
+   * The error.
+   */
+  simdjson_inline error_code error() const noexcept;
+
+#if SIMDJSON_EXCEPTIONS
+
+  /**
+   * Get the result value.
+   *
+   * @throw simdjson_error if there was an error.
+   */
+  simdjson_inline T& value() & noexcept(false);
+
+  /**
+   * Take the result value (move it).
+   *
+   * @throw simdjson_error if there was an error.
+   */
+  simdjson_inline T&& value() && noexcept(false);
+
+  /**
+   * Take the result value (move it).
+   *
+   * @throw simdjson_error if there was an error.
+   */
+  simdjson_inline T&& take_value() && noexcept(false);
+
+  /**
+   * Cast to the value (will throw on error).
+   *
+   * @throw simdjson_error if there was an error.
+   */
+  simdjson_inline operator T&&() && noexcept(false);
+
+
+#endif // SIMDJSON_EXCEPTIONS
+
+  /**
+   * Get the result value. This function is safe if and only
+   * the error() method returns a value that evaluates to false.
+   */
+  simdjson_inline const T& value_unsafe() const& noexcept;
+  /**
+   * Get the result value. This function is safe if and only
+   * the error() method returns a value that evaluates to false.
+   */
+  simdjson_inline T& value_unsafe() & noexcept;
+  /**
+   * Take the result value (move it). This function is safe if and only
+   * the error() method returns a value that evaluates to false.
+   */
+  simdjson_inline T&& value_unsafe() && noexcept;
+protected:
+  /** users should never directly access first and second. **/
+  T first{}; /** Users should never directly access 'first'. **/
+  error_code second{UNINITIALIZED}; /** Users should never directly access 'second'. **/
+}; // struct implementation_simdjson_result_base
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_H
+/* end file simdjson/generic/implementation_simdjson_result_base.h for fallback */
+/* including simdjson/generic/numberparsing.h for fallback: #include "simdjson/generic/numberparsing.h" */
+/* begin file simdjson/generic/numberparsing.h for fallback */
+#ifndef SIMDJSON_GENERIC_NUMBERPARSING_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_NUMBERPARSING_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/jsoncharutils.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <limits>
+#include <ostream>
+#include <cstring>
+
+namespace simdjson {
+namespace fallback {
+namespace numberparsing {
+
+#ifdef JSON_TEST_NUMBERS
+#define INVALID_NUMBER(SRC) (found_invalid_number((SRC)), NUMBER_ERROR)
+#define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
+#define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
+#define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#else
+#define INVALID_NUMBER(SRC) (NUMBER_ERROR)
+#define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
+#define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
+#define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#endif
+
+namespace {
+
+// Convert a mantissa, an exponent and a sign bit into an ieee64 double.
+// The real_exponent needs to be in [0, 2046] (technically real_exponent = 2047 would be acceptable).
+// The mantissa should be in [0,1<<53). The bit at index (1ULL << 52) while be zeroed.
+simdjson_inline double to_double(uint64_t mantissa, uint64_t real_exponent, bool negative) {
+    double d;
+    mantissa &= ~(1ULL << 52);
+    mantissa |= real_exponent << 52;
+    mantissa |= ((static_cast<uint64_t>(negative)) << 63);
+    std::memcpy(&d, &mantissa, sizeof(d));
+    return d;
+}
+
+// Attempts to compute i * 10^(power) exactly; and if "negative" is
+// true, negate the result.
+// This function will only work in some cases, when it does not work, success is
+// set to false. This should work *most of the time* (like 99% of the time).
+// We assume that power is in the [smallest_power,
+// largest_power] interval: the caller is responsible for this check.
+simdjson_inline bool compute_float_64(int64_t power, uint64_t i, bool negative, double &d) {
+  // we start with a fast path
+  // It was described in
+  // Clinger WD. How to read floating point numbers accurately.
+  // ACM SIGPLAN Notices. 1990
+#ifndef FLT_EVAL_METHOD
+#error "FLT_EVAL_METHOD should be defined, please include cfloat."
+#endif
+#if (FLT_EVAL_METHOD != 1) && (FLT_EVAL_METHOD != 0)
+  // We cannot be certain that x/y is rounded to nearest.
+  if (0 <= power && power <= 22 && i <= 9007199254740991)
+#else
+  if (-22 <= power && power <= 22 && i <= 9007199254740991)
+#endif
+  {
+    // convert the integer into a double. This is lossless since
+    // 0 <= i <= 2^53 - 1.
+    d = double(i);
+    //
+    // The general idea is as follows.
+    // If 0 <= s < 2^53 and if 10^0 <= p <= 10^22 then
+    // 1) Both s and p can be represented exactly as 64-bit floating-point
+    // values
+    // (binary64).
+    // 2) Because s and p can be represented exactly as floating-point values,
+    // then s * p
+    // and s / p will produce correctly rounded values.
+    //
+    if (power < 0) {
+      d = d / simdjson::internal::power_of_ten[-power];
+    } else {
+      d = d * simdjson::internal::power_of_ten[power];
+    }
+    if (negative) {
+      d = -d;
+    }
+    return true;
+  }
+  // When 22 < power && power <  22 + 16, we could
+  // hope for another, secondary fast path.  It was
+  // described by David M. Gay in  "Correctly rounded
+  // binary-decimal and decimal-binary conversions." (1990)
+  // If you need to compute i * 10^(22 + x) for x < 16,
+  // first compute i * 10^x, if you know that result is exact
+  // (e.g., when i * 10^x < 2^53),
+  // then you can still proceed and do (i * 10^x) * 10^22.
+  // Is this worth your time?
+  // You need  22 < power *and* power <  22 + 16 *and* (i * 10^(x-22) < 2^53)
+  // for this second fast path to work.
+  // If you you have 22 < power *and* power <  22 + 16, and then you
+  // optimistically compute "i * 10^(x-22)", there is still a chance that you
+  // have wasted your time if i * 10^(x-22) >= 2^53. It makes the use cases of
+  // this optimization maybe less common than we would like. Source:
+  // http://www.exploringbinary.com/fast-path-decimal-to-floating-point-conversion/
+  // also used in RapidJSON: https://rapidjson.org/strtod_8h_source.html
+
+  // The fast path has now failed, so we are failing back on the slower path.
+
+  // In the slow path, we need to adjust i so that it is > 1<<63 which is always
+  // possible, except if i == 0, so we handle i == 0 separately.
+  if(i == 0) {
+    d = negative ? -0.0 : 0.0;
+    return true;
+  }
+
+
+  // The exponent is 1024 + 63 + power
+  //     + floor(log(5**power)/log(2)).
+  // The 1024 comes from the ieee64 standard.
+  // The 63 comes from the fact that we use a 64-bit word.
+  //
+  // Computing floor(log(5**power)/log(2)) could be
+  // slow. Instead we use a fast function.
+  //
+  // For power in (-400,350), we have that
+  // (((152170 + 65536) * power ) >> 16);
+  // is equal to
+  //  floor(log(5**power)/log(2)) + power when power >= 0
+  // and it is equal to
+  //  ceil(log(5**-power)/log(2)) + power when power < 0
+  //
+  // The 65536 is (1<<16) and corresponds to
+  // (65536 * power) >> 16 ---> power
+  //
+  // ((152170 * power ) >> 16) is equal to
+  // floor(log(5**power)/log(2))
+  //
+  // Note that this is not magic: 152170/(1<<16) is
+  // approximatively equal to log(5)/log(2).
+  // The 1<<16 value is a power of two; we could use a
+  // larger power of 2 if we wanted to.
+  //
+  int64_t exponent = (((152170 + 65536) * power) >> 16) + 1024 + 63;
+
+
+  // We want the most significant bit of i to be 1. Shift if needed.
+  int lz = leading_zeroes(i);
+  i <<= lz;
+
+
+  // We are going to need to do some 64-bit arithmetic to get a precise product.
+  // We use a table lookup approach.
+  // It is safe because
+  // power >= smallest_power
+  // and power <= largest_power
+  // We recover the mantissa of the power, it has a leading 1. It is always
+  // rounded down.
+  //
+  // We want the most significant 64 bits of the product. We know
+  // this will be non-zero because the most significant bit of i is
+  // 1.
+  const uint32_t index = 2 * uint32_t(power - simdjson::internal::smallest_power);
+  // Optimization: It may be that materializing the index as a variable might confuse some compilers and prevent effective complex-addressing loads. (Done for code clarity.)
+  //
+  // The full_multiplication function computes the 128-bit product of two 64-bit words
+  // with a returned value of type value128 with a "low component" corresponding to the
+  // 64-bit least significant bits of the product and with a "high component" corresponding
+  // to the 64-bit most significant bits of the product.
+  simdjson::internal::value128 firstproduct = full_multiplication(i, simdjson::internal::power_of_five_128[index]);
+  // Both i and power_of_five_128[index] have their most significant bit set to 1 which
+  // implies that the either the most or the second most significant bit of the product
+  // is 1. We pack values in this manner for efficiency reasons: it maximizes the use
+  // we make of the product. It also makes it easy to reason about the product: there
+  // is 0 or 1 leading zero in the product.
+
+  // Unless the least significant 9 bits of the high (64-bit) part of the full
+  // product are all 1s, then we know that the most significant 55 bits are
+  // exact and no further work is needed. Having 55 bits is necessary because
+  // we need 53 bits for the mantissa but we have to have one rounding bit and
+  // we can waste a bit if the most significant bit of the product is zero.
+  if((firstproduct.high & 0x1FF) == 0x1FF) {
+    // We want to compute i * 5^q, but only care about the top 55 bits at most.
+    // Consider the scenario where q>=0. Then 5^q may not fit in 64-bits. Doing
+    // the full computation is wasteful. So we do what is called a "truncated
+    // multiplication".
+    // We take the most significant 64-bits, and we put them in
+    // power_of_five_128[index]. Usually, that's good enough to approximate i * 5^q
+    // to the desired approximation using one multiplication. Sometimes it does not suffice.
+    // Then we store the next most significant 64 bits in power_of_five_128[index + 1], and
+    // then we get a better approximation to i * 5^q.
+    //
+    // That's for when q>=0. The logic for q<0 is somewhat similar but it is somewhat
+    // more complicated.
+    //
+    // There is an extra layer of complexity in that we need more than 55 bits of
+    // accuracy in the round-to-even scenario.
+    //
+    // The full_multiplication function computes the 128-bit product of two 64-bit words
+    // with a returned value of type value128 with a "low component" corresponding to the
+    // 64-bit least significant bits of the product and with a "high component" corresponding
+    // to the 64-bit most significant bits of the product.
+    simdjson::internal::value128 secondproduct = full_multiplication(i, simdjson::internal::power_of_five_128[index + 1]);
+    firstproduct.low += secondproduct.high;
+    if(secondproduct.high > firstproduct.low) { firstproduct.high++; }
+    // As it has been proven by Noble Mushtak and Daniel Lemire in "Fast Number Parsing Without
+    // Fallback" (https://arxiv.org/abs/2212.06644), at this point we are sure that the product
+    // is sufficiently accurate, and more computation is not needed.
+  }
+  uint64_t lower = firstproduct.low;
+  uint64_t upper = firstproduct.high;
+  // The final mantissa should be 53 bits with a leading 1.
+  // We shift it so that it occupies 54 bits with a leading 1.
+  ///////
+  uint64_t upperbit = upper >> 63;
+  uint64_t mantissa = upper >> (upperbit + 9);
+  lz += int(1 ^ upperbit);
+
+  // Here we have mantissa < (1<<54).
+  int64_t real_exponent = exponent - lz;
+  if (simdjson_unlikely(real_exponent <= 0)) { // we have a subnormal?
+    // Here have that real_exponent <= 0 so -real_exponent >= 0
+    if(-real_exponent + 1 >= 64) { // if we have more than 64 bits below the minimum exponent, you have a zero for sure.
+      d = negative ? -0.0 : 0.0;
+      return true;
+    }
+    // next line is safe because -real_exponent + 1 < 0
+    mantissa >>= -real_exponent + 1;
+    // Thankfully, we can't have both "round-to-even" and subnormals because
+    // "round-to-even" only occurs for powers close to 0.
+    mantissa += (mantissa & 1); // round up
+    mantissa >>= 1;
+    // There is a weird scenario where we don't have a subnormal but just.
+    // Suppose we start with 2.2250738585072013e-308, we end up
+    // with 0x3fffffffffffff x 2^-1023-53 which is technically subnormal
+    // whereas 0x40000000000000 x 2^-1023-53  is normal. Now, we need to round
+    // up 0x3fffffffffffff x 2^-1023-53  and once we do, we are no longer
+    // subnormal, but we can only know this after rounding.
+    // So we only declare a subnormal if we are smaller than the threshold.
+    real_exponent = (mantissa < (uint64_t(1) << 52)) ? 0 : 1;
+    d = to_double(mantissa, real_exponent, negative);
+    return true;
+  }
+  // We have to round to even. The "to even" part
+  // is only a problem when we are right in between two floats
+  // which we guard against.
+  // If we have lots of trailing zeros, we may fall right between two
+  // floating-point values.
+  //
+  // The round-to-even cases take the form of a number 2m+1 which is in (2^53,2^54]
+  // times a power of two. That is, it is right between a number with binary significand
+  // m and another number with binary significand m+1; and it must be the case
+  // that it cannot be represented by a float itself.
+  //
+  // We must have that w * 10 ^q == (2m+1) * 2^p for some power of two 2^p.
+  // Recall that 10^q = 5^q * 2^q.
+  // When q >= 0, we must have that (2m+1) is divible by 5^q, so 5^q <= 2^54. We have that
+  //  5^23 <=  2^54 and it is the last power of five to qualify, so q <= 23.
+  // When q<0, we have  w  >=  (2m+1) x 5^{-q}.  We must have that w<2^{64} so
+  // (2m+1) x 5^{-q} < 2^{64}. We have that 2m+1>2^{53}. Hence, we must have
+  // 2^{53} x 5^{-q} < 2^{64}.
+  // Hence we have 5^{-q} < 2^{11}$ or q>= -4.
+  //
+  // We require lower <= 1 and not lower == 0 because we could not prove that
+  // that lower == 0 is implied; but we could prove that lower <= 1 is a necessary and sufficient test.
+  if (simdjson_unlikely((lower <= 1) && (power >= -4) && (power <= 23) && ((mantissa & 3) == 1))) {
+    if((mantissa  << (upperbit + 64 - 53 - 2)) ==  upper) {
+      mantissa &= ~1;             // flip it so that we do not round up
+    }
+  }
+
+  mantissa += mantissa & 1;
+  mantissa >>= 1;
+
+  // Here we have mantissa < (1<<53), unless there was an overflow
+  if (mantissa >= (1ULL << 53)) {
+    //////////
+    // This will happen when parsing values such as 7.2057594037927933e+16
+    ////////
+    mantissa = (1ULL << 52);
+    real_exponent++;
+  }
+  mantissa &= ~(1ULL << 52);
+  // we have to check that real_exponent is in range, otherwise we bail out
+  if (simdjson_unlikely(real_exponent > 2046)) {
+    // We have an infinite value!!! We could actually throw an error here if we could.
+    return false;
+  }
+  d = to_double(mantissa, real_exponent, negative);
+  return true;
+}
+
+// We call a fallback floating-point parser that might be slow. Note
+// it will accept JSON numbers, but the JSON spec. is more restrictive so
+// before you call parse_float_fallback, you need to have validated the input
+// string with the JSON grammar.
+// It will return an error (false) if the parsed number is infinite.
+// The string parsing itself always succeeds. We know that there is at least
+// one digit.
+static bool parse_float_fallback(const uint8_t *ptr, double *outDouble) {
+  *outDouble = simdjson::internal::from_chars(reinterpret_cast<const char *>(ptr));
+  // We do not accept infinite values.
+
+  // Detecting finite values in a portable manner is ridiculously hard, ideally
+  // we would want to do:
+  // return !std::isfinite(*outDouble);
+  // but that mysteriously fails under legacy/old libc++ libraries, see
+  // https://github.com/simdjson/simdjson/issues/1286
+  //
+  // Therefore, fall back to this solution (the extra parens are there
+  // to handle that max may be a macro on windows).
+  return !(*outDouble > (std::numeric_limits<double>::max)() || *outDouble < std::numeric_limits<double>::lowest());
+}
+
+static bool parse_float_fallback(const uint8_t *ptr, const uint8_t *end_ptr, double *outDouble) {
+  *outDouble = simdjson::internal::from_chars(reinterpret_cast<const char *>(ptr), reinterpret_cast<const char *>(end_ptr));
+  // We do not accept infinite values.
+
+  // Detecting finite values in a portable manner is ridiculously hard, ideally
+  // we would want to do:
+  // return !std::isfinite(*outDouble);
+  // but that mysteriously fails under legacy/old libc++ libraries, see
+  // https://github.com/simdjson/simdjson/issues/1286
+  //
+  // Therefore, fall back to this solution (the extra parens are there
+  // to handle that max may be a macro on windows).
+  return !(*outDouble > (std::numeric_limits<double>::max)() || *outDouble < std::numeric_limits<double>::lowest());
+}
+
+// check quickly whether the next 8 chars are made of digits
+// at a glance, it looks better than Mula's
+// http://0x80.pl/articles/swar-digits-validate.html
+simdjson_inline bool is_made_of_eight_digits_fast(const uint8_t *chars) {
+  uint64_t val;
+  // this can read up to 7 bytes beyond the buffer size, but we require
+  // SIMDJSON_PADDING of padding
+  static_assert(7 <= SIMDJSON_PADDING, "SIMDJSON_PADDING must be bigger than 7");
+  std::memcpy(&val, chars, 8);
+  // a branchy method might be faster:
+  // return (( val & 0xF0F0F0F0F0F0F0F0 ) == 0x3030303030303030)
+  //  && (( (val + 0x0606060606060606) & 0xF0F0F0F0F0F0F0F0 ) ==
+  //  0x3030303030303030);
+  return (((val & 0xF0F0F0F0F0F0F0F0) |
+           (((val + 0x0606060606060606) & 0xF0F0F0F0F0F0F0F0) >> 4)) ==
+          0x3333333333333333);
+}
+
+template<typename I>
+SIMDJSON_NO_SANITIZE_UNDEFINED // We deliberately allow overflow here and check later
+simdjson_inline bool parse_digit(const uint8_t c, I &i) {
+  const uint8_t digit = static_cast<uint8_t>(c - '0');
+  if (digit > 9) {
+    return false;
+  }
+  // PERF NOTE: multiplication by 10 is cheaper than arbitrary integer multiplication
+  i = 10 * i + digit; // might overflow, we will handle the overflow later
+  return true;
+}
+
+simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
+  // we continue with the fiction that we have an integer. If the
+  // floating point number is representable as x * 10^z for some integer
+  // z that fits in 53 bits, then we will be able to convert back the
+  // the integer into a float in a lossless manner.
+  const uint8_t *const first_after_period = p;
+
+#ifdef SIMDJSON_SWAR_NUMBER_PARSING
+#if SIMDJSON_SWAR_NUMBER_PARSING
+  // this helps if we have lots of decimals!
+  // this turns out to be frequent enough.
+  if (is_made_of_eight_digits_fast(p)) {
+    i = i * 100000000 + parse_eight_digits_unrolled(p);
+    p += 8;
+  }
+#endif // SIMDJSON_SWAR_NUMBER_PARSING
+#endif // #ifdef SIMDJSON_SWAR_NUMBER_PARSING
+  // Unrolling the first digit makes a small difference on some implementations (e.g. westmere)
+  if (parse_digit(*p, i)) { ++p; }
+  while (parse_digit(*p, i)) { p++; }
+  exponent = first_after_period - p;
+  // Decimal without digits (123.) is illegal
+  if (exponent == 0) {
+    return INVALID_NUMBER(src);
+  }
+  return SUCCESS;
+}
+
+simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const src, const uint8_t *&p, int64_t &exponent) {
+  // Exp Sign: -123.456e[-]78
+  bool neg_exp = ('-' == *p);
+  if (neg_exp || '+' == *p) { p++; } // Skip + as well
+
+  // Exponent: -123.456e-[78]
+  auto start_exp = p;
+  int64_t exp_number = 0;
+  while (parse_digit(*p, exp_number)) { ++p; }
+  // It is possible for parse_digit to overflow.
+  // In particular, it could overflow to INT64_MIN, and we cannot do - INT64_MIN.
+  // Thus we *must* check for possible overflow before we negate exp_number.
+
+  // Performance notes: it may seem like combining the two "simdjson_unlikely checks" below into
+  // a single simdjson_unlikely path would be faster. The reasoning is sound, but the compiler may
+  // not oblige and may, in fact, generate two distinct paths in any case. It might be
+  // possible to do uint64_t(p - start_exp - 1) >= 18 but it could end up trading off
+  // instructions for a simdjson_likely branch, an unconclusive gain.
+
+  // If there were no digits, it's an error.
+  if (simdjson_unlikely(p == start_exp)) {
+    return INVALID_NUMBER(src);
+  }
+  // We have a valid positive exponent in exp_number at this point, except that
+  // it may have overflowed.
+
+  // If there were more than 18 digits, we may have overflowed the integer. We have to do
+  // something!!!!
+  if (simdjson_unlikely(p > start_exp+18)) {
+    // Skip leading zeroes: 1e000000000000000000001 is technically valid and does not overflow
+    while (*start_exp == '0') { start_exp++; }
+    // 19 digits could overflow int64_t and is kind of absurd anyway. We don't
+    // support exponents smaller than -999,999,999,999,999,999 and bigger
+    // than 999,999,999,999,999,999.
+    // We can truncate.
+    // Note that 999999999999999999 is assuredly too large. The maximal ieee64 value before
+    // infinity is ~1.8e308. The smallest subnormal is ~5e-324. So, actually, we could
+    // truncate at 324.
+    // Note that there is no reason to fail per se at this point in time.
+    // E.g., 0e999999999999999999999 is a fine number.
+    if (p > start_exp+18) { exp_number = 999999999999999999; }
+  }
+  // At this point, we know that exp_number is a sane, positive, signed integer.
+  // It is <= 999,999,999,999,999,999. As long as 'exponent' is in
+  // [-8223372036854775808, 8223372036854775808], we won't overflow. Because 'exponent'
+  // is bounded in magnitude by the size of the JSON input, we are fine in this universe.
+  // To sum it up: the next line should never overflow.
+  exponent += (neg_exp ? -exp_number : exp_number);
+  return SUCCESS;
+}
+
+simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
+  // It is possible that the integer had an overflow.
+  // We have to handle the case where we have 0.0000somenumber.
+  const uint8_t *start = start_digits;
+  while ((*start == '0') || (*start == '.')) { ++start; }
+  // we over-decrement by one when there is a '.'
+  return digit_count - size_t(start - start_digits);
+}
+
+} // unnamed namespace
+
+/** @private */
+static error_code slow_float_parsing(simdjson_unused const uint8_t * src, double* answer) {
+  if (parse_float_fallback(src, answer)) {
+    return SUCCESS;
+  }
+  return INVALID_NUMBER(src);
+}
+
+/** @private */
+template<typename W>
+simdjson_inline error_code write_float(const uint8_t *const src, bool negative, uint64_t i, const uint8_t * start_digits, size_t digit_count, int64_t exponent, W &writer) {
+  // If we frequently had to deal with long strings of digits,
+  // we could extend our code by using a 128-bit integer instead
+  // of a 64-bit integer. However, this is uncommon in practice.
+  //
+  // 9999999999999999999 < 2**64 so we can accommodate 19 digits.
+  // If we have a decimal separator, then digit_count - 1 is the number of digits, but we
+  // may not have a decimal separator!
+  if (simdjson_unlikely(digit_count > 19 && significant_digits(start_digits, digit_count) > 19)) {
+    // Ok, chances are good that we had an overflow!
+    // this is almost never going to get called!!!
+    // we start anew, going slowly!!!
+    // This will happen in the following examples:
+    // 10000000000000000000000000000000000000000000e+308
+    // 3.1415926535897932384626433832795028841971693993751
+    //
+    // NOTE: We do not pass a reference to the to slow_float_parsing. If we passed our writer
+    // reference to it, it would force it to be stored in memory, preventing the compiler from
+    // picking it apart and putting into registers. i.e. if we pass it as reference,
+    // it gets slow.
+    double d;
+    error_code error = slow_float_parsing(src, &d);
+    writer.append_double(d);
+    return error;
+  }
+  // NOTE: it's weird that the simdjson_unlikely() only wraps half the if, but it seems to get slower any other
+  // way we've tried: https://github.com/simdjson/simdjson/pull/990#discussion_r448497331
+  // To future reader: we'd love if someone found a better way, or at least could explain this result!
+  if (simdjson_unlikely(exponent < simdjson::internal::smallest_power) || (exponent > simdjson::internal::largest_power)) {
+    //
+    // Important: smallest_power is such that it leads to a zero value.
+    // Observe that 18446744073709551615e-343 == 0, i.e. (2**64 - 1) e -343 is zero
+    // so something x 10^-343 goes to zero, but not so with  something x 10^-342.
+    static_assert(simdjson::internal::smallest_power <= -342, "smallest_power is not small enough");
+    //
+    if((exponent < simdjson::internal::smallest_power) || (i == 0)) {
+      // E.g. Parse "-0.0e-999" into the same value as "-0.0". See https://en.wikipedia.org/wiki/Signed_zero
+      WRITE_DOUBLE(negative ? -0.0 : 0.0, src, writer);
+      return SUCCESS;
+    } else { // (exponent > largest_power) and (i != 0)
+      // We have, for sure, an infinite value and simdjson refuses to parse infinite values.
+      return INVALID_NUMBER(src);
+    }
+  }
+  double d;
+  if (!compute_float_64(exponent, i, negative, d)) {
+    // we are almost never going to get here.
+    if (!parse_float_fallback(src, &d)) { return INVALID_NUMBER(src); }
+  }
+  WRITE_DOUBLE(d, src, writer);
+  return SUCCESS;
+}
+
+// for performance analysis, it is sometimes  useful to skip parsing
+#ifdef SIMDJSON_SKIPNUMBERPARSING
+
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const, W &writer) {
+  writer.append_s64(0);        // always write zero
+  return SUCCESS;              // always succeeds
+}
+
+simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned_in_string(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer_in_string(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(const uint8_t * const src) noexcept { return 0; }
+simdjson_unused simdjson_inline bool is_negative(const uint8_t * src) noexcept  { return false; }
+simdjson_unused simdjson_inline simdjson_result<bool> is_integer(const uint8_t * src) noexcept  { return false; }
+simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(const uint8_t * src) noexcept { return number_type::signed_integer; }
+#else
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
+
+  //
+  // Check for minus sign
+  //
+  bool negative = (*src == '-');
+  const uint8_t *p = src + uint8_t(negative);
+
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while (parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  if (digit_count == 0 || ('0' == *start_digits && digit_count > 1)) { return INVALID_NUMBER(src); }
+
+  //
+  // Handle floats if there is a . or e (or both)
+  //
+  int64_t exponent = 0;
+  bool is_float = false;
+  if ('.' == *p) {
+    is_float = true;
+    ++p;
+    SIMDJSON_TRY( parse_decimal_after_separator(src, p, i, exponent) );
+    digit_count = int(p - start_digits); // used later to guard against overflows
+  }
+  if (('e' == *p) || ('E' == *p)) {
+    is_float = true;
+    ++p;
+    SIMDJSON_TRY( parse_exponent(src, p, exponent) );
+  }
+  if (is_float) {
+    const bool dirty_end = jsoncharutils::is_not_structural_or_whitespace(*p);
+    SIMDJSON_TRY( write_float(src, negative, i, start_digits, digit_count, exponent, writer) );
+    if (dirty_end) { return INVALID_NUMBER(src); }
+    return SUCCESS;
+  }
+
+  // The longest negative 64-bit number is 19 digits.
+  // The longest positive 64-bit number is 20 digits.
+  // We do it this way so we don't trigger this branch unless we must.
+  size_t longest_digit_count = negative ? 19 : 20;
+  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count == longest_digit_count) {
+    if (negative) {
+      // Anything negative above INT64_MAX+1 is invalid
+      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      WRITE_INTEGER(~i+1, src, writer);
+      if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
+      return SUCCESS;
+    // Positive overflow check:
+    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
+    //   biggest uint64_t.
+    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
+    //   If we got here, it's a 20 digit number starting with the digit "1".
+    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
+    //   than 1,553,255,926,290,448,384.
+    // - That is smaller than the smallest possible 20-digit number the user could write:
+    //   10,000,000,000,000,000,000.
+    // - Therefore, if the number is positive and lower than that, it's overflow.
+    // - The value we are looking at is less than or equal to INT64_MAX.
+    //
+    }  else if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INVALID_NUMBER(src); }
+  }
+
+  // Write unsigned if it does not fit in a signed integer.
+  if (i > uint64_t(INT64_MAX)) {
+    WRITE_UNSIGNED(i, src, writer);
+  } else {
+    WRITE_INTEGER(negative ? (~i+1) : i, src, writer);
+  }
+  if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
+  return SUCCESS;
+}
+
+// Inlineable functions
+namespace {
+
+// This table can be used to characterize the final character of an integer
+// string. For JSON structural character and allowable white space characters,
+// we return SUCCESS. For 'e', '.' and 'E', we return INCORRECT_TYPE. Otherwise
+// we return NUMBER_ERROR.
+// Optimization note: we could easily reduce the size of the table by half (to 128)
+// at the cost of an extra branch.
+// Optimization note: we want the values to use at most 8 bits (not, e.g., 32 bits):
+static_assert(error_code(uint8_t(NUMBER_ERROR))== NUMBER_ERROR, "bad NUMBER_ERROR cast");
+static_assert(error_code(uint8_t(SUCCESS))== SUCCESS, "bad NUMBER_ERROR cast");
+static_assert(error_code(uint8_t(INCORRECT_TYPE))== INCORRECT_TYPE, "bad NUMBER_ERROR cast");
+
+const uint8_t integer_string_finisher[256] = {
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, SUCCESS,
+    SUCCESS,      NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   SUCCESS,      NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, SUCCESS,
+    NUMBER_ERROR, INCORRECT_TYPE, NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, INCORRECT_TYPE,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, SUCCESS,        NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, INCORRECT_TYPE, NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, SUCCESS,      NUMBER_ERROR,
+    SUCCESS,      NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR, NUMBER_ERROR,   NUMBER_ERROR, NUMBER_ERROR, NUMBER_ERROR,
+    NUMBER_ERROR};
+
+// Parse any number from 0 to 18,446,744,073,709,551,615
+simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src) noexcept {
+  const uint8_t *p = src;
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while (parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  // The longest positive 64-bit number is 20 digits.
+  // We do it this way so we don't trigger this branch unless we must.
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > 20))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
+  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if (integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
+
+  if (digit_count == 20) {
+    // Positive overflow check:
+    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
+    //   biggest uint64_t.
+    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
+    //   If we got here, it's a 20 digit number starting with the digit "1".
+    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
+    //   than 1,553,255,926,290,448,384.
+    // - That is smaller than the smallest possible 20-digit number the user could write:
+    //   10,000,000,000,000,000,000.
+    // - Therefore, if the number is positive and lower than that, it's overflow.
+    // - The value we are looking at is less than or equal to INT64_MAX.
+    //
+    if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
+  }
+
+  return i;
+}
+
+
+// Parse any number from 0 to 18,446,744,073,709,551,615
+// Never read at src_end or beyond
+simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned(const uint8_t * const src, const uint8_t * const src_end) noexcept {
+  const uint8_t *p = src;
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while ((p != src_end) && parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  // The longest positive 64-bit number is 20 digits.
+  // We do it this way so we don't trigger this branch unless we must.
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > 20))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
+  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if ((p != src_end) && integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
+
+  if (digit_count == 20) {
+    // Positive overflow check:
+    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
+    //   biggest uint64_t.
+    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
+    //   If we got here, it's a 20 digit number starting with the digit "1".
+    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
+    //   than 1,553,255,926,290,448,384.
+    // - That is smaller than the smallest possible 20-digit number the user could write:
+    //   10,000,000,000,000,000,000.
+    // - Therefore, if the number is positive and lower than that, it's overflow.
+    // - The value we are looking at is less than or equal to INT64_MAX.
+    //
+    if (src[0] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
+  }
+
+  return i;
+}
+
+// Parse any number from 0 to 18,446,744,073,709,551,615
+simdjson_unused simdjson_inline simdjson_result<uint64_t> parse_unsigned_in_string(const uint8_t * const src) noexcept {
+  const uint8_t *p = src + 1;
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while (parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  // The longest positive 64-bit number is 20 digits.
+  // We do it this way so we don't trigger this branch unless we must.
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > 20))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > 20)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
+  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if (*p != '"') { return NUMBER_ERROR; }
+
+  if (digit_count == 20) {
+    // Positive overflow check:
+    // - A 20 digit number starting with 2-9 is overflow, because 18,446,744,073,709,551,615 is the
+    //   biggest uint64_t.
+    // - A 20 digit number starting with 1 is overflow if it is less than INT64_MAX.
+    //   If we got here, it's a 20 digit number starting with the digit "1".
+    // - If a 20 digit number starting with 1 overflowed (i*10+digit), the result will be smaller
+    //   than 1,553,255,926,290,448,384.
+    // - That is smaller than the smallest possible 20-digit number the user could write:
+    //   10,000,000,000,000,000,000.
+    // - Therefore, if the number is positive and lower than that, it's overflow.
+    // - The value we are looking at is less than or equal to INT64_MAX.
+    //
+    // Note: we use src[1] and not src[0] because src[0] is the quote character in this
+    // instance.
+    if (src[1] != uint8_t('1') || i <= uint64_t(INT64_MAX)) { return INCORRECT_TYPE; }
+  }
+
+  return i;
+}
+
+// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t *src) noexcept {
+  //
+  // Check for minus sign
+  //
+  bool negative = (*src == '-');
+  const uint8_t *p = src + uint8_t(negative);
+
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while (parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  // We go from
+  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+  // so we can never represent numbers that have more than 19 digits.
+  size_t longest_digit_count = 19;
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > longest_digit_count))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
+  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if(integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
+  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
+  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
+  // so cheap that we might as well always make it.
+  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
+  return negative ? (~i+1) : i;
+}
+
+// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+// Never read at src_end or beyond
+simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer(const uint8_t * const src, const uint8_t * const src_end) noexcept {
+  //
+  // Check for minus sign
+  //
+  if(src == src_end) { return NUMBER_ERROR; }
+  bool negative = (*src == '-');
+  const uint8_t *p = src + uint8_t(negative);
+
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = p;
+  uint64_t i = 0;
+  while ((p != src_end) && parse_digit(*p, i)) { p++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(p - start_digits);
+  // We go from
+  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+  // so we can never represent numbers that have more than 19 digits.
+  size_t longest_digit_count = 19;
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > longest_digit_count))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*p)) {
+  //  return (*p == '.' || *p == 'e' || *p == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if((p != src_end) && integer_string_finisher[*p] != SUCCESS) { return error_code(integer_string_finisher[*p]); }
+  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
+  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
+  // so cheap that we might as well always make it.
+  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
+  return negative ? (~i+1) : i;
+}
+
+// Parse any number from  -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+simdjson_unused simdjson_inline simdjson_result<int64_t> parse_integer_in_string(const uint8_t *src) noexcept {
+  //
+  // Check for minus sign
+  //
+  bool negative = (*(src + 1) == '-');
+  src += uint8_t(negative) + 1;
+
+  //
+  // Parse the integer part.
+  //
+  // PERF NOTE: we don't use is_made_of_eight_digits_fast because large integers like 123456789 are rare
+  const uint8_t *const start_digits = src;
+  uint64_t i = 0;
+  while (parse_digit(*src, i)) { src++; }
+
+  // If there were no digits, or if the integer starts with 0 and has more than one digit, it's an error.
+  // Optimization note: size_t is expected to be unsigned.
+  size_t digit_count = size_t(src - start_digits);
+  // We go from
+  // -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807
+  // so we can never represent numbers that have more than 19 digits.
+  size_t longest_digit_count = 19;
+  // Optimization note: the compiler can probably merge
+  // ((digit_count == 0) || (digit_count > longest_digit_count))
+  // into a single  branch since digit_count is unsigned.
+  if ((digit_count == 0) || (digit_count > longest_digit_count)) { return INCORRECT_TYPE; }
+  // Here digit_count > 0.
+  if (('0' == *start_digits) && (digit_count > 1)) { return NUMBER_ERROR; }
+  // We can do the following...
+  // if (!jsoncharutils::is_structural_or_whitespace(*src)) {
+  //  return (*src == '.' || *src == 'e' || *src == 'E') ? INCORRECT_TYPE : NUMBER_ERROR;
+  // }
+  // as a single table lookup:
+  if(*src != '"') { return NUMBER_ERROR; }
+  // Negative numbers have can go down to - INT64_MAX - 1 whereas positive numbers are limited to INT64_MAX.
+  // Performance note: This check is only needed when digit_count == longest_digit_count but it is
+  // so cheap that we might as well always make it.
+  if(i > uint64_t(INT64_MAX) + uint64_t(negative)) { return INCORRECT_TYPE; }
+  return negative ? (~i+1) : i;
+}
+
+simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * src) noexcept {
+  //
+  // Check for minus sign
+  //
+  bool negative = (*src == '-');
+  src += uint8_t(negative);
+
+  //
+  // Parse the integer part.
+  //
+  uint64_t i = 0;
+  const uint8_t *p = src;
+  p += parse_digit(*p, i);
+  bool leading_zero = (i == 0);
+  while (parse_digit(*p, i)) { p++; }
+  // no integer digits, or 0123 (zero must be solo)
+  if ( p == src ) { return INCORRECT_TYPE; }
+  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
+
+  //
+  // Parse the decimal part.
+  //
+  int64_t exponent = 0;
+  bool overflow;
+  if (simdjson_likely(*p == '.')) {
+    p++;
+    const uint8_t *start_decimal_digits = p;
+    if (!parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
+    p++;
+    while (parse_digit(*p, i)) { p++; }
+    exponent = -(p - start_decimal_digits);
+
+    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
+    overflow = p-src-1 > 19;
+    if (simdjson_unlikely(overflow && leading_zero)) {
+      // Skip leading 0.00000 and see if it still overflows
+      const uint8_t *start_digits = src + 2;
+      while (*start_digits == '0') { start_digits++; }
+      overflow = p-start_digits > 19;
+    }
+  } else {
+    overflow = p-src > 19;
+  }
+
+  //
+  // Parse the exponent
+  //
+  if (*p == 'e' || *p == 'E') {
+    p++;
+    bool exp_neg = *p == '-';
+    p += exp_neg || *p == '+';
+
+    uint64_t exp = 0;
+    const uint8_t *start_exp_digits = p;
+    while (parse_digit(*p, exp)) { p++; }
+    // no exp digits, or 20+ exp digits
+    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
+
+    exponent += exp_neg ? 0-exp : exp;
+  }
+
+  if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
+
+  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
+
+  //
+  // Assemble (or slow-parse) the float
+  //
+  double d;
+  if (simdjson_likely(!overflow)) {
+    if (compute_float_64(exponent, i, negative, d)) { return d; }
+  }
+  if (!parse_float_fallback(src - uint8_t(negative), &d)) {
+    return NUMBER_ERROR;
+  }
+  return d;
+}
+
+simdjson_unused simdjson_inline bool is_negative(const uint8_t * src) noexcept {
+  return (*src == '-');
+}
+
+simdjson_unused simdjson_inline simdjson_result<bool> is_integer(const uint8_t * src) noexcept {
+  bool negative = (*src == '-');
+  src += uint8_t(negative);
+  const uint8_t *p = src;
+  while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  if ( p == src ) { return NUMBER_ERROR; }
+  if (jsoncharutils::is_structural_or_whitespace(*p)) { return true; }
+  return false;
+}
+
+simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(const uint8_t * src) noexcept {
+  bool negative = (*src == '-');
+  src += uint8_t(negative);
+  const uint8_t *p = src;
+  while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  if ( p == src ) { return NUMBER_ERROR; }
+  if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    // We have an integer.
+    // If the number is negative and valid, it must be a signed integer.
+    if(negative) { return number_type::signed_integer; }
+    // We want values larger or equal to 9223372036854775808 to be unsigned
+    // integers, and the other values to be signed integers.
+    int digit_count = int(p - src);
+    if(digit_count >= 19) {
+      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
+      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
+        return number_type::unsigned_integer;
+      }
+    }
+    return number_type::signed_integer;
+  }
+  // Hopefully, we have 'e' or 'E' or '.'.
+  return number_type::floating_point_number;
+}
+
+// Never read at src_end or beyond
+simdjson_unused simdjson_inline simdjson_result<double> parse_double(const uint8_t * src, const uint8_t * const src_end) noexcept {
+  if(src == src_end) { return NUMBER_ERROR; }
+  //
+  // Check for minus sign
+  //
+  bool negative = (*src == '-');
+  src += uint8_t(negative);
+
+  //
+  // Parse the integer part.
+  //
+  uint64_t i = 0;
+  const uint8_t *p = src;
+  if(p == src_end) { return NUMBER_ERROR; }
+  p += parse_digit(*p, i);
+  bool leading_zero = (i == 0);
+  while ((p != src_end) && parse_digit(*p, i)) { p++; }
+  // no integer digits, or 0123 (zero must be solo)
+  if ( p == src ) { return INCORRECT_TYPE; }
+  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
+
+  //
+  // Parse the decimal part.
+  //
+  int64_t exponent = 0;
+  bool overflow;
+  if (simdjson_likely((p != src_end) && (*p == '.'))) {
+    p++;
+    const uint8_t *start_decimal_digits = p;
+    if ((p == src_end) || !parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
+    p++;
+    while ((p != src_end) && parse_digit(*p, i)) { p++; }
+    exponent = -(p - start_decimal_digits);
+
+    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
+    overflow = p-src-1 > 19;
+    if (simdjson_unlikely(overflow && leading_zero)) {
+      // Skip leading 0.00000 and see if it still overflows
+      const uint8_t *start_digits = src + 2;
+      while (*start_digits == '0') { start_digits++; }
+      overflow = start_digits-src > 19;
+    }
+  } else {
+    overflow = p-src > 19;
+  }
+
+  //
+  // Parse the exponent
+  //
+  if ((p != src_end) && (*p == 'e' || *p == 'E')) {
+    p++;
+    if(p == src_end) { return NUMBER_ERROR; }
+    bool exp_neg = *p == '-';
+    p += exp_neg || *p == '+';
+
+    uint64_t exp = 0;
+    const uint8_t *start_exp_digits = p;
+    while ((p != src_end) && parse_digit(*p, exp)) { p++; }
+    // no exp digits, or 20+ exp digits
+    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
+
+    exponent += exp_neg ? 0-exp : exp;
+  }
+
+  if ((p != src_end) && jsoncharutils::is_not_structural_or_whitespace(*p)) { return NUMBER_ERROR; }
+
+  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
+
+  //
+  // Assemble (or slow-parse) the float
+  //
+  double d;
+  if (simdjson_likely(!overflow)) {
+    if (compute_float_64(exponent, i, negative, d)) { return d; }
+  }
+  if (!parse_float_fallback(src - uint8_t(negative), src_end, &d)) {
+    return NUMBER_ERROR;
+  }
+  return d;
+}
+
+simdjson_unused simdjson_inline simdjson_result<double> parse_double_in_string(const uint8_t * src) noexcept {
+  //
+  // Check for minus sign
+  //
+  bool negative = (*(src + 1) == '-');
+  src += uint8_t(negative) + 1;
+
+  //
+  // Parse the integer part.
+  //
+  uint64_t i = 0;
+  const uint8_t *p = src;
+  p += parse_digit(*p, i);
+  bool leading_zero = (i == 0);
+  while (parse_digit(*p, i)) { p++; }
+  // no integer digits, or 0123 (zero must be solo)
+  if ( p == src ) { return INCORRECT_TYPE; }
+  if ( (leading_zero && p != src+1)) { return NUMBER_ERROR; }
+
+  //
+  // Parse the decimal part.
+  //
+  int64_t exponent = 0;
+  bool overflow;
+  if (simdjson_likely(*p == '.')) {
+    p++;
+    const uint8_t *start_decimal_digits = p;
+    if (!parse_digit(*p, i)) { return NUMBER_ERROR; } // no decimal digits
+    p++;
+    while (parse_digit(*p, i)) { p++; }
+    exponent = -(p - start_decimal_digits);
+
+    // Overflow check. More than 19 digits (minus the decimal) may be overflow.
+    overflow = p-src-1 > 19;
+    if (simdjson_unlikely(overflow && leading_zero)) {
+      // Skip leading 0.00000 and see if it still overflows
+      const uint8_t *start_digits = src + 2;
+      while (*start_digits == '0') { start_digits++; }
+      overflow = p-start_digits > 19;
+    }
+  } else {
+    overflow = p-src > 19;
+  }
+
+  //
+  // Parse the exponent
+  //
+  if (*p == 'e' || *p == 'E') {
+    p++;
+    bool exp_neg = *p == '-';
+    p += exp_neg || *p == '+';
+
+    uint64_t exp = 0;
+    const uint8_t *start_exp_digits = p;
+    while (parse_digit(*p, exp)) { p++; }
+    // no exp digits, or 20+ exp digits
+    if (p-start_exp_digits == 0 || p-start_exp_digits > 19) { return NUMBER_ERROR; }
+
+    exponent += exp_neg ? 0-exp : exp;
+  }
+
+  if (*p != '"') { return NUMBER_ERROR; }
+
+  overflow = overflow || exponent < simdjson::internal::smallest_power || exponent > simdjson::internal::largest_power;
+
+  //
+  // Assemble (or slow-parse) the float
+  //
+  double d;
+  if (simdjson_likely(!overflow)) {
+    if (compute_float_64(exponent, i, negative, d)) { return d; }
+  }
+  if (!parse_float_fallback(src - uint8_t(negative), &d)) {
+    return NUMBER_ERROR;
+  }
+  return d;
+}
+
+} // unnamed namespace
+#endif // SIMDJSON_SKIPNUMBERPARSING
+
+} // namespace numberparsing
+
+inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
+    switch (type) {
+        case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
+        case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
+        case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        default: SIMDJSON_UNREACHABLE();
+    }
+    return out;
+}
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_NUMBERPARSING_H
+/* end file simdjson/generic/numberparsing.h for fallback */
+
+/* including simdjson/generic/implementation_simdjson_result_base-inl.h for fallback: #include "simdjson/generic/implementation_simdjson_result_base-inl.h" */
+/* begin file simdjson/generic/implementation_simdjson_result_base-inl.h for fallback */
+#ifndef SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/generic/implementation_simdjson_result_base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+
+//
+// internal::implementation_simdjson_result_base<T> inline implementation
+//
+
+template<typename T>
+simdjson_inline void implementation_simdjson_result_base<T>::tie(T &value, error_code &error) && noexcept {
+  error = this->second;
+  if (!error) {
+    value = std::forward<implementation_simdjson_result_base<T>>(*this).first;
+  }
+}
+
+template<typename T>
+simdjson_warn_unused simdjson_inline error_code implementation_simdjson_result_base<T>::get(T &value) && noexcept {
+  error_code error;
+  std::forward<implementation_simdjson_result_base<T>>(*this).tie(value, error);
+  return error;
+}
+
+template<typename T>
+simdjson_inline error_code implementation_simdjson_result_base<T>::error() const noexcept {
+  return this->second;
+}
+
+#if SIMDJSON_EXCEPTIONS
+
+template<typename T>
+simdjson_inline T& implementation_simdjson_result_base<T>::value() & noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return this->first;
+}
+
+template<typename T>
+simdjson_inline T&& implementation_simdjson_result_base<T>::value() && noexcept(false) {
+  return std::forward<implementation_simdjson_result_base<T>>(*this).take_value();
+}
+
+template<typename T>
+simdjson_inline T&& implementation_simdjson_result_base<T>::take_value() && noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return std::forward<T>(this->first);
+}
+
+template<typename T>
+simdjson_inline implementation_simdjson_result_base<T>::operator T&&() && noexcept(false) {
+  return std::forward<implementation_simdjson_result_base<T>>(*this).take_value();
+}
+
+#endif // SIMDJSON_EXCEPTIONS
+
+template<typename T>
+simdjson_inline const T& implementation_simdjson_result_base<T>::value_unsafe() const& noexcept {
+  return this->first;
+}
+
+template<typename T>
+simdjson_inline T& implementation_simdjson_result_base<T>::value_unsafe() & noexcept {
+  return this->first;
+}
+
+template<typename T>
+simdjson_inline T&& implementation_simdjson_result_base<T>::value_unsafe() && noexcept {
+  return std::forward<T>(this->first);
+}
+
+template<typename T>
+simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(T &&value, error_code error) noexcept
+    : first{std::forward<T>(value)}, second{error} {}
+template<typename T>
+simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(error_code error) noexcept
+    : implementation_simdjson_result_base(T{}, error) {}
+template<typename T>
+simdjson_inline implementation_simdjson_result_base<T>::implementation_simdjson_result_base(T &&value) noexcept
+    : implementation_simdjson_result_base(std::forward<T>(value), SUCCESS) {}
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_GENERIC_IMPLEMENTATION_SIMDJSON_RESULT_BASE_INL_H
+/* end file simdjson/generic/implementation_simdjson_result_base-inl.h for fallback */
+/* end file simdjson/generic/amalgamated.h for fallback */
+/* including simdjson/fallback/end.h: #include "simdjson/fallback/end.h" */
+/* begin file simdjson/fallback/end.h */
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+/* undefining SIMDJSON_IMPLEMENTATION from "fallback" */
+#undef SIMDJSON_IMPLEMENTATION
+/* end file simdjson/fallback/end.h */
+
+#endif // SIMDJSON_FALLBACK_H
+/* end file simdjson/fallback.h */
+/* including simdjson/fallback/implementation.h: #include <simdjson/fallback/implementation.h> */
+/* begin file simdjson/fallback/implementation.h */
+#ifndef SIMDJSON_FALLBACK_IMPLEMENTATION_H
+#define SIMDJSON_FALLBACK_IMPLEMENTATION_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/implementation.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+
+/**
+ * @private
+ */
+class implementation final : public simdjson::implementation {
+public:
+  simdjson_inline implementation() : simdjson::implementation(
+      "fallback",
+      "Generic fallback implementation",
+      0
+  ) {}
+  simdjson_warn_unused error_code create_dom_parser_implementation(
+    size_t capacity,
+    size_t max_length,
+    std::unique_ptr<simdjson::internal::dom_parser_implementation>& dst
+  ) const noexcept final;
+  simdjson_warn_unused error_code minify(const uint8_t *buf, size_t len, uint8_t *dst, size_t &dst_len) const noexcept final;
+  simdjson_warn_unused bool validate_utf8(const char *buf, size_t len) const noexcept final;
+};
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_IMPLEMENTATION_H
+/* end file simdjson/fallback/implementation.h */
+
+/* including simdjson/fallback/begin.h: #include <simdjson/fallback/begin.h> */
+/* begin file simdjson/fallback/begin.h */
+/* defining SIMDJSON_IMPLEMENTATION to "fallback" */
+#define SIMDJSON_IMPLEMENTATION fallback
+/* including simdjson/fallback/base.h: #include "simdjson/fallback/base.h" */
+/* begin file simdjson/fallback/base.h */
+#ifndef SIMDJSON_FALLBACK_BASE_H
+#define SIMDJSON_FALLBACK_BASE_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+/**
+ * Fallback implementation (runs on any machine).
+ */
+namespace fallback {
+
+class implementation;
+
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_BASE_H
+/* end file simdjson/fallback/base.h */
+/* including simdjson/fallback/bitmanipulation.h: #include "simdjson/fallback/bitmanipulation.h" */
+/* begin file simdjson/fallback/bitmanipulation.h */
+#ifndef SIMDJSON_FALLBACK_BITMANIPULATION_H
+#define SIMDJSON_FALLBACK_BITMANIPULATION_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+
+#if defined(_MSC_VER) && !defined(_M_ARM64) && !defined(_M_X64)
+static inline unsigned char _BitScanForward64(unsigned long* ret, uint64_t x) {
+  unsigned long x0 = (unsigned long)x, top, bottom;
+  _BitScanForward(&top, (unsigned long)(x >> 32));
+  _BitScanForward(&bottom, x0);
+  *ret = x0 ? bottom : 32 + top;
+  return x != 0;
+}
+static unsigned char _BitScanReverse64(unsigned long* ret, uint64_t x) {
+  unsigned long x1 = (unsigned long)(x >> 32), top, bottom;
+  _BitScanReverse(&top, x1);
+  _BitScanReverse(&bottom, (unsigned long)x);
+  *ret = x1 ? top + 32 : bottom;
+  return x != 0;
+}
+#endif
+
+/* result might be undefined when input_num is zero */
+simdjson_inline int leading_zeroes(uint64_t input_num) {
+#ifdef _MSC_VER
+  unsigned long leading_zero = 0;
+  // Search the mask data from most significant bit (MSB)
+  // to least significant bit (LSB) for a set bit (1).
+  if (_BitScanReverse64(&leading_zero, input_num))
+    return (int)(63 - leading_zero);
+  else
+    return 64;
+#else
+  return __builtin_clzll(input_num);
+#endif// _MSC_VER
+}
+
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_BITMANIPULATION_H
+/* end file simdjson/fallback/bitmanipulation.h */
+/* including simdjson/fallback/stringparsing_defs.h: #include "simdjson/fallback/stringparsing_defs.h" */
+/* begin file simdjson/fallback/stringparsing_defs.h */
+#ifndef SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+#define SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+
+// Holds backslashes and quotes locations.
+struct backslash_and_quote {
+public:
+  static constexpr uint32_t BYTES_PROCESSED = 1;
+  simdjson_inline static backslash_and_quote copy_and_find(const uint8_t *src, uint8_t *dst);
+
+  simdjson_inline bool has_quote_first() { return c == '"'; }
+  simdjson_inline bool has_backslash() { return c == '\\'; }
+  simdjson_inline int quote_index() { return c == '"' ? 0 : 1; }
+  simdjson_inline int backslash_index() { return c == '\\' ? 0 : 1; }
+
+  uint8_t c;
+}; // struct backslash_and_quote
+
+simdjson_inline backslash_and_quote backslash_and_quote::copy_and_find(const uint8_t *src, uint8_t *dst) {
+  // store to dest unconditionally - we can overwrite the bits we don't like later
+  dst[0] = src[0];
+  return { src[0] };
+}
+
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_FALLBACK_STRINGPARSING_DEFS_H
+/* end file simdjson/fallback/stringparsing_defs.h */
+/* including simdjson/fallback/numberparsing_defs.h: #include "simdjson/fallback/numberparsing_defs.h" */
+/* begin file simdjson/fallback/numberparsing_defs.h */
+#ifndef SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+#define SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #include "simdjson/internal/numberparsing_tables.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <cstring>
+
+#ifdef JSON_TEST_NUMBERS // for unit testing
+void found_invalid_number(const uint8_t *buf);
+void found_integer(int64_t result, const uint8_t *buf);
+void found_unsigned_integer(uint64_t result, const uint8_t *buf);
+void found_float(double result, const uint8_t *buf);
+#endif
+
+namespace simdjson {
+namespace fallback {
+namespace numberparsing {
+
+// credit: https://johnnylee-sde.github.io/Fast-numeric-string-to-int/
+/** @private */
+static simdjson_inline uint32_t parse_eight_digits_unrolled(const char *chars) {
+  uint64_t val;
+  memcpy(&val, chars, sizeof(uint64_t));
+  val = (val & 0x0F0F0F0F0F0F0F0F) * 2561 >> 8;
+  val = (val & 0x00FF00FF00FF00FF) * 6553601 >> 16;
+  return uint32_t((val & 0x0000FFFF0000FFFF) * 42949672960001 >> 32);
+}
+
+/** @private */
+static simdjson_inline uint32_t parse_eight_digits_unrolled(const uint8_t *chars) {
+  return parse_eight_digits_unrolled(reinterpret_cast<const char *>(chars));
+}
+
+#if SIMDJSON_IS_32BITS // _umul128 for x86, arm
+// this is a slow emulation routine for 32-bit
+//
+static simdjson_inline uint64_t __emulu(uint32_t x, uint32_t y) {
+  return x * (uint64_t)y;
+}
+static simdjson_inline uint64_t _umul128(uint64_t ab, uint64_t cd, uint64_t *hi) {
+  uint64_t ad = __emulu((uint32_t)(ab >> 32), (uint32_t)cd);
+  uint64_t bd = __emulu((uint32_t)ab, (uint32_t)cd);
+  uint64_t adbc = ad + __emulu((uint32_t)ab, (uint32_t)(cd >> 32));
+  uint64_t adbc_carry = !!(adbc < ad);
+  uint64_t lo = bd + (adbc << 32);
+  *hi = __emulu((uint32_t)(ab >> 32), (uint32_t)(cd >> 32)) + (adbc >> 32) +
+        (adbc_carry << 32) + !!(lo < bd);
+  return lo;
+}
+#endif
+
+/** @private */
+simdjson_inline internal::value128 full_multiplication(uint64_t value1, uint64_t value2) {
+  internal::value128 answer;
+#if SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
+#ifdef _M_ARM64
+  // ARM64 has native support for 64-bit multiplications, no need to emultate
+  answer.high = __umulh(value1, value2);
+  answer.low = value1 * value2;
+#else
+  answer.low = _umul128(value1, value2, &answer.high); // _umul128 not available on ARM64
+#endif // _M_ARM64
+#else // SIMDJSON_REGULAR_VISUAL_STUDIO || SIMDJSON_IS_32BITS
+  __uint128_t r = (static_cast<__uint128_t>(value1)) * value2;
+  answer.low = uint64_t(r);
+  answer.high = uint64_t(r >> 64);
+#endif
+  return answer;
+}
+
+} // namespace numberparsing
+} // namespace fallback
+} // namespace simdjson
+
+#define SIMDJSON_SWAR_NUMBER_PARSING 1
+
+#endif // SIMDJSON_FALLBACK_NUMBERPARSING_DEFS_H
+/* end file simdjson/fallback/numberparsing_defs.h */
+/* end file simdjson/fallback/begin.h */
+/* including generic/stage1/find_next_document_index.h for fallback: #include <generic/stage1/find_next_document_index.h> */
+/* begin file generic/stage1/find_next_document_index.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H */
+/* amalgamation skipped (editor-only): #include <generic/stage1/base.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace stage1 {
+
+/**
+  * This algorithm is used to quickly identify the last structural position that
+  * makes up a complete document.
+  *
+  * It does this by going backwards and finding the last *document boundary* (a
+  * place where one value follows another without a comma between them). If the
+  * last document (the characters after the boundary) has an equal number of
+  * start and end brackets, it is considered complete.
+  *
+  * Simply put, we iterate over the structural characters, starting from
+  * the end. We consider that we found the end of a JSON document when the
+  * first element of the pair is NOT one of these characters: '{' '[' ':' ','
+  * and when the second element is NOT one of these characters: '}' ']' ':' ','.
+  *
+  * This simple comparison works most of the time, but it does not cover cases
+  * where the batch's structural indexes contain a perfect amount of documents.
+  * In such a case, we do not have access to the structural index which follows
+  * the last document, therefore, we do not have access to the second element in
+  * the pair, and that means we cannot identify the last document. To fix this
+  * issue, we keep a count of the open and closed curly/square braces we found
+  * while searching for the pair. When we find a pair AND the count of open and
+  * closed curly/square braces is the same, we know that we just passed a
+  * complete document, therefore the last json buffer location is the end of the
+  * batch.
+  */
+simdjson_inline uint32_t find_next_document_index(dom_parser_implementation &parser) {
+  // Variant: do not count separately, just figure out depth
+  if(parser.n_structural_indexes == 0) { return 0; }
+  auto arr_cnt = 0;
+  auto obj_cnt = 0;
+  for (auto i = parser.n_structural_indexes - 1; i > 0; i--) {
+    auto idxb = parser.structural_indexes[i];
+    switch (parser.buf[idxb]) {
+    case ':':
+    case ',':
+      continue;
+    case '}':
+      obj_cnt--;
+      continue;
+    case ']':
+      arr_cnt--;
+      continue;
+    case '{':
+      obj_cnt++;
+      break;
+    case '[':
+      arr_cnt++;
+      break;
+    }
+    auto idxa = parser.structural_indexes[i - 1];
+    switch (parser.buf[idxa]) {
+    case '{':
+    case '[':
+    case ':':
+    case ',':
+      continue;
+    }
+    // Last document is complete, so the next document will appear after!
+    if (!arr_cnt && !obj_cnt) {
+      return parser.n_structural_indexes;
+    }
+    // Last document is incomplete; mark the document at i + 1 as the next one
+    return i;
+  }
+  // If we made it to the end, we want to finish counting to see if we have a full document.
+  switch (parser.buf[parser.structural_indexes[0]]) {
+    case '}':
+      obj_cnt--;
+      break;
+    case ']':
+      arr_cnt--;
+      break;
+    case '{':
+      obj_cnt++;
+      break;
+    case '[':
+      arr_cnt++;
+      break;
+  }
+  if (!arr_cnt && !obj_cnt) {
+    // We have a complete document.
+    return parser.n_structural_indexes;
+  }
+  return 0;
+}
+
+} // namespace stage1
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE1_FIND_NEXT_DOCUMENT_INDEX_H
+/* end file generic/stage1/find_next_document_index.h for fallback */
+/* including generic/stage2/stringparsing.h for fallback: #include <generic/stage2/stringparsing.h> */
+/* begin file generic/stage2/stringparsing.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H */
+/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/jsoncharutils.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+// This file contains the common code every implementation uses
+// It is intended to be included multiple times and compiled multiple times
+
+namespace simdjson {
+namespace fallback {
+namespace {
+/// @private
+namespace stringparsing {
+
+// begin copypasta
+// These chars yield themselves: " \ /
+// b -> backspace, f -> formfeed, n -> newline, r -> cr, t -> horizontal tab
+// u not handled in this table as it's complex
+static const uint8_t escape_map[256] = {
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x0.
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0x22, 0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0x2f,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x4.
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0x5c, 0, 0,    0, // 0x5.
+    0, 0, 0x08, 0, 0,    0, 0x0c, 0, 0, 0, 0, 0, 0,    0, 0x0a, 0, // 0x6.
+    0, 0, 0x0d, 0, 0x09, 0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0, // 0x7.
+
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+    0, 0, 0,    0, 0,    0, 0,    0, 0, 0, 0, 0, 0,    0, 0,    0,
+};
+
+// handle a unicode codepoint
+// write appropriate values into dest
+// src will advance 6 bytes or 12 bytes
+// dest will advance a variable amount (return via pointer)
+// return true if the unicode codepoint was valid
+// We work in little-endian then swap at write time
+simdjson_warn_unused
+simdjson_inline bool handle_unicode_codepoint(const uint8_t **src_ptr,
+                                            uint8_t **dst_ptr, bool allow_replacement) {
+  // Use the default Unicode Character 'REPLACEMENT CHARACTER' (U+FFFD)
+  constexpr uint32_t substitution_code_point = 0xfffd;
+  // jsoncharutils::hex_to_u32_nocheck fills high 16 bits of the return value with 1s if the
+  // conversion isn't valid; we defer the check for this to inside the
+  // multilingual plane check
+  uint32_t code_point = jsoncharutils::hex_to_u32_nocheck(*src_ptr + 2);
+  *src_ptr += 6;
+
+  // If we found a high surrogate, we must
+  // check for low surrogate for characters
+  // outside the Basic
+  // Multilingual Plane.
+  if (code_point >= 0xd800 && code_point < 0xdc00) {
+    const uint8_t *src_data = *src_ptr;
+    /* Compiler optimizations convert this to a single 16-bit load and compare on most platforms */
+    if (((src_data[0] << 8) | src_data[1]) != ((static_cast<uint8_t> ('\\') << 8) | static_cast<uint8_t> ('u'))) {
+      if(!allow_replacement) { return false; }
+      code_point = substitution_code_point;
+    } else {
+      uint32_t code_point_2 = jsoncharutils::hex_to_u32_nocheck(src_data + 2);
+
+      // We have already checked that the high surrogate is valid and
+      // (code_point - 0xd800) < 1024.
+      //
+      // Check that code_point_2 is in the range 0xdc00..0xdfff
+      // and that code_point_2 was parsed from valid hex.
+      uint32_t low_bit = code_point_2 - 0xdc00;
+      if (low_bit >> 10) {
+        if(!allow_replacement) { return false; }
+        code_point = substitution_code_point;
+      } else {
+        code_point =  (((code_point - 0xd800) << 10) | low_bit) + 0x10000;
+        *src_ptr += 6;
+      }
+
+    }
+  } else if (code_point >= 0xdc00 && code_point <= 0xdfff) {
+      // If we encounter a low surrogate (not preceded by a high surrogate)
+      // then we have an error.
+      if(!allow_replacement) { return false; }
+      code_point = substitution_code_point;
+  }
+  size_t offset = jsoncharutils::codepoint_to_utf8(code_point, *dst_ptr);
+  *dst_ptr += offset;
+  return offset > 0;
+}
+
+
+// handle a unicode codepoint using the wobbly convention
+// https://simonsapin.github.io/wtf-8/
+// write appropriate values into dest
+// src will advance 6 bytes or 12 bytes
+// dest will advance a variable amount (return via pointer)
+// return true if the unicode codepoint was valid
+// We work in little-endian then swap at write time
+simdjson_warn_unused
+simdjson_inline bool handle_unicode_codepoint_wobbly(const uint8_t **src_ptr,
+                                            uint8_t **dst_ptr) {
+  // It is not ideal that this function is nearly identical to handle_unicode_codepoint.
+  //
+  // jsoncharutils::hex_to_u32_nocheck fills high 16 bits of the return value with 1s if the
+  // conversion isn't valid; we defer the check for this to inside the
+  // multilingual plane check
+  uint32_t code_point = jsoncharutils::hex_to_u32_nocheck(*src_ptr + 2);
+  *src_ptr += 6;
+  // If we found a high surrogate, we must
+  // check for low surrogate for characters
+  // outside the Basic
+  // Multilingual Plane.
+  if (code_point >= 0xd800 && code_point < 0xdc00) {
+    const uint8_t *src_data = *src_ptr;
+    /* Compiler optimizations convert this to a single 16-bit load and compare on most platforms */
+    if (((src_data[0] << 8) | src_data[1]) == ((static_cast<uint8_t> ('\\') << 8) | static_cast<uint8_t> ('u'))) {
+      uint32_t code_point_2 = jsoncharutils::hex_to_u32_nocheck(src_data + 2);
+      uint32_t low_bit = code_point_2 - 0xdc00;
+      if ((low_bit >> 10) ==  0) {
+        code_point =
+          (((code_point - 0xd800) << 10) | low_bit) + 0x10000;
+        *src_ptr += 6;
+      }
+    }
+  }
+
+  size_t offset = jsoncharutils::codepoint_to_utf8(code_point, *dst_ptr);
+  *dst_ptr += offset;
+  return offset > 0;
+}
+
+
+/**
+ * Unescape a valid UTF-8 string from src to dst, stopping at a final unescaped quote. There
+ * must be an unescaped quote terminating the string. It returns the final output
+ * position as pointer. In case of error (e.g., the string has bad escaped codes),
+ * then null_nullptrptr is returned. It is assumed that the output buffer is large
+ * enough. E.g., if src points at 'joe"', then dst needs to have four free bytes +
+ * SIMDJSON_PADDING bytes.
+ */
+simdjson_warn_unused simdjson_inline uint8_t *parse_string(const uint8_t *src, uint8_t *dst, bool allow_replacement) {
+  while (1) {
+    // Copy the next n bytes, and find the backslash and quote in them.
+    auto bs_quote = backslash_and_quote::copy_and_find(src, dst);
+    // If the next thing is the end quote, copy and return
+    if (bs_quote.has_quote_first()) {
+      // we encountered quotes first. Move dst to point to quotes and exit
+      return dst + bs_quote.quote_index();
+    }
+    if (bs_quote.has_backslash()) {
+      /* find out where the backspace is */
+      auto bs_dist = bs_quote.backslash_index();
+      uint8_t escape_char = src[bs_dist + 1];
+      /* we encountered backslash first. Handle backslash */
+      if (escape_char == 'u') {
+        /* move src/dst up to the start; they will be further adjusted
+           within the unicode codepoint handling code. */
+        src += bs_dist;
+        dst += bs_dist;
+        if (!handle_unicode_codepoint(&src, &dst, allow_replacement)) {
+          return nullptr;
+        }
+      } else {
+        /* simple 1:1 conversion. Will eat bs_dist+2 characters in input and
+         * write bs_dist+1 characters to output
+         * note this may reach beyond the part of the buffer we've actually
+         * seen. I think this is ok */
+        uint8_t escape_result = escape_map[escape_char];
+        if (escape_result == 0u) {
+          return nullptr; /* bogus escape value is an error */
+        }
+        dst[bs_dist] = escape_result;
+        src += bs_dist + 2;
+        dst += bs_dist + 1;
+      }
+    } else {
+      /* they are the same. Since they can't co-occur, it means we
+       * encountered neither. */
+      src += backslash_and_quote::BYTES_PROCESSED;
+      dst += backslash_and_quote::BYTES_PROCESSED;
+    }
+  }
+}
+
+simdjson_warn_unused simdjson_inline uint8_t *parse_wobbly_string(const uint8_t *src, uint8_t *dst) {
+  // It is not ideal that this function is nearly identical to parse_string.
+  while (1) {
+    // Copy the next n bytes, and find the backslash and quote in them.
+    auto bs_quote = backslash_and_quote::copy_and_find(src, dst);
+    // If the next thing is the end quote, copy and return
+    if (bs_quote.has_quote_first()) {
+      // we encountered quotes first. Move dst to point to quotes and exit
+      return dst + bs_quote.quote_index();
+    }
+    if (bs_quote.has_backslash()) {
+      /* find out where the backspace is */
+      auto bs_dist = bs_quote.backslash_index();
+      uint8_t escape_char = src[bs_dist + 1];
+      /* we encountered backslash first. Handle backslash */
+      if (escape_char == 'u') {
+        /* move src/dst up to the start; they will be further adjusted
+           within the unicode codepoint handling code. */
+        src += bs_dist;
+        dst += bs_dist;
+        if (!handle_unicode_codepoint_wobbly(&src, &dst)) {
+          return nullptr;
+        }
+      } else {
+        /* simple 1:1 conversion. Will eat bs_dist+2 characters in input and
+         * write bs_dist+1 characters to output
+         * note this may reach beyond the part of the buffer we've actually
+         * seen. I think this is ok */
+        uint8_t escape_result = escape_map[escape_char];
+        if (escape_result == 0u) {
+          return nullptr; /* bogus escape value is an error */
+        }
+        dst[bs_dist] = escape_result;
+        src += bs_dist + 2;
+        dst += bs_dist + 1;
+      }
+    } else {
+      /* they are the same. Since they can't co-occur, it means we
+       * encountered neither. */
+      src += backslash_and_quote::BYTES_PROCESSED;
+      dst += backslash_and_quote::BYTES_PROCESSED;
+    }
+  }
+}
+
+} // namespace stringparsing
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE2_STRINGPARSING_H
+/* end file generic/stage2/stringparsing.h for fallback */
+/* including generic/stage2/logger.h for fallback: #include <generic/stage2/logger.h> */
+/* begin file generic/stage2/logger.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H */
+/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <cstring>
+
+
+// This is for an internal-only stage 2 specific logger.
+// Set LOG_ENABLED = true to log what stage 2 is doing!
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace logger {
+
+  static constexpr const char * DASHES = "----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------";
+
+#if SIMDJSON_VERBOSE_LOGGING
+  static constexpr const bool LOG_ENABLED = true;
+#else
+  static constexpr const bool LOG_ENABLED = false;
+#endif
+  static constexpr const int LOG_EVENT_LEN = 20;
+  static constexpr const int LOG_BUFFER_LEN = 30;
+  static constexpr const int LOG_SMALL_BUFFER_LEN = 10;
+  static constexpr const int LOG_INDEX_LEN = 5;
+
+  static int log_depth; // Not threadsafe. Log only.
+
+  // Helper to turn unprintable or newline characters into spaces
+  static simdjson_inline char printable_char(char c) {
+    if (c >= 0x20) {
+      return c;
+    } else {
+      return ' ';
+    }
+  }
+
+  // Print the header and set up log_start
+  static simdjson_inline void log_start() {
+    if (LOG_ENABLED) {
+      log_depth = 0;
+      printf("\n");
+      printf("| %-*s | %-*s | %-*s | %-*s | Detail |\n", LOG_EVENT_LEN, "Event", LOG_BUFFER_LEN, "Buffer", LOG_SMALL_BUFFER_LEN, "Next", 5, "Next#");
+      printf("|%.*s|%.*s|%.*s|%.*s|--------|\n", LOG_EVENT_LEN+2, DASHES, LOG_BUFFER_LEN+2, DASHES, LOG_SMALL_BUFFER_LEN+2, DASHES, 5+2, DASHES);
+    }
+  }
+
+  simdjson_unused static simdjson_inline void log_string(const char *message) {
+    if (LOG_ENABLED) {
+      printf("%s\n", message);
+    }
+  }
+
+  // Logs a single line from the stage 2 DOM parser
+  template<typename S>
+  static simdjson_inline void log_line(S &structurals, const char *title_prefix, const char *title, const char *detail) {
+    if (LOG_ENABLED) {
+      printf("| %*s%s%-*s ", log_depth*2, "", title_prefix, LOG_EVENT_LEN - log_depth*2 - int(strlen(title_prefix)), title);
+      auto current_index = structurals.at_beginning() ? nullptr : structurals.next_structural-1;
+      auto next_index = structurals.next_structural;
+      auto current = current_index ? &structurals.buf[*current_index] : reinterpret_cast<const uint8_t*>("                                                       ");
+      auto next = &structurals.buf[*next_index];
+      {
+        // Print the next N characters in the buffer.
+        printf("| ");
+        // Otherwise, print the characters starting from the buffer position.
+        // Print spaces for unprintable or newline characters.
+        for (int i=0;i<LOG_BUFFER_LEN;i++) {
+          printf("%c", printable_char(current[i]));
+        }
+        printf(" ");
+        // Print the next N characters in the buffer.
+        printf("| ");
+        // Otherwise, print the characters starting from the buffer position.
+        // Print spaces for unprintable or newline characters.
+        for (int i=0;i<LOG_SMALL_BUFFER_LEN;i++) {
+          printf("%c", printable_char(next[i]));
+        }
+        printf(" ");
+      }
+      if (current_index) {
+        printf("| %*u ", LOG_INDEX_LEN, *current_index);
+      } else {
+        printf("| %-*s ", LOG_INDEX_LEN, "");
+      }
+      // printf("| %*u ", LOG_INDEX_LEN, structurals.next_tape_index());
+      printf("| %-s ", detail);
+      printf("|\n");
+    }
+  }
+
+} // namespace logger
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE2_LOGGER_H
+/* end file generic/stage2/logger.h for fallback */
+/* including generic/stage2/json_iterator.h for fallback: #include <generic/stage2/json_iterator.h> */
+/* begin file generic/stage2/json_iterator.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H */
+/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
+/* amalgamation skipped (editor-only): #include <generic/stage2/logger.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace stage2 {
+
+class json_iterator {
+public:
+  const uint8_t* const buf;
+  uint32_t *next_structural;
+  dom_parser_implementation &dom_parser;
+  uint32_t depth{0};
+
+  /**
+   * Walk the JSON document.
+   *
+   * The visitor receives callbacks when values are encountered. All callbacks pass the iterator as
+   * the first parameter; some callbacks have other parameters as well:
+   *
+   * - visit_document_start() - at the beginning.
+   * - visit_document_end() - at the end (if things were successful).
+   *
+   * - visit_array_start() - at the start `[` of a non-empty array.
+   * - visit_array_end() - at the end `]` of a non-empty array.
+   * - visit_empty_array() - when an empty array is encountered.
+   *
+   * - visit_object_end() - at the start `]` of a non-empty object.
+   * - visit_object_start() - at the end `]` of a non-empty object.
+   * - visit_empty_object() - when an empty object is encountered.
+   * - visit_key(const uint8_t *key) - when a key in an object field is encountered. key is
+   *                                   guaranteed to point at the first quote of the string (`"key"`).
+   * - visit_primitive(const uint8_t *value) - when a value is a string, number, boolean or null.
+   * - visit_root_primitive(iter, uint8_t *value) - when the top-level value is a string, number, boolean or null.
+   *
+   * - increment_count(iter) - each time a value is found in an array or object.
+   */
+  template<bool STREAMING, typename V>
+  simdjson_warn_unused simdjson_inline error_code walk_document(V &visitor) noexcept;
+
+  /**
+   * Create an iterator capable of walking a JSON document.
+   *
+   * The document must have already passed through stage 1.
+   */
+  simdjson_inline json_iterator(dom_parser_implementation &_dom_parser, size_t start_structural_index);
+
+  /**
+   * Look at the next token.
+   *
+   * Tokens can be strings, numbers, booleans, null, or operators (`[{]},:`)).
+   *
+   * They may include invalid JSON as well (such as `1.2.3` or `ture`).
+   */
+  simdjson_inline const uint8_t *peek() const noexcept;
+  /**
+   * Advance to the next token.
+   *
+   * Tokens can be strings, numbers, booleans, null, or operators (`[{]},:`)).
+   *
+   * They may include invalid JSON as well (such as `1.2.3` or `ture`).
+   */
+  simdjson_inline const uint8_t *advance() noexcept;
+  /**
+   * Get the remaining length of the document, from the start of the current token.
+   */
+  simdjson_inline size_t remaining_len() const noexcept;
+  /**
+   * Check if we are at the end of the document.
+   *
+   * If this is true, there are no more tokens.
+   */
+  simdjson_inline bool at_eof() const noexcept;
+  /**
+   * Check if we are at the beginning of the document.
+   */
+  simdjson_inline bool at_beginning() const noexcept;
+  simdjson_inline uint8_t last_structural() const noexcept;
+
+  /**
+   * Log that a value has been found.
+   *
+   * Set LOG_ENABLED=true in logger.h to see logging.
+   */
+  simdjson_inline void log_value(const char *type) const noexcept;
+  /**
+   * Log the start of a multipart value.
+   *
+   * Set LOG_ENABLED=true in logger.h to see logging.
+   */
+  simdjson_inline void log_start_value(const char *type) const noexcept;
+  /**
+   * Log the end of a multipart value.
+   *
+   * Set LOG_ENABLED=true in logger.h to see logging.
+   */
+  simdjson_inline void log_end_value(const char *type) const noexcept;
+  /**
+   * Log an error.
+   *
+   * Set LOG_ENABLED=true in logger.h to see logging.
+   */
+  simdjson_inline void log_error(const char *error) const noexcept;
+
+  template<typename V>
+  simdjson_warn_unused simdjson_inline error_code visit_root_primitive(V &visitor, const uint8_t *value) noexcept;
+  template<typename V>
+  simdjson_warn_unused simdjson_inline error_code visit_primitive(V &visitor, const uint8_t *value) noexcept;
+};
+
+template<bool STREAMING, typename V>
+simdjson_warn_unused simdjson_inline error_code json_iterator::walk_document(V &visitor) noexcept {
+  logger::log_start();
+
+  //
+  // Start the document
+  //
+  if (at_eof()) { return EMPTY; }
+  log_start_value("document");
+  SIMDJSON_TRY( visitor.visit_document_start(*this) );
+
+  //
+  // Read first value
+  //
+  {
+    auto value = advance();
+
+    // Make sure the outer object or array is closed before continuing; otherwise, there are ways we
+    // could get into memory corruption. See https://github.com/simdjson/simdjson/issues/906
+    if (!STREAMING) {
+      switch (*value) {
+        case '{': if (last_structural() != '}') { log_value("starting brace unmatched"); return TAPE_ERROR; }; break;
+        case '[': if (last_structural() != ']') { log_value("starting bracket unmatched"); return TAPE_ERROR; }; break;
+      }
+    }
+
+    switch (*value) {
+      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
+      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
+      default: SIMDJSON_TRY( visitor.visit_root_primitive(*this, value) ); break;
+    }
+  }
+  goto document_end;
+
+//
+// Object parser states
+//
+object_begin:
+  log_start_value("object");
+  depth++;
+  if (depth >= dom_parser.max_depth()) { log_error("Exceeded max depth!"); return DEPTH_ERROR; }
+  dom_parser.is_array[depth] = false;
+  SIMDJSON_TRY( visitor.visit_object_start(*this) );
+
+  {
+    auto key = advance();
+    if (*key != '"') { log_error("Object does not start with a key"); return TAPE_ERROR; }
+    SIMDJSON_TRY( visitor.increment_count(*this) );
+    SIMDJSON_TRY( visitor.visit_key(*this, key) );
+  }
+
+object_field:
+  if (simdjson_unlikely( *advance() != ':' )) { log_error("Missing colon after key in object"); return TAPE_ERROR; }
+  {
+    auto value = advance();
+    switch (*value) {
+      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
+      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
+      default: SIMDJSON_TRY( visitor.visit_primitive(*this, value) ); break;
+    }
+  }
+
+object_continue:
+  switch (*advance()) {
+    case ',':
+      SIMDJSON_TRY( visitor.increment_count(*this) );
+      {
+        auto key = advance();
+        if (simdjson_unlikely( *key != '"' )) { log_error("Key string missing at beginning of field in object"); return TAPE_ERROR; }
+        SIMDJSON_TRY( visitor.visit_key(*this, key) );
+      }
+      goto object_field;
+    case '}': log_end_value("object"); SIMDJSON_TRY( visitor.visit_object_end(*this) ); goto scope_end;
+    default: log_error("No comma between object fields"); return TAPE_ERROR;
+  }
+
+scope_end:
+  depth--;
+  if (depth == 0) { goto document_end; }
+  if (dom_parser.is_array[depth]) { goto array_continue; }
+  goto object_continue;
+
+//
+// Array parser states
+//
+array_begin:
+  log_start_value("array");
+  depth++;
+  if (depth >= dom_parser.max_depth()) { log_error("Exceeded max depth!"); return DEPTH_ERROR; }
+  dom_parser.is_array[depth] = true;
+  SIMDJSON_TRY( visitor.visit_array_start(*this) );
+  SIMDJSON_TRY( visitor.increment_count(*this) );
+
+array_value:
+  {
+    auto value = advance();
+    switch (*value) {
+      case '{': if (*peek() == '}') { advance(); log_value("empty object"); SIMDJSON_TRY( visitor.visit_empty_object(*this) ); break; } goto object_begin;
+      case '[': if (*peek() == ']') { advance(); log_value("empty array"); SIMDJSON_TRY( visitor.visit_empty_array(*this) ); break; } goto array_begin;
+      default: SIMDJSON_TRY( visitor.visit_primitive(*this, value) ); break;
+    }
+  }
+
+array_continue:
+  switch (*advance()) {
+    case ',': SIMDJSON_TRY( visitor.increment_count(*this) ); goto array_value;
+    case ']': log_end_value("array"); SIMDJSON_TRY( visitor.visit_array_end(*this) ); goto scope_end;
+    default: log_error("Missing comma between array values"); return TAPE_ERROR;
+  }
+
+document_end:
+  log_end_value("document");
+  SIMDJSON_TRY( visitor.visit_document_end(*this) );
+
+  dom_parser.next_structural_index = uint32_t(next_structural - &dom_parser.structural_indexes[0]);
+
+  // If we didn't make it to the end, it's an error
+  if ( !STREAMING && dom_parser.next_structural_index != dom_parser.n_structural_indexes ) {
+    log_error("More than one JSON value at the root of the document, or extra characters at the end of the JSON!");
+    return TAPE_ERROR;
+  }
+
+  return SUCCESS;
+
+} // walk_document()
+
+simdjson_inline json_iterator::json_iterator(dom_parser_implementation &_dom_parser, size_t start_structural_index)
+  : buf{_dom_parser.buf},
+    next_structural{&_dom_parser.structural_indexes[start_structural_index]},
+    dom_parser{_dom_parser} {
+}
+
+simdjson_inline const uint8_t *json_iterator::peek() const noexcept {
+  return &buf[*(next_structural)];
+}
+simdjson_inline const uint8_t *json_iterator::advance() noexcept {
+  return &buf[*(next_structural++)];
+}
+simdjson_inline size_t json_iterator::remaining_len() const noexcept {
+  return dom_parser.len - *(next_structural-1);
+}
+
+simdjson_inline bool json_iterator::at_eof() const noexcept {
+  return next_structural == &dom_parser.structural_indexes[dom_parser.n_structural_indexes];
+}
+simdjson_inline bool json_iterator::at_beginning() const noexcept {
+  return next_structural == dom_parser.structural_indexes.get();
+}
+simdjson_inline uint8_t json_iterator::last_structural() const noexcept {
+  return buf[dom_parser.structural_indexes[dom_parser.n_structural_indexes - 1]];
+}
+
+simdjson_inline void json_iterator::log_value(const char *type) const noexcept {
+  logger::log_line(*this, "", type, "");
+}
+
+simdjson_inline void json_iterator::log_start_value(const char *type) const noexcept {
+  logger::log_line(*this, "+", type, "");
+  if (logger::LOG_ENABLED) { logger::log_depth++; }
+}
+
+simdjson_inline void json_iterator::log_end_value(const char *type) const noexcept {
+  if (logger::LOG_ENABLED) { logger::log_depth--; }
+  logger::log_line(*this, "-", type, "");
+}
+
+simdjson_inline void json_iterator::log_error(const char *error) const noexcept {
+  logger::log_line(*this, "", "ERROR", error);
+}
+
+template<typename V>
+simdjson_warn_unused simdjson_inline error_code json_iterator::visit_root_primitive(V &visitor, const uint8_t *value) noexcept {
+  switch (*value) {
+    case '"': return visitor.visit_root_string(*this, value);
+    case 't': return visitor.visit_root_true_atom(*this, value);
+    case 'f': return visitor.visit_root_false_atom(*this, value);
+    case 'n': return visitor.visit_root_null_atom(*this, value);
+    case '-':
+    case '0': case '1': case '2': case '3': case '4':
+    case '5': case '6': case '7': case '8': case '9':
+      return visitor.visit_root_number(*this, value);
+    default:
+      log_error("Document starts with a non-value character");
+      return TAPE_ERROR;
+  }
+}
+template<typename V>
+simdjson_warn_unused simdjson_inline error_code json_iterator::visit_primitive(V &visitor, const uint8_t *value) noexcept {
+  // Use the fact that most scalars are going to be either strings or numbers.
+  if(*value == '"') {
+    return visitor.visit_string(*this, value);
+  } else if (((*value - '0')  < 10) || (*value == '-')) {
+    return visitor.visit_number(*this, value);
+  }
+  // true, false, null are uncommon.
+  switch (*value) {
+    case 't': return visitor.visit_true_atom(*this, value);
+    case 'f': return visitor.visit_false_atom(*this, value);
+    case 'n': return visitor.visit_null_atom(*this, value);
+    default:
+      log_error("Non-value found when value was expected!");
+      return TAPE_ERROR;
+  }
+}
+
+} // namespace stage2
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE2_JSON_ITERATOR_H
+/* end file generic/stage2/json_iterator.h for fallback */
+/* including generic/stage2/tape_writer.h for fallback: #include <generic/stage2/tape_writer.h> */
+/* begin file generic/stage2/tape_writer.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H */
+/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/internal/tape_type.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+#include <cstring>
+
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace stage2 {
+
+struct tape_writer {
+  /** The next place to write to tape */
+  uint64_t *next_tape_loc;
+
+  /** Write a signed 64-bit value to tape. */
+  simdjson_inline void append_s64(int64_t value) noexcept;
+
+  /** Write an unsigned 64-bit value to tape. */
+  simdjson_inline void append_u64(uint64_t value) noexcept;
+
+  /** Write a double value to tape. */
+  simdjson_inline void append_double(double value) noexcept;
+
+  /**
+   * Append a tape entry (an 8-bit type,and 56 bits worth of value).
+   */
+  simdjson_inline void append(uint64_t val, internal::tape_type t) noexcept;
+
+  /**
+   * Skip the current tape entry without writing.
+   *
+   * Used to skip the start of the container, since we'll come back later to fill it in when the
+   * container ends.
+   */
+  simdjson_inline void skip() noexcept;
+
+  /**
+   * Skip the number of tape entries necessary to write a large u64 or i64.
+   */
+  simdjson_inline void skip_large_integer() noexcept;
+
+  /**
+   * Skip the number of tape entries necessary to write a double.
+   */
+  simdjson_inline void skip_double() noexcept;
+
+  /**
+   * Write a value to a known location on tape.
+   *
+   * Used to go back and write out the start of a container after the container ends.
+   */
+  simdjson_inline static void write(uint64_t &tape_loc, uint64_t val, internal::tape_type t) noexcept;
+
+private:
+  /**
+   * Append both the tape entry, and a supplementary value following it. Used for types that need
+   * all 64 bits, such as double and uint64_t.
+   */
+  template<typename T>
+  simdjson_inline void append2(uint64_t val, T val2, internal::tape_type t) noexcept;
+}; // struct tape_writer
+
+simdjson_inline void tape_writer::append_s64(int64_t value) noexcept {
+  append2(0, value, internal::tape_type::INT64);
+}
+
+simdjson_inline void tape_writer::append_u64(uint64_t value) noexcept {
+  append(0, internal::tape_type::UINT64);
+  *next_tape_loc = value;
+  next_tape_loc++;
+}
+
+/** Write a double value to tape. */
+simdjson_inline void tape_writer::append_double(double value) noexcept {
+  append2(0, value, internal::tape_type::DOUBLE);
+}
+
+simdjson_inline void tape_writer::skip() noexcept {
+  next_tape_loc++;
+}
+
+simdjson_inline void tape_writer::skip_large_integer() noexcept {
+  next_tape_loc += 2;
+}
+
+simdjson_inline void tape_writer::skip_double() noexcept {
+  next_tape_loc += 2;
+}
+
+simdjson_inline void tape_writer::append(uint64_t val, internal::tape_type t) noexcept {
+  *next_tape_loc = val | ((uint64_t(char(t))) << 56);
+  next_tape_loc++;
+}
+
+template<typename T>
+simdjson_inline void tape_writer::append2(uint64_t val, T val2, internal::tape_type t) noexcept {
+  append(val, t);
+  static_assert(sizeof(val2) == sizeof(*next_tape_loc), "Type is not 64 bits!");
+  memcpy(next_tape_loc, &val2, sizeof(val2));
+  next_tape_loc++;
+}
+
+simdjson_inline void tape_writer::write(uint64_t &tape_loc, uint64_t val, internal::tape_type t) noexcept {
+  tape_loc = val | ((uint64_t(char(t))) << 56);
+}
+
+} // namespace stage2
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE2_TAPE_WRITER_H
+/* end file generic/stage2/tape_writer.h for fallback */
+/* including generic/stage2/tape_builder.h for fallback: #include <generic/stage2/tape_builder.h> */
+/* begin file generic/stage2/tape_builder.h for fallback */
+#ifndef SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H
+
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #define SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H */
+/* amalgamation skipped (editor-only): #include <generic/stage2/base.h> */
+/* amalgamation skipped (editor-only): #include <generic/stage2/json_iterator.h> */
+/* amalgamation skipped (editor-only): #include <generic/stage2/stringparsing.h> */
+/* amalgamation skipped (editor-only): #include <generic/stage2/tape_writer.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/dom/document.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/atomparsing.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/dom_parser_implementation.h> */
+/* amalgamation skipped (editor-only): #include <simdjson/generic/numberparsing.h> */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+
+namespace simdjson {
+namespace fallback {
+namespace {
+namespace stage2 {
+
+struct tape_builder {
+  template<bool STREAMING>
+  simdjson_warn_unused static simdjson_inline error_code parse_document(
+    dom_parser_implementation &dom_parser,
+    dom::document &doc) noexcept;
+
+  /** Called when a non-empty document starts. */
+  simdjson_warn_unused simdjson_inline error_code visit_document_start(json_iterator &iter) noexcept;
+  /** Called when a non-empty document ends without error. */
+  simdjson_warn_unused simdjson_inline error_code visit_document_end(json_iterator &iter) noexcept;
+
+  /** Called when a non-empty array starts. */
+  simdjson_warn_unused simdjson_inline error_code visit_array_start(json_iterator &iter) noexcept;
+  /** Called when a non-empty array ends. */
+  simdjson_warn_unused simdjson_inline error_code visit_array_end(json_iterator &iter) noexcept;
+  /** Called when an empty array is found. */
+  simdjson_warn_unused simdjson_inline error_code visit_empty_array(json_iterator &iter) noexcept;
+
+  /** Called when a non-empty object starts. */
+  simdjson_warn_unused simdjson_inline error_code visit_object_start(json_iterator &iter) noexcept;
+  /**
+   * Called when a key in a field is encountered.
+   *
+   * primitive, visit_object_start, visit_empty_object, visit_array_start, or visit_empty_array
+   * will be called after this with the field value.
+   */
+  simdjson_warn_unused simdjson_inline error_code visit_key(json_iterator &iter, const uint8_t *key) noexcept;
+  /** Called when a non-empty object ends. */
+  simdjson_warn_unused simdjson_inline error_code visit_object_end(json_iterator &iter) noexcept;
+  /** Called when an empty object is found. */
+  simdjson_warn_unused simdjson_inline error_code visit_empty_object(json_iterator &iter) noexcept;
+
+  /**
+   * Called when a string, number, boolean or null is found.
+   */
+  simdjson_warn_unused simdjson_inline error_code visit_primitive(json_iterator &iter, const uint8_t *value) noexcept;
+  /**
+   * Called when a string, number, boolean or null is found at the top level of a document (i.e.
+   * when there is no array or object and the entire document is a single string, number, boolean or
+   * null.
+   *
+   * This is separate from primitive() because simdjson's normal primitive parsing routines assume
+   * there is at least one more token after the value, which is only true in an array or object.
+   */
+  simdjson_warn_unused simdjson_inline error_code visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept;
+
+  simdjson_warn_unused simdjson_inline error_code visit_string(json_iterator &iter, const uint8_t *value, bool key = false) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
+
+  simdjson_warn_unused simdjson_inline error_code visit_root_string(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_root_number(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_root_true_atom(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_root_false_atom(json_iterator &iter, const uint8_t *value) noexcept;
+  simdjson_warn_unused simdjson_inline error_code visit_root_null_atom(json_iterator &iter, const uint8_t *value) noexcept;
+
+  /** Called each time a new field or element in an array or object is found. */
+  simdjson_warn_unused simdjson_inline error_code increment_count(json_iterator &iter) noexcept;
+
+  /** Next location to write to tape */
+  tape_writer tape;
+private:
+  /** Next write location in the string buf for stage 2 parsing */
+  uint8_t *current_string_buf_loc;
+
+  simdjson_inline tape_builder(dom::document &doc) noexcept;
+
+  simdjson_inline uint32_t next_tape_index(json_iterator &iter) const noexcept;
+  simdjson_inline void start_container(json_iterator &iter) noexcept;
+  simdjson_warn_unused simdjson_inline error_code end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
+  simdjson_warn_unused simdjson_inline error_code empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept;
+  simdjson_inline uint8_t *on_start_string(json_iterator &iter) noexcept;
+  simdjson_inline void on_end_string(uint8_t *dst) noexcept;
+}; // struct tape_builder
+
+template<bool STREAMING>
+simdjson_warn_unused simdjson_inline error_code tape_builder::parse_document(
+    dom_parser_implementation &dom_parser,
+    dom::document &doc) noexcept {
+  dom_parser.doc = &doc;
+  json_iterator iter(dom_parser, STREAMING ? dom_parser.next_structural_index : 0);
+  tape_builder builder(doc);
+  return iter.walk_document<STREAMING>(builder);
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_primitive(json_iterator &iter, const uint8_t *value) noexcept {
+  return iter.visit_root_primitive(*this, value);
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_primitive(json_iterator &iter, const uint8_t *value) noexcept {
+  return iter.visit_primitive(*this, value);
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_empty_object(json_iterator &iter) noexcept {
+  return empty_container(iter, internal::tape_type::START_OBJECT, internal::tape_type::END_OBJECT);
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_empty_array(json_iterator &iter) noexcept {
+  return empty_container(iter, internal::tape_type::START_ARRAY, internal::tape_type::END_ARRAY);
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_document_start(json_iterator &iter) noexcept {
+  start_container(iter);
+  return SUCCESS;
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_object_start(json_iterator &iter) noexcept {
+  start_container(iter);
+  return SUCCESS;
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_array_start(json_iterator &iter) noexcept {
+  start_container(iter);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_object_end(json_iterator &iter) noexcept {
+  return end_container(iter, internal::tape_type::START_OBJECT, internal::tape_type::END_OBJECT);
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_array_end(json_iterator &iter) noexcept {
+  return end_container(iter, internal::tape_type::START_ARRAY, internal::tape_type::END_ARRAY);
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_document_end(json_iterator &iter) noexcept {
+  constexpr uint32_t start_tape_index = 0;
+  tape.append(start_tape_index, internal::tape_type::ROOT);
+  tape_writer::write(iter.dom_parser.doc->tape[start_tape_index], next_tape_index(iter), internal::tape_type::ROOT);
+  return SUCCESS;
+}
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_key(json_iterator &iter, const uint8_t *key) noexcept {
+  return visit_string(iter, key, true);
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::increment_count(json_iterator &iter) noexcept {
+  iter.dom_parser.open_containers[iter.depth].count++; // we have a key value pair in the object at parser.dom_parser.depth - 1
+  return SUCCESS;
+}
+
+simdjson_inline tape_builder::tape_builder(dom::document &doc) noexcept : tape{doc.tape.get()}, current_string_buf_loc{doc.string_buf.get()} {}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_string(json_iterator &iter, const uint8_t *value, bool key) noexcept {
+  iter.log_value(key ? "key" : "string");
+  uint8_t *dst = on_start_string(iter);
+  dst = stringparsing::parse_string(value+1, dst, false); // We do not allow replacement when the escape characters are invalid.
+  if (dst == nullptr) {
+    iter.log_error("Invalid escape in string");
+    return STRING_ERROR;
+  }
+  on_end_string(dst);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_string(json_iterator &iter, const uint8_t *value) noexcept {
+  return visit_string(iter, value);
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_number(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("number");
+  return numberparsing::parse_number(value, tape);
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_number(json_iterator &iter, const uint8_t *value) noexcept {
+  //
+  // We need to make a copy to make sure that the string is space terminated.
+  // This is not about padding the input, which should already padded up
+  // to len + SIMDJSON_PADDING. However, we have no control at this stage
+  // on how the padding was done. What if the input string was padded with nulls?
+  // It is quite common for an input string to have an extra null character (C string).
+  // We do not want to allow 9\0 (where \0 is the null character) inside a JSON
+  // document, but the string "9\0" by itself is fine. So we make a copy and
+  // pad the input with spaces when we know that there is just one input element.
+  // This copy is relatively expensive, but it will almost never be called in
+  // practice unless you are in the strange scenario where you have many JSON
+  // documents made of single atoms.
+  //
+  std::unique_ptr<uint8_t[]>copy(new (std::nothrow) uint8_t[iter.remaining_len() + SIMDJSON_PADDING]);
+  if (copy.get() == nullptr) { return MEMALLOC; }
+  std::memcpy(copy.get(), value, iter.remaining_len());
+  std::memset(copy.get() + iter.remaining_len(), ' ', SIMDJSON_PADDING);
+  error_code error = visit_number(iter, copy.get());
+  return error;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_true_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("true");
+  if (!atomparsing::is_valid_true_atom(value)) { return T_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::TRUE_VALUE);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_true_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("true");
+  if (!atomparsing::is_valid_true_atom(value, iter.remaining_len())) { return T_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::TRUE_VALUE);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_false_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("false");
+  if (!atomparsing::is_valid_false_atom(value)) { return F_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::FALSE_VALUE);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_false_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("false");
+  if (!atomparsing::is_valid_false_atom(value, iter.remaining_len())) { return F_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::FALSE_VALUE);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_null_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("null");
+  if (!atomparsing::is_valid_null_atom(value)) { return N_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::NULL_VALUE);
+  return SUCCESS;
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::visit_root_null_atom(json_iterator &iter, const uint8_t *value) noexcept {
+  iter.log_value("null");
+  if (!atomparsing::is_valid_null_atom(value, iter.remaining_len())) { return N_ATOM_ERROR; }
+  tape.append(0, internal::tape_type::NULL_VALUE);
+  return SUCCESS;
+}
+
+// private:
+
+simdjson_inline uint32_t tape_builder::next_tape_index(json_iterator &iter) const noexcept {
+  return uint32_t(tape.next_tape_loc - iter.dom_parser.doc->tape.get());
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::empty_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept {
+  auto start_index = next_tape_index(iter);
+  tape.append(start_index+2, start);
+  tape.append(start_index, end);
+  return SUCCESS;
+}
+
+simdjson_inline void tape_builder::start_container(json_iterator &iter) noexcept {
+  iter.dom_parser.open_containers[iter.depth].tape_index = next_tape_index(iter);
+  iter.dom_parser.open_containers[iter.depth].count = 0;
+  tape.skip(); // We don't actually *write* the start element until the end.
+}
+
+simdjson_warn_unused simdjson_inline error_code tape_builder::end_container(json_iterator &iter, internal::tape_type start, internal::tape_type end) noexcept {
+  // Write the ending tape element, pointing at the start location
+  const uint32_t start_tape_index = iter.dom_parser.open_containers[iter.depth].tape_index;
+  tape.append(start_tape_index, end);
+  // Write the start tape element, pointing at the end location (and including count)
+  // count can overflow if it exceeds 24 bits... so we saturate
+  // the convention being that a cnt of 0xffffff or more is undetermined in value (>=  0xffffff).
+  const uint32_t count = iter.dom_parser.open_containers[iter.depth].count;
+  const uint32_t cntsat = count > 0xFFFFFF ? 0xFFFFFF : count;
+  tape_writer::write(iter.dom_parser.doc->tape[start_tape_index], next_tape_index(iter) | (uint64_t(cntsat) << 32), start);
+  return SUCCESS;
+}
+
+simdjson_inline uint8_t *tape_builder::on_start_string(json_iterator &iter) noexcept {
+  // we advance the point, accounting for the fact that we have a NULL termination
+  tape.append(current_string_buf_loc - iter.dom_parser.doc->string_buf.get(), internal::tape_type::STRING);
+  return current_string_buf_loc + sizeof(uint32_t);
+}
+
+simdjson_inline void tape_builder::on_end_string(uint8_t *dst) noexcept {
+  uint32_t str_length = uint32_t(dst - (current_string_buf_loc + sizeof(uint32_t)));
+  // TODO check for overflow in case someone has a crazy string (>=4GB?)
+  // But only add the overflow check when the document itself exceeds 4GB
+  // Currently unneeded because we refuse to parse docs larger or equal to 4GB.
+  memcpy(current_string_buf_loc, &str_length, sizeof(uint32_t));
+  // NULL termination is still handy if you expect all your strings to
+  // be NULL terminated? It comes at a small cost
+  *dst = 0;
+  current_string_buf_loc = dst + 1;
+}
+
+} // namespace stage2
+} // unnamed namespace
+} // namespace fallback
+} // namespace simdjson
+
+#endif // SIMDJSON_SRC_GENERIC_STAGE2_TAPE_BUILDER_H
+/* end file generic/stage2/tape_builder.h for fallback */
+
+//
+// Stage 1
+//
+
+namespace simdjson {
+namespace fallback {
+
+simdjson_warn_unused error_code implementation::create_dom_parser_implementation(
+  size_t capacity,
+  size_t max_depth,
+  std::unique_ptr<internal::dom_parser_implementation>& dst
+) const noexcept {
+  dst.reset( new (std::nothrow) fallback::dom_parser_implementation() );
+  if (!dst) { return MEMALLOC; }
+  if (auto err = dst->set_capacity(capacity))
+    return err;
+  if (auto err = dst->set_max_depth(max_depth))
+    return err;
+  return SUCCESS;
+}
+
+namespace {
+namespace stage1 {
+
+class structural_scanner {
+public:
+
+simdjson_inline structural_scanner(dom_parser_implementation &_parser, stage1_mode _partial)
+  : buf{_parser.buf},
+    next_structural_index{_parser.structural_indexes.get()},
+    parser{_parser},
+    len{static_cast<uint32_t>(_parser.len)},
+    partial{_partial} {
+}
+
+simdjson_inline void add_structural() {
+  *next_structural_index = idx;
+  next_structural_index++;
+}
+
+simdjson_inline bool is_continuation(uint8_t c) {
+  return (c & 0xc0) == 0x80;
+}
+
+simdjson_inline void validate_utf8_character() {
+  // Continuation
+  if (simdjson_unlikely((buf[idx] & 0x40) == 0)) {
+    // extra continuation
+    error = UTF8_ERROR;
+    idx++;
+    return;
+  }
+
+  // 2-byte
+  if ((buf[idx] & 0x20) == 0) {
+    // missing continuation
+    if (simdjson_unlikely(idx+1 > len || !is_continuation(buf[idx+1]))) {
+      if (idx+1 > len && is_streaming(partial)) { idx = len; return; }
+      error = UTF8_ERROR;
+      idx++;
+      return;
+    }
+    // overlong: 1100000_ 10______
+    if (buf[idx] <= 0xc1) { error = UTF8_ERROR; }
+    idx += 2;
+    return;
+  }
+
+  // 3-byte
+  if ((buf[idx] & 0x10) == 0) {
+    // missing continuation
+    if (simdjson_unlikely(idx+2 > len || !is_continuation(buf[idx+1]) || !is_continuation(buf[idx+2]))) {
+      if (idx+2 > len && is_streaming(partial)) { idx = len; return; }
+      error = UTF8_ERROR;
+      idx++;
+      return;
+    }
+    // overlong: 11100000 100_____ ________
+    if (buf[idx] == 0xe0 && buf[idx+1] <= 0x9f) { error = UTF8_ERROR; }
+    // surrogates: U+D800-U+DFFF 11101101 101_____
+    if (buf[idx] == 0xed && buf[idx+1] >= 0xa0) { error = UTF8_ERROR; }
+    idx += 3;
+    return;
+  }
+
+  // 4-byte
+  // missing continuation
+  if (simdjson_unlikely(idx+3 > len || !is_continuation(buf[idx+1]) || !is_continuation(buf[idx+2]) || !is_continuation(buf[idx+3]))) {
+    if (idx+2 > len && is_streaming(partial)) { idx = len; return; }
+    error = UTF8_ERROR;
+    idx++;
+    return;
+  }
+  // overlong: 11110000 1000____ ________ ________
+  if (buf[idx] == 0xf0 && buf[idx+1] <= 0x8f) { error = UTF8_ERROR; }
+  // too large: > U+10FFFF:
+  // 11110100 (1001|101_)____
+  // 1111(1___|011_|0101) 10______
+  // also includes 5, 6, 7 and 8 byte characters:
+  // 11111___
+  if (buf[idx] == 0xf4 && buf[idx+1] >= 0x90) { error = UTF8_ERROR; }
+  if (buf[idx] >= 0xf5) { error = UTF8_ERROR; }
+  idx += 4;
+}
+
+// Returns true if the string is unclosed.
+simdjson_inline bool validate_string() {
+  idx++; // skip first quote
+  while (idx < len && buf[idx] != '"') {
+    if (buf[idx] == '\\') {
+      idx += 2;
+    } else if (simdjson_unlikely(buf[idx] & 0x80)) {
+      validate_utf8_character();
+    } else {
+      if (buf[idx] < 0x20) { error = UNESCAPED_CHARS; }
+      idx++;
+    }
+  }
+  if (idx >= len) { return true; }
+  return false;
+}
+
+simdjson_inline bool is_whitespace_or_operator(uint8_t c) {
+  switch (c) {
+    case '{': case '}': case '[': case ']': case ',': case ':':
+    case ' ': case '\r': case '\n': case '\t':
+      return true;
+    default:
+      return false;
+  }
+}
+
+//
+// Parse the entire input in STEP_SIZE-byte chunks.
+//
+simdjson_inline error_code scan() {
+  bool unclosed_string = false;
+  for (;idx<len;idx++) {
+    switch (buf[idx]) {
+      // String
+      case '"':
+        add_structural();
+        unclosed_string |= validate_string();
+        break;
+      // Operator
+      case '{': case '}': case '[': case ']': case ',': case ':':
+        add_structural();
+        break;
+      // Whitespace
+      case ' ': case '\r': case '\n': case '\t':
+        break;
+      // Primitive or invalid character (invalid characters will be checked in stage 2)
+      default:
+        // Anything else, add the structural and go until we find the next one
+        add_structural();
+        while (idx+1<len && !is_whitespace_or_operator(buf[idx+1])) {
+          idx++;
+        };
+        break;
+    }
+  }
+  // We pad beyond.
+  // https://github.com/simdjson/simdjson/issues/906
+  // See json_structural_indexer.h for an explanation.
+  *next_structural_index = len; // assumed later in partial == stage1_mode::streaming_final
+  next_structural_index[1] = len;
+  next_structural_index[2] = 0;
+  parser.n_structural_indexes = uint32_t(next_structural_index - parser.structural_indexes.get());
+  if (simdjson_unlikely(parser.n_structural_indexes == 0)) { return EMPTY; }
+  parser.next_structural_index = 0;
+  if (partial == stage1_mode::streaming_partial) {
+    if(unclosed_string) {
+      parser.n_structural_indexes--;
+      if (simdjson_unlikely(parser.n_structural_indexes == 0)) { return CAPACITY; }
+    }
+    // We truncate the input to the end of the last complete document (or zero).
+    auto new_structural_indexes = find_next_document_index(parser);
+    if (new_structural_indexes == 0 && parser.n_structural_indexes > 0) {
+      if(parser.structural_indexes[0] == 0) {
+        // If the buffer is partial and we started at index 0 but the document is
+        // incomplete, it's too big to parse.
+        return CAPACITY;
+      } else {
+        // It is possible that the document could be parsed, we just had a lot
+        // of white space.
+        parser.n_structural_indexes = 0;
+        return EMPTY;
+      }
+    }
+    parser.n_structural_indexes = new_structural_indexes;
+  } else if(partial == stage1_mode::streaming_final) {
+    if(unclosed_string) { parser.n_structural_indexes--; }
+    // We truncate the input to the end of the last complete document (or zero).
+    // Because partial == stage1_mode::streaming_final, it means that we may
+    // silently ignore trailing garbage. Though it sounds bad, we do it
+    // deliberately because many people who have streams of JSON documents
+    // will truncate them for processing. E.g., imagine that you are uncompressing
+    // the data from a size file or receiving it in chunks from the network. You
+    // may not know where exactly the last document will be. Meanwhile the
+    // document_stream instances allow people to know the JSON documents they are
+    // parsing (see the iterator.source() method).
+    parser.n_structural_indexes = find_next_document_index(parser);
+    // We store the initial n_structural_indexes so that the client can see
+    // whether we used truncation. If initial_n_structural_indexes == parser.n_structural_indexes,
+    // then this will query parser.structural_indexes[parser.n_structural_indexes] which is len,
+    // otherwise, it will copy some prior index.
+    parser.structural_indexes[parser.n_structural_indexes + 1] = parser.structural_indexes[parser.n_structural_indexes];
+    // This next line is critical, do not change it unless you understand what you are
+    // doing.
+    parser.structural_indexes[parser.n_structural_indexes] = uint32_t(len);
+    if (parser.n_structural_indexes == 0) { return EMPTY; }
+  } else if(unclosed_string) { error = UNCLOSED_STRING; }
+  return error;
+}
+
+private:
+  const uint8_t *buf;
+  uint32_t *next_structural_index;
+  dom_parser_implementation &parser;
+  uint32_t len;
+  uint32_t idx{0};
+  error_code error{SUCCESS};
+  stage1_mode partial;
+}; // structural_scanner
+
+} // namespace stage1
+} // unnamed namespace
+
+simdjson_warn_unused error_code dom_parser_implementation::stage1(const uint8_t *_buf, size_t _len, stage1_mode partial) noexcept {
+  this->buf = _buf;
+  this->len = _len;
+  stage1::structural_scanner scanner(*this, partial);
+  return scanner.scan();
+}
+
+// big table for the minifier
+static uint8_t jump_table[256 * 3] = {
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 0,
+    1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0,
+    1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1,
+    1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+    0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1,
+};
+
+simdjson_warn_unused error_code implementation::minify(const uint8_t *buf, size_t len, uint8_t *dst, size_t &dst_len) const noexcept {
+  size_t i = 0, pos = 0;
+  uint8_t quote = 0;
+  uint8_t nonescape = 1;
+
+  while (i < len) {
+    unsigned char c = buf[i];
+    uint8_t *meta = jump_table + 3 * c;
+
+    quote = quote ^ (meta[0] & nonescape);
+    dst[pos] = c;
+    pos += meta[2] | quote;
+
+    i += 1;
+    nonescape = uint8_t(~nonescape) | (meta[1]);
+  }
+  dst_len = pos; // we intentionally do not work with a reference
+  // for fear of aliasing
+  return quote ? UNCLOSED_STRING : SUCCESS;
+}
+
+// credit: based on code from Google Fuchsia (Apache Licensed)
+simdjson_warn_unused bool implementation::validate_utf8(const char *buf, size_t len) const noexcept {
+  const uint8_t *data = reinterpret_cast<const uint8_t *>(buf);
+  uint64_t pos = 0;
+  uint32_t code_point = 0;
+  while (pos < len) {
+    // check of the next 8 bytes are ascii.
+    uint64_t next_pos = pos + 16;
+    if (next_pos <= len) { // if it is safe to read 8 more bytes, check that they are ascii
+      uint64_t v1;
+      memcpy(&v1, data + pos, sizeof(uint64_t));
+      uint64_t v2;
+      memcpy(&v2, data + pos + sizeof(uint64_t), sizeof(uint64_t));
+      uint64_t v{v1 | v2};
+      if ((v & 0x8080808080808080) == 0) {
+        pos = next_pos;
+        continue;
+      }
+    }
+    unsigned char byte = data[pos];
+    if (byte < 0x80) {
+      pos++;
+      continue;
+    } else if ((byte & 0xe0) == 0xc0) {
+      next_pos = pos + 2;
+      if (next_pos > len) { return false; }
+      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
+      // range check
+      code_point = (byte & 0x1f) << 6 | (data[pos + 1] & 0x3f);
+      if (code_point < 0x80 || 0x7ff < code_point) { return false; }
+    } else if ((byte & 0xf0) == 0xe0) {
+      next_pos = pos + 3;
+      if (next_pos > len) { return false; }
+      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
+      if ((data[pos + 2] & 0xc0) != 0x80) { return false; }
+      // range check
+      code_point = (byte & 0x0f) << 12 |
+                   (data[pos + 1] & 0x3f) << 6 |
+                   (data[pos + 2] & 0x3f);
+      if (code_point < 0x800 || 0xffff < code_point ||
+          (0xd7ff < code_point && code_point < 0xe000)) {
+        return false;
+      }
+    } else if ((byte & 0xf8) == 0xf0) { // 0b11110000
+      next_pos = pos + 4;
+      if (next_pos > len) { return false; }
+      if ((data[pos + 1] & 0xc0) != 0x80) { return false; }
+      if ((data[pos + 2] & 0xc0) != 0x80) { return false; }
+      if ((data[pos + 3] & 0xc0) != 0x80) { return false; }
+      // range check
+      code_point =
+          (byte & 0x07) << 18 | (data[pos + 1] & 0x3f) << 12 |
+          (data[pos + 2] & 0x3f) << 6 | (data[pos + 3] & 0x3f);
+      if (code_point <= 0xffff || 0x10ffff < code_point) { return false; }
+    } else {
+      // we may have a continuation
+      return false;
+    }
+    pos = next_pos;
+  }
+  return true;
+}
+
+} // namespace fallback
+} // namespace simdjson
+
+//
+// Stage 2
+//
+
+namespace simdjson {
+namespace fallback {
+
+simdjson_warn_unused error_code dom_parser_implementation::stage2(dom::document &_doc) noexcept {
+  return stage2::tape_builder::parse_document<false>(*this, _doc);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::stage2_next(dom::document &_doc) noexcept {
+  return stage2::tape_builder::parse_document<true>(*this, _doc);
+}
+
+simdjson_warn_unused uint8_t *dom_parser_implementation::parse_string(const uint8_t *src, uint8_t *dst, bool replacement_char) const noexcept {
+  return fallback::stringparsing::parse_string(src, dst, replacement_char);
+}
+
+simdjson_warn_unused uint8_t *dom_parser_implementation::parse_wobbly_string(const uint8_t *src, uint8_t *dst) const noexcept {
+  return fallback::stringparsing::parse_wobbly_string(src, dst);
+}
+
+simdjson_warn_unused error_code dom_parser_implementation::parse(const uint8_t *_buf, size_t _len, dom::document &_doc) noexcept {
+  auto error = stage1(_buf, _len, stage1_mode::regular);
+  if (error) { return error; }
+  return stage2(_doc);
+}
+
+} // namespace fallback
+} // namespace simdjson
+
+/* including simdjson/fallback/end.h: #include <simdjson/fallback/end.h> */
+/* begin file simdjson/fallback/end.h */
+/* amalgamation skipped (editor-only): #ifndef SIMDJSON_CONDITIONAL_INCLUDE */
+/* amalgamation skipped (editor-only): #include "simdjson/fallback/base.h" */
+/* amalgamation skipped (editor-only): #endif // SIMDJSON_CONDITIONAL_INCLUDE */
+
+/* undefining SIMDJSON_IMPLEMENTATION from "fallback" */
+#undef SIMDJSON_IMPLEMENTATION
+/* end file simdjson/fallback/end.h */
+
+#endif // SIMDJSON_SRC_FALLBACK_CPP
+/* end file fallback.cpp */
+#endif
 /* undefining SIMDJSON_CONDITIONAL_INCLUDE */
 #undef SIMDJSON_CONDITIONAL_INCLUDE
 
