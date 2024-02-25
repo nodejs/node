@@ -168,7 +168,7 @@ module.exports = function(usingFlatConfig) {
                 alias: "c",
                 type: "path::String",
                 description: usingFlatConfig
-                    ? "Use this configuration instead of eslint.config.js"
+                    ? "Use this configuration instead of eslint.config.js, eslint.config.mjs, or eslint.config.cjs"
                     : "Use this configuration, overriding .eslintrc.* config options if present"
             },
             envFlag,

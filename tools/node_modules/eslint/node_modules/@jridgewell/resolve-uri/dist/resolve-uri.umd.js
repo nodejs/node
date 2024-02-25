@@ -27,16 +27,6 @@
      * 4. Hash, including "#", optional.
      */
     const fileRegex = /^file:(?:\/\/((?![a-z]:)[^/#?]*)?)?(\/?[^#?]*)(\?[^#]*)?(#.*)?/i;
-    var UrlType;
-    (function (UrlType) {
-        UrlType[UrlType["Empty"] = 1] = "Empty";
-        UrlType[UrlType["Hash"] = 2] = "Hash";
-        UrlType[UrlType["Query"] = 3] = "Query";
-        UrlType[UrlType["RelativePath"] = 4] = "RelativePath";
-        UrlType[UrlType["AbsolutePath"] = 5] = "AbsolutePath";
-        UrlType[UrlType["SchemeRelative"] = 6] = "SchemeRelative";
-        UrlType[UrlType["Absolute"] = 7] = "Absolute";
-    })(UrlType || (UrlType = {}));
     function isAbsoluteUrl(input) {
         return schemeRegex.test(input);
     }
@@ -70,21 +60,21 @@
             path,
             query,
             hash,
-            type: UrlType.Absolute,
+            type: 7 /* Absolute */,
         };
     }
     function parseUrl(input) {
         if (isSchemeRelativeUrl(input)) {
             const url = parseAbsoluteUrl('http:' + input);
             url.scheme = '';
-            url.type = UrlType.SchemeRelative;
+            url.type = 6 /* SchemeRelative */;
             return url;
         }
         if (isAbsolutePath(input)) {
             const url = parseAbsoluteUrl('http://foo.com' + input);
             url.scheme = '';
             url.host = '';
-            url.type = UrlType.AbsolutePath;
+            url.type = 5 /* AbsolutePath */;
             return url;
         }
         if (isFileUrl(input))
@@ -96,11 +86,11 @@
         url.host = '';
         url.type = input
             ? input.startsWith('?')
-                ? UrlType.Query
+                ? 3 /* Query */
                 : input.startsWith('#')
-                    ? UrlType.Hash
-                    : UrlType.RelativePath
-            : UrlType.Empty;
+                    ? 2 /* Hash */
+                    : 4 /* RelativePath */
+            : 1 /* Empty */;
         return url;
     }
     function stripPathFilename(path) {
@@ -128,7 +118,7 @@
      * "foo/.". We need to normalize to a standard representation.
      */
     function normalizePath(url, type) {
-        const rel = type <= UrlType.RelativePath;
+        const rel = type <= 4 /* RelativePath */;
         const pieces = url.path.split('/');
         // We need to preserve the first piece always, so that we output a leading slash. The item at
         // pieces[0] is an empty string.
@@ -189,27 +179,27 @@
             return '';
         const url = parseUrl(input);
         let inputType = url.type;
-        if (base && inputType !== UrlType.Absolute) {
+        if (base && inputType !== 7 /* Absolute */) {
             const baseUrl = parseUrl(base);
             const baseType = baseUrl.type;
             switch (inputType) {
-                case UrlType.Empty:
+                case 1 /* Empty */:
                     url.hash = baseUrl.hash;
                 // fall through
-                case UrlType.Hash:
+                case 2 /* Hash */:
                     url.query = baseUrl.query;
                 // fall through
-                case UrlType.Query:
-                case UrlType.RelativePath:
+                case 3 /* Query */:
+                case 4 /* RelativePath */:
                     mergePaths(url, baseUrl);
                 // fall through
-                case UrlType.AbsolutePath:
+                case 5 /* AbsolutePath */:
                     // The host, user, and port are joined, you can't copy one without the others.
                     url.user = baseUrl.user;
                     url.host = baseUrl.host;
                     url.port = baseUrl.port;
                 // fall through
-                case UrlType.SchemeRelative:
+                case 6 /* SchemeRelative */:
                     // The input doesn't have a schema at least, so we need to copy at least that over.
                     url.scheme = baseUrl.scheme;
             }
@@ -221,10 +211,10 @@
         switch (inputType) {
             // This is impossible, because of the empty checks at the start of the function.
             // case UrlType.Empty:
-            case UrlType.Hash:
-            case UrlType.Query:
+            case 2 /* Hash */:
+            case 3 /* Query */:
                 return queryHash;
-            case UrlType.RelativePath: {
+            case 4 /* RelativePath */: {
                 // The first char is always a "/", and we need it to be relative.
                 const path = url.path.slice(1);
                 if (!path)
@@ -237,7 +227,7 @@
                 }
                 return path + queryHash;
             }
-            case UrlType.AbsolutePath:
+            case 5 /* AbsolutePath */:
                 return url.path + queryHash;
             default:
                 return url.scheme + '//' + url.user + url.host + url.port + url.path + queryHash;
