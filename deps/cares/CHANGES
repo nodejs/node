@@ -1,5 +1,194 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.27.0 (22 Feb 2024)
+
+GitHub (22 Feb 2024)
+- [Brad House brought this change]
+
+  Release 1.27.0 (#715)
+  
+  release prep for 1.27.0 release
+
+- [Brad House brought this change]
+
+  Merge pull request from GHSA-mg26-v6qh-x48q
+
+- [Oliver Welsh brought this change]
+
+  Add flag to not use a default local named server on channel initialization (#713)
+  
+  Hello, I work on an application for Microsoft which uses c-ares to
+  perform DNS lookups. We have made some minor changes to the library over
+  time, and would like to contribute these back to the project in case
+  they are useful more widely. This PR adds a new channel init flag,
+  described below.
+  
+  Please let me know if I can include any more information to make this PR
+  better/easier for you to review. Thanks!
+  
+  **Summary**
+  When initializing a channel with `ares_init_options()`, if there are no
+  nameservers available (because `ARES_OPT_SERVERS` is not used and
+  `/etc/resolv.conf` is either empty or not available) then a default
+  local named server will be added to the channel.
+  
+  However in some applications a local named server will never be
+  available. In this case, all subsequent queries on the channel will
+  fail.
+  
+  If we know this ahead of time, then it may be preferred to fail channel
+  initialization directly rather than wait for the queries to fail. This
+  gives better visibility, since we know that the failure is due to
+  missing servers rather than something going wrong with the queries.
+  
+  This PR adds a new flag `ARES_FLAG_NO_DFLT_SVR`, to indicate that a
+  default local named server should not be added to a channel in this
+  scenario. Instead, a new error `ARES_EINITNOSERVER` is returned and
+  initialization fails.
+  
+  **Testing**
+  I have added 2 new FV tests:
+  - `ContainerNoDfltSvrEmptyInit` to test that initialization fails when
+  no nameservers are available and the flag is set.
+  - `ContainerNoDfltSvrFullInit` to test that initialization still
+  succeeds when the flag is set but other nameservers are available.
+  
+  Existing FVs are all passing.
+  
+  **Documentation**
+  I have had a go at manually updating the docs to describe the new
+  flag/error, but couldn't see any contributing guidance about testing
+  this. Please let me know if you'd like anything more here.
+  
+  ---------
+  
+  Fix By: Oliver Welsh (@oliverwelsh)
+
+Brad House (18 Feb 2024)
+- badge should be only main branch
+
+- put logo in readme
+
+- clang-format
+
+GitHub (17 Feb 2024)
+- [Brad House brought this change]
+
+  Add ares_queue_active_queries() (#712)
+  
+  Add a function to request the number of active queries from an ares
+  channel. This will return the number of inflight requests to dns
+  servers. Some functions like `ares_getaddrinfo()` when using `AF_UNSPEC`
+  may enqueue multiple queries which will be reflected in this count.
+  
+  In the future, if we implement support for queuing (e.g. for throttling
+  purposes), and/or implement support for tracking user-requested queries
+  (e.g. for cancelation), we can provide additional functions for
+  inspecting those queues.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Vojtěch Vobr brought this change]
+
+  fix leaking DNS suffix search list on Windows (#711)
+  
+  ares__strsplit provides a newly allocated buffer, so suffix list in
+  line variable isn't referenced anymore. Related ares_free seems to
+  have gone missing during refactoring made in #594
+  
+  Fix By: Vojtěch Vobr (@vojtechvobr)
+
+- [Brad House brought this change]
+
+  Add ares_queue_wait_empty() for use with EventThreads (#710)
+  
+  It may be useful to wait for the queue to be empty under certain conditions (mainly test cases), expose a function to efficiently do this and rework test cases to use it.
+  
+  Fix By: Brad House (@bradh352)
+
+- [Cheng Zhao brought this change]
+
+  Fix warning about ignoring result of write (#709)
+  
+  Fix the compiler warning from clang:
+  
+  ```
+  ares_event_wake_pipe.c:120:3: error: ignoring return value of function declared with 'warn_unused_result' attribute [-Werror,-Wunused-result]
+    120 |   write(p->filedes[1], "1", 1);
+        |   ^~~~~ ~~~~~~~~~~~~~~~~~~~~~
+  1 error generated.
+  ```
+  
+  Fix By: Cheng Zhao (@zcbenz)
+
+Brad House (5 Feb 2024)
+- CMake: don't override target output locations if not top-level
+  
+  CMake was unconditionally setting output locations globally, but
+  it should not do that if it is not the top-level project (e.g.
+  during chain building).  Detect this fact and only set the output
+  location when top level.
+  
+  Fixes Issue: #708
+  Fix By: Anthony Alayo (@anthonyalayo)
+
+- make docs match PR #705
+
+GitHub (31 Jan 2024)
+- [Cristian Rodríguez brought this change]
+
+  lower EDNSPACKETSZ to 1232 (#705)
+  
+  In 2020, it was agreed this is optimal maximum size and all
+  major server software was updated to reflect this.
+  
+  see https://www.dnsflagday.net/2020/#faq
+  
+  Fix By: Cristian Rodríguez (@crrodriguez)
+
+Brad House (30 Jan 2024)
+- fix version
+
+- fix typo
+
+- bad symlink
+
+- attempt to fix pkgconfig on windows for static builds
+
+GitHub (28 Jan 2024)
+- [Andriy Utkin brought this change]
+
+  docs/ares_init_options.3: fix args in analogy (#701)
+  
+  Fix By: Andriy Utkin <hello@autkin.net>
+
+- [Brad House brought this change]
+
+  sonarcloud: fix minor codesmells (#702)
+  
+  Fix minor codesmells, mostly related to missing 'const' in the new event system.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (26 Jan 2024)
+- remove outdated copyright text
+
+- spelling
+
+- sanity check GTest includes GMock component
+
+GitHub (26 Jan 2024)
+- [Brad House brought this change]
+
+  build-time disabled threads breaks c-ares (#700)
+  
+  Regression introduced in 1.26.0, building c-ares with threading disabled results in ares_init{_options}() failing.
+  
+  Also adds a new CI test case to prevent this regression in the future.
+  
+  Fixes Bug: #699
+  Fix By: Brad House (@bradh352)
+
 Version 1.26.0 (25 Jan 2024)
 
 Brad House (25 Jan 2024)
@@ -6035,113 +6224,3 @@ Yang Tse (30 Jan 2013)
   URL: http://curl.haxx.se/mail/lib-2013-01/0306.html
 
 - zz40-xc-ovr.m4: reinstate strict AC_REQUIRE macro dependencies
-
-- zz40-xc-ovr.m4: avoid double single-quote usage
-
-- zz40-xc-ovr.m4: parentheses balancing of 'case' statements
-  
-  m4 quadrigraph shell comment technique allows proper autoconf
-  parentheses balancing in shell 'case' statements. The presence
-  of unbalanced parentheses may otherwise trigger expansion bugs.
-
-- zz40-xc-ovr.m4: internals overhauling
-  
-  - Update comments
-  - Execute commands in subshells
-  - Faster path separator check
-  - Fix missing 'test' command
-  - Rename private macros
-  - Minimize AC_REQUIRE usage
-
-- zz40-xc-ovr.m4: redirect errors and warnings to stderr
-
-- configure: use XC_CONFIGURE_PREAMBLE early checks
-  
-  Some basic checks we make were placed early enough in generated
-  configure script when using autoconf 2.5X versions. Newer autoconf
-  versions expand these checks much further into the configure script,
-  rendering them useless. Using XC_CONFIGURE_PREAMBLE fixes placement
-  of early intended checks across all our autoconf supported versions.
-
-- zz40-xc-ovr.m4: provide XC_CONFIGURE_PREAMBLE macro
-
-- configure: autotools compatibility fixes - step I
-  
-  Fix proper macro expansion order across autotools versions for
-  C compiler and preprocessor program checks.
-
-- configure: fix automake 1.13 compatibility
-  
-  Tested with:
-  
-  buildconf: autoconf version 2.69
-  buildconf: autom4te version 2.69
-  buildconf: autoheader version 2.69
-  buildconf: automake version 1.13.1
-  buildconf: aclocal version 1.13.1
-  buildconf: libtool version 2.4
-  buildconf: GNU m4 version 1.4.16
-
-- ares_private.h: use again memdebug.h instead of curl_memdebug.h
-
-- configure.ac: replace AM_CONFIG_HEADER with AC_CONFIG_HEADERS
-  
-  automake 1.13 errors if AM_CONFIG_HEADER is used in configure script.
-
-- cares-override.m4: provide AC_CONFIG_MACRO_DIR definition conditionally
-  
-  Provide a 'traceable' AC_CONFIG_MACRO_DIR definition only when using
-  an autoconf version that does not provide it, instead of what we were
-  doing up to now of providing and overriding AC_CONFIG_MACRO_DIR for
-  all autoconf versions.
-
-- ares_private.h: use curl_memdebug.h instead of memdebug.h
-
-- vc6cares.dsp: add ares_create_query.c and ares_parse_soa_reply.c
-
-- cares-functions.m4: improve gethostname arg 2 data type check
-
-- setup_once.h: HP-UX specific 'bool', 'false' and 'true' definitions.
-  
-  Also reverts commit bceb40095a
-
-- configure: check if compiler halts on function prototype mismatch
-
-- cares-functions.m4: add gethostname arg 2 data type check and definition
-
-- cares-functions.m4: update thread-safeness detection of getaddrinfo()
-  
-  Take in account that POSIX standard Issue 7 drops h_errno support. Now, we also
-  consider getaddrinfo() to be thread-safe when (_POSIX_C_SOURCE >= 200809L) or
-  (_XOPEN_SOURCE >= 700) independently of whether h_errno exists or not.
-  
-  Take in account that h_errno might be a modifiable lvalue not defined as
-  a C preprocessor macro.
-
-- setup_once.h: HP-UX <sys/socket.h> issue workaround
-  
-  Issue: When building a 32bit target with large file support HP-UX
-  <sys/socket.h> header file may simultaneously provide two different
-  sets of declarations for sendfile and sendpath functions, one with
-  static and another with external linkage. Given that we do not use
-  mentioned functions we really don't care which linkage is the
-  appropriate one, but on the other hand, the double declaration emmits
-  warnings when using the HP-UX compiler and errors when using modern
-  gcc versions resulting in fatal compilation errors.
-  
-  Mentioned issue is now fixed as long as we don't use sendfile nor
-  sendpath functions.
-
-- setup_once.h: refactor inclusion of <unistd.h> and <sys/socket.h>
-  
-  Inclusion of these two header files now done in setup_once.h
-
-- Header inclusion clean-up
-  
-  Remove header inclusions already done in setup_once.h
-
-- setup_once.h: HP-UX specific TRUE and FALSE definitions
-  
-  Some HP-UX system headers require TRUE defined to 1 and FALSE to 0.
-
-- ares_timeout.c: fix compiler warning

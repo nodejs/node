@@ -47,7 +47,7 @@ int ares_init(ares_channel_t **\fIchannelptr\fP);
 .fi
 .SH DESCRIPTION
 The \fBares_init(3)\fP function is equivalent to calling
-\fBares_init_options(NULL, 0)\fP.  It is recommended to use
+\fBares_init_options(channelptr, NULL, 0)\fP.  It is recommended to use
 \fBares_init_options(3)\fP instead and to set or make configurable the
 appropriate options for your application.
 
@@ -120,6 +120,10 @@ used to test or debug name servers.
 .B ARES_FLAG_EDNS
 Include an EDNS pseudo-resource record (RFC 2671) in generated requests.  As of
 v1.22, this is on by default if flags are otherwise not set.
+.TP 23
+.B ARES_FLAG_NO_DFLT_SVR
+Do not attempt to add a default local named server if there are no other
+servers available.  Instead, fail initialization with \fIARES_ENOSERVER\fP.
 .RE
 .TP 18
 .B ARES_OPT_TIMEOUT
@@ -248,7 +252,7 @@ The receive buffer size to set for the socket.
 .br
 The message size to be advertised in EDNS; only takes effect if the
 .B ARES_FLAG_EDNS
-flag is set.  Defaults to 1280, the recommended size.
+flag is set.  Defaults to 1232, the recommended size.
 .TP 18
 .B ARES_OPT_RESOLVCONF
 .B char *\fIresolvconf_path\fP;
@@ -342,6 +346,9 @@ The process's available memory was exhausted.
 .TP 14
 .B ARES_ENOTINITIALIZED
 c-ares library initialization not yet performed.
+.TP 14
+.B ARES_ENOSERVER
+No DNS servers were available to use.
 .SH NOTES
 When initializing from
 .B /etc/resolv.conf,

@@ -110,21 +110,21 @@ static ares_pipeevent_t *ares_pipeevent_init(void)
 
 static void ares_pipeevent_signal(const ares_event_t *e)
 {
-  ares_pipeevent_t *p;
+  const ares_pipeevent_t *p;
 
   if (e == NULL || e->data == NULL) {
     return;
   }
 
   p = e->data;
-  write(p->filedes[1], "1", 1);
+  (void)write(p->filedes[1], "1", 1);
 }
 
 static void ares_pipeevent_cb(ares_event_thread_t *e, ares_socket_t fd,
                               void *data, ares_event_flags_t flags)
 {
-  unsigned char     buf[32];
-  ares_pipeevent_t *p = NULL;
+  unsigned char           buf[32];
+  const ares_pipeevent_t *p = NULL;
 
   (void)e;
   (void)fd;

@@ -85,7 +85,8 @@ static size_t ares_evsys_select_wait(ares_event_thread_t *e,
   FD_ZERO(&write_fds);
 
   for (i = 0; i < num_fds; i++) {
-    ares_event_t *ev = ares__htable_asvp_get_direct(e->ev_handles, fdlist[i]);
+    const ares_event_t *ev =
+      ares__htable_asvp_get_direct(e->ev_handles, fdlist[i]);
     if (ev->flags & ARES_EVENT_FLAG_READ) {
       FD_SET(ev->fd, &read_fds);
     }
