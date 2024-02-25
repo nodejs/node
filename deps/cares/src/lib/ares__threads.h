@@ -34,6 +34,21 @@ void ares__thread_mutex_destroy(ares__thread_mutex_t *mut);
 void ares__thread_mutex_lock(ares__thread_mutex_t *mut);
 void ares__thread_mutex_unlock(ares__thread_mutex_t *mut);
 
+
+struct ares__thread_cond;
+typedef struct ares__thread_cond ares__thread_cond_t;
+
+ares__thread_cond_t             *ares__thread_cond_create(void);
+void          ares__thread_cond_destroy(ares__thread_cond_t *cond);
+void          ares__thread_cond_signal(ares__thread_cond_t *cond);
+void          ares__thread_cond_broadcast(ares__thread_cond_t *cond);
+ares_status_t ares__thread_cond_wait(ares__thread_cond_t  *cond,
+                                     ares__thread_mutex_t *mut);
+ares_status_t ares__thread_cond_timedwait(ares__thread_cond_t  *cond,
+                                          ares__thread_mutex_t *mut,
+                                          unsigned long         timeout_ms);
+
+
 struct ares__thread;
 typedef struct ares__thread ares__thread_t;
 

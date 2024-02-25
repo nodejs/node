@@ -802,7 +802,7 @@ static ares_bool_t ares__buf_split_isduplicate(ares__llist_t       *list,
 
   for (node = ares__llist_node_first(list); node != NULL;
        node = ares__llist_node_next(node)) {
-    ares__buf_t         *buf  = ares__llist_node_val(node);
+    const ares__buf_t   *buf  = ares__llist_node_val(node);
     size_t               plen = 0;
     const unsigned char *ptr  = ares__buf_peek(buf, &plen);
 

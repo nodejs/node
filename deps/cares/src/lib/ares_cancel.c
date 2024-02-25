@@ -85,6 +85,9 @@ void ares_cancel(ares_channel_t *channel)
 
     ares__llist_destroy(list_copy);
   }
+
+  ares_queue_notify_empty(channel);
+
 done:
   ares__channel_unlock(channel);
 }
