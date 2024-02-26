@@ -109,6 +109,8 @@ expected.atRunTime = new Set([
   'NativeModule internal/dns/utils',
   'NativeModule internal/process/pre_execution',
   'NativeModule internal/modules/esm/utils',
+  'Internal Binding code_integrity',
+  'NativeModule codeintegrity',
 ]);
 
 if (common.isMainThread) {
