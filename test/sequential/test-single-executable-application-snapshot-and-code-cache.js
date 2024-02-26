@@ -3,7 +3,7 @@
 require('../common');
 
 const {
-  injectAndCodeSign,
+  generateSEA,
   skipIfSingleExecutableIsNotSupported,
 } = require('../common/sea');
 
@@ -12,7 +12,7 @@ skipIfSingleExecutableIsNotSupported();
 // This tests "useCodeCache" is ignored when "useSnapshot" is true.
 
 const tmpdir = require('../common/tmpdir');
-const { copyFileSync, writeFileSync, existsSync } = require('fs');
+const { writeFileSync, existsSync } = require('fs');
 const {
   spawnSyncAndExitWithoutError
 } = require('../common/child_process');
@@ -62,8 +62,7 @@ const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 
 
   assert(existsSync(seaPrepBlob));
 
-  copyFileSync(process.execPath, outputFile);
-  injectAndCodeSign(outputFile, seaPrepBlob);
+  generateSEA(outputFile, process.execPath, seaPrepBlob);
 
   spawnSyncAndExitWithoutError(
     outputFile,

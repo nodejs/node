@@ -3,7 +3,7 @@
 require('../common');
 
 const {
-  injectAndCodeSign,
+  generateSEA,
   skipIfSingleExecutableIsNotSupported,
 } = require('../common/sea');
 
@@ -12,7 +12,7 @@ skipIfSingleExecutableIsNotSupported();
 // This tests the snapshot support in single executable applications.
 
 const tmpdir = require('../common/tmpdir');
-const { copyFileSync, writeFileSync, existsSync } = require('fs');
+const { writeFileSync, existsSync } = require('fs');
 const {
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError
@@ -85,8 +85,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
 
   assert(existsSync(seaPrepBlob));
 
-  copyFileSync(process.execPath, outputFile);
-  injectAndCodeSign(outputFile, seaPrepBlob);
+  generateSEA(outputFile, process.execPath, seaPrepBlob);
 
   spawnSyncAndExitWithoutError(
     outputFile,
