@@ -1792,6 +1792,42 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 // Prints "value"
 ```
 
+## `util.styleText(format, text)`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `format` {string} A text format defined in `util.inspect.colors`.
+* `text` {string} The text to to be formatted.
+
+This function returns a formatted text considering the `format` passed.
+
+```mjs
+import { styleText } from 'node:util';
+const errorMessage = styleText('red', 'Error! Error!');
+console.log(errorMessage);
+```
+
+```cjs
+const { styleText } = require('node:util');
+const errorMessage = styleText('red', 'Error! Error!');
+console.log(errorMessage);
+```
+
+`util.inspect.colors` also provides text formats such as `italic`, and
+`underline` and you can combine both:
+
+```cjs
+console.log(
+  util.styleText('underline', util.styleText('italic', 'My italic underlined message')),
+);
+```
+
+The full list of formats can be found in [modifiers][].
+
 ## Class: `util.TextDecoder`
 
 <!-- YAML
@@ -3395,6 +3431,7 @@ util.log('Timestamped message.');
 [default sort]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/sort
 [global symbol registry]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Symbol/for
 [list of deprecated APIS]: deprecations.md#list-of-deprecated-apis
+[modifiers]: #modifiers
 [realm]: https://tc39.es/ecma262/#realm
 [semantically incompatible]: https://github.com/nodejs/node/issues/4179
 [util.inspect.custom]: #utilinspectcustom
