@@ -3,7 +3,7 @@
 require('../common');
 
 const {
-  injectAndCodeSign,
+  generateSEA,
   skipIfSingleExecutableIsNotSupported,
 } = require('../common/sea');
 
@@ -51,8 +51,7 @@ spawnSyncAndExitWithoutError(
 
 assert(existsSync(seaPrepBlob));
 
-copyFileSync(process.execPath, outputFile);
-injectAndCodeSign(outputFile, seaPrepBlob);
+generateSEA(outputFile, process.execPath, seaPrepBlob);
 
 spawnSyncAndExitWithoutError(
   outputFile,
