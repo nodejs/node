@@ -1501,6 +1501,18 @@ Instructs Node.js to error prior to running any code if the policy does not have
 the specified integrity. It expects a [Subresource Integrity][] string as a
 parameter.
 
+### `--policy-signature`
+
+<!-- YAML
+added: v22.0.0
+-->
+
+> Stability: 1 - Experimental
+
+A path to a PKCS7 detached signature of the policy file. Node.js consults
+the OS to determine if the signature is trusted. If the signature is not
+trusted, Node.js will error
+
 ### `--preserve-symlinks`
 
 <!-- YAML
@@ -2545,6 +2557,7 @@ Node.js options that are allowed are:
 * `--openssl-shared-config`
 * `--pending-deprecation`
 * `--policy-integrity`
+* `--policy-signature`
 * `--preserve-symlinks-main`
 * `--preserve-symlinks`
 * `--prof-process`
