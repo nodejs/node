@@ -3574,6 +3574,20 @@ Calling `Hash` class directly with `Hash()` or `new Hash()` is
 deprecated due to being internals, not intended for public use.
 Please use the [`crypto.createHash()`][] method to create Hash instances.
 
+### DEP0180: `fs.Stats` constructor
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51879
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `fs.Stats` class directly with `Stats()` or `new Stats()` is
+deprecated due to being internals, not intended for public use.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
