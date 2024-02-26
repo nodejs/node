@@ -3521,8 +3521,8 @@ added:
 * `data` {string|ArrayBuffer|Buffer|TypedArray|DataView} When `data` is a
   string, it will be encoded as UTF-8 before being hashed. If a different
   input encoding is desired for a string input, user could encode the string
-  into a TypedArray using either `TextEncoder` or `Buffer.from()` and passing
-  the encoded TypedArray into this API instead.
+  into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
+  the encoded `TypedArray` into this API instead.
 * `outputEncoding` {string|undefined}  [Encoding][encoding] used to encode the
   returned digest. **Default:** `'hex'`.
 * Returns: {string|Buffer}
