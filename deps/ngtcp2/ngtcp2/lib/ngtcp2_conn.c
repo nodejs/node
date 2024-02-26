@@ -3441,12 +3441,22 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       }
 
       switch ((*pfrc)->fr.type) {
+      case NGTCP2_FRAME_RESET_STREAM:
+        strm =
+            ngtcp2_conn_find_stream(conn, (*pfrc)->fr.reset_stream.stream_id);
+        if (strm == NULL ||
+            !ngtcp2_strm_require_retransmit_reset_stream(strm)) {
+          frc = *pfrc;
+          *pfrc = (*pfrc)->next;
+          ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
+          continue;
+        }
+        break;
       case NGTCP2_FRAME_STOP_SENDING:
         strm =
             ngtcp2_conn_find_stream(conn, (*pfrc)->fr.stop_sending.stream_id);
         if (strm == NULL ||
-            ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD) &&
-             ngtcp2_strm_rx_offset(strm) == strm->rx.last_offset)) {
+            !ngtcp2_strm_require_retransmit_stop_sending(strm)) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
@@ -3476,10 +3486,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       case NGTCP2_FRAME_MAX_STREAM_DATA:
         strm = ngtcp2_conn_find_stream(conn,
                                        (*pfrc)->fr.max_stream_data.stream_id);
-        if (strm == NULL ||
-            (strm->flags &
-             (NGTCP2_STRM_FLAG_SHUT_RD | NGTCP2_STRM_FLAG_STOP_SENDING)) ||
-            (*pfrc)->fr.max_stream_data.max_stream_data < strm->rx.max_offset) {
+        if (strm == NULL || !ngtcp2_strm_require_retransmit_max_stream_data(
+                                strm, &(*pfrc)->fr.max_stream_data)) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
@@ -3497,8 +3505,8 @@ static ngtcp2_ssize conn_write_pkt(ngtcp2_conn *conn, ngtcp2_pkt_info *pi,
       case NGTCP2_FRAME_STREAM_DATA_BLOCKED:
         strm = ngtcp2_conn_find_stream(
             conn, (*pfrc)->fr.stream_data_blocked.stream_id);
-        if (strm == NULL || (strm->flags & NGTCP2_STRM_FLAG_SHUT_WR) ||
-            (*pfrc)->fr.stream_data_blocked.offset != strm->tx.max_offset) {
+        if (strm == NULL || !ngtcp2_strm_require_retransmit_stream_data_blocked(
+                                strm, &(*pfrc)->fr.stream_data_blocked)) {
           frc = *pfrc;
           *pfrc = (*pfrc)->next;
           ngtcp2_frame_chain_objalloc_del(frc, &conn->frc_objalloc, conn->mem);
@@ -7145,7 +7153,7 @@ static int conn_recv_stream(ngtcp2_conn *conn, const ngtcp2_stream *fr) {
         return rv;
       }
     }
-  } else if (fr->datacnt) {
+  } else if (fr->datacnt && !(strm->flags & NGTCP2_STRM_FLAG_STOP_SENDING)) {
     rv = ngtcp2_strm_recv_reordering(strm, fr->data[0].base, fr->data[0].len,
                                      fr->offset);
     if (rv != 0) {
@@ -7304,27 +7312,20 @@ static int conn_recv_reset_stream(ngtcp2_conn *conn,
     }
 
     /* Stream is reset before we create ngtcp2_strm object. */
-    conn->rx.offset += fr->final_size;
-    ngtcp2_conn_extend_max_offset(conn, fr->final_size);
-
-    rv = conn_call_stream_reset(conn, fr->stream_id, fr->final_size,
-                                fr->app_error_code, NULL);
+    strm = ngtcp2_objalloc_strm_get(&conn->strm_objalloc);
+    if (strm == NULL) {
+      return NGTCP2_ERR_NOMEM;
+    }
+    rv = ngtcp2_conn_init_stream(conn, strm, fr->stream_id, NULL);
     if (rv != 0) {
+      ngtcp2_objalloc_strm_release(&conn->strm_objalloc, strm);
       return rv;
     }
 
-    /* There will be no activity in this stream because we got
-       RESET_STREAM and don't write stream data any further.  This
-       effectively allows another new stream for peer. */
-    if (bidi) {
-      handle_max_remote_streams_extension(&conn->remote.bidi.unsent_max_streams,
-                                          1);
-    } else {
-      handle_max_remote_streams_extension(&conn->remote.uni.unsent_max_streams,
-                                          1);
+    rv = conn_call_stream_open(conn, strm);
+    if (rv != 0) {
+      return rv;
     }
-
-    return 0;
   }
 
   if ((strm->flags & NGTCP2_STRM_FLAG_SHUT_RD)) {
@@ -7461,15 +7462,16 @@ static int conn_recv_stop_sending(ngtcp2_conn *conn,
      been acknowledged. */
   if (!ngtcp2_strm_is_all_tx_data_fin_acked(strm) &&
       !(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM)) {
+    strm->flags |= NGTCP2_STRM_FLAG_RESET_STREAM;
+
     rv = conn_reset_stream(conn, strm, fr->app_error_code);
     if (rv != 0) {
       return rv;
     }
   }
 
-  strm->flags |= NGTCP2_STRM_FLAG_SHUT_WR |
-                 NGTCP2_STRM_FLAG_STOP_SENDING_RECVED |
-                 NGTCP2_STRM_FLAG_RESET_STREAM;
+  strm->flags |=
+      NGTCP2_STRM_FLAG_SHUT_WR | NGTCP2_STRM_FLAG_STOP_SENDING_RECVED;
 
   ngtcp2_strm_streamfrq_clear(strm);
 
@@ -12533,13 +12535,14 @@ static int conn_shutdown_stream_read(ngtcp2_conn *conn, ngtcp2_strm *strm,
 
   /* Extend connection flow control window for the amount of data
      which are not passed to application. */
-  if (!(strm->flags & (NGTCP2_STRM_FLAG_STOP_SENDING |
-                       NGTCP2_STRM_FLAG_RESET_STREAM_RECVED))) {
+  if (!(strm->flags & NGTCP2_STRM_FLAG_RESET_STREAM_RECVED)) {
     ngtcp2_conn_extend_max_offset(conn, strm->rx.last_offset -
                                             ngtcp2_strm_rx_offset(strm));
   }
 
   strm->flags |= NGTCP2_STRM_FLAG_STOP_SENDING;
+
+  ngtcp2_strm_discard_reordered_data(strm);
 
   return conn_stop_sending(conn, strm, app_error_code);
 }
