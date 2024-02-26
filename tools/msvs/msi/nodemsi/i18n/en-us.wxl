@@ -20,10 +20,14 @@
     <String Id="NodeRuntime_Description" Value="Install the core [ProductName] runtime (node.exe)."/>
 
     <String Id="npm_Title" Value="npm package manager"/>
-    <String Id="npm_Description" Value="Install npm, the recommended package manager for [ProductName]."/>
+    <String Id="npm_Description" Value="Install npm, a package manager for [ProductName]."/>
 
-    <String Id="corepack_Title" Value="corepack manager"/>
+    <String Id="corepack_Title" Value="Corepack manager"/>
     <String Id="corepack_Description" Value="Install corepack, the universal package manager for [ProductName]."/>
+    <String Id="corepack_pnpm_Title" Value="pnpm package manager"/>
+    <String Id="corepack_pnpm_Description" Value="Install pnpm, a package manager for [ProductName], distributed by Corepack."/>
+    <String Id="corepack_yarn_Title" Value="Yarn package manager"/>
+    <String Id="corepack_yarn_Description" Value="Install Yarn, a package manager for [ProductName], distributed by Corepack."/>
 
     <String Id="DocumentationShortcuts_Title" Value="Online documentation shortcuts"/>
     <String Id="DocumentationShortcuts_Description" Value="Add start menu entries that link the online documentation for [ProductName] [FullVersion] and the [ProductName] website."/>

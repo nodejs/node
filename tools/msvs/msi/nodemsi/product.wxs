@@ -82,6 +82,22 @@
       <ComponentGroupRef Id="CorepackSourceFiles"/>
     </Feature>
 
+    <Feature Id="corepack_pnpm"
+             Level="1"
+             Title="!(loc.corepack_pnpm_Title)"
+             Description="!(loc.corepack_pnpm_Description)">
+      <ComponentRef Id="CorepackpnpmCmdScript"/>
+      <ComponentRef Id="CorepackpnpmBashScript"/>
+    </Feature>
+
+    <Feature Id="corepack_yarn"
+             Level="1"
+             Title="!(loc.corepack_yarn_Title)"
+             Description="!(loc.corepack_yarn_Description)">
+      <ComponentRef Id="CorepackYarnCmdScript"/>
+      <ComponentRef Id="CorepackYarnBashScript"/>
+    </Feature>
+
     <Feature Id="npm"
              Level="1"
              Title="!(loc.npm_Title)"
@@ -214,6 +230,22 @@
 
       <Component Id="CorepackBashScript">
         <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\corepack"/>
+      </Component>
+
+      <Component Id="CorepackPnpmCmdScript">
+        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\pnpm.cmd"/>
+      </Component>
+
+      <Component Id="CorepackPnpmBashScript">
+        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\pnpm"/>
+      </Component>
+
+      <Component Id="CorepackYarnCmdScript">
+        <File Id="corepack.cmd" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\yarn.cmd"/>
+      </Component>
+
+      <Component Id="CorepackYarnBashScript">
+        <File Id="corepack.sh" KeyPath="yes" Source="$(var.CorepackSourceDir)\shims\nodewin\yarn"/>
       </Component>
 
       <Component Id="NpmCmdScript">
