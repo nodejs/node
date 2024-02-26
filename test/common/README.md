@@ -1053,8 +1053,8 @@ in the current configuration.
 Copy `sourceExecutable` to `targetExecutable`, use postject to inject `seaBlob`
 into `targetExecutable` and sign it if necessary.
 
-If `verifyWorkflow` is false (default) and any of the steps fails, it skips the tests.
-Otherwise, an error is thrown.
+If `verifyWorkflow` is false (default) and any of the steps fails,
+it skips the tests. Otherwise, an error is thrown.
 
 ## tick Module
 
