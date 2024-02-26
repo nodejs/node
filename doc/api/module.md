@@ -274,8 +274,8 @@ It's possible to call `register` more than once:
 // entrypoint.mjs
 import { register } from 'node:module';
 
-register('./first.mjs', import.meta.url);
-register('./second.mjs', import.meta.url);
+register('./foo.mjs', import.meta.url);
+register('./bar.mjs', import.meta.url);
 await import('./my-app.mjs');
 ```
 
@@ -285,20 +285,22 @@ const { register } = require('node:module');
 const { pathToFileURL } = require('node:url');
 
 const parentURL = pathToFileURL(__filename);
-register('./first.mjs', parentURL);
-register('./second.mjs', parentURL);
+register('./foo.mjs', parentURL);
+register('./bar.mjs', parentURL);
 import('./my-app.mjs');
 ```
 
-In this example, the registered hooks will form chains. If both `first.mjs` and
-`second.mjs` define a `resolve` hook, both will be called, in the order they
-were registered. The same applies to all the other hooks.
+In this example, the registered hooks will form chains. These chains run
+last-in, first out (LIFO). If both `foo.mjs` and `bar.mjs` define a `resolve`
+hook, they will be called like so (note the right-to-left):
+node's default ← `./foo.mjs` ← `./bar.mjs`. The same applies to all the other
+hooks.
 
 The registered hooks also affect `register` itself. In this example,
-`second.mjs` will be resolved and loaded per the hooks registered by
-`first.mjs`. This allows for things like writing hooks in non-JavaScript
-languages, so long as an earlier registered loader is one that transpiles into
-JavaScript.
+`bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
+(because `foo`'s hooks will have already been added to the chain). This allows
+for things like writing hooks in non-JavaScript languages, so long as an
+earlier registered loader is one that transpiles into JavaScript.
 
 The `register` method cannot be called from within the module that defines the
 hooks.
