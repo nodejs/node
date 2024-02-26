@@ -27,10 +27,6 @@
 #include <assert.h>
 #include <string.h>
 
-#if defined(_MSC_VER)
-#  include <intrin.h>
-#endif
-
 #include "ngtcp2_log.h"
 #include "ngtcp2_macro.h"
 #include "ngtcp2_mem.h"
@@ -235,39 +231,27 @@ void ngtcp2_cc_cubic_init(ngtcp2_cc_cubic *cubic, ngtcp2_log *log) {
 }
 
 uint64_t ngtcp2_cbrt(uint64_t n) {
-  int d;
-  uint64_t a;
+  size_t s;
+  uint64_t y = 0;
+  uint64_t b;
 
-  if (n == 0) {
-    return 0;
-  }
-
-#if defined(_MSC_VER)
-  {
-    unsigned long index;
-#  if defined(_WIN64)
-    if (_BitScanReverse64(&index, n)) {
-      d = 61 - index;
-    } else {
-      ngtcp2_unreachable();
+  for (s = 63; s > 0; s -= 3) {
+    y <<= 1;
+    b = 3 * y * (y + 1) + 1;
+    if ((n >> s) >= b) {
+      n -= b << s;
+      y++;
     }
-#  else  /* !defined(_WIN64) */
-    if (_BitScanReverse(&index, (unsigned int)(n >> 32))) {
-      d = 31 - index;
-    } else {
-      d = 32 + 31 - _BitScanReverse(&index, (unsigned int)n);
-    }
-#  endif /* !defined(_WIN64) */
   }
-#else  /* !defined(_MSC_VER) */
-  d = __builtin_clzll(n);
-#endif /* !defined(_MSC_VER) */
-  a = 1ULL << ((64 - d) / 3 + 1);
 
-  for (; a * a * a > n;) {
-    a = (2 * a + n / a / a) / 3;
+  y <<= 1;
+  b = 3 * y * (y + 1) + 1;
+  if (n >= b) {
+    n -= b;
+    y++;
   }
-  return a;
+
+  return y;
 }
 
 /* HyStart++ constants */
