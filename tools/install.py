@@ -116,11 +116,10 @@ def npm_files(options, action):
 def corepack_files(options, action):
   package_files(options, action, 'corepack', {
     'corepack': 'dist/corepack.js',
-#   Not the default just yet:
-#   'yarn': 'dist/yarn.js',
-#   'yarnpkg': 'dist/yarn.js',
-#   'pnpm': 'dist/pnpm.js',
-#   'pnpx': 'dist/pnpx.js',
+    'yarn': 'dist/yarn.js',
+    'yarnpkg': 'dist/yarn.js',
+    'pnpm': 'dist/pnpm.js',
+    'pnpx': 'dist/pnpx.js',
   })
 
   # On z/OS, we install node-gyp for convenience, as some vendors don't have
