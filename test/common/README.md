@@ -1048,11 +1048,13 @@ Application functionality.
 Skip the rest of the tests if single executable applications are not supported
 in the current configuration.
 
-### `injectAndCodeSign(targetExecutable, resource)`
+### `generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow)`
 
-Uses Postect to inject the contents of the file at the path `resource` into
-the target executable file at the path `targetExecutable` and ultimately code
-sign the final binary.
+Copy `sourceExecutable` to `targetExecutable`, use postject to inject `seaBlob`
+into `targetExecutable` and sign it if necessary.
+
+If `verifyWorkflow` is false (default) and any of the steps fails,
+it skips the tests. Otherwise, an error is thrown.
 
 ## tick Module
 
