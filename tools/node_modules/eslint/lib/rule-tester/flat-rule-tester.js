@@ -13,6 +13,7 @@
 const
     assert = require("assert"),
     util = require("util"),
+    path = require("path"),
     equal = require("fast-deep-equal"),
     Traverser = require("../shared/traverser"),
     { getRuleOptionsSchema } = require("../config/flat-config-helpers"),
@@ -592,7 +593,15 @@ class FlatRuleTester {
          * @private
          */
         function runRuleForItem(item) {
-            const configs = new FlatConfigArray(testerConfig, { baseConfig });
+            const flatConfigArrayOptions = {
+                baseConfig
+            };
+
+            if (item.filename) {
+                flatConfigArrayOptions.basePath = path.parse(item.filename).root;
+            }
+
+            const configs = new FlatConfigArray(testerConfig, flatConfigArrayOptions);
 
             /*
              * Modify the returned config so that the parser is wrapped to catch

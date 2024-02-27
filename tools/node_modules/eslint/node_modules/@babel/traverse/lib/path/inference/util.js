@@ -14,12 +14,12 @@ const {
 } = _t;
 function createUnionType(types) {
   {
-    if (isFlowType(types[0])) {
+    if (types.every(v => isFlowType(v))) {
       if (createFlowUnionType) {
         return createFlowUnionType(types);
       }
       return createUnionTypeAnnotation(types);
-    } else {
+    } else if (types.every(v => isTSType(v))) {
       if (createTSUnionType) {
         return createTSUnionType(types);
       }

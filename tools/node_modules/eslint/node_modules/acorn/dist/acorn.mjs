@@ -2936,12 +2936,14 @@ pp$5.parseExprImport = function(forNew) {
   // Consume `import` as an identifier for `import.meta`.
   // Because `this.parseIdent(true)` doesn't check escape sequences, it needs the check of `this.containsEsc`.
   if (this.containsEsc) { this.raiseRecoverable(this.start, "Escape sequence in keyword import"); }
-  var meta = this.parseIdent(true);
+  this.next();
 
   if (this.type === types$1.parenL && !forNew) {
     return this.parseDynamicImport(node)
   } else if (this.type === types$1.dot) {
-    node.meta = meta;
+    var meta = this.startNodeAt(node.start, node.loc && node.loc.start);
+    meta.name = "import";
+    node.meta = this.finishNode(meta, "Identifier");
     return this.parseImportMeta(node)
   } else {
     this.unexpected();
@@ -3091,7 +3093,7 @@ pp$5.parseNew = function() {
   var node = this.startNode();
   this.next();
   if (this.options.ecmaVersion >= 6 && this.type === types$1.dot) {
-    var meta = this.startNodeAt(node.start, node.startLoc);
+    var meta = this.startNodeAt(node.start, node.loc && node.loc.start);
     meta.name = "new";
     node.meta = this.finishNode(meta, "Identifier");
     this.next();
@@ -5919,7 +5921,7 @@ pp.readWord = function() {
 // [walk]: util/walk.js
 
 
-var version = "8.11.2";
+var version = "8.11.3";
 
 Parser.acorn = {
   Parser: Parser,
@@ -5944,11 +5946,10 @@ Parser.acorn = {
 };
 
 // The main exported interface (under `self.acorn` when in the
-// browser) is a `parse` function that takes a code string and
-// returns an abstract syntax tree as specified by [Mozilla parser
-// API][api].
+// browser) is a `parse` function that takes a code string and returns
+// an abstract syntax tree as specified by the [ESTree spec][estree].
 //
-// [api]: https://developer.mozilla.org/en-US/docs/SpiderMonkey/Parser_API
+// [estree]: https://github.com/estree/estree
 
 function parse(input, options) {
   return Parser.parse(input, options)

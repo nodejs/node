@@ -71,7 +71,13 @@ var cleanRangeBackSlash = function cleanRangeBackSlash(slashes) {
 //      you could use option `mark: true` with `glob`
 
 // '`foo/`' should not continue with the '`..`'
-var REPLACERS = [
+var REPLACERS = [[
+// remove BOM
+// TODO:
+// Other similar zero-width characters?
+/^\uFEFF/, function () {
+  return EMPTY;
+}],
 // > Trailing spaces are ignored unless they are quoted with backslash ("\")
 [
 // (a\ ) -> (a )
