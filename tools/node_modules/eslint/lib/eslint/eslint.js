@@ -682,6 +682,13 @@ class ESLint {
     }
 }
 
+/**
+ * The type of configuration used by this class.
+ * @type {string}
+ * @static
+ */
+ESLint.configType = "eslintrc";
+
 //------------------------------------------------------------------------------
 // Public Interface
 //------------------------------------------------------------------------------

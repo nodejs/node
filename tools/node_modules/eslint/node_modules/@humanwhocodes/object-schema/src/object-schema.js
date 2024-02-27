@@ -112,7 +112,7 @@ class MissingDependentKeysError extends Error {
 /**
  * Wrapper error for errors occuring during a merge or validate operation.
  */
-class WrapperError {
+class WrapperError extends Error {
 
     /**
      * Creates a new instance.
@@ -120,14 +120,14 @@ class WrapperError {
      * @param {Error} source The source error. 
      */
     constructor(key, source) {
-        return Object.create(source, {
-            message: {
-                value: `Key "${key}": ` + source.message,
-                configurable: true,
-                writable: true,
-                enumerable: true
+        super(`Key "${key}": ${source.message}`, { cause: source });
+
+        // copy over custom properties that aren't represented
+        for (const key of Object.keys(source)) {
+            if (!(key in this)) {
+                this[key] = source[key];
             }
-        });
+        }
     }
 }
 
