@@ -75,8 +75,7 @@ class NODE_EXTERN_PRIVATE EnabledDebugList {
   // Uses NODE_DEBUG_NATIVE to initialize the categories. The env_vars variable
   // is parsed if it is not a nullptr, otherwise the system environment
   // variables are parsed.
-  void Parse(std::shared_ptr<KVStore> env_vars = nullptr,
-             v8::Isolate* isolate = nullptr);
+  void Parse(std::shared_ptr<KVStore> env_vars);
 
  private:
   // Enable all categories matching cats.

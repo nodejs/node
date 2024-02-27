@@ -848,7 +848,7 @@ Environment::Environment(IsolateData* isolate_data,
   }
 
   set_env_vars(per_process::system_environment);
-  enabled_debug_list_.Parse(env_vars(), isolate);
+  enabled_debug_list_.Parse(env_vars());
 
   // We create new copies of the per-Environment option sets, so that it is
   // easier to modify them after Environment creation. The defaults are
