@@ -3971,7 +3971,7 @@ cases:
 [Child Process]: child_process.md
 [Cluster]: cluster.md
 [Duplex]: stream.md#duplex-and-transform-streams
-[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
+[Event Loop]: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#understanding-processnexttick
 [LTS]: https://github.com/nodejs/Release
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams
