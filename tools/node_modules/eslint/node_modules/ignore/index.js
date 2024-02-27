@@ -67,6 +67,14 @@ const cleanRangeBackSlash = slashes => {
 // '`foo/`' should not continue with the '`..`'
 const REPLACERS = [
 
+  [
+    // remove BOM
+    // TODO:
+    // Other similar zero-width characters?
+    /^\uFEFF/,
+    () => EMPTY
+  ],
+
   // > Trailing spaces are ignored unless they are quoted with backslash ("\")
   [
     // (a\ ) -> (a )
