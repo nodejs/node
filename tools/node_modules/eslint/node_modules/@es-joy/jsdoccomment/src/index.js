@@ -48,6 +48,8 @@ export {default as toCamelCase} from './toCamelCase.js';
 
 export * from './parseComment.js';
 
+export {default as parseInlineTags} from './parseInlineTags.js';
+
 export * from './commentParserToESTree.js';
 
 export * from './jsdoccomment.js';

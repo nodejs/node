@@ -96,6 +96,7 @@ export default Object.freeze({
     }).code;
     code = (
       await minify(code, {
+        ecma: 5,
         mangle: {
           keep_fnames: mangleFns ? new RegExp(noMangleFns.join("|")) : true,
         },

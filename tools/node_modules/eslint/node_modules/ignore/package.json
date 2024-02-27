@@ -1,6 +1,6 @@
 {
   "name": "ignore",
-  "version": "5.3.0",
+  "version": "5.3.1",
   "description": "Ignore is a manager and filter for .gitignore rules, the one used by eslint, gitbook and many others.",
   "files": [
     "legacy.js",
