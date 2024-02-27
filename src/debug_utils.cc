@@ -62,10 +62,9 @@ EnabledDebugList enabled_debug_list;
 using v8::Local;
 using v8::StackTrace;
 
-void EnabledDebugList::Parse(std::shared_ptr<KVStore> env_vars,
-                             v8::Isolate* isolate) {
+void EnabledDebugList::Parse(std::shared_ptr<KVStore> env_vars) {
   std::string cats;
-  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env_vars, isolate);
+  credentials::SafeGetenv("NODE_DEBUG_NATIVE", &cats, env_vars);
   Parse(cats);
 }
 
