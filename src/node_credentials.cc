@@ -24,13 +24,10 @@ namespace node {
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
-using v8::TryCatch;
 using v8::Uint32;
 using v8::Value;
 
@@ -77,8 +74,7 @@ static bool HasOnly(int capability) {
 // setuid root then lookup will not be allowed.
 bool SafeGetenv(const char* key,
                 std::string* text,
-                std::shared_ptr<KVStore> env_vars,
-                v8::Isolate* isolate) {
+                std::shared_ptr<KVStore> env_vars) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
@@ -86,45 +82,16 @@ bool SafeGetenv(const char* key,
 #else
   if (linux_at_secure() || getuid() != geteuid() || getgid() != getegid())
 #endif
-    goto fail;
+    return false;
 #endif
 
-  if (env_vars != nullptr) {
-    DCHECK_NOT_NULL(isolate);
-    HandleScope handle_scope(isolate);
-    TryCatch ignore_errors(isolate);
-    MaybeLocal<String> maybe_value = env_vars->Get(
-        isolate, String::NewFromUtf8(isolate, key).ToLocalChecked());
-    Local<String> value;
-    if (!maybe_value.ToLocal(&value)) goto fail;
-    String::Utf8Value utf8_value(isolate, value);
-    if (*utf8_value == nullptr) goto fail;
-    *text = std::string(*utf8_value, utf8_value.length());
-    return true;
+  // Fallback to system environment which reads the real environment variable
+  // through uv_os_getenv.
+  if (env_vars == nullptr) {
+    env_vars = per_process::system_environment;
   }
 
-  {
-    Mutex::ScopedLock lock(per_process::env_var_mutex);
-
-    size_t init_sz = 256;
-    MaybeStackBuffer<char, 256> val;
-    int ret = uv_os_getenv(key, *val, &init_sz);
-
-    if (ret == UV_ENOBUFS) {
-      // Buffer is not large enough, reallocate to the updated init_sz
-      // and fetch env value again.
-      val.AllocateSufficientStorage(init_sz);
-      ret = uv_os_getenv(key, *val, &init_sz);
-    }
-
-    if (ret == 0) {  // Env key value fetch success.
-      *text = *val;
-      return true;
-    }
-  }
-
-fail:
-  return false;
+  return env_vars->Get(key).To(text);
 }
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
@@ -133,7 +100,7 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env->env_vars(), isolate)) return;
+  if (!SafeGetenv(*strenvtag, &text, env->env_vars())) return;
   Local<Value> result =
       ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
   args.GetReturnValue().Set(result);

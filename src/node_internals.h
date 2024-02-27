@@ -308,8 +308,7 @@ class ThreadPoolWork {
 namespace credentials {
 bool SafeGetenv(const char* key,
                 std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr,
-                v8::Isolate* isolate = nullptr);
+                std::shared_ptr<KVStore> env_vars = nullptr);
 }  // namespace credentials
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
