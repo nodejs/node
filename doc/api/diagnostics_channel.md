@@ -789,6 +789,11 @@ if the given function throws an error. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
 
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
+
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
 
@@ -837,6 +842,11 @@ produce an [`error` event][] if the given function throws an error or the
 returned promise rejects. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -890,6 +900,11 @@ function execution, and will produce a [`asyncStart` event][] and
 the callback is set. This will run the given function using
 [`channel.runStores(context, ...)`][] on the `start` channel which ensures all
 events should have any bound stores set to match this trace context.
+
+To ensure only correct trace graphs are formed, events will only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins will not receive future events from that trace,
+only future traces will be seen.
 
 ```mjs
 import diagnostics_channel from 'node:diagnostics_channel';
@@ -978,6 +993,11 @@ With callback-based async functions the `result` will be the second argument
 of the callback while the `error` will either be a thrown error visible in the
 `end` event or the first callback argument in either of the `asyncStart` or
 `asyncEnd` events.
+
+To ensure only correct trace graphs are formed, events should only be published
+if subscribers are present prior to starting the trace. Subscriptions which are
+added after the trace begins should not receive future events from that trace,
+only future traces will be seen.
 
 Tracing channels should follow a naming pattern of:
 
