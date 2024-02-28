@@ -44,11 +44,13 @@ jobs:
       CXX: g++
       LINK: g++
       CONFIG_FLAGS: --enable-ubsan
-      UBSAN_OPTIONS: suppressions=../../suppressions.supp:print_stacktrace=1
     steps:
       - uses: actions/checkout@v3
         with:
           persist-credentials: false
+      - name: Store suppressions path
+        run: |
+          echo "::set-env name=UBSAN_OPTIONS=$GITHUB_WORKSPACE/suppressions.supp:print_stacktrace=1"
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v4
         with:
