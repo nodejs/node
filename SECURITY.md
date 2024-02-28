@@ -204,9 +204,9 @@ the community they pose.
 #### Vulnerabilities affecting software downloaded by Corepack
 
 * Corepack defaults to downloading the latest version of the software requested
-by the user, or a specific version requested by the user. For this reason,
-Node.js releases won't be affected by such vulnerabilities, users are
-responsible to keep the software they use through Corepack up-to-date.
+  by the user, or a specific version requested by the user. For this reason,
+  Node.js releases won't be affected by such vulnerabilities, users are
+  responsible to keep the software they use through Corepack up-to-date.
 
 ## Assessing experimental features reports
 
