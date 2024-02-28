@@ -939,7 +939,7 @@ t.test('audit signatures', async t => {
     const opts = {
       baseURL: 'https://tuf-repo-cdn.sigstore.dev',
       metadataPathPrefix: '',
-      cachePath: path.join(npm.cache, '_tuf'),
+      cachePath: path.join(npm.cache, '_tuf', 'tuf-repo-cdn.sigstore.dev'),
     }
     return tufmock(target, opts)
   }

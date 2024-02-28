@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "January 2024" "" ""
+.TH "PACKAGE.JSON" "5" "February 2024" "" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -686,7 +686,7 @@ in which case they will be normalized to a relative path and added to your \fBpa
 .fi
 .RE
 .P
-This feature is helpful for local offline development and creating tests that require npm installing where you don't want to hit an external server, but should not be used when publishing packages to the public registry.
+This feature is helpful for local offline development and creating tests that require npm installing where you don't want to hit an external server, but should not be used when publishing your package to the public registry.
 .P
 \fInote\fR: Packages linked by local path will not have their own dependencies installed when \fBnpm install\fR is ran in this case. You must run \fBnpm install\fR from inside the local path itself.
 .SS "devDependencies"

@@ -47,6 +47,9 @@ class Pack extends BaseCommand {
     for (const { arg, manifest } of manifests) {
       const tarballData = await libpack(arg, {
         ...this.npm.flatOptions,
+        foregroundScripts: this.npm.config.isDefault('foreground-scripts')
+          ? true
+          : this.npm.config.get('foreground-scripts'),
         prefix: this.npm.localPrefix,
         workspaces: this.workspacePaths,
       })
