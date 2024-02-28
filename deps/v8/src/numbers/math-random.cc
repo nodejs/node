@@ -26,18 +26,19 @@ void MathRandom::InitializeContext(Isolate* isolate,
   ResetContext(*native_context);
 }
 
-void MathRandom::ResetContext(Context native_context) {
-  native_context.set_math_random_index(Smi::zero());
+void MathRandom::ResetContext(Tagged<Context> native_context) {
+  native_context->set_math_random_index(Smi::zero());
   State state = {0, 0};
-  PodArray<State>::cast(native_context.math_random_state()).set(0, state);
+  PodArray<State>::cast(native_context->math_random_state())->set(0, state);
 }
 
 Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
-  Context native_context = Context::cast(Object(raw_native_context));
+  Tagged<Context> native_context =
+      Context::cast(Tagged<Object>(raw_native_context));
   DisallowGarbageCollection no_gc;
-  PodArray<State> pod =
-      PodArray<State>::cast(native_context.math_random_state());
-  State state = pod.get(0);
+  Tagged<PodArray<State>> pod =
+      PodArray<State>::cast(native_context->math_random_state());
+  State state = pod->get(0);
   // Initialize state if not yet initialized. If a fixed random seed was
   // requested, use it to reset our state the first time a script asks for
   // random numbers in this context. This ensures the script sees a consistent
@@ -54,18 +55,18 @@ Address MathRandom::RefillCache(Isolate* isolate, Address raw_native_context) {
     CHECK(state.s0 != 0 || state.s1 != 0);
   }
 
-  FixedDoubleArray cache =
-      FixedDoubleArray::cast(native_context.math_random_cache());
+  Tagged<FixedDoubleArray> cache =
+      FixedDoubleArray::cast(native_context->math_random_cache());
   // Create random numbers.
   for (int i = 0; i < kCacheSize; i++) {
     // Generate random numbers using xorshift128+.
     base::RandomNumberGenerator::XorShift128(&state.s0, &state.s1);
-    cache.set(i, base::RandomNumberGenerator::ToDouble(state.s0));
+    cache->set(i, base::RandomNumberGenerator::ToDouble(state.s0));
   }
-  pod.set(0, state);
+  pod->set(0, state);
 
-  Smi new_index = Smi::FromInt(kCacheSize);
-  native_context.set_math_random_index(new_index);
+  Tagged<Smi> new_index = Smi::FromInt(kCacheSize);
+  native_context->set_math_random_index(new_index);
   return new_index.ptr();
 }
 

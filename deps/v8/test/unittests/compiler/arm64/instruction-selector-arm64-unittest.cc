@@ -2993,6 +2993,32 @@ TEST_F(InstructionSelectorTest, Float64SelectWithRegisters) {
   EXPECT_EQ(kNotEqual, s[0]->flags_condition());
 }
 
+TEST_F(InstructionSelectorTest, Word32SelectWithRegisters) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int32(),
+                  MachineType::Int32());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word32Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
+TEST_F(InstructionSelectorTest, Word64SelectWithRegisters) {
+  StreamBuilder m(this, MachineType::Int32(), MachineType::Int64(),
+                  MachineType::Int64());
+  Node* cond = m.Int32Constant(1);
+  m.Return(m.Word64Select(cond, m.Parameter(0), m.Parameter(1)));
+  Stream s = m.Build();
+  EXPECT_EQ(kArm64Tst32, s[0]->arch_opcode());
+  EXPECT_EQ(4U, s[0]->InputCount());
+  EXPECT_EQ(1U, s[0]->OutputCount());
+  EXPECT_EQ(kFlags_select, s[0]->flags_mode());
+  EXPECT_EQ(kNotEqual, s[0]->flags_condition());
+}
+
 // -----------------------------------------------------------------------------
 // Conversions.
 
@@ -3470,6 +3496,8 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorMemoryAccessTest,
                          ::testing::ValuesIn(kMemoryAccesses));
 
+// This list doesn't contain kIndirectPointerWriteBarrier because only indirect
+// pointer fields can be stored to with that barrier kind.
 static const WriteBarrierKind kWriteBarrierKinds[] = {
     kMapWriteBarrier, kPointerWriteBarrier, kEphemeronKeyWriteBarrier,
     kFullWriteBarrier};
@@ -5564,7 +5592,7 @@ using InstructionSelectorSIMDConstZeroCmTest =
 
 TEST_P(InstructionSelectorSIMDConstZeroCmTest, ConstZero) {
   const SIMDConstZeroCmTest param = GetParam();
-  byte data[16] = {};
+  uint8_t data[16] = {};
   if (!param.is_zero) data[0] = 0xff;
   // Const node on the left
   {

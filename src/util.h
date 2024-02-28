@@ -113,9 +113,11 @@ struct AssertionInfo {
   const char* message;
   const char* function;
 };
-[[noreturn]] void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
-[[noreturn]] void NODE_EXTERN_PRIVATE Abort();
-void DumpBacktrace(FILE* fp);
+
+// This indirectly calls backtrace so it can not be marked as [[noreturn]].
+void NODE_EXTERN_PRIVATE Assert(const AssertionInfo& info);
+void DumpNativeBacktrace(FILE* fp);
+void DumpJavaScriptBacktrace(FILE* fp);
 
 // Windows 8+ does not like abort() in Release mode
 #ifdef _WIN32
@@ -124,16 +126,32 @@ void DumpBacktrace(FILE* fp);
 #define ABORT_NO_BACKTRACE() abort()
 #endif
 
-#define ABORT() node::Abort()
+// Caller of this macro must not be marked as [[noreturn]]. Printing of
+// backtraces may not work correctly in [[noreturn]] functions because
+// when generating code for them the compiler can choose not to
+// maintain the frame pointers or link registers that are necessary for
+// correct backtracing.
+// `ABORT` must be a macro and not a [[noreturn]] function to make sure the
+// backtrace is correct.
+#define ABORT()                                                                \
+  do {                                                                         \
+    node::DumpNativeBacktrace(stderr);                                         \
+    node::DumpJavaScriptBacktrace(stderr);                                     \
+    fflush(stderr);                                                            \
+    ABORT_NO_BACKTRACE();                                                      \
+  } while (0)
 
-#define ERROR_AND_ABORT(expr)                                                 \
-  do {                                                                        \
-    /* Make sure that this struct does not end up in inline code, but      */ \
-    /* rather in a read-only data section when modifying this code.        */ \
-    static const node::AssertionInfo args = {                                 \
-      __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME           \
-    };                                                                        \
-    node::Assert(args);                                                       \
+#define ERROR_AND_ABORT(expr)                                                  \
+  do {                                                                         \
+    /* Make sure that this struct does not end up in inline code, but      */  \
+    /* rather in a read-only data section when modifying this code.        */  \
+    static const node::AssertionInfo args = {                                  \
+        __FILE__ ":" STRINGIFY(__LINE__), #expr, PRETTY_FUNCTION_NAME};        \
+    node::Assert(args);                                                        \
+    /* `node::Assert` doesn't return. Add an [[noreturn]] abort() here to  */  \
+    /* make the compiler happy about no return value in the caller         */  \
+    /* function when calling ERROR_AND_ABORT.                              */  \
+    ABORT_NO_BACKTRACE();                                                      \
   } while (0)
 
 #ifdef __GNUC__
@@ -679,6 +697,16 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
+// Convert a v8::Array into an std::vector using the callback-based API.
+// This can be faster than calling Array::Get() repeatedly when the array
+// has more than 2 entries.
+// Note that iterating over an array in C++ and performing operations on each
+// element in a C++ loop is still slower than iterating over the array in JS
+// and calling into native in the JS loop repeatedly on each element,
+// as of V8 11.9.
+inline v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Array> js_array,
+                                   std::vector<v8::Global<v8::Value>>* out);
 std::vector<std::string_view> SplitString(const std::string_view in,
                                           const std::string_view delim);
 
@@ -968,11 +996,11 @@ void SetConstructorFunction(v8::Isolate* isolate,
                             SetConstructorFunctionFlag flag =
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
 
-// Simple RAII class to spin up a v8::Isolate instance.
-class RAIIIsolate {
+// Like RAIIIsolate, except doesn't enter the isolate while it's in scope.
+class RAIIIsolateWithoutEntering {
  public:
-  explicit RAIIIsolate(const SnapshotData* data = nullptr);
-  ~RAIIIsolate();
+  explicit RAIIIsolateWithoutEntering(const SnapshotData* data = nullptr);
+  ~RAIIIsolateWithoutEntering();
 
   v8::Isolate* get() const { return isolate_; }
 
@@ -980,6 +1008,25 @@ class RAIIIsolate {
   std::unique_ptr<v8::ArrayBuffer::Allocator> allocator_;
   v8::Isolate* isolate_;
 };
+
+// Simple RAII class to spin up a v8::Isolate instance and enter it
+// immediately.
+class RAIIIsolate {
+ public:
+  explicit RAIIIsolate(const SnapshotData* data = nullptr);
+  ~RAIIIsolate();
+
+  v8::Isolate* get() const { return isolate_.get(); }
+
+ private:
+  RAIIIsolateWithoutEntering isolate_;
+  v8::Isolate::Scope isolate_scope_;
+};
+
+std::string DetermineSpecificErrorType(Environment* env,
+                                       v8::Local<v8::Value> input);
+
+v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
 
 }  // namespace node
 

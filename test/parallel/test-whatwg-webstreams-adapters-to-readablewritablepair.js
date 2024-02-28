@@ -28,11 +28,11 @@ const {
 
   assert.rejects(reader.closed, {
     code: 'ABORT_ERR',
-  });
+  }).then(common.mustCall());
 
   assert.rejects(writer.closed, {
     code: 'ABORT_ERR',
-  });
+  }).then(common.mustCall());
 
   duplex.destroy();
 
@@ -58,8 +58,8 @@ const {
   const reader = readable.getReader();
   const writer = writable.getWriter();
 
-  assert.rejects(reader.closed, error);
-  assert.rejects(writer.closed, error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
+  assert.rejects(writer.closed, error).then(common.mustCall());
 
   duplex.destroy(error);
 }
@@ -81,7 +81,7 @@ const {
   const writer = writable.getWriter();
 
   reader.closed.then(common.mustCall());
-  assert.rejects(writer.closed, error);
+  assert.rejects(writer.closed, error).then(common.mustCall());
 
   reader.cancel(error).then(common.mustCall());
 }
@@ -121,8 +121,8 @@ const {
   const reader = readable.getReader();
   const writer = writable.getWriter();
 
-  assert.rejects(reader.closed, error);
-  assert.rejects(writer.closed, error);
+  assert.rejects(reader.closed, error).then(common.mustCall());
+  assert.rejects(writer.closed, error).then(common.mustCall());
 
   writer.abort(error).then(common.mustCall());
 }
@@ -145,7 +145,7 @@ const {
 
   assert.rejects(writer.closed, {
     code: 'ABORT_ERR',
-  });
+  }).then(common.mustCall());
 
   reader.cancel();
 }
@@ -166,7 +166,7 @@ const {
   reader.closed.then(common.mustCall());
   assert.rejects(writer.closed, {
     code: 'ABORT_ERR',
-  });
+  }).then(common.mustCall());
 
   duplex.end();
 }
@@ -247,4 +247,10 @@ const {
   const writer = writable.getWriter();
   reader.closed.then(common.mustCall());
   writer.close().then(common.mustCall());
+}
+
+{
+  assert.throws(() => newReadableWritablePairFromDuplex(null), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
 }

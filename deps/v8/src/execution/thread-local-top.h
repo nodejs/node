@@ -29,7 +29,7 @@ class ThreadLocalTop {
   // TODO(all): This is not particularly beautiful. We should probably
   // refactor this to really consist of just Addresses and 32-bit
   // integer fields.
-  static constexpr uint32_t kSizeInBytes = 25 * kSystemPointerSize;
+  static constexpr uint32_t kSizeInBytes = 30 * kSystemPointerSize;
 
   // Does early low-level initialization that does not depend on the
   // isolate being present.
@@ -99,12 +99,12 @@ class ThreadLocalTop {
   // object in the getter. Same for {pending_handler_context_} below. In the
   // meantime, assert that the memory layout is the same.
   static_assert(sizeof(Context) == kSystemPointerSize);
-  Context context_;
+  Tagged<Context> context_;
   std::atomic<ThreadId> thread_id_;
-  Object pending_exception_;
+  Tagged<Object> pending_exception_ = Smi::zero();
 
   // Communication channel between Isolate::FindHandler and the CEntry.
-  Context pending_handler_context_;
+  Tagged<Context> pending_handler_context_;
   Address pending_handler_entrypoint_;
   Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
@@ -114,14 +114,14 @@ class ThreadLocalTop {
   Address last_api_entry_;
 
   // Communication channel between Isolate::Throw and message consumers.
-  Object pending_message_;
+  Tagged<Object> pending_message_ = Smi::zero();
   bool rethrowing_message_;
 
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
   bool external_caught_exception_;
-  Object scheduled_exception_;
+  Tagged<Object> scheduled_exception_ = Smi::zero();
 
   // Stack.
   // The frame pointer of the top c entry frame.
@@ -146,7 +146,24 @@ class ThreadLocalTop {
 
   // Address of the thread-local "thread in wasm" flag.
   Address thread_in_wasm_flag_address_;
+
+  // Wasm Stack Switching: The central stack.
+  // If set, then we are currently executing code on the central stack.
+  bool is_on_central_stack_flag_;
+  // On switching from the central stack these fields are set
+  // to the central stack's SP and stack limit accordingly,
+  // to use for switching from secondary stacks.
+  Address central_stack_sp_;
+  Address central_stack_limit_;
+  // On switching to the central stack these fields are set
+  // to the secondary stack's SP and stack limit accordingly.
+  // It is used if we need to check for the stack overflow condition
+  // on the secondary stack, during execution on the central stack.
+  Address secondary_stack_sp_;
+  Address secondary_stack_limit_;
 };
+
+static_assert(ThreadLocalTop::kSizeInBytes == sizeof(ThreadLocalTop));
 
 }  // namespace internal
 }  // namespace v8

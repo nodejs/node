@@ -63,7 +63,7 @@ TEST(0) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(3, 4, 0, 0, 0));
@@ -99,7 +99,7 @@ TEST(1) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(100, 0, 0, 0, 0));
@@ -147,7 +147,7 @@ TEST(2) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(10, 0, 0, 0, 0));
@@ -216,7 +216,7 @@ TEST(3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.i = 100000;
@@ -325,7 +325,7 @@ TEST(4) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -385,7 +385,7 @@ TEST(5) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -420,7 +420,7 @@ TEST(6) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -495,7 +495,7 @@ static void TestRoundingMode(VCVTTypes types,
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -682,7 +682,7 @@ TEST(8) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -797,7 +797,7 @@ TEST(9) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -908,7 +908,7 @@ TEST(10) {
 
     CodeDesc desc;
     assm.GetCode(isolate, &desc);
-    Object code = isolate->heap()->CreateCode(
+    Tagged<Object> code = isolate->heap()->CreateCode(
         desc,
         CodeKind::FOR_TESTING,
         Handle<Code>())->ToObjectChecked();
@@ -1005,7 +1005,7 @@ TEST(11) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Object code = isolate->heap()->CreateCode(
+  Tagged<Object> code = isolate->heap()->CreateCode(
       desc,
       CodeKind::FOR_TESTING,
       Handle<Code>())->ToObjectChecked();
@@ -1075,7 +1075,7 @@ TEST(WordSizedVectorInstructions) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
-  code->Print();
+  Print(*code);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   intptr_t res = reinterpret_cast<intptr_t>(f.Call(0, 0, 0, 0, 0));

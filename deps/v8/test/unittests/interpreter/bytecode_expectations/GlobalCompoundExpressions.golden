@@ -24,7 +24,7 @@ bytecodes: [
   /*   50 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["global"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["global"],
 ]
 handlers: [
 ]
@@ -47,7 +47,7 @@ bytecodes: [
   /*   56 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["unallocated"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["unallocated"],
 ]
 handlers: [
 ]

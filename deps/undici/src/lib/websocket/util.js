@@ -39,7 +39,7 @@ function isClosed (ws) {
  * @param {EventTarget} target
  * @param {EventInit | undefined} eventInitDict
  */
-function fireEvent (e, target, eventConstructor = Event, eventInitDict) {
+function fireEvent (e, target, eventConstructor = Event, eventInitDict = {}) {
   // 1. If eventConstructor is not given, then let eventConstructor be Event.
 
   // 2. Let event be the result of creating an event given eventConstructor,
@@ -182,6 +182,7 @@ function failWebsocketConnection (ws, reason) {
   }
 
   if (reason) {
+    // TODO: process.nextTick
     fireEvent('error', ws, ErrorEvent, {
       error: new Error(reason)
     })

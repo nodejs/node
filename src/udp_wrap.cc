@@ -21,10 +21,11 @@
 
 #include "udp_wrap.h"
 #include "env-inl.h"
+#include "handle_wrap.h"
 #include "node_buffer.h"
 #include "node_errors.h"
+#include "node_external_reference.h"
 #include "node_sockaddr-inl.h"
-#include "handle_wrap.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 
@@ -133,6 +134,12 @@ void UDPWrapBase::AddMethods(Environment* env, Local<FunctionTemplate> t) {
   SetProtoMethod(env->isolate(), t, "recvStop", RecvStop);
 }
 
+void UDPWrapBase::RegisterExternalReferences(
+    ExternalReferenceRegistry* registry) {
+  registry->Register(RecvStart);
+  registry->Register(RecvStop);
+}
+
 UDPWrap::UDPWrap(Environment* env, Local<Object> object)
     : HandleWrap(env,
                  object,
@@ -229,6 +236,34 @@ void UDPWrap::Initialize(Local<Object> target,
               constants).Check();
 }
 
+void UDPWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  UDPWrapBase::RegisterExternalReferences(registry);
+  registry->Register(New);
+  registry->Register(GetFD);
+
+  registry->Register(Open);
+  registry->Register(Bind);
+  registry->Register(Connect);
+  registry->Register(Send);
+  registry->Register(Bind6);
+  registry->Register(Connect6);
+  registry->Register(Send6);
+  registry->Register(Disconnect);
+  registry->Register(GetSockOrPeerName<UDPWrap, uv_udp_getpeername>);
+  registry->Register(GetSockOrPeerName<UDPWrap, uv_udp_getsockname>);
+  registry->Register(AddMembership);
+  registry->Register(DropMembership);
+  registry->Register(AddSourceSpecificMembership);
+  registry->Register(DropSourceSpecificMembership);
+  registry->Register(SetMulticastInterface);
+  registry->Register(SetLibuvInt32<uv_udp_set_multicast_ttl>);
+  registry->Register(SetLibuvInt32<uv_udp_set_multicast_loop>);
+  registry->Register(SetLibuvInt32<uv_udp_set_broadcast>);
+  registry->Register(SetLibuvInt32<uv_udp_set_ttl>);
+  registry->Register(BufferSize);
+  registry->Register(GetSendQueueSize);
+  registry->Register(GetSendQueueCount);
+}
 
 void UDPWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
@@ -807,3 +842,5 @@ void UDPWrap::GetSendQueueCount(const FunctionCallbackInfo<Value>& args) {
 }  // namespace node
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(udp_wrap, node::UDPWrap::Initialize)
+NODE_BINDING_EXTERNAL_REFERENCE(udp_wrap,
+                                node::UDPWrap::RegisterExternalReferences)

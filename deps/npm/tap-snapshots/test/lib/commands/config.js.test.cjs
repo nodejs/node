@@ -35,6 +35,7 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "commit-hooks": true,
   "cpu": null,
   "os": null,
+  "libc": null,
   "depth": null,
   "description": true,
   "dev": false,
@@ -89,6 +90,8 @@ exports[`test/lib/commands/config.js TAP config list --json > output matches sna
   "legacy-peer-deps": false,
   "link": false,
   "local-address": null,
+  "sbom-format": null,
+  "sbom-type": "library",
   "location": "user",
   "lockfile-version": null,
   "loglevel": "notice",
@@ -243,6 +246,7 @@ json = false
 key = null
 legacy-bundling = false
 legacy-peer-deps = false
+libc = null
 link = false
 local-address = null
 location = "user"
@@ -290,6 +294,8 @@ save-optional = false
 save-peer = false
 save-prefix = "^"
 save-prod = false
+sbom-format = null
+sbom-type = "library"
 scope = ""
 script-shell = null
 searchexclude = ""

@@ -27,6 +27,7 @@ class Link extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'package-lock',
     'omit',
+    'include',
     'ignore-scripts',
     'audit',
     'bin-links',
@@ -108,13 +109,13 @@ class Link extends ArboristWorkspaceCmd {
     // using any of --save-dev or other types
     const save =
       Boolean(
-        this.npm.config.find('save') !== 'default' ||
+        (this.npm.config.find('save') !== 'default' &&
+        this.npm.config.get('save')) ||
         this.npm.config.get('save-optional') ||
         this.npm.config.get('save-peer') ||
         this.npm.config.get('save-dev') ||
         this.npm.config.get('save-prod')
       )
-
     // create a new arborist instance for the local prefix and
     // reify all the pending names as symlinks there
     const localArb = new Arborist({

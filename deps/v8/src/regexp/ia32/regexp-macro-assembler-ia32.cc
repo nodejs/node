@@ -937,19 +937,18 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
       __ add(Operand(ebp, kRegisterOutputOffset),
              Immediate(num_saved_registers_ * kSystemPointerSize));
 
-      // Prepare eax to initialize registers with its value in the next run.
-      __ mov(eax, Operand(ebp, kStringStartMinusOneOffset));
-
       // Restore the original regexp stack pointer value (effectively, pop the
       // stored base pointer).
       PopRegExpBasePointer(backtrack_stackpointer(), ebx);
+
+      Label reload_string_start_minus_one;
 
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
         // edx: capture start index
         __ cmp(edi, edx);
         // Not a zero-length match, restart.
-        __ j(not_equal, &load_char_start_regexp);
+        __ j(not_equal, &reload_string_start_minus_one);
         // edi (offset from the end) is zero if we already reached the end.
         __ test(edi, edi);
         __ j(zero, &exit_label_, Label::kNear);
@@ -963,6 +962,12 @@ Handle<HeapObject> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
         }
         if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
+
+      __ bind(&reload_string_start_minus_one);
+      // Prepare eax to initialize registers with its value in the next run.
+      // Must be immediately before the jump to avoid clobbering.
+      __ mov(eax, Operand(ebp, kStringStartMinusOneOffset));
+
       __ jmp(&load_char_start_regexp);
     } else {
       __ mov(eax, Immediate(SUCCESS));
@@ -1242,7 +1247,8 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
                                                    Address re_frame) {
-  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
+  Tagged<InstructionStream> re_code =
+      InstructionStream::cast(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<int>(re_frame, kStartIndexOffset),
@@ -1250,8 +1256,8 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
           frame_entry<int>(re_frame, kDirectCallOffset)),
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
-      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
-      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
 }
 
 

@@ -8,6 +8,7 @@
 #include "src/base/optional.h"
 #include "src/codegen/code-stub-assembler.h"
 #include "src/common/message-template.h"
+#include "src/objects/string.h"
 #include "src/regexp/regexp.h"
 
 namespace v8 {

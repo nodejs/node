@@ -11,6 +11,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-graph.h"
 #include "src/execution/isolate.h"
+#include "src/objects/oddball.h"
 
 namespace v8 {
 namespace internal {
@@ -30,8 +31,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
       : MachineGraph(graph, common, machine),
         isolate_(isolate),
         javascript_(javascript),
-        simplified_(simplified) {
-  }
+        simplified_(simplified) {}
 
   JSGraph(const JSGraph&) = delete;
   JSGraph& operator=(const JSGraph&) = delete;
@@ -42,10 +42,10 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
                            bool builtin_exit_frame = false);
 
   // Used for padding frames. (alias: the hole)
-  Node* PaddingConstant() { return TheHoleConstant(); }
+  TNode<Hole> PaddingConstant() { return TheHoleConstant(); }
 
   // Used for stubs and runtime functions with no context. (alias: SMI zero)
-  Node* NoContextConstant() { return ZeroConstant(); }
+  TNode<Number> NoContextConstant() { return ZeroConstant(); }
 
   // Creates a HeapConstant node, possibly canonicalized.
   Node* HeapConstant(Handle<HeapObject> value);
@@ -53,14 +53,15 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   // Creates a Constant node of the appropriate type for the given object.
   // Inspect the (serialized) object and determine whether one of the
   // canonicalized globals or a number constant should be returned.
-  Node* Constant(const ObjectRef& value, JSHeapBroker* broker);
+  Node* Constant(ObjectRef value, JSHeapBroker* broker);
 
   // Creates a NumberConstant node, usually canonicalized.
   Node* Constant(double value);
 
   // Creates a HeapConstant node for either true or false.
-  Node* BooleanConstant(bool is_true) {
-    return is_true ? TrueConstant() : FalseConstant();
+  TNode<Boolean> BooleanConstant(bool is_true) {
+    return is_true ? TNode<Boolean>(TrueConstant())
+                   : TNode<Boolean>(FalseConstant());
   }
 
   Node* SmiConstant(int32_t immediate) {
@@ -77,41 +78,41 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   void GetCachedNodes(NodeVector* nodes);
 
 // Cached global nodes.
-#define CACHED_GLOBAL_LIST(V)                     \
-  V(AllocateInYoungGenerationStubConstant)        \
-  V(AllocateRegularInYoungGenerationStubConstant) \
-  V(AllocateInOldGenerationStubConstant)          \
-  V(AllocateRegularInOldGenerationStubConstant)   \
-  V(ArrayConstructorStubConstant)                 \
-  V(BigIntMapConstant)                            \
-  V(BooleanMapConstant)                           \
-  V(ToNumberBuiltinConstant)                      \
-  V(PlainPrimitiveToNumberBuiltinConstant)        \
-  V(EmptyFixedArrayConstant)                      \
-  V(EmptyStringConstant)                          \
-  V(FixedArrayMapConstant)                        \
-  V(PropertyArrayMapConstant)                     \
-  V(FixedDoubleArrayMapConstant)                  \
-  V(WeakFixedArrayMapConstant)                    \
-  V(HeapNumberMapConstant)                        \
-  V(OptimizedOutConstant)                         \
-  V(StaleRegisterConstant)                        \
-  V(UndefinedConstant)                            \
-  V(TheHoleConstant)                              \
-  V(TrueConstant)                                 \
-  V(FalseConstant)                                \
-  V(NullConstant)                                 \
-  V(ZeroConstant)                                 \
-  V(MinusZeroConstant)                            \
-  V(OneConstant)                                  \
-  V(MinusOneConstant)                             \
-  V(NaNConstant)                                  \
-  V(EmptyStateValues)                             \
-  V(SingleDeadTypedStateValues)                   \
-  V(ExternalObjectMapConstant)
+#define CACHED_GLOBAL_LIST(V)                    \
+  V(AllocateInYoungGenerationStubConstant, Code) \
+  V(AllocateInOldGenerationStubConstant, Code)   \
+  V(ArrayConstructorStubConstant, Code)          \
+  V(BigIntMapConstant, Map)                      \
+  V(BooleanMapConstant, Map)                     \
+  V(ToNumberBuiltinConstant, Code)               \
+  V(PlainPrimitiveToNumberBuiltinConstant, Code) \
+  V(EmptyFixedArrayConstant, FixedArray)         \
+  V(EmptyStringConstant, String)                 \
+  V(FixedArrayMapConstant, Map)                  \
+  V(PropertyArrayMapConstant, Map)               \
+  V(FixedDoubleArrayMapConstant, Map)            \
+  V(WeakFixedArrayMapConstant, Map)              \
+  V(HeapNumberMapConstant, Map)                  \
+  V(OptimizedOutConstant, Oddball)               \
+  V(StaleRegisterConstant, Oddball)              \
+  V(UndefinedConstant, Undefined)                \
+  V(TheHoleConstant, Hole)                       \
+  V(PropertyCellHoleConstant, Hole)              \
+  V(HashTableHoleConstant, Hole)                 \
+  V(TrueConstant, True)                          \
+  V(FalseConstant, False)                        \
+  V(NullConstant, Null)                          \
+  V(ZeroConstant, Number)                        \
+  V(MinusZeroConstant, Number)                   \
+  V(OneConstant, Number)                         \
+  V(MinusOneConstant, Number)                    \
+  V(NaNConstant, Number)                         \
+  V(EmptyStateValues, UntaggedT)                 \
+  V(SingleDeadTypedStateValues, UntaggedT)       \
+  V(ExternalObjectMapConstant, Map)
 
 // Cached global node accessor methods.
-#define DECLARE_GETTER(name) Node* name();
+#define DECLARE_GETTER(name, Type) TNode<Type> name();
   CACHED_GLOBAL_LIST(DECLARE_GETTER)
 #undef DECLARE_GETTER
 
@@ -127,7 +128,7 @@ class V8_EXPORT_PRIVATE JSGraph : public MachineGraph {
   V(CEntryStub1WithBuiltinExitFrameConstant)
 
 // Canonicalized global node fields.
-#define DECLARE_FIELD(name) Node* name##_ = nullptr;
+#define DECLARE_FIELD(name, ...) Node* name##_ = nullptr;
   CACHED_GLOBAL_LIST(DECLARE_FIELD)
   CACHED_CENTRY_LIST(DECLARE_FIELD)
 #undef DECLARE_FIELD

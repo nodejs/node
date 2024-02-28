@@ -5,6 +5,7 @@
 #include "src/objects/field-type.h"
 
 #include "src/handles/handles-inl.h"
+#include "src/objects/map.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/smi.h"
 #include "src/utils/ostreams.h"
@@ -13,10 +14,14 @@ namespace v8 {
 namespace internal {
 
 // static
-FieldType FieldType::None() { return FieldType(Smi::FromInt(2).ptr()); }
+Tagged<FieldType> FieldType::None() {
+  return Tagged<FieldType>(Smi::FromInt(2).ptr());
+}
 
 // static
-FieldType FieldType::Any() { return FieldType(Smi::FromInt(1).ptr()); }
+Tagged<FieldType> FieldType::Any() {
+  return Tagged<FieldType>(Smi::FromInt(1).ptr());
+}
 
 // static
 Handle<FieldType> FieldType::None(Isolate* isolate) {
@@ -29,7 +34,9 @@ Handle<FieldType> FieldType::Any(Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::Class(Map map) { return FieldType::cast(map); }
+Tagged<FieldType> FieldType::Class(Tagged<Map> map) {
+  return FieldType::cast(Tagged<Object>(map));
+}
 
 // static
 Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
@@ -37,59 +44,75 @@ Handle<FieldType> FieldType::Class(Handle<Map> map, Isolate* isolate) {
 }
 
 // static
-FieldType FieldType::cast(Object object) {
-  DCHECK(object == None() || object == Any() || object.IsMap());
-  return FieldType(object.ptr());
+Tagged<FieldType> FieldType::cast(Tagged<Object> object) {
+  DCHECK(object == None() || object == Any() || IsMap(object));
+  return Tagged<FieldType>(object.ptr());
 }
 
-bool FieldType::IsClass() const { return this->IsMap(); }
+// static
+bool IsClass(Tagged<FieldType> obj) { return IsMap(obj); }
 
-Map FieldType::AsClass() const {
-  DCHECK(IsClass());
-  return Map::cast(*this);
+// static
+Tagged<Map> FieldType::AsClass(Tagged<FieldType> type) {
+  DCHECK(IsClass(type));
+  return Map::cast(type);
 }
 
-bool FieldType::NowStable() const {
-  return !this->IsClass() || AsClass().is_stable();
+// static
+Handle<Map> FieldType::AsClass(Handle<FieldType> type) {
+  DCHECK(IsClass(*type));
+  return Handle<Map>::cast(type);
 }
 
-bool FieldType::NowIs(FieldType other) const {
-  if (other.IsAny()) return true;
-  if (IsNone()) return true;
-  if (other.IsNone()) return false;
-  if (IsAny()) return false;
-  DCHECK(IsClass());
-  DCHECK(other.IsClass());
-  return *this == other;
+// static
+bool FieldType::NowStable(Tagged<FieldType> type) {
+  return !IsClass(type) || AsClass(type)->is_stable();
 }
 
-bool FieldType::Equals(FieldType other) const {
-  if (IsAny() && other.IsAny()) return true;
-  if (IsNone() && other.IsNone()) return true;
-  if (IsClass() && other.IsClass()) {
-    return *this == other;
+// static
+bool FieldType::NowIs(Tagged<FieldType> type, Tagged<FieldType> other) {
+  if (IsAny(other)) return true;
+  if (IsNone(type)) return true;
+  if (IsNone(other)) return false;
+  if (IsAny(type)) return false;
+  DCHECK(IsClass(type));
+  DCHECK(IsClass(other));
+  return type == other;
+}
+
+// static
+bool FieldType::Equals(Tagged<FieldType> type, Tagged<FieldType> other) {
+  if (IsAny(type) && IsAny(other)) return true;
+  if (IsNone(type) && IsNone(other)) return true;
+  if (IsClass(type) && IsClass(other)) {
+    return type == other;
   }
   return false;
 }
 
-bool FieldType::NowIs(Handle<FieldType> other) const { return NowIs(*other); }
+// static
+bool FieldType::NowIs(Tagged<FieldType> type, Handle<FieldType> other) {
+  return NowIs(type, *other);
+}
 
-void FieldType::PrintTo(std::ostream& os) const {
-  if (IsAny()) {
+// static
+void FieldType::PrintTo(Tagged<FieldType> type, std::ostream& os) {
+  if (IsAny(type)) {
     os << "Any";
-  } else if (IsNone()) {
+  } else if (IsNone(type)) {
     os << "None";
   } else {
-    DCHECK(IsClass());
-    os << "Class(" << reinterpret_cast<void*>(AsClass().ptr()) << ")";
+    DCHECK(IsClass(type));
+    os << "Class(" << reinterpret_cast<void*>(AsClass(type).ptr()) << ")";
   }
 }
 
-bool FieldType::NowContains(Object value) const {
-  if (*this == Any()) return true;
-  if (*this == None()) return false;
-  if (!value.IsHeapObject()) return false;
-  return HeapObject::cast(value).map() == Map::cast(*this);
+// static
+bool FieldType::NowContains(Tagged<FieldType> type, Tagged<Object> value) {
+  if (type == Any()) return true;
+  if (type == None()) return false;
+  if (!IsHeapObject(value)) return false;
+  return HeapObject::cast(value)->map() == Map::cast(type);
 }
 
 }  // namespace internal

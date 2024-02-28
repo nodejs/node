@@ -83,18 +83,30 @@ isBuiltin('wss'); // false
 ### `module.register(specifier[, parentURL][, options])`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
+changes:
+  - version:
+    - v20.8.0
+    - v18.19.0
+    pr-url: https://github.com/nodejs/node/pull/49655
+    description: Add support for WHATWG URL instances.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
-* `specifier` {string} Customization hooks to be registered; this should be the
-  same string that would be passed to `import()`, except that if it is relative,
-  it is resolved relative to `parentURL`.
-* `parentURL` {string} If you want to resolve `specifier` relative to a base
+* `specifier` {string|URL} Customization hooks to be registered; this should be
+  the same string that would be passed to `import()`, except that if it is
+  relative, it is resolved relative to `parentURL`.
+* `parentURL` {string|URL} If you want to resolve `specifier` relative to a base
   URL, such as `import.meta.url`, you can pass that URL here. **Default:**
   `'data:'`
 * `options` {Object}
+  * `parentURL` {string|URL} If you want to resolve `specifier` relative to a
+    base URL, such as `import.meta.url`, you can pass that URL here. This
+    property is ignored if the `parentURL` is supplied as the second argument.
+    **Default:** `'data:'`
   * `data` {any} Any arbitrary, cloneable JavaScript value to pass into the
     [`initialize`][] hook.
   * `transferList` {Object\[]} [transferrable objects][] to be passed into the
@@ -149,10 +161,9 @@ import('node:fs').then((esmFS) => {
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/49144
-    description: Removed `globalPreload`.
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48842
     description: Added `initialize` hook to replace `globalPreload`.
   - version:
@@ -166,7 +177,7 @@ changes:
                  `globalPreload`; added `load` hook and `getGlobalPreload` hook.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 <!-- type=misc -->
 
@@ -382,10 +393,12 @@ asynchronous operations (like `console.log`) to complete.
 #### `initialize()`
 
 <!-- YAML
-added: v20.6.0
+added:
+  - v20.6.0
+  - v18.19.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * `data` {any} The data from `register(loader, import.meta.url, { data })`.
 
@@ -458,6 +471,14 @@ register('./path-to-my-hooks.js', {
 <!-- YAML
 changes:
   - version:
+    - v21.0.0
+    - v20.10.0
+    - v18.19.0
+    pr-url: https://github.com/nodejs/node/pull/50140
+    description: The property `context.importAssertions` is replaced with
+                 `context.importAttributes`. Using the old name is still
+                 supported and will emit an experimental warning.
+  - version:
     - v18.6.0
     - v16.17.0
     pr-url: https://github.com/nodejs/node/pull/42623
@@ -476,8 +497,8 @@ changes:
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
-  * `importAssertions` {Object} An object whose key-value pairs represent the
-    assertions for the module to import
+  * `importAttributes` {Object} An object whose key-value pairs represent the
+    attributes for the module to import
   * `parentURL` {string|undefined} The module importing this one, or undefined
     if this is the Node.js entry point
 * `nextResolve` {Function} The subsequent `resolve` hook in the chain, or the
@@ -488,7 +509,7 @@ changes:
   * `format` {string|null|undefined} A hint to the load hook (it might be
     ignored)
     `'builtin' | 'commonjs' | 'json' | 'module' | 'wasm'`
-  * `importAssertions` {Object|undefined} The import assertions to use when
+  * `importAttributes` {Object|undefined} The import attributes to use when
     caching the module (optional; if excluded the input will be used)
   * `shortCircuit` {undefined|boolean} A signal that this hook intends to
     terminate the chain of `resolve` hooks. **Default:** `false`
@@ -505,10 +526,10 @@ the final `format` value (and it is free to ignore the hint provided by
 `resolve`); if `resolve` provides a `format`, a custom `load` hook is required
 even if only to pass the value to the Node.js default `load` hook.
 
-Import type assertions are part of the cache key for saving loaded modules into
+Import type attributes are part of the cache key for saving loaded modules into
 the internal module cache. The `resolve` hook is responsible for returning an
-`importAssertions` object if the module should be cached with different
-assertions than were present in the source code.
+`importAttributes` object if the module should be cached with different
+attributes than were present in the source code.
 
 The `conditions` property in `context` is an array of conditions for
 [package exports conditions][Conditional exports] that apply to this resolution
@@ -574,7 +595,7 @@ changes:
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
   * `format` {string|null|undefined} The format optionally supplied by the
     `resolve` hook chain
-  * `importAssertions` {Object}
+  * `importAttributes` {Object}
 * `nextLoad` {Function} The subsequent `load` hook in the chain, or the
   Node.js default `load` hook after the last user-supplied `load` hook
   * `specifier` {string}
@@ -616,7 +637,8 @@ Omitting vs providing a `source` for `'commonjs'` has very different effects:
   registered hooks. This behavior for nullish `source` is temporary — in the
   future, nullish `source` will not be supported.
 
-The Node.js internal `load` implementation, which is the value of `next` for the
+When `node` is run with `--experimental-default-type=commonjs`, the Node.js
+internal `load` implementation, which is the value of `next` for the
 last hook in the `load` chain, returns `null` for `source` when `format` is
 `'commonjs'` for backward compatibility. Here is an example hook that would
 opt-in to using the non-default behavior:
@@ -800,7 +822,7 @@ async function getPackageType(url) {
     .catch((err) => {
       if (err?.code !== 'ENOENT') console.error(err);
     });
-  // Ff package.json existed and contained a `type` field with a value, voila
+  // If package.json existed and contained a `type` field with a value, voilà
   if (type) return type;
   // Otherwise, (if not at the root) continue checking the next directory up
   // If at the root, stop and return false
@@ -998,16 +1020,16 @@ columnNumber)`
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source
-* `columnOffset` {number} The 1-indexed column number
+* `columnNumber` {number} The 1-indexed column number
   of the call site in the generated source
 * Returns: {Object}
 
-Given a 1-indexed lineNumber and columnNumber from a call site in
+Given a 1-indexed `lineNumber` and `columnNumber` from a call site in
 the generated source, find the corresponding call site location
 in the original source.
 
-If the lineNumber and columnNumber provided are not found in any
-source map, then an empty object is returned.  Otherwise, the
+If the `lineNumber` and `columnNumber` provided are not found in any
+source map, then an empty object is returned. Otherwise, the
 returned object contains the following keys:
 
 * name: {string | undefined} The name of the range in the

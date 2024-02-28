@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -93,9 +93,12 @@ int engine_table_register(ENGINE_TABLE **table, ENGINE_CLEANUP_CB *cleanup,
         added = 1;
     if (!int_table_check(table, 1))
         goto end;
-    if (added)
-        /* The cleanup callback needs to be added */
-        engine_cleanup_add_first(cleanup);
+    /* The cleanup callback needs to be added */
+    if (added && !engine_cleanup_add_first(cleanup)) {
+        lh_ENGINE_PILE_free(&(*table)->piles);
+        *table = NULL;
+        goto end;
+    }
     while (num_nids--) {
         tmplate.nid = *nids;
         fnd = lh_ENGINE_PILE_retrieve(&(*table)->piles, &tmplate);
@@ -201,8 +204,10 @@ ENGINE *ossl_engine_table_select(ENGINE_TABLE **table, int nid,
     ENGINE_PILE tmplate, *fnd = NULL;
     int initres, loop = 0;
 
+#ifndef OPENSSL_NO_AUTOLOAD_CONFIG
     /* Load the config before trying to check if engines are available */
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, NULL);
+#endif
 
     if (!(*table)) {
         OSSL_TRACE3(ENGINE_TABLE,

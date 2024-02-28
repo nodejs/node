@@ -82,6 +82,8 @@ class WasmImportWrapperCache {
 
   ~WasmImportWrapperCache();
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   mutable base::Mutex mutex_;
   std::unordered_map<CacheKey, WasmCode*, CacheKeyHash> entry_map_;

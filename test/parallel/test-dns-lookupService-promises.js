@@ -16,4 +16,4 @@ dnsPromises.lookupService('127.0.0.1', 22).then(common.mustCall((result) => {
 assert.rejects(
   () => dnsPromises.lookupService('192.0.2.1', 22),
   { code: /^(?:ENOTFOUND|EAI_AGAIN)$/ }
-);
+).then(common.mustCall());

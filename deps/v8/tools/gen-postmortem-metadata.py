@@ -79,6 +79,14 @@ consts_misc = [
         'value': 'LAST_CONTEXT_TYPE'
     },
     {
+        'name': 'FirstJSFunctionType',
+        'value': 'FIRST_JS_FUNCTION_TYPE'
+    },
+    {
+        'name': 'LastJSFunctionType',
+        'value': 'LAST_JS_FUNCTION_TYPE'
+    },
+    {
         'name': 'IsNotStringMask',
         'value': 'kIsNotStringMask'
     },
@@ -209,10 +217,6 @@ consts_misc = [
     {
         'name': 'OddballTrue',
         'value': 'Oddball::kTrue'
-    },
-    {
-        'name': 'OddballTheHole',
-        'value': 'Oddball::kTheHole'
     },
     {
         'name': 'OddballNull',
@@ -420,13 +424,11 @@ consts_misc = [
     },
     {
         'name': 'off_fp_bytecode_array',
-        'value': 'UnoptimizedFrameConstants::kBytecodeArrayFromFp'
+        'value': 'InterpreterFrameConstants::kBytecodeArrayFromFp'
     },
     {
-        'name':
-            'off_fp_bytecode_offset',
-        'value':
-            'UnoptimizedFrameConstants::kBytecodeOffsetOrFeedbackVectorFromFp'
+        'name': 'off_fp_bytecode_offset',
+        'value': 'InterpreterFrameConstants::kBytecodeOffsetFromFp'
     },
     {
         'name': 'scopeinfo_idx_nparams',
@@ -800,37 +802,17 @@ def load_objects_from_file(objfilename, checktypes):
     #
     #       EXTERNAL_ONE_BYTE_STRING_TYPE => ExternalOneByteString
     #
-    # However, either the representation or encoding can be omitted
-    # from the type name, in which case "Seq" and "TwoByte" are
-    # assumed, as in:
-    #
-    #       STRING_TYPE => SeqTwoByteString
-    #
-    # Additionally, sometimes the type name has more information
+    # However, sometimes the type name has more information
     # than the class, as in:
     #
     #       CONS_ONE_BYTE_STRING_TYPE => ConsString
     #
     # To figure this out dynamically, we first check for a
-    # representation and encoding and add them if they're not
-    # present.  If that doesn't yield a valid class name, then we
-    # strip out the representation.
+    # representation and encoding.
+    # If that doesn't yield a valid class name, we strip out the
+    # representation.
     #
     if (cctype.endswith('String')):
-      if (cctype.find('Cons') == -1 and
-          cctype.find('External') == -1 and
-          cctype.find('Sliced') == -1):
-        if (cctype.find('OneByte') != -1):
-          cctype = re.sub('OneByteString$',
-              'SeqOneByteString', cctype);
-        else:
-          cctype = re.sub('String$',
-              'SeqString', cctype);
-
-      if (cctype.find('OneByte') == -1):
-        cctype = re.sub('String$', 'TwoByteString',
-            cctype);
-
       if (not (cctype in klasses)):
         cctype = re.sub('OneByte', '', cctype);
         cctype = re.sub('TwoByte', '', cctype);
@@ -857,8 +839,6 @@ def parse_field(call):
   kind = call[0:idx];
   rest = call[idx + 1: len(call) - 1];
   args = re.split('\s*,\s*', rest);
-
-  consts = [];
 
   klass = args[0];
   field = args[1];
@@ -993,10 +973,12 @@ def emit_config():
   consts = [];
   for klassname in sorted(klasses):
     pklass = klasses[klassname]['parent'];
+    if (klassname == pklass):
+      continue
     bklass = get_base_class(klassname);
     if (bklass != 'Object'):
       continue;
-    if (pklass == None):
+    if (pklass is None):
       continue;
 
     consts.append({

@@ -1908,7 +1908,8 @@ class Instruction {
   // Get the raw instruction bits.
   template <typename T>
   inline T InstructionBits() const {
-    return Instruction::InstructionBits<T>(reinterpret_cast<const byte*>(this));
+    return Instruction::InstructionBits<T>(
+        reinterpret_cast<const uint8_t*>(this));
   }
   inline Instr InstructionBits() const {
     return *reinterpret_cast<const Instr*>(this);
@@ -1917,7 +1918,7 @@ class Instruction {
   // Set the raw instruction bits to value.
   template <typename T>
   inline void SetInstructionBits(T value) const {
-    Instruction::SetInstructionBits<T>(reinterpret_cast<const byte*>(this),
+    Instruction::SetInstructionBits<T>(reinterpret_cast<const uint8_t*>(this),
                                        value);
   }
   inline void SetInstructionBits(Instr value) {
@@ -1945,11 +1946,12 @@ class Instruction {
 
   // Determine the instruction length
   inline int InstructionLength() {
-    return Instruction::InstructionLength(reinterpret_cast<const byte*>(this));
+    return Instruction::InstructionLength(
+        reinterpret_cast<const uint8_t*>(this));
   }
   // Extract the Instruction Opcode
   inline Opcode S390OpcodeValue() {
-    return Instruction::S390OpcodeValue(reinterpret_cast<const byte*>(this));
+    return Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(this));
   }
 
   // Static support.
@@ -1968,12 +1970,12 @@ class Instruction {
   }
 
   // Determine the instruction length of the given instruction
-  static inline int InstructionLength(const byte* instr) {
+  static inline int InstructionLength(const uint8_t* instr) {
     // Length can be determined by the first nibble.
     // 0x0 to 0x3 => 2-bytes
     // 0x4 to 0xB => 4-bytes
     // 0xC to 0xF => 6-bytes
-    byte topNibble = (*instr >> 4) & 0xF;
+    uint8_t topNibble = (*instr >> 4) & 0xF;
     if (topNibble <= 3)
       return 2;
     else if (topNibble <= 0xB)
@@ -1982,7 +1984,7 @@ class Instruction {
   }
 
   // Returns the instruction bits of the given instruction
-  static inline uint64_t InstructionBits(const byte* instr) {
+  static inline uint64_t InstructionBits(const uint8_t* instr) {
     int length = InstructionLength(instr);
     if (2 == length)
       return static_cast<uint64_t>(InstructionBits<TwoByteInstr>(instr));
@@ -1994,7 +1996,7 @@ class Instruction {
 
   // Extract the raw instruction bits
   template <typename T>
-  static inline T InstructionBits(const byte* instr) {
+  static inline T InstructionBits(const uint8_t* instr) {
 #if !V8_TARGET_LITTLE_ENDIAN
     if (sizeof(T) <= 4) {
       return *reinterpret_cast<const T*>(instr);
@@ -2025,7 +2027,7 @@ class Instruction {
 
   // Set the Instruction Bits to value
   template <typename T>
-  static inline void SetInstructionBits(byte* instr, T value) {
+  static inline void SetInstructionBits(uint8_t* instr, T value) {
 #if V8_TARGET_LITTLE_ENDIAN
     // The instruction bits are stored in big endian format even on little
     // endian hosts, in order to decode instruction length and opcode.
@@ -2067,18 +2069,18 @@ class Instruction {
   }
 
   // Get Instruction Format Type
-  static OpcodeFormatType getOpcodeFormatType(const byte* instr) {
-    const byte firstByte = *instr;
+  static OpcodeFormatType getOpcodeFormatType(const uint8_t* instr) {
+    const uint8_t firstByte = *instr;
     return OpcodeFormatTable[firstByte];
   }
 
   // Extract the full opcode from the instruction.
-  static inline Opcode S390OpcodeValue(const byte* instr) {
+  static inline Opcode S390OpcodeValue(const uint8_t* instr) {
     OpcodeFormatType opcodeType = getOpcodeFormatType(instr);
 
     // The native instructions are encoded in big-endian format
     // even if running on little-endian host.  Hence, we need
-    // to ensure we use byte* based bit-wise logic.
+    // to ensure we use uint8_t* based bit-wise logic.
     switch (opcodeType) {
       case ONE_BYTE_OPCODE:
         // One Byte - Bits 0 to 7
@@ -2107,7 +2109,7 @@ class Instruction {
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(uint8_t* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 

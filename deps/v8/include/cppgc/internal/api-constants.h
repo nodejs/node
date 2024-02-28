@@ -40,13 +40,32 @@ constexpr size_t kGuardPageSize = 4096;
 
 static constexpr size_t kLargeObjectSizeThreshold = kPageSize / 2;
 
+#if defined(CPPGC_POINTER_COMPRESSION)
+#if defined(CPPGC_ENABLE_LARGER_CAGE)
+constexpr unsigned kPointerCompressionShift = 3;
+#else   // !defined(CPPGC_ENABLE_LARGER_CAGE)
+constexpr unsigned kPointerCompressionShift = 1;
+#endif  // !defined(CPPGC_ENABLE_LARGER_CAGE)
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
+
 #if defined(CPPGC_CAGED_HEAP)
 #if defined(CPPGC_2GB_CAGE)
-constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(2) * kGB;
-#else   // !defined(CPPGC_2GB_CAGE)
-constexpr size_t kCagedHeapReservationSize = static_cast<size_t>(4) * kGB;
+constexpr size_t kCagedHeapDefaultReservationSize =
+    static_cast<size_t>(2) * kGB;
+constexpr size_t kCagedHeapMaxReservationSize =
+    kCagedHeapDefaultReservationSize;
+#else  // !defined(CPPGC_2GB_CAGE)
+constexpr size_t kCagedHeapDefaultReservationSize =
+    static_cast<size_t>(4) * kGB;
+#if defined(CPPGC_POINTER_COMPRESSION)
+constexpr size_t kCagedHeapMaxReservationSize =
+    size_t{1} << (31 + kPointerCompressionShift);
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
+constexpr size_t kCagedHeapMaxReservationSize =
+    kCagedHeapDefaultReservationSize;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
 #endif  // !defined(CPPGC_2GB_CAGE)
-constexpr size_t kCagedHeapReservationAlignment = kCagedHeapReservationSize;
+constexpr size_t kCagedHeapReservationAlignment = kCagedHeapMaxReservationSize;
 #endif  // defined(CPPGC_CAGED_HEAP)
 
 static constexpr size_t kDefaultAlignment = sizeof(void*);

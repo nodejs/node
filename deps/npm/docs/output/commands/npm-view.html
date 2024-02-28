@@ -161,6 +161,10 @@ For example, to show the dependencies of the <code>ronn</code> package at versio
 <code>0.3.5</code>, you could do the following:</p>
 <pre><code class="language-bash">npm view ronn@0.3.5 dependencies
 </code></pre>
+<p>By default, <code>npm view</code> shows data about the current project context (by looking for a <code>package.json</code>).
+To show field data for the current project use a file path (i.e. <code>.</code>):</p>
+<pre><code class="language-bash">npm view . dependencies
+</code></pre>
 <p>You can view child fields by separating them with a period.
 To view the git repository URL for the latest version of <code>npm</code>, you would run the following command:</p>
 <pre><code class="language-bash">npm view npm repository.url

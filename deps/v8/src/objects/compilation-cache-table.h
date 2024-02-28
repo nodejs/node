@@ -21,7 +21,7 @@ struct ScriptDetails;
 
 class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
-  static inline bool IsMatch(HashTableKey* key, Object value) {
+  static inline bool IsMatch(HashTableKey* key, Tagged<Object> value) {
     return key->IsMatch(value);
   }
 
@@ -29,12 +29,14 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
     return key->Hash();
   }
 
-  static inline uint32_t RegExpHash(String string, Smi flags);
+  static inline uint32_t RegExpHash(Tagged<String> string, Tagged<Smi> flags);
 
-  static inline uint32_t EvalHash(String source, SharedFunctionInfo shared,
+  static inline uint32_t EvalHash(Tagged<String> source,
+                                  Tagged<SharedFunctionInfo> shared,
                                   LanguageMode language_mode, int position);
 
-  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots,
+                                       Tagged<Object> object);
 
   static const int kPrefixSize = 0;
   // An 'entry' is essentially a grouped collection of slots. Entries are used
@@ -48,14 +50,14 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
 class InfoCellPair {
  public:
   InfoCellPair() = default;
-  inline InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
-                      FeedbackCell feedback_cell);
+  inline InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                      Tagged<FeedbackCell> feedback_cell);
 
-  FeedbackCell feedback_cell() const {
+  Tagged<FeedbackCell> feedback_cell() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return feedback_cell_;
   }
-  SharedFunctionInfo shared() const {
+  Tagged<SharedFunctionInfo> shared() const {
     DCHECK(is_compiled_scope_.is_compiled());
     return shared_;
   }
@@ -72,8 +74,8 @@ class InfoCellPair {
 
  private:
   IsCompiledScope is_compiled_scope_;
-  SharedFunctionInfo shared_;
-  FeedbackCell feedback_cell_;
+  Tagged<SharedFunctionInfo> shared_;
+  Tagged<FeedbackCell> feedback_cell_;
 };
 
 // A lookup result from the compilation cache for scripts. There are three
@@ -91,7 +93,7 @@ class CompilationCacheScriptLookupResult {
   MaybeHandle<SharedFunctionInfo> toplevel_sfi() const { return toplevel_sfi_; }
   IsCompiledScope is_compiled_scope() const { return is_compiled_scope_; }
 
-  using RawObjects = std::pair<Script, SharedFunctionInfo>;
+  using RawObjects = std::pair<Tagged<Script>, Tagged<SharedFunctionInfo>>;
 
   RawObjects GetRawObjects() const;
 
@@ -149,15 +151,15 @@ class CompilationCacheTable
       Isolate* isolate, Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);
 
-  void Remove(Object value);
+  void Remove(Tagged<Object> value);
   void RemoveEntry(InternalIndex entry);
 
-  inline Object PrimaryValueAt(InternalIndex entry);
-  inline void SetPrimaryValueAt(InternalIndex entry, Object value,
+  inline Tagged<Object> PrimaryValueAt(InternalIndex entry);
+  inline void SetPrimaryValueAt(InternalIndex entry, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline Object EvalFeedbackValueAt(InternalIndex entry);
+  inline Tagged<Object> EvalFeedbackValueAt(InternalIndex entry);
   inline void SetEvalFeedbackValueAt(
-      InternalIndex entry, Object value,
+      InternalIndex entry, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // The initial placeholder insertion of the eval cache survives this many GCs.

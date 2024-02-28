@@ -82,10 +82,9 @@ class Pkg extends BaseCommand {
       }
     }
 
-    // only outputs if not running with workspaces config,
-    // in case you're retrieving info for workspaces the pkgWorkspaces
-    // will handle the output to make sure it get keyed by ws name
-    if (!this.npm.config.get('workspaces')) {
+    // only outputs if not running with workspaces config
+    // execWorkspaces will handle the output otherwise
+    if (!this.workspaces) {
       this.npm.output(JSON.stringify(result, null, 2))
     }
 

@@ -23,6 +23,13 @@ class Session;
 // convenience to help make the code more maintainable and understandable.
 class TLSContext final : public MemoryRetainer {
  public:
+  enum class EncryptionLevel {
+    INITIAL = NGTCP2_ENCRYPTION_LEVEL_INITIAL,
+    HANDSHAKE = NGTCP2_ENCRYPTION_LEVEL_HANDSHAKE,
+    ONERTT = NGTCP2_ENCRYPTION_LEVEL_1RTT,
+    ZERORTT = NGTCP2_ENCRYPTION_LEVEL_0RTT,
+  };
+
   static constexpr auto DEFAULT_CIPHERS = "TLS_AES_128_GCM_SHA256:"
                                           "TLS_AES_256_GCM_SHA384:"
                                           "TLS_CHACHA20_POLY1305_"
@@ -91,8 +98,10 @@ class TLSContext final : public MemoryRetainer {
 
     static const Options kDefault;
 
-    static v8::Maybe<const Options> From(Environment* env,
-                                         v8::Local<v8::Value> value);
+    static v8::Maybe<Options> From(Environment* env,
+                                   v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
   static const Options kDefaultOptions;
@@ -115,13 +124,6 @@ class TLSContext final : public MemoryRetainer {
   // keylog file that can be consumed by tools like Wireshark to intercept and
   // decrypt QUIC network traffic.
   void Keylog(const char* line) const;
-
-  // Called when a chunk of peer TLS handshake data is received. For every
-  // chunk, we move the TLS handshake further along until it is complete.
-  int Receive(ngtcp2_crypto_level crypto_level,
-              uint64_t offset,
-              const uint8_t* data,
-              size_t datalen);
 
   v8::MaybeLocal<v8::Object> cert(Environment* env) const;
   v8::MaybeLocal<v8::Object> peer_cert(Environment* env) const;

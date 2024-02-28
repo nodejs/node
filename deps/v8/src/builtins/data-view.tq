@@ -67,8 +67,8 @@ macro WasDetached(view: JSArrayBufferView): bool {
   return IsDetachedBuffer(view.buffer);
 }
 
-macro ValidateDataView(
-    context: Context, o: JSAny, method: String): JSDataViewOrRabGsabDataView {
+macro ValidateDataView(context: Context, o: JSAny, method: String):
+    JSDataViewOrRabGsabDataView {
   typeswitch (o) {
     case (_x: JSDataView): {
       return UnsafeCast<JSDataView>(o);
@@ -77,15 +77,15 @@ macro ValidateDataView(
       return UnsafeCast<JSRabGsabDataView>(o);
     }
     case (_x: JSAny): {
-      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method);
+      ThrowTypeError(MessageTemplate::kIncompatibleMethodReceiver, method, o);
     }
   }
 }
 
 // ES6 section 24.2.4.1 get DataView.prototype.buffer
 javascript builtin DataViewPrototypeGetBuffer(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): JSArrayBuffer {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSArrayBuffer {
   const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.buffer');
   return dataView.buffer;
@@ -93,7 +93,8 @@ javascript builtin DataViewPrototypeGetBuffer(
 
 // ES6 section 24.2.4.2 get DataView.prototype.byteLength
 javascript builtin DataViewPrototypeGetByteLength(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Number {
   const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
   if (IsVariableLengthJSArrayBufferView(dataView)) {
@@ -116,7 +117,8 @@ javascript builtin DataViewPrototypeGetByteLength(
 
 // ES6 section 24.2.4.3 get DataView.prototype.byteOffset
 javascript builtin DataViewPrototypeGetByteOffset(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): Number {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Number {
   const dataView: JSDataViewOrRabGsabDataView =
       ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
   try {
@@ -240,8 +242,9 @@ const kOneDigitBigInt: constexpr int31 = 1;
 const kTwoDigitBigInt: constexpr int31 = 2;
 
 // Create a BigInt on a 64-bit architecture from two 32-bit values.
-macro MakeBigIntOn64Bit(implicit context: Context)(
-    lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
+macro MakeBigIntOn64Bit(
+    implicit context: Context)(lowWord: uint32, highWord: uint32,
+    signed: constexpr bool): BigInt {
   // 0n is represented by a zero-length BigInt.
   if (lowWord == 0 && highWord == 0) {
     return Convert<BigInt>(bigint::AllocateBigInt(kZeroDigitBigInt));
@@ -268,8 +271,9 @@ macro MakeBigIntOn64Bit(implicit context: Context)(
 }
 
 // Create a BigInt on a 32-bit architecture from two 32-bit values.
-macro MakeBigIntOn32Bit(implicit context: Context)(
-    lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
+macro MakeBigIntOn32Bit(
+    implicit context: Context)(lowWord: uint32, highWord: uint32,
+    signed: constexpr bool): BigInt {
   // 0n is represented by a zero-length BigInt.
   if (lowWord == 0 && highWord == 0) {
     return Convert<BigInt>(bigint::AllocateBigInt(kZeroDigitBigInt));
@@ -335,8 +339,9 @@ macro MakeBigIntOn32Bit(implicit context: Context)(
   return Convert<BigInt>(result);
 }
 
-macro MakeBigInt(implicit context: Context)(
-    lowWord: uint32, highWord: uint32, signed: constexpr bool): BigInt {
+macro MakeBigInt(
+    implicit context: Context)(lowWord: uint32, highWord: uint32,
+    signed: constexpr bool): BigInt {
   // A BigInt digit has the platform word size, so we only need one digit
   // on 64-bit platforms but may need two on 32-bit.
   if constexpr (Is64()) {
@@ -346,9 +351,9 @@ macro MakeBigInt(implicit context: Context)(
   }
 }
 
-macro LoadDataViewBigInt(implicit context: Context)(
-    buffer: JSArrayBuffer, offset: uintptr, requestedLittleEndian: bool,
-    signed: constexpr bool): BigInt {
+macro LoadDataViewBigInt(
+    implicit context: Context)(buffer: JSArrayBuffer, offset: uintptr,
+    requestedLittleEndian: bool, signed: constexpr bool): BigInt {
   const dataPointer: RawPtr = buffer.backing_store_ptr;
 
   const b0: uint32 = LoadUint8(dataPointer, offset);
@@ -545,11 +550,11 @@ transitioning javascript builtin DataViewPrototypeGetBigInt64(
 extern macro ToNumber(Context, JSAny): Number;
 extern macro TruncateFloat64ToWord32(float64): uint32;
 
-extern macro DataViewBuiltinsAssembler::StoreWord8(
-    RawPtr, uintptr, uint32): void;
+extern macro DataViewBuiltinsAssembler::StoreWord8(RawPtr, uintptr, uint32):
+    void;
 
-macro StoreDataView8(
-    buffer: JSArrayBuffer, offset: uintptr, value: uint32): void {
+macro StoreDataView8(buffer: JSArrayBuffer, offset: uintptr, value: uint32):
+    void {
   StoreWord8(buffer.backing_store_ptr, offset, value & 0xFF);
 }
 

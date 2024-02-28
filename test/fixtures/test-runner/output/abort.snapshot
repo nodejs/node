@@ -32,7 +32,7 @@ TAP version 13
     # Subtest: not ok 2
     not ok 6 - not ok 2
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
@@ -41,7 +41,7 @@ TAP version 13
     # Subtest: not ok 3
     not ok 7 - not ok 3
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
       error: 'This operation was aborted'
@@ -62,7 +62,7 @@ TAP version 13
     # Subtest: not ok 4
     not ok 8 - not ok 4
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
       error: 'This operation was aborted'
@@ -83,7 +83,7 @@ TAP version 13
     # Subtest: not ok 5
     not ok 9 - not ok 5
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):7'
       failureType: 'testAborted'
       error: 'This operation was aborted'
@@ -169,7 +169,7 @@ not ok 2 - promise abort signal
     # Subtest: not ok 2
     not ok 6 - not ok 2
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'cancelledByParent'
       error: 'test did not finish before its parent and was cancelled'
@@ -178,7 +178,7 @@ not ok 2 - promise abort signal
     # Subtest: not ok 3
     not ok 7 - not ok 3
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
       error: 'This operation was aborted'
@@ -199,7 +199,7 @@ not ok 2 - promise abort signal
     # Subtest: not ok 4
     not ok 8 - not ok 4
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
       error: 'This operation was aborted'
@@ -220,7 +220,7 @@ not ok 2 - promise abort signal
     # Subtest: not ok 5
     not ok 9 - not ok 5
       ---
-      duration_ms: ZERO
+      duration_ms: *
       location: '/test/fixtures/test-runner/output/abort.js:(LINE):5'
       failureType: 'testAborted'
       error: 'This operation was aborted'

@@ -27,6 +27,8 @@
 
 #include <stdlib.h>
 
+#include "src/common/globals.h"
+
 #ifdef __linux__
 #include <errno.h>
 #include <fcntl.h>
@@ -41,6 +43,7 @@
 #include "src/handles/global-handles.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-inl.h"
 #include "src/init/v8.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
@@ -67,8 +70,8 @@ TEST(Promotion) {
 
     // Array should be in the new space.
     CHECK(heap->InSpace(*array, NEW_SPACE));
-    CcTest::CollectAllGarbage();
-    CcTest::CollectAllGarbage();
+    heap::InvokeMajorGC(heap);
+    heap::InvokeMajorGC(heap);
     CHECK(heap->InSpace(*array, OLD_SPACE));
   }
 }
@@ -77,11 +80,11 @@ TEST(Promotion) {
 // allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   Heap* heap = isolate->heap();
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
   if (!alloc.To(&obj)) return alloc;
-  obj.set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
-                               SKIP_WRITE_BARRIER);
+  obj->set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
+                                SKIP_WRITE_BARRIER);
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
       Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
       TERMINAL_FAST_ELEMENTS_KIND, 0, heap));
@@ -93,16 +96,16 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
     Heap* heap, int length, AllocationType allocation) {
   DCHECK(length >= 0 && length <= FixedArray::kMaxLength);
   int size = FixedArray::SizeFor(length);
-  HeapObject obj;
+  Tagged<HeapObject> obj;
   {
     AllocationResult result = heap->AllocateRaw(size, allocation);
     if (!result.To(&obj)) return result;
   }
-  obj.set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
-                               SKIP_WRITE_BARRIER);
-  FixedArray array = FixedArray::cast(obj);
-  array.set_length(length);
-  MemsetTagged(array.data_start(), ReadOnlyRoots(heap).undefined_value(),
+  obj->set_map_after_allocation(ReadOnlyRoots(heap).fixed_array_map(),
+                                SKIP_WRITE_BARRIER);
+  Tagged<FixedArray> array = FixedArray::cast(obj);
+  array->set_length(length);
+  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
                length);
   return AllocationResult::FromObject(array);
 }
@@ -116,10 +119,10 @@ HEAP_TEST(MarkCompactCollector) {
   Factory* factory = isolate->factory();
 
   v8::HandleScope sc(CcTest::isolate());
-  Handle<JSGlobalObject> global(isolate->context().global_object(), isolate);
+  Handle<JSGlobalObject> global(isolate->context()->global_object(), isolate);
 
   // call mark-compact when heap is empty
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::InvokeMajorGC(heap);
 
   AllocationResult allocation;
   if (!v8_flags.single_generation) {
@@ -129,7 +132,7 @@ HEAP_TEST(MarkCompactCollector) {
       allocation =
           AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung);
     } while (!allocation.IsFailure());
-    CcTest::CollectGarbage(NEW_SPACE);
+    heap::InvokeMinorGC(heap);
     AllocateFixedArrayForTest(heap, arraysize, AllocationType::kYoung)
         .ToObjectChecked();
   }
@@ -138,7 +141,7 @@ HEAP_TEST(MarkCompactCollector) {
   do {
     allocation = AllocateMapForTest(isolate);
   } while (!allocation.IsFailure());
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::InvokeMajorGC(heap);
   AllocateMapForTest(isolate).ToObjectChecked();
 
   { HandleScope scope(isolate);
@@ -150,14 +153,14 @@ HEAP_TEST(MarkCompactCollector) {
     factory->NewJSObject(function);
   }
 
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::InvokeMajorGC(heap);
 
   { HandleScope scope(isolate);
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, func_name));
     Handle<Object> func_value =
         Object::GetProperty(isolate, global, func_name).ToHandleChecked();
-    CHECK(func_value->IsJSFunction());
+    CHECK(IsJSFunction(*func_value));
     Handle<JSFunction> function = Handle<JSFunction>::cast(func_value);
     Handle<JSObject> obj = factory->NewJSObject(function);
 
@@ -168,14 +171,14 @@ HEAP_TEST(MarkCompactCollector) {
     Object::SetProperty(isolate, obj, prop_name, twenty_three).Check();
   }
 
-  CcTest::CollectGarbage(OLD_SPACE);
+  heap::InvokeMajorGC(heap);
 
   { HandleScope scope(isolate);
     Handle<String> obj_name = factory->InternalizeUtf8String("theObject");
     CHECK(Just(true) == JSReceiver::HasOwnProperty(isolate, global, obj_name));
     Handle<Object> object =
         Object::GetProperty(isolate, global, obj_name).ToHandleChecked();
-    CHECK(object->IsJSObject());
+    CHECK(IsJSObject(*object));
     Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
     CHECK_EQ(*Object::GetProperty(isolate, object, prop_name).ToHandleChecked(),
              Smi::FromInt(23));
@@ -204,7 +207,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
   CHECK(heap->InSpace(*handles.front(), OLD_SPACE));
   page->SetFlag(MemoryChunk::PINNED);
 
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   // The pinned flag should prevent the page from moving.
@@ -214,7 +217,7 @@ HEAP_TEST(DoNotEvacuatePinnedPages) {
 
   page->ClearFlag(MemoryChunk::PINNED);
 
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
   heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
 
   // `compact_on_every_full_gc` ensures that this page is an evacuation
@@ -342,7 +345,7 @@ TEST(Regress5829) {
   }
   CHECK(marking->IsMarking() || marking->IsStopped());
   if (marking->IsStopped()) {
-    heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
+    heap->StartIncrementalMarking(i::GCFlag::kNoFlags,
                                   i::GarbageCollectionReason::kTesting);
   }
   CHECK(marking->IsMarking());
@@ -355,10 +358,8 @@ TEST(Regress5829) {
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
   heap->old_space()->FreeLinearAllocationArea();
   Page* page = Page::FromAddress(array->address());
-  MarkingState* marking_state = heap->marking_state();
-  for (auto object_and_size :
-       LiveObjectRange<kGreyObjects>(page, marking_state->bitmap(page))) {
-    CHECK(!object_and_size.first.IsFreeSpaceOrFiller());
+  for (auto object_and_size : LiveObjectRange(page)) {
+    CHECK(!IsFreeSpaceOrFiller(object_and_size.first));
   }
 }
 

@@ -102,14 +102,6 @@ class BindingData : public SnapshotableObject {
 
   static FilePathIsFileReturnType FilePathIsFile(Environment* env,
                                                  const std::string& file_path);
-
-  static const std::array<std::string, 10> legacy_main_extensions;
-  // define the final index of the algorithm resolution
-  // when packageConfig.main is defined.
-  static const uint8_t legacy_main_extensions_with_main_end = 7;
-  // define the final index of the algorithm resolution
-  // when packageConfig.main is NOT defined
-  static const uint8_t legacy_main_extensions_package_fallback_end = 10;
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
@@ -465,19 +457,28 @@ int MKDirpSync(uv_loop_t* loop,
 
 class FSReqWrapSync {
  public:
-  FSReqWrapSync() = default;
+  FSReqWrapSync(const char* syscall = nullptr,
+                const char* path = nullptr,
+                const char* dest = nullptr)
+      : syscall_p(syscall), path_p(path), dest_p(dest) {}
   ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
-  uv_fs_t req;
 
+  uv_fs_t req;
+  const char* syscall_p;
+  const char* path_p;
+  const char* dest_p;
+
+  FSReqWrapSync(const FSReqWrapSync&) = delete;
+  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
+
+  // TODO(joyeecheung): move these out of FSReqWrapSync and into a special
+  // class for mkdirp
   FSContinuationData* continuation_data() const {
     return continuation_data_.get();
   }
   void set_continuation_data(std::unique_ptr<FSContinuationData> data) {
     continuation_data_ = std::move(data);
   }
-
-  FSReqWrapSync(const FSReqWrapSync&) = delete;
-  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
 
  private:
   std::unique_ptr<FSContinuationData> continuation_data_;
@@ -515,6 +516,18 @@ inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
                     FSReqWrapSync* req_wrap, const char* syscall,
                     Func fn, Args... args);
 
+// Similar to SyncCall but throws immediately if there is an error.
+template <typename Predicate, typename Func, typename... Args>
+int SyncCallAndThrowIf(Predicate should_throw,
+                       Environment* env,
+                       FSReqWrapSync* req_wrap,
+                       Func fn,
+                       Args... args);
+template <typename Func, typename... Args>
+int SyncCallAndThrowOnError(Environment* env,
+                            FSReqWrapSync* req_wrap,
+                            Func fn,
+                            Args... args);
 }  // namespace fs
 
 }  // namespace node

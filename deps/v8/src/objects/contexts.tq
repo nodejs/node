@@ -82,8 +82,8 @@ macro NativeContextSlot<T: type>(
     context: Context, index: Slot<NativeContext, T>):&T {
   return ContextSlot(LoadNativeContext(context), index);
 }
-macro NativeContextSlot<C: type, T: type>(implicit context: C)(
-    index: Slot<NativeContext, T>):&T {
+macro NativeContextSlot<C: type, T: type>(
+    implicit context: C)(index: Slot<NativeContext, T>):&T {
   return NativeContextSlot(context, index);
 }
 
@@ -105,10 +105,13 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   ITERATOR_FILTER_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_TAKE_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_DROP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
+  ITERATOR_FLAT_MAP_HELPER_MAP_INDEX: Slot<NativeContext, Map>,
   ITERATOR_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,
   VALID_ITERATOR_WRAPPER_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_MAP_MAP_INDEX: Slot<NativeContext, Map>,
+  JS_SET_MAP_INDEX: Slot<NativeContext, Map>,
   MATH_RANDOM_CACHE_INDEX: Slot<NativeContext, FixedDoubleArray>,
   MATH_RANDOM_INDEX_INDEX: Slot<NativeContext, Smi>,
   NUMBER_FUNCTION_INDEX: Slot<NativeContext, JSFunction>,

@@ -361,6 +361,14 @@ instance of the platform-specific path segment separator (`/` on POSIX and
 If the `path` is a zero-length string, `'.'` is returned, representing the
 current working directory.
 
+On POSIX, the types of normalization applied by this function do not strictly
+adhere to the POSIX specification. For example, this function will replace two
+leading forward slashes with a single slash as if it was a regular absolute
+path, whereas a few POSIX systems assign special meaning to paths beginning with
+exactly two forward slashes. Similarly, other substitutions performed by this
+function, such as removing `..` segments, may change how the underlying system
+resolves the path.
+
 For example, on POSIX:
 
 ```js

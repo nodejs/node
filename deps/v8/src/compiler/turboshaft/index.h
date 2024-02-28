@@ -12,12 +12,25 @@
 #include "src/codegen/tnode.h"
 #include "src/compiler/turboshaft/fast-hash.h"
 #include "src/compiler/turboshaft/representations.h"
+#include "src/objects/heap-number.h"
+#include "src/objects/oddball.h"
+#include "src/objects/string.h"
+#include "src/objects/tagged.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+namespace detail {
+template <typename T>
+struct lazy_false : std::false_type {};
+}  // namespace detail
+
 // Operations are stored in possibly muliple sequential storage slots.
 using OperationStorageSlot = std::aligned_storage_t<8, 8>;
 // Operations occupy at least 2 slots, therefore we assign one id per two slots.
 constexpr size_t kSlotsPerId = 2;
+
+template <typename T, typename C>
+class ConstOrV;
 
 // `OpIndex` is an offset from the beginning of the operations buffer.
 // Compared to `Operation*`, it is more memory efficient (32bit) and stable when
@@ -25,9 +38,15 @@ constexpr size_t kSlotsPerId = 2;
 class OpIndex {
  public:
   explicit constexpr OpIndex(uint32_t offset) : offset_(offset) {
-    DCHECK_EQ(offset % sizeof(OperationStorageSlot), 0);
+    DCHECK(CheckInvariants());
   }
   constexpr OpIndex() : offset_(std::numeric_limits<uint32_t>::max()) {}
+  template <typename T, typename C>
+  OpIndex(const ConstOrV<T, C>&) {  // NOLINT(runtime/explicit)
+    static_assert(detail::lazy_false<T>::value,
+                  "Cannot initialize OpIndex from ConstOrV<>. Did you forget "
+                  "to resolve() it in the assembler?");
+  }
 
   uint32_t id() const {
     // Operations are stored at an offset that's a multiple of
@@ -35,15 +54,26 @@ class OpIndex {
     // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
     // by dividing by `kSlotsPerId`. A compact id space is important, because it
     // makes side-tables smaller.
-    DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
+    DCHECK(CheckInvariants());
+    return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
+  }
+  uint32_t hash() const {
+    // It can be useful to hash OpIndex::Invalid(), so we have this `hash`
+    // function, which returns the id, but without DCHECKing that Invalid is
+    // valid.
+    DCHECK_IMPLIES(valid(), CheckInvariants());
     return offset_ / sizeof(OperationStorageSlot) / kSlotsPerId;
   }
   uint32_t offset() const {
-    DCHECK_EQ(offset_ % sizeof(OperationStorageSlot), 0);
+    DCHECK(CheckInvariants());
+#ifdef DEBUG
+    return offset_ & kUnmaskGenerationMask;
+#else
     return offset_;
+#endif
   }
 
-  bool valid() const { return *this != Invalid(); }
+  constexpr bool valid() const { return *this != Invalid(); }
 
   static constexpr OpIndex Invalid() { return OpIndex(); }
 
@@ -62,13 +92,52 @@ class OpIndex {
     return offset_ % sizeof(OperationStorageSlot) == kTurbofanNodeIdFlag;
   }
 
-  bool operator==(OpIndex other) const { return offset_ == other.offset_; }
-  bool operator!=(OpIndex other) const { return offset_ != other.offset_; }
-  bool operator<(OpIndex other) const { return offset_ < other.offset_; }
-  bool operator>(OpIndex other) const { return offset_ > other.offset_; }
-  bool operator<=(OpIndex other) const { return offset_ <= other.offset_; }
-  bool operator>=(OpIndex other) const { return offset_ >= other.offset_; }
+  constexpr bool operator==(OpIndex other) const {
+    return offset_ == other.offset_;
+  }
+  constexpr bool operator!=(OpIndex other) const {
+    return offset_ != other.offset_;
+  }
+  constexpr bool operator<(OpIndex other) const {
+    return offset_ < other.offset_;
+  }
+  constexpr bool operator>(OpIndex other) const {
+    return offset_ > other.offset_;
+  }
+  constexpr bool operator<=(OpIndex other) const {
+    return offset_ <= other.offset_;
+  }
+  constexpr bool operator>=(OpIndex other) const {
+    return offset_ >= other.offset_;
+  }
 
+#ifdef DEBUG
+  int generation_mod2() const {
+    return (offset_ & kGenerationMask) >> kGenerationMaskShift;
+  }
+  void set_generation_mod2(int generation_mod2) {
+    DCHECK_LE(generation_mod2, 1);
+    offset_ |= generation_mod2 << kGenerationMaskShift;
+  }
+
+  constexpr bool CheckInvariants() const {
+    DCHECK(valid());
+    // The second lowest significant bit of the offset is used to store the
+    // graph generation modulo 2. The lowest and 3rd lowest bits should always
+    // be 0 (as long as sizeof(OperationStorageSlot) is 8).
+    static_assert(sizeof(OperationStorageSlot) == 8);
+    return (offset_ & 0b101) == 0;
+  }
+#endif
+
+ private:
+  static constexpr uint32_t kGenerationMaskShift = 1;
+  static constexpr uint32_t kGenerationMask = 1 << kGenerationMaskShift;
+  static constexpr uint32_t kUnmaskGenerationMask = ~kGenerationMask;
+
+  // In DEBUG builds, the offset's second lowest bit contains the graph
+  // generation % 2, so one should keep this in mind when looking at the value
+  // of the offset.
   uint32_t offset_;
 
   static constexpr uint32_t kTurbofanNodeIdFlag = 1;
@@ -87,7 +156,7 @@ struct Any {};
 template <size_t Bits>
 struct WordWithBits : public Any {
   static constexpr int bits = Bits;
-  static_assert(Bits == 32 || Bits == 64);
+  static_assert(Bits == 32 || Bits == 64 || Bits == 128);
 };
 
 using Word32 = WordWithBits<32>;
@@ -102,6 +171,8 @@ struct FloatWithBits : public Any {  // FloatAny {
 
 using Float32 = FloatWithBits<32>;
 using Float64 = FloatWithBits<64>;
+
+using Simd128 = WordWithBits<128>;
 
 // TODO(nicohartmann@): Replace all uses of `V<Tagged>` by `V<Object>`.
 using Tagged = Object;
@@ -165,8 +236,7 @@ struct v_traits<Word64> {
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, Word64> ||
-                           std::is_same_v<U, Word32>> {};
+      : std::bool_constant<std::is_base_of_v<U, Word64>> {};
 };
 
 template <>
@@ -197,8 +267,23 @@ struct v_traits<Float64> {
       : std::bool_constant<std::is_base_of_v<U, Float64>> {};
 };
 
+template <>
+struct v_traits<Simd128> {
+  static constexpr bool is_abstract_tag = true;
+  static constexpr RegisterRepresentation rep =
+      RegisterRepresentation::Simd128();
+  using constexpr_type = uint8_t[kSimd128Size];
+  static constexpr bool allows_representation(RegisterRepresentation rep) {
+    return rep == RegisterRepresentation::Simd128();
+  }
+
+  template <typename U>
+  struct implicitly_convertible_to
+      : std::bool_constant<std::is_base_of_v<U, Simd128>> {};
+};
+
 template <typename T>
-struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
+struct v_traits<T, std::enable_if_t<is_taggable_v<T>>> {
   static constexpr bool is_abstract_tag = false;
   static constexpr auto rep = RegisterRepresentation::Tagged();
   static constexpr bool allows_representation(RegisterRepresentation rep) {
@@ -207,26 +292,32 @@ struct v_traits<T, typename std::enable_if_t<std::is_base_of_v<Object, T>>> {
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<std::is_base_of_v<U, T> || std::is_same_v<U, Any> ||
-                           is_subtype<T, U>::value> {};
+      : std::bool_constant<std::is_same_v<U, Any> || is_subtype<T, U>::value> {
+  };
 };
 
 template <typename T1, typename T2>
 struct v_traits<UnionT<T1, T2>,
-                typename std::enable_if_t<std::is_base_of_v<Object, T1> &&
-                                          std::is_base_of_v<Object, T2>>> {
+                std::enable_if_t<is_taggable_v<UnionT<T1, T2>>>> {
+  static_assert(!v_traits<T1>::is_abstract_tag);
+  static_assert(!v_traits<T2>::is_abstract_tag);
   static constexpr bool is_abstract_tag = false;
-  static constexpr auto rep = RegisterRepresentation::Tagged();
-  static constexpr bool allows_representation(RegisterRepresentation rep) {
-    return rep == RegisterRepresentation::Tagged();
+  static_assert(v_traits<T1>::rep == v_traits<T2>::rep);
+  static constexpr auto rep = v_traits<T1>::rep;
+  static constexpr bool allows_representation(RegisterRepresentation r) {
+    return r == rep;
   }
 
   template <typename U>
   struct implicitly_convertible_to
-      : std::bool_constant<
-            (std::is_base_of_v<U, T1> && std::is_base_of_v<U, T2>) ||
-            std::is_same_v<U, Any> || is_subtype<UnionT<T1, T2>, U>::value> {};
+      : std::bool_constant<(
+            v_traits<T1>::template implicitly_convertible_to<U>::value ||
+            v_traits<T2>::template implicitly_convertible_to<U>::value)> {};
 };
+
+using BooleanOrNullOrUndefined = UnionT<UnionT<Boolean, Null>, Undefined>;
+using NumberOrString = UnionT<Number, String>;
+using PlainPrimitive = UnionT<NumberOrString, BooleanOrNullOrUndefined>;
 
 // V<> represents an SSA-value that is parameterized with the type of the value.
 // Types from the `Object` hierarchy can be provided as well as the abstract
@@ -255,6 +346,7 @@ class V : public OpIndex {
   static V<T> Cast(V<U> index) {
     return V<T>(OpIndex{index});
   }
+  static V<T> Cast(OpIndex index) { return V<T>(index); }
 
   static constexpr bool allows_representation(RegisterRepresentation rep) {
     return v_traits<T>::allows_representation(rep);
@@ -315,10 +407,10 @@ class ConstOrV {
 
 template <>
 struct fast_hash<OpIndex> {
-  V8_INLINE size_t operator()(OpIndex op) const { return op.id(); }
+  V8_INLINE size_t operator()(OpIndex op) const { return op.hash(); }
 };
 
-V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.id()); }
+V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.hash()); }
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.

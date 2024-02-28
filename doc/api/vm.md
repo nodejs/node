@@ -59,10 +59,15 @@ executed in specific contexts.
 added: v0.3.1
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v10.6.0
     pr-url: https://github.com/nodejs/node/pull/20300
@@ -94,19 +99,13 @@ changes:
     depending on whether code cache data is produced successfully.
     This option is **deprecated** in favor of `script.createCachedData()`.
     **Default:** `false`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
-    * `specifier` {string} specifier passed to `import()`
-    * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify how the modules should be loaded during the evaluation
+    of this script when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 
 If `options` is a string, then it specifies the filename.
 
@@ -615,6 +614,17 @@ The identifier of the current module, as set in the constructor.
 
 ### `module.link(linker)`
 
+<!-- YAML
+changes:
+  - version:
+    - v21.1.0
+    - v20.10.0
+    - v18.19.0
+    pr-url: https://github.com/nodejs/node/pull/50141
+    description: The option `extra.assert` is renamed to `extra.attributes`. The
+                 former name is still provided for backward compatibility.
+-->
+
 * `linker` {Function}
   * `specifier` {string} The specifier of the requested module:
     ```mjs
@@ -625,15 +635,14 @@ The identifier of the current module, as set in the constructor.
   * `referencingModule` {vm.Module} The `Module` object `link()` is called on.
 
   * `extra` {Object}
-    * `assert` {Object} The data from the assertion:
-      <!-- eslint-skip -->
-      ```js
-      import foo from 'foo' assert { name: 'value' };
-      //                           ^^^^^^^^^^^^^^^^^ the assertion
+    * `attributes` {Object} The data from the attribute:
+      ```mjs
+      import foo from 'foo' with { name: 'value' };
+      //                         ^^^^^^^^^^^^^^^^^ the attribute
       ```
-      Per ECMA-262, hosts are expected to ignore assertions that they do not
-      support, as opposed to, for example, triggering an error if an
-      unsupported assertion is present.
+      Per ECMA-262, hosts are expected to trigger an error if an
+      unsupported attribute is present.
+    * `assert` {Object} Alias for `extra.attributes`.
 
   * Returns: {vm.Module|Promise}
 * Returns: {Promise}
@@ -732,7 +741,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
 -->
 
@@ -757,17 +766,12 @@ changes:
     to initialize the `import.meta`.
     * `meta` {import.meta}
     * `module` {vm.SourceTextModule}
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    * `specifier` {string} specifier passed to `import()`
-    * `module` {vm.Module}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
+  * `importModuleDynamically` {Function} Used to specify the
+    how the modules should be loaded during the evaluation of this module
+    when `import()` is called. This option is part of the experimental
+    modules API. We do not recommend using it in a production environment.
+    For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 
 Creates a new `SourceTextModule` instance.
 
@@ -967,6 +971,11 @@ const vm = require('node:vm');
 added: v10.10.0
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
     - v19.6.0
     - v18.15.0
     pr-url: https://github.com/nodejs/node/pull/46320
@@ -977,7 +986,7 @@ changes:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v15.9.0
     pr-url: https://github.com/nodejs/node/pull/35431
@@ -1014,30 +1023,59 @@ changes:
   * `contextExtensions` {Object\[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API, and should not be
-    considered stable.
-    * `specifier` {string} specifier passed to `import()`
-    * `function` {Function}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
+* `importModuleDynamically`
+  {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+  Used to specify the how the modules should be loaded during the evaluation of
+  this function when `import()` is called. This option is part of the
+  experimental modules API. We do not recommend using it in a production
+  environment. For detailed information, see
+  [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
 supplied, the current context is used), and returns it wrapped inside a
 function with the given `params`.
 
+## `vm.constants`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {Object}
+
+Returns an object containing commonly used constants for VM operations.
+
+### `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+A constant that can be used as the `importModuleDynamically` option to
+`vm.Script` and `vm.compileFunction()` so that Node.js uses the default
+ESM loader from the main context to load the requested module.
+
+For detailed information, see
+[Support of dynamic `import()` in compilation APIs][].
+
 ## `vm.createContext([contextObject[, options]])`
 
 <!-- YAML
 added: v0.3.1
 changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
+    - v21.2.0
+    - v20.11.0
+    pr-url: https://github.com/nodejs/node/pull/50360
+    description: The `importModuleDynamically` option is supported now.
   - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
     description: The `microtaskMode` option is supported now.
@@ -1070,6 +1108,13 @@ changes:
     scheduled through `Promise`s and `async function`s) will be run immediately
     after a script has run through [`script.runInContext()`][].
     They are included in the `timeout` and `breakOnSigint` scopes in that case.
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded when `import()` is
+    called in this context without a referrer script or module. This option is
+    part of the experimental modules API. We do not recommend using it in a
+    production environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Object} contextified object.
 
 If given a `contextObject`, the `vm.createContext()` method will [prepare
@@ -1204,10 +1249,15 @@ vm.measureMemory({ mode: 'detailed', execution: 'eager' })
 added: v0.3.1
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
@@ -1238,20 +1288,13 @@ changes:
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
     source.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
-    * `specifier` {string} specifier passed to `import()`
-    * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
-* Returns: {any} the result of the very last statement executed in the script.
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded during the evaluation
+    of this script when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 
 The `vm.runInContext()` method compiles `code`, runs it within the context of
 the `contextifiedObject`, then returns the result. Running code does not have
@@ -1282,10 +1325,15 @@ console.log(contextObject);
 added: v0.3.1
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v14.6.0
     pr-url: https://github.com/nodejs/node/pull/34023
@@ -1337,19 +1385,13 @@ changes:
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
     source.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
-    * `specifier` {string} specifier passed to `import()`
-    * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded during the evaluation
+    of this script when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
   * `microtaskMode` {string} If set to `afterEvaluate`, microtasks (tasks
     scheduled through `Promise`s and `async function`s) will be run immediately
     after the script has run. They are included in the `timeout` and
@@ -1385,10 +1427,15 @@ console.log(contextObject);
 added: v0.3.1
 changes:
   - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51244
+    description: Added support for
+                `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
+  - version:
     - v17.0.0
     - v16.12.0
     pr-url: https://github.com/nodejs/node/pull/40249
-    description: Added support for import assertions to the
+    description: Added support for import attributes to the
                  `importModuleDynamically` parameter.
   - version: v6.3.0
     pr-url: https://github.com/nodejs/node/pull/6635
@@ -1417,19 +1464,13 @@ changes:
   * `cachedData` {Buffer|TypedArray|DataView} Provides an optional `Buffer` or
     `TypedArray`, or `DataView` with V8's code cache data for the supplied
     source.
-  * `importModuleDynamically` {Function} Called during evaluation of this module
-    when `import()` is called. If this option is not specified, calls to
-    `import()` will reject with [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
-    This option is part of the experimental modules API. We do not recommend
-    using it in a production environment.
-    * `specifier` {string} specifier passed to `import()`
-    * `script` {vm.Script}
-    * `importAssertions` {Object} The `"assert"` value passed to the
-      [`optionsExpression`][] optional parameter, or an empty object if no value
-      was provided.
-    * Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
-      recommended in order to take advantage of error tracking, and to avoid
-      issues with namespaces that contain `then` function exports.
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded during the evaluation
+    of this script when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 * Returns: {any} the result of the very last statement executed in the script.
 
 `vm.runInThisContext()` compiles `code`, runs it within the context of the
@@ -1575,16 +1616,221 @@ inside a `vm.Context`, functions passed to them will be added to global queues,
 which are shared by all contexts. Therefore, callbacks passed to those functions
 are not controllable through the timeout either.
 
+## Support of dynamic `import()` in compilation APIs
+
+The following APIs support an `importModuleDynamically` option to enable dynamic
+`import()` in code compiled by the vm module.
+
+* `new vm.Script`
+* `vm.compileFunction()`
+* `new vm.SourceTextModule`
+* `vm.runInThisContext()`
+* `vm.runInContext()`
+* `vm.runInNewContext()`
+* `vm.createContext()`
+
+This option is still part of the experimental modules API. We do not recommend
+using it in a production environment.
+
+### When the `importModuleDynamically` option is not specified or undefined
+
+If this option is not specified, or if it's `undefined`, code containing
+`import()` can still be compiled by the vm APIs, but when the compiled code is
+executed and it actually calls `import()`, the result will reject with
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`][].
+
+### When `importModuleDynamically` is `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`
+
+This option is currently not supported for `vm.SourceTextModule`.
+
+With this option, when an `import()` is initiated in the compiled code, Node.js
+would use the default ESM loader from the main context to load the requested
+module and return it to the code being executed.
+
+This gives access to Node.js built-in modules such as `fs` or `http`
+to the code being compiled. If the code is executed in a different context,
+be aware that the objects created by modules loaded from the main context
+are still from the main context and not `instanceof` built-in classes in the
+new context.
+
+```cjs
+const { Script, constants } = require('node:vm');
+const script = new Script(
+  'import("node:fs").then(({readFile}) => readFile instanceof Function)',
+  { importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
+
+// false: URL loaded from the main context is not an instance of the Function
+// class in the new context.
+script.runInNewContext().then(console.log);
+```
+
+```mjs
+import { Script, constants } from 'node:vm';
+
+const script = new Script(
+  'import("node:fs").then(({readFile}) => readFile instanceof Function)',
+  { importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER });
+
+// false: URL loaded from the main context is not an instance of the Function
+// class in the new context.
+script.runInNewContext().then(console.log);
+```
+
+This option also allows the script or function to load user modules:
+
+```mjs
+import { Script, constants } from 'node:vm';
+import { resolve } from 'node:path';
+import { writeFileSync } from 'node:fs';
+
+// Write test.js and test.txt to the directory where the current script
+// being run is located.
+writeFileSync(resolve(import.meta.dirname, 'test.mjs'),
+              'export const filename = "./test.json";');
+writeFileSync(resolve(import.meta.dirname, 'test.json'),
+              '{"hello": "world"}');
+
+// Compile a script that loads test.mjs and then test.json
+// as if the script is placed in the same directory.
+const script = new Script(
+  `(async function() {
+    const { filename } = await import('./test.mjs');
+    return import(filename, { with: { type: 'json' } })
+  })();`,
+  {
+    filename: resolve(import.meta.dirname, 'test-with-default.js'),
+    importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  });
+
+// { default: { hello: 'world' } }
+script.runInThisContext().then(console.log);
+```
+
+```cjs
+const { Script, constants } = require('node:vm');
+const { resolve } = require('node:path');
+const { writeFileSync } = require('node:fs');
+
+// Write test.js and test.txt to the directory where the current script
+// being run is located.
+writeFileSync(resolve(__dirname, 'test.mjs'),
+              'export const filename = "./test.json";');
+writeFileSync(resolve(__dirname, 'test.json'),
+              '{"hello": "world"}');
+
+// Compile a script that loads test.mjs and then test.json
+// as if the script is placed in the same directory.
+const script = new Script(
+  `(async function() {
+    const { filename } = await import('./test.mjs');
+    return import(filename, { with: { type: 'json' } })
+  })();`,
+  {
+    filename: resolve(__dirname, 'test-with-default.js'),
+    importModuleDynamically: constants.USE_MAIN_CONTEXT_DEFAULT_LOADER,
+  });
+
+// { default: { hello: 'world' } }
+script.runInThisContext().then(console.log);
+```
+
+There are a few caveats with loading user modules using the default loader
+from the main context:
+
+1. The module being resolved would be relative to the `filename` option passed
+   to `vm.Script` or `vm.compileFunction()`. The resolution can work with a
+   `filename` that's either an absolute path or a URL string.  If `filename` is
+   a string that's neither an absolute path or a URL, or if it's undefined,
+   the resolution will be relative to the current working directory
+   of the process. In the case of `vm.createContext()`, the resolution is always
+   relative to the current working directory since this option is only used when
+   there isn't a referrer script or module.
+2. For any given `filename` that resolves to a specific path, once the process
+   manages to load a particular module from that path, the result may be cached,
+   and subsequent load of the same module from the same path would return the
+   same thing. If the `filename` is a URL string, the cache would not be hit
+   if it has different search parameters. For `filename`s that are not URL
+   strings, there is currently no way to bypass the caching behavior.
+
+### When `importModuleDynamically` is a function
+
+When `importModuleDynamically` is a function, it will be invoked when `import()`
+is called in the compiled code for users to customize how the requested module
+should be compiled and evaluated. Currently, the Node.js instance must be
+launched with the `--experimental-vm-modules` flag for this option to work. If
+the flag isn't set, this callback will be ignored. If the code evaluated
+actually calls to `import()`, the result will reject with
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`][].
+
+The callback `importModuleDynamically(specifier, referrer, importAttributes)`
+has the following signature:
+
+* `specifier` {string} specifier passed to `import()`
+* `referrer` {vm.Script|Function|vm.SourceTextModule|Object}
+  The referrer is the compiled `vm.Script` for `new vm.Script`,
+  `vm.runInThisContext`, `vm.runInContext` and `vm.runInNewContext`. It's the
+  compiled `Function` for `vm.compileFunction`, the compiled
+  `vm.SourceTextModule` for `new vm.SourceTextModule`, and the context `Object`
+  for `vm.createContext()`.
+* `importAttributes` {Object} The `"with"` value passed to the
+  [`optionsExpression`][] optional parameter, or an empty object if no value was
+  provided.
+* Returns: {Module Namespace Object|vm.Module} Returning a `vm.Module` is
+  recommended in order to take advantage of error tracking, and to avoid issues
+  with namespaces that contain `then` function exports.
+
+```mjs
+// This script must be run with --experimental-vm-modules.
+import { Script, SyntheticModule } from 'node:vm';
+
+const script = new Script('import("foo.json", { with: { type: "json" } })', {
+  async importModuleDynamically(specifier, referrer, importAttributes) {
+    console.log(specifier);  // 'foo.json'
+    console.log(referrer);   // The compiled script
+    console.log(importAttributes);  // { type: 'json' }
+    const m = new SyntheticModule(['bar'], () => { });
+    await m.link(() => { });
+    m.setExport('bar', { hello: 'world' });
+    return m;
+  },
+});
+const result = await script.runInThisContext();
+console.log(result);  //  { bar: { hello: 'world' } }
+```
+
+```cjs
+// This script must be run with --experimental-vm-modules.
+const { Script, SyntheticModule } = require('node:vm');
+
+(async function main() {
+  const script = new Script('import("foo.json", { with: { type: "json" } })', {
+    async importModuleDynamically(specifier, referrer, importAttributes) {
+      console.log(specifier);  // 'foo.json'
+      console.log(referrer);   // The compiled script
+      console.log(importAttributes);  // { type: 'json' }
+      const m = new SyntheticModule(['bar'], () => { });
+      await m.link(() => { });
+      m.setExport('bar', { hello: 'world' });
+      return m;
+    },
+  });
+  const result = await script.runInThisContext();
+  console.log(result);  //  { bar: { hello: 'world' } }
+})();
+```
+
 [Cyclic Module Record]: https://tc39.es/ecma262/#sec-cyclic-module-records
 [ECMAScript Module Loader]: esm.md#modules-ecmascript-modules
 [Evaluate() concrete method]: https://tc39.es/ecma262/#sec-moduleevaluation
 [GetModuleNamespace]: https://tc39.es/ecma262/#sec-getmodulenamespace
 [HostResolveImportedModule]: https://tc39.es/ecma262/#sec-hostresolveimportedmodule
 [Link() concrete method]: https://tc39.es/ecma262/#sec-moduledeclarationlinking
-[Module Record]: https://www.ecma-international.org/ecma-262/#sec-abstract-module-records
+[Module Record]: https://262.ecma-international.org/14.0/#sec-abstract-module-records
 [Source Text Module Record]: https://tc39.es/ecma262/#sec-source-text-module-records
+[Support of dynamic `import()` in compilation APIs]: #support-of-dynamic-import-in-compilation-apis
 [Synthetic Module Record]: https://heycam.github.io/webidl/#synthetic-module-records
 [V8 Embedder's Guide]: https://v8.dev/docs/embed#contexts
+[`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`]: errors.md#err_vm_dynamic_import_callback_missing_flag
 [`ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`]: errors.md#err_vm_dynamic_import_callback_missing
 [`ERR_VM_MODULE_STATUS`]: errors.md#err_vm_module_status
 [`Error`]: errors.md#class-error

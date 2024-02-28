@@ -7,23 +7,23 @@
   'skip-stack-guard-page': [PASS, ['((arch == ppc or arch == ppc64 or arch == s390 or arch == s390x) and simulator_run)', SKIP]],
   # Missing rebase in the proposal repository.
   'proposals/js-types/table': [FAIL],
-  # "data" is supposed to fail for "data segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "data" is supposed to fail for "data segment does not fit"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/data': [FAIL],
-  # "elem" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "elem" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/elem': [FAIL],
   # "imports" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/imports': [FAIL],
-  # "linking" is supposed to fail for "elements segment does not fit"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "linking" is supposed to fail for "elements segment does not fit"; missing
+  # rebase on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/linking': [FAIL],
   # "table" is supposed to fail for "multiple tables"; missing rebase on
   # https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/table': [FAIL],
-  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase on
-  # https://github.com/WebAssembly/spec/commit/7fa2f20a.
+  # "unreached-invalid" is supposed to fail for "type mismatch"; missing rebase
+  # on https://github.com/WebAssembly/spec/commit/7fa2f20a.
   'proposals/memory64/unreached-invalid': [FAIL],
 
   # TODO(wasm): Roll newest tests into "js-types" repository.
@@ -34,6 +34,27 @@
   'simd_f64x2*': [PASS, HEAVY],
   'f32*': [PASS, HEAVY],
   'f64*': [PASS, HEAVY],
+
+  # The function-references spec tests haven't been updated to the final
+  # binary encoding. We don't care, because the GC tests are up to date and
+  # we'll ship both proposals together.
+  'proposals/function-references/*': [SKIP],
+
+  # These break with the GC proposal (because they check that certain modules
+  # don't validate that become valid with GC). The GC proposal will update them
+  # when it is merged into the main spec repository.
+  'data': [FAIL],
+  'proposals/extended-const/data': [FAIL],
+  'proposals/multi-memory/data': [FAIL],
+
+  'elem': [FAIL],
+  'proposals/extended-const/elem': [FAIL],
+  'proposals/js-types/elem': [FAIL],
+  'proposals/multi-memory/elem': [FAIL],
+  'proposals/tail-call/elem': [FAIL],
+
+  'global': [FAIL],
+  'proposals/extended-const/global': [FAIL],
 }],  # ALWAYS
 
 ['arch == arm and not simulator_run', {
@@ -104,9 +125,6 @@
    'skip-stack-guard-page': '--sim-stack-size=8192',
    'proposals/tail-call/skip-stack-guard-page': '--sim-stack-size=8192',
 
-   # SIMD is not fully implemented yet.
-   'simd*': [SKIP],
-
    'func': ['variant == stress', SKIP],
 }],  # 'arch == riscv32'
 
@@ -150,7 +168,7 @@
   '*': [SKIP],
 }],  # not has_webassembly or variant == jitless
 
-################################################################################
+##############################################################################
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],  # variant == stress_snapshot
@@ -159,8 +177,9 @@
 ['no_simd_hardware == True', {
   'linking': [SKIP],
   'simd*': [SKIP],
-  'proposals/tail-call/simd_lane': [SKIP],
   'proposals/js-types/linking': [SKIP],
+  'proposals/multi-memory/simd_memory-multi': [SKIP],
+  'proposals/tail-call/simd_lane': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################

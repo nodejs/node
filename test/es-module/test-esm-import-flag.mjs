@@ -182,4 +182,37 @@ describe('import modules using --import', { concurrency: true }, () => {
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
+
+  it('should import files sequentially', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--import', fixtures.fileURL('es-modules', 'esm-top-level-await.mjs'),
+        '--import', fixtures.fileURL('es-modules', 'print-3.mjs'),
+        fixtures.path('empty.js'),
+      ]
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^1\r?\n2\r?\n3\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('should import files from the env before ones from the CLI', async () => {
+    const { code, signal, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--import', fixtures.fileURL('es-modules', 'print-3.mjs'),
+        fixtures.path('empty.js'),
+      ],
+      { env: { ...process.env, NODE_OPTIONS: `--import ${JSON.stringify(fixtures.fileURL('es-modules', 'esm-top-level-await.mjs'))}` } }
+    );
+
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /^1\r?\n2\r?\n3\r?\n$/);
+    assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+
+  });
 });

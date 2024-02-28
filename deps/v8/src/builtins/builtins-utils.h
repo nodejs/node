@@ -23,11 +23,12 @@ class BuiltinArguments : public JavaScriptArguments {
       : Arguments(length, arguments) {
     // Check we have at least the receiver.
     DCHECK_LE(1, this->length());
+    DCHECK(Tagged<Object>((*at(0)).ptr()).IsObject());
   }
 
-  Object operator[](int index) const {
+  Tagged<Object> operator[](int index) const {
     DCHECK_LT(index, length());
-    return Object(*address_of_arg_at(index + kArgsOffset));
+    return Tagged<Object>(*address_of_arg_at(index + kArgsOffset));
   }
 
   template <class S = Object>
@@ -36,7 +37,7 @@ class BuiltinArguments : public JavaScriptArguments {
     return Handle<S>(address_of_arg_at(index + kArgsOffset));
   }
 
-  inline void set_at(int index, Object value) {
+  inline void set_at(int index, Tagged<Object> value) {
     DCHECK_LT(index, length());
     *address_of_arg_at(index + kArgsOffset) = value.ptr();
   }
@@ -102,44 +103,44 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
 // through the BuiltinArguments object args.
 // TODO(cbruni): add global flag to check whether any tracing events have been
 // enabled.
-#define BUILTIN_RCS(name)                                                   \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
-      BuiltinArguments args, Isolate* isolate);                             \
-                                                                            \
-  V8_NOINLINE static Address Builtin_Impl_Stats_##name(                     \
-      int args_length, Address* args_object, Isolate* isolate) {            \
-    BuiltinArguments args(args_length, args_object);                        \
-    RCS_SCOPE(isolate, RuntimeCallCounterId::kBuiltin_##name);              \
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                   \
-                 "V8.Builtin_" #name);                                      \
-    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
-  }                                                                         \
-                                                                            \
-  V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
-      int args_length, Address* args_object, Isolate* isolate) {            \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
-    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {            \
-      return Builtin_Impl_Stats_##name(args_length, args_object, isolate);  \
-    }                                                                       \
-    BuiltinArguments args(args_length, args_object);                        \
-    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
-  }                                                                         \
-                                                                            \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
+#define BUILTIN_RCS(name)                                                  \
+  V8_WARN_UNUSED_RESULT static Tagged<Object> Builtin_Impl_##name(         \
+      BuiltinArguments args, Isolate* isolate);                            \
+                                                                           \
+  V8_NOINLINE static Address Builtin_Impl_Stats_##name(                    \
+      int args_length, Address* args_object, Isolate* isolate) {           \
+    BuiltinArguments args(args_length, args_object);                       \
+    RCS_SCOPE(isolate, RuntimeCallCounterId::kBuiltin_##name);             \
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.runtime"),                  \
+                 "V8.Builtin_" #name);                                     \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
+  }                                                                        \
+                                                                           \
+  V8_WARN_UNUSED_RESULT Address Builtin_##name(                            \
+      int args_length, Address* args_object, Isolate* isolate) {           \
+    DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    if (V8_UNLIKELY(TracingFlags::is_runtime_stats_enabled())) {           \
+      return Builtin_Impl_Stats_##name(args_length, args_object, isolate); \
+    }                                                                      \
+    BuiltinArguments args(args_length, args_object);                       \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
+  }                                                                        \
+                                                                           \
+  V8_WARN_UNUSED_RESULT static Tagged<Object> Builtin_Impl_##name(         \
       BuiltinArguments args, Isolate* isolate)
 
-#define BUILTIN_NO_RCS(name)                                                \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
-      BuiltinArguments args, Isolate* isolate);                             \
-                                                                            \
-  V8_WARN_UNUSED_RESULT Address Builtin_##name(                             \
-      int args_length, Address* args_object, Isolate* isolate) {            \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
-    BuiltinArguments args(args_length, args_object);                        \
-    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));      \
-  }                                                                         \
-                                                                            \
-  V8_WARN_UNUSED_RESULT static Object Builtin_Impl_##name(                  \
+#define BUILTIN_NO_RCS(name)                                               \
+  V8_WARN_UNUSED_RESULT static Tagged<Object> Builtin_Impl_##name(         \
+      BuiltinArguments args, Isolate* isolate);                            \
+                                                                           \
+  V8_WARN_UNUSED_RESULT Address Builtin_##name(                            \
+      int args_length, Address* args_object, Isolate* isolate) {           \
+    DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    BuiltinArguments args(args_length, args_object);                       \
+    return BUILTIN_CONVERT_RESULT(Builtin_Impl_##name(args, isolate));     \
+  }                                                                        \
+                                                                           \
+  V8_WARN_UNUSED_RESULT static Tagged<Object> Builtin_Impl_##name(         \
       BuiltinArguments args, Isolate* isolate)
 
 #ifdef V8_RUNTIME_CALL_STATS
@@ -150,7 +151,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
 // ----------------------------------------------------------------------------
 
 #define CHECK_RECEIVER(Type, name, method)                                  \
-  if (!args.receiver()->Is##Type()) {                                       \
+  if (!Is##Type(*args.receiver())) {                                        \
     THROW_NEW_ERROR_RETURN_FAILURE(                                         \
         isolate,                                                            \
         NewTypeError(MessageTemplate::kIncompatibleMethodReceiver,          \
@@ -163,7 +164,7 @@ static_assert(BuiltinArguments::kNumExtraArgsWithReceiver ==
 // or converts the receiver to a String otherwise and assigns it to a new var
 // with the given {name}.
 #define TO_THIS_STRING(name, method)                                          \
-  if (args.receiver()->IsNullOrUndefined(isolate)) {                          \
+  if (IsNullOrUndefined(*args.receiver(), isolate)) {                         \
     THROW_NEW_ERROR_RETURN_FAILURE(                                           \
         isolate,                                                              \
         NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,               \

@@ -1,21 +1,21 @@
 Test scopes with variables in TDZ.
 Debug break
   Scope type: block
-    blockLet : undefined
-    blockConst : undefined
-    contextBlockLet : undefined
-    contextBlockConst : undefined
+    blockLet : <value_unavailable>
+    blockConst : <value_unavailable>
+    contextBlockLet : <value_unavailable>
+    contextBlockConst : <value_unavailable>
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: local
   Scope type: block
-    contextBlockLet : undefined
-    contextBlockConst : undefined
+    contextBlockLet : <value_unavailable>
+    contextBlockConst : <value_unavailable>
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: block
     blockLet : 1
@@ -23,25 +23,25 @@ Debug break
     contextBlockLet : 3
     contextBlockConst : 4
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: local
   Scope type: block
     contextBlockLet : 3
     contextBlockConst : 4
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: local
   Scope type: script
-    scriptLet : undefined
-    scriptConst : undefined
+    scriptLet : <value_unavailable>
+    scriptConst : <value_unavailable>
 Debug break
   Scope type: script
     scriptLet : 1

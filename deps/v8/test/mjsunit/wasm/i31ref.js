@@ -12,12 +12,12 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   builder.addFunction("signed", kSig_i_i)
     .addLocals(wasmRefType(kWasmI31Ref), 1)
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprI31New, kExprLocalTee, 1,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31, kExprLocalTee, 1,
               kGCPrefix, kExprI31GetS])
     .exportFunc();
   builder.addFunction("unsigned", kSig_i_i)
     .addLocals(wasmRefType(kWasmI31Ref), 1)
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprI31New, kExprLocalTee, 1,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31, kExprLocalTee, 1,
               kGCPrefix, kExprI31GetU])
     .exportFunc();
 
@@ -44,7 +44,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprIf, kWasmVoid,
           kExprRefNull, kI31RefCode, kExprLocalSet, 1,
         kExprElse,
-          ...wasmI32Const(42), kGCPrefix, kExprI31New, kExprLocalSet, 1,
+          ...wasmI32Const(42), kGCPrefix, kExprRefI31, kExprLocalSet, 1,
         kExprEnd,
         kExprLocalGet, 1, kGCPrefix, kExprI31GetS])
     .exportFunc();
@@ -72,7 +72,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
               kGCPrefix, kExprRefCast, kI31RefCode, kGCPrefix, kExprI31GetU])
     .exportFunc();
   builder.addFunction("new", makeSig([kWasmI32], [kWasmExternRef]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprI31New,
+    .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefI31,
               kGCPrefix, kExprExternExternalize])
     .exportFunc();
 

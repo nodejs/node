@@ -86,7 +86,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   Handle<JSObject> options =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  icu::Collator* icu_collator = collator->icu_collator().raw();
+  icu::Collator* icu_collator = collator->icu_collator()->raw();
   DCHECK_NOT_NULL(icu_collator);
 
   UErrorCode status = U_ZERO_ERROR;
@@ -202,7 +202,7 @@ Handle<JSObject> JSCollator::ResolvedOptions(Isolate* isolate,
   // If the collator return the locale differ from what got requested, we stored
   // it in the collator->locale. Otherwise, we just use the one from the
   // collator.
-  if (collator->locale().length() != 0) {
+  if (collator->locale()->length() != 0) {
     // Get the locale from collator->locale() since we know in some cases
     // collator won't be able to return the requested one, such as zh_CN.
     Handle<String> locale_from_collator(collator->locale(), isolate);
@@ -519,15 +519,24 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
 
   // 27.Let ignorePunctuation be ? GetOption(options,
   // "ignorePunctuation", "boolean", undefined, false).
-  bool ignore_punctuation;
+  bool ignore_punctuation = false;
   Maybe<bool> found_ignore_punctuation = GetBoolOption(
       isolate, options, "ignorePunctuation", service, &ignore_punctuation);
   MAYBE_RETURN(found_ignore_punctuation, MaybeHandle<JSCollator>());
 
   // 28. Set collator.[[IgnorePunctuation]] to ignorePunctuation.
-  if (found_ignore_punctuation.FromJust() && ignore_punctuation) {
+
+  // Note: The following implementation does not strictly follow the spec text
+  // due to https://github.com/tc39/ecma402/issues/832
+  // If the ignorePunctuation is not defined, instead of fall back
+  // to default false, we just depend on ICU to default based on the
+  // built in locale collation rule, which in "th" locale that is true
+  // but false on other locales.
+  if (found_ignore_punctuation.FromJust()) {
     status = U_ZERO_ERROR;
-    icu_collator->setAttribute(UCOL_ALTERNATE_HANDLING, UCOL_SHIFTED, status);
+    icu_collator->setAttribute(
+        UCOL_ALTERNATE_HANDLING,
+        ignore_punctuation ? UCOL_SHIFTED : UCOL_NON_IGNORABLE, status);
     DCHECK(U_SUCCESS(status));
   }
 

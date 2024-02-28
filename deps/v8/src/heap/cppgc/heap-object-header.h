@@ -11,6 +11,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
+#include "include/cppgc/internal/member-storage.h"
 #include "include/cppgc/internal/name-trait.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/bit-field.h"
@@ -312,7 +313,11 @@ bool HeapObjectHeader::IsFinalizable() const {
 
 #if defined(CPPGC_CAGED_HEAP)
 void HeapObjectHeader::SetNextUnfinalized(HeapObjectHeader* next) {
+#if defined(CPPGC_POINTER_COMPRESSION)
+  next_unfinalized_ = CompressedPointer::Compress(next);
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
   next_unfinalized_ = CagedHeap::OffsetFromAddress<uint32_t>(next);
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
 }
 
 HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
@@ -320,9 +325,14 @@ HeapObjectHeader* HeapObjectHeader::GetNextUnfinalized(
   DCHECK(cage_base);
   DCHECK_EQ(0u,
             CagedHeap::OffsetFromAddress(reinterpret_cast<void*>(cage_base)));
+#if defined(CPPGC_POINTER_COMPRESSION)
+  return reinterpret_cast<HeapObjectHeader*>(
+      CompressedPointer::Decompress(next_unfinalized_));
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
   return next_unfinalized_ ? reinterpret_cast<HeapObjectHeader*>(
                                  cage_base + next_unfinalized_)
                            : nullptr;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
 }
 #endif  // defined(CPPGC_CAGED_HEAP)
 

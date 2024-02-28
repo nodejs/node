@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_OBJECTS_H_
 
 #include "src/base/optional.h"
+#include "src/handles/handles.h"
 #include "src/objects/embedder-data-slot.h"
 // TODO(jkummerow): Consider forward-declaring instead.
 #include "src/objects/internal-index.h"
@@ -29,6 +30,7 @@ class LookupIterator;
 class PropertyKey;
 class NativeContext;
 class IsCompiledScope;
+class SwissNameDictionary;
 
 #include "torque-generated/src/objects/js-objects-tq.inc"
 
@@ -44,20 +46,20 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // exists. Otherwise, returns an empty_property_array when there's a
   // Smi (hash code) or an empty_fixed_array for a fast properties
   // map.
-  DECL_GETTER(property_array, PropertyArray)
+  DECL_GETTER(property_array, Tagged<PropertyArray>)
 
   // Gets slow properties for non-global objects (if
   // v8_enable_swiss_name_dictionary is not set).
-  DECL_GETTER(property_dictionary, NameDictionary)
+  DECL_GETTER(property_dictionary, Tagged<NameDictionary>)
 
   // Gets slow properties for non-global objects (if
   // v8_enable_swiss_name_dictionary is set).
-  DECL_GETTER(property_dictionary_swiss, SwissNameDictionary)
+  DECL_GETTER(property_dictionary_swiss, Tagged<SwissNameDictionary>)
 
   // Sets the properties backing store and makes sure any existing hash is moved
   // to the new properties store. To clear out the properties store, pass in the
   // empty_fixed_array(), the hash will be maintained in this case as well.
-  void SetProperties(HeapObject properties);
+  void SetProperties(Tagged<HeapObject> properties);
 
   // There are five possible values for the properties offset.
   // 1) EmptyFixedArray/EmptyPropertyDictionary - This is the standard
@@ -76,8 +78,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   //
   // This is used only in the deoptimizer and heap. Please use the
   // above typed getters and setters to access the properties.
-  DECL_ACCESSORS(raw_properties_or_hash, Object)
-  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Object)
+  DECL_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
+  DECL_RELAXED_ACCESSORS(raw_properties_or_hash, Tagged<Object>)
 
   inline void initialize_properties(Isolate* isolate);
 
@@ -150,10 +152,9 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Handle<JSReceiver> object, uint32_t index,
       LanguageMode language_mode = LanguageMode::kSloppy);
 
-  V8_WARN_UNUSED_RESULT static Object DefineProperty(Isolate* isolate,
-                                                     Handle<Object> object,
-                                                     Handle<Object> name,
-                                                     Handle<Object> attributes);
+  V8_WARN_UNUSED_RESULT static Tagged<Object> DefineProperty(
+      Isolate* isolate, Handle<Object> object, Handle<Object> name,
+      Handle<Object> attributes);
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> DefineProperties(
       Isolate* isolate, Handle<Object> object, Handle<Object> properties);
 
@@ -167,12 +168,6 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   // it throws.
   V8_WARN_UNUSED_RESULT static Maybe<bool> CheckPrivateNameStore(
       LookupIterator* it, bool is_define);
-
-  // Check if a data property can be created on the object. It will fail with
-  // an error when it cannot.
-  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckIfCanDefine(
-      Isolate* isolate, LookupIterator* it, Handle<Object> value,
-      Maybe<ShouldThrow> should_throw);
 
   // ES6 7.3.4 (when passed kDontThrow)
   V8_WARN_UNUSED_RESULT static Maybe<bool> CreateDataProperty(
@@ -239,7 +234,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
       Isolate* isolate, Handle<JSReceiver> object);
 
   // Returns the class name.
-  V8_EXPORT_PRIVATE String class_name();
+  V8_EXPORT_PRIVATE Tagged<String> class_name();
 
   // Returns the constructor (the function that was used to instantiate the
   // object).
@@ -253,7 +248,8 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
   static Handle<String> GetConstructorName(Isolate* isolate,
                                            Handle<JSReceiver> receiver);
 
-  V8_EXPORT_PRIVATE base::Optional<NativeContext> GetCreationContextRaw();
+  V8_EXPORT_PRIVATE base::Optional<Tagged<NativeContext>>
+  GetCreationContextRaw();
   V8_EXPORT_PRIVATE MaybeHandle<NativeContext> GetCreationContext();
 
   V8_WARN_UNUSED_RESULT static inline Maybe<PropertyAttributes>
@@ -285,12 +281,13 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  V8_EXPORT_PRIVATE Object GetIdentityHash();
+  V8_EXPORT_PRIVATE Tagged<Object> GetIdentityHash();
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  static Smi CreateIdentityHash(Isolate* isolate, JSReceiver key);
-  V8_EXPORT_PRIVATE Smi GetOrCreateIdentityHash(Isolate* isolate);
+  static Tagged<Smi> CreateIdentityHash(Isolate* isolate,
+                                        Tagged<JSReceiver> key);
+  V8_EXPORT_PRIVATE Tagged<Smi> GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -318,7 +315,7 @@ class JSReceiver : public TorqueGeneratedJSReceiver<JSReceiver, HeapObject> {
  private:
   // Hide generated accessors; custom accessors are called
   // "raw_properties_or_hash".
-  DECL_ACCESSORS(properties_or_hash, Object)
+  DECL_ACCESSORS(properties_or_hash, Tagged<Object>)
 
   TQ_OBJECT_CONSTRUCTORS(JSReceiver)
 };
@@ -344,17 +341,17 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   static V8_WARN_UNUSED_RESULT MaybeHandle<JSObject> ObjectCreate(
       Isolate* isolate, Handle<Object> prototype);
 
-  DECL_ACCESSORS(elements, FixedArrayBase)
-  DECL_RELAXED_GETTER(elements, FixedArrayBase)
+  DECL_ACCESSORS(elements, Tagged<FixedArrayBase>)
+  DECL_RELAXED_GETTER(elements, Tagged<FixedArrayBase>)
 
   // Acquire/release semantics on this field are explicitly forbidden to avoid
   // confusion, since the default setter uses relaxed semantics. If
   // acquire/release semantics ever become necessary, the default setter should
   // be reverted to non-atomic behavior, and setters with explicit tags
   // introduced and used when required.
-  FixedArrayBase elements(PtrComprCageBase cage_base,
-                          AcquireLoadTag tag) const = delete;
-  void set_elements(FixedArrayBase value, ReleaseStoreTag tag,
+  Tagged<FixedArrayBase> elements(PtrComprCageBase cage_base,
+                                  AcquireLoadTag tag) const = delete;
+  void set_elements(Tagged<FixedArrayBase> value, ReleaseStoreTag tag,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER) = delete;
 
   inline void initialize_elements();
@@ -415,7 +412,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   bool HasEnumerableElements();
 
   // Gets slow elements.
-  DECL_GETTER(element_dictionary, NumberDictionary)
+  DECL_GETTER(element_dictionary, Tagged<NumberDictionary>)
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -512,8 +509,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                               Handle<Map> new_map,
                                               Isolate* isolate);
   static bool UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate);
-  static Map InvalidatePrototypeChains(Map map);
-  static void InvalidatePrototypeValidityCell(JSGlobalObject global);
+  static Tagged<Map> InvalidatePrototypeChains(Tagged<Map> map);
+  static void InvalidatePrototypeValidityCell(Tagged<JSGlobalObject> global);
 
   // Updates prototype chain tracking information when an object changes its
   // map from |old_map| to |new_map|.
@@ -521,15 +518,16 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                               Isolate* isolate);
 
   // Utility used by many Array builtins and runtime functions
-  static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject object);
+  static inline bool PrototypeHasNoElements(Isolate* isolate,
+                                            Tagged<JSObject> object);
 
   // To be passed to PrototypeUsers::Compact.
-  static void PrototypeRegistryCompactionCallback(HeapObject value,
+  static void PrototypeRegistryCompactionCallback(Tagged<HeapObject> value,
                                                   int old_index, int new_index);
 
   // Retrieve interceptors.
-  DECL_GETTER(GetNamedInterceptor, InterceptorInfo)
-  DECL_GETTER(GetIndexedInterceptor, InterceptorInfo)
+  DECL_GETTER(GetNamedInterceptor, Tagged<InterceptorInfo>)
+  DECL_GETTER(GetIndexedInterceptor, Tagged<InterceptorInfo>)
 
   // Used from JSReceiver.
   V8_WARN_UNUSED_RESULT static Maybe<PropertyAttributes>
@@ -538,18 +536,25 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   GetPropertyAttributesWithFailedAccessCheck(LookupIterator* it);
 
   // Defines an AccessorPair property on the given object.
-  V8_EXPORT_PRIVATE static MaybeHandle<Object> DefineAccessor(
-      Handle<JSObject> object, Handle<Name> name, Handle<Object> getter,
-      Handle<Object> setter, PropertyAttributes attributes);
-  static MaybeHandle<Object> DefineAccessor(LookupIterator* it,
-                                            Handle<Object> getter,
-                                            Handle<Object> setter,
-                                            PropertyAttributes attributes);
+  V8_EXPORT_PRIVATE static MaybeHandle<Object>
+  DefineOwnAccessorIgnoreAttributes(Handle<JSObject> object, Handle<Name> name,
+                                    Handle<Object> getter,
+                                    Handle<Object> setter,
+                                    PropertyAttributes attributes);
+  static MaybeHandle<Object> DefineOwnAccessorIgnoreAttributes(
+      LookupIterator* it, Handle<Object> getter, Handle<Object> setter,
+      PropertyAttributes attributes);
 
   // Defines an AccessorInfo property on the given object.
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> SetAccessor(
       Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> info,
       PropertyAttributes attributes);
+
+  // Check if a data property can be created on the object. It will fail with
+  // an error when it cannot.
+  V8_WARN_UNUSED_RESULT static Maybe<bool> CheckIfCanDefineAsConfigurable(
+      Isolate* isolate, LookupIterator* it, Handle<Object> value,
+      Maybe<ShouldThrow> should_throw);
 
   // The result must be checked first for exceptions. If there's no exception,
   // the output parameter |done| indicates whether the interceptor has a result
@@ -557,7 +562,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_WARN_UNUSED_RESULT static MaybeHandle<Object> GetPropertyWithInterceptor(
       LookupIterator* it, bool* done);
 
-  static void ValidateElements(JSObject object);
+  static void ValidateElements(Tagged<JSObject> object);
 
   // Makes sure that this object can contain HeapObject as elements.
   static inline void EnsureCanContainHeapObjectElements(Handle<JSObject> obj);
@@ -614,20 +619,20 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // JSFunction objects.
   static V8_EXPORT_PRIVATE int GetHeaderSize(
       InstanceType instance_type, bool function_has_prototype_slot = false);
-  static inline int GetHeaderSize(Map map);
+  static inline int GetHeaderSize(Tagged<Map> map);
 
-  static inline bool MayHaveEmbedderFields(Map map);
+  static inline bool MayHaveEmbedderFields(Tagged<Map> map);
   inline bool MayHaveEmbedderFields() const;
 
-  static inline int GetEmbedderFieldsStartOffset(Map map);
+  static inline int GetEmbedderFieldsStartOffset(Tagged<Map> map);
   inline int GetEmbedderFieldsStartOffset();
 
-  static inline int GetEmbedderFieldCount(Map map);
+  static inline int GetEmbedderFieldCount(Tagged<Map> map);
   inline int GetEmbedderFieldCount() const;
   inline int GetEmbedderFieldOffset(int index);
-  inline Object GetEmbedderField(int index);
-  inline void SetEmbedderField(int index, Object value);
-  inline void SetEmbedderField(int index, Smi value);
+  inline Tagged<Object> GetEmbedderField(int index);
+  inline void SetEmbedderField(int index, Tagged<Object> value);
+  inline void SetEmbedderField(int index, Tagged<Smi> value);
 
   // Returns true if this object is an Api object which can, if unmodified, be
   // dropped during minor GC because the embedder can recreate it again later.
@@ -673,7 +678,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_EXPORT_PRIVATE static Handle<NumberDictionary> NormalizeElements(
       Handle<JSObject> object);
 
-  void RequireSlowElements(NumberDictionary dictionary);
+  void RequireSlowElements(Tagged<NumberDictionary> dictionary);
 
   // Transform slow named properties to fast variants.
   V8_EXPORT_PRIVATE static void MigrateSlowToFast(Handle<JSObject> object,
@@ -687,9 +692,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // Same as above, but it will return {} if we would be reading out of the
   // bounds of the object or if the dictionary is pending allocation. Use this
   // version for concurrent access.
-  static base::Optional<Object> DictionaryPropertyAt(Handle<JSObject> object,
-                                                     InternalIndex dict_index,
-                                                     Heap* heap);
+  static base::Optional<Tagged<Object>> DictionaryPropertyAt(
+      Handle<JSObject> object, InternalIndex dict_index, Heap* heap);
 
   // Access fast-case object properties at index.
   static Handle<Object> FastPropertyAt(Isolate* isolate,
@@ -700,43 +704,56 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                        Handle<JSObject> object,
                                        Representation representation,
                                        FieldIndex index, SeqCstAccessTag tag);
-  inline Object RawFastPropertyAt(FieldIndex index) const;
-  inline Object RawFastPropertyAt(PtrComprCageBase cage_base,
-                                  FieldIndex index) const;
-  inline Object RawFastPropertyAt(FieldIndex index, SeqCstAccessTag tag) const;
-  inline Object RawFastPropertyAt(PtrComprCageBase cage_base, FieldIndex index,
-                                  SeqCstAccessTag tag) const;
+  inline Tagged<Object> RawFastPropertyAt(FieldIndex index) const;
+  inline Tagged<Object> RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index) const;
+  inline Tagged<Object> RawFastPropertyAt(FieldIndex index,
+                                          SeqCstAccessTag tag) const;
+  inline Tagged<Object> RawFastPropertyAt(PtrComprCageBase cage_base,
+                                          FieldIndex index,
+                                          SeqCstAccessTag tag) const;
 
   // See comment in the body of the method to understand the conditions
   // in which this method is meant to be used, and what guarantees it
   // provides against invalid reads from another thread during object
   // mutation.
-  inline base::Optional<Object> RawInobjectPropertyAt(
-      PtrComprCageBase cage_base, Map original_map, FieldIndex index) const;
+  inline base::Optional<Tagged<Object>> RawInobjectPropertyAt(
+      PtrComprCageBase cage_base, Tagged<Map> original_map,
+      FieldIndex index) const;
 
-  inline void FastPropertyAtPut(FieldIndex index, Object value,
+  inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void FastPropertyAtPut(FieldIndex index, Object value,
+  inline void FastPropertyAtPut(FieldIndex index, Tagged<Object> value,
                                 SeqCstAccessTag tag);
   inline void RawFastInobjectPropertyAtPut(
-      FieldIndex index, Object value,
+      FieldIndex index, Tagged<Object> value,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void RawFastInobjectPropertyAtPut(FieldIndex index, Object value,
+  inline void RawFastInobjectPropertyAtPut(FieldIndex index,
+                                           Tagged<Object> value,
                                            SeqCstAccessTag tag);
   inline void WriteToField(InternalIndex descriptor, PropertyDetails details,
-                           Object value);
+                           Tagged<Object> value);
 
-  inline Object RawFastPropertyAtSwap(FieldIndex index, Object value,
-                                      SeqCstAccessTag tag);
-  inline Object RawFastPropertyAtSwap(PtrComprCageBase cage_base,
-                                      FieldIndex index, Object value,
-                                      SeqCstAccessTag tag);
+  inline Tagged<Object> RawFastInobjectPropertyAtSwap(FieldIndex index,
+                                                      Tagged<Object> value,
+                                                      SeqCstAccessTag tag);
+  inline Tagged<Object> RawFastPropertyAtSwap(FieldIndex index,
+                                              Tagged<Object> value,
+                                              SeqCstAccessTag tag);
+  Tagged<Object> RawFastPropertyAtCompareAndSwap(FieldIndex index,
+                                                 Tagged<Object> expected,
+                                                 Tagged<Object> value,
+                                                 SeqCstAccessTag tag);
+  inline Tagged<Object> RawFastInobjectPropertyAtCompareAndSwap(
+      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
+      SeqCstAccessTag tag);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);
-  inline Object InObjectPropertyAt(int index);
-  inline Object InObjectPropertyAtPut(
-      int index, Object value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> InObjectPropertyAt(int index);
+  inline Tagged<Object> InObjectPropertyAtPut(
+      int index, Tagged<Object> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Set the object's prototype (only JSReceiver and null are allowed values).
   V8_WARN_UNUSED_RESULT static Maybe<bool> SetPrototype(
@@ -752,12 +769,13 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   // undefined_value and the rest with filler_map.
   // Note: this call does not update write barrier, the caller is responsible
   // to ensure that |filler_map| can be collected without WB here.
-  inline void InitializeBody(Map map, int start_offset,
+  inline void InitializeBody(Tagged<Map> map, int start_offset,
                              bool is_slack_tracking_in_progress,
-                             MapWord filler_map, Object undefined_value);
+                             MapWord filler_map,
+                             Tagged<Object> undefined_value);
 
   // Check whether this object references another object
-  bool ReferencesObject(Object obj);
+  bool ReferencesObject(Tagged<Object> obj);
 
   V8_WARN_UNUSED_RESULT static Maybe<bool> TestIntegrityLevel(
       Isolate* isolate, Handle<JSObject> object, IntegrityLevel lvl);
@@ -789,7 +807,8 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
                                       ElementsKind to_kind,
                                       Handle<FixedArrayBase> to_elements);
 
-  void PrintInstanceMigration(FILE* file, Map original_map, Map new_map);
+  void PrintInstanceMigration(FILE* file, Tagged<Map> original_map,
+                              Tagged<Map> new_map);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -821,7 +840,7 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
       PtrComprCageBase cage_base) const;
 #endif
 
-  Object SlowReverseLookup(Object value);
+  Tagged<Object> SlowReverseLookup(Tagged<Object> value);
 
   // Maximal number of elements (numbered 0 .. kMaxElementCount - 1).
   // Also maximal value of JSArray's length property.
@@ -901,14 +920,18 @@ class JSObject : public TorqueGeneratedJSObject<JSObject, JSReceiver> {
   V8_WARN_UNUSED_RESULT static Maybe<bool> DeletePropertyWithInterceptor(
       LookupIterator* it, ShouldThrow should_throw);
 
-  bool ReferencesObjectFromElements(FixedArray elements, ElementsKind kind,
-                                    Object object);
+  bool ReferencesObjectFromElements(Tagged<FixedArray> elements,
+                                    ElementsKind kind, Tagged<Object> object);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
   template <PropertyAttributes attrs>
   V8_WARN_UNUSED_RESULT static Maybe<bool> PreventExtensionsWithTransition(
       Isolate* isolate, Handle<JSObject> object, ShouldThrow should_throw);
+
+  inline Tagged<Object> RawFastPropertyAtCompareAndSwapInternal(
+      FieldIndex index, Tagged<Object> expected, Tagged<Object> value,
+      SeqCstAccessTag tag);
 
   TQ_OBJECT_CONSTRUCTORS(JSObject)
 };
@@ -1028,9 +1051,9 @@ class JSDataPropertyDescriptor : public JSObject {
 // as specified by ES6 section 25.1.1.3 The IteratorResult Interface.
 class JSIteratorResult : public JSObject {
  public:
-  DECL_ACCESSORS(value, Object)
+  DECL_ACCESSORS(value, Tagged<Object>)
 
-  DECL_ACCESSORS(done, Object)
+  DECL_ACCESSORS(done, Tagged<Object>)
 
   // Layout description.
 #define JS_ITERATOR_RESULT_FIELDS(V) \
@@ -1063,7 +1086,7 @@ class JSIteratorResult : public JSObject {
 class JSGlobalProxy
     : public TorqueGeneratedJSGlobalProxy<JSGlobalProxy, JSSpecialObject> {
  public:
-  inline bool IsDetachedFrom(JSGlobalObject global) const;
+  inline bool IsDetachedFrom(Tagged<JSGlobalObject> global) const;
   V8_EXPORT_PRIVATE bool IsDetached() const;
 
   static int SizeWithEmbedderFields(int embedder_field_count);
@@ -1079,7 +1102,7 @@ class JSGlobalProxy
 class JSGlobalObject
     : public TorqueGeneratedJSGlobalObject<JSGlobalObject, JSSpecialObject> {
  public:
-  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, GlobalDictionary)
+  DECL_RELEASE_ACQUIRE_ACCESSORS(global_dictionary, Tagged<GlobalDictionary>)
 
   static void InvalidatePropertyCell(Handle<JSGlobalObject> object,
                                      Handle<Name> name);
@@ -1088,7 +1111,7 @@ class JSGlobalObject
 
   // May be called by the concurrent GC when the global object is not
   // fully initialized.
-  DECL_GETTER(native_context_unchecked, Object)
+  DECL_GETTER(native_context_unchecked, Tagged<Object>)
 
   // Dispatched behavior.
   DECL_PRINTER(JSGlobalObject)
@@ -1131,7 +1154,7 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
 
   static Handle<Object> SetValue(Handle<JSDate> date, double v);
 
-  void SetValue(Object value, bool is_value_nan);
+  void SetValue(Tagged<Object> value, bool is_value_nan);
 
   // Dispatched behavior.
   DECL_PRINTER(JSDate)
@@ -1167,8 +1190,9 @@ class JSDate : public TorqueGeneratedJSDate<JSDate, JSObject> {
   };
 
  private:
-  Object DoGetField(Isolate* isolate, FieldIndex index);
-  Object GetUTCField(FieldIndex index, double value, DateCache* date_cache);
+  Tagged<Object> DoGetField(Isolate* isolate, FieldIndex index);
+  Tagged<Object> GetUTCField(FieldIndex index, double value,
+                             DateCache* date_cache);
 
   // Computes and caches the cacheable fields of the date.
   inline void SetCachedFields(int64_t local_time_ms, DateCache* date_cache);
@@ -1193,8 +1217,8 @@ class JSMessageObject
   // called more than once. If called when stack space is exhausted, then the
   // source positions will be not be set and calling it again when there is more
   // stack space will not have any effect.
-  static void EnsureSourcePositionsAvailable(Isolate* isolate,
-                                             Handle<JSMessageObject> message);
+  static inline void EnsureSourcePositionsAvailable(
+      Isolate* isolate, Handle<JSMessageObject> message);
 
   // Gets the start and end positions for the message.
   // EnsureSourcePositionsAvailable must have been called before calling these.
@@ -1211,7 +1235,7 @@ class JSMessageObject
   V8_EXPORT_PRIVATE int GetColumnNumber() const;
 
   // Returns the source code
-  V8_EXPORT_PRIVATE String GetSource() const;
+  V8_EXPORT_PRIVATE Tagged<String> GetSource() const;
 
   // Returns the source code line containing the given source
   // position, or the empty string if the position is invalid.
@@ -1234,14 +1258,16 @@ class JSMessageObject
   friend class Factory;
 
   inline bool DidEnsureSourcePositionsAvailable() const;
+  static void V8_PRESERVE_MOST V8_EXPORT_PRIVATE
+  InitializeSourcePositions(Isolate* isolate, Handle<JSMessageObject> message);
 
   // [shared]: optional SharedFunctionInfo that can be used to reconstruct the
   // source position if not available when the message was generated.
-  DECL_ACCESSORS(shared_info, HeapObject)
+  DECL_ACCESSORS(shared_info, Tagged<Object>)
 
   // [bytecode_offset]: optional offset using along with |shared| to generation
   // source positions.
-  DECL_ACCESSORS(bytecode_offset, Smi)
+  DECL_ACCESSORS(bytecode_offset, Tagged<Smi>)
 
   // [start_position]: the start position in the script for the error message.
   DECL_INT_ACCESSORS(start_position)
@@ -1297,6 +1323,39 @@ class JSValidIteratorWrapper
   DECL_PRINTER(JSValidIteratorWrapper)
 
   TQ_OBJECT_CONSTRUCTORS(JSValidIteratorWrapper)
+};
+
+// JSPromiseWithResolversResult is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "promise", "resolve", and
+// "reject", in that order.
+class JSPromiseWithResolversResult : public JSObject {
+ public:
+  DECL_ACCESSORS(promise, Tagged<Object>)
+
+  DECL_ACCESSORS(resolve, Tagged<Object>)
+
+  DECL_ACCESSORS(reject, Tagged<Object>)
+
+  // Layout description.
+#define JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS(V) \
+  V(kPromiseOffset, kTaggedSize)                  \
+  V(kResolveOffset, kTaggedSize)                  \
+  V(kRejectOffset, kTaggedSize)                   \
+  /* Total size. */                               \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS)
+#undef JS_PROMISE_WITHRESOLVERS_RESULT_FIELDS
+
+  // Indices of in-object properties.
+  static const int kPromiseIndex = 0;
+  static const int kResolveIndex = 1;
+  static const int kRejectIndex = 2;
+
+  DECL_CAST(JSPromiseWithResolversResult)
+
+  OBJECT_CONSTRUCTORS(JSPromiseWithResolversResult, JSObject);
 };
 
 }  // namespace internal

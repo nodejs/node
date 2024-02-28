@@ -14,6 +14,10 @@ Node* MachineGraph::UniqueInt32Constant(int32_t value) {
   return graph()->NewNode(common()->Int32Constant(value));
 }
 
+Node* MachineGraph::UniqueInt64Constant(int64_t value) {
+  return graph()->NewNode(common()->Int64Constant(value));
+}
+
 Node* MachineGraph::Int32Constant(int32_t value) {
   Node** loc = cache_.FindInt32Constant(value);
   if (*loc == nullptr) {
@@ -25,7 +29,7 @@ Node* MachineGraph::Int32Constant(int32_t value) {
 Node* MachineGraph::Int64Constant(int64_t value) {
   Node** loc = cache_.FindInt64Constant(value);
   if (*loc == nullptr) {
-    *loc = graph()->NewNode(common()->Int64Constant(value));
+    *loc = UniqueInt64Constant(value);
   }
   return *loc;
 }
@@ -38,6 +42,11 @@ Node* MachineGraph::IntPtrConstant(intptr_t value) {
 Node* MachineGraph::UintPtrConstant(uintptr_t value) {
   return machine()->Is32() ? Uint32Constant(static_cast<uint32_t>(value))
                            : Uint64Constant(static_cast<uint64_t>(value));
+}
+
+Node* MachineGraph::UniqueIntPtrConstant(intptr_t value) {
+  return machine()->Is32() ? UniqueInt32Constant(static_cast<int32_t>(value))
+                           : UniqueInt64Constant(static_cast<int64_t>(value));
 }
 
 Node* MachineGraph::TaggedIndexConstant(intptr_t value) {
@@ -74,6 +83,11 @@ Node* MachineGraph::RelocatableIntPtrConstant(intptr_t value,
   return kSystemPointerSize == 8
              ? RelocatableInt64Constant(value, rmode)
              : RelocatableInt32Constant(static_cast<int>(value), rmode);
+}
+
+Node* MachineGraph::RelocatableWasmBuiltinCallTarget(Builtin builtin) {
+  return RelocatableIntPtrConstant(static_cast<intptr_t>(builtin),
+                                   RelocInfo::WASM_STUB_CALL);
 }
 
 Node* MachineGraph::Float32Constant(float value) {

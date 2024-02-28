@@ -47,7 +47,7 @@ subSystemLabels:
   /^\w+\.md$/: doc
   # Different variants of Makefile and build files
   /^(?:tools\/)?(?:Makefile|BSDmakefile|create_android_makefiles)$/: build, needs-ci
-  /^tools\/(?:install\.py|genv8constants\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, python, needs-ci
+  /^tools\/(?:install\.py|getnodeversion\.py|js2c\.py|utils\.py|configure\.d\/.*)$/: build, python, needs-ci
   /^vcbuild\.bat$/: build, windows, needs-ci
   /^(?:android-)?configure|node\.gyp|common\.gypi$/: build, needs-ci
   # More specific tools

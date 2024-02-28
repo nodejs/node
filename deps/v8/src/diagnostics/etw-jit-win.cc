@@ -36,60 +36,67 @@ namespace {
 class IsolateLoadScriptData {
  public:
   explicit IsolateLoadScriptData(Isolate* isolate) : isolate_(isolate) {}
-  virtual ~IsolateLoadScriptData() {
-    // When this is destroyed, it is because Isolate is being destroyed
-    // also in Isolate::Deinit, that while already cancel all cancellable
-    // tasks.
-    if (HasPendingLog()) {
-      pending_log_task_id_ = CancelableTaskManager::kInvalidTaskId;
-    }
+  explicit IsolateLoadScriptData(IsolateLoadScriptData&& rhs) V8_NOEXCEPT {
+    isolate_ = rhs.isolate_;
+    loaded_scripts_ids_ = std::move(rhs.loaded_scripts_ids_);
+    event_id_ = rhs.event_id_.load();
   }
 
   static void AddIsolate(Isolate* isolate);
   static void RemoveIsolate(Isolate* isolate);
-  static void LogIsolatePendingLogs(Isolate* isolate);
   static void UpdateAllIsolates(bool etw_enabled);
   static bool MaybeAddLoadedScript(Isolate* isolate, int script_id);
-  static void EnableLog(Isolate* isolate);
-  static void DisableLog(Isolate* isolate);
+  static void EnableLog(Isolate* isolate, size_t event_id);
+  static void DisableLog(Isolate* isolate, size_t event_id);
+
+  static void EnableLogWithFilterDataOnAllIsolates(const uint8_t* data,
+                                                   size_t size);
+  static void EnableLogWithFilterData(
+      Isolate* isolate, size_t event_id,
+      const std::string& EnableLogWithFilterData);
 
  private:
   static IsolateLoadScriptData& GetData(Isolate* isolate);
-  bool HasPendingLog() const {
-    return pending_log_task_id_ != CancelableTaskManager::kInvalidTaskId;
-  }
-  void RemovePendingLog() {
-    pending_log_task_id_ = CancelableTaskManager::kInvalidTaskId;
-  }
-  void CancelPendingLog() {
-    DCHECK(HasPendingLog());
-    isolate_->cancelable_task_manager()->TryAbort(pending_log_task_id_);
-    RemovePendingLog();
-  }
   void EnqueueEnableLog() {
-    if (HasPendingLog()) {
-      CancelPendingLog();
-    }
-    auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-    Isolate* isolate = isolate_;
-    auto task = MakeCancelableTask(isolate_, [isolate] { EnableLog(isolate); });
-    pending_log_task_id_ = task->id();
-    auto taskrunner =
-        V8::GetCurrentPlatform()->GetForegroundTaskRunner(v8_isolate);
-    taskrunner->PostTask(std::move(task));
+    size_t event_id = event_id_.fetch_add(1);
+    isolate_->RequestInterrupt(
+        // Executed in the isolate thread.
+        [](v8::Isolate* v8_isolate, void* data) {
+          EnableLog(reinterpret_cast<Isolate*>(v8_isolate),
+                    reinterpret_cast<size_t>(data));
+        },
+        reinterpret_cast<void*>(event_id + 1));
   }
   void EnqueueDisableLog() {
-    if (HasPendingLog()) {
-      CancelPendingLog();
-    }
-    auto v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-    Isolate* isolate = isolate_;
-    auto task =
-        MakeCancelableTask(isolate_, [isolate] { DisableLog(isolate); });
-    pending_log_task_id_ = task->id();
-    auto taskrunner =
-        V8::GetCurrentPlatform()->GetForegroundTaskRunner(v8_isolate);
-    taskrunner->PostTask(std::move(task));
+    size_t event_id = event_id_.fetch_add(1);
+    isolate_->RequestInterrupt(
+        // Executed in the isolate thread.
+        [](v8::Isolate* v8_isolate, void* data) {
+          DisableLog(reinterpret_cast<Isolate*>(v8_isolate),
+                     reinterpret_cast<size_t>(data));
+        },
+        reinterpret_cast<void*>(event_id + 1));
+  }
+
+  struct EnableWithFilterDataInterruptData {
+    size_t event_id;
+    std::string payload;
+  };
+
+  void EnqueueEnableLogWithFilterData(const std::string& etw_filter_payload) {
+    size_t event_id = event_id_.fetch_add(1);
+    isolate_->RequestInterrupt(
+        // Executed in the isolate thread.
+        [](v8::Isolate* v8_isolate, void* data) {
+          std::unique_ptr<EnableWithFilterDataInterruptData> interrupt_data(
+              reinterpret_cast<EnableWithFilterDataInterruptData*>(data));
+          size_t event_id = interrupt_data->event_id;
+          std::string etw_filter_payload = interrupt_data->payload;
+          EnableLogWithFilterData(reinterpret_cast<Isolate*>(v8_isolate),
+                                  event_id, etw_filter_payload);
+        },
+        new EnableWithFilterDataInterruptData{event_id + 1,
+                                              etw_filter_payload});
   }
 
   bool IsScriptLoaded(int script_id) const {
@@ -98,10 +105,11 @@ class IsolateLoadScriptData {
   void AddLoadedScript(int script_id) { loaded_scripts_ids_.insert(script_id); }
   void RemoveAllLoadedScripts() { loaded_scripts_ids_.clear(); }
 
+  size_t CurrentEventId() const { return event_id_.load(); }
+
   Isolate* isolate_ = nullptr;
   std::unordered_set<int> loaded_scripts_ids_;
-  CancelableTaskManager::Id pending_log_task_id_ =
-      CancelableTaskManager::kInvalidTaskId;
+  std::atomic<size_t> event_id_ = 0;
 };
 
 static base::LazyMutex isolates_mutex = LAZY_MUTEX_INITIALIZER;
@@ -110,49 +118,96 @@ using IsolateMapType =
 static base::LazyInstance<IsolateMapType>::type isolate_map =
     LAZY_INSTANCE_INITIALIZER;
 
+using FilterDataType = std::string;
+// Used when Isolates are created during a ETW tracing session.
+static base::LazyInstance<FilterDataType>::type etw_filter_payload =
+    LAZY_INSTANCE_INITIALIZER;
+
+// static
 IsolateLoadScriptData& IsolateLoadScriptData::GetData(Isolate* isolate) {
   return isolate_map.Pointer()->at(isolate);
 }
 
+// static
 void IsolateLoadScriptData::AddIsolate(Isolate* isolate) {
   base::MutexGuard guard(isolates_mutex.Pointer());
   isolate_map.Pointer()->emplace(isolate, IsolateLoadScriptData(isolate));
 }
 
+// static
 void IsolateLoadScriptData::RemoveIsolate(Isolate* isolate) {
   base::MutexGuard guard(isolates_mutex.Pointer());
   isolate_map.Pointer()->erase(isolate);
 }
 
-void IsolateLoadScriptData::EnableLog(Isolate* isolate) {
-  bool has_pending_log = false;
+// static
+void IsolateLoadScriptData::EnableLog(Isolate* isolate, size_t event_id) {
   {
     base::MutexGuard guard(isolates_mutex.Pointer());
     auto& data = GetData(isolate);
-    if (data.HasPendingLog()) {
-      has_pending_log = true;
-      data.CancelPendingLog();
+    if (event_id > 0 && data.CurrentEventId() != event_id) {
+      // This interrupt was canceled by a newer interrupt.
+      return;
     }
   }
 
   // This cannot be done while isolate_mutex is locked, as it can call
   // EventHandler while in the call for all the existing code.
-  isolate->v8_file_logger()->SetEtwCodeEventHandler(
-      has_pending_log ? kJitCodeEventEnumExisting : kJitCodeEventDefault);
+  isolate->v8_file_logger()->SetEtwCodeEventHandler(kJitCodeEventDefault);
 }
 
-void IsolateLoadScriptData::DisableLog(Isolate* isolate) {
+// static
+void IsolateLoadScriptData::DisableLog(Isolate* isolate, size_t event_id) {
   {
     base::MutexGuard guard(isolates_mutex.Pointer());
     auto& data = GetData(isolate);
-    if (data.HasPendingLog()) {
-      data.CancelPendingLog();
+    if (event_id > 0 && data.CurrentEventId() != event_id) {
+      // This interrupt was canceled by a newer interrupt.
+      return;
     }
     data.RemoveAllLoadedScripts();
   }
   isolate->v8_file_logger()->ResetEtwCodeEventHandler();
 }
 
+// static
+void IsolateLoadScriptData::EnableLogWithFilterData(
+    Isolate* isolate, size_t event_id, const std::string& etw_filter_payload) {
+  {
+    base::MutexGuard guard(isolates_mutex.Pointer());
+    auto& data = GetData(isolate);
+    if (event_id > 0 && data.CurrentEventId() != event_id) {
+      // This interrupt was canceled by a newer interrupt.
+      return;
+    }
+  }
+
+  DCHECK(!etw_filter_payload.empty());
+
+  // We should not call back into V8 from the RunFilterETWSessionByURLCallback
+  // callback.
+  DisallowJavascriptExecution no_js(isolate);
+
+  if (isolate->RunFilterETWSessionByURLCallback(etw_filter_payload)) {
+    isolate->v8_file_logger()->SetEtwCodeEventHandler(kJitCodeEventDefault);
+  }
+}
+
+// static
+void IsolateLoadScriptData::EnableLogWithFilterDataOnAllIsolates(
+    const uint8_t* data, size_t size) {
+  base::MutexGuard guard(isolates_mutex.Pointer());
+  std::string etw_filter_payload;
+  etw_filter_payload.assign(data, data + size);
+  std::for_each(
+      isolate_map.Pointer()->begin(), isolate_map.Pointer()->end(),
+      [&etw_filter_payload](auto& pair) {
+        auto& isolate_data = pair.second;
+        isolate_data.EnqueueEnableLogWithFilterData(etw_filter_payload);
+      });
+}
+
+// static
 void IsolateLoadScriptData::UpdateAllIsolates(bool etw_enabled) {
   base::MutexGuard guard(isolates_mutex.Pointer());
   std::for_each(isolate_map.Pointer()->begin(), isolate_map.Pointer()->end(),
@@ -166,6 +221,7 @@ void IsolateLoadScriptData::UpdateAllIsolates(bool etw_enabled) {
                 });
 }
 
+// static
 bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
                                                  int script_id) {
   base::MutexGuard guard(isolates_mutex.Pointer());
@@ -179,30 +235,21 @@ bool IsolateLoadScriptData::MaybeAddLoadedScript(Isolate* isolate,
 
 }  // namespace
 
-void EnableETWLog(Isolate* isolate) {
-  IsolateLoadScriptData::EnableLog(isolate);
+void MaybeSetHandlerNow(Isolate* isolate) {
+  if (is_etw_enabled) {
+    if (etw_filter_payload.Pointer()->empty()) {
+      IsolateLoadScriptData::EnableLog(isolate, 0);
+    } else {
+      IsolateLoadScriptData::EnableLogWithFilterData(
+          isolate, 0, *etw_filter_payload.Pointer());
+    }
+  }
 }
 
 // TODO(v8/11911): UnboundScript::GetLineNumber should be replaced
-SharedFunctionInfo GetSharedFunctionInfo(const JitCodeEvent* event) {
-  return event->script.IsEmpty() ? SharedFunctionInfo()
+Tagged<SharedFunctionInfo> GetSharedFunctionInfo(const JitCodeEvent* event) {
+  return event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
                                  : *Utils::OpenHandle(*event->script);
-}
-
-int GetScriptLineNumber(const JitCodeEvent* event) {
-  auto sfi = GetSharedFunctionInfo(event);
-  return sfi.is_null()
-             ? -1  // invalid sentinel number
-             : Script::cast(sfi.script()).GetLineNumber(sfi.StartPosition()) +
-                   1;
-}
-
-int GetScriptColumnNumber(const JitCodeEvent* event) {
-  auto sfi = GetSharedFunctionInfo(event);
-  return sfi.is_null()
-             ? -1  // invalid sentinel number
-             : Script::cast(sfi.script()).GetColumnNumber(sfi.StartPosition()) +
-                   1;
 }
 
 std::wstring GetScriptMethodNameFromEvent(const JitCodeEvent* event) {
@@ -218,8 +265,8 @@ std::wstring GetScriptMethodNameFromEvent(const JitCodeEvent* event) {
 }
 
 std::wstring GetScriptMethodNameFromSharedFunctionInfo(
-    const SharedFunctionInfo& sfi) {
-  auto sfi_name = sfi.DebugNameCStr();
+    Tagged<SharedFunctionInfo> sfi) {
+  auto sfi_name = sfi->DebugNameCStr();
   int method_name_length = static_cast<int>(strlen(sfi_name.get()));
   std::wstring method_name(method_name_length, L'\0');
   MultiByteToWideChar(CP_UTF8, 0, sfi_name.get(), method_name_length,
@@ -250,7 +297,7 @@ void UpdateETWEnabled(bool enabled) {
 void WINAPI ETWEnableCallback(LPCGUID /* source_id */, ULONG is_enabled,
                               UCHAR level, ULONGLONG match_any_keyword,
                               ULONGLONG match_all_keyword,
-                              PEVENT_FILTER_DESCRIPTOR /* filter_data */,
+                              PEVENT_FILTER_DESCRIPTOR filter_data,
                               PVOID /* callback_context */) {
   DCHECK(v8_flags.enable_etw_stack_walking);
   bool is_etw_enabled_now =
@@ -258,7 +305,36 @@ void WINAPI ETWEnableCallback(LPCGUID /* source_id */, ULONG is_enabled,
       (match_any_keyword & kJScriptRuntimeKeyword) &&
       ((match_all_keyword & kJScriptRuntimeKeyword) == match_all_keyword);
 
-  UpdateETWEnabled(is_etw_enabled_now);
+  FilterDataType* etw_filter = etw_filter_payload.Pointer();
+
+  if (!is_etw_enabled_now || !filter_data ||
+      filter_data->Type != EVENT_FILTER_TYPE_SCHEMATIZED) {
+    etw_filter->clear();
+    UpdateETWEnabled(is_etw_enabled_now);
+    return;
+  }
+
+  if (is_etw_enabled) return;
+
+  if (filter_data->Size <= sizeof(EVENT_FILTER_DESCRIPTOR)) {
+    return;  // Invalid data
+  }
+
+  EVENT_FILTER_HEADER* filter_event_header =
+      reinterpret_cast<EVENT_FILTER_HEADER*>(filter_data->Ptr);
+  if (filter_event_header->Size < sizeof(EVENT_FILTER_HEADER)) {
+    return;  // Invalid data
+  }
+
+  const uint8_t* payload_start =
+      reinterpret_cast<uint8_t*>(filter_event_header) +
+      sizeof(EVENT_FILTER_HEADER);
+  const size_t payload_size =
+      filter_event_header->Size - sizeof(EVENT_FILTER_HEADER);
+  etw_filter->assign(payload_start, payload_start + payload_size);
+  is_etw_enabled = is_etw_enabled_now;
+  IsolateLoadScriptData::EnableLogWithFilterDataOnAllIsolates(
+      reinterpret_cast<const uint8_t*>(etw_filter->data()), etw_filter->size());
 }
 
 void Register() {
@@ -288,24 +364,32 @@ void EventHandler(const JitCodeEvent* event) {
 
   std::wstring method_name = GetScriptMethodName(event);
 
-  v8::Isolate* script_context = event->isolate;
-  v8::Local<v8::UnboundScript> script = event->script;
-  int script_id = 0;
-  if (!script.IsEmpty()) {
-    // if the first time seeing this source file, log the SourceLoad event
-    script_id = script->GetId();
+  // No heap allocations after this point.
+  DisallowGarbageCollection no_gc;
 
-    auto isolate = reinterpret_cast<Isolate*>(script_context);
+  v8::Isolate* script_context = event->isolate;
+  Isolate* isolate = reinterpret_cast<Isolate*>(script_context);
+
+  int script_id = 0;
+  uint32_t script_line = -1;
+  uint32_t script_column = -1;
+
+  Tagged<SharedFunctionInfo> sfi = GetSharedFunctionInfo(event);
+  if (!sfi.is_null() && IsScript(sfi->script())) {
+    Tagged<Script> script = Script::cast(sfi->script());
+
+    // if the first time seeing this source file, log the SourceLoad event
+    script_id = script->id();
     if (IsolateLoadScriptData::MaybeAddLoadedScript(isolate, script_id)) {
-      v8::Local<v8::Value> script_name = script->GetScriptName();
       std::wstring wstr_name(0, L'\0');
-      if (script_name->IsString()) {
-        auto v8str_name = script_name.As<v8::String>();
-        wstr_name.resize(v8str_name->Length());
+      Tagged<Object> script_name = script->GetNameOrSourceURL();
+      if (IsString(script_name)) {
+        Tagged<String> v8str_name = String::cast(script_name);
+        wstr_name.resize(v8str_name->length());
         // On Windows wchar_t == uint16_t. const_Cast needed for C++14.
         uint16_t* wstr_data = const_cast<uint16_t*>(
             reinterpret_cast<const uint16_t*>(wstr_name.data()));
-        v8str_name->Write(event->isolate, wstr_data);
+        String::WriteToFlat(v8str_name, wstr_data, 0, v8str_name->length());
       }
 
       constexpr static auto source_load_event_meta =
@@ -320,6 +404,11 @@ void EventHandler(const JitCodeEvent* event) {
                    (uint32_t)0,  // SourceFlags
                    wstr_name);
     }
+
+    Script::PositionInfo info;
+    script->GetPositionInfo(sfi->StartPosition(), &info);
+    script_line = info.line + 1;
+    script_column = info.column + 1;
   }
 
   constexpr static auto method_load_event_meta =
@@ -332,13 +421,13 @@ void EventHandler(const JitCodeEvent* event) {
       Field("MethodAddressRangeID", TlgInUINT16),
       Field("SourceID", TlgInUINT64), Field("Line", TlgInUINT32),
       Field("Column", TlgInUINT32), Field("MethodName", TlgInUNICODESTRING));
+
   LogEventData(g_v8Provider, &method_load_event_meta, &method_load_event_fields,
                script_context, event->code_start, (uint64_t)event->code_len,
                (uint32_t)0,  // MethodId
                (uint16_t)0,  // MethodFlags
                (uint16_t)0,  // MethodAddressRangeId
-               (uint64_t)script_id, (uint32_t)GetScriptLineNumber(event),
-               (uint32_t)GetScriptColumnNumber(event), method_name);
+               (uint64_t)script_id, script_line, script_column, method_name);
 }
 
 }  // namespace ETWJITInterface

@@ -32,11 +32,9 @@ namespace internal {
 extern void DisableEmbeddedBlobRefcounting();
 extern void FreeCurrentEmbeddedBlob();
 
-extern v8::StartupData CreateSnapshotDataBlobInternal(
+extern v8::StartupData CreateSnapshotDataBlobInternalForInspectorTest(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source, v8::Isolate* isolate);
-extern v8::StartupData WarmUpSnapshotDataBlobInternal(
-    v8::StartupData cold_snapshot_blob, const char* warmup_source);
+    const char* embedded_source);
 
 namespace {
 
@@ -116,33 +114,31 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     backend_runner_ = runner;
   }
 
-  static void ClearAllSessions() { channels_.clear(); }
-
  private:
   static TaskRunner* backend_runner_;
 
-  static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    for (int i = 0; i < args.Length(); i++) {
-      v8::HandleScope handle_scope(args.GetIsolate());
+  static void Print(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    for (int i = 0; i < info.Length(); i++) {
+      v8::HandleScope handle_scope(info.GetIsolate());
       if (i != 0) {
         printf(" ");
       }
 
       // Explicitly catch potential exceptions in toString().
-      v8::TryCatch try_catch(args.GetIsolate());
-      v8::Local<v8::Value> arg = args[i];
+      v8::TryCatch try_catch(info.GetIsolate());
+      v8::Local<v8::Value> arg = info[i];
       v8::Local<v8::String> str_obj;
 
       if (arg->IsSymbol()) {
-        arg = v8::Local<v8::Symbol>::Cast(arg)->Description(args.GetIsolate());
+        arg = v8::Local<v8::Symbol>::Cast(arg)->Description(info.GetIsolate());
       }
-      if (!arg->ToString(args.GetIsolate()->GetCurrentContext())
+      if (!arg->ToString(info.GetIsolate()->GetCurrentContext())
                .ToLocal(&str_obj)) {
         try_catch.ReThrow();
         return;
       }
 
-      v8::String::Utf8Value str(args.GetIsolate(), str_obj);
+      v8::String::Utf8Value str(info.GetIsolate(), str_obj);
       int n =
           static_cast<int>(fwrite(*str, sizeof(**str), str.length(), stdout));
       if (n != str.length()) {
@@ -153,7 +149,7 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     fflush(stdout);
   }
 
-  static void Quit(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  static void Quit(const v8::FunctionCallbackInfo<v8::Value>& info) {
     fflush(stdout);
     fflush(stderr);
     // Only terminate, so not join the threads here, since joining concurrently
@@ -161,12 +157,12 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     for (TaskRunner* task_runner : task_runners) task_runner->Terminate();
   }
 
-  static void Setlocale(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+  static void Setlocale(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: setlocale get one string argument.");
     }
 
-    v8::String::Utf8Value str(args.GetIsolate(), args[1]);
+    v8::String::Utf8Value str(info.GetIsolate(), info[1]);
     setlocale(LC_NUMERIC, *str);
   }
 
@@ -183,78 +179,78 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
     return true;
   }
 
-  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: read gets one string argument.");
     }
     std::string chars;
-    v8::Isolate* isolate = args.GetIsolate();
-    if (ReadFile(isolate, args[0], &chars)) {
-      args.GetReturnValue().Set(ToV8String(isolate, chars));
+    v8::Isolate* isolate = info.GetIsolate();
+    if (ReadFile(isolate, info[0], &chars)) {
+      info.GetReturnValue().Set(ToV8String(isolate, chars));
     }
   }
 
-  static void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+  static void Load(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: load gets one string argument.");
     }
     std::string chars;
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
-    if (ReadFile(isolate, args[0], &chars)) {
+    if (ReadFile(isolate, info[0], &chars)) {
       ExecuteStringTask(chars, context_group_id).Run(data);
     }
   }
 
   static void CompileAndRunWithOrigin(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 6 || !args[0]->IsInt32() || !args[1]->IsString() ||
-        !args[2]->IsString() || !args[3]->IsInt32() || !args[4]->IsInt32() ||
-        !args[5]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 6 || !info[0]->IsInt32() || !info[1]->IsString() ||
+        !info[2]->IsString() || !info[3]->IsInt32() || !info[4]->IsInt32() ||
+        !info[5]->IsBoolean()) {
       FATAL(
           "Internal error: compileAndRunWithOrigin(context_group_id, source, "
           "name, line, column, is_module).");
     }
 
     backend_runner_->Append(std::make_unique<ExecuteStringTask>(
-        args.GetIsolate(), args[0].As<v8::Int32>()->Value(),
-        ToVector(args.GetIsolate(), args[1].As<v8::String>()),
-        args[2].As<v8::String>(), args[3].As<v8::Int32>(),
-        args[4].As<v8::Int32>(), args[5].As<v8::Boolean>()));
+        info.GetIsolate(), info[0].As<v8::Int32>()->Value(),
+        ToVector(info.GetIsolate(), info[1].As<v8::String>()),
+        info[2].As<v8::String>(), info[3].As<v8::Int32>(),
+        info[4].As<v8::Int32>(), info[5].As<v8::Boolean>()));
   }
 
   static void SetCurrentTimeMSForTest(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsNumber()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsNumber()) {
       FATAL("Internal error: setCurrentTimeMSForTest(time).");
     }
     backend_runner_->data()->SetCurrentTimeMS(
-        args[0].As<v8::Number>()->Value());
+        info[0].As<v8::Number>()->Value());
   }
 
   static void SetMemoryInfoForTest(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1) {
       FATAL("Internal error: setMemoryInfoForTest(value).");
     }
-    backend_runner_->data()->SetMemoryInfo(args[0]);
+    backend_runner_->data()->SetMemoryInfo(info[0]);
   }
 
   static void SchedulePauseOnNextStatement(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 3 || !args[0]->IsInt32() || !args[1]->IsString() ||
-        !args[2]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 3 || !info[0]->IsInt32() || !info[1]->IsString() ||
+        !info[2]->IsString()) {
       FATAL(
           "Internal error: schedulePauseOnNextStatement(context_group_id, "
           "'reason', 'details').");
     }
     std::vector<uint16_t> reason =
-        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+        ToVector(info.GetIsolate(), info[1].As<v8::String>());
     std::vector<uint16_t> details =
-        ToVector(args.GetIsolate(), args[2].As<v8::String>());
-    int context_group_id = args[0].As<v8::Int32>()->Value();
+        ToVector(info.GetIsolate(), info[2].As<v8::String>());
+    int context_group_id = info[0].As<v8::Int32>()->Value();
     RunSyncTask(backend_runner_,
                 [&context_group_id, &reason,
                  &details](InspectorIsolateData* data) {
@@ -266,52 +262,52 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
   static void CancelPauseOnNextStatement(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
       FATAL("Internal error: cancelPauseOnNextStatement(context_group_id).");
     }
-    int context_group_id = args[0].As<v8::Int32>()->Value();
+    int context_group_id = info[0].As<v8::Int32>()->Value();
     RunSyncTask(backend_runner_,
                 [&context_group_id](InspectorIsolateData* data) {
                   data->CancelPauseOnNextStatement(context_group_id);
                 });
   }
 
-  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsInt32()) {
+  static void Stop(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
       FATAL("Internal error: stop(session_id).");
     }
-    int session_id = args[0].As<v8::Int32>()->Value();
+    int session_id = info[0].As<v8::Int32>()->Value();
     RunSyncTask(backend_runner_, [&session_id](InspectorIsolateData* data) {
       data->Stop(session_id);
     });
   }
 
   static void SetLogConsoleApiMessageCalls(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsBoolean()) {
       FATAL("Internal error: setLogConsoleApiMessageCalls(bool).");
     }
     backend_runner_->data()->SetLogConsoleApiMessageCalls(
-        args[0].As<v8::Boolean>()->Value());
+        info[0].As<v8::Boolean>()->Value());
   }
 
   static void SetLogMaxAsyncCallStackDepthChanged(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsBoolean()) {
       FATAL("Internal error: setLogMaxAsyncCallStackDepthChanged(bool).");
     }
     backend_runner_->data()->SetLogMaxAsyncCallStackDepthChanged(
-        args[0].As<v8::Boolean>()->Value());
+        info[0].As<v8::Boolean>()->Value());
   }
 
   static void SetAdditionalConsoleApi(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: SetAdditionalConsoleApi(string).");
     }
     std::vector<uint16_t> script =
-        ToVector(args.GetIsolate(), args[0].As<v8::String>());
+        ToVector(info.GetIsolate(), info[0].As<v8::String>());
     RunSyncTask(backend_runner_, [&script](InspectorIsolateData* data) {
       data->SetAdditionalConsoleApi(
           v8_inspector::StringView(script.data(), script.size()));
@@ -319,8 +315,8 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
   static void CreateContextGroup(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 0) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 0) {
       FATAL("Internal error: createContextGroup().");
     }
     int context_group_id = 0;
@@ -328,17 +324,17 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
                 [&context_group_id](InspectorIsolateData* data) {
                   context_group_id = data->CreateContextGroup();
                 });
-    args.GetReturnValue().Set(
-        v8::Int32::New(args.GetIsolate(), context_group_id));
+    info.GetReturnValue().Set(
+        v8::Int32::New(info.GetIsolate(), context_group_id));
   }
 
-  static void CreateContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2) {
+  static void CreateContext(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2) {
       FATAL("Internal error: createContext(context, name).");
     }
-    int context_group_id = args[0].As<v8::Int32>()->Value();
+    int context_group_id = info[0].As<v8::Int32>()->Value();
     std::vector<uint16_t> name =
-        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+        ToVector(info.GetIsolate(), info[1].As<v8::String>());
 
     RunSyncTask(backend_runner_, [&context_group_id,
                                   name](InspectorIsolateData* data) {
@@ -349,94 +345,107 @@ class UtilsExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
   static void ResetContextGroup(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
       FATAL("Internal error: resetContextGroup(context_group_id).");
     }
-    int context_group_id = args[0].As<v8::Int32>()->Value();
+    int context_group_id = info[0].As<v8::Int32>()->Value();
     RunSyncTask(backend_runner_,
                 [&context_group_id](InspectorIsolateData* data) {
                   data->ResetContextGroup(context_group_id);
                 });
   }
 
-  static void ConnectSession(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 3 || !args[0]->IsInt32() || !args[1]->IsString() ||
-        !args[2]->IsFunction()) {
+  static bool IsValidConnectSessionArgs(
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() < 3 || info.Length() > 4) return false;
+    if (!info[0]->IsInt32() || !info[1]->IsString() || !info[2]->IsFunction()) {
+      return false;
+    }
+    return info.Length() == 3 || info[3]->IsBoolean();
+  }
+
+  static void ConnectSession(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (!IsValidConnectSessionArgs(info)) {
       FATAL(
           "Internal error: connectionSession(context_group_id, state, "
-          "dispatch).");
+          "dispatch, is_fully_trusted).");
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
-    FrontendChannelImpl* channel = new FrontendChannelImpl(
-        InspectorIsolateData::FromContext(context)->task_runner(),
-        InspectorIsolateData::FromContext(context)->GetContextGroupId(context),
-        args.GetIsolate(), args[2].As<v8::Function>());
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    std::unique_ptr<FrontendChannelImpl> channel =
+        std::make_unique<FrontendChannelImpl>(
+            InspectorIsolateData::FromContext(context)->task_runner(),
+            InspectorIsolateData::FromContext(context)->GetContextGroupId(
+                context),
+            info.GetIsolate(), info[2].As<v8::Function>());
 
     std::vector<uint8_t> state =
-        ToBytes(args.GetIsolate(), args[1].As<v8::String>());
-    int context_group_id = args[0].As<v8::Int32>()->Value();
-    int session_id = 0;
-    RunSyncTask(backend_runner_, [&context_group_id, &session_id, &channel,
-                                  &state](InspectorIsolateData* data) {
-      session_id = data->ConnectSession(
-          context_group_id,
-          v8_inspector::StringView(state.data(), state.size()), channel);
-      channel->set_session_id(session_id);
-    });
+        ToBytes(info.GetIsolate(), info[1].As<v8::String>());
+    int context_group_id = info[0].As<v8::Int32>()->Value();
+    bool is_fully_trusted =
+        info.Length() == 3 || info[3].As<v8::Boolean>()->Value();
+    base::Optional<int> session_id;
+    RunSyncTask(backend_runner_,
+                [context_group_id, &session_id, &channel, &state,
+                 is_fully_trusted](InspectorIsolateData* data) {
+                  session_id = data->ConnectSession(
+                      context_group_id,
+                      v8_inspector::StringView(state.data(), state.size()),
+                      std::move(channel), is_fully_trusted);
+                });
 
-    channels_[session_id].reset(channel);
-    args.GetReturnValue().Set(v8::Int32::New(args.GetIsolate(), session_id));
+    CHECK(session_id.has_value());
+    info.GetReturnValue().Set(v8::Int32::New(info.GetIsolate(), *session_id));
   }
 
   static void DisconnectSession(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
       FATAL("Internal error: disconnectionSession(session_id).");
     }
-    int session_id = args[0].As<v8::Int32>()->Value();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+    TaskRunner* context_task_runner =
+        InspectorIsolateData::FromContext(context)->task_runner();
+    int session_id = info[0].As<v8::Int32>()->Value();
     std::vector<uint8_t> state;
-    RunSyncTask(backend_runner_,
-                [&session_id, &state](InspectorIsolateData* data) {
-                  state = data->DisconnectSession(session_id);
-                });
-    channels_.erase(session_id);
-    args.GetReturnValue().Set(ToV8String(args.GetIsolate(), state));
+    RunSyncTask(backend_runner_, [&session_id, &context_task_runner,
+                                  &state](InspectorIsolateData* data) {
+      state = data->DisconnectSession(session_id, context_task_runner);
+    });
+
+    info.GetReturnValue().Set(ToV8String(info.GetIsolate(), state));
   }
 
   static void SendMessageToBackend(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[0]->IsInt32() || !info[1]->IsString()) {
       FATAL("Internal error: sendMessageToBackend(session_id, message).");
     }
     backend_runner_->Append(std::make_unique<SendMessageToBackendTask>(
-        args[0].As<v8::Int32>()->Value(),
-        ToVector(args.GetIsolate(), args[1].As<v8::String>())));
+        info[0].As<v8::Int32>()->Value(),
+        ToVector(info.GetIsolate(), info[1].As<v8::String>())));
   }
 
   static void InterruptForMessages(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
     backend_runner_->InterruptForMessages();
   }
 
-  static void WaitForDebugger(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[0]->IsInt32() || !args[1]->IsFunction()) {
+  static void WaitForDebugger(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[0]->IsInt32() || !info[1]->IsFunction()) {
       FATAL("Internal error: waitForDebugger(context_group_id, callback).");
     }
-    int context_group_id = args[0].As<v8::Int32>()->Value();
+    int context_group_id = info[0].As<v8::Int32>()->Value();
     RunSimpleAsyncTask(
         backend_runner_,
         [context_group_id](InspectorIsolateData* data) {
           data->WaitForDebugger(context_group_id);
         },
-        args[1].As<v8::Function>());
+        info[1].As<v8::Function>());
   }
-
-  static std::map<int, std::unique_ptr<FrontendChannelImpl>> channels_;
 };
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
-std::map<int, std::unique_ptr<FrontendChannelImpl>> UtilsExtension::channels_;
 
 bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
                        v8::Local<v8::Object> accessed_object,
@@ -548,113 +557,113 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
 
  private:
   static void FireContextCreated(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     data->FireContextCreated(context, data->GetContextGroupId(context),
                              v8_inspector::StringView());
   }
 
   static void FireContextDestroyed(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     data->FireContextDestroyed(context);
   }
 
-  static void FreeContext(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+  static void FreeContext(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     data->FreeContext(context);
   }
 
   static void AddInspectedObject(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[0]->IsInt32()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[0]->IsInt32()) {
       FATAL("Internal error: addInspectedObject(session_id, object).");
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
-    data->AddInspectedObject(args[0].As<v8::Int32>()->Value(), args[1]);
+    data->AddInspectedObject(info[0].As<v8::Int32>()->Value(), info[1]);
   }
 
   static void SetMaxAsyncTaskStacks(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsInt32()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsInt32()) {
       FATAL("Internal error: setMaxAsyncTaskStacks(max).");
     }
-    InspectorIsolateData::FromContext(args.GetIsolate()->GetCurrentContext())
-        ->SetMaxAsyncTaskStacksForTest(args[0].As<v8::Int32>()->Value());
+    InspectorIsolateData::FromContext(info.GetIsolate()->GetCurrentContext())
+        ->SetMaxAsyncTaskStacksForTest(info[0].As<v8::Int32>()->Value());
   }
 
   static void DumpAsyncTaskStacksStateForTest(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 0) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 0) {
       FATAL("Internal error: dumpAsyncTaskStacksStateForTest().");
     }
-    InspectorIsolateData::FromContext(args.GetIsolate()->GetCurrentContext())
+    InspectorIsolateData::FromContext(info.GetIsolate()->GetCurrentContext())
         ->DumpAsyncTaskStacksStateForTest();
   }
 
-  static void BreakProgram(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsString()) {
+  static void BreakProgram(const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsString()) {
       FATAL("Internal error: breakProgram('reason', 'details').");
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     std::vector<uint16_t> reason =
-        ToVector(args.GetIsolate(), args[0].As<v8::String>());
+        ToVector(info.GetIsolate(), info[0].As<v8::String>());
     v8_inspector::StringView reason_view(reason.data(), reason.size());
     std::vector<uint16_t> details =
-        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+        ToVector(info.GetIsolate(), info[1].As<v8::String>());
     v8_inspector::StringView details_view(details.data(), details.size());
     data->BreakProgram(data->GetContextGroupId(context), reason_view,
                        details_view);
   }
 
   static void CreateObjectWithStrictCheck(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 0) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 0) {
       FATAL("Internal error: createObjectWithStrictCheck().");
     }
     v8::Local<v8::ObjectTemplate> templ =
-        v8::ObjectTemplate::New(args.GetIsolate());
+        v8::ObjectTemplate::New(info.GetIsolate());
     templ->SetAccessCheckCallback(&StrictAccessCheck);
-    args.GetReturnValue().Set(
-        templ->NewInstance(args.GetIsolate()->GetCurrentContext())
+    info.GetReturnValue().Set(
+        templ->NewInstance(info.GetIsolate()->GetCurrentContext())
             .ToLocalChecked());
   }
 
   static void CallWithScheduledBreak(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 3 || !args[0]->IsFunction() || !args[1]->IsString() ||
-        !args[2]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 3 || !info[0]->IsFunction() || !info[1]->IsString() ||
+        !info[2]->IsString()) {
       FATAL("Internal error: callWithScheduledBreak('reason', 'details').");
     }
     std::vector<uint16_t> reason =
-        ToVector(args.GetIsolate(), args[1].As<v8::String>());
+        ToVector(info.GetIsolate(), info[1].As<v8::String>());
     v8_inspector::StringView reason_view(reason.data(), reason.size());
     std::vector<uint16_t> details =
-        ToVector(args.GetIsolate(), args[2].As<v8::String>());
+        ToVector(info.GetIsolate(), info[2].As<v8::String>());
     v8_inspector::StringView details_view(details.data(), details.size());
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
     data->SchedulePauseOnNextStatement(context_group_id, reason_view,
                                        details_view);
     v8::MaybeLocal<v8::Value> result;
-    result = args[0].As<v8::Function>()->Call(context, context->Global(), 0,
+    result = info[0].As<v8::Function>()->Call(context, context->Global(), 0,
                                               nullptr);
     data->CancelPauseOnNextStatement(context_group_id);
   }
 
   static void MarkObjectAsNotInspectable(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsObject()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsObject()) {
       FATAL("Internal error: markObjectAsNotInspectable(object).");
     }
-    v8::Local<v8::Object> object = args[0].As<v8::Object>();
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Object> object = info[0].As<v8::Object>();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Private> notInspectablePrivate =
         v8::Private::ForApi(isolate, ToV8String(isolate, "notInspectable"));
     object
@@ -664,21 +673,21 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
   static void CreateObjectWithAccessor(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 2 || !info[0]->IsString() || !info[1]->IsBoolean()) {
       FATAL(
           "Internal error: createObjectWithAccessor('accessor name', "
           "hasSetter)\n");
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
-    if (args[1].As<v8::Boolean>()->Value()) {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter,
+    if (info[1].As<v8::Boolean>()->Value()) {
+      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter,
                          AccessorSetter);
     } else {
-      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter);
+      templ->SetAccessor(v8::Local<v8::String>::Cast(info[0]), AccessorGetter);
     }
-    args.GetReturnValue().Set(
+    info.GetReturnValue().Set(
         templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
   }
 
@@ -696,15 +705,15 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
   }
 
   static void StoreCurrentStackTrace(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: storeCurrentStackTrace('description')\n");
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     std::vector<uint16_t> description =
-        ToVector(isolate, args[0].As<v8::String>());
+        ToVector(isolate, info[0].As<v8::String>());
     v8_inspector::StringView description_view(description.data(),
                                               description.size());
     v8_inspector::V8StackTraceId id =
@@ -713,116 +722,116 @@ class InspectorExtension : public InspectorIsolateData::SetupGlobalTask {
         v8::ArrayBuffer::New(isolate, sizeof(id));
     *static_cast<v8_inspector::V8StackTraceId*>(
         buffer->GetBackingStore()->Data()) = id;
-    args.GetReturnValue().Set(buffer);
+    info.GetReturnValue().Set(buffer);
   }
 
   static void ExternalAsyncTaskStarted(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsArrayBuffer()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsArrayBuffer()) {
       FATAL("Internal error: externalAsyncTaskStarted(id)\n");
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     v8_inspector::V8StackTraceId* id =
         static_cast<v8_inspector::V8StackTraceId*>(
-            args[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
+            info[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
     data->ExternalAsyncTaskStarted(*id);
   }
 
   static void ExternalAsyncTaskFinished(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsArrayBuffer()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsArrayBuffer()) {
       FATAL("Internal error: externalAsyncTaskFinished(id)\n");
     }
-    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     v8_inspector::V8StackTraceId* id =
         static_cast<v8_inspector::V8StackTraceId*>(
-            args[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
+            info[0].As<v8::ArrayBuffer>()->GetBackingStore()->Data());
     data->ExternalAsyncTaskFinished(*id);
   }
 
   static void ScheduleWithAsyncStack(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 3 || !args[0]->IsFunction() || !args[1]->IsString() ||
-        !args[2]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 3 || !info[0]->IsFunction() || !info[1]->IsString() ||
+        !info[2]->IsBoolean()) {
       FATAL(
           "Internal error: scheduleWithAsyncStack(function, 'task-name', "
           "with_empty_stack).");
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
     int context_group_id = data->GetContextGroupId(context);
-    bool with_empty_stack = args[2].As<v8::Boolean>()->Value();
+    bool with_empty_stack = info[2].As<v8::Boolean>()->Value();
     if (with_empty_stack) context->Exit();
 
     std::vector<uint16_t> task_name =
-        ToVector(isolate, args[1].As<v8::String>());
+        ToVector(isolate, info[1].As<v8::String>());
     v8_inspector::StringView task_name_view(task_name.data(), task_name.size());
 
     RunAsyncTask(
         data->task_runner(), task_name_view,
         std::make_unique<SetTimeoutTask>(
-            context_group_id, isolate, v8::Local<v8::Function>::Cast(args[0])));
+            context_group_id, isolate, v8::Local<v8::Function>::Cast(info[0])));
     if (with_empty_stack) context->Enter();
   }
 
   static void SetAllowCodeGenerationFromStrings(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsBoolean()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsBoolean()) {
       FATAL("Internal error: setAllowCodeGenerationFromStrings(allow).");
     }
-    args.GetIsolate()->GetCurrentContext()->AllowCodeGenerationFromStrings(
-        args[0].As<v8::Boolean>()->Value());
+    info.GetIsolate()->GetCurrentContext()->AllowCodeGenerationFromStrings(
+        info[0].As<v8::Boolean>()->Value());
   }
   static void SetResourceNamePrefix(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsString()) {
       FATAL("Internal error: setResourceNamePrefix('prefix').");
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
-    data->SetResourceNamePrefix(v8::Local<v8::String>::Cast(args[0]));
+    data->SetResourceNamePrefix(v8::Local<v8::String>::Cast(info[0]));
   }
 
   static void newExceptionWithMetaData(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 3 || !args[0]->IsString() || !args[1]->IsString() ||
-        !args[2]->IsString()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 3 || !info[0]->IsString() || !info[1]->IsString() ||
+        !info[2]->IsString()) {
       FATAL(
           "Internal error: newExceptionWithMetaData('message', 'key', "
           "'value').");
     }
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
 
-    auto error = v8::Exception::Error(args[0].As<v8::String>());
-    CHECK(data->AssociateExceptionData(error, args[1].As<v8::String>(),
-                                       args[2].As<v8::String>()));
-    args.GetReturnValue().Set(error);
+    auto error = v8::Exception::Error(info[0].As<v8::String>());
+    CHECK(data->AssociateExceptionData(error, info[1].As<v8::String>(),
+                                       info[2].As<v8::String>()));
+    info.GetReturnValue().Set(error);
   }
 
   static void CallbackForTests(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 1 || !args[0]->IsFunction()) {
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    if (info.Length() != 1 || !info[0]->IsFunction()) {
       FATAL("Internal error: callbackForTests(function).");
     }
 
-    v8::Isolate* isolate = args.GetIsolate();
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-    v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(args[0]);
+    v8::Local<v8::Function> callback = v8::Local<v8::Function>::Cast(info[0]);
     v8::MaybeLocal<v8::Value> result =
         callback->Call(context, v8::Undefined(isolate), 0, nullptr);
-    args.GetReturnValue().Set(result.ToLocalChecked());
+    info.GetReturnValue().Set(result.ToLocalChecked());
   }
 
   static void RunNestedMessageLoop(
-      const v8::FunctionCallbackInfo<v8::Value>& args) {
-    v8::Isolate* isolate = args.GetIsolate();
+      const v8::FunctionCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
 
@@ -847,8 +856,8 @@ int InspectorTestMain(int argc, char* argv[]) {
     if (strcmp(argv[i], "--embed") == 0) {
       argv[i++] = nullptr;
       printf("Embedding script '%s'\n", argv[i]);
-      startup_data = i::CreateSnapshotDataBlobInternal(
-          SnapshotCreator::FunctionCodeHandling::kClear, argv[i], nullptr);
+      startup_data = i::CreateSnapshotDataBlobInternalForInspectorTest(
+          SnapshotCreator::FunctionCodeHandling::kClear, argv[i]);
       argv[i] = nullptr;
     }
   }
@@ -898,7 +907,6 @@ int InspectorTestMain(int argc, char* argv[]) {
     frontend_runner.Join();
     backend_runner.Join();
 
-    UtilsExtension::ClearAllSessions();
     delete[] startup_data.data;
 
     // TaskRunners go out of scope here, which causes Isolate teardown and all

@@ -100,6 +100,8 @@ struct RegExpInstruction {
     FORK,
     JMP,
     SET_REGISTER_TO_CP,
+    BEGIN_LOOP,
+    END_LOOP,
   };
 
   struct Uc16Range {
@@ -162,6 +164,18 @@ struct RegExpInstruction {
     RegExpInstruction result;
     result.opcode = ASSERTION;
     result.payload.assertion_type = t;
+    return result;
+  }
+
+  static RegExpInstruction BeginLoop() {
+    RegExpInstruction result;
+    result.opcode = BEGIN_LOOP;
+    return result;
+  }
+
+  static RegExpInstruction EndLoop() {
+    RegExpInstruction result;
+    result.opcode = END_LOOP;
     return result;
   }
 

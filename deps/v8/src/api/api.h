@@ -9,6 +9,7 @@
 
 #include "include/v8-container.h"
 #include "include/v8-external.h"
+#include "include/v8-function-callback.h"
 #include "include/v8-proxy.h"
 #include "include/v8-typed-array.h"
 #include "include/v8-wasm.h"
@@ -55,10 +56,11 @@ class Consts {
 };
 
 template <typename T>
-inline T ToCData(v8::internal::Object obj);
+inline T ToCData(v8::internal::Tagged<v8::internal::Object> obj);
 
 template <>
-inline v8::internal::Address ToCData(v8::internal::Object obj);
+inline v8::internal::Address ToCData(
+    v8::internal::Tagged<v8::internal::Object> obj);
 
 template <typename T>
 inline v8::internal::Handle<v8::internal::Object> FromCData(
@@ -95,7 +97,7 @@ class RegisteredExtension {
 
 #define TO_LOCAL_LIST(V)                               \
   V(ToLocal, AccessorPair, debug::AccessorPair)        \
-  V(ToLocal, Context, Context)                         \
+  V(ToLocal, NativeContext, Context)                   \
   V(ToLocal, Object, Value)                            \
   V(ToLocal, Module, Module)                           \
   V(ToLocal, Name, Name)                               \
@@ -167,7 +169,7 @@ class RegisteredExtension {
   V(Module, Module)                            \
   V(Function, JSReceiver)                      \
   V(Message, JSMessageObject)                  \
-  V(Context, Context)                          \
+  V(Context, NativeContext)                    \
   V(External, Object)                          \
   V(StackTrace, FixedArray)                    \
   V(StackFrame, StackFrameInfo)                \
@@ -196,21 +198,31 @@ class Utils {
   static void ReportOOMFailure(v8::internal::Isolate* isolate,
                                const char* location, const OOMDetails& details);
 
-#define DECLARE_TO_LOCAL(Name, From, To) \
-  static inline Local<v8::To> Name(      \
-      v8::internal::Handle<v8::internal::From> obj);
+#define DECLARE_TO_LOCAL(Name, From, To)                  \
+  static inline Local<v8::To> Name(                       \
+      v8::internal::Handle<v8::internal::From> obj);      \
+  static inline Local<v8::To> Name(                       \
+      v8::internal::DirectHandle<v8::internal::From> obj, \
+      v8::internal::Isolate* isolate);
 
   TO_LOCAL_LIST(DECLARE_TO_LOCAL)
 
 #define DECLARE_TO_LOCAL_TYPED_ARRAY(Type, typeName, TYPE, ctype) \
   static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
-      v8::internal::Handle<v8::internal::JSTypedArray> obj);
+      v8::internal::Handle<v8::internal::JSTypedArray> obj);      \
+  static inline Local<v8::Type##Array> ToLocal##Type##Array(      \
+      v8::internal::DirectHandle<v8::internal::JSTypedArray> obj, \
+      v8::internal::Isolate* isolate);
 
   TYPED_ARRAYS(DECLARE_TO_LOCAL_TYPED_ARRAY)
 
-#define DECLARE_OPEN_HANDLE(From, To)                              \
-  static inline v8::internal::Handle<v8::internal::To> OpenHandle( \
-      const From* that, bool allow_empty_handle = false);
+#define DECLARE_OPEN_HANDLE(From, To)                                          \
+  static inline v8::internal::Handle<v8::internal::To> OpenHandle(             \
+      const From* that, bool allow_empty_handle = false);                      \
+  static inline v8::internal::DirectHandle<v8::internal::To> OpenDirectHandle( \
+      const From* that, bool allow_empty_handle = false);                      \
+  static inline v8::internal::IndirectHandle<v8::internal::To>                 \
+  OpenIndirectHandle(const From* that, bool allow_empty_handle = false);
 
   OPEN_HANDLE_LIST(DECLARE_OPEN_HANDLE)
 
@@ -221,11 +233,14 @@ class Utils {
   template <class From, class To>
   static inline Local<To> Convert(v8::internal::Handle<From> obj);
 
+  template <class From, class To>
+  static inline Local<To> Convert(v8::internal::DirectHandle<From> obj,
+                                  v8::internal::Isolate* isolate);
+
   template <class T>
   static inline v8::internal::Handle<v8::internal::Object> OpenPersistent(
       const v8::PersistentBase<T>& persistent) {
-    return v8::internal::Handle<v8::internal::Object>(
-        reinterpret_cast<v8::internal::Address*>(persistent.val_));
+    return v8::internal::Handle<v8::internal::Object>(persistent.slot());
   }
 
   template <class T>
@@ -252,6 +267,13 @@ template <class T>
 inline v8::Local<T> ToApiHandle(
     v8::internal::Handle<v8::internal::Object> obj) {
   return Utils::Convert<v8::internal::Object, T>(obj);
+}
+
+template <class T>
+inline v8::Local<T> ToApiHandle(
+    v8::internal::DirectHandle<v8::internal::Object> obj,
+    v8::internal::Isolate* isolate) {
+  return Utils::Convert<v8::internal::Object, T>(obj, isolate);
 }
 
 template <class T>
@@ -320,20 +342,20 @@ class HandleScopeImplementer {
   inline internal::Address* GetSpareOrNewBlock();
   inline void DeleteExtensions(internal::Address* prev_limit);
 
-  inline void EnterContext(Context context);
+  inline void EnterContext(Tagged<NativeContext> context);
   inline void LeaveContext();
-  inline bool LastEnteredContextWas(Context context);
+  inline bool LastEnteredContextWas(Tagged<NativeContext> context);
   inline size_t EnteredContextCount() const { return entered_contexts_.size(); }
 
-  inline void EnterMicrotaskContext(Context context);
+  inline void EnterMicrotaskContext(Tagged<NativeContext> context);
 
   // Returns the last entered context or an empty handle if no
   // contexts have been entered.
-  inline Handle<Context> LastEnteredContext();
-  inline Handle<Context> LastEnteredOrMicrotaskContext();
+  inline Handle<NativeContext> LastEnteredContext();
+  inline Handle<NativeContext> LastEnteredOrMicrotaskContext();
 
-  inline void SaveContext(Context context);
-  inline Context RestoreContext();
+  inline void SaveContext(Tagged<Context> context);
+  inline Tagged<Context> RestoreContext();
   inline bool HasSavedContexts();
 
   inline DetachableVector<Address*>* blocks() { return &blocks_; }
@@ -386,11 +408,11 @@ class HandleScopeImplementer {
   // `is_microtask_context_[i]` is 1.
   // TODO(tzik): Remove |is_microtask_context_| after the deprecated
   // v8::Isolate::GetEnteredContext() is removed.
-  DetachableVector<Context> entered_contexts_;
+  DetachableVector<Tagged<NativeContext>> entered_contexts_;
   DetachableVector<int8_t> is_microtask_context_;
 
   // Used as a stack to keep track of saved contexts.
-  DetachableVector<Context> saved_contexts_;
+  DetachableVector<Tagged<Context>> saved_contexts_;
   Address* spare_;
   Address* last_handle_before_deferred_block_;
   // This is only used for threading support.
@@ -406,12 +428,12 @@ class HandleScopeImplementer {
 
 const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
-void HandleScopeImplementer::SaveContext(Context context) {
+void HandleScopeImplementer::SaveContext(Tagged<Context> context) {
   saved_contexts_.push_back(context);
 }
 
-Context HandleScopeImplementer::RestoreContext() {
-  Context last_context = saved_contexts_.back();
+Tagged<Context> HandleScopeImplementer::RestoreContext() {
+  Tagged<Context> last_context = saved_contexts_.back();
   saved_contexts_.pop_back();
   return last_context;
 }
@@ -428,7 +450,8 @@ void HandleScopeImplementer::LeaveContext() {
   is_microtask_context_.pop_back();
 }
 
-bool HandleScopeImplementer::LastEnteredContextWas(Context context) {
+bool HandleScopeImplementer::LastEnteredContextWas(
+    Tagged<NativeContext> context) {
   return !entered_contexts_.empty() && entered_contexts_.back() == context;
 }
 
@@ -472,24 +495,43 @@ void HandleScopeImplementer::DeleteExtensions(internal::Address* prev_limit) {
          (!blocks_.empty() && prev_limit != nullptr));
 }
 
-// Interceptor functions called from generated inline caches to notify
-// CPU profiler that external callbacks are invoked.
+// This is a wrapper function called from CallApiGetter builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the getter has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the AccessorInfo object, via
+// IsolateData::api_callback_thunk_argument slot.
 void InvokeAccessorGetterCallback(
     v8::Local<v8::Name> property,
-    const v8::PropertyCallbackInfo<v8::Value>& info,
-    v8::AccessorNameGetterCallback getter);
+    const v8::PropertyCallbackInfo<v8::Value>& info);
 
-void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
-                            v8::FunctionCallback callback);
+// This is a wrapper function called from CallApiCallback builtin when profiling
+// or side-effect checking is enabled. It's supposed to set up the runtime
+// call stats scope and check if the callback has side-effects in case debugger
+// enabled the side-effects checking mode.
+// It gets additional argument, the v8::FunctionCallback address, via
+// IsolateData::api_callback_thunk_argument slot.
+void InvokeFunctionCallbackGeneric(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
+void InvokeFunctionCallbackOptimized(
+    const v8::FunctionCallbackInfo<v8::Value>& info);
 
 void InvokeFinalizationRegistryCleanupFromTask(
-    Handle<Context> context,
+    Handle<NativeContext> native_context,
     Handle<JSFinalizationRegistry> finalization_registry,
     Handle<Object> callback);
 
 template <typename T>
 EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
 T ConvertDouble(double d);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const FunctionCallbackInfo<T>& info);
+
+template <typename T>
+EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
+bool ValidateCallbackInfo(const PropertyCallbackInfo<T>& info);
 
 }  // namespace internal
 }  // namespace v8

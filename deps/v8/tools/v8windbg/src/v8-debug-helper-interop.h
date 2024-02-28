@@ -30,8 +30,7 @@ enum class PropertyType {
 
 struct StructField {
   StructField(std::u16string field_name, std::u16string type_name,
-              std::string uncompressed_type_name, uint64_t address,
-              uint8_t num_bits, uint8_t shift_bits);
+              uint64_t address, uint8_t num_bits, uint8_t shift_bits);
   ~StructField();
   StructField(const StructField&);
   StructField(StructField&&);
@@ -48,14 +47,6 @@ struct StructField {
   // - X::Y
   std::u16string type_name;
 
-  // In some cases, |type_name| may be a simple type representing a compressed
-  // pointer such as v8::internal::TaggedValue. In those cases,
-  // |uncompressed_type_name| will contain the type of the object when
-  // decompressed. Otherwise, |uncompressed_type_name| will match |type_name|.
-  // In any case, it is safe to pass the |uncompressed_type_name| value as the
-  // type_hint on a subsequent call to GetObjectProperties.
-  std::string uncompressed_type_name;
-
   // Offset, in bytes, from beginning of struct.
   uint64_t offset;
 
@@ -70,8 +61,7 @@ struct StructField {
 
 struct Property {
   Property(std::u16string property_name, std::u16string type_name,
-           std::string uncompressed_type_name, uint64_t address,
-           size_t item_size);
+           uint64_t address, size_t item_size);
   ~Property();
   Property(const Property&);
   Property(Property&&);
@@ -90,14 +80,6 @@ struct Property {
   // - v8::X::Y
   // - X::Y
   std::u16string type_name;
-
-  // In some cases, |type_name| may be a simple type representing a compressed
-  // pointer such as v8::internal::TaggedValue. In those cases,
-  // |uncompressed_type_name| will contain the type of the object when
-  // decompressed. Otherwise, |uncompressed_type_name| will match |type_name|.
-  // In any case, it is safe to pass the |uncompressed_type_name| value as the
-  // type_hint on a subsequent call to GetObjectProperties.
-  std::string uncompressed_type_name;
 
   // The address where the property value can be found in the debuggee's address
   // space, or the address of the first value for an array.

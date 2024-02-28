@@ -2,9 +2,12 @@
 
 const common = require('../common');
 const fixtures = require('../common/fixtures');
+const tmpdir = require('../common/tmpdir');
 
 const { readFileSync } = require('fs');
-const { execFileSync } = require('child_process');
+const {
+  spawnSyncAndExitWithoutError,
+} = require('../common/child_process');
 
 function skipIfSingleExecutableIsNotSupported() {
   if (!process.config.variables.single_executable_application)
@@ -41,42 +44,51 @@ function skipIfSingleExecutableIsNotSupported() {
       common.skip('On s390x, postject fails with `memory access out of bounds`.');
     }
   }
+
+  tmpdir.refresh();
+
+  // The SEA tests involve making a copy of the executable and writing some fixtures
+  // to the tmpdir. To be safe, ensure that at least 120MB disk space is available.
+  if (!tmpdir.hasEnoughSpace(120 * 1024 * 1024)) {
+    common.skip('Available disk space < 120MB');
+  }
 }
 
 function injectAndCodeSign(targetExecutable, resource) {
   const postjectFile = fixtures.path('postject-copy', 'node_modules', 'postject', 'dist', 'cli.js');
-  execFileSync(process.execPath, [
+  spawnSyncAndExitWithoutError(process.execPath, [
     postjectFile,
     targetExecutable,
     'NODE_SEA_BLOB',
     resource,
     '--sentinel-fuse', 'NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2',
     ...process.platform === 'darwin' ? [ '--macho-segment-name', 'NODE_SEA' ] : [],
-  ]);
+  ], {});
 
   if (process.platform === 'darwin') {
-    execFileSync('codesign', [ '--sign', '-', targetExecutable ]);
-    execFileSync('codesign', [ '--verify', targetExecutable ]);
+    spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ], {});
+    spawnSyncAndExitWithoutError('codesign', [ '--verify', targetExecutable ], {});
   } else if (process.platform === 'win32') {
     let signtoolFound = false;
     try {
-      execFileSync('where', [ 'signtool' ]);
+      spawnSyncAndExitWithoutError('where', [ 'signtool' ], {});
       signtoolFound = true;
     } catch (err) {
       console.log(err.message);
     }
     if (signtoolFound) {
       let certificatesFound = false;
+      let stderr;
       try {
-        execFileSync('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ]);
+        ({ stderr } = spawnSyncAndExitWithoutError('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ], {}));
         certificatesFound = true;
       } catch (err) {
-        if (!/SignTool Error: No certificates were found that met all the given criteria/.test(err)) {
+        if (!/SignTool Error: No certificates were found that met all the given criteria/.test(stderr)) {
           throw err;
         }
       }
       if (certificatesFound) {
-        execFileSync('signtool', 'verify', '/pa', 'SHA256', targetExecutable);
+        spawnSyncAndExitWithoutError('signtool', 'verify', '/pa', 'SHA256', targetExecutable, {});
       }
     }
   }

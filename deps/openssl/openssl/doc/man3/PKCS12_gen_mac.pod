@@ -22,6 +22,7 @@ PKCS12_verify_mac - Functions to create and manipulate a PKCS#12 structure
 
 PKCS12_gen_mac() generates an HMAC over the entire PKCS#12 object using the
 supplied password along with a set of already configured parameters.
+The default key generation mechanism used is PKCS12KDF.
 
 PKCS12_verify_mac() verifies the PKCS#12 object's HMAC using the supplied
 password.
@@ -57,6 +58,7 @@ IETF RFC 7292 (L<https://tools.ietf.org/html/rfc7292>)
 =head1 SEE ALSO
 
 L<d2i_PKCS12(3)>,
+L<EVP_KDF-PKCS12KDF(7)>,
 L<PKCS12_create(3)>,
 L<passphrase-encoding(7)>
 

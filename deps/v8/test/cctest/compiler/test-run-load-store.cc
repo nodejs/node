@@ -8,8 +8,10 @@
 
 #include "src/base/bits.h"
 #include "src/base/overflowing-math.h"
+#include "src/base/template-utils.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/tagged.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/codegen-tester.h"
 #include "test/common/value-helper.h"
@@ -26,7 +28,7 @@ enum TestAlignment {
 #if V8_TARGET_LITTLE_ENDIAN
 #define LSB(addr, bytes) addr
 #elif V8_TARGET_BIG_ENDIAN
-#define LSB(addr, bytes) reinterpret_cast<byte*>(addr + 1) - (bytes)
+#define LSB(addr, bytes) reinterpret_cast<uint8_t*>(addr + 1) - (bytes)
 #else
 #error "Unknown Architecture"
 #endif
@@ -36,9 +38,9 @@ enum TestAlignment {
 #define A_GIG (1024ULL * 1024ULL * 1024ULL)
 
 namespace {
-byte* ComputeOffset(void* real_address, int32_t offset) {
-  return reinterpret_cast<byte*>(reinterpret_cast<Address>(real_address) -
-                                 offset);
+uint8_t* ComputeOffset(void* real_address, int32_t offset) {
+  return reinterpret_cast<uint8_t*>(reinterpret_cast<Address>(real_address) -
+                                    offset);
 }
 
 void RunLoadInt32(const TestAlignment t) {
@@ -69,7 +71,7 @@ void RunLoadInt32Offset(TestAlignment t) {
   for (size_t i = 0; i < arraysize(offsets); i++) {
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = offsets[i];
-    byte* pointer = ComputeOffset(&p1, offset);
+    uint8_t* pointer = ComputeOffset(&p1, offset);
 
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
@@ -97,8 +99,8 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = ComputeOffset(&p1, offset);
-    byte* to = ComputeOffset(&p2, offset);
+    uint8_t* from = ComputeOffset(&p1, offset);
+    uint8_t* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float32(), m.PointerConstant(from),
@@ -135,8 +137,8 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
         base::AddWithWraparound(0x2342AABB, base::MulWithWraparound(i, 3));
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = i;
-    byte* from = ComputeOffset(&p1, offset);
-    byte* to = ComputeOffset(&p2, offset);
+    uint8_t* from = ComputeOffset(&p1, offset);
+    uint8_t* to = ComputeOffset(&p2, offset);
     // generate load [#base + #index]
     if (t == TestAlignment::kAligned) {
       Node* load = m.Load(MachineType::Float64(), m.PointerConstant(from),
@@ -201,7 +203,8 @@ void CheckEq(CType in_value, CType out_value) {
 #ifdef V8_COMPRESS_POINTERS
 // Specializations for checking the result of compressing store.
 template <>
-void CheckEq<Object>(Object in_value, Object out_value) {
+void CheckEq<Tagged<Object>>(Tagged<Object> in_value,
+                             Tagged<Object> out_value) {
   // Compare only lower 32-bits of the value because tagged load/stores are
   // 32-bit operations anyway.
   CHECK_EQ(static_cast<Tagged_t>(in_value.ptr()),
@@ -209,13 +212,14 @@ void CheckEq<Object>(Object in_value, Object out_value) {
 }
 
 template <>
-void CheckEq<HeapObject>(HeapObject in_value, HeapObject out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<HeapObject>>(Tagged<HeapObject> in_value,
+                                 Tagged<HeapObject> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 
 template <>
-void CheckEq<Smi>(Smi in_value, Smi out_value) {
-  return CheckEq<Object>(in_value, out_value);
+void CheckEq<Tagged<Smi>>(Tagged<Smi> in_value, Tagged<Smi> out_value) {
+  return CheckEq<Tagged<Object>>(in_value, out_value);
 }
 #endif
 
@@ -225,9 +229,9 @@ template <typename CType>
 void InitBuffer(CType* buffer, size_t length, MachineType type) {
   const size_t kBufferSize = sizeof(CType) * length;
   if (!type.IsTagged()) {
-    byte* raw = reinterpret_cast<byte*>(buffer);
+    uint8_t* raw = reinterpret_cast<uint8_t*>(buffer);
     for (size_t i = 0; i < kBufferSize; i++) {
-      raw[i] = static_cast<byte>((i + kBufferSize) ^ 0xAA);
+      raw[i] = static_cast<uint8_t>((i + kBufferSize) ^ 0xAA);
     }
     return;
   }
@@ -235,7 +239,7 @@ void InitBuffer(CType* buffer, size_t length, MachineType type) {
   // Tagged field loads require values to be properly tagged because of
   // pointer decompression that may be happenning during load.
   Isolate* isolate = CcTest::InitIsolateOnce();
-  Smi* smi_view = reinterpret_cast<Smi*>(&buffer[0]);
+  Tagged<Smi>* smi_view = reinterpret_cast<Tagged<Smi>*>(&buffer[0]);
   if (type.IsTaggedSigned()) {
     for (size_t i = 0; i < length; i++) {
       smi_view[i] = Smi::FromInt(static_cast<int>(i + kBufferSize) ^ 0xABCDEF0);
@@ -343,8 +347,8 @@ void RunLoadStore(MachineType type, TestAlignment t) {
 template <typename CType>
 void RunUnalignedLoadStoreUnalignedAccess(MachineType type) {
   CType in, out;
-  byte in_buffer[2 * sizeof(CType)];
-  byte out_buffer[2 * sizeof(CType)];
+  uint8_t in_buffer[2 * sizeof(CType)];
+  uint8_t out_buffer[2 * sizeof(CType)];
 
   InitBuffer(&in, 1, type);
 
@@ -386,10 +390,12 @@ TEST(RunLoadImmIndex) {
   RunLoadImmIndex<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
   RunLoadImmIndex<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadImmIndex<void*>(MachineType::Pointer(), TestAlignment::kAligned);
-  RunLoadImmIndex<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadImmIndex<HeapObject>(MachineType::TaggedPointer(),
-                              TestAlignment::kAligned);
-  RunLoadImmIndex<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<Smi>>(MachineType::TaggedSigned(),
+                               TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<HeapObject>>(MachineType::TaggedPointer(),
+                                      TestAlignment::kAligned);
+  RunLoadImmIndex<Tagged<Object>>(MachineType::AnyTagged(),
+                                  TestAlignment::kAligned);
   RunLoadImmIndex<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadImmIndex<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT
@@ -420,10 +426,12 @@ TEST(RunLoadStore) {
   RunLoadStore<int32_t>(MachineType::Int32(), TestAlignment::kAligned);
   RunLoadStore<uint32_t>(MachineType::Uint32(), TestAlignment::kAligned);
   RunLoadStore<void*>(MachineType::Pointer(), TestAlignment::kAligned);
-  RunLoadStore<Smi>(MachineType::TaggedSigned(), TestAlignment::kAligned);
-  RunLoadStore<HeapObject>(MachineType::TaggedPointer(),
-                           TestAlignment::kAligned);
-  RunLoadStore<Object>(MachineType::AnyTagged(), TestAlignment::kAligned);
+  RunLoadStore<Tagged<Smi>>(MachineType::TaggedSigned(),
+                            TestAlignment::kAligned);
+  RunLoadStore<Tagged<HeapObject>>(MachineType::TaggedPointer(),
+                                   TestAlignment::kAligned);
+  RunLoadStore<Tagged<Object>>(MachineType::AnyTagged(),
+                               TestAlignment::kAligned);
   RunLoadStore<float>(MachineType::Float32(), TestAlignment::kAligned);
   RunLoadStore<double>(MachineType::Float64(), TestAlignment::kAligned);
 #if V8_TARGET_ARCH_64_BIT

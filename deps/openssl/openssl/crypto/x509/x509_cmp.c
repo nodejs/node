@@ -292,12 +292,13 @@ unsigned long X509_NAME_hash_ex(const X509_NAME *x, OSSL_LIB_CTX *libctx,
     unsigned long ret = 0;
     unsigned char md[SHA_DIGEST_LENGTH];
     EVP_MD *sha1 = EVP_MD_fetch(libctx, "SHA1", propq);
+    int i2d_ret;
 
     /* Make sure X509_NAME structure contains valid cached encoding */
-    i2d_X509_NAME(x, NULL);
+    i2d_ret = i2d_X509_NAME(x, NULL);
     if (ok != NULL)
         *ok = 0;
-    if (sha1 != NULL
+    if (i2d_ret >= 0 && sha1 != NULL
         && EVP_Digest(x->canon_enc, x->canon_enclen, md, NULL, sha1, NULL)) {
         ret = (((unsigned long)md[0]) | ((unsigned long)md[1] << 8L) |
                ((unsigned long)md[2] << 16L) | ((unsigned long)md[3] << 24L)
@@ -325,7 +326,9 @@ unsigned long X509_NAME_hash_old(const X509_NAME *x)
         goto end;
 
     /* Make sure X509_NAME structure contains valid cached encoding */
-    i2d_X509_NAME(x, NULL);
+    if (i2d_X509_NAME(x, NULL) < 0)
+        goto end;
+
     if (EVP_DigestInit_ex(md_ctx, md5, NULL)
         && EVP_DigestUpdate(md_ctx, x->bytes->data, x->bytes->length)
         && EVP_DigestFinal_ex(md_ctx, md, NULL))

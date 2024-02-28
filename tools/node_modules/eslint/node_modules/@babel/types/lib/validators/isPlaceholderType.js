@@ -4,10 +4,10 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isPlaceholderType;
-var _definitions = require("../definitions");
+var _index = require("../definitions/index.js");
 function isPlaceholderType(placeholderType, targetType) {
   if (placeholderType === targetType) return true;
-  const aliases = _definitions.PLACEHOLDERS_ALIAS[placeholderType];
+  const aliases = _index.PLACEHOLDERS_ALIAS[placeholderType];
   if (aliases) {
     for (const alias of aliases) {
       if (targetType === alias) return true;

@@ -198,8 +198,8 @@ macro IndexOfInlinedLocalName(
 // Returns the index of the named local in a ScopeInfo.
 // Assumes that the given name is internalized; uses pointer comparisons.
 @export
-macro IndexOfLocalName(scopeInfo: ScopeInfo, name: Name):
-    intptr labels NotFound {
+macro IndexOfLocalName(
+    scopeInfo: ScopeInfo, name: Name): intptr labels NotFound {
   const count: intptr = Convert<intptr>(scopeInfo.context_local_count);
   if (count < kMaxInlinedLocalNamesSize) {
     return IndexOfInlinedLocalName(scopeInfo, name) otherwise goto NotFound;

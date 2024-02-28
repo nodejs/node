@@ -55,13 +55,13 @@ class V8_EXPORT_PRIVATE HandlerTable {
   enum EncodingMode { kRangeBasedEncoding, kReturnAddressBasedEncoding };
 
   // Constructors for the various encodings.
-  explicit HandlerTable(InstructionStream code);
-  explicit HandlerTable(Code code);
-  explicit HandlerTable(ByteArray byte_array);
+  explicit HandlerTable(Tagged<InstructionStream> code);
+  explicit HandlerTable(Tagged<Code> code);
+  explicit HandlerTable(Tagged<ByteArray> byte_array);
 #if V8_ENABLE_WEBASSEMBLY
   explicit HandlerTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
-  explicit HandlerTable(BytecodeArray bytecode_array);
+  explicit HandlerTable(Tagged<BytecodeArray> bytecode_array);
   HandlerTable(Address handler_table, int handler_table_size,
                EncodingMode encoding_mode);
 

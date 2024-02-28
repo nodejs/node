@@ -167,9 +167,9 @@ section if a custom port is used.
 
 ```js
 [
-  '4.4.4.4',
+  '8.8.8.8',
   '2001:4860:4860::8888',
-  '4.4.4.4:1053',
+  '8.8.8.8:1053',
   '[2001:4860:4860::8888]:1053',
 ]
 ```
@@ -204,8 +204,9 @@ changes:
 * `options` {integer | Object}
   * `family` {integer|string} The record family. Must be `4`, `6`, or `0`. For
     backward compatibility reasons,`'IPv4'` and `'IPv6'` are interpreted as `4`
-    and `6` respectively. The value `0` indicates that IPv4 and IPv6 addresses
-    are both returned. **Default:** `0`.
+    and `6` respectively. The value `0` indicates that either an IPv4 or IPv6
+    address is returned. If the value `0` is used with `{ all: true } (see below)`,
+    both IPv4 and IPv6 addresses are returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the callback returns all resolved addresses in
@@ -820,9 +821,9 @@ addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
 ```js
 dns.setServers([
-  '4.4.4.4',
+  '8.8.8.8',
   '[2001:4860:4860::8888]',
-  '4.4.4.4:1053',
+  '8.8.8.8:1053',
   '[2001:4860:4860::8888]:1053',
 ]);
 ```
@@ -937,9 +938,9 @@ section if a custom port is used.
 
 ```js
 [
-  '4.4.4.4',
+  '8.8.8.8',
   '2001:4860:4860::8888',
-  '4.4.4.4:1053',
+  '8.8.8.8:1053',
   '[2001:4860:4860::8888]:1053',
 ]
 ```
@@ -953,8 +954,9 @@ added: v10.6.0
 * `hostname` {string}
 * `options` {integer | Object}
   * `family` {integer} The record family. Must be `4`, `6`, or `0`. The value
-    `0` indicates that IPv4 and IPv6 addresses are both returned. **Default:**
-    `0`.
+    `0` indicates that either an IPv4 or IPv6 address is returned. If the
+    value `0` is used with `{ all: true }` (see below), both IPv4 and IPv6
+    addresses are returned. **Default:** `0`.
   * `hints` {number} One or more [supported `getaddrinfo` flags][]. Multiple
     flags may be passed by bitwise `OR`ing their values.
   * `all` {boolean} When `true`, the `Promise` is resolved with all addresses in
@@ -1389,9 +1391,9 @@ addresses. If the port is the IANA default DNS port (53) it can be omitted.
 
 ```js
 dnsPromises.setServers([
-  '4.4.4.4',
+  '8.8.8.8',
   '[2001:4860:4860::8888]',
-  '4.4.4.4:1053',
+  '8.8.8.8:1053',
   '[2001:4860:4860::8888]:1053',
 ]);
 ```

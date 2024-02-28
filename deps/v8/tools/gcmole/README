@@ -1,6 +1,6 @@
 DESCRIPTION -------------------------------------------------------------------
 
-gcmole is a simple static analysis tool used to find possible evaluation order 
+gcmole is a simple static analysis tool used to find possible evaluation order
 dependent GC-unsafe places in the V8 codebase and "stale" pointers to the heap
 (ones whose addresses got invalidated by the GC).
 
@@ -13,9 +13,9 @@ For example the following code is GC-unsafe:
     baz->Qux(*Foo());  // (a)
     Bar(*Foo(), *baz); // (b)
 
-Both in cases (a) and (b) compiler is free to evaluate call arguments (that 
-includes receiver) in any order. That means it can dereference baz before 
-calling to Foo and save a raw pointer to a heap object in the register or 
+Both in cases (a) and (b) compiler is free to evaluate call arguments (that
+includes receiver) in any order. That means it can dereference baz before
+calling to Foo and save a raw pointer to a heap object in the register or
 on the stack.
 
 In terms of the AST analysis that gcmole does, it warns about places in the
@@ -28,7 +28,7 @@ function was detected as potentially allocating, as in the previous example):
 
     JSObject raw_obj = ...;
     Foo();
-    raw_obj.Print();
+    Print(raw_obj);
 
 Since Foo can trigger a GC, it might have moved the raw_obj. The solution is
 simply to store it as a Handle.
@@ -43,7 +43,7 @@ PREREQUISITES -----------------------------------------------------------------
 
     Follow the instructions on http://clang.llvm.org/get_started.html.
 
-    Make sure to pass -DCMAKE_BUILD_TYPE=Release to cmake to get Release build 
+    Make sure to pass -DCMAKE_BUILD_TYPE=Release to cmake to get Release build
     instead of a Debug one.
 
 (3) Build gcmole Clang plugin (libgcmole.so)
@@ -73,16 +73,16 @@ CLANG_BIN=<path-to-clang-bin-folder> python tools/gcmole/gcmole.py [<arch>]
 
 where arch should be one of architectures supported by V8 (arm, ia32, x64).
 
-Analysis will be performed in 2 stages: 
+Analysis will be performed in 2 stages:
 
-- on the first stage driver will parse all files and build a global callgraph 
+- on the first stage driver will parse all files and build a global callgraph
 approximation to find all functions that might potentially cause GC, list
 of this functions will be written into gcsuspects file.
 
-- on the second stage driver will parse all files again and will locate all 
-callsites that might be GC-unsafe based on the list of functions causing GC. 
-Such places are marked with a "Possible problem with evaluation order." 
-warning. Messages "Failed to resolve v8::internal::Object" are benign and 
+- on the second stage driver will parse all files again and will locate all
+callsites that might be GC-unsafe based on the list of functions causing GC.
+Such places are marked with a "Possible problem with evaluation order."
+warning. Messages "Failed to resolve v8::internal::Object" are benign and
 can be ignored.
 
 If any errors were found driver exits with non-zero status.

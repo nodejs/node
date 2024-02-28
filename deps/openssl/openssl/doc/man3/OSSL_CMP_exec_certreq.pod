@@ -42,7 +42,7 @@ client-server transactions, i.e., sequences of CMP requests and responses.
 
 All functions take a populated OSSL_CMP_CTX structure as their first argument.
 Usually the server name, port, and path ("CMP alias") need to be set, as well as
-credentials the client can use for authenticating itself to the client.
+credentials the client can use for authenticating itself to the server.
 In order to authenticate the server the client typically needs a trust store.
 The functions return their respective main results directly, while there are
 also accessor functions for retrieving various results and status information
@@ -72,7 +72,7 @@ and need to be filled in using L<OSSL_CMP_CTX_set1_subjectName(3)>,
 L<OSSL_CMP_CTX_set0_newPkey(3)>, L<OSSL_CMP_CTX_set1_oldCert(3)>, etc.
 For P10CR, L<OSSL_CMP_CTX_set1_p10CSR(3)> needs to be used instead.
 The enrollment session may be blocked by sleeping until the addressed
-CA (or an intermedate PKI component) can fully process and answer the request.
+CA (or an intermediate PKI component) can fully process and answer the request.
 
 OSSL_CMP_try_certreq() is an alternative to the above functions that is
 more flexible regarding what to do after receiving a checkAfter value.
@@ -119,8 +119,16 @@ See RFC 4210 section 5.3.19 and appendix E.5 for details.
 
 CMP is defined in RFC 4210 (and CRMF in RFC 4211).
 
-So far the CMP client implementation is limited to one request per CMP message
+The CMP client implementation is limited to one request per CMP message
 (and consequently to at most one response component per CMP message).
+
+When a client obtains from a CMP server CA certificates that it is going to
+trust, for instance via the caPubs field of a certificate response,
+authentication of the CMP server is particularly critical.
+So special care must be taken setting up server authentication in I<ctx>
+using functions such as
+L<OSSL_CMP_CTX_set0_trustedStore(3)> (for certificate-based authentication) or
+L<OSSL_CMP_CTX_set1_secretValue(3)> (for MAC-based protection).
 
 =head1 RETURN VALUES
 
@@ -163,7 +171,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

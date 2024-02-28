@@ -1,4 +1,3 @@
-// Flags: --expose-internals
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,7 +25,6 @@ const common = require('../common');
 const assert = require('assert');
 const { inspect } = require('util');
 const vm = require('vm');
-const { internalBinding } = require('internal/test/binding');
 const a = assert;
 
 // Disable colored output to prevent color codes from breaking assertion
@@ -478,7 +476,7 @@ assert.throws(() => {
 {
   // Bad args to AssertionError constructor should throw TypeError.
   const args = [1, true, false, '', null, Infinity, Symbol('test'), undefined];
-  args.forEach((input) => {
+  for (const input of args) {
     assert.throws(
       () => new assert.AssertionError(input),
       {
@@ -487,7 +485,7 @@ assert.throws(() => {
         message: 'The "options" argument must be of type object.' +
                  common.invalidArgTypeHelper(input)
       });
-  });
+  }
 }
 
 assert.throws(
@@ -802,37 +800,6 @@ assert.throws(
   }
 );
 
-{
-  // Test caching.
-  const fs = internalBinding('fs');
-  const tmp = fs.close;
-  fs.close = common.mustCall(tmp, 1);
-  function throwErr() {
-    assert(
-      (Buffer.from('test') instanceof Error)
-    );
-  }
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  assert.throws(
-    () => throwErr(),
-    {
-      code: 'ERR_ASSERTION',
-      constructor: assert.AssertionError,
-      message: 'The expression evaluated to a falsy value:\n\n  ' +
-               "assert(\n    (Buffer.from('test') instanceof Error)\n  )\n"
-    }
-  );
-  fs.close = tmp;
-}
-
 assert.throws(
   () => {
     a(
@@ -998,11 +965,8 @@ assert.throws(
   }
 );
 
-[
-  1,
-  false,
-  Symbol(),
-].forEach((input) => {
+const inputs = [1, false, Symbol()];
+for (const input of inputs) {
   assert.throws(
     () => assert.throws(() => {}, input),
     {
@@ -1012,7 +976,7 @@ assert.throws(
                common.invalidArgTypeHelper(input)
     }
   );
-});
+}
 
 {
 

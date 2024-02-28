@@ -4,8 +4,7 @@
 
 namespace array {
 // https://tc39.github.io/ecma262/#sec-array.of
-transitioning javascript builtin
-ArrayOf(
+transitioning javascript builtin ArrayOf(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let len be the actual number of arguments passed to this function.
   const len: Smi = Convert<Smi>(arguments.length);

@@ -91,14 +91,11 @@
       local.get $var0
       br_on_non_null $label0
       local.get $var0
-      br_on_cast $label0 $type1
+      br_on_cast $label0 (ref null $type0) (ref $type1)
       drop
       local.get $var0
-      br_on_cast_fail $label0 $type1
+      br_on_cast_fail $label0 (ref $type0) (ref null $type1)
       drop
-      ;; TODO: Once `br_on_cast null` is implemented, uncomment:
-      ;; local.get $var0
-      ;; br_on_cast $label0 null $type1
       local.get $var0
     end $label0
     drop

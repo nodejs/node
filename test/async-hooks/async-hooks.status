@@ -21,3 +21,5 @@ test-callback-error: PASS, FLAKY
 [$system==freebsd]
 
 [$system==aix]
+# https://github.com/nodejs/node/issues/50245
+test-emit-after-on-destroyed: PASS, FLAKY

@@ -10,10 +10,12 @@
 #include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap-allocator.h"
 #include "src/heap/large-spaces.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/new-spaces.h"
 #include "src/heap/paged-spaces.h"
 #include "src/heap/read-only-spaces.h"
 #include "src/heap/third-party/heap-api.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
@@ -48,6 +50,14 @@ PagedSpace* HeapAllocator::old_space() const {
 
 ReadOnlySpace* HeapAllocator::read_only_space() const {
   return read_only_space_;
+}
+
+PagedSpace* HeapAllocator::trusted_space() const {
+  return static_cast<PagedSpace*>(spaces_[TRUSTED_SPACE]);
+}
+
+OldLargeObjectSpace* HeapAllocator::trusted_lo_space() const {
+  return static_cast<OldLargeObjectSpace*>(spaces_[TRUSTED_LO_SPACE]);
 }
 
 bool HeapAllocator::CanAllocateInReadOnlySpace() const {
@@ -85,7 +95,7 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
   const bool large_object =
       static_cast<size_t>(size_in_bytes) > large_object_threshold;
 
-  HeapObject object;
+  Tagged<HeapObject> object;
   AllocationResult allocation;
 
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
@@ -97,20 +107,23 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
     } else {
       switch (type) {
         case AllocationType::kYoung:
-          allocation =
-              new_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = new_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
         case AllocationType::kMap:
         case AllocationType::kOld:
-          allocation =
-              old_space()->AllocateRaw(size_in_bytes, alignment, origin);
+          allocation = old_space_allocator_->AllocateRaw(size_in_bytes,
+                                                         alignment, origin);
           break;
-        case AllocationType::kCode:
+        case AllocationType::kCode: {
           DCHECK_EQ(alignment, AllocationAlignment::kTaggedAligned);
           DCHECK(AllowCodeAllocation::IsAllowed());
-          allocation = code_space()->AllocateRaw(
-              size_in_bytes, AllocationAlignment::kTaggedAligned);
+          CodePageHeaderModificationScope header_modification_scope(
+              "Code allocation needs header access.");
+          allocation = code_space_allocator_->AllocateRaw(
+              size_in_bytes, AllocationAlignment::kTaggedAligned, origin);
           break;
+        }
         case AllocationType::kReadOnly:
           DCHECK(read_only_space()->writable());
           DCHECK_EQ(AllocationOrigin::kRuntime, origin);
@@ -121,22 +134,18 @@ V8_WARN_UNUSED_RESULT V8_INLINE AllocationResult HeapAllocator::AllocateRaw(
           allocation = shared_old_allocator_->AllocateRaw(size_in_bytes,
                                                           alignment, origin);
           break;
+        case AllocationType::kTrusted:
+          allocation = trusted_space_allocator_->AllocateRaw(size_in_bytes,
+                                                             alignment, origin);
+          break;
       }
     }
   }
 
   if (allocation.To(&object)) {
-    if (AllocationType::kCode == type && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      // Unprotect the memory chunk of the object if it was not unprotected
-      // already.
-      heap_->UnprotectAndRegisterMemoryChunk(
-          object, UnprotectMemoryOrigin::kMainThread);
-      heap_->ZapCodeObject(object.address(), size_in_bytes);
-      if (!large_object) {
-        MemoryChunk::FromHeapObject(object)
-            ->GetCodeObjectRegistry()
-            ->RegisterNewlyAllocatedCodeObject(object.address());
-      }
+    if (heap::ShouldZapGarbage() && AllocationType::kCode == type &&
+        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
+      heap::ZapCodeBlock(object.address(), size_in_bytes);
     }
 
     for (auto& tracker : heap_->allocation_trackers_) {
@@ -173,6 +182,9 @@ AllocationResult HeapAllocator::AllocateRaw(int size_in_bytes,
     case AllocationType::kSharedOld:
       return AllocateRaw<AllocationType::kSharedOld>(size_in_bytes, origin,
                                                      alignment);
+    case AllocationType::kTrusted:
+      return AllocateRaw<AllocationType::kTrusted>(size_in_bytes, origin,
+                                                   alignment);
   }
   UNREACHABLE();
 }
@@ -193,17 +205,19 @@ AllocationResult HeapAllocator::AllocateRawData(int size_in_bytes,
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
     case AllocationType::kSharedOld:
+    case AllocationType::kTrusted:
       UNREACHABLE();
   }
   UNREACHABLE();
 }
 
 template <HeapAllocator::AllocationRetryMode mode>
-V8_WARN_UNUSED_RESULT V8_INLINE HeapObject HeapAllocator::AllocateRawWith(
-    int size, AllocationType allocation, AllocationOrigin origin,
-    AllocationAlignment alignment) {
+V8_WARN_UNUSED_RESULT V8_INLINE Tagged<HeapObject>
+HeapAllocator::AllocateRawWith(int size, AllocationType allocation,
+                               AllocationOrigin origin,
+                               AllocationAlignment alignment) {
   AllocationResult result;
-  HeapObject object;
+  Tagged<HeapObject> object;
   size = ALIGN_TO_ALLOCATION_ALIGNMENT(size);
   if (allocation == AllocationType::kYoung) {
     result = AllocateRaw<AllocationType::kYoung>(size, origin, alignment);

@@ -1,6 +1,7 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// Flags: --harmony-intl-locale-info-func
 
 // Check the return array has no undefined
 function checkNoUndefined(l, items) {
@@ -10,12 +11,12 @@ function checkNoUndefined(l, items) {
 }
 function checkLocale(locale) {
   let l = new Intl.Locale(locale)
-  checkNoUndefined(l, l.calendars);
-  checkNoUndefined(l, l.collations);
-  checkNoUndefined(l, l.hourCycles);
-  checkNoUndefined(l, l.numberingSystems);
+  checkNoUndefined(l, l.getCalendars());
+  checkNoUndefined(l, l.getCollations());
+  checkNoUndefined(l, l.getHourCycles());
+  checkNoUndefined(l, l.getNumberingSystems());
   if (l.region != undefined) {
-    checkNoUndefined(l, l.timeZones);
+    checkNoUndefined(l, l.getTimeZones());
   }
 }
 

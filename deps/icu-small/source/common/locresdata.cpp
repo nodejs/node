@@ -24,6 +24,8 @@
 #include "unicode/putil.h"
 #include "unicode/uloc.h"
 #include "unicode/ures.h"
+#include "bytesinkutil.h"
+#include "charstr.h"
 #include "cstring.h"
 #include "ulocimp.h"
 #include "uresimp.h"
@@ -156,16 +158,18 @@ _uloc_getOrientationHelper(const char* localeId,
     ULayoutType result = ULOC_LAYOUT_UNKNOWN;
 
     if (!U_FAILURE(*status)) {
-        int32_t length = 0;
-        char localeBuffer[ULOC_FULLNAME_CAPACITY];
-
-        uloc_canonicalize(localeId, localeBuffer, sizeof(localeBuffer), status);
+        icu::CharString localeBuffer;
+        {
+            icu::CharStringByteSink sink(&localeBuffer);
+            ulocimp_canonicalize(localeId, sink, status);
+        }
 
         if (!U_FAILURE(*status)) {
+            int32_t length = 0;
             const char16_t* const value =
                 uloc_getTableStringWithFallback(
                     nullptr,
-                    localeBuffer,
+                    localeBuffer.data(),
                     "layout",
                     nullptr,
                     key,

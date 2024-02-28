@@ -20,11 +20,10 @@ function _asyncToGenerator(fn) { return function () { var self = this, args = ar
 const runGenerator = _gensync()(function* (item) {
   return yield* item;
 });
-const isAsync = _gensync()({
+const isAsync = exports.isAsync = _gensync()({
   sync: () => false,
   errback: cb => cb(null, true)
 });
-exports.isAsync = isAsync;
 function maybeAsync(fn, message) {
   return _gensync()({
     sync(...args) {
@@ -55,7 +54,7 @@ function forwardAsync(action, cb) {
     return cb(adapted);
   });
 }
-const onFirstPause = _gensync()({
+const onFirstPause = exports.onFirstPause = _gensync()({
   name: "onFirstPause",
   arity: 2,
   sync: function (item) {
@@ -72,8 +71,7 @@ const onFirstPause = _gensync()({
     }
   }
 });
-exports.onFirstPause = onFirstPause;
-const waitFor = _gensync()({
+const waitFor = exports.waitFor = _gensync()({
   sync: x => x,
   async: function () {
     var _ref2 = _asyncToGenerator(function* (x) {
@@ -84,7 +82,6 @@ const waitFor = _gensync()({
     };
   }()
 });
-exports.waitFor = waitFor;
 function isThenable(val) {
   return !!val && (typeof val === "object" || typeof val === "function") && !!val.then && typeof val.then === "function";
 }

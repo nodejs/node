@@ -495,6 +495,12 @@ Object.defineProperty(exports, "ImportDefaultSpecifier", {
     return _index.importDefaultSpecifier;
   }
 });
+Object.defineProperty(exports, "ImportExpression", {
+  enumerable: true,
+  get: function () {
+    return _index.importExpression;
+  }
+});
 Object.defineProperty(exports, "ImportNamespaceSpecifier", {
   enumerable: true,
   get: function () {
@@ -1521,6 +1527,6 @@ Object.defineProperty(exports, "YieldExpression", {
     return _index.yieldExpression;
   }
 });
-var _index = require("./index");
+var _index = require("./index.js");
 
 //# sourceMappingURL=uppercase.js.map

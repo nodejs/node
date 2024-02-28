@@ -158,13 +158,13 @@ size_t GetThreadCount() {
 // we cannot detect it.
 size_t GetThreadCount() {
   int mib[] = {
-    CTL_KERN,
-    KERN_PROC,
-    KERN_PROC_PID,
-    getpid(),
+      CTL_KERN,
+      KERN_PROC,
+      KERN_PROC_PID,
+      getpid(),
 #ifdef GTEST_OS_NETBSD
-    sizeof(struct kinfo_proc),
-    1,
+      sizeof(struct kinfo_proc),
+      1,
 #endif
   };
   u_int miblen = sizeof(mib) / sizeof(mib[0]);
@@ -697,13 +697,24 @@ bool RE::PartialMatch(const char* str, const RE& re) {
 void RE::Init(const char* regex) {
   pattern_ = regex;
 
+  // NetBSD (and Android, which takes its regex implemntation from NetBSD) does
+  // not include the GNU regex extensions (such as Perl style character classes
+  // like \w) in REG_EXTENDED. REG_EXTENDED is only specified to include the
+  // [[:alpha:]] style character classes. Enable REG_GNU wherever it is defined
+  // so users can use those extensions.
+#if defined(REG_GNU)
+  constexpr int reg_flags = REG_EXTENDED | REG_GNU;
+#else
+  constexpr int reg_flags = REG_EXTENDED;
+#endif
+
   // Reserves enough bytes to hold the regular expression used for a
   // full match.
   const size_t full_regex_len = strlen(regex) + 10;
   char* const full_pattern = new char[full_regex_len];
 
   snprintf(full_pattern, full_regex_len, "^(%s)$", regex);
-  is_valid_ = regcomp(&full_regex_, full_pattern, REG_EXTENDED) == 0;
+  is_valid_ = regcomp(&full_regex_, full_pattern, reg_flags) == 0;
   // We want to call regcomp(&partial_regex_, ...) even if the
   // previous expression returns false.  Otherwise partial_regex_ may
   // not be properly initialized can may cause trouble when it's
@@ -714,7 +725,7 @@ void RE::Init(const char* regex) {
   // regex.  We change it to an equivalent form "()" to be safe.
   if (is_valid_) {
     const char* const partial_regex = (*regex == '\0') ? "()" : regex;
-    is_valid_ = regcomp(&partial_regex_, partial_regex, REG_EXTENDED) == 0;
+    is_valid_ = regcomp(&partial_regex_, partial_regex, reg_flags) == 0;
   }
   EXPECT_TRUE(is_valid_)
       << "Regular expression \"" << regex
@@ -1028,6 +1039,16 @@ GTEST_DISABLE_MSC_DEPRECATED_PUSH_()
 
 #if GTEST_HAS_STREAM_REDIRECTION
 
+namespace {
+
+#if defined(GTEST_OS_LINUX_ANDROID) || defined(GTEST_OS_IOS)
+bool EndsWithPathSeparator(const std::string& path) {
+  return !path.empty() && path.back() == GTEST_PATH_SEP_[0];
+}
+#endif
+
+}  // namespace
+
 // Object that captures an output stream (stdout/stderr).
 class CapturedStream {
  public:
@@ -1064,7 +1085,13 @@ class CapturedStream {
     // The location /data/local/tmp is directly accessible from native code.
     // '/sdcard' and other variants cannot be relied on, as they are not
     // guaranteed to be mounted, or may have a delay in mounting.
-    name_template = "/data/local/tmp/";
+    //
+    // However, prefer using the TMPDIR environment variable if set, as newer
+    // devices may have /data/local/tmp read-only.
+    name_template = TempDir();
+    if (!EndsWithPathSeparator(name_template))
+      name_template.push_back(GTEST_PATH_SEP_[0]);
+
 #elif defined(GTEST_OS_IOS)
     char user_temp_dir[PATH_MAX + 1];
 
@@ -1084,7 +1111,7 @@ class CapturedStream {
     ::confstr(_CS_DARWIN_USER_TEMP_DIR, user_temp_dir, sizeof(user_temp_dir));
 
     name_template = user_temp_dir;
-    if (name_template.back() != GTEST_PATH_SEP_[0])
+    if (!EndsWithPathSeparator(name_template))
       name_template.push_back(GTEST_PATH_SEP_[0]);
 #else
     name_template = "/tmp/";

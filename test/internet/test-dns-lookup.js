@@ -17,7 +17,7 @@ assert.rejects(
     code: 'ENOTFOUND',
     message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
   },
-);
+).then(common.mustCall());
 
 assert.rejects(
   dnsPromises.lookup(addresses.NOT_FOUND, {
@@ -29,7 +29,7 @@ assert.rejects(
     code: 'ENOTFOUND',
     message: `getaddrinfo ENOTFOUND ${addresses.NOT_FOUND}`,
   },
-);
+).then(common.mustCall());
 
 dns.lookup(addresses.NOT_FOUND, {
   hints: 0,

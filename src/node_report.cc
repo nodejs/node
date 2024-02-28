@@ -27,7 +27,7 @@
 constexpr int NODE_REPORT_VERSION = 3;
 constexpr int NANOS_PER_SEC = 1000 * 1000 * 1000;
 constexpr double SEC_PER_MICROS = 1e-6;
-constexpr int MAX_FRAME_COUNT = 10;
+constexpr int MAX_FRAME_COUNT = node::kMaxFrameCountForLogging;
 
 namespace node {
 using node::worker::Worker;
@@ -458,14 +458,13 @@ static void PrintEmptyJavaScriptStack(JSONWriter* writer) {
 static void PrintJavaScriptStack(JSONWriter* writer,
                                  Isolate* isolate,
                                  const char* trigger) {
-  // Can not capture the stacktrace when the isolate is in a OOM state or no
-  // context is entered.
-  if (!strcmp(trigger, "OOMError") || !isolate->InContext()) {
+  HandleScope scope(isolate);
+  Local<v8::StackTrace> stack;
+  if (!GetCurrentStackTrace(isolate, MAX_FRAME_COUNT).ToLocal(&stack)) {
     PrintEmptyJavaScriptStack(writer);
     return;
   }
 
-  HandleScope scope(isolate);
   RegisterState state;
   state.pc = nullptr;
   state.fp = &state;
@@ -475,18 +474,6 @@ static void PrintJavaScriptStack(JSONWriter* writer,
   SampleInfo info;
   void* samples[MAX_FRAME_COUNT];
   isolate->GetStackSample(state, samples, MAX_FRAME_COUNT, &info);
-
-  constexpr StackTrace::StackTraceOptions stack_trace_options =
-      static_cast<StackTrace::StackTraceOptions>(
-          StackTrace::kDetailed |
-          StackTrace::kExposeFramesAcrossSecurityOrigins);
-  Local<StackTrace> stack = StackTrace::CurrentStackTrace(
-      isolate, MAX_FRAME_COUNT, stack_trace_options);
-
-  if (stack->GetFrameCount() == 0) {
-    PrintEmptyJavaScriptStack(writer);
-    return;
-  }
 
   writer->json_keyvalue("message", trigger);
   writer->json_arraystart("stack");

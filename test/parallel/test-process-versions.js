@@ -18,6 +18,7 @@ const expected_keys = [
   'llhttp',
   'uvwasi',
   'acorn',
+  'simdjson',
   'simdutf',
   'ada',
   'cjs_module_lexer',
@@ -61,7 +62,7 @@ assert.match(process.versions.brotli, commonTemplate);
 assert.match(process.versions.llhttp, commonTemplate);
 assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
-assert.match(process.versions.zlib, /^\d+(?:\.\d+){2,3}(?:-.*)?$/);
+assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);
@@ -75,13 +76,17 @@ assert.match(process.versions.modules, /^\d+$/);
 assert.match(process.versions.cjs_module_lexer, commonTemplate);
 
 if (common.hasCrypto) {
-  const versionRegex = common.hasOpenSSL3 ?
-    // The following also matches a development version of OpenSSL 3.x which
-    // can be in the format '3.0.0-alpha4-dev'. This can be handy when building
-    // and linking against the main development branch of OpenSSL.
-    /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
-    /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
-  assert.match(process.versions.openssl, versionRegex);
+  if (process.config.variables.node_shared_openssl) {
+    assert.ok(process.versions.openssl);
+  } else {
+    const versionRegex = common.hasOpenSSL3 ?
+      // The following also matches a development version of OpenSSL 3.x which
+      // can be in the format '3.0.0-alpha4-dev'. This can be handy when
+      // building and linking against the main development branch of OpenSSL.
+      /^\d+\.\d+\.\d+(?:[-+][a-z0-9]+)*$/ :
+      /^\d+\.\d+\.\d+[a-z]?(\+quic)?(-fips)?$/;
+    assert.match(process.versions.openssl, versionRegex);
+  }
 }
 
 for (let i = 0; i < expected_keys.length; i++) {

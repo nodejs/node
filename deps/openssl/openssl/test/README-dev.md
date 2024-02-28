@@ -130,7 +130,11 @@ Generic form of C test executables
     int setup_tests(void)
     {
         ADD_TEST(my_test);                  /* Add each test separately     */
-        return 1;                           /* Indicate success             */
+        return 1;                           /* Indicates success.  Return 0 */
+                                            /* to produce an error with a   */
+                                            /* usage message and -1 for     */
+                                            /* failure to set up with no    */
+                                            /* usage message.               */
     }
 
 You should use the `TEST_xxx` macros provided by `testutil.h` to test all failure

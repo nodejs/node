@@ -20,7 +20,7 @@ class Serializer;
 
 class SerializedData {
  public:
-  SerializedData(byte* data, int size)
+  SerializedData(uint8_t* data, int size)
       : data_(data), size_(size), owns_data_(false) {}
   SerializedData() : data_(nullptr), size_(0), owns_data_(false) {}
   SerializedData(SerializedData&& other) V8_NOEXCEPT
@@ -34,7 +34,7 @@ class SerializedData {
   SerializedData& operator=(const SerializedData&) = delete;
 
   virtual ~SerializedData() {
-    if (owns_data_) DeleteArray<byte>(data_);
+    if (owns_data_) DeleteArray<uint8_t>(data_);
   }
 
   uint32_t GetMagicNumber() const { return GetHeaderValue(kMagicNumberOffset); }
@@ -61,7 +61,7 @@ class SerializedData {
 
   void SetMagicNumber() { SetHeaderValue(kMagicNumberOffset, kMagicNumber); }
 
-  byte* data_;
+  uint8_t* data_;
   uint32_t size_;
   bool owns_data_;
 };
@@ -73,14 +73,14 @@ class V8_EXPORT_PRIVATE SnapshotData : public SerializedData {
   explicit SnapshotData(const Serializer* serializer);
 
   // Used when consuming.
-  explicit SnapshotData(const base::Vector<const byte> snapshot)
-      : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
-  }
+  explicit SnapshotData(const base::Vector<const uint8_t> snapshot)
+      : SerializedData(const_cast<uint8_t*>(snapshot.begin()),
+                       snapshot.length()) {}
 
-  virtual base::Vector<const byte> Payload() const;
+  virtual base::Vector<const uint8_t> Payload() const;
 
-  base::Vector<const byte> RawData() const {
-    return base::Vector<const byte>(data_, size_);
+  base::Vector<const uint8_t> RawData() const {
+    return base::Vector<const uint8_t>(data_, size_);
   }
 
  protected:

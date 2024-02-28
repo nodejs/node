@@ -32,25 +32,13 @@ namespace internal {
 //   to pass TaggedIndex values to runtime functions or builtins on the stack
 // 2) since the TaggedIndex values are already properly sign-extended it's
 //   safe to use them as indices in offset-computation functions.
-class TaggedIndex : public Object {
+class TaggedIndex : public AllStatic {
  public:
-  // This replaces the OBJECT_CONSTRUCTORS macro, because TaggedIndex are
-  // special in that we want them to be constexprs.
-  constexpr TaggedIndex() : Object() {}
-  explicit constexpr TaggedIndex(Address ptr) : Object(ptr) {
-    DCHECK(HAS_SMI_TAG(ptr));
-  }
-
-  // Returns the integer value.
-  inline intptr_t value() const {
-    // Truncate and shift down (requires >> to be sign extending).
-    return static_cast<intptr_t>(ptr()) >> kSmiTagSize;
-  }
-
   // Convert a value to a TaggedIndex object.
-  static inline TaggedIndex FromIntptr(intptr_t value) {
+  static inline Tagged<TaggedIndex> FromIntptr(intptr_t value) {
     DCHECK(TaggedIndex::IsValid(value));
-    return TaggedIndex((static_cast<Address>(value) << kSmiTagSize) | kSmiTag);
+    return Tagged<TaggedIndex>((static_cast<Address>(value) << kSmiTagSize) |
+                               kSmiTag);
   }
 
   // Returns whether value can be represented in a TaggedIndex.
@@ -61,7 +49,7 @@ class TaggedIndex : public Object {
   DECL_CAST(TaggedIndex)
 
   // Dispatched behavior.
-  DECL_VERIFIER(TaggedIndex)
+  DECL_STATIC_VERIFIER(TaggedIndex)
 
   static_assert(kSmiTagSize == 1);
   static constexpr int kTaggedValueSize = 31;
@@ -70,7 +58,10 @@ class TaggedIndex : public Object {
   static constexpr intptr_t kMaxValue = -(kMinValue + 1);
 };
 
-CAST_ACCESSOR(TaggedIndex)
+Tagged<TaggedIndex> TaggedIndex::cast(Tagged<Object> object) {
+  DCHECK(HAS_SMI_TAG(object.ptr()));
+  return Tagged<TaggedIndex>(object.ptr());
+}
 
 }  // namespace internal
 }  // namespace v8

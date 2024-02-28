@@ -10,11 +10,12 @@ const {
   isValidHTTPToken,
   sameOrigin,
   normalizeMethod,
-  makePolicyContainer
+  makePolicyContainer,
+  normalizeMethodRecord
 } = require('./util')
 const {
-  forbiddenMethods,
-  corsSafeListedMethods,
+  forbiddenMethodsSet,
+  corsSafeListedMethodsSet,
   referrerPolicy,
   requestRedirect,
   requestMode,
@@ -27,24 +28,23 @@ const { kHeaders, kSignal, kState, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
-const { kHeadersList } = require('../core/symbols')
-const assert = require('assert')
-const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
+const { kHeadersList, kConstruct } = require('../core/symbols')
+const assert = require('node:assert')
+const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('node:events')
 
-let TransformStream = globalThis.TransformStream
-
-const kInit = Symbol('init')
 const kAbortController = Symbol('abortController')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
   signal.removeEventListener('abort', abort)
 })
 
+let patchMethodWarning = false
+
 // https://fetch.spec.whatwg.org/#request-class
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = {}) {
-    if (input === kInit) {
+    if (input === kConstruct) {
       return
     }
 
@@ -183,8 +183,10 @@ class Request {
       urlList: [...request.urlList]
     })
 
+    const initHasKey = Object.keys(init).length !== 0
+
     // 13. If init is not empty, then:
-    if (Object.keys(init).length > 0) {
+    if (initHasKey) {
       // 1. If request’s mode is "navigate", then set it to "same-origin".
       if (request.mode === 'navigate') {
         request.mode = 'same-origin'
@@ -299,7 +301,7 @@ class Request {
     }
 
     // 23. If init["integrity"] exists, then set request’s integrity metadata to it.
-    if (init.integrity !== undefined && init.integrity != null) {
+    if (init.integrity != null) {
       request.integrity = String(init.integrity)
     }
 
@@ -313,21 +315,36 @@ class Request {
       // 1. Let method be init["method"].
       let method = init.method
 
-      // 2. If method is not a method or method is a forbidden method, then
-      // throw a TypeError.
-      if (!isValidHTTPToken(init.method)) {
-        throw TypeError(`'${init.method}' is not a valid HTTP method.`)
+      const mayBeNormalized = normalizeMethodRecord[method]
+
+      if (mayBeNormalized !== undefined) {
+        // Note: Bypass validation DELETE, GET, HEAD, OPTIONS, POST, PUT, PATCH and these lowercase ones
+        request.method = mayBeNormalized
+      } else {
+        // 2. If method is not a method or method is a forbidden method, then
+        // throw a TypeError.
+        if (!isValidHTTPToken(method)) {
+          throw new TypeError(`'${method}' is not a valid HTTP method.`)
+        }
+
+        if (forbiddenMethodsSet.has(method.toUpperCase())) {
+          throw new TypeError(`'${method}' HTTP method is unsupported.`)
+        }
+
+        // 3. Normalize method.
+        method = normalizeMethod(method)
+
+        // 4. Set request’s method to method.
+        request.method = method
       }
 
-      if (forbiddenMethods.indexOf(method.toUpperCase()) !== -1) {
-        throw TypeError(`'${init.method}' HTTP method is unsupported.`)
+      if (!patchMethodWarning && request.method === 'patch') {
+        process.emitWarning('Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.', {
+          code: 'UNDICI-FETCH-patch'
+        })
+
+        patchMethodWarning = true
       }
-
-      // 3. Normalize method.
-      method = normalizeMethod(init.method)
-
-      // 4. Set request’s method to method.
-      request.method = method
     }
 
     // 26. If init["signal"] exists, then set signal to it.
@@ -371,6 +388,18 @@ class Request {
         const abort = function () {
           const ac = acRef.deref()
           if (ac !== undefined) {
+            // Currently, there is a problem with FinalizationRegistry.
+            // https://github.com/nodejs/node/issues/49344
+            // https://github.com/nodejs/node/issues/47748
+            // In the case of abort, the first step is to unregister from it.
+            // If the controller can refer to it, it is still registered.
+            // It will be removed in the future.
+            requestFinalizer.unregister(abort)
+
+            // Unsubscribe a listener.
+            // FinalizationRegistry will no longer be called, so this must be done.
+            this.removeEventListener('abort', abort)
+
             ac.abort(this.reason)
           }
         }
@@ -388,14 +417,18 @@ class Request {
         } catch {}
 
         util.addAbortListener(signal, abort)
-        requestFinalizer.register(ac, { signal, abort })
+        // The third argument must be a registry key to be unregistered.
+        // Without it, you cannot unregister.
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/FinalizationRegistry
+        // abort is used as the unregister key. (because it is unique)
+        requestFinalizer.register(ac, { signal, abort }, abort)
       }
     }
 
     // 30. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is request’s header list and guard is
     // "request".
-    this[kHeaders] = new Headers()
+    this[kHeaders] = new Headers(kConstruct)
     this[kHeaders][kHeadersList] = request.headersList
     this[kHeaders][kGuard] = 'request'
     this[kHeaders][kRealm] = this[kRealm]
@@ -404,7 +437,7 @@ class Request {
     if (mode === 'no-cors') {
       // 1. If this’s request’s method is not a CORS-safelisted method,
       // then throw a TypeError.
-      if (!corsSafeListedMethods.includes(request.method)) {
+      if (!corsSafeListedMethodsSet.has(request.method)) {
         throw new TypeError(
           `'${request.method} is unsupported in no-cors mode.`
         )
@@ -415,25 +448,25 @@ class Request {
     }
 
     // 32. If init is not empty, then:
-    if (Object.keys(init).length !== 0) {
+    if (initHasKey) {
+      /** @type {HeadersList} */
+      const headersList = this[kHeaders][kHeadersList]
       // 1. Let headers be a copy of this’s headers and its associated header
       // list.
-      let headers = new Headers(this[kHeaders])
-
       // 2. If init["headers"] exists, then set headers to init["headers"].
-      if (init.headers !== undefined) {
-        headers = init.headers
-      }
+      const headers = init.headers !== undefined ? init.headers : new HeadersList(headersList)
 
       // 3. Empty this’s headers’s header list.
-      this[kHeaders][kHeadersList].clear()
+      headersList.clear()
 
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
-      if (headers.constructor.name === 'Headers') {
+      if (headers instanceof HeadersList) {
         for (const [key, val] of headers) {
-          this[kHeaders].append(key, val)
+          headersList.append(key, val)
         }
+        // Note: Copy the `set-cookie` meta-data.
+        headersList.cookies = headers.cookies
       } else {
         // 5. Otherwise, fill this’s headers with headers.
         fillHeaders(this[kHeaders], headers)
@@ -471,7 +504,7 @@ class Request {
       // 3, If Content-Type is non-null and this’s headers’s header list does
       // not contain `Content-Type`, then append `Content-Type`/Content-Type to
       // this’s headers.
-      if (contentType && !this[kHeaders][kHeadersList].contains('content-type')) {
+      if (contentType && !this[kHeaders][kHeadersList].contains('content-type', true)) {
         this[kHeaders].append('content-type', contentType)
       }
     }
@@ -514,10 +547,6 @@ class Request {
       }
 
       // 2. Set finalBody to the result of creating a proxy for inputBody.
-      if (!TransformStream) {
-        TransformStream = require('stream/web').TransformStream
-      }
-
       // https://streams.spec.whatwg.org/#readablestream-create-a-proxy
       const identityTransform = new TransformStream()
       inputBody.stream.pipeThrough(identityTransform)
@@ -722,14 +751,6 @@ class Request {
 
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
-    const clonedRequestObject = new Request(kInit)
-    clonedRequestObject[kState] = clonedRequest
-    clonedRequestObject[kRealm] = this[kRealm]
-    clonedRequestObject[kHeaders] = new Headers()
-    clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList
-    clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard]
-    clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm]
-
     // 4. Make clonedRequestObject’s signal follow this’s signal.
     const ac = new AbortController()
     if (this.signal.aborted) {
@@ -742,10 +763,9 @@ class Request {
         }
       )
     }
-    clonedRequestObject[kSignal] = ac.signal
 
     // 4. Return clonedRequestObject.
-    return clonedRequestObject
+    return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm])
   }
 }
 
@@ -813,6 +833,27 @@ function cloneRequest (request) {
 
   // 3. Return newRequest.
   return newRequest
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#request-create
+ * @param {any} innerRequest
+ * @param {AbortSignal} signal
+ * @param {'request' | 'immutable' | 'request-no-cors' | 'response' | 'none'} guard
+ * @param {any} [realm]
+ * @returns {Request}
+ */
+function fromInnerRequest (innerRequest, signal, guard, realm) {
+  const request = new Request(kConstruct)
+  request[kState] = innerRequest
+  request[kRealm] = realm
+  request[kSignal] = signal
+  request[kSignal][kRealm] = realm
+  request[kHeaders] = new Headers(kConstruct)
+  request[kHeaders][kHeadersList] = innerRequest.headersList
+  request[kHeaders][kGuard] = guard
+  request[kHeaders][kRealm] = realm
+  return request
 }
 
 Object.defineProperties(Request.prototype, {
@@ -941,4 +982,4 @@ webidl.converters.RequestInit = webidl.dictionaryConverter([
   }
 ])
 
-module.exports = { Request, makeRequest }
+module.exports = { Request, makeRequest, fromInnerRequest }

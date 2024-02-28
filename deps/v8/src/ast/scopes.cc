@@ -204,7 +204,7 @@ ClassScope::ClassScope(IsolateT* isolate, Zone* zone,
   // If the class variable is context-allocated and its index is
   // saved for deserialization, deserialize it.
   if (scope_info->HasSavedClassVariable()) {
-    String name;
+    Tagged<String> name;
     int index;
     std::tie(name, index) = scope_info->SavedClassVariable();
     DCHECK_EQ(scope_info->ContextLocalMode(index), VariableMode::kConst);
@@ -412,7 +412,7 @@ bool Scope::ContainsAsmModule() const {
 
 template <typename IsolateT>
 Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
-                                    ScopeInfo scope_info,
+                                    Tagged<ScopeInfo> scope_info,
                                     DeclarationScope* script_scope,
                                     AstValueFactory* ast_value_factory,
                                     DeserializationMode deserialization_mode) {
@@ -422,8 +422,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
   Scope* outer_scope = nullptr;
   bool cache_scope_found = false;
   while (!scope_info.is_null()) {
-    if (scope_info.scope_type() == WITH_SCOPE) {
-      if (scope_info.IsDebugEvaluateScope()) {
+    if (scope_info->scope_type() == WITH_SCOPE) {
+      if (scope_info->IsDebugEvaluateScope()) {
         outer_scope =
             zone->New<DeclarationScope>(zone, FUNCTION_SCOPE, ast_value_factory,
                                         handle(scope_info, isolate));
@@ -434,50 +434,50 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
                                        handle(scope_info, isolate));
       }
 
-    } else if (scope_info.scope_type() == SCRIPT_SCOPE) {
+    } else if (scope_info->scope_type() == SCRIPT_SCOPE) {
       // If we reach a script scope, it's the outermost scope. Install the
       // scope info of this script context onto the existing script scope to
       // avoid nesting script scopes.
       if (deserialization_mode == DeserializationMode::kIncludingVariables) {
         script_scope->SetScriptScopeInfo(handle(scope_info, isolate));
       }
-      if (scope_info.IsReplModeScope()) script_scope->set_is_repl_mode_scope();
-      DCHECK(!scope_info.HasOuterScopeInfo());
+      if (scope_info->IsReplModeScope()) script_scope->set_is_repl_mode_scope();
+      DCHECK(!scope_info->HasOuterScopeInfo());
       break;
-    } else if (scope_info.scope_type() == FUNCTION_SCOPE) {
+    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, FUNCTION_SCOPE, ast_value_factory, handle(scope_info, isolate));
 #if V8_ENABLE_WEBASSEMBLY
-      if (scope_info.IsAsmModule()) {
+      if (scope_info->IsAsmModule()) {
         outer_scope->AsDeclarationScope()->set_is_asm_module();
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
-    } else if (scope_info.scope_type() == EVAL_SCOPE) {
+    } else if (scope_info->scope_type() == EVAL_SCOPE) {
       outer_scope = zone->New<DeclarationScope>(
           zone, EVAL_SCOPE, ast_value_factory, handle(scope_info, isolate));
-    } else if (scope_info.scope_type() == CLASS_SCOPE) {
+    } else if (scope_info->scope_type() == CLASS_SCOPE) {
       outer_scope = zone->New<ClassScope>(isolate, zone, ast_value_factory,
                                           handle(scope_info, isolate));
-    } else if (scope_info.scope_type() == BLOCK_SCOPE) {
-      if (scope_info.is_declaration_scope()) {
+    } else if (scope_info->scope_type() == BLOCK_SCOPE) {
+      if (scope_info->is_declaration_scope()) {
         outer_scope = zone->New<DeclarationScope>(
             zone, BLOCK_SCOPE, ast_value_factory, handle(scope_info, isolate));
       } else {
         outer_scope = zone->New<Scope>(zone, BLOCK_SCOPE, ast_value_factory,
                                        handle(scope_info, isolate));
       }
-    } else if (scope_info.scope_type() == MODULE_SCOPE) {
+    } else if (scope_info->scope_type() == MODULE_SCOPE) {
       outer_scope = zone->New<ModuleScope>(handle(scope_info, isolate),
                                            ast_value_factory);
     } else {
-      DCHECK_EQ(scope_info.scope_type(), CATCH_SCOPE);
-      DCHECK_EQ(scope_info.ContextLocalCount(), 1);
-      DCHECK_EQ(scope_info.ContextLocalMode(0), VariableMode::kVar);
-      DCHECK_EQ(scope_info.ContextLocalInitFlag(0), kCreatedInitialized);
-      DCHECK(scope_info.HasInlinedLocalNames());
-      String name = scope_info.ContextInlinedLocalName(0);
+      DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
+      DCHECK_EQ(scope_info->ContextLocalCount(), 1);
+      DCHECK_EQ(scope_info->ContextLocalMode(0), VariableMode::kVar);
+      DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
+      DCHECK(scope_info->HasInlinedLocalNames());
+      Tagged<String> name = scope_info->ContextInlinedLocalName(0);
       MaybeAssignedFlag maybe_assigned =
-          scope_info.ContextLocalMaybeAssignedFlag(0);
+          scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope =
           zone->New<Scope>(zone,
                            ast_value_factory->GetString(
@@ -501,8 +501,8 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     }
     current_scope = outer_scope;
     if (innermost_scope == nullptr) innermost_scope = current_scope;
-    scope_info = scope_info.HasOuterScopeInfo() ? scope_info.OuterScopeInfo()
-                                                : ScopeInfo();
+    scope_info = scope_info->HasOuterScopeInfo() ? scope_info->OuterScopeInfo()
+                                                 : Tagged<ScopeInfo>();
   }
 
   if (deserialization_mode == DeserializationMode::kIncludingVariables) {
@@ -534,12 +534,12 @@ template EXPORT_TEMPLATE_DEFINE(
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
-        Isolate* isolate, Zone* zone, ScopeInfo scope_info,
+        Isolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Scope* Scope::DeserializeScopeChain(
-        LocalIsolate* isolate, Zone* zone, ScopeInfo scope_info,
+        LocalIsolate* isolate, Zone* zone, Tagged<ScopeInfo> scope_info,
         DeclarationScope* script_scope, AstValueFactory* ast_value_factory,
         DeserializationMode deserialization_mode);
 
@@ -751,6 +751,13 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
       THIS_VARIABLE,
       derived_constructor ? kNeedsInitialization : kCreatedInitialized,
       kNotAssigned);
+  // Derived constructors have hole checks when calling super. Mark the 'this'
+  // variable as having hole initialization forced so that TDZ elision analysis
+  // applies and numbers the variable.
+  if (derived_constructor) {
+    receiver_->ForceHoleInitialization(
+        Variable::kHasHoleCheckUseInUnknownScope);
+  }
   locals_.Add(receiver_);
 }
 
@@ -969,8 +976,8 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
-  String name_handle = *name->string();
-  ScopeInfo scope_info = *scope_info_;
+  Tagged<String> name_handle = *name->string();
+  Tagged<ScopeInfo> scope_info = *scope_info_;
   // The Scope is backed up by ScopeInfo. This means it cannot operate in a
   // heap-independent mode, and all strings must be internalized immediately. So
   // it's ok to get the Handle<String> here.
@@ -982,20 +989,20 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info.ContextSlotIndex(name->string(), &lookup_result);
+    index = scope_info->ContextSlotIndex(name->string(), &lookup_result);
     found = index >= 0;
   }
 
   if (!found && is_module_scope()) {
     location = VariableLocation::MODULE;
-    index = scope_info.ModuleIndex(name_handle, &lookup_result.mode,
-                                   &lookup_result.init_flag,
-                                   &lookup_result.maybe_assigned_flag);
+    index = scope_info->ModuleIndex(name_handle, &lookup_result.mode,
+                                    &lookup_result.init_flag,
+                                    &lookup_result.maybe_assigned_flag);
     found = index != 0;
   }
 
   if (!found) {
-    index = scope_info.FunctionContextSlotIndex(name_handle);
+    index = scope_info->FunctionContextSlotIndex(name_handle);
     if (index < 0) return nullptr;  // Nowhere found.
     Variable* var = AsDeclarationScope()->DeclareFunctionVar(name, cache);
     DCHECK_EQ(VariableMode::kConst, var->mode());
@@ -1004,7 +1011,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   }
 
   if (!is_module_scope()) {
-    DCHECK_NE(index, scope_info.ReceiverContextSlotIndex());
+    DCHECK_NE(index, scope_info->ReceiverContextSlotIndex());
   }
 
   bool was_added;
@@ -1242,10 +1249,6 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
       zone(), this, name, VariableMode::kDynamicGlobal, kind,
       kCreatedInitialized, kNotAssigned, IsStaticFlag::kNotStatic, &was_added);
   // TODO(neis): Mark variable as maybe-assigned?
-}
-
-bool Scope::RemoveUnresolved(VariableProxy* var) {
-  return unresolved_list_.Remove(var);
 }
 
 void Scope::DeleteUnresolved(VariableProxy* var) {
@@ -1601,50 +1604,18 @@ bool Scope::IsOuterScopeOf(Scope* other) const {
   return false;
 }
 
-void Scope::CollectNonLocals(DeclarationScope* max_outer_scope,
-                             Isolate* isolate, Handle<StringSet>* non_locals) {
-  this->ForEach([max_outer_scope, isolate, non_locals](Scope* scope) {
-    // Module variables must be allocated before variable resolution
-    // to ensure that UpdateNeedsHoleCheck() can detect import variables.
-    if (scope->is_module_scope()) {
-      scope->AsModuleScope()->AllocateModuleVariables();
-    }
-
-    // Lazy parsed declaration scopes are already partially analyzed. If there
-    // are unresolved references remaining, they just need to be resolved in
-    // outer scopes.
-    Scope* lookup = WasLazilyParsed(scope) ? scope->outer_scope() : scope;
-
-    for (VariableProxy* proxy : scope->unresolved_list_) {
-      DCHECK(!proxy->is_resolved());
-      Variable* var =
-          Lookup<kParsedScope>(proxy, lookup, max_outer_scope->outer_scope());
-      if (var == nullptr) {
-        *non_locals = StringSet::Add(isolate, *non_locals, proxy->name());
-      } else {
-        // In this case we need to leave scopes in a way that they can be
-        // allocated. If we resolved variables from lazy parsed scopes, we need
-        // to context allocate the var.
-        scope->ResolveTo(proxy, var);
-        if (!var->is_dynamic() && lookup != scope)
-          var->ForceContextAllocation();
-      }
-    }
-
-    // Clear unresolved_list_ as it's in an inconsistent state.
-    scope->unresolved_list_.Clear();
-    return Iteration::kDescend;
-  });
-}
-
 void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
                              AstNodeFactory* ast_node_factory,
                              UnresolvedList* new_unresolved_list,
                              bool maybe_in_arrowhead) {
   this->ForEach([max_outer_scope, ast_node_factory, new_unresolved_list,
                  maybe_in_arrowhead](Scope* scope) {
-    DCHECK_IMPLIES(scope->is_declaration_scope(),
-                   !scope->AsDeclarationScope()->was_lazily_parsed());
+    // Skip already lazily parsed scopes. This can only happen to functions
+    // inside arrowheads.
+    if (WasLazilyParsed(scope)) {
+      DCHECK(max_outer_scope->is_arrow_scope());
+      return Iteration::kContinue;
+    }
 
     for (VariableProxy* proxy = scope->unresolved_list_.first();
          proxy != nullptr; proxy = proxy->next_unresolved()) {
@@ -1671,12 +1642,6 @@ void Scope::AnalyzePartially(DeclarationScope* max_outer_scope,
     scope->unresolved_list_.Clear();
     return Iteration::kDescend;
   });
-}
-
-Handle<StringSet> DeclarationScope::CollectNonLocals(
-    Isolate* isolate, Handle<StringSet> non_locals) {
-  Scope::CollectNonLocals(this, isolate, &non_locals);
-  return non_locals;
 }
 
 void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
@@ -1734,7 +1699,10 @@ bool Scope::IsSkippableFunctionScope() {
 
 void Scope::SavePreparseData(Parser* parser) {
   this->ForEach([parser](Scope* scope) {
-    if (scope->IsSkippableFunctionScope()) {
+    // Save preparse data for every skippable scope, unless it was already
+    // previously saved (this can happen with functions inside arrowheads).
+    if (scope->IsSkippableFunctionScope() &&
+        !scope->AsDeclarationScope()->was_lazily_parsed()) {
       scope->AsDeclarationScope()->SavePreparseDataForDeclarationScope(parser);
     }
     return Iteration::kDescend;
@@ -1751,10 +1719,28 @@ void DeclarationScope::AnalyzePartially(Parser* parser,
                                         bool maybe_in_arrowhead) {
   DCHECK(!force_eager_compilation_);
   UnresolvedList new_unresolved_list;
-  if (!IsArrowFunction(function_kind_) &&
-      (!outer_scope_->is_script_scope() || maybe_in_arrowhead ||
-       (preparse_data_builder_ != nullptr &&
-        preparse_data_builder_->HasInnerFunctions()))) {
+
+  // We don't need to do partial analysis for top level functions, since they
+  // can only access values in the global scope, and we can't track assignments
+  // for these since they're accessible across scripts.
+  //
+  // If the top level function has inner functions though, we do still want to
+  // analyze those to save their preparse data.
+  //
+  // Additionally, functions in potential arrowheads _need_ to be analyzed, in
+  // case they do end up being in an arrowhead and the arrow function needs to
+  // know about context acceses. For example, in
+  //
+  //     (a, b=function foo(){ a = 1 }) => { b(); return a}
+  //
+  // `function foo(){ a = 1 }` is "maybe_in_arrowhead" but still top-level when
+  // parsed, and is re-scoped to the arrow function when that one is parsed. The
+  // arrow function needs to know that `a` needs to be context allocated, so
+  // that the call to `b()` correctly updates the `a` parameter.
+  const bool is_top_level_function = outer_scope_->is_script_scope();
+  const bool has_inner_functions = preparse_data_builder_ != nullptr &&
+                                   preparse_data_builder_->HasInnerFunctions();
+  if (maybe_in_arrowhead || !is_top_level_function || has_inner_functions) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.
@@ -2303,9 +2289,10 @@ void Scope::ResolveVariable(VariableProxy* proxy) {
 
 namespace {
 
-void SetNeedsHoleCheck(Variable* var, VariableProxy* proxy) {
+void SetNeedsHoleCheck(Variable* var, VariableProxy* proxy,
+                       Variable::ForceHoleInitializationFlag flag) {
   proxy->set_needs_hole_check();
-  var->ForceHoleInitialization();
+  var->ForceHoleInitialization(flag);
 }
 
 void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
@@ -2324,7 +2311,8 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   // unknown at compilation time whether the binding referred to in the
   // exporting module itself requires hole checks.
   if (var->location() == VariableLocation::MODULE && !var->IsExport()) {
-    return SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy, Variable::kHasHoleCheckUseInUnknownScope);
+    return;
   }
 
   // Check if the binding really needs an initialization check. The check
@@ -2346,7 +2334,9 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   // The scope of the variable needs to be checked, in case the use is
   // in a sub-block which may be linear.
   if (var->scope()->GetClosureScope() != scope->GetClosureScope()) {
-    return SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy,
+                      Variable::kHasHoleCheckUseInDifferentClosureScope);
+    return;
   }
 
   // We should always have valid source positions.
@@ -2355,7 +2345,8 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
 
   if (var->scope()->is_nonlinear() ||
       var->initializer_position() >= proxy->position()) {
-    return SetNeedsHoleCheck(var, proxy);
+    SetNeedsHoleCheck(var, proxy, Variable::kHasHoleCheckUseInSameClosureScope);
+    return;
   }
 }
 
@@ -2815,7 +2806,7 @@ bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {
 }
 
 void ClassScope::FinalizeReparsedClassScope(
-    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_scope_info,
+    Isolate* isolate, MaybeHandle<ScopeInfo> maybe_class_scope_info,
     AstValueFactory* ast_value_factory, bool needs_allocation_fixup) {
   // Set this bit so that DeclarationScope::Analyze recognizes
   // the reparsed instance member initializer scope.
@@ -2831,10 +2822,10 @@ void ClassScope::FinalizeReparsedClassScope(
   // the class scope from ScopeInfo, so that we don't need to run
   // resolution and allocation on these variables again when generating
   // code for the initializer function.
-  DCHECK(!maybe_scope_info.is_null());
-  Handle<ScopeInfo> scope_info = maybe_scope_info.ToHandleChecked();
+  DCHECK(!maybe_class_scope_info.is_null());
+  Handle<ScopeInfo> scope_info = maybe_class_scope_info.ToHandleChecked();
   DCHECK_EQ(scope_info->scope_type(), CLASS_SCOPE);
-  DCHECK_EQ(scope_info->StartPosition(), start_position_);
+  DCHECK_EQ(scope_info->EndPosition(), end_position_);
 
   int context_header_length = scope_info->ContextHeaderLength();
   DisallowGarbageCollection no_gc;

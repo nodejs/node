@@ -1,18 +1,28 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2019 by Andrew Selivanov
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) 2019 Andrew Selivanov
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -46,38 +56,39 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
                        int *naddrttls)
 {
   struct ares_addrinfo ai;
-  char *question_hostname = NULL;
-  int status;
-  int req_naddrttls = 0;
+  char                *question_hostname = NULL;
+  ares_status_t        status;
+  size_t               req_naddrttls = 0;
 
-  if (naddrttls)
-    {
-      req_naddrttls = *naddrttls;
-      *naddrttls = 0;
-    }
+  if (alen < 0) {
+    return ARES_EBADRESP;
+  }
+
+  if (naddrttls) {
+    req_naddrttls = (size_t)*naddrttls;
+    *naddrttls    = 0;
+  }
 
   memset(&ai, 0, sizeof(ai));
 
-  status = ares__parse_into_addrinfo(abuf, alen, 0, 0, &ai);
-  if (status != ARES_SUCCESS && status != ARES_ENODATA)
-    {
+  status = ares__parse_into_addrinfo(abuf, (size_t)alen, 0, 0, &ai);
+  if (status != ARES_SUCCESS && status != ARES_ENODATA) {
+    goto fail;
+  }
+
+  if (host != NULL) {
+    status = ares__addrinfo2hostent(&ai, AF_INET, host);
+    if (status != ARES_SUCCESS && status != ARES_ENODATA) {
       goto fail;
     }
+  }
 
-  if (host != NULL)
-    {
-      status = ares__addrinfo2hostent(&ai, AF_INET, host);
-      if (status != ARES_SUCCESS && status != ARES_ENODATA)
-        {
-          goto fail;
-        }
-    }
-
-  if (addrttls != NULL && req_naddrttls)
-   {
-     ares__addrinfo2addrttl(&ai, AF_INET, req_naddrttls, addrttls,
-                            NULL, naddrttls);
-   }
+  if (addrttls != NULL && req_naddrttls) {
+    size_t temp_naddrttls = 0;
+    ares__addrinfo2addrttl(&ai, AF_INET, req_naddrttls, addrttls, NULL,
+                           &temp_naddrttls);
+    *naddrttls = (int)temp_naddrttls;
+  }
 
 
 fail:
@@ -86,5 +97,5 @@ fail:
   ares_free(ai.name);
   ares_free(question_hostname);
 
-  return status;
+  return (int)status;
 }

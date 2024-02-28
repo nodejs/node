@@ -20,52 +20,52 @@ namespace v8::internal::wasm {
 
 // These constants limit the amount of *declared* memory. At runtime, memory can
 // only grow up to kV8MaxWasmMemory{32,64}Pages.
-constexpr size_t kSpecMaxMemory32Pages = 65536;  // 4GB
+constexpr size_t kSpecMaxMemory32Pages = 65'536;  // 4GB
 // TODO(clemensb): Adapt once the spec defines a limit here. For now, use 16GB.
-constexpr size_t kSpecMaxMemory64Pages = 262144;  // 16GB
+constexpr size_t kSpecMaxMemory64Pages = 262'144;  // 16GB
 
 // The following limits are imposed by V8 on WebAssembly modules.
 // The limits are agreed upon with other engines for consistency.
-constexpr size_t kV8MaxWasmTypes = 1000000;
-constexpr size_t kV8MaxWasmFunctions = 1000000;
-constexpr size_t kV8MaxWasmImports = 100000;
-constexpr size_t kV8MaxWasmExports = 100000;
-constexpr size_t kV8MaxWasmGlobals = 1000000;
-constexpr size_t kV8MaxWasmTags = 1000000;
-constexpr size_t kV8MaxWasmExceptionTypes = 1000000;
-constexpr size_t kV8MaxWasmDataSegments = 100000;
+constexpr size_t kV8MaxWasmTypes = 1'000'000;
+constexpr size_t kV8MaxWasmFunctions = 1'000'000;
+constexpr size_t kV8MaxWasmImports = 100'000;
+constexpr size_t kV8MaxWasmExports = 100'000;
+constexpr size_t kV8MaxWasmGlobals = 1'000'000;
+constexpr size_t kV8MaxWasmTags = 1'000'000;
+constexpr size_t kV8MaxWasmExceptionTypes = 1'000'000;
+constexpr size_t kV8MaxWasmDataSegments = 100'000;
 // This indicates the maximum memory size our implementation supports.
 // Do not use this limit directly; use {max_mem{32,64}_pages()} instead to take
 // the spec'ed limit as well as command line flag into account.
 // Also, do not use this limit to validate declared memory, use
 // kSpecMaxMemory{32,64}Pages for that.
 constexpr size_t kV8MaxWasmMemory32Pages = kSystemPointerSize == 4
-                                               ? 32767   // = 2 GiB - 64Kib
-                                               : 65536;  // = 4 GiB
+                                               ? 32'767   // = 2 GiB - 64Kib
+                                               : 65'536;  // = 4 GiB
 constexpr size_t kV8MaxWasmMemory64Pages = kSystemPointerSize == 4
-                                               ? 32767    // = 2 GiB - 64Kib
-                                               : 262144;  // = 16 GiB
-constexpr size_t kV8MaxWasmStringSize = 100000;
+                                               ? 32'767    // = 2 GiB - 64Kib
+                                               : 262'144;  // = 16 GiB
+constexpr size_t kV8MaxWasmStringSize = 100'000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
-constexpr size_t kV8MaxWasmFunctionSize = 7654321;
-constexpr size_t kV8MaxWasmFunctionLocals = 50000;
-constexpr size_t kV8MaxWasmFunctionParams = 1000;
-constexpr size_t kV8MaxWasmFunctionReturns = 1000;
-constexpr size_t kV8MaxWasmFunctionBrTableSize = 65520;
+constexpr size_t kV8MaxWasmFunctionSize = 7'654'321;
+constexpr size_t kV8MaxWasmFunctionLocals = 50'000;
+constexpr size_t kV8MaxWasmFunctionParams = 1'000;
+constexpr size_t kV8MaxWasmFunctionReturns = 1'000;
+constexpr size_t kV8MaxWasmFunctionBrTableSize = 65'520;
 // Don't use this limit directly, but use the value of
 // v8_flags.wasm_max_table_size.
-constexpr size_t kV8MaxWasmTableSize = 10000000;
-constexpr size_t kV8MaxWasmTableInitEntries = 10000000;
-constexpr size_t kV8MaxWasmTables = 100000;
-constexpr size_t kV8MaxWasmMemories = 1;
+constexpr size_t kV8MaxWasmTableSize = 10'000'000;
+constexpr size_t kV8MaxWasmTableInitEntries = 10'000'000;
+constexpr size_t kV8MaxWasmTables = 100'000;
+constexpr size_t kV8MaxWasmMemories = 100'000;
 
-// GC proposal. These limits are not standardized yet.
-constexpr size_t kV8MaxWasmStructFields = 2000;
-constexpr uint32_t kV8MaxRttSubtypingDepth = 31;
-constexpr size_t kV8MaxWasmArrayNewFixedLength = 10000;
+// GC proposal.
+constexpr size_t kV8MaxWasmStructFields = 10'000;
+constexpr uint32_t kV8MaxRttSubtypingDepth = 63;
+constexpr size_t kV8MaxWasmArrayNewFixedLength = 10'000;
 
 // Stringref proposal. This limit is not standardized yet.
-constexpr size_t kV8MaxWasmStringLiterals = 1000000;
+constexpr size_t kV8MaxWasmStringLiterals = 1'000'000;
 
 static_assert(kV8MaxWasmTableSize <= 4294967295,  // 2^32 - 1
               "v8 should not exceed WebAssembly's non-web embedding limits");

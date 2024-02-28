@@ -60,21 +60,21 @@ function createBase64URL(mime, body) {
   }
   {
     const ns = await import('data:application/json;foo="test,"this"',
-      { assert: { type: 'json' } });
+      { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default, 'this');
   }
   {
     const ns = await import(`data:application/json;foo=${
       encodeURIComponent('test,')
-    },0`, { assert: { type: 'json' } });
+    },0`, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default, 0);
   }
   {
     await assert.rejects(async () =>
       import('data:application/json;foo="test,",0',
-        { assert: { type: 'json' } }), {
+        { with: { type: 'json' } }), {
       name: 'SyntaxError',
       message: /Unterminated string in JSON at position 3/
     });
@@ -82,14 +82,14 @@ function createBase64URL(mime, body) {
   {
     const body = '{"x": 1}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL, { assert: { type: 'json' } });
+    const ns = await import(plainESMURL, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default.x, 1);
   }
   {
     const body = '{"default": 2}';
     const plainESMURL = createURL('application/json', body);
-    const ns = await import(plainESMURL, { assert: { type: 'json' } });
+    const ns = await import(plainESMURL, { with: { type: 'json' } });
     assert.deepStrictEqual(Object.keys(ns), ['default']);
     assert.strictEqual(ns.default.default, 2);
   }

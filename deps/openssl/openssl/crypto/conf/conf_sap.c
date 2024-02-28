@@ -65,7 +65,8 @@ int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
 #endif
 
 #ifndef OPENSSL_SYS_UEFI
-    ret = CONF_modules_load_file(filename, appname, flags);
+    ret = CONF_modules_load_file_ex(OSSL_LIB_CTX_get0_global_default(),
+                                    filename, appname, flags);
 #else
     ret = 1;
 #endif

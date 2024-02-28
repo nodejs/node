@@ -420,7 +420,7 @@ class CFGBuilder : public ZoneObject {
 
   void BuildBlocksForSuccessors(Node* node) {
     size_t const successor_cnt = node->op()->ControlOutputCount();
-    Node** successors = zone_->NewArray<Node*>(successor_cnt);
+    Node** successors = zone_->AllocateArray<Node*>(successor_cnt);
     NodeProperties::CollectControlProjections(node, successors, successor_cnt);
     for (size_t index = 0; index < successor_cnt; ++index) {
       BuildBlockForNode(successors[index]);
@@ -513,7 +513,7 @@ class CFGBuilder : public ZoneObject {
   void ConnectSwitch(Node* sw) {
     size_t const successor_count = sw->op()->ControlOutputCount();
     BasicBlock** successor_blocks =
-        zone_->NewArray<BasicBlock*>(successor_count);
+        zone_->AllocateArray<BasicBlock*>(successor_count);
     CollectSuccessorBlocks(sw, successor_blocks, successor_count);
 
     if (sw == component_entry_) {
@@ -1878,6 +1878,15 @@ void Scheduler::SealFinalSchedule() {
       }
     }
   }
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  if (const ProfileDataFromFile* profile_data = this->profile_data()) {
+    for (BasicBlock* block : *schedule_->all_blocks()) {
+      uint64_t executed_count =
+          profile_data->GetExecutedCount(block->id().ToSize());
+      block->set_pgo_execution_count(executed_count);
+    }
+  }
+#endif
 }
 
 

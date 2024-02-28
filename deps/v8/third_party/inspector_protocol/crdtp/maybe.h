@@ -22,6 +22,33 @@ class PtrMaybe {
   PtrMaybe(std::unique_ptr<T> value) : value_(std::move(value)) {}
   PtrMaybe(PtrMaybe&& other) noexcept : value_(std::move(other.value_)) {}
   void operator=(std::unique_ptr<T> value) { value_ = std::move(value); }
+
+  // std::optional<>-compatible accessors (preferred).
+  bool has_value() const { return !!value_; }
+  operator bool() const { return has_value(); }
+  const T& value() const& {
+    assert(has_value());
+    return *value_;
+  }
+  T& value() & {
+    assert(has_value());
+    return *value_;
+  }
+  T&& value() && {
+    assert(has_value());
+    return std::move(*value_);
+  }
+  const T& value_or(const T& default_value) const {
+    return has_value() ? *value_ : default_value;
+  }
+  T* operator->() { return &value(); }
+  const T* operator->() const { return &value(); }
+
+  T& operator*() & { return value(); }
+  const T& operator*() const& { return value(); }
+  T&& operator*() && { return std::move(value()); }
+
+  // Legacy Maybe<> accessors (deprecated).
   T* fromJust() const {
     assert(value_);
     return value_.get();
@@ -30,10 +57,6 @@ class PtrMaybe {
     return value_ ? value_.get() : default_value;
   }
   bool isJust() const { return value_ != nullptr; }
-  std::unique_ptr<T> takeJust() {
-    assert(value_);
-    return std::move(value_);
-  }
 
  private:
   std::unique_ptr<T> value_;
@@ -50,6 +73,38 @@ class ValueMaybe {
     value_ = std::move(value);
     is_just_ = true;
   }
+
+  // std::optional<>-compatible accessors (preferred).
+  bool has_value() const { return is_just_; }
+  operator bool() const { return has_value(); }
+  const T& value() const& {
+    assert(is_just_);
+    return value_;
+  }
+  T& value() & {
+    assert(is_just_);
+    return value_;
+  }
+  T&& value() && {
+    assert(is_just_);
+    return *std::move(value_);
+  }
+  template <typename U>
+  T value_or(U&& default_value) const& {
+    return is_just_ ? value_ : std::forward<U>(default_value);
+  }
+  template <typename U>
+  T value_or(U&& default_value) && {
+    return is_just_ ? std::move(value_) : std::forward<U>(default_value);
+  }
+  T* operator->() { return &value(); }
+  const T* operator->() const { return &value(); }
+
+  T& operator*() & { return value(); }
+  const T& operator*() const& { return value(); }
+  T&& operator*() && { return std::move(value()); }
+
+  // Legacy Maybe<> accessors (deprecated).
   const T& fromJust() const {
     assert(is_just_);
     return value_;
@@ -58,11 +113,6 @@ class ValueMaybe {
     return is_just_ ? value_ : default_value;
   }
   bool isJust() const { return is_just_; }
-  T takeJust() {
-    assert(is_just_);
-    is_just_ = false;
-    return std::move(value_);
-  }
 
  private:
   bool is_just_;

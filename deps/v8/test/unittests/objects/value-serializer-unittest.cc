@@ -53,22 +53,25 @@ class ValueSerializerTest : public TestWithIsolate {
     // Create a host object type that can be tested through
     // serialization/deserialization delegates below.
     Local<FunctionTemplate> function_template = v8::FunctionTemplate::New(
-        isolate(), [](const FunctionCallbackInfo<Value>& args) {
-          args.Holder()->SetInternalField(0, args[0]);
-          args.Holder()->SetInternalField(1, args[1]);
+        isolate(), [](const FunctionCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.Holder()->SetInternalField(0, info[0]);
+          info.Holder()->SetInternalField(1, info[1]);
         });
     function_template->InstanceTemplate()->SetInternalFieldCount(2);
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(
-              args.Holder()->GetInternalField(0).As<v8::Value>());
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(
+              info.Holder()->GetInternalField(0).As<v8::Value>());
         });
     function_template->InstanceTemplate()->SetAccessor(
         StringFromUtf8("value2"),
-        [](Local<String> property, const PropertyCallbackInfo<Value>& args) {
-          args.GetReturnValue().Set(
-              args.Holder()->GetInternalField(1).As<v8::Value>());
+        [](Local<String> property, const PropertyCallbackInfo<Value>& info) {
+          CHECK(i::ValidateCallbackInfo(info));
+          info.GetReturnValue().Set(
+              info.Holder()->GetInternalField(1).As<v8::Value>());
         });
     for (Local<Context> context :
          {serialization_context_, deserialization_context_}) {
@@ -2629,18 +2632,6 @@ class ValueSerializerTestWithSharedArrayBufferClone
     return sab;
   }
 
-  static void SetUpTestSuite() {
-    flag_was_enabled_ = i::v8_flags.harmony_sharedarraybuffer;
-    i::v8_flags.harmony_sharedarraybuffer = true;
-    ValueSerializerTest::SetUpTestSuite();
-  }
-
-  static void TearDownTestSuite() {
-    ValueSerializerTest::TearDownTestSuite();
-    i::v8_flags.harmony_sharedarraybuffer = flag_was_enabled_;
-    flag_was_enabled_ = false;
-  }
-
  protected:
 // GMock doesn't use the "override" keyword.
 #if __clang__
@@ -2690,13 +2681,10 @@ class ValueSerializerTestWithSharedArrayBufferClone
   DeserializerDelegate deserializer_delegate_;
 
  private:
-  static bool flag_was_enabled_;
   std::vector<uint8_t> data_;
   Local<SharedArrayBuffer> input_buffer_;
   Local<SharedArrayBuffer> output_buffer_;
 };
-
-bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
 TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripSharedArrayBufferClone) {
@@ -2751,8 +2739,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> obj = Utils::OpenHandle(*input_buffer());
-    input = Utils::Convert<i::WasmMemoryObject, Value>(
-        i::WasmMemoryObject::New(i_isolate, obj, kMaxPages).ToHandleChecked());
+    input = Utils::Convert<i::WasmMemoryObject, Value>(i::WasmMemoryObject::New(
+        i_isolate, obj, kMaxPages, i::WasmMemoryFlag::kWasmMemory32));
   }
   RoundTripTest(input);
   ExpectScriptTrue("result instanceof WebAssembly.Memory");
@@ -2783,9 +2771,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
     const int32_t kMaxPages = 1;
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
     i::Handle<i::JSArrayBuffer> buffer = Utils::OpenHandle(*input_buffer());
-    i::Handle<i::WasmMemoryObject> wasm_memory =
-        i::WasmMemoryObject::New(i_isolate, buffer, kMaxPages)
-            .ToHandleChecked();
+    i::Handle<i::WasmMemoryObject> wasm_memory = i::WasmMemoryObject::New(
+        i_isolate, buffer, kMaxPages, i::WasmMemoryFlag::kWasmMemory32);
     i::Handle<i::FixedArray> fixed_array =
         i_isolate->factory()->NewFixedArray(2);
     fixed_array->set(0, *buffer);

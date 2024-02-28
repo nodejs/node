@@ -3,14 +3,13 @@
 const { kConstruct } = require('./symbols')
 const { urlEquals, fieldValues: getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../core/util')
-const { kHeadersList } = require('../core/symbols')
 const { webidl } = require('../fetch/webidl')
-const { Response, cloneResponse } = require('../fetch/response')
-const { Request } = require('../fetch/request')
-const { kState, kHeaders, kGuard, kRealm } = require('../fetch/symbols')
+const { Response, cloneResponse, fromInnerResponse } = require('../fetch/response')
+const { Request, fromInnerRequest } = require('../fetch/request')
+const { kState } = require('../fetch/symbols')
 const { fetching } = require('../fetch/index')
 const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
-const assert = require('assert')
+const assert = require('node:assert')
 const { getGlobalDispatcher } = require('../global')
 
 /**
@@ -49,7 +48,7 @@ class Cache {
     request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options)
 
-    const p = await this.matchAll(request, options)
+    const p = this.#internalMatchAll(request, options, 1)
 
     if (p.length === 0) {
       return
@@ -64,66 +63,7 @@ class Cache {
     if (request !== undefined) request = webidl.converters.RequestInfo(request)
     options = webidl.converters.CacheQueryOptions(options)
 
-    // 1.
-    let r = null
-
-    // 2.
-    if (request !== undefined) {
-      if (request instanceof Request) {
-        // 2.1.1
-        r = request[kState]
-
-        // 2.1.2
-        if (r.method !== 'GET' && !options.ignoreMethod) {
-          return []
-        }
-      } else if (typeof request === 'string') {
-        // 2.2.1
-        r = new Request(request)[kState]
-      }
-    }
-
-    // 5.
-    // 5.1
-    const responses = []
-
-    // 5.2
-    if (request === undefined) {
-      // 5.2.1
-      for (const requestResponse of this.#relevantRequestResponseList) {
-        responses.push(requestResponse[1])
-      }
-    } else { // 5.3
-      // 5.3.1
-      const requestResponses = this.#queryCache(r, options)
-
-      // 5.3.2
-      for (const requestResponse of requestResponses) {
-        responses.push(requestResponse[1])
-      }
-    }
-
-    // 5.4
-    // We don't implement CORs so we don't need to loop over the responses, yay!
-
-    // 5.5.1
-    const responseList = []
-
-    // 5.5.2
-    for (const response of responses) {
-      // 5.5.2.1
-      const responseObject = new Response(response.body?.source ?? null)
-      const body = responseObject[kState].body
-      responseObject[kState] = response
-      responseObject[kState].body = body
-      responseObject[kHeaders][kHeadersList] = response.headersList
-      responseObject[kHeaders][kGuard] = 'immutable'
-
-      responseList.push(responseObject)
-    }
-
-    // 6.
-    return Object.freeze(responseList)
+    return this.#internalMatchAll(request, options)
   }
 
   async add (request) {
@@ -146,8 +86,6 @@ class Cache {
     webidl.brandCheck(this, Cache)
     webidl.argumentLengthCheck(arguments, 1, { header: 'Cache.addAll' })
 
-    requests = webidl.converters['sequence<RequestInfo>'](requests)
-
     // 1.
     const responsePromises = []
 
@@ -155,7 +93,17 @@ class Cache {
     const requestList = []
 
     // 3.
-    for (const request of requests) {
+    for (let request of requests) {
+      if (request === undefined) {
+        throw webidl.errors.conversionFailed({
+          prefix: 'Cache.addAll',
+          argument: 'Argument 1',
+          types: ['undefined is not allowed']
+        })
+      }
+
+      request = webidl.converters.RequestInfo(request)
+
       if (typeof request === 'string') {
         continue
       }
@@ -379,11 +327,7 @@ class Cache {
       const reader = stream.getReader()
 
       // 11.3
-      readAllBytes(
-        reader,
-        (bytes) => bodyReadPromise.resolve(bytes),
-        (error) => bodyReadPromise.reject(error)
-      )
+      readAllBytes(reader).then(bodyReadPromise.resolve, bodyReadPromise.reject)
     } else {
       bodyReadPromise.resolve(undefined)
     }
@@ -498,7 +442,7 @@ class Cache {
    * @see https://w3c.github.io/ServiceWorker/#dom-cache-keys
    * @param {any} request
    * @param {import('../../types/cache').CacheQueryOptions} options
-   * @returns {readonly Request[]}
+   * @returns {Promise<readonly Request[]>}
    */
   async keys (request = undefined, options = {}) {
     webidl.brandCheck(this, Cache)
@@ -557,12 +501,12 @@ class Cache {
 
       // 5.4.2
       for (const request of requests) {
-        const requestObject = new Request('https://a')
-        requestObject[kState] = request
-        requestObject[kHeaders][kHeadersList] = request.headersList
-        requestObject[kHeaders][kGuard] = 'immutable'
-        requestObject[kRealm] = request.client
-
+        const requestObject = fromInnerRequest(
+          request,
+          new AbortController().signal,
+          'immutable',
+          { settingsObject: request.client }
+        )
         // 5.4.2.1
         requestList.push(requestObject)
       }
@@ -786,6 +730,68 @@ class Cache {
     }
 
     return true
+  }
+
+  #internalMatchAll (request, options, maxResponses = Infinity) {
+    // 1.
+    let r = null
+
+    // 2.
+    if (request !== undefined) {
+      if (request instanceof Request) {
+        // 2.1.1
+        r = request[kState]
+
+        // 2.1.2
+        if (r.method !== 'GET' && !options.ignoreMethod) {
+          return []
+        }
+      } else if (typeof request === 'string') {
+        // 2.2.1
+        r = new Request(request)[kState]
+      }
+    }
+
+    // 5.
+    // 5.1
+    const responses = []
+
+    // 5.2
+    if (request === undefined) {
+      // 5.2.1
+      for (const requestResponse of this.#relevantRequestResponseList) {
+        responses.push(requestResponse[1])
+      }
+    } else { // 5.3
+      // 5.3.1
+      const requestResponses = this.#queryCache(r, options)
+
+      // 5.3.2
+      for (const requestResponse of requestResponses) {
+        responses.push(requestResponse[1])
+      }
+    }
+
+    // 5.4
+    // We don't implement CORs so we don't need to loop over the responses, yay!
+
+    // 5.5.1
+    const responseList = []
+
+    // 5.5.2
+    for (const response of responses) {
+      // 5.5.2.1
+      const responseObject = fromInnerResponse(response, 'immutable', { settingsObject: {} })
+
+      responseList.push(responseObject.clone())
+
+      if (responseList.length >= maxResponses) {
+        break
+      }
+    }
+
+    // 6.
+    return Object.freeze(responseList)
   }
 }
 

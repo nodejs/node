@@ -1,33 +1,34 @@
 // Copyright 2021 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// Flags: --harmony-intl-locale-info-func
 
 function checkLocale(locale) {
   let l = new Intl.Locale(locale);
-  assertTrue(Array.isArray(l.calendars));
-  assertTrue(Array.isArray(l.collations));
-  assertTrue(Array.isArray(l.hourCycles));
-  assertTrue(Array.isArray(l.numberingSystems));
+  assertTrue(Array.isArray(l.getCalendars()));
+  assertTrue(Array.isArray(l.getCollations()));
+  assertTrue(Array.isArray(l.getHourCycles()));
+  assertTrue(Array.isArray(l.getNumberingSystems()));
 
   if (l.region == undefined) {
-    assertEquals(undefined, l.timeZones);
+    assertEquals(undefined, l.getTimeZones());
   } else {
-    assertTrue(Array.isArray(l.timeZones));
+    assertTrue(Array.isArray(l.getTimeZones()));
   }
 
-  assertEquals("object", typeof(l.textInfo));
-  assertEquals(1, Object.keys(l.textInfo).length);
-  assertEquals("string", typeof(l.textInfo.direction));
+  assertEquals("object", typeof(l.getTextInfo()));
+  assertEquals(1, Object.keys(l.getTextInfo()).length);
+  assertEquals("string", typeof(l.getTextInfo().direction));
 
-  assertEquals("object", typeof(l.weekInfo));
-  assertEquals(3, Object.keys(l.weekInfo).length);
-  assertEquals("number", typeof(l.weekInfo.firstDay));
-  assertTrue(l.weekInfo.firstDay >= 1);
-  assertTrue(l.weekInfo.firstDay <= 7);
+  assertEquals("object", typeof(l.getWeekInfo()));
+  assertEquals(3, Object.keys(l.getWeekInfo()).length);
+  assertEquals("number", typeof(l.getWeekInfo().firstDay));
+  assertTrue(l.getWeekInfo().firstDay >= 1);
+  assertTrue(l.getWeekInfo().firstDay <= 7);
 
-  assertEquals("object", typeof(l.weekInfo.weekend));
+  assertEquals("object", typeof(l.getWeekInfo().weekend));
   let last = 0;
-  l.weekInfo.weekend.forEach((we) => {
+  l.getWeekInfo().weekend.forEach((we) => {
     // In right range
     assertTrue(we >= 1);
     assertTrue(we <= 7);
@@ -36,9 +37,9 @@ function checkLocale(locale) {
     last = we;
   });
 
-  assertEquals("number", typeof(l.weekInfo.minimalDays));
-  assertTrue(l.weekInfo.minimalDays >= 1);
-  assertTrue(l.weekInfo.minimalDays <= 7);
+  assertEquals("number", typeof(l.getWeekInfo().minimalDays));
+  assertTrue(l.getWeekInfo().minimalDays >= 1);
+  assertTrue(l.getWeekInfo().minimalDays <= 7);
 }
 
 checkLocale("ar");

@@ -763,6 +763,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
               ExternalReference::address_of_wasm_double_2_power_52(), tmp));
     // Extract low 32 bits of each double's significand, zero top lanes.
     // dst = [dst[0], dst[2], 0, 0]
+    Xorps(scratch, scratch, scratch);
     Shufps(dst, dst, scratch, 0x88);
   }
 
@@ -804,7 +805,7 @@ class V8_EXPORT_PRIVATE SharedMacroAssembler : public SharedMacroAssemblerBase {
     // the exponent, which means multiply by 2 (or addps to itself).
     Addps(dst, dst, dst);
     // Then shift to get the bit representation of the int.
-    Pslld(dst, byte{8});
+    Pslld(dst, uint8_t{8});
     // Merge the converted lanes and bit shifted lanes.
     Paddd(dst, tmp);
   }

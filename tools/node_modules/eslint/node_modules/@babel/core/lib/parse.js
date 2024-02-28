@@ -13,18 +13,18 @@ function _gensync() {
   };
   return data;
 }
-var _config = require("./config");
-var _parser = require("./parser");
-var _normalizeOpts = require("./transformation/normalize-opts");
-var _rewriteStackTrace = require("./errors/rewrite-stack-trace");
+var _index = require("./config/index.js");
+var _index2 = require("./parser/index.js");
+var _normalizeOpts = require("./transformation/normalize-opts.js");
+var _rewriteStackTrace = require("./errors/rewrite-stack-trace.js");
 const parseRunner = _gensync()(function* parse(code, opts) {
-  const config = yield* (0, _config.default)(opts);
+  const config = yield* (0, _index.default)(opts);
   if (config === null) {
     return null;
   }
-  return yield* (0, _parser.default)(config.passes, (0, _normalizeOpts.default)(config), code);
+  return yield* (0, _index2.default)(config.passes, (0, _normalizeOpts.default)(config), code);
 });
-const parse = function parse(code, opts, callback) {
+const parse = exports.parse = function parse(code, opts, callback) {
   if (typeof opts === "function") {
     callback = opts;
     opts = undefined;
@@ -36,7 +36,6 @@ const parse = function parse(code, opts, callback) {
   }
   (0, _rewriteStackTrace.beginHiddenCallStack)(parseRunner.errback)(code, opts, callback);
 };
-exports.parse = parse;
 function parseSync(...args) {
   return (0, _rewriteStackTrace.beginHiddenCallStack)(parseRunner.sync)(...args);
 }

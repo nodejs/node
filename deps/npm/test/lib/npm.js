@@ -388,15 +388,18 @@ t.test('debug log', async t => {
 
     const log1 = ['silly', 'test', 'before load']
     const log2 = ['silly', 'test', 'after load']
+    const log3 = ['silly', 'test', 'hello\x00world']
 
     process.emit('log', ...log1)
     await npm.load()
     process.emit('log', ...log2)
+    process.emit('log', ...log3)
 
     const debug = await debugFile()
     t.equal(npm.logFiles.length, 1, 'one debug file')
     t.match(debug, log1.join(' '), 'before load appears')
     t.match(debug, log2.join(' '), 'after load log appears')
+    t.match(debug, 'hello^@world')
   })
 
   t.test('can load with bad dir', async t => {
@@ -517,7 +520,7 @@ t.test('timings', async t => {
   }
 })
 
-t.test('output clears progress and console.logs the message', async t => {
+t.test('output clears progress and console.logs cleaned messages', async t => {
   t.plan(4)
   let showingProgress = true
   const logs = []
@@ -541,11 +544,11 @@ t.test('output clears progress and console.logs the message', async t => {
       },
     },
   })
-  npm.originalOutput('hello')
-  npm.originalOutputError('error')
+  npm.originalOutput('hello\x00world')
+  npm.originalOutputError('error\x00world')
 
-  t.match(logs, [['hello']])
-  t.match(errors, [['error']])
+  t.match(logs, [['hello^@world']])
+  t.match(errors, [['error^@world']])
 })
 
 t.test('aliases and typos', async t => {

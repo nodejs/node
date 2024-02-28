@@ -1445,15 +1445,19 @@ char* DoubleToRadixCString(double value, int radix) {
 double StringToDouble(Isolate* isolate, Handle<String> string, int flags,
                       double empty_string_val) {
   Handle<String> flattened = String::Flatten(isolate, string);
-  {
-    DisallowGarbageCollection no_gc;
-    String::FlatContent flat = flattened->GetFlatContent(no_gc);
-    DCHECK(flat.IsFlat());
-    if (flat.IsOneByte()) {
-      return StringToDouble(flat.ToOneByteVector(), flags, empty_string_val);
-    } else {
-      return StringToDouble(flat.ToUC16Vector(), flags, empty_string_val);
-    }
+  return FlatStringToDouble(*flattened, flags, empty_string_val);
+}
+
+double FlatStringToDouble(Tagged<String> string, int flags,
+                          double empty_string_val) {
+  DisallowGarbageCollection no_gc;
+  DCHECK(string->IsFlat());
+  String::FlatContent flat = string->GetFlatContent(no_gc);
+  DCHECK(flat.IsFlat());
+  if (flat.IsOneByte()) {
+    return StringToDouble(flat.ToOneByteVector(), flags, empty_string_val);
+  } else {
+    return StringToDouble(flat.ToUC16Vector(), flags, empty_string_val);
   }
 }
 
@@ -1498,13 +1502,22 @@ base::Optional<double> TryStringToInt(LocalIsolate* isolate,
   }
 }
 
-bool IsSpecialIndex(String string) {
+bool IsSpecialIndex(Tagged<String> string) {
+  DCHECK(!SharedStringAccessGuardIfNeeded::IsNeeded(string));
+  SharedStringAccessGuardIfNeeded access_guard =
+      SharedStringAccessGuardIfNeeded::NotNeeded();
+  return IsSpecialIndex(string, access_guard);
+}
+
+bool IsSpecialIndex(Tagged<String> string,
+                    SharedStringAccessGuardIfNeeded& access_guard) {
   // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
   const int kBufferSize = 24;
-  const int length = string.length();
+  const int length = string->length();
   if (length == 0 || length > kBufferSize) return false;
   uint16_t buffer[kBufferSize];
-  String::WriteToFlat(string, buffer, 0, length);
+  String::WriteToFlat(string, buffer, 0, length, GetPtrComprCageBase(string),
+                      access_guard);
   // If the first char is not a digit or a '-' or we can't match 'NaN' or
   // '(-)Infinity', bailout immediately.
   int offset = 0;

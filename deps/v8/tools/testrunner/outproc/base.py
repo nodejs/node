@@ -176,7 +176,8 @@ class ExpectedOutProc(OutProc):
     if expected == actual:
       return None
     lines = difflib.unified_diff(
-        expected, actual, fromfile=self._expected_filename, tofile='<actual>')
+        expected, actual, fromfile=str(self._expected_filename),
+        tofile='<actual>')
     return 'Output does not match expectation:\n' + ''.join(lines)
 
   def _act_block_iterator(self, output):

@@ -20,9 +20,36 @@ namespace internal {
 // Forward declarations.
 class AllocationTracker;
 class HeapObjectsMap;
+class HeapProfiler;
 class HeapSnapshot;
 class SamplingHeapProfiler;
 class StringsStorage;
+
+// A class which can notify the corresponding HeapProfiler when the embedder
+// heap moves its objects to different locations, so that heap snapshots can
+// generate consistent IDs for moved objects.
+class HeapProfilerNativeMoveListener {
+ public:
+  explicit HeapProfilerNativeMoveListener(HeapProfiler* profiler)
+      : profiler_(profiler) {}
+  HeapProfilerNativeMoveListener(const HeapProfilerNativeMoveListener& other) =
+      delete;
+  HeapProfilerNativeMoveListener& operator=(
+      const HeapProfilerNativeMoveListener& other) = delete;
+
+  // The subclass's destructor implementation should stop listening.
+  virtual ~HeapProfilerNativeMoveListener() = default;
+
+  // Functionality required in concrete subclass:
+  virtual void StartListening() = 0;
+  virtual void StopListening() = 0;
+
+ protected:
+  void ObjectMoveEvent(Address from, Address to, int size);
+
+ private:
+  HeapProfiler* profiler_;
+};
 
 class HeapProfiler : public HeapObjectAllocationTracker {
  public:
@@ -33,6 +60,9 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   HeapSnapshot* TakeSnapshot(
       const v8::HeapProfiler::HeapSnapshotOptions options);
+
+  // Implementation of --heap-snapshot-on-oom.
+  void WriteSnapshotToDiskAfterGC();
 
   bool StartSamplingHeapProfiler(uint64_t sample_interval, int stack_depth,
                                  v8::HeapProfiler::SamplingFlags);
@@ -58,7 +88,8 @@ class HeapProfiler : public HeapObjectAllocationTracker {
   void DeleteAllSnapshots();
   void RemoveSnapshot(HeapSnapshot* snapshot);
 
-  void ObjectMoveEvent(Address from, Address to, int size);
+  void ObjectMoveEvent(Address from, Address to, int size,
+                       bool is_native_object);
 
   void AllocationEvent(Address addr, int size) override;
 
@@ -88,9 +119,15 @@ class HeapProfiler : public HeapObjectAllocationTracker {
 
   Isolate* isolate() const;
 
-  void QueryObjects(Handle<Context> context,
-                    debug::QueryObjectPredicate* predicate,
+  void QueryObjects(Handle<Context> context, QueryObjectPredicate* predicate,
                     std::vector<v8::Global<v8::Object>>* objects);
+  void set_native_move_listener(
+      std::unique_ptr<HeapProfilerNativeMoveListener> listener) {
+    native_move_listener_ = std::move(listener);
+    if (is_tracking_object_moves() && native_move_listener_) {
+      native_move_listener_->StartListening();
+    }
+  }
 
  private:
   void MaybeClearStringsStorage();
@@ -110,6 +147,7 @@ class HeapProfiler : public HeapObjectAllocationTracker {
       build_embedder_graph_callbacks_;
   std::pair<v8::HeapProfiler::GetDetachednessCallback, void*>
       get_detachedness_callback_;
+  std::unique_ptr<HeapProfilerNativeMoveListener> native_move_listener_;
 };
 
 }  // namespace internal

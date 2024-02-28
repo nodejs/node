@@ -13,6 +13,7 @@
 #include "src/codegen/arm/assembler-arm.h"
 #include "src/codegen/bailout-reason.h"
 #include "src/common/globals.h"
+#include "src/execution/frame-constants.h"
 #include "src/objects/tagged-index.h"
 
 namespace v8 {
@@ -93,7 +94,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Push(Register src) { push(src); }
 
   void Push(Handle<HeapObject> handle);
-  void Push(Smi smi);
+  void Push(Tagged<Smi> smi);
+  void Push(Tagged<TaggedIndex> index);
 
   // Push two registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Condition cond = al) {
@@ -327,17 +329,21 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   MemOperand EntryFromBuiltinAsOperand(Builtin builtin);
   void LoadEntryFromBuiltin(Builtin builtin, Register destination);
-  // Load the builtin given by the Smi in |builtin| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void CallBuiltinByIndex(Register builtin_index);
+  // Load the builtin given by the Smi in |builtin| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin, Condition cond = al);
   void TailCallBuiltin(Builtin builtin, Condition cond = al);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Generates an instruction sequence s.t. the return address points to the
@@ -345,6 +351,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
 
+  void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
                              DeoptimizeKind kind, Label* ret,
                              Label* jump_deoptimization_entry_label);
@@ -383,6 +390,10 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   void CheckPageFlag(Register object, int mask, Condition cc,
                      Label* condition_met);
+  void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
+                     Label* condition_met) {
+    CheckPageFlag(object, mask, cc, condition_met);
+  }
 
   // Check whether d16-d31 are available on the CPU. The result is given by the
   // Z condition flag: Z==0 if d16-d31 available, Z==1 otherwise.
@@ -490,7 +501,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                  NeonMemOperand dst);
 
   // Register move. May do nothing if the registers are identical.
-  void Move(Register dst, Smi smi);
+  void Move(Register dst, Tagged<Smi> smi);
   void Move(Register dst, Handle<HeapObject> value);
   void Move(Register dst, ExternalReference reference);
   void Move(Register dst, Register src, Condition cond = al);
@@ -534,8 +545,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   }
 
   void SmiToInt32(Register smi) { SmiUntag(smi); }
+  void SmiToInt32(Register dst, Register smi) { SmiUntag(dst, smi); }
 
   // Load an object from the root table.
+  void LoadTaggedRoot(Register destination, RootIndex index) {
+    LoadRoot(destination, index);
+  }
   void LoadRoot(Register destination, RootIndex index) final {
     LoadRoot(destination, index, al);
   }
@@ -548,6 +563,119 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
   void LoadMap(Register destination, Register object);
+
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef);
+
+  void PushAll(RegList registers) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // stm(db_w, sp, registers);
+    // TODO(victorgomes): {stm/ldm} pushes/pops registers in the opposite order
+    // as expected by Maglev frame. Consider massaging Maglev to accept this
+    // order instead.
+    for (Register reg : registers) {
+      push(reg);
+    }
+  }
+
+  void PopAll(RegList registers) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // ldm(ia_w, sp, registers);
+    for (Register reg : base::Reversed(registers)) {
+      pop(reg);
+    }
+  }
+
+  void PushAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // TODO(victorgomes): vstm only works for consecutive double registers. We
+    // could check if it is the case and optimize here.
+    for (DoubleRegister reg : registers) {
+      vpush(reg);
+    }
+  }
+
+  void PopAll(DoubleRegList registers, int stack_slot_size = kDoubleSize) {
+    if (registers.is_empty()) return;
+    ASM_CODE_COMMENT(this);
+    // TODO(victorgomes): vldm only works for consecutive double registers. We
+    // could check if it is the case and optimize here.
+    for (DoubleRegister reg : base::Reversed(registers)) {
+      vpop(reg);
+    }
+  }
+
+  inline void Cmp(const Register& rn, int imm) { cmp(rn, Operand(imm)); }
+
+  inline void CmpTagged(const Register& r1, const Register& r2) { cmp(r1, r2); }
+
+  // Functions performing a check on a known or potential smi. Returns
+  // a condition that is satisfied if the check is successful.
+  Condition CheckSmi(Register src) {
+    SmiTst(src);
+    return eq;
+  }
+
+  void DecompressTagged(const Register& destination,
+                        const MemOperand& field_operand) {
+    // No pointer compression on arm, we do just a simple load.
+    LoadTaggedField(destination, field_operand);
+  }
+
+  void DecompressTagged(const Register& destination, const Register& source) {
+    // No pointer compression on arm. Do nothing.
+  }
+
+  void AssertMap(Register object) NOOP_UNLESS_DEBUG_CODE;
+
+  void LoadTaggedField(const Register& destination,
+                       const MemOperand& field_operand) {
+    ldr(destination, field_operand);
+  }
+
+  void LoadTaggedFieldWithoutDecompressing(const Register& destination,
+                                           const MemOperand& field_operand) {
+    LoadTaggedField(destination, field_operand);
+  }
+
+  void SmiUntagField(Register dst, const MemOperand& src) {
+    LoadTaggedField(dst, src);
+    SmiUntag(dst);
+  }
+
+  void StoreTaggedField(const Register& value,
+                        const MemOperand& dst_field_operand) {
+    str(value, dst_field_operand);
+  }
+
+  // For compatibility with platform-independent code.
+  void StoreTaggedField(const MemOperand& dst_field_operand,
+                        const Register& value) {
+    StoreTaggedField(value, dst_field_operand);
+  }
+
+  void Switch(Register scratch, Register value, int case_value_base,
+              Label** labels, int num_labels);
+
+  void JumpIfCodeIsMarkedForDeoptimization(Register code, Register scratch,
+                                           Label* if_marked_for_deoptimization);
+
+  void JumpIfCodeIsTurbofanned(Register code, Register scratch,
+                               Label* if_turbofanned);
+
+  // Falls through and sets scratch_and_result to 0 on failure, jumps to
+  // on_result on success.
+  void TryLoadOptimizedOsrCode(Register scratch_and_result,
+                               CodeKind min_opt_level, Register feedback_vector,
+                               FeedbackSlot slot, Label* on_result,
+                               Label::Distance distance);
+
+  void AssertZeroExtended(Register int32_register) {
+    // In arm32, we don't have top 32 bits, so do nothing.
+  }
 
   // Performs a truncating conversion of a floating point number as used by
   // the JS bitwise operations. See ECMA-262 9.5: ToInt32. Goes to 'done' if it
@@ -731,18 +859,17 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
                        unsigned higher_limit, Label* on_in_range);
 
   // It assumes that the arguments are located below the stack pointer.
-  // argc is the number of arguments not including the receiver.
-  // TODO(victorgomes): Remove this function once we stick with the reversed
-  // arguments order.
-  MemOperand ReceiverOperand(Register argc) {
-    return MemOperand(sp, 0);
-  }
+  MemOperand ReceiverOperand() { return MemOperand(sp, 0); }
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure);
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
+  Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
+      Register flags, Register feedback_vector, CodeKind current_code_kind);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind,
       Label* flags_need_processing);
@@ -813,8 +940,12 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfNotSmi(Register value, Label* not_smi_label);
 
   // Abort execution if argument is a smi, enabled via --debug-code.
-  void AssertNotSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
-  void AssertSmi(Register object) NOOP_UNLESS_DEBUG_CODE;
+  void AssertNotSmi(Register object,
+                    AbortReason reason = AbortReason::kOperandIsASmi)
+      NOOP_UNLESS_DEBUG_CODE;
+  void AssertSmi(Register object,
+                 AbortReason reason = AbortReason::kOperandIsNotASmi)
+      NOOP_UNLESS_DEBUG_CODE;
 
   // Abort execution if argument is not a Constructor, enabled via --debug-code.
   void AssertConstructor(Register object) NOOP_UNLESS_DEBUG_CODE;
@@ -838,6 +969,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp, Register tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   template <typename Field>
   void DecodeField(Register dst, Register src) {
@@ -908,6 +1042,33 @@ struct MoveCycleState {
   // InstructionStream of the scratch register picked by {MoveToTempLocation}.
   int scratch_reg_code = -1;
 };
+
+// Provides access to exit frame parameters (GC-ed).
+inline MemOperand ExitFrameStackSlotOperand(int offset) {
+  // The slot at [sp] is reserved in all ExitFrames for storing the return
+  // address before doing the actual call, it's necessary for frame iteration
+  // (see StoreReturnAddressAndCall for details).
+  static constexpr int kSPOffset = 1 * kPointerSize;
+  return MemOperand(sp, kSPOffset + offset);
+}
+
+// Provides access to exit frame stack space (not GC-ed).
+inline MemOperand ExitFrameCallerStackSlotOperand(int index) {
+  return MemOperand(
+      fp, (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+              kSystemPointerSize);
+}
+
+// Calls an API function.  Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Restores context.  On return removes
+// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// (GCed, includes the call JS arguments space and the additional space
+// allocated for the fast call).
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, MemOperand* stack_space_operand,
+                              MemOperand return_value_operand, Label* done);
 
 #define ACCESS_MASM(masm) masm->
 

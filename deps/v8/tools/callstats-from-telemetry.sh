@@ -33,9 +33,11 @@ done
 if [[ "$1" == *.json ]]; then
   echo "Converting json files"
   JSON=$1
+  OUT="${JSON%.json}.rcs.json"
 elif [[ -e "$1" ]]; then
-  echo "Converting reults dir"
+  echo "Converting results dir"
   RESULTS_DIR=$1
+  OUT="${RESULTS_DIR}/combined.rcs.json"
 else
   echo "RESULTS_DIR '$RESULTS_DIR' not found";
   usage;
@@ -43,7 +45,6 @@ else
 fi
 
 
-OUT=out.json
 if [[ -e $OUT ]]; then
   echo "# Creating backup for $OUT"
   cp $OUT $OUT.bak
@@ -78,3 +79,7 @@ else
   done
 fi
 echo '}}' >> $OUT
+
+
+echo ""
+echo "RESULT: ${OUT}"

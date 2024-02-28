@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
@@ -17,6 +18,7 @@ namespace quic {
 struct Path final : public ngtcp2_path {
   Path(const SocketAddress& local, const SocketAddress& remote);
   inline operator ngtcp2_path*() { return this; }
+  std::string ToString() const;
 };
 
 struct PathStorage final : public ngtcp2_path_storage {
@@ -71,29 +73,28 @@ class QuicError final : public MemoryRetainer {
   static constexpr error_code QUIC_APP_NO_ERROR = 65280;
 
   enum class Type {
-    TRANSPORT = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT,
-    APPLICATION = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION,
-    VERSION_NEGOTIATION =
-        NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_VERSION_NEGOTIATION,
-    IDLE_CLOSE = NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT_IDLE_CLOSE,
+    TRANSPORT = NGTCP2_CCERR_TYPE_TRANSPORT,
+    APPLICATION = NGTCP2_CCERR_TYPE_APPLICATION,
+    VERSION_NEGOTIATION = NGTCP2_CCERR_TYPE_VERSION_NEGOTIATION,
+    IDLE_CLOSE = NGTCP2_CCERR_TYPE_IDLE_CLOSE,
   };
 
   static constexpr error_code QUIC_ERROR_TYPE_TRANSPORT =
-      NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_TRANSPORT;
+      NGTCP2_CCERR_TYPE_TRANSPORT;
   static constexpr error_code QUIC_ERROR_TYPE_APPLICATION =
-      NGTCP2_CONNECTION_CLOSE_ERROR_CODE_TYPE_APPLICATION;
+      NGTCP2_CCERR_TYPE_APPLICATION;
 
   explicit QuicError(const std::string_view reason = "");
-  explicit QuicError(const ngtcp2_connection_close_error* ptr);
-  explicit QuicError(const ngtcp2_connection_close_error& error);
+  explicit QuicError(const ngtcp2_ccerr* ptr);
+  explicit QuicError(const ngtcp2_ccerr& error);
 
   Type type() const;
   error_code code() const;
   const std::string_view reason() const;
   uint64_t frame_type() const;
 
-  operator const ngtcp2_connection_close_error&() const;
-  operator const ngtcp2_connection_close_error*() const;
+  operator const ngtcp2_ccerr&() const;
+  operator const ngtcp2_ccerr*() const;
 
   // Returns false if the QuicError uses a no_error code with type
   // transport or application.
@@ -130,8 +131,8 @@ class QuicError final : public MemoryRetainer {
   const uint8_t* reason_c_str() const;
 
   std::string reason_;
-  ngtcp2_connection_close_error error_ = ngtcp2_connection_close_error();
-  const ngtcp2_connection_close_error* ptr_ = nullptr;
+  ngtcp2_ccerr error_;
+  const ngtcp2_ccerr* ptr_ = nullptr;
 };
 
 }  // namespace quic

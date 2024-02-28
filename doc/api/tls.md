@@ -22,8 +22,6 @@ calling `require('node:tls')` will result in an error being thrown.
 
 When using CommonJS, the error thrown can be caught using try/catch:
 
-<!-- eslint-skip -->
-
 ```cjs
 let tls;
 try {
@@ -1653,7 +1651,7 @@ changes:
     * hint: {string} optional message sent from the server to help client
       decide which identity to use during negotiation.
       Always `null` if TLS 1.3 is used.
-    * Returns: {Object} in the form
+    * Returns: {Object} An object in the form
       `{ psk: <Buffer|TypedArray|DataView>, identity: <string> }`
       or `null` to stop the negotiation process. `psk` must be
       compatible with the selected cipher's digest.
@@ -2049,7 +2047,9 @@ where `secureSocket` has the same API as `pair.cleartext`.
 <!-- YAML
 added: v0.3.2
 changes:
-  - version: v20.4.0
+  - version:
+    - v20.4.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/45190
     description: The `options` parameter can now include `ALPNCallback`.
   - version: v19.0.0

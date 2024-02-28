@@ -104,7 +104,7 @@ const testFixtures = fixtures.path('test-runner');
     ['--print', 'console.log("should not print")', '--test'],
   ];
 
-  flags.forEach((args) => {
+  for (const args of flags) {
     const child = spawnSync(process.execPath, args);
 
     assert.notStrictEqual(child.status, 0);
@@ -112,7 +112,7 @@ const testFixtures = fixtures.path('test-runner');
     assert.strictEqual(child.stdout.toString(), '');
     const stderr = child.stderr.toString();
     assert.match(stderr, /--test/);
-  });
+  }
 }
 
 {

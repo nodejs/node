@@ -5,10 +5,10 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_INL_H_
 #define V8_OBJECTS_PROPERTY_CELL_INL_H_
 
-#include "src/objects/property-cell.h"
-
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/code-inl.h"
+#include "src/objects/dependent-code-inl.h"
+#include "src/objects/objects-inl.h"
+#include "src/objects/property-cell.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -20,13 +20,15 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(PropertyCell)
 
-ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
-ACCESSORS(PropertyCell, name, Name, kNameOffset)
-ACCESSORS(PropertyCell, property_details_raw, Smi, kPropertyDetailsRawOffset)
-RELEASE_ACQUIRE_ACCESSORS(PropertyCell, property_details_raw, Smi,
+ACCESSORS(PropertyCell, dependent_code, Tagged<DependentCode>,
+          kDependentCodeOffset)
+ACCESSORS(PropertyCell, name, Tagged<Name>, kNameOffset)
+ACCESSORS(PropertyCell, property_details_raw, Tagged<Smi>,
+          kPropertyDetailsRawOffset)
+RELEASE_ACQUIRE_ACCESSORS(PropertyCell, property_details_raw, Tagged<Smi>,
                           kPropertyDetailsRawOffset)
-ACCESSORS(PropertyCell, value, Object, kValueOffset)
-RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Object, kValueOffset)
+ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
+RELEASE_ACQUIRE_ACCESSORS(PropertyCell, value, Tagged<Object>, kValueOffset)
 
 PropertyDetails PropertyCell::property_details() const {
   return PropertyDetails(Smi::cast(property_details_raw()));

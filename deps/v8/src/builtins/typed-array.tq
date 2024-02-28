@@ -25,7 +25,6 @@ type RabGsabUint8Elements extends ElementsKind;
 struct TypedArrayElementsInfo {
   // Calculates the number of bytes required for specified number of elements.
   macro CalculateByteLength(length: uintptr): uintptr labels IfInvalid {
-    if (length > kTypedArrayMaxLength) goto IfInvalid;
     const maxArrayLength = kArrayBufferMaxByteLength >>> this.sizeLog2;
     if (length > maxArrayLength) goto IfInvalid;
     const byteLength = length << this.sizeLog2;
@@ -34,10 +33,8 @@ struct TypedArrayElementsInfo {
 
   // Calculates the maximum number of elements supported by a specified number
   // of bytes.
-  macro CalculateLength(byteLength: uintptr): uintptr labels IfInvalid {
-    const length = byteLength >>> this.sizeLog2;
-    if (length > kTypedArrayMaxLength) goto IfInvalid;
-    return length;
+  macro CalculateLength(byteLength: uintptr): uintptr {
+    return byteLength >>> this.sizeLog2;
   }
 
   // Determines if `bytes` (byte offset or length) cannot be evenly divided by
@@ -53,19 +50,19 @@ struct TypedArrayElementsInfo {
   sizeLog2: uintptr;
   kind: ElementsKind;
 }
-extern runtime TypedArrayCopyElements(
-    Context, JSTypedArray, Object, Number): void;
+extern runtime TypedArrayCopyElements(Context, JSTypedArray, Object, Number):
+    void;
 extern macro TypedArrayBuiltinsAssembler::ValidateTypedArray(
     Context, JSAny, constexpr string): JSTypedArray;
 extern macro TypedArrayBuiltinsAssembler::ValidateTypedArrayAndGetLength(
     Context, JSAny, constexpr string): uintptr;
 
-extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(
-    RawPtr, RawPtr, uintptr): void;
+extern macro TypedArrayBuiltinsAssembler::CallCMemcpy(RawPtr, RawPtr, uintptr):
+    void;
 extern macro TypedArrayBuiltinsAssembler::CallCMemmove(
     RawPtr, RawPtr, uintptr): void;
-extern macro TypedArrayBuiltinsAssembler::CallCMemset(
-    RawPtr, intptr, uintptr): void;
+extern macro TypedArrayBuiltinsAssembler::CallCMemset(RawPtr, intptr, uintptr):
+    void;
 extern macro TypedArrayBuiltinsAssembler::CallCRelaxedMemcpy(
     RawPtr, RawPtr, uintptr): void;
 extern macro TypedArrayBuiltinsAssembler::CallCRelaxedMemmove(
@@ -182,8 +179,8 @@ extern macro TypedArrayBuiltinsAssembler::SetJSTypedArrayOffHeapDataPtr(
     JSTypedArray, RawPtr, uintptr): void;
 extern macro IsJSArrayBufferViewDetachedOrOutOfBounds(JSArrayBufferView):
     never labels DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;
-extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(JSArrayBufferView):
-    bool;
+extern macro IsJSArrayBufferViewDetachedOrOutOfBoundsBoolean(
+    JSArrayBufferView): bool;
 
 // AttachedJSTypedArray guards that the array's buffer is not detached.
 transient type AttachedJSTypedArray extends JSTypedArray;
@@ -249,7 +246,8 @@ macro NewAttachedJSTypedArrayWitness(array: AttachedJSTypedArray):
   };
 }
 
-macro KindForArrayType<T : type extends ElementsKind>(): constexpr ElementsKind;
+macro KindForArrayType<T : type extends ElementsKind>():
+    constexpr ElementsKind;
 KindForArrayType<Uint8Elements>(): constexpr ElementsKind {
   return ElementsKind::UINT8_ELEMENTS;
 }

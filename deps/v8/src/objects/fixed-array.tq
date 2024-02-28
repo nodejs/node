@@ -3,11 +3,12 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectDefinition
 extern class FixedArrayBase extends HeapObject {
-  // length of the array.
   const length: Smi;
 }
 
+@cppObjectDefinition
 @generateBodyDescriptor
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
@@ -15,6 +16,7 @@ extern class FixedArray extends FixedArrayBase {
 
 type EmptyFixedArray extends FixedArray;
 
+@cppObjectDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
@@ -25,19 +27,22 @@ extern class WeakFixedArray extends HeapObject {
   @cppRelaxedLoad objects[length]: MaybeObject;
 }
 
+@cppObjectDefinition
 extern class ByteArray extends FixedArrayBase {
   bytes[length]: uint8;
 }
 
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class ArrayList extends FixedArray {
+@cppObjectDefinition
+extern class ExternalPointerArray extends FixedArrayBase {
+  pointers[length]: ExternalPointer;
 }
 
+extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
+
+@cppObjectDefinition
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
-extern class TemplateList extends FixedArray {
-}
+extern class ArrayList extends FixedArray {}
 
 @generateBodyDescriptor
 extern class WeakArrayList extends HeapObject {
@@ -95,9 +100,13 @@ operator '[]=' macro StoreFixedArrayDirect(
     a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
-
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr): FixedArrayBase;
 extern macro AllocateFixedArray(
     constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
+
+extern macro FillEntireFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr): void;
 
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
@@ -109,8 +118,10 @@ extern macro FillFixedArrayWithSmiZero(
 extern macro FillFixedDoubleArrayWithZero(
     FixedDoubleArray, intptr, intptr): void;
 
+extern macro AllocateFixedArrayWithHoles(intptr): FixedArray;
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(intptr): FixedDoubleArray;
 extern macro AllocateFixedDoubleArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedDoubleArray;
 extern macro CopyFixedArrayElements(
@@ -145,7 +156,8 @@ namespace runtime {
 extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
 }
 
-macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
+macro NewFixedArray<Iterator: type>(
+    length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
   if (length > kFixedArrayMaxLength) deferred {
       runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);

@@ -414,40 +414,43 @@ class V8_EXPORT Isolate {
    * Features reported via the SetUseCounterCallback callback. Do not change
    * assigned numbers of existing items; add new features to the end of this
    * list.
+   * Dead features can be marked `V8_DEPRECATE_SOON`, then `V8_DEPRECATED`, and
+   * then finally be renamed to `kOBSOLETE_...` to stop embedders from using
+   * them.
    */
   enum UseCounterFeature {
     kUseAsm = 0,
     kBreakIterator = 1,
-    kLegacyConst = 2,
-    kMarkDequeOverflow = 3,
-    kStoreBufferOverflow = 4,
-    kSlotsBufferOverflow = 5,
-    kObjectObserve = 6,
+    kLegacyConst V8_DEPRECATED("unused") = 2,
+    kMarkDequeOverflow V8_DEPRECATED("unused") = 3,
+    kStoreBufferOverflow V8_DEPRECATED("unused") = 4,
+    kSlotsBufferOverflow V8_DEPRECATED("unused") = 5,
+    kObjectObserve V8_DEPRECATED("unused") = 6,
     kForcedGC = 7,
     kSloppyMode = 8,
     kStrictMode = 9,
-    kStrongMode = 10,
+    kStrongMode V8_DEPRECATED("unused") = 10,
     kRegExpPrototypeStickyGetter = 11,
     kRegExpPrototypeToString = 12,
     kRegExpPrototypeUnicodeGetter = 13,
-    kIntlV8Parse = 14,
-    kIntlPattern = 15,
-    kIntlResolved = 16,
-    kPromiseChain = 17,
-    kPromiseAccept = 18,
-    kPromiseDefer = 19,
+    kIntlV8Parse V8_DEPRECATED("unused") = 14,
+    kIntlPattern V8_DEPRECATED("unused") = 15,
+    kIntlResolved V8_DEPRECATED("unused") = 16,
+    kPromiseChain V8_DEPRECATED("unused") = 17,
+    kPromiseAccept V8_DEPRECATED("unused") = 18,
+    kPromiseDefer V8_DEPRECATED("unused") = 19,
     kHtmlCommentInExternalScript = 20,
     kHtmlComment = 21,
     kSloppyModeBlockScopedFunctionRedefinition = 22,
     kForInInitializer = 23,
-    kArrayProtectorDirtied = 24,
+    kArrayProtectorDirtied V8_DEPRECATED("unused") = 24,
     kArraySpeciesModified = 25,
     kArrayPrototypeConstructorModified = 26,
-    kArrayInstanceProtoModified = 27,
+    kArrayInstanceProtoModified V8_DEPRECATED("unused") = 27,
     kArrayInstanceConstructorModified = 28,
-    kLegacyFunctionDeclaration = 29,
-    kRegExpPrototypeSourceGetter = 30,   // Unused.
-    kRegExpPrototypeOldFlagGetter = 31,  // Unused.
+    kLegacyFunctionDeclaration V8_DEPRECATED("unused") = 29,
+    kRegExpPrototypeSourceGetter V8_DEPRECATED("unused") = 30,
+    kRegExpPrototypeOldFlagGetter V8_DEPRECATED("unused") = 31,
     kDecimalWithLeadingZeroInStrictMode = 32,
     kLegacyDateParser = 33,
     kDefineGetterOrSetterWouldThrow = 34,
@@ -455,21 +458,21 @@ class V8_EXPORT Isolate {
     kAssigmentExpressionLHSIsCallInSloppy = 36,
     kAssigmentExpressionLHSIsCallInStrict = 37,
     kPromiseConstructorReturnedUndefined = 38,
-    kConstructorNonUndefinedPrimitiveReturn = 39,
-    kLabeledExpressionStatement = 40,
-    kLineOrParagraphSeparatorAsLineTerminator = 41,
+    kConstructorNonUndefinedPrimitiveReturn V8_DEPRECATED("unused") = 39,
+    kLabeledExpressionStatement V8_DEPRECATED("unused") = 40,
+    kLineOrParagraphSeparatorAsLineTerminator V8_DEPRECATED("unused") = 41,
     kIndexAccessor = 42,
     kErrorCaptureStackTrace = 43,
     kErrorPrepareStackTrace = 44,
     kErrorStackTraceLimit = 45,
     kWebAssemblyInstantiation = 46,
     kDeoptimizerDisableSpeculation = 47,
-    kArrayPrototypeSortJSArrayModifiedPrototype = 48,
+    kArrayPrototypeSortJSArrayModifiedPrototype V8_DEPRECATED("unused") = 48,
     kFunctionTokenOffsetTooLongForToString = 49,
     kWasmSharedMemory = 50,
     kWasmThreadOpcodes = 51,
-    kAtomicsNotify = 52,  // Unused.
-    kAtomicsWake = 53,    // Unused.
+    kAtomicsNotify V8_DEPRECATED("unused") = 52,
+    kAtomicsWake V8_DEPRECATED("unused") = 53,
     kCollator = 54,
     kNumberFormat = 55,
     kDateTimeFormat = 56,
@@ -479,7 +482,7 @@ class V8_EXPORT Isolate {
     kListFormat = 60,
     kSegmenter = 61,
     kStringLocaleCompare = 62,
-    kStringToLocaleUpperCase = 63,
+    kStringToLocaleUpperCase V8_DEPRECATED("unused") = 63,
     kStringToLocaleLowerCase = 64,
     kNumberToLocaleString = 65,
     kDateToLocaleString = 66,
@@ -487,14 +490,14 @@ class V8_EXPORT Isolate {
     kDateToLocaleTimeString = 68,
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
-    kOptimizedFunctionWithOneShotBytecode = 71,  // Unused.
+    kOptimizedFunctionWithOneShotBytecode V8_DEPRECATED("unused") = 71,
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
-    kDateGetTimezoneOffset = 74,  // Unused.
+    kDateGetTimezoneOffset V8_DEPRECATED("unused") = 74,
     kStringNormalize = 75,
     kCallSiteAPIGetFunctionSloppyCall = 76,
     kCallSiteAPIGetThisSloppyCall = 77,
-    kRegExpMatchAllWithNonGlobalRegExp = 78,
+    kRegExpMatchAllWithNonGlobalRegExp V8_DEPRECATED("unused") = 78,
     kRegExpExecCalledOnSlowRegExp = 79,
     kRegExpReplaceCalledOnSlowRegExp = 80,
     kDisplayNames = 81,
@@ -525,8 +528,10 @@ class V8_EXPORT Isolate {
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
-    kWasmBulkMemory = 109,  // Unused.
-    kWasmMultiValue = 110,
+    kWasmBulkMemory V8_DEPRECATED(
+        "Unused since 2021 (https://crrev.com/c/2622913)") = 109,
+    kWasmMultiValue V8_DEPRECATED(
+        "Unused since 2021 (https://crrev.com/c/2817790)") = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
     kFunctionPrototypeArguments = 113,
@@ -534,8 +539,18 @@ class V8_EXPORT Isolate {
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
     kDurationFormat = 117,
-    kInvalidatedNumberStringPrototypeNoReplaceProtector = 118,
-    kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,  // Unused.
+    kInvalidatedNumberStringNotRegexpLikeProtector = 118,
+    kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode V8_DEPRECATED("unused") =
+        119,
+    kImportAssertionDeprecatedSyntax = 120,
+    kLocaleInfoObsoletedGetters = 121,
+    kLocaleInfoFunctions = 122,
+    kCompileHintsMagicAll = 123,
+    kInvalidatedNoProfilingProtector = 124,
+    kWasmMemory64 = 125,
+    kWasmMultiMemory = 126,
+    kWasmGC = 127,
+    kWasmImportedStrings = 128,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -663,6 +678,13 @@ class V8_EXPORT Isolate {
    * is accessed.
    */
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
+
+#if defined(V8_OS_WIN)
+  /**
+   * This specifies the callback called when an ETW tracing session starts.
+   */
+  void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
+#endif  // V8_OS_WIN
 
   /**
    * Optional notification that the system is running low on memory.
@@ -904,24 +926,72 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification before a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
+   * garbage collection.
+   *
+   * \param callback The callback to be invoked. The callback is allowed to
+   *     allocate but invocation is not re-entrant: a callback triggering
+   *     garbage collection will not be called again. JS execution is prohibited
+   *     from these callbacks. A single callback may only be registered once.
+   * \param gc_type_filter A filter in case it should be applied.
    */
-  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
   void AddGCPrologueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
   /**
-   * This function removes callback which was installed by
-   * AddGCPrologueCallback function.
+   * \copydoc AddGCPrologueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCPrologueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * \copydoc AddGCPrologueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
    */
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
-  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * Enables the host application to receive a notification after a
+   * garbage collection.
+   *
+   * \copydetails AddGCPrologueCallback(GCCallback, GCType)
+   */
+  void AddGCEpilogueCallback(GCCallback callback,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * \copydoc AddGCEpilogueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCEpilogueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCEpilogueCallback(GCCallback callback);
+
+  /**
+   * \copydoc RemoveGCEpilogueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
+   */
+  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
+                                void* data = nullptr);
 
   /**
    * Sets an embedder roots handle that V8 should consider when performing
@@ -1031,28 +1101,6 @@ class V8_EXPORT Isolate {
    * as its last parameter.
    */
   void SetAtomicsWaitCallback(AtomicsWaitCallback callback, void* data);
-
-  /**
-   * Enables the host application to receive a notification after a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
-   */
-  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
-  void AddGCEpilogueCallback(GCCallback callback,
-                             GCType gc_type_filter = kGCTypeAll);
-
-  /**
-   * This function removes callback which was installed by
-   * AddGCEpilogueCallback function.
-   */
-  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
-                                void* data = nullptr);
-  void RemoveGCEpilogueCallback(GCCallback callback);
 
   using GetExternallyAllocatedMemoryInBytesCallback = size_t (*)();
 
@@ -1322,20 +1370,6 @@ class V8_EXPORT Isolate {
   void IsolateInBackgroundNotification();
 
   /**
-   * Optional notification which will enable the memory savings mode.
-   * V8 uses this notification to guide heuristics which may result in a
-   * smaller memory footprint at the cost of reduced runtime performance.
-   */
-  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
-  void EnableMemorySavingsMode();
-
-  /**
-   * Optional notification which will disable the memory savings mode.
-   */
-  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
-  void DisableMemorySavingsMode();
-
-  /**
    * Optional notification to tell V8 the current performance requirements
    * of the embedder based on RAIL.
    * V8 uses these notifications to guide heuristics.
@@ -1506,21 +1540,25 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
-  V8_DEPRECATED("Wasm SIMD is always enabled")
-  void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
-
-  V8_DEPRECATED("Wasm exceptions are always enabled")
-  void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
-
   /**
-   * Register callback to control whehter Wasm GC is enabled.
+   * Register callback to control whether Wasm GC is enabled.
    * The callback overwrites the value of the flag.
    * If the callback returns true, it will also enable Wasm stringrefs.
    */
   void SetWasmGCEnabledCallback(WasmGCEnabledCallback callback);
 
+  void SetWasmImportedStringsEnabledCallback(
+      WasmImportedStringsEnabledCallback callback);
+
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
+
+  /**
+   * Register callback to control whether compile hints magic comments are
+   * enabled.
+   */
+  void SetJavaScriptCompileHintsMagicEnabledCallback(
+      JavaScriptCompileHintsMagicEnabledCallback callback);
 
   /**
    * This function can be called by the embedder to signal V8 that the dynamic
@@ -1583,6 +1621,7 @@ class V8_EXPORT Isolate {
    * heap.  GC is not invoked prior to iterating, therefore there is no
    * guarantee that visited objects are still alive.
    */
+  V8_DEPRECATE_SOON("Will be removed without replacement. crbug.com/v8/14172")
   void VisitExternalResources(ExternalResourceVisitor* visitor);
 
   /**
@@ -1673,10 +1712,12 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 template <class T>
 MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
-  T* data =
-      internal::ValueHelper::SlotAsValue<T>(GetDataFromSnapshotOnce(index));
-  if (data) internal::PerformCastCheck(data);
-  return Local<T>(data);
+  auto slot = GetDataFromSnapshotOnce(index);
+  if (slot) {
+    internal::PerformCastCheck(
+        internal::ValueHelper::SlotAsValue<T, false>(slot));
+  }
+  return Local<T>::FromSlot(slot);
 }
 
 }  // namespace v8

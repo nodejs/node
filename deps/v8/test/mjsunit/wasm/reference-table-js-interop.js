@@ -29,7 +29,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
       builder.instantiate({ imports: { table } });
     } else {
       let err = 'WebAssembly.Instance(): Import #0 module="imports" ' +
-                'function="table" error: imported table does not match the ' +
+                'function="table": imported table does not match the ' +
                 'expected type';
       assertThrows(() => builder.instantiate({ imports: { table } }),
                    WebAssembly.LinkError,
@@ -75,7 +75,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetStructVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsStruct,
       kGCPrefix, kExprRefCast, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
@@ -83,7 +82,6 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGetArrayVal", getValSig)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array,
       kExprI32Const, 0,
       kGCPrefix, kExprArrayGet, array,
@@ -113,7 +111,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   let i31Sig = typeName != "structref" && typeName != "arrayref"
                ? creatorSig : creatorAnySig;
   builder.addFunction("createI31", i31Sig)
-    .addBody([kExprI32Const, 12, kGCPrefix, kExprI31New])
+    .addBody([kExprI32Const, 12, kGCPrefix, kExprRefI31])
     .exportFunc();
   let structSig = typeName != "arrayref" && typeName != "i31ref"
                   ? creatorSig : creatorAnySig;
@@ -200,7 +198,15 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     assertTraps(kTrapTableOutOfBounds, () => wasm.tableGetStructVal(size + 2));
     // Grow by 1 without initial value.
     table.grow(1, null);
-    table.grow(1, undefined);
+    if (typeName == "anyref") {
+      // Undefined is fine for anyref.
+      table.grow(1, undefined);
+    } else {
+      // But not for any other wasm internal type.
+      assertThrows(() => table.grow(1, undefined), TypeError);
+      // No-argument will use the default value.
+      table.grow(1);
+    }
   }
   if (typeName == "anyref") {
     table.grow(1, "Grow using a string");

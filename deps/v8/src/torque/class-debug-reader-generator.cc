@@ -148,16 +148,17 @@ class DebugFieldType {
       return "";
     }
     if (IsTagged()) {
-      if (storage == kAsStoredInHeap &&
-          TargetArchitecture::ArePointersCompressed()) {
-        return "v8::internal::TaggedValue";
-      }
       base::Optional<const ClassType*> field_class_type =
           name_and_type_.type->ClassSupertype();
-      return "v8::internal::" +
-             (field_class_type.has_value()
-                  ? (*field_class_type)->GetGeneratedTNodeTypeName()
-                  : "Object");
+      std::string result =
+          "v8::internal::" +
+          (field_class_type.has_value()
+               ? (*field_class_type)->GetGeneratedTNodeTypeName()
+               : "Object");
+      if (storage == kAsStoredInHeap) {
+        result = "v8::internal::TaggedMember<" + result + ">";
+      }
+      return result;
     }
     return name_and_type_.type->GetConstexprGeneratedTypeName();
   }
@@ -373,7 +374,6 @@ void GenerateGetPropsChunkForField(const Field& field,
                    << ".push_back(std::make_unique<StructProperty>(\""
                    << struct_field.name_and_type.name << "\", "
                    << struct_field_type.GetTypeString(kAsStoredInHeap) << ", "
-                   << struct_field_type.GetTypeString(kUncompressed) << ", "
                    << struct_field.offset_bytes << ", " << struct_field.num_bits
                    << ", " << struct_field.shift_bits << "));\n";
   }
@@ -401,7 +401,6 @@ void GenerateGetPropsChunkForField(const Field& field,
                    << "    result.push_back(std::make_unique<ObjectProperty>(\""
                    << field.name_and_type.name << "\", "
                    << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
-                   << debug_field_type.GetTypeString(kUncompressed) << ", "
                    << "address_ - i::kHeapObjectTag + std::get<1>(" << value
                    << "), "
                    << "std::get<2>(" << value << ")"
@@ -413,7 +412,6 @@ void GenerateGetPropsChunkForField(const Field& field,
   get_props_impl << "  result.push_back(std::make_unique<ObjectProperty>(\""
                  << field.name_and_type.name << "\", "
                  << debug_field_type.GetTypeString(kAsStoredInHeap) << ", "
-                 << debug_field_type.GetTypeString(kUncompressed) << ", "
                  << debug_field_type.GetAddressGetter() << "(), " << count_value
                  << ", " << debug_field_type.GetSize() << ", "
                  << struct_field_list << ", " << property_kind << "));\n";

@@ -29,7 +29,7 @@ The MD4 algorithm which produces a 128-bit output from a given input.
 
 Developers should be aware of the negative performance implications of
 calling this function multiple times and should consider using
-L<EVP_MD_fetch(3)> instead.
+L<EVP_MD_fetch(3)> with L<EVP_MD-MD4(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 =head1 RETURN VALUES

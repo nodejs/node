@@ -7,8 +7,8 @@ extern class TemplateInfo extends Struct {
   tag: Smi;
   serial_number: Smi;
   number_of_properties: Smi;
-  property_list: TemplateList|Undefined;
-  property_accessors: TemplateList|Undefined;
+  property_list: ArrayList|Undefined;
+  property_accessors: ArrayList|Undefined;
 }
 
 extern class FunctionTemplateRareData extends Struct {
@@ -56,7 +56,7 @@ extern class FunctionTemplateInfo extends TemplateInfo {
   rare_data: FunctionTemplateRareData|Undefined;
   shared_function_info: SharedFunctionInfo|Undefined;
   // Internal field to store a flag bitfield.
-  flag: SmiTagged<FunctionTemplateInfoFlags>;
+  @cppRelaxedLoad @cppRelaxedStore flag: SmiTagged<FunctionTemplateInfoFlags>;
   // "length" property of the final JSFunction.
   length: Smi;
   // Either the_hole or a private symbol. Used to cache the result on

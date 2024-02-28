@@ -191,7 +191,7 @@ class JSAtomicsCondition
   // Notify {count} waiters. Returns the number of waiters woken up.
   V8_EXPORT_PRIVATE uint32_t Notify(Isolate* requester, uint32_t count);
 
-  Object NumWaitersForTesting(Isolate* isolate);
+  Tagged<Object> NumWaitersForTesting(Isolate* isolate);
 
   TQ_OBJECT_CONSTRUCTORS(JSAtomicsCondition)
 

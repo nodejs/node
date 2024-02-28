@@ -14,13 +14,12 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/regexp-match-info-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo)
+CAST_ACCESSOR(RegExpMatchInfo)
+OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
 
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
   DCHECK_GE(length(), kLastMatchOverhead);
-  Object obj = get(kNumberOfCapturesIndex);
+  Tagged<Object> obj = get(kNumberOfCapturesIndex);
   return Smi::ToInt(obj);
 }
 
@@ -29,29 +28,31 @@ void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
   set(kNumberOfCapturesIndex, Smi::FromInt(value));
 }
 
-String RegExpMatchInfo::LastSubject() {
+Tagged<String> RegExpMatchInfo::LastSubject() {
   DCHECK_GE(length(), kLastMatchOverhead);
   return String::cast(get(kLastSubjectIndex));
 }
 
-void RegExpMatchInfo::SetLastSubject(String value, WriteBarrierMode mode) {
+void RegExpMatchInfo::SetLastSubject(Tagged<String> value,
+                                     WriteBarrierMode mode) {
   DCHECK_GE(length(), kLastMatchOverhead);
   set(kLastSubjectIndex, value, mode);
 }
 
-Object RegExpMatchInfo::LastInput() {
+Tagged<Object> RegExpMatchInfo::LastInput() {
   DCHECK_GE(length(), kLastMatchOverhead);
   return get(kLastInputIndex);
 }
 
-void RegExpMatchInfo::SetLastInput(Object value, WriteBarrierMode mode) {
+void RegExpMatchInfo::SetLastInput(Tagged<Object> value,
+                                   WriteBarrierMode mode) {
   DCHECK_GE(length(), kLastMatchOverhead);
   set(kLastInputIndex, value, mode);
 }
 
 int RegExpMatchInfo::Capture(int i) {
   DCHECK_LT(i, NumberOfCaptureRegisters());
-  Object obj = get(kFirstCaptureIndex + i);
+  Tagged<Object> obj = get(kFirstCaptureIndex + i);
   return Smi::ToInt(obj);
 }
 

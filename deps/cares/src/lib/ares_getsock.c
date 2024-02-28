@@ -1,15 +1,27 @@
-
-/* Copyright (C) 2005 - 2010, Daniel Stenberg
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose and without fee is hereby granted, provided
- * that the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  M.I.T. makes no representations about the
- * suitability of this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 2005 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -17,50 +29,60 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_getsock(ares_channel channel,
-                 ares_socket_t *socks,
+int ares_getsock(ares_channel_t *channel, ares_socket_t *socks,
                  int numsocks) /* size of the 'socks' array */
 {
-  struct server_state *server;
-  int i;
-  int sockindex=0;
-  int bitmap = 0;
-  unsigned int setbits = 0xffffffff;
+  ares__slist_node_t *snode;
+  size_t              sockindex = 0;
+  unsigned int        bitmap    = 0;
+  unsigned int        setbits   = 0xffffffff;
 
   /* Are there any active queries? */
-  int active_queries = !ares__is_list_empty(&(channel->all_queries));
+  size_t              active_queries;
 
-  for (i = 0; i < channel->nservers; i++)
-    {
-      server = &channel->servers[i];
+  if (channel == NULL || numsocks <= 0) {
+    return 0;
+  }
+
+  ares__channel_lock(channel);
+
+  active_queries = ares__llist_len(channel->all_queries);
+
+  for (snode = ares__slist_node_first(channel->servers); snode != NULL;
+       snode = ares__slist_node_next(snode)) {
+    struct server_state *server = ares__slist_node_val(snode);
+    ares__llist_node_t  *node;
+
+    for (node = ares__llist_node_first(server->connections); node != NULL;
+         node = ares__llist_node_next(node)) {
+      const struct server_connection *conn = ares__llist_node_val(node);
+
+      if (sockindex >= (size_t)numsocks || sockindex >= ARES_GETSOCK_MAXNUM) {
+        break;
+      }
+
       /* We only need to register interest in UDP sockets if we have
        * outstanding queries.
        */
-      if (active_queries && server->udp_socket != ARES_SOCKET_BAD)
-        {
-          if(sockindex >= numsocks || sockindex >= ARES_GETSOCK_MAXNUM)
-            break;
-          socks[sockindex] = server->udp_socket;
-          bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);
-          sockindex++;
-        }
-      /* We always register for TCP events, because we want to know
-       * when the other side closes the connection, so we don't waste
-       * time trying to use a broken connection.
-       */
-      if (server->tcp_socket != ARES_SOCKET_BAD)
-       {
-         if(sockindex >= numsocks || sockindex >= ARES_GETSOCK_MAXNUM)
-           break;
-         socks[sockindex] = server->tcp_socket;
-         bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);
+      if (!active_queries && !conn->is_tcp) {
+        continue;
+      }
 
-         if (server->qhead && active_queries)
-           /* then the tcp socket is also writable! */
-           bitmap |= ARES_GETSOCK_WRITABLE(setbits, sockindex);
+      socks[sockindex] = conn->fd;
 
-         sockindex++;
-       }
+      if (active_queries || conn->is_tcp) {
+        bitmap |= ARES_GETSOCK_READABLE(setbits, sockindex);
+      }
+
+      if (conn->is_tcp && ares__buf_len(server->tcp_send)) {
+        /* then the tcp socket is also writable! */
+        bitmap |= ARES_GETSOCK_WRITABLE(setbits, sockindex);
+      }
+
+      sockindex++;
     }
-  return bitmap;
+  }
+
+  ares__channel_unlock(channel);
+  return (int)bitmap;
 }

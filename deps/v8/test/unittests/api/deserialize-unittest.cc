@@ -10,7 +10,7 @@
 #include "include/v8-primitive.h"
 #include "include/v8-script.h"
 #include "src/codegen/compilation-cache.h"
-#include "test/unittests/test-utils.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace v8 {
@@ -293,54 +293,55 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   };
 
   template <typename T>
-  static i::SharedFunctionInfo GetSharedFunctionInfo(
+  static i::Tagged<i::SharedFunctionInfo> GetSharedFunctionInfo(
       Local<T> function_or_script) {
     i::Handle<i::JSFunction> i_function =
         i::Handle<i::JSFunction>::cast(Utils::OpenHandle(*function_or_script));
     return i_function->shared();
   }
 
-  static i::MaybeObject WeakOrSmi(i::Object obj) {
-    return obj.IsSmi()
+  static i::MaybeObject WeakOrSmi(i::Tagged<i::Object> obj) {
+    return IsSmi(obj)
                ? i::MaybeObject::FromSmi(i::Smi::cast(obj))
                : i::MaybeObject::MakeWeak(i::MaybeObject::FromObject(obj));
   }
 
   void ValidateStandaloneGraphAndPopulateArray(
-      i::SharedFunctionInfo toplevel_sfi, i::WeakFixedArray array,
-      bool lazy_should_be_compiled = false,
+      i::Tagged<i::SharedFunctionInfo> toplevel_sfi,
+      i::Tagged<i::WeakFixedArray> array, bool lazy_should_be_compiled = false,
       bool eager_should_be_compiled = true) {
     i::DisallowGarbageCollection no_gc;
-    CHECK(toplevel_sfi.is_compiled());
-    array.Set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
-    array.Set(kToplevelFunctionData,
-              WeakOrSmi(toplevel_sfi.function_data(kAcquireLoad)));
-    array.Set(kToplevelFeedbackMetadata,
-              WeakOrSmi(toplevel_sfi.feedback_metadata()));
-    i::Script script = i::Script::cast(toplevel_sfi.script());
-    array.Set(kScript, WeakOrSmi(script));
-    i::WeakFixedArray sfis = script.shared_function_infos();
-    CHECK_EQ(sfis.length(), 4);
-    CHECK_EQ(sfis.Get(0), WeakOrSmi(toplevel_sfi));
-    i::SharedFunctionInfo eager =
-        i::SharedFunctionInfo::cast(sfis.Get(1).GetHeapObjectAssumeWeak());
-    CHECK_EQ(eager.is_compiled(), eager_should_be_compiled);
-    array.Set(kEagerSfi, WeakOrSmi(eager));
+    CHECK(toplevel_sfi->is_compiled());
+    array->Set(kToplevelSfi, WeakOrSmi(toplevel_sfi));
+    array->Set(kToplevelFunctionData,
+               WeakOrSmi(toplevel_sfi->function_data(kAcquireLoad)));
+    array->Set(kToplevelFeedbackMetadata,
+               WeakOrSmi(toplevel_sfi->feedback_metadata()));
+    i::Tagged<i::Script> script = i::Script::cast(toplevel_sfi->script());
+    array->Set(kScript, WeakOrSmi(script));
+    i::Tagged<i::WeakFixedArray> sfis = script->shared_function_infos();
+    CHECK_EQ(sfis->length(), 4);
+    CHECK_EQ(sfis->Get(0), WeakOrSmi(toplevel_sfi));
+    i::Tagged<i::SharedFunctionInfo> eager =
+        i::SharedFunctionInfo::cast(sfis->Get(1).GetHeapObjectAssumeWeak());
+    CHECK_EQ(eager->is_compiled(), eager_should_be_compiled);
+    array->Set(kEagerSfi, WeakOrSmi(eager));
     if (eager_should_be_compiled) {
-      array.Set(kEagerFunctionData,
-                WeakOrSmi(eager.function_data(kAcquireLoad)));
-      array.Set(kEagerFeedbackMetadata, WeakOrSmi(eager.feedback_metadata()));
-      i::SharedFunctionInfo iife =
-          i::SharedFunctionInfo::cast(sfis.Get(2).GetHeapObjectAssumeWeak());
-      CHECK(iife.is_compiled());
-      array.Set(kIifeSfi, WeakOrSmi(iife));
-      array.Set(kIifeFunctionData, WeakOrSmi(iife.function_data(kAcquireLoad)));
-      array.Set(kIifeFeedbackMetadata, WeakOrSmi(iife.feedback_metadata()));
+      array->Set(kEagerFunctionData,
+                 WeakOrSmi(eager->function_data(kAcquireLoad)));
+      array->Set(kEagerFeedbackMetadata, WeakOrSmi(eager->feedback_metadata()));
+      i::Tagged<i::SharedFunctionInfo> iife =
+          i::SharedFunctionInfo::cast(sfis->Get(2).GetHeapObjectAssumeWeak());
+      CHECK(iife->is_compiled());
+      array->Set(kIifeSfi, WeakOrSmi(iife));
+      array->Set(kIifeFunctionData,
+                 WeakOrSmi(iife->function_data(kAcquireLoad)));
+      array->Set(kIifeFeedbackMetadata, WeakOrSmi(iife->feedback_metadata()));
     }
-    i::SharedFunctionInfo lazy =
-        i::SharedFunctionInfo::cast(sfis.Get(3).GetHeapObjectAssumeWeak());
-    CHECK_EQ(lazy.is_compiled(), lazy_should_be_compiled);
-    array.Set(kLazySfi, WeakOrSmi(lazy));
+    i::Tagged<i::SharedFunctionInfo> lazy =
+        i::SharedFunctionInfo::cast(sfis->Get(3).GetHeapObjectAssumeWeak());
+    CHECK_EQ(lazy->is_compiled(), lazy_should_be_compiled);
+    array->Set(kLazySfi, WeakOrSmi(lazy));
   }
 
   void AgeBytecodeAndGC(ScriptObjectFlag sfis_to_age,
@@ -348,24 +349,17 @@ class MergeDeserializedCodeTest : public DeserializeTest {
                         i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((sfis_to_age & (1 << index)) == (1 << index)) {
-        i::BytecodeArray bytecode =
-            i::SharedFunctionInfo::cast(
-                original_objects->Get(index).GetHeapObjectAssumeWeak())
-                .GetBytecodeArray(i_isolate);
-        const int kAgingThreshold = 6;
-        for (int j = 0; j < kAgingThreshold; ++j) {
-          bytecode.MakeOlder();
-        }
+        i::Tagged<i::SharedFunctionInfo> sfi = i::SharedFunctionInfo::cast(
+            original_objects->Get(index).GetHeapObjectAssumeWeak());
+        i::SharedFunctionInfo::EnsureOldForTesting(sfi);
       }
     }
 
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
 
     // A second round of GC is necessary in case incremental marking had already
     // started before the bytecode was aged.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
   }
 
   class MergeThread : public base::Thread {
@@ -380,19 +374,19 @@ class MergeDeserializedCodeTest : public DeserializeTest {
   };
 
   void RetainObjects(ScriptObjectFlag to_retain,
-                     i::WeakFixedArray original_objects,
-                     i::FixedArray retained_original_objects,
+                     i::Tagged<i::WeakFixedArray> original_objects,
+                     i::Tagged<i::FixedArray> retained_original_objects,
                      i::Isolate* i_isolate) {
     for (int index = 0; index < kScriptObjectsCount; ++index) {
       if ((to_retain & (1 << index)) == (1 << index)) {
-        i::MaybeObject maybe = original_objects.Get(index);
-        if (i::HeapObject heap_object;
+        i::MaybeObject maybe = original_objects->Get(index);
+        if (i::Tagged<i::HeapObject> heap_object;
             maybe.GetHeapObjectIfWeak(&heap_object)) {
-          retained_original_objects.set(index, heap_object);
+          retained_original_objects->set(index, heap_object);
           continue;
         }
       }
-      retained_original_objects.set(
+      retained_original_objects->set(
           index, i::ReadOnlyRoots(i_isolate).undefined_value());
     }
   }
@@ -509,8 +503,7 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     // At this point, the original_objects array might still have pointers to
     // some old discarded content, such as UncompiledData from flushed
     // functions. GC again to clear it all out.
-    i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                         i::GarbageCollectionReason::kTesting);
+    InvokeMajorGC(i_isolate);
 
     // All tracked objects from the original Script should have been reused if
     // they're still alive.
@@ -668,19 +661,13 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
 
   // Age the top-level bytecode so that the Isolate compilation cache will
   // contain only the Script.
-  i::BytecodeArray bytecode =
-      GetSharedFunctionInfo(original_script).GetBytecodeArray(i_isolate);
-  const int kAgingThreshold = 6;
-  for (int j = 0; j < kAgingThreshold; ++j) {
-    bytecode.MakeOlder();
-  }
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  i::SharedFunctionInfo::EnsureOldForTesting(
+      GetSharedFunctionInfo(original_script));
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
       isolate(), std::make_unique<ScriptCompiler::CachedData>(
@@ -767,21 +754,14 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::BytecodeArray bytecode =
-        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    const int kAgingThreshold = 6;
-    for (int j = 0; j < kAgingThreshold; ++j) {
-      bytecode.MakeOlder();
-    }
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   DeserializeThread deserialize_thread(ScriptCompiler::StartConsumingCodeCache(
       isolate(), std::make_unique<ScriptCompiler::CachedData>(
@@ -830,6 +810,8 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
   ScriptOrigin default_origin(isolate(), NewString(""));
+  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
+      i_isolate->heap());
 
   // Compile the script for the first time to produce code cache data.
   {
@@ -847,20 +829,14 @@ TEST_F(MergeDeserializedCodeTest, MergeThatStartsButDoesNotFinish) {
 
     // Age the top-level bytecode so that the Isolate compilation cache will
     // contain only the Script.
-    i::BytecodeArray bytecode =
-        GetSharedFunctionInfo(script).GetBytecodeArray(i_isolate);
-    for (int j = 0; j < i::v8_flags.bytecode_old_age; ++j) {
-      bytecode.MakeOlder();
-    }
+    i::SharedFunctionInfo::EnsureOldForTesting(GetSharedFunctionInfo(script));
   }
 
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // A second round of GC is necessary in case incremental marking had already
   // started before the bytecode was aged.
-  i_isolate->heap()->CollectAllGarbage(i::Heap::kNoGCFlags,
-                                       i::GarbageCollectionReason::kTesting);
+  InvokeMajorGC(i_isolate);
 
   // Start several background deserializations.
   std::vector<std::unique_ptr<DeserializeThread>> deserialize_threads;

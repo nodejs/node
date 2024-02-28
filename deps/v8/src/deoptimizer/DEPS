@@ -1,5 +1,5 @@
 specific_include_rules = {
-  "translation-array.cc": [
+  "frame-translation-builder.cc": [
     "+third_party/zlib",
   ],
 }

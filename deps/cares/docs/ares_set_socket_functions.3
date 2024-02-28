@@ -1,4 +1,5 @@
-.\"
+.\" Copyright (C) Daniel Stenberg
+.\" SPDX-License-Identifier: MIT
 .TH ARES_SET_SOCKET_FUNCTIONS 3 "13 Dec 2016"
 .SH NAME
 ares_set_socket_functions \- Set socket io callbacks
@@ -15,16 +16,20 @@ struct ares_socket_functions {
     ares_ssize_t (*\fIasendv\fP)(ares_socket_t, const struct iovec *, int, void *);
 };
 
-void ares_set_socket_functions(ares_channel \fIchannel\fP,
+void ares_set_socket_functions(ares_channel_t *\fIchannel\fP,
                                const struct ares_socket_functions * \fIfunctions\fP,
                                void *\fIuser_data\fP);
 .fi
 .SH DESCRIPTION
 .PP
 This function sets a set of callback \fIfunctions\fP in the given ares channel handle.
+Cannot be used when \fBARES_OPT_EVENT_THREAD\fP is passed to \fIares_init_options(3)\fP.
+
 These callback functions will be invoked to create/destroy socket objects and perform
 io, instead of the normal system calls. A client application can override normal network
-operation fully through this functionality, and provide its own transport layer.
+operation fully through this functionality, and provide its own transport layer. You
+can choose to only implement some of the socket functions, and provide NULL to any
+others and c-ares will use its built-in system functions in that case.
 .PP
 All callback functions are expected to operate like their system equivalents, and to
 set
@@ -87,12 +92,12 @@ and must thus remain valid through out the channels and any created socket's lif
 Added in c-ares 1.13.0
 .SH SEE ALSO
 .BR ares_init_options (3),
-.BR socket(2),
-.BR close(2),
-.BR connect(2),
-.BR recv(2),
-.BR recvfrom(2),
-.BR send(2),
-.BR writev(2)
+.BR socket (2),
+.BR close (2),
+.BR connect (2),
+.BR recv (2),
+.BR recvfrom (2),
+.BR send (2),
+.BR writev (2)
 .SH AUTHOR
 Carl Wilund

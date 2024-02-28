@@ -78,14 +78,6 @@ struct PropertyBase {
   // - v8::X::Y
   // - X::Y
   const char* type;
-
-  // In some cases, |type| may be a simple type representing a compressed
-  // pointer such as v8::internal::TaggedValue. In those cases,
-  // |decompressed_type| will contain the type of the object when decompressed.
-  // Otherwise, |decompressed_type| will match |type|. In any case, it is safe
-  // to pass the |decompressed_type| value as the type_hint on a subsequent call
-  // to GetObjectProperties.
-  const char* decompressed_type;
 };
 
 struct StructProperty : public PropertyBase {

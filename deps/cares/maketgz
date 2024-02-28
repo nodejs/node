@@ -1,4 +1,6 @@
 #!/usr/bin/env perl
+# Copyright (C) Daniel Stenberg
+# SPDX-License-Identifier: MIT
 
 $version = $ARGV[0];
 
@@ -58,7 +60,7 @@ print "produce CHANGES\n";
 print "running make dist\n";
 `make dist VERSION=$version`;
 
-# remove temporay sourced man pages
+# remove temporary sourced man pages
 `make -s clean-sourced-manpages`;
 
 print "removing temporary configure.ac file\n";

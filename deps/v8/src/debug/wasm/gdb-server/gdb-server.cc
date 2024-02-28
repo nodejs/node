@@ -371,7 +371,7 @@ void GdbServer::PrepareStep() {
 void GdbServer::AddWasmModule(uint32_t module_id,
                               Local<debug::WasmScript> wasm_script) {
   // Executed in the isolate thread.
-  DCHECK_EQ(Script::TYPE_WASM, Utils::OpenHandle(*wasm_script)->type());
+  DCHECK_EQ(Script::Type::kWasm, Utils::OpenHandle(*wasm_script)->type());
   v8::Isolate* isolate = wasm_script->GetIsolate();
   scripts_.insert(
       std::make_pair(module_id, WasmModuleDebug(isolate, wasm_script)));

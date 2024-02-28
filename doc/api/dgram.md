@@ -375,7 +375,9 @@ provided, it is added as a listener for the [`'close'`][] event.
 ### `socket[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.5.0
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -902,7 +904,7 @@ to exclude the socket from the reference counting that keeps the Node.js
 process active, allowing the process to exit even if the socket is still
 listening.
 
-Calling `socket.unref()` multiple times will have no addition effect.
+Calling `socket.unref()` multiple times will have no additional effect.
 
 The `socket.unref()` method returns a reference to the socket so calls can be
 chained.

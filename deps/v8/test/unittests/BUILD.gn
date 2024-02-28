@@ -71,6 +71,8 @@ v8_source_set("v8_heap_base_unittests_sources") {
   sources = [
     "heap/base/active-system-pages-unittest.cc",
     "heap/base/basic-slot-set-unittest.cc",
+    "heap/base/bytes-unittest.cc",
+    "heap/base/incremental-marking-schedule-unittest.cc",
     "heap/base/worklist-unittest.cc",
   ]
 
@@ -94,7 +96,9 @@ if (cppgc_is_standalone) {
   v8_executable("cppgc_unittests") {
     testonly = true
     if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-      libs = [ "atomic" ]
+      if (!is_clang) {
+        libs = [ "atomic" ]
+      }
     }
 
     configs = [
@@ -137,7 +141,6 @@ v8_source_set("cppgc_unittests_sources") {
     "heap/cppgc/heap-registry-unittest.cc",
     "heap/cppgc/heap-statistics-collector-unittest.cc",
     "heap/cppgc/heap-unittest.cc",
-    "heap/cppgc/incremental-marking-schedule-unittest.cc",
     "heap/cppgc/liveness-broker-unittest.cc",
     "heap/cppgc/logging-unittest.cc",
     "heap/cppgc/marker-unittest.cc",
@@ -205,8 +208,8 @@ v8_executable("v8_unittests") {
 
   deps = [
     ":inspector_unittests_sources",
-    ":v8_unittests_sources",
     ":v8_heap_base_unittests_sources",
+    ":v8_unittests_sources",
     "../..:v8_for_testing",
     "../..:v8_libbase",
     "../..:v8_libplatform",
@@ -258,9 +261,11 @@ v8_source_set("v8_unittests_sources") {
     "api/isolate-unittest.cc",
     "api/remote-object-unittest.cc",
     "api/resource-constraints-unittest.cc",
+    "api/v8-array-unittest.cc",
     "api/v8-maybe-unittest.cc",
     "api/v8-object-unittest.cc",
     "api/v8-script-unittest.cc",
+    "api/v8-value-unittest.cc",
     "base/address-region-unittest.cc",
     "base/atomic-utils-unittest.cc",
     "base/atomicops-unittest.cc",
@@ -287,6 +292,7 @@ v8_source_set("v8_unittests_sources") {
     "base/platform/semaphore-unittest.cc",
     "base/platform/time-unittest.cc",
     "base/region-allocator-unittest.cc",
+    "base/smallmap-unittest.cc",
     "base/string-format-unittest.cc",
     "base/sys-info-unittest.cc",
     "base/template-utils-unittest.cc",
@@ -302,6 +308,7 @@ v8_source_set("v8_unittests_sources") {
     "codegen/factory-unittest.cc",
     "codegen/register-configuration-unittest.cc",
     "codegen/source-position-table-unittest.cc",
+    "common/thread-isolation-unittest.cc",
     "compiler-dispatcher/compiler-dispatcher-unittest.cc",
     "compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc",
     "date/date-cache-unittest.cc",
@@ -324,7 +331,6 @@ v8_source_set("v8_unittests_sources") {
     "heap/allocation-observer-unittest.cc",
     "heap/bitmap-test-utils.h",
     "heap/bitmap-unittest.cc",
-    "heap/code-object-registry-unittest.cc",
     "heap/cppgc-js/embedder-roots-handler-unittest.cc",
     "heap/cppgc-js/traced-reference-unittest.cc",
     "heap/cppgc-js/unified-heap-snapshot-unittest.cc",
@@ -332,6 +338,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/cppgc-js/unified-heap-utils.cc",
     "heap/cppgc-js/unified-heap-utils.h",
     "heap/cppgc-js/young-unified-heap-unittest.cc",
+    "heap/direct-handles-unittest.cc",
     "heap/gc-idle-time-handler-unittest.cc",
     "heap/gc-tracer-unittest.cc",
     "heap/global-handles-unittest.cc",
@@ -341,6 +348,7 @@ v8_source_set("v8_unittests_sources") {
     "heap/heap-utils.cc",
     "heap/heap-utils.h",
     "heap/index-generator-unittest.cc",
+    "heap/iterators-unittest.cc",
     "heap/lab-unittest.cc",
     "heap/list-unittest.cc",
     "heap/local-factory-unittest.cc",
@@ -393,6 +401,7 @@ v8_source_set("v8_unittests_sources") {
     "libsampler/signals-and-mutexes-unittest.cc",
     "logging/counters-unittest.cc",
     "logging/log-unittest.cc",
+    "maglev/node-type-unittest.cc",
     "numbers/bigint-unittest.cc",
     "numbers/conversions-unittest.cc",
     "numbers/diy-fp-unittest.cc",
@@ -467,6 +476,7 @@ v8_source_set("v8_unittests_sources") {
     "utils/version-unittest.cc",
     "zone/zone-allocator-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
+    "zone/zone-compact-set-unittest.cc",
     "zone/zone-unittest.cc",
     "zone/zone-vector-unittest.cc",
   ]
@@ -546,6 +556,7 @@ v8_source_set("v8_unittests_sources") {
       "compiler/simplified-operator-unittest.cc",
       "compiler/sloppy-equality-unittest.cc",
       "compiler/state-values-utils-unittest.cc",
+      "compiler/turboshaft/doubly-threaded-list-unittest.cc",
       "compiler/turboshaft/snapshot-table-unittest.cc",
       "compiler/turboshaft/turboshaft-typer-unittest.cc",
       "compiler/turboshaft/turboshaft-types-unittest.cc",
@@ -570,8 +581,8 @@ v8_source_set("v8_unittests_sources") {
       "asmjs/asm-scanner-unittest.cc",
       "asmjs/asm-types-unittest.cc",
       "compiler/int64-lowering-unittest.cc",
+      "compiler/wasm-address-reassociation-unittest.cc",
       "objects/wasm-backing-store-unittest.cc",
-      "wasm/control-transfer-unittest.cc",
       "wasm/decoder-unittest.cc",
       "wasm/function-body-decoder-unittest.cc",
       "wasm/leb-helper-unittest.cc",
@@ -618,7 +629,7 @@ v8_source_set("v8_unittests_sources") {
 
   if (v8_enable_conservative_stack_scanning) {
     sources += [ "heap/conservative-stack-visitor-unittest.cc" ]
-    sources += [ "heap/marking-inner-pointer-resolution-unittest.cc" ]
+    sources += [ "heap/inner-pointer-resolution-unittest.cc" ]
   }
 
   if (v8_enable_i18n_support) {
@@ -640,13 +651,13 @@ v8_source_set("v8_unittests_sources") {
     sources += [
       "assembler/disasm-arm64-unittest.cc",
       "assembler/macro-assembler-arm64-unittest.cc",
-      "codegen/pointer-auth-arm64-unittest.cc",
+      "execution/pointer-auth-arm64-unittest.cc",
     ]
     if (v8_enable_turbofan) {
       sources += [ "compiler/arm64/instruction-selector-arm64-unittest.cc" ]
     }
     if (v8_enable_webassembly && current_cpu == "arm64") {
-      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   } else if (v8_current_cpu == "x86") {
     sources += [
@@ -690,7 +701,7 @@ v8_source_set("v8_unittests_sources") {
       sources += [ "compiler/x64/instruction-selector-x64-unittest.cc" ]
     }
     if (v8_enable_webassembly) {
-      sources += [ "wasm/trap-handler-x64-arm64-unittest.cc" ]
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
     }
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
     sources += [
@@ -716,6 +727,9 @@ v8_source_set("v8_unittests_sources") {
     if (v8_enable_turbofan) {
       sources += [ "compiler/loong64/instruction-selector-loong64-unittest.cc" ]
     }
+    if (v8_enable_webassembly && current_cpu == "loong64") {
+      sources += [ "wasm/trap-handler-native-unittest.cc" ]
+    }
   }
 
   if (v8_enable_webassembly) {
@@ -729,7 +743,8 @@ v8_source_set("v8_unittests_sources") {
 
     # Include this test only on arm64 simulator builds on x64 on Linux, Mac and
     # Windows.
-    if (current_cpu == "x64" && v8_current_cpu == "arm64" &&
+    if (current_cpu == "x64" &&
+        (v8_current_cpu == "arm64" || v8_current_cpu == "loong64") &&
         (is_linux || is_mac || is_win)) {
       sources += [ "wasm/trap-handler-simulator-unittest.cc" ]
     }

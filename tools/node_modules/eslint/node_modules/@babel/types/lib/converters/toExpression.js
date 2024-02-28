@@ -4,22 +4,21 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
-var _generated = require("../validators/generated");
-var _default = toExpression;
-exports.default = _default;
+var _index = require("../validators/generated/index.js");
+var _default = exports.default = toExpression;
 function toExpression(node) {
-  if ((0, _generated.isExpressionStatement)(node)) {
+  if ((0, _index.isExpressionStatement)(node)) {
     node = node.expression;
   }
-  if ((0, _generated.isExpression)(node)) {
+  if ((0, _index.isExpression)(node)) {
     return node;
   }
-  if ((0, _generated.isClass)(node)) {
+  if ((0, _index.isClass)(node)) {
     node.type = "ClassExpression";
-  } else if ((0, _generated.isFunction)(node)) {
+  } else if ((0, _index.isFunction)(node)) {
     node.type = "FunctionExpression";
   }
-  if (!(0, _generated.isExpression)(node)) {
+  if (!(0, _index.isExpression)(node)) {
     throw new Error(`cannot turn ${node.type} to an expression`);
   }
   return node;

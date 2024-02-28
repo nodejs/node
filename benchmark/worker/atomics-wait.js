@@ -4,10 +4,6 @@ if (typeof SharedArrayBuffer === 'undefined') {
   throw new Error('SharedArrayBuffers must be enabled to run this benchmark');
 }
 
-if (typeof Atomics === 'undefined') {
-  throw new Error('Atomics must be enabled to run this benchmark');
-}
-
 const common = require('../common.js');
 const bench = common.createBenchmark(main, {
   n: [1e7],

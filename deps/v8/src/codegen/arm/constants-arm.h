@@ -78,48 +78,49 @@ constexpr int kRootRegisterBias = 4095;
 // General constants are in an anonymous enum in class Instr.
 
 // Values for the condition field as defined in section A3.2
-using Condition = int;
-constexpr Condition kNoCondition = -1;
+enum Condition : int {
+  kNoCondition = -1,
 
-constexpr Condition eq = 0 << 28;   // Z set            Equal.
-constexpr Condition ne = 1 << 28;   // Z clear          Not equal.
-constexpr Condition cs = 2 << 28;   // C set            Unsigned higher or same.
-constexpr Condition cc = 3 << 28;   // C clear          Unsigned lower.
-constexpr Condition mi = 4 << 28;   // N set            Negative.
-constexpr Condition pl = 5 << 28;   // N clear          Positive or zero.
-constexpr Condition vs = 6 << 28;   // V set            Overflow.
-constexpr Condition vc = 7 << 28;   // V clear          No overflow.
-constexpr Condition hi = 8 << 28;   // C set, Z clear   Unsigned higher.
-constexpr Condition ls = 9 << 28;   // C clear or Z set Unsigned lower or same.
-constexpr Condition ge = 10 << 28;  // N == V           Greater or equal.
-constexpr Condition lt = 11 << 28;  // N != V           Less than.
-constexpr Condition gt = 12 << 28;  // Z clear, N == V  Greater than.
-constexpr Condition le = 13 << 28;  // Z set or N != V  Less then or equal
-constexpr Condition al = 14 << 28;  //                  Always.
+  eq = 0 << 28,   // Z set            Equal.
+  ne = 1 << 28,   // Z clear          Not equal.
+  cs = 2 << 28,   // C set            Unsigned higher or same.
+  cc = 3 << 28,   // C clear          Unsigned lower.
+  mi = 4 << 28,   // N set            Negative.
+  pl = 5 << 28,   // N clear          Positive or zero.
+  vs = 6 << 28,   // V set            Overflow.
+  vc = 7 << 28,   // V clear          No overflow.
+  hi = 8 << 28,   // C set, Z clear   Unsigned higher.
+  ls = 9 << 28,   // C clear or Z set Unsigned lower or same.
+  ge = 10 << 28,  // N == V           Greater or equal.
+  lt = 11 << 28,  // N != V           Less than.
+  gt = 12 << 28,  // Z clear, N == V  Greater than.
+  le = 13 << 28,  // Z set or N != V  Less then or equal
+  al = 14 << 28,  //                  Always.
 
-// Special condition (refer to section A3.2.1).
-constexpr Condition kSpecialCondition = 15 << 28;
-constexpr Condition kNumberOfConditions = 16;
+  // Special condition (refer to section A3.2.1).
+  kSpecialCondition = 15 << 28,
+  kNumberOfConditions = 16,
 
-// Aliases.
-constexpr Condition hs = cs;  // C set            Unsigned higher or same.
-constexpr Condition lo = cc;  // C clear          Unsigned lower.
+  // Aliases.
+  hs = cs,  // C set            Unsigned higher or same.
+  lo = cc,  // C clear          Unsigned lower.
 
-// Unified cross-platform condition names/aliases.
-constexpr Condition kEqual = eq;
-constexpr Condition kNotEqual = ne;
-constexpr Condition kLessThan = lt;
-constexpr Condition kGreaterThan = gt;
-constexpr Condition kLessThanEqual = le;
-constexpr Condition kGreaterThanEqual = ge;
-constexpr Condition kUnsignedLessThan = lo;
-constexpr Condition kUnsignedGreaterThan = hi;
-constexpr Condition kUnsignedLessThanEqual = ls;
-constexpr Condition kUnsignedGreaterThanEqual = hs;
-constexpr Condition kOverflow = vs;
-constexpr Condition kNoOverflow = vc;
-constexpr Condition kZero = eq;
-constexpr Condition kNotZero = ne;
+  // Unified cross-platform condition names/aliases.
+  kEqual = eq,
+  kNotEqual = ne,
+  kLessThan = lt,
+  kGreaterThan = gt,
+  kLessThanEqual = le,
+  kGreaterThanEqual = ge,
+  kUnsignedLessThan = lo,
+  kUnsignedGreaterThan = hi,
+  kUnsignedLessThanEqual = ls,
+  kUnsignedGreaterThanEqual = hs,
+  kOverflow = vs,
+  kNoOverflow = vc,
+  kZero = eq,
+  kNotZero = ne,
+};
 
 inline Condition NegateCondition(Condition cond) {
   DCHECK(cond != al);
@@ -436,7 +437,7 @@ inline Hint NegateHint(Hint ignored) { return no_hint; }
 // Example: Test whether the instruction at ptr does set the condition code
 // bits.
 //
-// bool InstructionSetsConditionCodes(byte* ptr) {
+// bool InstructionSetsConditionCodes(uint8_t* ptr) {
 //   Instruction* instr = Instruction::At(ptr);
 //   int type = instr->TypeValue();
 //   return ((type == 0) || (type == 1)) && instr->HasS();

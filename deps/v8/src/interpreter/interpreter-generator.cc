@@ -1171,7 +1171,7 @@ IGNITION_HANDLER(ToName, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
   TNode<Context> context = GetContext();
   TNode<Object> result = CallBuiltin(Builtin::kToName, context, object);
-  StoreRegisterAtOperandIndex(result, 0);
+  SetAccumulator(result);
   Dispatch();
 }
 
@@ -1205,6 +1205,29 @@ IGNITION_HANDLER(ToObject, InterpreterAssembler) {
 // Convert the accumulator to a String.
 IGNITION_HANDLER(ToString, InterpreterAssembler) {
   SetAccumulator(ToString_Inline(GetContext(), GetAccumulator()));
+  Dispatch();
+}
+
+// ToString
+//
+// Convert the accumulator to a String.
+IGNITION_HANDLER(ToBoolean, InterpreterAssembler) {
+  TNode<Object> value = GetAccumulator();
+  TVARIABLE(Boolean, result);
+  Label if_true(this), if_false(this), end(this);
+  BranchIfToBooleanIsTrue(value, &if_true, &if_false);
+  BIND(&if_true);
+  {
+    result = TrueConstant();
+    Goto(&end);
+  }
+  BIND(&if_false);
+  {
+    result = FalseConstant();
+    Goto(&end);
+  }
+  BIND(&end);
+  SetAccumulator(result.value());
   Dispatch();
 }
 
@@ -1252,7 +1275,7 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
 // accumulator to a boolean value if required.
 IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TVARIABLE(Oddball, result);
+  TVARIABLE(Boolean, result);
   Label if_true(this), if_false(this), end(this);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
@@ -1276,10 +1299,10 @@ IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
 // value.
 IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
   TNode<Object> value = GetAccumulator();
-  TVARIABLE(Oddball, result);
+  TVARIABLE(Boolean, result);
   Label if_true(this), if_false(this), end(this);
-  TNode<Oddball> true_value = TrueConstant();
-  TNode<Oddball> false_value = FalseConstant();
+  TNode<True> true_value = TrueConstant();
+  TNode<False> false_value = FalseConstant();
   Branch(TaggedEqual(value, true_value), &if_true, &if_false);
   BIND(&if_true);
   {
@@ -1521,6 +1544,7 @@ IGNITION_HANDLER(CallRuntimeForPair, InterpreterAssembler) {
   TNode<Object> result0 = Projection<0>(result_pair);
   TNode<Object> result1 = Projection<1>(result_pair);
   StoreRegisterPairAtOperandIndex(result0, result1, 3);
+  ClobberAccumulator(result0);
   Dispatch();
 }
 
@@ -1607,7 +1631,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     TNode<Context> context = GetContext();
 
     TVARIABLE(Smi, var_type_feedback);
-    TNode<Oddball> result;
+    TNode<Boolean> result;
     switch (compare_op) {
       case Operation::kEqual:
         result = Equal(lhs, rhs, context, &var_type_feedback);
@@ -1688,7 +1712,7 @@ IGNITION_HANDLER(TestGreaterThanOrEqual, InterpreterCompareOpAssembler) {
 IGNITION_HANDLER(TestReferenceEqual, InterpreterAssembler) {
   TNode<Object> lhs = LoadRegisterAtOperandIndex(0);
   TNode<Object> rhs = GetAccumulator();
-  TNode<Oddball> result = SelectBooleanConstant(TaggedEqual(lhs, rhs));
+  TNode<Boolean> result = SelectBooleanConstant(TaggedEqual(lhs, rhs));
   SetAccumulator(result);
   Dispatch();
 }
@@ -1743,7 +1767,7 @@ IGNITION_HANDLER(TestUndetectable, InterpreterAssembler) {
   GotoIf(TaggedIsSmi(object), &end);
 
   // If it is a HeapObject, load the map and check for undetectable bit.
-  TNode<Oddball> result =
+  TNode<Boolean> result =
       SelectBooleanConstant(IsUndetectableMap(LoadMap(CAST(object))));
   SetAccumulator(result);
   Goto(&end);
@@ -1757,7 +1781,7 @@ IGNITION_HANDLER(TestUndetectable, InterpreterAssembler) {
 // Test if the value in accumulator is strictly equal to null.
 IGNITION_HANDLER(TestNull, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
-  TNode<Oddball> result =
+  TNode<Boolean> result =
       SelectBooleanConstant(TaggedEqual(object, NullConstant()));
   SetAccumulator(result);
   Dispatch();
@@ -1768,7 +1792,7 @@ IGNITION_HANDLER(TestNull, InterpreterAssembler) {
 // Test if the value in the accumulator is strictly equal to undefined.
 IGNITION_HANDLER(TestUndefined, InterpreterAssembler) {
   TNode<Object> object = GetAccumulator();
-  TNode<Oddball> result =
+  TNode<Boolean> result =
       SelectBooleanConstant(TaggedEqual(object, UndefinedConstant()));
   SetAccumulator(result);
   Dispatch();
@@ -2183,8 +2207,11 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_osr_state(this, Label::kDeferred);
   // The quick initial OSR check. If it passes, we proceed on to more expensive
   // OSR logic.
-  static_assert(FeedbackVector::MaybeHasOptimizedOsrCodeBit::encode(true) >
+  static_assert(FeedbackVector::MaybeHasMaglevOsrCodeBit::encode(true) >
                 FeedbackVector::kMaxOsrUrgency);
+  static_assert(FeedbackVector::MaybeHasTurbofanOsrCodeBit::encode(true) >
+                FeedbackVector::kMaxOsrUrgency);
+
   GotoIfNot(Uint32GreaterThanOrEqual(loop_depth, osr_state),
             &maybe_osr_because_osr_state);
 
@@ -2199,6 +2226,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
 
   BIND(&ok);
 #endif  // !V8_JITLESS
+
+  ClobberAccumulator(UndefinedConstant());
 
   // The backward jump can trigger a budget interrupt, which can handle stack
   // interrupts, so we don't need to explicitly handle them here.
@@ -2460,7 +2489,7 @@ IGNITION_HANDLER(CloneObject, InterpreterAssembler) {
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<SharedFunctionInfo> shared_info = LoadObjectField<SharedFunctionInfo>(
       closure, JSFunction::kSharedFunctionInfoOffset);
   TNode<Object> description = LoadConstantPoolEntryAtOperandIndex(0);
@@ -2485,8 +2514,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
 
   Label if_undefined(this);
   TNode<ClosureFeedbackCellArray> feedback_cell_array =
-      LoadClosureFeedbackArray(
-          CAST(LoadRegister(Register::function_closure())));
+      LoadClosureFeedbackArray(LoadFunctionClosure());
   TNode<FeedbackCell> feedback_cell =
       CAST(LoadFixedArrayElement(feedback_cell_array, slot));
 
@@ -2594,7 +2622,7 @@ IGNITION_HANDLER(CreateWithContext, InterpreterAssembler) {
 //
 // Creates a new mapped arguments object.
 IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
 
   Label if_duplicate_parameters(this, Label::kDeferred);
@@ -2633,7 +2661,7 @@ IGNITION_HANDLER(CreateMappedArguments, InterpreterAssembler) {
 // Creates a new unmapped arguments object.
 IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
       builtins_assembler.EmitFastNewStrictArguments(context, closure);
@@ -2645,7 +2673,7 @@ IGNITION_HANDLER(CreateUnmappedArguments, InterpreterAssembler) {
 //
 // Creates a new rest parameter array.
 IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
   TorqueGeneratedExportedMacrosAssembler builtins_assembler(state());
   TNode<JSObject> result =
@@ -2782,8 +2810,7 @@ IGNITION_HANDLER(ThrowIfNotSuperConstructor, InterpreterAssembler) {
 
   BIND(&is_not_constructor);
   {
-    TNode<JSFunction> function =
-        CAST(LoadRegister(Register::function_closure()));
+    TNode<JSFunction> function = LoadFunctionClosure();
     CallRuntime(Runtime::kThrowNotSuperConstructor, context, constructor,
                 function);
     // We shouldn't ever return from a throw.
@@ -2807,9 +2834,8 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 
   TNode<JSFunction> this_function = CAST(LoadRegisterAtOperandIndex(0));
 
-  FindNonDefaultConstructorOrConstruct(context, this_function, constructor,
-                                       &found_default_base_ctor,
-                                       &found_something_else);
+  FindNonDefaultConstructor(this_function, constructor,
+                            &found_default_base_ctor, &found_something_else);
 
   BIND(&found_default_base_ctor);
   {
@@ -2835,7 +2861,9 @@ IGNITION_HANDLER(FindNonDefaultConstructorOrConstruct, InterpreterAssembler) {
 // Call runtime to handle debugger statement.
 IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   TNode<Context> context = GetContext();
-  CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  TNode<Object> result =
+      CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  ClobberAccumulator(result);
   Dispatch();
 }
 
@@ -2861,7 +2889,7 @@ DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK)
 // Increment the execution count for the given slot. Used for block code
 // coverage.
 IGNITION_HANDLER(IncBlockCounter, InterpreterAssembler) {
-  TNode<Object> closure = LoadRegister(Register::function_closure());
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Smi> coverage_array_slot = BytecodeOperandIdxSmi(0);
   TNode<Context> context = GetContext();
 
@@ -3049,7 +3077,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
   TNode<FixedArray> array = CAST(LoadObjectField(
       generator, JSGeneratorObject::kParametersAndRegistersOffset));
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   TNode<Context> context = GetContext();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
   TNode<Smi> suspend_id = BytecodeOperandUImmSmi(3);
@@ -3070,7 +3098,6 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
                    offset);
 
-  UpdateInterruptBudgetOnReturn();
   Return(GetAccumulator());
 }
 
@@ -3127,7 +3154,7 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
 // state as executing.
 IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   TNode<JSGeneratorObject> generator = CAST(LoadRegisterAtOperandIndex(0));
-  TNode<JSFunction> closure = CAST(LoadRegister(Register::function_closure()));
+  TNode<JSFunction> closure = LoadFunctionClosure();
   RegListNodePair registers = GetRegisterListAtOperandIndex(1);
 
   TNode<SharedFunctionInfo> shared =

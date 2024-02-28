@@ -19,6 +19,34 @@
 namespace v8 {
 namespace internal {
 
+static Tagged<HeapObject> AllocateUnaligned(NewSpace* space, int size) {
+  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
+  CHECK(!allocation.IsFailure());
+  Tagged<HeapObject> filler;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
+  return filler;
+}
+
+static Tagged<HeapObject> AllocateUnaligned(PagedSpace* space, int size) {
+  AllocationResult allocation = space->AllocateRaw(size, kTaggedAligned);
+  CHECK(!allocation.IsFailure());
+  Tagged<HeapObject> filler;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
+  return filler;
+}
+
+static Tagged<HeapObject> AllocateUnaligned(OldLargeObjectSpace* space,
+                                            int size) {
+  AllocationResult allocation = space->AllocateRaw(size);
+  CHECK(!allocation.IsFailure());
+  Tagged<HeapObject> filler;
+  CHECK(allocation.To(&filler));
+  space->heap()->CreateFillerObjectAt(filler.address(), size);
+  return filler;
+}
+
 using SpacesTest = TestWithIsolate;
 
 TEST_F(SpacesTest, CompactionSpaceMerge) {
@@ -45,8 +73,8 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   const int kExpectedPages =
       (kNumObjects + kNumObjectsPerPage - 1) / kNumObjectsPerPage;
   for (int i = 0; i < kNumObjects; i++) {
-    HeapObject object =
-        compaction_space->AllocateRawUnaligned(kMaxRegularHeapObjectSize)
+    Tagged<HeapObject> object =
+        compaction_space->AllocateRaw(kMaxRegularHeapObjectSize, kTaggedAligned)
             .ToObjectChecked();
     heap->CreateFillerObjectAt(object.address(), kMaxRegularHeapObjectSize);
   }
@@ -62,13 +90,15 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
 
 TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   constexpr Address address1 = Page::kPageSize;
-  HeapObject object1 = HeapObject::unchecked_cast(Object(address1));
+  Tagged<HeapObject> object1 =
+      HeapObject::unchecked_cast(Tagged<Object>(address1));
   BasicMemoryChunk* chunk1 = BasicMemoryChunk::FromHeapObject(object1);
   heap_internals::MemoryChunk* slim_chunk1 =
       heap_internals::MemoryChunk::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
   constexpr Address address2 = 2 * Page::kPageSize - 1;
-  HeapObject object2 = HeapObject::unchecked_cast(Object(address2));
+  Tagged<HeapObject> object2 =
+      HeapObject::unchecked_cast(Tagged<Object>(address2));
   BasicMemoryChunk* chunk2 = BasicMemoryChunk::FromHeapObject(object2);
   heap_internals::MemoryChunk* slim_chunk2 =
       heap_internals::MemoryChunk::FromHeapObject(object2);
@@ -296,6 +326,136 @@ TEST_F(SpacesTest,
       }
     }
   }
+}
+
+class Observer : public AllocationObserver {
+ public:
+  explicit Observer(intptr_t step_size)
+      : AllocationObserver(step_size), count_(0) {}
+
+  void Step(int bytes_allocated, Address addr, size_t) override { count_++; }
+
+  int count() const { return count_; }
+
+ private:
+  int count_;
+};
+
+template <typename T, typename A>
+void testAllocationObserver(Isolate* i_isolate, T* space, A* allocator) {
+  Observer observer1(128);
+  allocator->AddAllocationObserver(&observer1);
+
+  // The observer should not get notified if we have only allocated less than
+  // 128 bytes.
+  AllocateUnaligned(space, 64);
+  CHECK_EQ(observer1.count(), 0);
+
+  // The observer should get called when we have allocated exactly 128 bytes.
+  AllocateUnaligned(space, 64);
+  CHECK_EQ(observer1.count(), 1);
+
+  // Another >128 bytes should get another notification.
+  AllocateUnaligned(space, 136);
+  CHECK_EQ(observer1.count(), 2);
+
+  // Allocating a large object should get only one notification.
+  AllocateUnaligned(space, 1024);
+  CHECK_EQ(observer1.count(), 3);
+
+  // Allocating another 2048 bytes in small objects should get 16
+  // notifications.
+  for (int i = 0; i < 64; ++i) {
+    AllocateUnaligned(space, 32);
+  }
+  CHECK_EQ(observer1.count(), 19);
+
+  // Multiple observers should work.
+  Observer observer2(96);
+  allocator->AddAllocationObserver(&observer2);
+
+  AllocateUnaligned(space, 2048);
+  CHECK_EQ(observer1.count(), 20);
+  CHECK_EQ(observer2.count(), 1);
+
+  AllocateUnaligned(space, 104);
+  CHECK_EQ(observer1.count(), 20);
+  CHECK_EQ(observer2.count(), 2);
+
+  // Callback should stop getting called after an observer is removed.
+  allocator->RemoveAllocationObserver(&observer1);
+
+  AllocateUnaligned(space, 384);
+  CHECK_EQ(observer1.count(), 20);  // no more notifications.
+  CHECK_EQ(observer2.count(), 3);   // this one is still active.
+
+  // Ensure that PauseInlineAllocationObserversScope work correctly.
+  AllocateUnaligned(space, 48);
+  CHECK_EQ(observer2.count(), 3);
+  {
+    PauseAllocationObserversScope pause_observers(i_isolate->heap());
+    CHECK_EQ(observer2.count(), 3);
+    AllocateUnaligned(space, 384);
+    CHECK_EQ(observer2.count(), 3);
+  }
+  CHECK_EQ(observer2.count(), 3);
+  // Coupled with the 48 bytes allocated before the pause, another 48 bytes
+  // allocated here should trigger a notification.
+  AllocateUnaligned(space, 48);
+  CHECK_EQ(observer2.count(), 4);
+
+  allocator->RemoveAllocationObserver(&observer2);
+  AllocateUnaligned(space, 384);
+  CHECK_EQ(observer1.count(), 20);
+  CHECK_EQ(observer2.count(), 4);
+}
+
+TEST_F(SpacesTest, AllocationObserver) {
+  if (v8_flags.single_generation) return;
+  v8::Isolate::Scope isolate_scope(v8_isolate());
+  v8::HandleScope handle_scope(v8_isolate());
+  v8::Context::New(v8_isolate())->Enter();
+
+  testAllocationObserver<NewSpace>(
+      i_isolate(), i_isolate()->heap()->new_space(),
+      i_isolate()->heap()->allocator()->new_space_allocator());
+  // Old space is used but the code path is shared for all
+  // classes inheriting from PagedSpace.
+  testAllocationObserver<PagedSpace>(
+      i_isolate(), i_isolate()->heap()->old_space(),
+      i_isolate()->heap()->allocator()->old_space_allocator());
+  testAllocationObserver<OldLargeObjectSpace>(i_isolate(),
+                                              i_isolate()->heap()->lo_space(),
+                                              i_isolate()->heap()->lo_space());
+}
+
+TEST_F(SpacesTest, InlineAllocationObserverCadence) {
+  if (v8_flags.single_generation) return;
+  v8::Isolate::Scope isolate_scope(v8_isolate());
+  v8::HandleScope handle_scope(v8_isolate());
+  v8::Context::New(v8_isolate())->Enter();
+
+  // Clear out any pre-existing garbage to make the test consistent
+  // across snapshot/no-snapshot builds.
+  InvokeMajorGC(i_isolate());
+
+  MainAllocator* new_space_allocator =
+      i_isolate()->heap()->allocator()->new_space_allocator();
+
+  Observer observer1(512);
+  new_space_allocator->AddAllocationObserver(&observer1);
+  Observer observer2(576);
+  new_space_allocator->AddAllocationObserver(&observer2);
+
+  for (int i = 0; i < 512; ++i) {
+    AllocateUnaligned(i_isolate()->heap()->new_space(), 32);
+  }
+
+  new_space_allocator->RemoveAllocationObserver(&observer1);
+  new_space_allocator->RemoveAllocationObserver(&observer2);
+
+  CHECK_EQ(observer1.count(), 32);
+  CHECK_EQ(observer2.count(), 28);
 }
 
 }  // namespace internal

@@ -360,12 +360,13 @@ exit with 0.
 
 ```mjs
 import process from 'node:process';
+import fs from 'node:fs';
 
 process.on('uncaughtException', (err, origin) => {
   fs.writeSync(
     process.stderr.fd,
     `Caught exception: ${err}\n` +
-    `Exception origin: ${origin}`,
+    `Exception origin: ${origin}\n`,
   );
 });
 
@@ -380,12 +381,13 @@ console.log('This will not run.');
 
 ```cjs
 const process = require('node:process');
+const fs = require('node:fs');
 
 process.on('uncaughtException', (err, origin) => {
   fs.writeSync(
     process.stderr.fd,
     `Caught exception: ${err}\n` +
-    `Exception origin: ${origin}`,
+    `Exception origin: ${origin}\n`,
   );
 });
 
@@ -650,18 +652,6 @@ of the custom deprecation.
 The `*-deprecation` command-line flags only affect warnings that use the name
 `'DeprecationWarning'`.
 
-### Event: `'worker'`
-
-<!-- YAML
-added:
-  - v16.2.0
-  - v14.18.0
--->
-
-* `worker` {Worker} The {Worker} that was created.
-
-The `'worker'` event is emitted after a new {Worker} thread has been created.
-
 #### Emitting custom warnings
 
 See the [`process.emitWarning()`][process_emit_warning] method for issuing
@@ -689,6 +679,18 @@ A few of the warning types that are most common include:
 * `'UnsupportedWarning'` - Indicates use of an unsupported option or feature
   that will be ignored rather than treated as an error. One example is use of
   the HTTP response status message when using the HTTP/2 compatibility API.
+
+### Event: `'worker'`
+
+<!-- YAML
+added:
+  - v16.2.0
+  - v14.18.0
+-->
+
+* `worker` {Worker} The {Worker} that was created.
+
+The `'worker'` event is emitted after a new {Worker} thread has been created.
 
 ### Signal events
 
@@ -873,8 +875,8 @@ added: v0.5.0
 * {string}
 
 The operating system CPU architecture for which the Node.js binary was compiled.
-Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,`'mipsel'`, `'ppc'`,
-`'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
+Possible values are: `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`, `'mips'`,
+`'mipsel'`, `'ppc'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
 
 ```mjs
 import { arch } from 'node:process';
@@ -2260,6 +2262,29 @@ process.kill(process.pid, 'SIGHUP');
 When `SIGUSR1` is received by a Node.js process, Node.js will start the
 debugger. See [Signal Events][].
 
+## `process.loadEnvFile(path)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+* `path` {string | URL | Buffer | undefined}. **Default:** `'./.env'`
+
+Loads the `.env` file into `process.env`. Usage of `NODE_OPTIONS`
+in the `.env` file will not have any effect on Node.js.
+
+```cjs
+const { loadEnvFile } = require('node:process');
+loadEnvFile();
+```
+
+```mjs
+import { loadEnvFile } from 'node:process';
+loadEnvFile();
+```
+
 ## `process.mainModule`
 
 <!-- YAML
@@ -3523,7 +3548,9 @@ Using this function is mutually exclusive with using the deprecated
 ## `process.sourceMapsEnabled`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v20.7.0
+  - v18.19.0
 -->
 
 > Stability: 1 - Experimental
@@ -3944,7 +3971,7 @@ cases:
 [Child Process]: child_process.md
 [Cluster]: cluster.md
 [Duplex]: stream.md#duplex-and-transform-streams
-[Event Loop]: https://nodejs.org/en/docs/guides/event-loop-timers-and-nexttick/#process-nexttick
+[Event Loop]: https://nodejs.org/en/learn/asynchronous-work/event-loop-timers-and-nexttick#understanding-processnexttick
 [LTS]: https://github.com/nodejs/Release
 [Permission Model]: permissions.md#permission-model
 [Readable]: stream.md#readable-streams

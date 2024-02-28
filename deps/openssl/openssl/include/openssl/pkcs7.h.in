@@ -1,7 +1,7 @@
 /*
  * {- join("\n * ", @autowarntext) -}
  *
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -57,8 +57,8 @@ typedef struct pkcs7_signer_info_st {
     PKCS7_ISSUER_AND_SERIAL *issuer_and_serial;
     X509_ALGOR *digest_alg;
     STACK_OF(X509_ATTRIBUTE) *auth_attr; /* [ 0 ] */
-    X509_ALGOR *digest_enc_alg;
-    ASN1_OCTET_STRING *enc_digest;
+    X509_ALGOR *digest_enc_alg; /* confusing name, actually used for signing */
+    ASN1_OCTET_STRING *enc_digest; /* confusing name, actually signature */
     STACK_OF(X509_ATTRIBUTE) *unauth_attr; /* [ 1 ] */
     /* The private key to sign with */
     EVP_PKEY *pkey;

@@ -37,14 +37,25 @@ class CallOrConstructBuiltinsAssembler : public CodeStubAssembler {
                     base::Optional<TNode<Object>> = base::nullopt);
 
   enum class CallFunctionTemplateMode : uint8_t {
+    // This version is for using from IC system and generic builtins like
+    // HandleApiCallOrConstruct. It does both access and receiver compatibility
+    // checks if necessary and uses CallApiCallbackGeneric for calling Api
+    // function in order to support side-effects checking and make the Api
+    // function show up in the stack trace in case of exception.
+    kGeneric,
+
+    // These versions are used for generating calls from optimized code with
+    // respective checks and use CallApiCallbackOptimized for calling Api
+    // function.
     kCheckAccess,
     kCheckCompatibleReceiver,
     kCheckAccessAndCompatibleReceiver,
   };
+  constexpr static bool IsAccessCheckRequired(CallFunctionTemplateMode mode);
 
   void CallFunctionTemplate(CallFunctionTemplateMode mode,
                             TNode<FunctionTemplateInfo> function_template_info,
-                            TNode<IntPtrT> argc, TNode<Context> context);
+                            TNode<Int32T> argc, TNode<Context> context);
 
   void BuildConstruct(TNode<Object> target, TNode<Object> new_target,
                       TNode<Int32T> argc, const LazyNode<Context>& context,

@@ -125,13 +125,20 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt() const { return has_jscvt_; }
   bool has_dot_prod() const { return has_dot_prod_; }
   bool has_lse() const { return has_lse_; }
+  bool has_mte() const { return has_mte_; }
 
   // mips features
   bool is_fp64_mode() const { return is_fp64_mode_; }
   bool has_msa() const { return has_msa_; }
 
-  // riscv features
+  // riscv-specific part codes
   bool has_rvv() const { return has_rvv_; }
+  enum class RV_MMU_MODE {
+    kRiscvSV39,
+    kRiscvSV48,
+    kRiscvSV57,
+  };
+  RV_MMU_MODE riscv_mmu() const { return riscv_mmu_; }
 
  private:
 #if defined(V8_OS_STARBOARD)
@@ -180,10 +187,12 @@ class V8_BASE_EXPORT CPU final {
   bool has_jscvt_;
   bool has_dot_prod_;
   bool has_lse_;
+  bool has_mte_;
   bool is_fp64_mode_;
   bool has_non_stop_time_stamp_counter_;
   bool is_running_in_vm_;
   bool has_msa_;
+  RV_MMU_MODE riscv_mmu_;
   bool has_rvv_;
 };
 

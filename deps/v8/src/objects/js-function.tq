@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {
-}
+extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {}
 
 extern class JSBoundFunction extends
     JSFunctionOrBoundFunctionOrWrappedFunction {
@@ -30,10 +29,13 @@ extern class JSWrappedFunction extends
 // here, please also update JSFunctionVerify in objects-debug.cc.
 @highestInstanceTypeWithinParentClassRange
 extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
+  // When the sandbox is enabled, the Code object is referenced through an
+  // indirect pointer. Otherwise, it is a regular tagged pointer.
+  @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) code: Code;
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
-  code: Code;
   // Space for the following field may or may not be allocated.
   prototype_or_initial_map: JSReceiver|Map;
 }

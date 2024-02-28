@@ -21,15 +21,15 @@ class MaybeObject : public TaggedImpl<HeapObjectReferenceType::WEAK, Address> {
   // These operator->() overloads are required for handlified code.
   constexpr const MaybeObject* operator->() const { return this; }
 
-  V8_INLINE static MaybeObject FromSmi(Smi smi);
+  V8_INLINE static MaybeObject FromSmi(Tagged<Smi> smi);
 
-  V8_INLINE static MaybeObject FromObject(Object object);
+  V8_INLINE static MaybeObject FromObject(Tagged<Object> object);
 
   V8_INLINE static MaybeObject MakeWeak(MaybeObject object);
 
   V8_INLINE static MaybeObject Create(MaybeObject o);
-  V8_INLINE static MaybeObject Create(Object o);
-  V8_INLINE static MaybeObject Create(Smi smi);
+  V8_INLINE static MaybeObject Create(Tagged<Object> o);
+  V8_INLINE static MaybeObject Create(Tagged<Smi> smi);
 
 #ifdef VERIFY_HEAP
   static void VerifyMaybeObjectPointer(Isolate* isolate, MaybeObject p);
@@ -45,19 +45,19 @@ class MaybeObject : public TaggedImpl<HeapObjectReferenceType::WEAK, Address> {
 class HeapObjectReference : public MaybeObject {
  public:
   explicit HeapObjectReference(Address address) : MaybeObject(address) {}
-  V8_INLINE explicit HeapObjectReference(Object object);
+  V8_INLINE explicit HeapObjectReference(Tagged<Object> object);
 
-  V8_INLINE static HeapObjectReference Strong(Object object);
+  V8_INLINE static HeapObjectReference Strong(Tagged<Object> object);
 
-  V8_INLINE static HeapObjectReference Weak(Object object);
+  V8_INLINE static HeapObjectReference Weak(Tagged<Object> object);
 
-  V8_INLINE static HeapObjectReference From(Object object,
+  V8_INLINE static HeapObjectReference From(Tagged<Object> object,
                                             HeapObjectReferenceType type);
 
   V8_INLINE static HeapObjectReference ClearedValue(PtrComprCageBase cage_base);
 
   template <typename THeapObjectSlot>
-  V8_INLINE static void Update(THeapObjectSlot slot, HeapObject value);
+  V8_INLINE static void Update(THeapObjectSlot slot, Tagged<HeapObject> value);
 };
 
 }  // namespace internal

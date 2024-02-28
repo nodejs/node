@@ -25,14 +25,16 @@ For more info about `node inspect`, see the [debugger][] documentation.
 
 The program entry point is a specifier-like string. If the string is not an
 absolute path, it's resolved as a relative path from the current working
-directory. That path is then resolved by [CommonJS][] module loader. If no
-corresponding file is found, an error is thrown.
+directory. That path is then resolved by [CommonJS][] module loader, or by the
+[ES module loader][Modules loaders] if [`--experimental-default-type=module`][]
+is passed. If no corresponding file is found, an error is thrown.
 
 If a file is found, its path will be passed to the
 [ES module loader][Modules loaders] under any of the following conditions:
 
 * The program was started with a command-line flag that forces the entry
-  point to be loaded with ECMAScript module loader.
+  point to be loaded with ECMAScript module loader, such as `--import` or
+  [`--experimental-default-type=module`][].
 * The file has an `.mjs` extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
@@ -45,8 +47,9 @@ Otherwise, the file is loaded using the CommonJS module loader. See
 
 When loading, the [ES module loader][Modules loaders] loads the program
 entry point, the `node` command will accept as input only files with `.js`,
-`.mjs`, or `.cjs` extensions; and with `.wasm` extensions when
-[`--experimental-wasm-modules`][] is enabled.
+`.mjs`, or `.cjs` extensions; with `.wasm` extensions when
+[`--experimental-wasm-modules`][] is enabled; and with no extension when
+[`--experimental-default-type=module`][] is passed.
 
 ## Options
 
@@ -100,13 +103,54 @@ If this flag is passed, the behavior can still be set to not abort through
 [`process.setUncaughtExceptionCaptureCallback()`][] (and through usage of the
 `node:domain` module that uses it).
 
+### `--allow-addons`
+
+<!-- YAML
+added: v21.6.0
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to use
+native addons by default.
+Attempts to do so will throw an `ERR_DLOPEN_DISABLED` unless the
+user explicitly passes the `--allow-addons` flag when starting Node.js.
+
+Example:
+
+```cjs
+// Attempt to require an native addon
+require('nodejs-addon-example');
+```
+
+```console
+$ node --experimental-permission --allow-fs-read=* index.js
+node:internal/modules/cjs/loader:1319
+  return process.dlopen(module, path.toNamespacedPath(filename));
+                 ^
+
+Error: Cannot load native addon because loading addons is disabled.
+    at Module._extensions..node (node:internal/modules/cjs/loader:1319:18)
+    at Module.load (node:internal/modules/cjs/loader:1091:32)
+    at Module._load (node:internal/modules/cjs/loader:938:12)
+    at Module.require (node:internal/modules/cjs/loader:1115:19)
+    at require (node:internal/modules/helpers:130:18)
+    at Object.<anonymous> (/home/index.js:1:15)
+    at Module._compile (node:internal/modules/cjs/loader:1233:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1287:10)
+    at Module.load (node:internal/modules/cjs/loader:1091:32)
+    at Module._load (node:internal/modules/cjs/loader:938:12) {
+  code: 'ERR_DLOPEN_DISABLED'
+}
+```
+
 ### `--allow-child-process`
 
 <!-- YAML
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to spawn any
 child process by default.
@@ -146,12 +190,12 @@ Error: Access to this API has been restricted
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.7.0
     pr-url: https://github.com/nodejs/node/pull/49047
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system read permissions using
 the [Permission Model][].
@@ -163,7 +207,7 @@ The valid arguments for the `--allow-fs-read` flag are:
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be diplayed
+When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -200,12 +244,12 @@ node --experimental-permission --allow-fs-read=/path/to/index.js index.js
 <!-- YAML
 added: v20.0.0
 changes:
-  - version: REPLACEME
+  - version: v20.7.0
     pr-url: https://github.com/nodejs/node/pull/49047
     description: Paths delimited by comma (`,`) are no longer allowed.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 This flag configures file system write permissions using
 the [Permission Model][].
@@ -217,7 +261,7 @@ The valid arguments for the `--allow-fs-write` flag are:
   Example `--allow-fs-read=/folder1/ --allow-fs-read=/folder1/`
 
 Paths delimited by comma (`,`) are no longer allowed.
-When passing a single flag with a comma a warning will be diplayed
+When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
@@ -229,7 +273,7 @@ Relative paths are NOT supported through the CLI flag.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 When using the [Permission Model][], the process will not be able to create any
 worker threads by default.
@@ -319,6 +363,44 @@ Currently the support for run-time snapshot is experimental in that:
    crashes or buggy behaviors occur when building a snapshot, please file
    a report in the [Node.js issue tracker][] and link to it in the
    [tracking issue for user-land snapshots][].
+
+### `--build-snapshot-config`
+
+<!-- YAML
+added: v21.6.0
+-->
+
+> Stability: 1 - Experimental
+
+Specifies the path to a JSON configuration file which configures snapshot
+creation behavior.
+
+The following options are currently supported:
+
+* `builder` {string} Required. Provides the name to the script that is executed
+  before building the snapshot, as if [`--build-snapshot`][] had been passed
+  with `builder` as the main script name.
+* `withoutCodeCache` {boolean} Optional. Including the code cache reduces the
+  time spent on compiling functions included in the snapshot at the expense
+  of a bigger snapshot size and potentially breaking portability of the
+  snapshot.
+
+When using this flag, additional script files provided on the command line will
+not be executed and instead be interpreted as regular command line arguments.
+
+### `-c`, `--check`
+
+<!-- YAML
+added:
+  - v5.0.0
+  - v4.2.0
+changes:
+  - version: v10.0.0
+    pr-url: https://github.com/nodejs/node/pull/19600
+    description: The `--require` option is now supported when checking a file.
+-->
+
+Syntax check the script without executing.
 
 ### `--completion-bash`
 
@@ -426,6 +508,59 @@ Affects the default output directory of:
 * [`--heap-prof-dir`][]
 * [`--redirect-warnings`][]
 
+### `--disable-warning=code-or-type`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added:
+  - v21.3.0
+  - v20.11.0
+-->
+
+Disable specific process warnings by `code` or `type`.
+
+Warnings emitted from [`process.emitWarning()`][emit_warning] may contain a
+`code` and a `type`. This option will not-emit warnings that have a matching
+`code` or `type`.
+
+List of [deprecation warnings][].
+
+The Node.js core warning types are: `DeprecationWarning` and
+`ExperimentalWarning`
+
+For example, the following script will not emit
+[DEP0025 `require('node:sys')`][DEP0025 warning] when executed with
+`node --disable-warning=DEP0025`:
+
+```mjs
+import sys from 'node:sys';
+```
+
+```cjs
+const sys = require('node:sys');
+```
+
+For example, the following script will emit the
+[DEP0025 `require('node:sys')`][DEP0025 warning], but not any Experimental
+Warnings (such as
+[ExperimentalWarning: `vm.measureMemory` is an experimental feature][]
+in <=v21) when executed with `node --disable-warning=ExperimentalWarning`:
+
+```mjs
+import sys from 'node:sys';
+import vm from 'node:vm';
+
+vm.measureMemory();
+```
+
+```cjs
+const sys = require('node:sys');
+const vm = require('node:vm');
+
+vm.measureMemory();
+```
+
 ### `--disable-proto=mode`
 
 <!-- YAML
@@ -478,20 +613,14 @@ added: v6.0.0
 Enable FIPS-compliant crypto at startup. (Requires Node.js to be built
 against FIPS-compatible OpenSSL.)
 
-### `--no-network-family-autoselection`
+### `--enable-network-family-autoselection`
 
 <!-- YAML
-added: v19.4.0
-changes:
-  - version: v20.0.0
-    pr-url: https://github.com/nodejs/node/pull/46790
-    description: The flag was renamed from `--no-enable-network-family-autoselection`
-                 to `--no-network-family-autoselection`. The old name can still work as
-                 an alias.
+added: v18.18.0
 -->
 
-Disables the family autoselection algorithm unless connection options explicitly
-enables it.
+Enables the family autoselection algorithm unless connection options explicitly
+disables it.
 
 ### `--enable-source-maps`
 
@@ -512,13 +641,160 @@ application reference the transpiled code, not the original source position.
 `--enable-source-maps` enables caching of Source Maps and makes a best
 effort to report stack traces relative to the original source file.
 
-Overriding `Error.prepareStackTrace` prevents `--enable-source-maps` from
-modifying the stack trace.
+Overriding `Error.prepareStackTrace` may prevent `--enable-source-maps` from
+modifying the stack trace. Call and return the results of the original
+`Error.prepareStackTrace` in the overriding function to modify the stack trace
+with source maps.
+
+```js
+const originalPrepareStackTrace = Error.prepareStackTrace;
+Error.prepareStackTrace = (error, trace) => {
+  // Modify error and trace and format stack trace with
+  // original Error.prepareStackTrace.
+  return originalPrepareStackTrace(error, trace);
+};
+```
 
 Note, enabling source maps can introduce latency to your application
 when `Error.stack` is accessed. If you access `Error.stack` frequently
 in your application, take into account the performance implications
 of `--enable-source-maps`.
+
+### `--env-file=config`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: v20.6.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51289
+    description: Add support to multi-line values.
+-->
+
+Loads environment variables from a file relative to the current directory,
+making them available to applications on `process.env`. The [environment
+variables which configure Node.js][environment_variables], such as `NODE_OPTIONS`,
+are parsed and applied. If the same variable is defined in the environment and
+in the file, the value from the environment takes precedence.
+
+You can pass multiple `--env-file` arguments. Subsequent files override
+pre-existing variables defined in previous files.
+
+```bash
+node --env-file=.env --env-file=.development.env index.js
+```
+
+The format of the file should be one line per key-value pair of environment
+variable name and value separated by `=`:
+
+```text
+PORT=3000
+```
+
+Any text after a `#` is treated as a comment:
+
+```text
+# This is a comment
+PORT=3000 # This is also a comment
+```
+
+Values can start and end with the following quotes: `\`, `"` or `'`.
+They are omitted from the values.
+
+```text
+USERNAME="nodejs" # will result in `nodejs` as the value.
+```
+
+Multi-line values are supported:
+
+```text
+MULTI_LINE="THIS IS
+A MULTILINE"
+# will result in `THIS IS\nA MULTILINE` as the value.
+```
+
+Export keyword before a key is ignored:
+
+```text
+export USERNAME="nodejs" # will result in `nodejs` as the value.
+```
+
+### `-e`, `--eval "script"`
+
+<!-- YAML
+added: v0.5.2
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
+-->
+
+Evaluate the following argument as JavaScript. The modules which are
+predefined in the REPL can also be used in `script`.
+
+On Windows, using `cmd.exe` a single quote will not work correctly because it
+only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
+and `"` are usable.
+
+### `--experimental-default-type=type`
+
+<!-- YAML
+added:
+  - v21.0.0
+  - v20.10.0
+  - v18.19.0
+-->
+
+> Stability: 1.0 - Early development
+
+Define which module system, `module` or `commonjs`, to use for the following:
+
+* String input provided via `--eval` or STDIN, if `--input-type` is unspecified.
+
+* Files ending in `.js` or with no extension, if there is no `package.json` file
+  present in the same folder or any parent folder.
+
+* Files ending in `.js` or with no extension, if the nearest parent
+  `package.json` field lacks a `"type"` field; unless the `package.json` folder
+  or any parent folder is inside a `node_modules` folder.
+
+In other words, `--experimental-default-type=module` flips all the places where
+Node.js currently defaults to CommonJS to instead default to ECMAScript modules,
+with the exception of folders and subfolders below `node_modules`, for backward
+compatibility.
+
+Under `--experimental-default-type=module` and `--experimental-wasm-modules`,
+files with no extension will be treated as WebAssembly if they begin with the
+WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
+JavaScript.
+
+### `--experimental-detect-module`
+
+<!-- YAML
+added:
+  - v21.1.0
+  - v20.10.0
+-->
+
+> Stability: 1.0 - Early development
+
+Node.js will inspect the source code of ambiguous input to determine whether it
+contains ES module syntax; if such syntax is detected, the input will be treated
+as an ES module.
+
+Ambiguous input is defined as:
+
+* Files with a `.js` extension or no extension; and either no controlling
+  `package.json` file or one that lacks a `type` field; and
+  `--experimental-default-type` is not specified.
+* String input (`--eval` or STDIN) when neither `--input-type` nor
+  `--experimental-default-type` are specified.
+
+ES module syntax is defined as syntax that would throw when evaluated as
+CommonJS. This includes `import` and `export` statements and `import.meta`
+references. It does _not_ include `import()` expressions, which are valid in
+CommonJS.
 
 ### `--experimental-import-meta-resolve`
 
@@ -527,7 +803,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49028
     description: synchronous import.meta.resolve made available by default, with
                  the flag retained for enabling the experimental second argument
@@ -575,7 +853,7 @@ Enable experimental support for the `https:` protocol in `import` specifiers.
 added: v20.0.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active development
 
 Enable the Permission Model for current process. When enabled, the
 following permissions are restricted:
@@ -592,38 +870,6 @@ added: v11.8.0
 -->
 
 Use the specified file as a security policy.
-
-### `--no-experimental-fetch`
-
-<!-- YAML
-added: v18.0.0
--->
-
-Disable experimental support for the [Fetch API][].
-
-### `--no-experimental-global-webcrypto`
-
-<!-- YAML
-added: v19.0.0
--->
-
-Disable exposition of [Web Crypto API][] on the global scope.
-
-### `--no-experimental-global-customevent`
-
-<!-- YAML
-added: v19.0.0
--->
-
-Disable exposition of [CustomEvent Web API][] on the global scope.
-
-### `--no-experimental-repl-await`
-
-<!-- YAML
-added: v16.6.0
--->
-
-Use this flag to disable top-level await in REPL.
 
 ### `--experimental-sea-config`
 
@@ -720,6 +966,20 @@ added: v6.0.0
 Force FIPS-compliant crypto on startup. (Cannot be disabled from script code.)
 (Same requirements as `--enable-fips`.)
 
+### `--force-node-api-uncaught-exceptions-policy`
+
+<!-- YAML
+added:
+  - v18.3.0
+  - v16.17.0
+-->
+
+Enforces `uncaughtException` event on Node-API asynchronous callbacks.
+
+To prevent from an existing add-on from crashing the process, this flag is not
+enabled by default. In the future, this flag will be enabled by default to
+enforce the correct behavior.
+
 ### `--frozen-intrinsics`
 
 <!-- YAML
@@ -737,19 +997,63 @@ under this flag.
 To allow polyfills to be added,
 [`--require`][] and [`--import`][] both run before freezing intrinsics.
 
-### `--force-node-api-uncaught-exceptions-policy`
+### `--heap-prof`
 
 <!-- YAML
-added:
-  - v18.3.0
-  - v16.17.0
+added: v12.4.0
 -->
 
-Enforces `uncaughtException` event on Node-API asynchronous callbacks.
+> Stability: 1 - Experimental
 
-To prevent from an existing add-on from crashing the process, this flag is not
-enabled by default. In the future, this flag will be enabled by default to
-enforce the correct behavior.
+Starts the V8 heap profiler on start up, and writes the heap profile to disk
+before exit.
+
+If `--heap-prof-dir` is not specified, the generated profile is placed
+in the current working directory.
+
+If `--heap-prof-name` is not specified, the generated profile is
+named `Heap.${yyyymmdd}.${hhmmss}.${pid}.${tid}.${seq}.heapprofile`.
+
+```console
+$ node --heap-prof index.js
+$ ls *.heapprofile
+Heap.20190409.202950.15293.0.001.heapprofile
+```
+
+### `--heap-prof-dir`
+
+<!-- YAML
+added: v12.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Specify the directory where the heap profiles generated by `--heap-prof` will
+be placed.
+
+The default value is controlled by the
+[`--diagnostic-dir`][] command-line option.
+
+### `--heap-prof-interval`
+
+<!-- YAML
+added: v12.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Specify the average sampling interval in bytes for the heap profiles generated
+by `--heap-prof`. The default is 512 \* 1024 bytes.
+
+### `--heap-prof-name`
+
+<!-- YAML
+added: v12.4.0
+-->
+
+> Stability: 1 - Experimental
+
+Specify the file name of the heap profile generated by `--heap-prof`.
 
 ### `--heapsnapshot-near-heap-limit=max_count`
 
@@ -820,63 +1124,14 @@ $ ls
 Heap.20190718.133405.15554.0.001.heapsnapshot
 ```
 
-### `--heap-prof`
+### `-h`, `--help`
 
 <!-- YAML
-added: v12.4.0
+added: v0.1.3
 -->
 
-> Stability: 1 - Experimental
-
-Starts the V8 heap profiler on start up, and writes the heap profile to disk
-before exit.
-
-If `--heap-prof-dir` is not specified, the generated profile is placed
-in the current working directory.
-
-If `--heap-prof-name` is not specified, the generated profile is
-named `Heap.${yyyymmdd}.${hhmmss}.${pid}.${tid}.${seq}.heapprofile`.
-
-```console
-$ node --heap-prof index.js
-$ ls *.heapprofile
-Heap.20190409.202950.15293.0.001.heapprofile
-```
-
-### `--heap-prof-dir`
-
-<!-- YAML
-added: v12.4.0
--->
-
-> Stability: 1 - Experimental
-
-Specify the directory where the heap profiles generated by `--heap-prof` will
-be placed.
-
-The default value is controlled by the
-[`--diagnostic-dir`][] command-line option.
-
-### `--heap-prof-interval`
-
-<!-- YAML
-added: v12.4.0
--->
-
-> Stability: 1 - Experimental
-
-Specify the average sampling interval in bytes for the heap profiles generated
-by `--heap-prof`. The default is 512 \* 1024 bytes.
-
-### `--heap-prof-name`
-
-<!-- YAML
-added: v12.4.0
--->
-
-> Stability: 1 - Experimental
-
-Specify the file name of the heap profile generated by `--heap-prof`.
+Print node command-line options.
+The output of this option is less detailed than this document.
 
 ### `--icu-data-dir=file`
 
@@ -889,12 +1144,16 @@ Specify ICU data load path. (Overrides `NODE_ICU_DATA`.)
 ### `--import=module`
 
 <!-- YAML
-added: v19.0.0
+added:
+ - v19.0.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
 
-Preload the specified module at startup.
+Preload the specified module at startup. If the flag is provided several times,
+each module will be executed sequentially in the order they appear, starting
+with the ones provided in [`NODE_OPTIONS`][].
 
 Follows [ECMAScript module][] resolution rules.
 Use [`--require`][] to load a [CommonJS module][].
@@ -906,35 +1165,40 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 added: v12.0.0
 -->
 
-This configures Node.js to interpret string input as CommonJS or as an ES
-module. String input is input via `--eval`, `--print`, or `STDIN`.
+This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
+as an ES module. Valid values are `"commonjs"` or `"module"`. The default is
+`"commonjs"` unless [`--experimental-default-type=module`][] is used.
 
-Valid values are `"commonjs"` and `"module"`. The default is `"commonjs"`.
+The REPL does not support this option. Usage of `--input-type=module` with
+[`--print`][] will throw an error, as `--print` does not support ES module
+syntax.
 
-The REPL does not support this option.
-
-### `--inspect-brk[=[host:]port]`
-
-<!-- YAML
-added: v7.6.0
--->
-
-Activate inspector on `host:port` and break at start of user script.
-Default `host:port` is `127.0.0.1:9229`.
-
-### `--inspect-port=[host:]port`
+### `--insecure-http-parser`
 
 <!-- YAML
-added: v7.6.0
+added:
+ - v13.4.0
+ - v12.15.0
+ - v10.19.0
 -->
 
-Set the `host:port` to be used when the inspector is activated.
-Useful when activating the inspector by sending the `SIGUSR1` signal.
+Enable leniency flags on the HTTP parser. This may allow
+interoperability with non-conformant HTTP implementations.
 
-Default host is `127.0.0.1`.
+When enabled, the parser will accept the following:
 
-See the [security warning][] below regarding the `host`
-parameter usage.
+* Invalid HTTP headers values.
+* Invalid HTTP versions.
+* Allow message containing both `Transfer-Encoding`
+  and `Content-Length` headers.
+* Allow extra data after message when `Connection: close` is present.
+* Allow extra trasfer encodings after `chunked` has been provided.
+* Allow `\n` to be used as token separator instead of `\r\n`.
+* Allow `\r\n` not to be provided after a chunk.
+* Allow spaces to be present after a chunk size and before `\r\n`.
+
+All the above will expose your application to request smuggling
+or poisoning attack. Avoid using this option.
 
 ### `--inspect[=[host:]port]`
 
@@ -968,6 +1232,29 @@ default) is not firewall-protected.**
 
 See the [debugging security implications][] section for more information.
 
+### `--inspect-brk[=[host:]port]`
+
+<!-- YAML
+added: v7.6.0
+-->
+
+Activate inspector on `host:port` and break at start of user script.
+Default `host:port` is `127.0.0.1:9229`.
+
+### `--inspect-port=[host:]port`
+
+<!-- YAML
+added: v7.6.0
+-->
+
+Set the `host:port` to be used when the inspector is activated.
+Useful when activating the inspector by sending the `SIGUSR1` signal.
+
+Default host is `127.0.0.1`.
+
+See the [security warning][] below regarding the `host`
+parameter usage.
+
 ### `--inspect-publish-uid=stderr,http`
 
 Specify ways of the inspector web socket url exposure.
@@ -975,19 +1262,13 @@ Specify ways of the inspector web socket url exposure.
 By default inspector websocket url is available in stderr and under `/json/list`
 endpoint on `http://host:port/json/list`.
 
-### `--insecure-http-parser`
+### `-i`, `--interactive`
 
 <!-- YAML
-added:
- - v13.4.0
- - v12.15.0
- - v10.19.0
+added: v0.7.7
 -->
 
-Use an insecure HTTP parser that accepts invalid HTTP headers. This may allow
-interoperability with non-conformant HTTP implementations. It may also allow
-request smuggling and other HTTP attacks that rely on invalid headers being
-accepted. Avoid using this option.
+Opens the REPL even if stdin does not appear to be a terminal.
 
 ### `--jitless`
 
@@ -995,54 +1276,12 @@ accepted. Avoid using this option.
 added: v12.0.0
 -->
 
+> Stability: 1 - Experimental. This flag is inherited from V8 and is subject to
+> change upstream.
+
 Disable [runtime allocation of executable memory][jitless]. This may be
 required on some platforms for security reasons. It can also reduce attack
 surface on other platforms, but the performance impact may be severe.
-
-This flag is inherited from V8 and is subject to change upstream. It may
-disappear in a non-semver-major release.
-
-### `--env-file=config`
-
-> Stability: 1.1 - Active development
-
-<!-- YAML
-added: v20.6.0
--->
-
-Loads environment variables from a file relative to the current directory,
-making them available to applications on `process.env`. The [environment
-variables which configure Node.js][environment_variables], such as `NODE_OPTIONS`,
-are parsed and applied. If the same variable is defined in the environment and
-in the file, the value from the environment takes precedence.
-
-You can pass multiple `--env-file` arguments. Subsequent files override
-pre-existing variables defined in previous files.
-
-```bash
-node --env-file=.env --env-file=.development.env index.js
-```
-
-The format of the file should be one line per key-value pair of environment
-variable name and value separated by `=`:
-
-```text
-PORT=3000
-```
-
-Any text after a `#` is treated as a comment:
-
-```text
-# This is a comment
-PORT=3000 # This is also a comment
-```
-
-Values can start and end with the following quotes: `\`, `"` or `'`.
-They are omitted from the values.
-
-```text
-USERNAME="nodejs" # will result in `nodejs` as the value.
-```
 
 ### `--max-http-header-size=size`
 
@@ -1086,6 +1325,56 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
+### `--no-experimental-fetch`
+
+<!-- YAML
+added: v18.0.0
+-->
+
+Disable exposition of [Fetch API][] on the global scope.
+
+### `--no-experimental-global-customevent`
+
+<!-- YAML
+added: v19.0.0
+-->
+
+Disable exposition of [CustomEvent Web API][] on the global scope.
+
+### `--no-experimental-global-navigator`
+
+<!-- YAML
+added: v21.2.0
+-->
+
+> Stability: 1 - Experimental
+
+Disable exposition of [Navigator API][] on the global scope.
+
+### `--no-experimental-global-webcrypto`
+
+<!-- YAML
+added: v19.0.0
+-->
+
+Disable exposition of [Web Crypto API][] on the global scope.
+
+### `--no-experimental-repl-await`
+
+<!-- YAML
+added: v16.6.0
+-->
+
+Use this flag to disable top-level await in REPL.
+
+### `--no-experimental-websocket`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Use this flag to disable experimental [`WebSocket`][] support.
+
 ### `--no-extra-info-on-fatal-exception`
 
 <!-- YAML
@@ -1111,6 +1400,21 @@ added: v16.10.0
 
 Do not search modules from global paths like `$HOME/.node_modules` and
 `$NODE_PATH`.
+
+### `--no-network-family-autoselection`
+
+<!-- YAML
+added: v19.4.0
+changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/46790
+    description: The flag was renamed from `--no-enable-network-family-autoselection`
+                 to `--no-network-family-autoselection`. The old name can still work as
+                 an alias.
+-->
+
+Disables the family autoselection algorithm unless connection options explicitly
+enables it.
 
 ### `--no-warnings`
 
@@ -1141,6 +1445,17 @@ Load an OpenSSL configuration file on startup. Among other uses, this can be
 used to enable FIPS-compliant crypto if Node.js is built
 against FIPS-enabled OpenSSL.
 
+### `--openssl-legacy-provider`
+
+<!-- YAML
+added:
+  - v17.0.0
+  - v16.17.0
+-->
+
+Enable OpenSSL 3.0 legacy provider. For more information please see
+[OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
+
 ### `--openssl-shared-config`
 
 <!-- YAML
@@ -1158,17 +1473,6 @@ The location of the default OpenSSL configuration file depends on how OpenSSL
 is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
 implications and it is recommended to use a configuration section specific to
 Node.js which is `nodejs_conf` and is default when this option is not used.
-
-### `--openssl-legacy-provider`
-
-<!-- YAML
-added:
-  - v17.0.0
-  - v16.17.0
--->
-
-Enable OpenSSL 3.0 legacy provider. For more information please see
-[OSSL\_PROVIDER-legacy][OSSL_PROVIDER-legacy].
 
 ### `--pending-deprecation`
 
@@ -1261,6 +1565,18 @@ however, for backward compatibility with older Node.js versions.
 resolving relative paths.
 
 See [`--preserve-symlinks`][] for more information.
+
+### `-p`, `--print "script"`
+
+<!-- YAML
+added: v0.6.4
+changes:
+  - version: v5.11.0
+    pr-url: https://github.com/nodejs/node/pull/5348
+    description: Built-in libraries are now available as predefined variables.
+-->
+
+Identical to `-e` but prints the result.
 
 ### `--prof`
 
@@ -1431,6 +1747,21 @@ Enables report to be generated when the process exits due to an uncaught
 exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
 
+### `-r`, `--require module`
+
+<!-- YAML
+added: v1.6.0
+-->
+
+Preload the specified module at startup.
+
+Follows `require()`'s module resolution
+rules. `module` may be either a path to a file, or a node module name.
+
+Only CommonJS modules are supported.
+Use [`--import`][] to preload an [ECMAScript module][].
+Modules preloaded with `--require` will run before modules preloaded with `--import`.
+
 ### `--secure-heap=n`
 
 <!-- YAML
@@ -1514,6 +1845,18 @@ Starts the Node.js command line test runner. This flag cannot be combined with
 See the documentation on [running tests from the command line][]
 for more details.
 
+### `--test-concurrency`
+
+<!-- YAML
+added:
+  - v21.0.0
+  - v20.10.0
+  - v18.19.0
+-->
+
+The maximum number of test files that the test runner CLI will execute
+concurrently. The default value is `os.availableParallelism() - 1`.
+
 ### `--test-name-pattern`
 
 <!-- YAML
@@ -1527,6 +1870,21 @@ changes:
 A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern. See the documentation on
 [filtering tests by name][] for more details.
+
+### `--test-only`
+
+<!-- YAML
+added:
+  - v18.0.0
+  - v16.17.0
+changes:
+  - version: v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/46983
+    description: The test runner is now stable.
+-->
+
+Configures the test runner to only execute top level tests that have the `only`
+option set.
 
 ### `--test-reporter`
 
@@ -1558,25 +1916,12 @@ changes:
 The destination for the corresponding test reporter. See the documentation on
 [test reporters][] for more details.
 
-### `--test-only`
-
-<!-- YAML
-added:
-  - v18.0.0
-  - v16.17.0
-changes:
-  - version: v20.0.0
-    pr-url: https://github.com/nodejs/node/pull/46983
-    description: The test runner is now stable.
--->
-
-Configures the test runner to only execute top level tests that have the `only`
-option set.
-
 ### `--test-shard`
 
 <!-- YAML
-added: v20.5.0
+added:
+  - v20.5.0
+  - v18.19.0
 -->
 
 Test suite shard to execute in a format of `<index>/<total>`, where
@@ -1593,6 +1938,17 @@ node --test --test-shard=1/3
 node --test --test-shard=2/3
 node --test --test-shard=3/3
 ```
+
+### `--test-timeout`
+
+<!-- YAML
+added:
+  - v21.2.0
+  - v20.11.0
+-->
+
+A number of milliseconds the test execution will fail after. If unspecified,
+subtests inherit this value from their parent. The default value is `Infinity`.
 
 ### `--throw-deprecation`
 
@@ -1922,6 +2278,14 @@ The amount of parallelism refers to the number of computations that can be
 carried out simultaneously in a given machine. In general, it's the same as the
 amount of CPUs, but it may diverge in environments such as VMs or containers.
 
+### `-v`, `--version`
+
+<!-- YAML
+added: v0.1.3
+-->
+
+Print node's version.
+
 ### `--watch`
 
 <!-- YAML
@@ -1996,89 +2360,6 @@ added: v6.0.0
 Automatically zero-fills all newly allocated [`Buffer`][] and [`SlowBuffer`][]
 instances.
 
-### `-c`, `--check`
-
-<!-- YAML
-added:
-  - v5.0.0
-  - v4.2.0
-changes:
-  - version: v10.0.0
-    pr-url: https://github.com/nodejs/node/pull/19600
-    description: The `--require` option is now supported when checking a file.
--->
-
-Syntax check the script without executing.
-
-### `-e`, `--eval "script"`
-
-<!-- YAML
-added: v0.5.2
-changes:
-  - version: v5.11.0
-    pr-url: https://github.com/nodejs/node/pull/5348
-    description: Built-in libraries are now available as predefined variables.
--->
-
-Evaluate the following argument as JavaScript. The modules which are
-predefined in the REPL can also be used in `script`.
-
-On Windows, using `cmd.exe` a single quote will not work correctly because it
-only recognizes double `"` for quoting. In Powershell or Git bash, both `'`
-and `"` are usable.
-
-### `-h`, `--help`
-
-<!-- YAML
-added: v0.1.3
--->
-
-Print node command-line options.
-The output of this option is less detailed than this document.
-
-### `-i`, `--interactive`
-
-<!-- YAML
-added: v0.7.7
--->
-
-Opens the REPL even if stdin does not appear to be a terminal.
-
-### `-p`, `--print "script"`
-
-<!-- YAML
-added: v0.6.4
-changes:
-  - version: v5.11.0
-    pr-url: https://github.com/nodejs/node/pull/5348
-    description: Built-in libraries are now available as predefined variables.
--->
-
-Identical to `-e` but prints the result.
-
-### `-r`, `--require module`
-
-<!-- YAML
-added: v1.6.0
--->
-
-Preload the specified module at startup.
-
-Follows `require()`'s module resolution
-rules. `module` may be either a path to a file, or a node module name.
-
-Only CommonJS modules are supported.
-Use [`--import`][] to preload an [ECMAScript module][].
-Modules preloaded with `--require` will run before modules preloaded with `--import`.
-
-### `-v`, `--version`
-
-<!-- YAML
-added: v0.1.3
--->
-
-Print node's version.
-
 ## Environment variables
 
 ### `FORCE_COLOR=[1, 2, 3]`
@@ -2094,6 +2375,11 @@ When `FORCE_COLOR` is used and set to a supported value, both the `NO_COLOR`,
 and `NODE_DISABLE_COLORS` environment variables are ignored.
 
 Any other value will result in colorized output being disabled.
+
+### `NO_COLOR=<any>`
+
+[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
+environment variable is arbitrary.
 
 ### `NODE_DEBUG=module[,…]`
 
@@ -2194,6 +2480,7 @@ Node.js options that are allowed are:
 
 <!-- node-options-node start -->
 
+* `--allow-addons`
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
@@ -2201,11 +2488,14 @@ Node.js options that are allowed are:
 * `--conditions`, `-C`
 * `--diagnostic-dir`
 * `--disable-proto`
+* `--disable-warning`
 * `--dns-result-order`
 * `--enable-fips`
 * `--enable-network-family-autoselection`
 * `--enable-source-maps`
 * `--experimental-abortcontroller`
+* `--experimental-default-type`
+* `--experimental-detect-module`
 * `--experimental-import-meta-resolve`
 * `--experimental-json-modules`
 * `--experimental-loader`
@@ -2240,8 +2530,10 @@ Node.js options that are allowed are:
 * `--no-deprecation`
 * `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
+* `--no-experimental-global-navigator`
 * `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
+* `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
@@ -2382,16 +2674,6 @@ appended to if it does. If an error occurs while attempting to write the
 warning to the file, the warning will be written to stderr instead. This is
 equivalent to using the `--redirect-warnings=file` command-line flag.
 
-### `NODE_REPL_HISTORY=file`
-
-<!-- YAML
-added: v3.0.0
--->
-
-Path to the file used to store the persistent REPL history. The default path is
-`~/.node_repl_history`, which is overridden by this variable. Setting the value
-to an empty string (`''` or `' '`) disables persistent REPL history.
-
 ### `NODE_REPL_EXTERNAL_MODULE=file`
 
 <!-- YAML
@@ -2402,6 +2684,16 @@ added:
 
 Path to a Node.js module which will be loaded in place of the built-in REPL.
 Overriding this value to an empty string (`''`) will use the built-in REPL.
+
+### `NODE_REPL_HISTORY=file`
+
+<!-- YAML
+added: v3.0.0
+-->
+
+Path to the file used to store the persistent REPL history. The default path is
+`~/.node_repl_history`, which is overridden by this variable. Setting the value
+to an empty string (`''` or `' '`) disables persistent REPL history.
 
 ### `NODE_SKIP_PLATFORM_CHECK=value`
 
@@ -2501,11 +2793,6 @@ and the line lengths of the source file (in the key `lineLengths`).
 }
 ```
 
-### `NO_COLOR=<any>`
-
-[`NO_COLOR`][]  is an alias for `NODE_DISABLE_COLORS`. The value of the
-environment variable is arbitrary.
-
 ### `OPENSSL_CONF=file`
 
 <!-- YAML
@@ -2600,6 +2887,23 @@ threadpool by setting the `'UV_THREADPOOL_SIZE'` environment variable to a value
 greater than `4` (its current default value). For more information, see the
 [libuv threadpool documentation][].
 
+### `UV_USE_IO_URING=value`
+
+Enable or disable libuv's use of `io_uring` on supported platforms.
+
+On supported platforms, `io_uring` can significantly improve the performance of
+various asynchronous I/O operations.
+
+`io_uring` is disabled by default due to security concerns. When `io_uring`
+is enabled, applications must not change the user identity of the process at
+runtime. In this case, JavaScript functions such as [`process.setuid()`][] are
+unavailable, and native addons must not invoke system functions such as
+[`setuid(2)`][].
+
+This environment variable is implemented by a dependency of Node.js and may be
+removed in future versions of Node.js. No stability guarantees are provided for
+the behavior of this environment variable.
+
 ## Useful V8 options
 
 V8 has its own set of CLI options. Any V8 CLI option that is provided to `node`
@@ -2654,12 +2958,15 @@ done
 [CommonJS]: modules.md
 [CommonJS module]: modules.md
 [CustomEvent Web API]: https://dom.spec.whatwg.org/#customevent
+[DEP0025 warning]: deprecations.md#dep0025-requirenodesys
 [ECMAScript module]: esm.md#modules-ecmascript-modules
+[ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders
+[Navigator API]: globals.md#navigator
 [Node.js issue tracker]: https://github.com/nodejs/node/issues
 [OSSL_PROVIDER-legacy]: https://www.openssl.org/docs/man3.0/man7/OSSL_PROVIDER-legacy.html
 [Permission Model]: permissions.md#permission-model
@@ -2675,14 +2982,17 @@ done
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
 [`--allow-worker`]: #--allow-worker
+[`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
 [`--heap-prof-dir`]: #--heap-prof-dir
 [`--import`]: #--importmodule
 [`--openssl-config`]: #--openssl-configfile
 [`--preserve-symlinks`]: #--preserve-symlinks
+[`--print`]: #-p---print-script
 [`--redirect-warnings`]: #--redirect-warningsfile
 [`--require`]: #-r---require-module
 [`Atomics.wait()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Atomics/wait
@@ -2691,12 +3001,15 @@ done
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`SlowBuffer`]: buffer.md#class-slowbuffer
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`YoungGenerationSizeFromSemiSpaceSize`]: https://chromium.googlesource.com/v8/v8.git/+/refs/tags/10.3.129/src/heap/heap.cc#328
 [`dns.lookup()`]: dns.md#dnslookuphostname-options-callback
 [`dns.setDefaultResultOrder()`]: dns.md#dnssetdefaultresultorderorder
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import` specifier]: esm.md#import-specifiers
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
+[`process.setuid()`]: process.md#processsetuidid
+[`setuid(2)`]: https://man7.org/linux/man-pages/man2/setuid.2.html
 [`tls.DEFAULT_MAX_VERSION`]: tls.md#tlsdefault_max_version
 [`tls.DEFAULT_MIN_VERSION`]: tls.md#tlsdefault_min_version
 [`unhandledRejection`]: process.md#event-unhandledrejection
@@ -2707,6 +3020,7 @@ done
 [context-aware]: addons.md#context-aware-addons
 [debugger]: debugger.md
 [debugging security implications]: https://nodejs.org/en/docs/guides/debugging-getting-started/#security-implications
+[deprecation warnings]: deprecations.md#list-of-deprecated-apis
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables
 [filtering tests by name]: test.md#filtering-tests-by-name

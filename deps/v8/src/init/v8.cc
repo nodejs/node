@@ -137,17 +137,21 @@ void V8::Initialize() {
   CHECK(platform_);
 
   // Update logging information before enforcing flag implications.
-  FlagValue<bool>* log_all_flags[] = {&v8_flags.log_all,
-                                      &v8_flags.log_code,
-                                      &v8_flags.log_code_disassemble,
-                                      &v8_flags.log_source_code,
-                                      &v8_flags.log_source_position,
-                                      &v8_flags.log_feedback_vector,
-                                      &v8_flags.log_function_events,
-                                      &v8_flags.log_internal_timer_events,
-                                      &v8_flags.log_deopt,
-                                      &v8_flags.log_ic,
-                                      &v8_flags.log_maps};
+  FlagValue<bool>* log_all_flags[] = {
+      &v8_flags.log_all,
+      &v8_flags.log_code,
+      &v8_flags.log_code_disassemble,
+      &v8_flags.log_deopt,
+      &v8_flags.log_feedback_vector,
+      &v8_flags.log_function_events,
+      &v8_flags.log_ic,
+      &v8_flags.log_maps,
+      &v8_flags.log_source_code,
+      &v8_flags.log_source_position,
+      &v8_flags.log_timer_events,
+      &v8_flags.prof,
+      &v8_flags.prof_cpp,
+  };
   if (v8_flags.log_all) {
     // Enable all logging flags
     for (auto* flag : log_all_flags) {
@@ -212,6 +216,9 @@ void V8::Initialize() {
     DISABLE_FLAG(trace_turbo_graph);
     DISABLE_FLAG(trace_turbo_scheduled);
     DISABLE_FLAG(trace_turbo_reduction);
+#ifdef V8_ENABLE_SLOW_TRACING
+    // If expensive tracing is disabled via a build flag, the following flags
+    // cannot be disabled (because they are already).
     DISABLE_FLAG(trace_turbo_trimming);
     DISABLE_FLAG(trace_turbo_jt);
     DISABLE_FLAG(trace_turbo_ceq);
@@ -219,6 +226,7 @@ void V8::Initialize() {
     DISABLE_FLAG(trace_turbo_alloc);
     DISABLE_FLAG(trace_all_uses);
     DISABLE_FLAG(trace_representation);
+#endif
     DISABLE_FLAG(trace_turbo_stack_accesses);
   }
 
@@ -248,6 +256,8 @@ void V8::Initialize() {
   // If enabled, the sandbox must be initialized first.
   GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
   CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
+
+  GetProcessWideCodePointerTable()->Initialize();
 #endif
 
 #if defined(V8_USE_PERFETTO)
@@ -264,10 +274,10 @@ void V8::Initialize() {
   Bootstrapper::InitializeOncePerProcess();
   CallDescriptors::InitializeOncePerProcess();
 
-#if V8_HAS_PKU_JIT_WRITE_PROTECT
-  base::MemoryProtectionKey::InitializeMemoryProtectionKeySupport();
-  RwxMemoryWriteScope::InitializeMemoryProtectionKey();
-#endif
+  // Fetch the ThreadIsolatedAllocator once since we need to keep the pointer in
+  // protected memory.
+  ThreadIsolation::Initialize(
+      GetCurrentPlatform()->GetThreadIsolatedAllocator());
 
 #if V8_ENABLE_WEBASSEMBLY
   wasm::WasmEngine::InitializeOncePerProcess();
@@ -314,6 +324,11 @@ void V8::DisposePlatform() {
 #endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;
+
+#if DEBUG
+  internal::ThreadIsolation::CheckTrackedMemoryEmpty();
+#endif
+
   AdvanceStartupState(V8StartupState::kPlatformDisposed);
 }
 
@@ -342,4 +357,12 @@ void V8::SetSnapshotBlob(StartupData* snapshot_blob) {
 double Platform::SystemClockTimeMillis() {
   return base::OS::TimeCurrentMillis();
 }
+
+// static
+void ThreadIsolatedAllocator::SetDefaultPermissionsForSignalHandler() {
+#if V8_HAS_PKU_JIT_WRITE_PROTECT
+  internal::RwxMemoryWriteScope::SetDefaultPermissionsForSignalHandler();
+#endif
+}
+
 }  // namespace v8

@@ -26,35 +26,30 @@ constexpr uint32_t kWasmVersion = 0x01;
 enum ValueTypeCode : uint8_t {
   // Current value types
   kVoidCode = 0x40,
-  kI32Code = 0x7f,
-  kI64Code = 0x7e,
-  kF32Code = 0x7d,
-  kF64Code = 0x7c,
-  // Simd proposal
-  kS128Code = 0x7b,
-  // GC proposal packed types
-  kI8Code = 0x7a,
-  kI16Code = 0x79,
-  // Current reference types
-  kFuncRefCode = 0x70,
-  // TODO(7784): Switch to official opcodes once they are aligned with the
-  // stringref proposal for nofunc and noextern.
-  kNoExternCode = 0x69,
-  kNoFuncCode = 0x68,
-  kExternRefCode = 0x6f,
-  // typed-funcref and GC proposal types
-  kAnyRefCode = 0x6e,
-  kEqRefCode = 0x6d,
-  kRefNullCode = 0x6c,
-  kRefCode = 0x6b,
-  kI31RefCode = 0x6a,
-  kStructRefCode = 0x67,
-  kArrayRefCode = 0x66,
-  kNoneCode = 0x65,
-  kStringRefCode = 0x64,
-  kStringViewWtf8Code = 0x63,
-  kStringViewWtf16Code = 0x62,
-  kStringViewIterCode = 0x61,
+  kI32Code = 0x7f,              // -0x01
+  kI64Code = 0x7e,              // -0x02
+  kF32Code = 0x7d,              // -0x03
+  kF64Code = 0x7c,              // -0x04
+  kS128Code = 0x7b,             // -0x05
+  kI8Code = 0x78,               // -0x08, packed type
+  kI16Code = 0x77,              // -0x09, packed type
+  kNoFuncCode = 0x73,           // -0x0d
+  kNoExternCode = 0x72,         // -0x0e
+  kNoneCode = 0x71,             // -0x0f
+  kFuncRefCode = 0x70,          // -0x10
+  kExternRefCode = 0x6f,        // -0x11
+  kAnyRefCode = 0x6e,           // -0x12
+  kEqRefCode = 0x6d,            // -0x13
+  kI31RefCode = 0x6c,           // -0x14
+  kStructRefCode = 0x6b,        // -0x15
+  kArrayRefCode = 0x6a,         // -0x16
+  kRefCode = 0x64,              // -0x1c
+  kRefNullCode = 0x63,          // -0x1d
+                                // Non-finalized proposals below.
+  kStringRefCode = 0x67,        // -0x19
+  kStringViewWtf8Code = 0x66,   // -0x1a
+  kStringViewWtf16Code = 0x62,  // -0x1e
+  kStringViewIterCode = 0x61,   // -0x1f
 };
 
 // Binary encoding of type definitions.
@@ -62,8 +57,8 @@ constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
-constexpr uint8_t kWasmSubtypeFinalCode = 0x4e;
-constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
+constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -183,6 +178,10 @@ constexpr uint32_t kMinimumSupertypeArraySize = 3;
 
 // Maximum number of call targets tracked per call.
 constexpr int kMaxPolymorphism = 4;
+
+// A struct field beyond this limit needs an explicit null check (trapping null
+// access not guaranteed to behave properly).
+constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;

@@ -79,7 +79,7 @@ inline Value<intptr_t> Signed(d::MemoryAccessor accessor, uintptr_t u) {
   return {d::MemoryAccessResult::kOk, static_cast<intptr_t>(u)};
 }
 inline Value<int32_t> SmiUntag(d::MemoryAccessor accessor, uintptr_t s_t) {
-  Smi s(s_t);
+  Tagged<Smi> s(s_t);
   return {d::MemoryAccessResult::kOk, s.value()};
 }
 inline Value<uintptr_t> SmiFromInt32(d::MemoryAccessor accessor, int32_t i) {

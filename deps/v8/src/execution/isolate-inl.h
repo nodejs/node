@@ -41,27 +41,27 @@ V8_INLINE Isolate* Isolate::Current() {
 
 bool Isolate::IsCurrent() const { return this == TryGetCurrent(); }
 
-void Isolate::set_context(Context context) {
-  DCHECK(context.is_null() || context.IsContext());
+void Isolate::set_context(Tagged<Context> context) {
+  DCHECK(context.is_null() || IsContext(context));
   thread_local_top()->context_ = context;
 }
 
 Handle<NativeContext> Isolate::native_context() {
   DCHECK(!context().is_null());
-  return handle(context().native_context(), this);
+  return handle(context()->native_context(), this);
 }
 
-NativeContext Isolate::raw_native_context() {
+Tagged<NativeContext> Isolate::raw_native_context() {
   DCHECK(!context().is_null());
-  return context().native_context();
+  return context()->native_context();
 }
 
-void Isolate::set_pending_message(Object message_obj) {
-  DCHECK(message_obj.IsTheHole(this) || message_obj.IsJSMessageObject());
+void Isolate::set_pending_message(Tagged<Object> message_obj) {
+  DCHECK(IsTheHole(message_obj, this) || IsJSMessageObject(message_obj));
   thread_local_top()->pending_message_ = message_obj;
 }
 
-Object Isolate::pending_message() {
+Tagged<Object> Isolate::pending_message() {
   return thread_local_top()->pending_message_;
 }
 
@@ -70,48 +70,48 @@ void Isolate::clear_pending_message() {
 }
 
 bool Isolate::has_pending_message() {
-  return !pending_message().IsTheHole(this);
+  return !IsTheHole(pending_message(), this);
 }
 
-Object Isolate::pending_exception() {
+Tagged<Object> Isolate::pending_exception() {
   CHECK(has_pending_exception());
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
+  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
   return thread_local_top()->pending_exception_;
 }
 
-void Isolate::set_pending_exception(Object exception_obj) {
-  DCHECK(!exception_obj.IsException(this));
+void Isolate::set_pending_exception(Tagged<Object> exception_obj) {
+  DCHECK(!IsException(exception_obj, this));
   thread_local_top()->pending_exception_ = exception_obj;
 }
 
 void Isolate::clear_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
+  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
   thread_local_top()->pending_exception_ = ReadOnlyRoots(this).the_hole_value();
 }
 
 bool Isolate::has_pending_exception() {
-  DCHECK(!thread_local_top()->pending_exception_.IsException(this));
-  return !thread_local_top()->pending_exception_.IsTheHole(this);
+  DCHECK(!IsException(thread_local_top()->pending_exception_, this));
+  return !IsTheHole(thread_local_top()->pending_exception_, this);
 }
 
-Object Isolate::scheduled_exception() {
+Tagged<Object> Isolate::scheduled_exception() {
   DCHECK(has_scheduled_exception());
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
+  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
   return thread_local_top()->scheduled_exception_;
 }
 
 bool Isolate::has_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
+  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
   return thread_local_top()->scheduled_exception_ !=
          ReadOnlyRoots(this).the_hole_value();
 }
 
 void Isolate::clear_scheduled_exception() {
-  DCHECK(!thread_local_top()->scheduled_exception_.IsException(this));
+  DCHECK(!IsException(thread_local_top()->scheduled_exception_, this));
   set_scheduled_exception(ReadOnlyRoots(this).the_hole_value());
 }
 
-void Isolate::set_scheduled_exception(Object exception) {
+void Isolate::set_scheduled_exception(Tagged<Object> exception) {
   thread_local_top()->scheduled_exception_ = exception;
 }
 
@@ -126,13 +126,13 @@ bool Isolate::is_execution_terminating() {
 }
 
 #ifdef DEBUG
-Object Isolate::VerifyBuiltinsResult(Object result) {
+Tagged<Object> Isolate::VerifyBuiltinsResult(Tagged<Object> result) {
   DCHECK_EQ(has_pending_exception(), result == ReadOnlyRoots(this).exception());
 #ifdef V8_COMPRESS_POINTERS
   // Check that the returned pointer is actually part of the current isolate,
   // because that's the assumption in generated code (which might call this
   // builtin).
-  if (!result.IsSmi()) {
+  if (!IsSmi(result)) {
     DCHECK_EQ(result.ptr(), V8HeapCompressionScheme::DecompressTagged(
                                 this, static_cast<Tagged_t>(result.ptr())));
   }
@@ -162,13 +162,13 @@ ObjectPair Isolate::VerifyBuiltinsResult(ObjectPair pair) {
 }
 #endif  // DEBUG
 
-bool Isolate::is_catchable_by_javascript(Object exception) {
+bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
-bool Isolate::is_catchable_by_wasm(Object exception) {
+bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
-  if (!exception.IsJSObject()) return true;
+  if (!IsJSObject(exception)) return true;
   // We don't allocate, but the LookupIterator interface expects a handle.
   DisallowGarbageCollection no_gc;
   HandleScope handle_scope(this);
@@ -185,11 +185,11 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 Handle<JSGlobalObject> Isolate::global_object() {
-  return handle(context().global_object(), this);
+  return handle(context()->global_object(), this);
 }
 
 Handle<JSGlobalProxy> Isolate::global_proxy() {
-  return handle(context().global_proxy(), this);
+  return handle(context()->global_proxy(), this);
 }
 
 Isolate::ExceptionScope::ExceptionScope(Isolate* isolate)
@@ -200,7 +200,7 @@ Isolate::ExceptionScope::~ExceptionScope() {
   isolate_->set_pending_exception(*pending_exception_);
 }
 
-bool Isolate::IsAnyInitialArrayPrototype(JSArray array) {
+bool Isolate::IsAnyInitialArrayPrototype(Tagged<JSArray> array) {
   DisallowGarbageCollection no_gc;
   return IsInAnyContext(array, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
 }
@@ -235,12 +235,12 @@ void Isolate::DidFinishModuleAsyncEvaluation(unsigned ordinal) {
   }
 }
 
-#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)    \
-  Handle<type> Isolate::name() {                            \
-    return Handle<type>(raw_native_context().name(), this); \
-  }                                                         \
-  bool Isolate::is_##name(type value) {                     \
-    return raw_native_context().is_##name(value);           \
+#define NATIVE_CONTEXT_FIELD_ACCESSOR(index, type, name)     \
+  Handle<type> Isolate::name() {                             \
+    return Handle<type>(raw_native_context()->name(), this); \
+  }                                                          \
+  bool Isolate::is_##name(Tagged<type> value) {              \
+    return raw_native_context()->is_##name(value);           \
   }
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR

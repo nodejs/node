@@ -7,10 +7,33 @@
 
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
-#include "src/objects/objects.h"
 #include "src/objects/tagged-value.h"
 
 namespace v8::internal {
+
+// TaggedMember<T> represents an potentially compressed V8 tagged pointer, which
+// is intended to be used as a member of a V8 object class.
+//
+// TODO(leszeks): Merge with TaggedField.
+template <typename T, typename CompressionScheme = V8HeapCompressionScheme>
+class TaggedMember;
+
+// Base class for all TaggedMember<T> classes.
+// TODO(leszeks): Merge with TaggedImpl.
+using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::STRONG, Tagged_t>;
+
+template <typename T, typename CompressionScheme>
+class TaggedMember : public TaggedMemberBase {
+ public:
+  constexpr TaggedMember() = default;
+#ifdef V8_COMPRESS_POINTERS
+  constexpr explicit TaggedMember(Tagged<T> value)
+      : TaggedMemberBase(CompressionScheme::CompressObject(value.ptr())) {}
+#else
+  constexpr explicit TaggedMember(Tagged<T> value)
+      : TaggedMemberBase(value.ptr()) {}
+#endif
+};
 
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.
@@ -21,68 +44,82 @@ template <typename T, int kFieldOffset = 0,
           typename CompressionScheme = V8HeapCompressionScheme>
 class TaggedField : public AllStatic {
  public:
-  static_assert(std::is_base_of<Object, T>::value ||
-                    std::is_same<MapWord, T>::value ||
+  static_assert(is_taggable_v<T> || std::is_same<MapWord, T>::value ||
                     std::is_same<MaybeObject, T>::value,
                 "T must be strong or weak tagged type or MapWord");
 
   // True for Smi fields.
-  static constexpr bool kIsSmi = std::is_base_of<Smi, T>::value;
+  static constexpr bool kIsSmi = std::is_same<Smi, T>::value;
 
   // True for HeapObject and MapWord fields. The latter may look like a Smi
   // if it contains forwarding pointer but still requires tagged pointer
   // decompression.
   static constexpr bool kIsHeapObject =
-      std::is_base_of<HeapObject, T>::value || std::is_same<MapWord, T>::value;
+      is_subtype<T, HeapObject>::value || std::is_same<MapWord, T>::value;
 
-  static inline Address address(HeapObject host, int offset = 0);
+  // Object subclasses should be wrapped in Tagged<>, otherwise use T directly.
+  // TODO(leszeks): Clean this up to be more uniform.
+  using PtrType = std::conditional_t<is_taggable_v<T>, Tagged<T>, T>;
 
-  static inline T load(HeapObject host, int offset = 0);
-  static inline T load(PtrComprCageBase cage_base, HeapObject host,
-                       int offset = 0);
+  static inline Address address(Tagged<HeapObject> host, int offset = 0);
 
-  static inline void store(HeapObject host, T value);
-  static inline void store(HeapObject host, int offset, T value);
+  static inline PtrType load(Tagged<HeapObject> host, int offset = 0);
+  static inline PtrType load(PtrComprCageBase cage_base,
+                             Tagged<HeapObject> host, int offset = 0);
 
-  static inline T Relaxed_Load(HeapObject host, int offset = 0);
-  static inline T Relaxed_Load(PtrComprCageBase cage_base, HeapObject host,
-                               int offset = 0);
+  static inline void store(Tagged<HeapObject> host, PtrType value);
+  static inline void store(Tagged<HeapObject> host, int offset, PtrType value);
 
-  static inline void Relaxed_Store(HeapObject host, T value);
-  static inline void Relaxed_Store(HeapObject host, int offset, T value);
+  static inline PtrType Relaxed_Load(Tagged<HeapObject> host, int offset = 0);
+  static inline PtrType Relaxed_Load(PtrComprCageBase cage_base,
+                                     Tagged<HeapObject> host, int offset = 0);
 
-  static inline T Acquire_Load(HeapObject host, int offset = 0);
-  static inline T Acquire_Load_No_Unpack(PtrComprCageBase cage_base,
-                                         HeapObject host, int offset = 0);
-  static inline T Acquire_Load(PtrComprCageBase cage_base, HeapObject host,
-                               int offset = 0);
+  static inline void Relaxed_Store(Tagged<HeapObject> host, PtrType value);
+  static inline void Relaxed_Store(Tagged<HeapObject> host, int offset,
+                                   PtrType value);
 
-  static inline T SeqCst_Load(HeapObject host, int offset = 0);
-  static inline T SeqCst_Load(PtrComprCageBase cage_base, HeapObject host,
-                              int offset = 0);
+  static inline PtrType Acquire_Load(Tagged<HeapObject> host, int offset = 0);
+  static inline PtrType Acquire_Load_No_Unpack(PtrComprCageBase cage_base,
+                                               Tagged<HeapObject> host,
+                                               int offset = 0);
+  static inline PtrType Acquire_Load(PtrComprCageBase cage_base,
+                                     Tagged<HeapObject> host, int offset = 0);
 
-  static inline void Release_Store(HeapObject host, T value);
-  static inline void Release_Store(HeapObject host, int offset, T value);
+  static inline PtrType SeqCst_Load(Tagged<HeapObject> host, int offset = 0);
+  static inline PtrType SeqCst_Load(PtrComprCageBase cage_base,
+                                    Tagged<HeapObject> host, int offset = 0);
 
-  static inline void SeqCst_Store(HeapObject host, T value);
-  static inline void SeqCst_Store(HeapObject host, int offset, T value);
+  static inline void Release_Store(Tagged<HeapObject> host, PtrType value);
+  static inline void Release_Store(Tagged<HeapObject> host, int offset,
+                                   PtrType value);
 
-  static inline T SeqCst_Swap(HeapObject host, int offset, T value);
-  static inline T SeqCst_Swap(PtrComprCageBase cage_base, HeapObject host,
-                              int offset, T value);
+  static inline void SeqCst_Store(Tagged<HeapObject> host, PtrType value);
+  static inline void SeqCst_Store(Tagged<HeapObject> host, int offset,
+                                  PtrType value);
 
-  static inline Tagged_t Release_CompareAndSwap(HeapObject host, T old,
-                                                T value);
+  static inline PtrType SeqCst_Swap(Tagged<HeapObject> host, int offset,
+                                    PtrType value);
+  static inline PtrType SeqCst_Swap(PtrComprCageBase cage_base,
+                                    Tagged<HeapObject> host, int offset,
+                                    PtrType value);
+
+  static inline Tagged_t Release_CompareAndSwap(Tagged<HeapObject> host,
+                                                PtrType old, PtrType value);
+  static inline PtrType SeqCst_CompareAndSwap(Tagged<HeapObject> host,
+                                              int offset, PtrType old,
+                                              PtrType value);
 
   // Note: Use these *_Map_Word methods only when loading a MapWord from a
   // MapField.
-  static inline T Relaxed_Load_Map_Word(PtrComprCageBase cage_base,
-                                        HeapObject host);
-  static inline void Relaxed_Store_Map_Word(HeapObject host, T value);
-  static inline void Release_Store_Map_Word(HeapObject host, T value);
+  static inline PtrType Relaxed_Load_Map_Word(PtrComprCageBase cage_base,
+                                              Tagged<HeapObject> host);
+  static inline void Relaxed_Store_Map_Word(Tagged<HeapObject> host,
+                                            PtrType value);
+  static inline void Release_Store_Map_Word(Tagged<HeapObject> host,
+                                            PtrType value);
 
  private:
-  static inline Tagged_t* location(HeapObject host, int offset = 0);
+  static inline Tagged_t* location(Tagged<HeapObject> host, int offset = 0);
 
   template <typename TOnHeapAddress>
   static inline Address tagged_to_full(TOnHeapAddress on_heap_addr,
@@ -90,6 +127,10 @@ class TaggedField : public AllStatic {
 
   static inline Tagged_t full_to_tagged(Address value);
 };
+
+template <typename T, int kFieldOffset, typename CompressionScheme>
+class TaggedField<Tagged<T>, kFieldOffset, CompressionScheme>
+    : public TaggedField<T, kFieldOffset, CompressionScheme> {};
 
 }  // namespace v8::internal
 

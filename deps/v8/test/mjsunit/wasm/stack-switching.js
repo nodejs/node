@@ -342,7 +342,8 @@ function ToPromising(wasm_export) {
   assertPromiseResult(combined_promise, v => assertEquals(0.5, v));
 })();
 
-// Throw an exception after the initial prompt.
+// Throw an exception before suspending. The export wrapper should return a
+// promise rejected with the exception.
 (function TestStackSwitchException1() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
@@ -351,12 +352,7 @@ function ToPromising(wasm_export) {
       .addBody([kExprThrow, tag]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.throw);
-  try {
-    wrapper();
-    assertUnreachable();
-  } catch (e) {
-    assertTrue(e instanceof WebAssembly.Exception);
-  }
+  assertThrowsAsync(wrapper(), WebAssembly.Exception);
 })();
 
 // Throw an exception after the first resume event, which propagates to the
@@ -423,8 +419,8 @@ function TestNestedSuspenders(suspend) {
   // the outer wasm function, which returns a Promise. The inner Promise
   // resolves first, which resumes the inner continuation. Then the outer
   // promise resolves which resumes the outer continuation.
-  // If 'suspend' is false, the inner JS function returns a regular value and
-  // no computation is suspended.
+  // If 'suspend' is false, the inner and outer JS functions return a regular
+  // value and no computation is suspended.
   let builder = new WasmModuleBuilder();
   inner_index = builder.addImport('m', 'inner', kSig_i_r);
   outer_index = builder.addImport('m', 'outer', kSig_i_r);
@@ -447,17 +443,13 @@ function TestNestedSuspenders(suspend) {
   let export_inner;
   let outer = new WebAssembly.Function(
       {parameters: ['externref'], results: ['i32']},
-      () => export_inner(),
+      () => suspend ? export_inner() : 42,
       {suspending: 'first'});
 
   let instance = builder.instantiate({m: {inner, outer}});
   export_inner = ToPromising(instance.exports.inner);
   let export_outer = ToPromising(instance.exports.outer);
-  if (suspend) {
-    assertPromiseResult(export_outer(), v => assertEquals(42, v));
-  } else {
-    assertEquals(export_outer(), 42);
-  }
+  assertPromiseResult(export_outer(), v => assertEquals(42, v));
 }
 
 (function TestNestedSuspendersSuspend() {
@@ -493,7 +485,7 @@ function TestNestedSuspenders(suspend) {
           ]).exportFunc();
   let instance = builder.instantiate();
   let wrapper = ToPromising(instance.exports.test);
-  assertThrows(wrapper, RangeError, /Maximum call stack size exceeded/);
+  assertThrowsAsync(wrapper(), RangeError, /Maximum call stack size exceeded/);
 })();
 
 (function TestBadSuspender() {
@@ -575,4 +567,103 @@ function TestNestedSuspenders(suspend) {
       instance.exports.test,
       {promising: 'first'});
   assertPromiseResult(exp(), v => assertEquals(42, v));
+})();
+
+(function TestSuspendJSFramesTraps() {
+  // The call stack of this test looks like:
+  // export1 -> import1 -> export2 -> import2
+  // Where export1 is "promising" and import2 is "suspending". Returning a
+  // promise from import2 should trap because of the JS import in the middle.
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let import1_index = builder.addImport("m", "import1", kSig_i_v);
+  let import2_index = builder.addImport("m", "import2", kSig_i_r);
+  builder.addGlobal(kWasmExternRef, true);
+  builder.addFunction("export1", kSig_i_r)
+      .addBody([
+          // export1 -> import1 (unwrapped)
+          kExprLocalGet, 0,
+          kExprGlobalSet, 0,
+          kExprCallFunction, import1_index,
+      ]).exportFunc();
+  builder.addFunction("export2", kSig_i_v)
+      .addBody([
+          // export2 -> import2 (suspending)
+          kExprGlobalGet, 0,
+          kExprCallFunction, import2_index,
+      ]).exportFunc();
+  let instance;
+  function import1() {
+    // import1 -> export2 (unwrapped)
+    instance.exports.export2();
+  }
+  function import2() {
+    return Promise.resolve(0);
+  }
+  import2 = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      import2,
+      {suspending: 'first'});
+  instance = builder.instantiate(
+      {'m':
+        {'import1': import1,
+         'import2': import2
+        }});
+  // export1 (promising)
+  let wrapper = new WebAssembly.Function(
+      {parameters: [], results: ['externref']},
+      instance.exports.export1,
+      {promising: 'first'});
+  assertThrowsAsync(wrapper(), WebAssembly.RuntimeError,
+      /trying to suspend JS frames/);
+})();
+
+// Regression test for v8:14094.
+// Pass an invalid (null) suspender to the suspending wrapper, but return a
+// non-promise. The import should not trap.
+(function TestImportCheckOrder() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  import_index = builder.addImport('m', 'import', kSig_i_r);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+          kExprLocalGet, 0,
+          kExprCallFunction, import_index, // suspend
+      ]).exportFunc();
+  let js_import = new WebAssembly.Function(
+      {parameters: ['externref'], results: ['i32']},
+      () => 42,
+      {suspending: 'first'});
+  let instance = builder.instantiate({m: {import: js_import}});
+  assertEquals(42, instance.exports.test(null));
+})();
+
+(function TestSwitchingToTheCentralStack() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let table = builder.addTable(kWasmExternRef, 1);
+  builder.addFunction("test", kSig_i_r)
+      .addBody([
+        kExprLocalGet, 0,
+        kExprI32Const, 1,
+        kNumericPrefix, kExprTableGrow, table.index]).exportFunc();
+  builder.addFunction("test2", kSig_i_r)
+      .addBody([
+        kExprI32Const, 1]).exportFunc();
+  let instance = builder.instantiate();
+  let wrapper = ToPromising(instance.exports.test);
+  let wrapper2 = ToPromising(instance.exports.test2);
+  function switchesToCS(fn) {
+    const beforeCall = %WasmSwitchToTheCentralStackCount();
+    fn();
+    return %WasmSwitchToTheCentralStackCount() - beforeCall;
+  }
+  // Calling exported functions from the central stack.
+  assertEquals(switchesToCS(() => instance.exports.test({})), 0);
+  assertEquals(switchesToCS(() => instance.exports.test2({})), 0);
+
+  // Runtime call to table.grow.
+  assertEquals(switchesToCS(wrapper), 1);
+  // No runtime calls.
+  assertEquals(switchesToCS(wrapper2), 0);
 })();

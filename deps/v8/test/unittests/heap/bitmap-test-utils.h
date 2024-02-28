@@ -5,31 +5,39 @@
 #ifndef V8_UNITTESTS_HEAP_BITMAP_TEST_UTILS_H_
 #define V8_UNITTESTS_HEAP_BITMAP_TEST_UTILS_H_
 
+#include "src/base/build_config.h"
+#include "src/base/platform/memory.h"
+#include "src/common/globals.h"
+#include "src/heap/marking.h"
+#include "src/heap/memory-chunk-layout.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
-template <typename T>
 class TestWithBitmap : public ::testing::Test {
  public:
-  TestWithBitmap() : memory_(new uint8_t[Bitmap::kSize]) {
-    memset(memory_, 0, Bitmap::kSize);
+  static constexpr size_t kPageSize = 1u << kPageSizeBits;
+
+  TestWithBitmap()
+      : memory_(reinterpret_cast<uint8_t*>(
+            base::AlignedAlloc(kPageSize, kPageSize))) {
+    memset(memory_, 0, kPageSize);
   }
 
-  ~TestWithBitmap() override { delete[] memory_; }
+  ~TestWithBitmap() override { base::AlignedFree(memory_); }
 
-  T* bitmap() { return reinterpret_cast<T*>(memory_); }
-  uint8_t* raw_bitmap() { return memory_; }
+  uint8_t* raw_bitmap() {
+    return reinterpret_cast<uint8_t*>(memory_ +
+                                      MemoryChunkLayout::kMarkingBitmapOffset);
+  }
+  MarkingBitmap* bitmap() {
+    return reinterpret_cast<MarkingBitmap*>(raw_bitmap());
+  }
 
  private:
   uint8_t* memory_;
 };
 
-using BitmapTypes = ::testing::Types<ConcurrentBitmap<AccessMode::NON_ATOMIC>,
-                                     ConcurrentBitmap<AccessMode::ATOMIC>>;
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_UNITTESTS_HEAP_BITMAP_TEST_UTILS_H_

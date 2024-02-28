@@ -2,12 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --expose-externalize-string --shared-string-table
+// Flags: --expose-externalize-string --expose-gc --shared-string-table
 
 const long_key = 'key1234567890abcdefg';
 const substr_key = long_key.substring(3,17);
 const consstr_key = 'key' + 1234567890 + 'abcdefg';
 const integer_index = long_key.substring(3,8);
+
+gc();
+gc();
 
 {
   let obj = [];

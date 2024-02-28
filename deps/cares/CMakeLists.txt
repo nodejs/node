@@ -1,4 +1,8 @@
-CMAKE_MINIMUM_REQUIRED (VERSION 3.1.0)
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
+CMAKE_MINIMUM_REQUIRED (VERSION 3.5.0)
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/")
 
 INCLUDE (CheckIncludeFiles)
 INCLUDE (CheckTypeSize)
@@ -8,10 +12,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.19.1" )
+PROJECT (c-ares LANGUAGES C VERSION "1.27.0" )
 
 # Set this version before release
-SET (CARES_VERSION "1.19.1")
+SET (CARES_VERSION "1.27.0")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -26,25 +30,37 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "8:1:6")
+SET (CARES_LIB_VERSIONINFO "14:0:12")
 
 
-OPTION (CARES_STATIC     "Build as a static library"                                             OFF)
-OPTION (CARES_SHARED     "Build as a shared library"                                             ON)
-OPTION (CARES_INSTALL    "Create installation targets (chain builders may want to disable this)" ON)
-OPTION (CARES_STATIC_PIC "Build the static library as PIC (position independent)"                OFF)
-OPTION (CARES_BUILD_TESTS "Build and run tests"                                                  OFF)
+OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
+OPTION (CARES_SHARED        "Build as a shared library"                                             ON)
+OPTION (CARES_INSTALL       "Create installation targets (chain builders may want to disable this)" ON)
+OPTION (CARES_STATIC_PIC    "Build the static library as PIC (position independent)"                OFF)
+OPTION (CARES_BUILD_TESTS   "Build and run tests"                                                   OFF)
 OPTION (CARES_BUILD_CONTAINER_TESTS "Build and run container tests (implies CARES_BUILD_TESTS, Linux only)" OFF)
-OPTION (CARES_BUILD_TOOLS "Build tools"                                                          ON)
+OPTION (CARES_BUILD_TOOLS   "Build tools"                                                           ON)
+OPTION (CARES_SYMBOL_HIDING "Hide private symbols in shared libraries"                              OFF)
+OPTION (CARES_THREADS       "Build with thread-safety support"                                      ON)
 SET    (CARES_RANDOM_FILE "/dev/urandom" CACHE STRING "Suitable File / Device Path for entropy, such as /dev/urandom")
 
 
+# Tests require a C++14 compiler
+IF (CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS)
+	set(CMAKE_CXX_STANDARD 14)
+	set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+	set(CMAKE_CXX_EXTENSIONS FALSE)
+	enable_language(CXX)
+ENDIF ()
+
 # Tests require static to be enabled on Windows to be able to access otherwise hidden symbols
-IF (CARES_BUILD_TESTS AND (NOT CARES_STATIC) AND WIN32)
+IF ((CARES_BUILD_TESTS OR CARES_BUILD_CONTAINER_TESTS) AND (NOT CARES_STATIC) AND WIN32)
 	SET (CARES_STATIC ON)
 	SET (CARES_STATIC_PIC ON)
-	MESSAGE (WARNING "Static building was requested be disabled, but reenabled to support tests")
+	MESSAGE (WARNING "Static building was requested be disabled, but re-enabled to support tests")
 ENDIF ()
+
+INCLUDE (EnableWarnings)
 
 # allow linking against the static runtime library in msvc
 IF (MSVC)
@@ -68,11 +84,22 @@ IF (MSVC)
 	ENDIF ()
 ENDIF ()
 
-# Keep build organized.
-SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
-SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
-SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
-SET (PACKAGE_DIRECTORY ${PROJECT_BINARY_DIR}/package)
+IF (CARES_SYMBOL_HIDING)
+	IF (CMAKE_VERSION VERSION_LESS 3.12)
+		MESSAGE (FATAL_ERROR "Hiding symbols requires CMake 3.12")
+	ENDIF ()
+	CMAKE_POLICY (SET CMP0063 NEW)
+ENDIF ()
+
+# Keep build organized, but only if it is the top-level project.
+# CMake 3.21 or later has PROJECT_IS_TOP_LEVEL, but we aren't yet depending on
+# that version.
+IF (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+	SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
+	SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
+	SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
+	SET (PACKAGE_DIRECTORY ${PROJECT_BINARY_DIR}/package)
+ENDIF ()
 
 # Destinations for installing different kinds of targets (pass to install command).
 SET (TARGETS_INST_DEST
@@ -163,7 +190,9 @@ CARES_FUNCTION_IN_LIBRARY (clock_gettime rt HAVE_LIBRT)
 
 
 # Look for necessary includes
+CHECK_INCLUDE_FILES (AvailabilityMacros.h  HAVE_AVAILABILITYMACROS_H)
 CHECK_INCLUDE_FILES (sys/types.h           HAVE_SYS_TYPES_H)
+CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
 CHECK_INCLUDE_FILES (sys/socket.h          HAVE_SYS_SOCKET_H)
 CHECK_INCLUDE_FILES (sys/sockio.h          HAVE_SYS_SOCKIO_H)
 CHECK_INCLUDE_FILES (arpa/inet.h           HAVE_ARPA_INET_H)
@@ -178,7 +207,12 @@ CHECK_INCLUDE_FILES (malloc.h              HAVE_MALLOC_H)
 CHECK_INCLUDE_FILES (memory.h              HAVE_MEMORY_H)
 CHECK_INCLUDE_FILES (netdb.h               HAVE_NETDB_H)
 CHECK_INCLUDE_FILES (netinet/in.h          HAVE_NETINET_IN_H)
-CHECK_INCLUDE_FILES (net/if.h              HAVE_NET_IF_H)
+# On old MacOS SDK versions, you must include sys/socket.h before net/if.h
+IF (HAVE_SYS_SOCKET_H)
+  CHECK_INCLUDE_FILES ("sys/socket.h;net/if.h"  HAVE_NET_IF_H)
+ELSE ()
+  CHECK_INCLUDE_FILES (net/if.h                 HAVE_NET_IF_H)
+ENDIF ()
 CHECK_INCLUDE_FILES (signal.h              HAVE_SIGNAL_H)
 CHECK_INCLUDE_FILES (socket.h              HAVE_SOCKET_H)
 CHECK_INCLUDE_FILES (stdbool.h             HAVE_STDBOOL_H)
@@ -193,10 +227,14 @@ CHECK_INCLUDE_FILES (sys/select.h          HAVE_SYS_SELECT_H)
 CHECK_INCLUDE_FILES (sys/stat.h            HAVE_SYS_STAT_H)
 CHECK_INCLUDE_FILES (sys/time.h            HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILES (sys/uio.h             HAVE_SYS_UIO_H)
+CHECK_INCLUDE_FILES (sys/random.h          HAVE_SYS_RANDOM_H)
+CHECK_INCLUDE_FILES (sys/event.h           HAVE_SYS_EVENT_H)
+CHECK_INCLUDE_FILES (sys/epoll.h           HAVE_SYS_EPOLL_H)
+CHECK_INCLUDE_FILES (ifaddrs.h             HAVE_IFADDRS_H)
 CHECK_INCLUDE_FILES (time.h                HAVE_TIME_H)
+CHECK_INCLUDE_FILES (poll.h                HAVE_POLL_H)
 CHECK_INCLUDE_FILES (dlfcn.h               HAVE_DLFCN_H)
 CHECK_INCLUDE_FILES (unistd.h              HAVE_UNISTD_H)
-
 # On OpenBSD, you must include sys/types.h before netinet/tcp.h
 IF (HAVE_SYS_TYPES_H)
   CHECK_INCLUDE_FILES ("sys/types.h;netinet/tcp.h"         HAVE_NETINET_TCP_H)
@@ -210,23 +248,31 @@ ENDIF ()
 IF (WIN32)
 CHECK_INCLUDE_FILES ("winsock2.h;windows.h"            HAVE_WINSOCK2_H)
 CHECK_INCLUDE_FILES ("winsock2.h;ws2tcpip.h;windows.h" HAVE_WS2TCPIP_H)
+CHECK_INCLUDE_FILES ("winsock2.h;iphlpapi.h;windows.h" HAVE_IPHLPAPI_H)
+CHECK_INCLUDE_FILES ("winsock2.h;netioapi.h;windows.h" HAVE_NETIOAPI_H)
+CHECK_INCLUDE_FILES ("winsock2.h;mswsock.h;windows.h"  HAVE_MSWSOCK_H)
 CHECK_INCLUDE_FILES ("winsock.h;windows.h"             HAVE_WINSOCK_H)
 CHECK_INCLUDE_FILES (windows.h                         HAVE_WINDOWS_H)
+CHECK_INCLUDE_FILES ("windows.h;winternl.h"            HAVE_WINTERNL_H)
+CHECK_INCLUDE_FILES ("windows.h;ntdef.h"               HAVE_NTDEF_H)
+CHECK_INCLUDE_FILES ("windows.h;ntdef.h;ntstatus.h"    HAVE_NTSTATUS_H)
+
+
 ENDIF ()
 
 # Set system-specific compiler flags
 IF (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 	LIST (APPEND SYSFLAGS -D_DARWIN_C_SOURCE)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	LIST (APPEND SYSFLAGS -D_GNU_SOURCE -D_POSIX_C_SOURCE=199309L -D_XOPEN_SOURCE=600)
+	LIST (APPEND SYSFLAGS -D_GNU_SOURCE -D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
-	LIST (APPEND SYSFLAGS -D__EXTENSIONS__ -D_REENTRANT -D_XOPEN_SOURCE=600)
+	LIST (APPEND SYSFLAGS -D__EXTENSIONS__ -D_REENTRANT -D_XOPEN_SOURCE=700)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "AIX")
-	LIST (APPEND SYSFLAGS -D_ALL_SOURCE -D_XOPEN_SOURCE=600 -D_USE_IRS)
+	LIST (APPEND SYSFLAGS -D_ALL_SOURCE -D_XOPEN_SOURCE=700 -D_USE_IRS)
 ELSEIF (CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
 	# Don't define _XOPEN_SOURCE on FreeBSD, it actually reduces visibility instead of increasing it
 ELSEIF (WIN32)
-	LIST (APPEND SYSFLAGS -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -D_WIN32_WINNT=0x0600)
+	LIST (APPEND SYSFLAGS -DWIN32_LEAN_AND_MEAN -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -D_WIN32_WINNT=0x0602)
 ENDIF ()
 ADD_DEFINITIONS(${SYSFLAGS})
 
@@ -268,12 +314,14 @@ MACRO (CARES_EXTRAINCLUDE_IFSET var include)
 	ENDIF ()
 ENDMACRO ()
 
+CARES_EXTRAINCLUDE_IFSET (HAVE_AVAILABILITYMACROS_H AvailabilityMacros.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STDBOOL_H      stdbool.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_TYPES_H    sys/types.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_ARPA_INET_H    arpa/inet.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_ARPA_NAMESER_H arpa/nameser.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NETDB_H        netdb.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NET_IF_H       net/if.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_IFADDRS_H      ifaddrs.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NETINET_IN_H   netinet/in.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NETINET_TCP_H  netinet/tcp.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SIGNAL_H       signal.h)
@@ -281,16 +329,23 @@ CARES_EXTRAINCLUDE_IFSET (HAVE_STDLIB_H       stdlib.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STRING_H       string.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STRINGS_H      strings.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_IOCTL_H    sys/ioctl.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_RANDOM_H   sys/random.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SELECT_H   sys/select.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SOCKET_H   sys/socket.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_SOCKIO_H	sys/sockio.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_TIME_H     sys/time.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_STAT_H     sys/stat.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_UIO_H      sys/uio.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_RANDOM_H   sys/random.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EVENT_H    sys/event.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_SYS_EPOLL_H    sys/epoll.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_TIME_H         time.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_POLL_H         poll.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_FCNTL_H        fcntl.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_UNISTD_H       unistd.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_WINSOCK2_H     winsock2.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_WS2TCPIP_H     ws2tcpip.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_IPHLPAPI_H     iphlpapi.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_WINDOWS_H      windows.h)
 
 # Check Types
@@ -319,10 +374,8 @@ ENDMACRO ()
 
 CARES_TYPE_EXISTS (socklen_t                 HAVE_SOCKLEN_T)
 CARES_TYPE_EXISTS (SOCKET                    HAVE_TYPE_SOCKET)
-CARES_TYPE_EXISTS (bool                      HAVE_BOOL_T)
 CARES_TYPE_EXISTS (ssize_t                   HAVE_SSIZE_T)
 CARES_TYPE_EXISTS ("long long"               HAVE_LONGLONG)
-CARES_TYPE_EXISTS (sig_atomic_t              HAVE_SIG_ATOMIC_T)
 CARES_TYPE_EXISTS ("struct addrinfo"         HAVE_STRUCT_ADDRINFO)
 CARES_TYPE_EXISTS ("struct in6_addr"         HAVE_STRUCT_IN6_ADDR)
 CARES_TYPE_EXISTS ("struct sockaddr_in6"     HAVE_STRUCT_SOCKADDR_IN6)
@@ -347,13 +400,9 @@ IF ((NOT APPLE) OR IOS_V10 OR MACOS_V1012)
 	CHECK_SYMBOL_EXISTS (CLOCK_MONOTONIC "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CLOCK_GETTIME_MONOTONIC)
 ENDIF ()
 
-CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_scope_id "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_IN6_SIN6_SCOPE_ID LANGUAGE C)
-
-# Check for "LL" numeric suffix support
-CHECK_C_SOURCE_COMPILES ("int main() { int n=1234LL; return 0; }" HAVE_LL)
+CHECK_STRUCT_HAS_MEMBER("struct sockaddr_in6" sin6_scope_id "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID LANGUAGE C)
 
 
-CHECK_SYMBOL_EXISTS (bitncmp         "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_BITNCMP)
 CHECK_SYMBOL_EXISTS (closesocket     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CLOSESOCKET)
 CHECK_SYMBOL_EXISTS (CloseSocket     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CLOSESOCKET_CAMEL)
 CHECK_SYMBOL_EXISTS (connect         "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONNECT)
@@ -361,14 +410,16 @@ CHECK_SYMBOL_EXISTS (fcntl           "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_FCNTL)
 CHECK_SYMBOL_EXISTS (freeaddrinfo    "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_FREEADDRINFO)
 CHECK_SYMBOL_EXISTS (getaddrinfo     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETADDRINFO)
 CHECK_SYMBOL_EXISTS (getenv          "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETENV)
-CHECK_SYMBOL_EXISTS (gethostbyaddr   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOSTBYADDR)
-CHECK_SYMBOL_EXISTS (gethostbyname   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOSTBYNAME)
 CHECK_SYMBOL_EXISTS (gethostname     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETHOSTNAME)
 CHECK_SYMBOL_EXISTS (getnameinfo     "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETNAMEINFO)
+CHECK_SYMBOL_EXISTS (getrandom       "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETRANDOM)
 CHECK_SYMBOL_EXISTS (getservbyport_r "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETSERVBYPORT_R)
 CHECK_SYMBOL_EXISTS (getservbyname_r "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETSERVBYNAME_R)
 CHECK_SYMBOL_EXISTS (gettimeofday    "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETTIMEOFDAY)
 CHECK_SYMBOL_EXISTS (if_indextoname  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_INDEXTONAME)
+CHECK_SYMBOL_EXISTS (if_nametoindex  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_IF_NAMETOINDEX)
+CHECK_SYMBOL_EXISTS (ConvertInterfaceIndexToLuid  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACEINDEXTOLUID)
+CHECK_SYMBOL_EXISTS (ConvertInterfaceLuidToNameA  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_CONVERTINTERFACELUIDTONAMEA)
 CHECK_SYMBOL_EXISTS (inet_net_pton   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_INET_NET_PTON)
 IF (NOT WIN32)
 	# Disabled on Windows, because these functions are only really supported on Windows
@@ -394,6 +445,13 @@ CHECK_SYMBOL_EXISTS (strncmpi        "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_STRNCMP
 CHECK_SYMBOL_EXISTS (strnicmp        "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_STRNICMP)
 CHECK_SYMBOL_EXISTS (writev          "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_WRITEV)
 CHECK_SYMBOL_EXISTS (arc4random_buf  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_ARC4RANDOM_BUF)
+CHECK_SYMBOL_EXISTS (stat            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_STAT)
+CHECK_SYMBOL_EXISTS (getifaddrs      "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_GETIFADDRS)
+CHECK_SYMBOL_EXISTS (poll            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_POLL)
+CHECK_SYMBOL_EXISTS (pipe            "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PIPE)
+CHECK_SYMBOL_EXISTS (pipe2           "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PIPE2)
+CHECK_SYMBOL_EXISTS (kqueue          "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_KQUEUE)
+CHECK_SYMBOL_EXISTS (epoll_create1   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_EPOLL)
 
 
 # On Android, the system headers may define __system_property_get(), but excluded
@@ -407,6 +465,43 @@ SET (CMAKE_REQUIRED_LIBRARIES)
 
 
 ################################################################################
+# Threading Support
+#
+IF (CARES_THREADS)
+	IF (WIN32)
+		# Do nothing, always has threads
+	ELSE ()
+		# Need to prefer pthreads on platforms that may have more threading choices
+		# (e.g. Solaris)
+		SET (CMAKE_THREAD_PREFER_PTHREAD TRUE)
+		FIND_PACKAGE (Threads)
+
+		IF (Threads_FOUND)
+			# Fix solaris9 bug due to libc having pthread_create() stubs that always fail.  CMake
+			# doesn't realize that the real pthread functions aren't in libc, so sets the pthread
+			# library CAKE_THREAD_LIBS_INIT variable to blank instead of to the correct "-lpthread".
+			IF (CMAKE_SYSTEM_NAME STREQUAL "SunOS" AND NOT CMAKE_THREAD_LIBS_INIT)
+				SET (CMAKE_THREAD_LIBS_INIT "-lpthread")
+			ENDIF ()
+
+			# PThread functions.
+			CHECK_INCLUDE_FILES (pthread.h                                 HAVE_PTHREAD_H)
+			CHECK_INCLUDE_FILES (pthread_np.h                              HAVE_PTHREAD_NP_H)
+			CARES_EXTRAINCLUDE_IFSET (HAVE_PTHREAD_H                       pthread.h)
+			CARES_EXTRAINCLUDE_IFSET (HAVE_PTHREAD_NP_H                    pthread_np.h)
+			CHECK_SYMBOL_EXISTS (pthread_init  "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_PTHREAD_INIT)
+			# Make sure libcares.pc.cmake knows about thread libraries on static builds
+			LIST (APPEND CARES_DEPENDENT_LIBS ${CMAKE_THREAD_LIBS_INIT})
+		ELSE ()
+			MESSAGE (WARNING "Threading support not found, disabling...")
+			SET (CARES_THREADS OFF)
+		ENDIF ()
+	ENDIF ()
+ENDIF ()
+
+
+
+################################################################################
 # recv, recvfrom, send, getnameinfo, gethostname
 # ARGUMENTS AND RETURN VALUES
 #
@@ -416,7 +511,7 @@ SET (CMAKE_REQUIRED_LIBRARIES)
 # defaults.  This should be much quicker and nearly as accurate ... and even
 # if not, it probably won't matter in the least.
 
-IF (HAVE_SSIZE_T AND HAVE_SOCKLEN_T)
+IF (HAVE_SSIZE_T AND HAVE_SOCKLEN_T AND NOT WIN32)
 	# If we have ssize_t and socklen_t, the API is usually sane and uses ssize_t and size_t for lengths
 	SET (RECVFROM_TYPE_RETV ssize_t)
 	SET (RECVFROM_TYPE_ARG3 size_t)
@@ -581,10 +676,6 @@ IF (HAVE_ARPA_NAMESER_COMPAT_H)
 	SET (CARES_HAVE_ARPA_NAMESER_COMPAT_H 1)
 ENDIF()
 
-# Record toplevel CMakeLists.txt path
-set(CARES_TOPLEVEL_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
-
-
 # TRANSFORM_MAKEFILE_INC
 #
 # This function consumes the "Makefile.inc" autotools file, and converts it into
@@ -648,7 +739,6 @@ IF (CARES_INSTALL)
 
 	# pkgconfig support
 	IF (NOT CARES_SHARED)
-		SET (CPPFLAG_CARES_STATICLIB "-DCARES_STATICLIB")
 		FOREACH (LIB ${CARES_DEPENDENT_LIBS})
 			SET (CARES_PRIVATE_LIBS "${CARES_PRIVATE_LIBS} -l${LIB}")
 		ENDFOREACH ()

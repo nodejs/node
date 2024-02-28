@@ -3700,7 +3700,8 @@ static void multiblock_speed(const EVP_CIPHER *evp_cipher, int lengths_single,
             } else {
                 int pad;
 
-                RAND_bytes(out, 16);
+                if (RAND_bytes(inp, 16) <= 0)
+                    app_bail_out("error setting random bytes\n");
                 len += 16;
                 aad[11] = (unsigned char)(len >> 8);
                 aad[12] = (unsigned char)(len);

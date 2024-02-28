@@ -262,6 +262,7 @@ class MetricsRecorder : public v8::metrics::Recorder {
 };
 
 COMPILE_TEST(TestEventMetrics) {
+  if (v8_flags.memory_balancer) return;
   FlagScope<bool> no_wasm_dynamic_tiering(&v8_flags.wasm_dynamic_tiering,
                                           false);
   std::shared_ptr<MetricsRecorder> recorder =
@@ -278,7 +279,7 @@ COMPILE_TEST(TestEventMetrics) {
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(base::CStrVector("main"), f);
-  byte code[] = {WASM_I32V_2(0)};
+  uint8_t code[] = {WASM_I32V_2(0)};
   f->EmitCode(code, sizeof(code));
   f->Emit(kExprEnd);
   ZoneBuffer buffer(&zone);

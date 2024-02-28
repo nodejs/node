@@ -17,7 +17,7 @@ print('=== grow_memory in direct calls ===');
 (function TestMemoryGrowInFunction() {
   print('TestMemoryGrowInFunction ...');
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -44,7 +44,7 @@ print('=== grow_memory in direct calls ===');
   print('TestMemoryGrowAndAccessInFunction ...');
   let index = 2 * kPageSize - 4;
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -81,7 +81,7 @@ print('=== grow_memory in direct calls ===');
   let newValue = 42;
   let deltaPages = 1;
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_v_v)
           .addBody([
@@ -115,7 +115,7 @@ print('=== grow_memory in direct calls ===');
 (function TestMemoryGrowInFunctionInsideLoop() {
   print('TestMemoryGrowInFunctionInsideLoop ...');
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -158,7 +158,7 @@ print('=== grow_memory in direct calls ===');
 (function TestMemoryGrowAndStoreInFunctionInsideLoop() {
   print('TestMemoryGrowAndStoreInFunctionInsideLoop ...');
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   builder.addFunction('store', kSig_i_ii)
       .addBody([
         kExprLocalGet, 0, kExprLocalGet, 1, kExprI32StoreMem, 0, 0,
@@ -222,7 +222,7 @@ print('\n=== grow_memory in indirect calls ===');
 (function TestMemoryGrowInIndirectCall() {
   print('TestMemoryGrowInIndirectCall ...');
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -252,7 +252,7 @@ print('\n=== grow_memory in indirect calls ===');
   print('TestMemoryGrowAndAccessInIndirectCall ...');
   let index = 2 * kPageSize - 4;
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -293,7 +293,7 @@ print('\n=== grow_memory in indirect calls ===');
   let newValue = 42;
   let deltaPages = 1;
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_v_v)
           .addBody([
@@ -329,7 +329,7 @@ print('\n=== grow_memory in indirect calls ===');
 (function TestMemoryGrowInIndirectCallInsideLoop() {
   print('TestMemoryGrowInIndirectCallInsideLoop ...');
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])
@@ -375,7 +375,7 @@ print('\n=== grow_memory in indirect calls ===');
   print('TestMemoryGrowAndStoreInIndirectCallInsideLoop ...');
   let builder = new WasmModuleBuilder();
   let deltaPages = 1;
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   let kGrowFunction =
       builder.addFunction('grow', kSig_i_i)
           .addBody([kExprLocalGet, 0, kExprMemoryGrow, kMemoryZero])

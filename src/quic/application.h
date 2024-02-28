@@ -118,8 +118,9 @@ class Session::Application : public MemoryRetainer {
  protected:
   inline Environment* env() const { return session_->env(); }
   inline Session& session() { return *session_; }
+  inline const Session& session() const { return *session_; }
 
-  BaseObjectPtr<Packet> CreateStreamDataPacket();
+  Packet* CreateStreamDataPacket();
 
   struct StreamData;
 
@@ -135,6 +136,21 @@ class Session::Application : public MemoryRetainer {
 
  private:
   Session* session_;
+};
+
+struct Session::Application::StreamData final {
+  // The actual number of vectors in the struct, up to kMaxVectorCount.
+  size_t count = 0;
+  size_t remaining = 0;
+  // The stream identifier. If this is a negative value then no stream is
+  // identified.
+  int64_t id = -1;
+  int fin = 0;
+  ngtcp2_vec data[kMaxVectorCount]{};
+  ngtcp2_vec* buf = data;
+  BaseObjectPtr<Stream> stream;
+
+  inline operator nghttp3_vec() const { return {data[0].base, data[0].len}; }
 };
 
 }  // namespace quic

@@ -72,12 +72,16 @@ which collects the HTTP request header lines.
 OSSL_HTTP_REQ_CTX_free() frees up the HTTP request context I<rctx>.
 The I<rbio> is not free'd, I<wbio> will be free'd if I<free_wbio> is set.
 
-OSSL_HTTP_REQ_CTX_set_request_line() adds the HTTP request line to the context.
+OSSL_HTTP_REQ_CTX_set_request_line() adds the 1st HTTP request line to I<rctx>.
 The HTTP method is determined by I<method_POST>,
 which should be 1 to indicate C<POST> or 0 to indicate C<GET>.
-I<server> and I<port> may be set to indicate a proxy server and port
-that the request should go through, otherwise they should be left NULL.
-I<path> is the HTTP request path; if left NULL, C</> is used.
+I<server> and I<port> may be set to give the server and the optional port that
+an HTTP proxy shall forward the request to, otherwise they must be left NULL.
+I<path> provides the HTTP request path; if left NULL, C</> is used.
+For backward compatibility, I<path> may begin with C<http://> and thus convey
+an absoluteURI. In this case it indicates HTTP proxy use and provides also the
+server (and optionally the port) that the proxy shall forward the request to.
+In this case the I<server> and I<port> arguments must be NULL.
 
 OSSL_HTTP_REQ_CTX_add1_header() adds header I<name> with value I<value> to the
 context I<rctx>. It can be called more than once to add multiple header lines.

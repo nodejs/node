@@ -21,6 +21,10 @@ function runURLTests(urlTests) {
     if (expected.base === null && expected.input.startsWith("#"))
       continue;
 
+    // HTML special cases data: and javascript: URLs in <base>
+    if (expected.base !== null && (expected.base.startsWith("data:") || expected.base.startsWith("javascript:")))
+      continue;
+
     // We cannot use a null base for HTML tests
     const base = expected.base === null ? "about:blank" : expected.base;
 

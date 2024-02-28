@@ -2,16 +2,17 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+@cppObjectDefinition
 @hasSameInstanceTypeAsParent
 @doNotGenerateCast
 extern class RegExpMatchInfo extends FixedArray {
-  macro GetStartOfCapture(implicit context: Context)(captureIndex:
-                                                         constexpr int31): Smi {
+  macro GetStartOfCapture(
+      implicit context: Context)(captureIndex: constexpr int31): Smi {
     const index: constexpr int31 = GetStartOfCaptureIndex(captureIndex);
     return UnsafeCast<Smi>(this.objects[index]);
   }
-  macro GetEndOfCapture(implicit context: Context)(captureIndex:
-                                                       constexpr int31): Smi {
+  macro GetEndOfCapture(
+      implicit context: Context)(captureIndex: constexpr int31): Smi {
     const index: constexpr int31 = GetStartOfCaptureIndex(captureIndex) + 1;
     return UnsafeCast<Smi>(this.objects[index]);
   }
@@ -25,6 +26,7 @@ const kRegExpMatchInfoFirstCaptureIndex:
 const kRegExpMatchInfoNumberOfCapturesIndex:
     constexpr int31 generates 'RegExpMatchInfo::kNumberOfCapturesIndex';
 
-macro GetStartOfCaptureIndex(captureIndex: constexpr int31): constexpr int31 {
+macro GetStartOfCaptureIndex(captureIndex: constexpr int31):
+    constexpr int31 {
   return kRegExpMatchInfoFirstCaptureIndex + (captureIndex * 2);
 }

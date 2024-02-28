@@ -1,5 +1,5 @@
-const getAuth = require('npm-registry-fetch/lib/auth.js')
 const npmFetch = require('npm-registry-fetch')
+const { getAuth } = npmFetch
 const log = require('../utils/log-shim')
 const BaseCommand = require('../base-command.js')
 
@@ -19,10 +19,14 @@ class Logout extends BaseCommand {
 
     const auth = getAuth(reg, this.npm.flatOptions)
 
+    const level = this.npm.config.find(`${auth.regKey}:${auth.authKey}`)
+
+    // find the config level and only delete from there
     if (auth.token) {
       log.verbose('logout', `clearing token for ${reg}`)
       await npmFetch(`/-/user/token/${encodeURIComponent(auth.token)}`, {
         ...this.npm.flatOptions,
+        registry: reg,
         method: 'DELETE',
         ignoreBody: true,
       })
@@ -34,12 +38,12 @@ class Logout extends BaseCommand {
     }
 
     if (scope) {
-      this.npm.config.delete(regRef, 'user')
+      this.npm.config.delete(regRef, level)
     }
 
-    this.npm.config.clearCredentialsByURI(reg)
+    this.npm.config.clearCredentialsByURI(reg, level)
 
-    await this.npm.config.save('user')
+    await this.npm.config.save(level)
   }
 }
 module.exports = Logout

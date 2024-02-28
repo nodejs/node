@@ -124,7 +124,7 @@ t.test('prints where to go when given browser does not exist', async t => {
   const { openerUrl, openerOpts, joinedOutput } = await mockOpenUrl(t,
     ['https://www.npmjs.com', 'npm home'],
     {
-      openerResult: Object.assign(new Error('failed'), { code: 'ENOENT' }),
+      openerResult: Object.assign(new Error('failed'), { code: 127 }),
     }
   )
 

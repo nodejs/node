@@ -273,21 +273,21 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
                      AllocatedOperand operand) {
   switch (operand.representation()) {
     case MachineRepresentation::kTagged:
-      if (value->IsSmi()) {
+      if (IsSmi(*value)) {
         os << Smi::cast(*value).value();
       } else {
-        os << value->Number();
+        os << Object::Number(*value);
       }
       break;
     case MachineRepresentation::kFloat32:
     case MachineRepresentation::kFloat64:
-      os << value->Number();
+      os << Object::Number(*value);
       break;
     case MachineRepresentation::kSimd128: {
-      FixedArray vector = FixedArray::cast(*value);
+      Tagged<FixedArray> vector = FixedArray::cast(*value);
       os << "[";
       for (int lane = 0; lane < 4; lane++) {
-        os << Smi::cast(vector.get(lane)).value();
+        os << Smi::cast(vector->get(lane)).value();
         if (lane < 3) {
           os << ", ";
         }
@@ -774,7 +774,7 @@ class TestEnvironment : public HandleAndZoneScope {
     return static_cast<int>(std::distance(layout.cbegin(), it));
   }
 
-  Object GetMoveSource(Handle<FixedArray> state, MoveOperands* move) {
+  Tagged<Object> GetMoveSource(Handle<FixedArray> state, MoveOperands* move) {
     InstructionOperand from = move->source();
     if (from.IsConstant()) {
       Constant constant = instructions_.GetConstant(
@@ -783,13 +783,14 @@ class TestEnvironment : public HandleAndZoneScope {
       switch (constant.type()) {
         case Constant::kInt32:
           constant_value =
-              Handle<Smi>(Smi(static_cast<Address>(
+              Handle<Smi>(Tagged<Smi>(static_cast<Address>(
                               static_cast<intptr_t>(constant.ToInt32()))),
                           main_isolate());
           break;
         case Constant::kInt64:
-          constant_value = Handle<Smi>(
-              Smi(static_cast<Address>(constant.ToInt64())), main_isolate());
+          constant_value =
+              Handle<Smi>(Tagged<Smi>(static_cast<Address>(constant.ToInt64())),
+                          main_isolate());
           break;
         case Constant::kFloat32:
           constant_value = main_isolate()->factory()->NewHeapNumber(
@@ -823,7 +824,7 @@ class TestEnvironment : public HandleAndZoneScope {
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
-      Object source = GetMoveSource(state_out, move);
+      Tagged<Object> source = GetMoveSource(state_out, move);
       state_out->set(to_index, source);
     }
     return state_out;
@@ -838,14 +839,14 @@ class TestEnvironment : public HandleAndZoneScope {
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
           TeardownLayout(), AllocatedOperand::cast(move->destination()));
-      Object source = GetMoveSource(state_in, move);
+      Tagged<Object> source = GetMoveSource(state_in, move);
       state_out->set(to_index, source);
     }
     // If we generated redundant moves, they were eliminated automatically and
     // don't appear in the parallel move. Simulate them now.
     for (auto& operand : teardown_layout_) {
       int to_index = OperandToStatePosition(TeardownLayout(), operand);
-      if (state_out->get(to_index).IsUndefined()) {
+      if (IsUndefined(state_out->get(to_index))) {
         int from_index = OperandToStatePosition(setup_layout_, operand);
         state_out->set(to_index, state_in->get(from_index));
       }
@@ -900,13 +901,13 @@ class TestEnvironment : public HandleAndZoneScope {
       case MachineRepresentation::kTagged:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:
-        return actual->StrictEquals(*expected);
+        return Object::StrictEquals(*actual, *expected);
       case MachineRepresentation::kSimd128:
         for (int lane = 0; lane < 4; lane++) {
           int actual_lane =
-              Smi::cast(FixedArray::cast(*actual).get(lane)).value();
+              Smi::cast(FixedArray::cast(*actual)->get(lane)).value();
           int expected_lane =
-              Smi::cast(FixedArray::cast(*expected).get(lane)).value();
+              Smi::cast(FixedArray::cast(*expected)->get(lane)).value();
           if (actual_lane != expected_lane) {
             return false;
           }
@@ -1139,12 +1140,11 @@ class CodeGeneratorTester {
 
     constexpr size_t kMaxUnoptimizedFrameHeight = 0;
     constexpr size_t kMaxPushedArgumentCount = 0;
-    constexpr wasm::AssemblerBufferCache* kNoBufferCache = nullptr;
     generator_ = new CodeGenerator(
         environment->main_zone(), &frame_, &linkage_,
         environment->instructions(), &info_, environment->main_isolate(),
         base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
-        AssemblerOptions::Default(environment->main_isolate()), kNoBufferCache,
+        AssemblerOptions::Default(environment->main_isolate()),
         Builtin::kNoBuiltinId, kMaxUnoptimizedFrameHeight,
         kMaxPushedArgumentCount);
 
@@ -1371,7 +1371,7 @@ TEST(FuzzAssembleMove) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (v8_flags.print_code) {
-      test->Print();
+      Print(*test);
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1395,7 +1395,7 @@ TEST(FuzzAssembleParallelMove) {
 
   Handle<Code> test = c.FinalizeForExecuting();
   if (v8_flags.print_code) {
-    test->Print();
+    Print(*test);
   }
 
   Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1420,7 +1420,7 @@ TEST(FuzzAssembleSwap) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (v8_flags.print_code) {
-      test->Print();
+      Print(*test);
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1458,7 +1458,7 @@ TEST(FuzzAssembleMoveAndSwap) {
 
     Handle<Code> test = c.FinalizeForExecuting();
     if (v8_flags.print_code) {
-      test->Print();
+      Print(*test);
     }
 
     Handle<FixedArray> actual = env.Run(test, state_in);
@@ -1539,7 +1539,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kRegisterPush);
     Handle<Code> code = c.Finalize();
     if (v8_flags.print_code) {
-      code->Print();
+      Print(*code);
     }
   }
 
@@ -1568,7 +1568,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kStackSlotPush);
     Handle<Code> code = c.Finalize();
     if (v8_flags.print_code) {
-      code->Print();
+      Print(*code);
     }
   }
 
@@ -1597,7 +1597,7 @@ TEST(AssembleTailCallGap) {
                                 CodeGeneratorTester::kScalarPush);
     Handle<Code> code = c.Finalize();
     if (v8_flags.print_code) {
-      code->Print();
+      Print(*code);
     }
   }
 }
@@ -1664,9 +1664,9 @@ TEST(Regress_1171759) {
           .ToHandleChecked();
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(handles.main_isolate(), code->InstructionSize());
+      AllocateNativeModule(handles.main_isolate(), code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  uint8_t* code_start = module->AddCodeForTesting(code)->instructions().begin();
 
   // Generate a minimal calling function, to push stack arguments.
   RawMachineAssemblerTester<int32_t> mt;

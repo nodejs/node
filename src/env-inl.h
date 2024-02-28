@@ -393,16 +393,6 @@ inline AliasedInt32Array& Environment::stream_base_state() {
   return stream_base_state_;
 }
 
-inline uint32_t Environment::get_next_module_id() {
-  return module_id_counter_++;
-}
-inline uint32_t Environment::get_next_script_id() {
-  return script_id_counter_++;
-}
-inline uint32_t Environment::get_next_function_id() {
-  return function_id_counter_++;
-}
-
 ShouldNotAbortOnUncaughtScope::ShouldNotAbortOnUncaughtScope(
     Environment* env)
     : env_(env) {
@@ -438,14 +428,6 @@ inline std::vector<double>* Environment::destroy_async_id_list() {
 
 inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
-}
-
-inline const StartExecutionCallback& Environment::embedder_entry_point() const {
-  return embedder_entry_point_;
-}
-
-inline void Environment::set_embedder_entry_point(StartExecutionCallback&& fn) {
-  embedder_entry_point_ = std::move(fn);
 }
 
 inline double Environment::new_async_id() {
@@ -786,10 +768,10 @@ inline void Environment::ThrowRangeError(const char* errmsg) {
 }
 
 inline void Environment::ThrowError(
-    v8::Local<v8::Value> (*fun)(v8::Local<v8::String>),
+    v8::Local<v8::Value> (*fun)(v8::Local<v8::String>, v8::Local<v8::Value>),
     const char* errmsg) {
   v8::HandleScope handle_scope(isolate());
-  isolate()->ThrowException(fun(OneByteString(isolate(), errmsg)));
+  isolate()->ThrowException(fun(OneByteString(isolate(), errmsg), {}));
 }
 
 inline void Environment::ThrowErrnoException(int errorno,

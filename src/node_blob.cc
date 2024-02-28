@@ -41,7 +41,10 @@ namespace {
 // Concatenate multiple ArrayBufferView/ArrayBuffers into a single ArrayBuffer.
 // This method treats all ArrayBufferView types the same.
 void Concat(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
   CHECK(args[0]->IsArray());
   Local<Array> array = args[0].As<Array>();
 
@@ -54,9 +57,14 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
   std::vector<View> views;
   size_t total = 0;
 
-  for (uint32_t n = 0; n < array->Length(); n++) {
-    Local<Value> val;
-    if (!array->Get(env->context(), n).ToLocal(&val)) return;
+  std::vector<v8::Global<Value>> buffers;
+  if (FromV8Array(context, array, &buffers).IsNothing()) {
+    return;
+  }
+
+  size_t count = buffers.size();
+  for (uint32_t i = 0; i < count; i++) {
+    Local<Value> val = buffers[i].Get(isolate);
     if (val->IsArrayBuffer()) {
       auto ab = val.As<ArrayBuffer>();
       views.push_back(View{ab->GetBackingStore(), ab->ByteLength(), 0});
@@ -169,21 +177,27 @@ BaseObjectPtr<Blob> Blob::Create(Environment* env,
 }
 
 void Blob::New(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
   CHECK(args[0]->IsArray());  // sources
 
   Local<Array> array = args[0].As<Array>();
   std::vector<std::unique_ptr<DataQueue::Entry>> entries(array->Length());
 
-  for (size_t i = 0; i < array->Length(); i++) {
-    Local<Value> entry;
-    if (!array->Get(env->context(), i).ToLocal(&entry)) {
-      return;
-    }
+  std::vector<v8::Global<Value>> sources;
+  if (FromV8Array(context, array, &sources).IsNothing()) {
+    return;
+  }
 
-    const auto entryFromArrayBuffer = [env](v8::Local<v8::ArrayBuffer> buf,
-                                            size_t byte_length,
-                                            size_t byte_offset = 0) {
+  size_t count = sources.size();
+  for (size_t i = 0; i < count; i++) {
+    Local<Value> entry = sources[i].Get(isolate);
+
+    const auto entryFromArrayBuffer = [isolate](v8::Local<v8::ArrayBuffer> buf,
+                                                size_t byte_length,
+                                                size_t byte_offset = 0) {
       if (buf->IsDetachable()) {
         std::shared_ptr<BackingStore> store = buf->GetBackingStore();
         USE(buf->Detach(Local<Value>()));
@@ -193,7 +207,7 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
 
       // If the ArrayBuffer is not detachable, we will copy from it instead.
       std::shared_ptr<BackingStore> store =
-          ArrayBuffer::NewBackingStore(env->isolate(), byte_length);
+          ArrayBuffer::NewBackingStore(isolate, byte_length);
       uint8_t* ptr = static_cast<uint8_t*>(buf->Data()) + byte_offset;
       std::copy(ptr, ptr + byte_length, static_cast<uint8_t*>(store->Data()));
       return DataQueue::CreateInMemoryEntryFromBackingStore(

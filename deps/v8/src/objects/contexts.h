@@ -89,12 +89,12 @@ enum ContextLookupFlags {
   V(ARRAY_BUFFER_NOINIT_FUN_INDEX, JSFunction, array_buffer_noinit_fun)        \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
   V(ARRAY_JOIN_STACK_INDEX, HeapObject, array_join_stack)                      \
+  V(ARRAY_FROM_ASYNC_INDEX, JSFunction, from_async)                            \
   V(ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX, Map, async_from_sync_iterator_map)     \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
   V(ASYNC_FUNCTION_OBJECT_MAP_INDEX, Map, async_function_object_map)           \
   V(ASYNC_GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                       \
     async_generator_function_function)                                         \
-  V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
@@ -173,6 +173,7 @@ enum ContextLookupFlags {
   V(ITERATOR_MAP_HELPER_MAP_INDEX, Map, iterator_map_helper_map)               \
   V(ITERATOR_TAKE_HELPER_MAP_INDEX, Map, iterator_take_helper_map)             \
   V(ITERATOR_DROP_HELPER_MAP_INDEX, Map, iterator_drop_helper_map)             \
+  V(ITERATOR_FLAT_MAP_HELPER_MAP_INDEX, Map, iterator_flatMap_helper_map)      \
   V(ITERATOR_FUNCTION_INDEX, JSFunction, iterator_function)                    \
   V(VALID_ITERATOR_WRAPPER_MAP_INDEX, Map, valid_iterator_wrapper_map)         \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
@@ -188,8 +189,6 @@ enum ContextLookupFlags {
     js_array_holey_double_elements_map)                                        \
   V(JS_ARRAY_TEMPLATE_LITERAL_OBJECT_MAP, Map,                                 \
     js_array_template_literal_object_map)                                      \
-  V(JS_ATOMICS_CONDITION_MAP, Map, js_atomics_condition_map)                   \
-  V(JS_ATOMICS_MUTEX_MAP, Map, js_atomics_mutex_map)                           \
   V(JS_MAP_FUN_INDEX, JSFunction, js_map_fun)                                  \
   V(JS_MAP_MAP_INDEX, Map, js_map_map)                                         \
   V(JS_MODULE_NAMESPACE_MAP, Map, js_module_namespace_map)                     \
@@ -221,6 +220,8 @@ enum ContextLookupFlags {
   V(JS_TEMPORAL_ZONED_DATE_TIME_FUNCTION_INDEX, JSFunction,                    \
     temporal_zoned_date_time_function)                                         \
   V(JSON_OBJECT, JSObject, json_object)                                        \
+  V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
+    promise_withresolvers_result_map)                                          \
   V(TEMPORAL_INSTANT_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,     \
     temporal_instant_fixed_array_from_iterable)                                \
   V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \
@@ -244,7 +245,6 @@ enum ContextLookupFlags {
   V(MATH_RANDOM_INDEX_INDEX, Smi, math_random_index)                           \
   V(MATH_RANDOM_STATE_INDEX, ByteArray, math_random_state)                     \
   V(MATH_RANDOM_CACHE_INDEX, FixedDoubleArray, math_random_cache)              \
-  V(MESSAGE_LISTENERS_INDEX, TemplateList, message_listeners)                  \
   V(NORMALIZED_MAP_CACHE_INDEX, Object, normalized_map_cache)                  \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function)                        \
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function)                        \
@@ -324,11 +324,14 @@ enum ContextLookupFlags {
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
+  V(IS_WASM_JS_INSTALLED_INDEX, Smi, is_wasm_js_installed)                     \
+  V(WASM_WEBASSEMBLY_OBJECT_INDEX, JSObject, wasm_webassembly_object)          \
   V(WASM_EXPORTED_FUNCTION_MAP_INDEX, Map, wasm_exported_function_map)         \
   V(WASM_TAG_CONSTRUCTOR_INDEX, JSFunction, wasm_tag_constructor)              \
   V(WASM_EXCEPTION_CONSTRUCTOR_INDEX, JSFunction, wasm_exception_constructor)  \
   V(WASM_GLOBAL_CONSTRUCTOR_INDEX, JSFunction, wasm_global_constructor)        \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
+  V(WASM_JS_TAG_INDEX, JSObject, wasm_js_tag)                                  \
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
@@ -382,7 +385,9 @@ enum ContextLookupFlags {
   V(WEAKMAP_DELETE_INDEX, JSFunction, weakmap_delete)                          \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)                                \
   V(WRAPPED_FUNCTION_MAP_INDEX, Map, wrapped_function_map)                     \
-  V(RETAINED_MAPS, Object, retained_maps)
+  V(RETAINED_MAPS, Object, retained_maps)                                      \
+  V(SHARED_SPACE_JS_OBJECT_HAS_INSTANCE_INDEX, JSFunction,                     \
+    shared_space_js_object_has_instance)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
 
@@ -402,10 +407,10 @@ class ScriptContextTable : public FixedArray {
   static inline Handle<Context> GetContext(Isolate* isolate,
                                            Handle<ScriptContextTable> table,
                                            int i);
-  inline Context get_context(int i) const;
-  inline Context get_context(int i, AcquireLoadTag tag) const;
+  inline Tagged<Context> get_context(int i) const;
+  inline Tagged<Context> get_context(int i, AcquireLoadTag tag) const;
 
-  DECL_ACCESSORS(names_to_context_index, NameToIndexHashTable)
+  DECL_ACCESSORS(names_to_context_index, Tagged<NameToIndexHashTable>)
 
   // Adds local names from `script_context` to the hash table.
   static void AddLocalNamesFromContext(
@@ -493,15 +498,15 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.
   // TODO(jgruber): Make that explicit through tags.
-  V8_INLINE Object get(int index) const;
-  V8_INLINE Object get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Object value,
+  V8_INLINE Tagged<Object> get(int index) const;
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
+  V8_INLINE void set(int index, Tagged<Object> value,
                      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Accessors with acquire-release semantics.
-  V8_INLINE Object get(int index, AcquireLoadTag) const;
-  V8_INLINE Object get(PtrComprCageBase cage_base, int index,
-                       AcquireLoadTag) const;
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+  V8_INLINE Tagged<Object> get(int index, AcquireLoadTag) const;
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               AcquireLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      ReleaseStoreTag);
 
   static const int kScopeInfoOffset = kElementsOffset;
@@ -591,43 +596,44 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static const int kInvalidContext = 1;
 
   // Direct slot access.
-  DECL_ACCESSORS(scope_info, ScopeInfo)
+  DECL_ACCESSORS(scope_info, Tagged<ScopeInfo>)
 
-  inline Object unchecked_previous() const;
-  inline Context previous() const;
+  inline Tagged<Object> unchecked_previous() const;
+  inline Tagged<Context> previous() const;
 
-  inline Object next_context_link() const;
+  inline Tagged<Object> next_context_link() const;
 
   inline bool has_extension() const;
-  inline HeapObject extension() const;
+  inline Tagged<HeapObject> extension() const;
   V8_EXPORT_PRIVATE void set_extension(
-      HeapObject object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  JSObject extension_object() const;
-  JSReceiver extension_receiver() const;
+      Tagged<HeapObject> object, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  Tagged<JSObject> extension_object() const;
+  Tagged<JSReceiver> extension_receiver() const;
 
   // Find the module context (assuming there is one) and return the associated
   // module object.
-  SourceTextModule module() const;
+  Tagged<SourceTextModule> module() const;
 
   // Get the context where var declarations will be hoisted to, which
   // may be the context itself.
-  Context declaration_context() const;
+  Tagged<Context> declaration_context() const;
   bool is_declaration_context() const;
 
   // Get the next closure's context on the context chain.
-  Context closure_context() const;
+  Tagged<Context> closure_context() const;
 
   // Returns a JSGlobalProxy object or null.
-  V8_EXPORT_PRIVATE JSGlobalProxy global_proxy() const;
+  V8_EXPORT_PRIVATE Tagged<JSGlobalProxy> global_proxy() const;
 
   // Get the JSGlobalObject object.
-  V8_EXPORT_PRIVATE JSGlobalObject global_object() const;
+  V8_EXPORT_PRIVATE Tagged<JSGlobalObject> global_object() const;
 
   // Get the script context by traversing the context chain.
-  Context script_context() const;
+  Tagged<Context> script_context() const;
 
   // Compute the native context.
-  inline NativeContext native_context() const;
+  inline Tagged<NativeContext> native_context() const;
+  inline bool IsDetached() const;
 
   // Predicates for context types.  IsNativeContext is already defined on
   // Object.
@@ -641,7 +647,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;
 
-  inline bool HasSameSecurityTokenAs(Context that) const;
+  inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
 
   Handle<Object> ErrorMessageForCodeGenerationFromStrings();
   Handle<Object> ErrorMessageForWasmCodeGeneration();
@@ -650,10 +656,10 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   static int IntrinsicIndexForName(const unsigned char* name, int length);
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name) \
-  inline void set_##name(type value);                     \
-  inline bool is_##name(type value) const;                \
-  inline type name() const;                               \
-  inline type name(AcquireLoadTag) const;
+  inline void set_##name(Tagged<type> value);             \
+  inline bool is_##name(Tagged<type> value) const;        \
+  inline Tagged<type> name() const;                       \
+  inline Tagged<type> name(AcquireLoadTag) const;
   NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSORS)
 #undef NATIVE_CONTEXT_FIELD_ACCESSORS
 
@@ -693,7 +699,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
     return int{elements_kind} + FIRST_JS_ARRAY_MAP_SLOT;
   }
 
-  inline Map GetInitialJSArrayMap(ElementsKind kind) const;
+  inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
   static const int kNotFound = -1;
 
@@ -704,17 +710,18 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   class BodyDescriptor;
 
 #ifdef VERIFY_HEAP
-  V8_EXPORT_PRIVATE void VerifyExtensionSlot(HeapObject extension);
+  V8_EXPORT_PRIVATE void VerifyExtensionSlot(Tagged<HeapObject> extension);
 #endif
 
  private:
 #ifdef DEBUG
   // Bootstrapping-aware type checks.
-  static bool IsBootstrappingOrValidParentContext(Object object, Context kid);
+  static bool IsBootstrappingOrValidParentContext(Tagged<Object> object,
+                                                  Tagged<Context> kid);
 #endif
 
   friend class Factory;
-  inline void set_previous(Context context,
+  inline void set_previous(Tagged<Context> context,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   TQ_OBJECT_CONSTRUCTORS(Context)
@@ -730,16 +737,16 @@ class NativeContext : public Context {
   // thus we hide the non-atomic setter. Note this doesn't protect fully since
   // one could still use Context::set and/or write directly using offsets (e.g.
   // from CSA/Torque).
-  void set(int index, Object value, WriteBarrierMode mode) = delete;
-  V8_INLINE void set(int index, Object value, WriteBarrierMode mode,
+  void set(int index, Tagged<Object> value, WriteBarrierMode mode) = delete;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
                      ReleaseStoreTag);
 
   // [microtask_queue]: pointer to the MicrotaskQueue object.
   DECL_EXTERNAL_POINTER_ACCESSORS(microtask_queue, MicrotaskQueue*)
 
   inline void synchronized_set_script_context_table(
-      ScriptContextTable script_context_table);
-  inline ScriptContextTable synchronized_script_context_table() const;
+      Tagged<ScriptContextTable> script_context_table);
+  inline Tagged<ScriptContextTable> synchronized_script_context_table() const;
 
   // Caution, hack: this getter ignores the AcquireLoadTag. The global_object
   // slot is safe to read concurrently since it is immutable after
@@ -747,17 +754,18 @@ class NativeContext : public Context {
   // than heap-refs.cc.
   // TODO(jgruber): Remove this function after NativeContextRef is actually
   // never serialized and BROKER_NATIVE_CONTEXT_FIELDS is removed.
-  JSGlobalObject global_object() { return Context::global_object(); }
-  JSGlobalObject global_object(AcquireLoadTag) {
+  Tagged<JSGlobalObject> global_object() { return Context::global_object(); }
+  Tagged<JSGlobalObject> global_object(AcquireLoadTag) {
     return Context::global_object();
   }
 
-  inline Map TypedArrayElementsKindToCtorMap(ElementsKind element_kind) const;
-
-  inline Map TypedArrayElementsKindToRabGsabCtorMap(
+  inline Tagged<Map> TypedArrayElementsKindToCtorMap(
       ElementsKind element_kind) const;
 
-  bool HasTemplateLiteralObject(JSArray array);
+  inline Tagged<Map> TypedArrayElementsKindToRabGsabCtorMap(
+      ElementsKind element_kind) const;
+
+  bool HasTemplateLiteralObject(Tagged<JSArray> array);
 
   // Dispatched behavior.
   DECL_PRINTER(NativeContext)

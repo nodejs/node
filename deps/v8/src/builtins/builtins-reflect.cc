@@ -24,7 +24,7 @@ BUILTIN(ReflectDefineProperty) {
   Handle<Object> key = args.at(2);
   Handle<Object> attributes = args.at(3);
 
-  if (!target->IsJSReceiver()) {
+  if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -52,7 +52,7 @@ BUILTIN(ReflectOwnKeys) {
   DCHECK_LE(2, args.length());
   Handle<Object> target = args.at(1);
 
-  if (!target->IsJSReceiver()) {
+  if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -76,7 +76,7 @@ BUILTIN(ReflectSet) {
   Handle<Object> value = args.atOrUndefined(isolate, 3);
   Handle<Object> receiver = args.length() > 4 ? args.at(4) : target;
 
-  if (!target->IsJSReceiver()) {
+  if (!IsJSReceiver(*target)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
                               isolate->factory()->NewStringFromAsciiChecked(

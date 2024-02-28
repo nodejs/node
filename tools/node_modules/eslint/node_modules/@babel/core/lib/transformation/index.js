@@ -11,12 +11,12 @@ function _traverse() {
   };
   return data;
 }
-var _pluginPass = require("./plugin-pass");
-var _blockHoistPlugin = require("./block-hoist-plugin");
-var _normalizeOpts = require("./normalize-opts");
-var _normalizeFile = require("./normalize-file");
-var _generate = require("./file/generate");
-var _deepArray = require("../config/helpers/deep-array");
+var _pluginPass = require("./plugin-pass.js");
+var _blockHoistPlugin = require("./block-hoist-plugin.js");
+var _normalizeOpts = require("./normalize-opts.js");
+var _normalizeFile = require("./normalize-file.js");
+var _generate = require("./file/generate.js");
+var _deepArray = require("../config/helpers/deep-array.js");
 function* run(config, code, ast) {
   const file = yield* (0, _normalizeFile.default)(config.passes, (0, _normalizeOpts.default)(config), code, ast);
   const opts = file.opts;

@@ -217,6 +217,9 @@ module.exports = [
     description: 'Retrieves a name:pathname Map for a given workspaces config',
     keywords: [
       '\x1B[33mnpm\x1B[39m',
+      // eslint-disable-next-line no-octal-escape
+      '\x1b]4;0;?\007',
+      '\u001b[Hbad map',
       'npmcli',
       'libnpm',
       'cli',

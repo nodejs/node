@@ -119,7 +119,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
   std::unordered_set<CodeEntry*, CodeEntry::Hasher, CodeEntry::Equals>
       cached_inline_entries;
   bool is_shared_cross_origin = false;
-  if (shared->script(cage_base).IsScript(cage_base)) {
+  if (IsScript(shared->script(cage_base), cage_base)) {
     Handle<Script> script =
         handle(Script::cast(shared->script(cage_base)), isolate_);
     line_table.reset(new SourcePositionTable());
@@ -134,7 +134,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
       Handle<BytecodeArray> bytecodes(shared->GetBytecodeArray(isolate_),
                                       isolate_);
       Handle<ByteArray> bytecode_offsets(
-          abstract_code->GetCode().bytecode_offset_table(cage_base), isolate_);
+          abstract_code->GetCode()->bytecode_offset_table(cage_base), isolate_);
       baseline_iterator = std::make_unique<baseline::BytecodeOffsetIterator>(
           bytecode_offsets, bytecodes);
     }
@@ -160,7 +160,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
         line_table->SetPosition(code_offset, line_number, inlining_id);
       } else {
         DCHECK(!is_baseline);
-        DCHECK(abstract_code->IsCode(cage_base));
+        DCHECK(IsCode(*abstract_code, cage_base));
         std::vector<SourcePositionInfo> stack =
             it.source_position().InliningStack(isolate_,
                                                abstract_code->GetCode());
@@ -182,7 +182,7 @@ void ProfilerListener::CodeCreateEvent(CodeTag tag,
               1;
 
           const char* resource_name =
-              (pos_info.script->name().IsName())
+              (IsName(pos_info.script->name()))
                   ? GetName(Name::cast(pos_info.script->name()))
                   : CodeEntry::kEmptyResourceName;
 
@@ -294,22 +294,23 @@ void ProfilerListener::RegExpCodeCreateEvent(Handle<AbstractCode> code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeMoveEvent(InstructionStream from,
-                                     InstructionStream to) {
+void ProfilerListener::CodeMoveEvent(Tagged<InstructionStream> from,
+                                     Tagged<InstructionStream> to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from.instruction_start();
-  rec->to_instruction_start = to.instruction_start();
+  rec->from_instruction_start = from->instruction_start();
+  rec->to_instruction_start = to->instruction_start();
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) {
+void ProfilerListener::BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                                         Tagged<BytecodeArray> to) {
   DisallowGarbageCollection no_gc;
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeMove);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
-  rec->from_instruction_start = from.GetFirstBytecodeAddress();
-  rec->to_instruction_start = to.GetFirstBytecodeAddress();
+  rec->from_instruction_start = from->GetFirstBytecodeAddress();
+  rec->to_instruction_start = to->GetFirstBytecodeAddress();
   DispatchCodeEvent(evt_rec);
 }
 
@@ -336,7 +337,7 @@ void ProfilerListener::CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind,
   CodeEventsContainer evt_rec(CodeEventRecord::Type::kCodeDeopt);
   CodeDeoptEventRecord* rec = &evt_rec.CodeDeoptEventRecord_;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(*code, pc);
-  rec->instruction_start = code->InstructionStart();
+  rec->instruction_start = code->instruction_start();
   rec->deopt_reason = DeoptimizeReasonToString(info.deopt_reason);
   rec->deopt_id = info.deopt_id;
   rec->pc = pc;
@@ -367,19 +368,21 @@ const char* ProfilerListener::GetName(base::Vector<const char> name) {
   return GetName(null_terminated.begin());
 }
 
-Name ProfilerListener::InferScriptName(Name name, SharedFunctionInfo info) {
-  if (name.IsString() && String::cast(name).length()) return name;
-  if (!info.script().IsScript()) return name;
-  Object source_url = Script::cast(info.script()).source_url();
-  return source_url.IsName() ? Name::cast(source_url) : name;
+Tagged<Name> ProfilerListener::InferScriptName(
+    Tagged<Name> name, Tagged<SharedFunctionInfo> info) {
+  if (IsString(name) && String::cast(name)->length()) return name;
+  if (!IsScript(info->script())) return name;
+  Tagged<Object> source_url = Script::cast(info->script())->source_url();
+  return IsName(source_url) ? Name::cast(source_url) : name;
 }
 
-const char* ProfilerListener::GetFunctionName(SharedFunctionInfo shared) {
+const char* ProfilerListener::GetFunctionName(
+    Tagged<SharedFunctionInfo> shared) {
   switch (naming_mode_) {
     case kDebugNaming:
-      return GetName(shared.DebugNameCStr().get());
+      return GetName(shared->DebugNameCStr().get());
     case kStandardNaming:
-      return GetName(shared.Name());
+      return GetName(shared->Name());
     default:
       UNREACHABLE();
   }

@@ -13,16 +13,16 @@ function _gensync() {
   };
   return data;
 }
-var _config = require("./config");
-var _transformation = require("./transformation");
-var _rewriteStackTrace = require("./errors/rewrite-stack-trace");
+var _index = require("./config/index.js");
+var _index2 = require("./transformation/index.js");
+var _rewriteStackTrace = require("./errors/rewrite-stack-trace.js");
 const transformFromAstRunner = _gensync()(function* (ast, code, opts) {
-  const config = yield* (0, _config.default)(opts);
+  const config = yield* (0, _index.default)(opts);
   if (config === null) return null;
   if (!ast) throw new Error("No AST given");
-  return yield* (0, _transformation.run)(config, code, ast);
+  return yield* (0, _index2.run)(config, code, ast);
 });
-const transformFromAst = function transformFromAst(ast, code, optsOrCallback, maybeCallback) {
+const transformFromAst = exports.transformFromAst = function transformFromAst(ast, code, optsOrCallback, maybeCallback) {
   let opts;
   let callback;
   if (typeof optsOrCallback === "function") {
@@ -39,7 +39,6 @@ const transformFromAst = function transformFromAst(ast, code, optsOrCallback, ma
   }
   (0, _rewriteStackTrace.beginHiddenCallStack)(transformFromAstRunner.errback)(ast, code, opts, callback);
 };
-exports.transformFromAst = transformFromAst;
 function transformFromAstSync(...args) {
   return (0, _rewriteStackTrace.beginHiddenCallStack)(transformFromAstRunner.sync)(...args);
 }

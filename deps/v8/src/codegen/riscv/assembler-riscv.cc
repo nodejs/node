@@ -38,7 +38,6 @@
 #include "src/base/cpu.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/safepoint-table.h"
-#include "src/codegen/string-constants.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/diagnostics/disasm.h"
 #include "src/diagnostics/disassembler.h"
@@ -72,6 +71,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   base::CPU cpu;
   if (cpu.has_fpu()) supported_ |= 1u << FPU;
   if (cpu.has_rvv()) supported_ |= 1u << RISCV_SIMD;
+  if (cpu.riscv_mmu() == base::CPU::RV_MMU_MODE::kRiscvSV57) {
+    FATAL("SV57 is not supported");
+    UNIMPLEMENTED();
+  }
   // Set a static value on whether SIMD is supported.
   // This variable is only used for certain archs to query SupportWasmSimd128()
   // at runtime in builtins using an extern ref. Other callers should use
@@ -179,7 +182,7 @@ MemOperand::MemOperand(Register rm, int32_t unit, int32_t multiplier,
   offset_ = unit * multiplier + offset_addend;
 }
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
   for (auto& request : heap_number_requests_) {
     Handle<HeapObject> object =
@@ -220,7 +223,10 @@ Assembler::Assembler(const AssemblerOptions& options,
 void Assembler::AbortedCodeGeneration() { constpool_.Clear(); }
 Assembler::~Assembler() { CHECK(constpool_.IsEmpty()); }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  GetCode(isolate->main_thread_local_isolate(), desc);
+}
+void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
                         SafepointTableBuilder* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
@@ -489,7 +495,7 @@ void Assembler::disassembleInstr(Instr instr) {
   disasm::Disassembler disasm(converter);
   base::EmbeddedVector<char, 128> disasm_buffer;
 
-  disasm.InstructionDecode(disasm_buffer, reinterpret_cast<byte*>(&instr));
+  disasm.InstructionDecode(disasm_buffer, reinterpret_cast<uint8_t*>(&instr));
   DEBUG_PRINTF("%s\n", disasm_buffer.begin());
 }
 
@@ -1061,21 +1067,26 @@ void Assembler::GeneralLi(Register rd, int64_t imm) {
 }
 
 void Assembler::li_ptr(Register rd, int64_t imm) {
-  // Initialize rd with an address
-  // Pointers are 48 bits
-  // 6 fixed instructions are generated
-  DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
-  int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
-  int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
-  int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
-  int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
-  int64_t low_12 = high_31 & 0xfff;             // 12 bits
-  lui(rd, (int32_t)high_20);
-  addi(rd, rd, low_12);  // 31 bits in rd.
-  slli(rd, rd, 11);      // Space for next 11 bis
-  ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
-  slli(rd, rd, 6);       // Space for next 6 bits
-  ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
+  base::CPU cpu;
+  if (cpu.riscv_mmu() != base::CPU::RV_MMU_MODE::kRiscvSV57) {
+    // Initialize rd with an address
+    // Pointers are 48 bits
+    // 6 fixed instructions are generated
+    DCHECK_EQ((imm & 0xfff0000000000000ll), 0);
+    int64_t a6 = imm & 0x3f;                      // bits 0:5. 6 bits
+    int64_t b11 = (imm >> 6) & 0x7ff;             // bits 6:11. 11 bits
+    int64_t high_31 = (imm >> 17) & 0x7fffffff;   // 31 bits
+    int64_t high_20 = ((high_31 + 0x800) >> 12);  // 19 bits
+    int64_t low_12 = high_31 & 0xfff;             // 12 bits
+    lui(rd, (int32_t)high_20);
+    addi(rd, rd, low_12);  // 31 bits in rd.
+    slli(rd, rd, 11);      // Space for next 11 bis
+    ori(rd, rd, b11);      // 11 bits are put in. 42 bit in rd
+    slli(rd, rd, 6);       // Space for next 6 bits
+    ori(rd, rd, a6);       // 6 bits are put in. 48 bis in rd
+  } else {
+    FATAL("SV57 is not supported");
+  }
 }
 
 void Assembler::li_constant(Register rd, int64_t imm) {
@@ -1278,7 +1289,7 @@ void Assembler::GrowBuffer() {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -1297,9 +1308,9 @@ void Assembler::GrowBuffer() {
                                reloc_info_writer.last_pc() + pc_delta);
 
   // Relocate runtime entries.
-  base::Vector<byte> instructions{buffer_start_,
-                                  static_cast<size_t>(pc_offset())};
-  base::Vector<const byte> reloc_info{reloc_info_writer.pos(), reloc_size};
+  base::Vector<uint8_t> instructions{buffer_start_,
+                                     static_cast<size_t>(pc_offset())};
+  base::Vector<const uint8_t> reloc_info{reloc_info_writer.pos(), reloc_size};
   for (RelocIterator it(instructions, reloc_info, 0); !it.done(); it.next()) {
     RelocInfo::Mode rmode = it.rinfo()->rmode();
     if (rmode == RelocInfo::INTERNAL_REFERENCE) {
@@ -1316,21 +1327,13 @@ void Assembler::db(uint8_t data) {
   EmitHelper(data);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
+void Assembler::dd(uint32_t data) {
   if (!is_buffer_growth_blocked()) CheckBuffer();
   DEBUG_PRINTF("%p(%x): constant 0x%x\n", pc_, pc_offset(), data);
   EmitHelper(data);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
+void Assembler::dq(uint64_t data) {
   if (!is_buffer_growth_blocked()) CheckBuffer();
   EmitHelper(data);
 }
@@ -1351,8 +1354,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }
@@ -1612,24 +1614,6 @@ void Assembler::set_target_value_at(Address pc, uint32_t target,
   DCHECK_EQ(target_address_at(pc), target);
 }
 #endif
-
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      old_available_(*available_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  DCHECK(!available_->is_empty());
-  int index =
-      static_cast<int>(base::bits::CountTrailingZeros32(available_->bits()));
-  *available_ &= RegList::FromBits(~(1U << index));
-
-  return Register::from_code(index);
-}
 
 bool UseScratchRegisterScope::hasAvailable() const {
   return !available_->is_empty();

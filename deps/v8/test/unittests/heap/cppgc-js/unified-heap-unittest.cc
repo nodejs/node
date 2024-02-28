@@ -19,6 +19,7 @@
 #include "include/v8-traced-handle.h"
 #include "src/api/api-inl.h"
 #include "src/common/globals.h"
+#include "src/flags/flags.h"
 #include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/sweeper.h"
@@ -56,7 +57,7 @@ using UnifiedHeapDetachedTest = TestWithHeapInternals;
 
 TEST_F(UnifiedHeapTest, OnlyGC) { CollectGarbageWithEmbedderStack(); }
 
-TEST_F(UnifiedHeapTest, FindingV8ToBlinkReference) {
+TEST_F(UnifiedHeapTest, FindingV8ToCppReference) {
   v8::HandleScope scope(v8_isolate());
   uint16_t wrappable_type = WrapperHelper::kTracedEmbedderId;
   auto* wrappable_object =
@@ -150,7 +151,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
   js_heap.AttachCppHeap(heap.get());
   auto& cpp_heap = *CppHeap::From(isolate()->heap()->cpp_heap());
   {
-    CollectGarbage(OLD_SPACE);
+    InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_TRUE(weak_holder);
   }
@@ -159,7 +160,7 @@ TEST_F(UnifiedHeapDetachedTest, AllocationBeforeConfigureHeap) {
     EmbedderStackStateScope stack_scope(
         &js_heap, EmbedderStackStateScope::kExplicitInvocation,
         StackState::kNoHeapPointers);
-    CollectGarbage(OLD_SPACE);
+    InvokeMajorGC();
     cpp_heap.AsBase().sweeper().FinishIfRunning();
     EXPECT_FALSE(weak_holder);
   }
@@ -369,7 +370,8 @@ TEST_F(UnifiedHeapTest, InConstructionObjectReferringToGlobalHandle) {
         allocation_handle(),
         reinterpret_cast<i::Isolate*>(v8_isolate())->heap(), local);
     CHECK_NE(kGlobalHandleZapValue,
-             *reinterpret_cast<Address*>(*cpp_obj->GetWrapper()));
+             ValueHelper::ValueAsAddress(
+                 ValueHelper::HandleAsValue(cpp_obj->GetWrapper())));
   }
 }
 
@@ -438,7 +440,7 @@ TEST_F(UnifiedHeapTest, TracedReferenceOnStack) {
     observer.SetWeak();
   }
   EXPECT_FALSE(observer.IsEmpty());
-  FullGC();
+  InvokeMajorGC();
   EXPECT_FALSE(observer.IsEmpty());
 }
 
@@ -477,6 +479,7 @@ class GCedWithHeapRef final : public cppgc::GarbageCollected<GCedWithHeapRef> {
 
 V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -491,7 +494,7 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      FullGC(v8_isolate);
+      InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }
@@ -506,24 +509,25 @@ V8_NOINLINE void StackToHeapTest(v8::Isolate* v8_isolate, Operation op,
     observer.SetWeak();
   }
   EXPECT_FALSE(observer.IsEmpty());
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   PerformOperation(op, &cpp_heap_obj->heap_handle, &stack_handle);
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   cpp_heap_obj.Clear();
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
-    FullGC(v8_isolate);
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
   }
   ASSERT_TRUE(observer.IsEmpty());
 }
 
 V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
                                  TargetHandling target_handling) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle;
   v8::CppHeap* cpp_heap = v8_isolate->GetCppHeap();
@@ -538,7 +542,7 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      FullGC(v8_isolate);
+      InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }
@@ -553,24 +557,25 @@ V8_NOINLINE void HeapToStackTest(v8::Isolate* v8_isolate, Operation op,
     observer.SetWeak();
   }
   EXPECT_FALSE(observer.IsEmpty());
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   PerformOperation(op, &stack_handle, &cpp_heap_obj->heap_handle);
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   stack_handle.Reset();
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
-    FullGC(v8_isolate);
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
   }
   EXPECT_TRUE(observer.IsEmpty());
 }
 
 V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
                                   TargetHandling target_handling) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   v8::Global<v8::Object> observer;
   v8::TracedReference<v8::Value> stack_handle1;
   v8::TracedReference<v8::Value> stack_handle2;
@@ -582,7 +587,7 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
         IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*to_object)));
     if (!v8_flags.single_generation &&
         target_handling == TargetHandling::kInitializedOldGen) {
-      FullGC(v8_isolate);
+      InvokeMajorGC(i_isolate);
       EXPECT_FALSE(
           i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*to_object)));
     }
@@ -597,18 +602,18 @@ V8_NOINLINE void StackToStackTest(v8::Isolate* v8_isolate, Operation op,
     observer.SetWeak();
   }
   EXPECT_FALSE(observer.IsEmpty());
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   PerformOperation(op, &stack_handle2, &stack_handle1);
-  FullGC(v8_isolate);
+  InvokeMajorGC(i_isolate);
   EXPECT_FALSE(observer.IsEmpty());
   stack_handle2.Reset();
   {
     // Conservative scanning may find stale pointers to on-stack handles.
     // Disable scanning, assuming the slots are overwritten.
     DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        reinterpret_cast<i::Isolate*>(v8_isolate)->heap());
-    FullGC(v8_isolate);
+        i_isolate->heap());
+    InvokeMajorGC(i_isolate);
   }
   EXPECT_TRUE(observer.IsEmpty());
 }
@@ -683,7 +688,7 @@ TEST_F(UnifiedHeapTest, TracingInEphemerons) {
     Handle<JSObject> js_key =
         handle(JSObject::cast(*v8::Utils::OpenHandle(*key)), i_isolate());
     Handle<JSReceiver> js_value = v8::Utils::OpenHandle(*value);
-    int32_t hash = js_key->GetOrCreateHash(i_isolate()).value();
+    int32_t hash = Object::GetOrCreateHash(*js_key, i_isolate()).value();
     JSWeakCollection::Set(weak_map, js_key, js_value, hash);
   }
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
@@ -745,6 +750,43 @@ TEST_F(UnifiedHeapTest, WrapperDescriptorGetter) {
       descriptor.wrappable_instance_index, nullptr);
   CollectGarbageWithoutEmbedderStack(cppgc::Heap::SweepingType::kAtomic);
   EXPECT_EQ(1u, Wrappable2::destructor_call_count);
+}
+
+TEST_F(UnifiedHeapTest, CppgcSweepingDuringMinorV8Sweeping) {
+  if (!v8_flags.minor_ms) return;
+  if (v8_flags.single_generation) return;
+  // Heap verification finalizes sweeping in the atomic pause.
+  if (v8_flags.verify_heap) return;
+  bool single_threaded_gc_flag = v8_flags.single_threaded_gc;
+  // Single threaded gc force non-concurrent sweeping in cppgc, which makes
+  // CppHeap bail out of `FinishSweepingIfOutOfWork`.
+  v8_flags.single_threaded_gc = true;
+  ManualGCScope manual_gc(isolate());
+  Heap* heap = isolate()->heap();
+  CppHeap* cppheap = CppHeap::From(heap->cpp_heap());
+  cppheap->UpdateGCCapabilitiesFromFlagsForTesting();
+  CHECK_NOT_NULL(heap->cpp_heap());
+  heap->CollectGarbage(AllocationSpace::OLD_SPACE,
+                       GarbageCollectionReason::kTesting,
+                       GCCallbackFlags::kNoGCCallbackFlags);
+  CHECK(heap->sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  heap->EnsureSweepingCompleted(Heap::SweepingForcedFinalizationMode::kV8Only);
+  CHECK(!heap->sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  heap->CollectGarbage(AllocationSpace::NEW_SPACE,
+                       GarbageCollectionReason::kTesting,
+                       GCCallbackFlags::kNoGCCallbackFlags);
+  CHECK(!heap->major_sweeping_in_progress());
+  CHECK(heap->minor_sweeping_in_progress());
+  CHECK(cppheap->sweeper().IsSweepingInProgress());
+  cppheap->sweeper().FinishIfRunning();
+  CHECK(!heap->major_sweeping_in_progress());
+  CHECK(heap->minor_sweeping_in_progress());
+  CHECK(!cppheap->sweeper().IsSweepingInProgress());
+  heap->EnsureSweepingCompleted(
+      Heap::SweepingForcedFinalizationMode::kUnifiedHeap);
+  v8_flags.single_threaded_gc = single_threaded_gc_flag;
 }
 
 }  // namespace v8::internal

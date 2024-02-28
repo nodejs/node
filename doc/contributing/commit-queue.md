@@ -7,8 +7,8 @@ _tl;dr: You can land pull requests by adding the `commit-queue` label to it._
 Commit Queue is an experimental feature for the project which simplifies the
 landing process by automating it via GitHub Actions. With it, collaborators can
 land pull requests by adding the `commit-queue` label to a PR. All
-checks will run via node-core-utils, and if the pull request is ready to land,
-the Action will rebase it and push to `main`.
+checks will run via `@node-core/utils`, and if the pull request is ready to
+land, the Action will rebase it and push to `main`.
 
 This document gives an overview of how the Commit Queue works, as well as
 implementation details, reasoning for design choices, and current limitations.
@@ -76,7 +76,7 @@ reasons:
    commit, meaning we wouldn't be able to use it for already opened PRs
    without rebasing them first.
 
-`node-core-utils` is configured with a personal token and
+`@node-core/utils` is configured with a personal token and
 a Jenkins token from
 [@nodejs-github-bot](https://github.com/nodejs/github-bot).
 `octokit/graphql-action` is used to fetch all pull requests with the

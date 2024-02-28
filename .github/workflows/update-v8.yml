@@ -16,11 +16,11 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Cache node modules and update-v8
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8  # v3.3.1
+        uses: actions/cache@13aacd865c20de90d75de3b17ebe84f7a17d57d2  # v4.0.0
         id: cache-v8-npm
         env:
           cache-name: cache-v8-npm
@@ -30,11 +30,11 @@ jobs:
             ~/.npm
           key: ${{ runner.os }}-build-${{ env.cache-name }}
       - name: Install Node.js
-        uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
+        uses: actions/setup-node@b39b52d1213e96004bfcb1c61a8a6fa8ab84f3e8  # v4.0.1
         with:
           node-version: ${{ env.NODE_VERSION }}
-      - name: Install node-core-utils
-        run: npm install -g node-core-utils@latest
+      - name: Install @node-core/utils
+        run: npm install -g @node-core/utils
       - name: Check and download new V8 version
         run: |
             ./tools/dep_updaters/update-v8-patch.sh > temp-output

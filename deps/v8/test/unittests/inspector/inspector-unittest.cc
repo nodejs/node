@@ -300,14 +300,14 @@ TEST_F(InspectorTest, ApiCreatedTasksAreCleanedUp) {
     CHECK(!result.IsEmpty());
 
     // Run GC and check that the task is still here.
-    CollectAllGarbage();
+    InvokeMajorGC();
     CHECK_EQ(console->AllConsoleTasksForTest().size(), 1);
   }
 
   // Get rid of the task on the context, run GC and check we no longer have
   // the TaskInfo in the inspector.
   v8_context()->Global()->Delete(v8_context(), NewString("task")).Check();
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(console->AllConsoleTasksForTest().size(), 0);
 }
 

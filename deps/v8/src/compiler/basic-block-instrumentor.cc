@@ -156,6 +156,62 @@ BasicBlockProfilerData* BasicBlockInstrumentor::Instrument(
   return data;
 }
 
+namespace {
+
+void StoreBuiltinCallForNode(Node* n, Builtin builtin, int block_id,
+                             BuiltinsCallGraph* bcc_profiler) {
+  if (n == nullptr) return;
+  IrOpcode::Value op = n->opcode();
+  if (op == IrOpcode::kCall || op == IrOpcode::kTailCall) {
+    const CallDescriptor* des = CallDescriptorOf(n->op());
+    if (des->kind() == CallDescriptor::kCallCodeObject) {
+      Node* callee = n->InputAt(0);
+      Operator* op = const_cast<Operator*>(callee->op());
+      if (op->opcode() == IrOpcode::kHeapConstant) {
+        Handle<HeapObject> para = OpParameter<Handle<HeapObject>>(op);
+        if (IsCode(*para)) {
+          Handle<Code> code = Handle<Code>::cast(para);
+          if (code->is_builtin()) {
+            bcc_profiler->AddBuiltinCall(builtin, code->builtin_id(), block_id);
+            return;
+          }
+        }
+      }
+    }
+  }
+  return;
+}
+
+}  // namespace
+
+void BasicBlockCallGraphProfiler::StoreCallGraph(OptimizedCompilationInfo* info,
+                                                 Schedule* schedule) {
+  CHECK(Builtins::IsBuiltinId(info->builtin()));
+  BasicBlockVector* blocks = schedule->rpo_order();
+  size_t block_number = 0;
+  size_t n_blocks = schedule->RpoBlockCount();
+  for (BasicBlockVector::iterator it = blocks->begin(); block_number < n_blocks;
+       ++it, ++block_number) {
+    BasicBlock* block = (*it);
+    if (block == schedule->end()) continue;
+    // Iteration is already in reverse post-order.
+    DCHECK_EQ(block->rpo_number(), block_number);
+    int block_id = block->id().ToInt();
+
+    BuiltinsCallGraph* profiler = BuiltinsCallGraph::Get();
+
+    for (Node* node : *block) {
+      StoreBuiltinCallForNode(node, info->builtin(), block_id, profiler);
+    }
+
+    BasicBlock::Control control = block->control();
+    if (control != BasicBlock::kNone) {
+      Node* cnt_node = block->control_input();
+      StoreBuiltinCallForNode(cnt_node, info->builtin(), block_id, profiler);
+    }
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-# Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,9 @@ use OpenSSL::Test::Utils;
 
 my $fuzzer = "x509";
 setup("test_fuzz_${fuzzer}");
+
+plan skip_all => "This test requires ocsp support"
+    if disabled("ocsp");
 
 plan tests => 2; # one more due to below require_ok(...)
 

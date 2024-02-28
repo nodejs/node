@@ -5,7 +5,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = loadCodeDefault;
 exports.supportsESM = void 0;
-var _async = require("../../gensync-utils/async");
+var _async = require("../../gensync-utils/async.js");
 function _path() {
   const data = require("path");
   _path = function () {
@@ -27,17 +27,24 @@ function _semver() {
   };
   return data;
 }
-var _rewriteStackTrace = require("../../errors/rewrite-stack-trace");
-var _configError = require("../../errors/config-error");
-var _transformFile = require("../../transform-file");
+function _debug() {
+  const data = require("debug");
+  _debug = function () {
+    return data;
+  };
+  return data;
+}
+var _rewriteStackTrace = require("../../errors/rewrite-stack-trace.js");
+var _configError = require("../../errors/config-error.js");
+var _transformFile = require("../../transform-file.js");
 function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) { try { var info = gen[key](arg); var value = info.value; } catch (error) { reject(error); return; } if (info.done) { resolve(value); } else { Promise.resolve(value).then(_next, _throw); } }
 function _asyncToGenerator(fn) { return function () { var self = this, args = arguments; return new Promise(function (resolve, reject) { var gen = fn.apply(self, args); function _next(value) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value); } function _throw(err) { asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err); } _next(undefined); }); }; }
+const debug = _debug()("babel:config:loading:files:module-types");
 let import_;
 try {
   import_ = require("./import.cjs");
 } catch (_unused) {}
-const supportsESM = _semver().satisfies(process.versions.node, "^12.17 || >=13.2");
-exports.supportsESM = supportsESM;
+const supportsESM = exports.supportsESM = _semver().satisfies(process.versions.node, "^12.17 || >=13.2");
 function* loadCodeDefault(filepath, asyncError) {
   switch (_path().extname(filepath)) {
     case ".cjs":
@@ -101,8 +108,7 @@ function loadCtsDefault(filepath) {
     require.extensions[ext] = handler;
   }
   try {
-    const module = (0, _rewriteStackTrace.endHiddenCallStack)(require)(filepath);
-    return module != null && module.__esModule ? module.default : module;
+    return loadCjsDefault(filepath);
   } finally {
     if (!hasTsSupport) {
       if (require.extensions[ext] === handler) delete require.extensions[ext];
@@ -110,10 +116,22 @@ function loadCtsDefault(filepath) {
     }
   }
 }
+const LOADING_CJS_FILES = new Set();
 function loadCjsDefault(filepath) {
-  const module = (0, _rewriteStackTrace.endHiddenCallStack)(require)(filepath);
+  if (LOADING_CJS_FILES.has(filepath)) {
+    debug("Auto-ignoring usage of config %o.", filepath);
+    return {};
+  }
+  let module;
+  try {
+    LOADING_CJS_FILES.add(filepath);
+    module = (0, _rewriteStackTrace.endHiddenCallStack)(require)(filepath);
+  } finally {
+    LOADING_CJS_FILES.delete(filepath);
+  }
   {
-    return module != null && module.__esModule ? module.default || (arguments[1] ? module : undefined) : module;
+    var _module;
+    return (_module = module) != null && _module.__esModule ? module.default || (arguments[1] ? module : undefined) : module;
   }
 }
 function loadMjsDefault(_x) {

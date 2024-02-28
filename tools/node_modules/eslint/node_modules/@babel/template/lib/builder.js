@@ -4,9 +4,9 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = createTemplateBuilder;
-var _options = require("./options");
-var _string = require("./string");
-var _literal = require("./literal");
+var _options = require("./options.js");
+var _string = require("./string.js");
+var _literal = require("./literal.js");
 const NO_PLACEHOLDER = (0, _options.validate)({
   placeholderPattern: false
 });

@@ -5,6 +5,7 @@
 #include "src/compiler/decompression-optimizer.h"
 
 #include "src/compiler/graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 
 namespace v8 {
@@ -42,8 +43,21 @@ bool IsTaggedPhi(Node* const node) {
   return false;
 }
 
+bool IsWord64BitwiseOp(Node* const node) {
+  return node->opcode() == IrOpcode::kWord64And ||
+         node->opcode() == IrOpcode::kWord64Or;
+}
+
 bool CanBeCompressed(Node* const node) {
-  return IsHeapConstant(node) || IsTaggedMachineLoad(node) || IsTaggedPhi(node);
+  return IsHeapConstant(node) || IsTaggedMachineLoad(node) ||
+         IsTaggedPhi(node) || IsWord64BitwiseOp(node);
+}
+
+void Replace(Node* const node, Node* const replacement) {
+  for (Edge edge : node->use_edges()) {
+    edge.UpdateTo(replacement);
+  }
+  node->Kill();
 }
 
 }  // anonymous namespace
@@ -73,6 +87,7 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     // UNOPS.
     case IrOpcode::kBitcastTaggedToWord:
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
+    case IrOpcode::kBitcastWordToTagged:
       // Replicate the bitcast's state for its input.
       DCHECK_EQ(node->op()->ValueInputCount(), 1);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
@@ -88,9 +103,10 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
     case IrOpcode::kInt32LessThanOrEqual:
     case IrOpcode::kUint32LessThan:
     case IrOpcode::kUint32LessThanOrEqual:
-    case IrOpcode::kWord32And:
     case IrOpcode::kWord32Equal:
-    case IrOpcode::kWord32Shl:
+#define Word32Op(Name) case IrOpcode::k##Name:
+      MACHINE_BINOP_32_LIST(Word32Op)
+#undef Word32Op
       DCHECK_EQ(node->op()->ValueInputCount(), 2);
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
                                   State::kOnly32BitsObserved);  // value_0
@@ -120,10 +136,13 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
       break;
     // SPECIAL CASES - Store.
     case IrOpcode::kStore:
+    case IrOpcode::kStorePair:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStoreTrapOnNull:
     case IrOpcode::kUnalignedStore: {
-      DCHECK_EQ(node->op()->ValueInputCount(), 3);
+      DCHECK(node->op()->ValueInputCount() == 3 ||
+             (node->opcode() == IrOpcode::kStorePair &&
+              node->op()->ValueInputCount() == 4));
       MaybeMarkAndQueueForRevisit(node->InputAt(0),
                                   State::kEverythingObserved);  // base pointer
       MaybeMarkAndQueueForRevisit(node->InputAt(1),
@@ -131,28 +150,53 @@ void DecompressionOptimizer::MarkNodeInputs(Node* node) {
       // TODO(v8:7703): When the implementation is done, check if this ternary
       // operator is too restrictive, since we only mark Tagged stores as 32
       // bits.
-      MachineRepresentation representation =
-          node->opcode() == IrOpcode::kUnalignedStore
-              ? UnalignedStoreRepresentationOf(node->op())
-              : StoreRepresentationOf(node->op()).representation();
-      MaybeMarkAndQueueForRevisit(node->InputAt(2),
-                                  IsAnyTagged(representation)
-                                      ? State::kOnly32BitsObserved
-                                      : State::kEverythingObserved);  // value
+      MachineRepresentation representation;
+      if (node->opcode() == IrOpcode::kUnalignedStore) {
+        representation = UnalignedStoreRepresentationOf(node->op());
+      } else if (node->opcode() == IrOpcode::kStorePair) {
+        representation =
+            StorePairRepresentationOf(node->op()).first.representation();
+      } else {
+        representation = StoreRepresentationOf(node->op()).representation();
+      }
+      State observed = ElementSizeLog2Of(representation) <= 2
+                           ? State::kOnly32BitsObserved
+                           : State::kEverythingObserved;
+
+      // We should never see indirect pointer stores here since they need
+      // kStoreIndirect. For indirect pointer stores we always need all pointer
+      // bits since we'll also perform a load (of the 'self' indirect pointer)
+      // from the value being stored.
+      DCHECK_NE(representation, MachineRepresentation::kIndirectPointer);
+
+      MaybeMarkAndQueueForRevisit(node->InputAt(2), observed);  // value
+      if (node->opcode() == IrOpcode::kStorePair) {
+        MaybeMarkAndQueueForRevisit(node->InputAt(3), observed);  // value 2
+      }
     } break;
     // SPECIAL CASES - Variable inputs.
     // The deopt code knows how to handle Compressed inputs, both
     // MachineRepresentation kCompressed values and CompressedHeapConstants.
     case IrOpcode::kFrameState:  // Fall through.
-    // TODO(v8:7703): kStateValues doesn't appear in any test linked to Loads or
-    // HeapConstants. Do we care about this case?
-    case IrOpcode::kStateValues:  // Fall through.
-    case IrOpcode::kTypedStateValues:
+    case IrOpcode::kStateValues:
       for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+        // TODO(chromium:1470602): We assume that kStateValues has only tagged
+        // inputs so it is safe to mark them as kOnly32BitsObserved.
+        DCHECK(!IsWord64BitwiseOp(node->InputAt(i)));
         MaybeMarkAndQueueForRevisit(node->InputAt(i),
                                     State::kOnly32BitsObserved);
       }
       break;
+    case IrOpcode::kTypedStateValues: {
+      const ZoneVector<MachineType>* machine_types = MachineTypesOf(node->op());
+      for (int i = 0; i < node->op()->ValueInputCount(); ++i) {
+        State observed = IsAnyTagged(machine_types->at(i).representation())
+                             ? State::kOnly32BitsObserved
+                             : State::kEverythingObserved;
+        MaybeMarkAndQueueForRevisit(node->InputAt(i), observed);
+      }
+      break;
+    }
     case IrOpcode::kPhi: {
       // Replicate the phi's state for its inputs.
       State curr_state = states_.Get(node);
@@ -281,6 +325,50 @@ void DecompressionOptimizer::ChangeLoad(Node* const node) {
   }
 }
 
+void DecompressionOptimizer::ChangeWord64BitwiseOp(Node* const node,
+                                                   const Operator* new_op) {
+  Int64Matcher mleft(node->InputAt(0));
+  Int64Matcher mright(node->InputAt(1));
+
+  // Replace inputs.
+  if (mleft.IsChangeInt32ToInt64() || mleft.IsChangeUint32ToUint64()) {
+    node->ReplaceInput(0, mleft.node()->InputAt(0));
+  } else if (mleft.IsInt64Constant()) {
+    node->ReplaceInput(0, graph()->NewNode(common()->Int32Constant(
+                              static_cast<int32_t>(mleft.ResolvedValue()))));
+  } else {
+    node->ReplaceInput(
+        0, graph()->NewNode(machine()->TruncateInt64ToInt32(), mleft.node()));
+  }
+  if (mright.IsChangeInt32ToInt64() || mright.IsChangeUint32ToUint64()) {
+    node->ReplaceInput(1, mright.node()->InputAt(0));
+  } else if (mright.IsInt64Constant()) {
+    node->ReplaceInput(1, graph()->NewNode(common()->Int32Constant(
+                              static_cast<int32_t>(mright.ResolvedValue()))));
+  } else {
+    node->ReplaceInput(
+        1, graph()->NewNode(machine()->TruncateInt64ToInt32(), mright.node()));
+  }
+
+  // Replace uses.
+  Node* replacement = nullptr;
+  for (Edge edge : node->use_edges()) {
+    Node* user = edge.from();
+    if (user->opcode() == IrOpcode::kTruncateInt64ToInt32) {
+      Replace(user, node);
+    } else {
+      if (replacement == nullptr) {
+        replacement =
+            graph()->NewNode(machine()->BitcastWord32ToWord64(), node);
+      }
+      edge.UpdateTo(replacement);
+    }
+  }
+
+  // Change operator.
+  NodeProperties::ChangeOp(node, new_op);
+}
+
 void DecompressionOptimizer::ChangeNodes() {
   for (Node* const node : compressed_candidate_nodes_) {
     // compressed_candidate_nodes_ contains all the nodes that once had the
@@ -296,6 +384,12 @@ void DecompressionOptimizer::ChangeNodes() {
         break;
       case IrOpcode::kPhi:
         ChangePhi(node);
+        break;
+      case IrOpcode::kWord64And:
+        ChangeWord64BitwiseOp(node, machine()->Word32And());
+        break;
+      case IrOpcode::kWord64Or:
+        ChangeWord64BitwiseOp(node, machine()->Word32Or());
         break;
       default:
         ChangeLoad(node);

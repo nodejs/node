@@ -85,15 +85,18 @@ class ContainerSerializer {
   }
   template <typename T>
   void AddField(span<char> field_name, const detail::ValueMaybe<T>& value) {
-    if (!value.isJust())
+    if (!value.has_value()) {
       return;
-    AddField(field_name, value.fromJust());
+    }
+    AddField(field_name, value.value());
   }
+
   template <typename T>
   void AddField(span<char> field_name, const detail::PtrMaybe<T>& value) {
-    if (!value.isJust())
+    if (!value.has_value()) {
       return;
-    AddField(field_name, *value.fromJust());
+    }
+    AddField(field_name, value.value());
   }
 
   void EncodeStop();
@@ -223,7 +226,7 @@ struct ProtocolTypeTraits<detail::ValueMaybe<T>> {
 
   static void Serialize(const detail::ValueMaybe<T>& value,
                         std::vector<uint8_t>* bytes) {
-    ProtocolTypeTraits<T>::Serialize(value.fromJust(), bytes);
+    ProtocolTypeTraits<T>::Serialize(value.value(), bytes);
   }
 };
 
@@ -240,7 +243,7 @@ struct ProtocolTypeTraits<detail::PtrMaybe<T>> {
 
   static void Serialize(const detail::PtrMaybe<T>& value,
                         std::vector<uint8_t>* bytes) {
-    ProtocolTypeTraits<T>::Serialize(*value.fromJust(), bytes);
+    ProtocolTypeTraits<T>::Serialize(value.value(), bytes);
   }
 };
 

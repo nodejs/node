@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iomanip>
+#include <set>
 #include <sstream>
 
 #include "src/base/functional.h"
@@ -103,7 +104,12 @@ struct Flag {
   const char* cmt_;     // A comment about the flags purpose.
   bool owns_ptr_;       // Does the flag own its string value?
   SetBy set_by_ = SetBy::kDefault;
+  // Name of the flag implying this flag, if any.
   const char* implied_by_ = nullptr;
+#ifdef DEBUG
+  // Pointer to the flag implying this flag, if any.
+  const Flag* implied_by_ptr_ = nullptr;
+#endif
 
   FlagType type() const { return type_; }
 
@@ -112,6 +118,17 @@ struct Flag {
   const char* comment() const { return cmt_; }
 
   bool PointsTo(const void* ptr) const { return valptr_ == ptr; }
+
+#ifdef DEBUG
+  bool ImpliedBy(const void* ptr) const {
+    const Flag* current = this->implied_by_ptr_;
+    while (current != nullptr) {
+      if (current->PointsTo(ptr)) return true;
+      current = current->implied_by_ptr_;
+    }
+    return false;
+  }
+#endif
 
   bool bool_variable() const { return GetValue<TYPE_BOOL, bool>(); }
 
@@ -333,6 +350,15 @@ struct Flag {
     if (IsAnyImplication(new_set_by)) {
       DCHECK_NOT_NULL(implied_by);
       implied_by_ = implied_by;
+#ifdef DEBUG
+      // This only works when implied_by is a flag_name or !flag_name, but it
+      // can also be a condition e.g. flag_name > 3. Since this is only used for
+      // checks in DEBUG mode, we will just ignore the more complex conditions
+      // for now - that will just lead to a nullptr which won't be followed.
+      implied_by_ptr_ = static_cast<Flag*>(
+          FindFlagByName(implied_by[0] == '!' ? implied_by + 1 : implied_by));
+      DCHECK_NE(implied_by_ptr_, this);
+#endif
     }
     return change_flag;
   }
@@ -534,15 +560,72 @@ uint32_t ComputeFlagListHash() {
   std::ostringstream modified_args_as_string;
   if (COMPRESS_POINTERS_BOOL) modified_args_as_string << "ptr-compr";
   if (DEBUG_BOOL) modified_args_as_string << "debug";
+
+#ifdef DEBUG
+  // These two sets are used to check that we don't leave out any flags
+  // implied by --predictable in the list below.
+  std::set<const char*> flags_implied_by_predictable;
+  std::set<const char*> flags_ignored_because_of_predictable;
+#endif
+
   for (const Flag& flag : flags) {
     if (flag.IsDefault()) continue;
+#ifdef DEBUG
+    if (flag.ImpliedBy(&v8_flags.predictable)) {
+      flags_implied_by_predictable.insert(flag.name());
+    }
+#endif
     // We want to be able to flip --profile-deserialization without
     // causing the code cache to get invalidated by this hash.
     if (flag.PointsTo(&v8_flags.profile_deserialization)) continue;
-    // Skip v8_flags.random_seed to allow predictable code caching.
+    // Skip v8_flags.random_seed and v8_flags.predictable to allow predictable
+    // code caching.
     if (flag.PointsTo(&v8_flags.random_seed)) continue;
+    if (flag.PointsTo(&v8_flags.predictable)) continue;
+
+    // The following flags are implied by --predictable (some negated).
+    if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
+        flag.PointsTo(&v8_flags.concurrent_recompilation) ||
+#ifdef V8_ENABLE_MAGLEV
+        flag.PointsTo(&v8_flags.maglev_deopt_data_on_background) ||
+        flag.PointsTo(&v8_flags.maglev_build_code_on_background) ||
+#endif
+        flag.PointsTo(&v8_flags.parallel_scavenge) ||
+        flag.PointsTo(&v8_flags.concurrent_marking) ||
+        flag.PointsTo(&v8_flags.concurrent_minor_ms_marking) ||
+        flag.PointsTo(&v8_flags.concurrent_array_buffer_sweeping) ||
+        flag.PointsTo(&v8_flags.parallel_marking) ||
+        flag.PointsTo(&v8_flags.concurrent_sweeping) ||
+        flag.PointsTo(&v8_flags.parallel_compaction) ||
+        flag.PointsTo(&v8_flags.parallel_pointer_update) ||
+        flag.PointsTo(&v8_flags.parallel_weak_ref_clearing) ||
+        flag.PointsTo(&v8_flags.memory_reducer) ||
+        flag.PointsTo(&v8_flags.cppheap_concurrent_marking) ||
+        flag.PointsTo(&v8_flags.cppheap_incremental_marking) ||
+        flag.PointsTo(&v8_flags.single_threaded_gc)) {
+#ifdef DEBUG
+      if (flag.ImpliedBy(&v8_flags.predictable)) {
+        flags_ignored_because_of_predictable.insert(flag.name());
+      }
+#endif
+      continue;
+    }
     modified_args_as_string << flag;
   }
+
+#ifdef DEBUG
+  for (const char* name : flags_implied_by_predictable) {
+    if (flags_ignored_because_of_predictable.find(name) ==
+        flags_ignored_because_of_predictable.end()) {
+      PrintF(
+          "%s should be added to the list of "
+          "flags_ignored_because_of_predictable\n",
+          name);
+      UNREACHABLE();
+    }
+  }
+#endif
+
   std::string args(modified_args_as_string.str());
   // Generate a hash that is not 0.
   uint32_t hash = static_cast<uint32_t>(base::hash_range(

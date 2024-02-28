@@ -26,6 +26,7 @@
 #include "src/codegen/reloc-info.h"
 #include "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h"
 #include "src/common/globals.h"
+#include "src/execution/frame-constants.h"
 #include "src/execution/frames.h"
 #include "src/handles/handles.h"
 #include "src/objects/heap-object.h"
@@ -128,7 +129,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
     }
   }
   void Move(Register dst, const Immediate& src);
-  void Move(Register dst, Smi src) { Move(dst, Immediate(src)); }
+  void Move(Register dst, Tagged<Smi> src) { Move(dst, Immediate(src)); }
   void Move(Register dst, Handle<HeapObject> src);
   void Move(Register dst, Register src);
   void Move(Register dst, Operand src);
@@ -151,23 +152,32 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Call(Label* target) { call(target); }
   void Call(Handle<Code> code_object, RelocInfo::Mode rmode);
 
-  // Load the builtin given by the Smi in |builtin_index| into the same
-  // register.
-  void LoadEntryFromBuiltinIndex(Register builtin_index);
-  void CallBuiltinByIndex(Register builtin_index);
+  // Load the builtin given by the Smi in |builtin_index| into |target|.
+  void LoadEntryFromBuiltinIndex(Register builtin_index, Register target);
+  void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
 
   // Load the code entry point from the Code object.
-  void LoadCodeEntry(Register destination, Register code_object);
+  void LoadCodeInstructionStart(Register destination, Register code_object);
   void CallCodeObject(Register code_object);
   void JumpCodeObject(Register code_object,
+                      JumpMode jump_mode = JumpMode::kJump);
+
+  // Convenience functions to call/jmp to the code of a JSFunction object.
+  void CallJSFunction(Register function_object);
+  void JumpJSFunction(Register function_object,
                       JumpMode jump_mode = JumpMode::kJump);
 
   void Jump(const ExternalReference& reference);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
+  void LoadLabelAddress(Register dst, Label* lbl);
+
   void LoadMap(Register destination, Register object);
+
+  void LoadFeedbackVector(Register dst, Register closure, Register scratch,
+                          Label* fbv_undef, Label::Distance distance);
 
   void Trap();
   void DebugBreak();
@@ -356,7 +366,7 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void Push(Operand src) { push(src); }
   void Push(Immediate value);
   void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
-  void Push(Smi smi) { Push(Immediate(smi)); }
+  void Push(Tagged<Smi> smi) { Push(Immediate(smi)); }
   void Push(XMMRegister src, Register scratch) {
     movd(scratch, src);
     push(scratch);
@@ -460,7 +470,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
                    SaveFPRegsMode save_fp,
                    SmiCheck smi_check = SmiCheck::kInline);
 
-  void EnterExitFrame(int argc, StackFrame::Type frame_type, Register scratch);
+  // Allocates an EXIT/BUILTIN_EXIT/API_CALLBACK_EXIT frame with given number
+  // of slots in non-GCed area.
+  void EnterExitFrame(int extra_slots, StackFrame::Type frame_type,
+                      Register c_function);
   void LeaveExitFrame(Register scratch);
 
   // Load the global proxy from the current context.
@@ -539,6 +552,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   Immediate ClearedValue() const;
 
   // Tiering support.
+  void AssertFeedbackCell(Register object,
+                          Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
@@ -580,6 +595,9 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object,
                                        Register scratch) NOOP_UNLESS_DEBUG_CODE;
+
+  void AssertJSAny(Register object, Register map_tmp,
+                   AbortReason abort_reason) NOOP_UNLESS_DEBUG_CODE;
 
   // ---------------------------------------------------------------------------
   // Exception handling
@@ -673,10 +691,33 @@ inline Operand FieldOperand(Register object, Register index, ScaleFactor scale,
   return Operand(object, index, scale, offset - kHeapObjectTag);
 }
 
+// Provides access to exit frame stack space (not GC-ed).
+inline Operand ExitFrameStackSlotOperand(int offset) {
+  return Operand(esp, offset);
+}
+
+// Provides access to exit frame parameters (GC-ed).
+inline Operand ExitFrameCallerStackSlotOperand(int index) {
+  return Operand(ebp,
+                 (BuiltinExitFrameConstants::kFixedSlotCountAboveFp + index) *
+                     kSystemPointerSize);
+}
+
 struct MoveCycleState {
   // Whether a move in the cycle needs the double scratch register.
   bool pending_double_scratch_register_use = false;
 };
+
+// Calls an API function.  Allocates HandleScope, extracts returned value
+// from handle and propagates exceptions.  Clobbers esi, edi and caller-saved
+// registers.  Restores context.  On return removes
+// *stack_space_operand * kSystemPointerSize or stack_space * kSystemPointerSize
+// (GCed).
+void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
+                              Register function_address,
+                              ExternalReference thunk_ref, Register thunk_arg,
+                              int stack_space, Operand* stack_space_operand,
+                              Operand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->
 

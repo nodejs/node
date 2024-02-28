@@ -363,16 +363,16 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
 
 (async function() {
   const tests = [];
-  testVectors.forEach((vector) => {
-    curves.forEach((namedCurve) => {
-      [true, false].forEach((extractable) => {
+  for (const vector of testVectors) {
+    for (const namedCurve of curves) {
+      for (const extractable of [true, false]) {
         tests.push(testImportSpki(vector, namedCurve, extractable));
         tests.push(testImportPkcs8(vector, namedCurve, extractable));
         tests.push(testImportJwk(vector, namedCurve, extractable));
-      });
+      }
       tests.push(testImportRaw(vector, namedCurve));
-    });
-  });
+    }
+  }
 
   await Promise.all(tests);
 })().then(common.mustCall());
@@ -400,15 +400,81 @@ async function testImportRaw({ name, publicUsages }, namedCurve) {
     ['ECDSA', ['verify'], ['sign']],
     ['ECDH', [], ['deriveBits', 'deriveBits']],
   ]) {
-    assert.rejects(subtle.importKey(
-      'spki',
-      rsaPublic.export({ format: 'der', type: 'spki' }),
-      { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, publicUsages), { message: /Invalid key type/ });
-    assert.rejects(subtle.importKey(
-      'pkcs8',
-      rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
-      { name, hash: 'SHA-256', namedCurve: 'P-256' },
-      true, privateUsages), { message: /Invalid key type/ });
+    assert.rejects(
+      subtle.importKey(
+        'spki',
+        rsaPublic.export({ format: 'der', type: 'spki' }),
+        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        true, publicUsages), { message: /Invalid key type/ },
+    ).then(common.mustCall());
+    assert.rejects(
+      subtle.importKey(
+        'pkcs8',
+        rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
+        { name, hash: 'SHA-256', namedCurve: 'P-256' },
+        true, privateUsages), { message: /Invalid key type/ },
+    ).then(common.mustCall());
+  }
+}
+
+// Bad private keys
+{
+  for (const { namedCurve, key: pkcs8 } of [
+    // The private key is exactly equal to the order, and the public key is
+    // private key * order.
+    {
+      namedCurve: 'P-256',
+      key: Buffer.from(
+        '3066020100301306072a8648ce3d020106082a8648ce3d030107044c304a0201' +
+        '010420ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc' +
+        '632551a12303210000ffffff00000000ffffffffffffffffbce6faada7179e84' +
+        'f3b9cac2fc632551', 'hex'),
+    },
+    // The private key is exactly equal to the order, and the public key is
+    // omitted.
+    {
+      namedCurve: 'P-256',
+      key: Buffer.from(
+        '3041020100301306072a8648ce3d020106082a8648ce3d030107042730250201' +
+        '010420ffffffff00000000ffffffffffffffffbce6faada7179e84f3b9cac2fc' +
+        '632551', 'hex'),
+    },
+    // The private key is exactly equal to the order + 11, and the public key is
+    // private key * order.
+    {
+      namedCurve: 'P-521',
+      key: Buffer.from(
+        '3081ee020100301006072a8648ce3d020106052b810400230481d63081d30201' +
+        '01044201ffffffffffffffffffffffffffffffffffffffffffffffffffffffff' +
+        'fffffffffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb7' +
+        '1e91386414a181890381860004008a75841259fdedff546f1a39573b4315cfed' +
+        '5dc7ed7c17849543ef2c54f2991652f3dbc5332663da1bd19b1aebe319108501' +
+        '5c024fa4c9a902ecc0e02dda0cdb9a0096fb303fcbba2129849d0ca877054fb2' +
+        '293add566210bd0493ed2e95d4e0b9b82b1bc8a90e8b42a4ab3892331914a953' +
+        '36dcac80e3f4819b5d58874f92ce48c808', 'hex'),
+    },
+    // The private key is exactly equal to the order + 11, and the public key is
+    // omitted.
+    {
+      namedCurve: 'P-521',
+      key: Buffer.from(
+        '3060020100301006072a8648ce3d020106052b81040023044930470201010442' +
+        '01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff' +
+        'fffa51868783bf2f966b7fcc0148f709a5d03bb5c9b8899c47aebb6fb71e9138' +
+        '6414', 'hex'),
+    },
+  ]) {
+    for (const [name, privateUsages] of [
+      ['ECDSA', ['sign']],
+      ['ECDH', ['deriveBits', 'deriveBits']],
+    ]) {
+      assert.rejects(
+        subtle.importKey(
+          'pkcs8',
+          pkcs8,
+          { name, hash: 'SHA-256', namedCurve },
+          true, privateUsages), { name: 'DataError', message: /Invalid keyData/ },
+      ).then(common.mustCall());
+    }
   }
 }

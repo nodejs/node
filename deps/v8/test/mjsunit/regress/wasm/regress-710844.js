@@ -7,7 +7,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function() {
   "use asm";
   var builder = new WasmModuleBuilder();
-  builder.addMemory(0, 5, true);
+  builder.addMemory(0, 5);
   builder.addFunction("regression_710844", kSig_v_v)
     .addBody([
         kExprI32Const, 0x03,

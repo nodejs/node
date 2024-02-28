@@ -47,8 +47,8 @@ class SeqOneByteString;
 // StringTable::Data for details.
 class V8_EXPORT_PRIVATE StringTable {
  public:
-  static constexpr Smi empty_element() { return Smi::FromInt(0); }
-  static constexpr Smi deleted_element() { return Smi::FromInt(1); }
+  static constexpr Tagged<Smi> empty_element() { return Smi::FromInt(0); }
+  static constexpr Tagged<Smi> deleted_element() { return Smi::FromInt(1); }
 
   explicit StringTable(Isolate* isolate);
   ~StringTable();
@@ -71,6 +71,10 @@ class V8_EXPORT_PRIVATE StringTable {
   // internalized string, or a Smi sentinel.
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
+
+  // Insert a range of strings. Only for use during isolate deserialization.
+  void InsertForIsolateDeserialization(
+      Isolate* isolate, const std::vector<Handle<String>>& strings);
 
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;

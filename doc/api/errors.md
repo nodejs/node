@@ -773,19 +773,17 @@ STDERR/STDOUT, and the data's length is longer than the `maxBuffer` option.
 
 ### `ERR_CLOSED_MESSAGE_PORT`
 
-<!--
-added:
-  - v16.2.0
-  - v14.17.1
+<!-- YAML
+added: v10.5.0
 changes:
-  - version: 11.12.0
-    pr-url: https://github.com/nodejs/node/pull/26487
-    description: The error message was removed.
   - version:
       - v16.2.0
       - v14.17.1
     pr-url: https://github.com/nodejs/node/pull/38510
     description: The error message was reintroduced.
+  - version: v11.12.0
+    pr-url: https://github.com/nodejs/node/pull/26487
+    description: The error message was removed.
 -->
 
 There was an attempt to use a `MessagePort` instance in a closed
@@ -802,7 +800,7 @@ non-writable `stdout` or `stderr` stream.
 
 ### `ERR_CONSTRUCT_CALL_INVALID`
 
-<!--
+<!-- YAML
 added: v12.5.0
 -->
 
@@ -1275,7 +1273,7 @@ to the current platform which is running Node.js is used.
 
 ### `ERR_FS_CP_DIR_TO_NON_DIR`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1286,7 +1284,7 @@ etc.) using [`fs.cp()`][].
 
 ### `ERR_FS_CP_EEXIST`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1297,7 +1295,7 @@ An attempt was made to copy over a file that already existed with
 
 ### `ERR_FS_CP_EINVAL`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1318,7 +1316,7 @@ Response body size doesn't match with the specified content-length header value.
 
 ### `ERR_FS_CP_FIFO_PIPE`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1328,7 +1326,7 @@ An attempt was made to copy a named pipe with [`fs.cp()`][].
 
 ### `ERR_FS_CP_NON_DIR_TO_DIR`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1339,7 +1337,7 @@ using [`fs.cp()`][].
 
 ### `ERR_FS_CP_SOCKET`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1349,7 +1347,7 @@ An attempt was made to copy to a socket with [`fs.cp()`][].
 
 ### `ERR_FS_CP_SYMLINK_TO_SUBDIRECTORY`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1360,7 +1358,7 @@ of `src`.
 
 ### `ERR_FS_CP_UNKNOWN`
 
-<!--
+<!-- YAML
 added: v16.7.0
 -->
 
@@ -1712,11 +1710,17 @@ When setting the priority for an HTTP/2 stream, the stream may be marked as
 a dependency for a parent stream. This error code is used when an attempt is
 made to mark a stream and dependent of itself.
 
+<a id="ERR_HTTP2_TOO_MANY_CUSTOM_SETTINGS"></a>
+
+### `ERR_HTTP2_TOO_MANY_CUSTOM_SETTINGS`
+
+The number of supported custom settings (10) has been exceeded.
+
 <a id="ERR_HTTP2_TOO_MANY_INVALID_FRAMES"></a>
 
 ### `ERR_HTTP2_TOO_MANY_INVALID_FRAMES`
 
-<!--
+<!-- YAML
 added: v15.14.0
 -->
 
@@ -1751,41 +1755,41 @@ is set for the `Http2Stream`.
 
 An attempt was made to construct an object using a non-public constructor.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
-
-<!-- YAML
-added:
-  - v17.1.0
-  - v16.14.0
--->
-
-An import assertion has failed, preventing the specified module to be imported.
-
-<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
-
-### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+### `ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - v21.1.0
 -->
 
-An import assertion is missing, preventing the specified module to be imported.
+An import `type` attribute was provided, but the specified module is of a
+different type.
 
-<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
+<a id="ERR_IMPORT_ATTRIBUTE_MISSING"></a>
 
-### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
+### `ERR_IMPORT_ATTRIBUTE_MISSING`
 
 <!-- YAML
 added:
-  - v17.1.0
-  - v16.14.0
+  - v21.1.0
 -->
 
-An import assertion is not supported by this version of Node.js.
+An import attribute is missing, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ATTRIBUTE_UNSUPPORTED`
+
+<!-- YAML
+added:
+  - v21.0.0
+  - v20.10.0
+  - v18.19.0
+-->
+
+An import attribute is not supported by this version of Node.js.
 
 <a id="ERR_INCOMPATIBLE_OPTION_PAIR"></a>
 
@@ -2086,12 +2090,6 @@ urlSearchParams.has.call(buf, 'foo');
 // Throws a TypeError with code 'ERR_INVALID_THIS'
 ```
 
-<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
-
-### `ERR_INVALID_TRANSFER_OBJECT`
-
-An invalid transfer object was passed to `postMessage()`.
-
 <a id="ERR_INVALID_TUPLE"></a>
 
 ### `ERR_INVALID_TUPLE`
@@ -2289,23 +2287,6 @@ The V8 platform used by this instance of Node.js does not support creating
 Workers. This is caused by lack of embedder support for Workers. In particular,
 this error will not occur with standard builds of Node.js.
 
-<a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>
-
-### `ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`
-
-<!-- YAML
-added: v15.0.0
--->
-
-An object that needs to be explicitly listed in the `transferList` argument
-is in the object passed to a [`postMessage()`][] call, but is not provided
-in the `transferList` for that call. Usually, this is a `MessagePort`.
-
-In Node.js versions prior to v15.0.0, the error code being used here was
-[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][]. However, the set of
-transferable object types has been expanded to cover more types than
-`MessagePort`.
-
 <a id="ERR_MODULE_NOT_FOUND"></a>
 
 ### `ERR_MODULE_NOT_FOUND`
@@ -2385,6 +2366,17 @@ error indicates that the idle loop has failed to stop.
 
 An attempt was made to use operations that can only be used when building
 V8 startup snapshot even though Node.js isn't building one.
+
+<a id="ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION"></a>
+
+### `ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The operation cannot be performed when it's not in a single-executable
+application.
 
 <a id="ERR_NOT_SUPPORTED_IN_SNAPSHOT"></a>
 
@@ -2531,6 +2523,17 @@ and HTTP/2 `Server` instances.
 The [`server.close()`][] method was called when a `net.Server` was not
 running. This applies to all instances of `net.Server`, including HTTP, HTTPS,
 and HTTP/2 `Server` instances.
+
+<a id="ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND"></a>
+
+### `ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+A key was passed to single executable application APIs to identify an asset,
+but no match could be found.
 
 <a id="ERR_SOCKET_ALREADY_BOUND"></a>
 
@@ -2966,9 +2969,7 @@ signal (such as [`subprocess.kill()`][]).
 [self-reference a package using its name][] and [define a custom subpath][] in
 the [`"exports"`][] field of the [`package.json`][] file.
 
-<!-- eslint-skip -->
-
-```js
+```mjs
 import './'; // unsupported
 import './index.js'; // supported
 import 'package-name'; // supported
@@ -2979,6 +2980,26 @@ import 'package-name'; // supported
 ### `ERR_UNSUPPORTED_ESM_URL_SCHEME`
 
 `import` with URL schemes other than `file` and `data` is unsupported.
+
+<a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
+
+### `ERR_UNSUPPORTED_RESOLVE_REQUEST`
+
+An attempt was made to resolve an invalid module referrer. This can happen when
+importing or calling `import.meta.resolve()` with either:
+
+* a bare specifier that is not a builtin module from a module whose URL scheme
+  is not `file`.
+* a [relative URL][] from a module whose URL scheme is not a [special scheme][].
+
+```mjs
+try {
+  // Trying to import the package 'bare-specifier' from a `data:` URL module:
+  await import('data:text/javascript,import "bare-specifier"');
+} catch (e) {
+  console.log(e.code); // ERR_UNSUPPORTED_RESOLVE_REQUEST
+}
+```
 
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
@@ -2994,6 +3015,12 @@ An attempt was made to use something that was already closed.
 
 While using the Performance Timing API (`perf_hooks`), no valid performance
 entry types are found.
+
+<a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG"></a>
+
+### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`
+
+A dynamic import callback was invoked without `--experimental-vm-modules`.
 
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
@@ -3142,6 +3169,21 @@ malconfigured clients, if more than 8 KiB of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
 
+<a id="HPE_CHUNK_EXTENSIONS_OVERFLOW"></a>
+
+### `HPE_CHUNK_EXTENSIONS_OVERFLOW`
+
+<!-- YAML
+added:
+ - v21.6.2
+ - v20.11.1
+ - v18.19.1
+-->
+
+Too much data was received for a chunk extensions. In order to protect against
+malicious or malconfigured clients, if more than 16 KiB of data is received
+then an `Error` with this code will be emitted.
+
 <a id="HPE_UNEXPECTED_CONTENT_LENGTH"></a>
 
 ### `HPE_UNEXPECTED_CONTENT_LENGTH`
@@ -3177,7 +3219,7 @@ attempting a [`require()`][] operation or when loading the program entry point.
 
 ### `ERR_CANNOT_TRANSFER_OBJECT`
 
-<!--
+<!-- YAML
 added: v10.5.0
 removed: v12.5.0
 -->
@@ -3302,6 +3344,59 @@ removed: v15.0.0
 
 An invalid or unknown file encoding was passed.
 
+<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
+
+### `ERR_INVALID_TRANSFER_OBJECT`
+
+<!-- YAML
+removed: v21.0.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/47839
+    description: A `DOMException` is thrown instead.
+-->
+
+An invalid transfer object was passed to `postMessage()`.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import assertion has failed, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_MISSING"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_MISSING`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import assertion is missing, preventing the specified module to be imported.
+
+<a id="ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED"></a>
+
+### `ERR_IMPORT_ASSERTION_TYPE_UNSUPPORTED`
+
+<!-- YAML
+added:
+  - v17.1.0
+  - v16.14.0
+removed: v21.1.0
+-->
+
+An import attribute is not supported by this version of Node.js.
+
 <a id="ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST"></a>
 
 ### `ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`
@@ -3313,6 +3408,28 @@ removed: v15.0.0
 This error code was replaced by [`ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`][]
 in Node.js v15.0.0, because it is no longer accurate as other types of
 transferable objects also exist now.
+
+<a id="ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST"></a>
+
+### `ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST`
+
+<!-- YAML
+added: v15.0.0
+removed: v21.0.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/47839
+    description: A `DOMException` is thrown instead.
+-->
+
+An object that needs to be explicitly listed in the `transferList` argument
+is in the object passed to a [`postMessage()`][] call, but is not provided
+in the `transferList` for that call. Usually, this is a `MessagePort`.
+
+In Node.js versions prior to v15.0.0, the error code being used here was
+[`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][]. However, the set of
+transferable object types has been expanded to cover more types than
+`MessagePort`.
 
 <a id="ERR_NAPI_CONS_PROTOTYPE_OBJECT"></a>
 
@@ -3650,7 +3767,9 @@ The native call from `process.cpuUsage` could not be processed.
 [event emitter-based]: events.md#class-eventemitter
 [file descriptors]: https://en.wikipedia.org/wiki/File_descriptor
 [policy]: permissions.md#policies
+[relative URL]: https://url.spec.whatwg.org/#relative-url-string
 [self-reference a package using its name]: packages.md#self-referencing-a-package-using-its-name
+[special scheme]: https://url.spec.whatwg.org/#special-scheme
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch

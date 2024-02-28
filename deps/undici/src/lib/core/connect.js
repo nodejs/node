@@ -1,7 +1,7 @@
 'use strict'
 
-const net = require('net')
-const assert = require('assert')
+const net = require('node:net')
+const assert = require('node:assert')
 const util = require('./util')
 const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
 
@@ -13,7 +13,9 @@ let tls // include tls conditionally since it is not always available
 // re-use is enabled.
 
 let SessionCache
-if (global.FinalizationRegistry) {
+// FIXME: remove workaround when the Node bug is fixed
+// https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
+if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
   SessionCache = class WeakSessionCache {
     constructor (maxCachedSessions) {
       this._maxCachedSessions = maxCachedSessions
@@ -71,7 +73,7 @@ if (global.FinalizationRegistry) {
   }
 }
 
-function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
+function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, ...opts }) {
   if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
     throw new InvalidArgumentError('maxCachedSessions must be a positive integer or zero')
   }
@@ -79,12 +81,12 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
   const options = { path: socketPath, ...opts }
   const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions)
   timeout = timeout == null ? 10e3 : timeout
-
+  allowH2 = allowH2 != null ? allowH2 : false
   return function connect ({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
     let socket
     if (protocol === 'https:') {
       if (!tls) {
-        tls = require('tls')
+        tls = require('node:tls')
       }
       servername = servername || options.servername || util.getServerName(host) || null
 
@@ -99,6 +101,8 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         servername,
         session,
         localAddress,
+        // TODO(HTTP/2): Add support for h2c
+        ALPNProtocols: allowH2 ? ['http/1.1', 'h2'] : ['http/1.1'],
         socket: httpSocket, // upgrade socket connection
         port: port || 443,
         host: hostname
@@ -179,7 +183,11 @@ function setupTimeout (onConnectTimeout, timeout) {
 }
 
 function onConnectTimeout (socket) {
-  util.destroy(socket, new ConnectTimeoutError())
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message = +` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')})`
+  }
+  util.destroy(socket, new ConnectTimeoutError(message))
 }
 
 module.exports = buildConnector

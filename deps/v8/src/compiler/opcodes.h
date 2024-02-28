@@ -79,7 +79,6 @@
   V(Projection)             \
   V(Retain)                 \
   V(MapGuard)               \
-  V(FoldConstant)           \
   V(TypeGuard)              \
   V(EnterMachineGraph)      \
   V(ExitMachineGraph)
@@ -557,7 +556,9 @@
   V(Null)                          \
   V(RttCanon)                      \
   V(WasmTypeCast)                  \
+  V(WasmTypeCastAbstract)          \
   V(WasmTypeCheck)                 \
+  V(WasmTypeCheckAbstract)         \
   V(WasmExternInternalize)         \
   V(WasmExternExternalize)         \
   V(WasmStructGet)                 \
@@ -758,6 +759,8 @@
   V(Load)                                \
   V(LoadImmutable)                       \
   V(Store)                               \
+  V(StorePair)                           \
+  V(StoreIndirectPointer)                \
   V(StackSlot)                           \
   V(Word32Popcnt)                        \
   V(Word64Popcnt)                        \
@@ -819,6 +822,8 @@
   V(Float64Select)                       \
   V(LoadStackCheckOffset)                \
   V(LoadFramePointer)                    \
+  V(LoadStackPointer)                    \
+  V(SetStackPointer)                     \
   V(LoadParentFramePointer)              \
   V(LoadRootRegister)                    \
   V(UnalignedLoad)                       \
@@ -1081,18 +1086,145 @@
 
 // SIMD256 for AVX
 #define MACHINE_SIMD256_OP_LIST(V) \
+  V(F64x4Min)                      \
+  V(F64x4Max)                      \
+  V(F64x4Add)                      \
+  V(F64x4Sqrt)                     \
   V(F32x8Add)                      \
+  V(I64x4Add)                      \
+  V(I32x8Add)                      \
+  V(I16x16Add)                     \
+  V(I8x32Add)                      \
+  V(F64x4Sub)                      \
   V(F32x8Sub)                      \
+  V(I64x4Sub)                      \
+  V(I32x8Sub)                      \
+  V(I16x16Sub)                     \
+  V(I8x32Sub)                      \
+  V(F64x4Mul)                      \
   V(F32x8Mul)                      \
+  V(I64x4Mul)                      \
+  V(I32x8Mul)                      \
+  V(I16x16Mul)                     \
+  V(F64x4Div)                      \
   V(F32x8Div)                      \
+  V(I16x16AddSatS)                 \
+  V(I8x32AddSatS)                  \
+  V(I16x16AddSatU)                 \
+  V(I8x32AddSatU)                  \
+  V(I16x16SubSatS)                 \
+  V(I8x32SubSatS)                  \
+  V(I16x16SubSatU)                 \
+  V(I8x32SubSatU)                  \
   V(F32x8Pmin)                     \
   V(F32x8Pmax)                     \
   V(F32x8Eq)                       \
+  V(F64x4Eq)                       \
+  V(I64x4Eq)                       \
+  V(I32x8Eq)                       \
+  V(I16x16Eq)                      \
+  V(I8x32Eq)                       \
   V(F32x8Ne)                       \
+  V(F64x4Ne)                       \
+  V(I64x4GtS)                      \
+  V(I32x8GtS)                      \
+  V(I16x16GtS)                     \
+  V(I8x32GtS)                      \
+  V(F64x4Lt)                       \
   V(F32x8Lt)                       \
+  V(F64x4Le)                       \
   V(F32x8Le)                       \
+  V(I32x8MinS)                     \
+  V(I16x16MinS)                    \
+  V(I8x32MinS)                     \
+  V(I32x8MinU)                     \
+  V(I16x16MinU)                    \
+  V(I8x32MinU)                     \
+  V(I32x8MaxS)                     \
+  V(I16x16MaxS)                    \
+  V(I8x32MaxS)                     \
+  V(I32x8MaxU)                     \
+  V(I16x16MaxU)                    \
+  V(I8x32MaxU)                     \
+  V(F32x8Min)                      \
+  V(F32x8Max)                      \
+  V(I64x4Ne)                       \
+  V(I64x4GeS)                      \
+  V(I32x8Ne)                       \
+  V(I32x8GtU)                      \
+  V(I32x8GeS)                      \
+  V(I32x8GeU)                      \
+  V(I16x16Ne)                      \
+  V(I16x16GtU)                     \
+  V(I16x16GeS)                     \
+  V(I16x16GeU)                     \
+  V(I8x32Ne)                       \
+  V(I8x32GtU)                      \
+  V(I8x32GeS)                      \
+  V(I8x32GeU)                      \
+  V(I32x8UConvertF32x8)            \
+  V(F64x4ConvertI32x4S)            \
+  V(F32x8SConvertI32x8)            \
+  V(F32x8UConvertI32x8)            \
+  V(F32x4DemoteF64x4)              \
+  V(I64x4SConvertI32x4)            \
+  V(I64x4UConvertI32x4)            \
+  V(I32x8SConvertI16x8)            \
+  V(I32x8UConvertI16x8)            \
+  V(I16x16SConvertI8x16)           \
+  V(I16x16UConvertI8x16)           \
+  V(I16x16SConvertI32x8)           \
+  V(I16x16UConvertI32x8)           \
+  V(I8x32SConvertI16x16)           \
+  V(I8x32UConvertI16x16)           \
+  V(F32x8Abs)                      \
+  V(F32x8Neg)                      \
+  V(F32x8Sqrt)                     \
+  V(I32x8Abs)                      \
+  V(I32x8Neg)                      \
+  V(I16x16Abs)                     \
+  V(I16x16Neg)                     \
+  V(I8x32Abs)                      \
+  V(I8x32Neg)                      \
+  V(I64x4Shl)                      \
+  V(I64x4ShrU)                     \
+  V(I32x8Shl)                      \
+  V(I32x8ShrS)                     \
+  V(I32x8ShrU)                     \
+  V(I16x16Shl)                     \
+  V(I16x16ShrS)                    \
+  V(I16x16ShrU)                    \
+  V(I32x8DotI16x16S)               \
+  V(I16x16RoundingAverageU)        \
+  V(I8x32RoundingAverageU)         \
+  V(I64x4ExtMulI32x4S)             \
+  V(I64x4ExtMulI32x4U)             \
+  V(I32x8ExtMulI16x8S)             \
+  V(I32x8ExtMulI16x8U)             \
+  V(I16x16ExtMulI8x16S)            \
+  V(I16x16ExtMulI8x16U)            \
+  V(I32x8ExtAddPairwiseI16x16S)    \
+  V(I32x8ExtAddPairwiseI16x16U)    \
+  V(I16x16ExtAddPairwiseI8x32S)    \
+  V(I16x16ExtAddPairwiseI8x32U)    \
+  V(ExtractF128)                   \
+  V(S256Const)                     \
+  V(S256Zero)                      \
+  V(S256Not)                       \
+  V(S256And)                       \
+  V(S256Or)                        \
+  V(S256Xor)                       \
   V(S256Select)                    \
-  V(ExtractF128)
+  V(S256AndNot)                    \
+  V(I64x4Splat)                    \
+  V(I32x8Splat)                    \
+  V(I16x16Splat)                   \
+  V(I8x32Splat)                    \
+  V(F64x4Pmin)                     \
+  V(F64x4Pmax)                     \
+  V(F64x4Splat)                    \
+  V(F32x8Splat)                    \
+  V(I8x32Shuffle)
 
 #define VALUE_OP_LIST(V)     \
   COMMON_OP_LIST(V)          \

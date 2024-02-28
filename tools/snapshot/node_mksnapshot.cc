@@ -50,8 +50,6 @@ int main(int argc, char* argv[]) {
   setvbuf(stderr, nullptr, _IONBF, 0);
 #endif  // _WIN32
 
-  v8::V8::SetFlagsFromString("--random_seed=42");
-  v8::V8::SetFlagsFromString("--harmony-import-assertions");
   return BuildSnapshot(argc, argv);
 }
 
@@ -65,15 +63,16 @@ int BuildSnapshot(int argc, char* argv[]) {
 
   std::unique_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
-          std::vector<std::string>(argv, argv + argc));
+          std::vector<std::string>(argv, argv + argc),
+          node::ProcessInitializationFlags::kGeneratePredictableSnapshot);
 
   CHECK(!result->early_return());
   CHECK_EQ(result->exit_code(), 0);
 
   std::string out_path;
-  std::optional<std::string_view> main_script_path = std::nullopt;
+  std::optional<std::string_view> builder_script_path = std::nullopt;
   if (node::per_process::cli_options->per_isolate->build_snapshot) {
-    main_script_path = result->args()[1];
+    builder_script_path = result->args()[1];
     out_path = result->args()[2];
   } else {
     out_path = result->args()[1];
@@ -85,11 +84,20 @@ int BuildSnapshot(int argc, char* argv[]) {
   bool use_array_literals = false;
 #endif
 
+  node::SnapshotConfig snapshot_config;
+  snapshot_config.builder_script_path = builder_script_path;
+
+#ifdef NODE_USE_NODE_CODE_CACHE
+  snapshot_config.flags = node::SnapshotFlags::kDefault;
+#else
+  snapshot_config.flags = node::SnapshotFlags::kWithoutCodeCache;
+#endif
+
   node::ExitCode exit_code =
       node::SnapshotBuilder::GenerateAsSource(out_path.c_str(),
                                               result->args(),
                                               result->exec_args(),
-                                              main_script_path,
+                                              snapshot_config,
                                               use_array_literals);
 
   node::TearDownOncePerProcess();

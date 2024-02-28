@@ -669,14 +669,6 @@ UTS46::mapDevChars(UnicodeString &dest, int32_t labelStart, int32_t mappingStart
     return length;
 }
 
-// Some non-ASCII characters are equivalent to sequences with
-// non-LDH ASCII characters. To find them:
-// grep disallowed_STD3_valid IdnaMappingTable.txt (or uts46.txt)
-static inline UBool
-isNonASCIIDisallowedSTD3Valid(UChar32 c) {
-    return c==0x2260 || c==0x226E || c==0x226F;
-}
-
 // Replace the label in dest with the label string, if the label was modified.
 // If &label==&dest then the label was modified in-place and labelLength
 // is the new label length, different from label.length().
@@ -820,10 +812,7 @@ UTS46::processLabel(UnicodeString &dest,
             }
         } else {
             oredChars|=c;
-            if(disallowNonLDHDot && isNonASCIIDisallowedSTD3Valid(c)) {
-                info.labelErrors|=UIDNA_ERROR_DISALLOWED;
-                *s=0xfffd;
-            } else if(c==0xfffd) {
+            if(c==0xfffd) {
                 info.labelErrors|=UIDNA_ERROR_DISALLOWED;
             }
         }

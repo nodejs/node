@@ -10,26 +10,9 @@
 namespace v8 {
 namespace internal {
 
-const double GCIdleTimeHandler::kConservativeTimeRatio = 0.9;
-
 void GCIdleTimeHeapState::Print() {
   PrintF("size_of_objects=%zu ", size_of_objects);
   PrintF("incremental_marking_stopped=%d ", incremental_marking_stopped);
-}
-
-size_t GCIdleTimeHandler::EstimateMarkingStepSize(
-    double idle_time_in_ms, double marking_speed_in_bytes_per_ms) {
-  DCHECK_LT(0, idle_time_in_ms);
-
-  if (marking_speed_in_bytes_per_ms == 0) {
-    marking_speed_in_bytes_per_ms = kInitialConservativeMarkingSpeed;
-  }
-
-  double marking_step_size = marking_speed_in_bytes_per_ms * idle_time_in_ms;
-  if (marking_step_size >= kMaximumMarkingStepSize) {
-    return kMaximumMarkingStepSize;
-  }
-  return static_cast<size_t>(marking_step_size * kConservativeTimeRatio);
 }
 
 // The following logic is implemented by the controller:

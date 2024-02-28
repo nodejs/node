@@ -31,11 +31,16 @@ class V8RuntimeAgentImpl;
 class V8StackTraceImpl;
 struct V8StackTraceId;
 
-enum class WrapMode {
-  kForceValue,
-  kNoPreview,
-  kWithPreview,
-  kGenerateWebDriverValue
+enum class WrapMode { kJson, kIdOnly, kPreview, kDeep };
+
+struct WrapSerializationOptions {
+  int maxDepth = v8::internal::kMaxInt;
+  v8::Global<v8::Object> additionalParameters;
+};
+
+struct WrapOptions {
+  WrapMode mode;
+  WrapSerializationOptions serializationOptions = {};
 };
 
 using protocol::Response;
@@ -311,12 +316,6 @@ class V8Debugger : public v8::debug::DebugDelegate,
   std::unique_ptr<TerminateExecutionCallback> m_terminateExecutionCallback;
   v8::Global<v8::Context> m_terminateExecutionCallbackContext;
   bool m_terminateExecutionReported = true;
-
-  // Throwing conditional breakpoints for which we already have logged an error
-  // message to the console. The intention is to reduce console spam.
-  // Removing the breakpoint or a non-throwing evaluation of the breakpoint
-  // clears it out of the set.
-  std::unordered_set<v8::debug::BreakpointId> m_throwingConditionReported;
 };
 
 }  // namespace v8_inspector

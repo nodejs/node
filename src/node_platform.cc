@@ -424,6 +424,11 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
                                    InternalCallbackScope::kNoFlags);
     task->Run();
   } else {
+    // When the Environment was freed, the tasks of the Isolate should also be
+    // canceled by `NodePlatform::UnregisterIsolate`. However, if the embedder
+    // request to run the foreground task after the Environment was freed, run
+    // the task without InternalCallbackScope.
+
     // The task is moved out of InternalCallbackScope if env is not available.
     // This is a required else block, and should not be removed.
     // See comment: https://github.com/nodejs/node/pull/34688#pullrequestreview-463867489
@@ -560,7 +565,7 @@ v8::TracingController* NodePlatform::GetTracingController() {
 Platform::StackTracePrinter NodePlatform::GetStackTracePrinter() {
   return []() {
     fprintf(stderr, "\n");
-    DumpBacktrace(stderr);
+    DumpNativeBacktrace(stderr);
     fflush(stderr);
   };
 }

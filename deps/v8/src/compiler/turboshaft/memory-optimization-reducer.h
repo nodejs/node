@@ -9,11 +9,15 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 
 namespace v8::internal::compiler::turboshaft {
 
-const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
+const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
+                                                        Isolate* isolate);
 
 // The main purpose of memory optimization is folding multiple allocations into
 // one. For this, the first allocation reserves additional space, that is
@@ -28,10 +32,16 @@ const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone);
 // We can do write barrier elimination across loops if the loop does not contain
 // any potentially allocating operations.
 struct MemoryAnalyzer {
+  enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
+
   Zone* phase_zone;
   const Graph& input_graph;
-  MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph)
-      : phase_zone(phase_zone), input_graph(input_graph) {}
+  AllocationFolding allocation_folding;
+  MemoryAnalyzer(Zone* phase_zone, const Graph& input_graph,
+                 AllocationFolding allocation_folding)
+      : phase_zone(phase_zone),
+        input_graph(input_graph),
+        allocation_folding(allocation_folding) {}
 
   struct BlockState {
     const AllocateOp* last_allocation = nullptr;
@@ -88,162 +98,246 @@ struct MemoryAnalyzer {
   void MergeCurrentStateIntoSuccessor(const Block* successor);
 };
 
-struct MemoryOptimizationReducerArgs {
-  Isolate* isolate;
-};
-
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
 
-  using ArgT = base::append_tuple_type<typename Next::ArgT,
-                                       MemoryOptimizationReducerArgs>;
-
-  template <class... Args>
-  explicit MemoryOptimizationReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        isolate_(std::get<MemoryOptimizationReducerArgs>(args).isolate) {}
-
   void Analyze() {
-    analyzer_.emplace(Asm().phase_zone(), Asm().input_graph());
+    analyzer_.emplace(
+        __ phase_zone(), __ input_graph(),
+        PipelineData::Get().info()->allocation_folding()
+            ? MemoryAnalyzer::AllocationFolding::kDoAllocationFolding
+            : MemoryAnalyzer::AllocationFolding::kDontAllocationFolding);
     analyzer_->Run();
     Next::Analyze();
   }
 
-  OpIndex ReduceStore(OpIndex base, OpIndex index, OpIndex value,
-                      StoreOp::Kind kind, MemoryRepresentation stored_rep,
-                      WriteBarrierKind write_barrier, int32_t offset,
-                      uint8_t element_scale) {
+  OpIndex REDUCE(Store)(OpIndex base, OpIndex index, OpIndex value,
+                        StoreOp::Kind kind, MemoryRepresentation stored_rep,
+                        WriteBarrierKind write_barrier, int32_t offset,
+                        uint8_t element_scale,
+                        bool maybe_initializing_or_transitioning,
+                        IndirectPointerTag indirect_pointer_tag) {
     if (!ShouldSkipOptimizationStep() &&
         analyzer_->skipped_write_barriers.count(
-            Asm().current_operation_origin())) {
+            __ current_operation_origin())) {
       write_barrier = WriteBarrierKind::kNoWriteBarrier;
     }
     return Next::ReduceStore(base, index, value, kind, stored_rep,
-                             write_barrier, offset, element_scale);
+                             write_barrier, offset, element_scale,
+                             maybe_initializing_or_transitioning,
+                             indirect_pointer_tag);
   }
 
-  OpIndex ReduceAllocate(OpIndex size, AllocationType type,
-                         AllowLargeObjects allow_large_objects) {
+  OpIndex REDUCE(Allocate)(OpIndex size, AllocationType type) {
     DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
       type = AllocationType::kOld;
     }
 
-    OpIndex top_address = Asm().ExternalConstant(
-        type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_top_address(isolate_)
-            : ExternalReference::old_space_allocation_top_address(isolate_));
-    Variable top =
-        Asm().NewFreshVariable(RegisterRepresentation::PointerSized());
-    Asm().Set(top, Asm().LoadOffHeap(top_address,
-                                     MemoryRepresentation::PointerSized()));
-
-    if (analyzer_->IsFoldedAllocation(Asm().current_operation_origin())) {
-      Asm().StoreOffHeap(top_address, Asm().PointerAdd(Asm().Get(top), size),
-                         MemoryRepresentation::PointerSized());
-      return Asm().BitcastWordToTagged(Asm().PointerAdd(
-          Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
+    OpIndex top_address;
+    if (isolate_ != nullptr) {
+      top_address = __ ExternalConstant(
+          type == AllocationType::kYoung
+              ? ExternalReference::new_space_allocation_top_address(isolate_)
+              : ExternalReference::old_space_allocation_top_address(isolate_));
+    } else {
+      // Wasm mode: producing isolate-independent code, loading the isolate
+      // address at runtime.
+#if V8_ENABLE_WEBASSEMBLY
+      V<WasmInstanceObject> instance_node = __ WasmInstanceParameter();
+      int top_address_offset =
+          type == AllocationType::kYoung
+              ? WasmInstanceObject::kNewAllocationTopAddressOffset
+              : WasmInstanceObject::kOldAllocationTopAddressOffset;
+      top_address =
+          __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),
+                  MemoryRepresentation::PointerSized(), top_address_offset);
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
     }
+
+    if (analyzer_->IsFoldedAllocation(__ current_operation_origin())) {
+      DCHECK_NE(__ GetVariable(top(type)), OpIndex::Invalid());
+      OpIndex obj_addr = __ GetVariable(top(type));
+      __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
+      __ StoreOffHeap(top_address, __ GetVariable(top(type)),
+                      MemoryRepresentation::PointerSized());
+      return __ BitcastWordPtrToTagged(
+          __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
+    }
+
+    __ SetVariable(
+        top(type),
+        __ LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
 
     OpIndex allocate_builtin;
-    if (type == AllocationType::kYoung) {
-      if (allow_large_objects == AllowLargeObjects::kTrue) {
+    if (isolate_ != nullptr) {
+      if (type == AllocationType::kYoung) {
         allocate_builtin =
-            Asm().BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
+            __ BuiltinCode(Builtin::kAllocateInYoungGeneration, isolate_);
       } else {
-        allocate_builtin = Asm().BuiltinCode(
-            Builtin::kAllocateRegularInYoungGeneration, isolate_);
+        allocate_builtin =
+            __ BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
       }
     } else {
-      if (allow_large_objects == AllowLargeObjects::kTrue) {
-        allocate_builtin =
-            Asm().BuiltinCode(Builtin::kAllocateInOldGeneration, isolate_);
+      // This lowering is used by Wasm, where we compile isolate-independent
+      // code. Builtin calls simply encode the target builtin ID, which will
+      // be patched to the builtin's address later.
+#if V8_ENABLE_WEBASSEMBLY
+      Builtin builtin;
+      if (type == AllocationType::kYoung) {
+        builtin = Builtin::kAllocateInYoungGeneration;
       } else {
-        allocate_builtin = Asm().BuiltinCode(
-            Builtin::kAllocateRegularInOldGeneration, isolate_);
+        builtin = Builtin::kAllocateInOldGeneration;
       }
+      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      allocate_builtin = __ NumberConstant(static_cast<int>(builtin));
+#else
+      UNREACHABLE();
+#endif
     }
 
-    Block* call_runtime = Asm().NewBlock();
-    Block* done = Asm().NewBlock();
+    Block* call_runtime = __ NewBlock();
+    Block* done = __ NewBlock();
 
-    OpIndex limit_address = Asm().ExternalConstant(
-        type == AllocationType::kYoung
-            ? ExternalReference::new_space_allocation_limit_address(isolate_)
-            : ExternalReference::old_space_allocation_limit_address(isolate_));
+    OpIndex limit_address = GetLimitAddress(type);
     OpIndex limit =
-        Asm().LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+        __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+
+    // If the allocation size is not statically known or is known to be larger
+    // than kMaxRegularHeapObjectSize, do not update {top(type)} in case of a
+    // runtime call. This is needed because we cannot allocation-fold large and
+    // normal-sized objects.
+    uint64_t constant_size{};
+    if (!__ matcher().MatchWordConstant(
+            size, WordRepresentation::PointerSized(), &constant_size) ||
+        constant_size > kMaxRegularHeapObjectSize) {
+      Variable result =
+          __ NewLoopInvariantVariable(RegisterRepresentation::Tagged());
+      if (!constant_size) {
+        // Check if we can do bump pointer allocation here.
+        OpIndex top_value = __ GetVariable(top(type));
+        __ SetVariable(result,
+                       __ BitcastWordPtrToTagged(__ WordPtrAdd(
+                           top_value, __ IntPtrConstant(kHeapObjectTag))));
+        OpIndex new_top = __ PointerAdd(top_value, size);
+        __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
+        __ GotoIfNot(LIKELY(__ UintPtrLessThan(
+                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
+                     call_runtime);
+        __ SetVariable(top(type), new_top);
+        __ StoreOffHeap(top_address, new_top,
+                        MemoryRepresentation::PointerSized());
+        __ Goto(done);
+      }
+      if (constant_size || __ Bind(call_runtime)) {
+        __ SetVariable(result, __ Call(allocate_builtin, {size},
+                                       AllocateBuiltinDescriptor()));
+        __ Goto(done);
+      }
+
+      __ BindReachable(done);
+      return __ GetVariable(result);
+    }
 
     OpIndex reservation_size;
-    if (auto c = analyzer_->ReservedSize(Asm().current_operation_origin())) {
-      reservation_size = Asm().UintPtrConstant(*c);
+    if (auto c = analyzer_->ReservedSize(__ current_operation_origin())) {
+      reservation_size = __ UintPtrConstant(*c);
     } else {
       reservation_size = size;
     }
     // Check if we can do bump pointer allocation here.
-    bool reachable = true;
-    if (allow_large_objects == AllowLargeObjects::kTrue) {
-      reachable = Asm().GotoIfNot(
-          Asm().UintPtrLessThan(
-              size, Asm().IntPtrConstant(kMaxRegularHeapObjectSize)),
-          call_runtime, BranchHint::kTrue);
-    }
+    bool reachable =
+        __ GotoIfNot(__ UintPtrLessThan(
+                         size, __ IntPtrConstant(kMaxRegularHeapObjectSize)),
+                     call_runtime, BranchHint::kTrue) !=
+        ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
-      Asm().Branch(
-          Asm().UintPtrLessThan(
-              Asm().PointerAdd(Asm().Get(top), reservation_size), limit),
-          done, call_runtime, BranchHint::kTrue);
+      __ Branch(__ UintPtrLessThan(
+                    __ PointerAdd(__ GetVariable(top(type)), reservation_size),
+                    limit),
+                done, call_runtime, BranchHint::kTrue);
     }
 
     // Call the runtime if bump pointer area exhausted.
-    if (Asm().Bind(call_runtime)) {
-      OpIndex allocated = Asm().Call(allocate_builtin, {reservation_size},
-                                     AllocateBuiltinDescriptor());
-      Asm().Set(top, Asm().PointerSub(Asm().BitcastTaggedToWord(allocated),
-                                      Asm().IntPtrConstant(kHeapObjectTag)));
-      Asm().Goto(done);
+    if (__ Bind(call_runtime)) {
+      OpIndex allocated = __ Call(allocate_builtin, {reservation_size},
+                                  AllocateBuiltinDescriptor());
+      __ SetVariable(top(type),
+                     __ PointerSub(__ BitcastTaggedToWord(allocated),
+                                   __ IntPtrConstant(kHeapObjectTag)));
+      __ Goto(done);
     }
 
-    Asm().BindReachable(done);
+    __ BindReachable(done);
     // Compute the new top and write it back.
-    Asm().StoreOffHeap(top_address, Asm().PointerAdd(Asm().Get(top), size),
-                       MemoryRepresentation::PointerSized());
-    return Asm().BitcastWordToTagged(
-        Asm().PointerAdd(Asm().Get(top), Asm().IntPtrConstant(kHeapObjectTag)));
+    OpIndex obj_addr = __ GetVariable(top(type));
+    __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
+    __ StoreOffHeap(top_address, __ GetVariable(top(type)),
+                    MemoryRepresentation::PointerSized());
+    return __ BitcastWordPtrToTagged(
+        __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
 
-  OpIndex ReduceDecodeExternalPointer(OpIndex handle, ExternalPointerTag tag) {
+  OpIndex REDUCE(DecodeExternalPointer)(OpIndex handle,
+                                        ExternalPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
     // Decode loaded external pointer.
-    //
-    // Here we access the external pointer table through an ExternalReference.
-    // Alternatively, we could also hardcode the address of the table since it
-    // is never reallocated. However, in that case we must be able to guarantee
-    // that the generated code is never executed under a different Isolate, as
-    // that would allow access to external objects from different Isolates. It
-    // also would break if the code is serialized/deserialized at some point.
-    OpIndex table_address =
-        IsSharedExternalPointerType(tag)
-            ? Asm().LoadOffHeap(
-                  Asm().ExternalConstant(
-                      ExternalReference::
-                          shared_external_pointer_table_address_address(
-                              isolate_)),
-                  MemoryRepresentation::PointerSized())
-            : Asm().ExternalConstant(
-                  ExternalReference::external_pointer_table_address(isolate_));
-    OpIndex table = Asm().LoadOffHeap(
-        table_address, Internals::kExternalPointerTableBufferOffset,
-        MemoryRepresentation::PointerSized());
-    OpIndex index = Asm().ShiftRightLogical(handle, kExternalPointerIndexShift,
-                                            WordRepresentation::Word32());
-    OpIndex pointer =
-        Asm().LoadOffHeap(table, Asm().ChangeUint32ToUint64(index), 0,
-                          MemoryRepresentation::PointerSized());
-    pointer = Asm().Word64BitwiseAnd(pointer, Asm().Word64Constant(~tag));
+    V<WordPtr> table;
+    if (isolate_ != nullptr) {
+      // Here we access the external pointer table through an ExternalReference.
+      // Alternatively, we could also hardcode the address of the table since it
+      // is never reallocated. However, in that case we must be able to
+      // guarantee that the generated code is never executed under a different
+      // Isolate, as that would allow access to external objects from different
+      // Isolates. It also would break if the code is serialized/deserialized at
+      // some point.
+      V<WordPtr> table_address =
+          IsSharedExternalPointerType(tag)
+              ? __
+                LoadOffHeap(
+                    __ ExternalConstant(
+                        ExternalReference::
+                            shared_external_pointer_table_address_address(
+                                isolate_)),
+                    MemoryRepresentation::PointerSized())
+              : __ ExternalConstant(
+                    ExternalReference::external_pointer_table_address(
+                        isolate_));
+      table = __ LoadOffHeap(table_address,
+                             Internals::kExternalPointerTableBasePointerOffset,
+                             MemoryRepresentation::PointerSized());
+    } else {
+#if V8_ENABLE_WEBASSEMBLY
+      V<WordPtr> isolate_root = __ LoadRootRegister();
+      if (IsSharedExternalPointerType(tag)) {
+        V<WordPtr> table_address =
+            __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                    MemoryRepresentation::PointerSized(),
+                    IsolateData::shared_external_pointer_table_offset());
+        table = __ Load(table_address, LoadOp::Kind::RawAligned(),
+                        MemoryRepresentation::PointerSized(),
+                        Internals::kExternalPointerTableBasePointerOffset);
+      } else {
+        table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                        MemoryRepresentation::PointerSized(),
+                        IsolateData::external_pointer_table_offset() +
+                            Internals::kExternalPointerTableBasePointerOffset);
+      }
+#else
+      UNREACHABLE();
+#endif
+    }
+
+    OpIndex index = __ ShiftRightLogical(handle, kExternalPointerIndexShift,
+                                         WordRepresentation::Word32());
+    OpIndex pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
+                                     MemoryRepresentation::PointerSized());
+    pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
     return pointer;
 #else   // V8_ENABLE_SANDBOX
     UNREACHABLE();
@@ -252,17 +346,58 @@ class MemoryOptimizationReducer : public Next {
 
  private:
   base::Optional<MemoryAnalyzer> analyzer_;
-  Isolate* isolate_;
+  Isolate* isolate_ = PipelineData::Get().isolate();
   const TSCallDescriptor* allocate_builtin_descriptor_ = nullptr;
+  base::Optional<Variable> top_[2];
+
+  static_assert(static_cast<int>(AllocationType::kYoung) == 0);
+  static_assert(static_cast<int>(AllocationType::kOld) == 1);
+  Variable top(AllocationType type) {
+    DCHECK(type == AllocationType::kYoung || type == AllocationType::kOld);
+    if (V8_UNLIKELY(!top_[static_cast<int>(type)].has_value())) {
+      top_[static_cast<int>(type)].emplace(
+          __ NewLoopInvariantVariable(RegisterRepresentation::PointerSized()));
+    }
+    return top_[static_cast<int>(type)].value();
+  }
 
   const TSCallDescriptor* AllocateBuiltinDescriptor() {
     if (allocate_builtin_descriptor_ == nullptr) {
       allocate_builtin_descriptor_ =
-          CreateAllocateBuiltinDescriptor(Asm().graph_zone());
+          CreateAllocateBuiltinDescriptor(__ graph_zone(), isolate_);
     }
     return allocate_builtin_descriptor_;
   }
+
+  OpIndex GetLimitAddress(AllocationType type) {
+    OpIndex limit_address;
+    if (isolate_ != nullptr) {
+      limit_address = __ ExternalConstant(
+          type == AllocationType::kYoung
+              ? ExternalReference::new_space_allocation_limit_address(isolate_)
+              : ExternalReference::old_space_allocation_limit_address(
+                    isolate_));
+    } else {
+      // Wasm mode: producing isolate-independent code, loading the isolate
+      // address at runtime.
+#if V8_ENABLE_WEBASSEMBLY
+      V<WasmInstanceObject> instance_node = __ WasmInstanceParameter();
+      int limit_address_offset =
+          type == AllocationType::kYoung
+              ? WasmInstanceObject::kNewAllocationLimitAddressOffset
+              : WasmInstanceObject::kOldAllocationLimitAddressOffset;
+      limit_address =
+          __ Load(instance_node, LoadOp::Kind::TaggedBase(),
+                  MemoryRepresentation::PointerSized(), limit_address_offset);
+#else
+      UNREACHABLE();
+#endif  // V8_ENABLE_WEBASSEMBLY
+    }
+    return limit_address;
+  }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -24,17 +24,16 @@ namespace internal {
 namespace {  // for String.fromCodePoint
 
 bool IsValidCodePoint(Isolate* isolate, Handle<Object> value) {
-  if (!value->IsNumber() &&
-      !Object::ToNumber(isolate, value).ToHandle(&value)) {
+  if (!IsNumber(*value) && !Object::ToNumber(isolate, value).ToHandle(&value)) {
     return false;
   }
 
-  if (Object::ToInteger(isolate, value).ToHandleChecked()->Number() !=
-      value->Number()) {
+  if (Object::Number(*Object::ToInteger(isolate, value).ToHandleChecked()) !=
+      Object::Number(*value)) {
     return false;
   }
 
-  if (value->Number() < 0 || value->Number() > 0x10FFFF) {
+  if (Object::Number(*value) < 0 || Object::Number(*value) > 0x10FFFF) {
     return false;
   }
 
@@ -52,7 +51,7 @@ base::uc32 NextCodePoint(Isolate* isolate, BuiltinArguments args, int index) {
         MessageTemplate::kInvalidCodePoint, value));
     return kInvalidCodePoint;
   }
-  return DoubleToUint32(value->Number());
+  return DoubleToUint32(Object::Number(*value));
 }
 
 }  // namespace
@@ -211,7 +210,7 @@ BUILTIN(StringPrototypeNormalize) {
   TO_THIS_STRING(string, "String.prototype.normalize");
 
   Handle<Object> form_input = args.atOrUndefined(isolate, 1);
-  if (form_input->IsUndefined(isolate)) return *string;
+  if (IsUndefined(*form_input, isolate)) return *string;
 
   Handle<String> form;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, form,
@@ -245,9 +244,9 @@ inline bool ToUpperOverflows(base::uc32 character) {
 }
 
 template <class Converter>
-V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
-    Isolate* isolate, String string, SeqString result, int result_length,
-    unibrow::Mapping<Converter, 128>* mapping) {
+V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCaseHelper(
+    Isolate* isolate, Tagged<String> string, Tagged<SeqString> result,
+    int result_length, unibrow::Mapping<Converter, 128>* mapping) {
   DisallowGarbageCollection no_gc;
   // We try this twice, once with the assumption that the result is no longer
   // than the input and, if that assumption breaks, again with the exact
@@ -266,23 +265,23 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
   unibrow::uchar chars[Converter::kMaxWidth];
   // We can assume that the string is not empty
   base::uc32 current = stream.GetNext();
-  bool ignore_overflow = Converter::kIsToLower || result.IsSeqTwoByteString();
+  bool ignore_overflow = Converter::kIsToLower || IsSeqTwoByteString(result);
   for (int i = 0; i < result_length;) {
     bool has_next = stream.HasMore();
     base::uc32 next = has_next ? stream.GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result.Set(i, current);
+      result->Set(i, current);
       i++;
     } else if (char_length == 1 &&
                (ignore_overflow || !ToUpperOverflows(current))) {
       // Common case: converting the letter resulted in one character.
       DCHECK(static_cast<base::uc32>(chars[0]) != current);
-      result.Set(i, chars[0]);
+      result->Set(i, chars[0]);
       has_changed_character = true;
       i++;
-    } else if (result_length == string.length()) {
+    } else if (result_length == string->length()) {
       bool overflows = ToUpperOverflows(current);
       // We've assumed that the result would be as long as the
       // input but here is a character that converts to several
@@ -323,7 +322,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
                                              : Smi::FromInt(current_length);
     } else {
       for (int j = 0; j < char_length; j++) {
-        result.Set(i, chars[j]);
+        result->Set(i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -342,7 +341,7 @@ V8_WARN_UNUSED_RESULT static Object ConvertCaseHelper(
 }
 
 template <class Converter>
-V8_WARN_UNUSED_RESULT static Object ConvertCase(
+V8_WARN_UNUSED_RESULT static Tagged<Object> ConvertCase(
     Handle<String> s, Isolate* isolate,
     unibrow::Mapping<Converter, 128>* mapping) {
   s = String::Flatten(isolate, s);
@@ -380,10 +379,11 @@ V8_WARN_UNUSED_RESULT static Object ConvertCase(
     result = isolate->factory()->NewRawTwoByteString(length).ToHandleChecked();
   }
 
-  Object answer = ConvertCaseHelper(isolate, *s, *result, length, mapping);
-  if (answer.IsException(isolate) || answer.IsString()) return answer;
+  Tagged<Object> answer =
+      ConvertCaseHelper(isolate, *s, *result, length, mapping);
+  if (IsException(answer, isolate) || IsString(answer)) return answer;
 
-  DCHECK(answer.IsSmi());
+  DCHECK(IsSmi(answer));
   length = Smi::ToInt(answer);
   if (s->IsOneByteRepresentation() && length > 0) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -455,7 +455,7 @@ BUILTIN(StringRaw) {
   IncrementalStringBuilder result_builder(isolate);
   // Intentional spec violation: we ignore {length} values >= 2^32, because
   // assuming non-empty chunks they would generate too-long strings anyway.
-  const double raw_len_number = raw_len->Number();
+  const double raw_len_number = Object::Number(*raw_len);
   const uint32_t length = raw_len_number > std::numeric_limits<uint32_t>::max()
                               ? std::numeric_limits<uint32_t>::max()
                               : static_cast<uint32_t>(raw_len_number);

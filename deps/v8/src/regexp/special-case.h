@@ -71,21 +71,11 @@ namespace internal {
 // another character. Characters that match no other characters in
 // their equivalence class are added to IgnoreSet. Characters that
 // match at least one other character are added to SpecialAddSet.
-//
-// For unicode ignoreCase ("iu" and "iv"),
-// UnicodeSet::closeOver(USET_CASE_INSENSITIVE) adds all characters that are in
-// the same equivalence class. This includes characaters that are in the same
-// equivalence class using full case folding. According to the spec, only
-// simple case folding shall be considered. We therefore create
-// UnicodeNonSimpleCloseOverSet containing all characters for which
-// UnicodeSet::closeOver adds characters that are not simple case folds. This
-// set should be used similar to IgnoreSet described above.
 
 class RegExpCaseFolding final : public AllStatic {
  public:
   static const icu::UnicodeSet& IgnoreSet();
   static const icu::UnicodeSet& SpecialAddSet();
-  static const icu::UnicodeSet& UnicodeNonSimpleCloseOverSet();
 
   // This implements ECMAScript 2020 21.2.2.8.2 (Runtime Semantics:
   // Canonicalize) step 3, which is used to determine whether

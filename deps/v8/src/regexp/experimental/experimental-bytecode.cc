@@ -71,6 +71,12 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
     case RegExpInstruction::CLEAR_REGISTER:
       os << "CLEAR_REGISTER " << inst.payload.register_index;
       break;
+    case RegExpInstruction::BEGIN_LOOP:
+      os << "BEGIN_LOOP";
+      break;
+    case RegExpInstruction::END_LOOP:
+      os << "END_LOOP";
+      break;
   }
   return os;
 }

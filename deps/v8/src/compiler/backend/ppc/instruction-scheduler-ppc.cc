@@ -115,7 +115,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_ByteRev32:
     case kPPC_ByteRev64:
     case kPPC_F64x2Splat:
-    case kPPC_F64x2ExtractLane:
     case kPPC_F64x2ReplaceLane:
     case kPPC_F64x2Add:
     case kPPC_F64x2Sub:
@@ -141,7 +140,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F64x2ConvertLowI32x4U:
     case kPPC_F64x2PromoteLowF32x4:
     case kPPC_F32x4Splat:
-    case kPPC_F32x4ExtractLane:
     case kPPC_F32x4ReplaceLane:
     case kPPC_F32x4Add:
     case kPPC_F32x4Sub:
@@ -167,7 +165,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_F32x4Pmax:
     case kPPC_F32x4DemoteF64x2Zero:
     case kPPC_I64x2Splat:
-    case kPPC_I64x2ExtractLane:
     case kPPC_I64x2ReplaceLane:
     case kPPC_I64x2Add:
     case kPPC_I64x2Sub:
@@ -191,7 +188,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I64x2ExtMulHighI32x4U:
     case kPPC_I64x2Abs:
     case kPPC_I32x4Splat:
-    case kPPC_I32x4ExtractLane:
     case kPPC_I32x4ReplaceLane:
     case kPPC_I32x4Add:
     case kPPC_I32x4Sub:
@@ -229,8 +225,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I32x4TruncSatF64x2UZero:
     case kPPC_I32x4DotI8x16AddS:
     case kPPC_I16x8Splat:
-    case kPPC_I16x8ExtractLaneU:
-    case kPPC_I16x8ExtractLaneS:
     case kPPC_I16x8ReplaceLane:
     case kPPC_I16x8Add:
     case kPPC_I16x8Sub:
@@ -271,8 +265,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_I16x8ExtMulHighI8x16U:
     case kPPC_I16x8DotI8x16S:
     case kPPC_I8x16Splat:
-    case kPPC_I8x16ExtractLaneU:
-    case kPPC_I8x16ExtractLaneS:
     case kPPC_I8x16ReplaceLane:
     case kPPC_I8x16Add:
     case kPPC_I8x16Sub:
@@ -316,6 +308,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kPPC_S128Not:
     case kPPC_S128Select:
     case kPPC_S128AndNot:
+    case kPPC_FExtractLane:
+    case kPPC_IExtractLane:
+    case kPPC_IExtractLaneU:
+    case kPPC_IExtractLaneS:
     case kPPC_LoadReverseSimd128RR:
       return kNoOpcodeFlags;
 

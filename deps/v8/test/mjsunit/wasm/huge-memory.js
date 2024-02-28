@@ -15,7 +15,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   const num_pages = 49152;  // 3GB
 
-  builder.addMemory(num_pages, num_pages, true);
+  builder.addMemory(num_pages, num_pages);
   builder.addFunction("geti", kSig_i_ii)
     .addBody([
       kExprLocalGet, 0,
@@ -40,7 +40,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   const num_pages = 49152;  // 3GB
 
-  builder.addMemory(num_pages, num_pages, true);
+  builder.addMemory(num_pages, num_pages);
   builder.addFunction("geti", kSig_i_v)
     .addBody([
       kExprI32Const, 0x80, 0x80, 0x80, 0x80, 0x7A, // 0xA0000000, 2.5GB
@@ -61,7 +61,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   const num_pages = 49152;  // 3GB
 
-  builder.addMemory(num_pages, num_pages, true);
+  builder.addMemory(num_pages, num_pages);
   builder.addFunction("geti", kSig_i_v)
     .addBody([
       kExprI32Const, 0x80, 0x80, 0x80, 0x80, 0x7E, // 0xE0000000, 3.5GB

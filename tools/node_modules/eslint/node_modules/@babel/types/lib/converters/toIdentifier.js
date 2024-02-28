@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = toIdentifier;
-var _isValidIdentifier = require("../validators/isValidIdentifier");
+var _isValidIdentifier = require("../validators/isValidIdentifier.js");
 var _helperValidatorIdentifier = require("@babel/helper-validator-identifier");
 function toIdentifier(input) {
   input = input + "";

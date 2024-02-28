@@ -70,14 +70,14 @@ class BytecodeExpectationsPrinter final {
   void PrintSourcePosition(std::ostream* stream,
                            SourcePositionTableIterator* source_iterator,
                            int bytecode_offset) const;
-  void PrintV8String(std::ostream* stream, i::String string) const;
+  void PrintV8String(std::ostream* stream, i::Tagged<i::String> string) const;
   void PrintConstant(std::ostream* stream, i::Handle<i::Object> constant) const;
   void PrintFrameSize(std::ostream* stream,
                       i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintBytecodeSequence(std::ostream* stream,
                              i::Handle<i::BytecodeArray> bytecode_array) const;
   void PrintConstantPool(std::ostream* stream,
-                         i::FixedArray constant_pool) const;
+                         i::Tagged<i::FixedArray> constant_pool) const;
   void PrintCodeSnippet(std::ostream* stream, const std::string& body) const;
   void PrintBytecodeArray(std::ostream* stream,
                           i::Handle<i::BytecodeArray> bytecode_array) const;

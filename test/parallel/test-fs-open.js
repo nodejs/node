@@ -94,7 +94,7 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
       code: 'ERR_INVALID_ARG_TYPE',
       name: 'TypeError'
     }
-  );
+  ).then(common.mustCall());
 });
 
 // Check invalid modes.
@@ -116,5 +116,5 @@ for (const extra of [[], ['r'], ['r', 0], ['r', 0, 'bad callback']]) {
     {
       code: 'ERR_INVALID_ARG_TYPE'
     }
-  );
+  ).then(common.mustCall());
 });

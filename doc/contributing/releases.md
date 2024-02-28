@@ -20,7 +20,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
   * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
-    * [7.1 Updating the release _(optional)_](#7-1-updating-the-release-optional)
+    * [7.1 Updating the release _(optional)_](#71-updating-the-release-optional)
   * [8. Produce a nightly build _(optional)_](#8-produce-a-nightly-build-optional)
   * [9. Produce release builds](#9-produce-release-builds)
   * [10. Test the build](#10-test-the-build)
@@ -32,9 +32,8 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [16. Check the release](#16-check-the-release)
   * [17. Create a blog post](#17-create-a-blog-post)
   * [18. Create the release on GitHub](#18-create-the-release-on-github)
-  * [19. Cleanup](#19-cleanup)
-  * [20. Announce](#20-announce)
-  * [21. Celebrate](#21-celebrate)
+  * [19. Announce](#19-announce)
+  * [20. Celebrate](#20-celebrate)
 * [LTS releases](#lts-releases)
 * [Major releases](#major-releases)
 
@@ -563,7 +562,7 @@ ecosystem.
 Use `ncu-ci` to compare `vx.x` run (10) and proposal branch (11)
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ncu-ci citgm 10 11
 ```
 
@@ -884,6 +883,12 @@ same GPG key!**
 Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
 need to ensure you've loaded the correct ssh key, or you'll see the following:
 
+If your GPG key is protected by a password, you might need to run:
+
+```console
+$ export GPG_TTY=$(tty)
+```
+
 ```console
 # Checking for releases ...
 Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
@@ -1052,7 +1057,7 @@ _In whatever form you do this..._
 ### Marking a release line as LTS
 
 The process of marking a release line as LTS has been automated using
-[node-core-utils](https://github.com/nodejs/node-core-utils).
+[`@node-core/utils`](https://github.com/nodejs/node-core-utils).
 
 Start by checking out the staging branch for the release line that is going to
 be marked as LTS, e.g:
@@ -1061,10 +1066,10 @@ be marked as LTS, e.g:
 git checkout v1.x-staging
 ```
 
-Next, make sure you have **node-core-utils** installed:
+Next, make sure you have **`@node-core/utils`** installed:
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ```
 
 Run the prepare LTS release command:
@@ -1110,7 +1115,7 @@ current LTS codename in its release line changelog file.
 
 The `test/parallel/test-process-release.js` file might also need to be updated.
 
-In case you can not run the automated `node-core-utils` command and you are
+In case you can not run the automated `@node-core/utils` command and you are
 currently running these steps manually it's a good idea to refer to previous
 LTS proposal PRs and make sure all required changes are covered.
 
@@ -1130,7 +1135,7 @@ In order to make sure a download URL
 (e.g: <https://nodejs.org/download/release/latest-codename/>) will be available
 for the new LTS release line you need to submit a PR to
 <https://github.com/nodejs/nodejs-latest-linker> and add a new entry for the
-new LTS codename in its `ltsNames` map located in the `./latest-linker.js`
+new LTS codename in its `ltsNames` map located in the `./common.js`
 file.
 
 Make sure to reach out to the Build WG in order to validate that the new URL is
@@ -1207,6 +1212,20 @@ Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
 that will need updating to include the new major release.
 
+To keep the branch in sync until the release date, it can be as simple as
+doing the following:
+
+> Make sure to check that there are no PRs with the label `dont-land-on-vX.x`.
+
+```bash
+git checkout vN.x
+git reset --hard upstream/main
+git checkout vN.x-staging
+git reset --hard upstream/main
+git push upstream vN.x
+git push upstream vN.x-staging
+```
+
 ### Update `NODE_MODULE_VERSION`
 
 This macro in `src/node_version.h` is used to signal an ABI version for native
@@ -1278,6 +1297,12 @@ The commits in the generated changelog must then be organized:
 * Remove all release commits from the list
 * Remove all reverted commits and their reverts
 * Separate all SEMVER-MAJOR, SEMVER-MINOR, and SEMVER-PATCH commits into lists
+
+```console
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-major --group --filter-release  # get all majors
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-minor --group --filter-release  # get all minors
+$ branch-diff upstream/vN-1.x upstream/vN.x --exclude-label=semver-major,semver-minor --group --filter-release  # get all patches
+```
 
 #### Generate the notable changes
 

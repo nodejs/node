@@ -3,3 +3,4 @@
 BasedOnStyle: Google
 DerivePointerAlignment: false
 MaxEmptyLinesToKeep: 1
+IfMacros: ['IF', 'IF_NOT', 'ELSE', 'ELSE_IF']

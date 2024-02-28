@@ -79,13 +79,25 @@ const uint32_t kOnExecute = 5;
 const uint32_t kOnTimeout = 6;
 // Any more fields than this will be flushed into JS
 const size_t kMaxHeaderFieldsCount = 32;
+// Maximum size of chunk extensions
+const size_t kMaxChunkExtensionsSize = 16384;
 
 const uint32_t kLenientNone = 0;
 const uint32_t kLenientHeaders = 1 << 0;
 const uint32_t kLenientChunkedLength = 1 << 1;
 const uint32_t kLenientKeepAlive = 1 << 2;
-const uint32_t kLenientAll = kLenientHeaders | kLenientChunkedLength |
-  kLenientKeepAlive;
+const uint32_t kLenientTransferEncoding = 1 << 3;
+const uint32_t kLenientVersion = 1 << 4;
+const uint32_t kLenientDataAfterClose = 1 << 5;
+const uint32_t kLenientOptionalLFAfterCR = 1 << 6;
+const uint32_t kLenientOptionalCRLFAfterChunk = 1 << 7;
+const uint32_t kLenientOptionalCRBeforeLF = 1 << 8;
+const uint32_t kLenientSpacesAfterChunkSize = 1 << 9;
+const uint32_t kLenientAll =
+    kLenientHeaders | kLenientChunkedLength | kLenientKeepAlive |
+    kLenientTransferEncoding | kLenientVersion | kLenientDataAfterClose |
+    kLenientOptionalLFAfterCR | kLenientOptionalCRLFAfterChunk |
+    kLenientOptionalCRBeforeLF | kLenientSpacesAfterChunkSize;
 
 inline bool IsOWS(char c) {
   return c == ' ' || c == '\t';
@@ -261,6 +273,7 @@ class Parser : public AsyncWrap, public StreamListener {
 
     num_fields_ = num_values_ = 0;
     headers_completed_ = false;
+    chunk_extensions_nread_ = 0;
     last_message_start_ = uv_hrtime();
     url_.Reset();
     status_message_.Reset();
@@ -516,9 +529,22 @@ class Parser : public AsyncWrap, public StreamListener {
     return 0;
   }
 
-  // Reset nread for the next chunk
+  int on_chunk_extension(const char* at, size_t length) {
+    chunk_extensions_nread_ += length;
+
+    if (chunk_extensions_nread_ > kMaxChunkExtensionsSize) {
+      llhttp_set_error_reason(&parser_,
+          "HPE_CHUNK_EXTENSIONS_OVERFLOW:Chunk extensions overflow");
+      return HPE_USER;
+    }
+
+    return 0;
+  }
+
+  // Reset nread for the next chunk and also reset the extensions counter
   int on_chunk_header() {
     header_nread_ = 0;
+    chunk_extensions_nread_ = 0;
     return 0;
   }
 
@@ -930,6 +956,27 @@ class Parser : public AsyncWrap, public StreamListener {
     if (lenient_flags & kLenientKeepAlive) {
       llhttp_set_lenient_keep_alive(&parser_, 1);
     }
+    if (lenient_flags & kLenientTransferEncoding) {
+      llhttp_set_lenient_transfer_encoding(&parser_, 1);
+    }
+    if (lenient_flags & kLenientVersion) {
+      llhttp_set_lenient_version(&parser_, 1);
+    }
+    if (lenient_flags & kLenientDataAfterClose) {
+      llhttp_set_lenient_data_after_close(&parser_, 1);
+    }
+    if (lenient_flags & kLenientOptionalLFAfterCR) {
+      llhttp_set_lenient_optional_lf_after_cr(&parser_, 1);
+    }
+    if (lenient_flags & kLenientOptionalCRLFAfterChunk) {
+      llhttp_set_lenient_optional_crlf_after_chunk(&parser_, 1);
+    }
+    if (lenient_flags & kLenientOptionalCRBeforeLF) {
+      llhttp_set_lenient_optional_cr_before_lf(&parser_, 1);
+    }
+    if (lenient_flags & kLenientSpacesAfterChunkSize) {
+      llhttp_set_lenient_spaces_after_chunk_size(&parser_, 1);
+    }
 
     header_nread_ = 0;
     url_.Reset();
@@ -986,6 +1033,7 @@ class Parser : public AsyncWrap, public StreamListener {
   bool headers_completed_ = false;
   bool pending_pause_ = false;
   uint64_t header_nread_ = 0;
+  uint64_t chunk_extensions_nread_ = 0;
   uint64_t max_http_header_size_;
   uint64_t last_message_start_;
   ConnectionsList* connectionsList_;
@@ -1164,10 +1212,9 @@ const llhttp_settings_t Parser::settings = {
     Proxy<DataCall, &Parser::on_header_value>::Raw,
 
     // on_chunk_extension_name
-    nullptr,
+    Proxy<DataCall, &Parser::on_chunk_extension>::Raw,
     // on_chunk_extension_value
-    nullptr,
-
+    Proxy<DataCall, &Parser::on_chunk_extension>::Raw,
     Proxy<Call, &Parser::on_headers_complete>::Raw,
     Proxy<DataCall, &Parser::on_body>::Raw,
     Proxy<Call, &Parser::on_message_complete>::Raw,
@@ -1236,6 +1283,23 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kLenientChunkedLength));
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientKeepAlive"),
          Integer::NewFromUnsigned(env->isolate(), kLenientKeepAlive));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientTransferEncoding"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientTransferEncoding));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientVersion"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientVersion));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientDataAfterClose"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientDataAfterClose));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalLFAfterCR"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalLFAfterCR));
+  t->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRLFAfterChunk"),
+      Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRLFAfterChunk));
+  t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientOptionalCRBeforeLF"),
+         Integer::NewFromUnsigned(env->isolate(), kLenientOptionalCRBeforeLF));
+  t->Set(
+      FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientSpacesAfterChunkSize"),
+      Integer::NewFromUnsigned(env->isolate(), kLenientSpacesAfterChunkSize));
+
   t->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "kLenientAll"),
          Integer::NewFromUnsigned(env->isolate(), kLenientAll));
 

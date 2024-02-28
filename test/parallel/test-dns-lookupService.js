@@ -32,4 +32,4 @@ assert.rejects(
     message: 'getnameinfo ENOENT 127.0.0.1',
     syscall: 'getnameinfo'
   }
-);
+).then(common.mustCall());

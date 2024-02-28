@@ -39,7 +39,7 @@ Handle<Code> AssembleCodeImpl(Isolate* isolate, Func assemble) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
   if (v8_flags.print_code) {
-    code->Print();
+    Print(*code);
   }
   return code;
 }

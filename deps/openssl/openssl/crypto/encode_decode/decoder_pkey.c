@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -150,7 +150,11 @@ static int decoder_construct_pkey(OSSL_DECODER_INSTANCE *decoder_inst,
 
             import_data.keymgmt = keymgmt;
             import_data.keydata = NULL;
-            import_data.selection = data->selection;
+            if (data->selection == 0)
+                /* import/export functions do not tolerate 0 selection */
+                import_data.selection = OSSL_KEYMGMT_SELECT_ALL;
+            else
+                import_data.selection = data->selection;
 
             /*
              * No need to check for errors here, the value of

@@ -12,10 +12,11 @@ namespace permission {
 
 class ChildProcessPermission final : public PermissionBase {
  public:
-  void Apply(const std::vector<std::string>& allow,
+  void Apply(Environment* env,
+             const std::vector<std::string>& allow,
              PermissionScope scope) override;
   bool is_granted(PermissionScope perm,
-                  const std::string_view& param = "") override;
+                  const std::string_view& param = "") const override;
 
  private:
   bool deny_all_;

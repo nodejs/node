@@ -1,14 +1,16 @@
 'use strict'
 
-const assert = require('assert')
+const assert = require('node:assert')
 const { kDestroyed, kBodyUsed } = require('./symbols')
-const { IncomingMessage } = require('http')
-const stream = require('stream')
-const net = require('net')
+const { IncomingMessage } = require('node:http')
+const stream = require('node:stream')
+const net = require('node:net')
 const { InvalidArgumentError } = require('./errors')
-const { Blob } = require('buffer')
-const nodeUtil = require('util')
-const { stringify } = require('querystring')
+const { Blob } = require('node:buffer')
+const nodeUtil = require('node:util')
+const { stringify } = require('node:querystring')
+const { headerNameLowerCasedRecord } = require('./constants')
+const { tree } = require('./tree')
 
 const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
 
@@ -58,31 +60,31 @@ function parseURL (url) {
     throw new InvalidArgumentError('Invalid URL: The URL argument must be a non-null object.')
   }
 
-  if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
-    throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
-  }
-
-  if (url.path != null && typeof url.path !== 'string') {
-    throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
-  }
-
-  if (url.pathname != null && typeof url.pathname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
-  }
-
-  if (url.hostname != null && typeof url.hostname !== 'string') {
-    throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
-  }
-
-  if (url.origin != null && typeof url.origin !== 'string') {
-    throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
-  }
-
   if (!/^https?:/.test(url.origin || url.protocol)) {
     throw new InvalidArgumentError('Invalid URL protocol: the URL must start with `http:` or `https:`.')
   }
 
   if (!(url instanceof URL)) {
+    if (url.port != null && url.port !== '' && !Number.isFinite(parseInt(url.port))) {
+      throw new InvalidArgumentError('Invalid URL: port must be a valid integer or a string representation of an integer.')
+    }
+
+    if (url.path != null && typeof url.path !== 'string') {
+      throw new InvalidArgumentError('Invalid URL path: the path must be a string or null/undefined.')
+    }
+
+    if (url.pathname != null && typeof url.pathname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL pathname: the pathname must be a string or null/undefined.')
+    }
+
+    if (url.hostname != null && typeof url.hostname !== 'string') {
+      throw new InvalidArgumentError('Invalid URL hostname: the hostname must be a string or null/undefined.')
+    }
+
+    if (url.origin != null && typeof url.origin !== 'string') {
+      throw new InvalidArgumentError('Invalid URL origin: the origin must be a string or null/undefined.')
+    }
+
     const port = url.port != null
       ? url.port
       : (url.protocol === 'https:' ? 443 : 80)
@@ -125,13 +127,13 @@ function getHostname (host) {
     const idx = host.indexOf(']')
 
     assert(idx !== -1)
-    return host.substr(1, idx - 1)
+    return host.substring(1, idx)
   }
 
   const idx = host.indexOf(':')
   if (idx === -1) return host
 
-  return host.substr(0, idx)
+  return host.substring(0, idx)
 }
 
 // IP addresses are not valid server names per RFC6066
@@ -168,7 +170,7 @@ function bodyLength (body) {
     return 0
   } else if (isStream(body)) {
     const state = body._readableState
-    return state && state.ended === true && Number.isFinite(state.length)
+    return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length)
       ? state.length
       : null
   } else if (isBlobLike(body)) {
@@ -185,12 +187,12 @@ function isDestroyed (stream) {
 }
 
 function isReadableAborted (stream) {
-  const state = stream && stream._readableState
+  const state = stream?._readableState
   return isDestroyed(stream) && state && !state.endEmitted
 }
 
 function destroy (stream, err) {
-  if (!isStream(stream) || isDestroyed(stream)) {
+  if (stream == null || !isStream(stream) || isDestroyed(stream)) {
     return
   }
 
@@ -199,6 +201,7 @@ function destroy (stream, err) {
       // See: https://github.com/nodejs/node/pull/38505/files
       stream.socket = null
     }
+
     stream.destroy(err)
   } else if (err) {
     process.nextTick((stream, err) => {
@@ -217,23 +220,53 @@ function parseKeepAliveTimeout (val) {
   return m ? parseInt(m[1], 10) * 1000 : null
 }
 
-function parseHeaders (headers, obj = {}) {
+/**
+ * Retrieves a header name and returns its lowercase value.
+ * @param {string | Buffer} value Header name
+ * @returns {string}
+ */
+function headerNameToString (value) {
+  return typeof value === 'string'
+    ? headerNameLowerCasedRecord[value] ?? value.toLowerCase()
+    : tree.lookup(value) ?? value.toString('latin1').toLowerCase()
+}
+
+/**
+ * Receive the buffer as a string and return its lowercase value.
+ * @param {Buffer} value Header name
+ * @returns {string}
+ */
+function bufferToLowerCasedHeaderName (value) {
+  return tree.lookup(value) ?? value.toString('latin1').toLowerCase()
+}
+
+/**
+ * @param {Record<string, string | string[]> | (Buffer | string | (Buffer | string)[])[]} headers
+ * @param {Record<string, string | string[]>} [obj]
+ * @returns {Record<string, string | string[]>}
+ */
+function parseHeaders (headers, obj) {
+  // For H2 support
+  if (!Array.isArray(headers)) return headers
+
+  if (obj === undefined) obj = {}
   for (let i = 0; i < headers.length; i += 2) {
-    const key = headers[i].toString().toLowerCase()
+    const key = headerNameToString(headers[i])
     let val = obj[key]
 
-    if (!val) {
-      if (Array.isArray(headers[i + 1])) {
-        obj[key] = headers[i + 1]
-      } else {
-        obj[key] = headers[i + 1].toString('utf8')
-      }
-    } else {
-      if (!Array.isArray(val)) {
+    if (val) {
+      if (typeof val === 'string') {
         val = [val]
         obj[key] = val
       }
       val.push(headers[i + 1].toString('utf8'))
+    } else {
+      const headersValue = headers[i + 1]
+      if (typeof headersValue === 'string') {
+        obj[key] = headersValue
+      } else {
+        obj[key] = Array.isArray(headersValue) ? headersValue.map(x => x.toString('utf8')) : headersValue.toString('utf8')
+      }
     }
   }
 
@@ -316,30 +349,16 @@ function validateHandler (handler, method, upgrade) {
 // A body is disturbed if it has been read from and it cannot
 // be re-used without losing state or data.
 function isDisturbed (body) {
-  return !!(body && (
-    stream.isDisturbed
-      ? stream.isDisturbed(body) || body[kBodyUsed] // TODO (fix): Why is body[kBodyUsed] needed?
-      : body[kBodyUsed] ||
-        body.readableDidRead ||
-        (body._readableState && body._readableState.dataEmitted) ||
-        isReadableAborted(body)
-  ))
+  // TODO (fix): Why is body[kBodyUsed] needed?
+  return !!(body && (stream.isDisturbed(body) || body[kBodyUsed]))
 }
 
 function isErrored (body) {
-  return !!(body && (
-    stream.isErrored
-      ? stream.isErrored(body)
-      : /state: 'errored'/.test(nodeUtil.inspect(body)
-      )))
+  return !!(body && stream.isErrored(body))
 }
 
 function isReadable (body) {
-  return !!(body && (
-    stream.isReadable
-      ? stream.isReadable(body)
-      : /state: 'readable'/.test(nodeUtil.inspect(body)
-      )))
+  return !!(body && stream.isReadable(body))
 }
 
 function getSocketInfo (socket) {
@@ -355,16 +374,9 @@ function getSocketInfo (socket) {
   }
 }
 
-let ReadableStream
+/** @type {globalThis['ReadableStream']} */
 function ReadableStreamFrom (iterable) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
-  if (ReadableStream.from) {
-    // https://github.com/whatwg/streams/pull/1083
-    return ReadableStream.from(iterable)
-  }
+  // We cannot use ReadableStream.from here because it does not return a byte stream.
 
   let iterator
   return new ReadableStream(
@@ -377,18 +389,21 @@ function ReadableStreamFrom (iterable) {
         if (done) {
           queueMicrotask(() => {
             controller.close()
+            controller.byobRequest?.respond(0)
           })
         } else {
           const buf = Buffer.isBuffer(value) ? value : Buffer.from(value)
-          controller.enqueue(new Uint8Array(buf))
+          if (buf.byteLength) {
+            controller.enqueue(new Uint8Array(buf))
+          }
         }
         return controller.desiredSize > 0
       },
       async cancel (reason) {
         await iterator.return()
-      }
-    },
-    0
+      },
+      type: 'bytes'
+    }
   )
 }
 
@@ -408,30 +423,7 @@ function isFormDataLike (object) {
   )
 }
 
-function throwIfAborted (signal) {
-  if (!signal) { return }
-  if (typeof signal.throwIfAborted === 'function') {
-    signal.throwIfAborted()
-  } else {
-    if (signal.aborted) {
-      // DOMException not available < v17.0.0
-      const err = new Error('The operation was aborted')
-      err.name = 'AbortError'
-      throw err
-    }
-  }
-}
-
-let events
 function addAbortListener (signal, listener) {
-  if (typeof Symbol.dispose === 'symbol') {
-    if (!events) {
-      events = require('events')
-    }
-    if (typeof events.addAbortListener === 'function' && 'aborted' in signal) {
-      return events.addAbortListener(signal, listener)
-    }
-  }
   if ('addEventListener' in signal) {
     signal.addEventListener('abort', listener, { once: true })
     return () => signal.removeEventListener('abort', listener)
@@ -455,6 +447,67 @@ function toUSVString (val) {
   return `${val}`
 }
 
+/**
+ * @see https://tools.ietf.org/html/rfc7230#section-3.2.6
+ * @param {number} c
+ */
+function isTokenCharCode (c) {
+  switch (c) {
+    case 0x22:
+    case 0x28:
+    case 0x29:
+    case 0x2c:
+    case 0x2f:
+    case 0x3a:
+    case 0x3b:
+    case 0x3c:
+    case 0x3d:
+    case 0x3e:
+    case 0x3f:
+    case 0x40:
+    case 0x5b:
+    case 0x5c:
+    case 0x5d:
+    case 0x7b:
+    case 0x7d:
+      // DQUOTE and "(),/:;<=>?@[\]{}"
+      return false
+    default:
+      // VCHAR %x21-7E
+      return c >= 0x21 && c <= 0x7e
+  }
+}
+
+/**
+ * @param {string} characters
+ */
+function isValidHTTPToken (characters) {
+  if (characters.length === 0) {
+    return false
+  }
+  for (let i = 0; i < characters.length; ++i) {
+    if (!isTokenCharCode(characters.charCodeAt(i))) {
+      return false
+    }
+  }
+  return true
+}
+
+// Parsed accordingly to RFC 9110
+// https://www.rfc-editor.org/rfc/rfc9110#field.content-range
+function parseRangeHeader (range) {
+  if (range == null || range === '') return { start: 0, end: null, size: null }
+
+  const m = range ? range.match(/^bytes (\d+)-(\d+)\/(\d+)?$/) : null
+  return m
+    ? {
+        start: parseInt(m[1]),
+        end: m[2] ? parseInt(m[2]) : null,
+        size: m[3] ? parseInt(m[3]) : null
+      }
+    : null
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -474,6 +527,8 @@ module.exports = {
   isIterable,
   isAsyncIterable,
   isDestroyed,
+  headerNameToString,
+  bufferToLowerCasedHeaderName,
   parseRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,
@@ -486,9 +541,12 @@ module.exports = {
   getSocketInfo,
   isFormDataLike,
   buildURL,
-  throwIfAborted,
   addAbortListener,
+  isValidHTTPToken,
+  isTokenCharCode,
+  parseRangeHeader,
   nodeMajor,
   nodeMinor,
-  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13)
+  nodeHasAutoSelectFamily: nodeMajor > 18 || (nodeMajor === 18 && nodeMinor >= 13),
+  safeHTTPMethods: ['GET', 'HEAD', 'OPTIONS', 'TRACE']
 }

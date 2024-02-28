@@ -99,14 +99,14 @@ RUNTIME_FUNCTION(Runtime_ToBigIntConvertNumber) {
   DCHECK_EQ(1, args.length());
   Handle<Object> x = args.at(0);
 
-  if (x->IsJSReceiver()) {
+  if (IsJSReceiver(*x)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, x,
         JSReceiver::ToPrimitive(isolate, Handle<JSReceiver>::cast(x),
                                 ToPrimitiveHint::kNumber));
   }
 
-  if (x->IsNumber()) {
+  if (IsNumber(*x)) {
     RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, x));
   } else {
     RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, x));
@@ -121,7 +121,7 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   int opcode = args.smi_value_at(2);
   Operation op = static_cast<Operation>(opcode);
 
-  if (!left_obj->IsBigInt() || !right_obj->IsBigInt()) {
+  if (!IsBigInt(*left_obj) || !IsBigInt(*right_obj)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kBigIntMixedTypes));
   }

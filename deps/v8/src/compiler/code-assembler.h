@@ -19,6 +19,7 @@
 #include "src/builtins/builtins.h"
 #include "src/codegen/atomic-memory-order.h"
 #include "src/codegen/callable.h"
+#include "src/codegen/handler-table.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/source-position.h"
 #include "src/codegen/tnode.h"
@@ -144,6 +145,11 @@ struct ObjectTypeOf {};
   struct ObjectTypeOf<Name<Args...>> {                   \
     static const ObjectType value = ObjectType::k##Name; \
   };
+#define OBJECT_TYPE_ODDBALL_CASE(Name)                    \
+  template <>                                             \
+  struct ObjectTypeOf<Name> {                             \
+    static const ObjectType value = ObjectType::kOddball; \
+  };
 OBJECT_TYPE_CASE(Object)
 OBJECT_TYPE_CASE(Smi)
 OBJECT_TYPE_CASE(TaggedIndex)
@@ -153,6 +159,10 @@ OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
 HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
+OBJECT_TYPE_ODDBALL_CASE(Null)
+OBJECT_TYPE_ODDBALL_CASE(Undefined)
+OBJECT_TYPE_ODDBALL_CASE(True)
+OBJECT_TYPE_ODDBALL_CASE(False)
 #undef OBJECT_TYPE_CASE
 #undef OBJECT_TYPE_STRUCT_CASE
 #undef OBJECT_TYPE_TEMPLATE_CASE
@@ -337,6 +347,7 @@ TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
   V(ChangeUint32ToUint64, Uint64T, Word32T)                    \
   V(BitcastInt32ToFloat32, Float32T, Word32T)                  \
   V(BitcastFloat32ToInt32, Uint32T, Float32T)                  \
+  V(BitcastFloat64ToInt64, IntPtrT, Float64T)                  \
   V(RoundFloat64ToInt32, Int32T, Float64T)                     \
   V(RoundInt32ToFloat32, Float32T, Int32T)                     \
   V(Float64SilenceNaN, Float64T, Float64T)                     \
@@ -512,11 +523,16 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Constants.
   TNode<Int32T> UniqueInt32Constant(int32_t value);
   TNode<Int32T> Int32Constant(int32_t value);
+  TNode<Int64T> UniqueInt64Constant(int64_t value);
   TNode<Int64T> Int64Constant(int64_t value);
   TNode<Uint64T> Uint64Constant(uint64_t value) {
     return Unsigned(Int64Constant(base::bit_cast<int64_t>(value)));
   }
   TNode<IntPtrT> IntPtrConstant(intptr_t value);
+  TNode<IntPtrT> UniqueIntPtrConstant(intptr_t value);
+  TNode<Uint32T> UniqueUint32Constant(int32_t value) {
+    return Unsigned(UniqueInt32Constant(base::bit_cast<int32_t>(value)));
+  }
   TNode<Uint32T> Uint32Constant(uint32_t value) {
     return Unsigned(Int32Constant(base::bit_cast<int32_t>(value)));
   }
@@ -529,7 +545,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
         IntPtrConstant(base::bit_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
-  TNode<Smi> SmiConstant(Smi value);
+  TNode<Smi> SmiConstant(Tagged<Smi> value);
   TNode<Smi> SmiConstant(int value);
   template <typename E,
             typename = typename std::enable_if<std::is_enum<E>::value>::type>
@@ -543,7 +559,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<Type>(UntypedHeapConstant(object));
   }
   TNode<String> StringConstant(const char* str);
-  TNode<Oddball> BooleanConstant(bool value);
+  TNode<Boolean> BooleanConstant(bool value);
   TNode<ExternalReference> ExternalConstant(ExternalReference address);
   TNode<Float32T> Float32Constant(double value);
   TNode<Float64T> Float64Constant(double value);
@@ -566,8 +582,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool TryToInt64Constant(TNode<IntegralT> node, int64_t* out_value);
   bool TryToIntPtrConstant(TNode<IntegralT> node, intptr_t* out_value);
   bool TryToIntPtrConstant(TNode<Smi> tnode, intptr_t* out_value);
-  bool TryToSmiConstant(TNode<IntegralT> node, Smi* out_value);
-  bool TryToSmiConstant(TNode<Smi> node, Smi* out_value);
+  bool TryToSmiConstant(TNode<IntegralT> node, Tagged<Smi>* out_value);
+  bool TryToSmiConstant(TNode<Smi> node, Tagged<Smi>* out_value);
 
   bool IsUndefinedConstant(TNode<Object> node);
   bool IsNullConstant(TNode<Object> node);
@@ -600,7 +616,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       message << " at " << loc.FileName() << ":" << loc.Line();
     }
     size_t buf_size = message.str().size() + 1;
-    char* message_dup = zone()->NewArray<char>(buf_size);
+    char* message_dup = zone()->AllocateArray<char>(buf_size);
     snprintf(message_dup, buf_size, "%s", message.str().c_str());
 
     return Cast(UntypedParameter(value), message_dup);
@@ -625,6 +641,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Return(TNode<WordT> value1, TNode<WordT> value2);
   void Return(TNode<WordT> value1, TNode<Object> value2);
   void PopAndReturn(Node* pop, Node* value);
+  void PopAndReturn(Node* pop, Node* value1, Node* value2, Node* value3,
+                    Node* value4);
 
   void ReturnIf(TNode<BoolT> condition, TNode<Object> value);
 
@@ -722,6 +740,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Access to the frame pointer
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
+  TNode<RawPtrT> StackSlotPtr(int size, int alignment);
+
+  TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
 
   // Load raw memory location.
   Node* Load(MachineType type, Node* base);
@@ -795,13 +816,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Optimized memory operations that map to Turbofan simplified nodes.
   TNode<HeapObject> OptimizedAllocate(TNode<IntPtrT> size,
-                                      AllocationType allocation,
-                                      AllowLargeObjects allow_large_objects);
+                                      AllocationType allocation);
   void StoreToObject(MachineRepresentation rep, TNode<Object> object,
                      TNode<IntPtrT> offset, Node* value,
                      StoreToObjectWriteBarrier write_barrier);
   void OptimizedStoreField(MachineRepresentation rep, TNode<HeapObject> object,
                            int offset, Node* value);
+  void OptimizedStoreIndirectPointerField(TNode<HeapObject> object, int offset,
+                                          IndirectPointerTag tag, Node* value);
+  void OptimizedStoreIndirectPointerFieldNoWriteBarrier(
+      TNode<HeapObject> object, int offset, IndirectPointerTag tag,
+      Node* value);
   void OptimizedStoreFieldAssertNoWriteBarrier(MachineRepresentation rep,
                                                TNode<HeapObject> object,
                                                int offset, Node* value);
@@ -1189,6 +1214,14 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     TNode<Code> target, TNode<Object> context, TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallCodeObject, descriptor,
                                       target, context, args...));
+  }
+
+  template <class... TArgs>
+  void CallStubVoid(Callable const& callable, TNode<Object> context,
+                    TArgs... args) {
+    TNode<Code> target = HeapConstant(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
   }
 
   template <class T = Object, class... TArgs>

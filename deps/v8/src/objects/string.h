@@ -16,6 +16,7 @@
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/strings/unicode-decoder.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -44,9 +45,10 @@ enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 // concrete performance benefit at that particular point in the code.
 class StringShape {
  public:
-  V8_INLINE explicit StringShape(const String s);
-  V8_INLINE explicit StringShape(const String s, PtrComprCageBase cage_base);
-  V8_INLINE explicit StringShape(Map s);
+  V8_INLINE explicit StringShape(const Tagged<String> s);
+  V8_INLINE explicit StringShape(const Tagged<String> s,
+                                 PtrComprCageBase cage_base);
+  V8_INLINE explicit StringShape(Tagged<Map> s);
   V8_INLINE explicit StringShape(InstanceType t);
   V8_INLINE bool IsSequential() const;
   V8_INLINE bool IsExternal() const;
@@ -79,7 +81,7 @@ class StringShape {
   template <typename TDispatcher, typename TResult, typename... TArgs>
   inline TResult DispatchToSpecificTypeWithoutCast(TArgs&&... args);
   template <typename TDispatcher, typename TResult, typename... TArgs>
-  inline TResult DispatchToSpecificType(String str, TArgs&&... args);
+  inline TResult DispatchToSpecificType(Tagged<String> str, TArgs&&... args);
 
  private:
   uint32_t type_;
@@ -195,9 +197,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  void MakeThin(IsolateT* isolate, String canonical,
-                UpdateInvalidatedObjectSize update_invalidated_object_size =
-                    UpdateInvalidatedObjectSize::kYes);
+  void MakeThin(IsolateT* isolate, Tagged<String> canonical);
 
   template <typename Char>
   V8_INLINE base::Vector<const Char> GetCharVector(
@@ -218,8 +218,8 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Returns the address of the character at an offset into this string.
   // Requires: this->IsFlat()
-  const byte* AddressOfCharacterAt(int start_index,
-                                   const DisallowGarbageCollection& no_gc);
+  const uint8_t* AddressOfCharacterAt(int start_index,
+                                      const DisallowGarbageCollection& no_gc);
 
   // Forward declare the non-atomic (set_)length defined in torque.
   using TorqueGeneratedString::length;
@@ -237,7 +237,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // encoding of the underlying string.  This is taken into account here.
   // This function is static because that helps it get inlined.
   // Requires: string.IsFlat()
-  static inline bool IsOneByteRepresentationUnderneath(String string);
+  static inline bool IsOneByteRepresentationUnderneath(Tagged<String> string);
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -293,7 +293,7 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Returns the parent of a sliced string or first part of a flat cons string.
   // Requires: StringShape(this).IsIndirect() && this->IsFlat()
-  inline String GetUnderlying() const;
+  inline Tagged<String> GetUnderlying() const;
 
   // Shares the string. Checks inline if the string is already shared or can be
   // shared by transitioning its map in-place. If neither is possible, flattens
@@ -316,16 +316,17 @@ class String : public TorqueGeneratedString<String, Name> {
                                                         Handle<String> y);
 
   // Perform ES6 21.1.3.8, including checking arguments.
-  static Object IndexOf(Isolate* isolate, Handle<Object> receiver,
-                        Handle<Object> search, Handle<Object> position);
+  static Tagged<Object> IndexOf(Isolate* isolate, Handle<Object> receiver,
+                                Handle<Object> search, Handle<Object> position);
   // Perform string match of pattern on subject, starting at start index.
   // Caller must ensure that 0 <= start_index <= sub->length(), as this does not
   // check any arguments.
   static int IndexOf(Isolate* isolate, Handle<String> receiver,
                      Handle<String> search, int start_index);
 
-  static Object LastIndexOf(Isolate* isolate, Handle<Object> receiver,
-                            Handle<Object> search, Handle<Object> position);
+  static Tagged<Object> LastIndexOf(Isolate* isolate, Handle<Object> receiver,
+                                    Handle<Object> search,
+                                    Handle<Object> position);
 
   // Encapsulates logic related to a match and its capture groups as required
   // by GetSubstitution.
@@ -359,7 +360,7 @@ class String : public TorqueGeneratedString<String, Name> {
       int start_index = 0);
 
   // String equality operations.
-  inline bool Equals(String other) const;
+  inline bool Equals(Tagged<String> other) const;
   inline static bool Equals(Isolate* isolate, Handle<String> one,
                             Handle<String> two);
 
@@ -422,9 +423,6 @@ class String : public TorqueGeneratedString<String, Name> {
       v8::String::ExternalStringResource* resource);
   V8_EXPORT_PRIVATE bool MakeExternal(
       v8::String::ExternalOneByteStringResource* resource);
-  // TODO(pthier, v8:13785): Remove once v8::String::CanMakeExternal without
-  // encoding is removed.
-  bool SupportsExternalization();
   bool SupportsExternalization(v8::String::Encoding);
 
   // Conversion.
@@ -523,10 +521,11 @@ class String : public TorqueGeneratedString<String, Name> {
   // Helper function for flattening strings.
   template <typename sinkchar>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  static void WriteToFlat(String source, sinkchar* sink, int from, int to);
+  static void WriteToFlat(Tagged<String> source, sinkchar* sink, int from,
+                          int to);
   template <typename sinkchar>
-  static void WriteToFlat(String source, sinkchar* sink, int from, int to,
-                          PtrComprCageBase cage_base,
+  static void WriteToFlat(Tagged<String> source, sinkchar* sink, int from,
+                          int to, PtrComprCageBase cage_base,
                           const SharedStringAccessGuardIfNeeded&);
 
   // Returns true if this string has no unpaired surrogates and false otherwise.
@@ -588,12 +587,13 @@ class String : public TorqueGeneratedString<String, Name> {
   // May only be called when a SharedStringAccessGuard is not needed (i.e. on
   // the main thread or on read-only strings).
   template <class Visitor>
-  static inline ConsString VisitFlat(Visitor* visitor, String string,
-                                     int offset = 0);
+  static inline Tagged<ConsString> VisitFlat(Visitor* visitor,
+                                             Tagged<String> string,
+                                             int offset = 0);
 
   template <class Visitor>
-  static inline ConsString VisitFlat(
-      Visitor* visitor, String string, int offset,
+  static inline Tagged<ConsString> VisitFlat(
+      Visitor* visitor, Tagged<String> string, int offset,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
   template <typename IsolateT>
@@ -604,7 +604,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Returns true if string can be internalized without copying. In such cases
   // the string is inserted into the string table and its map is changed to an
   // internalized equivalent.
-  static inline bool IsInPlaceInternalizable(String string);
+  static inline bool IsInPlaceInternalizable(Tagged<String> string);
   static inline bool IsInPlaceInternalizable(InstanceType instance_type);
 
   static inline bool IsInPlaceInternalizableExcludingExternal(
@@ -630,7 +630,7 @@ class String : public TorqueGeneratedString<String, Name> {
   // Out-of-line IsEqualToImpl for ConsString.
   template <typename Char>
   V8_NOINLINE static bool IsConsStringEqualToImpl(
-      ConsString string, base::Vector<const Char> str,
+      Tagged<ConsString> string, base::Vector<const Char> str,
       PtrComprCageBase cage_base,
       const SharedStringAccessGuardIfNeeded& access_guard);
 
@@ -640,7 +640,8 @@ class String : public TorqueGeneratedString<String, Name> {
   V8_EXPORT_PRIVATE V8_INLINE static base::Optional<FlatContent>
   TryGetFlatContentFromDirectString(PtrComprCageBase cage_base,
                                     const DisallowGarbageCollection& no_gc,
-                                    String string, int offset, int length,
+                                    Tagged<String> string, int offset,
+                                    int length,
                                     const SharedStringAccessGuardIfNeeded&);
   V8_EXPORT_PRIVATE FlatContent
   SlowGetFlatContent(const DisallowGarbageCollection& no_gc,
@@ -651,9 +652,9 @@ class String : public TorqueGeneratedString<String, Name> {
 
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
-  V8_EXPORT_PRIVATE bool SlowEquals(String other) const;
+  V8_EXPORT_PRIVATE bool SlowEquals(Tagged<String> other) const;
   V8_EXPORT_PRIVATE bool SlowEquals(
-      String other, const SharedStringAccessGuardIfNeeded&) const;
+      Tagged<String> other, const SharedStringAccessGuardIfNeeded&) const;
 
   V8_EXPORT_PRIVATE static bool SlowEquals(Isolate* isolate, Handle<String> one,
                                            Handle<String> two);
@@ -673,30 +674,32 @@ class String : public TorqueGeneratedString<String, Name> {
 };
 
 // clang-format off
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-void String::WriteToFlat(String source, uint8_t* sink, int from, int to);
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-void String::WriteToFlat(String source, uint16_t* sink, int from, int to);
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-void String::WriteToFlat(String source, uint8_t* sink, int from, int to,
-                         PtrComprCageBase cage_base,
-                         const SharedStringAccessGuardIfNeeded&);
-extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-void String::WriteToFlat(String source, uint16_t* sink, int from, int to,
-                         PtrComprCageBase cage_base,
-                         const SharedStringAccessGuardIfNeeded&);
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void
+    String::WriteToFlat(Tagged<String> source, uint8_t* sink, int from, int to);
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void
+    String::WriteToFlat(Tagged<String> source, uint16_t* sink, int from,
+                        int to);
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void
+    String::WriteToFlat(Tagged<String> source, uint8_t* sink, int from, int to,
+                        PtrComprCageBase cage_base,
+                        const SharedStringAccessGuardIfNeeded&);
+extern template EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) void
+    String::WriteToFlat(Tagged<String> source, uint16_t* sink, int from, int to,
+                        PtrComprCageBase cage_base,
+                        const SharedStringAccessGuardIfNeeded&);
 // clang-format on
 
 class SubStringRange {
  public:
-  inline SubStringRange(String string, const DisallowGarbageCollection& no_gc,
-                        int first = 0, int length = -1);
+  inline SubStringRange(Tagged<String> string,
+                        const DisallowGarbageCollection& no_gc, int first = 0,
+                        int length = -1);
   class iterator;
   inline iterator begin();
   inline iterator end();
 
  private:
-  String string_;
+  Tagged<String> string_;
   int first_;
   int length_;
   const DisallowGarbageCollection& no_gc_;
@@ -783,7 +786,7 @@ class SeqOneByteString
   int AllocatedSize();
 
   // A SeqOneByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 
@@ -831,7 +834,7 @@ class SeqTwoByteString
   int AllocatedSize();
 
   // A SeqTwoByteString have different maps depending on whether it is shared.
-  static inline bool IsCompatibleMap(Map map, ReadOnlyRoots roots);
+  static inline bool IsCompatibleMap(Tagged<Map> map, ReadOnlyRoots roots);
 
   class BodyDescriptor;
 
@@ -850,11 +853,11 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
  public:
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object unchecked_first() const;
+  inline Tagged<Object> unchecked_first() const;
 
   // Doesn't check that the result is a string, even in debug mode.  This is
   // useful during GC where the mark bits confuse the checks.
-  inline Object unchecked_second() const;
+  inline Tagged<Object> unchecked_second() const;
 
   V8_INLINE bool IsFlat(PtrComprCageBase cage_base) const;
 
@@ -882,7 +885,7 @@ class ConsString : public TorqueGeneratedConsString<ConsString, String> {
 // ThinStrings can be thought of as "one-part cons strings".
 class ThinString : public TorqueGeneratedThinString<ThinString, String> {
  public:
-  DECL_GETTER(unchecked_actual, HeapObject)
+  DECL_GETTER(unchecked_actual, Tagged<HeapObject>)
 
   V8_EXPORT_PRIVATE uint16_t
   Get(int index, PtrComprCageBase cage_base,
@@ -907,7 +910,7 @@ class ThinString : public TorqueGeneratedThinString<ThinString, String> {
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
 class SlicedString : public TorqueGeneratedSlicedString<SlicedString, String> {
  public:
-  inline void set_parent(String parent,
+  inline void set_parent(Tagged<String> parent,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // Dispatched behavior.
   V8_EXPORT_PRIVATE uint16_t
@@ -1084,12 +1087,13 @@ class V8_EXPORT_PRIVATE FlatStringReader : public Relocatable {
 class ConsStringIterator {
  public:
   inline ConsStringIterator() = default;
-  inline explicit ConsStringIterator(ConsString cons_string, int offset = 0) {
+  inline explicit ConsStringIterator(Tagged<ConsString> cons_string,
+                                     int offset = 0) {
     Reset(cons_string, offset);
   }
   ConsStringIterator(const ConsStringIterator&) = delete;
   ConsStringIterator& operator=(const ConsStringIterator&) = delete;
-  inline void Reset(ConsString cons_string, int offset = 0) {
+  inline void Reset(Tagged<ConsString> cons_string, int offset = 0) {
     depth_ = 0;
     // Next will always return nullptr.
     if (cons_string.is_null()) return;
@@ -1100,9 +1104,9 @@ class ConsStringIterator {
   // to match the offset passed into the constructor or Reset -- this will only
   // be non-zero immediately after construction or Reset, and only if those had
   // a non-zero offset.
-  inline String Next(int* offset_out) {
+  inline Tagged<String> Next(int* offset_out) {
     *offset_out = 0;
-    if (depth_ == 0) return String();
+    if (depth_ == 0) return Tagged<String>();
     return Continue(offset_out);
   }
 
@@ -1114,20 +1118,20 @@ class ConsStringIterator {
                 "kStackSize must be power of two");
   static inline int OffsetForDepth(int depth);
 
-  inline void PushLeft(ConsString string);
-  inline void PushRight(ConsString string);
+  inline void PushLeft(Tagged<ConsString> string);
+  inline void PushRight(Tagged<ConsString> string);
   inline void AdjustMaximumDepth();
   inline void Pop();
   inline bool StackBlown() { return maximum_depth_ - depth_ == kStackSize; }
-  V8_EXPORT_PRIVATE void Initialize(ConsString cons_string, int offset);
-  V8_EXPORT_PRIVATE String Continue(int* offset_out);
-  String NextLeaf(bool* blew_stack);
-  String Search(int* offset_out);
+  V8_EXPORT_PRIVATE void Initialize(Tagged<ConsString> cons_string, int offset);
+  V8_EXPORT_PRIVATE Tagged<String> Continue(int* offset_out);
+  Tagged<String> NextLeaf(bool* blew_stack);
+  Tagged<String> Search(int* offset_out);
 
   // Stack must always contain only frames for which right traversal
   // has not yet been performed.
-  ConsString frames_[kStackSize];
-  ConsString root_;
+  Tagged<ConsString> frames_[kStackSize];
+  Tagged<ConsString> root_;
   int depth_;
   int maximum_depth_;
   int consumed_;

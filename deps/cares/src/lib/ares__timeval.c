@@ -1,15 +1,27 @@
-
-/* Copyright (C) 2008 by Daniel Stenberg et al
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose and without fee is hereby granted, provided
- * that the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  M.I.T. makes no representations about the
- * suitability of this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 2008 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
 #include "ares_setup.h"
@@ -26,9 +38,9 @@ struct timeval ares__tvnow(void)
   ** increases monotonically and wraps once 49.7 days have elapsed.
   */
   struct timeval now;
-  DWORD milliseconds = GetTickCount();
-  now.tv_sec = milliseconds / 1000;
-  now.tv_usec = (milliseconds % 1000) * 1000;
+  DWORD          milliseconds = GetTickCount();
+  now.tv_sec                  = (long)milliseconds / 1000;
+  now.tv_usec                 = (long)(milliseconds % 1000) * 1000;
   return now;
 }
 
@@ -43,26 +55,26 @@ struct timeval ares__tvnow(void)
   ** in any case the time starting point does not change once that the
   ** system has started up.
   */
-  struct timeval now;
+  struct timeval  now;
   struct timespec tsnow;
-  if(0 == clock_gettime(CLOCK_MONOTONIC, &tsnow)) {
-    now.tv_sec = tsnow.tv_sec;
-    now.tv_usec = tsnow.tv_nsec / 1000;
+  if (0 == clock_gettime(CLOCK_MONOTONIC, &tsnow)) {
+    now.tv_sec  = tsnow.tv_sec;
+    now.tv_usec = (int)(tsnow.tv_nsec / 1000);
   }
   /*
   ** Even when the configure process has truly detected monotonic clock
   ** availability, it might happen that it is not actually available at
   ** run-time. When this occurs simply fallback to other time source.
   */
-#ifdef HAVE_GETTIMEOFDAY
+#  ifdef HAVE_GETTIMEOFDAY
   else
-    (void)gettimeofday(&now, NULL);  /* LCOV_EXCL_LINE */
-#else
+    (void)gettimeofday(&now, NULL); /* LCOV_EXCL_LINE */
+#  else
   else {
-    now.tv_sec = (long)time(NULL);
+    now.tv_sec  = (long)time(NULL);
     now.tv_usec = 0;
   }
-#endif
+#  endif
   return now;
 }
 
@@ -88,24 +100,9 @@ struct timeval ares__tvnow(void)
   ** time() returns the value of time in seconds since the Epoch.
   */
   struct timeval now;
-  now.tv_sec = (long)time(NULL);
+  now.tv_sec  = (long)time(NULL);
   now.tv_usec = 0;
   return now;
 }
 
 #endif
-
-#if 0 /* Not used */
-/*
- * Make sure that the first argument is the more recent time, as otherwise
- * we'll get a weird negative time-diff back...
- *
- * Returns: the time difference in number of milliseconds.
- */
-long ares__tvdiff(struct timeval newer, struct timeval older)
-{
-  return (newer.tv_sec-older.tv_sec)*1000+
-    (newer.tv_usec-older.tv_usec)/1000;
-}
-#endif
-

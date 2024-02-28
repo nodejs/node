@@ -11,7 +11,12 @@
 #include "src/base/macros.h"
 #include "src/common/checks.h"
 #include "src/common/globals.h"
+#include "src/objects/tagged.h"
 #include "src/zone/zone.h"
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+#include "src/flags/flags.h"
+#endif
 
 namespace v8 {
 
@@ -24,8 +29,7 @@ class HandleScopeImplementer;
 class Isolate;
 class LocalHeap;
 class LocalIsolate;
-template <typename T>
-class MaybeHandle;
+class TaggedIndex;
 class Object;
 class OrderedHashMap;
 class OrderedHashSet;
@@ -40,16 +44,11 @@ class WasmExportedFunctionData;
 constexpr Address kTaggedNullAddress = 0x1;
 
 // ----------------------------------------------------------------------------
-// Base class for Handle instantiations.  Don't use directly.
+// Base class for Handle instantiations. Don't use directly.
 class HandleBase {
  public:
-  V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
-  V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
-  V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
-
   // Check if this handle refers to the exact same object as the other handle.
-  V8_INLINE bool is_identical_to(const HandleBase that) const;
+  V8_INLINE bool is_identical_to(const HandleBase& that) const;
   V8_INLINE bool is_null() const { return location_ == nullptr; }
 
   // Returns the raw address where this handle is stored. This should only be
@@ -67,6 +66,11 @@ class HandleBase {
   }
 
  protected:
+  V8_INLINE explicit HandleBase(Address* location) : location_(location) {}
+  V8_INLINE explicit HandleBase(Address object, Isolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalIsolate* isolate);
+  V8_INLINE explicit HandleBase(Address object, LocalHeap* local_heap);
+
 #ifdef DEBUG
   bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
 #else
@@ -94,55 +98,59 @@ class HandleBase {
 template <typename T>
 class Handle final : public HandleBase {
  public:
-  // {ObjectRef} is returned by {Handle::operator->}. It should never be stored
-  // anywhere or used in any other code; no one should ever have to spell out
-  // {ObjectRef} in code. Its only purpose is to be dereferenced immediately by
-  // "operator-> chaining". Returning the address of the field is valid because
-  // this objects lifetime only ends at the end of the full statement.
-  class ObjectRef {
-   public:
-    T* operator->() { return &object_; }
-
-   private:
-    friend class Handle<T>;
-    explicit ObjectRef(T object) : object_(object) {}
-
-    T object_;
-  };
-
-  V8_INLINE explicit Handle() : HandleBase(nullptr) {
-    // Skip static type check in order to allow Handle<XXX>::null() as default
-    // parameter values in non-inl header files without requiring full
-    // definition of type XXX.
-  }
+  V8_INLINE Handle() : HandleBase(nullptr) {}
 
   V8_INLINE explicit Handle(Address* location) : HandleBase(location) {
-    // This static type check also fails for forward class declarations.
-    static_assert(std::is_convertible<T*, Object*>::value,
-                  "static type violation");
     // TODO(jkummerow): Runtime type check here as a SLOW_DCHECK?
   }
 
-  V8_INLINE Handle(T object, Isolate* isolate);
-  V8_INLINE Handle(T object, LocalIsolate* isolate);
-  V8_INLINE Handle(T object, LocalHeap* local_heap);
+  V8_INLINE Handle(Tagged<T> object, Isolate* isolate);
+  V8_INLINE Handle(Tagged<T> object, LocalIsolate* isolate);
+  V8_INLINE Handle(Tagged<T> object, LocalHeap* local_heap);
 
-  // Allocate a new handle for the object, do not canonicalize.
-  V8_INLINE static Handle<T> New(T object, Isolate* isolate);
+  // Allocate a new handle for the object.
+  V8_INLINE static Handle<T> New(Tagged<T> object, Isolate* isolate);
 
   // Constructor for handling automatic up casting.
   // Ex. Handle<JSFunction> can be passed when Handle<Object> is expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
   V8_INLINE Handle(Handle<S> handle) : HandleBase(handle) {}
 
-  V8_INLINE ObjectRef operator->() const { return ObjectRef{**this}; }
+  // Access a member of the T object referenced by this handle.
+  //
+  // This is actually a double dereference -- first it dereferences the Handle
+  // pointing to a Tagged<T>, and then continues through Tagged<T>::operator->.
+  // This means that this is only permitted for Tagged<T> with an operator->,
+  // i.e. for on-heap object T.
+  V8_INLINE Tagged<T> operator->() const {
+    if constexpr (is_subtype_v<T, HeapObject>) {
+      return **this;
+    } else {
+      // `static_assert(false)` in this else clause was an unconditional error
+      // before CWG2518. See https://reviews.llvm.org/D144285
+#if defined(__clang__) && __clang_major__ >= 17
+      // For non-HeapObjects, there's no on-heap object to dereference, so
+      // disallow using operator->.
+      //
+      // If you got an error here and want to access the Tagged<T>, use
+      // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
+      static_assert(
+          false,
+          "This handle does not reference a heap object. Use `(*handle).foo`.");
+#endif
+    }
+  }
 
-  V8_INLINE T operator*() const {
-    // unchecked_cast because we rather trust Handle<T> to contain a T than
-    // include all the respective -inl.h headers for SLOW_DCHECKs.
+  V8_INLINE Tagged<T> operator*() const {
+    // This static type check also fails for forward class declarations. We
+    // check on access instead of on construction to allow Handles to forward
+    // declared types.
+    static_assert(is_taggable_v<T>, "static type violation");
+    // Direct construction of Tagged from address, without a type check, because
+    // we rather trust Handle<T> to contain a T than include all the respective
+    // -inl.h headers for SLOW_DCHECKs.
     SLOW_DCHECK(IsDereferenceAllowed());
-    return T::unchecked_cast(Object(*location()));
+    return Tagged<T>(*location());
   }
 
   template <typename S>
@@ -157,7 +165,7 @@ class Handle final : public HandleBase {
 
   // Patches this Handle's value, in-place, with a new value. All handles with
   // the same location will see this update.
-  void PatchValue(T new_value) {
+  void PatchValue(Tagged<T> new_value) {
     SLOW_DCHECK(location_ != nullptr && IsDereferenceAllowed());
     *location_ = new_value.ptr();
   }
@@ -224,9 +232,6 @@ class V8_NODISCARD HandleScope {
   // Counts the number of allocated handles.
   V8_EXPORT_PRIVATE static int NumberOfHandles(Isolate* isolate);
 
-  // Create a new handle or lookup a canonical handle.
-  V8_INLINE static Address* GetHandle(Isolate* isolate, Address value);
-
   // Creates a new handle with the given value.
   V8_INLINE static Address* CreateHandle(Isolate* isolate, Address value);
 
@@ -261,7 +266,7 @@ class V8_NODISCARD HandleScope {
                                    Address* prev_limit);
 
   // Extend the handle scope making room for more handles.
-  V8_EXPORT_PRIVATE static Address* Extend(Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_NOINLINE static Address* Extend(Isolate* isolate);
 
 #ifdef ENABLE_HANDLE_ZAPPING
   // Zaps the handles in the half-open interval [start, end).
@@ -276,70 +281,11 @@ class V8_NODISCARD HandleScope {
   friend class PersistentHandles;
 };
 
-// Forward declarations for CanonicalHandleScope.
+// Forward declaration for CanonicalHandlesMap.
 template <typename V, class AllocationPolicy>
 class IdentityMap;
-class RootIndexMap;
-class OptimizedCompilationInfo;
-
-namespace maglev {
-class ExportedMaglevCompilationInfo;
-}  // namespace maglev
 
 using CanonicalHandlesMap = IdentityMap<Address*, ZoneAllocationPolicy>;
-
-// A CanonicalHandleScope does not open a new HandleScope. It changes the
-// existing HandleScope so that Handles created within are canonicalized.
-// This does not apply to nested inner HandleScopes unless a nested
-// CanonicalHandleScope is introduced. Handles are only canonicalized within
-// the same CanonicalHandleScope, but not across nested ones.
-class V8_EXPORT_PRIVATE V8_NODISCARD CanonicalHandleScope {
- public:
-  // If no Zone is passed to this constructor, we create (and own) a new zone.
-  // To properly dispose of said zone, we need to first free the identity_map_
-  // which is done manually even though identity_map_ is a unique_ptr.
-  explicit CanonicalHandleScope(Isolate* isolate, Zone* zone = nullptr);
-  ~CanonicalHandleScope();
-
- protected:
-  std::unique_ptr<CanonicalHandlesMap> DetachCanonicalHandles();
-
-  Zone* zone_;  // *Not* const, may be mutated by subclasses.
-
- private:
-  Address* Lookup(Address object);
-
-  Isolate* const isolate_;
-  RootIndexMap* root_index_map_;
-  std::unique_ptr<CanonicalHandlesMap> identity_map_;
-  // Ordinary nested handle scopes within the current one are not canonical.
-  int canonical_level_;
-  // We may have nested canonical scopes. Handles are canonical within each one.
-  CanonicalHandleScope* prev_canonical_scope_;
-
-  friend class HandleScope;
-};
-
-template <class CompilationInfoT>
-class V8_EXPORT_PRIVATE V8_NODISCARD CanonicalHandleScopeForOptimization final
-    : public CanonicalHandleScope {
- public:
-  // We created the
-  // CanonicalHandlesMap on the compilation info's zone(). In the
-  // CanonicalHandleScope destructor we hand off the canonical handle map to the
-  // compilation info. The compilation info is responsible for the disposal.
-  explicit CanonicalHandleScopeForOptimization(Isolate* isolate,
-                                               CompilationInfoT* info);
-  ~CanonicalHandleScopeForOptimization();
-
- private:
-  CompilationInfoT* const info_;
-};
-
-using CanonicalHandleScopeForTurbofan =
-    CanonicalHandleScopeForOptimization<OptimizedCompilationInfo>;
-using CanonicalHandleScopeForMaglev =
-    CanonicalHandleScopeForOptimization<maglev::ExportedMaglevCompilationInfo>;
 
 // Seal off the current HandleScope so that new handles can only be created
 // if a new HandleScope is entered.
@@ -360,20 +306,60 @@ class V8_NODISCARD SealHandleScope final {
 };
 
 struct HandleScopeData final {
+  static constexpr uint32_t kSizeInBytes =
+      2 * kSystemPointerSize + 2 * kInt32Size;
+
   Address* next;
   Address* limit;
   int level;
   int sealed_level;
-  CanonicalHandleScope* canonical_scope;
 
   void Initialize() {
     next = limit = nullptr;
     sealed_level = level = 0;
-    canonical_scope = nullptr;
   }
 };
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
+static_assert(HandleScopeData::kSizeInBytes == sizeof(HandleScopeData));
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+// Direct handles should not be used without conservative stack scanning,
+// as this would break the correctness of the GC.
+static_assert(V8_ENABLE_CONSERVATIVE_STACK_SCANNING_BOOL);
+
+// ----------------------------------------------------------------------------
+// Base class for DirectHandle instantiations. Don't use directly.
+class DirectHandleBase {
+ public:
+  // Check if this handle refers to the exact same object as the other handle.
+  V8_INLINE bool is_identical_to(const DirectHandleBase& that) const;
+  V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
+
+  V8_INLINE Address address() const { return obj_; }
+
+ protected:
+  V8_INLINE explicit DirectHandleBase(Address object) : obj_(object) {
+#ifdef DEBUG
+    VerifyOnStackAndMainThread();
+#endif
+  }
+
+  V8_INLINE explicit DirectHandleBase(Address object, Isolate* isolate);
+  V8_INLINE explicit DirectHandleBase(Address object, LocalIsolate* isolate);
+  V8_INLINE explicit DirectHandleBase(Address object, LocalHeap* local_heap);
+
+#ifdef DEBUG
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
+  V8_EXPORT_PRIVATE void VerifyOnStackAndMainThread() const;
+#else
+  V8_INLINE
+  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
+#endif  // DEBUG
+
+  // This is a direct pointer to either a tagged object or SMI. Design overview:
+  // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
+  Address obj_;
+};
 
 // ----------------------------------------------------------------------------
 // A DirectHandle provides a reference to an object without an intermediate
@@ -390,50 +376,75 @@ struct HandleScopeData final {
 // Further motivation is explained in the design doc:
 // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
 template <typename T>
-class DirectHandle final {
+class DirectHandle final : public DirectHandleBase {
  public:
-  V8_INLINE explicit DirectHandle() : obj_(kTaggedNullAddress) {
-    // Skip static type check in order to allow DirectHandle<XXX>::null() as
-    // default parameter values in non-inl header files without requiring full
-    // definition of type XXX.
-  }
+  V8_INLINE DirectHandle() : DirectHandle(kTaggedNullAddress) {}
 
-  V8_INLINE bool is_null() const { return obj_ == kTaggedNullAddress; }
+  V8_INLINE explicit DirectHandle(Address object) : DirectHandleBase(object) {}
 
-  V8_INLINE explicit DirectHandle(Address object) : obj_(object) {
-    // This static type check also fails for forward class declarations.
-    static_assert(std::is_convertible<T*, Object*>::value,
-                  "static type violation");
+  V8_INLINE explicit DirectHandle(Tagged<T> object);
+  V8_INLINE DirectHandle(Tagged<T> object, Isolate* isolate)
+      : DirectHandle(object) {}
+  V8_INLINE DirectHandle(Tagged<T> object, LocalIsolate* isolate)
+      : DirectHandle(object) {}
+  V8_INLINE DirectHandle(Tagged<T> object, LocalHeap* local_heap)
+      : DirectHandle(object) {}
+
+  V8_INLINE explicit DirectHandle(Address* address)
+      : DirectHandle(address == nullptr ? kTaggedNullAddress : *address) {}
+
+  V8_INLINE static DirectHandle<T> New(Tagged<T> object, Isolate* isolate) {
+    return DirectHandle<T>(object);
   }
 
   // Constructor for handling automatic up casting.
   // Ex. DirectHandle<JSFunction> can be passed when DirectHandle<Object> is
   // expected.
-  template <typename S, typename = typename std::enable_if<
-                            std::is_convertible<S*, T*>::value>::type>
-  V8_INLINE DirectHandle(DirectHandle<S> handle) : obj_(handle.obj_) {}
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE DirectHandle(DirectHandle<S> handle) : DirectHandle(handle.obj_) {}
 
-  V8_INLINE T operator->() const { return obj_; }
+  template <typename S, typename = std::enable_if_t<is_subtype_v<S, T>>>
+  V8_INLINE DirectHandle(Handle<S> handle)
+      : DirectHandle(handle.location() != nullptr ? *handle.location()
+                                                  : kTaggedNullAddress) {}
 
-  V8_INLINE T operator*() const {
+  V8_INLINE Tagged<T> operator->() const {
+    if constexpr (std::is_base_of_v<HeapObject, T> ||
+                  std::is_convertible_v<T*, HeapObject*>) {
+      return **this;
+    } else {
+      // For non-HeapObjects, there's no on-heap object to dereference, so
+      // disallow using operator->.
+      //
+      // If you got an error here and want to access the Tagged<T>, use
+      // operator* -- e.g. for `Tagged<Smi>::value()`, use `(*handle).value()`.
+      static_assert(
+          false,
+          "This handle does not reference a heap object. Use `(*handle).foo`.");
+    }
+  }
+
+  V8_INLINE Tagged<T> operator*() const {
+    // This static type check also fails for forward class declarations. We
+    // check on access instead of on construction to allow DirectHandles to
+    // forward declared types.
+    static_assert(is_taggable_v<T>, "static type violation");
+    // Direct construction of Tagged from address, without a type check, because
+    // we rather trust DirectHandle<T> to contain a T than include all the
+    // respective -inl.h headers for SLOW_DCHECKs.
     SLOW_DCHECK(IsDereferenceAllowed());
-    return T::unchecked_cast(Object(obj_));
+    return Tagged<T>(address());
   }
 
   template <typename S>
-  inline static const DirectHandle<T> cast(DirectHandle<S> that);
+  V8_INLINE static const DirectHandle<T> cast(DirectHandle<S> that);
+
+  template <typename S>
+  V8_INLINE static const DirectHandle<T> cast(Handle<S> that);
 
   // Consider declaring values that contain empty handles as
-  // MaybeHandle to force validation before being used as handles.
-  static const DirectHandle<T> null() { return DirectHandle<T>(); }
-
- protected:
-#ifdef DEBUG
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const;
-#else
-  V8_INLINE
-  bool V8_EXPORT_PRIVATE IsDereferenceAllowed() const { return true; }
-#endif  // DEBUG
+  // MaybeDirectHandle to force validation before being used as handles.
+  V8_INLINE static const DirectHandle<T> null() { return DirectHandle<T>(); }
 
  private:
   // DirectHandles of different classes are allowed to access each other's
@@ -443,16 +454,12 @@ class DirectHandle final {
   // MaybeDirectHandle is allowed to access obj_.
   template <typename>
   friend class MaybeDirectHandle;
-
-  // This is a direct pointer to either a tagged object or SMI. Design overview:
-  // https://docs.google.com/document/d/1uRGYQM76vk1fc_aDqDH3pm2qhaJtnK2oyzeVng4cS6I/
-  T obj_;
 };
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, DirectHandle<T> handle);
 
-#endif
+#endif  // V8_ENABLE_DIRECT_HANDLE
 
 }  // namespace internal
 }  // namespace v8

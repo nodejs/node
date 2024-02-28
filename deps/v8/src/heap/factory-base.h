@@ -8,8 +8,8 @@
 #include "src/base/export-template.h"
 #include "src/base/strings.h"
 #include "src/common/globals.h"
+#include "src/handles/maybe-handles.h"
 #include "src/objects/code-kind.h"
-#include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/instance-type.h"
 #include "src/roots/roots.h"
@@ -18,23 +18,30 @@
 namespace v8 {
 namespace internal {
 
-class HeapObject;
-class SharedFunctionInfo;
+class ArrayBoilerplateDescription;
+class BytecodeArray;
+class ClassPositions;
+class CoverageInfo;
+class DeoptimizationLiteralArray;
+class DeoptimizationFrameTranslation;
+class FixedArray;
+template <typename T>
+class FixedIntegerArray;
+class FreshlyAllocatedBigInt;
 class FunctionLiteral;
+class HeapObject;
+class ObjectBoilerplateDescription;
+template <typename T>
+class PodArray;
+class PreparseData;
+class RegExpBoilerplateDescription;
 class SeqOneByteString;
 class SeqTwoByteString;
-class FreshlyAllocatedBigInt;
-class ObjectBoilerplateDescription;
-class ArrayBoilerplateDescription;
-class RegExpBoilerplateDescription;
-class TemplateObjectDescription;
+class SharedFunctionInfo;
 class SourceTextModuleInfo;
-class PreparseData;
+class TemplateObjectDescription;
 class UncompiledDataWithoutPreparseData;
 class UncompiledDataWithPreparseData;
-class BytecodeArray;
-class CoverageInfo;
-class ClassPositions;
 struct SourceRange;
 enum class Builtin : int32_t;
 template <typename T>
@@ -48,6 +55,9 @@ template <typename Impl>
 class FactoryBase;
 
 enum class NumberCacheMode { kIgnore, kSetOnly, kBoth };
+
+using FixedInt32Array = FixedIntegerArray<int32_t>;
+using FixedUInt32Array = FixedIntegerArray<uint32_t>;
 
 // Putting Torque-generated definitions in a superclass allows to shadow them
 // easily when they shouldn't be used and to reference them when they happen to
@@ -66,8 +76,6 @@ struct NewCodeOptions {
   Builtin builtin;
   bool is_turbofanned;
   int stack_slots;
-  int kind_specific_flags;
-  AllocationType allocation;
   int instruction_size;
   int metadata_size;
   unsigned int inlined_bytecode_size;
@@ -76,16 +84,21 @@ struct NewCodeOptions {
   int constant_pool_offset;
   int code_comments_offset;
   int32_t unwinding_info_offset;
-  Handle<ByteArray> reloc_info;
   Handle<HeapObject> bytecode_or_deoptimization_data;
   Handle<ByteArray> bytecode_offsets_or_source_position_table;
+  // Either instruction_stream is set and instruction_start is kNullAddress, or
+  // instruction_stream is empty and instruction_start a valid target.
+  MaybeHandle<InstructionStream> instruction_stream;
+  Address instruction_start;
 };
 
 template <typename Impl>
 class FactoryBase : public TorqueGeneratedFactory<Impl> {
  public:
+  Handle<Code> NewCode(const NewCodeOptions& options);
+
   // Converts the given boolean condition to JavaScript boolean value.
-  inline Handle<Oddball> ToBoolean(bool value);
+  inline Handle<Boolean> ToBoolean(bool value);
 
 #define ROOT_ACCESSOR(Type, name, CamelName) inline Handle<Type> name();
   READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
@@ -119,9 +132,6 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
-  // Creates a new Code for a InstructionStream object.
-  Handle<Code> NewCode(const NewCodeOptions& options);
-
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(
       int length, AllocationType allocation = AllocationType::kYoung);
@@ -136,7 +146,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<FixedArray> NewFixedArrayWithHoles(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  // Allocate a new fixed array with Smi(0) entries.
+  // Allocate a new fixed array with Tagged<Smi>(0) entries.
   Handle<FixedArray> NewFixedArrayWithZeroes(
       int length, AllocationType allocation = AllocationType::kYoung);
 
@@ -149,7 +159,8 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   // Allocates a weak fixed array-like object with given map and initialized
   // with undefined values. Length must be > 0.
   Handle<WeakFixedArray> NewWeakFixedArrayWithMap(
-      Map map, int length, AllocationType allocation = AllocationType::kYoung);
+      Tagged<Map> map, int length,
+      AllocationType allocation = AllocationType::kYoung);
 
   // Allocates a fixed array which may contain in-place weak references. The
   // array is initialized with undefined values
@@ -161,7 +172,15 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<ByteArray> NewByteArray(
       int length, AllocationType allocation = AllocationType::kYoung);
 
-  Handle<BytecodeArray> NewBytecodeArray(int length, const byte* raw_bytecodes,
+  Handle<ExternalPointerArray> NewExternalPointerArray(
+      int length, AllocationType allocation = AllocationType::kYoung);
+
+  Handle<DeoptimizationLiteralArray> NewDeoptimizationLiteralArray(int length);
+  Handle<DeoptimizationFrameTranslation> NewDeoptimizationFrameTranslation(
+      int length);
+
+  Handle<BytecodeArray> NewBytecodeArray(int length,
+                                         const uint8_t* raw_bytecodes,
                                          int frame_size, int parameter_count,
                                          Handle<FixedArray> constant_pool);
 
@@ -175,7 +194,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
 
   Handle<RegExpBoilerplateDescription> NewRegExpBoilerplateDescription(
-      Handle<FixedArray> data, Handle<String> source, Smi flags);
+      Handle<FixedArray> data, Handle<String> source, Tagged<Smi> flags);
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
@@ -188,6 +207,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       Handle<PrimitiveHeapObject> source, int script_id,
       ScriptEventType event_type = ScriptEventType::kCreate);
 
+  Handle<SloppyArgumentsElements> NewSloppyArgumentsElements(
+      int length, Handle<Context> context, Handle<FixedArray> arguments,
+      AllocationType allocation = AllocationType::kYoung);
   Handle<ArrayList> NewArrayList(
       int size, AllocationType allocation = AllocationType::kYoung);
 
@@ -228,20 +250,20 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<CoverageInfo> NewCoverageInfo(const ZoneVector<SourceRange>& slots);
 
-  Handle<String> InternalizeString(const base::Vector<const uint8_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint8_t> string,
                                    bool convert_encoding = false);
-  Handle<String> InternalizeString(const base::Vector<const uint16_t>& string,
+  Handle<String> InternalizeString(base::Vector<const uint16_t> string,
                                    bool convert_encoding = false);
 
   template <class StringTableKey>
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   Handle<SeqOneByteString> NewOneByteInternalizedString(
-      const base::Vector<const uint8_t>& str, uint32_t raw_hash_field);
+      base::Vector<const uint8_t> str, uint32_t raw_hash_field);
   Handle<SeqTwoByteString> NewTwoByteInternalizedString(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
   Handle<SeqOneByteString> NewOneByteInternalizedStringFromTwoByte(
-      const base::Vector<const base::uc16>& str, uint32_t raw_hash_field);
+      base::Vector<const base::uc16> str, uint32_t raw_hash_field);
 
   Handle<SeqOneByteString> AllocateRawOneByteInternalizedString(
       int length, uint32_t raw_hash_field);
@@ -253,7 +275,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> LookupSingleCharacterStringFromCode(uint16_t code);
 
   MaybeHandle<String> NewStringFromOneByte(
-      const base::Vector<const uint8_t>& string,
+      base::Vector<const uint8_t> string,
       AllocationType allocation = AllocationType::kYoung);
 
   inline Handle<String> NewStringFromAsciiChecked(
@@ -284,7 +306,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
       Handle<HeapNumber> number, double value,
       NumberCacheMode mode = NumberCacheMode::kBoth);
   V8_WARN_UNUSED_RESULT Handle<String> SmiToString(
-      Smi number, NumberCacheMode mode = NumberCacheMode::kBoth);
+      Tagged<Smi> number, NumberCacheMode mode = NumberCacheMode::kBoth);
 
   V8_WARN_UNUSED_RESULT MaybeHandle<SeqOneByteString> NewRawSharedOneByteString(
       int length);
@@ -303,7 +325,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<SourceTextModuleInfo> NewSourceTextModuleInfo();
 
   Handle<DescriptorArray> NewDescriptorArray(
-      int number_of_entries, int slack = 0,
+      int number_of_descriptors, int slack = 0,
       AllocationType allocation = AllocationType::kYoung);
 
   Handle<ClassPositions> NewClassPositions(int start, int end);
@@ -317,36 +339,39 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
 
   Handle<FunctionTemplateRareData> NewFunctionTemplateRareData();
 
-  MaybeHandle<Map> GetInPlaceInternalizedStringMap(Map from_string_map);
+  MaybeHandle<Map> GetInPlaceInternalizedStringMap(Tagged<Map> from_string_map);
 
   AllocationType RefineAllocationTypeForInPlaceInternalizableString(
-      AllocationType allocation, Map string_map);
+      AllocationType allocation, Tagged<Map> string_map);
 
  protected:
   // Must be large enough to fit any double, int, or size_t.
   static constexpr int kNumberToStringBufferSize = 32;
 
   // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
-  HeapObject AllocateRawArray(int size, AllocationType allocation);
-  HeapObject AllocateRawFixedArray(int length, AllocationType allocation);
-  HeapObject AllocateRawWeakArrayList(int length, AllocationType allocation);
+  Tagged<HeapObject> AllocateRawArray(int size, AllocationType allocation);
+  Tagged<HeapObject> AllocateRawFixedArray(int length,
+                                           AllocationType allocation);
+  Tagged<HeapObject> AllocateRawWeakArrayList(int length,
+                                              AllocationType allocation);
 
   template <typename StructType>
-  inline StructType NewStructInternal(InstanceType type,
-                                      AllocationType allocation);
-  Struct NewStructInternal(ReadOnlyRoots roots, Map map, int size,
-                           AllocationType allocation);
+  inline Tagged<StructType> NewStructInternal(InstanceType type,
+                                              AllocationType allocation);
+  Tagged<Struct> NewStructInternal(ReadOnlyRoots roots, Tagged<Map> map,
+                                   int size, AllocationType allocation);
 
-  HeapObject AllocateRawWithImmortalMap(
-      int size, AllocationType allocation, Map map,
+  Tagged<HeapObject> AllocateRawWithImmortalMap(
+      int size, AllocationType allocation, Tagged<Map> map,
       AllocationAlignment alignment = kTaggedAligned);
-  HeapObject NewWithImmortalMap(Map map, AllocationType allocation);
+  Tagged<HeapObject> NewWithImmortalMap(Tagged<Map> map,
+                                        AllocationType allocation);
 
   Handle<FixedArray> NewFixedArrayWithFiller(Handle<Map> map, int length,
-                                             Handle<Oddball> filler,
+                                             Handle<HeapObject> filler,
                                              AllocationType allocation);
 
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo();
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(AllocationType allocation);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> maybe_name,
       MaybeHandle<HeapObject> maybe_function_data, Builtin builtin,
@@ -355,7 +380,7 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   Handle<String> MakeOrFindTwoCharacterString(uint16_t c1, uint16_t c2);
 
   template <typename SeqStringT>
-  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Map map,
+  MaybeHandle<SeqStringT> NewRawStringWithMap(int length, Tagged<Map> map,
                                               AllocationType allocation);
 
  private:
@@ -363,8 +388,9 @@ class FactoryBase : public TorqueGeneratedFactory<Impl> {
   auto isolate() { return impl()->isolate(); }
   ReadOnlyRoots read_only_roots() { return impl()->read_only_roots(); }
 
-  HeapObject AllocateRaw(int size, AllocationType allocation,
-                         AllocationAlignment alignment = kTaggedAligned);
+  Tagged<HeapObject> AllocateRaw(
+      int size, AllocationType allocation,
+      AllocationAlignment alignment = kTaggedAligned);
 
   friend TorqueGeneratedFactory<Impl>;
 };

@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifdef V8_ENABLE_MAGLEV_GRAPH_PRINTER
+
 #include "src/maglev/maglev-graph-printer.h"
 
 #include <initializer_list>
@@ -10,11 +12,18 @@
 #include <type_traits>
 #include <vector>
 
+#include "src/base/logging.h"
+#include "src/common/assert-scope.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecode-decoder.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-graph-labeller.h"
 #include "src/maglev/maglev-graph-processor.h"
 #include "src/maglev/maglev-graph.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/objects/script-inl.h"
+#include "src/objects/shared-function-info-inl.h"
+#include "src/utils/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -403,6 +412,21 @@ void PrintSingleDeoptFrame(
       os << "}";
       break;
     }
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
+      os << "@ConstructInvokeStub";
+      if (!v8_flags.print_maglev_deopt_verbose) return;
+      os << " : {";
+      os << "<this>:"
+         << PrintNodeLabel(graph_labeller, frame.as_construct_stub().receiver())
+         << ":" << current_input_location->operand();
+      current_input_location++;
+      os << ", <context>:"
+         << PrintNodeLabel(graph_labeller, frame.as_construct_stub().context())
+         << ":" << current_input_location->operand();
+      current_input_location++;
+      os << "}";
+      break;
+    }
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
       os << "@" << frame.as_inlined_arguments().bytecode_position();
       if (!v8_flags.print_maglev_deopt_verbose) return;
@@ -537,30 +561,37 @@ void PrintExceptionHandlerPoint(std::ostream& os,
   BasicBlock* block = info->catch_block.block_ptr();
   DCHECK(block->is_exception_handler_block());
 
-  Phi* first_phi = block->phis()->first();
-  if (first_phi == nullptr) {
-    // No phis in the block.
+  if (!block->has_phi()) {
     return;
   }
+  Phi* first_phi = block->phis()->first();
+  CHECK_NOT_NULL(first_phi);
   int handler_offset = first_phi->merge_state()->merge_offset();
 
   // The exception handler liveness should be a subset of lazy_deopt_info one.
   auto* liveness = block->state()->frame_state().liveness();
   LazyDeoptInfo* deopt_info = node->lazy_deopt_info();
 
-  const InterpretedDeoptFrame& lazy_frame =
-      deopt_info->top_frame().type() ==
-              DeoptFrame::FrameType::kBuiltinContinuationFrame
-          ? deopt_info->top_frame().parent()->as_interpreted()
-          : deopt_info->top_frame().as_interpreted();
+  const InterpretedDeoptFrame* lazy_frame;
+  switch (deopt_info->top_frame().type()) {
+    case DeoptFrame::FrameType::kInterpretedFrame:
+      lazy_frame = &deopt_info->top_frame().as_interpreted();
+      break;
+    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
+      UNREACHABLE();
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame:
+    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
+      lazy_frame = &deopt_info->top_frame().parent()->as_interpreted();
+      break;
+  }
 
   PrintVerticalArrows(os, targets);
   PrintPadding(os, graph_labeller, max_node_id, 0);
 
   os << "  ↳ throw @" << handler_offset << " : {";
   bool first = true;
-  lazy_frame.as_interpreted().frame_state()->ForEachValue(
-      lazy_frame.as_interpreted().unit(),
+  lazy_frame->as_interpreted().frame_state()->ForEachValue(
+      lazy_frame->as_interpreted().unit(),
       [&](ValueNode* node, interpreter::Register reg) {
         if (!reg.is_parameter() && !liveness->RegisterIsLive(reg.index())) {
           // Skip, since not live at the handler offset.
@@ -598,9 +629,79 @@ void MaybePrintLazyDeoptOrExceptionHandler(std::ostream& os,
   }
 }
 
+void MaybePrintProvenance(std::ostream& os, std::vector<BasicBlock*> targets,
+                          MaglevGraphLabeller::Provenance provenance,
+                          MaglevGraphLabeller::Provenance existing_provenance) {
+  DisallowGarbageCollection no_gc;
+
+  // Print function every time the compilation unit changes.
+  bool needs_function_print = provenance.unit != existing_provenance.unit;
+  Tagged<Script> script;
+  Script::PositionInfo position_info;
+  bool has_position_info = false;
+
+  // Print position inside function every time either the position or the
+  // compilation unit changes.
+  if (provenance.position.IsKnown() &&
+      (provenance.position != existing_provenance.position ||
+       provenance.unit != existing_provenance.unit)) {
+    script = Script::cast(
+        provenance.unit->shared_function_info().object()->script());
+    has_position_info = script->GetPositionInfo(
+        provenance.position.ScriptOffset(), &position_info,
+        Script::OffsetFlag::kWithOffset);
+    needs_function_print = true;
+  }
+
+  // Do the actual function + position print.
+  if (needs_function_print) {
+    if (script.is_null()) {
+      script = Script::cast(
+          provenance.unit->shared_function_info().object()->script());
+    }
+    PrintVerticalArrows(os, targets);
+    if (v8_flags.log_colour) {
+      os << "\033[1;34m";
+    }
+    os << *provenance.unit->shared_function_info().object() << " ("
+       << script->GetNameOrSourceURL();
+    if (has_position_info) {
+      os << ":" << position_info.line << ":" << position_info.column;
+    } else if (provenance.position.IsKnown()) {
+      os << "@" << provenance.position.ScriptOffset();
+    }
+    os << ")\n";
+    if (v8_flags.log_colour) {
+      os << "\033[m";
+    }
+  }
+
+  // Print current bytecode every time the offset or current compilation unit
+  // (i.e. bytecode array) changes.
+  if (!provenance.bytecode_offset.IsNone() &&
+      (provenance.bytecode_offset != existing_provenance.bytecode_offset ||
+       provenance.unit != existing_provenance.unit)) {
+    PrintVerticalArrows(os, targets);
+
+    interpreter::BytecodeArrayIterator iterator(
+        provenance.unit->bytecode().object(),
+        provenance.bytecode_offset.ToInt(), no_gc);
+    if (v8_flags.log_colour) {
+      os << "\033[0;34m";
+    }
+    os << std::setw(4) << iterator.current_offset() << " : ";
+    interpreter::BytecodeDecoder::Decode(os, iterator.current_address(), false);
+    os << "\n";
+    if (v8_flags.log_colour) {
+      os << "\033[m";
+    }
+  }
+}
+
 }  // namespace
 
-void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(Phi* phi,
+                                             const ProcessingState& state) {
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, phi);
   os_ << "φ";
@@ -617,13 +718,16 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
     case ValueRepresentation::kFloat64:
       os_ << "ᶠ";
       break;
+    case ValueRepresentation::kHoleyFloat64:
+      os_ << "ʰᶠ";
+      break;
     case ValueRepresentation::kWord64:
       UNREACHABLE();
   }
   if (phi->input_count() == 0) {
     os_ << "ₑ " << phi->owner().ToString();
   } else {
-    os_ << " (";
+    os_ << " " << phi->owner().ToString() << " (";
     // Manually walk Phi inputs to print just the node labels, without
     // input locations (which are shown in the predecessor block's gap
     // moves).
@@ -640,17 +744,37 @@ void MaglevPrintingVisitor::Process(Phi* phi, const ProcessingState& state) {
       os_ << " (compressed)";
     }
   }
-  os_ << " → " << phi->result().operand() << "\n";
+  os_ << " → " << phi->result().operand();
+  if (phi->has_valid_live_range()) {
+    os_ << ", live range: [" << phi->live_range().start << "-"
+        << phi->live_range().end << "]";
+  }
+  if (!phi->has_id()) {
+    os_ << ", " << phi->use_count() << " uses";
+  }
+  os_ << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
+  return ProcessResult::kContinue;
 }
 
-void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(Node* node,
+                                             const ProcessingState& state) {
+  MaglevGraphLabeller::Provenance provenance =
+      graph_labeller_->GetNodeProvenance(node);
+  if (provenance.unit != nullptr) {
+    MaybePrintProvenance(os_, targets_, provenance, existing_provenance_);
+    existing_provenance_ = provenance;
+  }
+
   MaybePrintEagerDeopt(os_, targets_, node, graph_labeller_, max_node_id_);
 
   PrintVerticalArrows(os_, targets_);
   PrintPaddedId(os_, graph_labeller_, max_node_id_, node);
+  if (node->properties().is_call()) {
+    os_ << "🐢 ";
+  }
   os_ << PrintNode(graph_labeller_, node) << "\n";
 
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
@@ -658,10 +782,18 @@ void MaglevPrintingVisitor::Process(Node* node, const ProcessingState& state) {
 
   MaybePrintLazyDeoptOrExceptionHandler(os_, targets_, node, graph_labeller_,
                                         max_node_id_);
+  return ProcessResult::kContinue;
 }
 
-void MaglevPrintingVisitor::Process(ControlNode* control_node,
-                                    const ProcessingState& state) {
+ProcessResult MaglevPrintingVisitor::Process(ControlNode* control_node,
+                                             const ProcessingState& state) {
+  MaglevGraphLabeller::Provenance provenance =
+      graph_labeller_->GetNodeProvenance(control_node);
+  if (provenance.unit != nullptr) {
+    MaybePrintProvenance(os_, targets_, provenance, existing_provenance_);
+    existing_provenance_ = provenance;
+  }
+
   MaybePrintEagerDeopt(os_, targets_, control_node, graph_labeller_,
                        max_node_id_);
 
@@ -758,10 +890,14 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
           case ValueRepresentation::kFloat64:
             os_ << "ᶠ";
             break;
+          case ValueRepresentation::kHoleyFloat64:
+            os_ << "ʰᶠ";
+            break;
           case ValueRepresentation::kWord64:
             UNREACHABLE();
         }
-        os_ << " " << phi->result().operand() << "\n";
+        os_ << " " << phi->owner().ToString() << " " << phi->result().operand()
+            << "\n";
       }
       if (target->state()->register_state().is_initialized()) {
         PrintVerticalArrows(os_, targets_);
@@ -802,6 +938,8 @@ void MaglevPrintingVisitor::Process(ControlNode* control_node,
   // so that it overlaps the fallthrough arrow.
   MaglevPrintingVisitorOstream::cast(os_for_additional_info_)
       ->set_padding(MaxIdWidth(graph_labeller_, max_node_id_, 2));
+
+  return ProcessResult::kContinue;
 }
 
 void PrintGraph(std::ostream& os, MaglevCompilationInfo* compilation_info,
@@ -815,20 +953,12 @@ void PrintNode::Print(std::ostream& os) const {
   node_->Print(os, graph_labeller_, skip_targets_);
 }
 
-std::ostream& operator<<(std::ostream& os, const PrintNode& printer) {
-  printer.Print(os);
-  return os;
-}
-
 void PrintNodeLabel::Print(std::ostream& os) const {
   graph_labeller_->PrintNodeLabel(os, node_);
-}
-
-std::ostream& operator<<(std::ostream& os, const PrintNodeLabel& printer) {
-  printer.Print(os);
-  return os;
 }
 
 }  // namespace maglev
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_ENABLE_MAGLEV_GRAPH_PRINTER

@@ -19,6 +19,7 @@ namespace internal {
 namespace compiler {
 
 class MachineGraph;
+class SourcePositionTable;
 
 struct NodeWithType {
   NodeWithType() : node(nullptr), type(wasm::kWasmVoid, nullptr) {}
@@ -45,7 +46,8 @@ class WasmGCOperatorReducer final
                                                  kMultipleInstances> {
  public:
   WasmGCOperatorReducer(Editor* editor, Zone* temp_zone_, MachineGraph* mcgraph,
-                        const wasm::WasmModule* module);
+                        const wasm::WasmModule* module,
+                        SourcePositionTable* source_position_table);
 
   const char* reducer_name() const override { return "WasmGCOperatorReducer"; }
 
@@ -59,16 +61,23 @@ class WasmGCOperatorReducer final
   Reduction ReduceAssertNotNull(Node* node);
   Reduction ReduceCheckNull(Node* node);
   Reduction ReduceWasmTypeCheck(Node* node);
+  Reduction ReduceWasmTypeCheckAbstract(Node* node);
   Reduction ReduceWasmTypeCast(Node* node);
+  Reduction ReduceWasmTypeCastAbstract(Node* node);
+  Reduction ReduceTypeGuard(Node* node);
   Reduction ReduceWasmExternInternalize(Node* node);
   Reduction ReduceMerge(Node* node);
   Reduction ReduceIf(Node* node, bool condition);
   Reduction ReduceStart(Node* node);
 
   Node* SetType(Node* node, wasm::ValueType type);
+  void UpdateSourcePosition(Node* new_node, Node* old_node);
   // Returns the intersection of the type marked on {object} and the type
   // information about object tracked on {control}'s control path (if present).
-  wasm::TypeInModule ObjectTypeFromContext(Node* object, Node* control);
+  // If {allow_non_wasm}, we bail out if the object's type is not a wasm type
+  // by returning bottom.
+  wasm::TypeInModule ObjectTypeFromContext(Node* object, Node* control,
+                                           bool allow_non_wasm = false);
   Reduction UpdateNodeAndAliasesTypes(Node* state_owner,
                                       ControlPathTypes parent_state, Node* node,
                                       wasm::TypeInModule type,
@@ -81,6 +90,7 @@ class WasmGCOperatorReducer final
   MachineGraph* mcgraph_;
   WasmGraphAssembler gasm_;
   const wasm::WasmModule* module_;
+  SourcePositionTable* source_position_table_;
 };
 
 }  // namespace compiler

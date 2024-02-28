@@ -6,7 +6,6 @@
 
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
-#include "src/objects/code-inl.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/objects-inl.h"
 
@@ -30,8 +29,25 @@ BytecodeArrayIterator::BytecodeArrayIterator(
   UpdateOperandScale();
 }
 
+BytecodeArrayIterator::BytecodeArrayIterator(
+    Handle<BytecodeArray> bytecode_array, int initial_offset,
+    DisallowGarbageCollection& no_gc)
+    : bytecode_array_(bytecode_array),
+      start_(reinterpret_cast<uint8_t*>(
+          bytecode_array_->GetFirstBytecodeAddress())),
+      end_(start_ + bytecode_array_->length()),
+      cursor_(start_ + initial_offset),
+      operand_scale_(OperandScale::kSingle),
+      prefix_size_(0),
+      local_heap_(nullptr) {
+  // Don't add a GC callback, since we're in a no_gc scope.
+  UpdateOperandScale();
+}
+
 BytecodeArrayIterator::~BytecodeArrayIterator() {
-  local_heap_->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+  if (local_heap_) {
+    local_heap_->RemoveGCEpilogueCallback(UpdatePointersCallback, this);
+  }
 }
 
 void BytecodeArrayIterator::SetOffset(int offset) {
@@ -217,15 +233,15 @@ Runtime::FunctionId BytecodeArrayIterator::GetIntrinsicIdOperand(
 template <typename IsolateT>
 Handle<Object> BytecodeArrayIterator::GetConstantAtIndex(
     int index, IsolateT* isolate) const {
-  return handle(bytecode_array()->constant_pool().get(index), isolate);
+  return handle(bytecode_array()->constant_pool()->get(index), isolate);
 }
 
 bool BytecodeArrayIterator::IsConstantAtIndexSmi(int index) const {
-  return bytecode_array()->constant_pool().get(index).IsSmi();
+  return IsSmi(bytecode_array()->constant_pool()->get(index));
 }
 
-Smi BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
-  return Smi::cast(bytecode_array()->constant_pool().get(index));
+Tagged<Smi> BytecodeArrayIterator::GetConstantAtIndexAsSmi(int index) const {
+  return Smi::cast(bytecode_array()->constant_pool()->get(index));
 }
 
 template <typename IsolateT>
@@ -249,7 +265,7 @@ int BytecodeArrayIterator::GetRelativeJumpTargetOffset() const {
     }
     return relative_offset;
   } else if (interpreter::Bytecodes::IsJumpConstant(bytecode)) {
-    Smi smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
+    Tagged<Smi> smi = GetConstantAtIndexAsSmi(GetIndexOperand(0));
     return smi.value();
   } else {
     UNREACHABLE();

@@ -6,9 +6,9 @@ Object.defineProperty(exports, "__esModule", {
 exports.assumptionsNames = void 0;
 exports.checkNoUnwrappedItemOptionPairs = checkNoUnwrappedItemOptionPairs;
 exports.validate = validate;
-var _removed = require("./removed");
-var _optionAssertions = require("./option-assertions");
-var _configError = require("../../errors/config-error");
+var _removed = require("./removed.js");
+var _optionAssertions = require("./option-assertions.js");
+var _configError = require("../../errors/config-error.js");
 const ROOT_VALIDATORS = {
   cwd: _optionAssertions.assertString,
   root: _optionAssertions.assertString,
@@ -71,8 +71,7 @@ const COMMON_VALIDATORS = {
   });
 }
 const knownAssumptions = ["arrayLikeIsIterable", "constantReexports", "constantSuper", "enumerableModuleMeta", "ignoreFunctionLength", "ignoreToPrimitiveHint", "iterableIsArray", "mutableTemplateObject", "noClassCalls", "noDocumentAll", "noIncompleteNsImportDetection", "noNewArrows", "objectRestNoSymbols", "privateFieldsAsSymbols", "privateFieldsAsProperties", "pureGetters", "setClassMethods", "setComputedProperties", "setPublicClassFields", "setSpreadProperties", "skipForOfIteratorClosing", "superIsCallableConstructor"];
-const assumptionsNames = new Set(knownAssumptions);
-exports.assumptionsNames = assumptionsNames;
+const assumptionsNames = exports.assumptionsNames = new Set(knownAssumptions);
 function getSource(loc) {
   return loc.type === "root" ? loc.source : getSource(loc.parent);
 }

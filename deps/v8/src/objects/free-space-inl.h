@@ -25,7 +25,7 @@ RELAXED_SMI_ACCESSORS(FreeSpace, size, kSizeOffset)
 
 int FreeSpace::Size() { return size(kRelaxedLoad); }
 
-FreeSpace FreeSpace::next() const {
+Tagged<FreeSpace> FreeSpace::next() const {
   DCHECK(IsValid());
 #ifdef V8_EXTERNAL_CODE_SPACE
   intptr_t diff_to_next =
@@ -34,14 +34,14 @@ FreeSpace FreeSpace::next() const {
     return FreeSpace();
   }
   Address next_ptr = ptr() + diff_to_next * kObjectAlignment;
-  return FreeSpace::unchecked_cast(Object(next_ptr));
+  return FreeSpace::unchecked_cast(Tagged<Object>(next_ptr));
 #else
   return FreeSpace::unchecked_cast(
       TaggedField<Object, kNextOffset>::load(*this));
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-void FreeSpace::set_next(FreeSpace next) {
+void FreeSpace::set_next(Tagged<FreeSpace> next) {
   DCHECK(IsValid());
 #ifdef V8_EXTERNAL_CODE_SPACE
   if (next.is_null()) {
@@ -57,19 +57,19 @@ void FreeSpace::set_next(FreeSpace next) {
 #endif  // V8_EXTERNAL_CODE_SPACE
 }
 
-FreeSpace FreeSpace::cast(HeapObject o) {
+Tagged<FreeSpace> FreeSpace::cast(Tagged<HeapObject> o) {
   SLOW_DCHECK((!GetHeapFromWritableObject(o)->deserialization_complete()) ||
-              o.IsFreeSpace());
+              IsFreeSpace(o));
   return base::bit_cast<FreeSpace>(o);
 }
 
-FreeSpace FreeSpace::unchecked_cast(const Object o) {
+Tagged<FreeSpace> FreeSpace::unchecked_cast(const Tagged<Object> o) {
   return base::bit_cast<FreeSpace>(o);
 }
 
 bool FreeSpace::IsValid() const {
   Heap* heap = GetHeapFromWritableObject(*this);
-  Object free_space_map =
+  Tagged<Object> free_space_map =
       Isolate::FromHeap(heap)->root(RootIndex::kFreeSpaceMap);
   CHECK(!heap->deserialization_complete() ||
         map_slot().contains_map_value(free_space_map.ptr()));

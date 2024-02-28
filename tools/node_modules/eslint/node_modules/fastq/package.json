@@ -1,6 +1,6 @@
 {
   "name": "fastq",
-  "version": "1.15.0",
+  "version": "1.17.1",
   "description": "Fast, in memory work queue",
   "main": "queue.js",
   "scripts": {
@@ -8,12 +8,13 @@
     "unit": "nyc --lines 100 --branches 100 --functions 100 --check-coverage --reporter=text tape test/test.js test/promise.js",
     "coverage": "nyc --reporter=html --reporter=cobertura --reporter=text tape test/test.js test/promise.js",
     "test:report": "npm run lint && npm run unit:report",
-    "test": "npm run lint && npm run unit && npm run typescript",
+    "test": "npm run lint && npm run unit",
     "typescript": "tsc --project ./test/tsconfig.json",
     "legacy": "tape test/test.js"
   },
   "pre-commit": [
-    "test"
+    "test",
+    "typescript"
   ],
   "repository": {
     "type": "git",
@@ -39,7 +40,7 @@
     "snazzy": "^9.0.0",
     "standard": "^16.0.0",
     "tape": "^5.0.0",
-    "typescript": "^4.0.2"
+    "typescript": "^5.0.4"
   },
   "dependencies": {
     "reusify": "^1.0.4"

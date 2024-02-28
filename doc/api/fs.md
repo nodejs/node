@@ -181,6 +181,11 @@ longer be used.
 added: v10.0.0
 changes:
   - version:
+    - v21.1.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
+  - version:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
@@ -194,6 +199,8 @@ changes:
 * `data` {string|Buffer|TypedArray|DataView|AsyncIterable|Iterable|Stream}
 * `options` {Object|string}
   * `encoding` {string|null} **Default:** `'utf8'`
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Alias of [`filehandle.writeFile()`][].
@@ -318,6 +325,12 @@ fd.createReadStream({ start: 90, end: 99 });
 
 <!-- YAML
 added: v16.11.0
+changes:
+  - version:
+    - v21.0.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50093
+    description: The `flush` option is now supported.
 -->
 
 * `options` {Object}
@@ -326,6 +339,8 @@ added: v16.11.0
   * `emitClose` {boolean} **Default:** `true`
   * `start` {integer}
   * `highWaterMark` {number} **Default:** `16384`
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -369,16 +384,23 @@ added: v10.0.0
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
   file data read.
 * `offset` {integer} The location in the buffer at which to start filling.
-* `length` {integer} The number of bytes to read.
-* `position` {integer|null} The location where to begin reading data from the
-  file. If `null`, data will be read from the current file position, and
-  the position will be updated. If `position` is an integer, the current
-  file position will remain unchanged.
+  **Default:** `0`
+* `length` {integer} The number of bytes to read. **Default:**
+  `buffer.byteLength - offset`
+* `position` {integer|bigint|null} The location where to begin reading data
+  from the file. If `null` or `-1`, data will be read from the current file
+  position, and the position will be updated. If `position` is a non-negative
+  integer, the current file position will remain unchanged.
+  **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -395,6 +417,10 @@ number of bytes read is zero.
 added:
  - v13.11.0
  - v12.17.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `options` {Object}
@@ -404,10 +430,11 @@ added:
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer|null} The location where to begin reading data from the
-    file. If `null`, data will be read from the current file position, and
-    the position will be updated. If `position` is an integer, the current
-    file position will remain unchanged. **Default:**: `null`
+  * `position` {integer|bigint|null} The location where to begin reading data
+    from the file. If `null` or `-1`, data will be read from the current file
+    position, and the position will be updated. If `position` is a non-negative
+    integer, the current file position will remain unchanged.
+    **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -424,6 +451,10 @@ number of bytes read is zero.
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/42835
+    description: Accepts bigint values as `position`.
 -->
 
 * `buffer` {Buffer|TypedArray|DataView} A buffer that will be filled with the
@@ -433,10 +464,11 @@ added:
     **Default:** `0`
   * `length` {integer} The number of bytes to read. **Default:**
     `buffer.byteLength - offset`
-  * `position` {integer} The location where to begin reading data from the
-    file. If `null`, data will be read from the current file position, and
-    the position will be updated. If `position` is an integer, the current
-    file position will remain unchanged. **Default:**: `null`
+  * `position` {integer|bigint|null} The location where to begin reading data
+    from the file. If `null` or `-1`, data will be read from the current file
+    position, and the position will be updated. If `position` is a non-negative
+    integer, the current file position will remain unchanged.
+    **Default:**: `null`
 * Returns: {Promise} Fulfills upon success with an object with two properties:
   * `bytesRead` {integer} The number of bytes read
   * `buffer` {Buffer|TypedArray|DataView} A reference to the passed in `buffer`
@@ -659,7 +691,7 @@ added: v10.0.0
 * Returns: {Promise}
 
 Change the file system timestamps of the object referenced by the {FileHandle}
-then resolves the promise with no arguments upon success.
+then fulfills the promise with no arguments upon success.
 
 #### `filehandle.write(buffer, offset[, length[, position]])`
 
@@ -685,14 +717,14 @@ changes:
 
 Write `buffer` to the file.
 
-The promise is resolved with an object containing two properties:
+The promise is fulfilled with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffer` {Buffer|TypedArray|DataView} a reference to the
   `buffer` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected). For this
+without waiting for the promise to be fulfilled (or rejected). For this
 scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -742,13 +774,13 @@ changes:
 Write `string` to the file. If `string` is not a string, the promise is
 rejected with an error.
 
-The promise is resolved with an object containing two properties:
+The promise is fulfilled with an object containing two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffer` {string} a reference to the `string` written.
 
 It is unsafe to use `filehandle.write()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected). For this
+without waiting for the promise to be fulfilled (or rejected). For this
 scenario, use [`filehandle.createWriteStream()`][].
 
 On Linux, positional writes do not work when the file is opened in append mode.
@@ -779,14 +811,14 @@ changes:
 
 Asynchronously writes data to a file, replacing the file if it already exists.
 `data` can be a string, a buffer, an {AsyncIterable}, or an {Iterable} object.
-The promise is resolved with no arguments upon success.
+The promise is fulfilled with no arguments upon success.
 
 If `options` is a string, then it specifies the `encoding`.
 
 The {FileHandle} has to support writing.
 
 It is unsafe to use `filehandle.writeFile()` multiple times on the same file
-without waiting for the promise to be resolved (or rejected).
+without waiting for the promise to be fulfilled (or rejected).
 
 If one or more `filehandle.write()` calls are made on a file handle and then a
 `filehandle.writeFile()` call is made, the data will be written from the
@@ -807,14 +839,14 @@ added: v12.9.0
 
 Write an array of {ArrayBufferView}s to the file.
 
-The promise is resolved with an object containing a two properties:
+The promise is fulfilled with an object containing a two properties:
 
 * `bytesWritten` {integer} the number of bytes written
 * `buffers` {Buffer\[]|TypedArray\[]|DataView\[]} a reference to the `buffers`
   input.
 
 It is unsafe to call `writev()` multiple times on the same file without waiting
-for the promise to be resolved (or rejected).
+for the promise to be fulfilled (or rejected).
 
 On Linux, positional writes don't work when the file is opened in append mode.
 The kernel ignores the position argument and always appends the data to
@@ -823,7 +855,9 @@ the end of the file.
 #### `filehandle[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: v20.4.0
+added:
+ - v20.4.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
@@ -848,7 +882,7 @@ or a mask consisting of the bitwise OR of any of `fs.constants.R_OK`,
 `fs.constants.W_OK | fs.constants.R_OK`). Check [File access constants][] for
 possible values of `mode`.
 
-If the accessibility check is successful, the promise is resolved with no
+If the accessibility check is successful, the promise is fulfilled with no
 value. If any of the accessibility checks fail, the promise is rejected
 with an {Error} object. The following example checks if the file
 `/etc/passwd` can be read and written by the current process.
@@ -874,6 +908,12 @@ the error raised if the file is not accessible.
 
 <!-- YAML
 added: v10.0.0
+changes:
+  - version:
+    - v21.1.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
 -->
 
 * `path` {string|Buffer|URL|FileHandle} filename or {FileHandle}
@@ -882,6 +922,8 @@ added: v10.0.0
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
 Asynchronously append data to a file, creating the file if it does not yet
@@ -1165,7 +1207,9 @@ makeDirectory().catch(console.error);
 <!-- YAML
 added: v10.0.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -1306,7 +1350,9 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean} If `true`, reads the contents of a directory
+    recursively. In recursive mode, it will list all files, sub files, and
+    directories. **Default:** `false`.
 * Returns: {Promise}  Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
@@ -1317,7 +1363,7 @@ object with an `encoding` property specifying the character encoding to use for
 the filenames. If the `encoding` is set to `'buffer'`, the filenames returned
 will be passed as {Buffer} objects.
 
-If `options.withFileTypes` is set to `true`, the resolved array will contain
+If `options.withFileTypes` is set to `true`, the returned array will contain
 {fs.Dirent} objects.
 
 ```mjs
@@ -1431,7 +1477,7 @@ added: v10.0.0
 * Returns: {Promise} Fulfills with the `linkString` upon success.
 
 Reads the contents of the symbolic link referred to by `path`. See the POSIX
-readlink(2) documentation for more detail. The promise is resolved with the
+readlink(2) documentation for more detail. The promise is fulfilled with the
 `linkString` upon success.
 
 The optional `options` argument can be a string specifying an encoding, or an
@@ -1727,6 +1773,11 @@ All the [caveats][] for `fs.watch()` also apply to `fsPromises.watch()`.
 added: v10.0.0
 changes:
   - version:
+    - v21.0.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
+  - version:
       - v15.14.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/37490
@@ -1749,6 +1800,9 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `filehandle.sync()` is used to flush the data.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * Returns: {Promise} Fulfills with `undefined` upon success.
 
@@ -1828,6 +1882,10 @@ concurrent modifications on the same file or data corruption may occur.
 <!-- YAML
 added: v0.11.15
 changes:
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49683
+    description: The constants `fs.F_OK`, `fs.R_OK`, `fs.W_OK` and `fs.X_OK`
+                 which were present directly on `fs` are deprecated.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2018,6 +2076,11 @@ the user from reading or writing to it.
 <!-- YAML
 added: v0.6.7
 changes:
+  - version:
+    - v21.1.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
   - version: v18.0.0
     pr-url: https://github.com/nodejs/node/pull/41678
     description: Passing an invalid callback to the `callback` argument
@@ -2045,6 +2108,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
 
@@ -2512,6 +2577,11 @@ If `options` is a string, then it specifies the encoding.
 <!-- YAML
 added: v0.1.31
 changes:
+  - version:
+    - v21.0.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50093
+    description: The `flush` option is now supported.
   - version: v16.10.0
     pr-url: https://github.com/nodejs/node/pull/40013
     description: The `fs` option does not need `open` method if an `fd` was provided.
@@ -2565,6 +2635,8 @@ changes:
   * `fs` {Object|null} **Default:** `null`
   * `signal` {AbortSignal|null} **Default:** `null`
   * `highWaterMark` {number} **Default:** `16384`
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 * Returns: {fs.WriteStream}
 
 `options` may also include a `start` option to allow writing data at some
@@ -3261,7 +3333,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version: v18.0.0
@@ -3410,7 +3484,7 @@ added: v19.8.0
 * `path` {string|Buffer|URL}
 * `options` {Object}
   * `type` {string} An optional mime type for the blob.
-* Return: {Promise} containing {Blob}
+* Returns: {Promise} Fulfills with a {Blob} upon success.
 
 Returns a {Blob} whose data is backed by the given file.
 
@@ -3508,8 +3582,8 @@ changes:
 * `length` {integer} The number of bytes to read.
 * `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
-  file position, and the file position will be updated. If `position` is an
-  integer, the file position will be unchanged.
+  file position, and the file position will be updated. If `position` is
+  a non-negative integer, the file position will be unchanged.
 * `callback` {Function}
   * `err` {Error}
   * `bytesRead` {integer}
@@ -3618,7 +3692,9 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean} If `true`, reads the contents of a directory
+    recursively. In recursive mode, it will list all files, sub files and
+    directories. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
@@ -3757,7 +3833,7 @@ system requests but rather the internal buffering `fs.readFile` performs.
 2. If a file descriptor is specified as the `path`, it will not be closed
    automatically.
 3. The reading will begin at the current position. For example, if the file
-   already had `'Hello World`' and six bytes are read with the file descriptor,
+   already had `'Hello World'` and six bytes are read with the file descriptor,
    the call to `fs.readFile()` with the same file descriptor, would give
    `'World'`, rather than `'Hello World'`.
 
@@ -4859,6 +4935,11 @@ details.
 <!-- YAML
 added: v0.1.29
 changes:
+  - version:
+    - v21.0.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `string` parameter an object with an own
@@ -4916,6 +4997,9 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `fs.fsync()` is used to flush the data.
+    **Default:** `false`.
   * `signal` {AbortSignal} allows aborting an in-progress writeFile
 * `callback` {Function}
   * `err` {Error|AggregateError}
@@ -5095,6 +5179,11 @@ try {
 <!-- YAML
 added: v0.6.7
 changes:
+  - version:
+    - v21.1.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50095
+    description: The `flush` option is now supported.
   - version: v7.0.0
     pr-url: https://github.com/nodejs/node/pull/7831
     description: The passed `options` object will never be modified.
@@ -5109,6 +5198,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'a'`.
+  * `flush` {boolean} If `true`, the underlying file descriptor is flushed
+    prior to closing it. **Default:** `false`.
 
 Synchronously append data to a file, creating the file if it does not yet
 exist. `data` can be a string or a {Buffer}.
@@ -5577,7 +5668,9 @@ See the POSIX mkdir(2) documentation for more details.
 <!-- YAML
 added: v5.10.0
 changes:
-  - version: v20.6.0
+  - version:
+    - v20.6.0
+    - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
     description: The `prefix` parameter now accepts buffers and URL.
   - version:
@@ -5685,7 +5778,9 @@ changes:
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
   * `withFileTypes` {boolean} **Default:** `false`
-  * `recursive` {boolean} **Default:** `false`
+  * `recursive` {boolean} If `true`, reads the contents of a directory
+    recursively. In recursive mode, it will list all files, sub files, and
+    directories. **Default:** `false`.
 * Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
@@ -6147,6 +6242,11 @@ this API: [`fs.utimes()`][].
 <!-- YAML
 added: v0.1.29
 changes:
+  - version:
+    - v21.0.0
+    - v20.10.0
+    pr-url: https://github.com/nodejs/node/pull/50009
+    description: The `flush` option is now supported.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/42796
     description: Passing to the `data` parameter an object with an own
@@ -6181,6 +6281,8 @@ changes:
   * `encoding` {string|null} **Default:** `'utf8'`
   * `mode` {integer} **Default:** `0o666`
   * `flag` {string} See [support of file system `flags`][]. **Default:** `'w'`.
+  * `flush` {boolean} If all data is successfully written to the file, and
+    `flush` is `true`, `fs.fsyncSync()` is used to flush the data.
 
 Returns `undefined`.
 
@@ -6319,7 +6421,7 @@ added: v12.12.0
 Asynchronously close the directory's underlying resource handle.
 Subsequent reads will result in errors.
 
-A promise is returned that will be resolved after the resource has been
+A promise is returned that will be fulfilled after the resource has been
 closed.
 
 #### `dir.close(callback)`
@@ -6368,12 +6470,12 @@ The read-only path of this directory as was provided to [`fs.opendir()`][],
 added: v12.12.0
 -->
 
-* Returns: {Promise} containing {fs.Dirent|null}
+* Returns: {Promise} Fulfills with a {fs.Dirent|null}
 
 Asynchronously read the next directory entry via readdir(3) as an
 {fs.Dirent}.
 
-A promise is returned that will be resolved with an {fs.Dirent}, or `null`
+A promise is returned that will be fulfilled with an {fs.Dirent}, or `null`
 if there are no more directory entries to read.
 
 Directory entries returned by this function are in no particular order as
@@ -6426,7 +6528,7 @@ included in the iteration results.
 added: v12.12.0
 -->
 
-* Returns: {AsyncIterator} of {fs.Dirent}
+* Returns: {AsyncIterator} An AsyncIterator of {fs.Dirent}
 
 Asynchronously iterates over the directory until all entries have
 been read. Refer to the POSIX readdir(3) documentation for more detail.
@@ -6539,17 +6641,33 @@ The file name that this {fs.Dirent} object refers to. The type of this
 value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 [`fs.readdirSync()`][].
 
+#### `dirent.parentPath`
+
+<!-- YAML
+added:
+  - v21.4.0
+-->
+
+> Stability: 1 – Experimental
+
+* {string}
+
+The path to the parent directory of the file this {fs.Dirent} object refers to.
+
 #### `dirent.path`
 
 <!-- YAML
 added:
   - v20.1.0
   - v18.17.0
+deprecated: v21.5.0
 -->
+
+> Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.
 
 * {string}
 
-The base path that this {fs.Dirent} object refers to.
+Alias for `dirent.parentPath`.
 
 ### Class: `fs.FSWatcher`
 
@@ -6877,8 +6995,9 @@ added: v0.1.10
 
 Returns `true` if the {fs.Stats} object describes a file system directory.
 
-If the {fs.Stats} object was obtained from [`fs.lstat()`][], this method will
-always return `false`. This is because [`fs.lstat()`][] returns information
+If the {fs.Stats} object was obtained from calling [`fs.lstat()`][] on a
+symbolic link which resolves to a directory, this method will return `false`.
+This is because [`fs.lstat()`][] returns information
 about a symbolic link itself and not the path it resolves to.
 
 #### `stats.isFIFO()`
@@ -8102,6 +8221,7 @@ the file contents.
 [`Number.MAX_SAFE_INTEGER`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Number/MAX_SAFE_INTEGER
 [`ReadDirectoryChangesW`]: https://docs.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-readdirectorychangesw
 [`UV_THREADPOOL_SIZE`]: cli.md#uv_threadpool_sizesize
+[`dirent.parentPath`]: #direntparentpath
 [`event ports`]: https://illumos.org/man/port_create
 [`filehandle.createReadStream()`]: #filehandlecreatereadstreamoptions
 [`filehandle.createWriteStream()`]: #filehandlecreatewritestreamoptions

@@ -35,10 +35,13 @@
   # Modules which are only meant to be imported from by other tests, not to be
   # tested standalone.
   'fail/modules-skip*': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'wasm-trace-memory64*': [PASS, HEAVY],
 }],  # ALWAYS
 
 # Skip Liftoff tests on platforms that don't support Liftoff.
-['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x', {
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x and arch != ppc64', {
   'wasm-trace-memory-liftoff': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
   'wasm-trace-liftoff': [SKIP],
@@ -50,11 +53,11 @@
   '*': [SKIP],
 }],  # variant == code_serializer
 
-['no_i18n == True', {
+['not i18n', {
   'fail/list-format*': [SKIP],
   # Needs the StringPrototypeToLowerCaseIntl builtin.
   'wasm-recognize-imports': [SKIP],
-}],  # no_i18n == True
+}],  # not i18n
 
 ################################################################################
 ['mode == release', {
@@ -119,4 +122,13 @@
   'wasm-trace-memory64': [SKIP],
   'wasm-trace-memory64-liftoff': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+  # Maglev doesn't support inlining of Wasm code.
+  'wasm-inlining-into-js': [FAIL],
+}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
 ]

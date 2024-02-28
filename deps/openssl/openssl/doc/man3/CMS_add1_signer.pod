@@ -31,8 +31,8 @@ Unless the B<CMS_REUSE_DIGEST> flag is set the returned CMS_ContentInfo
 structure is not complete and must be finalized either by streaming (if
 applicable) or a call to CMS_final().
 
-The CMS_SignerInfo_sign() function will explicitly sign a CMS_SignerInfo
-structure, its main use is when B<CMS_REUSE_DIGEST> and B<CMS_PARTIAL> flags
+The CMS_SignerInfo_sign() function explicitly signs a CMS_SignerInfo
+structure, its main use is when the B<CMS_REUSE_DIGEST> and B<CMS_PARTIAL> flags
 are both set.
 
 =head1 NOTES
@@ -90,6 +90,8 @@ before it is finalized.
 CMS_add1_signer() returns an internal pointer to the CMS_SignerInfo
 structure just added or NULL if an error occurs.
 
+CMS_SignerInfo_sign() returns 1 on success, 0 on failure.
+
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>, L<CMS_sign(3)>,
@@ -97,7 +99,7 @@ L<CMS_final(3)>,
 
 =head1 COPYRIGHT
 
-Copyright 2014-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2014-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

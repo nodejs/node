@@ -1,12 +1,15 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include "tlscontext.h"
+#include <async_wrap-inl.h>
 #include <base_object-inl.h>
+#include <debug_utils-inl.h>
 #include <env-inl.h>
 #include <memory_tracker-inl.h>
 #include <ngtcp2/ngtcp2.h>
 #include <ngtcp2/ngtcp2_crypto.h>
-#include <ngtcp2/ngtcp2_crypto_openssl.h>
+#include <ngtcp2/ngtcp2_crypto_quictls.h>
+#include <node_process-inl.h>
 #include <node_sockaddr-inl.h>
 #include <openssl/ssl.h>
 #include <v8.h>
@@ -32,6 +35,16 @@ namespace quic {
 const TLSContext::Options TLSContext::Options::kDefault = {};
 
 namespace {
+
+// TODO(@jasnell): One time initialization. ngtcp2 says this is optional but
+// highly recommended to deal with some perf regression. Unfortunately doing
+// this breaks some existing tests and we need to understand the potential
+// impact of calling this.
+// auto _ = []() {
+//   CHECK_EQ(ngtcp2_crypto_quictls_init(), 0);
+//   return 0;
+// }();
+
 constexpr size_t kMaxAlpnLen = 255;
 
 int AllowEarlyDataCallback(SSL* ssl, void* arg) {
@@ -83,17 +96,21 @@ int AlpnSelectionCallback(SSL* ssl,
 }
 
 BaseObjectPtr<crypto::SecureContext> InitializeSecureContext(
-    Side side, Environment* env, const TLSContext::Options& options) {
+    Session* session,
+    Side side,
+    Environment* env,
+    const TLSContext::Options& options) {
   auto context = crypto::SecureContext::Create(env);
 
   auto& ctx = context->ctx();
 
   switch (side) {
     case Side::SERVER: {
+      Debug(session, "Initializing secure context for server");
       ctx.reset(SSL_CTX_new(TLS_server_method()));
       SSL_CTX_set_app_data(ctx.get(), context);
 
-      if (ngtcp2_crypto_openssl_configure_server_context(ctx.get()) != 0) {
+      if (ngtcp2_crypto_quictls_configure_server_context(ctx.get()) != 0) {
         return BaseObjectPtr<crypto::SecureContext>();
       }
 
@@ -120,10 +137,11 @@ BaseObjectPtr<crypto::SecureContext> InitializeSecureContext(
       break;
     }
     case Side::CLIENT: {
+      Debug(session, "Initializing secure context for client");
       ctx.reset(SSL_CTX_new(TLS_client_method()));
       SSL_CTX_set_app_data(ctx.get(), context);
 
-      if (ngtcp2_crypto_openssl_configure_client_context(ctx.get()) != 0) {
+      if (ngtcp2_crypto_quictls_configure_client_context(ctx.get()) != 0) {
         return BaseObjectPtr<crypto::SecureContext>();
       }
 
@@ -259,6 +277,8 @@ bool SetOption(Environment* env,
   v8::Local<v8::Value> value;
   if (!object->Get(env->context(), name).ToLocal(&value)) return false;
 
+  if (value->IsUndefined()) return true;
+
   // The value can be either a single item or an array of items.
 
   if (value->IsArray()) {
@@ -277,6 +297,9 @@ bool SetOption(Environment* env,
           ASSIGN_OR_RETURN_UNWRAP(&handle, item, false);
           (options->*member).push_back(handle->Data());
         } else {
+          Utf8Value namestr(env->isolate(), name);
+          THROW_ERR_INVALID_ARG_TYPE(
+              env, "%s value must be a key object", *namestr);
           return false;
         }
       } else if constexpr (std::is_same<T, Store>::value) {
@@ -285,6 +308,9 @@ bool SetOption(Environment* env,
         } else if (item->IsArrayBuffer()) {
           (options->*member).emplace_back(item.As<v8::ArrayBuffer>());
         } else {
+          Utf8Value namestr(env->isolate(), name);
+          THROW_ERR_INVALID_ARG_TYPE(
+              env, "%s value must be an array buffer", *namestr);
           return false;
         }
       }
@@ -297,6 +323,9 @@ bool SetOption(Environment* env,
         ASSIGN_OR_RETURN_UNWRAP(&handle, value, false);
         (options->*member).push_back(handle->Data());
       } else {
+        Utf8Value namestr(env->isolate(), name);
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "%s value must be a key object", *namestr);
         return false;
       }
     } else if constexpr (std::is_same<T, Store>::value) {
@@ -305,6 +334,9 @@ bool SetOption(Environment* env,
       } else if (value->IsArrayBuffer()) {
         (options->*member).emplace_back(value.As<v8::ArrayBuffer>());
       } else {
+        Utf8Value namestr(env->isolate(), name);
+        THROW_ERR_INVALID_ARG_TYPE(
+            env, "%s value must be an array buffer", *namestr);
         return false;
       }
     }
@@ -342,7 +374,7 @@ TLSContext::TLSContext(Environment* env,
       env_(env),
       session_(session),
       options_(options),
-      secure_context_(InitializeSecureContext(side, env, options)) {
+      secure_context_(InitializeSecureContext(session, side, env, options)) {
   CHECK(secure_context_);
   ssl_.reset(SSL_new(secure_context_->ctx().get()));
   CHECK(ssl_ && SSL_is_quic(ssl_.get()));
@@ -382,10 +414,10 @@ TLSContext::TLSContext(Environment* env,
 }
 
 void TLSContext::Start() {
+  Debug(session_, "Crypto context is starting");
   ngtcp2_conn_set_tls_native_handle(*session_, ssl_.get());
 
-  TransportParams tp(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                     ngtcp2_conn_get_local_transport_params(*session_));
+  TransportParams tp(ngtcp2_conn_get_local_transport_params(*session_));
   Store store = tp.Encode(env_);
   if (store && store.length() > 0) {
     ngtcp2_vec vec = store;
@@ -397,37 +429,8 @@ void TLSContext::Keylog(const char* line) const {
   session_->EmitKeylog(line);
 }
 
-int TLSContext::Receive(ngtcp2_crypto_level crypto_level,
-                        uint64_t offset,
-                        const uint8_t* data,
-                        size_t datalen) {
-  // ngtcp2 provides an implementation of this in
-  // ngtcp2_crypto_recv_crypto_data_cb but given that we are using the
-  // implementation specific error codes below, we can't use it.
-
-  if (UNLIKELY(session_->is_destroyed())) return NGTCP2_ERR_CALLBACK_FAILURE;
-
-  // Internally, this passes the handshake data off to openssl for processing.
-  // The handshake may or may not complete.
-  int ret = ngtcp2_crypto_read_write_crypto_data(
-      *session_, crypto_level, data, datalen);
-
-  switch (ret) {
-    case 0:
-    // Fall-through
-
-    // In either of following cases, the handshake is being paused waiting for
-    // user code to take action (for instance OCSP requests or client hello
-    // modification)
-    case NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_X509_LOOKUP:
-      [[fallthrough]];
-    case NGTCP2_CRYPTO_OPENSSL_ERR_TLS_WANT_CLIENT_HELLO_CB:
-      return 0;
-  }
-  return ret;
-}
-
 int TLSContext::OnNewSession(SSL_SESSION* session) {
+  Debug(session_, "Crypto context received new crypto session");
   // Used to generate and emit a SessionTicket for TLS session resumption.
 
   // If there is nothing listening for the session ticket, don't both emitting.
@@ -452,6 +455,7 @@ int TLSContext::OnNewSession(SSL_SESSION* session) {
 }
 
 bool TLSContext::InitiateKeyUpdate() {
+  Debug(session_, "Crypto context initiating key update");
   if (session_->is_destroyed() || in_key_update_) return false;
   auto leave = OnScopeLeave([this] { in_key_update_ = false; });
   in_key_update_ = true;
@@ -460,16 +464,12 @@ bool TLSContext::InitiateKeyUpdate() {
 }
 
 int TLSContext::VerifyPeerIdentity() {
+  Debug(session_, "Crypto context verifying peer identity");
   return crypto::VerifyPeerCertificate(ssl_);
 }
 
 void TLSContext::MaybeSetEarlySession(const SessionTicket& sessionTicket) {
-  TransportParams rtp(TransportParams::Type::ENCRYPTED_EXTENSIONS,
-                      sessionTicket.transport_params());
-
-  // Ignore invalid remote transport parameters.
-  if (!rtp) return;
-
+  Debug(session_, "Crypto context setting early session");
   uv_buf_t buf = sessionTicket.ticket();
   crypto::SSLSessionPointer ticket = crypto::GetTLSSession(
       reinterpret_cast<unsigned char*>(buf.base), buf.len);
@@ -478,10 +478,17 @@ void TLSContext::MaybeSetEarlySession(const SessionTicket& sessionTicket) {
   if (!ticket || !SSL_SESSION_get_max_early_data(ticket.get())) return;
 
   // The early data will just be ignored if it's invalid.
-  if (crypto::SetTLSSession(ssl_, ticket)) {
-    ngtcp2_conn_set_early_remote_transport_params(*session_, rtp);
-    session_->SetStreamOpenAllowed();
-  }
+  if (!crypto::SetTLSSession(ssl_, ticket)) return;
+
+  ngtcp2_vec rtp = sessionTicket.transport_params();
+  // Decode and attempt to set the early transport parameters configured
+  // for the early session. If non-zero is returned, decoding or setting
+  // failed, in which case we just ignore it.
+  if (ngtcp2_conn_decode_and_set_0rtt_transport_params(
+          *session_, rtp.base, rtp.len) != 0)
+    return;
+
+  session_->SetStreamOpenAllowed();
 }
 
 void TLSContext::MemoryInfo(MemoryTracker* tracker) const {
@@ -545,16 +552,34 @@ ngtcp2_conn* TLSContext::getConnection(ngtcp2_crypto_conn_ref* ref) {
   return *context->session_;
 }
 
-Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
-                                                           Local<Value> value) {
-  if (value.IsEmpty() || !value->IsObject()) {
+Maybe<TLSContext::Options> TLSContext::Options::From(Environment* env,
+                                                     Local<Value> value) {
+  if (value.IsEmpty()) {
     THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
-    return Nothing<const Options>();
+    return Nothing<Options>();
   }
 
-  auto& state = BindingData::Get(env);
-  auto params = value.As<Object>();
   Options options;
+  auto& state = BindingData::Get(env);
+
+  if (value->IsUndefined()) {
+    // We need at least one key and one cert to complete the tls handshake.
+    // Why not make this an error? We could but it's not strictly necessary.
+    env->EmitProcessEnvWarning();
+    ProcessEmitWarning(
+        env,
+        "The default QUIC TLS options are being used. "
+        "This means there is no key or certificate configured and the "
+        "TLS handshake will fail. This is likely not what you want.");
+    return Just<Options>(options);
+  }
+
+  if (!value->IsObject()) {
+    THROW_ERR_INVALID_ARG_TYPE(env, "options must be an object");
+    return Nothing<Options>();
+  }
+
+  auto params = value.As<Object>();
 
 #define SET_VECTOR(Type, name)                                                 \
   SetOption<Type, TLSContext::Options, &TLSContext::Options::name>(            \
@@ -571,10 +596,47 @@ Maybe<const TLSContext::Options> TLSContext::Options::From(Environment* env,
       !SET_VECTOR(std::shared_ptr<crypto::KeyObjectData>, keys) ||
       !SET_VECTOR(Store, certs) || !SET_VECTOR(Store, ca) ||
       !SET_VECTOR(Store, crl)) {
-    return Nothing<const Options>();
+    return Nothing<Options>();
   }
 
-  return Just<const Options>(options);
+  // We need at least one key and one cert to complete the tls handshake.
+  // Why not make this an error? We could but it's not strictly necessary.
+  if (options.keys.empty() || options.certs.empty()) {
+    env->EmitProcessEnvWarning();
+    ProcessEmitWarning(env,
+                       "The QUIC TLS options did not include a key or cert. "
+                       "This means the TLS handshake will fail. This is likely "
+                       "not what you want.");
+  }
+
+  return Just<Options>(options);
+}
+
+std::string TLSContext::Options::ToString() const {
+  DebugIndentScope indent;
+  auto prefix = indent.Prefix();
+  std::string res("{");
+  res += prefix + "alpn: " + alpn;
+  res += prefix + "hostname: " + hostname;
+  res +=
+      prefix + "keylog: " + (keylog ? std::string("yes") : std::string("no"));
+  res += prefix + "reject_unauthorized: " +
+         (reject_unauthorized ? std::string("yes") : std::string("no"));
+  res += prefix + "enable_tls_trace: " +
+         (enable_tls_trace ? std::string("yes") : std::string("no"));
+  res += prefix + "request_peer_certificate: " +
+         (request_peer_certificate ? std::string("yes") : std::string("no"));
+  res += prefix + "verify_hostname_identity: " +
+         (verify_hostname_identity ? std::string("yes") : std::string("no"));
+  res += prefix + "session_id_ctx: " + session_id_ctx;
+  res += prefix + "ciphers: " + ciphers;
+  res += prefix + "groups: " + groups;
+  res += prefix + "keys: " + std::to_string(keys.size());
+  res += prefix + "certs: " + std::to_string(certs.size());
+  res += prefix + "ca: " + std::to_string(ca.size());
+  res += prefix + "crl: " + std::to_string(crl.size());
+  res += indent.Close();
+  return res;
 }
 
 }  // namespace quic

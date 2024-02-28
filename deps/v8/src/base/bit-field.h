@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -29,6 +31,7 @@ class BitField final {
   static_assert(size > 0);
 
   using FieldType = T;
+  using BaseType = U;
 
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
@@ -70,6 +73,24 @@ class BitField final {
   static constexpr T decode(U value) {
     return static_cast<T>((value & kMask) >> kShift);
   }
+};
+
+// ----------------------------------------------------------------------------
+// BitFieldUnion can be used to combine two linear BitFields.
+// So far only the static mask is computed. Encoding and decoding tbd.
+// Can be used for example as a quick combined check:
+//   `if (BitFieldUnion<BFA, BFB>::kMask & bitfield) ...`
+
+template <typename A, typename B>
+class BitFieldUnion final {
+ public:
+  static_assert(
+      std::is_same<typename A::BaseType, typename B::BaseType>::value);
+  static_assert((A::kMask & B::kMask) == 0);
+  static constexpr int kShift = std::min(A::kShift, B::kShift);
+  static constexpr int kMask = A::kMask | B::kMask;
+  static constexpr int kSize =
+      A::kSize + B::kSize + (std::max(A::kShift, B::kShift) - kShift);
 };
 
 template <class T, int shift, int size>

@@ -10,7 +10,7 @@ onboarding session.
   possible to add them to the organization if they are not using two-factor
   authentication. If they cannot receive SMS messages from GitHub, try
   [using a TOTP mobile app][].
-* Suggest the new Collaborator install [`node-core-utils`][] and
+* Suggest the new Collaborator install [`@node-core/utils`][] and
   [set up the credentials][] for it.
 
 ## Fifteen minutes before the onboarding session
@@ -230,7 +230,7 @@ needs to be pointed out separately during the onboarding.
   request.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
-  * [`node-core-utils`][] automates the generation of metadata and the landing
+  * [`@node-core/utils`][] automates the generation of metadata and the landing
     process. See the documentation of [`git-node`][].
   * [`core-validate-commit`][] automates the validation of commit messages.
     This will be run during `git node land --final` of the [`git-node`][]
@@ -260,10 +260,10 @@ needs to be pointed out separately during the onboarding.
 [Labels]: doc/contributing/collaborator-guide.md#labels
 [Landing pull requests]: doc/contributing/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/

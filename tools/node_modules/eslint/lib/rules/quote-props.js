@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to flag non-quoted property names in object literals.
  * @author Mathias Bynens <http://mathiasbynens.be/>
+ * @deprecated in ESLint v8.53.0
  */
 "use strict";
 
@@ -19,6 +20,8 @@ const keywords = require("./utils/keywords");
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "suggestion",
 
         docs: {

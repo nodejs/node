@@ -18,10 +18,9 @@ then only packages matching one of the supplied names are removed.
 Extraneous packages are those present in the `node_modules` folder that are
 not listed as any package's dependency list.
 
-If the `--production` flag is specified or the `NODE_ENV` environment
+If the `--omit=dev` flag is specified or the `NODE_ENV` environment
 variable is set to `production`, this command will remove the packages
-specified in your `devDependencies`. Setting `--no-production` will negate
-`NODE_ENV` being set to `production`.
+specified in your `devDependencies`.
 
 If the `--dry-run` flag is used then no changes will actually be made.
 
@@ -52,6 +51,20 @@ it will be included.
 
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
+
+
+
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
 
 
 

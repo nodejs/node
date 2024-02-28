@@ -134,4 +134,44 @@ describe('node:test reporters', { concurrency: true }, () => {
     assert.strictEqual(child.stdout.toString(), '');
     assert.match(child.stderr.toString(), /ERR_INVALID_ARG_TYPE/);
   });
+
+  it('should throw when reporter errors', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', fixtures.fileURL('test-runner/custom_reporters/throwing.js'),
+                             fixtures.path('test-runner/default-behavior/index.test.js')]);
+    assert.strictEqual(child.status, 7);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), 'Going to throw an error\n');
+    assert.match(child.stderr.toString(), /Error: Reporting error\r?\n\s+at customReporter/);
+  });
+
+  it('should throw when reporter errors asynchronously', async () => {
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter',
+                             fixtures.fileURL('test-runner/custom_reporters/throwing-async.js'),
+                             fixtures.path('test-runner/default-behavior/index.test.js')]);
+    assert.strictEqual(child.status, 7);
+    assert.strictEqual(child.signal, null);
+    assert.strictEqual(child.stdout.toString(), 'Going to throw an error\n');
+    assert.match(child.stderr.toString(), /Emitted 'error' event on Duplex instance/);
+  });
+
+  it('should support stdout as a destination with spec reporter', async () => {
+    process.env.FORCE_COLOR = '1';
+    const file = tmpdir.resolve(`${tmpFiles++}.txt`);
+    const child = spawnSync(process.execPath,
+                            ['--test', '--test-reporter', 'spec', '--test-reporter-destination', file, testFile]);
+    assert.strictEqual(child.stderr.toString(), '');
+    assert.strictEqual(child.stdout.toString(), '');
+    const fileConent = fs.readFileSync(file, 'utf8');
+    assert.match(fileConent, /▶ nested/);
+    assert.match(fileConent, /✔ ok/);
+    assert.match(fileConent, /✖ failing/);
+    assert.match(fileConent, /ℹ tests 4/);
+    assert.match(fileConent, /ℹ pass 2/);
+    assert.match(fileConent, /ℹ fail 2/);
+    assert.match(fileConent, /ℹ cancelled 0/);
+    assert.match(fileConent, /ℹ skipped 0/);
+    assert.match(fileConent, /ℹ todo 0/);
+  });
 });

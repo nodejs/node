@@ -83,7 +83,7 @@ const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
  * @property {string[]} [plugins] An array of plugins to load.
  * @property {Record<string,RuleConf>} [rules] An object of rules to use.
  * @property {string[]} [rulePaths] An array of directories to load custom rules from.
- * @property {boolean} [reportUnusedDisableDirectives] `true` adds reports for unused eslint-disable directives
+ * @property {boolean|string} [reportUnusedDisableDirectives] `true`, `"error"` or '"warn"' adds reports for unused eslint-disable directives
  * @property {boolean} [globInputPaths] Set to false to skip glob resolution of input file paths to lint (default: true). If false, each input file paths is assumed to be a non-glob path to an existing file.
  * @property {string} [resolvePluginsRelativeTo] The folder where plugins should be resolved from, defaulting to the CWD
  */
@@ -224,7 +224,7 @@ function calculateStatsPerRun(results) {
  * @param {ConfigArray} config.config The config.
  * @param {boolean} config.fix If `true` then it does fix.
  * @param {boolean} config.allowInlineConfig If `true` then it uses directive comments.
- * @param {boolean} config.reportUnusedDisableDirectives If `true` then it reports unused `eslint-disable` comments.
+ * @param {boolean|string} config.reportUnusedDisableDirectives If `true`, `"error"` or '"warn"', then it reports unused `eslint-disable` comments.
  * @param {FileEnumerator} config.fileEnumerator The file enumerator to check if a path is a target or not.
  * @param {Linter} config.linter The linter instance to verify.
  * @returns {LintResult} The result of linting.

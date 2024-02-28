@@ -2,6 +2,7 @@ import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
 import { describe, it } from 'node:test';
+import { hostname } from 'node:os';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
@@ -9,19 +10,25 @@ const skipForceColors =
 
 function replaceTestDuration(str) {
   return str
-    .replaceAll(/duration_ms: 0(\r?\n)/g, 'duration_ms: ZERO$1')
     .replaceAll(/duration_ms: [0-9.]+/g, 'duration_ms: *')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *');
 }
 
 const color = '(\\[\\d+m)';
-const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd()}/?${color}(.*)${color}\\)`, 'g');
+const stackTraceBasePath = new RegExp(`${color}\\(${process.cwd().replaceAll(/[\\^$*+?.()|[\]{}]/g, '\\$&')}/?${color}(.*)${color}\\)`, 'g');
 
 function replaceSpecDuration(str) {
   return str
-    .replaceAll(/\(0(\r?\n)ms\)/g, '(ZEROms)')
     .replaceAll(/[0-9.]+ms/g, '*ms')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replace(stackTraceBasePath, '$3');
+}
+
+function replaceJunitDuration(str) {
+  return str
+    .replaceAll(/time="[0-9.]+"/g, 'time="*"')
+    .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
+    .replaceAll(hostname(), 'HOSTNAME')
     .replace(stackTraceBasePath, '$3');
 }
 
@@ -31,6 +38,23 @@ function removeWindowsPathEscaping(str) {
 
 function replaceTestLocationLine(str) {
   return str.replaceAll(/(js:)(\d+)(:\d+)/g, '$1(LINE)$3');
+}
+
+// The Node test coverage returns results for all files called by the test. This
+// will make the output file change if files like test/common/index.js change.
+// This transform picks only the first line and then the lines from the test
+// file.
+function pickTestFileFromLcov(str) {
+  const lines = str.split(/\n/);
+  const firstLineOfTestFile = lines.findIndex(
+    (line) => line.startsWith('SF:') && line.trim().endsWith('output.js')
+  );
+  const lastLineOfTestFile = lines.findIndex(
+    (line, index) => index > firstLineOfTestFile && line.trim() === 'end_of_record'
+  );
+  return (
+    lines[0] + '\n' + lines.slice(firstLineOfTestFile, lastLineOfTestFile + 1).join('\n') + '\n'
+  );
 }
 
 const defaultTransform = snapshot.transform(
@@ -47,6 +71,19 @@ const specTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
 );
+const junitTransform = snapshot.transform(
+  replaceJunitDuration,
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+);
+const lcovTransform = snapshot.transform(
+  snapshot.replaceWindowsLineEndings,
+  snapshot.replaceStackTrace,
+  snapshot.replaceFullPaths,
+  snapshot.replaceWindowsPaths,
+  pickTestFileFromLcov
+);
+
 
 const tests = [
   { name: 'test-runner/output/abort.js' },
@@ -55,6 +92,7 @@ const tests = [
   { name: 'test-runner/output/describe_it.js' },
   { name: 'test-runner/output/describe_nested.js' },
   { name: 'test-runner/output/hooks.js' },
+  { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js' },
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
@@ -64,9 +102,11 @@ const tests = [
   { name: 'test-runner/output/no_tests.js' },
   { name: 'test-runner/output/only_tests.js' },
   { name: 'test-runner/output/dot_reporter.js' },
+  { name: 'test-runner/output/junit_reporter.js', transform: junitTransform },
   { name: 'test-runner/output/spec_reporter_successful.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/spec_reporter_cli.js', transform: specTransform },
+  process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
   { name: 'test-runner/output/output.js' },
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },

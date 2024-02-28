@@ -24,13 +24,7 @@ class NameToIndexHashTable;
 
 #include "torque-generated/src/objects/scope-info-tq.inc"
 
-template <typename T>
-class Handle;
-class Isolate;
-template <typename T>
-class MaybeHandle;
 class SourceTextModuleInfo;
-class Scope;
 class StringSet;
 class Zone;
 
@@ -114,8 +108,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   V8_EXPORT_PRIVATE bool HasInferredFunctionName() const;
 
-  void SetFunctionName(Object name);
-  void SetInferredFunctionName(String name);
+  void SetFunctionName(Tagged<Object> name);
+  void SetInferredFunctionName(Tagged<String> name);
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
@@ -129,22 +123,22 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  V8_EXPORT_PRIVATE Object FunctionName() const;
+  V8_EXPORT_PRIVATE Tagged<Object> FunctionName() const;
 
   // The function's name if it is non-empty, otherwise the inferred name or an
   // empty string.
-  String FunctionDebugName() const;
+  Tagged<String> FunctionDebugName() const;
 
   // Return the function's inferred name if present.
   // See SharedFunctionInfo::function_identifier.
-  V8_EXPORT_PRIVATE Object InferredFunctionName() const;
+  V8_EXPORT_PRIVATE Tagged<Object> InferredFunctionName() const;
 
   // Position information accessors.
   int StartPosition() const;
   int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
-  SourceTextModuleInfo ModuleDescriptorInfo() const;
+  Tagged<SourceTextModuleInfo> ModuleDescriptorInfo() const;
 
   // Return true if the local names are inlined in the scope info object.
   inline bool HasInlinedLocalNames() const;
@@ -155,13 +149,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   static inline LocalNamesRange<Handle<ScopeInfo>> IterateLocalNames(
       Handle<ScopeInfo> scope_info);
 
-  static inline LocalNamesRange<ScopeInfo*> IterateLocalNames(
-      ScopeInfo* scope_info, const DisallowGarbageCollection& no_gc);
+  static inline LocalNamesRange<Tagged<ScopeInfo>> IterateLocalNames(
+      Tagged<ScopeInfo> scope_info, const DisallowGarbageCollection& no_gc);
 
   // Return the name of a given context local.
   // It should only be used if inlined local names.
-  String ContextInlinedLocalName(int var) const;
-  String ContextInlinedLocalName(PtrComprCageBase cage_base, int var) const;
+  Tagged<String> ContextInlinedLocalName(int var) const;
+  Tagged<String> ContextInlinedLocalName(PtrComprCageBase cage_base,
+                                         int var) const;
 
   // Return the mode of the given context local.
   VariableMode ContextLocalMode(int var) const;
@@ -180,7 +175,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
 
   // Return true if this local was introduced by the compiler, and should not be
   // exposed to the user in a debugger.
-  static bool VariableIsSynthetic(String name);
+  static bool VariableIsSynthetic(Tagged<String> name);
 
   // Lookup support for serialized scope info. Returns the local context slot
   // index for a given slot name if the slot is present; otherwise
@@ -194,7 +189,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no
   // module variable with the given name (the index value of a MODULE variable
   // is never 0).
-  int ModuleIndex(String name, VariableMode* mode,
+  int ModuleIndex(Tagged<String> name, VariableMode* mode,
                   InitializationFlag* init_flag,
                   MaybeAssignedFlag* maybe_assigned_flag);
 
@@ -204,7 +199,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // slot index if the function name is present and context-allocated (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be an internalized string.
-  int FunctionContextSlotIndex(String name) const;
+  int FunctionContextSlotIndex(Tagged<String> name) const;
 
   // Lookup support for serialized scope info.  Returns the receiver context
   // slot index if scope has a "this" binding, and the binding is
@@ -217,7 +212,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Lookup support for serialized scope info.  Returns the name and index of
   // the saved class variable in context local slots if scope is a class scope
   // and it contains static private methods that may be accessed.
-  std::pair<String, int> SavedClassVariable() const;
+  std::pair<Tagged<String>, int> SavedClassVariable() const;
 
   FunctionKind function_kind() const;
 
@@ -232,7 +227,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   void SetIsDebugEvaluateScope();
 
   // Return the outer ScopeInfo if present.
-  ScopeInfo OuterScopeInfo() const;
+  Tagged<ScopeInfo> OuterScopeInfo() const;
 
   bool is_script_scope() const;
 
@@ -242,7 +237,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Returns a list of stack-allocated locals of parent scopes.
   // Used during local debug-evalute to decide whether a context lookup
   // can continue upwards after checking this scope.
-  V8_EXPORT_PRIVATE StringSet LocalsBlockList() const;
+  V8_EXPORT_PRIVATE Tagged<StringSet> LocalsBlockList() const;
 
   // Returns true if this ScopeInfo was created for a scope that skips the
   // closest outer class when resolving private names.
@@ -260,7 +255,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   //   - outer scope info: LiveEdit already analyses outer scopes of unchanged
   //     functions. Also checking it here will break in really subtle cases
   //     e.g. changing a let to a const in an outer function, which is fine.
-  bool Equals(ScopeInfo other, bool is_live_edit_compare = false) const;
+  bool Equals(Tagged<ScopeInfo> other, bool is_live_edit_compare = false) const;
 #endif
 
   template <typename IsolateT>
@@ -282,7 +277,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
       Handle<StringSet> blocklist);
 
   // Serializes empty scope info.
-  V8_EXPORT_PRIVATE static ScopeInfo Empty(Isolate* isolate);
+  V8_EXPORT_PRIVATE static Tagged<ScopeInfo> Empty(Isolate* isolate);
 
 #define FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(V) \
   V(Flags)                                   \
@@ -316,7 +311,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   V8_EXPORT_PRIVATE uint32_t Hash();
 
  private:
-  int InlinedLocalNamesLookup(String name);
+  int InlinedLocalNamesLookup(Tagged<String> name);
 
   int ContextLocalNamesIndex() const;
   int ContextLocalInfosIndex() const;
@@ -336,14 +331,14 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // in ScopeInfo is tagged. Each slot is tagged-pointer sized. Slot 0 is
   // 'flags', the first field defined by ScopeInfo after the standard-size
   // HeapObject header.
-  V8_EXPORT_PRIVATE Object get(int index) const;
-  Object get(PtrComprCageBase cage_base, int index) const;
+  V8_EXPORT_PRIVATE Tagged<Object> get(int index) const;
+  Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
   // Setter that doesn't need write barrier.
-  void set(int index, Smi value);
+  void set(int index, Tagged<Smi> value);
   // Setter with explicit barrier mode.
-  void set(int index, Object value,
+  void set(int index, Tagged<Object> value,
            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  void CopyElements(Isolate* isolate, int dst_index, ScopeInfo src,
+  void CopyElements(Isolate* isolate, int dst_index, Tagged<ScopeInfo> src,
                     int src_index, int len, WriteBarrierMode mode);
   ObjectSlot RawFieldOfElementAt(int index);
   // The number of tagged-pointer-sized slots in the ScopeInfo after its
@@ -373,7 +368,7 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // Get metadata of i-th MODULE-allocated variable, where 0 <= i <
   // ModuleVariableCount.  The metadata is returned via out-arguments, which may
   // be nullptr if the corresponding information is not requested
-  void ModuleVariable(int i, String* name, int* index,
+  void ModuleVariable(int i, Tagged<String>* name, int* index,
                       VariableMode* mode = nullptr,
                       InitializationFlag* init_flag = nullptr,
                       MaybeAssignedFlag* maybe_assigned_flag = nullptr);

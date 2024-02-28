@@ -205,4 +205,4 @@ tickValue = 1;
 
 // Should fail due to stub.
 assert.rejects(dnsPromises.lookup('example.com'),
-               { code: 'ENOMEM', hostname: 'example.com' });
+               { code: 'ENOMEM', hostname: 'example.com' }).then(common.mustCall());

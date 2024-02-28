@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 DEFINE_LAZY_LEAKY_OBJECT_GETTER(BasicBlockProfiler, BasicBlockProfiler::Get)
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(BuiltinsCallGraph, BuiltinsCallGraph::Get)
 
 BasicBlockProfilerData::BasicBlockProfilerData(size_t n_blocks)
     : block_ids_(n_blocks), counts_(n_blocks, 0) {}
@@ -76,29 +77,31 @@ BasicBlockProfilerData::BasicBlockProfilerData(
 }
 
 BasicBlockProfilerData::BasicBlockProfilerData(
-    OnHeapBasicBlockProfilerData js_heap_data) {
+    Tagged<OnHeapBasicBlockProfilerData> js_heap_data) {
   CopyFromJSHeap(js_heap_data);
 }
 
 void BasicBlockProfilerData::CopyFromJSHeap(
-    OnHeapBasicBlockProfilerData js_heap_data) {
-  function_name_ = js_heap_data.name().ToCString().get();
-  schedule_ = js_heap_data.schedule().ToCString().get();
-  code_ = js_heap_data.code().ToCString().get();
-  FixedUInt32Array counts = FixedUInt32Array::cast(js_heap_data.counts());
-  for (int i = 0; i < counts.length() / kBlockCountSlotSize; ++i) {
-    counts_.push_back(counts.get(i));
+    Tagged<OnHeapBasicBlockProfilerData> js_heap_data) {
+  function_name_ = js_heap_data->name()->ToCString().get();
+  schedule_ = js_heap_data->schedule()->ToCString().get();
+  code_ = js_heap_data->code()->ToCString().get();
+  Tagged<FixedUInt32Array> counts =
+      FixedUInt32Array::cast(js_heap_data->counts());
+  for (int i = 0; i < counts->length() / kBlockCountSlotSize; ++i) {
+    counts_.push_back(counts->get(i));
   }
-  FixedInt32Array block_ids(js_heap_data.block_ids());
-  for (int i = 0; i < block_ids.length() / kBlockIdSlotSize; ++i) {
-    block_ids_.push_back(block_ids.get(i));
+  Tagged<FixedInt32Array> block_ids(js_heap_data->block_ids());
+  for (int i = 0; i < block_ids->length() / kBlockIdSlotSize; ++i) {
+    block_ids_.push_back(block_ids->get(i));
   }
-  PodArray<std::pair<int32_t, int32_t>> branches = js_heap_data.branches();
-  for (int i = 0; i < branches.length(); ++i) {
-    branches_.push_back(branches.get(i));
+  Tagged<PodArray<std::pair<int32_t, int32_t>>> branches =
+      js_heap_data->branches();
+  for (int i = 0; i < branches->length(); ++i) {
+    branches_.push_back(branches->get(i));
   }
   CHECK_EQ(block_ids_.size(), counts_.size());
-  hash_ = js_heap_data.hash();
+  hash_ = js_heap_data->hash();
 }
 
 Handle<OnHeapBasicBlockProfilerData> BasicBlockProfilerData::CopyToJSHeap(
@@ -148,7 +151,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
                          isolate);
   for (int i = 0; i < list->Length(); ++i) {
     Handle<FixedUInt32Array> counts(
-        OnHeapBasicBlockProfilerData::cast(list->Get(i)).counts(), isolate);
+        OnHeapBasicBlockProfilerData::cast(list->Get(i))->counts(), isolate);
     for (int j = 0; j < counts->length() / kBlockCountSlotSize; ++j) {
       counts->set(j, 0);
     }
@@ -157,7 +160,7 @@ void BasicBlockProfiler::ResetCounts(Isolate* isolate) {
 
 bool BasicBlockProfiler::HasData(Isolate* isolate) {
   return data_list_.size() > 0 ||
-         isolate->heap()->basic_block_profiling_data().Length() > 0;
+         isolate->heap()->basic_block_profiling_data()->Length() > 0;
 }
 
 void BasicBlockProfiler::Print(Isolate* isolate, std::ostream& os) {
@@ -199,12 +202,12 @@ void BasicBlockProfiler::Log(Isolate* isolate, std::ostream& os) {
 
 std::vector<bool> BasicBlockProfiler::GetCoverageBitmap(Isolate* isolate) {
   DisallowGarbageCollection no_gc;
-  ArrayList list(isolate->heap()->basic_block_profiling_data());
+  Tagged<ArrayList> list(isolate->heap()->basic_block_profiling_data());
   std::vector<bool> out;
-  int list_length = list.Length();
+  int list_length = list->Length();
   for (int i = 0; i < list_length; ++i) {
     BasicBlockProfilerData data(
-        OnHeapBasicBlockProfilerData::cast(list.Get(i)));
+        OnHeapBasicBlockProfilerData::cast(list->Get(i)));
     for (size_t j = 0; j < data.n_blocks(); ++j) {
       out.push_back(data.counts_[j] > 0);
     }
@@ -270,6 +273,28 @@ std::ostream& operator<<(std::ostream& os, const BasicBlockProfilerData& d) {
     os << d.code_.c_str() << std::endl;
   }
   return os;
+}
+
+BuiltinsCallGraph::BuiltinsCallGraph() : all_hash_matched_(true) {}
+
+void BuiltinsCallGraph::AddBuiltinCall(Builtin caller, Builtin callee,
+                                       int32_t block_id) {
+  if (builtin_call_map_.count(caller) == 0) {
+    builtin_call_map_.emplace(caller, BuiltinCallees());
+  }
+  BuiltinCallees& callees = builtin_call_map_.at(caller);
+  if (callees.count(block_id) == 0) {
+    callees.emplace(block_id, BlockCallees());
+  }
+  BlockCallees& block_callees = callees.at(block_id);
+  if (block_callees.count(callee) == 0) {
+    block_callees.emplace(callee);
+  }
+}
+
+const BuiltinCallees* BuiltinsCallGraph::GetBuiltinCallees(Builtin builtin) {
+  if (builtin_call_map_.count(builtin) == 0) return nullptr;
+  return &builtin_call_map_.at(builtin);
 }
 
 }  // namespace internal

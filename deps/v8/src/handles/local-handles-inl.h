@@ -59,7 +59,7 @@ LocalHandleScope::~LocalHandleScope() {
 template <typename T>
 Handle<T> LocalHandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current;
-  T value = *handle_value;
+  Tagged<T> value = *handle_value;
   // Throw away all handles in the current scope.
   if (local_heap_->is_main_thread()) {
     current = local_heap_->heap()->isolate()->handle_scope_data();

@@ -17,17 +17,17 @@ namespace internal {
 template <ArgumentsType T>
 Arguments<T>::ChangeValueScope::ChangeValueScope(Isolate* isolate,
                                                  Arguments* args, int index,
-                                                 Object value)
+                                                 Tagged<Object> value)
     : location_(args->address_of_arg_at(index)) {
-  old_value_ = handle(Object(*location_), isolate);
+  old_value_ = handle(Tagged<Object>(*location_), isolate);
   *location_ = value.ptr();
 }
 
 template <ArgumentsType T>
 int Arguments<T>::smi_value_at(int index) const {
-  Object obj = (*this)[index];
+  Tagged<Object> obj = (*this)[index];
   int value = Smi::ToInt(obj);
-  DCHECK_IMPLIES(obj.IsTaggedIndex(), value == tagged_index_value_at(index));
+  DCHECK_IMPLIES(IsTaggedIndex(obj), value == tagged_index_value_at(index));
   return value;
 }
 
@@ -45,7 +45,7 @@ int Arguments<T>::tagged_index_value_at(int index) const {
 
 template <ArgumentsType T>
 double Arguments<T>::number_value_at(int index) const {
-  return (*this)[index].Number();
+  return Object::Number((*this)[index]);
 }
 
 template <ArgumentsType T>

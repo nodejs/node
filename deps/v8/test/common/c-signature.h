@@ -33,8 +33,9 @@ namespace compiler {
 
 template <typename T>
 inline constexpr MachineType MachineTypeForC() {
-  static_assert(std::is_convertible<T, Object>::value,
-                "all non-specialized types must be convertible to Object");
+  static_assert(
+      std::is_convertible<T, Tagged<Object>>::value,
+      "all non-specialized types must be convertible to Tagged<Object>");
   return MachineType::AnyTagged();
 }
 
@@ -82,7 +83,7 @@ class CSignature : public MachineSignature {
     std::array<MachineType, param_count> param_arr{{params...}};
     const size_t buffer_size =
         param_count + (ret == MachineType::None() ? 0 : 1);
-    MachineType* buffer = zone->NewArray<MachineType>(buffer_size);
+    MachineType* buffer = zone->AllocateArray<MachineType>(buffer_size);
     size_t pos = 0;
     size_t return_count = 0;
     if (ret != MachineType::None()) {

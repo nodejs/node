@@ -774,29 +774,29 @@ class Config {
     await chmod(conf.source, mode)
   }
 
-  clearCredentialsByURI (uri) {
+  clearCredentialsByURI (uri, level = 'user') {
     const nerfed = nerfDart(uri)
     const def = nerfDart(this.get('registry'))
     if (def === nerfed) {
-      this.delete(`-authtoken`, 'user')
-      this.delete(`_authToken`, 'user')
-      this.delete(`_authtoken`, 'user')
-      this.delete(`_auth`, 'user')
-      this.delete(`_password`, 'user')
-      this.delete(`username`, 'user')
+      this.delete(`-authtoken`, level)
+      this.delete(`_authToken`, level)
+      this.delete(`_authtoken`, level)
+      this.delete(`_auth`, level)
+      this.delete(`_password`, level)
+      this.delete(`username`, level)
       // de-nerf email if it's nerfed to the default registry
-      const email = this.get(`${nerfed}:email`, 'user')
+      const email = this.get(`${nerfed}:email`, level)
       if (email) {
-        this.set('email', email, 'user')
+        this.set('email', email, level)
       }
     }
-    this.delete(`${nerfed}:_authToken`, 'user')
-    this.delete(`${nerfed}:_auth`, 'user')
-    this.delete(`${nerfed}:_password`, 'user')
-    this.delete(`${nerfed}:username`, 'user')
-    this.delete(`${nerfed}:email`, 'user')
-    this.delete(`${nerfed}:certfile`, 'user')
-    this.delete(`${nerfed}:keyfile`, 'user')
+    this.delete(`${nerfed}:_authToken`, level)
+    this.delete(`${nerfed}:_auth`, level)
+    this.delete(`${nerfed}:_password`, level)
+    this.delete(`${nerfed}:username`, level)
+    this.delete(`${nerfed}:email`, level)
+    this.delete(`${nerfed}:certfile`, level)
+    this.delete(`${nerfed}:keyfile`, level)
   }
 
   setCredentialsByURI (uri, { token, username, password, email, certfile, keyfile }) {

@@ -152,6 +152,25 @@ test('afterEach when test fails', async (t) => {
   await t.test('2', () => {});
 });
 
+test('afterEach context when test passes', async (t) => {
+  t.afterEach(common.mustCall((ctx) => {
+    assert.strictEqual(ctx.name, '1');
+    assert.strictEqual(ctx.passed, true);
+    assert.strictEqual(ctx.error, null);
+  }));
+  await t.test('1', () => {});
+});
+
+test('afterEach context when test fails', async (t) => {
+  const err = new Error('test');
+  t.afterEach(common.mustCall((ctx) => {
+    assert.strictEqual(ctx.name, '1');
+    assert.strictEqual(ctx.passed, false);
+    assert.strictEqual(ctx.error, err);
+  }));
+  await t.test('1', () => { throw err });
+});
+
 test('afterEach throws and test fails', async (t) => {
   t.after(common.mustCall());
   t.afterEach(() => { throw new Error('afterEach'); });
@@ -164,6 +183,14 @@ test('t.after() is called if test body throws', (t) => {
     t.diagnostic('- after() called');
   });
   throw new Error('bye');
+});
+
+describe('run after when before throws', () => {
+  after(common.mustCall(() => {
+    console.log("- after() called")
+  }));
+  before(() => { throw new Error('before')});
+  it('1', () => {});
 });
 
 before((t) => t.diagnostic('before 2 called'));

@@ -66,7 +66,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayWriter final {
 
 #ifdef DEBUG
   // Returns -1 if they match or the offset of the first mismatching byte.
-  int CheckBytecodeMatches(BytecodeArray bytecode);
+  int CheckBytecodeMatches(Tagged<BytecodeArray> bytecode);
 #endif
 
   bool RemainderOfBlockIsDead() const { return exit_seen_in_block_; }

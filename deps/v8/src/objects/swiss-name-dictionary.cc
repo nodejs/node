@@ -57,10 +57,10 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
   for (int enum_index = 0; enum_index < table->UsedCapacity(); ++enum_index) {
     int entry = table->EntryForEnumerationIndex(enum_index);
 
-    Object key;
+    Tagged<Object> key;
 
     if (table->ToKey(roots, entry, &key)) {
-      Object value = table->ValueAtRaw(entry);
+      Tagged<Object> value = table->ValueAtRaw(entry);
       PropertyDetails details = table->DetailsAt(entry);
 
       int new_entry = new_table->AddInternal(Name::cast(key), value, details);
@@ -77,29 +77,29 @@ Handle<SwissNameDictionary> SwissNameDictionary::Rehash(
   return new_table;
 }
 
-bool SwissNameDictionary::EqualsForTesting(SwissNameDictionary other) {
-  if (Capacity() != other.Capacity() ||
-      NumberOfElements() != other.NumberOfElements() ||
-      NumberOfDeletedElements() != other.NumberOfDeletedElements() ||
-      Hash() != other.Hash()) {
+bool SwissNameDictionary::EqualsForTesting(Tagged<SwissNameDictionary> other) {
+  if (Capacity() != other->Capacity() ||
+      NumberOfElements() != other->NumberOfElements() ||
+      NumberOfDeletedElements() != other->NumberOfDeletedElements() ||
+      Hash() != other->Hash()) {
     return false;
   }
 
   for (int i = 0; i < Capacity() + kGroupWidth; i++) {
-    if (CtrlTable()[i] != other.CtrlTable()[i]) {
+    if (CtrlTable()[i] != other->CtrlTable()[i]) {
       return false;
     }
   }
   for (int i = 0; i < Capacity(); i++) {
-    if (KeyAt(i) != other.KeyAt(i) || ValueAtRaw(i) != other.ValueAtRaw(i)) {
+    if (KeyAt(i) != other->KeyAt(i) || ValueAtRaw(i) != other->ValueAtRaw(i)) {
       return false;
     }
     if (IsFull(GetCtrl(i))) {
-      if (DetailsAt(i) != other.DetailsAt(i)) return false;
+      if (DetailsAt(i) != other->DetailsAt(i)) return false;
     }
   }
   for (int i = 0; i < UsedCapacity(); i++) {
-    if (EntryForEnumerationIndex(i) != other.EntryForEnumerationIndex(i)) {
+    if (EntryForEnumerationIndex(i) != other->EntryForEnumerationIndex(i)) {
       return false;
     }
   }
@@ -145,8 +145,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
 
     // We may have to trigger write barriers when copying the data table.
     for (int i = 0; i < capacity; ++i) {
-      Object key = table->KeyAt(i);
-      Object value = table->ValueAtRaw(i);
+      Tagged<Object> key = table->KeyAt(i);
+      Tagged<Object> value = table->ValueAtRaw(i);
 
       // Cannot use SetKey/ValueAtPut because they don't accept the hole as data
       // to store.
@@ -170,8 +170,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
   // where size of each entry depends on table capacity.
   int size_per_meta_table_entry = MetaTableSizePerEntryFor(capacity);
   int meta_table_used_bytes = (2 + used_capacity) * size_per_meta_table_entry;
-  new_table->meta_table().copy_in(0, table->meta_table().GetDataStartAddress(),
-                                  meta_table_used_bytes);
+  new_table->meta_table()->copy_in(
+      0, table->meta_table()->GetDataStartAddress(), meta_table_used_bytes);
 
   return new_table;
 }
@@ -212,21 +212,21 @@ void SwissNameDictionary::Rehash(IsolateT* isolate) {
   DisallowHeapAllocation no_gc;
 
   struct Entry {
-    Name key;
-    Object value;
+    Tagged<Name> key;
+    Tagged<Object> value;
     PropertyDetails details;
   };
 
   if (Capacity() == 0) return;
 
-  Entry dummy{Name(), Object(), PropertyDetails::Empty()};
+  Entry dummy{Tagged<Name>(), Tagged<Object>(), PropertyDetails::Empty()};
   std::vector<Entry> data(NumberOfElements(), dummy);
 
   ReadOnlyRoots roots(isolate);
   int data_index = 0;
   for (int enum_index = 0; enum_index < UsedCapacity(); ++enum_index) {
     int entry = EntryForEnumerationIndex(enum_index);
-    Object key;
+    Tagged<Object> key;
     if (!ToKey(roots, entry, &key)) continue;
 
     data[data_index++] =
@@ -255,9 +255,9 @@ int SwissNameDictionary::NumberOfEnumerableProperties() {
   ReadOnlyRoots roots = this->GetReadOnlyRoots();
   int result = 0;
   for (InternalIndex i : this->IterateEntries()) {
-    Object k;
+    Tagged<Object> k;
     if (!this->ToKey(roots, i, &k)) continue;
-    if (k.FilterKey(ENUMERABLE_STRINGS)) continue;
+    if (Object::FilterKey(k, ENUMERABLE_STRINGS)) continue;
     PropertyDetails details = this->DetailsAt(i);
     PropertyAttributes attr = details.attributes();
     if ((int{attr} & ONLY_ENUMERABLE) == 0) result++;
@@ -268,12 +268,13 @@ int SwissNameDictionary::NumberOfEnumerableProperties() {
 // TODO(emrich, v8:11388): This is almost an identical copy of
 // Dictionary<..>::SlowReverseLookup. Consolidate both versions elsewhere (e.g.,
 // hash-table-utils)?
-Object SwissNameDictionary::SlowReverseLookup(Isolate* isolate, Object value) {
+Tagged<Object> SwissNameDictionary::SlowReverseLookup(Isolate* isolate,
+                                                      Tagged<Object> value) {
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : IterateEntries()) {
-    Object k;
+    Tagged<Object> k;
     if (!ToKey(roots, i, &k)) continue;
-    Object e = this->ValueAt(i);
+    Tagged<Object> e = this->ValueAt(i);
     if (e == value) return k;
   }
   return roots.undefined_value();
@@ -296,9 +297,9 @@ static_assert(SwissNameDictionary::MaxUsableCapacity(
               std::numeric_limits<uint16_t>::max());
 
 template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
-    Isolate* isolate, ByteArray meta_table, int capacity);
+    Isolate* isolate, Tagged<ByteArray> meta_table, int capacity);
 template V8_EXPORT_PRIVATE void SwissNameDictionary::Initialize(
-    LocalIsolate* isolate, ByteArray meta_table, int capacity);
+    LocalIsolate* isolate, Tagged<ByteArray> meta_table, int capacity);
 
 template V8_EXPORT_PRIVATE Handle<SwissNameDictionary>
 SwissNameDictionary::Rehash(LocalIsolate* isolate,

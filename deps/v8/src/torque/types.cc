@@ -75,16 +75,21 @@ std::string Type::SimpleName() const {
 std::string Type::HandlifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return "Handle<" + UnhandlifiedCppTypeName() + ">";
+    return "Handle<" + GetConstexprGeneratedTypeName() + ">";
   } else {
-    return UnhandlifiedCppTypeName();
+    return GetConstexprGeneratedTypeName();
   }
 }
 
-std::string Type::UnhandlifiedCppTypeName() const {
+std::string Type::TagglifiedCppTypeName() const {
   if (IsSubtypeOf(TypeOracle::GetSmiType())) return "int";
-  if (this == TypeOracle::GetObjectType()) return "Object";
-  return GetConstexprGeneratedTypeName();
+  // TODO(leszeks): Changee this to GetTaggedType once there's a Maybe version
+  // of Tagged<T>.
+  if (IsSubtypeOf(TypeOracle::GetStrongTaggedType())) {
+    return "Tagged<" + GetConstexprGeneratedTypeName() + ">";
+  } else {
+    return GetConstexprGeneratedTypeName();
+  }
 }
 
 bool Type::IsSubtypeOf(const Type* supertype) const {
@@ -670,9 +675,13 @@ base::Optional<ObjectSlotKind> ClassType::ComputeArraySlotKind() const {
       .Throw();
 }
 
-bool ClassType::HasNoPointerSlots() const {
-  for (ObjectSlotKind slot : ComputeHeaderSlotKinds()) {
-    if (slot != ObjectSlotKind::kNoPointer) return false;
+bool ClassType::HasNoPointerSlotsExceptMap() const {
+  const auto header_slot_kinds = ComputeHeaderSlotKinds();
+  DCHECK_GE(header_slot_kinds.size(), 1);
+  DCHECK_EQ(ComputeHeaderFields()[0].name_and_type.type,
+            TypeOracle::GetMapType());
+  for (size_t i = 1; i < header_slot_kinds.size(); ++i) {
+    if (header_slot_kinds[i] != ObjectSlotKind::kNoPointer) return false;
   }
   if (auto slot = ComputeArraySlotKind()) {
     if (*slot != ObjectSlotKind::kNoPointer) return false;
@@ -1088,9 +1097,8 @@ VisitResult ProjectStructField(VisitResult structure,
 
 namespace {
 void AppendLoweredTypes(const Type* type, std::vector<const Type*>* result) {
-  DCHECK_NE(type, TypeOracle::GetNeverType());
   if (type->IsConstexpr()) return;
-  if (type == TypeOracle::GetVoidType()) return;
+  if (type->IsVoidOrNever()) return;
   if (base::Optional<const StructType*> s = type->StructSupertype()) {
     for (const Field& field : (*s)->fields()) {
       AppendLoweredTypes(field.name_and_type.type, result);
@@ -1163,6 +1171,8 @@ size_t AbstractType::AlignmentLog2() const {
     alignment = TargetArchitecture::RawPtrSize();
   } else if (this == TypeOracle::GetExternalPointerType()) {
     alignment = TargetArchitecture::ExternalPointerSize();
+  } else if (this == TypeOracle::GetIndirectPointerType()) {
+    alignment = TargetArchitecture::IndirectPointerSize();
   } else if (this == TypeOracle::GetVoidType()) {
     alignment = 1;
   } else if (this == TypeOracle::GetInt8Type()) {
@@ -1233,6 +1243,9 @@ base::Optional<std::tuple<size_t, std::string>> SizeOf(const Type* type) {
   } else if (type->IsSubtypeOf(TypeOracle::GetExternalPointerType())) {
     size = TargetArchitecture::ExternalPointerSize();
     size_string = "kExternalPointerSlotSize";
+  } else if (type->IsSubtypeOf(TypeOracle::GetIndirectPointerType())) {
+    size = TargetArchitecture::IndirectPointerSize();
+    size_string = "kIndirectPointerSlotSize";
   } else if (type->IsSubtypeOf(TypeOracle::GetVoidType())) {
     size = 0;
     size_string = "0";
@@ -1320,9 +1333,9 @@ base::Optional<NameAndType> ExtractSimpleFieldArraySize(
 }
 
 std::string Type::GetRuntimeType() const {
-  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "Smi";
+  if (IsSubtypeOf(TypeOracle::GetSmiType())) return "Tagged<Smi>";
   if (IsSubtypeOf(TypeOracle::GetTaggedType())) {
-    return GetGeneratedTNodeTypeName();
+    return "Tagged<" + GetGeneratedTNodeTypeName() + ">";
   }
   if (base::Optional<const StructType*> struct_type = StructSupertype()) {
     std::stringstream result;

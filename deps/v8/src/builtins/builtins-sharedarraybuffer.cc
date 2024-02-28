@@ -45,14 +45,15 @@ BUILTIN(AtomicsIsLockFree) {
   Handle<Object> size = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
                                      Object::ToNumber(isolate, size));
-  return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
+  return *isolate->factory()->ToBoolean(
+      AtomicIsLockFree(Object::Number(*size)));
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
-  if (object->IsJSTypedArray()) {
+  if (IsJSTypedArray(*object)) {
     Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
@@ -124,6 +125,9 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 // ES #sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
+  // TODO(clemensb): This builtin only allocates (an exception) in the case of
+  // an error; we could try to avoid allocating the HandleScope in the non-error
+  // case.
   HandleScope scope(isolate);
   Handle<Object> array = args.atOrUndefined(isolate, 1);
   Handle<Object> index = args.atOrUndefined(isolate, 2);
@@ -144,12 +148,12 @@ BUILTIN(AtomicsNotify) {
   //   a. Let intCount be ? ToInteger(count).
   //   b. Let c be max(intCount, 0).
   uint32_t c;
-  if (count->IsUndefined(isolate)) {
+  if (IsUndefined(*count, isolate)) {
     c = kMaxUInt32;
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
                                        Object::ToInteger(isolate, count));
-    double count_double = count->Number();
+    double count_double = Object::Number(*count);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -162,25 +166,26 @@ BUILTIN(AtomicsNotify) {
 
   // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t wake_addr;
 
-  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
-    return Smi::FromInt(0);
+  if (V8_UNLIKELY(!array_buffer->is_shared())) {
+    return Smi::zero();
   }
 
   // Steps 11-17 performed in FutexEmulation::Wake.
+  size_t wake_addr;
   if (sta->type() == kExternalBigInt64Array) {
     wake_addr = GetAddress64(i, sta->byte_offset());
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
     wake_addr = GetAddress32(i, sta->byte_offset());
   }
-  return FutexEmulation::Wake(array_buffer, wake_addr, c);
+  int num_waiters_woken = FutexEmulation::Wake(*array_buffer, wake_addr, c);
+  return Smi::FromInt(num_waiters_woken);
 }
 
-Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
-              Handle<Object> array, Handle<Object> index, Handle<Object> value,
-              Handle<Object> timeout) {
+Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
+                      Handle<Object> array, Handle<Object> index,
+                      Handle<Object> value, Handle<Object> timeout) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -213,14 +218,14 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 7. Let q be ? ToNumber(timeout).
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
-  if (timeout->IsUndefined(isolate)) {
-    timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+  if (IsUndefined(*timeout, isolate)) {
+    timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
-    timeout_number = timeout->Number();
+    timeout_number = Object::Number(*timeout);
     if (std::isnan(timeout_number))
-      timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+      timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
     else if (timeout_number < 0)
       timeout_number = 0;
   }

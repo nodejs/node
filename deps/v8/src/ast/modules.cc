@@ -137,15 +137,15 @@ Handle<ModuleRequest> SourceTextModuleDescriptor::AstModuleRequest::Serialize(
           AllocationType::kOld);
   {
     DisallowGarbageCollection no_gc;
-    auto raw_import_assertions = *import_assertions_array;
+    Tagged<FixedArray> raw_import_assertions = *import_assertions_array;
     int i = 0;
     for (auto iter = import_assertions()->cbegin();
          iter != import_assertions()->cend();
          ++iter, i += ModuleRequest::kAssertionEntrySize) {
-      raw_import_assertions.set(i, *iter->first->string());
-      raw_import_assertions.set(i + 1, *iter->second.first->string());
-      raw_import_assertions.set(i + 2,
-                                Smi::FromInt(iter->second.second.beg_pos));
+      raw_import_assertions->set(i, *iter->first->string());
+      raw_import_assertions->set(i + 1, *iter->second.first->string());
+      raw_import_assertions->set(i + 2,
+                                 Smi::FromInt(iter->second.second.beg_pos));
     }
   }
   return v8::internal::ModuleRequest::New(isolate, specifier()->string(),

@@ -1,5 +1,6 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
+const { cleanZlib } = require('../../fixtures/clean-snapshot')
 const MockRegistry = require('@npmcli/mock-registry')
 const pacote = require('pacote')
 const Arborist = require('@npmcli/arborist')
@@ -19,12 +20,7 @@ const pkgJson = {
   version: '1.0.0',
 }
 
-t.cleanSnapshot = data => {
-  return data.replace(/shasum:.*/g, 'shasum:{sha}')
-    .replace(/integrity:.*/g, 'integrity:{sha}')
-    .replace(/"shasum": ".*",/g, '"shasum": "{sha}",')
-    .replace(/"integrity": ".*",/g, '"integrity": "{sha}",')
-}
+t.cleanSnapshot = data => cleanZlib(data)
 
 t.test('respects publishConfig.registry, runs appropriate scripts', async t => {
   const { npm, joinedOutput, prefix } = await loadMockNpm(t, {

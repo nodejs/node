@@ -335,9 +335,10 @@ V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
   findInjectedScript(InspectedContext::contextId(context), injectedScript);
   if (!injectedScript) return nullptr;
   std::unique_ptr<protocol::Runtime::RemoteObject> result;
-  injectedScript->wrapObject(
-      value, groupName,
-      generatePreview ? WrapMode::kWithPreview : WrapMode::kNoPreview, &result);
+  injectedScript->wrapObject(value, groupName,
+                             generatePreview ? WrapOptions({WrapMode::kPreview})
+                                             : WrapOptions({WrapMode::kIdOnly}),
+                             &result);
   return result;
 }
 

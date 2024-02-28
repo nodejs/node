@@ -855,6 +855,16 @@ Use of `legacy-peer-deps` is not recommended, as it will not enforce the
 
 
 
+#### `libc`
+
+* Default: null
+* Type: null or String
+
+Override libc of native modules to install. Acceptable values are same as
+`libc` field of package.json
+
+
+
 #### `link`
 
 * Default: false
@@ -1355,6 +1365,26 @@ you want to move it to be a non-optional production dependency.
 
 This is the default behavior if `--save` is true, and neither `--save-dev`
 or `--save-optional` are true.
+
+
+
+#### `sbom-format`
+
+* Default: null
+* Type: "cyclonedx" or "spdx"
+
+SBOM format to use when generating SBOMs.
+
+
+
+#### `sbom-type`
+
+* Default: "library"
+* Type: "library", "application", or "framework"
+
+The type of package described by the generated SBOM. For SPDX, this is the
+value for the `primaryPackagePurpose` field. For CycloneDX, this is the
+value for the `type` field.
 
 
 

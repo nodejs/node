@@ -41,6 +41,10 @@ class Signature : public ZoneObject {
     return reps_[index];
   }
 
+  bool contains(T element) const {
+    return std::find(all().cbegin(), all().cend(), element) != all().cend();
+  }
+
   // Iteration support.
   base::iterator_range<const T*> parameters() const {
     return {reps_ + return_count_, reps_ + return_count_ + parameter_count_};

@@ -38,8 +38,8 @@ class Arguments {
   class ChangeValueScope {
    public:
     inline ChangeValueScope(Isolate* isolate, Arguments* args, int index,
-                            Object value);
-    ~ChangeValueScope() { *location_ = old_value_->ptr(); }
+                            Tagged<Object> value);
+    ~ChangeValueScope() { *location_ = (*old_value_).ptr(); }
 
    private:
     Address* location_;
@@ -51,12 +51,14 @@ class Arguments {
     DCHECK_GE(length_, 0);
   }
 
-  V8_INLINE Object operator[](int index) const {
-    return Object(*address_of_arg_at(index));
+  V8_INLINE Tagged<Object> operator[](int index) const {
+    return Tagged<Object>(*address_of_arg_at(index));
   }
 
   template <class S = Object>
   V8_INLINE Handle<S> at(int index) const;
+
+  V8_INLINE FullObjectSlot slot_from_address_at(int index, int offset) const;
 
   V8_INLINE int smi_value_at(int index) const;
   V8_INLINE uint32_t positive_smi_value_at(int index) const;
@@ -92,6 +94,12 @@ Handle<S> Arguments<T>::at(int index) const {
   return Handle<S>::cast(obj);
 }
 
+template <ArgumentsType T>
+FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
+  Address* location = *reinterpret_cast<Address**>(address_of_arg_at(index));
+  return FullObjectSlot(location + offset);
+}
+
 #ifdef DEBUG
 #define CLOBBER_DOUBLE_REGISTERS() ClobberDoubleRegisters(1, 2, 3, 4);
 #else
@@ -122,18 +130,18 @@ Handle<S> Arguments<T>::at(int index) const {
 
 #endif  // V8_RUNTIME_CALL_STATS
 
-#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)    \
-  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,     \
-                                                 Isolate* isolate);         \
-  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                 \
-  Type Name(int args_length, Address* args_object, Isolate* isolate) {      \
-    DCHECK(isolate->context().is_null() || isolate->context().IsContext()); \
-    CLOBBER_DOUBLE_REGISTERS();                                             \
-    TEST_AND_CALL_RCS(Name)                                                 \
-    RuntimeArguments args(args_length, args_object);                        \
-    return Convert(__RT_impl_##Name(args, isolate));                        \
-  }                                                                         \
-                                                                            \
+#define RUNTIME_FUNCTION_RETURNS_TYPE(Type, InternalType, Convert, Name)   \
+  static V8_INLINE InternalType __RT_impl_##Name(RuntimeArguments args,    \
+                                                 Isolate* isolate);        \
+  RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                \
+  Type Name(int args_length, Address* args_object, Isolate* isolate) {     \
+    DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    CLOBBER_DOUBLE_REGISTERS();                                            \
+    TEST_AND_CALL_RCS(Name)                                                \
+    RuntimeArguments args(args_length, args_object);                       \
+    return Convert(__RT_impl_##Name(args, isolate));                       \
+  }                                                                        \
+                                                                           \
   static InternalType __RT_impl_##Name(RuntimeArguments args, Isolate* isolate)
 
 #ifdef DEBUG
@@ -144,8 +152,9 @@ Handle<S> Arguments<T>::at(int index) const {
 #define BUILTIN_CONVERT_RESULT_PAIR(x) (x)
 #endif  // DEBUG
 
-#define RUNTIME_FUNCTION(Name) \
-  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Object, BUILTIN_CONVERT_RESULT, Name)
+#define RUNTIME_FUNCTION(Name)                           \
+  RUNTIME_FUNCTION_RETURNS_TYPE(Address, Tagged<Object>, \
+                                BUILTIN_CONVERT_RESULT, Name)
 
 #define RUNTIME_FUNCTION_RETURN_PAIR(Name)              \
   RUNTIME_FUNCTION_RETURNS_TYPE(ObjectPair, ObjectPair, \

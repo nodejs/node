@@ -148,25 +148,3 @@ function checkNoAccess(object, message) {
   assertThrows(() => E.getMethod(object), Error, message);
   assertThrows(() => E.hasMethod(object), Error, message);
 }
-
-function checkNoAccessNoThrow(object) {
-  // The failed access check callback is supposed to throw.
-  // If it doesn't the behavior is quite quirky.
-  // This only documents the current behavior.
-  new B(object);
-  new C(object);
-  new D(object);
-  new E(object);
-  B.setField(object);
-  assertEquals(undefined, B.getField(object));
-  assertFalse(B.hasField(object));
-  C.setField(object);
-  assertEquals(undefined, C.getField(object));
-  assertFalse(C.hasField(object));
-  D.setAccessor(object)
-  assertEquals("d", D.getAccessor(object));
-  assertFalse(D.hasAccessor(object));
-  assertThrows(() => E.setMethod(object), TypeError, /Private method '#e' is not writable/);
-  assertEquals(0, E.getMethod(object)());
-  assertFalse(E.hasMethod(object));
-}

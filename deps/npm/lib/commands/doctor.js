@@ -99,7 +99,7 @@ const subcommands = [
 ]
 const BaseCommand = require('../base-command.js')
 class Doctor extends BaseCommand {
-  static description = 'Check your npm environment'
+  static description = 'Check the health of your npm environment'
   static name = 'doctor'
   static params = ['registry']
   static ignoreImplicitWorkspace = false

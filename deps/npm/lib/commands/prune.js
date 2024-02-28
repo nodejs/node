@@ -7,6 +7,7 @@ class Prune extends ArboristWorkspaceCmd {
   static name = 'prune'
   static params = [
     'omit',
+    'include',
     'dry-run',
     'json',
     'foreground-scripts',

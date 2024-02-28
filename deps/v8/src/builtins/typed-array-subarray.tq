@@ -5,15 +5,15 @@
 namespace typed_array {
 // ES %TypedArray%.prototype.subarray
 transitioning javascript builtin TypedArrayPrototypeSubArray(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): JSTypedArray {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
   const methodName: constexpr string = '%TypedArray%.prototype.subarray';
 
   // 1. Let O be the this value.
   // 2. Perform ? RequireInternalSlot(O, [[TypedArrayName]]).
   const source = Cast<JSTypedArray>(receiver)
       otherwise ThrowTypeError(
-      MessageTemplate::kIncompatibleMethodReceiver, methodName);
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
   // 3. Assert: O has a [[ViewedArrayBuffer]] internal slot.
   // 4. Let buffer be O.[[ViewedArrayBuffer]].

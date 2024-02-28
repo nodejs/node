@@ -107,7 +107,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* Returns {Object}
+* Returns: {Object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
@@ -1328,13 +1328,15 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 81.465639,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   },
    *   PerformanceEntry {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 81.860064,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1378,7 +1380,8 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 98.545991,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1391,7 +1394,8 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 63.518931,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1434,13 +1438,15 @@ const obs = new PerformanceObserver((perfObserverList, observer) => {
    *     name: 'test',
    *     entryType: 'mark',
    *     startTime: 55.897834,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   },
    *   PerformanceEntry {
    *     name: 'meow',
    *     entryType: 'mark',
    *     startTime: 56.350146,
-   *     duration: 0
+   *     duration: 0,
+   *     detail: null
    *   }
    * ]
    */
@@ -1470,7 +1476,7 @@ added:
     **Default:** `Number.MAX_SAFE_INTEGER`.
   * `figures` {number} The number of accuracy digits. Must be a number between
     `1` and `5`. **Default:** `3`.
-* Returns {RecordableHistogram}
+* Returns: {RecordableHistogram}
 
 Returns a {RecordableHistogram}.
 

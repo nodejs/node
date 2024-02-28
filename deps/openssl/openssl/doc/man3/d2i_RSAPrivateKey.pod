@@ -28,7 +28,6 @@ d2i_RSA_PUBKEY_fp,
 d2i_DHparams,
 d2i_DHparams_bio,
 d2i_DHparams_fp,
-d2i_ECPKParameters,
 d2i_ECParameters,
 d2i_ECPrivateKey,
 d2i_ECPrivateKey_bio,
@@ -56,7 +55,6 @@ i2d_DSA_PUBKEY,
 i2d_DSA_PUBKEY_bio,
 i2d_DSA_PUBKEY_fp,
 i2d_DSAparams,
-i2d_ECPKParameters,
 i2d_ECParameters,
 i2d_ECPrivateKey,
 i2d_ECPrivateKey_bio,
@@ -205,7 +203,7 @@ I<selection> and I<structure> as follows:
 
 =item B<i2d_I<TYPE>PrivateKey>() translates into:
 
- int selection = EVP_PKEY_PRIVATE_KEY;
+ int selection = EVP_PKEY_KEYPAIR;
  const char *structure = "type-specific";
 
 =item B<i2d_I<TYPE>PublicKey>() translates into:
@@ -309,7 +307,7 @@ L<i2d_PUBKEY(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

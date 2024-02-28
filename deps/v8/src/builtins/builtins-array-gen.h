@@ -107,8 +107,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   void VisitAllTypedArrayElements(TNode<JSArrayBuffer> array_buffer,
                                   const CallResultProcessor& processor,
                                   ForEachDirection direction,
-                                  TNode<JSTypedArray> typed_array,
-                                  bool can_shrink);
+                                  TNode<JSTypedArray> typed_array);
 
   TNode<Object> callbackfn_;
   TNode<JSReceiver> o_;
@@ -123,6 +122,42 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   TVariable<Object> a_;
   Label fully_spec_compliant_;
   ElementsKind source_elements_kind_ = ElementsKind::NO_ELEMENTS;
+};
+
+class ArrayBuiltins {
+ public:
+  enum ArrayFromAsyncResolveContextSlots {
+    kArrayFromAsyncResolveResumeStateStepSlot = Context::MIN_CONTEXT_SLOTS,
+    kArrayFromAsyncResolveResumeStateAwaitedValueSlot,
+    kArrayFromAsyncResolveResumeStateLenSlot,
+    kArrayFromAsyncResolveResumeStateIndexSlot,
+    kArrayFromAsyncResolvePromiseSlot,
+    kArrayFromAsyncResolvePromiseFunctionSlot,
+    kArrayFromAsyncResolveOnFulfilledFunctionSlot,
+    kArrayFromAsyncResolveOnRejectedFunctionSlot,
+    kArrayFromAsyncResolveResultArraySlot,
+    kArrayFromAsyncResolveIteratorSlot,
+    kArrayFromAsyncResolveNextMethodSlot,
+    kArrayFromAsyncResolveErrorSlot,
+    kArrayFromAsyncResolveMapfnSlot,
+    kArrayFromAsyncResolveThisArgSlot,
+    kArrayFromAsyncResolveLength
+  };
+
+  enum ArrayFromAsyncLabels {
+    kGetIteratorStep,
+    kCheckIteratorValueAndMapping,
+    kIteratorMapping,
+    kGetIteratorValueWithMapping,
+    kAddIteratorValueToTheArray,
+    kGetArrayLikeValue,
+    kCheckArrayLikeValueAndMapping,
+    kGetArrayLikeValueWithMapping,
+    kAddArrayLikeValueToTheArray,
+    kDoneAndResolvePromise,
+    kCloseAsyncIterator,
+    kRejectPromise
+  };
 };
 
 }  // namespace internal

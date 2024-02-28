@@ -13,7 +13,9 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots-inl.h"
+#include "src/torque/runtime-macro-shims.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -98,18 +100,19 @@ Handle<FeedbackCell> ClosureFeedbackCellArray::GetFeedbackCell(int index) {
   return handle(FeedbackCell::cast(get(index)), GetIsolate());
 }
 
-FeedbackCell ClosureFeedbackCellArray::cell(int index) {
+Tagged<FeedbackCell> ClosureFeedbackCellArray::cell(int index) {
   return FeedbackCell::cast(get(index));
 }
 
 bool FeedbackVector::is_empty() const { return length() == 0; }
 
-FeedbackMetadata FeedbackVector::metadata() const {
-  return shared_function_info().feedback_metadata();
+DEF_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
+  return shared_function_info(cage_base)->feedback_metadata(cage_base);
 }
 
-FeedbackMetadata FeedbackVector::metadata(AcquireLoadTag tag) const {
-  return shared_function_info().feedback_metadata(tag);
+DEF_ACQUIRE_GETTER(FeedbackVector, metadata, Tagged<FeedbackMetadata>) {
+  return shared_function_info(cage_base)->feedback_metadata(cage_base,
+                                                            kAcquireLoad);
 }
 
 RELAXED_INT32_ACCESSORS(FeedbackVector, invocation_count,
@@ -138,19 +141,34 @@ void FeedbackVector::RequestOsrAtNextOpportunity() {
 void FeedbackVector::reset_osr_state() { set_osr_state(0); }
 
 bool FeedbackVector::maybe_has_optimized_osr_code() const {
-  return MaybeHasOptimizedOsrCodeBit::decode(osr_state());
+  return maybe_has_maglev_osr_code() || maybe_has_turbofan_osr_code();
 }
 
-void FeedbackVector::set_maybe_has_optimized_osr_code(bool value) {
-  set_osr_state(MaybeHasOptimizedOsrCodeBit::update(osr_state(), value));
+bool FeedbackVector::maybe_has_maglev_osr_code() const {
+  return MaybeHasMaglevOsrCodeBit::decode(osr_state());
 }
 
-Code FeedbackVector::optimized_code() const {
+bool FeedbackVector::maybe_has_turbofan_osr_code() const {
+  return MaybeHasTurbofanOsrCodeBit::decode(osr_state());
+}
+
+void FeedbackVector::set_maybe_has_optimized_osr_code(bool value,
+                                                      CodeKind code_kind) {
+  if (code_kind == CodeKind::MAGLEV) {
+    CHECK(v8_flags.maglev_osr);
+    set_osr_state(MaybeHasMaglevOsrCodeBit::update(osr_state(), value));
+  } else {
+    CHECK_EQ(code_kind, CodeKind::TURBOFAN);
+    set_osr_state(MaybeHasTurbofanOsrCodeBit::update(osr_state(), value));
+  }
+}
+
+Tagged<Code> FeedbackVector::optimized_code() const {
   MaybeObject slot = maybe_optimized_code();
   DCHECK(slot->IsWeakOrCleared());
-  HeapObject heap_object;
-  Code code;
-  if (slot->GetHeapObject(&heap_object)) {
+  Tagged<HeapObject> heap_object;
+  Tagged<Code> code;
+  if (slot.GetHeapObject(&heap_object)) {
     code = Code::cast(heap_object);
   }
   // It is possible that the maybe_optimized_code slot is cleared but the flags
@@ -158,9 +176,9 @@ Code FeedbackVector::optimized_code() const {
   // time / when we create new closure.
   DCHECK_IMPLIES(!code.is_null(),
                  maybe_has_maglev_code() || maybe_has_turbofan_code());
-  DCHECK_IMPLIES(!code.is_null() && code.is_maglevved(),
+  DCHECK_IMPLIES(!code.is_null() && code->is_maglevved(),
                  maybe_has_maglev_code());
-  DCHECK_IMPLIES(!code.is_null() && code.is_turbofanned(),
+  DCHECK_IMPLIES(!code.is_null() && code->is_turbofanned(),
                  maybe_has_turbofan_code());
   return code;
 }
@@ -199,13 +217,13 @@ void FeedbackVector::set_log_next_execution(bool value) {
   set_flags(LogNextExecutionBit::update(flags(), value));
 }
 
-base::Optional<Code> FeedbackVector::GetOptimizedOsrCode(Isolate* isolate,
-                                                         FeedbackSlot slot) {
+base::Optional<Tagged<Code>> FeedbackVector::GetOptimizedOsrCode(
+    Isolate* isolate, FeedbackSlot slot) {
   MaybeObject maybe_code = Get(isolate, slot);
   if (maybe_code->IsCleared()) return {};
 
-  Code code = Code::cast(maybe_code->GetHeapObject());
-  if (code.marked_for_deoptimization()) {
+  Tagged<Code> code = Code::cast(maybe_code.GetHeapObject());
+  if (code->marked_for_deoptimization()) {
     // Clear the cached Code object if deoptimized.
     // TODO(jgruber): Add tracing.
     Set(slot, HeapObjectReference::ClearedValue(isolate));
@@ -227,9 +245,9 @@ FeedbackSlot FeedbackVector::ToSlot(intptr_t index) {
 // Instead of FixedArray, the Feedback and the Extra should contain
 // WeakFixedArrays. The only allowed FixedArray subtype is HashTable.
 bool FeedbackVector::IsOfLegacyType(MaybeObject value) {
-  HeapObject heap_object;
-  if (value->GetHeapObject(&heap_object)) {
-    return heap_object.IsFixedArray() && !heap_object.IsHashTable();
+  Tagged<HeapObject> heap_object;
+  if (value.GetHeapObject(&heap_object)) {
+    return IsFixedArray(heap_object) && !IsHashTable(heap_object);
   }
   return false;
 }
@@ -251,12 +269,12 @@ MaybeObject FeedbackVector::Get(PtrComprCageBase cage_base,
 
 Handle<FeedbackCell> FeedbackVector::GetClosureFeedbackCell(int index) const {
   DCHECK_GE(index, 0);
-  return closure_feedback_cell_array().GetFeedbackCell(index);
+  return closure_feedback_cell_array()->GetFeedbackCell(index);
 }
 
-FeedbackCell FeedbackVector::closure_feedback_cell(int index) const {
+Tagged<FeedbackCell> FeedbackVector::closure_feedback_cell(int index) const {
   DCHECK_GE(index, 0);
-  return closure_feedback_cell_array().cell(index);
+  return closure_feedback_cell_array()->cell(index);
 }
 
 MaybeObject FeedbackVector::SynchronizedGet(FeedbackSlot slot) const {
@@ -278,7 +296,7 @@ void FeedbackVector::SynchronizedSet(FeedbackSlot slot, MaybeObject value,
   CONDITIONAL_WEAK_WRITE_BARRIER(*this, offset, value, mode);
 }
 
-void FeedbackVector::SynchronizedSet(FeedbackSlot slot, Object value,
+void FeedbackVector::SynchronizedSet(FeedbackSlot slot, Tagged<Object> value,
                                      WriteBarrierMode mode) {
   SynchronizedSet(slot, MaybeObject::FromObject(value), mode);
 }
@@ -289,7 +307,7 @@ void FeedbackVector::Set(FeedbackSlot slot, MaybeObject value,
   set_raw_feedback_slots(GetIndex(slot), value, mode);
 }
 
-void FeedbackVector::Set(FeedbackSlot slot, Object value,
+void FeedbackVector::Set(FeedbackSlot slot, Tagged<Object> value,
                          WriteBarrierMode mode) {
   MaybeObject maybe_value = MaybeObject::FromObject(value);
   DCHECK(!IsOfLegacyType(maybe_value));
@@ -398,18 +416,18 @@ Handle<Symbol> FeedbackVector::MegaDOMSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).mega_dom_symbol_handle();
 }
 
-Symbol FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
+Tagged<Symbol> FeedbackVector::RawUninitializedSentinel(Isolate* isolate) {
   return ReadOnlyRoots(isolate).uninitialized_symbol();
 }
 
 bool FeedbackMetadataIterator::HasNext() const {
-  return next_slot_.ToInt() < metadata().slot_count();
+  return next_slot_.ToInt() < metadata()->slot_count();
 }
 
 FeedbackSlot FeedbackMetadataIterator::Next() {
   DCHECK(HasNext());
   cur_slot_ = next_slot_;
-  slot_kind_ = metadata().GetKind(cur_slot_);
+  slot_kind_ = metadata()->GetKind(cur_slot_);
   next_slot_ = FeedbackSlot(next_slot_.ToInt() + entry_size());
   return cur_slot_;
 }
@@ -418,16 +436,16 @@ int FeedbackMetadataIterator::entry_size() const {
   return FeedbackMetadata::GetSlotSize(kind());
 }
 
-MaybeObject NexusConfig::GetFeedback(FeedbackVector vector,
+MaybeObject NexusConfig::GetFeedback(Tagged<FeedbackVector> vector,
                                      FeedbackSlot slot) const {
-  return vector.SynchronizedGet(slot);
+  return vector->SynchronizedGet(slot);
 }
 
-void NexusConfig::SetFeedback(FeedbackVector vector, FeedbackSlot slot,
+void NexusConfig::SetFeedback(Tagged<FeedbackVector> vector, FeedbackSlot slot,
                               MaybeObject feedback,
                               WriteBarrierMode mode) const {
   DCHECK(can_write());
-  vector.SynchronizedSet(slot, feedback, mode);
+  vector->SynchronizedSet(slot, feedback, mode);
 }
 
 MaybeObject FeedbackNexus::UninitializedSentinel() const {
@@ -484,10 +502,14 @@ std::pair<MaybeObject, MaybeObject> FeedbackNexus::GetFeedbackPair() const {
 }
 
 template <typename T>
-struct IsValidFeedbackType
-    : public std::integral_constant<bool,
-                                    std::is_base_of<MaybeObject, T>::value ||
-                                        std::is_base_of<Object, T>::value> {};
+struct IsValidFeedbackType : public std::false_type {};
+
+template <>
+struct IsValidFeedbackType<MaybeObject> : public std::true_type {};
+template <>
+struct IsValidFeedbackType<HeapObjectReference> : public std::true_type {};
+template <typename T>
+struct IsValidFeedbackType<Tagged<T>> : public std::true_type {};
 
 template <typename FeedbackType>
 void FeedbackNexus::SetFeedback(FeedbackType feedback, WriteBarrierMode mode) {
@@ -510,7 +532,7 @@ void FeedbackNexus::SetFeedback(FeedbackType feedback, WriteBarrierMode mode,
   config()->SetFeedbackPair(vector(), slot(), fmo, mode, fmo_extra, mode_extra);
 }
 
-Isolate* FeedbackNexus::GetIsolate() const { return vector().GetIsolate(); }
+Isolate* FeedbackNexus::GetIsolate() const { return vector()->GetIsolate(); }
 }  // namespace internal
 }  // namespace v8
 

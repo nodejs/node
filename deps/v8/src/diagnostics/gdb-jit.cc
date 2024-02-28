@@ -54,7 +54,7 @@ class Writer {
       : debug_object_(debug_object),
         position_(0),
         capacity_(1024),
-        buffer_(reinterpret_cast<byte*>(base::Malloc(capacity_))) {}
+        buffer_(reinterpret_cast<uint8_t*>(base::Malloc(capacity_))) {}
 
   ~Writer() { base::Free(buffer_); }
 
@@ -107,13 +107,13 @@ class Writer {
   void Ensure(uintptr_t pos) {
     if (capacity_ < pos) {
       while (capacity_ < pos) capacity_ *= 2;
-      buffer_ = reinterpret_cast<byte*>(base::Realloc(buffer_, capacity_));
+      buffer_ = reinterpret_cast<uint8_t*>(base::Realloc(buffer_, capacity_));
     }
   }
 
   DebugObject* debug_object() { return debug_object_; }
 
-  byte* buffer() { return buffer_; }
+  uint8_t* buffer() { return buffer_; }
 
   void Align(uintptr_t align) {
     uintptr_t delta = position_ % align;
@@ -174,7 +174,7 @@ class Writer {
   DebugObject* debug_object_;
   uintptr_t position_;
   uintptr_t capacity_;
-  byte* buffer_;
+  uint8_t* buffer_;
 };
 
 class ELFStringTable;
@@ -909,7 +909,7 @@ class CodeDescription {
 #endif
 
   CodeDescription(const char* name, base::AddressRegion region,
-                  SharedFunctionInfo shared, LineInfo* lineinfo,
+                  Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
                   bool is_function)
       : name_(name),
         shared_info_(shared),
@@ -925,9 +925,9 @@ class CodeDescription {
 
   bool has_scope_info() const { return !shared_info_.is_null(); }
 
-  ScopeInfo scope_info() const {
+  Tagged<ScopeInfo> scope_info() const {
     DCHECK(has_scope_info());
-    return shared_info_.scope_info();
+    return shared_info_->scope_info();
   }
 
   uintptr_t CodeStart() const { return code_region_.begin(); }
@@ -937,10 +937,10 @@ class CodeDescription {
   uintptr_t CodeSize() const { return code_region_.size(); }
 
   bool has_script() {
-    return !shared_info_.is_null() && shared_info_.script().IsScript();
+    return !shared_info_.is_null() && IsScript(shared_info_->script());
   }
 
-  Script script() { return Script::cast(shared_info_.script()); }
+  Tagged<Script> script() { return Script::cast(shared_info_->script()); }
 
   bool IsLineInfoAvailable() { return lineinfo_ != nullptr; }
 
@@ -959,8 +959,8 @@ class CodeDescription {
 #endif
 
   std::unique_ptr<char[]> GetFilename() {
-    if (!shared_info_.is_null() && script().name().IsString()) {
-      return String::cast(script().name()).ToCString();
+    if (!shared_info_.is_null() && IsString(script()->name())) {
+      return String::cast(script()->name())->ToCString();
     } else {
       std::unique_ptr<char[]> result(new char[1]);
       result[0] = 0;
@@ -970,7 +970,7 @@ class CodeDescription {
 
   int GetScriptLineNumber(int pos) {
     if (!shared_info_.is_null()) {
-      return script().GetLineNumber(pos) + 1;
+      return script()->GetLineNumber(pos) + 1;
     } else {
       return 0;
     }
@@ -978,7 +978,7 @@ class CodeDescription {
 
  private:
   const char* name_;
-  SharedFunctionInfo shared_info_;
+  Tagged<SharedFunctionInfo> shared_info_;
   LineInfo* lineinfo_;
   bool is_function_;
   base::AddressRegion code_region_;
@@ -1077,7 +1077,7 @@ class DebugInfoSection : public DebugSection {
     w->WriteString("v8value");
 
     if (desc_->has_scope_info()) {
-      ScopeInfo scope = desc_->scope_info();
+      Tagged<ScopeInfo> scope = desc_->scope_info();
       w->WriteULEB128(2);
       w->WriteString(desc_->name());
       w->Write<intptr_t>(desc_->CodeStart());
@@ -1105,10 +1105,10 @@ class DebugInfoSection : public DebugSection {
 #endif
       fb_block_size.set(static_cast<uint32_t>(w->position() - fb_block_start));
 
-      int params = scope.ParameterCount();
-      int context_slots = scope.ContextLocalCount();
+      int params = scope->ParameterCount();
+      int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
-      int internal_slots = scope.ContextHeaderLength();
+      int internal_slots = scope->ContextHeaderLength();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
@@ -1265,9 +1265,9 @@ class DebugAbbrevSection : public DebugSection {
     w->WriteULEB128(0);
 
     if (extra_info) {
-      ScopeInfo scope = desc_->scope_info();
-      int params = scope.ParameterCount();
-      int context_slots = scope.ContextLocalCount();
+      Tagged<ScopeInfo> scope = desc_->scope_info();
+      int params = scope->ParameterCount();
+      int context_slots = scope->ContextLocalCount();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
       // Total children is params + context_slots + internal_slots + 2
@@ -1747,9 +1747,9 @@ void __attribute__((noinline)) __jit_debug_register_code() { __asm__(""); }
 JITDescriptor __jit_debug_descriptor = {1, 0, nullptr, nullptr};
 
 #ifdef OBJECT_PRINT
-void __gdb_print_v8_object(Object object) {
+void __gdb_print_v8_object(TaggedBase object) {
   StdoutStream os;
-  object.Print(os);
+  Print(object, os);
   os << std::flush;
 }
 #endif
@@ -1993,7 +1993,7 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
     SNPrintF(base::Vector<char>(file_name, kMaxFileNameSize),
              "/tmp/elfdump%s%d.o", (name_hint != nullptr) ? name_hint : "",
              file_num++);
-    WriteBytes(file_name, reinterpret_cast<byte*>(entry->symfile_addr_),
+    WriteBytes(file_name, reinterpret_cast<uint8_t*>(entry->symfile_addr_),
                static_cast<int>(entry->symfile_size_));
   }
 #endif
@@ -2006,7 +2006,7 @@ static void AddJITCodeEntry(CodeMap* map, const base::AddressRegion region,
 }
 
 static void AddCode(const char* name, base::AddressRegion region,
-                    SharedFunctionInfo shared, LineInfo* lineinfo,
+                    Tagged<SharedFunctionInfo> shared, LineInfo* lineinfo,
                     Isolate* isolate, bool is_function) {
   DisallowGarbageCollection no_gc;
   CodeDescription code_desc(name, region, shared, lineinfo, is_function);
@@ -2051,9 +2051,9 @@ void EventHandler(const v8::JitCodeEvent* event) {
       LineInfo* lineinfo = GetLineInfo(addr);
       std::string event_name(event->name.str, event->name.len);
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
-      SharedFunctionInfo shared = event->script.IsEmpty()
-                                      ? SharedFunctionInfo()
-                                      : *Utils::OpenHandle(*event->script);
+      Tagged<SharedFunctionInfo> shared =
+          event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
+                                  : *Utils::OpenHandle(*event->script);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       bool is_function = false;
       // TODO(zhin): See if we can use event->code_type to determine
@@ -2064,8 +2064,9 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // use event->code_type here instead of finding the Code.
       // TODO(zhin): Rename is_function to be more accurate.
       if (event->code_type == v8::JitCodeEvent::JIT_CODE) {
-        Code lookup_result = isolate->heap()->FindCodeForInnerPointer(addr);
-        is_function = CodeKindIsOptimizedJSFunction(lookup_result.kind());
+        Tagged<Code> lookup_result =
+            isolate->heap()->FindCodeForInnerPointer(addr);
+        is_function = CodeKindIsOptimizedJSFunction(lookup_result->kind());
       }
       AddCode(event_name.c_str(), {addr, event->code_len}, shared, lineinfo,
               isolate, is_function);

@@ -1,9 +1,9 @@
-"use strict";
-const {v4, v6} = require("cidr-regex");
+import {v4 as v4Re, v6 as v6Re} from "cidr-regex";
 
-const re4 = v4({exact: true});
-const re6 = v6({exact: true});
+const re4 = v4Re({exact: true});
+const re6 = v6Re({exact: true});
 
-module.exports = str => re4.test(str) ? 4 : (re6.test(str) ? 6 : 0);
-module.exports.v4 = str => re4.test(str);
-module.exports.v6 = str => re6.test(str);
+const isCidr = str => re4.test(str) ? 4 : (re6.test(str) ? 6 : 0);
+export const v4 = isCidr.v4 = str => re4.test(str);
+export const v6 = isCidr.v6 = str => re6.test(str);
+export default isCidr;

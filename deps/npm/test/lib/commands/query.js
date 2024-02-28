@@ -179,3 +179,61 @@ t.test('global', async t => {
   await npm.exec('query', ['[name=lorem]'])
   t.matchSnapshot(joinedOutput(), 'should return global package')
 })
+
+t.test('package-lock-only', t => {
+  t.test('no package lock', async t => {
+    const { npm } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'project',
+          dependencies: {
+            a: '^1.0.0',
+          },
+        }),
+      },
+    })
+    await t.rejects(npm.exec('query', [':root, :root > *']), { code: 'EUSAGE' })
+  })
+
+  t.test('with package lock', async t => {
+    const { npm, joinedOutput } = await loadMockNpm(t, {
+      config: {
+        'package-lock-only': true,
+      },
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'project',
+          dependencies: {
+            a: '^1.0.0',
+          },
+        }),
+        'package-lock.json': JSON.stringify({
+          name: 'project',
+          lockfileVersion: 3,
+          requires: true,
+          packages: {
+            '': {
+              dependencies: {
+                a: '^1.0.0',
+              },
+            },
+            'node_modules/a': {
+              version: '1.2.3',
+              resolved: 'https://dummy.npmjs.org/a/-/a-1.2.3.tgz',
+              integrity: 'sha512-dummy',
+              engines: {
+                node: '>=14.17',
+              },
+            },
+          },
+        }),
+      },
+    })
+    await npm.exec('query', ['*'])
+    t.matchSnapshot(joinedOutput(), 'should return valid response with only lock info')
+  })
+  t.end()
+})

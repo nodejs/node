@@ -48,7 +48,7 @@ namespace internal {
 
 bool CpuFeatures::SupportsOptimizer() { return true; }
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   // Absolute code pointer inside code object moves with the code object.
   if (IsInternalReference(rmode_)) {
     // Jump table entry
@@ -56,14 +56,14 @@ void RelocInfo::apply(intptr_t delta) {
     Memory<Address>(pc_) = target + delta;
   } else if (IsCodeTarget(rmode_)) {
     SixByteInstr instr =
-        Instruction::InstructionBits(reinterpret_cast<const byte*>(pc_));
+        Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc_));
     int32_t dis = static_cast<int32_t>(instr & 0xFFFFFFFF) * 2  // halfwords
                   - static_cast<int32_t>(delta);
     instr >>= 32;  // Clear the 4-byte displacement field.
     instr <<= 32;
     instr |= static_cast<uint32_t>(dis / 2);
-    Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc_),
-                                                  instr);
+    Instruction::SetInstructionBits<SixByteInstr>(
+        reinterpret_cast<uint8_t*>(pc_), instr);
   } else {
     // mov sequence
     DCHECK(IsInternalReferenceEncoded(rmode_));
@@ -134,20 +134,21 @@ Tagged_t Assembler::target_compressed_address_at(Address pc,
 
 Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   SixByteInstr instr =
-      Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
+      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
   int index = instr & 0xFFFFFFFF;
   return GetCodeTarget(index);
 }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
-    return HeapObject::cast(Object(V8HeapCompressionScheme::DecompressTagged(
-        cage_base,
-        Assembler::target_compressed_address_at(pc_, constant_pool_))));
+    return HeapObject::cast(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+            cage_base,
+            Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return HeapObject::cast(
-        Object(Assembler::target_address_at(pc_, constant_pool_)));
+        Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
   }
 }
 
@@ -170,9 +171,8 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   }
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
@@ -184,9 +184,6 @@ void RelocInfo::set_target_object(Heap* heap, HeapObject target,
     Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                      icache_flush_mode);
   }
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
-  }
 }
 
 Address RelocInfo::target_external_reference() {
@@ -194,7 +191,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -208,26 +205,6 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::WipeOut() {
-  DCHECK(IsEmbeddedObjectMode(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    // Jump table entry
-    Memory<Address>(pc_) = kNullAddress;
-  } else if (IsCompressedEmbeddedObject(rmode_)) {
-    Assembler::set_target_compressed_address_at(pc_, constant_pool_,
-                                                kNullAddress);
-  } else if (IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_)) {
-    // mov sequence
-    // Currently used only by deserializer, no need to flush.
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress,
-                                     SKIP_ICACHE_FLUSH);
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
-}
-
 // Operand constructors
 Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 
@@ -235,9 +212,10 @@ Operand::Operand(Register rm) : rm_(rm), rmode_(RelocInfo::NO_INFO) {}
 Address Assembler::target_address_at(Address pc, Address constant_pool) {
   // S390 Instruction!
   // We want to check for instructions generated by Asm::mov()
-  Opcode op1 = Instruction::S390OpcodeValue(reinterpret_cast<const byte*>(pc));
+  Opcode op1 =
+      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
   SixByteInstr instr_1 =
-      Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
+      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
 
   if (BRASL == op1 || BRCL == op1) {
     int32_t dis = static_cast<int32_t>(instr_1 & 0xFFFFFFFF) * 2;
@@ -246,11 +224,11 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 #if V8_TARGET_ARCH_S390X
   int instr1_length =
-      Instruction::InstructionLength(reinterpret_cast<const byte*>(pc));
+      Instruction::InstructionLength(reinterpret_cast<const uint8_t*>(pc));
   Opcode op2 = Instruction::S390OpcodeValue(
-      reinterpret_cast<const byte*>(pc + instr1_length));
+      reinterpret_cast<const uint8_t*>(pc + instr1_length));
   SixByteInstr instr_2 = Instruction::InstructionBits(
-      reinterpret_cast<const byte*>(pc + instr1_length));
+      reinterpret_cast<const uint8_t*>(pc + instr1_length));
   // IIHF for hi_32, IILF for lo_32
   if (IIHF == op1 && IILF == op2) {
     return static_cast<Address>(((instr_1 & 0xFFFFFFFF) << 32) |
@@ -272,9 +250,9 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 // has already deserialized the mov instructions etc.
 // There is a FIXED_SEQUENCE assumption here
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code.constant_pool() : kNullAddress,
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
                         target);
 }
 
@@ -297,9 +275,10 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   // Check for instructions generated by Asm::mov()
-  Opcode op1 = Instruction::S390OpcodeValue(reinterpret_cast<const byte*>(pc));
+  Opcode op1 =
+      Instruction::S390OpcodeValue(reinterpret_cast<const uint8_t*>(pc));
   SixByteInstr instr_1 =
-      Instruction::InstructionBits(reinterpret_cast<const byte*>(pc));
+      Instruction::InstructionBits(reinterpret_cast<const uint8_t*>(pc));
   bool patched = false;
 
   if (BRASL == op1 || BRCL == op1) {
@@ -307,8 +286,8 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
     instr_1 <<= 32;
     int32_t halfwords = (target - pc) / 2;  // number of halfwords
     instr_1 |= static_cast<uint32_t>(halfwords);
-    Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
-                                                  instr_1);
+    Instruction::SetInstructionBits<SixByteInstr>(
+        reinterpret_cast<uint8_t*>(pc), instr_1);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
       FlushInstructionCache(pc, 6);
     }
@@ -316,11 +295,11 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
   } else {
 #if V8_TARGET_ARCH_S390X
     int instr1_length =
-        Instruction::InstructionLength(reinterpret_cast<const byte*>(pc));
+        Instruction::InstructionLength(reinterpret_cast<const uint8_t*>(pc));
     Opcode op2 = Instruction::S390OpcodeValue(
-        reinterpret_cast<const byte*>(pc + instr1_length));
+        reinterpret_cast<const uint8_t*>(pc + instr1_length));
     SixByteInstr instr_2 = Instruction::InstructionBits(
-        reinterpret_cast<const byte*>(pc + instr1_length));
+        reinterpret_cast<const uint8_t*>(pc + instr1_length));
     // IIHF for hi_32, IILF for lo_32
     if (IIHF == op1 && IILF == op2) {
       // IIHF
@@ -328,8 +307,8 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       instr_1 <<= 32;
       instr_1 |= reinterpret_cast<uint64_t>(target) >> 32;
 
-      Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
-                                                    instr_1);
+      Instruction::SetInstructionBits<SixByteInstr>(
+          reinterpret_cast<uint8_t*>(pc), instr_1);
 
       // IILF
       instr_2 >>= 32;
@@ -337,7 +316,7 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       instr_2 |= reinterpret_cast<uint64_t>(target) & 0xFFFFFFFF;
 
       Instruction::SetInstructionBits<SixByteInstr>(
-          reinterpret_cast<byte*>(pc + instr1_length), instr_2);
+          reinterpret_cast<uint8_t*>(pc + instr1_length), instr_2);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, 12);
       }
@@ -350,8 +329,8 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       instr_1 <<= 32;
       instr_1 |= reinterpret_cast<uint32_t>(target);
 
-      Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
-                                                    instr_1);
+      Instruction::SetInstructionBits<SixByteInstr>(
+          reinterpret_cast<uint8_t*>(pc), instr_1);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
         FlushInstructionCache(pc, 6);
       }

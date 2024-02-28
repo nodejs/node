@@ -101,6 +101,8 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
+          case IrOpcode::kStackSlot:
+          case IrOpcode::kLoadRootRegister:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -159,6 +161,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kStore:
           case IrOpcode::kProtectedStore:
           case IrOpcode::kStoreTrapOnNull:
+          case IrOpcode::kStoreIndirectPointer:
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
             break;
@@ -245,6 +248,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kChangeInt32ToInt64:
           case IrOpcode::kChangeUint32ToUint64:
+          case IrOpcode::kBitcastWord32ToWord64:
           case IrOpcode::kInt64Constant:
           case IrOpcode::kRelocatableInt64Constant:
           case IrOpcode::kBitcastFloat64ToInt64:
@@ -536,6 +540,7 @@ class MachineRepresentationChecker {
                                             MachineRepresentation::kWord32);
             V8_FALLTHROUGH;
           case IrOpcode::kStore:
+          case IrOpcode::kStoreIndirectPointer:
           case IrOpcode::kUnalignedStore:
           case IrOpcode::kWord32AtomicStore:
           case IrOpcode::kWord32AtomicExchange:
@@ -558,6 +563,7 @@ class MachineRepresentationChecker {
               case MachineRepresentation::kTagged:
               case MachineRepresentation::kTaggedPointer:
               case MachineRepresentation::kTaggedSigned:
+              case MachineRepresentation::kIndirectPointer:
                 if (COMPRESS_POINTERS_BOOL &&
                     ((node->opcode() == IrOpcode::kStore &&
                       IsAnyTagged(StoreRepresentationOf(node->op())
@@ -982,6 +988,7 @@ class MachineRepresentationChecker {
         // happens in dead code.
         return IsAnyTagged(actual);
       case MachineRepresentation::kCompressedPointer:
+      case MachineRepresentation::kIndirectPointer:
       case MachineRepresentation::kSandboxedPointer:
       case MachineRepresentation::kFloat32:
       case MachineRepresentation::kFloat64:

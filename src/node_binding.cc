@@ -49,6 +49,7 @@
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \
+  V(modules)                                                                   \
   V(module_wrap)                                                               \
   V(mksnapshot)                                                                \
   V(options)                                                                   \
@@ -88,7 +89,8 @@
   NODE_BUILTIN_STANDARD_BINDINGS(V)                                            \
   NODE_BUILTIN_OPENSSL_BINDINGS(V)                                             \
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
-  NODE_BUILTIN_PROFILER_BINDINGS(V)
+  NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
+  NODE_BUILTIN_QUIC_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>

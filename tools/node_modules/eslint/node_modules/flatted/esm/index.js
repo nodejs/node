@@ -1,4 +1,6 @@
-/*! (c) 2020 Andrea Giammarchi */
+/// <reference types="../types/index.d.ts" />
+
+// (c) 2020-present Andrea Giammarchi
 
 const {parse: $parse, stringify: $stringify} = JSON;
 const {keys} = Object;
@@ -50,6 +52,12 @@ const set = (known, input, value) => {
   return index;
 };
 
+/**
+ * Converts a specialized flatted string into a JS value.
+ * @param {string} text
+ * @param {(this: any, key: string, value: any) => any} [reviver]
+ * @returns {any}
+ */
 export const parse = (text, reviver) => {
   const input = $parse(text, Primitives).map(primitives);
   const value = input[0];
@@ -60,6 +68,13 @@ export const parse = (text, reviver) => {
   return $.call({'': tmp}, '', tmp);
 };
 
+/**
+ * Converts a JS value into a specialized flatted string.
+ * @param {any} value
+ * @param {((this: any, key: string, value: any) => any) | (string | number)[] | null | undefined} [replacer]
+ * @param {string | number | undefined} [space]
+ * @returns {string}
+ */
 export const stringify = (value, replacer, space) => {
   const $ = replacer && typeof replacer === object ?
             (k, v) => (k === '' || -1 < replacer.indexOf(k) ? v : void 0) :
@@ -90,5 +105,16 @@ export const stringify = (value, replacer, space) => {
   }
 };
 
-export const toJSON = any => $parse(stringify(any));
-export const fromJSON = any => parse($stringify(any));
+/**
+ * Converts a generic value into a JSON serializable object without losing recursion.
+ * @param {any} value
+ * @returns {any}
+ */
+export const toJSON = value => $parse(stringify(value));
+
+/**
+ * Converts a previously serialized object with recursion into a recursive one.
+ * @param {any} value
+ * @returns {any}
+ */
+export const fromJSON = value => parse($stringify(value));

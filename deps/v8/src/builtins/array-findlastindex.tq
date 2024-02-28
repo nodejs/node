@@ -5,9 +5,8 @@
 namespace array {
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
 transitioning builtin ArrayFindLastIndexLoopContinuation(
-    implicit context: Context)(
-    predicate: Callable, thisArg: JSAny, o: JSReceiver,
-    initialK: Number): Number {
+    implicit context: Context)(predicate: Callable, thisArg: JSAny,
+    o: JSReceiver, initialK: Number): Number {
   // 5. Repeat, while k >= 0
   for (let k: Number = initialK; k >= 0; k--) {
     // 5a. Let Pk be ! ToString(𝔽(k)).
@@ -34,8 +33,9 @@ transitioning builtin ArrayFindLastIndexLoopContinuation(
 }
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
-transitioning macro FastArrayFindLastIndex(implicit context: Context)(
-    o: JSReceiver, len: Number, predicate: Callable, thisArg: JSAny): Number
+transitioning macro FastArrayFindLastIndex(
+    implicit context: Context)(o: JSReceiver, len: Number, predicate: Callable,
+    thisArg: JSAny): Number
     labels Bailout(Number) {
   const smiLen = Cast<Smi>(len) otherwise goto Bailout(len - 1);
   // 4. Let k be len - 1.
@@ -74,8 +74,7 @@ transitioning macro FastArrayFindLastIndex(implicit context: Context)(
 }
 
 // https://tc39.es/proposal-array-find-from-last/index.html#sec-array.prototype.findlastindex
-transitioning javascript builtin
-ArrayPrototypeFindLastIndex(
+transitioning javascript builtin ArrayPrototypeFindLastIndex(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.findLastIndex');
@@ -105,7 +104,7 @@ ArrayPrototypeFindLastIndex(
       return ArrayFindLastIndexLoopContinuation(predicate, thisArg, o, k);
     }
   } label NotCallableError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

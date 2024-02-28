@@ -308,22 +308,25 @@ template <typename Mutex, NullBehavior Behavior = NullBehavior::kRequireNotNull>
 class V8_NODISCARD LockGuard final {
  public:
   explicit LockGuard(Mutex* mutex) : mutex_(mutex) {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
     if (has_mutex()) mutex_->Lock();
   }
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
+  LockGuard(LockGuard&& other) V8_NOEXCEPT : mutex_(other.mutex_) {
+    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
+                   mutex_ != nullptr);
+    other.mutex_ = nullptr;
+  }
   ~LockGuard() {
     if (has_mutex()) mutex_->Unlock();
   }
 
  private:
-  Mutex* const mutex_;
+  Mutex* mutex_;
 
-  bool V8_INLINE has_mutex() const {
-    DCHECK_IMPLIES(Behavior == NullBehavior::kRequireNotNull,
-                   mutex_ != nullptr);
-    return Behavior == NullBehavior::kRequireNotNull || mutex_ != nullptr;
-  }
+  bool V8_INLINE has_mutex() const { return mutex_ != nullptr; }
 };
 
 using MutexGuard = LockGuard<Mutex>;

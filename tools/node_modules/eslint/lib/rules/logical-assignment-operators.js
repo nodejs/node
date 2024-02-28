@@ -150,6 +150,31 @@ function isInsideWithBlock(node) {
     return node.parent.type === "WithStatement" && node.parent.body === node ? true : isInsideWithBlock(node.parent);
 }
 
+/**
+ * Gets the leftmost operand of a consecutive logical expression.
+ * @param {SourceCode} sourceCode The ESLint source code object
+ * @param {LogicalExpression} node LogicalExpression
+ * @returns {Expression} Leftmost operand
+ */
+function getLeftmostOperand(sourceCode, node) {
+    let left = node.left;
+
+    while (left.type === "LogicalExpression" && left.operator === node.operator) {
+
+        if (astUtils.isParenthesised(sourceCode, left)) {
+
+            /*
+             * It should have associativity,
+             * but ignore it if use parentheses to make the evaluation order clear.
+             */
+            return left;
+        }
+        left = left.left;
+    }
+    return left;
+
+}
+
 //------------------------------------------------------------------------------
 // Rule Definition
 //------------------------------------------------------------------------------
@@ -318,7 +343,10 @@ module.exports = {
 
             // foo = foo || bar
             "AssignmentExpression[operator='='][right.type='LogicalExpression']"(assignment) {
-                if (!astUtils.isSameReference(assignment.left, assignment.right.left)) {
+                const leftOperand = getLeftmostOperand(sourceCode, assignment.right);
+
+                if (!astUtils.isSameReference(assignment.left, leftOperand)
+                ) {
                     return;
                 }
 
@@ -342,10 +370,10 @@ module.exports = {
                         yield ruleFixer.insertTextBefore(assignmentOperatorToken, assignment.right.operator);
 
                         // -> foo ||= bar
-                        const logicalOperatorToken = getOperatorToken(assignment.right);
+                        const logicalOperatorToken = getOperatorToken(leftOperand.parent);
                         const firstRightOperandToken = sourceCode.getTokenAfter(logicalOperatorToken);
 
-                        yield ruleFixer.removeRange([assignment.right.range[0], firstRightOperandToken.range[0]]);
+                        yield ruleFixer.removeRange([leftOperand.parent.range[0], firstRightOperandToken.range[0]]);
                     }
                 };
 

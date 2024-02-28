@@ -26,9 +26,9 @@ class V8_EXPORT_PRIVATE LocalDeclEncoder {
 
   // Prepend local declarations by creating a new buffer and copying data
   // over. The new buffer must be delete[]'d by the caller.
-  void Prepend(Zone* zone, const byte** start, const byte** end) const;
+  void Prepend(Zone* zone, const uint8_t** start, const uint8_t** end) const;
 
-  size_t Emit(byte* buffer) const;
+  size_t Emit(uint8_t* buffer) const;
 
   // Add locals declarations to this helper. Return the index of the newly added
   // local(s), with an optional adjustment for the parameters.

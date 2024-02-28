@@ -84,7 +84,7 @@ void Typer::BranchRefinements::RefineTypes(const Operation& condition,
         return;
     }
 
-    // In some cases, the refined type is not a subtyp eof the old type,
+    // In some cases, the refined type is not a subtype of the old type,
     // because it cannot be represented precisely. In this case we keep the
     // old type to be stable.
     if (l_refined.IsSubtypeOf(lhs)) {

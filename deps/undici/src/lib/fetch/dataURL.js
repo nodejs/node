@@ -1,6 +1,4 @@
-const assert = require('assert')
-const { atob } = require('buffer')
-const { isomorphicDecode } = require('./util')
+const assert = require('node:assert')
 
 const encoder = new TextEncoder()
 
@@ -8,7 +6,8 @@ const encoder = new TextEncoder()
  * @see https://mimesniff.spec.whatwg.org/#http-token-code-point
  */
 const HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/
-const HTTP_WHITESPACE_REGEX = /(\u000A|\u000D|\u0009|\u0020)/ // eslint-disable-line
+const HTTP_WHITESPACE_REGEX = /[\u000A|\u000D|\u0009|\u0020]/ // eslint-disable-line
+const ASCII_WHITESPACE_REPLACE_REGEX = /[\u0009\u000A\u000C\u000D\u0020]/g // eslint-disable-line
 /**
  * @see https://mimesniff.spec.whatwg.org/#http-quoted-string-token-code-point
  */
@@ -119,17 +118,20 @@ function dataURLProcessor (dataURL) {
  * @param {boolean} excludeFragment
  */
 function URLSerializer (url, excludeFragment = false) {
-  const href = url.href
-
   if (!excludeFragment) {
-    return href
+    return url.href
   }
 
-  const hash = href.lastIndexOf('#')
-  if (hash === -1) {
-    return href
+  const href = url.href
+  const hashLength = url.hash.length
+
+  const serialized = hashLength === 0 ? href : href.substring(0, href.length - hashLength)
+
+  if (!hashLength && href.endsWith('#')) {
+    return serialized.slice(0, -1)
   }
-  return href.slice(0, hash)
+
+  return serialized
 }
 
 // https://infra.spec.whatwg.org/#collect-a-sequence-of-code-points
@@ -185,20 +187,43 @@ function stringPercentDecode (input) {
   return percentDecode(bytes)
 }
 
+/**
+ * @param {number} byte
+ */
+function isHexCharByte (byte) {
+  // 0-9 A-F a-f
+  return (byte >= 0x30 && byte <= 0x39) || (byte >= 0x41 && byte <= 0x46) || (byte >= 0x61 && byte <= 0x66)
+}
+
+/**
+ * @param {number} byte
+ */
+function hexByteToNumber (byte) {
+  return (
+    // 0-9
+    byte >= 0x30 && byte <= 0x39
+      ? (byte - 48)
+    // Convert to uppercase
+    // ((byte & 0xDF) - 65) + 10
+      : ((byte & 0xDF) - 55)
+  )
+}
+
 // https://url.spec.whatwg.org/#percent-decode
 /** @param {Uint8Array} input */
 function percentDecode (input) {
+  const length = input.length
   // 1. Let output be an empty byte sequence.
-  /** @type {number[]} */
-  const output = []
-
+  /** @type {Uint8Array} */
+  const output = new Uint8Array(length)
+  let j = 0
   // 2. For each byte byte in input:
-  for (let i = 0; i < input.length; i++) {
+  for (let i = 0; i < length; ++i) {
     const byte = input[i]
 
     // 1. If byte is not 0x25 (%), then append byte to output.
     if (byte !== 0x25) {
-      output.push(byte)
+      output[j++] = byte
 
     // 2. Otherwise, if byte is 0x25 (%) and the next two bytes
     // after byte in input are not in the ranges
@@ -207,19 +232,16 @@ function percentDecode (input) {
     // to output.
     } else if (
       byte === 0x25 &&
-      !/^[0-9A-Fa-f]{2}$/i.test(String.fromCharCode(input[i + 1], input[i + 2]))
+      !(isHexCharByte(input[i + 1]) && isHexCharByte(input[i + 2]))
     ) {
-      output.push(0x25)
+      output[j++] = 0x25
 
     // 3. Otherwise:
     } else {
       // 1. Let bytePoint be the two bytes after byte in input,
       // decoded, and then interpreted as hexadecimal number.
-      const nextTwoBytes = String.fromCharCode(input[i + 1], input[i + 2])
-      const bytePoint = Number.parseInt(nextTwoBytes, 16)
-
       // 2. Append a byte whose value is bytePoint to output.
-      output.push(bytePoint)
+      output[j++] = (hexByteToNumber(input[i + 1]) << 4) | hexByteToNumber(input[i + 2])
 
       // 3. Skip the next two bytes in input.
       i += 2
@@ -227,7 +249,7 @@ function percentDecode (input) {
   }
 
   // 3. Return output.
-  return Uint8Array.from(output)
+  return length === j ? output : output.subarray(0, j)
 }
 
 // https://mimesniff.spec.whatwg.org/#parse-a-mime-type
@@ -407,19 +429,25 @@ function parseMIMEType (input) {
 /** @param {string} data */
 function forgivingBase64 (data) {
   // 1. Remove all ASCII whitespace from data.
-  data = data.replace(/[\u0009\u000A\u000C\u000D\u0020]/g, '')  // eslint-disable-line
+  data = data.replace(ASCII_WHITESPACE_REPLACE_REGEX, '')  // eslint-disable-line
 
+  let dataLength = data.length
   // 2. If data’s code point length divides by 4 leaving
   // no remainder, then:
-  if (data.length % 4 === 0) {
+  if (dataLength % 4 === 0) {
     // 1. If data ends with one or two U+003D (=) code points,
     // then remove them from data.
-    data = data.replace(/=?=$/, '')
+    if (data.charCodeAt(dataLength - 1) === 0x003D) {
+      --dataLength
+      if (data.charCodeAt(dataLength - 1) === 0x003D) {
+        --dataLength
+      }
+    }
   }
 
   // 3. If data’s code point length divides by 4 leaving
   // a remainder of 1, then return failure.
-  if (data.length % 4 === 1) {
+  if (dataLength % 4 === 1) {
     return 'failure'
   }
 
@@ -428,18 +456,12 @@ function forgivingBase64 (data) {
   //  U+002F (/)
   //  ASCII alphanumeric
   // then return failure.
-  if (/[^+/0-9A-Za-z]/.test(data)) {
+  if (/[^+/0-9A-Za-z]/.test(data.length === dataLength ? data : data.substring(0, dataLength))) {
     return 'failure'
   }
 
-  const binary = atob(data)
-  const bytes = new Uint8Array(binary.length)
-
-  for (let byte = 0; byte < binary.length; byte++) {
-    bytes[byte] = binary.charCodeAt(byte)
-  }
-
-  return bytes
+  const buffer = Buffer.from(data, 'base64')
+  return new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength)
 }
 
 // https://fetch.spec.whatwg.org/#collect-an-http-quoted-string
@@ -546,7 +568,7 @@ function serializeAMimeType (mimeType) {
     // 4. If value does not solely contain HTTP token code
     //    points or value is the empty string, then:
     if (!HTTP_TOKEN_CODEPOINTS.test(value)) {
-      // 1. Precede each occurence of U+0022 (") or
+      // 1. Precede each occurrence of U+0022 (") or
       //    U+005C (\) in value with U+005C (\).
       value = value.replace(/(\\|")/g, '\\$1')
 
@@ -567,55 +589,141 @@ function serializeAMimeType (mimeType) {
 
 /**
  * @see https://fetch.spec.whatwg.org/#http-whitespace
- * @param {string} char
+ * @param {number} char
  */
 function isHTTPWhiteSpace (char) {
-  return char === '\r' || char === '\n' || char === '\t' || char === ' '
+  // "\r\n\t "
+  return char === 0x00d || char === 0x00a || char === 0x009 || char === 0x020
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#http-whitespace
  * @param {string} str
+ * @param {boolean} [leading=true]
+ * @param {boolean} [trailing=true]
  */
 function removeHTTPWhitespace (str, leading = true, trailing = true) {
-  let lead = 0
-  let trail = str.length - 1
-
-  if (leading) {
-    for (; lead < str.length && isHTTPWhiteSpace(str[lead]); lead++);
-  }
-
-  if (trailing) {
-    for (; trail > 0 && isHTTPWhiteSpace(str[trail]); trail--);
-  }
-
-  return str.slice(lead, trail + 1)
+  return removeChars(str, leading, trailing, isHTTPWhiteSpace)
 }
 
 /**
  * @see https://infra.spec.whatwg.org/#ascii-whitespace
- * @param {string} char
+ * @param {number} char
  */
 function isASCIIWhitespace (char) {
-  return char === '\r' || char === '\n' || char === '\t' || char === '\f' || char === ' '
+  // "\r\n\t\f "
+  return char === 0x00d || char === 0x00a || char === 0x009 || char === 0x00c || char === 0x020
 }
 
 /**
  * @see https://infra.spec.whatwg.org/#strip-leading-and-trailing-ascii-whitespace
+ * @param {string} str
+ * @param {boolean} [leading=true]
+ * @param {boolean} [trailing=true]
  */
 function removeASCIIWhitespace (str, leading = true, trailing = true) {
+  return removeChars(str, leading, trailing, isASCIIWhitespace)
+}
+
+/**
+ *
+ * @param {string} str
+ * @param {boolean} leading
+ * @param {boolean} trailing
+ * @param {(charCode: number) => boolean} predicate
+ * @returns
+ */
+function removeChars (str, leading, trailing, predicate) {
   let lead = 0
   let trail = str.length - 1
 
   if (leading) {
-    for (; lead < str.length && isASCIIWhitespace(str[lead]); lead++);
+    while (lead < str.length && predicate(str.charCodeAt(lead))) lead++
   }
 
   if (trailing) {
-    for (; trail > 0 && isASCIIWhitespace(str[trail]); trail--);
+    while (trail > 0 && predicate(str.charCodeAt(trail))) trail--
   }
 
-  return str.slice(lead, trail + 1)
+  return lead === 0 && trail === str.length - 1 ? str : str.slice(lead, trail + 1)
+}
+
+/**
+ * @see https://infra.spec.whatwg.org/#isomorphic-decode
+ * @param {Uint8Array} input
+ * @returns {string}
+ */
+function isomorphicDecode (input) {
+  // 1. To isomorphic decode a byte sequence input, return a string whose code point
+  //    length is equal to input’s length and whose code points have the same values
+  //    as the values of input’s bytes, in the same order.
+  const length = input.length
+  if ((2 << 15) - 1 > length) {
+    return String.fromCharCode.apply(null, input)
+  }
+  let result = ''; let i = 0
+  let addition = (2 << 15) - 1
+  while (i < length) {
+    if (i + addition > length) {
+      addition = length - i
+    }
+    result += String.fromCharCode.apply(null, input.subarray(i, i += addition))
+  }
+  return result
+}
+
+/**
+ * @see https://mimesniff.spec.whatwg.org/#minimize-a-supported-mime-type
+ * @param {Exclude<ReturnType<typeof parseMIMEType>, 'failure'>} mimeType
+ */
+function minimizeSupportedMimeType (mimeType) {
+  switch (mimeType.essence) {
+    case 'application/ecmascript':
+    case 'application/javascript':
+    case 'application/x-ecmascript':
+    case 'application/x-javascript':
+    case 'text/ecmascript':
+    case 'text/javascript':
+    case 'text/javascript1.0':
+    case 'text/javascript1.1':
+    case 'text/javascript1.2':
+    case 'text/javascript1.3':
+    case 'text/javascript1.4':
+    case 'text/javascript1.5':
+    case 'text/jscript':
+    case 'text/livescript':
+    case 'text/x-ecmascript':
+    case 'text/x-javascript':
+      // 1. If mimeType is a JavaScript MIME type, then return "text/javascript".
+      return 'text/javascript'
+    case 'application/json':
+    case 'text/json':
+      // 2. If mimeType is a JSON MIME type, then return "application/json".
+      return 'application/json'
+    case 'image/svg+xml':
+      // 3. If mimeType’s essence is "image/svg+xml", then return "image/svg+xml".
+      return 'image/svg+xml'
+    case 'text/xml':
+    case 'application/xml':
+      // 4. If mimeType is an XML MIME type, then return "application/xml".
+      return 'application/xml'
+  }
+
+  // 2. If mimeType is a JSON MIME type, then return "application/json".
+  if (mimeType.subtype.endsWith('+json')) {
+    return 'application/json'
+  }
+
+  // 4. If mimeType is an XML MIME type, then return "application/xml".
+  if (mimeType.subtype.endsWith('+xml')) {
+    return 'application/xml'
+  }
+
+  // 5. If mimeType is supported by the user agent, then return mimeType’s essence.
+  // Technically, node doesn't support any mimetypes.
+
+  // 6. Return the empty string.
+  return ''
 }
 
 module.exports = {
@@ -626,5 +734,7 @@ module.exports = {
   stringPercentDecode,
   parseMIMEType,
   collectAnHTTPQuotedString,
-  serializeAMimeType
+  serializeAMimeType,
+  removeChars,
+  minimizeSupportedMimeType
 }

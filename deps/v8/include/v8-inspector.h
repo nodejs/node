@@ -217,13 +217,25 @@ class V8_EXPORT V8InspectorSession {
   virtual void stop() = 0;
 };
 
-class V8_EXPORT WebDriverValue {
- public:
-  explicit WebDriverValue(std::unique_ptr<StringBuffer> type,
-                          v8::MaybeLocal<v8::Value> value = {})
+struct V8_EXPORT DeepSerializedValue {
+  explicit DeepSerializedValue(std::unique_ptr<StringBuffer> type,
+                               v8::MaybeLocal<v8::Value> value = {})
       : type(std::move(type)), value(value) {}
   std::unique_ptr<StringBuffer> type;
   v8::MaybeLocal<v8::Value> value;
+};
+
+struct V8_EXPORT DeepSerializationResult {
+  explicit DeepSerializationResult(
+      std::unique_ptr<DeepSerializedValue> serializedValue)
+      : serializedValue(std::move(serializedValue)), isSuccess(true) {}
+  explicit DeepSerializationResult(std::unique_ptr<StringBuffer> errorMessage)
+      : errorMessage(std::move(errorMessage)), isSuccess(false) {}
+
+  // Use std::variant when available.
+  std::unique_ptr<DeepSerializedValue> serializedValue;
+  std::unique_ptr<StringBuffer> errorMessage;
+  bool isSuccess;
 };
 
 class V8_EXPORT V8InspectorClient {
@@ -243,8 +255,9 @@ class V8_EXPORT V8InspectorClient {
   virtual void beginUserGesture() {}
   virtual void endUserGesture() {}
 
-  virtual std::unique_ptr<WebDriverValue> serializeToWebDriverValue(
-      v8::Local<v8::Value> v8_value, int max_depth) {
+  virtual std::unique_ptr<DeepSerializationResult> deepSerialize(
+      v8::Local<v8::Value> v8Value, int maxDepth,
+      v8::Local<v8::Object> additionalParameters) {
     return nullptr;
   }
   virtual std::unique_ptr<StringBuffer> valueSubtype(v8::Local<v8::Value>) {

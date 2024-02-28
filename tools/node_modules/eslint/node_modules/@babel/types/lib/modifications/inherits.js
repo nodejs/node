@@ -4,11 +4,11 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = inherits;
-var _constants = require("../constants");
-var _inheritsComments = require("../comments/inheritsComments");
+var _index = require("../constants/index.js");
+var _inheritsComments = require("../comments/inheritsComments.js");
 function inherits(child, parent) {
   if (!child || !parent) return child;
-  for (const key of _constants.INHERIT_KEYS.optional) {
+  for (const key of _index.INHERIT_KEYS.optional) {
     if (child[key] == null) {
       child[key] = parent[key];
     }
@@ -18,7 +18,7 @@ function inherits(child, parent) {
       child[key] = parent[key];
     }
   }
-  for (const key of _constants.INHERIT_KEYS.force) {
+  for (const key of _index.INHERIT_KEYS.force) {
     child[key] = parent[key];
   }
   (0, _inheritsComments.default)(child, parent);

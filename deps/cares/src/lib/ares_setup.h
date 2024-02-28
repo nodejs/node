@@ -1,26 +1,37 @@
+/* MIT License
+ *
+ * Copyright (c) 2004 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef HEADER_CARES_SETUP_H
 #define HEADER_CARES_SETUP_H
-
-
-/* Copyright (C) 2004 - 2012 by Daniel Stenberg et al
- *
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose and without fee is hereby granted, provided
- * that the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  M.I.T. makes no representations about the
- * suitability of this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
- */
 
 /*
  * Define WIN32 when build target is Win32 API
  */
 
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
-#define WIN32
+#  define WIN32
 #endif
 
 /*
@@ -29,12 +40,12 @@
  */
 
 #ifdef HAVE_CONFIG_H
-#include "ares_config.h"
+#  include "ares_config.h"
 #else
 
-#ifdef WIN32
-#include "config-win32.h"
-#endif
+#  ifdef WIN32
+#    include "config-win32.h"
+#  endif
 
 #endif /* HAVE_CONFIG_H */
 
@@ -112,7 +123,7 @@
 #  ifdef HAVE_WINSOCK2_H
 #    include <winsock2.h>
 #    ifdef HAVE_WS2TCPIP_H
-#       include <ws2tcpip.h>
+#      include <ws2tcpip.h>
 #    endif
 #  else
 #    ifdef HAVE_WINSOCK_H
@@ -127,8 +138,9 @@
  * undefine USE_WINSOCK.
  */
 
-#undef USE_WINSOCK
-
+#ifdef USE_WINSOCK
+#  undef USE_WINSOCK
+#endif
 #ifdef HAVE_WINSOCK2_H
 #  define USE_WINSOCK 2
 #else
@@ -143,17 +155,17 @@
 
 #ifndef HAVE_CONFIG_H
 
-#if !defined(HAVE_SYS_TIME_H) && !defined(_MSC_VER) && !defined(__WATCOMC__)
-#define HAVE_SYS_TIME_H
-#endif
+#  if !defined(HAVE_SYS_TIME_H) && !defined(_MSC_VER) && !defined(__WATCOMC__)
+#    define HAVE_SYS_TIME_H
+#  endif
 
-#if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
-#define HAVE_UNISTD_H 1
-#endif
+#  if !defined(HAVE_UNISTD_H) && !defined(_MSC_VER)
+#    define HAVE_UNISTD_H 1
+#  endif
 
-#if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
-#define HAVE_SYS_UIO_H
-#endif
+#  if !defined(HAVE_SYS_UIO_H) && !defined(WIN32) && !defined(MSDOS)
+#    define HAVE_SYS_UIO_H
+#  endif
 
 #endif /* HAVE_CONFIG_H */
 
@@ -182,7 +194,7 @@
  * but it is not fully implemented and missing identifiers, so udefine here.
  */
 #if (defined(ANDROID) || defined(__ANDROID__) || defined(__MVS__)) && \
-    defined(HAVE_ARPA_NAMESER_H)
+  defined(HAVE_ARPA_NAMESER_H)
 #  undef HAVE_ARPA_NAMESER_H
 #endif
 
@@ -192,21 +204,35 @@
  *  --enable-debug) so we undef them again here.
  */
 
-#undef PACKAGE_STRING
-#undef PACKAGE_TARNAME
-#undef PACKAGE_VERSION
-#undef PACKAGE_BUGREPORT
-#undef PACKAGE_NAME
-#undef VERSION
-#undef PACKAGE
+#ifdef PACKAGE_STRING
+#  undef PACKAGE_STRING
+#endif
+#ifdef PACKAGE_TARNAME
+#  undef PACKAGE_TARNAME
+#endif
+#ifdef PACKAGE_VERSION
+#  undef PACKAGE_VERSION
+#endif
+#ifdef PACKAGE_BUGREPORT
+#  undef PACKAGE_BUGREPORT
+#endif
+#ifdef PACKAGE_NAME
+#  undef PACKAGE_NAME
+#endif
+#ifdef VERSION
+#  undef VERSION
+#endif
+#ifdef PACKAGE
+#  undef PACKAGE
+#endif
 
 /* IPv6 compatibility */
 #if !defined(HAVE_AF_INET6)
-#if defined(HAVE_PF_INET6)
-#define AF_INET6 PF_INET6
-#else
-#define AF_INET6 AF_MAX+1
-#endif
+#  if defined(HAVE_PF_INET6)
+#    define AF_INET6 PF_INET6
+#  else
+#    define AF_INET6 AF_MAX + 1
+#  endif
 #endif
 
 /*
@@ -214,7 +240,7 @@
  */
 
 #ifndef __SETUP_ONCE_H
-#include "setup_once.h"
+#  include "setup_once.h"
 #endif
 
 #endif /* HEADER_CARES_SETUP_H */

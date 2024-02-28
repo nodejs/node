@@ -50,8 +50,9 @@ added: v0.5.0
 * Returns: {string}
 
 Returns the operating system CPU architecture for which the Node.js binary was
-compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'mips'`,
-`'mipsel'`, `'ppc'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`, and `'x64'`.
+compiled. Possible values are `'arm'`, `'arm64'`, `'ia32'`, `'loong64'`,
+`'mips'`, `'mipsel'`, `'ppc'`, `'ppc64'`, `'riscv64'`, `'s390'`, `'s390x'`,
+and `'x64'`.
 
 The return value is equivalent to [`process.arch`][].
 
@@ -249,7 +250,7 @@ added:
   - v16.18.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns the machine type as a string, such as `arm`, `arm64`, `aarch64`,
 `mips`, `mips64`, `ppc64`, `ppc64le`, `s390`, `s390x`, `i386`, `i686`, `x86_64`.
@@ -482,7 +483,7 @@ added:
  - v12.17.0
 -->
 
-* Returns {string}
+* Returns: {string}
 
 Returns a string identifying the kernel version.
 

@@ -45,7 +45,7 @@ class MockArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 };
 
 static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
-                         i::HeapObject object) {
+                         i::Tagged<i::HeapObject> object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName) \
   if (root_name == nullptr && object == roots.name()) root_name = #CamelName;
 #define MUTABLE_ROOT_LIST_CASE(type, name, CamelName) \
@@ -53,7 +53,7 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 
   i::ReadOnlyRoots roots(heap);
   const char* root_name = nullptr;
-  i::Map map = i::Map::cast(object);
+  i::Tagged<i::Map> map = i::Map::cast(object);
   intptr_t root_ptr =
       static_cast<intptr_t>(map.ptr()) & (i::Page::kPageSize - 1);
 
@@ -62,14 +62,14 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 
   if (root_name == nullptr) return;
   i::PrintF(out, "    (\"%s\", 0x%05" V8PRIxPTR "): (%d, \"%s\"),\n",
-            space_name, root_ptr, map.instance_type(), root_name);
+            space_name, root_ptr, map->instance_type(), root_name);
 
 #undef MUTABLE_ROOT_LIST_CASE
 #undef RO_ROOT_LIST_CASE
 }
 
 static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
-                            i::HeapObject object) {
+                            i::Tagged<i::HeapObject> object) {
 #define RO_ROOT_LIST_CASE(type, name, CamelName)        \
   if (root_name == nullptr && object == roots.name()) { \
     root_name = #CamelName;                             \
@@ -101,7 +101,7 @@ static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
 
 static void DumpSpaceFirstPageAddress(FILE* out, i::BaseSpace* space,
                                       i::Address first_page) {
-  const char* name = space->name();
+  const char* name = i::ToString(space->identity());
   i::Tagged_t compressed =
       i::V8HeapCompressionScheme::CompressObject(first_page);
   uintptr_t unsigned_compressed = static_cast<uint32_t>(compressed);
@@ -142,18 +142,18 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::PrintF(out, "\n# List of known V8 maps.\n");
       i::PrintF(out, "KNOWN_MAPS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
-      for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
-           object = ro_iterator.Next()) {
-        if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
-                     object);
+      for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
+           !object.is_null(); object = ro_iterator.Next()) {
+        if (!IsMap(object)) continue;
+        DumpKnownMap(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
       i::PagedSpaceObjectIterator iterator(heap, heap->old_space());
-      for (i::HeapObject object = iterator.Next(); !object.is_null();
+      for (i::Tagged<i::HeapObject> object = iterator.Next(); !object.is_null();
            object = iterator.Next()) {
-        if (!object.IsMap()) continue;
-        DumpKnownMap(out, heap, heap->old_space()->name(), object);
+        if (!IsMap(object)) continue;
+        DumpKnownMap(out, heap, i::ToString(heap->old_space()->identity()),
+                     object);
       }
       i::PrintF(out, "}\n");
     }
@@ -163,12 +163,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       i::PrintF(out, "\n# List of known V8 objects.\n");
       i::PrintF(out, "KNOWN_OBJECTS = {\n");
       i::ReadOnlyHeapObjectIterator ro_iterator(read_only_heap);
-      for (i::HeapObject object = ro_iterator.Next(); !object.is_null();
-           object = ro_iterator.Next()) {
+      for (i::Tagged<i::HeapObject> object = ro_iterator.Next();
+           !object.is_null(); object = ro_iterator.Next()) {
         // Skip read-only heap maps, they will be reported elsewhere.
-        if (object.IsMap()) continue;
-        DumpKnownObject(out, heap, i::BaseSpace::GetSpaceName(i::RO_SPACE),
-                        object);
+        if (IsMap(object)) continue;
+        DumpKnownObject(out, heap, i::ToString(i::RO_SPACE), object);
       }
 
       i::PagedSpaceIterator spit(heap);
@@ -176,8 +175,9 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
         i::PagedSpaceObjectIterator it(heap, s);
         // Code objects are generally platform-dependent.
         if (s->identity() == i::CODE_SPACE) continue;
-        const char* sname = s->name();
-        for (i::HeapObject o = it.Next(); !o.is_null(); o = it.Next()) {
+        const char* sname = i::ToString(s->identity());
+        for (i::Tagged<i::HeapObject> o = it.Next(); !o.is_null();
+             o = it.Next()) {
           DumpKnownObject(out, heap, sname, o);
         }
       }
@@ -199,6 +199,11 @@ static int DumpHeapConstants(FILE* out, const char* argv0) {
       for (i::PagedSpace* s = it.Next(); s != nullptr; s = it.Next()) {
         // Code page is different on Windows vs Linux (bug v8:9844), so skip it.
         if (s->identity() == i::CODE_SPACE) {
+          continue;
+        }
+        // Trusted space is allocated in a different part of the address space,
+        // so skip it as well.
+        if (s->identity() == i::TRUSTED_SPACE) {
           continue;
         }
         DumpSpaceFirstPageAddress(out, s);

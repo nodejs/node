@@ -134,13 +134,7 @@ section for details.
 EVP_aes_192_wrap(),
 EVP_aes_256_wrap(),
 EVP_aes_128_wrap_pad(),
-EVP_aes_128_wrap(),
-EVP_aes_192_wrap(),
-EVP_aes_256_wrap(),
 EVP_aes_192_wrap_pad(),
-EVP_aes_128_wrap(),
-EVP_aes_192_wrap(),
-EVP_aes_256_wrap(),
 EVP_aes_256_wrap_pad()
 
 AES key wrap with 128, 192 and 256 bit keys, as according to RFC 3394 section
@@ -173,7 +167,7 @@ the XTS "tweak" value.
 
 Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
-L<EVP_CIPHER_fetch(3)> instead.
+L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-AES(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 =head1 RETURN VALUES

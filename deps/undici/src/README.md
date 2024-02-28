@@ -18,30 +18,23 @@ npm i undici
 ## Benchmarks
 
 The benchmark is a simple `hello world` [example](benchmarks/benchmark.js) using a
-number of unix sockets (connections) with a pipelining depth of 10 running on Node 16.
-The benchmarks below have the [simd](https://github.com/WebAssembly/simd) feature enabled.
+50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
-### Connections 1
-
-| Tests               | Samples |        Result | Tolerance | Difference with slowest |
-|---------------------|---------|---------------|-----------|-------------------------|
-| http - no keepalive |      15 |  4.63 req/sec |  ± 2.77 % |                       - |
-| http - keepalive    |      10 |  4.81 req/sec |  ± 2.16 % |                + 3.94 % |
-| undici - stream     |      25 | 62.22 req/sec |  ± 2.67 % |             + 1244.58 % |
-| undici - dispatch   |      15 | 64.33 req/sec |  ± 2.47 % |             + 1290.24 % |
-| undici - request    |      15 | 66.08 req/sec |  ± 2.48 % |             + 1327.88 % |
-| undici - pipeline   |      10 | 66.13 req/sec |  ± 1.39 % |             + 1329.08 % |
-
-### Connections 50
-
-| Tests               | Samples |           Result | Tolerance | Difference with slowest |
-|---------------------|---------|------------------|-----------|-------------------------|
-| http - no keepalive |      50 |  3546.49 req/sec |  ± 2.90 % |                       - |
-| http - keepalive    |      15 |  5692.67 req/sec |  ± 2.48 % |               + 60.52 % |
-| undici - pipeline   |      25 |  8478.71 req/sec |  ± 2.62 % |              + 139.07 % |
-| undici - request    |      20 |  9766.66 req/sec |  ± 2.79 % |              + 175.39 % |
-| undici - stream     |      15 | 10109.74 req/sec |  ± 2.94 % |              + 185.06 % |
-| undici - dispatch   |      25 | 10949.73 req/sec |  ± 2.54 % |              + 208.75 % |
+```
+│ Tests               │ Samples │          Result │ Tolerance │ Difference with slowest │
+|─────────────────────|─────────|─────────────────|───────────|─────────────────────────|
+│ got                 │      45 │ 1661.71 req/sec │  ± 2.93 % │                       - │
+│ node-fetch          │      20 │ 2164.81 req/sec │  ± 2.63 % │               + 30.28 % │
+│ undici - fetch      │      35 │ 2274.27 req/sec │  ± 2.70 % │               + 36.86 % │
+│ http - no keepalive │      15 │ 2376.04 req/sec │  ± 2.99 % │               + 42.99 % │
+│ axios               │      25 │ 2612.93 req/sec │  ± 2.89 % │               + 57.24 % │
+│ request             │      40 │ 2712.19 req/sec │  ± 2.92 % │               + 63.22 % │
+│ http - keepalive    │      45 │ 4393.25 req/sec │  ± 2.86 % │              + 164.38 % │
+│ undici - pipeline   │      45 │ 5484.69 req/sec │  ± 2.87 % │              + 230.06 % │
+│ undici - request    │      55 │ 7773.98 req/sec │  ± 2.93 % │              + 367.83 % │
+│ undici - stream     │      70 │ 8425.96 req/sec │  ± 2.91 % │              + 407.07 % │
+│ undici - dispatch   │      50 │ 9488.99 req/sec │  ± 2.85 % │              + 471.04 % │
+```
 
 ## Quick Start
 
@@ -58,9 +51,7 @@ const {
 console.log('response received', statusCode)
 console.log('headers', headers)
 
-for await (const data of body) {
-  console.log('data', data)
-}
+for await (const data of body) { console.log('data', data) }
 
 console.log('trailers', trailers)
 ```
@@ -115,7 +106,7 @@ Returns a promise with the result of the `Dispatcher.request` method.
 
 Calls `options.dispatcher.request(options)`.
 
-See [Dispatcher.request](./docs/api/Dispatcher.md#dispatcherrequestoptions-callback) for more details.
+See [Dispatcher.request](./docs/api/Dispatcher.md#dispatcherrequestoptions-callback) for more details, and [request examples](./examples/README.md) for examples.
 
 ### `undici.stream([url, options, ]factory): Promise`
 
@@ -175,8 +166,6 @@ Implements [fetch](https://fetch.spec.whatwg.org/#fetch-method).
 
 * https://developer.mozilla.org/en-US/docs/Web/API/WindowOrWorkerGlobalScope/fetch
 * https://fetch.spec.whatwg.org/#fetch-method
-
-Only supported on Node 16.8+.
 
 Basic usage example:
 
@@ -432,6 +421,7 @@ and `undici.Agent`) which will enable the family autoselection algorithm when es
 * [__Ethan Arrowood__](https://github.com/ethan-arrowood), <https://www.npmjs.com/~ethan_arrowood>
 * [__Matteo Collina__](https://github.com/mcollina), <https://www.npmjs.com/~matteo.collina>
 * [__Robert Nagy__](https://github.com/ronag), <https://www.npmjs.com/~ronag>
+* [__Matthew Aitken__](https://github.com/KhafraDev), <https://www.npmjs.com/~khaf>
 
 ## License
 

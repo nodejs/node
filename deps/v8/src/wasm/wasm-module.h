@@ -18,6 +18,7 @@
 #include "src/codegen/signature.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/branch-hint-map.h"
 #include "src/wasm/constant-expression.h"
 #include "src/wasm/struct-types.h"
@@ -100,6 +101,67 @@ struct WasmTag {
   uint32_t sig_index;
 };
 
+enum ModuleOrigin : uint8_t {
+  kWasmOrigin,
+  kAsmJsSloppyOrigin,
+  kAsmJsStrictOrigin
+};
+
+enum BoundsCheckStrategy : int8_t {
+  // Emit protected instructions, use the trap handler for OOB detection.
+  kTrapHandler,
+  // Emit explicit bounds checks.
+  kExplicitBoundsChecks,
+  // Emit no bounds checks at all (for testing only).
+  kNoBoundsChecks
+};
+
+// Static representation of a wasm memory.
+struct WasmMemory {
+  uint32_t index = 0;              // index into the memory table
+  uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
+  uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
+  bool is_shared = false;          // true if memory is a SharedArrayBuffer
+  bool has_maximum_pages = false;  // true if there is a maximum memory size
+  bool is_memory64 = false;        // true if the memory is 64 bit
+  bool imported = false;           // true if the memory is imported
+  bool exported = false;           // true if the memory is exported
+  // Computed information, cached here for faster compilation.
+  // Updated via {UpdateComputedInformation}.
+  uintptr_t min_memory_size = 0;  // smallest size of any memory in bytes
+  uintptr_t max_memory_size = 0;  // largest size of any memory in bytes
+  BoundsCheckStrategy bounds_checks = kExplicitBoundsChecks;
+};
+
+inline void UpdateComputedInformation(WasmMemory* memory, ModuleOrigin origin) {
+  const uintptr_t platform_max_pages =
+      memory->is_memory64 ? kV8MaxWasmMemory64Pages : kV8MaxWasmMemory32Pages;
+  memory->min_memory_size =
+      std::min(platform_max_pages, uintptr_t{memory->initial_pages}) *
+      kWasmPageSize;
+  memory->max_memory_size =
+      std::min(platform_max_pages, uintptr_t{memory->maximum_pages}) *
+      kWasmPageSize;
+
+  if (!v8_flags.wasm_bounds_checks) {
+    memory->bounds_checks = kNoBoundsChecks;
+  } else if (v8_flags.wasm_enforce_bounds_checks) {
+    // Explicit bounds checks requested via flag (for testing).
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (origin != kWasmOrigin) {
+    // Asm.js modules can't use trap handling.
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (memory->is_memory64) {
+    // Memory64 currently always requires explicit bounds checks.
+    memory->bounds_checks = kExplicitBoundsChecks;
+  } else if (trap_handler::IsTrapHandlerEnabled()) {
+    memory->bounds_checks = kTrapHandler;
+  } else {
+    // If the trap handler is not enabled, fall back to explicit bounds checks.
+    memory->bounds_checks = kExplicitBoundsChecks;
+  }
+}
+
 // Static representation of a wasm literal stringref.
 struct WasmStringRefLiteral {
   explicit WasmStringRefLiteral(const WireBytesRef& source) : source(source) {}
@@ -108,16 +170,21 @@ struct WasmStringRefLiteral {
 
 // Static representation of a wasm data segment.
 struct WasmDataSegment {
-  // Construct an active segment.
-  explicit WasmDataSegment(ConstantExpression dest_addr)
-      : dest_addr(dest_addr), active(true) {}
+  explicit WasmDataSegment(bool is_active, uint32_t memory_index,
+                           ConstantExpression dest_addr, WireBytesRef source)
+      : active(is_active),
+        memory_index(memory_index),
+        dest_addr(dest_addr),
+        source(source) {}
 
-  // Construct a passive segment, which has no dest_addr.
-  WasmDataSegment() : active(false) {}
+  static WasmDataSegment PassiveForTesting() {
+    return WasmDataSegment{false, 0, {}, {}};
+  }
 
-  ConstantExpression dest_addr;  // destination memory address of the data.
+  bool active = true;     // true if copied automatically during instantiation.
+  uint32_t memory_index;  // memory index (if active).
+  ConstantExpression dest_addr;  // destination memory address (if active).
   WireBytesRef source;           // start offset in the module bytes.
-  bool active = true;  // true if copied automatically during instantiation.
 };
 
 // Static representation of wasm element segment (table initializer).
@@ -212,12 +279,6 @@ struct WasmCompilationHint {
   WasmCompilationHintTier top_tier;
 };
 
-enum ModuleOrigin : uint8_t {
-  kWasmOrigin,
-  kAsmJsSloppyOrigin,
-  kAsmJsStrictOrigin
-};
-
 #define SELECT_WASM_COUNTER(counters, origin, prefix, suffix)     \
   ((origin) == kWasmOrigin ? (counters)->prefix##_wasm_##suffix() \
                            : (counters)->prefix##_asm_##suffix())
@@ -286,6 +347,8 @@ class AdaptiveMap {
     }
   }
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   static constexpr uint32_t kLoadFactor = 4;
   using MapType = std::map<uint32_t, Value>;
@@ -308,17 +371,19 @@ class V8_EXPORT_PRIVATE LazilyGeneratedNames {
   void AddForTesting(int function_index, WireBytesRef name);
   bool Has(uint32_t function_index);
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   // Lazy loading must guard against concurrent modifications from multiple
   // {WasmModuleObject}s.
-  base::Mutex mutex_;
+  mutable base::Mutex mutex_;
   bool has_functions_{false};
   NameMap function_names_;
 };
 
 class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
  public:
-  explicit AsmJsOffsetInformation(base::Vector<const byte> encoded_offsets);
+  explicit AsmJsOffsetInformation(base::Vector<const uint8_t> encoded_offsets);
 
   // Destructor defined in wasm-module.cc, where the definition of
   // {AsmJsOffsets} is available.
@@ -348,7 +413,7 @@ class V8_EXPORT_PRIVATE AsmJsOffsetInformation {
 constexpr uint32_t kNoSuperType = std::numeric_limits<uint32_t>::max();
 
 struct TypeDefinition {
-  enum Kind { kFunction, kStruct, kArray };
+  enum Kind : int8_t { kFunction, kStruct, kArray };
 
   TypeDefinition(const FunctionSig* sig, uint32_t supertype, bool is_final)
       : function_sig(sig),
@@ -398,6 +463,7 @@ struct TypeDefinition {
   uint32_t supertype;
   Kind kind;
   bool is_final;
+  uint8_t subtyping_depth = 0;
 };
 
 struct V8_EXPORT_PRIVATE WasmDebugSymbols {
@@ -516,6 +582,8 @@ struct TypeFeedbackStorage {
   mutable base::SharedMutex mutex;
 
   WellKnownImportsList well_known_imports;
+
+  size_t EstimateCurrentMemoryConsumption() const;
 };
 
 struct WasmTable;
@@ -524,15 +592,6 @@ struct WasmTable;
 struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Fields ===================================================
   Zone signature_zone;
-  uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
-  uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
-  uintptr_t min_memory_size = 0;   // smallest size of any memory in bytes
-  uintptr_t max_memory_size = 0;   // largest size of any memory in bytes
-  bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
-  bool has_maximum_pages = false;  // true if there is a maximum memory size
-  bool is_memory64 = false;        // true if the memory is 64 bit
-  bool has_memory = false;         // true if the memory was defined or imported
-  bool mem_export = false;         // true if the memory is exported
   int start_function_index = -1;   // start function, >= 0 if any
 
   // Size of the buffer required for all globals that are not imported and
@@ -554,15 +613,20 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // Position and size of the name section (payload only, i.e. without section
   // ID and length).
   WireBytesRef name_section = {0, 0};
+  // Set to true if this module has wasm-gc types in its type section.
+  bool is_wasm_gc = false;
 
   std::vector<TypeDefinition> types;  // by type index
   // Maps each type index to its global (cross-module) canonical index as per
   // isorecursive type canonicalization.
   std::vector<uint32_t> isorecursive_canonical_type_ids;
+  // First index -> size. Used for fuzzing only.
+  std::unordered_map<uint32_t, uint32_t> explicit_recursive_type_groups;
   std::vector<WasmFunction> functions;
   std::vector<WasmGlobal> globals;
   std::vector<WasmDataSegment> data_segments;
   std::vector<WasmTable> tables;
+  std::vector<WasmMemory> memories;
   std::vector<WasmImport> import_table;
   std::vector<WasmExport> export_table;
   std::vector<WasmTag> tags;
@@ -600,6 +664,13 @@ struct V8_EXPORT_PRIVATE WasmModule {
   // ================ Accessors ================================================
   void add_type(TypeDefinition type) {
     types.push_back(type);
+    if (type.supertype != kNoSuperType) {
+      // Set the subtyping depth. Outside of unit tests this is done by the
+      // module decoder.
+      DCHECK_GT(types.size(), 0);
+      DCHECK_LT(type.supertype, types.size() - 1);
+      types.back().subtyping_depth = types[type.supertype].subtyping_depth + 1;
+    }
     // Isorecursive canonical type will be computed later.
     isorecursive_canonical_type_ids.push_back(kNoSuperType);
   }
@@ -709,6 +780,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
   base::Vector<const WasmFunction> declared_functions() const {
     return base::VectorOf(functions) + num_imported_functions;
   }
+
+  size_t EstimateStoredSize() const;                // No tracing.
+  size_t EstimateCurrentMemoryConsumption() const;  // With tracing.
 };
 
 // Static representation of a wasm indirect call table.
@@ -727,8 +801,6 @@ struct WasmTable {
 inline bool is_asmjs_module(const WasmModule* module) {
   return module->origin != kWasmOrigin;
 }
-
-size_t EstimateStoredSize(const WasmModule* module);
 
 // Returns the wrapper index for a function with isorecursive canonical
 // signature index {canonical_sig_index}, and origin defined by {is_import}.
@@ -760,12 +832,12 @@ V8_EXPORT_PRIVATE int GetSubtypingDepth(const WasmModule* module,
 // It is illegal for anyone receiving a ModuleWireBytes to store pointers based
 // on module_bytes, as this storage is only guaranteed to be alive as long as
 // this struct is alive.
-// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const byte>},
-// it should generally be passed by value.
+// As {ModuleWireBytes} is just a wrapper around a {base::Vector<const
+// uint8_t>}, it should generally be passed by value.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
-  explicit ModuleWireBytes(base::Vector<const byte> module_bytes)
+  explicit ModuleWireBytes(base::Vector<const uint8_t> module_bytes)
       : module_bytes_(module_bytes) {}
-  ModuleWireBytes(const byte* start, const byte* end)
+  ModuleWireBytes(const uint8_t* start, const uint8_t* end)
       : module_bytes_(start, static_cast<int>(end - start)) {
     DCHECK_GE(kMaxInt, end - start);
   }
@@ -782,19 +854,19 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     return ref.offset() <= size && ref.length() <= size - ref.offset();
   }
 
-  base::Vector<const byte> GetFunctionBytes(
+  base::Vector<const uint8_t> GetFunctionBytes(
       const WasmFunction* function) const {
     return module_bytes_.SubVector(function->code.offset(),
                                    function->code.end_offset());
   }
 
-  base::Vector<const byte> module_bytes() const { return module_bytes_; }
-  const byte* start() const { return module_bytes_.begin(); }
-  const byte* end() const { return module_bytes_.end(); }
+  base::Vector<const uint8_t> module_bytes() const { return module_bytes_; }
+  const uint8_t* start() const { return module_bytes_.begin(); }
+  const uint8_t* end() const { return module_bytes_.end(); }
   size_t length() const { return module_bytes_.length(); }
 
  private:
-  base::Vector<const byte> module_bytes_;
+  base::Vector<const uint8_t> module_bytes_;
 };
 ASSERT_TRIVIALLY_COPYABLE(ModuleWireBytes);
 
@@ -811,7 +883,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const WasmFunctionName& name);
 
 V8_EXPORT_PRIVATE bool IsWasmCodegenAllowed(Isolate* isolate,
-                                            Handle<Context> context);
+                                            Handle<NativeContext> context);
 V8_EXPORT_PRIVATE Handle<String> ErrorStringForCodegen(Isolate* isolate,
                                                        Handle<Context> context);
 
@@ -821,7 +893,7 @@ Handle<JSObject> GetTypeForGlobal(Isolate* isolate, bool is_mutable,
                                   ValueType type);
 Handle<JSObject> GetTypeForMemory(Isolate* isolate, uint32_t min_size,
                                   base::Optional<uint32_t> max_size,
-                                  bool shared);
+                                  bool shared, bool is_memory64);
 Handle<JSObject> GetTypeForTable(Isolate* isolate, ValueType type,
                                  uint32_t min_size,
                                  base::Optional<uint32_t> max_size);
@@ -862,7 +934,7 @@ class TruncatedUserString {
   explicit TruncatedUserString(base::Vector<T> name)
       : TruncatedUserString(name.begin(), name.length()) {}
 
-  TruncatedUserString(const byte* start, size_t len)
+  TruncatedUserString(const uint8_t* start, size_t len)
       : TruncatedUserString(reinterpret_cast<const char*>(start), len) {}
 
   TruncatedUserString(const char* start, size_t len)

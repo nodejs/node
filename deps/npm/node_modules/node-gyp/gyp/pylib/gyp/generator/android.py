@@ -697,7 +697,7 @@ class AndroidMkWriter:
                 target,
             )
 
-        if self.type != "static_library" and self.type != "shared_library":
+        if self.type not in {"static_library", "shared_library"}:
             target_prefix = spec.get("product_prefix", target_prefix)
             target = spec.get("product_name", target)
             product_ext = spec.get("product_extension")

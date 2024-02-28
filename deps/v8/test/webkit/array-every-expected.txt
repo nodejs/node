@@ -53,10 +53,10 @@ PASS [12, 5, 8, 130, 44].every(isBigEnoughAndException) threw exception exceptio
 PASS [12, 54, 18, 130, 44].every(isBigEnoughAndException) threw exception exception from function.
 
 5.0 Wrong Type for Callback Test
-PASS [12, 5, 8, 130, 44].every(5) threw exception TypeError: 5 is not a function.
-PASS [12, 5, 8, 130, 44].every('wrong') threw exception TypeError: wrong is not a function.
-PASS [12, 5, 8, 130, 44].every(new Object()) threw exception TypeError: #<Object> is not a function.
-PASS [12, 5, 8, 130, 44].every(null) threw exception TypeError: null is not a function.
+PASS [12, 5, 8, 130, 44].every(5) threw exception TypeError: number 5 is not a function.
+PASS [12, 5, 8, 130, 44].every('wrong') threw exception TypeError: string "wrong" is not a function.
+PASS [12, 5, 8, 130, 44].every(new Object()) threw exception TypeError: object is not a function.
+PASS [12, 5, 8, 130, 44].every(null) threw exception TypeError: object null is not a function.
 PASS [12, 5, 8, 130, 44].every(undefined) threw exception TypeError: undefined is not a function.
 PASS [12, 5, 8, 130, 44].every() threw exception TypeError: undefined is not a function.
 

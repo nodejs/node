@@ -129,7 +129,7 @@ return `true`.
 
 #### `new URL(input[, base])`
 
-<!--
+<!-- YAML
 changes:
   - version:
     - v20.0.0
@@ -867,7 +867,9 @@ Append a new name-value pair to the query string.
 
 <!-- YAML
 changes:
-  - version: v20.2.0
+  - version:
+      - v20.2.0
+      - v18.18.0
     pr-url: https://github.com/nodejs/node/pull/47885
     description: Add support for optional `value` argument.
 -->
@@ -919,8 +921,8 @@ myURL.searchParams.forEach((value, name, searchParams) => {
 #### `urlSearchParams.get(name)`
 
 * `name` {string}
-* Returns: {string} or `null` if there is no name-value pair with the given
-  `name`.
+* Returns: {string | null} A string or `null` if there is no name-value pair
+  with the given `name`.
 
 Returns the value of the first name-value pair whose name is `name`. If there
 are no such pairs, `null` is returned.
@@ -937,7 +939,9 @@ no such pairs, an empty array is returned.
 
 <!-- YAML
 changes:
-  - version: v20.2.0
+  - version:
+      - v20.2.0
+      - v18.18.0
     pr-url: https://github.com/nodejs/node/pull/47885
     description: Add support for optional `value` argument.
 -->

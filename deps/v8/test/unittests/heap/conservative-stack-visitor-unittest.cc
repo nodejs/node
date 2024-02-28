@@ -17,7 +17,7 @@ class RecordingVisitor final : public RootVisitor {
   V8_NOINLINE explicit RecordingVisitor(Isolate* isolate) {
     // Allocate the object.
     auto h = isolate->factory()->NewFixedArray(256, AllocationType::kOld);
-    the_object_ = h->GetHeapObject();
+    the_object_ = *h;
     base_address_ = the_object_.address();
     tagged_address_ = the_object_.ptr();
     inner_address_ = base_address_ + 42 * kTaggedSize;
@@ -50,7 +50,7 @@ class RecordingVisitor final : public RootVisitor {
 
  private:
   // Some heap object that we want to check if it is visited or not.
-  HeapObject the_object_;
+  Tagged<HeapObject> the_object_;
 
   // Addresses of this object.
   Address base_address_;    // Uncompressed base address
@@ -86,7 +86,7 @@ TEST_F(ConservativeStackVisitorTest, DirectBasePointer) {
     volatile Address ptr = recorder->base_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(kNullAddress, ptr);
@@ -107,7 +107,7 @@ TEST_F(ConservativeStackVisitorTest, TaggedBasePointer) {
     volatile Address ptr = recorder->tagged_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(kNullAddress, ptr);
@@ -128,7 +128,7 @@ TEST_F(ConservativeStackVisitorTest, InnerPointer) {
     volatile Address ptr = recorder->inner_address();
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(kNullAddress, ptr);
@@ -151,7 +151,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord1) {
     volatile uint32_t ptr[] = {recorder->compr_address(), 0};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(static_cast<uint32_t>(0), ptr[0]);
@@ -172,7 +172,7 @@ TEST_F(ConservativeStackVisitorTest, HalfWord2) {
     volatile uint32_t ptr[] = {0, recorder->compr_address()};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(static_cast<uint32_t>(0), ptr[1]);
@@ -193,7 +193,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord1) {
     volatile uint32_t ptr[] = {recorder->compr_inner(), 0};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(static_cast<uint32_t>(0), ptr[0]);
@@ -214,7 +214,7 @@ TEST_F(ConservativeStackVisitorTest, InnerHalfWord2) {
     volatile uint32_t ptr[] = {0, recorder->compr_inner()};
 
     ConservativeStackVisitor stack_visitor(isolate(), recorder.get());
-    heap()->stack().IteratePointers(&stack_visitor);
+    heap()->stack().IteratePointersForTesting(&stack_visitor);
 
     // Make sure to keep the pointer alive.
     EXPECT_NE(static_cast<uint32_t>(0), ptr[1]);

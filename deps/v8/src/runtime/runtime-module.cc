@@ -10,11 +10,12 @@ namespace v8 {
 namespace internal {
 
 namespace {
-Handle<Script> GetEvalOrigin(Isolate* isolate, Script origin_script) {
+Handle<Script> GetEvalOrigin(Isolate* isolate, Tagged<Script> origin_script) {
   DisallowGarbageCollection no_gc;
-  while (origin_script.has_eval_from_shared()) {
-    HeapObject maybe_script = origin_script.eval_from_shared().script();
-    CHECK(maybe_script.IsScript());
+  while (origin_script->has_eval_from_shared()) {
+    Tagged<HeapObject> maybe_script =
+        origin_script->eval_from_shared()->script();
+    CHECK(IsScript(maybe_script));
     origin_script = Script::cast(maybe_script);
   }
   return handle(origin_script, isolate);
@@ -34,7 +35,7 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   }
 
   Handle<Script> referrer_script =
-      GetEvalOrigin(isolate, Script::cast(function->shared().script()));
+      GetEvalOrigin(isolate, Script::cast(function->shared()->script()));
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->RunHostImportModuleDynamicallyCallback(
                                referrer_script, specifier, import_assertions));
@@ -44,14 +45,14 @@ RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   int module_request = args.smi_value_at(0);
-  Handle<SourceTextModule> module(isolate->context().module(), isolate);
+  Handle<SourceTextModule> module(isolate->context()->module(), isolate);
   return *SourceTextModule::GetModuleNamespace(isolate, module, module_request);
 }
 
 RUNTIME_FUNCTION(Runtime_GetImportMetaObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-  Handle<SourceTextModule> module(isolate->context().module(), isolate);
+  Handle<SourceTextModule> module(isolate->context()->module(), isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            SourceTextModule::GetImportMeta(isolate, module));
 }

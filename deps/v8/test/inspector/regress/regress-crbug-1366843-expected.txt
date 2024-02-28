@@ -1,1 +1,0 @@
-Don't crash when injected script dies during Promise.then

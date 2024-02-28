@@ -26,8 +26,9 @@ macro MaybeObjectToStrong(maybeObject: MaybeObject):
   return WeakToStrong(weakObject) otherwise IfCleared;
 }
 
-macro TryInitializeAsMonomorphic(implicit context: Context)(
-    maybeTarget: JSAny, feedbackVector: FeedbackVector,
+macro TryInitializeAsMonomorphic(
+    implicit context: Context)(maybeTarget: JSAny,
+    feedbackVector: FeedbackVector,
     slotId: uintptr): void labels TransitionToMegamorphic {
   const targetHeapObject =
       Cast<HeapObject>(maybeTarget) otherwise TransitionToMegamorphic;
@@ -48,27 +49,29 @@ macro TryInitializeAsMonomorphic(implicit context: Context)(
   ReportFeedbackUpdate(feedbackVector, slotId, 'Call:Initialize');
 }
 
-macro TransitionToMegamorphic(implicit context: Context)(
-    feedbackVector: FeedbackVector, slotId: uintptr): void {
+macro TransitionToMegamorphic(
+    implicit context: Context)(feedbackVector: FeedbackVector,
+    slotId: uintptr): void {
   StoreFeedbackVectorSlot(feedbackVector, slotId, kMegamorphicSymbol);
   ReportFeedbackUpdate(feedbackVector, slotId, 'Call:TransitionMegamorphic');
 }
 
-macro TaggedEqualPrototypeApplyFunction(implicit context: Context)(
-    target: JSAny): bool {
+macro TaggedEqualPrototypeApplyFunction(
+    implicit context: Context)(target: JSAny): bool {
   return TaggedEqual(target, GetPrototypeApplyFunction());
 }
 
-macro FeedbackValueIsReceiver(implicit context: Context)(
-    feedbackVector: FeedbackVector, slotId: uintptr): bool {
+macro FeedbackValueIsReceiver(
+    implicit context: Context)(feedbackVector: FeedbackVector,
+    slotId: uintptr): bool {
   const callCount: intptr = SmiUntag(Cast<Smi>(LoadFeedbackVectorSlot(
       feedbackVector, slotId, kTaggedSize)) otherwise return false);
   return (callCount & IntPtrConstant(kCallFeedbackContentFieldMask)) !=
       IntPtrConstant(0);
 }
 
-macro SetCallFeedbackContent(implicit context: Context)(
-    feedbackVector: FeedbackVector, slotId: uintptr,
+macro SetCallFeedbackContent(
+    implicit context: Context)(feedbackVector: FeedbackVector, slotId: uintptr,
     callFeedbackContent: constexpr CallFeedbackContent): void {
   // Load the call count field from the feecback vector.
   const callCount: intptr = SmiUntag(Cast<Smi>(LoadFeedbackVectorSlot(
@@ -200,13 +203,13 @@ macro CollectInstanceOfFeedback(
   }
 }
 
-macro BothTaggedEqualArrayFunction(implicit context: Context)(
-    first: JSAny, second: JSAny): bool {
+macro BothTaggedEqualArrayFunction(
+    implicit context: Context)(first: JSAny, second: JSAny): bool {
   return TaggedEqual(first, second) && TaggedEqual(second, GetArrayFunction());
 }
 
-extern macro CreateAllocationSiteInFeedbackVector(
-    FeedbackVector, uintptr): AllocationSite;
+extern macro CreateAllocationSiteInFeedbackVector(FeedbackVector, uintptr):
+    AllocationSite;
 
 macro CastFeedbackVector(
     maybeFeedbackVector: Undefined|FeedbackVector,
@@ -224,8 +227,8 @@ macro CastFeedbackVector(
   }
 }
 
-macro CollectConstructFeedback(implicit context: Context)(
-    target: JSAny, newTarget: JSAny,
+macro CollectConstructFeedback(
+    implicit context: Context)(target: JSAny, newTarget: JSAny,
     maybeFeedbackVector: Undefined|FeedbackVector, slotId: uintptr,
     updateFeedbackMode: constexpr UpdateFeedbackMode):
     never labels ConstructGeneric,

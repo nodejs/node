@@ -1,12 +1,13 @@
 'use strict'
 
-const { Blob, File: NativeFile } = require('buffer')
-const { types } = require('util')
+const { Blob, File: NativeFile } = require('node:buffer')
+const { types } = require('node:util')
 const { kState } = require('./symbols')
 const { isBlobLike } = require('./util')
 const { webidl } = require('./webidl')
 const { parseMIMEType, serializeAMimeType } = require('./dataURL')
 const { kEnumerableProperty } = require('../core/util')
+const encoder = new TextEncoder()
 
 class File extends Blob {
   constructor (fileBits, fileName, options = {}) {
@@ -210,10 +211,7 @@ webidl.converters.BlobPart = function (V, opts) {
       return webidl.converters.Blob(V, { strict: false })
     }
 
-    if (
-      ArrayBuffer.isView(V) ||
-      types.isAnyArrayBuffer(V)
-    ) {
+    if (ArrayBuffer.isView(V) || types.isAnyArrayBuffer(V)) {
       return webidl.converters.BufferSource(V, opts)
     }
   }
@@ -280,20 +278,17 @@ function processBlobParts (parts, options) {
       }
 
       // 3. Append the result of UTF-8 encoding s to bytes.
-      bytes.push(new TextEncoder().encode(s))
-    } else if (
-      types.isAnyArrayBuffer(element) ||
-      types.isTypedArray(element)
-    ) {
+      bytes.push(encoder.encode(s))
+    } else if (ArrayBuffer.isView(element) || types.isArrayBuffer(element)) {
       // 2. If element is a BufferSource, get a copy of the
       //    bytes held by the buffer source, and append those
       //    bytes to bytes.
-      if (!element.buffer) { // ArrayBuffer
-        bytes.push(new Uint8Array(element))
-      } else {
+      if (element.buffer) {
         bytes.push(
           new Uint8Array(element.buffer, element.byteOffset, element.byteLength)
         )
+      } else { // ArrayBuffer
+        bytes.push(new Uint8Array(element))
       }
     } else if (isBlobLike(element)) {
       // 3. If element is a Blob, append the bytes it represents

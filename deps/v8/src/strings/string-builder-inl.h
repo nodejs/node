@@ -26,13 +26,15 @@ using StringBuilderSubstringPosition =
                    kStringBuilderConcatHelperPositionBits>;
 
 template <typename sinkchar>
-void StringBuilderConcatHelper(String special, sinkchar* sink,
-                               FixedArray fixed_array, int array_length);
+void StringBuilderConcatHelper(Tagged<String> special, sinkchar* sink,
+                               Tagged<FixedArray> fixed_array,
+                               int array_length);
 
 // Returns the result length of the concatenation.
 // On illegal argument, -1 is returned.
-int StringBuilderConcatLength(int special_length, FixedArray fixed_array,
-                              int array_length, bool* one_byte);
+int StringBuilderConcatLength(int special_length,
+                              Tagged<FixedArray> fixed_array, int array_length,
+                              bool* one_byte);
 
 class FixedArrayBuilder {
  public:
@@ -46,8 +48,8 @@ class FixedArrayBuilder {
   bool HasCapacity(int elements);
   void EnsureCapacity(Isolate* isolate, int elements);
 
-  void Add(Object value);
-  void Add(Smi value);
+  void Add(Tagged<Object> value);
+  void Add(Tagged<Smi> value);
 
   Handle<FixedArray> array() { return array_; }
 
@@ -142,7 +144,7 @@ class IncrementalStringBuilder {
     if (encoding_ == String::ONE_BYTE_ENCODING && CurrentPartCanFit(N)) {
       const uint8_t* chars = reinterpret_cast<const uint8_t*>(literal);
       SeqOneByteString::cast(*current_part_)
-          .SeqOneByteStringSetChars(current_index_, chars, length);
+          ->SeqOneByteStringSetChars(current_index_, chars, length);
       current_index_ += length;
       if (current_index_ == part_length_) Extend();
       DCHECK(HasValidCurrentIndex());
@@ -151,20 +153,12 @@ class IncrementalStringBuilder {
     return AppendCString(literal);
   }
 
-  V8_INLINE void AppendCString(const char* s) {
-    const uint8_t* u = reinterpret_cast<const uint8_t*>(s);
+  template <typename SrcChar>
+  V8_INLINE void AppendCString(const SrcChar* s) {
     if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*u != '\0') Append<uint8_t, uint8_t>(*(u++));
+      while (*s != '\0') Append<SrcChar, uint8_t>(*s++);
     } else {
-      while (*u != '\0') Append<uint8_t, base::uc16>(*(u++));
-    }
-  }
-
-  V8_INLINE void AppendCString(const base::uc16* s) {
-    if (encoding_ == String::ONE_BYTE_ENCODING) {
-      while (*s != '\0') Append<base::uc16, uint8_t>(*(s++));
-    } else {
-      while (*s != '\0') Append<base::uc16, base::uc16>(*(s++));
+      while (*s != '\0') Append<SrcChar, base::uc16>(*s++);
     }
   }
 
@@ -211,15 +205,15 @@ class IncrementalStringBuilder {
   template <typename DestChar>
   class NoExtend {
    public:
-    NoExtend(String string, int offset,
+    NoExtend(Tagged<String> string, int offset,
              const DisallowGarbageCollection& no_gc) {
-      DCHECK(string.IsSeqOneByteString() || string.IsSeqTwoByteString());
+      DCHECK(IsSeqOneByteString(string) || IsSeqTwoByteString(string));
       if (sizeof(DestChar) == 1) {
         start_ = reinterpret_cast<DestChar*>(
-            SeqOneByteString::cast(string).GetChars(no_gc) + offset);
+            SeqOneByteString::cast(string)->GetChars(no_gc) + offset);
       } else {
         start_ = reinterpret_cast<DestChar*>(
-            SeqTwoByteString::cast(string).GetChars(no_gc) + offset);
+            SeqTwoByteString::cast(string)->GetChars(no_gc) + offset);
       }
       cursor_ = start_;
 #ifdef DEBUG
@@ -232,12 +226,12 @@ class IncrementalStringBuilder {
       DestChar* end;
       if (sizeof(DestChar) == 1) {
         auto one_byte_string = SeqOneByteString::cast(string_);
-        end = reinterpret_cast<DestChar*>(one_byte_string.GetChars(no_gc_) +
-                                          one_byte_string.length());
+        end = reinterpret_cast<DestChar*>(one_byte_string->GetChars(no_gc_) +
+                                          one_byte_string->length());
       } else {
         auto two_byte_string = SeqTwoByteString::cast(string_);
-        end = reinterpret_cast<DestChar*>(two_byte_string.GetChars(no_gc_) +
-                                          two_byte_string.length());
+        end = reinterpret_cast<DestChar*>(two_byte_string->GetChars(no_gc_) +
+                                          two_byte_string->length());
       }
       DCHECK_LE(cursor_, end + 1);
     }
@@ -255,7 +249,7 @@ class IncrementalStringBuilder {
     DestChar* start_;
     DestChar* cursor_;
 #ifdef DEBUG
-    String string_;
+    Tagged<String> string_;
 #endif
     DISALLOW_GARBAGE_COLLECTION(no_gc_)
   };
@@ -335,11 +329,11 @@ void IncrementalStringBuilder::Append(SrcChar c) {
   if (sizeof(DestChar) == 1) {
     DCHECK_EQ(String::ONE_BYTE_ENCODING, encoding_);
     SeqOneByteString::cast(*current_part_)
-        .SeqOneByteStringSet(current_index_++, c);
+        ->SeqOneByteStringSet(current_index_++, c);
   } else {
     DCHECK_EQ(String::TWO_BYTE_ENCODING, encoding_);
     SeqTwoByteString::cast(*current_part_)
-        .SeqTwoByteStringSet(current_index_++, c);
+        ->SeqTwoByteStringSet(current_index_++, c);
   }
   if (current_index_ == part_length_) Extend();
   DCHECK(HasValidCurrentIndex());

@@ -17,7 +17,7 @@ bytecodes: [
   /*   48 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["ab+d"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["ab+d"],
 ]
 handlers: [
 ]
@@ -34,7 +34,7 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["(\u005cw+)\u005cs(\u005cw+)"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["(\u005cw+)\u005cs(\u005cw+)"],
 ]
 handlers: [
 ]
@@ -57,9 +57,9 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["ab+d"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["exec"],
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["abdd"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["ab+d"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["exec"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["abdd"],
 ]
 handlers: [
 ]

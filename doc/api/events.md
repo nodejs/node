@@ -105,7 +105,7 @@ class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
-  // Prints: a b {}
+  // Prints: a b undefined
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -1806,14 +1806,16 @@ setMaxListeners(5, target, emitter);
 ## `events.addAbortListener(signal, listener)`
 
 <!-- YAML
-added: v20.5.0
+added:
+ - v20.5.0
+ - v18.18.0
 -->
 
 > Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
 * `listener` {Function|EventListener}
-* Returns: {Disposable} that removes the `abort` listener.
+* Returns: {Disposable} A Disposable that removes the `abort` listener.
 
 Listens once to the `abort` event on the provided `signal`.
 

@@ -4116,7 +4116,7 @@ TEST(jump_tables1) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -4179,7 +4179,7 @@ TEST(jump_tables2) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -4203,7 +4203,7 @@ TEST(jump_tables3) {
     values[i] = isolate->factory()->NewHeapNumber<AllocationType::kOld>(value);
   }
   Label labels[kNumCases];
-  Object obj;
+  Tagged<Object> obj;
   int64_t imm64;
 
   __ addi_d(sp, sp, -8);
@@ -4249,15 +4249,16 @@ TEST(jump_tables3) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
     Handle<Object> result(
-        Object(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))), isolate);
+        Tagged<Object>(reinterpret_cast<Address>(f.Call(i, 0, 0, 0, 0))),
+        isolate);
 #ifdef OBJECT_PRINT
     ::printf("f(%d) = ", i);
-    result->Print(std::cout);
+    Print(*result);
     ::printf("\n");
 #endif
     CHECK(values[i].is_identical_to(result));
@@ -4284,7 +4285,7 @@ uint64_t run_li_macro(int64_t imm, LiFlags mode, int32_t num_instr = 0) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 

@@ -1,10 +1,13 @@
 'use strict'
 
-const { redirectStatus, badPorts, referrerPolicy: referrerPolicyTokens } = require('./constants')
+const { Transform } = require('node:stream')
+const zlib = require('node:zlib')
+const { redirectStatusSet, referrerPolicySet: referrerPolicyTokens, badPortsSet } = require('./constants')
 const { getGlobalOrigin } = require('./global')
-const { performance } = require('perf_hooks')
-const { isBlobLike, toUSVString, ReadableStreamFrom } = require('../core/util')
-const assert = require('assert')
+const { collectASequenceOfCodePoints, collectAnHTTPQuotedString, removeChars, parseMIMEType } = require('./dataURL')
+const { performance } = require('node:perf_hooks')
+const { isBlobLike, toUSVString, ReadableStreamFrom, isValidHTTPToken } = require('../core/util')
+const assert = require('node:assert')
 const { isUint8Array } = require('util/types')
 
 // https://nodejs.org/api/crypto.html#determining-if-crypto-support-is-unavailable
@@ -12,7 +15,7 @@ const { isUint8Array } = require('util/types')
 let crypto
 
 try {
-  crypto = require('crypto')
+  crypto = require('node:crypto')
 } catch {
 
 }
@@ -29,13 +32,13 @@ function responseURL (response) {
 // https://fetch.spec.whatwg.org/#concept-response-location-url
 function responseLocationURL (response, requestFragment) {
   // 1. If response’s status is not a redirect status, then return null.
-  if (!redirectStatus.includes(response.status)) {
+  if (!redirectStatusSet.has(response.status)) {
     return null
   }
 
   // 2. Let location be the result of extracting header list values given
   // `Location` and response’s header list.
-  let location = response.headersList.get('location')
+  let location = response.headersList.get('location', true)
 
   // 3. If location is a header value, then set location to the result of
   //    parsing location with response’s URL.
@@ -64,7 +67,7 @@ function requestBadPort (request) {
 
   // 2. If url’s scheme is an HTTP(S) scheme and url’s port is a bad port,
   // then return blocked.
-  if (urlIsHttpHttpsScheme(url) && badPorts.includes(url.port)) {
+  if (urlIsHttpHttpsScheme(url) && badPortsSet.has(url.port)) {
     return 'blocked'
   }
 
@@ -103,52 +106,11 @@ function isValidReasonPhrase (statusText) {
   return true
 }
 
-function isTokenChar (c) {
-  return !(
-    c >= 0x7f ||
-    c <= 0x20 ||
-    c === '(' ||
-    c === ')' ||
-    c === '<' ||
-    c === '>' ||
-    c === '@' ||
-    c === ',' ||
-    c === ';' ||
-    c === ':' ||
-    c === '\\' ||
-    c === '"' ||
-    c === '/' ||
-    c === '[' ||
-    c === ']' ||
-    c === '?' ||
-    c === '=' ||
-    c === '{' ||
-    c === '}'
-  )
-}
-
-// See RFC 7230, Section 3.2.6.
-// https://github.com/chromium/chromium/blob/d7da0240cae77824d1eda25745c4022757499131/third_party/blink/renderer/platform/network/http_parsers.cc#L321
-function isValidHTTPToken (characters) {
-  if (!characters || typeof characters !== 'string') {
-    return false
-  }
-  for (let i = 0; i < characters.length; ++i) {
-    const c = characters.charCodeAt(i)
-    if (c > 0x7f || !isTokenChar(c)) {
-      return false
-    }
-  }
-  return true
-}
-
-// https://fetch.spec.whatwg.org/#header-name
-// https://github.com/chromium/chromium/blob/b3d37e6f94f87d59e44662d6078f6a12de845d17/net/http/http_util.cc#L342
+/**
+ * @see https://fetch.spec.whatwg.org/#header-name
+ * @param {string} potentialValue
+ */
 function isValidHeaderName (potentialValue) {
-  if (potentialValue.length === 0) {
-    return false
-  }
-
   return isValidHTTPToken(potentialValue)
 }
 
@@ -194,7 +156,7 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
   // 2. Let policy be the empty string.
   // 3. For each token in policy-tokens, if token is a referrer policy and token is not the empty string, then set policy to token.
   // 4. Return policy.
-  const policyHeader = (headersList.get('referrer-policy') ?? '').split(',')
+  const policyHeader = (headersList.get('referrer-policy', true) ?? '').split(',')
 
   // Note: As the referrer-policy can contain multiple policies
   // separated by comma, we need to loop through all of them
@@ -206,7 +168,7 @@ function setRequestReferrerPolicyOnRedirect (request, actualResponse) {
     // The left-most policy is the fallback.
     for (let i = policyHeader.length; i !== 0; i--) {
       const token = policyHeader[i - 1].trim()
-      if (referrerPolicyTokens.includes(token)) {
+      if (referrerPolicyTokens.has(token)) {
         policy = token
         break
       }
@@ -253,7 +215,7 @@ function appendFetchMetadata (httpRequest) {
   header = httpRequest.mode
 
   //  4. Set a structured field value `Sec-Fetch-Mode`/header in r’s header list.
-  httpRequest.headersList.set('sec-fetch-mode', header)
+  httpRequest.headersList.set('sec-fetch-mode', header, true)
 
   //  https://w3c.github.io/webappsec-fetch-metadata/#sec-fetch-site-header
   //  TODO
@@ -270,7 +232,7 @@ function appendRequestOriginHeader (request) {
   // 2. If request’s response tainting is "cors" or request’s mode is "websocket", then append (`Origin`, serializedOrigin) to request’s header list.
   if (request.responseTainting === 'cors' || request.mode === 'websocket') {
     if (serializedOrigin) {
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
 
   // 3. Otherwise, if request’s method is neither `GET` nor `HEAD`, then:
@@ -301,14 +263,43 @@ function appendRequestOriginHeader (request) {
 
     if (serializedOrigin) {
       // 2. Append (`Origin`, serializedOrigin) to request’s header list.
-      request.headersList.append('origin', serializedOrigin)
+      request.headersList.append('origin', serializedOrigin, true)
     }
   }
 }
 
-function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+// https://w3c.github.io/hr-time/#dfn-coarsen-time
+function coarsenTime (timestamp, crossOriginIsolatedCapability) {
   // TODO
-  return performance.now()
+  return timestamp
+}
+
+// https://fetch.spec.whatwg.org/#clamp-and-coarsen-connection-timing-info
+function clampAndCoarsenConnectionTimingInfo (connectionTimingInfo, defaultStartTime, crossOriginIsolatedCapability) {
+  if (!connectionTimingInfo?.startTime || connectionTimingInfo.startTime < defaultStartTime) {
+    return {
+      domainLookupStartTime: defaultStartTime,
+      domainLookupEndTime: defaultStartTime,
+      connectionStartTime: defaultStartTime,
+      connectionEndTime: defaultStartTime,
+      secureConnectionStartTime: defaultStartTime,
+      ALPNNegotiatedProtocol: connectionTimingInfo?.ALPNNegotiatedProtocol
+    }
+  }
+
+  return {
+    domainLookupStartTime: coarsenTime(connectionTimingInfo.domainLookupStartTime, crossOriginIsolatedCapability),
+    domainLookupEndTime: coarsenTime(connectionTimingInfo.domainLookupEndTime, crossOriginIsolatedCapability),
+    connectionStartTime: coarsenTime(connectionTimingInfo.connectionStartTime, crossOriginIsolatedCapability),
+    connectionEndTime: coarsenTime(connectionTimingInfo.connectionEndTime, crossOriginIsolatedCapability),
+    secureConnectionStartTime: coarsenTime(connectionTimingInfo.secureConnectionStartTime, crossOriginIsolatedCapability),
+    ALPNNegotiatedProtocol: connectionTimingInfo.ALPNNegotiatedProtocol
+  }
+}
+
+// https://w3c.github.io/hr-time/#dfn-coarsened-shared-current-time
+function coarsenedSharedCurrentTime (crossOriginIsolatedCapability) {
+  return coarsenTime(performance.now(), crossOriginIsolatedCapability)
 }
 
 // https://fetch.spec.whatwg.org/#create-an-opaque-timing-info
@@ -556,14 +547,35 @@ function bytesMatch (bytes, metadataList) {
     const algorithm = item.algo
 
     // 2. Let expectedValue be the val component of item.
-    const expectedValue = item.hash
+    let expectedValue = item.hash
+
+    // See https://github.com/web-platform-tests/wpt/commit/e4c5cc7a5e48093220528dfdd1c4012dc3837a0e
+    // "be liberal with padding". This is annoying, and it's not even in the spec.
+
+    if (expectedValue.endsWith('==')) {
+      expectedValue = expectedValue.slice(0, -2)
+    }
 
     // 3. Let actualValue be the result of applying algorithm to bytes.
-    const actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+    let actualValue = crypto.createHash(algorithm).update(bytes).digest('base64')
+
+    if (actualValue.endsWith('==')) {
+      actualValue = actualValue.slice(0, -2)
+    }
 
     // 4. If actualValue is a case-sensitive match for expectedValue,
     //    return true.
     if (actualValue === expectedValue) {
+      return true
+    }
+
+    let actualBase64URL = crypto.createHash(algorithm).update(bytes).digest('base64url')
+
+    if (actualBase64URL.endsWith('==')) {
+      actualBase64URL = actualBase64URL.slice(0, -2)
+    }
+
+    if (actualBase64URL === expectedValue) {
       return true
     }
   }
@@ -575,7 +587,7 @@ function bytesMatch (bytes, metadataList) {
 // https://w3c.github.io/webappsec-subresource-integrity/#grammardef-hash-with-options
 // https://www.w3.org/TR/CSP2/#source-list-syntax
 // https://www.rfc-editor.org/rfc/rfc5234#appendix-B.1
-const parseHashWithOptions = /((?<algo>sha256|sha384|sha512)-(?<hash>[A-z0-9+/]{1}.*={0,2}))( +[\x21-\x7e]?)?/i
+const parseHashWithOptions = /(?<algo>sha256|sha384|sha512)-(?<hash>[A-Za-z0-9+/]+={0,2}(?=\s|$))( +[!-~]*)?/i
 
 /**
  * @see https://w3c.github.io/webappsec-subresource-integrity/#parse-metadata
@@ -672,11 +684,37 @@ function isCancelled (fetchParams) {
     fetchParams.controller.state === 'terminated'
 }
 
-// https://fetch.spec.whatwg.org/#concept-method-normalize
+const normalizeMethodRecordBase = {
+  delete: 'DELETE',
+  DELETE: 'DELETE',
+  get: 'GET',
+  GET: 'GET',
+  head: 'HEAD',
+  HEAD: 'HEAD',
+  options: 'OPTIONS',
+  OPTIONS: 'OPTIONS',
+  post: 'POST',
+  POST: 'POST',
+  put: 'PUT',
+  PUT: 'PUT'
+}
+
+const normalizeMethodRecord = {
+  ...normalizeMethodRecordBase,
+  patch: 'patch',
+  PATCH: 'PATCH'
+}
+
+// Note: object prototypes should not be able to be referenced. e.g. `Object#hasOwnProperty`.
+Object.setPrototypeOf(normalizeMethodRecordBase, null)
+Object.setPrototypeOf(normalizeMethodRecord, null)
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-method-normalize
+ * @param {string} method
+ */
 function normalizeMethod (method) {
-  return /^(DELETE|GET|HEAD|OPTIONS|POST|PUT)$/i.test(method)
-    ? method.toUpperCase()
-    : method
+  return normalizeMethodRecordBase[method.toLowerCase()] ?? method
 }
 
 // https://infra.spec.whatwg.org/#serialize-a-javascript-value-to-a-json-string
@@ -701,19 +739,23 @@ const esIteratorPrototype = Object.getPrototypeOf(Object.getPrototypeOf([][Symbo
 
 /**
  * @see https://webidl.spec.whatwg.org/#dfn-iterator-prototype-object
- * @param {() => unknown[]} iterator
+ * @param {() => unknown} iterator
  * @param {string} name name of the instance
  * @param {'key'|'value'|'key+value'} kind
+ * @param {string | number} [keyIndex]
+ * @param {string | number} [valueIndex]
  */
-function makeIterator (iterator, name, kind) {
+function makeIterator (iterator, name, kind, keyIndex = 0, valueIndex = 1) {
   const object = {
     index: 0,
     kind,
     target: iterator
   }
+  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
+  const iteratorObject = Object.create(esIteratorPrototype)
 
-  const i = {
-    next () {
+  Object.defineProperty(iteratorObject, 'next', {
+    value: function next () {
       // 1. Let interface be the interface for which the iterator prototype object exists.
 
       // 2. Let thisValue be the this value.
@@ -725,7 +767,7 @@ function makeIterator (iterator, name, kind) {
 
       // 5. If object is not a default iterator object for interface,
       //    then throw a TypeError.
-      if (Object.getPrototypeOf(this) !== i) {
+      if (Object.getPrototypeOf(this) !== iteratorObject) {
         throw new TypeError(
           `'next' called on an object that does not implement interface ${name} Iterator.`
         )
@@ -745,84 +787,82 @@ function makeIterator (iterator, name, kind) {
       if (index >= len) {
         return { value: undefined, done: true }
       }
-
       // 11. Let pair be the entry in values at index index.
-      const pair = values[index]
-
+      const { [keyIndex]: key, [valueIndex]: value } = values[index]
       // 12. Set object’s index to index + 1.
       object.index = index + 1
-
       // 13. Return the iterator result for pair and kind.
-      return iteratorResult(pair, kind)
+      // https://webidl.spec.whatwg.org/#iterator-result
+      // 1. Let result be a value determined by the value of kind:
+      let result
+      switch (kind) {
+        case 'key':
+          // 1. Let idlKey be pair’s key.
+          // 2. Let key be the result of converting idlKey to an
+          //    ECMAScript value.
+          // 3. result is key.
+          result = key
+          break
+        case 'value':
+          // 1. Let idlValue be pair’s value.
+          // 2. Let value be the result of converting idlValue to
+          //    an ECMAScript value.
+          // 3. result is value.
+          result = value
+          break
+        case 'key+value':
+          // 1. Let idlKey be pair’s key.
+          // 2. Let idlValue be pair’s value.
+          // 3. Let key be the result of converting idlKey to an
+          //    ECMAScript value.
+          // 4. Let value be the result of converting idlValue to
+          //    an ECMAScript value.
+          // 5. Let array be ! ArrayCreate(2).
+          // 6. Call ! CreateDataProperty(array, "0", key).
+          // 7. Call ! CreateDataProperty(array, "1", value).
+          // 8. result is array.
+          result = [key, value]
+          break
+      }
+      // 2. Return CreateIterResultObject(result, false).
+      return {
+        value: result,
+        done: false
+      }
     },
-    // The class string of an iterator prototype object for a given interface is the
-    // result of concatenating the identifier of the interface and the string " Iterator".
-    [Symbol.toStringTag]: `${name} Iterator`
-  }
+    writable: true,
+    enumerable: true,
+    configurable: true
+  })
 
-  // The [[Prototype]] internal slot of an iterator prototype object must be %IteratorPrototype%.
-  Object.setPrototypeOf(i, esIteratorPrototype)
-  // esIteratorPrototype needs to be the prototype of i
+  // The class string of an iterator prototype object for a given interface is the
+  // result of concatenating the identifier of the interface and the string " Iterator".
+  Object.defineProperty(iteratorObject, Symbol.toStringTag, {
+    value: `${name} Iterator`,
+    writable: false,
+    enumerable: false,
+    configurable: true
+  })
+
+  // esIteratorPrototype needs to be the prototype of iteratorObject
   // which is the prototype of an empty object. Yes, it's confusing.
-  return Object.setPrototypeOf({}, i)
-}
-
-// https://webidl.spec.whatwg.org/#iterator-result
-function iteratorResult (pair, kind) {
-  let result
-
-  // 1. Let result be a value determined by the value of kind:
-  switch (kind) {
-    case 'key': {
-      // 1. Let idlKey be pair’s key.
-      // 2. Let key be the result of converting idlKey to an
-      //    ECMAScript value.
-      // 3. result is key.
-      result = pair[0]
-      break
-    }
-    case 'value': {
-      // 1. Let idlValue be pair’s value.
-      // 2. Let value be the result of converting idlValue to
-      //    an ECMAScript value.
-      // 3. result is value.
-      result = pair[1]
-      break
-    }
-    case 'key+value': {
-      // 1. Let idlKey be pair’s key.
-      // 2. Let idlValue be pair’s value.
-      // 3. Let key be the result of converting idlKey to an
-      //    ECMAScript value.
-      // 4. Let value be the result of converting idlValue to
-      //    an ECMAScript value.
-      // 5. Let array be ! ArrayCreate(2).
-      // 6. Call ! CreateDataProperty(array, "0", key).
-      // 7. Call ! CreateDataProperty(array, "1", value).
-      // 8. result is array.
-      result = pair
-      break
-    }
-  }
-
-  // 2. Return CreateIterResultObject(result, false).
-  return { value: result, done: false }
+  return Object.create(iteratorObject)
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#body-fully-read
  */
-function fullyReadBody (body, processBody, processBodyError) {
+async function fullyReadBody (body, processBody, processBodyError) {
   // 1. If taskDestination is null, then set taskDestination to
   //    the result of starting a new parallel queue.
 
   // 2. Let successSteps given a byte sequence bytes be to queue a
   //    fetch task to run processBody given bytes, with taskDestination.
-  const successSteps = (bytes) => queueMicrotask(() => processBody(bytes))
+  const successSteps = processBody
 
   // 3. Let errorSteps be to queue a fetch task to run processBodyError,
   //    with taskDestination.
-  const errorSteps = (error) => queueMicrotask(() => processBodyError(error))
+  const errorSteps = processBodyError
 
   // 4. Let reader be the result of getting a reader for body’s stream.
   //    If that threw an exception, then run errorSteps with that
@@ -837,39 +877,19 @@ function fullyReadBody (body, processBody, processBodyError) {
   }
 
   // 5. Read all bytes from reader, given successSteps and errorSteps.
-  readAllBytes(reader, successSteps, errorSteps)
+  try {
+    const result = await readAllBytes(reader)
+    successSteps(result)
+  } catch (e) {
+    errorSteps(e)
+  }
 }
 
-/** @type {ReadableStream} */
-let ReadableStream = globalThis.ReadableStream
-
 function isReadableStreamLike (stream) {
-  if (!ReadableStream) {
-    ReadableStream = require('stream/web').ReadableStream
-  }
-
   return stream instanceof ReadableStream || (
     stream[Symbol.toStringTag] === 'ReadableStream' &&
     typeof stream.tee === 'function'
   )
-}
-
-const MAXIMUM_ARGUMENT_LENGTH = 65535
-
-/**
- * @see https://infra.spec.whatwg.org/#isomorphic-decode
- * @param {number[]|Uint8Array} input
- */
-function isomorphicDecode (input) {
-  // 1. To isomorphic decode a byte sequence input, return a string whose code point
-  //    length is equal to input’s length and whose code points have the same values
-  //    as the values of input’s bytes, in the same order.
-
-  if (input.length < MAXIMUM_ARGUMENT_LENGTH) {
-    return String.fromCharCode(...input)
-  }
-
-  return input.reduce((previous, current) => previous + String.fromCharCode(current), '')
 }
 
 /**
@@ -878,9 +898,10 @@ function isomorphicDecode (input) {
 function readableStreamClose (controller) {
   try {
     controller.close()
+    controller.byobRequest?.respond(0)
   } catch (err) {
     // TODO: add comment explaining why this error occurs.
-    if (!err.message.includes('Controller is already closed')) {
+    if (!err.message.includes('Controller is already closed') && !err.message.includes('ReadableStream is already closed')) {
       throw err
     }
   }
@@ -906,36 +927,23 @@ function isomorphicEncode (input) {
  * @see https://streams.spec.whatwg.org/#readablestreamdefaultreader-read-all-bytes
  * @see https://streams.spec.whatwg.org/#read-loop
  * @param {ReadableStreamDefaultReader} reader
- * @param {(bytes: Uint8Array) => void} successSteps
- * @param {(error: Error) => void} failureSteps
  */
-async function readAllBytes (reader, successSteps, failureSteps) {
+async function readAllBytes (reader) {
   const bytes = []
   let byteLength = 0
 
   while (true) {
-    let done
-    let chunk
-
-    try {
-      ({ done, value: chunk } = await reader.read())
-    } catch (e) {
-      // 1. Call failureSteps with e.
-      failureSteps(e)
-      return
-    }
+    const { done, value: chunk } = await reader.read()
 
     if (done) {
       // 1. Call successSteps with bytes.
-      successSteps(Buffer.concat(bytes, byteLength))
-      return
+      return Buffer.concat(bytes, byteLength)
     }
 
     // 1. If chunk is not a Uint8Array object, call failureSteps
     //    with a TypeError and abort these steps.
     if (!isUint8Array(chunk)) {
-      failureSteps(new TypeError('Received non-Uint8Array chunk'))
-      return
+      throw new TypeError('Received non-Uint8Array chunk')
     }
 
     // 2. Append the bytes represented by chunk to bytes.
@@ -982,9 +990,350 @@ function urlIsHttpHttpsScheme (url) {
 }
 
 /**
- * Fetch supports node >= 16.8.0, but Object.hasOwn was added in v16.9.0.
+ * @see https://fetch.spec.whatwg.org/#simple-range-header-value
+ * @param {string} value
+ * @param {boolean} allowWhitespace
  */
-const hasOwn = Object.hasOwn || ((dict, key) => Object.prototype.hasOwnProperty.call(dict, key))
+function simpleRangeHeaderValue (value, allowWhitespace) {
+  // 1. Let data be the isomorphic decoding of value.
+  // Note: isomorphic decoding takes a sequence of bytes (ie. a Uint8Array) and turns it into a string,
+  // nothing more. We obviously don't need to do that if value is a string already.
+  const data = value
+
+  // 2. If data does not start with "bytes", then return failure.
+  if (!data.startsWith('bytes')) {
+    return 'failure'
+  }
+
+  // 3. Let position be a position variable for data, initially pointing at the 5th code point of data.
+  const position = { position: 5 }
+
+  // 4. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //    from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 5. If the code point at position within data is not U+003D (=), then return failure.
+  if (data.charCodeAt(position.position) !== 0x3D) {
+    return 'failure'
+  }
+
+  // 6. Advance position by 1.
+  position.position++
+
+  // 7. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space, from
+  //    data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 8. Let rangeStart be the result of collecting a sequence of code points that are ASCII digits,
+  //    from data given position.
+  const rangeStart = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 9. Let rangeStartValue be rangeStart, interpreted as decimal number, if rangeStart is not the
+  //    empty string; otherwise null.
+  const rangeStartValue = rangeStart.length ? Number(rangeStart) : null
+
+  // 10. If allowWhitespace is true, collect a sequence of code points that are HTTP tab or space,
+  //     from data given position.
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 11. If the code point at position within data is not U+002D (-), then return failure.
+  if (data.charCodeAt(position.position) !== 0x2D) {
+    return 'failure'
+  }
+
+  // 12. Advance position by 1.
+  position.position++
+
+  // 13. If allowWhitespace is true, collect a sequence of code points that are HTTP tab
+  //     or space, from data given position.
+  // Note from Khafra: its the same fucking step again lol
+  if (allowWhitespace) {
+    collectASequenceOfCodePoints(
+      (char) => char === '\t' || char === ' ',
+      data,
+      position
+    )
+  }
+
+  // 14. Let rangeEnd be the result of collecting a sequence of code points that are
+  //     ASCII digits, from data given position.
+  // Note from Khafra: you wouldn't guess it, but this is also the same step as #8
+  const rangeEnd = collectASequenceOfCodePoints(
+    (char) => {
+      const code = char.charCodeAt(0)
+
+      return code >= 0x30 && code <= 0x39
+    },
+    data,
+    position
+  )
+
+  // 15. Let rangeEndValue be rangeEnd, interpreted as decimal number, if rangeEnd
+  //     is not the empty string; otherwise null.
+  // Note from Khafra: THE SAME STEP, AGAIN!!!
+  // Note: why interpret as a decimal if we only collect ascii digits?
+  const rangeEndValue = rangeEnd.length ? Number(rangeEnd) : null
+
+  // 16. If position is not past the end of data, then return failure.
+  if (position.position < data.length) {
+    return 'failure'
+  }
+
+  // 17. If rangeEndValue and rangeStartValue are null, then return failure.
+  if (rangeEndValue === null && rangeStartValue === null) {
+    return 'failure'
+  }
+
+  // 18. If rangeStartValue and rangeEndValue are numbers, and rangeStartValue is
+  //     greater than rangeEndValue, then return failure.
+  // Note: ... when can they not be numbers?
+  if (rangeStartValue > rangeEndValue) {
+    return 'failure'
+  }
+
+  // 19. Return (rangeStartValue, rangeEndValue).
+  return { rangeStartValue, rangeEndValue }
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#build-a-content-range
+ * @param {number} rangeStart
+ * @param {number} rangeEnd
+ * @param {number} fullLength
+ */
+function buildContentRange (rangeStart, rangeEnd, fullLength) {
+  // 1. Let contentRange be `bytes `.
+  let contentRange = 'bytes '
+
+  // 2. Append rangeStart, serialized and isomorphic encoded, to contentRange.
+  contentRange += isomorphicEncode(`${rangeStart}`)
+
+  // 3. Append 0x2D (-) to contentRange.
+  contentRange += '-'
+
+  // 4. Append rangeEnd, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${rangeEnd}`)
+
+  // 5. Append 0x2F (/) to contentRange.
+  contentRange += '/'
+
+  // 6. Append fullLength, serialized and isomorphic encoded to contentRange.
+  contentRange += isomorphicEncode(`${fullLength}`)
+
+  // 7. Return contentRange.
+  return contentRange
+}
+
+// A Stream, which pipes the response to zlib.createInflate() or
+// zlib.createInflateRaw() depending on the first byte of the Buffer.
+// If the lower byte of the first byte is 0x08, then the stream is
+// interpreted as a zlib stream, otherwise it's interpreted as a
+// raw deflate stream.
+class InflateStream extends Transform {
+  _transform (chunk, encoding, callback) {
+    if (!this._inflateStream) {
+      if (chunk.length === 0) {
+        callback()
+        return
+      }
+      this._inflateStream = (chunk[0] & 0x0F) === 0x08
+        ? zlib.createInflate()
+        : zlib.createInflateRaw()
+
+      this._inflateStream.on('data', this.push.bind(this))
+      this._inflateStream.on('end', () => this.push(null))
+      this._inflateStream.on('error', (err) => this.destroy(err))
+    }
+
+    this._inflateStream.write(chunk, encoding, callback)
+  }
+
+  _final (callback) {
+    if (this._inflateStream) {
+      this._inflateStream.end()
+      this._inflateStream = null
+    }
+    callback()
+  }
+}
+
+function createInflate () {
+  return new InflateStream()
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-header-extract-mime-type
+ * @param {import('./headers').HeadersList} headers
+ */
+function extractMimeType (headers) {
+  // 1. Let charset be null.
+  let charset = null
+
+  // 2. Let essence be null.
+  let essence = null
+
+  // 3. Let mimeType be null.
+  let mimeType = null
+
+  // 4. Let values be the result of getting, decoding, and splitting `Content-Type` from headers.
+  const values = getDecodeSplit('content-type', headers)
+
+  // 5. If values is null, then return failure.
+  if (values === null) {
+    return 'failure'
+  }
+
+  // 6. For each value of values:
+  for (const value of values) {
+    // 6.1. Let temporaryMimeType be the result of parsing value.
+    const temporaryMimeType = parseMIMEType(value)
+
+    // 6.2. If temporaryMimeType is failure or its essence is "*/*", then continue.
+    if (temporaryMimeType === 'failure' || temporaryMimeType.essence === '*/*') {
+      continue
+    }
+
+    // 6.3. Set mimeType to temporaryMimeType.
+    mimeType = temporaryMimeType
+
+    // 6.4. If mimeType’s essence is not essence, then:
+    if (mimeType.essence !== essence) {
+      // 6.4.1. Set charset to null.
+      charset = null
+
+      // 6.4.2. If mimeType’s parameters["charset"] exists, then set charset to
+      //        mimeType’s parameters["charset"].
+      if (mimeType.parameters.has('charset')) {
+        charset = mimeType.parameters.get('charset')
+      }
+
+      // 6.4.3. Set essence to mimeType’s essence.
+      essence = mimeType.essence
+    } else if (!mimeType.parameters.has('charset') && charset !== null) {
+      // 6.5. Otherwise, if mimeType’s parameters["charset"] does not exist, and
+      //      charset is non-null, set mimeType’s parameters["charset"] to charset.
+      mimeType.parameters.set('charset', charset)
+    }
+  }
+
+  // 7. If mimeType is null, then return failure.
+  if (mimeType == null) {
+    return 'failure'
+  }
+
+  // 8. Return mimeType.
+  return mimeType
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#header-value-get-decode-and-split
+ * @param {string|null} value
+ */
+function gettingDecodingSplitting (value) {
+  // 1. Let input be the result of isomorphic decoding value.
+  const input = value
+
+  // 2. Let position be a position variable for input, initially pointing at the start of input.
+  const position = { position: 0 }
+
+  // 3. Let values be a list of strings, initially empty.
+  const values = []
+
+  // 4. Let temporaryValue be the empty string.
+  let temporaryValue = ''
+
+  // 5. While position is not past the end of input:
+  while (position.position < input.length) {
+    // 5.1. Append the result of collecting a sequence of code points that are not U+0022 (")
+    //      or U+002C (,) from input, given position, to temporaryValue.
+    temporaryValue += collectASequenceOfCodePoints(
+      (char) => char !== '"' && char !== ',',
+      input,
+      position
+    )
+
+    // 5.2. If position is not past the end of input, then:
+    if (position.position < input.length) {
+      // 5.2.1. If the code point at position within input is U+0022 ("), then:
+      if (input.charCodeAt(position.position) === 0x22) {
+        // 5.2.1.1. Append the result of collecting an HTTP quoted string from input, given position, to temporaryValue.
+        temporaryValue += collectAnHTTPQuotedString(
+          input,
+          position
+        )
+
+        // 5.2.1.2. If position is not past the end of input, then continue.
+        if (position.position < input.length) {
+          continue
+        }
+      } else {
+        // 5.2.2. Otherwise:
+
+        // 5.2.2.1. Assert: the code point at position within input is U+002C (,).
+        assert(input.charCodeAt(position.position) === 0x2C)
+
+        // 5.2.2.2. Advance position by 1.
+        position.position++
+      }
+    }
+
+    // 5.3. Remove all HTTP tab or space from the start and end of temporaryValue.
+    temporaryValue = removeChars(temporaryValue, true, true, (char) => char === 0x9 || char === 0x20)
+
+    // 5.4. Append temporaryValue to values.
+    values.push(temporaryValue)
+
+    // 5.6. Set temporaryValue to the empty string.
+    temporaryValue = ''
+  }
+
+  // 6. Return values.
+  return values
+}
+
+/**
+ * @see https://fetch.spec.whatwg.org/#concept-header-list-get-decode-split
+ * @param {string} name lowercase header name
+ * @param {import('./headers').HeadersList} list
+ */
+function getDecodeSplit (name, list) {
+  // 1. Let value be the result of getting name from list.
+  const value = list.get(name, true)
+
+  // 2. If value is null, then return null.
+  if (value === null) {
+    return null
+  }
+
+  // 3. Return the result of getting, decoding, and splitting value.
+  return gettingDecodingSplitting(value)
+}
 
 module.exports = {
   isAborted,
@@ -993,6 +1342,7 @@ module.exports = {
   ReadableStreamFrom,
   toUSVString,
   tryUpgradeRequestToAPotentiallyTrustworthyURL,
+  clampAndCoarsenConnectionTimingInfo,
   coarsenedSharedCurrentTime,
   determineRequestsReferrer,
   makePolicyContainer,
@@ -1018,16 +1368,20 @@ module.exports = {
   makeIterator,
   isValidHeaderName,
   isValidHeaderValue,
-  hasOwn,
   isErrorLike,
   fullyReadBody,
   bytesMatch,
   isReadableStreamLike,
   readableStreamClose,
   isomorphicEncode,
-  isomorphicDecode,
   urlIsLocal,
   urlHasHttpsScheme,
   urlIsHttpHttpsScheme,
-  readAllBytes
+  readAllBytes,
+  normalizeMethodRecord,
+  simpleRangeHeaderValue,
+  buildContentRange,
+  parseMetadata,
+  createInflate,
+  extractMimeType
 }

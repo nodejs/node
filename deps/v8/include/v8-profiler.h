@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <vector>
 
+#include "cppgc/common.h"          // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
 #include "v8-message.h"            // NOLINT(build/include_directory)
 #include "v8-persistent-handle.h"  // NOLINT(build/include_directory)
@@ -24,7 +25,7 @@ enum class EmbedderStateTag : uint8_t;
 class HeapGraphNode;
 struct HeapStatsUpdate;
 class Object;
-enum StateTag : int;
+enum StateTag : uint16_t;
 
 using NativeObject = void*;
 using SnapshotObjectId = uint32_t;
@@ -596,7 +597,6 @@ class V8_EXPORT HeapGraphNode {
     kBigInt = 13,        // BigInt.
     kObjectShape = 14,   // Internal data used for tracking the shapes (or
                          // "hidden classes") of JS objects.
-    kWasmObject = 15,    // A WasmGC struct or array.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -883,6 +883,15 @@ class V8_EXPORT EmbedderGraph {
      */
     virtual Detachedness GetDetachedness() { return Detachedness::kUnknown; }
 
+    /**
+     * Returns the address of the object in the embedder heap, or nullptr to not
+     * specify the address. If this address is provided, then V8 can generate
+     * consistent IDs for objects across subsequent heap snapshots, which allows
+     * devtools to determine which objects were retained from one snapshot to
+     * the next. This value is used only if GetNativeObject returns nullptr.
+     */
+    virtual const void* GetAddress() { return nullptr; }
+
     Node(const Node&) = delete;
     Node& operator=(const Node&) = delete;
   };
@@ -912,12 +921,22 @@ class V8_EXPORT EmbedderGraph {
   virtual ~EmbedderGraph() = default;
 };
 
+class QueryObjectPredicate {
+ public:
+  virtual ~QueryObjectPredicate() = default;
+  virtual bool Filter(v8::Local<v8::Object> object) = 0;
+};
+
 /**
  * Interface for controlling heap profiling. Instance of the
  * profiler can be retrieved using v8::Isolate::GetHeapProfiler.
  */
 class V8_EXPORT HeapProfiler {
  public:
+  void QueryObjects(v8::Local<v8::Context> context,
+                    QueryObjectPredicate* predicate,
+                    std::vector<v8::Global<v8::Object>>* objects);
+
   enum SamplingFlags {
     kSamplingNoFlags = 0,
     kSamplingForceGC = 1 << 0,
@@ -1045,6 +1064,11 @@ class V8_EXPORT HeapProfiler {
      * Mode for dealing with numeric values, see `NumericsMode`.
      */
     NumericsMode numerics_mode = NumericsMode::kHideNumericValues;
+    /**
+     * Whether stack is considered as a root set.
+     */
+    cppgc::EmbedderStackState stack_state =
+        cppgc::EmbedderStackState::kMayContainHeapPointers;
   };
 
   /**

@@ -39,7 +39,7 @@ const open = async (npm, url, errMsg, isFile) => {
   const command = browser === true ? null : browser
   await promiseSpawn.open(url, { command })
     .catch((err) => {
-      if (err.code !== 'ENOENT') {
+      if (err.code !== 127) {
         throw err
       }
 

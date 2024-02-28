@@ -31,11 +31,11 @@ RUNTIME_FUNCTION(Runtime_StringParseInt) {
   subject = String::Flatten(isolate, subject);
 
   // Convert {radix} to Int32.
-  if (!radix->IsNumber()) {
+  if (!IsNumber(*radix)) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix,
                                        Object::ToNumber(isolate, radix));
   }
-  int radix32 = DoubleToInt32(radix->Number());
+  int radix32 = DoubleToInt32(Object::Number(*radix));
   if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
     return ReadOnlyRoots(isolate).nan_value();
   }
@@ -74,8 +74,8 @@ RUNTIME_FUNCTION(Runtime_MaxSmi) {
 RUNTIME_FUNCTION(Runtime_IsSmi) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Object obj = args[0];
-  return isolate->heap()->ToBoolean(obj.IsSmi());
+  Tagged<Object> obj = args[0];
+  return isolate->heap()->ToBoolean(IsSmi(obj));
 }
 
 

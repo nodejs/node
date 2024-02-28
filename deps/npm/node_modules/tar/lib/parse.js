@@ -97,6 +97,16 @@ module.exports = warner(class Parser extends EE {
     this.strict = !!opt.strict
     this.maxMetaEntrySize = opt.maxMetaEntrySize || maxMetaEntrySize
     this.filter = typeof opt.filter === 'function' ? opt.filter : noop
+    // Unlike gzip, brotli doesn't have any magic bytes to identify it
+    // Users need to explicitly tell us they're extracting a brotli file
+    // Or we infer from the file extension
+    const isTBR = (opt.file && (
+        opt.file.endsWith('.tar.br') || opt.file.endsWith('.tbr')))
+    // if it's a tbr file it MIGHT be brotli, but we don't know until
+    // we look at it and verify it's not a valid tar file.
+    this.brotli = !opt.gzip && opt.brotli !== undefined ? opt.brotli
+      : isTBR ? undefined
+      : false
 
     // have to set this so that streams are ok piping into it
     this.writable = true
@@ -347,7 +357,9 @@ module.exports = warner(class Parser extends EE {
     }
 
     // first write, might be gzipped
-    if (this[UNZIP] === null && chunk) {
+    const needSniff = this[UNZIP] === null ||
+      this.brotli === undefined && this[UNZIP] === false
+    if (needSniff && chunk) {
       if (this[BUFFER]) {
         chunk = Buffer.concat([this[BUFFER], chunk])
         this[BUFFER] = null
@@ -356,15 +368,45 @@ module.exports = warner(class Parser extends EE {
         this[BUFFER] = chunk
         return true
       }
+
+      // look for gzip header
       for (let i = 0; this[UNZIP] === null && i < gzipHeader.length; i++) {
         if (chunk[i] !== gzipHeader[i]) {
           this[UNZIP] = false
         }
       }
-      if (this[UNZIP] === null) {
+
+      const maybeBrotli = this.brotli === undefined
+      if (this[UNZIP] === false && maybeBrotli) {
+        // read the first header to see if it's a valid tar file. If so,
+        // we can safely assume that it's not actually brotli, despite the
+        // .tbr or .tar.br file extension.
+        // if we ended before getting a full chunk, yes, def brotli
+        if (chunk.length < 512) {
+          if (this[ENDED]) {
+            this.brotli = true
+          } else {
+            this[BUFFER] = chunk
+            return true
+          }
+        } else {
+          // if it's tar, it's pretty reliably not brotli, chances of
+          // that happening are astronomical.
+          try {
+            new Header(chunk.slice(0, 512))
+            this.brotli = false
+          } catch (_) {
+            this.brotli = true
+          }
+        }
+      }
+
+      if (this[UNZIP] === null || (this[UNZIP] === false && this.brotli)) {
         const ended = this[ENDED]
         this[ENDED] = false
-        this[UNZIP] = new zlib.Unzip()
+        this[UNZIP] = this[UNZIP] === null
+          ? new zlib.Unzip()
+          : new zlib.BrotliDecompress()
         this[UNZIP].on('data', chunk => this[CONSUMECHUNK](chunk))
         this[UNZIP].on('error', er => this.abort(er))
         this[UNZIP].on('end', _ => {
@@ -502,6 +544,7 @@ module.exports = warner(class Parser extends EE {
         this[UNZIP].end(chunk)
       } else {
         this[ENDED] = true
+        if (this.brotli === undefined) chunk = chunk || Buffer.alloc(0)
         this.write(chunk)
       }
     }

@@ -8,8 +8,7 @@
 #include "src/base/vlq.h"
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-array-iterator.h"
-#include "src/objects/code.h"
-#include "src/objects/fixed-array.h"
+#include "src/objects/bytecode-array.h"
 
 namespace v8 {
 namespace internal {
@@ -23,8 +22,8 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   explicit BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
                                   Handle<BytecodeArray> bytecodes);
   // Non-handlified version for use when no GC can happen.
-  explicit BytecodeOffsetIterator(ByteArray mapping_table,
-                                  BytecodeArray bytecodes);
+  explicit BytecodeOffsetIterator(Tagged<ByteArray> mapping_table,
+                                  Tagged<BytecodeArray> bytecodes);
   ~BytecodeOffsetIterator();
 
   inline void Advance() {
@@ -66,8 +65,7 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
     return current_bytecode_offset_;
   }
 
-  static void UpdatePointersCallback(LocalIsolate*, GCType, GCCallbackFlags,
-                                     void* iterator) {
+  static void UpdatePointersCallback(void* iterator) {
     reinterpret_cast<BytecodeOffsetIterator*>(iterator)->UpdatePointers();
   }
 
@@ -80,13 +78,13 @@ class V8_EXPORT_PRIVATE BytecodeOffsetIterator {
   }
 
   Handle<ByteArray> mapping_table_;
-  byte* data_start_address_;
+  uint8_t* data_start_address_;
   int data_length_;
   int current_index_;
   Address current_pc_start_offset_;
   Address current_pc_end_offset_;
   int current_bytecode_offset_;
-  BytecodeArray bytecode_handle_storage_;
+  Tagged<BytecodeArray> bytecode_handle_storage_;
   interpreter::BytecodeArrayIterator bytecode_iterator_;
   LocalHeap* local_heap_;
   base::Optional<DisallowGarbageCollection> no_gc_;

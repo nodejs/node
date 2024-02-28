@@ -19,8 +19,8 @@ Object.defineProperty(exports, "isModule", {
     return _isModule.default;
   }
 });
-var _importInjector = require("./import-injector");
-var _isModule = require("./is-module");
+var _importInjector = require("./import-injector.js");
+var _isModule = require("./is-module.js");
 function addDefault(path, importedSource, opts) {
   return new _importInjector.default(path).addDefault(importedSource, opts);
 }

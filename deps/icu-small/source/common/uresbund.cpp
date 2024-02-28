@@ -24,6 +24,7 @@
 #include "unicode/ures.h"
 #include "unicode/ustring.h"
 #include "unicode/ucnv.h"
+#include "bytesinkutil.h"
 #include "charstr.h"
 #include "uresimp.h"
 #include "ustr_imp.h"
@@ -2351,7 +2352,66 @@ struct GetAllChildrenSink : public ResourceSink {
                     aliasedValue.setData(aliasRB->getResData());
                     aliasedValue.setValidLocaleDataEntry(aliasRB->fValidLocaleDataEntry);
                     aliasedValue.setResource(aliasRB->fRes, ResourceTracer(aliasRB));
-                    dest.put(key, aliasedValue, isRoot, errorCode);
+                    
+                    if (aliasedValue.getType() != URES_TABLE) {
+                        dest.put(key, aliasedValue, isRoot, errorCode);
+                    } else {
+                        // if the resource we're aliasing over to is a table, the sink might iterate over its contents.
+                        // If it does, it'll get only the things defined in the actual alias target, not the things
+                        // the target inherits from its parent resources.  So we walk the parent chain for the *alias target*,
+                        // calling dest.put() for each of the parent tables we could be inheriting from.  This means
+                        // that dest.put() has to iterate over the children of multiple tables to get all of the inherited
+                        // resource values, but it already has to do that to handle normal vertical inheritance.
+                        UResType aliasedValueType = URES_TABLE;
+                        CharString tablePath;
+                        tablePath.append(aliasRB->fResPath, errorCode);
+                        const char* parentKey = key; // dest.put() changes the key
+                        dest.put(parentKey, aliasedValue, isRoot, errorCode);
+                        UResourceDataEntry* entry = aliasRB->fData;
+                        Resource res = aliasRB->fRes;
+                        while (aliasedValueType == URES_TABLE && entry->fParent != nullptr) {
+                            CharString localPath;
+                            localPath.copyFrom(tablePath, errorCode);
+                            char* localPathAsCharPtr = localPath.data();
+                            const char* childKey;
+                            entry = entry->fParent;
+                            res = entry->fData.rootRes;
+                            Resource newRes = res_findResource(&entry->fData, res, &localPathAsCharPtr, &childKey);
+                            if (newRes != RES_BOGUS) {
+                                aliasedValue.setData(entry->fData);
+                                // TODO: do I also need to call aliasedValue.setValueLocaleDataEntry() ?
+                                aliasedValue.setResource(newRes, ResourceTracer(aliasRB)); // probably wrong to use aliasRB here
+                                aliasedValueType = aliasedValue.getType();
+                                if (aliasedValueType == URES_ALIAS) {
+                                    // in a few rare cases, when we get to the root resource bundle, the resource in question
+                                    // won't be an actual table, but will instead be an alias to a table.  That is, we have
+                                    // two aliases in the inheritance path.  (For some locales, such as Zulu, we see this with
+                                    // children of the "fields" resource: "day-narrow" aliases to "day-short", which aliases
+                                    // to "day".)  When this happens, we need to make sure we follow all the aliases.
+                                    ResourceDataValue& rdv2 = static_cast<ResourceDataValue&>(aliasedValue);
+                                    aliasRB = getAliasTargetAsResourceBundle(rdv2.getData(), rdv2.getResource(), nullptr, -1,
+                                                                             rdv2.getValidLocaleDataEntry(), nullptr, 0,
+                                                                             stackTempBundle.getAlias(), &errorCode);
+                                    tablePath.clear();
+                                    tablePath.append(aliasRB->fResPath, errorCode);
+                                    entry = aliasRB->fData;
+                                    res = aliasRB->fRes;
+                                    aliasedValue.setData(entry->fData);
+                                    // TODO: do I also need to call aliasedValue.setValueLocaleDataEntry() ?
+                                    aliasedValue.setResource(res, ResourceTracer(aliasRB)); // probably wrong to use aliasRB here
+                                    aliasedValueType = aliasedValue.getType();
+                                }
+                                if (aliasedValueType == URES_TABLE) {
+                                    dest.put(parentKey, aliasedValue, isRoot, errorCode);
+                                } else {
+                                    // once we've followed the alias, the resource we're looking at really should
+                                    // be a table
+                                    errorCode = U_INTERNAL_PROGRAM_ERROR;
+                                    return;
+                                }
+                            }
+                        }
+                    }
                 }
             } else {
                 dest.put(key, value, isRoot, errorCode);
@@ -2657,13 +2717,16 @@ ures_openWithType(UResourceBundle *r, const char* path, const char* localeID,
     UResourceDataEntry *entry;
     if(openType != URES_OPEN_DIRECT) {
         /* first "canonicalize" the locale ID */
-        char canonLocaleID[ULOC_FULLNAME_CAPACITY];
-        uloc_getBaseName(localeID, canonLocaleID, UPRV_LENGTHOF(canonLocaleID), status);
-        if(U_FAILURE(*status) || *status == U_STRING_NOT_TERMINATED_WARNING) {
+        CharString canonLocaleID;
+        {
+            CharStringByteSink sink(&canonLocaleID);
+            ulocimp_getBaseName(localeID, sink, status);
+        }
+        if(U_FAILURE(*status)) {
             *status = U_ILLEGAL_ARGUMENT_ERROR;
             return nullptr;
         }
-        entry = entryOpen(path, canonLocaleID, openType, status);
+        entry = entryOpen(path, canonLocaleID.data(), openType, status);
     } else {
         entry = entryOpenDirect(path, localeID, status);
     }
@@ -2974,15 +3037,39 @@ static UBool isLocaleInList(UEnumeration *locEnum, const char *locToSearch, UErr
     return false;
 }
 
+static void getParentForFunctionalEquivalent(const char*      localeID,
+                                             UResourceBundle* res,
+                                             UResourceBundle* bund1,
+                                             char*            parent,
+                                             int32_t          parentCapacity) {
+    // Get parent.
+    // First check for a parent from %%Parent resource (Note that in resource trees
+    // such as collation, data may have different parents than in parentLocales).
+    UErrorCode subStatus = U_ZERO_ERROR;
+    parent[0] = '\0';
+    if (res != NULL) {
+        ures_getByKey(res, "%%Parent", bund1, &subStatus);
+        if (U_SUCCESS(subStatus)) {
+            int32_t parentLen = parentCapacity;
+            ures_getUTF8String(bund1, parent, &parentLen, true, &subStatus);
+        }
+    }
+    
+    // If none there, use normal truncation parent
+    if (U_FAILURE(subStatus) || parent[0] == 0) {
+        subStatus = U_ZERO_ERROR;
+        uloc_getParent(localeID, parent, parentCapacity, &subStatus);
+    }
+}
+
 U_CAPI int32_t U_EXPORT2
 ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
                              const char *path, const char *resName, const char *keyword, const char *locid,
                              UBool *isAvailable, UBool omitDefault, UErrorCode *status)
 {
-    char kwVal[1024] = ""; /* value of keyword 'keyword' */
     char defVal[1024] = ""; /* default value for given locale */
     char defLoc[1024] = ""; /* default value for given locale */
-    char base[1024] = ""; /* base locale */
+    CharString base; /* base locale */
     char found[1024] = "";
     char parent[1024] = "";
     char full[1024] = "";
@@ -2991,23 +3078,29 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
     UErrorCode subStatus = U_ZERO_ERROR;
     int32_t length = 0;
     if(U_FAILURE(*status)) return 0;
-    uloc_getKeywordValue(locid, keyword, kwVal, 1024-1,&subStatus);
-    if(!uprv_strcmp(kwVal, DEFAULT_TAG)) {
-        kwVal[0]=0;
+    CharString kwVal;
+    {
+        CharStringByteSink sink(&kwVal);
+        ulocimp_getKeywordValue(locid, keyword, sink, &subStatus);
     }
-    uloc_getBaseName(locid, base, 1024-1,&subStatus);
+    if(kwVal == DEFAULT_TAG) {
+        kwVal.clear();
+    }
+    {
+        CharStringByteSink sink(&base);
+        ulocimp_getBaseName(locid, sink, &subStatus);
+    }
 #if defined(URES_TREE_DEBUG)
     fprintf(stderr, "getFunctionalEquivalent: \"%s\" [%s=%s] in %s - %s\n", 
-            locid, keyword, kwVal, base, u_errorName(subStatus));
+            locid, keyword, kwVal.data(), base.data(), u_errorName(subStatus));
 #endif
     ures_initStackObject(&bund1);
     ures_initStackObject(&bund2);
-    
-    
-    uprv_strcpy(parent, base);
-    uprv_strcpy(found, base);
 
-    if(isAvailable) { 
+    base.extract(parent, UPRV_LENGTHOF(parent), subStatus);
+    base.extract(found, UPRV_LENGTHOF(found), subStatus);
+
+    if(isAvailable) {
         UEnumeration *locEnum = ures_openAvailableLocales(path, &subStatus);
         *isAvailable = true;
         if (U_SUCCESS(subStatus)) {
@@ -3054,11 +3147,11 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
                         path?path:"ICUDATA", parent, keyword, defVal, u_errorName(subStatus));
 #endif
                     uprv_strcpy(defLoc, parent);
-                    if(kwVal[0]==0) {
-                        uprv_strcpy(kwVal, defVal);
+                    if(kwVal.isEmpty()) {
+                        kwVal.append(defVal, defLen, subStatus);
 #if defined(URES_TREE_DEBUG)
                         fprintf(stderr, "%s;%s -> kwVal =  %s\n", 
-                            path?path:"ICUDATA", parent, keyword, kwVal);
+                            path?path:"ICUDATA", parent, keyword, kwVal.data());
 #endif
                     }
                 }
@@ -3071,16 +3164,19 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
             uprv_strcpy(found, ures_getLocaleByType(res, ULOC_VALID_LOCALE, &subStatus));
         }
 
-        uloc_getParent(found,parent,sizeof(parent),&subStatus);
+        if (uprv_strcmp(found, parent) != 0) {
+            uprv_strcpy(parent, found);
+        } else {
+            getParentForFunctionalEquivalent(found,res,&bund1,parent,sizeof(parent));
+        }
         ures_close(res);
     } while(!defVal[0] && *found && uprv_strcmp(found, "root") != 0 && U_SUCCESS(*status));
     
     /* Now, see if we can find the kwVal collator.. start the search over.. */
-    uprv_strcpy(parent, base);
-    uprv_strcpy(found, base);
-    
+    base.extract(parent, UPRV_LENGTHOF(parent), subStatus);
+    base.extract(found, UPRV_LENGTHOF(found), subStatus);
+
     do {
-        subStatus = U_ZERO_ERROR;
         res = ures_open(path, parent, &subStatus);
         if((subStatus == U_USING_FALLBACK_WARNING) && isAvailable) {
             *isAvailable = false;
@@ -3089,7 +3185,7 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
         
 #if defined(URES_TREE_DEBUG)
         fprintf(stderr, "%s;%s -> %s (looking for %s)\n", 
-            path?path:"ICUDATA", parent, u_errorName(subStatus), kwVal);
+            path?path:"ICUDATA", parent, u_errorName(subStatus), kwVal.data());
 #endif
         if(U_FAILURE(subStatus)) {
             *status = subStatus;
@@ -3099,14 +3195,14 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
 /**/ fprintf(stderr,"@%d [%s] %s\n", __LINE__, resName, u_errorName(subStatus));
 #endif
             if(subStatus == U_ZERO_ERROR) {
-                ures_getByKey(&bund1, kwVal, &bund2, &subStatus);
+                ures_getByKey(&bund1, kwVal.data(), &bund2, &subStatus);
 #if defined(URES_TREE_DEBUG)
-/**/ fprintf(stderr,"@%d [%s] %s\n", __LINE__, kwVal, u_errorName(subStatus));
+/**/ fprintf(stderr,"@%d [%s] %s\n", __LINE__, kwVal.data(), u_errorName(subStatus));
 #endif
                 if(subStatus == U_ZERO_ERROR) {
 #if defined(URES_TREE_DEBUG)
                     fprintf(stderr, "%s;%s -> full0 %s=%s,  %s\n", 
-                        path?path:"ICUDATA", parent, keyword, kwVal, u_errorName(subStatus));
+                        path?path:"ICUDATA", parent, keyword, kwVal.data(), u_errorName(subStatus));
 #endif
                     uprv_strcpy(full, parent);
                     if(*full == 0) {
@@ -3139,29 +3235,52 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
                 } else {
 #if defined(URES_TREE_DEBUG)
                     fprintf(stderr, "err=%s in %s looking for %s\n", 
-                        u_errorName(subStatus), parent, kwVal);
+                        u_errorName(subStatus), parent, kwVal.data());
 #endif
                 }
             }
         }
         
-        subStatus = U_ZERO_ERROR;
-        
-        uprv_strcpy(found, parent);
-        uloc_getParent(found,parent,1023,&subStatus);
-        ures_close(res);
-    } while(!full[0] && *found && U_SUCCESS(*status));
-    
-    if((full[0]==0) && uprv_strcmp(kwVal, defVal)) {
-#if defined(URES_TREE_DEBUG)
-        fprintf(stderr, "Failed to locate kw %s - try default %s\n", kwVal, defVal);
-#endif
-        uprv_strcpy(kwVal, defVal);
-        uprv_strcpy(parent, base);
-        uprv_strcpy(found, base);
-        
-        do { /* search for 'default' named item */
+        UBool haveFound = false;
+        // At least for collations which may be aliased, we need to use the VALID locale
+        // as the parent instead of just truncating, as long as the VALID locale is not
+        // root and has a different language than the parent. Use of the VALID locale
+        // here is similar to the procedure used at the end of the previous do-while loop
+        // for all resource types.
+        if (res != NULL && uprv_strcmp(resName, "collations") == 0) {
             subStatus = U_ZERO_ERROR;
+            const char *validLoc = ures_getLocaleByType(res, ULOC_VALID_LOCALE, &subStatus);
+            if (U_SUCCESS(subStatus) && validLoc != NULL && validLoc[0] != 0 && uprv_strcmp(validLoc, "root") != 0) {
+                char validLang[ULOC_LANG_CAPACITY];
+                char parentLang[ULOC_LANG_CAPACITY];
+                uloc_getLanguage(validLoc, validLang, ULOC_LANG_CAPACITY, &subStatus);
+                uloc_getLanguage(parent, parentLang, ULOC_LANG_CAPACITY, &subStatus);
+                if (U_SUCCESS(subStatus) && uprv_strcmp(validLang, parentLang) != 0) {
+                    // validLoc is not root and has a different language than parent, use it instead
+                    uprv_strcpy(found, validLoc);
+                    haveFound = true;
+                }
+            }
+            subStatus = U_ZERO_ERROR;
+        }
+        if (!haveFound) {
+            uprv_strcpy(found, parent);
+        }
+
+        getParentForFunctionalEquivalent(found,res,&bund1,parent,1023);
+        ures_close(res);
+        subStatus = U_ZERO_ERROR;
+    } while(!full[0] && *found && U_SUCCESS(*status));
+
+    if((full[0]==0) && kwVal != defVal) {
+#if defined(URES_TREE_DEBUG)
+        fprintf(stderr, "Failed to locate kw %s - try default %s\n", kwVal.data(), defVal);
+#endif
+        kwVal.clear().append(defVal, subStatus);
+        base.extract(parent, UPRV_LENGTHOF(parent), subStatus);
+        base.extract(found, UPRV_LENGTHOF(found), subStatus);
+
+        do { /* search for 'default' named item */
             res = ures_open(path, parent, &subStatus);
             if((subStatus == U_USING_FALLBACK_WARNING) && isAvailable) {
                 *isAvailable = false;
@@ -3170,18 +3289,18 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
             
 #if defined(URES_TREE_DEBUG)
             fprintf(stderr, "%s;%s -> %s (looking for default %s)\n",
-                path?path:"ICUDATA", parent, u_errorName(subStatus), kwVal);
+                path?path:"ICUDATA", parent, u_errorName(subStatus), kwVal.data());
 #endif
             if(U_FAILURE(subStatus)) {
                 *status = subStatus;
             } else if(subStatus == U_ZERO_ERROR) {
                 ures_getByKey(res,resName,&bund1, &subStatus);
                 if(subStatus == U_ZERO_ERROR) {
-                    ures_getByKey(&bund1, kwVal, &bund2, &subStatus);
+                    ures_getByKey(&bund1, kwVal.data(), &bund2, &subStatus);
                     if(subStatus == U_ZERO_ERROR) {
 #if defined(URES_TREE_DEBUG)
                         fprintf(stderr, "%s;%s -> full1 %s=%s,  %s\n", path?path:"ICUDATA",
-                            parent, keyword, kwVal, u_errorName(subStatus));
+                            parent, keyword, kwVal.data(), u_errorName(subStatus));
 #endif
                         uprv_strcpy(full, parent);
                         if(*full == 0) {
@@ -3215,18 +3334,18 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
                     }
                 }
             }
-            subStatus = U_ZERO_ERROR;
             
             uprv_strcpy(found, parent);
-            uloc_getParent(found,parent,1023,&subStatus);
+            getParentForFunctionalEquivalent(found,res,&bund1,parent,1023);
             ures_close(res);
+            subStatus = U_ZERO_ERROR;
         } while(!full[0] && *found && U_SUCCESS(*status));
     }
     
     if(U_SUCCESS(*status)) {
         if(!full[0]) {
 #if defined(URES_TREE_DEBUG)
-          fprintf(stderr, "Still could not load keyword %s=%s\n", keyword, kwVal);
+          fprintf(stderr, "Still could not load keyword %s=%s\n", keyword, kwVal.data());
 #endif
           *status = U_MISSING_RESOURCE_ERROR;
         } else if(omitDefault) {
@@ -3235,21 +3354,21 @@ ures_getFunctionalEquivalent(char *result, int32_t resultCapacity,
 #endif        
           if(uprv_strlen(defLoc) <= uprv_strlen(full)) {
             /* found the keyword in a *child* of where the default tag was present. */
-            if(!uprv_strcmp(kwVal, defVal)) { /* if the requested kw is default, */
+            if(kwVal == defVal) { /* if the requested kw is default, */
               /* and the default is in or in an ancestor of the current locale */
 #if defined(URES_TREE_DEBUG)
-              fprintf(stderr, "Removing unneeded var %s=%s\n", keyword, kwVal);
+              fprintf(stderr, "Removing unneeded var %s=%s\n", keyword, kwVal.data());
 #endif
-              kwVal[0]=0;
+              kwVal.clear();
             }
           }
         }
         uprv_strcpy(found, full);
-        if(kwVal[0]) {
+        if(!kwVal.isEmpty()) {
             uprv_strcat(found, "@");
             uprv_strcat(found, keyword);
             uprv_strcat(found, "=");
-            uprv_strcat(found, kwVal);
+            uprv_strcat(found, kwVal.data());
         } else if(!omitDefault) {
             uprv_strcat(found, "@");
             uprv_strcat(found, keyword);

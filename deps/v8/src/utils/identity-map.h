@@ -9,7 +9,7 @@
 
 #include "src/base/functional.h"
 #include "src/handles/handles.h"
-#include "src/objects/heap-object.h"
+#include "src/objects/tagged.h"
 
 namespace v8 {
 namespace internal {
@@ -25,7 +25,7 @@ struct IdentityMapFindResult {
 };
 
 // Base class of identity maps contains shared code for all template
-// instantions.
+// instantiations.
 class V8_EXPORT_PRIVATE IdentityMapBase {
  public:
   IdentityMapBase(const IdentityMapBase&) = delete;
@@ -68,12 +68,16 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   void EnableIteration();
   void DisableIteration();
 
-  virtual uintptr_t* NewPointerArray(size_t length) = 0;
+  virtual uintptr_t* NewPointerArray(size_t length, uintptr_t value) = 0;
   virtual void DeletePointerArray(uintptr_t* array, size_t length) = 0;
 
  private:
   // Internal implementation should not be called directly by subclasses.
-  int ScanKeysFor(Address address, uint32_t hash) const;
+  // The result is {index, found}. The index is either:
+  //   * The index where the key was found (found=true)
+  //   * The index of the first empty space encountered (found=false)
+  //   * -1 if the table is full and the key was not found (found=false)
+  std::pair<int, bool> ScanKeysFor(Address address, uint32_t hash) const;
   std::pair<int, bool> InsertKey(Address address, uint32_t hash);
   int Lookup(Address key) const;
   std::pair<int, bool> LookupOrInsert(Address key);
@@ -81,6 +85,7 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   void Rehash();
   void Resize(int new_capacity);
   uint32_t Hash(Address address) const;
+  bool ShouldGrow() const;
 
   base::hash<uintptr_t> hasher_;
   Heap* heap_;
@@ -97,9 +102,16 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
 // Implements an identity map from object addresses to a given value type {V}.
 // The map is robust w.r.t. garbage collection by synchronization with the
 // supplied {heap}.
+//
 //  * Keys are treated as strong roots.
 //  * The value type {V} must be reinterpret_cast'able to {uintptr_t}
 //  * The value type {V} must not be a heap type.
+//
+// Note: IdentityMap methods must not be called during the mark-compact phase
+// since rehashing there may lead to incorrect results.
+// Note: When using IdentityMap in concurrent settings, be aware that reads
+// (e.g. `Find`) may trigger lazy rehashing and thus must be treated as write
+// operations wrt synchronization.
 template <typename V, class AllocationPolicy>
 class IdentityMap : public IdentityMapBase {
  public:
@@ -121,7 +133,7 @@ class IdentityMap : public IdentityMapBase {
   IdentityMapFindResult<V> FindOrInsert(Handle<Object> key) {
     return FindOrInsert(*key);
   }
-  IdentityMapFindResult<V> FindOrInsert(Object key) {
+  IdentityMapFindResult<V> FindOrInsert(Tagged<Object> key) {
     auto raw = FindOrInsertEntry(key.ptr());
     return {reinterpret_cast<V*>(raw.entry), raw.already_exists};
   }
@@ -131,21 +143,21 @@ class IdentityMap : public IdentityMapBase {
   //    found => a pointer to the storage location for the value
   //    not found => {nullptr}
   V* Find(Handle<Object> key) const { return Find(*key); }
-  V* Find(Object key) const {
+  V* Find(Tagged<Object> key) const {
     return reinterpret_cast<V*>(FindEntry(key.ptr()));
   }
 
   // Insert the value for the given key. The key must not have previously
   // existed.
   void Insert(Handle<Object> key, V v) { Insert(*key, v); }
-  void Insert(Object key, V v) {
+  void Insert(Tagged<Object> key, V v) {
     *reinterpret_cast<V*>(InsertEntry(key.ptr())) = v;
   }
 
   bool Delete(Handle<Object> key, V* deleted_value) {
     return Delete(*key, deleted_value);
   }
-  bool Delete(Object key, V* deleted_value) {
+  bool Delete(Tagged<Object> key, V* deleted_value) {
     uintptr_t v;
     bool deleted_something = DeleteEntry(key.ptr(), &v);
     if (deleted_value != nullptr && deleted_something) {
@@ -166,7 +178,9 @@ class IdentityMap : public IdentityMapBase {
       return *this;
     }
 
-    Object key() const { return Object(map_->KeyAtIndex(index_)); }
+    Tagged<Object> key() const {
+      return Tagged<Object>(map_->KeyAtIndex(index_));
+    }
     V* entry() const {
       return reinterpret_cast<V*>(map_->EntryAtIndex(index_));
     }
@@ -216,8 +230,11 @@ class IdentityMap : public IdentityMapBase {
   // TODO(ishell): consider removing virtual methods in favor of combining
   // IdentityMapBase and IdentityMap into one class. This would also save
   // space when sizeof(V) is less than sizeof(uintptr_t).
-  uintptr_t* NewPointerArray(size_t length) override {
-    return allocator_.template NewArray<uintptr_t, Buffer>(length);
+  uintptr_t* NewPointerArray(size_t length, uintptr_t value) override {
+    uintptr_t* result =
+        allocator_.template AllocateArray<uintptr_t, Buffer>(length);
+    std::uninitialized_fill_n(result, length, value);
+    return result;
   }
   void DeletePointerArray(uintptr_t* array, size_t length) override {
     allocator_.template DeleteArray<uintptr_t, Buffer>(array, length);

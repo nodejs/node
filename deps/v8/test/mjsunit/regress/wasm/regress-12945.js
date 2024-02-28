@@ -17,7 +17,7 @@ let sig = makeSig([wasmRefNullType(supertype)], [kWasmI32]);
 
 let callee = builder.addFunction("callee", sig).addBody([
   kExprLocalGet, 0,
-  kGCPrefix, kExprRefTestDeprecated, sub1,
+  kGCPrefix, kExprRefTest, sub1,
   kExprIf, kWasmVoid,
   kExprLocalGet, 0,
   kGCPrefix, kExprRefCast, sub1,

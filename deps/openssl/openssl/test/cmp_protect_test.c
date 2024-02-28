@@ -37,15 +37,17 @@ static OSSL_PROVIDER *default_null_provider = NULL, *provider = NULL;
 
 static void tear_down(CMP_PROTECT_TEST_FIXTURE *fixture)
 {
-    OSSL_CMP_CTX_free(fixture->cmp_ctx);
-    OSSL_CMP_MSG_free(fixture->msg);
-    OSSL_CMP_PKISI_free(fixture->si);
+    if (fixture != NULL) {
+        OSSL_CMP_CTX_free(fixture->cmp_ctx);
+        OSSL_CMP_MSG_free(fixture->msg);
+        OSSL_CMP_PKISI_free(fixture->si);
 
-    OPENSSL_free(fixture->mem);
-    sk_X509_free(fixture->certs);
-    sk_X509_free(fixture->chain);
+        OPENSSL_free(fixture->mem);
+        sk_X509_free(fixture->certs);
+        sk_X509_free(fixture->chain);
 
-    OPENSSL_free(fixture);
+        OPENSSL_free(fixture);
+    }
 }
 
 static CMP_PROTECT_TEST_FIXTURE *set_up(const char *const test_case_name)

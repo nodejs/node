@@ -76,8 +76,7 @@ Handle<WasmModuleObject> CompileReferenceModule(
           "Liftoff compilation failed on a valid module. Run with "
           "--trace-wasm-decoder (in a debug build) to see why.");
     }
-    native_module->PublishCode(
-        native_module->AddCompiledCode(std::move(result)));
+    native_module->PublishCode(native_module->AddCompiledCode(result));
   }
 
   // Create the module object.
@@ -137,6 +136,16 @@ void ExecuteAgainstReference(Isolate* isolate,
   // If there is nondeterminism, we cannot guarantee the behavior of the test
   // module, and in particular it may not terminate.
   if (nondeterminism != 0) return;
+
+  if (exception_ref) {
+    if (strcmp(exception_ref.get(),
+               "RangeError: Maximum call stack size exceeded") == 0) {
+      // There was a stack overflow, which may happen nondeterministically. We
+      // cannot guarantee the behavior of the test module, and in particular it
+      // may not terminate.
+      return;
+    }
+  }
 
   // Instantiate a fresh instance for the actual (non-ref) execution.
   Handle<WasmInstanceObject> instance;
@@ -322,6 +331,7 @@ class InitExprInterface {
  public:
   using ValidationTag = Decoder::FullValidationTag;
   static constexpr DecodingMode decoding_mode = kConstantExpression;
+  static constexpr bool kUsesPoppedArgs = false;
 
   struct Value : public ValueBase<ValidationTag> {
     template <typename... Args>
@@ -396,8 +406,16 @@ class InitExprInterface {
 
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
-    // TODO(12089): Implement.
-    UNIMPLEMENTED();
+    switch (opcode) {
+      case kExprExternInternalize:
+        os_ << "kGCPrefix, kExprExternInternalize, ";
+        break;
+      case kExprExternExternalize:
+        os_ << "kGCPrefix, kExprExternExternalize, ";
+        break;
+      default:
+        UNREACHABLE();
+    }
   }
 
   void RefNull(FullDecoder* decoder, ValueType type, Value* result) {
@@ -416,44 +434,44 @@ class InitExprInterface {
 
   // The following operations assume non-rtt versions of the instructions.
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value& rtt, const Value args[], Value* result) {
+                 const Value args[], Value* result) {
     os_ << "kGCPrefix, kExprStructNew, " << index(imm.index);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        const Value& rtt, Value* result) {
+                        Value* result) {
     os_ << "kGCPrefix, kExprStructNewDefault, " << index(imm.index);
   }
 
   void ArrayNew(FullDecoder* decoder, const ArrayIndexImmediate& imm,
                 const Value& length, const Value& initial_value,
-                const Value& rtt, Value* result) {
+                Value* result) {
     os_ << "kGCPrefix, kExprArrayNew, " << index(imm.index);
   }
 
   void ArrayNewDefault(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                       const Value& length, const Value& rtt, Value* result) {
+                       const Value& length, Value* result) {
     os_ << "kGCPrefix, kExprArrayNewDefault, " << index(imm.index);
   }
 
-  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& imm,
-                     const base::Vector<Value>& elements, const Value& rtt,
+  void ArrayNewFixed(FullDecoder* decoder, const ArrayIndexImmediate& array_imm,
+                     const IndexImmediate& length_imm, const Value elements[],
                      Value* result) {
-    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(imm.index)
-        << index(static_cast<uint32_t>(elements.size()));
+    os_ << "kGCPrefix, kExprArrayNewFixed, " << index(array_imm.index)
+        << index(length_imm.index);
   }
 
   void ArrayNewSegment(FullDecoder* decoder,
                        const ArrayIndexImmediate& array_imm,
                        const IndexImmediate& data_segment_imm,
                        const Value& offset_value, const Value& length_value,
-                       const Value& rtt, Value* result) {
-    // TODO(7748): Implement.
+                       Value* result) {
+    // TODO(14034): Implement when/if array.new_data/element becomes const.
     UNIMPLEMENTED();
   }
 
-  void I31New(FullDecoder* decoder, const Value& input, Value* result) {
-    os_ << "kGCPrefix, kExprI31New, ";
+  void RefI31(FullDecoder* decoder, const Value& input, Value* result) {
+    os_ << "kGCPrefix, kExprRefI31, ";
   }
 
   // Since we treat all instructions as rtt-less, we should not print rtts.
@@ -507,9 +525,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
   auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  ModuleResult module_res =
-      DecodeWasmModule(enabled_features, wire_bytes.module_bytes(),
-                       kVerifyFunctions, ModuleOrigin::kWasmOrigin);
+  ModuleResult module_res = DecodeWasmModule(
+      enabled_features, wire_bytes.module_bytes(), kVerifyFunctions,
+      ModuleOrigin::kWasmOrigin, kPopulateExplicitRecGroups);
   CHECK_WITH_MSG(module_res.ok(), module_res.error().message().c_str());
   WasmModule* module = module_res.value().get();
   CHECK_NOT_NULL(module);
@@ -542,7 +560,13 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "\n"
         "const builder = new WasmModuleBuilder();\n";
 
+  int recursive_group_end = -1;
   for (int i = 0; i < static_cast<int>(module->types.size()); i++) {
+    auto rec_group = module->explicit_recursive_type_groups.find(i);
+    if (rec_group != module->explicit_recursive_type_groups.end()) {
+      os << "builder.startRecGroup();\n";
+      recursive_group_end = rec_group->first + rec_group->second - 1;
+    }
     if (module->has_struct(i)) {
       const StructType* struct_type = module->types[i].struct_type;
       os << "builder.addStruct([";
@@ -553,17 +577,29 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
            << ")";
         if (index + 1 < field_count) os << ", ";
       }
-      os << "]);\n";
+      os << "]";
+      if (module->types[i].supertype != kNoSuperType) {
+        os << ", " << module->types[i].supertype;
+      }
+      os << ");\n";
     } else if (module->has_array(i)) {
       const ArrayType* array_type = module->types[i].array_type;
       os << "builder.addArray("
          << ValueTypeToConstantName(array_type->element_type()) << ", "
-         << (array_type->mutability() ? "true" : "false") << ");\n";
+         << (array_type->mutability() ? "true" : "false");
+      if (module->types[i].supertype != kNoSuperType) {
+        os << ", " << module->types[i].supertype;
+      }
+      os << ");\n";
     } else {
       DCHECK(module->has_signature(i));
       const FunctionSig* sig = module->types[i].function_sig;
       os << "builder.addType(makeSig(" << PrintParameters(sig) << ", "
          << PrintReturns(sig) << "));\n";
+    }
+
+    if (i == recursive_group_end) {
+      os << "builder.endRecGroup();\n";
     }
   }
 
@@ -577,15 +613,14 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << sig_index << " /* sig */);\n";
   }
 
-  if (module->has_memory) {
-    os << "builder.addMemory(" << module->initial_pages;
-    if (module->has_maximum_pages) {
-      os << ", " << module->maximum_pages;
+  for (const WasmMemory& memory : module->memories) {
+    os << "builder.addMemory(" << memory.initial_pages;
+    if (memory.has_maximum_pages) {
+      os << ", " << memory.maximum_pages;
     } else {
       os << ", undefined";
     }
-    os << ", " << (module->mem_export ? "true" : "false");
-    if (module->has_shared_memory) {
+    if (memory.is_shared) {
       os << ", true";
     }
     os << ");\n";
@@ -619,13 +654,19 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
-  // TODO(9495): Add support for tables with explicit initializers.
   for (const WasmTable& table : module->tables) {
     os << "builder.addTable(" << ValueTypeToConstantName(table.type) << ", "
        << table.initial_size << ", "
        << (table.has_maximum_size ? std::to_string(table.maximum_size)
                                   : "undefined")
-       << ", undefined)\n";
+       << ", ";
+    if (table.initial_value.is_set()) {
+      DecodeAndAppendInitExpr(os, &zone, module, wire_bytes,
+                              table.initial_value, table.type);
+    } else {
+      os << "undefined";
+    }
+    os << ")\n";
   }
   for (const WasmElemSegment& elem_segment : module->elem_segments) {
     const char* status_str =
@@ -708,9 +749,20 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   for (WasmExport& exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
-       << exp.index << ");\n";
+    switch (exp.kind) {
+      case kExternalFunction:
+        os << "builder.addExport(" << PrintName(wire_bytes, exp.name) << ", "
+           << exp.index << ");\n";
+        break;
+      case kExternalMemory:
+        os << "builder.exportMemoryAs(" << PrintName(wire_bytes, exp.name)
+           << ", " << exp.index << ");\n";
+        break;
+      default:
+        os << "// Unsupported export of '" << PrintName(wire_bytes, exp.name)
+           << "'.\n";
+        break;
+    }
   }
 
   if (compiles) {
@@ -759,10 +811,13 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
-  // Clear any pending exceptions from a prior run.
-  i_isolate->clear_pending_exception();
-
   v8::Isolate::Scope isolate_scope(isolate);
+
+  // Clear any pending exceptions from a prior run.
+  if (i_isolate->has_pending_exception()) {
+    i_isolate->clear_pending_exception();
+  }
+
   v8::HandleScope handle_scope(isolate);
   v8::Context::Scope context_scope(support->GetContext());
 
@@ -789,17 +844,18 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   // 0: TurboFan
   // 1: Liftoff
   // 2: Liftoff for debugging
+  // 3: Turboshaft
   uint8_t tier_mask = 0;
   uint8_t debug_mask = 0;
-  for (int i = 0; i < 4; ++i, configuration_byte /= 3) {
-    int compiler_config = configuration_byte % 3;
+  uint8_t turboshaft_mask = 0;
+  for (int i = 0; i < 4; ++i, configuration_byte /= 4) {
+    int compiler_config = configuration_byte % 4;
     tier_mask |= (compiler_config == 0) << i;
     debug_mask |= (compiler_config == 2) << i;
+    turboshaft_mask |= (compiler_config == 3) << i;
   }
-  // Note: After dividing by 3 for 4 times, configuration_byte is within [0, 3].
-
-  FlagScope<bool> turbo_mid_tier_regalloc(
-      &v8_flags.turbo_force_mid_tier_regalloc, configuration_byte == 0);
+  // Enable tierup for all turboshaft functions.
+  tier_mask |= turboshaft_mask;
 
   if (!GenerateModule(i_isolate, &zone, data, &buffer)) {
     return;
@@ -818,27 +874,26 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
     GenerateTestCase(i_isolate, wire_bytes, valid);
   }
 
-  MaybeHandle<WasmModuleObject> compiled_module;
-  {
-    // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
-    // way, we deterministically test a combination of Liftoff and Turbofan.
-    FlagScope<bool> liftoff(&v8_flags.liftoff, true);
-    FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
-    FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
-                                   tier_mask);
-    FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
-                                    debug_mask);
-    ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
-    compiled_module = GetWasmEngine()->SyncCompile(i_isolate, enabled_features,
-                                                   &thrower, wire_bytes);
-    CHECK_EQ(valid, !compiled_module.is_null());
-    CHECK_EQ(!valid, thrower.error());
-    if (require_valid && !valid) {
-      FATAL("Generated module should validate, but got: %s",
-            thrower.error_msg());
-    }
-    thrower.Reset();
+  // Explicitly enable Liftoff, disable tiering and set the tier_mask. This
+  // way, we deterministically test a combination of Liftoff and Turbofan.
+  FlagScope<bool> liftoff(&v8_flags.liftoff, true);
+  FlagScope<bool> no_tier_up(&v8_flags.wasm_tier_up, false);
+  FlagScope<int> tier_mask_scope(&v8_flags.wasm_tier_mask_for_testing,
+                                 tier_mask);
+  FlagScope<int> debug_mask_scope(&v8_flags.wasm_debug_mask_for_testing,
+                                  debug_mask);
+  FlagScope<int> turboshaft_mask_scope(
+      &v8_flags.wasm_turboshaft_mask_for_testing, turboshaft_mask);
+
+  ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
+  MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
+      i_isolate, enabled_features, &thrower, wire_bytes);
+  CHECK_EQ(valid, !compiled_module.is_null());
+  CHECK_EQ(!valid, thrower.error());
+  if (require_valid && !valid) {
+    FATAL("Generated module should validate, but got: %s", thrower.error_msg());
   }
+  thrower.Reset();
 
   if (valid) {
     ExecuteAgainstReference(i_isolate, compiled_module.ToHandleChecked(),

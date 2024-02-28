@@ -51,7 +51,7 @@ TEST_F(NodeCacheTest, Int32Constant_five) {
 TEST_F(NodeCacheTest, Int32Constant_hits) {
   Int32NodeCache cache(zone());
   const int32_t kSize = 1500;
-  Node** nodes = zone()->NewArray<Node*>(kSize);
+  Node** nodes = zone()->AllocateArray<Node*>(kSize);
 
   for (int i = 0; i < kSize; i++) {
     int32_t v = i * -55;
@@ -89,7 +89,7 @@ TEST_F(NodeCacheTest, Int64Constant_back_to_back) {
 TEST_F(NodeCacheTest, Int64Constant_hits) {
   Int64NodeCache cache(zone());
   const int32_t kSize = 1500;
-  Node** nodes = zone()->NewArray<Node*>(kSize);
+  Node** nodes = zone()->AllocateArray<Node*>(kSize);
 
   for (int i = 0; i < kSize; i++) {
     int64_t v = static_cast<int64_t>(i) * static_cast<int64_t>(5003001);

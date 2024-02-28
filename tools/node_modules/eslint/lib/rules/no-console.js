@@ -43,8 +43,11 @@ module.exports = {
             }
         ],
 
+        hasSuggestions: true,
+
         messages: {
-            unexpected: "Unexpected console statement."
+            unexpected: "Unexpected console statement.",
+            removeConsole: "Remove the console.{{ propertyName }}()."
         }
     },
 
@@ -95,6 +98,64 @@ module.exports = {
         }
 
         /**
+         * Checks if removing the ExpressionStatement node will cause ASI to
+         * break.
+         * eg.
+         * foo()
+         * console.log();
+         * [1, 2, 3].forEach(a => doSomething(a))
+         *
+         * Removing the console.log(); statement should leave two statements, but
+         * here the two statements will become one because [ causes continuation after
+         * foo().
+         * @param {ASTNode} node The ExpressionStatement node to check.
+         * @returns {boolean} `true` if ASI will break after removing the ExpressionStatement
+         *      node.
+         */
+        function maybeAsiHazard(node) {
+            const SAFE_TOKENS_BEFORE = /^[:;{]$/u; // One of :;{
+            const UNSAFE_CHARS_AFTER = /^[-[(/+`]/u; // One of [(/+-`
+
+            const tokenBefore = sourceCode.getTokenBefore(node);
+            const tokenAfter = sourceCode.getTokenAfter(node);
+
+            return (
+                Boolean(tokenAfter) &&
+                UNSAFE_CHARS_AFTER.test(tokenAfter.value) &&
+                tokenAfter.value !== "++" &&
+                tokenAfter.value !== "--" &&
+                Boolean(tokenBefore) &&
+                !SAFE_TOKENS_BEFORE.test(tokenBefore.value)
+            );
+        }
+
+        /**
+         * Checks if the MemberExpression node's parent.parent.parent is a
+         * Program, BlockStatement, StaticBlock, or SwitchCase node. This check
+         * is necessary to avoid providing a suggestion that might cause a syntax error.
+         *
+         * eg. if (a) console.log(b), removing console.log() here will lead to a
+         *     syntax error.
+         *     if (a) { console.log(b) }, removing console.log() here is acceptable.
+         *
+         * Additionally, it checks if the callee of the CallExpression node is
+         * the node itself.
+         *
+         * eg. foo(console.log), cannot provide a suggestion here.
+         * @param {ASTNode} node The MemberExpression node to check.
+         * @returns {boolean} `true` if a suggestion can be provided for a node.
+         */
+        function canProvideSuggestions(node) {
+            return (
+                node.parent.type === "CallExpression" &&
+                node.parent.callee === node &&
+                node.parent.parent.type === "ExpressionStatement" &&
+                astUtils.STATEMENT_LIST_PARENTS.has(node.parent.parent.parent.type) &&
+                !maybeAsiHazard(node.parent.parent)
+            );
+        }
+
+        /**
          * Reports the given reference as a violation.
          * @param {eslint-scope.Reference} reference The reference to report.
          * @returns {void}
@@ -102,10 +163,21 @@ module.exports = {
         function report(reference) {
             const node = reference.identifier.parent;
 
+            const propertyName = astUtils.getStaticPropertyName(node);
+
             context.report({
                 node,
                 loc: node.loc,
-                messageId: "unexpected"
+                messageId: "unexpected",
+                suggest: canProvideSuggestions(node)
+                    ? [{
+                        messageId: "removeConsole",
+                        data: { propertyName },
+                        fix(fixer) {
+                            return fixer.remove(node.parent.parent);
+                        }
+                    }]
+                    : []
             });
         }
 

@@ -5,10 +5,16 @@
 #ifndef V8_HEAP_OBJECTS_VISITING_H_
 #define V8_HEAP_OBJECTS_VISITING_H_
 
+#include "src/base/logging.h"
+#include "src/objects/bytecode-array.h"
+#include "src/objects/contexts.h"
 #include "src/objects/fixed-array.h"
+#include "src/objects/js-weak-refs.h"
 #include "src/objects/map.h"
 #include "src/objects/object-list-macros.h"
 #include "src/objects/objects.h"
+#include "src/objects/shared-function-info.h"
+#include "src/objects/string.h"
 #include "src/objects/visitors.h"
 
 namespace v8 {
@@ -20,6 +26,7 @@ namespace internal {
   V(BigInt)                             \
   V(ByteArray)                          \
   V(BytecodeArray)                      \
+  V(ExternalPointerArray)               \
   V(CallHandlerInfo)                    \
   V(Cell)                               \
   V(InstructionStream)                  \
@@ -31,6 +38,7 @@ namespace internal {
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
+  V(FixedArray)                         \
   V(FixedDoubleArray)                   \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
@@ -46,12 +54,14 @@ namespace internal {
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
+  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
   V(SharedFunctionInfo)                 \
+  V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
   V(SmallOrderedNameDictionary)         \
@@ -100,54 +110,137 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
   inline explicit HeapVisitor(Isolate* isolate);
   inline explicit HeapVisitor(Heap* heap);
 
-  V8_INLINE ResultType Visit(HeapObject object);
-  V8_INLINE ResultType Visit(Map map, HeapObject object);
+  V8_INLINE ResultType Visit(Tagged<HeapObject> object);
+  V8_INLINE ResultType Visit(Tagged<Map> map, Tagged<HeapObject> object);
 
  protected:
-  // A guard predicate for visiting the object.
-  // If it returns false then the default implementations of the Visit*
-  // functions bail out from iterating the object pointers.
-  V8_INLINE bool ShouldVisit(HeapObject object) { return true; }
-
-  // If this predicate return false the default implementations of Visit*
+  // If this predicate returns false the default implementations of Visit*
   // functions bail out from visiting the map pointer.
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return true; }
+  // If this predicate returns false the default implementations of Visit*
+  // functions bail out from visiting known read-only maps.
+  V8_INLINE static constexpr bool ShouldVisitReadOnlyMapPointer() {
+    return true;
+  }
 
   // Only visits the Map pointer if `ShouldVisitMapPointer()` returns true.
-  V8_INLINE void VisitMapPointerIfNeeded(HeapObject host);
+  template <VisitorId visitor_id>
+  V8_INLINE void VisitMapPointerIfNeeded(Tagged<HeapObject> host);
 
-#define VISIT(TypeName) \
-  V8_INLINE ResultType Visit##TypeName(Map map, TypeName object);
+  ConcreteVisitor* concrete_visitor() {
+    return static_cast<ConcreteVisitor*>(this);
+  }
+
+  const ConcreteVisitor* concrete_visitor() const {
+    return static_cast<const ConcreteVisitor*>(this);
+  }
+
+#define VISIT(TypeName)                                 \
+  V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
+                                       Tagged<TypeName> object);
   TYPED_VISITOR_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
 #undef VISIT
-  V8_INLINE ResultType VisitShortcutCandidate(Map map, ConsString object);
-  V8_INLINE ResultType VisitDataObject(Map map, HeapObject object);
-  V8_INLINE ResultType VisitJSObjectFast(Map map, JSObject object);
-  V8_INLINE ResultType VisitJSApiObject(Map map, JSObject object);
-  V8_INLINE ResultType VisitStruct(Map map, HeapObject object);
-  V8_INLINE ResultType VisitFreeSpace(Map map, FreeSpace object);
+  V8_INLINE ResultType VisitShortcutCandidate(Tagged<Map> map,
+                                              Tagged<ConsString> object);
+  V8_INLINE ResultType VisitDataObject(Tagged<Map> map,
+                                       Tagged<HeapObject> object);
+  V8_INLINE ResultType VisitJSObjectFast(Tagged<Map> map,
+                                         Tagged<JSObject> object);
+  V8_INLINE ResultType VisitJSApiObject(Tagged<Map> map,
+                                        Tagged<JSObject> object);
+  V8_INLINE ResultType VisitStruct(Tagged<Map> map, Tagged<HeapObject> object);
+  V8_INLINE ResultType VisitFreeSpace(Tagged<Map> map,
+                                      Tagged<FreeSpace> object);
 
   template <typename T, typename TBodyDescriptor = typename T::BodyDescriptor>
-  V8_INLINE ResultType VisitJSObjectSubclass(Map map, T object);
+  V8_INLINE ResultType VisitJSObjectSubclass(Tagged<Map> map, Tagged<T> object);
 
   template <typename T>
-  static V8_INLINE T Cast(HeapObject object);
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+};
+
+// These strings can be sources of safe string transitions. Transitions are safe
+// if they don't result in invalidated slots. It's safe to read the length field
+// on such strings as that's common for all.
+//
+// No special visitors are generated for such strings.
+// V(VisitorId, TypeName)
+#define SAFE_STRING_TRANSITION_SOURCES(V) \
+  V(SeqOneByteString, SeqOneByteString)   \
+  V(SeqTwoByteString, SeqTwoByteString)
+
+// These strings can be sources of unsafe string transitions.
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_SOURCES(V) \
+  V(ExternalString, ExternalString)         \
+  V(ConsString, ConsString)                 \
+  V(SlicedString, SlicedString)
+
+// V(VisitorId, TypeName)
+#define UNSAFE_STRING_TRANSITION_TARGETS(V) \
+  UNSAFE_STRING_TRANSITION_SOURCES(V)       \
+  V(ShortcutCandidate, ConsString)          \
+  V(ThinString, ThinString)
+
+// A HeapVisitor that allows for concurrently tracing through objects. Tracing
+// through objects with unsafe shape changes is guarded by
+// `EnableConcurrentVisitation()` which defaults to off.
+template <typename ResultType, typename ConcreteVisitor>
+class ConcurrentHeapVisitor : public HeapVisitor<ResultType, ConcreteVisitor> {
+ public:
+  V8_INLINE explicit ConcurrentHeapVisitor(Isolate* isolate);
+
+  V8_INLINE static constexpr bool EnableConcurrentVisitation() { return false; }
+
+ protected:
+#define VISIT_AS_LOCKED_STRING(VisitorId, TypeName)     \
+  V8_INLINE ResultType Visit##TypeName(Tagged<Map> map, \
+                                       Tagged<TypeName> object);
+
+  UNSAFE_STRING_TRANSITION_SOURCES(VISIT_AS_LOCKED_STRING)
+#undef VISIT_AS_LOCKED_STRING
+
+  template <typename T>
+  static V8_INLINE Tagged<T> Cast(Tagged<HeapObject> object);
+
+ private:
+  template <typename T>
+  V8_INLINE ResultType VisitStringLocked(Tagged<T> object);
+
+  friend class HeapVisitor<ResultType, ConcreteVisitor>;
 };
 
 template <typename ConcreteVisitor>
-class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
+class NewSpaceVisitor : public ConcurrentHeapVisitor<int, ConcreteVisitor> {
  public:
   V8_INLINE explicit NewSpaceVisitor(Isolate* isolate);
+
+  // Special cases: Unreachable visitors for objects that are never found in the
+  // young generation.
+  void VisitInstructionStreamPointer(Tagged<Code>,
+                                     InstructionStreamSlot) final {
+    UNREACHABLE();
+  }
+  void VisitCodeTarget(Tagged<InstructionStream> host, RelocInfo*) final {
+    UNREACHABLE();
+  }
+  void VisitEmbeddedPointer(Tagged<InstructionStream> host, RelocInfo*) final {
+    UNREACHABLE();
+  }
+  void VisitMapPointer(Tagged<HeapObject>) override { UNREACHABLE(); }
 
  protected:
   V8_INLINE static constexpr bool ShouldVisitMapPointer() { return false; }
 
-  // Special cases for young generation.
-  V8_INLINE int VisitNativeContext(Map map, NativeContext object);
-  V8_INLINE int VisitBytecodeArray(Map map, BytecodeArray object);
-  V8_INLINE int VisitSharedFunctionInfo(Map map, SharedFunctionInfo object);
-  V8_INLINE int VisitWeakCell(Map map, WeakCell weak_cell);
+  // Special cases: Unreachable visitors for objects that are never found in the
+  // young generation.
+  int VisitNativeContext(Tagged<Map>, Tagged<NativeContext>) { UNREACHABLE(); }
+  int VisitBytecodeArray(Tagged<Map>, Tagged<BytecodeArray>) { UNREACHABLE(); }
+  int VisitSharedFunctionInfo(Tagged<Map> map, Tagged<SharedFunctionInfo>) {
+    UNREACHABLE();
+  }
+  int VisitWeakCell(Tagged<Map>, Tagged<WeakCell>) { UNREACHABLE(); }
 
   friend class HeapVisitor<int, ConcreteVisitor>;
 };
@@ -160,7 +253,8 @@ class WeakObjectRetainer;
 // pointers. The template parameter T is a WeakListVisitor that defines how to
 // access the next-element pointers.
 template <class T>
-Object VisitWeakList(Heap* heap, Object list, WeakObjectRetainer* retainer);
+Tagged<Object> VisitWeakList(Heap* heap, Tagged<Object> list,
+                             WeakObjectRetainer* retainer);
 }  // namespace internal
 }  // namespace v8
 

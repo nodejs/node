@@ -9,7 +9,8 @@ typedef (Int8Array or Int16Array or Int32Array or
          Float32Array or Float64Array or DataView) ArrayBufferView;
 
 typedef (ArrayBufferView or ArrayBuffer) BufferSource;
-[Exposed=(Window,Worker),
+typedef (ArrayBuffer or SharedArrayBuffer or [AllowShared] ArrayBufferView) AllowSharedBufferSource;
+[Exposed=*,
  Serializable]
 interface DOMException { // but see below note about ECMAScript binding
   constructor(optional DOMString message = "", optional DOMString name = "Error");
@@ -46,5 +47,3 @@ interface DOMException { // but see below note about ECMAScript binding
 
 callback Function = any (any... arguments);
 callback VoidFunction = undefined ();
-
-typedef unsigned long long DOMTimeStamp;

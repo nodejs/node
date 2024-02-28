@@ -13,11 +13,12 @@
 namespace v8 {
 namespace internal {
 
-class StringSetShape : public BaseShape<String> {
+class StringSetShape : public BaseShape<Tagged<String>> {
  public:
-  static inline bool IsMatch(String key, Object value);
-  static inline uint32_t Hash(ReadOnlyRoots roots, String key);
-  static inline uint32_t HashForObject(ReadOnlyRoots roots, Object object);
+  static inline bool IsMatch(Tagged<String> key, Tagged<Object> value);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Tagged<String> key);
+  static inline uint32_t HashForObject(ReadOnlyRoots roots,
+                                       Tagged<Object> object);
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;

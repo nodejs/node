@@ -101,6 +101,7 @@ const packument = (nv, opts) => {
         email: 'foo@yellow.com',
         twitter: 'foo',
       },
+      empty: '',
       readme: 'a very useful readme',
       versions: {
         '1.0.0': {
@@ -423,6 +424,11 @@ t.test('specific field names', async t => {
 
   t.test('array field - 2 elements', async t => {
     await view.exec(['yellow@1.x.x', 'maintainers.name'])
+    t.matchSnapshot(outputs.join('\n'))
+  })
+
+  t.test('fields with empty values', async t => {
+    await view.exec(['yellow', 'empty'])
     t.matchSnapshot(outputs.join('\n'))
   })
 })

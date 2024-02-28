@@ -340,15 +340,14 @@ async function testImportRaw({ name, publicUsages }) {
 
 (async function() {
   const tests = [];
-  testVectors.forEach((vector) => {
-    [true, false].forEach((extractable) => {
+  for (const vector of testVectors) {
+    for (const extractable of [true, false]) {
       tests.push(testImportSpki(vector, extractable));
       tests.push(testImportPkcs8(vector, extractable));
       tests.push(testImportJwk(vector, extractable));
-    });
+    }
     tests.push(testImportRaw(vector));
-  });
-
+  }
   await Promise.all(tests);
 })().then(common.mustCall());
 
@@ -366,11 +365,11 @@ async function testImportRaw({ name, publicUsages }) {
       'spki',
       rsaPublic.export({ format: 'der', type: 'spki' }),
       { name },
-      true, publicUsages), { message: /Invalid key type/ });
+      true, publicUsages), { message: /Invalid key type/ }).then(common.mustCall());
     assert.rejects(subtle.importKey(
       'pkcs8',
       rsaPrivate.export({ format: 'der', type: 'pkcs8' }),
       { name },
-      true, privateUsages), { message: /Invalid key type/ });
+      true, privateUsages), { message: /Invalid key type/ }).then(common.mustCall());
   }
 }

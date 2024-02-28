@@ -99,7 +99,11 @@ class ExistingCodeLogger {
   void LogExistingFunction(
       Handle<SharedFunctionInfo> shared, Handle<AbstractCode> code,
       LogEventListener::CodeTag tag = LogEventListener::CodeTag::kFunction);
-  void LogCodeObject(AbstractCode object);
+  void LogCodeObject(Tagged<AbstractCode> object);
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  void LogInterpretedFunctions();
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
  private:
   Isolate* isolate_;
@@ -153,20 +157,16 @@ class V8FileLogger : public LogEventListener {
   // ==== Events logged by --log-function-events ====
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,
-                     String function_name);
+                     Tagged<String> function_name);
   void FunctionEvent(const char* reason, int script_id, double time_delta_ms,
                      int start_position, int end_position,
                      const char* function_name = nullptr,
                      size_t function_name_length = 0, bool is_one_byte = true);
 
   void CompilationCacheEvent(const char* action, const char* cache_type,
-                             SharedFunctionInfo sfi);
+                             Tagged<SharedFunctionInfo> sfi);
   void ScriptEvent(ScriptEventType type, int script_id);
-  void ScriptDetails(Script script);
-
-  // ==== Events logged by --log-code. ====
-  V8_EXPORT_PRIVATE void AddLogEventListener(LogEventListener* listener);
-  V8_EXPORT_PRIVATE void RemoveLogEventListener(LogEventListener* listener);
+  void ScriptDetails(Tagged<Script> script);
 
   // LogEventListener implementation.
   void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
@@ -190,8 +190,10 @@ class V8FileLogger : public LogEventListener {
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
   void RegExpCodeCreateEvent(Handle<AbstractCode> code,
                              Handle<String> source) override;
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) override;
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                         Tagged<BytecodeArray> to) override;
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
   void NativeContextMoveEvent(Address from, Address to) override {}
   void CodeMovingGCEvent() override;
@@ -202,7 +204,8 @@ class V8FileLogger : public LogEventListener {
   void CodeDependencyChangeEvent(Handle<Code> code,
                                  Handle<SharedFunctionInfo> sfi,
                                  const char* reason) override;
-  void FeedbackVectorEvent(FeedbackVector vector, AbstractCode code);
+  void FeedbackVectorEvent(Tagged<FeedbackVector> vector,
+                           Tagged<AbstractCode> code);
   void WeakCodeClearEvent() override {}
 
   void ProcessDeoptEvent(Handle<Code> code, SourcePosition position,
@@ -210,11 +213,11 @@ class V8FileLogger : public LogEventListener {
 
   // Emits a code line info record event.
   void CodeLinePosInfoRecordEvent(Address code_start,
-                                  ByteArray source_position_table,
+                                  Tagged<ByteArray> source_position_table,
                                   JitCodeEvent::CodeType code_type);
 #if V8_ENABLE_WEBASSEMBLY
   void WasmCodeLinePosInfoRecordEvent(
-      Address code_start, base::Vector<const byte> source_position_table);
+      Address code_start, base::Vector<const uint8_t> source_position_table);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   void CodeNameEvent(Address addr, int pos, const char* code_name);
@@ -226,8 +229,9 @@ class V8FileLogger : public LogEventListener {
   void MapEvent(const char* type, Handle<Map> from, Handle<Map> to,
                 const char* reason = nullptr,
                 Handle<HeapObject> name_or_sfi = Handle<HeapObject>());
-  void MapCreate(Map map);
-  void MapDetails(Map map);
+  void MapCreate(Tagged<Map> map);
+  void MapDetails(Tagged<Map> map);
+  void MapMoveEvent(Tagged<Map> from, Tagged<Map> to);
 
   void SharedLibraryEvent(const std::string& library_path, uintptr_t start,
                           uintptr_t end, intptr_t aslr_slide);
@@ -240,24 +244,21 @@ class V8FileLogger : public LogEventListener {
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);
 
-  static void DefaultEventLoggerSentinel(const char* name, int event) {}
-
-  V8_INLINE static void CallEventLoggerInternal(Isolate* isolate,
-                                                const char* name,
-                                                v8::LogEventStatus se,
-                                                bool expose_to_api) {
-    if (isolate->event_logger() == DefaultEventLoggerSentinel) {
-      LOG(isolate, TimerEvent(se, name));
-    } else if (expose_to_api) {
-      isolate->event_logger()(name, static_cast<v8::LogEventStatus>(se));
+  V8_NOINLINE V8_PRESERVE_MOST static void CallEventLoggerInternal(
+      Isolate* isolate, const char* name, v8::LogEventStatus se,
+      bool expose_to_api) {
+    LOG(isolate, TimerEvent(se, name));
+    if (V8_UNLIKELY(isolate->event_logger())) {
+      isolate->event_logger()(name, se);
     }
   }
 
   V8_INLINE static void CallEventLogger(Isolate* isolate, const char* name,
                                         v8::LogEventStatus se,
                                         bool expose_to_api) {
-    if (!isolate->event_logger()) return;
-    CallEventLoggerInternal(isolate, name, se, expose_to_api);
+    if (V8_UNLIKELY(v8_flags.log_timer_events)) {
+      CallEventLoggerInternal(isolate, name, se, expose_to_api);
+    }
   }
 
   V8_EXPORT_PRIVATE bool is_logging();
@@ -268,6 +269,14 @@ class V8FileLogger : public LogEventListener {
         etw_jit_logger_ != nullptr ||
 #endif
         is_logging() || jit_logger_ != nullptr;
+  }
+
+  bool allows_code_compaction() override {
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+    return etw_jit_logger_ == nullptr;
+#else
+    return true;
+#endif
   }
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
@@ -284,9 +293,15 @@ class V8FileLogger : public LogEventListener {
   void LogAllMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
-  V8_INLINE static CodeTag ToNativeByScript(CodeTag tag, Script script);
+  V8_INLINE static CodeTag ToNativeByScript(CodeTag tag, Tagged<Script> script);
+
+#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+  void LogInterpretedFunctions();
+#endif  // V8_OS_WIN && V8_ENABLE_ETW_STACK_WALKING
 
  private:
+  Logger* logger() const;
+
   void UpdateIsLogging(bool value);
 
   // Emits the profiler's first message.
@@ -311,18 +326,18 @@ class V8FileLogger : public LogEventListener {
 
   // Logs a scripts sources. Keeps track of all logged scripts to ensure that
   // each script is logged only once.
-  bool EnsureLogScriptSource(Script script);
+  bool EnsureLogScriptSource(Tagged<Script> script);
 
   void LogSourceCodeInformation(Handle<AbstractCode> code,
                                 Handle<SharedFunctionInfo> shared);
   void LogCodeDisassemble(Handle<AbstractCode> code);
 
   void WriteApiSecurityCheck();
-  void WriteApiNamedPropertyAccess(const char* tag, JSObject holder,
-                                   Object name);
-  void WriteApiIndexedPropertyAccess(const char* tag, JSObject holder,
+  void WriteApiNamedPropertyAccess(const char* tag, Tagged<JSObject> holder,
+                                   Tagged<Object> name);
+  void WriteApiIndexedPropertyAccess(const char* tag, Tagged<JSObject> holder,
                                      uint32_t index);
-  void WriteApiObjectAccess(const char* tag, JSReceiver obj);
+  void WriteApiObjectAccess(const char* tag, Tagged<JSReceiver> obj);
   void WriteApiEntryCall(const char* name);
 
   int64_t Time();
@@ -341,7 +356,7 @@ class V8FileLogger : public LogEventListener {
   friend class Profiler;
 
   std::atomic<bool> is_logging_;
-  std::unique_ptr<LogFile> log_;
+  std::unique_ptr<LogFile> log_file_;
 #if V8_OS_LINUX
   std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
   std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;
@@ -447,7 +462,7 @@ class V8_EXPORT_PRIVATE CodeEventLogger : public LogEventListener {
  private:
   class NameBuffer;
 
-  virtual void LogRecordedBuffer(AbstractCode code,
+  virtual void LogRecordedBuffer(Tagged<AbstractCode> code,
                                  MaybeHandle<SharedFunctionInfo> maybe_shared,
                                  const char* name, int length) = 0;
 #if V8_ENABLE_WEBASSEMBLY
@@ -499,8 +514,10 @@ class ExternalLogEventListener : public LogEventListener {
   void SetterCallbackEvent(Handle<Name> name, Address entry_point) override {}
   void SharedFunctionInfoMoveEvent(Address from, Address to) override {}
   void NativeContextMoveEvent(Address from, Address to) override {}
-  void CodeMoveEvent(InstructionStream from, InstructionStream to) override;
-  void BytecodeMoveEvent(BytecodeArray from, BytecodeArray to) override;
+  void CodeMoveEvent(Tagged<InstructionStream> from,
+                     Tagged<InstructionStream> to) override;
+  void BytecodeMoveEvent(Tagged<BytecodeArray> from,
+                         Tagged<BytecodeArray> to) override;
   void CodeDisableOptEvent(Handle<AbstractCode> code,
                            Handle<SharedFunctionInfo> shared) override {}
   void CodeMovingGCEvent() override {}

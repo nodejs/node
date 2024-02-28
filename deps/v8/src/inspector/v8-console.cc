@@ -736,7 +736,7 @@ static void inspectImpl(const v8::FunctionCallbackInfo<v8::Value>& info,
   if (!injectedScript) return;
   std::unique_ptr<protocol::Runtime::RemoteObject> wrappedObject;
   protocol::Response response = injectedScript->wrapObject(
-      value, "", WrapMode::kNoPreview, &wrappedObject);
+      value, "", WrapOptions({WrapMode::kIdOnly}), &wrappedObject);
   if (!response.IsSuccess()) return;
 
   std::unique_ptr<protocol::DictionaryValue> hints =

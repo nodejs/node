@@ -629,6 +629,8 @@ class LogicVRegister {
     return *this;
   }
 
+  bool Is(const LogicVRegister& r) const { return &register_ == &r.register_; }
+
  private:
   SimVRegister& register_;
 
@@ -744,8 +746,12 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Pop an address from the JS stack.
   uintptr_t PopAddress();
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   V8_EXPORT_PRIVATE void ResetState();
 
@@ -2277,6 +2283,9 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   // Pseudo Printf instruction
   void DoPrintf(Instruction* instr);
 
+  // Pseudo instruction for switching stack limit
+  void DoSwitchStackLimit(Instruction* instr);
+
   // Processor state ---------------------------------------
 
   // Output stream.
@@ -2324,9 +2333,15 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // Stack
   uintptr_t stack_;
-  static const size_t stack_protection_size_ = KB;
-  size_t stack_size_;
+  static const size_t kStackProtectionSize = KB;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+    return (v8_flags.sim_stack_size * KB) + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() { return v8_flags.sim_stack_size * KB; }
   uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 4 * KB;
 
   Decoder<DispatchingDecoderVisitor>* decoder_;
   Decoder<DispatchingDecoderVisitor>* disassembler_decoder_;

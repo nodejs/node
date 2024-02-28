@@ -24,7 +24,7 @@ struct ObjectPair {
   Address y;
 };
 
-static inline ObjectPair MakePair(Object x, Object y) {
+static inline ObjectPair MakePair(Tagged<Object> x, Tagged<Object> y) {
   ObjectPair result = {x.ptr(), y.ptr()};
   // Pointers x and y returned in rax and rdx, in AMD-x64-abi.
   // In Win64 they are assigned to a hidden first argument.
@@ -32,7 +32,7 @@ static inline ObjectPair MakePair(Object x, Object y) {
 }
 #else
 using ObjectPair = uint64_t;
-static inline ObjectPair MakePair(Object x, Object y) {
+static inline ObjectPair MakePair(Tagged<Object> x, Tagged<Object> y) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   return x.ptr() | (static_cast<ObjectPair>(y.ptr()) << 32);
 #elif defined(V8_TARGET_BIG_ENDIAN)

@@ -4,6 +4,8 @@
 #              | (_|_____| (_| | | |  __/\__ \
 #               \___|     \__,_|_|  \___||___/
 #
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 libdir=@libdir@
@@ -15,6 +17,6 @@ Description: asynchronous DNS lookup library
 Version: @VERSION@
 Requires: 
 Requires.private: 
-Cflags: -I${includedir} @CPPFLAG_CARES_STATICLIB@
+Cflags: -I${includedir} @PKGCONFIG_CFLAGS@
 Libs: -L${libdir} -lcares
 Libs.private: @CARES_PRIVATE_LIBS@

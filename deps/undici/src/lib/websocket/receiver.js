@@ -1,9 +1,9 @@
 'use strict'
 
-const { Writable } = require('stream')
-const diagnosticsChannel = require('diagnostics_channel')
+const { Writable } = require('node:stream')
 const { parserStates, opcodes, states, emptyBuffer } = require('./constants')
 const { kReadyState, kSentClose, kResponse, kReceivedClose } = require('./symbols')
+const { channels } = require('../core/diagnostics')
 const { isValidStatusCode, failWebsocketConnection, websocketMessageReceived } = require('./util')
 const { WebsocketFrameSend } = require('./frame')
 
@@ -11,10 +11,6 @@ const { WebsocketFrameSend } = require('./frame')
 // Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 // Copyright (c) 2013 Arnout Kazemier and contributors
 // Copyright (c) 2016 Luigi Pinca and contributors
-
-const channels = {}
-channels.ping = diagnosticsChannel.channel('undici:websocket:ping')
-channels.pong = diagnosticsChannel.channel('undici:websocket:pong')
 
 class ByteParser extends Writable {
   #buffers = []
@@ -111,8 +107,11 @@ class ByteParser extends Writable {
             // Close frame, the endpoint MUST send a Close frame in response.  (When
             // sending a Close frame in response, the endpoint typically echos the
             // status code it received.)
-            const body = Buffer.allocUnsafe(2)
-            body.writeUInt16BE(this.#info.closeInfo.code, 0)
+            let body = emptyBuffer
+            if (this.#info.closeInfo.code) {
+              body = Buffer.allocUnsafe(2)
+              body.writeUInt16BE(this.#info.closeInfo.code, 0)
+            }
             const closeFrame = new WebsocketFrameSend(body)
 
             this.ws[kResponse].socket.write(
@@ -240,9 +239,7 @@ class ByteParser extends Writable {
         }
       }
 
-      if (this.#byteOffset > 0) {
-        continue
-      } else {
+      if (this.#byteOffset === 0) {
         callback()
         break
       }

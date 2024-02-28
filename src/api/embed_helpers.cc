@@ -92,7 +92,8 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
     std::vector<std::string>* errors,
     const EmbedderSnapshotData* snapshot_data,
     uint32_t flags,
-    std::function<Environment*(const CommonEnvironmentSetup*)> make_env)
+    std::function<Environment*(const CommonEnvironmentSetup*)> make_env,
+    const SnapshotConfig* snapshot_config)
     : impl_(new Impl()) {
   CHECK_NOT_NULL(platform);
   CHECK_NOT_NULL(errors);
@@ -142,8 +143,7 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
 
     impl_->isolate_data.reset(CreateIsolateData(
         isolate, loop, platform, impl_->allocator.get(), snapshot_data));
-    impl_->isolate_data->set_is_building_snapshot(
-        impl_->snapshot_creator.has_value());
+    impl_->isolate_data->set_snapshot_config(snapshot_config);
 
     if (snapshot_data) {
       impl_->env.reset(make_env(this));
@@ -176,7 +176,8 @@ CommonEnvironmentSetup::CreateForSnapshotting(
     MultiIsolatePlatform* platform,
     std::vector<std::string>* errors,
     const std::vector<std::string>& args,
-    const std::vector<std::string>& exec_args) {
+    const std::vector<std::string>& exec_args,
+    const SnapshotConfig& snapshot_config) {
   // It's not guaranteed that a context that goes through
   // v8_inspector::V8Inspector::contextCreated() is runtime-independent,
   // so do not start the inspector on the main context when building
@@ -196,7 +197,8 @@ CommonEnvironmentSetup::CreateForSnapshotting(
             args,
             exec_args,
             static_cast<EnvironmentFlags::Flags>(env_flags));
-      }));
+      },
+      &snapshot_config));
   if (!errors->empty()) ret.reset();
   return ret;
 }
@@ -240,10 +242,7 @@ EmbedderSnapshotData::Pointer CommonEnvironmentSetup::CreateSnapshot() {
   EmbedderSnapshotData::Pointer result{
       new EmbedderSnapshotData(snapshot_data, true)};
 
-  auto exit_code = SnapshotBuilder::CreateSnapshot(
-      snapshot_data,
-      this,
-      static_cast<uint8_t>(SnapshotMetadata::Type::kFullyCustomized));
+  auto exit_code = SnapshotBuilder::CreateSnapshot(snapshot_data, this);
   if (exit_code != ExitCode::kNoFailure) return {};
 
   return result;

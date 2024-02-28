@@ -27,7 +27,6 @@ class TurbofanCompilationJob;
 
 namespace wasm {
 
-class AssemblerBufferCache;
 class NativeModule;
 class WasmCode;
 class WasmEngine;
@@ -75,9 +74,9 @@ struct WasmCompilationResult {
   std::unique_ptr<AssemblerBuffer> instr_buffer;
   uint32_t frame_slot_count = 0;
   uint32_t tagged_parameter_slots = 0;
-  base::OwnedVector<byte> source_positions;
-  base::OwnedVector<byte> inlining_positions;
-  base::OwnedVector<byte> protected_instructions_data;
+  base::OwnedVector<uint8_t> source_positions;
+  base::OwnedVector<uint8_t> inlining_positions;
+  base::OwnedVector<uint8_t> protected_instructions_data;
   std::unique_ptr<AssumptionsJournal> assumptions;
   int func_index = kAnonymousFuncIndex;
   ExecutionTier requested_tier;
@@ -97,7 +96,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
 
   WasmCompilationResult ExecuteCompilation(CompilationEnv*,
                                            const WireBytesStorage*, Counters*,
-                                           AssemblerBufferCache*,
                                            WasmFeatures* detected);
 
   ExecutionTier tier() const { return tier_; }
@@ -112,7 +110,6 @@ class V8_EXPORT_PRIVATE WasmCompilationUnit final {
   WasmCompilationResult ExecuteFunctionCompilation(CompilationEnv*,
                                                    const WireBytesStorage*,
                                                    Counters*,
-                                                   AssemblerBufferCache*,
                                                    WasmFeatures* detected);
 
   WasmCompilationResult ExecuteImportWrapperCompilation(CompilationEnv*);
@@ -136,7 +133,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   JSToWasmWrapperCompilationUnit(Isolate* isolate, const FunctionSig* sig,
                                  uint32_t canonical_sig_index,
                                  const wasm::WasmModule* module, bool is_import,
-                                 const WasmFeatures& enabled_features,
+                                 WasmFeatures enabled_features,
                                  AllowGeneric allow_generic);
   ~JSToWasmWrapperCompilationUnit();
 

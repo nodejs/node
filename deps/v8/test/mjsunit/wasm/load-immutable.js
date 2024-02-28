@@ -127,7 +127,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       // TF should be able to eliminate the second type check, and return the
       // constant 1.
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefTestDeprecated, sig])
+      kGCPrefix, kExprRefTest, sig])
     .exportFunc();
 
   var instance = builder.instantiate({m : { f: function () {} }});

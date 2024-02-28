@@ -1,7 +1,5 @@
 'use strict'
 
-const { randomBytes, createHash } = require('crypto')
-const diagnosticsChannel = require('diagnostics_channel')
 const { uid, states } = require('./constants')
 const {
   kReadyState,
@@ -10,6 +8,7 @@ const {
   kReceivedClose
 } = require('./symbols')
 const { fireEvent, failWebsocketConnection } = require('./util')
+const { channels } = require('../core/diagnostics')
 const { CloseEvent } = require('./events')
 const { makeRequest } = require('../fetch/request')
 const { fetching } = require('../fetch/index')
@@ -17,10 +16,13 @@ const { Headers } = require('../fetch/headers')
 const { getGlobalDispatcher } = require('../global')
 const { kHeadersList } = require('../core/symbols')
 
-const channels = {}
-channels.open = diagnosticsChannel.channel('undici:websocket:open')
-channels.close = diagnosticsChannel.channel('undici:websocket:close')
-channels.socketError = diagnosticsChannel.channel('undici:websocket:socket_error')
+/** @type {import('crypto')} */
+let crypto
+try {
+  crypto = require('node:crypto')
+} catch {
+
+}
 
 /**
  * @see https://websockets.spec.whatwg.org/#concept-websocket-establish
@@ -66,7 +68,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
   // 5. Let keyValue be a nonce consisting of a randomly selected
   //    16-byte value that has been forgiving-base64-encoded and
   //    isomorphic encoded.
-  const keyValue = randomBytes(16).toString('base64')
+  const keyValue = crypto.randomBytes(16).toString('base64')
 
   // 6. Append (`Sec-WebSocket-Key`, keyValue) to request’s
   //    header list.
@@ -148,7 +150,7 @@ function establishWebSocketConnection (url, protocols, ws, onEstablish, options)
       //    trailing whitespace, the client MUST _Fail the WebSocket
       //    Connection_.
       const secWSAccept = response.headersList.get('Sec-WebSocket-Accept')
-      const digest = createHash('sha1').update(keyValue + uid).digest('base64')
+      const digest = crypto.createHash('sha1').update(keyValue + uid).digest('base64')
       if (secWSAccept !== digest) {
         failWebsocketConnection(ws, 'Incorrect hash received in Sec-WebSocket-Accept header.')
         return
@@ -254,6 +256,7 @@ function onSocketClose () {
   //    attribute initialized to the result of applying UTF-8
   //    decode without BOM to the WebSocket connection close
   //    reason.
+  // TODO: process.nextTick
   fireEvent('close', ws, CloseEvent, {
     wasClean, code, reason
   })

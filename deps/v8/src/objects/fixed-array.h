@@ -6,6 +6,7 @@
 #define V8_OBJECTS_FIXED_ARRAY_H_
 
 #include "src/handles/maybe-handles.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type.h"
 #include "src/objects/objects.h"
 #include "src/objects/smi.h"
@@ -16,67 +17,21 @@
 namespace v8 {
 namespace internal {
 
-#define FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(V)    \
-  V(BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE)       \
-  V(BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE)       \
-  V(CODE_STUBS_TABLE_SUB_TYPE)                   \
-  V(COMPILATION_CACHE_TABLE_SUB_TYPE)            \
-  V(CONTEXT_SUB_TYPE)                            \
-  V(COPY_ON_WRITE_SUB_TYPE)                      \
-  V(DEOPTIMIZATION_DATA_SUB_TYPE)                \
-  V(DESCRIPTOR_ARRAY_SUB_TYPE)                   \
-  V(EMBEDDED_OBJECT_SUB_TYPE)                    \
-  V(ENUM_CACHE_SUB_TYPE)                         \
-  V(ENUM_INDICES_CACHE_SUB_TYPE)                 \
-  V(DEPENDENT_CODE_SUB_TYPE)                     \
-  V(DICTIONARY_ELEMENTS_SUB_TYPE)                \
-  V(DICTIONARY_PROPERTIES_SUB_TYPE)              \
-  V(EMPTY_PROPERTIES_DICTIONARY_SUB_TYPE)        \
-  V(PACKED_ELEMENTS_SUB_TYPE)                    \
-  V(FAST_PROPERTIES_SUB_TYPE)                    \
-  V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(HANDLER_TABLE_SUB_TYPE)                      \
-  V(JS_COLLECTION_SUB_TYPE)                      \
-  V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
-  V(NUMBER_STRING_CACHE_SUB_TYPE)                \
-  V(OBJECT_TO_CODE_SUB_TYPE)                     \
-  V(OPTIMIZED_CODE_LITERALS_SUB_TYPE)            \
-  V(OPTIMIZED_CODE_MAP_SUB_TYPE)                 \
-  V(PROTOTYPE_USERS_SUB_TYPE)                    \
-  V(REGEXP_MULTIPLE_CACHE_SUB_TYPE)              \
-  V(RETAINED_MAPS_SUB_TYPE)                      \
-  V(SCOPE_INFO_SUB_TYPE)                         \
-  V(SCRIPT_LIST_SUB_TYPE)                        \
-  V(SERIALIZED_OBJECTS_SUB_TYPE)                 \
-  V(SHARED_FUNCTION_INFOS_SUB_TYPE)              \
-  V(SINGLE_CHARACTER_STRING_TABLE_SUB_TYPE)      \
-  V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE) \
-  V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
-  V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(FEEDBACK_METADATA_SUB_TYPE)                  \
-  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
-
-enum FixedArraySubInstanceType {
-#define DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE(name) name,
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE)
-#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-      LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
-};
-
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Common superclass for FixedArrays that allow implementations to share
 // common accessors and some code paths.
-class FixedArrayBase
-    : public TorqueGeneratedFixedArrayBase<FixedArrayBase, HeapObject> {
- public:
-  // Forward declare the non-atomic (set_)length defined in torque.
-  using TorqueGeneratedFixedArrayBase::length;
-  using TorqueGeneratedFixedArrayBase::set_length;
-  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
+// TODO(jgruber): This class is really specific to FixedArrays used as
+// elements backing stores and should not be part of the common FixedArray
+// hierarchy.
+class FixedArrayBase : public HeapObject {
+  OBJECT_CONSTRUCTORS(FixedArrayBase, HeapObject);
 
-  inline Object unchecked_length(AcquireLoadTag) const;
+ public:
+  inline int length() const;
+  inline int length(AcquireLoadTag tag) const;
+  inline void set_length(int value);
+  inline void set_length(int value, ReleaseStoreTag tag);
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);
 
@@ -84,28 +39,30 @@ class FixedArrayBase
 
   // Maximal allowed size, in bytes, of a single FixedArrayBase.
   // Prevents overflowing size computations, as well as extreme memory
-  // consumption. It's either (512Mb - kTaggedSize) or (1024Mb - kTaggedSize).
-  // -kTaggedSize is here to ensure that this max size always fits into Smi
-  // which is necessary for being able to create a free space filler for the
-  // whole array of kMaxSize.
-  static const int kMaxSize = 128 * kTaggedSize * MB - kTaggedSize;
+  // consumption.
+  static constexpr int kMaxSize = 128 * kTaggedSize * MB;
   static_assert(Smi::IsValid(kMaxSize));
 
- protected:
-  TQ_OBJECT_CONSTRUCTORS(FixedArrayBase)
-  inline FixedArrayBase(Address ptr,
-                        HeapObject::AllowInlineSmiStorage allow_smi);
+#define FIELD_LIST(V)           \
+  V(kLengthOffset, kTaggedSize) \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  DECL_CAST(FixedArrayBase)
+  DECL_PRINTER(FixedArrayBase)
+  DECL_VERIFIER(FixedArrayBase)
 };
 
 // FixedArray describes fixed-sized arrays with element type Object.
-class FixedArray
-    : public TorqueGeneratedFixedArray<FixedArray, FixedArrayBase> {
+class FixedArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> get(int index) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
 
-  static inline Handle<Object> get(FixedArray array, int index,
+  static inline Handle<Object> get(Tagged<FixedArray> array, int index,
                                    Isolate* isolate);
 
   // Return a grown copy if the index is bigger than the array's length.
@@ -114,43 +71,47 @@ class FixedArray
       Handle<Object> value);
 
   // Relaxed accessors.
-  inline Object get(int index, RelaxedLoadTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    RelaxedLoadTag) const;
-  inline void set(int index, Object value, RelaxedStoreTag,
+  inline Tagged<Object> get(int index, RelaxedLoadTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            RelaxedLoadTag) const;
+  inline void set(int index, Tagged<Object> value, RelaxedStoreTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, RelaxedStoreTag);
+  inline void set(int index, Tagged<Smi> value, RelaxedStoreTag);
 
   // SeqCst accessors.
-  inline Object get(int index, SeqCstAccessTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    SeqCstAccessTag) const;
-  inline void set(int index, Object value, SeqCstAccessTag,
+  inline Tagged<Object> get(int index, SeqCstAccessTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            SeqCstAccessTag) const;
+  inline void set(int index, Tagged<Object> value, SeqCstAccessTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, SeqCstAccessTag);
+  inline void set(int index, Tagged<Smi> value, SeqCstAccessTag);
 
   // Acquire/release accessors.
-  inline Object get(int index, AcquireLoadTag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    AcquireLoadTag) const;
-  inline void set(int index, Object value, ReleaseStoreTag,
+  inline Tagged<Object> get(int index, AcquireLoadTag) const;
+  inline Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                            AcquireLoadTag) const;
+  inline void set(int index, Tagged<Object> value, ReleaseStoreTag,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void set(int index, Smi value, ReleaseStoreTag);
+  inline void set(int index, Tagged<Smi> value, ReleaseStoreTag);
 
   // Setter that uses write barrier.
-  inline void set(int index, Object value);
+  inline void set(int index, Tagged<Object> value);
   inline bool is_the_hole(Isolate* isolate, int index);
 
   // Setter that doesn't need write barrier.
-  inline void set(int index, Smi value);
+  inline void set(int index, Tagged<Smi> value);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object value, WriteBarrierMode mode);
+  inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
 
   // Atomic swap that doesn't need write barrier.
-  inline Object swap(int index, Smi value, SeqCstAccessTag);
+  inline Tagged<Object> swap(int index, Tagged<Smi> value, SeqCstAccessTag);
   // Atomic swap with explicit barrier mode.
-  inline Object swap(int index, Object value, SeqCstAccessTag,
-                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<Object> swap(int index, Tagged<Object> value, SeqCstAccessTag,
+                             WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<Object> compare_and_swap(
+      int index, Tagged<Object> expected, Tagged<Object> value, SeqCstAccessTag,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
@@ -172,8 +133,9 @@ class FixedArray
   inline void MoveElements(Isolate* isolate, int dst_index, int src_index,
                            int len, WriteBarrierMode mode);
 
-  inline void CopyElements(Isolate* isolate, int dst_index, FixedArray src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<FixedArray> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   inline void FillWithHoles(int from, int to);
 
@@ -186,15 +148,14 @@ class FixedArray
                                           int new_length);
 
   // Copy a sub array from the receiver to dest.
-  V8_EXPORT_PRIVATE void CopyTo(int pos, FixedArray dest, int dest_pos,
+  V8_EXPORT_PRIVATE void CopyTo(int pos, Tagged<FixedArray> dest, int dest_pos,
                                 int len) const;
 
-  // Garbage collection support.
+  inline int AllocatedSize() const;
+
   static constexpr int SizeFor(int length) {
     return kHeaderSize + length * kTaggedSize;
   }
-
-  // Code Generation support.
   static constexpr int OffsetOfElementAt(int index) {
     static_assert(kObjectsOffset == SizeFor(0));
     return SizeFor(index);
@@ -213,11 +174,9 @@ class FixedArray
   static const int kMaxRegularLength =
       (kMaxRegularHeapObjectSize - kHeaderSize) / kTaggedSize;
 
-  // Dispatched behavior.
+  DECL_CAST(FixedArray)
   DECL_PRINTER(FixedArray)
   DECL_VERIFIER(FixedArray)
-
-  int AllocatedSize();
 
   class BodyDescriptor;
 
@@ -226,13 +185,12 @@ class FixedArray
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
-  static inline void NoWriteBarrierSet(FixedArray array, int index,
-                                       Object value);
+  static inline void NoWriteBarrierSet(Tagged<FixedArray> array, int index,
+                                       Tagged<Object> value);
 
- private:
   static_assert(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
-  TQ_OBJECT_CONSTRUCTORS(FixedArray)
+  OBJECT_CONSTRUCTORS(FixedArray, FixedArrayBase);
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -241,13 +199,12 @@ class FixedArray
 class FixedArrayExact final : public FixedArray {};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
-class FixedDoubleArray
-    : public TorqueGeneratedFixedDoubleArray<FixedDoubleArray, FixedArrayBase> {
+class FixedDoubleArray : public FixedArrayBase {
  public:
   // Setter and getter for elements.
   inline double get_scalar(int index);
   inline uint64_t get_representation(int index);
-  static inline Handle<Object> get(FixedDoubleArray array, int index,
+  static inline Handle<Object> get(Tagged<FixedDoubleArray> array, int index,
                                    Isolate* isolate);
   inline void set(int index, double value);
   inline void set_the_hole(Isolate* isolate, int index);
@@ -278,13 +235,13 @@ class FixedDoubleArray
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "FixedDoubleArray maxLength not a Smi");
 
-  // Dispatched behavior.
+  DECL_CAST(FixedDoubleArray)
   DECL_PRINTER(FixedDoubleArray)
   DECL_VERIFIER(FixedDoubleArray)
 
   class BodyDescriptor;
 
-  TQ_OBJECT_CONSTRUCTORS(FixedDoubleArray)
+  OBJECT_CONSTRUCTORS(FixedDoubleArray, FixedArrayBase);
 };
 
 // WeakFixedArray describes fixed-sized arrays with element type
@@ -313,8 +270,9 @@ class WeakFixedArray
 
   inline MaybeObjectSlot RawFieldOfElementAt(int index);
 
-  inline void CopyElements(Isolate* isolate, int dst_index, WeakFixedArray src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<WeakFixedArray> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   DECL_PRINTER(WeakFixedArray)
   DECL_VERIFIER(WeakFixedArray)
@@ -326,7 +284,7 @@ class WeakFixedArray
   static_assert(Internals::IsValidSmi(kMaxLength),
                 "WeakFixedArray maxLength not a Smi");
 
-  int AllocatedSize();
+  inline int AllocatedSize() const;
 
   static int OffsetOfElementAt(int index) {
     static_assert(kHeaderSize == SizeFor(0));
@@ -353,21 +311,19 @@ class WeakArrayList
   DECL_PRINTER(WeakArrayList)
 
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value);
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value);
 
   // A version that adds to elements. This ensures that the elements are
   // inserted atomically w.r.t GC.
   V8_EXPORT_PRIVATE static Handle<WeakArrayList> AddToEnd(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value1, const MaybeObjectHandle& value2);
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value1,
+      Tagged<Smi> value2);
 
   // Appends an element to the array and possibly compacts and shrinks live weak
   // references to the start of the collection. Only use this method when
   // indices to elements can change.
   static Handle<WeakArrayList> Append(
-      Isolate* isolate, Handle<WeakArrayList> array,
-      const MaybeObjectHandle& value,
+      Isolate* isolate, Handle<WeakArrayList> array, MaybeObjectHandle value,
       AllocationType allocation = AllocationType::kYoung);
 
   // Compact weak references to the beginning of the array.
@@ -381,7 +337,7 @@ class WeakArrayList
   // instead.
   inline void Set(int index, MaybeObject value,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void Set(int index, Smi value);
+  inline void Set(int index, Tagged<Smi> value);
 
   static constexpr int SizeForCapacity(int capacity) {
     return SizeFor(capacity);
@@ -394,12 +350,13 @@ class WeakArrayList
   // Gives access to raw memory which stores the array's data.
   inline MaybeObjectSlot data_start();
 
-  inline void CopyElements(Isolate* isolate, int dst_index, WeakArrayList src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline void CopyElements(Isolate* isolate, int dst_index,
+                           Tagged<WeakArrayList> src, int src_index, int len,
+                           WriteBarrierMode mode);
 
   V8_EXPORT_PRIVATE bool IsFull() const;
 
-  int AllocatedSize();
+  inline int AllocatedSize() const;
 
   class BodyDescriptor;
 
@@ -420,7 +377,7 @@ class WeakArrayList
   // around in the array - this method can only be used in cases where the user
   // doesn't care about the indices! Users should make sure there are no
   // duplicates.
-  V8_EXPORT_PRIVATE bool RemoveOne(const MaybeObjectHandle& value);
+  V8_EXPORT_PRIVATE bool RemoveOne(MaybeObjectHandle value);
 
   // Searches the array (linear time) and returns whether it contains the value.
   V8_EXPORT_PRIVATE bool Contains(MaybeObject value);
@@ -437,15 +394,15 @@ class WeakArrayList
 
 class WeakArrayList::Iterator {
  public:
-  explicit Iterator(WeakArrayList array) : index_(0), array_(array) {}
+  explicit Iterator(Tagged<WeakArrayList> array) : index_(0), array_(array) {}
   Iterator(const Iterator&) = delete;
   Iterator& operator=(const Iterator&) = delete;
 
-  inline HeapObject Next();
+  inline Tagged<HeapObject> Next();
 
  private:
   int index_;
-  WeakArrayList array_;
+  Tagged<WeakArrayList> array_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };
 
@@ -456,7 +413,7 @@ class WeakArrayList::Iterator {
 // the allocated size. The number of elements is stored at kLengthIndex and is
 // updated with every insertion. The elements of the ArrayList are stored in the
 // underlying FixedArray starting at kFirstIndex.
-class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
+class ArrayList : public FixedArray {
  public:
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
       Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj,
@@ -467,12 +424,13 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
                                                  Handle<Object> obj2);
   V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
                                                  Handle<ArrayList> array,
-                                                 Smi obj1);
-  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(Isolate* isolate,
-                                                 Handle<ArrayList> array,
-                                                 Handle<Object> obj1, Smi obj2,
-                                                 Smi obj3, Smi obj4);
-  static Handle<ArrayList> New(Isolate* isolate, int size);
+                                                 Tagged<Smi> obj1);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> Add(
+      Isolate* isolate, Handle<ArrayList> array, Handle<Object> obj1,
+      Tagged<Smi> obj2, Tagged<Smi> obj3, Tagged<Smi> obj4);
+  V8_EXPORT_PRIVATE static Handle<ArrayList> New(
+      Isolate* isolate, int size,
+      AllocationType allocation = AllocationType::kOld);
 
   // Returns the number of elements in the list, not the allocated size, which
   // is length(). Lower and upper case length() return different results!
@@ -481,23 +439,24 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   // Sets the Length() as used by Elements(). Does not change the underlying
   // storage capacity, i.e., length().
   inline void SetLength(int length);
-  inline Object Get(int index) const;
-  inline Object Get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<Object> Get(int index) const;
+  inline Tagged<Object> Get(PtrComprCageBase cage_base, int index) const;
   inline ObjectSlot Slot(int index);
 
   // Set the element at index to obj. The underlying array must be large enough.
   // If you need to grow the ArrayList, use the static Add() methods instead.
-  inline void Set(int index, Object obj,
+  inline void Set(int index, Tagged<Object> obj,
                   WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  inline void Set(int index, Smi obj);
+  inline void Set(int index, Tagged<Smi> obj);
 
   // Set the element at index to undefined. This does not change the Length().
-  inline void Clear(int index, Object undefined);
+  inline void Clear(int index, Tagged<Object> undefined);
 
   // Return a copy of the list of size Length() without the first entry. The
   // number returned by Length() is stored in the first entry.
-  static Handle<FixedArray> Elements(Isolate* isolate, Handle<ArrayList> array);
+  V8_EXPORT_PRIVATE static Handle<FixedArray> Elements(Isolate* isolate,
+                                                       Handle<ArrayList> array);
 
   static const int kHeaderFields = 1;
 
@@ -505,47 +464,46 @@ class ArrayList : public TorqueGeneratedArrayList<ArrayList, FixedArray> {
   static const int kFirstIndex = 1;
   static_assert(kHeaderFields == kFirstIndex);
 
+  DECL_CAST(ArrayList)
   DECL_VERIFIER(ArrayList)
 
  private:
   static Handle<ArrayList> EnsureSpace(
       Isolate* isolate, Handle<ArrayList> array, int length,
       AllocationType allocation = AllocationType::kYoung);
-  TQ_OBJECT_CONSTRUCTORS(ArrayList)
+
+  OBJECT_CONSTRUCTORS(ArrayList, FixedArray);
 };
 
 enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
-inline int Search(T* array, Name name, int valid_entries = 0,
+inline int Search(T* array, Tagged<Name> name, int valid_entries = 0,
                   int* out_insertion_index = nullptr,
                   bool concurrent_search = false);
 
 // ByteArray represents fixed sized arrays containing raw bytes that will not
 // be scanned by the garbage collector.
-class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
+class ByteArray : public FixedArrayBase {
  public:
-  inline int Size();
-
   // Get/set the contents of this array.
-  inline byte get(int offset) const;
-  inline void set(int offset, byte value);
+  inline uint8_t get(int offset) const;
+  inline void set(int offset, uint8_t value);
 
   inline int get_int(int offset) const;
   inline void set_int(int offset, int value);
 
-  inline Address get_sandboxed_pointer(int offset) const;
-  inline void set_sandboxed_pointer(int offset, Address value);
-
   // Copy in / copy out whole byte slices.
-  inline void copy_out(int index, byte* buffer, int slice_length);
-  inline void copy_in(int index, const byte* buffer, int slice_length);
+  inline void copy_out(int index, uint8_t* buffer, int slice_length);
+  inline void copy_in(int index, const uint8_t* buffer, int slice_length);
 
   // Clear uninitialized padding space. This ensures that the snapshot content
   // is deterministic.
   inline void clear_padding();
 
-  static int SizeFor(int length) {
+  inline int AllocatedSize() const;
+
+  static constexpr int SizeFor(int length) {
     return OBJECT_POINTER_ALIGN(kHeaderSize + length);
   }
   // We use byte arrays for free blocks in the heap.  Given a desired size in
@@ -559,20 +517,21 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
   }
 
   // Returns data start address.
-  inline byte* GetDataStartAddress();
+  inline uint8_t* GetDataStartAddress();
   // Returns address of the past-the-end element.
-  inline byte* GetDataEndAddress();
+  inline uint8_t* GetDataEndAddress();
 
   inline int DataSize() const;
 
   // Returns a pointer to the ByteArray object for a given data start address.
-  static inline ByteArray FromDataStartAddress(Address address);
+  static inline Tagged<ByteArray> FromDataStartAddress(Address address);
 
   // Code Generation support.
   static int OffsetOfElementAt(int index) { return kHeaderSize + index; }
 
-  // Dispatched behavior.
+  DECL_CAST(ByteArray)
   DECL_PRINTER(ByteArray)
+  DECL_VERIFIER(ByteArray)
 
   // Layout description.
   static const int kAlignedSize = OBJECT_POINTER_ALIGN(kHeaderSize);
@@ -584,9 +543,7 @@ class ByteArray : public TorqueGeneratedByteArray<ByteArray, FixedArrayBase> {
 
   class BodyDescriptor;
 
- protected:
-  TQ_OBJECT_CONSTRUCTORS(ByteArray)
-  inline ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi);
+  OBJECT_CONSTRUCTORS(ByteArray, FixedArrayBase);
 };
 
 // Convenience class for treating a ByteArray as array of fixed-size integers.
@@ -623,10 +580,65 @@ using FixedInt32Array = FixedIntegerArray<int32_t>;
 using FixedUInt32Array = FixedIntegerArray<uint32_t>;
 using FixedInt64Array = FixedIntegerArray<int64_t>;
 using FixedUInt64Array = FixedIntegerArray<uint64_t>;
+
 // Use with care! Raw addresses on the heap are not safe in combination with
-// the sandbox. However, this can for example be used to store sandboxed
-// pointers, which is safe.
-using FixedAddressArray = FixedIntegerArray<Address>;
+// the sandbox. Use an ExternalPointerArray instead. However, this can for
+// example be used to store sandboxed pointers, which is safe.
+class FixedAddressArray : public FixedIntegerArray<Address> {
+ public:
+  // Get/set a sandboxed pointer from this array.
+  inline Address get_sandboxed_pointer(int offset) const;
+  inline void set_sandboxed_pointer(int offset, Address value);
+
+  static inline Handle<FixedAddressArray> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+
+  DECL_CAST(FixedAddressArray)
+
+  OBJECT_CONSTRUCTORS(FixedAddressArray, FixedIntegerArray<Address>);
+};
+
+// An array containing external pointers.
+// When the sandbox is off, this will simply contain system-pointer sized words.
+// Otherwise, it contains external pointer handles, i.e. indices into the
+// external pointer table.
+// This class uses lazily-initialized external pointer slots. As such, its
+// content can simply be zero-initialized, and the external pointer table
+// entries are only allocated when an element is written to for the first time.
+class ExternalPointerArray : public FixedArrayBase {
+ public:
+  template <ExternalPointerTag tag>
+  inline Address get(int index, Isolate* isolate);
+  template <ExternalPointerTag tag>
+  inline void set(int index, Isolate* isolate, Address value);
+  inline void clear(int index);
+
+  static inline Handle<ExternalPointerArray> New(
+      Isolate* isolate, int length,
+      AllocationType allocation = AllocationType::kYoung);
+
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kExternalPointerSlotSize;
+  }
+
+  static constexpr int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * kExternalPointerSlotSize;
+  }
+
+  // Maximal length of a single ExternalPointerArray.
+  static const int kMaxLength = kMaxSize - kHeaderSize;
+  static_assert(Internals::IsValidSmi(kMaxLength),
+                "ExternalPointerArray maxLength not a Smi");
+
+  class BodyDescriptor;
+
+  DECL_CAST(ExternalPointerArray)
+  DECL_PRINTER(ExternalPointerArray)
+  DECL_VERIFIER(ExternalPointerArray)
+
+  OBJECT_CONSTRUCTORS(ExternalPointerArray, FixedArrayBase);
+};
 
 // Wrapper class for ByteArray which can store arbitrary C++ classes, as long
 // as they can be copied with memcpy.
@@ -636,13 +648,18 @@ class PodArray : public ByteArray {
   static Handle<PodArray<T>> New(
       Isolate* isolate, int length,
       AllocationType allocation = AllocationType::kYoung);
+  static Handle<PodArray<T>> New(
+      LocalIsolate* isolate, int length,
+      AllocationType allocation = AllocationType::kOld);
+
   void copy_out(int index, T* result, int length) {
-    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<byte*>(result),
+    ByteArray::copy_out(index * sizeof(T), reinterpret_cast<uint8_t*>(result),
                         length * sizeof(T));
   }
 
   void copy_in(int index, const T* buffer, int length) {
-    ByteArray::copy_in(index * sizeof(T), reinterpret_cast<const byte*>(buffer),
+    ByteArray::copy_in(index * sizeof(T),
+                       reinterpret_cast<const uint8_t*>(buffer),
                        length * sizeof(T));
   }
 
@@ -670,23 +687,6 @@ class PodArray : public ByteArray {
   DECL_CAST(PodArray<T>)
 
   OBJECT_CONSTRUCTORS(PodArray<T>, ByteArray);
-};
-
-class TemplateList
-    : public TorqueGeneratedTemplateList<TemplateList, FixedArray> {
- public:
-  static Handle<TemplateList> New(Isolate* isolate, int size);
-  inline int length() const;
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
-  inline void set(int index, Object value);
-  static Handle<TemplateList> Add(Isolate* isolate, Handle<TemplateList> list,
-                                  Handle<Object> value);
- private:
-  static const int kLengthIndex = 0;
-  static const int kFirstElementIndex = kLengthIndex + 1;
-
-  TQ_OBJECT_CONSTRUCTORS(TemplateList)
 };
 
 }  // namespace internal

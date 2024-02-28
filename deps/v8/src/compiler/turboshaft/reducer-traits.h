@@ -14,6 +14,8 @@ class ReducerStack;
 
 template <typename Next>
 class ReducerBase;
+template <typename Next>
+class EmitProjectionReducer;
 
 // is_same_reducer compares two reducers.
 template <template <typename> typename T, template <typename> typename U>
@@ -64,17 +66,21 @@ struct next_contains_reducer {
   static constexpr bool value = reducer_list_contains<list, Reducer>::value;
 };
 
-// Check if in the {Next} ReducerStack, {Reducer} comes next.
-template <typename Next, template <typename> typename Reducer>
+// Check if in the {Next} ReducerStack, any of {Reducer} comes next.
+template <typename Next, template <typename> typename... Reducer>
 struct next_reducer_is {
   using list = typename reducer_stack_to_list<Next>::type;
-  static constexpr bool value = reducer_list_starts_with<list, Reducer>::value;
+  static constexpr bool value =
+      (reducer_list_starts_with<list, Reducer>::value || ...);
 };
 
+// TODO(dmercadier): EmitProjectionReducer is not always the bottom of the stack
+// because it could be succeeded by a ValueNumberingReducer. We should take this
+// into account in next_is_bottom_of_assembler_stack.
 // Check if {Next} is the bottom of the ReducerStack.
 template <typename Next>
 struct next_is_bottom_of_assembler_stack
-    : public next_reducer_is<Next, ReducerBase> {};
+    : public next_reducer_is<Next, ReducerBase, EmitProjectionReducer> {};
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -127,8 +127,7 @@ macro HandleFastSlice(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.slice
-transitioning javascript builtin
-ArrayPrototypeSlice(
+transitioning javascript builtin ArrayPrototypeSlice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).
   const o: JSReceiver = ToObject_Inline(context, receiver);

@@ -4,7 +4,7 @@ Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = isNodesEquivalent;
-var _definitions = require("../definitions");
+var _index = require("../definitions/index.js");
 function isNodesEquivalent(a, b) {
   if (typeof a !== "object" || typeof b !== "object" || a == null || b == null) {
     return a === b;
@@ -12,8 +12,8 @@ function isNodesEquivalent(a, b) {
   if (a.type !== b.type) {
     return false;
   }
-  const fields = Object.keys(_definitions.NODE_FIELDS[a.type] || a.type);
-  const visitorKeys = _definitions.VISITOR_KEYS[a.type];
+  const fields = Object.keys(_index.NODE_FIELDS[a.type] || a.type);
+  const visitorKeys = _index.VISITOR_KEYS[a.type];
   for (const field of fields) {
     const val_a = a[field];
     const val_b = b[field];

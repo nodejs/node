@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to require or disallow line breaks inside braces.
  * @author Toru Nagashima
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -147,6 +148,8 @@ function areLineBreaksRequired(node, options, first, last) {
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

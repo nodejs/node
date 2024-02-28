@@ -18,6 +18,8 @@ namespace internal {
 class Object;
 class String;
 
+// TODO(jgruber): These should no longer be included here; instead, all
+// TorqueGeneratedFooAsserts should be emitted into a global .cc file.
 #include "torque-generated/src/objects/regexp-match-info-tq.inc"
 
 // The property RegExpMatchInfo includes the matchIndices
@@ -26,8 +28,7 @@ class String;
 // that there are at least two capture indices.  The array also contains
 // the subject string for the last successful match.
 // After creation the result must be treated as a FixedArray in all regards.
-class RegExpMatchInfo
-    : public TorqueGeneratedRegExpMatchInfo<RegExpMatchInfo, FixedArray> {
+class RegExpMatchInfo : public FixedArray {
  public:
   // Returns the number of captures, which is defined as the length of the
   // matchIndices objects of the last match. matchIndices contains two indices
@@ -36,13 +37,13 @@ class RegExpMatchInfo
   inline void SetNumberOfCaptureRegisters(int value);
 
   // Returns the subject string of the last match.
-  inline String LastSubject();
-  inline void SetLastSubject(String value,
+  inline Tagged<String> LastSubject();
+  inline void SetLastSubject(Tagged<String> value,
                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Like LastSubject, but modifiable by the user.
-  inline Object LastInput();
-  inline void SetLastInput(Object value,
+  inline Tagged<Object> LastInput();
+  inline void SetLastInput(Tagged<Object> value,
                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Returns the i'th capture index, 0 <= i < NumberOfCaptures(). Capture(0) and
@@ -66,7 +67,9 @@ class RegExpMatchInfo
   // Every match info is guaranteed to have enough space to store two captures.
   static const int kInitialCaptureIndices = 2;
 
-  TQ_OBJECT_CONSTRUCTORS(RegExpMatchInfo)
+  DECL_CAST(RegExpMatchInfo)
+
+  OBJECT_CONSTRUCTORS(RegExpMatchInfo, FixedArray);
 };
 
 }  // namespace internal

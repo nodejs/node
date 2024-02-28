@@ -32,7 +32,7 @@ the same for both Git and official release tarballs.
 AutoTools Build
 ===============
 
-### General Information, works on most Unix Platforms (Linux, FreeBSD, etc)
+### General Information, works on most Unix Platforms (Linux, FreeBSD, etc.)
 
 A normal Unix installation is made in three or four steps (after you've
 unpacked the source archive):
@@ -57,7 +57,7 @@ you need to specify that already when running configure:
 
 If you happen to have write permission in that directory, you can do `make
 install` without being root. An example of this would be to make a local
-install in your own home directory:
+installation in your own home directory:
 
     ./configure --prefix=$HOME
     make
@@ -183,7 +183,7 @@ Method using a configure cross-compile (tested with Android NDK r7b):
 
         ./tools/make-standalone-toolchain.sh
 
-    which creates a usual cross-compile toolchain. Lets assume that you put
+    which creates a usual cross-compile toolchain. Let's assume that you put
     this toolchain below `/opt` then invoke configure with something
     like:
 
@@ -213,7 +213,7 @@ CMake builds
 ============
 
 Current releases of c-ares introduce a CMake v3+ build system that has been
-tested on most platforms including Windows, Linux, FreeBSD, MacOS, AIX and
+tested on most platforms including Windows, Linux, FreeBSD, macOS, AIX and
 Solaris.
 
 In the most basic form, building with CMake might look like:
@@ -233,18 +233,23 @@ Options
 Options to CMake are passed on the command line using "-D${OPTION}=${VALUE}".
 The values defined are all boolean and take values like On, Off, True, False.
 
-* CARES_STATIC - Build the static library (off by default)
-* CARES_SHARED - Build the shared library (on by default)
-* CARES_INSTALL - Hook in installation, useful to disable if chain building
-* CARES_STATIC_PIC - Build the static library as position-independent (off by
-   default)
-
+| Option Name                 | Description                                                           | Default Value  |
+|-----------------------------|-----------------------------------------------------------------------|----------------|
+| CARES_STATIC                | Build the static library                                              | Off            |
+| CARES_SHARED                | Build the shared library                                              | On             |
+| CARES_INSTALL               | Hook in installation, useful to disable if chain building             | On             |
+| CARES_STATIC_PIC            | Build the static library as position-independent                      | Off            |
+| CARES_BUILD_TESTS           | Build and run tests                                                   | Off            |
+| CARES_BUILD_CONTAINER_TESTS | Build and run container tests (implies CARES_BUILD_TESTS, Linux only) | Off            |
+| CARES_BUILD_TOOLS           | Build tools                                                           | On             |
+| CARES_SYMBOL_HIDING         | Hide private symbols in shared libraries                              | Off            |
+| CARES_THREADS               | Build with thread-safety support                                      | On             |
 
 Ninja
 -----
 
 Ninja is the next-generation build system meant for generators like CMake that
-heavily parallize builds.  Its use is very similar to the normal build:
+heavily parallelize builds.  Its use is very similar to the normal build:
 
 ```sh
 cd /path/to/cmake/source
@@ -291,16 +296,12 @@ As a general rule, building a DLL with static CRT linkage is highly
 discouraged, and intermixing CRTs in the same app is something to
 avoid at any cost.
 
-Reading and comprehension of Microsoft Knowledge Base articles
-KB94248 and KB140584 is a must for any Windows developer. Especially
+Reading and comprehension of the following Microsoft Learn article
+is a must for any Windows developer. Especially
 important is full understanding if you are not going to follow the
 advice given above.
 
- - [KB94248](http://support.microsoft.com/kb/94248/en-us) - How To Use the C Run-Time
-
- - [KB140584](http://support.microsoft.com/kb/140584/en-us) - How to link with the correct C Run-Time (CRT) library
-
- - [KB190799](http://msdn.microsoft.com/en-us/library/ms235460) - Potential Errors Passing CRT Objects Across DLL Boundaries
+ - [Use the C Run-Time](https://learn.microsoft.com/en-us/troubleshoot/developer/visualstudio/cpp/libraries/use-c-run-time)
 
 If your app is misbehaving in some strange way, or it is suffering
 from memory corruption, before asking for further help, please try
@@ -396,6 +397,21 @@ You can build and install c-ares using [vcpkg](https://github.com/Microsoft/vcpk
 ```
 
 The c-ares port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
+WATCOM
+=====
+
+To build c-ares with OpenWatcom, you need to have at least version 1.9 of OpenWatcom. You can get the latest version from [http://openwatcom.org/ftp/install/](http://openwatcom.org/ftp/install/). Install the version that corresponds to your current host platform.
+
+After installing OpenWatcom, open a new command prompt and execute the following commands:
+
+```
+  cd \path\to\cmake\source
+  buildconf.bat
+  wmake -u -f Makefile.Watcom
+```
+
+After running wmake, you should get adig.exe, ahost.exe, and the static and dynamic versions of libcares.
 
 PORTS
 =====

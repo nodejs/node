@@ -86,14 +86,14 @@ class Heap;
 // long_delay_ms, short_delay_ms, and watchdog_delay_ms are constants.
 class V8_EXPORT_PRIVATE MemoryReducer {
  public:
-  enum Id { kDone, kWait, kRun };
+  enum Id { kUninit, kDone, kWait, kRun };
 
   class State {
    public:
-    static State CreateUninitialized() { return {kDone, 0, 0, 0, 0}; }
+    static State CreateUninitialized() { return {kUninit, 0, 0, 0, 0}; }
 
     static State CreateDone(double last_gc_time_ms, size_t committed_memory) {
-      return {kDone, kMaxNumberOfGCs, 0, last_gc_time_ms, committed_memory};
+      return {kDone, 0, 0, last_gc_time_ms, committed_memory};
     }
 
     static State CreateWait(int started_gcs, double next_gc_time_ms,
@@ -108,7 +108,7 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     Id id() const { return id_; }
 
     int started_gcs() const {
-      DCHECK(id() == kWait || id() == kRun || id() == kDone);
+      DCHECK(id() == kWait || id() == kRun);
       return started_gcs_;
     }
 
@@ -118,12 +118,12 @@ class V8_EXPORT_PRIVATE MemoryReducer {
     }
 
     double last_gc_time_ms() const {
-      DCHECK(id() == kWait || id() == kDone);
+      DCHECK(id() == kWait || id() == kDone || id() == kUninit);
       return last_gc_time_ms_;
     }
 
     size_t committed_memory_at_last_run() const {
-      DCHECK_EQ(id(), kDone);
+      DCHECK(id() == kUninit || id() == kDone);
       return committed_memory_at_last_run_;
     }
 
@@ -169,7 +169,6 @@ class V8_EXPORT_PRIVATE MemoryReducer {
   static const int kLongDelayMs;
   static const int kShortDelayMs;
   static const int kWatchdogDelayMs;
-  static const int kMaxNumberOfGCs;
   // The committed memory has to increase by at least this factor since the
   // last run in order to trigger a new run after mark-compact.
   static const double kCommittedMemoryFactor;
@@ -179,9 +178,9 @@ class V8_EXPORT_PRIVATE MemoryReducer {
 
   Heap* heap() { return heap_; }
 
-  bool ShouldGrowHeapSlowly() {
-    return state_.id() == kDone && state_.started_gcs() > 0;
-  }
+  bool ShouldGrowHeapSlowly() { return state_.id() == kDone; }
+
+  static int MaxNumberOfGCs();
 
  private:
   class TimerTask : public v8::internal::CancelableTask {

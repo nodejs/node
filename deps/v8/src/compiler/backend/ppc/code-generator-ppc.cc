@@ -15,7 +15,6 @@
 #include "src/heap/memory-chunk.h"
 
 #if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-objects.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -800,7 +799,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
   __ LoadTaggedField(r11, MemOperand(kJavaScriptCallCodeStartRegister, offset),
                      r0);
-  __ LoadU16(r11, FieldMemOperand(r11, Code::kKindSpecificFlagsOffset), r0);
+  __ LoadU32(r11, FieldMemOperand(r11, Code::kFlagsOffset), r0);
   __ TestBit(r11, Code::kMarkedForDeoptimizationBit);
   __ Jump(BUILTIN_CODE(isolate(), CompileLazyDeoptimizedCode),
           RelocInfo::CODE_TARGET, ne, cr0);
@@ -833,7 +832,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallBuiltinPointer: {
       DCHECK(!instr->InputAt(0)->IsImmediate());
       Register builtin_index = i.InputRegister(0);
-      __ CallBuiltinByIndex(builtin_index);
+      Register target =
+          instr->HasCallDescriptorFlag(CallDescriptor::kFixedTargetRegister)
+              ? kJavaScriptCallCodeStartRegister
+              : builtin_index;
+      __ CallBuiltinByIndex(builtin_index, target);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -918,10 +921,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CmpS64(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
-      __ LoadTaggedField(r5, FieldMemOperand(func, JSFunction::kCodeOffset),
-                         r0);
-      __ CallCodeObject(r5);
+      __ CallJSFunction(func, kScratchReg);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       frame_access_state()->ClearSPDelta();
@@ -1100,6 +1100,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mr(i.OutputRegister(), fp);
       }
       break;
+    case kArchStackPointer:
+    case kArchSetStackPointer:
+      UNREACHABLE();
     case kArchStackPointerGreaterThan: {
       // Potentially apply an offset to the current stack pointer before the
       // comparison to consider the size difference of an optimized frame versus
@@ -1167,6 +1170,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchStoreIndirectWithWriteBarrier:
+      UNREACHABLE();
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
@@ -2237,6 +2242,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4Eq)               \
   V(I32x4GtS)              \
   V(I32x4GtU)              \
+  V(I32x4DotI16x8S)        \
   V(I16x8Add)              \
   V(I16x8Sub)              \
   V(I16x8Mul)              \
@@ -2254,6 +2260,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8SConvertI32x4)    \
   V(I16x8UConvertI32x4)    \
   V(I16x8RoundingAverageU) \
+  V(I16x8Q15MulRSatS)      \
   V(I8x16Add)              \
   V(I8x16Sub)              \
   V(I8x16MinS)             \
@@ -2305,7 +2312,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I32x4ExtMulHighI16x8S)              \
   V(I32x4ExtMulLowI16x8U)               \
   V(I32x4ExtMulHighI16x8U)              \
-  V(I32x4DotI16x8S)                     \
   V(I16x8Ne)                            \
   V(I16x8GeS)                           \
   V(I16x8GeU)                           \
@@ -2313,7 +2319,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   V(I16x8ExtMulHighI8x16S)              \
   V(I16x8ExtMulLowI8x16U)               \
   V(I16x8ExtMulHighI8x16U)              \
-  V(I16x8Q15MulRSatS)                   \
   V(I16x8DotI8x16S)                     \
   V(I8x16Ne)                            \
   V(I8x16GeS)                           \
@@ -2545,44 +2550,78 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ I8x16Splat(i.OutputSimd128Register(), i.InputRegister(0));
       break;
     }
-    case kPPC_F64x2ExtractLane: {
-      __ F64x2ExtractLane(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg, kScratchReg);
+    case kPPC_FExtractLane: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ F32x4ExtractLane(i.OutputDoubleRegister(),
+                              i.InputSimd128Register(0), i.InputInt8(1),
+                              kScratchSimd128Reg, kScratchReg, ip);
+          break;
+        }
+        case 64: {
+          __ F64x2ExtractLane(i.OutputDoubleRegister(),
+                              i.InputSimd128Register(0), i.InputInt8(1),
+                              kScratchSimd128Reg, kScratchReg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_F32x4ExtractLane: {
-      __ F32x4ExtractLane(i.OutputDoubleRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg, kScratchReg, ip);
+    case kPPC_IExtractLane: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 32: {
+          __ I32x4ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 64: {
+          __ I64x2ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
+                              i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_I64x2ExtractLane: {
-      __ I64x2ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg);
+    case kPPC_IExtractLaneU: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 16: {
+          __ I16x8ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
-    case kPPC_I32x4ExtractLane: {
-      __ I32x4ExtractLane(i.OutputRegister(), i.InputSimd128Register(0),
-                          i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8ExtractLaneU: {
-      __ I16x8ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I16x8ExtractLaneS: {
-      __ I16x8ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16ExtractLaneU: {
-      __ I8x16ExtractLaneU(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
-      break;
-    }
-    case kPPC_I8x16ExtractLaneS: {
-      __ I8x16ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
-                           i.InputInt8(1), kScratchSimd128Reg);
+    case kPPC_IExtractLaneS: {
+      int lane_size = LaneSizeField::decode(instr->opcode());
+      switch (lane_size) {
+        case 8: {
+          __ I8x16ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        case 16: {
+          __ I16x8ExtractLaneS(i.OutputRegister(), i.InputSimd128Register(0),
+                               i.InputInt8(1), kScratchSimd128Reg);
+          break;
+        }
+        default:
+          UNREACHABLE();
+      }
       break;
     }
     case kPPC_F64x2ReplaceLane: {
@@ -2880,31 +2919,16 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
 
    private:
     void GenerateCallToTrap(TrapId trap_id) {
-      if (trap_id == TrapId::kInvalid) {
-        // We cannot test calls to the runtime in cctest/test-run-wasm.
-        // Therefore we emit a call to C here instead of a call to the runtime.
-        // We use the context register as the scratch register, because we do
-        // not have a context here.
-        __ PrepareCallCFunction(0, 0, cp);
-        __ CallCFunction(
-            ExternalReference::wasm_call_trap_callback_for_testing(), 0);
-        __ LeaveFrame(StackFrame::WASM);
-        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(call_descriptor->ParameterSlotCount());
-        __ Drop(pop_count);
-        __ Ret();
-      } else {
-        gen_->AssembleSourcePosition(instr_);
-        // A direct call to a wasm runtime stub defined in this module.
-        // Just encode the stub index. This will be patched when the code
-        // is added to the native module and copied into wasm code space.
-        __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
-        ReferenceMap* reference_map =
-            gen_->zone()->New<ReferenceMap>(gen_->zone());
-        gen_->RecordSafepoint(reference_map);
-        if (v8_flags.debug_code) {
-          __ stop();
-        }
+      gen_->AssembleSourcePosition(instr_);
+      // A direct call to a wasm runtime stub defined in this module.
+      // Just encode the stub index. This will be patched when the code
+      // is added to the native module and copied into wasm code space.
+      __ Call(static_cast<Address>(trap_id), RelocInfo::WASM_STUB_CALL);
+      ReferenceMap* reference_map =
+          gen_->zone()->New<ReferenceMap>(gen_->zone());
+      gen_->RecordSafepoint(reference_map);
+      if (v8_flags.debug_code) {
+        __ stop();
       }
     }
 
@@ -3004,7 +3028,7 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
   PPCOperandConverter i(this, instr);
   Register input = i.InputRegister(0);
   int32_t const case_count = static_cast<int32_t>(instr->InputCount() - 2);
-  Label** cases = zone()->NewArray<Label*>(case_count);
+  Label** cases = zone()->AllocateArray<Label*>(case_count);
   for (int32_t index = 0; index < case_count; ++index) {
     cases[index] = GetLabel(i.InputRpo(index + 2));
   }
@@ -3144,7 +3168,8 @@ void CodeGenerator::AssembleConstructFrame() {
         __ bge(&done);
       }
 
-      __ Call(wasm::WasmCode::kWasmStackOverflow, RelocInfo::WASM_STUB_CALL);
+      __ Call(static_cast<intptr_t>(Builtin::kWasmStackOverflow),
+              RelocInfo::WASM_STUB_CALL);
       // The call does not return, hence we can ignore any references and just
       // define an empty safepoint.
       ReferenceMap* reference_map = zone()->New<ReferenceMap>(zone());
@@ -3318,10 +3343,10 @@ AllocatedOperand CodeGenerator::Push(InstructionOperand* source) {
 }
 
 void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
-  int new_slots = ElementSizeInPointers(rep);
-  frame_access_state()->IncreaseSPDelta(-new_slots);
+  int dropped_slots = ElementSizeInPointers(rep);
   PPCOperandConverter g(this, nullptr);
   if (dest->IsFloatStackSlot() || dest->IsDoubleStackSlot()) {
+    frame_access_state()->IncreaseSPDelta(-dropped_slots);
     UseScratchRegisterScope temps(masm());
     Register scratch = temps.Acquire();
     __ Pop(scratch);
@@ -3330,12 +3355,13 @@ void CodeGenerator::Pop(InstructionOperand* dest, MachineRepresentation rep) {
     int last_frame_slot_id =
         frame_access_state_->frame()->GetTotalFrameSlotCount() - 1;
     int sp_delta = frame_access_state_->sp_delta();
-    int slot_id = last_frame_slot_id + sp_delta + new_slots;
+    int slot_id = last_frame_slot_id + sp_delta;
     AllocatedOperand stack_slot(LocationOperand::STACK_SLOT, rep, slot_id);
     AssembleMove(&stack_slot, dest);
-    __ addi(sp, sp, Operand(new_slots * kSystemPointerSize));
+    frame_access_state()->IncreaseSPDelta(-dropped_slots);
+    __ addi(sp, sp, Operand(dropped_slots * kSystemPointerSize));
   }
-  temp_slots_ -= new_slots;
+  temp_slots_ -= dropped_slots;
 }
 
 void CodeGenerator::PopTempStackSlots() {

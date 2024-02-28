@@ -63,6 +63,9 @@ void BaselineAssembler::RegisterFrameAddress(
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(fp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
+MemOperand BaselineAssembler::FeedbackCellOperand() {
+  return MemOperand(fp, BaselineFrameConstants::kFeedbackCellFromFp);
+}
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
@@ -150,7 +153,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
   __ ldr(tmp, operand);
   JumpIf(cc, value, Operand(tmp), target);
 }
-void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
+void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
                                   Label* target, Label::Distance) {
   __ AssertSmi(value);
   JumpIf(cc, value, Operand(smi), target);
@@ -185,7 +188,7 @@ void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
   Move(RegisterFrameOperand(output), source);
 }
-void BaselineAssembler::Move(Register output, TaggedIndex value) {
+void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
   __ mov(output, Operand(value.ptr()));
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
@@ -345,7 +348,7 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
 }
 
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
-                                               Smi value) {
+                                               Tagged<Smi> value) {
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope temps(this);
   Register tmp = temps.AcquireScratch();
@@ -400,9 +403,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFunction(feedback_cell);
-  LoadTaggedField(feedback_cell, feedback_cell,
-                  JSFunction::kFeedbackCellOffset);
+  LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
   __ ldr(interrupt_budget,
@@ -423,9 +424,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFunction(feedback_cell);
-  LoadTaggedField(feedback_cell, feedback_cell,
-                  JSFunction::kFeedbackCellOffset);
+  LoadFeedbackCell(feedback_cell);
 
   Register interrupt_budget = scratch_scope.AcquireScratch();
   __ ldr(interrupt_budget,
@@ -488,7 +487,7 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
+void BaselineAssembler::AddSmi(Register lhs, Tagged<Smi> rhs) {
   __ add(lhs, lhs, Operand(rhs));
 }
 
@@ -498,25 +497,8 @@ void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
 
 void BaselineAssembler::Switch(Register reg, int case_value_base,
                                Label** labels, int num_labels) {
-  ASM_CODE_COMMENT(masm_);
-  Label fallthrough;
-  if (case_value_base != 0) {
-    __ sub(reg, reg, Operand(case_value_base));
-  }
-
-  // Mostly copied from code-generator-arm.cc
-  ScratchRegisterScope scope(this);
-  JumpIf(kUnsignedGreaterThanEqual, reg, Operand(num_labels), &fallthrough);
-  // Ensure to emit the constant pool first if necessary.
-  __ CheckConstPool(true, true);
-  __ BlockConstPoolFor(num_labels);
-  int entry_size_log2 = 2;
-  __ add(pc, pc, Operand(reg, LSL, entry_size_log2), LeaveCC, lo);
-  __ b(&fallthrough);
-  for (int i = 0; i < num_labels; ++i) {
-    __ b(labels[i]);
-  }
-  __ bind(&fallthrough);
+  __ MacroAssembler::Switch(Register::no_reg(), reg, case_value_base, labels,
+                            num_labels);
 }
 
 #undef __

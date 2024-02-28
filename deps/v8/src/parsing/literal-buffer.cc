@@ -32,8 +32,8 @@ int LiteralBuffer::NewCapacity(int min_capacity) {
 
 void LiteralBuffer::ExpandBuffer() {
   int min_capacity = std::max({kInitialCapacity, backing_store_.length()});
-  base::Vector<byte> new_store =
-      base::Vector<byte>::New(NewCapacity(min_capacity));
+  base::Vector<uint8_t> new_store =
+      base::Vector<uint8_t>::New(NewCapacity(min_capacity));
   if (position_ > 0) {
     MemCopy(new_store.begin(), backing_store_.begin(), position_);
   }
@@ -43,12 +43,12 @@ void LiteralBuffer::ExpandBuffer() {
 
 void LiteralBuffer::ConvertToTwoByte() {
   DCHECK(is_one_byte());
-  base::Vector<byte> new_store;
+  base::Vector<uint8_t> new_store;
   int new_content_size = position_ * base::kUC16Size;
   if (new_content_size >= backing_store_.length()) {
     // Ensure room for all currently read code units as UC16 as well
     // as the code unit about to be stored.
-    new_store = base::Vector<byte>::New(NewCapacity(new_content_size));
+    new_store = base::Vector<uint8_t>::New(NewCapacity(new_content_size));
   } else {
     new_store = backing_store_;
   }

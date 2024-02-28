@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -85,6 +85,8 @@
 /* Easy to use macros for EVP_PKEY related selections */
 # define EVP_PKEY_KEY_PARAMETERS                                            \
     ( OSSL_KEYMGMT_SELECT_ALL_PARAMETERS )
+# define EVP_PKEY_PRIVATE_KEY                                               \
+    ( EVP_PKEY_KEY_PARAMETERS | OSSL_KEYMGMT_SELECT_PRIVATE_KEY )
 # define EVP_PKEY_PUBLIC_KEY                                                \
     ( EVP_PKEY_KEY_PARAMETERS | OSSL_KEYMGMT_SELECT_PUBLIC_KEY )
 # define EVP_PKEY_KEYPAIR                                                   \

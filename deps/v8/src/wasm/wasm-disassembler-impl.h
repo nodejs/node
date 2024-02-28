@@ -81,12 +81,14 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
 
   FunctionBodyDisassembler(Zone* zone, const WasmModule* module,
                            uint32_t func_index, WasmFeatures* detected,
-                           const FunctionSig* sig, const byte* start,
-                           const byte* end, uint32_t offset,
+                           const FunctionSig* sig, const uint8_t* start,
+                           const uint8_t* end, uint32_t offset,
+                           const ModuleWireBytes wire_bytes,
                            NamesProvider* names)
       : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
                                    sig, start, end, offset),
         func_index_(func_index),
+        wire_bytes_(wire_bytes),
         names_(names) {}
 
   void DecodeAsWat(MultiLineStringBuilder& out, Indentation indentation,
@@ -111,6 +113,7 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
   friend class ImmediatesPrinter<ValidationTag>;
   uint32_t func_index_;
   WasmOpcode current_opcode_ = kExprUnreachable;
+  const ModuleWireBytes wire_bytes_;
   NamesProvider* names_;
   std::set<uint32_t> used_types_;
   std::vector<LabelInfo> label_stack_;
@@ -132,9 +135,7 @@ class ModuleDisassembler {
   V8_EXPORT_PRIVATE ModuleDisassembler(
       MultiLineStringBuilder& out, const WasmModule* module,
       NamesProvider* names, const ModuleWireBytes wire_bytes,
-      AccountingAllocator* allocator,
-      // When non-nullptr, doubles as a sentinel that bytecode offsets should be
-      // stored for each line of disassembly.
+      AccountingAllocator* allocator, bool collect_offsets,
       std::vector<int>* function_body_offsets = nullptr);
   V8_EXPORT_PRIVATE ~ModuleDisassembler();
 
@@ -148,7 +149,7 @@ class ModuleDisassembler {
   void PrintExportName(ImportExportKindCode kind, uint32_t index);
   void PrintMutableType(bool mutability, ValueType type);
   void PrintTable(const WasmTable& table);
-  void PrintMemory();
+  void PrintMemory(const WasmMemory& memory);
   void PrintGlobal(const WasmGlobal& global);
   void PrintInitExpression(const ConstantExpression& init,
                            ValueType expected_type);
@@ -162,7 +163,7 @@ class ModuleDisassembler {
   const WasmModule* module_;
   NamesProvider* names_;
   const ModuleWireBytes wire_bytes_;
-  const byte* start_;
+  const uint8_t* start_;
   Zone zone_;
   std::unique_ptr<OffsetsProvider> offsets_;
   std::vector<int>* function_body_offsets_;

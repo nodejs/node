@@ -19,21 +19,16 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
+class FixedArray;
 class JSArrayBuffer;
-class JSReceiver;
 class WasmModuleObject;
 class WasmInstanceObject;
 class Zone;
 
-template <typename T>
-class Handle;
-template <typename T>
-class MaybeHandle;
-
 namespace wasm {
 class ErrorThrower;
 enum Suspend : bool;
+struct WasmModule;
 
 // Calls to Wasm imports are handled in several different ways, depending on the
 // type of the target function/callable and whether the signature matches the
@@ -88,7 +83,8 @@ constexpr ImportCallKind kDefaultImportCallKind =
 // is why the ultimate target is provided as well.
 class WasmImportData {
  public:
-  V8_EXPORT_PRIVATE WasmImportData(Handle<JSReceiver> callable,
+  V8_EXPORT_PRIVATE WasmImportData(Handle<WasmInstanceObject> instance,
+                                   int func_index, Handle<JSReceiver> callable,
                                    const wasm::FunctionSig* sig,
                                    uint32_t expected_canonical_type_index);
 
@@ -98,7 +94,9 @@ class WasmImportData {
   Handle<JSReceiver> callable() const { return callable_; }
 
  private:
-  ImportCallKind ComputeKind(const wasm::FunctionSig* expected_sig,
+  ImportCallKind ComputeKind(Handle<WasmInstanceObject> instance,
+                             int func_index,
+                             const wasm::FunctionSig* expected_sig,
                              uint32_t expected_canonical_type_index);
 
   ImportCallKind kind_;
@@ -119,6 +117,12 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 base::Optional<MessageTemplate> InitializeElementSegment(
     Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
     uint32_t segment_index);
+
+V8_EXPORT_PRIVATE void CreateMapForType(Isolate* isolate,
+                                        const WasmModule* module,
+                                        int type_index,
+                                        Handle<WasmInstanceObject> instance,
+                                        Handle<FixedArray> maps);
 
 }  // namespace wasm
 }  // namespace internal

@@ -36,8 +36,8 @@ class V8_EXPORT_PRIVATE FreeList {
   FreeList(const FreeList&) = delete;
   FreeList& operator=(const FreeList&) = delete;
 
-  FreeList(FreeList&& freelist) V8_NOEXCEPT;
-  FreeList& operator=(FreeList&& freelist) V8_NOEXCEPT;
+  FreeList(FreeList&& other) V8_NOEXCEPT;
+  FreeList& operator=(FreeList&& other) V8_NOEXCEPT;
 
   // Allocates entries which are at least of the provided size.
   Block Allocate(size_t);

@@ -1,0 +1,314 @@
+.TH "NPM-SBOM" "1" "January 2024" "" ""
+.SH "NAME"
+\fBnpm-sbom\fR - Generate a Software Bill of Materials (SBOM)
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm sbom
+.fi
+.RE
+.SS "Description"
+.P
+The \fBnpm sbom\fR command generates a Software Bill of Materials (SBOM) listing the dependencies for the current project. SBOMs can be generated in either \fBSPDX\fR \fI\(lahttps://spdx.dev/\(ra\fR or \fBCycloneDX\fR \fI\(lahttps://cyclonedx.org/\(ra\fR format.
+.SS "Example CycloneDX SBOM"
+.P
+.RS 2
+.nf
+{
+  "$schema": "http://cyclonedx.org/schema/bom-1.5.schema.json",
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:09f55116-97e1-49cf-b3b8-44d0207e7730",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2023-09-01T00:00:00.001Z",
+    "lifecycles": \[lB]
+      {
+        "phase": "build"
+      }
+    \[rB],
+    "tools": \[lB]
+      {
+        "vendor": "npm",
+        "name": "cli",
+        "version": "10.1.0"
+      }
+    \[rB],
+    "component": {
+      "bom-ref": "simple@1.0.0",
+      "type": "library",
+      "name": "simple",
+      "version": "1.0.0",
+      "scope": "required",
+      "author": "John Doe",
+      "description": "simple react app",
+      "purl": "pkg:npm/simple@1.0.0",
+      "properties": \[lB]
+        {
+          "name": "cdx:npm:package:path",
+          "value": ""
+        }
+      \[rB],
+      "externalReferences": \[lB]\[rB],
+      "licenses": \[lB]
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      \[rB]
+    }
+  },
+  "components": \[lB]
+    {
+      "bom-ref": "lodash@4.17.21",
+      "type": "library",
+      "name": "lodash",
+      "version": "4.17.21",
+      "scope": "required",
+      "author": "John-David Dalton",
+      "description": "Lodash modular utilities.",
+      "purl": "pkg:npm/lodash@4.17.21",
+      "properties": \[lB]
+        {
+          "name": "cdx:npm:package:path",
+          "value": "node_modules/lodash"
+        }
+      \[rB],
+      "externalReferences": \[lB]
+        {
+          "type": "distribution",
+          "url": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz"
+        },
+        {
+          "type": "vcs",
+          "url": "git+https://github.com/lodash/lodash.git"
+        },
+        {
+          "type": "website",
+          "url": "https://lodash.com/"
+        },
+        {
+          "type": "issue-tracker",
+          "url": "https://github.com/lodash/lodash/issues"
+        }
+      \[rB],
+      "hashes": \[lB]
+        {
+          "alg": "SHA-512",
+          "content": "bf690311ee7b95e713ba568322e3533f2dd1cb880b189e99d4edef13592b81764daec43e2c54c61d5c558dc5cfb35ecb85b65519e74026ff17675b6f8f916f4a"
+        }
+      \[rB],
+      "licenses": \[lB]
+        {
+          "license": {
+            "id": "MIT"
+          }
+        }
+      \[rB]
+    }
+  \[rB],
+  "dependencies": \[lB]
+    {
+      "ref": "simple@1.0.0",
+      "dependsOn": \[lB]
+        "lodash@4.17.21"
+      \[rB]
+    },
+    {
+      "ref": "lodash@4.17.21",
+      "dependsOn": \[lB]\[rB]
+    }
+  \[rB]
+}
+.fi
+.RE
+.SS "Example SPDX SBOM"
+.P
+.RS 2
+.nf
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "simple@1.0.0",
+  "documentNamespace": "http://spdx.org/spdxdocs/simple-1.0.0-bf81090e-8bbc-459d-bec9-abeb794e096a",
+  "creationInfo": {
+    "created": "2023-09-01T00:00:00.001Z",
+    "creators": \[lB]
+      "Tool: npm/cli-10.1.0"
+    \[rB]
+  },
+  "documentDescribes": \[lB]
+    "SPDXRef-Package-simple-1.0.0"
+  \[rB],
+  "packages": \[lB]
+    {
+      "name": "simple",
+      "SPDXID": "SPDXRef-Package-simple-1.0.0",
+      "versionInfo": "1.0.0",
+      "packageFileName": "",
+      "description": "simple react app",
+      "primaryPackagePurpose": "LIBRARY",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "homepage": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "externalRefs": \[lB]
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/simple@1.0.0"
+        }
+      \[rB]
+    },
+    {
+      "name": "lodash",
+      "SPDXID": "SPDXRef-Package-lodash-4.17.21",
+      "versionInfo": "4.17.21",
+      "packageFileName": "node_modules/lodash",
+      "description": "Lodash modular utilities.",
+      "downloadLocation": "https://registry.npmjs.org/lodash/-/lodash-4.17.21.tgz",
+      "filesAnalyzed": false,
+      "homepage": "https://lodash.com/",
+      "licenseDeclared": "MIT",
+      "externalRefs": \[lB]
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:npm/lodash@4.17.21"
+        }
+      \[rB],
+      "checksums": \[lB]
+        {
+          "algorithm": "SHA512",
+          "checksumValue": "bf690311ee7b95e713ba568322e3533f2dd1cb880b189e99d4edef13592b81764daec43e2c54c61d5c558dc5cfb35ecb85b65519e74026ff17675b6f8f916f4a"
+        }
+      \[rB]
+    }
+  \[rB],
+  "relationships": \[lB]
+    {
+      "spdxElementId": "SPDXRef-DOCUMENT",
+      "relatedSpdxElement": "SPDXRef-Package-simple-1.0.0",
+      "relationshipType": "DESCRIBES"
+    },
+    {
+      "spdxElementId": "SPDXRef-Package-simple-1.0.0",
+      "relatedSpdxElement": "SPDXRef-Package-lodash-4.17.21",
+      "relationshipType": "DEPENDS_ON"
+    }
+  \[rB]
+}
+.fi
+.RE
+.SS "Package lock only mode"
+.P
+If package-lock-only is enabled, only the information in the package lock (or shrinkwrap) is loaded. This means that information from the package.json files of your dependencies will not be included in the result set (e.g. description, homepage, engines).
+.SS "Configuration"
+.SS "\fBomit\fR"
+.RS 0
+.IP \(bu 4
+Default: 'dev' if the \fBNODE_ENV\fR environment variable is set to 'production', otherwise empty.
+.IP \(bu 4
+Type: "dev", "optional", or "peer" (can be set multiple times)
+.RE 0
+
+.P
+Dependency types to omit from the installation tree on disk.
+.P
+Note that these dependencies \fIare\fR still resolved and added to the \fBpackage-lock.json\fR or \fBnpm-shrinkwrap.json\fR file. They are just not physically installed on disk.
+.P
+If a package type appears in both the \fB--include\fR and \fB--omit\fR lists, then it will be included.
+.P
+If the resulting omit list includes \fB'dev'\fR, then the \fBNODE_ENV\fR environment variable will be set to \fB'production'\fR for all lifecycle scripts.
+.SS "\fBpackage-lock-only\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+If set to true, the current operation will only use the \fBpackage-lock.json\fR, ignoring \fBnode_modules\fR.
+.P
+For \fBupdate\fR this means only the \fBpackage-lock.json\fR will be updated, instead of checking \fBnode_modules\fR and downloading dependencies.
+.P
+For \fBlist\fR this means the output will be based on the tree described by the \fBpackage-lock.json\fR, rather than the contents of \fBnode_modules\fR.
+.SS "\fBsbom-format\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: "cyclonedx" or "spdx"
+.RE 0
+
+.P
+SBOM format to use when generating SBOMs.
+.SS "\fBsbom-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "library"
+.IP \(bu 4
+Type: "library", "application", or "framework"
+.RE 0
+
+.P
+The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR field. For CycloneDX, this is the value for the \fBtype\fR field.
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SH "SEE ALSO"
+.RS 0
+.IP \(bu 4
+npm help "package spec"
+.IP \(bu 4
+npm help "dependency selectors"
+.IP \(bu 4
+\fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
+.IP \(bu 4
+npm help workspaces
+.RE 0

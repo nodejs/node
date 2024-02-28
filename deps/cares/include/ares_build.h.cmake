@@ -1,5 +1,9 @@
 #ifndef __CARES_BUILD_H
 #define __CARES_BUILD_H
+/*
+ * Copyright (C) The c-ares project and its contributors
+ * SPDX-License-Identifier: MIT
+ */
 
 #define CARES_TYPEOF_ARES_SOCKLEN_T @CARES_TYPEOF_ARES_SOCKLEN_T@
 #define CARES_TYPEOF_ARES_SSIZE_T @CARES_TYPEOF_ARES_SSIZE_T@

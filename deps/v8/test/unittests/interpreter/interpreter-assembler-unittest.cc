@@ -492,40 +492,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    TNode<HeapObject> feedback_vector = m.LoadFeedbackVector();
-
-    // Feedback vector is a phi node with two inputs. One of them is loading the
-    // feedback vector and the other is undefined constant (when feedback
-    // vectors aren't allocated). Find the input that loads feedback vector.
-    CHECK_EQ(static_cast<c::Node*>(feedback_vector)->opcode(),
-             i::compiler::IrOpcode::kPhi);
-    c::Node* value0 =
-        i::compiler::NodeProperties::GetValueInput(feedback_vector, 0);
-    c::Node* value1 =
-        i::compiler::NodeProperties::GetValueInput(feedback_vector, 1);
-    c::Node* load_feedback_vector = value0;
-    if (value0->opcode() == i::compiler::IrOpcode::kHeapConstant) {
-      load_feedback_vector = value1;
-    }
-
-    Matcher<c::Node*> load_function_matcher = IsBitcastWordToTagged(
-        m.IsLoad(MachineType::Pointer(), c::IsLoadParentFramePointer(),
-                 c::IsIntPtrConstant(Register::function_closure().ToOperand() *
-                                     kSystemPointerSize)));
-    Matcher<c::Node*> load_vector_cell_matcher = m.IsLoadFromObject(
-        MachineType::TaggedPointer(), load_function_matcher,
-        c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
-    EXPECT_THAT(load_feedback_vector,
-                m.IsLoadFromObject(
-                    MachineType::TaggedPointer(), load_vector_cell_matcher,
-                    c::IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
-  }
-}
-
 }  // namespace interpreter_assembler_unittest
 }  // namespace interpreter
 }  // namespace internal

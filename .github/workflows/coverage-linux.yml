@@ -3,23 +3,27 @@ name: Coverage Linux
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/*
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
-      - benchmark/**
-      - deps/**
-      - doc/**
-      - .github/**
-      - '!.github/workflows/coverage-linux.yml'
+    paths:
+      - lib/**/*.js
+      - Makefile
+      - src/**/*.cc
+      - src/**/*.h
+      - test/**
+      - tools/gyp/**
+      - tools/test.py
+      - .github/workflows/coverage-linux.yml
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -37,11 +41,11 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744  # v3.6.0
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -49,11 +53,11 @@ jobs:
       - name: Install gcovr
         run: pip install gcovr==4.2
       - name: Build
-        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
+        run: make build-ci -j4 V=1 CONFIG_FLAGS="--error-on-warn --coverage"
       # TODO(bcoe): fix the couple tests that fail with the inspector enabled.
       # The cause is most likely coverage's use of the inspector.
       - name: Test
-        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j2 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9" || exit 0
+        run: NODE_V8_COVERAGE=coverage/tmp make test-cov -j4 V=1 TEST_CI_ARGS="-p dots --node-args='--test-reporter=spec' --measure-flakiness 9" || exit 0
       - name: Report JS
         run: npx c8 report --check-coverage
         env:
@@ -64,6 +68,6 @@ jobs:
       - name: Clean tmp
         run: rm -rf coverage/tmp && rm -rf out
       - name: Upload
-        uses: codecov/codecov-action@eaaf4bedf32dbdc6b720b63067d99c4d77d6047d  # v3.1.4
+        uses: codecov/codecov-action@e0b68c6749509c5f83f984dd99a76a1c1a231044  # v4.0.1
         with:
           directory: ./coverage

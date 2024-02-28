@@ -203,7 +203,6 @@ declare namespace primordials {
   export const DatePrototypeToTimeString: UncurryThis<typeof Date.prototype.toTimeString>
   export const DatePrototypeToISOString: UncurryThis<typeof Date.prototype.toISOString>
   export const DatePrototypeToUTCString: UncurryThis<typeof Date.prototype.toUTCString>
-  export const DatePrototypeToGMTString: UncurryThis<typeof Date.prototype.toGMTString>
   export const DatePrototypeGetDate: UncurryThis<typeof Date.prototype.getDate>
   export const DatePrototypeSetDate: UncurryThis<typeof Date.prototype.setDate>
   export const DatePrototypeGetDay: UncurryThis<typeof Date.prototype.getDay>
@@ -238,8 +237,6 @@ declare namespace primordials {
   export const DatePrototypeGetUTCSeconds: UncurryThis<typeof Date.prototype.getUTCSeconds>
   export const DatePrototypeSetUTCSeconds: UncurryThis<typeof Date.prototype.setUTCSeconds>
   export const DatePrototypeValueOf: UncurryThis<typeof Date.prototype.valueOf>
-  export const DatePrototypeGetYear: UncurryThis<typeof Date.prototype.getYear>
-  export const DatePrototypeSetYear: UncurryThis<typeof Date.prototype.setYear>
   export const DatePrototypeToJSON: UncurryThis<typeof Date.prototype.toJSON>
   export const DatePrototypeToLocaleString: UncurryThis<typeof Date.prototype.toLocaleString>
   export const DatePrototypeToLocaleDateString: UncurryThis<typeof Date.prototype.toLocaleDateString>
@@ -247,8 +244,8 @@ declare namespace primordials {
   export const DatePrototypeSymbolToPrimitive: UncurryMethod<typeof Date.prototype, typeof Symbol.toPrimitive>;
   export import Error = globalThis.Error;
   export const ErrorPrototype: typeof Error.prototype
+  // @ts-ignore
   export const ErrorCaptureStackTrace: typeof Error.captureStackTrace
-  export const ErrorStackTraceLimit: typeof Error.stackTraceLimit
   export const ErrorPrototypeToString: UncurryThis<typeof Error.prototype.toString>
   export import EvalError = globalThis.EvalError;
   export const EvalErrorPrototype: typeof EvalError.prototype
@@ -332,11 +329,7 @@ declare namespace primordials {
   export const ObjectEntries: typeof Object.entries
   export const ObjectFromEntries: typeof Object.fromEntries
   export const ObjectValues: typeof Object.values
-  export const ObjectPrototype__defineGetter__: UncurryThis<typeof Object.prototype.__defineGetter__>
-  export const ObjectPrototype__defineSetter__: UncurryThis<typeof Object.prototype.__defineSetter__>
   export const ObjectPrototypeHasOwnProperty: UncurryThis<typeof Object.prototype.hasOwnProperty>
-  export const ObjectPrototype__lookupGetter__: UncurryThis<typeof Object.prototype.__lookupGetter__>
-  export const ObjectPrototype__lookupSetter__: UncurryThis<typeof Object.prototype.__lookupSetter__>
   export const ObjectPrototypeIsPrototypeOf: UncurryThis<typeof Object.prototype.isPrototypeOf>
   export const ObjectPrototypePropertyIsEnumerable: UncurryThis<typeof Object.prototype.propertyIsEnumerable>
   export const ObjectPrototypeToString: UncurryThis<typeof Object.prototype.toString>
@@ -427,6 +420,7 @@ declare namespace primordials {
   export const StringPrototypeToLocaleUpperCase: UncurryThis<typeof String.prototype.toLocaleUpperCase>
   export const StringPrototypeToLowerCase: UncurryThis<typeof String.prototype.toLowerCase>
   export const StringPrototypeToUpperCase: UncurryThis<typeof String.prototype.toUpperCase>
+  export const StringPrototypeToWellFormed: UncurryThis<typeof String.prototype.toWellFormed>
   export const StringPrototypeValueOf: UncurryThis<typeof String.prototype.valueOf>
   export const StringPrototypeReplaceAll: UncurryThis<typeof String.prototype.replaceAll>
   export import Symbol = globalThis.Symbol;
@@ -434,8 +428,8 @@ declare namespace primordials {
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
-  export const SymbolDispose: typeof Symbol // TODO(MoLow): use typeof Symbol.dispose when it's available
-  export const SymbolAsyncDispose: typeof Symbol // TODO(MoLow): use typeof Symbol.asyncDispose when it's available
+  export const SymbolDispose: typeof Symbol.dispose
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator

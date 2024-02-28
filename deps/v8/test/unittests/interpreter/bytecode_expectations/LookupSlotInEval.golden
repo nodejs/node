@@ -23,7 +23,7 @@ bytecodes: [
   /*   24 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -47,7 +47,7 @@ bytecodes: [
   /*   23 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -71,7 +71,7 @@ bytecodes: [
   /*   37 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]
@@ -94,7 +94,7 @@ bytecodes: [
   /*   31 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["x"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["x"],
 ]
 handlers: [
 ]

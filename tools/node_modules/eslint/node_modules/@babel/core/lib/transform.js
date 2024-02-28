@@ -13,15 +13,15 @@ function _gensync() {
   };
   return data;
 }
-var _config = require("./config");
-var _transformation = require("./transformation");
-var _rewriteStackTrace = require("./errors/rewrite-stack-trace");
+var _index = require("./config/index.js");
+var _index2 = require("./transformation/index.js");
+var _rewriteStackTrace = require("./errors/rewrite-stack-trace.js");
 const transformRunner = _gensync()(function* transform(code, opts) {
-  const config = yield* (0, _config.default)(opts);
+  const config = yield* (0, _index.default)(opts);
   if (config === null) return null;
-  return yield* (0, _transformation.run)(config, code);
+  return yield* (0, _index2.run)(config, code);
 });
-const transform = function transform(code, optsOrCallback, maybeCallback) {
+const transform = exports.transform = function transform(code, optsOrCallback, maybeCallback) {
   let opts;
   let callback;
   if (typeof optsOrCallback === "function") {
@@ -38,7 +38,6 @@ const transform = function transform(code, optsOrCallback, maybeCallback) {
   }
   (0, _rewriteStackTrace.beginHiddenCallStack)(transformRunner.errback)(code, opts, callback);
 };
-exports.transform = transform;
 function transformSync(...args) {
   return (0, _rewriteStackTrace.beginHiddenCallStack)(transformRunner.sync)(...args);
 }

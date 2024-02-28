@@ -4,8 +4,8 @@
 
 namespace reflect {
 // ES6 section 26.1.10 Reflect.isExtensible
-transitioning javascript builtin
-ReflectIsExtensible(js-implicit context: NativeContext)(object: JSAny): JSAny {
+transitioning javascript builtin ReflectIsExtensible(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.isExtensible');
@@ -13,9 +13,8 @@ ReflectIsExtensible(js-implicit context: NativeContext)(object: JSAny): JSAny {
 }
 
 // ES6 section 26.1.12 Reflect.preventExtensions
-transitioning javascript builtin
-ReflectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
-    JSAny {
+transitioning javascript builtin ReflectPreventExtensions(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.preventExtensions');
@@ -23,9 +22,8 @@ ReflectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
 }
 
 // ES6 section 26.1.8 Reflect.getPrototypeOf
-transitioning javascript builtin
-ReflectGetPrototypeOf(js-implicit context: NativeContext)(object: JSAny):
-    JSAny {
+transitioning javascript builtin ReflectGetPrototypeOf(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.getPrototypeOf');
@@ -41,9 +39,9 @@ transitioning javascript builtin ReflectSetPrototypeOf(
 
   // Wasm objects do not support having prototypes.
   @if(V8_ENABLE_WEBASSEMBLY)
-  if (Is<WasmObject>(objectJSReceiver)) {
-    ThrowTypeError(MessageTemplate::kWasmObjectsAreOpaque);
-  }
+    if (Is<WasmObject>(objectJSReceiver)) {
+      ThrowTypeError(MessageTemplate::kWasmObjectsAreOpaque);
+    }
 
   typeswitch (proto) {
     case (proto: JSReceiver|Null): {
@@ -55,17 +53,16 @@ transitioning javascript builtin ReflectSetPrototypeOf(
   }
 }
 
-extern transitioning builtin ToName(implicit context: Context)(JSAny): AnyName;
 type OnNonExistent constexpr 'OnNonExistent';
 const kReturnUndefined: constexpr OnNonExistent
     generates 'OnNonExistent::kReturnUndefined';
 extern macro SmiConstant(constexpr OnNonExistent): Smi;
-extern transitioning builtin GetPropertyWithReceiver(implicit context: Context)(
-    JSAny, Name, JSAny, Smi): JSAny;
+extern transitioning builtin GetPropertyWithReceiver(
+    implicit context: Context)(JSAny, Name, JSAny, Smi): JSAny;
 
 // ES6 section 26.1.6 Reflect.get
-transitioning javascript builtin
-ReflectGet(js-implicit context: NativeContext)(...arguments): JSAny {
+transitioning javascript builtin ReflectGet(
+    js-implicit context: NativeContext)(...arguments): JSAny {
   const object: JSAny = arguments[0];
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Reflect.get');
@@ -87,9 +84,8 @@ transitioning javascript builtin ReflectDeleteProperty(
 }
 
 // ES section #sec-reflect.has
-transitioning javascript builtin
-ReflectHas(js-implicit context: NativeContext)(
-    object: JSAny, key: JSAny): JSAny {
+transitioning javascript builtin ReflectHas(
+    js-implicit context: NativeContext)(object: JSAny, key: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object)
       otherwise ThrowTypeError(MessageTemplate::kCalledOnNonObject, 'Reflect.has');
   return HasProperty(objectJSReceiver, key);
@@ -99,9 +95,9 @@ extern transitioning builtin GetOwnPropertyDescriptor(
     implicit context: Context)(JSAny, Name): JSAny;
 
 // ES6 section 26.1.7 Reflect.getOwnPropertyDescriptor
-transitioning javascript builtin
-ReflectGetOwnPropertyDescriptor(js-implicit context: NativeContext)(
-    target: JSAny, propertyKey: JSAny): JSAny {
+transitioning javascript builtin ReflectGetOwnPropertyDescriptor(
+    js-implicit context: NativeContext)(target: JSAny,
+    propertyKey: JSAny): JSAny {
   const targetReceiver = Cast<JSReceiver>(target)
       otherwise ThrowTypeError(
       MessageTemplate::kCalledOnNonObject, 'Reflect.getOwnPropertyDescriptor');

@@ -30,7 +30,7 @@ function _helperCompilationTargets() {
   };
   return data;
 }
-var _options = require("./options");
+var _options = require("./options.js");
 function msg(loc) {
   switch (loc.type) {
     case "root":
@@ -132,7 +132,7 @@ function assertArray(loc, value) {
 }
 function assertIgnoreList(loc, value) {
   const arr = assertArray(loc, value);
-  arr == null ? void 0 : arr.forEach((item, i) => assertIgnoreItem(access(loc, i), item));
+  arr == null || arr.forEach((item, i) => assertIgnoreItem(access(loc, i), item));
   return arr;
 }
 function assertIgnoreItem(loc, value) {

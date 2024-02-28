@@ -83,7 +83,6 @@ if /i "%1"=="ia32"          set target_arch=x86&goto arg-ok
 if /i "%1"=="x86"           set target_arch=x86&goto arg-ok
 if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
 if /i "%1"=="arm64"         set target_arch=arm64&goto arg-ok
-if /i "%1"=="vs2019"        set target_env=vs2019&goto arg-ok
 if /i "%1"=="vs2022"        set target_env=vs2022&goto arg-ok
 if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
 if /i "%1"=="projgen"       set projgen=1&goto arg-ok
@@ -176,7 +175,6 @@ if defined package set stage_package=1
 set "node_exe=%config%\node.exe"
 set "node_gyp_exe="%node_exe%" deps\npm\node_modules\node-gyp\bin\node-gyp"
 set "npm_exe="%~dp0%node_exe%" %~dp0deps\npm\bin\npm-cli.js"
-if "%target_env%"=="vs2019" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2019"
 if "%target_env%"=="vs2022" set "node_gyp_exe=%node_gyp_exe% --msvs_version=2022"
 
 :: skip building if the only argument received was lint
@@ -246,14 +244,14 @@ if %target_arch%==%msvs_host_arch% set vcvarsall_arg=%target_arch%
 
 @rem Look for Visual Studio 2022
 :vs-set-2022
-if defined target_env if "%target_env%" NEQ "vs2022" goto vs-set-2019
+if defined target_env if "%target_env%" NEQ "vs2022" goto msbuild-not-found
 echo Looking for Visual Studio 2022
 @rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
 @rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
 @rem detect the version searched for
 if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[17.0,18.0)" %target_arch% "prerelease"
-if "_%VCINSTALLDIR%_" == "__" goto vs-set-2019
+call tools\msvs\vswhere_usability_wrapper.cmd "[17.6,18.0)" %target_arch% "prerelease"
+if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
 @rem check if VS2022 is already setup, and for the requested arch
 if "_%VisualStudioVersion%_" == "_17.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2022
 @rem need to clear VSINSTALLDIR for vcvarsall to work as expected
@@ -263,39 +261,12 @@ set "VSCMD_START_DIR=%CD%"
 set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
 echo calling: %vcvars_call%
 call %vcvars_call%
-if errorlevel 1 goto vs-set-2019
+if errorlevel 1 goto msbuild-not-found
 if defined DEBUG_HELPER @ECHO ON
 :found_vs2022
 echo Found MSVS version %VisualStudioVersion%
 set GYP_MSVS_VERSION=2022
 set PLATFORM_TOOLSET=v143
-goto msbuild-found
-
-@rem Look for Visual Studio 2019
-:vs-set-2019
-if defined target_env if "%target_env%" NEQ "vs2019" goto msbuild-not-found
-echo Looking for Visual Studio 2019
-@rem VCINSTALLDIR may be set if run from a VS Command Prompt and needs to be
-@rem cleared first as vswhere_usability_wrapper.cmd doesn't when it fails to
-@rem detect the version searched for
-if not defined target_env set "VCINSTALLDIR="
-call tools\msvs\vswhere_usability_wrapper.cmd "[16.0,17.0)" %target_arch% "prerelease"
-if "_%VCINSTALLDIR%_" == "__" goto msbuild-not-found
-@rem check if VS2019 is already setup, and for the requested arch
-if "_%VisualStudioVersion%_" == "_16.0_" if "_%VSCMD_ARG_TGT_ARCH%_"=="_%target_arch%_" goto found_vs2019
-@rem need to clear VSINSTALLDIR for vcvarsall to work as expected
-set "VSINSTALLDIR="
-@rem prevent VsDevCmd.bat from changing the current working directory
-set "VSCMD_START_DIR=%CD%"
-set vcvars_call="%VCINSTALLDIR%\Auxiliary\Build\vcvarsall.bat" %vcvarsall_arg%
-echo calling: %vcvars_call%
-call %vcvars_call%
-if errorlevel 1 goto msbuild-not-found
-if defined DEBUG_HELPER @ECHO ON
-:found_vs2019
-echo Found MSVS version %VisualStudioVersion%
-set GYP_MSVS_VERSION=2019
-set PLATFORM_TOOLSET=v142
 goto msbuild-found
 
 :msbuild-not-found
@@ -366,7 +337,8 @@ if errorlevel 1 (
 if "%target%" == "Clean" goto exit
 
 :after-build
-rd %config%
+:: Check existence of %config% before removing it.
+if exist %config% rd %config%
 if errorlevel 1 echo "Old build output exists at 'out\%config%'. Please remove." & exit /B
 :: Use /J because /D (symlink) requires special permissions.
 if EXIST out\%config% mklink /J %config% out\%config%
@@ -457,10 +429,8 @@ if defined dll (
   copy /Y node.def %TARGET_NAME%\Release\ > nul
   if errorlevel 1 echo Cannot copy node.def && goto package_error
 
-  set HEADERS_ONLY=1
-  python ..\tools\install.py install %CD%\%TARGET_NAME% \ > nul
+  python ..\tools\install.py install --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only --silent
   if errorlevel 1 echo Cannot install headers && goto package_error
-  set HEADERS_ONLY=
 )
 cd ..
 
@@ -588,8 +558,7 @@ for /d %%F in (test\addons\??_*) do (
 if %errorlevel% neq 0 exit /b %errorlevel%
 :: building addons
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\addons"
+python "%~dp0tools\build_addons.py" "%~dp0test\addons"
 if errorlevel 1 exit /b 1
 endlocal
 
@@ -606,8 +575,7 @@ for /d %%F in (test\js-native-api\??_*) do (
 )
 :: building js-native-api
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\js-native-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\js-native-api"
 if errorlevel 1 exit /b 1
 endlocal
 goto build-node-api-tests
@@ -625,8 +593,7 @@ for /d %%F in (test\node-api\??_*) do (
 )
 :: building node-api
 setlocal
-set npm_config_nodedir=%~dp0
-"%node_exe%" "%~dp0tools\build-addons.mjs" "%~dp0deps\npm\node_modules\node-gyp\bin\node-gyp.js" "%~dp0test\node-api"
+python "%~dp0tools\build_addons.py" "%~dp0test\node-api"
 if errorlevel 1 exit /b 1
 endlocal
 goto run-tests
@@ -740,7 +707,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2019/vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build

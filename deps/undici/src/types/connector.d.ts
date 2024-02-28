@@ -6,6 +6,7 @@ declare function buildConnector (options?: buildConnector.BuildOptions): buildCo
 
 declare namespace buildConnector {
   export type BuildOptions = (ConnectionOptions | TcpNetConnectOpts | IpcNetConnectOpts) & {
+    allowH2?: boolean;
     maxCachedSessions?: number | null;
     socketPath?: string | null;
     timeout?: number | null;

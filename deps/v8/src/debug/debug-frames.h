@@ -70,12 +70,13 @@ class RedirectActiveFunctions : public ThreadVisitor {
     kUseDebugBytecode,
   };
 
-  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
+  RedirectActiveFunctions(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                          Mode mode);
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
 
  private:
-  SharedFunctionInfo shared_;
+  Tagged<SharedFunctionInfo> shared_;
   Mode mode_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };

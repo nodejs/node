@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --experimental-wasm-gc --no-liftoff --no-wasm-lazy-compilation
-// Flags: --no-wasm-inlining --no-wasm-speculative-inlining
+// Flags: --no-experimental-wasm-inlining
 
 // This tests are meant to examine if Turbofan CsaLoadElimination works
 // correctly for wasm. The TurboFan graphs can be examined with --trace-turbo.
@@ -456,7 +456,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     .addLocals(kWasmI32, 1)
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprRefTestDeprecated, sub_struct,
+      kGCPrefix, kExprRefTest, sub_struct,
 
       // These casts have to be preserved.
       kExprLocalGet, 0,
@@ -476,7 +476,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprBlock, kWasmRefNull, super_struct,
           kExprLocalGet, 0,
           // This should also get optimized away.
-          kGCPrefix, kExprBrOnCastFail, 0, mid_struct,
+          kGCPrefix, kExprBrOnCastFailGeneric, 0b11, 0, super_struct,
+              mid_struct,
           // So should this, despite being represented by a TypeGuard alias.
           kGCPrefix, kExprRefCast, sub_struct,
           kGCPrefix, kExprStructGet, sub_struct, 1,
@@ -561,8 +562,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
       // local.get 0 is known to be null until end of block.
       kExprLocalGet, 0,
       // This cast is a no-op and shold be optimized away.
-      // TODO(7748): Replace with "ref.cast null".
-      kGCPrefix, kExprRefCastDeprecated, struct_b,
+      kGCPrefix, kExprRefCastNull, struct_b,
       kExprEnd,
       kExprRefIsNull,
     ]);
@@ -599,7 +599,6 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   builder.addFunction("main", makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([kExprLocalGet, 0, kGCPrefix, kExprExternInternalize,
-              kGCPrefix, kExprRefAsStruct,
               kGCPrefix, kExprRefCast, struct_a,
               kExprCallFunction, callee.index])
     .exportFunc();

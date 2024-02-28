@@ -71,11 +71,11 @@ class V8_EXPORT_PRIVATE GlobalHandles final {
   ~GlobalHandles();
 
   // Creates a new global handle that is alive until Destroy is called.
-  Handle<Object> Create(Object value);
+  Handle<Object> Create(Tagged<Object> value);
   Handle<Object> Create(Address value);
 
   template <typename T>
-  inline Handle<T> Create(T value);
+  inline Handle<T> Create(Tagged<T> value);
 
   void RecordStats(HeapStats* stats);
 
@@ -197,7 +197,8 @@ class EternalHandles final {
   EternalHandles& operator=(const EternalHandles&) = delete;
 
   // Create an EternalHandle, overwriting the index.
-  V8_EXPORT_PRIVATE void Create(Isolate* isolate, Object object, int* index);
+  V8_EXPORT_PRIVATE void Create(Isolate* isolate, Tagged<Object> object,
+                                int* index);
 
   // Grab the handle for an existing EternalHandle.
   inline Handle<Object> Get(int index) {
@@ -250,7 +251,7 @@ class GlobalHandleVector {
     bool operator==(const Iterator& that) const { return it_ == that.it_; }
     bool operator!=(const Iterator& that) const { return it_ != that.it_; }
 
-    T raw() { return T::cast(Object(*it_)); }
+    Tagged<T> raw() { return T::cast(Tagged<Object>(*it_)); }
 
    private:
     std::vector<Address, StrongRootBlockAllocator>::iterator it_;
@@ -265,10 +266,10 @@ class GlobalHandleVector {
   size_t size() const { return locations_.size(); }
   bool empty() const { return locations_.empty(); }
 
-  void Push(T val) { locations_.push_back(val.ptr()); }
+  void Push(Tagged<T> val) { locations_.push_back(val.ptr()); }
   // Handles into the GlobalHandleVector become invalid when they are removed,
   // so "pop" returns a raw object rather than a handle.
-  inline T Pop();
+  inline Tagged<T> Pop();
 
   Iterator begin() { return Iterator(locations_.begin()); }
   Iterator end() { return Iterator(locations_.end()); }

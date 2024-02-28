@@ -108,6 +108,7 @@ exports.assertImport = assertImport;
 exports.assertImportAttribute = assertImportAttribute;
 exports.assertImportDeclaration = assertImportDeclaration;
 exports.assertImportDefaultSpecifier = assertImportDefaultSpecifier;
+exports.assertImportExpression = assertImportExpression;
 exports.assertImportNamespaceSpecifier = assertImportNamespaceSpecifier;
 exports.assertImportOrExportDeclaration = assertImportOrExportDeclaration;
 exports.assertImportSpecifier = assertImportSpecifier;
@@ -306,8 +307,8 @@ exports.assertWhile = assertWhile;
 exports.assertWhileStatement = assertWhileStatement;
 exports.assertWithStatement = assertWithStatement;
 exports.assertYieldExpression = assertYieldExpression;
-var _is = require("../../validators/is");
-var _deprecationWarning = require("../../utils/deprecationWarning");
+var _is = require("../../validators/is.js");
+var _deprecationWarning = require("../../utils/deprecationWarning.js");
 function assert(type, node, opts) {
   if (!(0, _is.default)(type, node, opts)) {
     throw new Error(`Expected type "${type}" with option ${JSON.stringify(opts)}, ` + `but instead got "${node.type}".`);
@@ -510,6 +511,9 @@ function assertImportNamespaceSpecifier(node, opts) {
 }
 function assertImportSpecifier(node, opts) {
   assert("ImportSpecifier", node, opts);
+}
+function assertImportExpression(node, opts) {
+  assert("ImportExpression", node, opts);
 }
 function assertMetaProperty(node, opts) {
   assert("MetaProperty", node, opts);

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --shared-string-table --harmony-struct --allow-natives-syntax
+// Flags: --shared-string-table --harmony-struct
 
 "use strict";
 
@@ -38,4 +38,47 @@ if (this.Worker) {
   worker.terminate();
 })();
 
+(function TestCompareExchange() {
+  // Test that we can perform compareExchange simultaneously on 2 threads.
+  // One thread will update the value only after the other thread has
+  // performed an update.
+
+  const ST = new SharedStructType(['field']);
+  const s1 = new ST();
+  const s = new ST();
+
+  // Odd number of values so the main thread perfoms the last compareExchange.
+  let testValues =
+      [0, 1.5, undefined, null, true, false, 'foo', s1, new SharedArray(1)];
+  let sharedtestValues = new SharedArray(testValues.length);
+  Object.assign(sharedtestValues, testValues);
+
+  let workerScript = `onmessage = function(e) {
+    const s = e[0];
+    let i = 0;
+    const testValues = e[1];
+    while(i < testValues.length - 1) {
+      let value = testValues[i];
+      let nextValue = testValues[i+1];
+      if (value === Atomics.compareExchange(s, 'field', value, nextValue)) {
+        i += 2;
+      }
+    }
+  }`
+
+  let worker = new Worker(workerScript, {type: 'string'});
+  worker.postMessage([s, sharedtestValues]);
+  s.field = testValues[0];
+  let i = 1;
+  while (i < testValues.length - 1) {
+    let value = testValues[i];
+    let nextValue = testValues[i + 1];
+    if (value === Atomics.compareExchange(s, 'field', value, nextValue)) {
+      i += 2;
+    }
+  }
+
+  assertEquals(testValues[testValues.length - 1], s.field);
+  worker.terminate();
+})();
 }

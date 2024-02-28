@@ -509,6 +509,20 @@ variable will be set to `'production'` for all lifecycle scripts.
 
 
 
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
+
+
+
 #### `strict-peer-deps`
 
 * Default: false
@@ -663,6 +677,16 @@ are same as `cpu` field of package.json, which comes from `process.arch`.
 
 Override OS of native modules to install. Acceptable values are same as `os`
 field of package.json, which comes from `process.platform`.
+
+
+
+#### `libc`
+
+* Default: null
+* Type: null or String
+
+Override libc of native modules to install. Acceptable values are same as
+`libc` field of package.json
 
 
 

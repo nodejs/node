@@ -65,6 +65,18 @@ class JSDurationFormat
     kMax = kDigital
   };
 
+  // To optimize per object memory usage, we use 2 bits
+  // to store one of the four possible time separators encoded in
+  // icu/source/data/locales/$locale/NumberElements/$numberingSystem/timeSeparator
+  enum class Separator {
+    kColon,                   // U+003A
+    kFullStop,                // U+002E
+    kFullwidthColon,          // U+FF1A
+    kArabicDecimalSeparator,  // U+066B
+
+    kMax = kArabicDecimalSeparator
+  };
+
   // The ordering of these values is significant, because sub-ranges are
   // encoded using bitfields.
   enum class FieldStyle {
@@ -81,7 +93,7 @@ class JSDurationFormat
   };
 
 #define DECLARE_INLINE_SETTER_GETTER(T, n) \
-  inline void set_##n(T display);          \
+  inline void set_##n(T);                  \
   inline T n() const;
 
 #define DECLARE_INLINE_DISPLAY_SETTER_GETTER(f) \
@@ -102,6 +114,7 @@ class JSDurationFormat
   DECLARE_INLINE_DISPLAY_SETTER_GETTER(nanoseconds)
 
   DECLARE_INLINE_SETTER_GETTER(Style, style)
+  DECLARE_INLINE_SETTER_GETTER(Separator, separator)
 
   DECLARE_INLINE_FIELD_STYLE_SETTER_GETTER(years)
   DECLARE_INLINE_FIELD_STYLE_SETTER_GETTER(months)
@@ -118,6 +131,9 @@ class JSDurationFormat
 #undef DECLARE_INLINE_STYLE_SETTER_GETTER
 #undef DECLARE_INLINE_FIELD_STYLE_SETTER_GETTER
 
+  // Since we store the fractional_digits in 4 bits but only use 0-9 as valid
+  // value. We use value 15 (max of 4 bits) to denote "undefined".
+  static const uint32_t kUndefinedFractionalDigits = 15;
   inline void set_fractional_digits(int32_t digits);
   inline int32_t fractional_digits() const;
 
@@ -149,9 +165,9 @@ class JSDurationFormat
   static_assert(MicrosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
   static_assert(NanosecondsStyleBits::is_valid(FieldStyle::kStyle4Max));
 
-  DECL_ACCESSORS(icu_locale, Managed<icu::Locale>)
+  DECL_ACCESSORS(icu_locale, Tagged<Managed<icu::Locale>>)
   DECL_ACCESSORS(icu_number_formatter,
-                 Managed<icu::number::LocalizedNumberFormatter>)
+                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
 
   DECL_PRINTER(JSDurationFormat)
 

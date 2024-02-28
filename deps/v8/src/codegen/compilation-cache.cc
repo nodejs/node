@@ -30,7 +30,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
       enabled_script_and_eval_(true) {}
 
 Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
-  if (table_.IsUndefined(isolate())) {
+  if (IsUndefined(table_, isolate())) {
     return CompilationCacheTable::New(isolate(), kInitialCacheSize);
   }
   return handle(CompilationCacheTable::cast(table_), isolate());
@@ -39,11 +39,11 @@ Handle<CompilationCacheTable> CompilationCacheEvalOrScript::GetTable() {
 Handle<CompilationCacheTable> CompilationCacheRegExp::GetTable(int generation) {
   DCHECK_LT(generation, kGenerations);
   Handle<CompilationCacheTable> result;
-  if (tables_[generation].IsUndefined(isolate())) {
+  if (IsUndefined(tables_[generation], isolate())) {
     result = CompilationCacheTable::New(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
-    CompilationCacheTable table =
+    Tagged<CompilationCacheTable> table =
         CompilationCacheTable::cast(tables_[generation]);
     result = Handle<CompilationCacheTable>(table, isolate());
   }
@@ -64,23 +64,22 @@ void CompilationCacheRegExp::Age() {
 
 void CompilationCacheScript::Age() {
   DisallowGarbageCollection no_gc;
-  if (!v8_flags.isolate_script_cache_ageing) return;
-  if (table_.IsUndefined(isolate())) return;
-  CompilationCacheTable table = CompilationCacheTable::cast(table_);
+  if (IsUndefined(table_, isolate())) return;
+  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
 
-  for (InternalIndex entry : table.IterateEntries()) {
-    Object key;
-    if (!table.ToKey(isolate(), entry, &key)) continue;
-    DCHECK(key.IsWeakFixedArray());
+  for (InternalIndex entry : table->IterateEntries()) {
+    Tagged<Object> key;
+    if (!table->ToKey(isolate(), entry, &key)) continue;
+    DCHECK(IsWeakFixedArray(key));
 
-    Object value = table.PrimaryValueAt(entry);
-    if (!value.IsUndefined(isolate())) {
-      SharedFunctionInfo info = SharedFunctionInfo::cast(value);
-      if (!info.HasBytecodeArray() ||
-          info.GetBytecodeArray(isolate()).IsOld()) {
-        table.SetPrimaryValueAt(entry,
-                                ReadOnlyRoots(isolate()).undefined_value(),
-                                SKIP_WRITE_BARRIER);
+    Tagged<Object> value = table->PrimaryValueAt(entry);
+    if (!IsUndefined(value, isolate())) {
+      Tagged<SharedFunctionInfo> info = SharedFunctionInfo::cast(value);
+      // Clear entries after Bytecode was flushed from SFI.
+      if (!info->HasBytecodeArray()) {
+        table->SetPrimaryValueAt(entry,
+                                 ReadOnlyRoots(isolate()).undefined_value(),
+                                 SKIP_WRITE_BARRIER);
       }
     }
   }
@@ -88,14 +87,14 @@ void CompilationCacheScript::Age() {
 
 void CompilationCacheEval::Age() {
   DisallowGarbageCollection no_gc;
-  if (table_.IsUndefined(isolate())) return;
-  CompilationCacheTable table = CompilationCacheTable::cast(table_);
+  if (IsUndefined(table_, isolate())) return;
+  Tagged<CompilationCacheTable> table = CompilationCacheTable::cast(table_);
 
-  for (InternalIndex entry : table.IterateEntries()) {
-    Object key;
-    if (!table.ToKey(isolate(), entry, &key)) continue;
+  for (InternalIndex entry : table->IterateEntries()) {
+    Tagged<Object> key;
+    if (!table->ToKey(isolate(), entry, &key)) continue;
 
-    if (key.IsNumber(isolate())) {
+    if (IsNumber(key, isolate())) {
       // The ageing mechanism for the initial dummy entry in the eval cache.
       // The 'key' is the hash represented as a Number. The 'value' is a smi
       // counting down from kHashGenerations. On reaching zero, the entry is
@@ -104,22 +103,22 @@ void CompilationCacheEval::Age() {
       // connection between initialization- and use-sites of the smi value
       // field.
       static_assert(CompilationCacheTable::kHashGenerations);
-      const int new_count = Smi::ToInt(table.PrimaryValueAt(entry)) - 1;
+      const int new_count = Smi::ToInt(table->PrimaryValueAt(entry)) - 1;
       if (new_count == 0) {
-        table.RemoveEntry(entry);
+        table->RemoveEntry(entry);
       } else {
         DCHECK_GT(new_count, 0);
-        table.SetPrimaryValueAt(entry, Smi::FromInt(new_count),
-                                SKIP_WRITE_BARRIER);
+        table->SetPrimaryValueAt(entry, Smi::FromInt(new_count),
+                                 SKIP_WRITE_BARRIER);
       }
     } else {
-      DCHECK(key.IsFixedArray());
+      DCHECK(IsFixedArray(key));
       // The ageing mechanism for eval caches.
-      SharedFunctionInfo info =
-          SharedFunctionInfo::cast(table.PrimaryValueAt(entry));
-      if (!info.HasBytecodeArray() ||
-          info.GetBytecodeArray(isolate()).IsOld()) {
-        table.RemoveEntry(entry);
+      Tagged<SharedFunctionInfo> info =
+          SharedFunctionInfo::cast(table->PrimaryValueAt(entry));
+      // Clear entries after Bytecode was flushed from SFI.
+      if (!info->HasBytecodeArray()) {
+        table->RemoveEntry(entry);
       }
     }
   }
@@ -147,8 +146,8 @@ void CompilationCacheRegExp::Clear() {
 
 void CompilationCacheEvalOrScript::Remove(
     Handle<SharedFunctionInfo> function_info) {
-  if (table_.IsUndefined(isolate())) return;
-  CompilationCacheTable::cast(table_).Remove(*function_info);
+  if (IsUndefined(table_, isolate())) return;
+  CompilationCacheTable::cast(table_)->Remove(*function_info);
 }
 
 CompilationCacheScript::LookupResult CompilationCacheScript::Lookup(
@@ -239,9 +238,9 @@ MaybeHandle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
   for (generation = 0; generation < kGenerations; generation++) {
     Handle<CompilationCacheTable> table = GetTable(generation);
     result = table->LookupRegExp(source, flags);
-    if (result->IsFixedArray()) break;
+    if (IsFixedArray(*result)) break;
   }
-  if (result->IsFixedArray()) {
+  if (IsFixedArray(*result)) {
     Handle<FixedArray> data = Handle<FixedArray>::cast(result);
     if (generation != 0) {
       Put(source, flags, data);
@@ -287,7 +286,7 @@ InfoCellPair CompilationCache::LookupEval(Handle<String> source,
 
   const char* cache_type;
 
-  if (context->IsNativeContext()) {
+  if (IsNativeContext(*context)) {
     result = eval_global_.Lookup(source, outer_info, context, language_mode,
                                  position);
     cache_type = "eval-global";
@@ -331,7 +330,7 @@ void CompilationCache::PutEval(Handle<String> source,
 
   const char* cache_type;
   HandleScope scope(isolate());
-  if (context->IsNativeContext()) {
+  if (IsNativeContext(*context)) {
     eval_global_.Put(source, outer_info, function_info, context, feedback_cell,
                      position);
     cache_type = "eval-global";
@@ -365,9 +364,12 @@ void CompilationCache::Iterate(RootVisitor* v) {
 }
 
 void CompilationCache::MarkCompactPrologue() {
+  // Drop SFI entries with flushed bytecode.
   script_.Age();
   eval_global_.Age();
   eval_contextual_.Age();
+
+  // Drop entries in oldest generation.
   reg_exp_.Age();
 }
 

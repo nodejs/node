@@ -24,6 +24,7 @@ class Install extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'global-style',
     'omit',
+    'include',
     'strict-peer-deps',
     'prefer-dedupe',
     'package-lock',
@@ -36,6 +37,7 @@ class Install extends ArboristWorkspaceCmd {
     'dry-run',
     'cpu',
     'os',
+    'libc',
     ...super.params,
   ]
 

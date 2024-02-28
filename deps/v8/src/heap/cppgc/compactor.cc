@@ -39,13 +39,14 @@ class MovableReferences final {
   using MovableReference = CompactionWorklists::MovableReference;
 
  public:
-  explicit MovableReferences(HeapBase& heap) : heap_(heap) {}
+  explicit MovableReferences(HeapBase& heap)
+      : heap_(heap), heap_has_move_listeners_(heap.HasMoveListeners()) {}
 
   // Adds a slot for compaction. Filters slots in dead objects.
   void AddOrFilter(MovableReference*);
 
   // Relocates a backing store |from| -> |to|.
-  void Relocate(Address from, Address to);
+  void Relocate(Address from, Address to, size_t size_including_header);
 
   // Relocates interior slots in a backing store that is moved |from| -> |to|.
   void RelocateInteriorReferences(Address from, Address to, size_t size);
@@ -69,6 +70,8 @@ class MovableReferences final {
   // - The initial value for a given key is nullptr.
   // - Upon moving an object this value is adjusted accordingly.
   std::map<MovableReference*, Address> interior_movable_references_;
+
+  const bool heap_has_move_listeners_;
 
 #if DEBUG
   // The following two collections are used to allow refer back from a slot to
@@ -134,10 +137,17 @@ void MovableReferences::AddOrFilter(MovableReference* slot) {
 #endif  // DEBUG
 }
 
-void MovableReferences::Relocate(Address from, Address to) {
+void MovableReferences::Relocate(Address from, Address to,
+                                 size_t size_including_header) {
 #if DEBUG
   moved_objects_.insert(from);
 #endif  // DEBUG
+
+  if (V8_UNLIKELY(heap_has_move_listeners_)) {
+    heap_.CallMoveListeners(from - sizeof(HeapObjectHeader),
+                            to - sizeof(HeapObjectHeader),
+                            size_including_header);
+  }
 
   // Interior slots always need to be processed for moved objects.
   // Consider an object A with slot A.x pointing to value B where A is
@@ -257,7 +267,8 @@ class CompactionState final {
       else
         memcpy(compact_frontier, header, size);
       movable_references_.Relocate(header + sizeof(HeapObjectHeader),
-                                   compact_frontier + sizeof(HeapObjectHeader));
+                                   compact_frontier + sizeof(HeapObjectHeader),
+                                   size);
     }
     current_page_->object_start_bitmap().SetBit(compact_frontier);
     used_bytes_in_current_page_ += size;

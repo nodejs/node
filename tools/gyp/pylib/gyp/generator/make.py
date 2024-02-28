@@ -101,6 +101,7 @@ def CalculateVariables(default_variables, params):
             default_variables.setdefault("SHARED_LIB_SUFFIX", ".a")
         elif flavor == "zos":
             default_variables.setdefault("SHARED_LIB_SUFFIX", ".x")
+            COMPILABLE_EXTENSIONS.update({".pli": "pli"})
         else:
             default_variables.setdefault("SHARED_LIB_SUFFIX", ".so")
         default_variables.setdefault("SHARED_LIB_DIR", "$(builddir)/lib.$(TOOLSET)")
@@ -318,7 +319,7 @@ quiet_cmd_link = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
 
 quiet_cmd_solink = SOLINK($(TOOLSET)) $@
-cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -Wl,DLL -o $(patsubst %.x,%.so,$@) $(LD_INPUTS) $(LIBS) && if [ -f $(notdir $@) ]; then /bin/cp $(notdir $@) $@; else true; fi
+cmd_solink = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(LD_INPUTS) $(LIBS)
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
@@ -378,6 +379,7 @@ CXXFLAGS.target ?= $(CPPFLAGS) $(CXXFLAGS)
 LINK.target ?= %(LINK.target)s
 LDFLAGS.target ?= $(LDFLAGS)
 AR.target ?= $(AR)
+PLI.target ?= %(PLI.target)s
 
 # C++ apps need to be linked with g++.
 LINK ?= $(CXX.target)
@@ -391,6 +393,7 @@ CXXFLAGS.host ?= $(CPPFLAGS_host) $(CXXFLAGS_host)
 LINK.host ?= %(LINK.host)s
 LDFLAGS.host ?= $(LDFLAGS_host)
 AR.host ?= %(AR.host)s
+PLI.host ?= %(PLI.host)s
 
 # Define a dir function that can handle spaces.
 # http://www.gnu.org/software/make/manual/make.html#Syntax-of-Functions
@@ -628,6 +631,15 @@ def WriteRootHeaderSuffixRules(writer):
     writer.write("\n")
 
 
+SHARED_HEADER_OS390_COMMANDS = """
+PLIFLAGS.target ?= -qlp=64 -qlimits=extname=31  $(PLIFLAGS)
+PLIFLAGS.host ?= -qlp=64 -qlimits=extname=31 $(PLIFLAGS)
+
+quiet_cmd_pli = PLI($(TOOLSET)) $@
+cmd_pli = $(PLI.$(TOOLSET)) $(GYP_PLIFLAGS) $(PLIFLAGS.$(TOOLSET)) -c $< && \
+          if [ -f $(notdir $@) ]; then /bin/cp $(notdir $@) $@; else true; fi
+"""
+
 SHARED_HEADER_SUFFIX_RULES_COMMENT1 = """\
 # Suffix rules, putting all outputs into $(obj).
 """
@@ -669,10 +681,7 @@ COMPILABLE_EXTENSIONS = {
 
 def Compilable(filename):
     """Return true if the file is compilable (should be in OBJS)."""
-    for res in (filename.endswith(e) for e in COMPILABLE_EXTENSIONS):
-        if res:
-            return True
-    return False
+    return any(res for res in (filename.endswith(e) for e in COMPILABLE_EXTENSIONS))
 
 
 def Linkable(filename):
@@ -766,7 +775,7 @@ class MakefileWriter:
         self.suffix_rules_objdir2 = {}
 
         # Generate suffix rules for all compilable extensions.
-        for ext in COMPILABLE_EXTENSIONS.keys():
+        for ext in COMPILABLE_EXTENSIONS:
             # Suffix rules for source folder.
             self.suffix_rules_srcdir.update(
                 {
@@ -1054,7 +1063,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # libraries, but until everything is made cross-compile safe, also use
             # target libraries.
             # TODO(piman): when everything is cross-compile safe, remove lib.target
-            if self.flavor == "zos" or self.flavor == "aix":
+            if self.flavor in {"zos", "aix"}:
                 self.WriteLn(
                     "cmd_%s = LIBPATH=$(builddir)/lib.host:"
                     "$(builddir)/lib.target:$$LIBPATH; "
@@ -1980,10 +1989,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 and self.toolset == "target"
             ):
                 # On mac, products are created in install_path immediately.
-                assert install_path == self.output, "{} != {}".format(
-                    install_path,
-                    self.output,
-                )
+                assert install_path == self.output, f"{install_path} != {self.output}"
 
             # Point the target alias to the final binary output.
             self.WriteMakeRule(
@@ -2022,7 +2028,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 installable_deps.append(
                     self.GetUnversionedSidedeckFromSidedeck(install_path)
                 )
-            if self.output != self.alias and self.alias != self.target:
+            if self.alias not in (self.output, self.target):
                 self.WriteMakeRule(
                     [self.alias],
                     installable_deps,
@@ -2450,10 +2456,12 @@ def GenerateOutput(target_list, target_dicts, data, params):
         "AR.target": GetEnvironFallback(("AR_target", "AR"), "$(AR)"),
         "CXX.target": GetEnvironFallback(("CXX_target", "CXX"), "$(CXX)"),
         "LINK.target": GetEnvironFallback(("LINK_target", "LINK"), "$(LINK)"),
+        "PLI.target": GetEnvironFallback(("PLI_target", "PLI"), "pli"),
         "CC.host": GetEnvironFallback(("CC_host", "CC"), "gcc"),
         "AR.host": GetEnvironFallback(("AR_host", "AR"), "ar"),
         "CXX.host": GetEnvironFallback(("CXX_host", "CXX"), "g++"),
         "LINK.host": GetEnvironFallback(("LINK_host", "LINK"), "$(CXX.host)"),
+        "PLI.host": GetEnvironFallback(("PLI_host", "PLI"), "pli"),
     }
     if flavor == "mac":
         flock_command = "./gyp-mac-tool flock"
@@ -2469,16 +2477,36 @@ def GenerateOutput(target_list, target_dicts, data, params):
         header_params.update({"link_commands": LINK_COMMANDS_ANDROID})
     elif flavor == "zos":
         copy_archive_arguments = "-fPR"
-        makedep_arguments = "-qmakedep=gcc"
+        CC_target = GetEnvironFallback(("CC_target", "CC"), "njsc")
+        makedep_arguments = "-MMD"
+        if CC_target == "clang":
+            CC_host = GetEnvironFallback(("CC_host", "CC"), "clang")
+            CXX_target = GetEnvironFallback(("CXX_target", "CXX"), "clang++")
+            CXX_host = GetEnvironFallback(("CXX_host", "CXX"), "clang++")
+        elif CC_target == "ibm-clang64":
+            CC_host = GetEnvironFallback(("CC_host", "CC"), "ibm-clang64")
+            CXX_target = GetEnvironFallback(("CXX_target", "CXX"), "ibm-clang++64")
+            CXX_host = GetEnvironFallback(("CXX_host", "CXX"), "ibm-clang++64")
+        elif CC_target == "ibm-clang":
+            CC_host = GetEnvironFallback(("CC_host", "CC"), "ibm-clang")
+            CXX_target = GetEnvironFallback(("CXX_target", "CXX"), "ibm-clang++")
+            CXX_host = GetEnvironFallback(("CXX_host", "CXX"), "ibm-clang++")
+        else:
+            # Node.js versions prior to v18:
+            makedep_arguments = "-qmakedep=gcc"
+            CC_host = GetEnvironFallback(("CC_host", "CC"), "njsc")
+            CXX_target = GetEnvironFallback(("CXX_target", "CXX"), "njsc++")
+            CXX_host = GetEnvironFallback(("CXX_host", "CXX"), "njsc++")
         header_params.update(
             {
                 "copy_archive_args": copy_archive_arguments,
                 "makedep_args": makedep_arguments,
                 "link_commands": LINK_COMMANDS_OS390,
-                "CC.target": GetEnvironFallback(("CC_target", "CC"), "njsc"),
-                "CXX.target": GetEnvironFallback(("CXX_target", "CXX"), "njsc++"),
-                "CC.host": GetEnvironFallback(("CC_host", "CC"), "njsc"),
-                "CXX.host": GetEnvironFallback(("CXX_host", "CXX"), "njsc++"),
+                "extra_commands": SHARED_HEADER_OS390_COMMANDS,
+                "CC.target": CC_target,
+                "CXX.target": CXX_target,
+                "CC.host": CC_host,
+                "CXX.host": CXX_host,
             }
         )
     elif flavor == "solaris":

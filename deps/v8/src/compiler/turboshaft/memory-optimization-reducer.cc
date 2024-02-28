@@ -9,17 +9,20 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone) {
+const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
+                                                        Isolate* isolate) {
   return TSCallDescriptor::Create(
       Linkage::GetStubCallDescriptor(
           zone, AllocateDescriptor{},
           AllocateDescriptor{}.GetStackParameterCount(),
           CallDescriptor::kCanUseRoots, Operator::kNoThrow,
-          StubCallMode::kCallCodeObject),
-      zone);
+          isolate != nullptr ? StubCallMode::kCallCodeObject
+                             : StubCallMode::kCallBuiltinPointer),
+      CanThrow::kNo, zone);
 }
 
 void MemoryAnalyzer::Run() {
+  if (allocation_folding == AllocationFolding::kDontAllocationFolding) return;
   block_states[current_block] = BlockState{};
   BlockIndex end = BlockIndex(input_graph.block_count());
   while (current_block < end) {
@@ -48,11 +51,10 @@ void MemoryAnalyzer::Process(const Operation& op) {
     ProcessStore(input_graph.Index(op), store->base());
     return;
   }
-  OpProperties properties = op.Properties();
-  if (properties.can_allocate) {
+  if (op.Effects().can_allocate) {
     state = BlockState();
   }
-  if (properties.is_block_terminator) {
+  if (op.IsBlockTerminator()) {
     ProcessBlockTerminator(op);
   }
 }
@@ -82,7 +84,7 @@ void MemoryAnalyzer::ProcessBlockTerminator(const Operation& op) {
       // speculation resulting in processing the loop twice.
       for (const Operation& op :
            input_graph.operations(*goto_op->destination)) {
-        if (op.Properties().can_allocate && !ShouldSkipOperation(op)) {
+        if (op.Effects().can_allocate && !ShouldSkipOperation(op)) {
           state = BlockState();
           break;
         }

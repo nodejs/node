@@ -128,7 +128,7 @@ class V8ValuePrinter(object):
 
 def v8_pretty_printers(val):
   lookup_tag = val.type.tag
-  if lookup_tag == None:
+  if lookup_tag is None:
     return None
   elif lookup_tag == 'v8value':
     return V8ValuePrinter(val)

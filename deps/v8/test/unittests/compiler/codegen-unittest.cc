@@ -21,7 +21,7 @@ class CodeGenTest : public TestWithIsolateAndZone {
 // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
 #if !V8_TARGET_ARCH_X64
     if (Smi::IsValid(v)) {
-      RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+      RawMachineAssemblerTester<Tagged<Object>> m(i_isolate(), zone());
       m.Return(m.NumberConstant(v));
       CHECK_EQ(Smi::FromInt(v), m.Call());
     }
@@ -29,14 +29,14 @@ class CodeGenTest : public TestWithIsolateAndZone {
   }
 
   void RunNumberConstant(double v) {
-    RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+    RawMachineAssemblerTester<Tagged<Object>> m(i_isolate(), zone());
 #if V8_TARGET_ARCH_X64
     // TODO(dcarney): on x64 Smis are generated with the SmiConstantRegister
     Handle<Object> number = m.isolate()->factory()->NewNumber(v);
-    if (number->IsSmi()) return;
+    if (IsSmi(*number)) return;
 #endif
     m.Return(m.NumberConstant(v));
-    Object result = m.Call();
+    Tagged<Object> result = m.Call();
     m.CheckNumber(v, result);
   }
 };
@@ -366,13 +366,13 @@ TEST_F(CodeGenTest, RunNumberConstants) {
 }
 
 TEST_F(CodeGenTest, RunEmptyString) {
-  RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+  RawMachineAssemblerTester<Tagged<Object>> m(i_isolate(), zone());
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
 
 TEST_F(CodeGenTest, RunHeapConstant) {
-  RawMachineAssemblerTester<Object> m(i_isolate(), zone());
+  RawMachineAssemblerTester<Tagged<Object>> m(i_isolate(), zone());
   m.Return(m.StringConstant("empty"));
   m.CheckString("empty", m.Call());
 }
@@ -381,8 +381,8 @@ TEST_F(CodeGenTest, RunHeapNumberConstant) {
   RawMachineAssemblerTester<void*> m(i_isolate(), zone());
   Handle<HeapObject> number = m.isolate()->factory()->NewHeapNumber(100.5);
   m.Return(m.HeapConstant(number));
-  HeapObject result =
-      HeapObject::cast(Object(reinterpret_cast<Address>(m.Call())));
+  Tagged<HeapObject> result =
+      HeapObject::cast(Tagged<Object>(reinterpret_cast<Address>(m.Call())));
   CHECK_EQ(result, *number);
 }
 

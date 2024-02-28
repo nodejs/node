@@ -273,6 +273,13 @@ class WasmScript : public Script {
   int CodeOffset() const;
   int CodeLength() const;
 };
+
+// "Static" version of WasmScript::Disassemble, for use with cached scripts
+// where we only have raw wire bytes available.
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets);
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 V8_EXPORT_PRIVATE void GetLoadedScripts(
@@ -522,16 +529,6 @@ class V8_EXPORT_PRIVATE StackTraceIterator {
   virtual v8::MaybeLocal<v8::Value> Evaluate(v8::Local<v8::String> source,
                                              bool throw_on_side_effect) = 0;
 };
-
-class QueryObjectPredicate {
- public:
-  virtual ~QueryObjectPredicate() = default;
-  virtual bool Filter(v8::Local<v8::Object> object) = 0;
-};
-
-void QueryObjects(v8::Local<v8::Context> context,
-                  QueryObjectPredicate* predicate,
-                  std::vector<v8::Global<v8::Object>>* objects);
 
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              std::vector<v8::Global<v8::String>>* names);

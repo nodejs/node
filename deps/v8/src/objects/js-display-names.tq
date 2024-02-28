@@ -6,9 +6,9 @@
 
 type JSDisplayNamesStyle extends int32 constexpr 'JSDisplayNames::Style';
 type JSDisplayNamesFallback extends int32
-constexpr 'JSDisplayNames::Fallback';
+    constexpr 'JSDisplayNames::Fallback';
 type JSDisplayNamesLanguageDisplay extends int32
-constexpr 'JSDisplayNames::LanguageDisplay';
+    constexpr 'JSDisplayNames::LanguageDisplay';
 bitfield struct JSDisplayNamesFlags extends uint31 {
   style: JSDisplayNamesStyle: 2 bit;
   fallback: JSDisplayNamesFallback: 1 bit;

@@ -12,20 +12,20 @@ namespace v8::internal {
 
 class ExclusiveObjectLock final {
  public:
-  static void Lock(HeapObject heap_object) {
+  static void Lock(Tagged<HeapObject> heap_object) {
     MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->LockExclusive();
   }
-  static void Unlock(HeapObject heap_object) {
+  static void Unlock(Tagged<HeapObject> heap_object) {
     MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->UnlockExclusive();
   }
 };
 
 class SharedObjectLock final {
  public:
-  static void Lock(HeapObject heap_object) {
+  static void Lock(Tagged<HeapObject> heap_object) {
     MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->LockShared();
   }
-  static void Unlock(HeapObject heap_object) {
+  static void Unlock(Tagged<HeapObject> heap_object) {
     MemoryChunk::FromHeapObject(heap_object)->shared_mutex()->UnlockShared();
   }
 };
@@ -33,13 +33,13 @@ class SharedObjectLock final {
 template <typename LockType>
 class ObjectLockGuard final {
  public:
-  explicit ObjectLockGuard(HeapObject object) : raw_object_(object) {
+  explicit ObjectLockGuard(Tagged<HeapObject> object) : raw_object_(object) {
     LockType::Lock(object);
   }
   ~ObjectLockGuard() { LockType::Unlock(raw_object_); }
 
  private:
-  HeapObject raw_object_;
+  Tagged<HeapObject> raw_object_;
 };
 
 using ExclusiveObjectLockGuard = ObjectLockGuard<ExclusiveObjectLock>;

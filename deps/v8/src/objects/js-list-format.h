@@ -59,7 +59,7 @@ class JSListFormat
   Handle<String> TypeAsString() const;
 
   // ListFormat accessors.
-  DECL_ACCESSORS(icu_formatter, Managed<icu::ListFormatter>)
+  DECL_ACCESSORS(icu_formatter, Tagged<Managed<icu::ListFormatter>>)
 
   // Style: identifying the relative time format style used.
   //

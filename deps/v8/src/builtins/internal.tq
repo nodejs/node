@@ -5,8 +5,9 @@
 namespace internal {
 
 namespace runtime {
-extern runtime GetTemplateObject(implicit context: Context)(
-    TemplateObjectDescription, SharedFunctionInfo, Smi): JSAny;
+extern runtime GetTemplateObject(
+    implicit context: Context)(TemplateObjectDescription, SharedFunctionInfo,
+    Smi): JSAny;
 }
 
 builtin GetTemplateObject(
@@ -38,11 +39,11 @@ builtin GetTemplateObject(
   }
 }
 
-extern transitioning builtin ForInFilter(implicit context: Context)(
-    JSAny, HeapObject): JSAny;
+extern transitioning builtin ForInFilter(
+    implicit context: Context)(JSAny, HeapObject): JSAny;
 extern enum ForInFeedback extends uint31 { kAny, ...}
 extern macro UpdateFeedback(
-    SmiTagged<ForInFeedback>, Undefined | FeedbackVector, uintptr,
+    SmiTagged<ForInFeedback>, Undefined|FeedbackVector, uintptr,
     constexpr UpdateFeedbackMode): void;
 
 @export

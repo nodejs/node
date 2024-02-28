@@ -6,12 +6,12 @@
 
 namespace proxy {
 
-extern macro ProxiesCodeStubAssembler::AllocateProxy(implicit context: Context)(
-    JSReceiver, JSReceiver): JSProxy;
+extern macro ProxiesCodeStubAssembler::AllocateProxy(
+    implicit context: Context)(JSReceiver, JSReceiver): JSProxy;
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckGetSetTrapResult(
-    implicit context: Context)(
-    JSReceiver, JSProxy, Name, Object, constexpr int31): void;
+    implicit context: Context)(JSReceiver, JSProxy, Name, Object,
+    constexpr int31): void;
 
 extern transitioning macro ProxiesCodeStubAssembler::CheckDeleteTrapResult(
     implicit context: Context)(JSReceiver, JSProxy, Name): void;
@@ -26,7 +26,7 @@ const kProxySet: constexpr int31
 
 type ProxyRevokeFunctionContext extends FunctionContext;
 extern enum ProxyRevokeFunctionContextSlot extends intptr
-constexpr 'ProxiesCodeStubAssembler::ProxyRevokeFunctionContextSlot' {
+    constexpr 'ProxiesCodeStubAssembler::ProxyRevokeFunctionContextSlot' {
   kProxySlot: Slot<ProxyRevokeFunctionContext, JSProxy|Null>,
   kProxyContextLength
 }

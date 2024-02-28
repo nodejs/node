@@ -4,6 +4,7 @@
 
 #include "src/wasm/canonical-types.h"
 
+#include "src/wasm/std-object-sizes.h"
 #include "src/wasm/wasm-engine.h"
 
 namespace v8 {
@@ -12,6 +13,11 @@ namespace wasm {
 
 TypeCanonicalizer* GetTypeCanonicalizer() {
   return GetWasmEngine()->type_canonicalizer();
+}
+
+TypeCanonicalizer::TypeCanonicalizer() {
+  AddPredefinedArrayType(kPredefinedArrayI8Index, kWasmI8);
+  AddPredefinedArrayType(kPredefinedArrayI16Index, kWasmI16);
 }
 
 void TypeCanonicalizer::AddRecursiveGroup(WasmModule* module, uint32_t size) {
@@ -88,6 +94,21 @@ uint32_t TypeCanonicalizer::AddRecursiveGroup(const FunctionSig* sig) {
     canonical_supertypes_.emplace_back(kNoSuperType);
   }
   return canonical_index;
+}
+
+void TypeCanonicalizer::AddPredefinedArrayType(uint32_t index,
+                                               ValueType element_type) {
+  DCHECK_EQ(index, canonical_groups_.size());
+  CanonicalGroup group;
+  group.types.resize(1);
+  static constexpr bool kMutable = true;
+  // TODO(jkummerow): Decide whether this should be final or nonfinal.
+  static constexpr bool kFinal = true;
+  ArrayType* type = zone_.New<ArrayType>(element_type, kMutable);
+  group.types[0].type_def = TypeDefinition(type, kNoSuperType, kFinal);
+  group.types[0].is_relative_supertype = false;
+  canonical_groups_.emplace(group, index);
+  canonical_supertypes_.emplace_back(kNoSuperType);
 }
 
 ValueType TypeCanonicalizer::CanonicalizeValueType(
@@ -189,6 +210,20 @@ TypeCanonicalizer::CanonicalType TypeCanonicalizer::CanonicalizeTypeDef(
 int TypeCanonicalizer::FindCanonicalGroup(CanonicalGroup& group) const {
   auto element = canonical_groups_.find(group);
   return element == canonical_groups_.end() ? -1 : element->second;
+}
+
+size_t TypeCanonicalizer::EstimateCurrentMemoryConsumption() const {
+  UPDATE_WHEN_CLASS_CHANGES(TypeCanonicalizer, 232);
+  size_t result = ContentSize(canonical_supertypes_);
+  result += ContentSize(canonical_groups_);
+  for (auto& entry : canonical_groups_) {
+    result += ContentSize(entry.first.types);
+  }
+  result += allocator_.GetCurrentMemoryUsage();
+  if (v8_flags.trace_wasm_offheap_memory) {
+    PrintF("TypeCanonicalizer: %zu\n", result);
+  }
+  return result;
 }
 
 }  // namespace wasm

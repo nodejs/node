@@ -44,7 +44,7 @@ L<EVP_EncryptInit(3)/AEAD Interface> section for more information.
 
 Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
-L<EVP_CIPHER_fetch(3)> instead.
+L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-CHACHA(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 L<RFC 7539|https://www.rfc-editor.org/rfc/rfc7539.html#section-2.4>

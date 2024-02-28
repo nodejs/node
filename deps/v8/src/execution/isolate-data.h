@@ -12,7 +12,9 @@
 #include "src/execution/thread-local-top.h"
 #include "src/heap/linear-allocation-area.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/indirect-pointer-table.h"
 #include "src/utils/utils.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"  // nogncheck
 
@@ -30,7 +32,7 @@ class Isolate;
   V(kIsMinorMarkingFlag, kUInt8Size, is_minor_marking_flag)                   \
   V(kIsSharedSpaceIsolateFlag, kUInt8Size, is_shared_space_isolate_flag)      \
   V(kUsesSharedHeapFlag, kUInt8Size, uses_shared_heap_flag)                   \
-  V(kIsProfilingOffset, kUInt8Size, is_profiling)                             \
+  V(kExecutionModeOffset, kUInt8Size, execution_mode)                         \
   V(kStackIsIterableOffset, kUInt8Size, stack_is_iterable)                    \
   V(kTablesAlignmentPaddingOffset, 2, tables_alignment_padding)               \
   /* Tier 0 tables (small but fast access). */                                \
@@ -49,9 +51,12 @@ class Isolate;
   V(kFastApiCallTargetOffset, kSystemPointerSize, fast_api_call_target)       \
   V(kLongTaskStatsCounterOffset, kSizetSize, long_task_stats_counter)         \
   V(kThreadLocalTopOffset, ThreadLocalTop::kSizeInBytes, thread_local_top)    \
+  V(kHandleScopeDataOffset, HandleScopeData::kSizeInBytes, handle_scope_data) \
   V(kEmbedderDataOffset, Internals::kNumIsolateDataSlots* kSystemPointerSize, \
     embedder_data)                                                            \
   ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)                                  \
+  V(kApiCallbackThunkArgumentOffset, kSystemPointerSize,                      \
+    api_callback_thunk_argument)                                              \
   /* Full tables (arbitrary size, potentially slower access). */              \
   V(kRootsTableOffset, RootsTable::kEntriesCount* kSystemPointerSize,         \
     roots_table)                                                              \
@@ -67,7 +72,9 @@ class Isolate;
   V(kExternalPointerTableOffset, ExternalPointerTable::kSize, \
     external_pointer_table)                                   \
   V(kSharedExternalPointerTableOffset, kSystemPointerSize,    \
-    shared_external_pointer_table)
+    shared_external_pointer_table)                            \
+  V(kIndirectPointerTableOffset, IndirectPointerTable::kSize, \
+    indirect_pointer_table)
 #else
 #define ISOLATE_DATA_FIELDS_POINTER_COMPRESSION(V)
 #endif  // V8_COMPRESS_POINTERS
@@ -132,6 +139,9 @@ class IsolateData final {
   Address* builtin_tier0_entry_table() { return builtin_tier0_entry_table_; }
   Address* builtin_tier0_table() { return builtin_tier0_table_; }
   RootsTable& roots() { return roots_table_; }
+  Address api_callback_thunk_argument() const {
+    return api_callback_thunk_argument_;
+  }
   const RootsTable& roots() const { return roots_table_; }
   ExternalReferenceTable* external_reference_table() {
     return &external_reference_table_;
@@ -190,11 +200,11 @@ class IsolateData final {
   uint8_t is_shared_space_isolate_flag_ = false;
   uint8_t uses_shared_heap_flag_ = false;
 
-  // true if the Isolate is being profiled. Causes collection of extra compile
-  // info.
-  // This flag is checked on every API callback/getter call.
-  // Only valid values are 0 or 1.
-  std::atomic<uint8_t> is_profiling_{false};
+  // Storage for is_profiling and should_check_side_effects booleans.
+  // This value is checked on every API callback/getter call.
+  base::Flags<IsolateExecutionModeFlag, uint8_t, std::atomic<uint8_t>>
+      execution_mode_ = {IsolateExecutionModeFlag::kNoFlags};
+  static_assert(sizeof(execution_mode_) == 1);
 
   //
   // Not super hot flags, which are put here because we have to align the
@@ -233,6 +243,7 @@ class IsolateData final {
   size_t long_task_stats_counter_ = 0;
 
   ThreadLocalTop thread_local_top_;
+  HandleScopeData handle_scope_data_;
 
   // These fields are accessed through the API, offsets must be kept in sync
   // with v8::internal::Internals (in include/v8-internal.h) constants. The
@@ -240,11 +251,16 @@ class IsolateData final {
   // runtime checks.
   void* embedder_data_[Internals::kNumIsolateDataSlots] = {};
 
-  // Table containing pointers to external objects.
+  // Tables containing pointers to objects outside of the V8 sandbox.
 #ifdef V8_COMPRESS_POINTERS
   ExternalPointerTable external_pointer_table_;
   ExternalPointerTable* shared_external_pointer_table_;
+  IndirectPointerTable indirect_pointer_table_;
 #endif
+
+  // This is a storage for an additional argument for the Api callback thunk
+  // functions, see InvokeAccessorGetterCallback and InvokeFunctionCallback.
+  Address api_callback_thunk_argument_ = kNullAddress;
 
   RootsTable roots_table_;
   ExternalReferenceTable external_reference_table_;

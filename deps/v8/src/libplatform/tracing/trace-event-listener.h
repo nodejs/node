@@ -9,27 +9,19 @@
 
 #include "libplatform/libplatform-export.h"
 
-namespace perfetto {
-namespace protos {
-class TracePacket;
-}  // namespace protos
-}  // namespace perfetto
-
 namespace v8 {
 namespace platform {
 namespace tracing {
 
 // A TraceEventListener is a simple interface that allows subclasses to listen
 // to trace events. This interface is to hide the more complex interactions that
-// the PerfettoConsumer class has to perform. Clients override ProcessPacket()
-// to respond to trace events, e.g. to write them to a file as JSON or for
-// testing purposes.
+// the PerfettoConsumer class has to perform. Clients override ParseFromArray()
+// to process traces, e.g. to write them to a file as JSON or for testing
+// purposes.
 class V8_PLATFORM_EXPORT TraceEventListener {
  public:
   virtual ~TraceEventListener() = default;
-  virtual void ProcessPacket(const ::perfetto::protos::TracePacket& packet) = 0;
-
-  void ParseFromArray(const std::vector<char>& array);
+  virtual void ParseFromArray(const std::vector<char>& array) = 0;
 };
 
 }  // namespace tracing

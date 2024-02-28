@@ -38,10 +38,10 @@ Array [
       name:          test-package
       version:       1.0.0
       filename:      test-package-1.0.0.tgz
-      package size:  160 B
+      package size:  {size}
       unpacked size: 87 B
-      shasum:{sha}
-      integrity:{sha}
+      shasum:        {sha}
+      integrity:     {integrity}
       total files:   1
     ),
   ],
@@ -82,15 +82,15 @@ exports[`test/lib/commands/publish.js TAP json > new package json 1`] = `
   "id": "test-package@1.0.0",
   "name": "test-package",
   "version": "1.0.0",
-  "size": 160,
+  "size": "{size}",
   "unpackedSize": 87,
   "shasum": "{sha}",
-  "integrity": "{sha}",
+  "integrity": "{integrity}",
   "filename": "test-package-1.0.0.tgz",
   "files": [
     {
       "path": "package.json",
-      "size": 87,
+      "size": "{size}",
       "mode": 420
     }
   ],
@@ -191,6 +191,7 @@ Object {
     "man/man1/npm-restart.1",
     "man/man1/npm-root.1",
     "man/man1/npm-run-script.1",
+    "man/man1/npm-sbom.1",
     "man/man1/npm-search.1",
     "man/man1/npm-shrinkwrap.1",
     "man/man1/npm-star.1",
@@ -288,10 +289,10 @@ Array [
       name:          @npm/test-package
       version:       1.0.0
       filename:      npm-test-package-1.0.0.tgz
-      package size:  147 B
+      package size:  {size}
       unpacked size: 55 B
-      shasum:{sha}
-      integrity:{sha}
+      shasum:        {sha}
+      integrity:     {integrity}
       total files:   1
     ),
   ],
@@ -343,10 +344,10 @@ Array [
       name:          @npm/test-package
       version:       1.0.0
       filename:      npm-test-package-1.0.0.tgz
-      package size:  147 B
+      package size:  {size}
       unpacked size: 55 B
-      shasum:{sha}
-      integrity:{sha}
+      shasum:        {sha}
+      integrity:     {integrity}
       total files:   1
     ),
   ],
@@ -397,10 +398,10 @@ Array [
       name:          test-tar-package
       version:       1.0.0
       filename:      test-tar-package-1.0.0.tgz
-      package size:  218 B
+      package size:  {size}
       unpacked size: 124 B
-      shasum:{sha}
-      integrity:{sha}
+      shasum:        {sha}
+      integrity:     {integrity}
       total files:   2
     ),
   ],
@@ -549,15 +550,15 @@ exports[`test/lib/commands/publish.js TAP workspaces json > all workspaces in js
     "id": "workspace-a@1.2.3-a",
     "name": "workspace-a",
     "version": "1.2.3-a",
-    "size": 162,
+    "size": "{size}",
     "unpackedSize": 82,
     "shasum": "{sha}",
-    "integrity": "{sha}",
+    "integrity": "{integrity}",
     "filename": "workspace-a-1.2.3-a.tgz",
     "files": [
       {
         "path": "package.json",
-        "size": 82,
+        "size": "{size}",
         "mode": 420
       }
     ],
@@ -568,15 +569,15 @@ exports[`test/lib/commands/publish.js TAP workspaces json > all workspaces in js
     "id": "workspace-b@1.2.3-n",
     "name": "workspace-b",
     "version": "1.2.3-n",
-    "size": 171,
+    "size": "{size}",
     "unpackedSize": 92,
     "shasum": "{sha}",
-    "integrity": "{sha}",
+    "integrity": "{integrity}",
     "filename": "workspace-b-1.2.3-n.tgz",
     "files": [
       {
         "path": "package.json",
-        "size": 92,
+        "size": "{size}",
         "mode": 420
       }
     ],
@@ -587,15 +588,15 @@ exports[`test/lib/commands/publish.js TAP workspaces json > all workspaces in js
     "id": "workspace-n@1.2.3-n",
     "name": "workspace-n",
     "version": "1.2.3-n",
-    "size": 140,
+    "size": "{size}",
     "unpackedSize": 42,
     "shasum": "{sha}",
-    "integrity": "{sha}",
+    "integrity": "{integrity}",
     "filename": "workspace-n-1.2.3-n.tgz",
     "files": [
       {
         "path": "package.json",
-        "size": 42,
+        "size": "{size}",
         "mode": 420
       }
     ],

@@ -15,6 +15,7 @@ class AccessorPair;
 class AccessCheckInfo;
 class AllocationSite;
 class ByteArray;
+class ExternalPointerArray;
 class Cell;
 class ClosureFeedbackCellArray;
 class ConsString;
@@ -62,7 +63,6 @@ class FeedbackVector;
 class UncompiledData;
 class TemplateInfo;
 class TransitionArray;
-class TemplateList;
 class WasmInstanceObject;
 class WasmMemoryObject;
 template <typename T>
@@ -87,6 +87,7 @@ class ZoneForwardList;
   V(Boolean)                                    \
   V(BooleanWrapper)                             \
   V(ByteArray)                                  \
+  V(ExternalPointerArray)                       \
   V(BytecodeArray)                              \
   V(CallHandlerInfo)                            \
   V(Callable)                                   \
@@ -156,6 +157,7 @@ class ZoneForwardList;
   V(JSIteratorMapHelper)                        \
   V(JSIteratorTakeHelper)                       \
   V(JSIteratorDropHelper)                       \
+  V(JSIteratorFlatMapHelper)                    \
   V(JSMap)                                      \
   V(JSMapIterator)                              \
   V(JSMessageObject)                            \
@@ -212,6 +214,7 @@ class ZoneForwardList;
   V(ObjectHashTable)                            \
   V(ObjectTwoHashTable)                         \
   V(Oddball)                                    \
+  V(Hole)                                       \
   V(OrderedHashMap)                             \
   V(OrderedHashSet)                             \
   V(OrderedNameDictionary)                      \
@@ -247,10 +250,11 @@ class ZoneForwardList;
   V(SymbolWrapper)                              \
   V(SyntheticModule)                            \
   V(TemplateInfo)                               \
-  V(TemplateList)                               \
   V(TemplateLiteralObject)                      \
   V(ThinString)                                 \
   V(TransitionArray)                            \
+  V(TrustedObject)                              \
+  V(ExposedTrustedObject)                       \
   V(TurboshaftFloat64RangeType)                 \
   V(TurboshaftFloat64SetType)                   \
   V(TurboshaftFloat64Type)                      \
@@ -377,7 +381,6 @@ class ZoneForwardList;
 #define ODDBALL_LIST(V)                                     \
   V(Undefined, undefined_value, UndefinedValue)             \
   V(Null, null_value, NullValue)                            \
-  V(TheHole, the_hole_value, TheHoleValue)                  \
   V(Exception, exception, Exception)                        \
   V(Uninitialized, uninitialized_value, UninitializedValue) \
   V(True, true_value, TrueValue)                            \
@@ -385,6 +388,11 @@ class ZoneForwardList;
   V(ArgumentsMarker, arguments_marker, ArgumentsMarker)     \
   V(OptimizedOut, optimized_out, OptimizedOut)              \
   V(StaleRegister, stale_register, StaleRegister)
+
+#define HOLE_LIST(V)                                                   \
+  V(TheHole, the_hole_value, TheHoleValue)                             \
+  V(PropertyCellHole, property_cell_hole_value, PropertyCellHoleValue) \
+  V(HashTableHole, hash_table_hole_value, HashTableHoleValue)
 
 }  // namespace internal
 }  // namespace v8

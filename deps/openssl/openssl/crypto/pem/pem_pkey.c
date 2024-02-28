@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -366,10 +366,19 @@ int PEM_write_bio_PrivateKey_traditional(BIO *bp, const EVP_PKEY *x,
     return ret;
 }
 
+static int no_password_cb(char *buf, int num, int rwflag, void *userdata)
+{
+    return -1;
+}
+
 EVP_PKEY *PEM_read_bio_Parameters_ex(BIO *bp, EVP_PKEY **x,
                                      OSSL_LIB_CTX *libctx, const char *propq)
 {
-    return pem_read_bio_key(bp, x, NULL, NULL, libctx, propq,
+    /*
+     * PEM_read_bio_Parameters(_ex) should never ask for a password. Any attempt
+     * to get a password just fails.
+     */
+    return pem_read_bio_key(bp, x, no_password_cb, NULL, libctx, propq,
                             EVP_PKEY_KEY_PARAMETERS);
 }
 

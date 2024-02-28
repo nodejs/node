@@ -1,6 +1,7 @@
 /**
  * @fileoverview Rule to flag when regex literals are not wrapped in parens
  * @author Matt DuVall <http://www.mattduvall.com>
+ * @deprecated in ESLint v8.53.0
  */
 
 "use strict";
@@ -12,6 +13,8 @@
 /** @type {import('../shared/types').Rule} */
 module.exports = {
     meta: {
+        deprecated: true,
+        replacedBy: [],
         type: "layout",
 
         docs: {

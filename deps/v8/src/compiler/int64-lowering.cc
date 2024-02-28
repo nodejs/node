@@ -43,7 +43,7 @@ Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
       placeholder_(graph->NewNode(common->Dead())) {
   DCHECK_NOT_NULL(graph);
   DCHECK_NOT_NULL(graph->end());
-  replacements_ = zone->NewArray<Replacement>(graph->NodeCount());
+  replacements_ = zone->AllocateArray<Replacement>(graph->NodeCount());
   memset(replacements_, 0, sizeof(Replacement) * graph->NodeCount());
 }
 
@@ -55,9 +55,10 @@ void Int64Lowering::LowerGraph() {
     NodeState& top = stack_.back();
     if (top.input_index == top.node->InputCount()) {
       // All inputs of top have already been lowered, now lower top.
+      Node* node = top.node;
       stack_.pop_back();
-      state_[top.node->id()] = State::kVisited;
-      LowerNode(top.node);
+      state_[node->id()] = State::kVisited;
+      LowerNode(node);
     } else {
       // Push the next input onto the stack.
       Node* input = top.node->InputAt(top.input_index++);
@@ -1109,8 +1110,8 @@ void Int64Lowering::PreparePhiReplacement(Node* phi) {
     // input nodes do not exist yet, so we use a placeholder node to pass the
     // graph verifier.
     int value_count = phi->op()->ValueInputCount();
-    Node** inputs_low = zone()->NewArray<Node*>(value_count + 1);
-    Node** inputs_high = zone()->NewArray<Node*>(value_count + 1);
+    Node** inputs_low = zone()->AllocateArray<Node*>(value_count + 1);
+    Node** inputs_high = zone()->AllocateArray<Node*>(value_count + 1);
     for (int i = 0; i < value_count; i++) {
       inputs_low[i] = placeholder_;
       inputs_high[i] = placeholder_;

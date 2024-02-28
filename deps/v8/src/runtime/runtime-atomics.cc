@@ -256,33 +256,42 @@ inline int64_t FromObject<int64_t>(Handle<Object> bigint) {
   return Handle<BigInt>::cast(bigint)->AsInt64();
 }
 
-inline Object ToObject(Isolate* isolate, int8_t t) { return Smi::FromInt(t); }
+inline Tagged<Object> ToObject(Isolate* isolate, int8_t t) {
+  return Smi::FromInt(t);
+}
 
-inline Object ToObject(Isolate* isolate, uint8_t t) { return Smi::FromInt(t); }
+inline Tagged<Object> ToObject(Isolate* isolate, uint8_t t) {
+  return Smi::FromInt(t);
+}
 
-inline Object ToObject(Isolate* isolate, int16_t t) { return Smi::FromInt(t); }
+inline Tagged<Object> ToObject(Isolate* isolate, int16_t t) {
+  return Smi::FromInt(t);
+}
 
-inline Object ToObject(Isolate* isolate, uint16_t t) { return Smi::FromInt(t); }
+inline Tagged<Object> ToObject(Isolate* isolate, uint16_t t) {
+  return Smi::FromInt(t);
+}
 
-inline Object ToObject(Isolate* isolate, int32_t t) {
+inline Tagged<Object> ToObject(Isolate* isolate, int32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
-inline Object ToObject(Isolate* isolate, uint32_t t) {
+inline Tagged<Object> ToObject(Isolate* isolate, uint32_t t) {
   return *isolate->factory()->NewNumber(t);
 }
 
-inline Object ToObject(Isolate* isolate, int64_t t) {
+inline Tagged<Object> ToObject(Isolate* isolate, int64_t t) {
   return *BigInt::FromInt64(isolate, t);
 }
 
-inline Object ToObject(Isolate* isolate, uint64_t t) {
+inline Tagged<Object> ToObject(Isolate* isolate, uint64_t t) {
   return *BigInt::FromUint64(isolate, t);
 }
 
 template <typename T>
 struct Load {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer,
+                                  size_t index) {
     T result = LoadSeqCst(static_cast<T*>(buffer) + index);
     return ToObject(isolate, result);
   }
@@ -299,8 +308,8 @@ struct Store {
 
 template <typename T>
 struct Exchange {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = ExchangeSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -308,8 +317,9 @@ struct Exchange {
 };
 
 template <typename T>
-inline Object DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
-                                Handle<Object> oldobj, Handle<Object> newobj) {
+inline Tagged<Object> DoCompareExchange(Isolate* isolate, void* buffer,
+                                        size_t index, Handle<Object> oldobj,
+                                        Handle<Object> newobj) {
   T oldval = FromObject<T>(oldobj);
   T newval = FromObject<T>(newobj);
   T result =
@@ -319,8 +329,8 @@ inline Object DoCompareExchange(Isolate* isolate, void* buffer, size_t index,
 
 template <typename T>
 struct Add {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = AddSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -329,8 +339,8 @@ struct Add {
 
 template <typename T>
 struct Sub {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = SubSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -339,8 +349,8 @@ struct Sub {
 
 template <typename T>
 struct And {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = AndSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -349,8 +359,8 @@ struct And {
 
 template <typename T>
 struct Or {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = OrSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -359,8 +369,8 @@ struct Or {
 
 template <typename T>
 struct Xor {
-  static inline Object Do(Isolate* isolate, void* buffer, size_t index,
-                          Handle<Object> obj) {
+  static inline Tagged<Object> Do(Isolate* isolate, void* buffer, size_t index,
+                                  Handle<Object> obj) {
     T value = FromObject<T>(obj);
     T result = XorSeqCst(static_cast<T*>(buffer) + index, value);
     return ToObject(isolate, result);
@@ -396,8 +406,9 @@ struct Xor {
 // but also includes the ToInteger/ToBigInt conversion that's part of
 // https://tc39.github.io/ecma262/#sec-atomicreadmodifywrite
 template <template <typename> class Op>
-Object GetModifySetValueInBuffer(RuntimeArguments args, Isolate* isolate,
-                                 const char* method_name) {
+Tagged<Object> GetModifySetValueInBuffer(RuntimeArguments args,
+                                         Isolate* isolate,
+                                         const char* method_name) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   Handle<JSTypedArray> sta = args.at<JSTypedArray>(0);
@@ -629,6 +640,36 @@ RUNTIME_FUNCTION(Runtime_AtomicsLoadSharedStructOrArray) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
+namespace {
+
+template <typename WriteOperation>
+Tagged<Object> AtomicFieldWrite(Isolate* isolate, Handle<JSObject> object,
+                                Handle<Name> field_name, Handle<Object> value,
+                                WriteOperation write_operation) {
+  LookupIterator it(isolate, object, PropertyKey(isolate, field_name),
+                    LookupIterator::OWN);
+  Maybe<bool> result = Nothing<bool>();
+  if (it.IsFound()) {
+    if (!it.IsReadOnly()) {
+      return write_operation(it);
+    }
+    // Shared structs and arrays are non-extensible and have non-configurable,
+    // writable, enumerable properties. The only exception is SharedArrays'
+    // "length" property, which is non-writable.
+    result = Object::WriteToReadOnlyProperty(&it, value, Just(kThrowOnError));
+  } else {
+    // Shared structs are non-extensible. Instead of duplicating logic, call
+    // Object::AddDataProperty to handle the error case.
+    result = Object::AddDataProperty(&it, value, NONE, Just(kThrowOnError),
+                                     StoreOrigin::kMaybeKeyed);
+  }
+  // Treat as strict code and always throw an error.
+  DCHECK(result.IsNothing());
+  USE(result);
+  return ReadOnlyRoots(isolate).exception();
+}
+}  // namespace
+
 RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -639,21 +680,12 @@ RUNTIME_FUNCTION(Runtime_AtomicsStoreSharedStructOrArray) {
   Handle<Object> shared_value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
-  // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct_or_shared_array,
-                    PropertyKey(isolate, field_name), LookupIterator::OWN);
-  if (it.IsFound()) {
-    it.WriteDataValue(shared_value, kSeqCstAccess);
-    return *shared_value;
-  }
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
-  DCHECK(result.IsNothing());
-  USE(result);
-  return ReadOnlyRoots(isolate).exception();
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            it.WriteDataValue(shared_value, kSeqCstAccess);
+                            return *shared_value;
+                          });
 }
 
 RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
@@ -666,18 +698,35 @@ RUNTIME_FUNCTION(Runtime_AtomicsExchangeSharedStructOrArray) {
   Handle<Object> shared_value;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, shared_value, Object::Share(isolate, args.at(2), kThrowOnError));
-  // Shared structs are prototypeless.
-  LookupIterator it(isolate, shared_struct_or_shared_array,
-                    PropertyKey(isolate, field_name), LookupIterator::OWN);
-  if (it.IsFound()) return *it.SwapDataValue(shared_value, kSeqCstAccess);
-  // Shared structs are non-extensible. Instead of duplicating logic, call
-  // Object::AddDataProperty to handle the error case.
-  Maybe<bool> result =
-      Object::AddDataProperty(&it, shared_value, NONE, Nothing<ShouldThrow>(),
-                              StoreOrigin::kMaybeKeyed);
-  DCHECK(result.IsNothing());
-  USE(result);
-  return ReadOnlyRoots(isolate).exception();
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            return *it.SwapDataValue(shared_value,
+                                                     kSeqCstAccess);
+                          });
 }
+
+RUNTIME_FUNCTION(Runtime_AtomicsCompareExchangeSharedStructOrArray) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  Handle<JSObject> shared_struct_or_shared_array = args.at<JSObject>(0);
+  Handle<Name> field_name;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, field_name,
+                                     Object::ToName(isolate, args.at(1)));
+  Handle<Object> shared_expected;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_expected,
+      Object::Share(isolate, args.at(2), kThrowOnError));
+  Handle<Object> shared_value;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, shared_value, Object::Share(isolate, args.at(3), kThrowOnError));
+
+  return AtomicFieldWrite(isolate, shared_struct_or_shared_array, field_name,
+                          shared_value, [=](LookupIterator it) {
+                            return *it.CompareAndSwapDataValue(
+                                shared_expected, shared_value, kSeqCstAccess);
+                          });
+}
+
 }  // namespace internal
 }  // namespace v8

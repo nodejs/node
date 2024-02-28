@@ -22,7 +22,15 @@ module.exports = cls => class Auditor extends cls {
     options = { ...this.options, ...options }
 
     process.emit('time', 'audit')
-    const tree = await this.loadVirtual()
+    let tree
+    if (options.packageLock === false) {
+      // build ideal tree
+      await this.loadActual(options)
+      await this.buildIdealTree()
+      tree = this.idealTree
+    } else {
+      tree = await this.loadVirtual()
+    }
     if (this[_workspaces] && this[_workspaces].length) {
       options.filterSet = this.workspaceDependencySet(
         tree,

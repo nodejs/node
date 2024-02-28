@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -83,6 +83,7 @@ static int test_loaded_provider(void)
         && test_provider(prov, expected_greeting1(name));
 }
 
+# ifndef OPENSSL_NO_AUTOLOAD_CONFIG
 static int test_configured_provider(void)
 {
     const char *name = "p_test_configured";
@@ -95,6 +96,7 @@ static int test_configured_provider(void)
         TEST_ptr(prov = ossl_provider_find(NULL, name, 0))
         && test_provider(prov, expected_greeting);
 }
+# endif
 #endif
 
 static int test_cache_flushes(void)
@@ -139,7 +141,9 @@ int setup_tests(void)
     ADD_TEST(test_builtin_provider);
 #ifndef NO_PROVIDER_MODULE
     ADD_TEST(test_loaded_provider);
+# ifndef OPENSSL_NO_AUTOLOAD_CONFIG
     ADD_TEST(test_configured_provider);
+# endif
 #endif
     ADD_TEST(test_cache_flushes);
     return 1;

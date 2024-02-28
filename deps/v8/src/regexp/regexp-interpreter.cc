@@ -74,7 +74,7 @@ bool BackRefMatchesNoCase(Isolate* isolate, int from, int current, int len,
 }
 
 #ifdef DEBUG
-void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
+void MaybeTraceInterpreter(const uint8_t* code_base, const uint8_t* pc,
                            int stack_depth, int current_position,
                            uint32_t current_char, int bytecode_length,
                            const char* bytecode_name) {
@@ -92,18 +92,18 @@ void MaybeTraceInterpreter(const byte* code_base, const byte* pc,
 }
 #endif  // DEBUG
 
-int32_t Load32Aligned(const byte* pc) {
+int32_t Load32Aligned(const uint8_t* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 3);
   return *reinterpret_cast<const int32_t*>(pc);
 }
 
 // TODO(jgruber): Rename to Load16AlignedUnsigned.
-uint32_t Load16Aligned(const byte* pc) {
+uint32_t Load16Aligned(const uint8_t* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const uint16_t*>(pc);
 }
 
-int32_t Load16AlignedSigned(const byte* pc) {
+int32_t Load16AlignedSigned(const uint8_t* pc) {
   DCHECK_EQ(0, reinterpret_cast<intptr_t>(pc) & 1);
   return *reinterpret_cast<const int16_t*>(pc);
 }
@@ -230,8 +230,9 @@ IrregexpInterpreter::Result MaybeThrowStackOverflow(
 template <typename Char>
 void UpdateCodeAndSubjectReferences(
     Isolate* isolate, Handle<ByteArray> code_array,
-    Handle<String> subject_string, ByteArray* code_array_out,
-    const byte** code_base_out, const byte** pc_out, String* subject_string_out,
+    Handle<String> subject_string, Tagged<ByteArray>* code_array_out,
+    const uint8_t** code_base_out, const uint8_t** pc_out,
+    Tagged<String>* subject_string_out,
     base::Vector<const Char>* subject_string_vector_out) {
   DisallowGarbageCollection no_gc;
 
@@ -252,9 +253,11 @@ void UpdateCodeAndSubjectReferences(
 // necessary.
 template <typename Char>
 IrregexpInterpreter::Result HandleInterrupts(
-    Isolate* isolate, RegExp::CallOrigin call_origin, ByteArray* code_array_out,
-    String* subject_string_out, const byte** code_base_out,
-    base::Vector<const Char>* subject_string_vector_out, const byte** pc_out) {
+    Isolate* isolate, RegExp::CallOrigin call_origin,
+    Tagged<ByteArray>* code_array_out, Tagged<String>* subject_string_out,
+    const uint8_t** code_base_out,
+    base::Vector<const Char>* subject_string_vector_out,
+    const uint8_t** pc_out) {
   DisallowGarbageCollection no_gc;
 
   StackLimitCheck check(isolate);
@@ -283,12 +286,12 @@ IrregexpInterpreter::Result HandleInterrupts(
     } else if (check.InterruptRequested()) {
       const bool was_one_byte =
           String::IsOneByteRepresentationUnderneath(*subject_string_out);
-      Object result;
+      Tagged<Object> result;
       {
         AllowGarbageCollection yes_gc;
         result = isolate->stack_guard()->HandleInterrupts();
       }
-      if (result.IsException(isolate)) {
+      if (IsException(result, isolate)) {
         return IrregexpInterpreter::EXCEPTION;
       }
 
@@ -309,7 +312,7 @@ IrregexpInterpreter::Result HandleInterrupts(
   return IrregexpInterpreter::SUCCESS;
 }
 
-bool CheckBitInTable(const uint32_t current_char, const byte* const table) {
+bool CheckBitInTable(const uint32_t current_char, const uint8_t* const table) {
   int mask = RegExpMacroAssembler::kTableMask;
   int b = table[(current_char & mask) >> kBitsPerByteLog2];
   int bit = (current_char & (kBitsPerByte - 1));
@@ -382,10 +385,10 @@ bool IndexIsInBounds(int index, int length) {
 
 template <typename Char>
 IrregexpInterpreter::Result RawMatch(
-    Isolate* isolate, ByteArray code_array, String subject_string,
-    base::Vector<const Char> subject, int* output_registers,
-    int output_register_count, int total_register_count, int current,
-    uint32_t current_char, RegExp::CallOrigin call_origin,
+    Isolate* isolate, Tagged<ByteArray> code_array,
+    Tagged<String> subject_string, base::Vector<const Char> subject,
+    int* output_registers, int output_register_count, int total_register_count,
+    int current, uint32_t current_char, RegExp::CallOrigin call_origin,
     const uint32_t backtrack_limit) {
   DisallowGarbageCollection no_gc;
 
@@ -437,8 +440,8 @@ IrregexpInterpreter::Result RawMatch(
 
 #endif  // V8_USE_COMPUTED_GOTO
 
-  const byte* pc = code_array.GetDataStartAddress();
-  const byte* code_base = pc;
+  const uint8_t* pc = code_array->GetDataStartAddress();
+  const uint8_t* code_base = pc;
 
   InterpreterRegisters registers(total_register_count, output_registers,
                                  output_register_count);
@@ -453,7 +456,7 @@ IrregexpInterpreter::Result RawMatch(
 #endif
 
   while (true) {
-    const byte* next_pc = pc;
+    const uint8_t* next_pc = pc;
     int32_t insn;
     int32_t next_insn;
 #if V8_USE_COMPUTED_GOTO
@@ -971,7 +974,7 @@ IrregexpInterpreter::Result RawMatch(
     BYTECODE(SKIP_UNTIL_BIT_IN_TABLE) {
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
-      const byte* table = pc + 8;
+      const uint8_t* table = pc + 8;
       while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (CheckBitInTable(current_char, table)) {
@@ -987,7 +990,7 @@ IrregexpInterpreter::Result RawMatch(
       int32_t load_offset = LoadPacked24Signed(insn);
       int32_t advance = Load16AlignedSigned(pc + 4);
       uint16_t limit = Load16Aligned(pc + 6);
-      const byte* table = pc + 8;
+      const uint8_t* table = pc + 8;
       while (IndexIsInBounds(current + load_offset, subject.length())) {
         current_char = subject[current + load_offset];
         if (current_char > limit) {
@@ -1054,29 +1057,29 @@ IrregexpInterpreter::Result RawMatch(
 
 // static
 IrregexpInterpreter::Result IrregexpInterpreter::Match(
-    Isolate* isolate, JSRegExp regexp, String subject_string,
+    Isolate* isolate, Tagged<JSRegExp> regexp, Tagged<String> subject_string,
     int* output_registers, int output_register_count, int start_position,
     RegExp::CallOrigin call_origin) {
-  if (v8_flags.regexp_tier_up) regexp.TierUpTick();
+  if (v8_flags.regexp_tier_up) regexp->TierUpTick();
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(subject_string);
-  ByteArray code_array = ByteArray::cast(regexp.bytecode(is_one_byte));
-  int total_register_count = regexp.max_register_count();
+  Tagged<ByteArray> code_array = ByteArray::cast(regexp->bytecode(is_one_byte));
+  int total_register_count = regexp->max_register_count();
 
   return MatchInternal(isolate, code_array, subject_string, output_registers,
                        output_register_count, total_register_count,
-                       start_position, call_origin, regexp.backtrack_limit());
+                       start_position, call_origin, regexp->backtrack_limit());
 }
 
 IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
-    Isolate* isolate, ByteArray code_array, String subject_string,
-    int* output_registers, int output_register_count, int total_register_count,
-    int start_position, RegExp::CallOrigin call_origin,
-    uint32_t backtrack_limit) {
-  DCHECK(subject_string.IsFlat());
+    Isolate* isolate, Tagged<ByteArray> code_array,
+    Tagged<String> subject_string, int* output_registers,
+    int output_register_count, int total_register_count, int start_position,
+    RegExp::CallOrigin call_origin, uint32_t backtrack_limit) {
+  DCHECK(subject_string->IsFlat());
 
   // TODO(chromium:1262676): Remove this CHECK once fixed.
-  CHECK(code_array.IsByteArray());
+  CHECK(IsByteArray(code_array));
 
   // Note: Heap allocation *is* allowed in two situations if calling from
   // Runtime:
@@ -1087,7 +1090,7 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchInternal(
   DisallowGarbageCollection no_gc;
 
   base::uc16 previous_char = '\n';
-  String::FlatContent subject_content = subject_string.GetFlatContent(no_gc);
+  String::FlatContent subject_content = subject_string->GetFlatContent(no_gc);
   // Because interrupts can result in GC and string content relocation, the
   // checksum verification in FlatContent may fail even though this code is
   // safe. See (2) above.
@@ -1129,10 +1132,10 @@ IrregexpInterpreter::Result IrregexpInterpreter::MatchForCallFromJs(
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  String subject_string = String::cast(Object(subject));
-  JSRegExp regexp_obj = JSRegExp::cast(Object(regexp));
+  Tagged<String> subject_string = String::cast(Tagged<Object>(subject));
+  Tagged<JSRegExp> regexp_obj = JSRegExp::cast(Tagged<Object>(regexp));
 
-  if (regexp_obj.MarkedForTierUp()) {
+  if (regexp_obj->MarkedForTierUp()) {
     // Returning RETRY will re-enter through runtime, where actual recompilation
     // for tier-up takes place.
     return IrregexpInterpreter::RETRY;

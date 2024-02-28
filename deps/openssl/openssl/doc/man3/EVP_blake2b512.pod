@@ -35,7 +35,7 @@ The BLAKE2b algorithm that produces a 512-bit output from a given input.
 
 Developers should be aware of the negative performance implications of
 calling these functions multiple times and should consider using
-L<EVP_MD_fetch(3)> instead.
+L<EVP_MD_fetch(3)> with L<EVP_MD-BLAKE2(7)> instead.
 See L<crypto(7)/Performance> for further information.
 
 While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,

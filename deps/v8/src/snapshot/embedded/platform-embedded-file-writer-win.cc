@@ -123,9 +123,9 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
       // entry because the return address can be retrieved from [rsp].
       if (unwind_infos[builtin_index].is_leaf_function()) continue;
 
-      uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(builtin) -
+      uint64_t builtin_start_offset = blob->InstructionStartOf(builtin) -
                                       reinterpret_cast<Address>(blob->code());
-      uint32_t builtin_size = blob->InstructionSizeOfBuiltin(builtin);
+      uint32_t builtin_size = blob->InstructionSizeOf(builtin);
 
       const std::vector<int>& xdata_desc =
           unwind_infos[builtin_index].fp_offsets();
@@ -206,9 +206,9 @@ void EmitUnwindData(PlatformEmbeddedFileWriterWin* w,
     const int builtin_index = static_cast<int>(builtin);
     if (unwind_infos[builtin_index].is_leaf_function()) continue;
 
-    uint64_t builtin_start_offset = blob->InstructionStartOfBuiltin(builtin) -
+    uint64_t builtin_start_offset = blob->InstructionStartOf(builtin) -
                                     reinterpret_cast<Address>(blob->code());
-    uint32_t builtin_size = blob->InstructionSizeOfBuiltin(builtin);
+    uint32_t builtin_size = blob->InstructionSizeOf(builtin);
 
     const std::vector<int>& xdata_desc =
         unwind_infos[builtin_index].fp_offsets();

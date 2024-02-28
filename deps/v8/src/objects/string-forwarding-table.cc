@@ -70,18 +70,18 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
 
 namespace {
 
-bool UpdateForwardedSlot(HeapObject object, OffHeapObjectSlot slot) {
-  MapWord map_word = object.map_word(kRelaxedLoad);
+bool UpdateForwardedSlot(Tagged<HeapObject> object, OffHeapObjectSlot slot) {
+  MapWord map_word = object->map_word(kRelaxedLoad);
   if (map_word.IsForwardingAddress()) {
-    HeapObject forwarded_object = map_word.ToForwardingAddress(object);
+    Tagged<HeapObject> forwarded_object = map_word.ToForwardingAddress(object);
     slot.Release_Store(forwarded_object);
     return true;
   }
   return false;
 }
 
-bool UpdateForwardedSlot(Object object, OffHeapObjectSlot slot) {
-  if (!object.IsHeapObject()) return false;
+bool UpdateForwardedSlot(Tagged<Object> object, OffHeapObjectSlot slot) {
+  if (!IsHeapObject(object)) return false;
   return UpdateForwardedSlot(HeapObject::cast(object), slot);
 }
 
@@ -91,9 +91,9 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     PtrComprCageBase cage_base, int up_to_index) {
   for (int index = 0; index < up_to_index; ++index) {
     OffHeapObjectSlot slot = record(index)->OriginalStringSlot();
-    Object original = slot.Acquire_Load(cage_base);
-    if (!original.IsHeapObject()) continue;
-    HeapObject object = HeapObject::cast(original);
+    Tagged<Object> original = slot.Acquire_Load(cage_base);
+    if (!IsHeapObject(original)) continue;
+    Tagged<HeapObject> object = HeapObject::cast(original);
     if (Heap::InFromPage(object)) {
       DCHECK(!object.InWritableSharedSpace());
       const bool was_forwarded = UpdateForwardedSlot(object, slot);
@@ -102,13 +102,14 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
         slot.Release_Store(deleted_element());
       }
     } else {
-      DCHECK(!object.map_word(kRelaxedLoad).IsForwardingAddress());
+      DCHECK(!object->map_word(kRelaxedLoad).IsForwardingAddress());
     }
 // No need to update forwarded (internalized) strings as they are never
 // in young space.
 #ifdef DEBUG
-    Object forward = record(index)->ForwardStringObjectOrHash(cage_base);
-    if (forward.IsHeapObject()) {
+    Tagged<Object> forward =
+        record(index)->ForwardStringObjectOrHash(cage_base);
+    if (IsHeapObject(forward)) {
       DCHECK(!Heap::InYoungGeneration(HeapObject::cast(forward)));
     }
 #endif
@@ -119,13 +120,13 @@ void StringForwardingTable::Block::UpdateAfterFullEvacuation(
     PtrComprCageBase cage_base, int up_to_index) {
   for (int index = 0; index < up_to_index; ++index) {
     OffHeapObjectSlot original_slot = record(index)->OriginalStringSlot();
-    Object original = original_slot.Acquire_Load(cage_base);
-    if (!original.IsHeapObject()) continue;
+    Tagged<Object> original = original_slot.Acquire_Load(cage_base);
+    if (!IsHeapObject(original)) continue;
     UpdateForwardedSlot(HeapObject::cast(original), original_slot);
     // During mark compact the forwarded (internalized) string may have been
     // evacuated.
     OffHeapObjectSlot forward_slot = record(index)->ForwardStringOrHashSlot();
-    Object forward = forward_slot.Acquire_Load(cage_base);
+    Tagged<Object> forward = forward_slot.Acquire_Load(cage_base);
     UpdateForwardedSlot(forward, forward_slot);
   }
 }
@@ -202,11 +203,12 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
   return blocks;
 }
 
-int StringForwardingTable::AddForwardString(String string, String forward_to) {
+int StringForwardingTable::AddForwardString(Tagged<String> string,
+                                            Tagged<String> forward_to) {
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 string.InSharedHeap());
+                 Object::InSharedHeap(string));
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 forward_to.InSharedHeap());
+                 Object::InSharedHeap(forward_to));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -217,7 +219,8 @@ int StringForwardingTable::AddForwardString(String string, String forward_to) {
   return index;
 }
 
-void StringForwardingTable::UpdateForwardString(int index, String forward_to) {
+void StringForwardingTable::UpdateForwardString(int index,
+                                                Tagged<String> forward_to) {
   CHECK_LT(index, size());
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -227,14 +230,14 @@ void StringForwardingTable::UpdateForwardString(int index, String forward_to) {
 }
 
 template <typename T>
-int StringForwardingTable::AddExternalResourceAndHash(String string,
+int StringForwardingTable::AddExternalResourceAndHash(Tagged<String> string,
                                                       T* resource,
                                                       uint32_t raw_hash) {
   constexpr bool is_one_byte =
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 string.InSharedHeap());
+                 Object::InSharedHeap(string));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -247,11 +250,11 @@ int StringForwardingTable::AddExternalResourceAndHash(String string,
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) int StringForwardingTable::
-    AddExternalResourceAndHash(String string,
+    AddExternalResourceAndHash(Tagged<String> string,
                                v8::String::ExternalOneByteStringResource*,
                                uint32_t raw_hash);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) int StringForwardingTable::
-    AddExternalResourceAndHash(String string,
+    AddExternalResourceAndHash(Tagged<String> string,
                                v8::String::ExternalStringResource*,
                                uint32_t raw_hash);
 
@@ -276,8 +279,8 @@ template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE) bool StringForwardingTable::
     TryUpdateExternalResource(int index,
                               v8::String::ExternalStringResource* resource);
 
-String StringForwardingTable::GetForwardString(PtrComprCageBase cage_base,
-                                               int index) const {
+Tagged<String> StringForwardingTable::GetForwardString(
+    PtrComprCageBase cage_base, int index) const {
   CHECK_LT(index, size());
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -349,7 +352,7 @@ void StringForwardingTable::Reset() {
 
 void StringForwardingTable::UpdateAfterYoungEvacuation() {
   // This is only used for the Scavenger.
-  DCHECK(!v8_flags.minor_mc);
+  DCHECK(!v8_flags.minor_ms);
   DCHECK(v8_flags.always_use_string_forwarding_table);
 
   if (empty()) return;

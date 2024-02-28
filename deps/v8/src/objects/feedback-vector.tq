@@ -20,25 +20,24 @@ bitfield struct FeedbackVectorFlags extends uint16 {
 }
 
 bitfield struct OsrState extends uint8 {
-  // The layout is chosen s.t. osr_urgency and maybe_has_optimized_osr_code can
-  // be loaded with a single load (i.e. no masking required).
+  // The layout is chosen s.t. osr_urgency and
+  // maybe_has_(maglev|turbofan)_osr_code can be loaded with a single load
+  // (i.e. no masking required).
   osr_urgency: uint32: 3 bit;
-  maybe_has_optimized_osr_code: bool: 1 bit;
+  maybe_has_maglev_osr_code: bool: 1 bit;
+  maybe_has_turbofan_osr_code: bool: 1 bit;
   // In order to have fast OSR checks in Ignition and Sparkplug, these bits
   // should remain 0. That way, the OSR check can be implemented as a single
   // comparison.
-  dont_use_these_bits_unless_beneficial: uint32: 4 bit;
+  dont_use_these_bits_unless_beneficial: uint32: 3 bit;
 }
 
 @generateBodyDescriptor
 extern class FeedbackVector extends HeapObject {
   const length: int32;
   invocation_count: int32;
-  // TODO(jgruber): We don't need 32 bits to count profiler_ticks (something
-  // like 4 bits seems sufficient).
-  profiler_ticks: int32;
-  // TODO(jgruber): These bits are available and could be merged with
-  // profiler_ticks.
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  // TODO(jgruber): These bits are available.
   placeholder0: uint8;
   osr_state: OsrState;
   flags: FeedbackVectorFlags;

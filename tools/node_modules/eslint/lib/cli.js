@@ -22,7 +22,8 @@ const fs = require("fs"),
     { FlatESLint, shouldUseFlatConfig } = require("./eslint/flat-eslint"),
     createCLIOptions = require("./options"),
     log = require("./shared/logging"),
-    RuntimeInfo = require("./shared/runtime-info");
+    RuntimeInfo = require("./shared/runtime-info"),
+    { normalizeSeverityToString } = require("./shared/severity");
 const { Legacy: { naming } } = require("@eslint/eslintrc");
 const { ModuleImporter } = require("@humanwhocodes/module-importer");
 
@@ -89,9 +90,11 @@ async function translateOptions({
     plugin,
     quiet,
     reportUnusedDisableDirectives,
+    reportUnusedDisableDirectivesSeverity,
     resolvePluginsRelativeTo,
     rule,
-    rulesdir
+    rulesdir,
+    warnIgnored
 }, configType) {
 
     let overrideConfig, overrideConfigFile;
@@ -123,6 +126,14 @@ async function translateOptions({
             },
             rules: rule ? rule : {}
         }];
+
+        if (reportUnusedDisableDirectives || reportUnusedDisableDirectivesSeverity !== void 0) {
+            overrideConfig[0].linterOptions = {
+                reportUnusedDisableDirectives: reportUnusedDisableDirectives
+                    ? "error"
+                    : normalizeSeverityToString(reportUnusedDisableDirectivesSeverity)
+            };
+        }
 
         if (parser) {
             overrideConfig[0].languageOptions.parser = await importer.import(parser);
@@ -176,18 +187,23 @@ async function translateOptions({
         fixTypes: fixType,
         ignore,
         overrideConfig,
-        overrideConfigFile,
-        reportUnusedDisableDirectives: reportUnusedDisableDirectives ? "error" : void 0
+        overrideConfigFile
     };
 
     if (configType === "flat") {
         options.ignorePatterns = ignorePattern;
+        options.warnIgnored = warnIgnored;
     } else {
         options.resolvePluginsRelativeTo = resolvePluginsRelativeTo;
         options.rulePaths = rulesdir;
         options.useEslintrc = eslintrc;
         options.extensions = ext;
         options.ignorePath = ignorePath;
+        if (reportUnusedDisableDirectives || reportUnusedDisableDirectivesSeverity !== void 0) {
+            options.reportUnusedDisableDirectives = reportUnusedDisableDirectives
+                ? "error"
+                : normalizeSeverityToString(reportUnusedDisableDirectivesSeverity);
+        }
     }
 
     return options;
@@ -316,7 +332,14 @@ const cli = {
             options = CLIOptions.parse(args);
         } catch (error) {
             debug("Error parsing CLI options:", error.message);
-            log.error(error.message);
+
+            let errorMessage = error.message;
+
+            if (usingFlatConfig) {
+                errorMessage += "\nYou're using eslint.config.js, some command line flags are no longer available. Please see https://eslint.org/docs/latest/use/command-line-interface for details.";
+            }
+
+            log.error(errorMessage);
             return 2;
         }
 
@@ -377,6 +400,11 @@ const cli = {
             return 2;
         }
 
+        if (options.reportUnusedDisableDirectives && options.reportUnusedDisableDirectivesSeverity !== void 0) {
+            log.error("The --report-unused-disable-directives option and the --report-unused-disable-directives-severity option cannot be used together.");
+            return 2;
+        }
+
         const ActiveESLint = usingFlatConfig ? FlatESLint : ESLint;
 
         const engine = new ActiveESLint(await translateOptions(options, usingFlatConfig ? "flat" : "eslintrc"));
@@ -385,7 +413,9 @@ const cli = {
         if (useStdin) {
             results = await engine.lintText(text, {
                 filePath: options.stdinFilename,
-                warnIgnored: true
+
+                // flatConfig respects CLI flag and constructor warnIgnored, eslintrc forces true for backwards compatibility
+                warnIgnored: usingFlatConfig ? void 0 : true
             });
         } else {
             results = await engine.lintFiles(files);

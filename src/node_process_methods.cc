@@ -4,6 +4,7 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_dotenv.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
@@ -64,7 +65,7 @@ Mutex umask_mutex;
 #define NANOS_PER_SEC 1000000000
 
 static void Abort(const FunctionCallbackInfo<Value>& args) {
-  Abort();
+  ABORT();
 }
 
 // For internal testing only, not exposed to userland.
@@ -463,17 +464,63 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
+static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  std::string path = ".env";
+  if (args.Length() == 1) {
+    Utf8Value path_value(args.GetIsolate(), args[0]);
+    path = path_value.ToString();
+  }
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kFileSystemRead, path);
+
+  Dotenv dotenv{};
+
+  switch (dotenv.ParsePath(path)) {
+    case dotenv.ParseResult::Valid: {
+      dotenv.SetEnvironment(env);
+      break;
+    }
+    case dotenv.ParseResult::InvalidContent: {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env, "Contents of '%s' should be a valid string.", path.c_str());
+      break;
+    }
+    case dotenv.ParseResult::FileError: {
+      env->ThrowUVException(UV_ENOENT, "Failed to load '%s'.", path.c_str());
+      break;
+    }
+    default:
+      UNREACHABLE();
+  }
+}
+
 namespace process {
 
-BindingData::BindingData(Realm* realm, v8::Local<v8::Object> object)
-    : SnapshotableObject(realm, object, type_int) {
+BindingData::BindingData(Realm* realm,
+                         v8::Local<v8::Object> object,
+                         InternalFieldInfo* info)
+    : SnapshotableObject(realm, object, type_int),
+      hrtime_buffer_(realm->isolate(),
+                     kHrTimeBufferLength,
+                     MAYBE_FIELD_PTR(info, hrtime_buffer)) {
   Isolate* isolate = realm->isolate();
   Local<Context> context = realm->context();
-  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, kBufferSize);
-  array_buffer_.Reset(isolate, ab);
-  object->Set(context, FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"), ab)
-      .ToChecked();
-  backing_store_ = ab->GetBackingStore();
+
+  if (info == nullptr) {
+    object
+        ->Set(context,
+              FIXED_ONE_BYTE_STRING(isolate, "hrtimeBuffer"),
+              hrtime_buffer_.GetJSArray())
+        .ToChecked();
+  } else {
+    hrtime_buffer_.Deserialize(realm->context());
+  }
+
+  // The hrtime buffer is referenced from the binding data js object.
+  // Make the native handle weak to avoid keeping the realm alive.
+  hrtime_buffer_.MakeWeak();
 }
 
 v8::CFunction BindingData::fast_number_(v8::CFunction::Make(FastNumber));
@@ -503,7 +550,7 @@ BindingData* BindingData::FromV8Value(Local<Value> value) {
 }
 
 void BindingData::MemoryInfo(MemoryTracker* tracker) const {
-  tracker->TrackField("array_buffer", array_buffer_);
+  tracker->TrackField("hrtime_buffer", hrtime_buffer_);
 }
 
 // This is the legacy version of hrtime before BigInt was introduced in
@@ -516,20 +563,19 @@ void BindingData::MemoryInfo(MemoryTracker* tracker) const {
 // because there is no Uint64Array in JS.
 // The third entry contains the remaining nanosecond part of the value.
 void BindingData::NumberImpl(BindingData* receiver) {
-  // Make sure we don't accidentally access buffers wiped for snapshot.
-  CHECK(!receiver->array_buffer_.IsEmpty());
   uint64_t t = uv_hrtime();
-  uint32_t* fields = static_cast<uint32_t*>(receiver->backing_store_->Data());
-  fields[0] = (t / NANOS_PER_SEC) >> 32;
-  fields[1] = (t / NANOS_PER_SEC) & 0xffffffff;
-  fields[2] = t % NANOS_PER_SEC;
+  receiver->hrtime_buffer_[0] = (t / NANOS_PER_SEC) >> 32;
+  receiver->hrtime_buffer_[1] = (t / NANOS_PER_SEC) & 0xffffffff;
+  receiver->hrtime_buffer_[2] = t % NANOS_PER_SEC;
 }
 
 void BindingData::BigIntImpl(BindingData* receiver) {
-  // Make sure we don't accidentally access buffers wiped for snapshot.
-  CHECK(!receiver->array_buffer_.IsEmpty());
   uint64_t t = uv_hrtime();
-  uint64_t* fields = static_cast<uint64_t*>(receiver->backing_store_->Data());
+  // The buffer is a Uint32Array, so we need to reinterpret it as a
+  // Uint64Array to write the value. The buffer is valid at this scope so we
+  // can safely cast away the constness.
+  uint64_t* fields = reinterpret_cast<uint64_t*>(
+      const_cast<uint32_t*>(receiver->hrtime_buffer_.GetNativeBuffer()));
   fields[0] = t;
 }
 
@@ -543,9 +589,10 @@ void BindingData::SlowNumber(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 bool BindingData::PrepareForSerialization(Local<Context> context,
                                           v8::SnapshotCreator* creator) {
-  // It's not worth keeping.
-  // Release it, we will recreate it when the instance is dehydrated.
-  array_buffer_.Reset();
+  DCHECK_NULL(internal_field_info_);
+  internal_field_info_ = InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  internal_field_info_->hrtime_buffer =
+      hrtime_buffer_.Serialize(context, creator);
   // Return true because we need to maintain the reference to the binding from
   // JS land.
   return true;
@@ -553,8 +600,8 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
   DCHECK_IS_SNAPSHOT_SLOT(index);
-  InternalFieldInfo* info =
-      InternalFieldInfoBase::New<InternalFieldInfo>(type());
+  InternalFieldInfo* info = internal_field_info_;
+  internal_field_info_ = nullptr;
   return info;
 }
 
@@ -566,7 +613,9 @@ void BindingData::Deserialize(Local<Context> context,
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = realm->AddBindingData<BindingData>(holder);
+  InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
+  BindingData* binding =
+      realm->AddBindingData<BindingData>(holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
@@ -600,6 +649,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "reallyExit", ReallyExit);
   SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
+
+  SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -637,6 +688,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(ReallyExit);
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
+
+  registry->Register(LoadEnvFile);
 }
 
 }  // namespace process

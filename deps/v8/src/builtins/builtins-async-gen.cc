@@ -27,7 +27,7 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
     TNode<Object> value, TNode<JSPromise> outer_promise,
     TNode<SharedFunctionInfo> on_resolve_sfi,
     TNode<SharedFunctionInfo> on_reject_sfi,
-    TNode<Oddball> is_predicted_as_caught) {
+    TNode<Boolean> is_predicted_as_caught) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // We do the `PromiseResolve(%Promise%,value)` avoiding to unnecessarily
@@ -181,11 +181,12 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(
   TNode<Smi> builtin_id = LoadObjectField<Smi>(
       shared_info, SharedFunctionInfo::kFunctionDataOffset);
   TNode<Code> code = LoadBuiltin(builtin_id);
-  StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
+  StoreMaybeIndirectPointerFieldNoWriteBarrier(
+      function, JSFunction::kCodeOffset, kCodeIndirectPointerTag, code);
 }
 
 TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
-    TNode<NativeContext> native_context, TNode<Oddball> done) {
+    TNode<NativeContext> native_context, TNode<Boolean> done) {
   const TNode<Map> map = CAST(LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
   const TNode<SharedFunctionInfo> on_fulfilled_shared =
@@ -197,7 +198,7 @@ TNode<JSFunction> AsyncBuiltinsAssembler::CreateUnwrapClosure(
 }
 
 TNode<Context> AsyncBuiltinsAssembler::AllocateAsyncIteratorValueUnwrapContext(
-    TNode<NativeContext> native_context, TNode<Oddball> done) {
+    TNode<NativeContext> native_context, TNode<Boolean> done) {
   CSA_DCHECK(this, IsBoolean(done));
 
   TNode<Context> context = AllocateSyntheticFunctionContext(

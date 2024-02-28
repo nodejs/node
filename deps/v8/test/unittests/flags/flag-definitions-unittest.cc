@@ -32,8 +32,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class FlagDefinitionsTest : public ::testing::Test {
  public:
@@ -221,19 +220,63 @@ TEST_F(FlagDefinitionsTest, FreezeFlags) {
   CHECK_EQ(42, *direct_testing_int_ptr);
 }
 
-TEST_F(FlagDefinitionsTest, TestExperimentalImplications) {
-  // Check that experimental features are not staged behind --future/--harmony.
-  if (!v8_flags.experimental) {
-    int argc = 3;
-    const char* argv[] = {"", "--future", "--harmony"};
+struct FlagAndName {
+  FlagValue<bool>* value;
+  const char* name;
+  const char* test_name;
+};
+
+class ExperimentalFlagImplicationTest
+    : public ::testing::TestWithParam<FlagAndName> {};
+
+// Check that no experimental feature is enabled; this is executed for different
+// {FlagAndName} combinations.
+TEST_P(ExperimentalFlagImplicationTest, TestExperimentalNotEnabled) {
+  FlagList::EnforceFlagImplications();
+  // --experimental should be disabled by default. Note that unittests do not
+  // get executed in variants.
+  CHECK(!v8_flags.experimental);
+  auto [flag_value, flag_name, test_name] = GetParam();
+  CHECK_EQ(flag_value == nullptr, flag_name == nullptr);
+
+  if (flag_name) {
+    int argc = 2;
+    const char* argv[] = {"", flag_name};
     CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(
-                    &argc, const_cast<char**>(argv), true));
-    FlagList::EnforceFlagImplications();
-    CHECK(v8_flags.future);
-    CHECK(v8_flags.harmony);
-    CHECK(!v8_flags.experimental);
+                    &argc, const_cast<char**>(argv), false));
+    CHECK(*flag_value);
+  }
+
+  // Always enforce implications before checking if --experimental is set.
+  FlagList::EnforceFlagImplications();
+
+  if (v8_flags.experimental) {
+    if (flag_value == nullptr) {
+      FATAL("--experimental is enabled by default");
+    } else {
+      FATAL("--experimental is implied by %s", flag_name);
+    }
   }
 }
 
-}  // namespace internal
-}  // namespace v8
+std::string FlagNameToTestName(::testing::TestParamInfo<FlagAndName> info) {
+  return info.param.test_name;
+}
+
+// MVSC does not like an "#if" inside of a macro, hence define this list outside
+// of INSTANTIATE_TEST_SUITE_P.
+auto GetFlagImplicationTestVariants() {
+  return ::testing::Values(
+      FlagAndName{nullptr, nullptr, "Default"},
+      FlagAndName{&v8_flags.future, "--future", "Future"},
+#if V8_ENABLE_WEBASSEMBLY
+      FlagAndName{&v8_flags.wasm_staging, "--wasm-staging", "WasmStaging"},
+#endif  // V8_ENABLE_WEBASSEMBLY
+      FlagAndName{&v8_flags.harmony, "--harmony", "Harmony"});
+}
+
+INSTANTIATE_TEST_SUITE_P(ExperimentalFlagImplication,
+                         ExperimentalFlagImplicationTest,
+                         GetFlagImplicationTestVariants(), FlagNameToTestName);
+
+}  // namespace v8::internal

@@ -46,7 +46,7 @@ var kV8MaxPages = 65536;
 function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
   // size is the number of bytes for load and stores.
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   var module = builder.instantiate();
   var offset;
   var load = module.exports[load_fn];
@@ -127,7 +127,7 @@ function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
 (function testMemoryGrowZeroInitialSize() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
+  builder.addMemory(0, undefined);
   var module = builder.instantiate();
   var offset;
   function peek() { return module.exports.load(offset); }
@@ -166,7 +166,7 @@ function testMemoryGrowReadWriteBase(size, load_fn, store_fn) {
 
 function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
+  builder.addMemory(0, undefined);
   var module = builder.instantiate();
   var offset;
   var load = module.exports[load_fn];
@@ -215,7 +215,7 @@ function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
 (function testMemoryGrowTrapMaxPagesZeroInitialMemory() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
+  builder.addMemory(0, undefined);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(-1, growMem(kV8MaxPages + 1));
@@ -224,7 +224,7 @@ function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
 (function testMemoryGrowTrapMaxPages() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(-1, growMem(kV8MaxPages));
@@ -233,7 +233,7 @@ function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
 (function testMemoryGrowTrapsWithNonSmiInput() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(0, undefined, false);
+  builder.addMemory(0, undefined);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   // The parameter of grow_memory is unsigned. Therefore -1 stands for
@@ -244,7 +244,7 @@ function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
 (function testMemoryGrowCurrentMemory() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   builder.addFunction("memory_size", kSig_i_v)
       .addBody([kExprMemorySize, kMemoryZero])
       .exportFunc();
@@ -258,7 +258,7 @@ function testMemoryGrowZeroInitialSizeBase(size, load_fn, store_fn) {
 
 function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   var module = builder.instantiate();
   var offset;
   var load = module.exports[load_fn];
@@ -312,7 +312,7 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
 (function testMemoryGrowOutOfBoundsOffset() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }
@@ -348,7 +348,7 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
 (function testMemoryGrowOutOfBoundsOffset2() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(16, 128, false);
+  builder.addMemory(16, 128);
   builder.addFunction("main", kSig_v_v)
       .addBody([
           kExprI32Const, 20,
@@ -364,7 +364,7 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
 (function testMemoryGrowDeclaredMaxTraps() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, 16, false);
+  builder.addMemory(1, 16);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(1, growMem(5));
@@ -377,7 +377,7 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
   // This test checks that grow_memory does not grow past the internally
   // defined maximum memory size.
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, kSpecMaxPages, false);
+  builder.addMemory(1, kSpecMaxPages);
   var module = builder.instantiate();
   function growMem(pages) { return module.exports.grow_memory(pages); }
   assertEquals(1, growMem(20));
@@ -387,7 +387,7 @@ function testMemoryGrowPreservesDataMemOpBase(size, load_fn, store_fn) {
 (function testMemoryGrow4Gb() {
   print(arguments.callee.name);
   var builder = genMemoryGrowBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   var module = builder.instantiate();
   var offset, val;
   function peek() { return module.exports.load(offset); }

@@ -8,7 +8,8 @@ namespace typed_array {
 const kBuiltinNameFind: constexpr string = '%TypedArray%.prototype.find';
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.find
-transitioning macro FindAllElements(implicit context: Context)(
+transitioning macro FindAllElements(
+    implicit context: Context)(
     attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     predicate: Callable, thisArg: JSAny): JSAny {
   let witness =
@@ -51,8 +52,7 @@ transitioning macro FindAllElements(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.find
-transitioning javascript builtin
-TypedArrayPrototypeFind(
+transitioning javascript builtin TypedArrayPrototypeFind(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback
   // arguments[1] = thisArg
@@ -69,7 +69,7 @@ TypedArrayPrototypeFind(
     const thisArg = arguments[1];
     return FindAllElements(attachedArrayAndLength, predicate, thisArg);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameFind);
   } label IsDetachedOrOutOfBounds deferred {

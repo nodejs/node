@@ -21,6 +21,7 @@
 #include "src/codegen/macro-assembler-base.h"
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
+#include "src/compiler/backend/instruction-selector-adapter.h"
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/backend/instruction.h"
@@ -48,10 +49,13 @@ namespace internal {
 namespace compiler {
 
 // Adds IA32-specific methods for generating operands.
-class IA32OperandGenerator final : public OperandGenerator {
+template <typename Adapter>
+class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
  public:
-  explicit IA32OperandGenerator(InstructionSelector* selector)
-      : OperandGenerator(selector) {}
+  OPERAND_GENERATOR_T_BOILERPLATE(Adapter)
+
+  explicit IA32OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
+      : super(selector) {}
 
   InstructionOperand UseByteRegister(Node* node) {
     // TODO(titzer): encode byte register use constraints.
@@ -129,7 +133,8 @@ class IA32OperandGenerator final : public OperandGenerator {
   AddressingMode GenerateMemoryOperandInputs(
       Node* index, int scale, Node* base, int32_t displacement,
       DisplacementMode displacement_mode, InstructionOperand inputs[],
-      size_t* input_count, RegisterMode register_mode = kRegister) {
+      size_t* input_count,
+      RegisterMode register_mode = RegisterMode::kRegister) {
     AddressingMode mode = kMode_MRI;
     if (displacement_mode == kNegativeDisplacement) {
       displacement = base::bits::WraparoundNeg32(displacement);
@@ -189,7 +194,8 @@ class IA32OperandGenerator final : public OperandGenerator {
   AddressingMode GenerateMemoryOperandInputs(
       Node* index, int scale, Node* base, Node* displacement_node,
       DisplacementMode displacement_mode, InstructionOperand inputs[],
-      size_t* input_count, RegisterMode register_mode = kRegister) {
+      size_t* input_count,
+      RegisterMode register_mode = RegisterMode::kRegister) {
     int32_t displacement = (displacement_node == nullptr)
                                ? 0
                                : OpParameter<int32_t>(displacement_node->op());
@@ -198,44 +204,51 @@ class IA32OperandGenerator final : public OperandGenerator {
                                        register_mode);
   }
 
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
+                                          GetEffectiveAddressMemoryOperand)
   AddressingMode GetEffectiveAddressMemoryOperand(
-      Node* node, InstructionOperand inputs[], size_t* input_count,
-      RegisterMode register_mode = kRegister) {
-    {
-      LoadMatcher<ExternalReferenceMatcher> m(node);
-      if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
-          selector()->CanAddressRelativeToRootsRegister(
-              m.object().ResolvedValue())) {
-        ptrdiff_t const delta =
-            m.index().ResolvedValue() +
-            MacroAssemblerBase::RootRegisterOffsetForExternalReference(
-                selector()->isolate(), m.object().ResolvedValue());
-        if (is_int32(delta)) {
-          inputs[(*input_count)++] = TempImmediate(static_cast<int32_t>(delta));
-          return kMode_Root;
+      node_t node, InstructionOperand inputs[], size_t* input_count,
+      RegisterMode register_mode = RegisterMode::kRegister) {
+    if constexpr (Adapter::IsTurboshaft) {
+      UNIMPLEMENTED();
+    } else {
+      {
+        LoadMatcher<ExternalReferenceMatcher> m(node);
+        if (m.index().HasResolvedValue() && m.object().HasResolvedValue() &&
+            selector()->CanAddressRelativeToRootsRegister(
+                m.object().ResolvedValue())) {
+          ptrdiff_t const delta =
+              m.index().ResolvedValue() +
+              MacroAssemblerBase::RootRegisterOffsetForExternalReference(
+                  selector()->isolate(), m.object().ResolvedValue());
+          if (is_int32(delta)) {
+            inputs[(*input_count)++] =
+                TempImmediate(static_cast<int32_t>(delta));
+            return kMode_Root;
+          }
         }
       }
-    }
 
-    BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
-    DCHECK(m.matches());
-    if (m.base() != nullptr &&
-        m.base()->opcode() == IrOpcode::kLoadRootRegister) {
-      DCHECK_EQ(m.index(), nullptr);
-      DCHECK_EQ(m.scale(), 0);
-      inputs[(*input_count)++] = UseImmediate(m.displacement());
-      return kMode_Root;
-    } else if ((m.displacement() == nullptr ||
-                CanBeImmediate(m.displacement()))) {
-      return GenerateMemoryOperandInputs(
-          m.index(), m.scale(), m.base(), m.displacement(),
-          m.displacement_mode(), inputs, input_count, register_mode);
-    } else {
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(0), register_mode);
-      inputs[(*input_count)++] =
-          UseRegisterWithMode(node->InputAt(1), register_mode);
-      return kMode_MR1;
+      BaseWithIndexAndDisplacement32Matcher m(node, AddressOption::kAllowAll);
+      DCHECK(m.matches());
+      if (m.base() != nullptr &&
+          m.base()->opcode() == IrOpcode::kLoadRootRegister) {
+        DCHECK_EQ(m.index(), nullptr);
+        DCHECK_EQ(m.scale(), 0);
+        inputs[(*input_count)++] = UseImmediate(m.displacement());
+        return kMode_Root;
+      } else if ((m.displacement() == nullptr ||
+                  CanBeImmediate(m.displacement()))) {
+        return GenerateMemoryOperandInputs(
+            m.index(), m.scale(), m.base(), m.displacement(),
+            m.displacement_mode(), inputs, input_count, register_mode);
+      } else {
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(node->InputAt(0), register_mode);
+        inputs[(*input_count)++] =
+            UseRegisterWithMode(node->InputAt(1), register_mode);
+        return kMode_MR1;
+      }
     }
   }
 
@@ -250,7 +263,8 @@ class IA32OperandGenerator final : public OperandGenerator {
     }
   }
 
-  bool CanBeBetterLeftOperand(Node* node) const {
+  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
+  bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }
 };
@@ -285,6 +299,7 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
@@ -294,8 +309,14 @@ ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   return opcode;
 }
 
-void VisitRO(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+template <typename T>
+void VisitRO(InstructionSelectorT<TurboshaftAdapter>* selector, T, ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRO(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+             ArchOpcode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* input = node->InputAt(0);
   // We have to use a byte register as input to movsxb.
   InstructionOperand input_op =
@@ -303,33 +324,55 @@ void VisitRO(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
   selector->Emit(opcode, g.DefineAsRegister(node), input_op);
 }
 
-void VisitROWithTemp(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempRegister()};
-  selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-                 arraysize(temps), temps);
+template <typename Adapter>
+void VisitROWithTemp(InstructionSelectorT<Adapter>* selector,
+                     typename Adapter::node_t node, ArchOpcode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(selector);
+    InstructionOperand temps[] = {g.TempRegister()};
+    selector->Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
+                   arraysize(temps), temps);
+  }
 }
 
-void VisitROWithTempSimd(InstructionSelector* selector, Node* node,
-                         ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+template <typename T>
+void VisitROWithTempSimd(InstructionSelectorT<TurboshaftAdapter>*, T,
+                         ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitROWithTempSimd(InstructionSelectorT<TurbofanAdapter>* selector,
+                         Node* node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseUniqueRegister(node->InputAt(0)), arraysize(temps),
                  temps);
 }
 
-void VisitRR(InstructionSelector* selector, Node* node,
+template <typename T>
+void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, T, InstructionCode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
              InstructionCode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)));
 }
 
-void VisitRROFloat(InstructionSelector* selector, Node* node,
+template <typename T>
+void VisitRROFloat(InstructionSelectorT<TurboshaftAdapter>* selector, T,
+                   ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRROFloat(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                    ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.Use(node->InputAt(1));
   if (selector->IsSupported(AVX)) {
@@ -342,9 +385,11 @@ void VisitRROFloat(InstructionSelector* selector, Node* node,
 // For float unary operations. Also allocates a temporary general register for
 // used in external operands. If a temp is not required, use VisitRRSimd (since
 // float and SIMD registers are the same on IA32.
-void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
-                    ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+template <typename Adapter>
+void VisitFloatUnop(InstructionSelectorT<Adapter>* selector,
+                    typename Adapter::node_t node,
+                    typename Adapter::node_t input, ArchOpcode opcode) {
+  IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand temps[] = {g.TempRegister()};
   // No need for unique because inputs are float but temp is general.
   if (selector->IsSupported(AVX)) {
@@ -356,9 +401,15 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   }
 }
 
-void VisitRRSimd(InstructionSelector* selector, Node* node,
+void VisitRRSimd(InstructionSelectorT<TurboshaftAdapter>* selector,
+                 turboshaft::OpIndex node, ArchOpcode avx_opcode,
+                 ArchOpcode sse_opcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRRSimd(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                  ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   if (selector->IsSupported(AVX)) {
     selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0);
@@ -367,17 +418,29 @@ void VisitRRSimd(InstructionSelector* selector, Node* node,
   }
 }
 
-void VisitRRSimd(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
-  VisitRRSimd(selector, node, opcode, opcode);
+template <typename Adapter>
+void VisitRRSimd(InstructionSelectorT<Adapter>* selector,
+                 typename Adapter::node_t node, ArchOpcode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRSimd(selector, node, opcode, opcode);
+  }
 }
 
 // TODO(v8:9198): Like VisitRROFloat, but for SIMD. SSE requires operand1 to be
 // a register as we don't have memory alignment yet. For AVX, memory operands
 // are fine, but can have performance issues if not aligned to 16/32 bytes
 // (based on load size), see SDM Vol 1, chapter 14.9
-void VisitRROSimd(InstructionSelector* selector, Node* node,
+void VisitRROSimd(InstructionSelectorT<TurboshaftAdapter>* selector,
+                  turboshaft::OpIndex node, ArchOpcode avx_opcode,
+                  ArchOpcode sse_opcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRROSimd(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                   ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   if (selector->IsSupported(AVX)) {
     selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0,
@@ -387,9 +450,15 @@ void VisitRROSimd(InstructionSelector* selector, Node* node,
                    g.UseRegister(node->InputAt(1)));
   }
 }
-void VisitRRRSimd(InstructionSelector* selector, Node* node,
+
+void VisitRRRSimd(InstructionSelectorT<TurboshaftAdapter>* selector,
+                  turboshaft::OpIndex node, ArchOpcode opcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitRRRSimd(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                   ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand dst = selector->IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
@@ -398,9 +467,10 @@ void VisitRRRSimd(InstructionSelector* selector, Node* node,
   selector->Emit(opcode, dst, operand0, operand1);
 }
 
-void VisitRRISimd(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitRRISimd(InstructionSelectorT<Adapter>* selector, Node* node,
                   ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
@@ -412,9 +482,10 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
   selector->Emit(opcode, dest, operand0, operand1);
 }
 
-void VisitRRISimd(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitRRISimd(InstructionSelectorT<Adapter>* selector, Node* node,
                   ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
@@ -425,9 +496,10 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
   }
 }
 
-void VisitRROSimdShift(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitRROSimdShift(InstructionSelectorT<Adapter>* selector, Node* node,
                        ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   if (g.CanBeImmediate(node->InputAt(1))) {
     selector->Emit(opcode, g.DefineSameAsFirst(node),
                    g.UseRegister(node->InputAt(0)),
@@ -441,17 +513,27 @@ void VisitRROSimdShift(InstructionSelector* selector, Node* node,
   }
 }
 
-void VisitRRRR(InstructionSelector* selector, Node* node,
-               InstructionCode opcode) {
-  IA32OperandGenerator g(selector);
-  selector->Emit(
-      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
-      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+template <typename Adapter>
+void VisitRRRR(InstructionSelectorT<Adapter>* selector,
+               typename Adapter::node_t node, InstructionCode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(selector);
+    selector->Emit(
+        opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+  }
 }
 
-void VisitI8x16Shift(InstructionSelector* selector, Node* node,
-                     ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+void VisitI8x16Shift(InstructionSelectorT<TurboshaftAdapter>* selector,
+                     turboshaft::OpIndex node, ArchOpcode opcode) {
+  UNIMPLEMENTED();
+}
+
+void VisitI8x16Shift(InstructionSelectorT<TurbofanAdapter>* selector,
+                     Node* node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand output = CpuFeatures::IsSupported(AVX)
                                   ? g.UseRegister(node)
                                   : g.DefineSameAsFirst(node);
@@ -474,21 +556,37 @@ void VisitI8x16Shift(InstructionSelector* selector, Node* node,
 }
 }  // namespace
 
-void InstructionSelector::VisitStackSlot(Node* node) {
-  StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
-  OperandGenerator g(this);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
+    int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+    OperandGenerator g(this);
 
-  Emit(kArchStackSlot, g.DefineAsRegister(node),
-       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+    Emit(kArchStackSlot, g.DefineAsRegister(node),
+         sequence()->AddImmediate(Constant(slot)), 0, nullptr);
+  }
 }
 
-void InstructionSelector::VisitAbortCSADcheck(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitAbortCSADcheck(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Emit(kArchAbortCSADcheck, g.NoOutput(), g.UseFixed(node->InputAt(0), edx));
+  }
 }
 
-void InstructionSelector::VisitLoadLane(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadLane(Node* node) {
   LoadLaneParameters params = LoadLaneParametersOf(node->op());
   InstructionCode opcode = kArchNop;
   if (params.rep == MachineType::Int8()) {
@@ -509,7 +607,7 @@ void InstructionSelector::VisitLoadLane(Node* node) {
     UNREACHABLE();
   }
 
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand outputs[] = {IsSupported(AVX) ? g.DefineAsRegister(node)
                                                    : g.DefineSameAsFirst(node)};
   // Input 0 is value node, 1 is lane idx, and GetEffectiveAddressMemoryOperand
@@ -535,7 +633,13 @@ void InstructionSelector::VisitLoadLane(Node* node) {
   Emit(opcode, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitLoadTransform(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitLoadTransform(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitLoadTransform(Node* node) {
   LoadTransformParameters params = LoadTransformParametersOf(node->op());
   InstructionCode opcode;
   switch (params.transformation) {
@@ -584,7 +688,7 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   // Trap handler is not supported on IA32.
   DCHECK_NE(params.kind, MemoryAccessKind::kProtected);
 
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[3];
@@ -595,9 +699,10 @@ void InstructionSelector::VisitLoadTransform(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitLoad(Node* node, Node* value,
-                                    InstructionCode opcode) {
-  IA32OperandGenerator g(this);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoad(node_t node, node_t value,
+                                              InstructionCode opcode) {
+  IA32OperandGeneratorT<Adapter> g(this);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[3];
@@ -608,13 +713,15 @@ void InstructionSelector::VisitLoad(Node* node, Node* value,
   Emit(code, 1, outputs, input_count, inputs);
 }
 
-void InstructionSelector::VisitLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitLoad(node_t node) {
+  LoadRepresentation load_rep = this->load_view(node).loaded_rep();
   DCHECK(!load_rep.IsMapWord());
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
-void InstructionSelector::VisitProtectedLoad(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
@@ -642,6 +749,7 @@ ArchOpcode GetStoreOpcode(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:            // Fall through.
     case MachineRepresentation::kCompressedPointer:  // Fall through.
     case MachineRepresentation::kCompressed:         // Fall through.
+    case MachineRepresentation::kIndirectPointer:    // Fall through.
     case MachineRepresentation::kSandboxedPointer:   // Fall through.
     case MachineRepresentation::kWord64:             // Fall through.
     case MachineRepresentation::kMapWord:            // Fall through.
@@ -666,9 +774,10 @@ ArchOpcode GetSeqCstStoreOpcode(MachineRepresentation rep) {
   }
 }
 
-void VisitAtomicExchange(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitAtomicExchange(InstructionSelectorT<Adapter>* selector, Node* node,
                          ArchOpcode opcode, MachineRepresentation rep) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -689,10 +798,11 @@ void VisitAtomicExchange(InstructionSelector* selector, Node* node,
   selector->Emit(code, 1, outputs, arraysize(inputs), inputs);
 }
 
-void VisitStoreCommon(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
                       StoreRepresentation store_rep,
                       base::Optional<AtomicMemoryOrder> atomic_order) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -754,18 +864,35 @@ void VisitStoreCommon(InstructionSelector* selector, Node* node,
 
 }  // namespace
 
-void InstructionSelector::VisitStore(Node* node) {
-  VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
-                   base::nullopt);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStorePair(node_t node) {
+  UNREACHABLE();
 }
 
-void InstructionSelector::VisitProtectedStore(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitStoreCommon(this, node, StoreRepresentationOf(node->op()),
+                     base::nullopt);
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
   // TODO(eholk)
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitStoreLane(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitStoreLane(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitStoreLane(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
 
   StoreLaneParameters params = StoreLaneParametersOf(node->op());
   InstructionCode opcode = kArchNop;
@@ -800,17 +927,24 @@ void InstructionSelector::VisitStoreLane(Node* node) {
 }
 
 // Architecture supports unaligned access, therefore VisitLoad is used instead
-void InstructionSelector::VisitUnalignedLoad(Node* node) { UNREACHABLE(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUnalignedLoad(node_t node) {
+  UNREACHABLE();
+}
 
 // Architecture supports unaligned access, therefore VisitStore is used instead
-void InstructionSelector::VisitUnalignedStore(Node* node) { UNREACHABLE(); }
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUnalignedStore(node_t node) {
+  UNREACHABLE();
+}
 
 namespace {
 
 // Shared routine for multiple binary operations.
-void VisitBinop(InstructionSelector* selector, Node* node,
-                InstructionCode opcode, FlagsContinuation* cont) {
-  IA32OperandGenerator g(selector);
+template <typename Adapter>
+void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
+                InstructionCode opcode, FlagsContinuationT<Adapter>* cont) {
+  IA32OperandGeneratorT<Adapter> g(selector);
   Int32BinopMatcher m(node);
   Node* left = m.left().node();
   Node* right = m.right().node();
@@ -865,84 +999,108 @@ void VisitBinop(InstructionSelector* selector, Node* node,
 }
 
 // Shared routine for multiple binary operations.
-void VisitBinop(InstructionSelector* selector, Node* node,
+template <typename T>
+void VisitBinop(InstructionSelectorT<TurboshaftAdapter>*, T, InstructionCode) {
+  UNIMPLEMENTED();
+}
+
+void VisitBinop(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
                 InstructionCode opcode) {
-  FlagsContinuation cont;
+  FlagsContinuationT<TurbofanAdapter> cont;
   VisitBinop(selector, node, opcode, &cont);
 }
 
 }  // namespace
 
-void InstructionSelector::VisitWord32And(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32And(node_t node) {
   VisitBinop(this, node, kIA32And);
 }
 
-void InstructionSelector::VisitWord32Or(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Or(node_t node) {
   VisitBinop(this, node, kIA32Or);
 }
 
-void InstructionSelector::VisitWord32Xor(Node* node) {
-  IA32OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  if (m.right().Is(-1)) {
-    Emit(kIA32Not, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Xor(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    VisitBinop(this, node, kIA32Xor);
+    IA32OperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
+    if (m.right().Is(-1)) {
+      Emit(kIA32Not, g.DefineSameAsFirst(node), g.UseRegister(m.left().node()));
+    } else {
+      VisitBinop(this, node, kIA32Xor);
+    }
   }
 }
 
-void InstructionSelector::VisitStackPointerGreaterThan(
-    Node* node, FlagsContinuation* cont) {
-  StackCheckKind kind = StackCheckKindOf(node->op());
-  InstructionCode opcode =
-      kArchStackPointerGreaterThan | MiscField::encode(static_cast<int>(kind));
-
-  int effect_level = GetEffectLevel(node, cont);
-
-  IA32OperandGenerator g(this);
-
-  // No outputs.
-  InstructionOperand* const outputs = nullptr;
-  const int output_count = 0;
-
-  // Applying an offset to this stack check requires a temp register. Offsets
-  // are only applied to the first stack check. If applying an offset, we must
-  // ensure the input and temp registers do not alias, thus kUniqueRegister.
-  InstructionOperand temps[] = {g.TempRegister()};
-  const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
-  const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
-                                 ? OperandGenerator::kUniqueRegister
-                                 : OperandGenerator::kRegister;
-
-  Node* const value = node->InputAt(0);
-  if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
-    DCHECK(value->opcode() == IrOpcode::kLoad ||
-           value->opcode() == IrOpcode::kLoadImmutable);
-
-    // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
-    static constexpr int kMaxInputCount = 3;
-
-    size_t input_count = 0;
-    InstructionOperand inputs[kMaxInputCount];
-    AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
-        value, inputs, &input_count, register_mode);
-    opcode |= AddressingModeField::encode(addressing_mode);
-    DCHECK_LE(input_count, kMaxInputCount);
-
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitStackPointerGreaterThan(
+    node_t node, FlagsContinuation* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    InstructionOperand inputs[] = {g.UseRegisterWithMode(value, register_mode)};
-    static constexpr int input_count = arraysize(inputs);
-    EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
-                         temp_count, temps, cont);
+    StackCheckKind kind = StackCheckKindOf(node->op());
+    InstructionCode opcode = kArchStackPointerGreaterThan |
+                             MiscField::encode(static_cast<int>(kind));
+
+    int effect_level = GetEffectLevel(node, cont);
+
+    IA32OperandGeneratorT<Adapter> g(this);
+
+    // No outputs.
+    InstructionOperand* const outputs = nullptr;
+    const int output_count = 0;
+
+    // Applying an offset to this stack check requires a temp register. Offsets
+    // are only applied to the first stack check. If applying an offset, we must
+    // ensure the input and temp registers do not alias, thus kUniqueRegister.
+    InstructionOperand temps[] = {g.TempRegister()};
+    const int temp_count = (kind == StackCheckKind::kJSFunctionEntry) ? 1 : 0;
+    const auto register_mode = (kind == StackCheckKind::kJSFunctionEntry)
+                                   ? OperandGenerator::kUniqueRegister
+                                   : OperandGenerator::kRegister;
+
+    Node* const value = node->InputAt(0);
+    if (g.CanBeMemoryOperand(kIA32Cmp, node, value, effect_level)) {
+      DCHECK(value->opcode() == IrOpcode::kLoad ||
+             value->opcode() == IrOpcode::kLoadImmutable);
+
+      // GetEffectiveAddressMemoryOperand can create at most 3 inputs.
+      static constexpr int kMaxInputCount = 3;
+
+      size_t input_count = 0;
+      InstructionOperand inputs[kMaxInputCount];
+      AddressingMode addressing_mode = g.GetEffectiveAddressMemoryOperand(
+          value, inputs, &input_count, register_mode);
+      opcode |= AddressingModeField::encode(addressing_mode);
+      DCHECK_LE(input_count, kMaxInputCount);
+
+      EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
+                           temp_count, temps, cont);
+    } else {
+      InstructionOperand inputs[] = {
+          g.UseRegisterWithMode(value, register_mode)};
+      static constexpr int input_count = arraysize(inputs);
+      EmitWithContinuation(opcode, output_count, outputs, input_count, inputs,
+                           temp_count, temps, cont);
+    }
   }
 }
 
 // Shared routine for multiple shift operations.
-static inline void VisitShift(InstructionSelector* selector, Node* node,
-                              ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+template <typename T>
+static inline void VisitShift(InstructionSelectorT<TurboshaftAdapter>*, T,
+                              ArchOpcode) {
+  UNIMPLEMENTED();
+}
+
+static inline void VisitShift(InstructionSelectorT<TurbofanAdapter>* selector,
+                              Node* node, ArchOpcode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
 
@@ -957,35 +1115,53 @@ static inline void VisitShift(InstructionSelector* selector, Node* node,
 
 namespace {
 
-void VisitMulHigh(InstructionSelector* selector, Node* node,
-                  ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempRegister(eax)};
-  selector->Emit(
-      opcode, g.DefineAsFixed(node, edx), g.UseFixed(node->InputAt(0), eax),
-      g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+template <typename Adapter>
+void VisitMulHigh(InstructionSelectorT<Adapter>* selector,
+                  typename Adapter::node_t node, ArchOpcode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(selector);
+    InstructionOperand temps[] = {g.TempRegister(eax)};
+    selector->Emit(
+        opcode, g.DefineAsFixed(node, edx), g.UseFixed(node->InputAt(0), eax),
+        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
-void VisitDiv(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempRegister(edx)};
-  selector->Emit(opcode, g.DefineAsFixed(node, eax),
-                 g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
+template <typename Adapter>
+void VisitDiv(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, ArchOpcode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(selector);
+    InstructionOperand temps[] = {g.TempRegister(edx)};
+    selector->Emit(opcode, g.DefineAsFixed(node, eax),
+                   g.UseFixed(node->InputAt(0), eax),
+                   g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
-void VisitMod(InstructionSelector* selector, Node* node, ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
-  InstructionOperand temps[] = {g.TempRegister(eax)};
-  selector->Emit(opcode, g.DefineAsFixed(node, edx),
-                 g.UseFixed(node->InputAt(0), eax),
-                 g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
+template <typename Adapter>
+void VisitMod(InstructionSelectorT<Adapter>* selector,
+              typename Adapter::node_t node, ArchOpcode opcode) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(selector);
+    InstructionOperand temps[] = {g.TempRegister(eax)};
+    selector->Emit(opcode, g.DefineAsFixed(node, edx),
+                   g.UseFixed(node->InputAt(0), eax),
+                   g.UseUnique(node->InputAt(1)), arraysize(temps), temps);
+  }
 }
 
-void EmitLea(InstructionSelector* selector, Node* result, Node* index,
+template <typename Adapter>
+void EmitLea(InstructionSelectorT<Adapter>* selector, Node* result, Node* index,
              int scale, Node* base, Node* displacement,
              DisplacementMode displacement_mode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode =
@@ -1005,27 +1181,41 @@ void EmitLea(InstructionSelector* selector, Node* result, Node* index,
 
 }  // namespace
 
-void InstructionSelector::VisitWord32Shl(Node* node) {
-  Int32ScaleMatcher m(node, true);
-  if (m.matches()) {
-    Node* index = node->InputAt(0);
-    Node* base = m.power_of_two_plus_one() ? index : nullptr;
-    EmitLea(this, node, index, m.scale(), base, nullptr, kPositiveDisplacement);
-    return;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int32ScaleMatcher m(node, true);
+    if (m.matches()) {
+      Node* index = node->InputAt(0);
+      Node* base = m.power_of_two_plus_one() ? index : nullptr;
+      EmitLea(this, node, index, m.scale(), base, nullptr,
+              kPositiveDisplacement);
+      return;
+    }
+    VisitShift(this, node, kIA32Shl);
   }
-  VisitShift(this, node, kIA32Shl);
 }
 
-void InstructionSelector::VisitWord32Shr(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
   VisitShift(this, node, kIA32Shr);
 }
 
-void InstructionSelector::VisitWord32Sar(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Sar(node_t node) {
   VisitShift(this, node, kIA32Sar);
 }
 
-void InstructionSelector::VisitInt32PairAdd(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairAdd(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairAdd(node_t node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
 
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -1050,8 +1240,14 @@ void InstructionSelector::VisitInt32PairAdd(Node* node) {
   }
 }
 
-void InstructionSelector::VisitInt32PairSub(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairSub(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairSub(node_t node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
 
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -1076,8 +1272,14 @@ void InstructionSelector::VisitInt32PairSub(Node* node) {
   }
 }
 
-void InstructionSelector::VisitInt32PairMul(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32PairMul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32PairMul(node_t node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
 
   Node* projection1 = NodeProperties::FindProjection(node, 1);
   if (projection1) {
@@ -1104,9 +1306,10 @@ void InstructionSelector::VisitInt32PairMul(Node* node) {
   }
 }
 
-void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
-                          Node* node) {
-  IA32OperandGenerator g(selector);
+template <typename Adapter>
+void VisitWord32PairShift(InstructionSelectorT<Adapter>* selector,
+                          InstructionCode opcode, Node* node) {
+  IA32OperandGeneratorT<Adapter> g(selector);
 
   Node* shift = node->InputAt(2);
   InstructionOperand shift_operand;
@@ -1134,56 +1337,72 @@ void VisitWord32PairShift(InstructionSelector* selector, InstructionCode opcode,
   selector->Emit(opcode, output_count, outputs, 3, inputs, temp_count, temps);
 }
 
-void InstructionSelector::VisitWord32PairShl(Node* node) {
-  VisitWord32PairShift(this, kIA32ShlPair, node);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairShl(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kIA32ShlPair, node);
+  }
 }
 
-void InstructionSelector::VisitWord32PairShr(Node* node) {
-  VisitWord32PairShift(this, kIA32ShrPair, node);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairShr(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kIA32ShrPair, node);
+  }
 }
 
-void InstructionSelector::VisitWord32PairSar(Node* node) {
-  VisitWord32PairShift(this, kIA32SarPair, node);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32PairSar(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitWord32PairShift(this, kIA32SarPair, node);
+  }
 }
 
-void InstructionSelector::VisitWord32Rol(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Rol(node_t node) {
   VisitShift(this, node, kIA32Rol);
 }
 
-void InstructionSelector::VisitWord32Ror(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Ror(node_t node) {
   VisitShift(this, node, kIA32Ror);
 }
 
-#define RO_OP_LIST(V)                                        \
+#define RO_OP_T_LIST(V)                                      \
+  V(Float32Sqrt, kIA32Float32Sqrt)                           \
+  V(Float64Sqrt, kIA32Float64Sqrt)                           \
+  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                \
+  V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
+  V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \
+  V(BitcastFloat32ToInt32, kIA32BitcastFI)                   \
+  V(BitcastInt32ToFloat32, kIA32BitcastIF)                   \
+  V(Float64ExtractLowWord32, kIA32Float64ExtractLowWord32)   \
+  V(Float64ExtractHighWord32, kIA32Float64ExtractHighWord32) \
+  V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
+  V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
+  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                 \
+  V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
   V(Word32Clz, kIA32Lzcnt)                                   \
   V(Word32Ctz, kIA32Tzcnt)                                   \
   V(Word32Popcnt, kIA32Popcnt)                               \
-  V(ChangeFloat32ToFloat64, kIA32Float32ToFloat64)           \
-  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                 \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                \
-  V(TruncateFloat32ToInt32, kIA32Float32ToInt32)             \
-  V(ChangeFloat64ToInt32, kIA32Float64ToInt32)               \
-  V(TruncateFloat64ToFloat32, kIA32Float64ToFloat32)         \
-  V(RoundFloat64ToInt32, kIA32Float64ToInt32)                \
-  V(BitcastFloat32ToInt32, kIA32BitcastFI)                   \
-  V(BitcastInt32ToFloat32, kIA32BitcastIF)                   \
-  V(Float32Sqrt, kIA32Float32Sqrt)                           \
-  V(Float64Sqrt, kIA32Float64Sqrt)                           \
-  V(Float64ExtractLowWord32, kIA32Float64ExtractLowWord32)   \
-  V(Float64ExtractHighWord32, kIA32Float64ExtractHighWord32) \
   V(SignExtendWord8ToInt32, kIA32Movsxbl)                    \
   V(SignExtendWord16ToInt32, kIA32Movsxwl)                   \
   V(F64x2Sqrt, kIA32F64x2Sqrt)
 
-#define RO_WITH_TEMP_OP_LIST(V) V(ChangeUint32ToFloat64, kIA32Uint32ToFloat64)
+#define RO_WITH_TEMP_OP_T_LIST(V) V(ChangeUint32ToFloat64, kIA32Uint32ToFloat64)
 
-#define RO_WITH_TEMP_SIMD_OP_LIST(V)               \
+#define RO_WITH_TEMP_SIMD_OP_T_LIST(V)             \
+  V(TruncateFloat64ToUint32, kIA32Float64ToUint32) \
   V(TruncateFloat32ToUint32, kIA32Float32ToUint32) \
-  V(ChangeFloat64ToUint32, kIA32Float64ToUint32)   \
-  V(TruncateFloat64ToUint32, kIA32Float64ToUint32)
+  V(ChangeFloat64ToUint32, kIA32Float64ToUint32)
 
-#define RR_OP_LIST(V)                                                          \
-  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                           \
+#define RR_OP_T_LIST(V)                                                        \
   V(Float32RoundDown, kIA32Float32Round | MiscField::encode(kRoundDown))       \
   V(Float64RoundDown, kIA32Float64Round | MiscField::encode(kRoundDown))       \
   V(Float32RoundUp, kIA32Float32Round | MiscField::encode(kRoundUp))           \
@@ -1194,6 +1413,7 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
     kIA32Float32Round | MiscField::encode(kRoundToNearest))                    \
   V(Float64RoundTiesEven,                                                      \
     kIA32Float64Round | MiscField::encode(kRoundToNearest))                    \
+  V(TruncateFloat64ToWord32, kArchTruncateDoubleToI)                           \
   V(F32x4Ceil, kIA32F32x4Round | MiscField::encode(kRoundUp))                  \
   V(F32x4Floor, kIA32F32x4Round | MiscField::encode(kRoundDown))               \
   V(F32x4Trunc, kIA32F32x4Round | MiscField::encode(kRoundToZero))             \
@@ -1203,25 +1423,25 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(F64x2Trunc, kIA32F64x2Round | MiscField::encode(kRoundToZero))             \
   V(F64x2NearestInt, kIA32F64x2Round | MiscField::encode(kRoundToNearest))
 
-#define RRO_FLOAT_OP_LIST(V) \
-  V(Float32Add, kFloat32Add) \
-  V(Float64Add, kFloat64Add) \
-  V(Float32Sub, kFloat32Sub) \
-  V(Float64Sub, kFloat64Sub) \
-  V(Float32Mul, kFloat32Mul) \
-  V(Float64Mul, kFloat64Mul) \
-  V(Float32Div, kFloat32Div) \
-  V(Float64Div, kFloat64Div) \
-  V(F64x2Add, kIA32F64x2Add) \
-  V(F64x2Sub, kIA32F64x2Sub) \
-  V(F64x2Mul, kIA32F64x2Mul) \
-  V(F64x2Div, kIA32F64x2Div) \
-  V(F64x2Eq, kIA32F64x2Eq)   \
-  V(F64x2Ne, kIA32F64x2Ne)   \
-  V(F64x2Lt, kIA32F64x2Lt)   \
+#define RRO_FLOAT_OP_T_LIST(V) \
+  V(Float32Add, kFloat32Add)   \
+  V(Float64Add, kFloat64Add)   \
+  V(Float32Sub, kFloat32Sub)   \
+  V(Float64Sub, kFloat64Sub)   \
+  V(Float32Mul, kFloat32Mul)   \
+  V(Float64Mul, kFloat64Mul)   \
+  V(Float32Div, kFloat32Div)   \
+  V(Float64Div, kFloat64Div)   \
+  V(F64x2Add, kIA32F64x2Add)   \
+  V(F64x2Sub, kIA32F64x2Sub)   \
+  V(F64x2Mul, kIA32F64x2Mul)   \
+  V(F64x2Div, kIA32F64x2Div)   \
+  V(F64x2Eq, kIA32F64x2Eq)     \
+  V(F64x2Ne, kIA32F64x2Ne)     \
+  V(F64x2Lt, kIA32F64x2Lt)     \
   V(F64x2Le, kIA32F64x2Le)
 
-#define FLOAT_UNOP_LIST(V)   \
+#define FLOAT_UNOP_T_LIST(V) \
   V(Float32Abs, kFloat32Abs) \
   V(Float64Abs, kFloat64Abs) \
   V(Float32Neg, kFloat32Neg) \
@@ -1231,69 +1451,92 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(F64x2Abs, kFloat64Abs)   \
   V(F64x2Neg, kFloat64Neg)
 
-#define RO_VISITOR(Name, opcode)                      \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRO(this, node, opcode);                      \
+#define RO_VISITOR(Name, opcode)                                 \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRO(this, node, opcode);                                 \
   }
-RO_OP_LIST(RO_VISITOR)
+RO_OP_T_LIST(RO_VISITOR)
 #undef RO_VISITOR
-#undef RO_OP_LIST
+#undef RO_OP_T_LIST
 
-#define RO_WITH_TEMP_VISITOR(Name, opcode)            \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitROWithTemp(this, node, opcode);              \
+#define RO_WITH_TEMP_VISITOR(Name, opcode)                       \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitROWithTemp(this, node, opcode);                         \
   }
-RO_WITH_TEMP_OP_LIST(RO_WITH_TEMP_VISITOR)
+RO_WITH_TEMP_OP_T_LIST(RO_WITH_TEMP_VISITOR)
 #undef RO_WITH_TEMP_VISITOR
-#undef RO_WITH_TEMP_OP_LIST
+#undef RO_WITH_TEMP_OP_T_LIST
 
-#define RO_WITH_TEMP_SIMD_VISITOR(Name, opcode)       \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitROWithTempSimd(this, node, opcode);          \
+#define RO_WITH_TEMP_SIMD_VISITOR(Name, opcode)                  \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitROWithTempSimd(this, node, opcode);                     \
   }
-RO_WITH_TEMP_SIMD_OP_LIST(RO_WITH_TEMP_SIMD_VISITOR)
+RO_WITH_TEMP_SIMD_OP_T_LIST(RO_WITH_TEMP_SIMD_VISITOR)
 #undef RO_WITH_TEMP_SIMD_VISITOR
-#undef RO_WITH_TEMP_SIMD_OP_LIST
+#undef RO_WITH_TEMP_SIMD_OP_T_LIST
 
-#define RR_VISITOR(Name, opcode)                      \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRR(this, node, opcode);                      \
+#define RR_VISITOR(Name, opcode)                                 \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRR(this, node, opcode);                                 \
   }
-RR_OP_LIST(RR_VISITOR)
+RR_OP_T_LIST(RR_VISITOR)
 #undef RR_VISITOR
-#undef RR_OP_LIST
+#undef RR_OP_T_LIST
 
-#define RRO_FLOAT_VISITOR(Name, opcode)               \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRROFloat(this, node, opcode);                \
+#define RRO_FLOAT_VISITOR(Name, opcode)                          \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    VisitRROFloat(this, node, opcode);                           \
   }
-RRO_FLOAT_OP_LIST(RRO_FLOAT_VISITOR)
+RRO_FLOAT_OP_T_LIST(RRO_FLOAT_VISITOR)
 #undef RRO_FLOAT_VISITOR
-#undef RRO_FLOAT_OP_LIST
+#undef RRO_FLOAT_OP_T_LIST
 
-#define FLOAT_UNOP_VISITOR(Name, opcode)                  \
-  void InstructionSelector::Visit##Name(Node* node) {     \
-    VisitFloatUnop(this, node, node->InputAt(0), opcode); \
+#define FLOAT_UNOP_VISITOR(Name, opcode)                         \
+  template <typename Adapter>                                    \
+  void InstructionSelectorT<Adapter>::Visit##Name(node_t node) { \
+    DCHECK_EQ(this->value_input_count(node), 1);                 \
+    VisitFloatUnop(this, node, this->input_at(node, 0), opcode); \
   }
-FLOAT_UNOP_LIST(FLOAT_UNOP_VISITOR)
+FLOAT_UNOP_T_LIST(FLOAT_UNOP_VISITOR)
 #undef FLOAT_UNOP_VISITOR
-#undef FLOAT_UNOP_LIST
+#undef FLOAT_UNOP_T_LIST
 
-void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
-
-void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32Bswap, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitSimd128ReverseBytes(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBits(node_t node) {
   UNREACHABLE();
 }
 
-void InstructionSelector::VisitInt32Add(Node* node) {
-  IA32OperandGenerator g(this);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
+  UNREACHABLE();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
+  IA32OperandGeneratorT<Adapter> g(this);
+  DCHECK_EQ(this->value_input_count(node), 1);
+  Emit(kIA32Bswap, g.DefineSameAsFirst(node),
+       g.UseRegister(this->input_at(node, 0)));
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Add(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Add(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
 
   // Try to match the Add to a lea pattern
   BaseWithIndexAndDisplacement32Matcher m(node);
@@ -1320,17 +1563,28 @@ void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop(this, node, kIA32Add);
 }
 
-void InstructionSelector::VisitInt32Sub(Node* node) {
-  IA32OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  if (m.left().Is(0)) {
-    Emit(kIA32Neg, g.DefineSameAsFirst(node), g.Use(m.right().node()));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32Sub(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    VisitBinop(this, node, kIA32Sub);
+    IA32OperandGeneratorT<Adapter> g(this);
+    Int32BinopMatcher m(node);
+    if (m.left().Is(0)) {
+      Emit(kIA32Neg, g.DefineSameAsFirst(node), g.Use(m.right().node()));
+    } else {
+      VisitBinop(this, node, kIA32Sub);
+    }
   }
 }
 
-void InstructionSelector::VisitInt32Mul(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitInt32Mul(Node* node) {
   Int32ScaleMatcher m(node, true);
   if (m.matches()) {
     Node* index = node->InputAt(0);
@@ -1338,7 +1592,7 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
     EmitLea(this, node, index, m.scale(), base, nullptr, kPositiveDisplacement);
     return;
   }
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
   if (g.CanBeImmediate(right)) {
@@ -1353,196 +1607,265 @@ void InstructionSelector::VisitInt32Mul(Node* node) {
   }
 }
 
-void InstructionSelector::VisitInt32MulHigh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32MulHigh(node_t node) {
   VisitMulHigh(this, node, kIA32ImulHigh);
 }
 
-void InstructionSelector::VisitUint32MulHigh(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint32MulHigh(node_t node) {
   VisitMulHigh(this, node, kIA32UmulHigh);
 }
 
-void InstructionSelector::VisitInt32Div(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32Div(node_t node) {
   VisitDiv(this, node, kIA32Idiv);
 }
 
-void InstructionSelector::VisitUint32Div(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint32Div(node_t node) {
   VisitDiv(this, node, kIA32Udiv);
 }
 
-void InstructionSelector::VisitInt32Mod(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32Mod(node_t node) {
   VisitMod(this, node, kIA32Idiv);
 }
 
-void InstructionSelector::VisitUint32Mod(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint32Mod(node_t node) {
   VisitMod(this, node, kIA32Udiv);
 }
 
-void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32Uint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitRoundUint32ToFloat32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32Uint32ToFloat32, g.DefineAsRegister(node),
+         g.Use(node->InputAt(0)), arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat64Mod(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister()};
-  Emit(kIA32Float64Mod, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Mod(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister(eax), g.TempRegister()};
+    Emit(kIA32Float64Mod, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat32Max(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32Float32Max, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat32Max(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32Float32Max, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat64Max(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32Float64Max, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Max(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32Float64Max, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat32Min(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32Float32Min, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat32Min(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32Float32Min, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat64Min(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32Float64Min, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
-       arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Min(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32Float64Min, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.Use(node->InputAt(1)),
+         arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64RoundTiesAway(node_t node) {
   UNREACHABLE();
 }
 
-void InstructionSelector::VisitFloat64Ieee754Binop(Node* node,
-                                                   InstructionCode opcode) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Binop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Binop(
+    Node* node, InstructionCode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)))
       ->MarkAsCall();
 }
 
-void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
-                                                  InstructionCode opcode) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitFloat64Ieee754Unop(
+    node_t node, InstructionCode opcode) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFloat64Ieee754Unop(
+    Node* node, InstructionCode opcode) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(opcode, g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)))
       ->MarkAsCall();
 }
 
-void InstructionSelector::EmitMoveParamToFPR(Node* node, int index) {}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitMoveParamToFPR(node_t node, int index) {
+}
 
-void InstructionSelector::EmitMoveFPRToParam(InstructionOperand* op,
-                                             LinkageLocation location) {}
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitMoveFPRToParam(
+    InstructionOperand* op, LinkageLocation location) {}
 
-void InstructionSelector::EmitPrepareArguments(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitPrepareArguments(
     ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
-    Node* node) {
-  IA32OperandGenerator g(this);
-
-  // Prepare for C function call.
-  if (call_descriptor->IsCFunctionCall()) {
-    InstructionOperand temps[] = {g.TempRegister()};
-    size_t const temp_count = arraysize(temps);
-    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
-                                         call_descriptor->ParameterCount())),
-         0, nullptr, 0, nullptr, temp_count, temps);
-
-    // Poke any stack arguments.
-    for (size_t n = 0; n < arguments->size(); ++n) {
-      PushParameter input = (*arguments)[n];
-      if (input.node) {
-        int const slot = static_cast<int>(n);
-        InstructionOperand value = g.CanBeImmediate(node)
-                                       ? g.UseImmediate(input.node)
-                                       : g.UseRegister(input.node);
-        Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
-      }
-    }
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    // Push any stack arguments.
-    int effect_level = GetEffectLevel(node);
-    int stack_decrement = 0;
-    for (PushParameter input : base::Reversed(*arguments)) {
-      stack_decrement += kSystemPointerSize;
-      // Skip holes in the param array. These represent both extra slots for
-      // multi-slot values and padding slots for alignment.
-      if (input.node == nullptr) continue;
-      InstructionOperand decrement = g.UseImmediate(stack_decrement);
-      stack_decrement = 0;
-      if (g.CanBeImmediate(input.node)) {
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
-      } else if (IsSupported(INTEL_ATOM) ||
-                 sequence()->IsFP(GetVirtualRegister(input.node))) {
-        // TODO(bbudge): IA32Push cannot handle stack->stack double moves
-        // because there is no way to encode fixed double slots.
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
-      } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
-                                      effect_level)) {
-        InstructionOperand outputs[1];
-        InstructionOperand inputs[5];
-        size_t input_count = 0;
-        inputs[input_count++] = decrement;
-        AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-            input.node, inputs, &input_count);
-        InstructionCode opcode = kIA32Push | AddressingModeField::encode(mode);
-        Emit(opcode, 0, outputs, input_count, inputs);
-      } else {
-        Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
+    IA32OperandGeneratorT<Adapter> g(this);
+
+    // Prepare for C function call.
+    if (call_descriptor->IsCFunctionCall()) {
+      InstructionOperand temps[] = {g.TempRegister()};
+      size_t const temp_count = arraysize(temps);
+      Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                           call_descriptor->ParameterCount())),
+           0, nullptr, 0, nullptr, temp_count, temps);
+
+      // Poke any stack arguments.
+      for (size_t n = 0; n < arguments->size(); ++n) {
+        PushParameter input = (*arguments)[n];
+        if (input.node) {
+          int const slot = static_cast<int>(n);
+          InstructionOperand value = g.CanBeImmediate(node)
+                                         ? g.UseImmediate(input.node)
+                                         : g.UseRegister(input.node);
+          Emit(kIA32Poke | MiscField::encode(slot), g.NoOutput(), value);
+        }
+      }
+    } else {
+      // Push any stack arguments.
+      int effect_level = GetEffectLevel(node);
+      int stack_decrement = 0;
+      for (PushParameter input : base::Reversed(*arguments)) {
+        stack_decrement += kSystemPointerSize;
+        // Skip holes in the param array. These represent both extra slots for
+        // multi-slot values and padding slots for alignment.
+        if (input.node == nullptr) continue;
+        InstructionOperand decrement = g.UseImmediate(stack_decrement);
+        stack_decrement = 0;
+        if (g.CanBeImmediate(input.node)) {
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseImmediate(input.node));
+        } else if (IsSupported(INTEL_ATOM) ||
+                   sequence()->IsFP(GetVirtualRegister(input.node))) {
+          // TODO(bbudge): IA32Push cannot handle stack->stack double moves
+          // because there is no way to encode fixed double slots.
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseRegister(input.node));
+        } else if (g.CanBeMemoryOperand(kIA32Push, node, input.node,
+                                        effect_level)) {
+          InstructionOperand outputs[1];
+          InstructionOperand inputs[5];
+          size_t input_count = 0;
+          inputs[input_count++] = decrement;
+          AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+              input.node, inputs, &input_count);
+          InstructionCode opcode =
+              kIA32Push | AddressingModeField::encode(mode);
+          Emit(opcode, 0, outputs, input_count, inputs);
+        } else {
+          Emit(kIA32Push, g.NoOutput(), decrement, g.UseAny(input.node));
+        }
       }
     }
   }
 }
 
-void InstructionSelector::EmitPrepareResults(
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::EmitPrepareResults(
     ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
-    Node* node) {
-  IA32OperandGenerator g(this);
+    node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
 
-  for (PushParameter output : *results) {
-    if (!output.location.IsCallerFrameSlot()) continue;
-    // Skip any alignment holes in nodes.
-    if (output.node != nullptr) {
-      DCHECK(!call_descriptor->IsCFunctionCall());
-      if (output.location.GetType() == MachineType::Float32()) {
-        MarkAsFloat32(output.node);
-      } else if (output.location.GetType() == MachineType::Float64()) {
-        MarkAsFloat64(output.node);
-      } else if (output.location.GetType() == MachineType::Simd128()) {
-        MarkAsSimd128(output.node);
+    for (PushParameter output : *results) {
+      if (!output.location.IsCallerFrameSlot()) continue;
+      // Skip any alignment holes in nodes.
+      if (output.node != nullptr) {
+        DCHECK(!call_descriptor->IsCFunctionCall());
+        if (output.location.GetType() == MachineType::Float32()) {
+          MarkAsFloat32(output.node);
+        } else if (output.location.GetType() == MachineType::Float64()) {
+          MarkAsFloat64(output.node);
+        } else if (output.location.GetType() == MachineType::Simd128()) {
+          MarkAsSimd128(output.node);
+        }
+        int offset = call_descriptor->GetOffsetToReturns();
+        int reverse_slot = -output.location.GetLocation() - offset;
+        Emit(kIA32Peek, g.DefineAsRegister(output.node),
+             g.UseImmediate(reverse_slot));
       }
-      int offset = call_descriptor->GetOffsetToReturns();
-      int reverse_slot = -output.location.GetLocation() - offset;
-      Emit(kIA32Peek, g.DefineAsRegister(output.node),
-           g.UseImmediate(reverse_slot));
     }
   }
 }
 
-bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
+template <typename Adapter>
+bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
+  return true;
+}
 
 namespace {
 
-void VisitCompareWithMemoryOperand(InstructionSelector* selector,
+template <typename Adapter>
+void VisitCompareWithMemoryOperand(InstructionSelectorT<Adapter>* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
-                                   FlagsContinuation* cont) {
+                                   FlagsContinuationT<Adapter>* cont) {
   DCHECK(left->opcode() == IrOpcode::kLoad ||
          left->opcode() == IrOpcode::kLoadImmutable);
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[4];
   AddressingMode addressing_mode =
@@ -1554,17 +1877,20 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
 }
 
 // Shared routine for multiple compare operations.
-void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                  InstructionOperand left, InstructionOperand right,
-                  FlagsContinuation* cont) {
+template <typename Adapter>
+void VisitCompare(InstructionSelectorT<Adapter>* selector,
+                  InstructionCode opcode, InstructionOperand left,
+                  InstructionOperand right, FlagsContinuationT<Adapter>* cont) {
   selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 // Shared routine for multiple compare operations.
-void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
-                  Node* left, Node* right, FlagsContinuation* cont,
-                  bool commutative) {
-  IA32OperandGenerator g(selector);
+template <typename Adapter>
+void VisitCompare(InstructionSelectorT<Adapter>* selector,
+                  InstructionCode opcode, typename Adapter::node_t left,
+                  typename Adapter::node_t right,
+                  FlagsContinuationT<Adapter>* cont, bool commutative) {
+  IA32OperandGeneratorT<Adapter> g(selector);
   if (commutative && g.CanBeBetterLeftOperand(right)) {
     std::swap(left, right);
   }
@@ -1615,8 +1941,10 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
 
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
+template <typename Adapter>
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
-                                    Node* right, FlagsContinuation* cont) {
+                                    Node* right,
+                                    FlagsContinuationT<Adapter>* cont) {
   // TODO(epertoso): we can probably get some size information out of phi nodes.
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
@@ -1656,75 +1984,88 @@ InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
 }
 
 // Shared routine for multiple float32 compare operations (inputs commuted).
-void VisitFloat32Compare(InstructionSelector* selector, Node* node,
-                         FlagsContinuation* cont) {
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+template <typename Adapter>
+void VisitFloat32Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   VisitCompare(selector, kIA32Float32Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple float64 compare operations (inputs commuted).
-void VisitFloat64Compare(InstructionSelector* selector, Node* node,
-                         FlagsContinuation* cont) {
-  Node* const left = node->InputAt(0);
-  Node* const right = node->InputAt(1);
+template <typename Adapter>
+void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t node,
+                         FlagsContinuationT<Adapter>* cont) {
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   VisitCompare(selector, kIA32Float64Cmp, right, left, cont, false);
 }
 
 // Shared routine for multiple word compare operations.
-void VisitWordCompare(InstructionSelector* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuation* cont) {
-  IA32OperandGenerator g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+template <typename Adapter>
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node, InstructionCode opcode,
+                      FlagsContinuationT<Adapter>* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<TurbofanAdapter> g(selector);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
 
-  InstructionCode narrowed_opcode =
-      TryNarrowOpcodeSize(opcode, left, right, cont);
+    InstructionCode narrowed_opcode =
+        TryNarrowOpcodeSize(opcode, left, right, cont);
 
-  int effect_level = selector->GetEffectLevel(node, cont);
+    int effect_level = selector->GetEffectLevel(node, cont);
 
-  // If one of the two inputs is an immediate, make sure it's on the right, or
-  // if one of the two inputs is a memory operand, make sure it's on the left.
-  if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
-      (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
-       !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
-    if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
-    std::swap(left, right);
-  }
-
-  // Match immediates on right side of comparison.
-  if (g.CanBeImmediate(right)) {
-    if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
-      return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
-                                           g.UseImmediate(right), cont);
+    // If one of the two inputs is an immediate, make sure it's on the right, or
+    // if one of the two inputs is a memory operand, make sure it's on the left.
+    if ((!g.CanBeImmediate(right) && g.CanBeImmediate(left)) ||
+        (g.CanBeMemoryOperand(narrowed_opcode, node, right, effect_level) &&
+         !g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level))) {
+      if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
+      std::swap(left, right);
     }
-    return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
-                        cont);
-  }
 
-  // Match memory operands on left side of comparison.
-  if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
-    bool needs_byte_register =
-        narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
-    return VisitCompareWithMemoryOperand(
-        selector, narrowed_opcode, left,
-        needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
-        cont);
-  }
+    // Match immediates on right side of comparison.
+    if (g.CanBeImmediate(right)) {
+      if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
+        return VisitCompareWithMemoryOperand(selector, narrowed_opcode, left,
+                                             g.UseImmediate(right), cont);
+      }
+      return VisitCompare(selector, opcode, g.Use(left), g.UseImmediate(right),
+                          cont);
+    }
 
-  return VisitCompare(selector, opcode, left, right, cont,
-                      node->op()->HasProperty(Operator::kCommutative));
+    // Match memory operands on left side of comparison.
+    if (g.CanBeMemoryOperand(narrowed_opcode, node, left, effect_level)) {
+      bool needs_byte_register =
+          narrowed_opcode == kIA32Test8 || narrowed_opcode == kIA32Cmp8;
+      return VisitCompareWithMemoryOperand(
+          selector, narrowed_opcode, left,
+          needs_byte_register ? g.UseByteRegister(right) : g.UseRegister(right),
+          cont);
+    }
+
+    return VisitCompare(selector, opcode, left, right, cont,
+                        node->op()->HasProperty(Operator::kCommutative));
+  }
 }
 
-void VisitWordCompare(InstructionSelector* selector, Node* node,
-                      FlagsContinuation* cont) {
+template <typename Adapter>
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node,
+                      FlagsContinuationT<Adapter>* cont) {
   VisitWordCompare(selector, node, kIA32Cmp, cont);
 }
 
-void VisitAtomicBinOp(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitAtomicBinOp(InstructionSelectorT<Adapter>* selector, Node* node,
                       ArchOpcode opcode, MachineRepresentation rep) {
   AddressingMode addressing_mode;
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -1740,9 +2081,10 @@ void VisitAtomicBinOp(InstructionSelector* selector, Node* node,
                  arraysize(temp), temp);
 }
 
-void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
+template <typename Adapter>
+void VisitPairAtomicBinOp(InstructionSelectorT<Adapter>* selector, Node* node,
                           ArchOpcode opcode) {
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<Adapter> g(selector);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -1781,262 +2123,332 @@ void VisitPairAtomicBinOp(InstructionSelector* selector, Node* node,
 }  // namespace
 
 // Shared routine for word comparison with zero.
-void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
-                                               FlagsContinuation* cont) {
-  // Try to combine with comparisons against 0 by simply inverting the branch.
-  while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
-    Int32BinopMatcher m(value);
-    if (!m.right().Is(0)) break;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWordCompareZero(
+    node_t user, node_t value, FlagsContinuation* cont) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    // Try to combine with comparisons against 0 by simply inverting the branch.
+    while (value->opcode() == IrOpcode::kWord32Equal && CanCover(user, value)) {
+      Int32BinopMatcher m(value);
+      if (!m.right().Is(0)) break;
 
-    user = value;
-    value = m.left().node();
-    cont->Negate();
-  }
+      user = value;
+      value = m.left().node();
+      cont->Negate();
+    }
 
-  if (CanCover(user, value)) {
-    switch (value->opcode()) {
-      case IrOpcode::kWord32Equal:
-        cont->OverwriteAndNegateIfEqual(kEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kInt32LessThan:
-        cont->OverwriteAndNegateIfEqual(kSignedLessThan);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kInt32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kUint32LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kUint32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kFloat32Equal:
-        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat32LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat32LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
-        return VisitFloat32Compare(this, value, cont);
-      case IrOpcode::kFloat64Equal:
-        cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kFloat64LessThan:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kFloat64LessThanOrEqual:
-        cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
-        return VisitFloat64Compare(this, value, cont);
-      case IrOpcode::kProjection:
-        // Check if this is the overflow output projection of an
-        // <Operation>WithOverflow node.
-        if (ProjectionIndexOf(value->op()) == 1u) {
-          // We cannot combine the <Operation>WithOverflow with this branch
-          // unless the 0th projection (the use of the actual value of the
-          // <Operation> is either nullptr, which means there's no use of the
-          // actual value, or was already defined, which means it is scheduled
-          // *AFTER* this branch).
-          Node* const node = value->InputAt(0);
-          Node* const result = NodeProperties::FindProjection(node, 0);
-          if (result == nullptr || IsDefined(result)) {
-            switch (node->opcode()) {
-              case IrOpcode::kInt32AddWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Add, cont);
-              case IrOpcode::kInt32SubWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Sub, cont);
-              case IrOpcode::kInt32MulWithOverflow:
-                cont->OverwriteAndNegateIfEqual(kOverflow);
-                return VisitBinop(this, node, kIA32Imul, cont);
-              default:
-                break;
+    if (CanCover(user, value)) {
+      switch (value->opcode()) {
+        case IrOpcode::kWord32Equal:
+          cont->OverwriteAndNegateIfEqual(kEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kInt32LessThan:
+          cont->OverwriteAndNegateIfEqual(kSignedLessThan);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kInt32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kSignedLessThanOrEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kUint32LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedLessThan);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kUint32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kFloat32Equal:
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat32LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat32LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+          return VisitFloat32Compare(this, value, cont);
+        case IrOpcode::kFloat64Equal:
+          cont->OverwriteAndNegateIfEqual(kUnorderedEqual);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kFloat64LessThan:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThan);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kFloat64LessThanOrEqual:
+          cont->OverwriteAndNegateIfEqual(kUnsignedGreaterThanOrEqual);
+          return VisitFloat64Compare(this, value, cont);
+        case IrOpcode::kProjection:
+          // Check if this is the overflow output projection of an
+          // <Operation>WithOverflow node.
+          if (ProjectionIndexOf(value->op()) == 1u) {
+            // We cannot combine the <Operation>WithOverflow with this branch
+            // unless the 0th projection (the use of the actual value of the
+            // <Operation> is either nullptr, which means there's no use of the
+            // actual value, or was already defined, which means it is scheduled
+            // *AFTER* this branch).
+            Node* const node = value->InputAt(0);
+            Node* const result = NodeProperties::FindProjection(node, 0);
+            if (result == nullptr || IsDefined(result)) {
+              switch (node->opcode()) {
+                case IrOpcode::kInt32AddWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Add, cont);
+                case IrOpcode::kInt32SubWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Sub, cont);
+                case IrOpcode::kInt32MulWithOverflow:
+                  cont->OverwriteAndNegateIfEqual(kOverflow);
+                  return VisitBinop(this, node, kIA32Imul, cont);
+                default:
+                  break;
+              }
             }
           }
-        }
-        break;
-      case IrOpcode::kInt32Sub:
-        return VisitWordCompare(this, value, cont);
-      case IrOpcode::kWord32And:
-        return VisitWordCompare(this, value, kIA32Test, cont);
-      case IrOpcode::kStackPointerGreaterThan:
-        cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
-        return VisitStackPointerGreaterThan(value, cont);
-      default:
-        break;
-    }
-  }
-
-  // Continuation could not be combined with a compare, emit compare against 0.
-  IA32OperandGenerator g(this);
-  VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
-}
-
-void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
-  IA32OperandGenerator g(this);
-  InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
-
-  // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
-  if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
-    static const size_t kMaxTableSwitchValueRange = 2 << 16;
-    size_t table_space_cost = 4 + sw.value_range();
-    size_t table_time_cost = 3;
-    size_t lookup_space_cost = 3 + 2 * sw.case_count();
-    size_t lookup_time_cost = sw.case_count();
-    if (sw.case_count() > 4 &&
-        table_space_cost + 3 * table_time_cost <=
-            lookup_space_cost + 3 * lookup_time_cost &&
-        sw.min_value() > std::numeric_limits<int32_t>::min() &&
-        sw.value_range() <= kMaxTableSwitchValueRange) {
-      InstructionOperand index_operand = value_operand;
-      if (sw.min_value()) {
-        index_operand = g.TempRegister();
-        Emit(kIA32Lea | AddressingModeField::encode(kMode_MRI), index_operand,
-             value_operand, g.TempImmediate(-sw.min_value()));
+          break;
+        case IrOpcode::kInt32Sub:
+          return VisitWordCompare(this, value, cont);
+        case IrOpcode::kWord32And:
+          return VisitWordCompare(this, value, kIA32Test, cont);
+        case IrOpcode::kStackPointerGreaterThan:
+          cont->OverwriteAndNegateIfEqual(kStackPointerGreaterThanCondition);
+          return VisitStackPointerGreaterThan(value, cont);
+        default:
+          break;
       }
-      // Generate a table lookup.
-      return EmitTableSwitch(sw, index_operand);
     }
-  }
 
-  // Generate a tree of conditional jumps.
-  return EmitBinarySearchSwitch(sw, value_operand);
+    // Continuation could not be combined with a compare, emit compare against
+    // 0.
+    IA32OperandGeneratorT<Adapter> g(this);
+    VisitCompare(this, kIA32Cmp, g.Use(value), g.TempImmediate(0), cont);
+  }
 }
 
-void InstructionSelector::VisitWord32Equal(Node* const node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
+                                                const SwitchInfo& sw) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand value_operand = g.UseRegister(node->InputAt(0));
+
+    // Emit either ArchTableSwitch or ArchBinarySearchSwitch.
+    if (enable_switch_jump_table_ ==
+        InstructionSelector::kEnableSwitchJumpTable) {
+      static const size_t kMaxTableSwitchValueRange = 2 << 16;
+      size_t table_space_cost = 4 + sw.value_range();
+      size_t table_time_cost = 3;
+      size_t lookup_space_cost = 3 + 2 * sw.case_count();
+      size_t lookup_time_cost = sw.case_count();
+      if (sw.case_count() > 4 &&
+          table_space_cost + 3 * table_time_cost <=
+              lookup_space_cost + 3 * lookup_time_cost &&
+          sw.min_value() > std::numeric_limits<int32_t>::min() &&
+          sw.value_range() <= kMaxTableSwitchValueRange) {
+        InstructionOperand index_operand = value_operand;
+        if (sw.min_value()) {
+          index_operand = g.TempRegister();
+          Emit(kIA32Lea | AddressingModeField::encode(kMode_MRI), index_operand,
+               value_operand, g.TempImmediate(-sw.min_value()));
+        }
+        // Generate a table lookup.
+        return EmitTableSwitch(sw, index_operand);
+      }
+    }
+
+    // Generate a tree of conditional jumps.
+    return EmitBinarySearchSwitch(sw, value_operand);
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
-  Int32BinopMatcher m(node);
-  if (m.right().Is(0)) {
-    return VisitWordCompareZero(m.node(), m.left().node(), &cont);
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    Int32BinopMatcher m(node);
+    if (m.right().Is(0)) {
+      return VisitWordCompareZero(m.node(), m.left().node(), &cont);
+    }
   }
   VisitWordCompare(this, node, &cont);
 }
 
-void InstructionSelector::VisitInt32LessThan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32LessThan(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kSignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
-void InstructionSelector::VisitInt32LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kSignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
-void InstructionSelector::VisitUint32LessThan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint32LessThan(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnsignedLessThan, node);
   VisitWordCompare(this, node, &cont);
 }
 
-void InstructionSelector::VisitUint32LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitUint32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedLessThanOrEqual, node);
   VisitWordCompare(this, node, &cont);
 }
 
-void InstructionSelector::VisitInt32AddWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Add, &cont);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32AddWithOverflow(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Add, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Add, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Add, &cont);
 }
 
-void InstructionSelector::VisitInt32SubWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Sub, &cont);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32SubWithOverflow(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Sub, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Sub, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Sub, &cont);
 }
 
-void InstructionSelector::VisitInt32MulWithOverflow(Node* node) {
-  if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
-    FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
-    return VisitBinop(this, node, kIA32Imul, &cont);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32MulWithOverflow(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    if (Node* ovf = NodeProperties::FindProjection(node, 1)) {
+      FlagsContinuation cont = FlagsContinuation::ForSet(kOverflow, ovf);
+      return VisitBinop(this, node, kIA32Imul, &cont);
+    }
+    FlagsContinuation cont;
+    VisitBinop(this, node, kIA32Imul, &cont);
   }
-  FlagsContinuation cont;
-  VisitBinop(this, node, kIA32Imul, &cont);
 }
 
-void InstructionSelector::VisitFloat32Equal(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat32Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat32LessThan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat32LessThan(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat32LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat32LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat32Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat64Equal(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64Equal(node_t node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kUnorderedEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat64LessThan(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64LessThan(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThan, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64LessThanOrEqual(node_t node) {
   FlagsContinuation cont =
       FlagsContinuation::ForSet(kUnsignedGreaterThanOrEqual, node);
   VisitFloat64Compare(this, node, &cont);
 }
 
-void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
-  IA32OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Float64Matcher mleft(left);
-  if (mleft.HasResolvedValue() &&
-      (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
-    Emit(kIA32Float64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
-    return;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64InsertLowWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Float64Matcher mleft(left);
+    if (mleft.HasResolvedValue() &&
+        (base::bit_cast<uint64_t>(mleft.ResolvedValue()) >> 32) == 0u) {
+      Emit(kIA32Float64LoadLowWord32, g.DefineAsRegister(node), g.Use(right));
+      return;
+    }
+    Emit(kIA32Float64InsertLowWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.Use(right));
   }
-  Emit(kIA32Float64InsertLowWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.Use(right));
 }
 
-void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
-  IA32OperandGenerator g(this);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
-  Emit(kIA32Float64InsertHighWord32, g.DefineSameAsFirst(node),
-       g.UseRegister(left), g.Use(right));
-}
-
-void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32Float64SilenceNaN, g.DefineSameAsFirst(node),
-       g.UseRegister(node->InputAt(0)));
-}
-
-void InstructionSelector::VisitMemoryBarrier(Node* node) {
-  // ia32 is no weaker than release-acquire and only needs to emit an
-  // instruction for SeqCst memory barriers.
-  AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
-  if (order == AtomicMemoryOrder::kSeqCst) {
-    IA32OperandGenerator g(this);
-    Emit(kIA32MFence, g.NoOutput());
-    return;
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64InsertHighWord32(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Node* left = node->InputAt(0);
+    Node* right = node->InputAt(1);
+    Emit(kIA32Float64InsertHighWord32, g.DefineSameAsFirst(node),
+         g.UseRegister(left), g.Use(right));
   }
-  DCHECK_EQ(AtomicMemoryOrder::kAcqRel, order);
 }
 
-void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitBitcastWord32PairToFloat64(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitFloat64SilenceNaN(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Emit(kIA32Float64SilenceNaN, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)));
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    // ia32 is no weaker than release-acquire and only needs to emit an
+    // instruction for SeqCst memory barriers.
+    AtomicMemoryOrder order = OpParameter<AtomicMemoryOrder>(node->op());
+    if (order == AtomicMemoryOrder::kSeqCst) {
+      IA32OperandGeneratorT<Adapter> g(this);
+      Emit(kIA32MFence, g.NoOutput());
+      return;
+    }
+    DCHECK_EQ(AtomicMemoryOrder::kAcqRel, order);
+  }
+}
+
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
   AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
   LoadRepresentation load_rep = atomic_load_params.representation();
   DCHECK(load_rep.representation() == MachineRepresentation::kWord8 ||
@@ -2052,14 +2464,27 @@ void InstructionSelector::VisitWord32AtomicLoad(Node* node) {
   VisitLoad(node, node, GetLoadOpcode(load_rep));
 }
 
-void InstructionSelector::VisitWord32AtomicStore(Node* node) {
-  AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
-  VisitStoreCommon(this, node, store_params.store_representation(),
-                   store_params.order());
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicStore(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicStoreParameters store_params = AtomicStoreParametersOf(node->op());
+    VisitStoreCommon(this, node, store_params.store_representation(),
+                     store_params.order());
+  }
 }
 
-void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicExchange(
+    node_t node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   MachineType type = AtomicOpType(node->op());
   ArchOpcode opcode;
   if (type == MachineType::Int8()) {
@@ -2078,8 +2503,16 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   VisitAtomicExchange(this, node, opcode, type.representation());
 }
 
-void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitWord32AtomicCompareExchange(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitWord32AtomicCompareExchange(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* old_value = node->InputAt(2);
@@ -2113,32 +2546,42 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   Emit(code, 1, outputs, arraysize(inputs), inputs);
 }
 
-void InstructionSelector::VisitWord32AtomicBinaryOperation(
-    Node* node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicBinaryOperation(
+    node_t node, ArchOpcode int8_op, ArchOpcode uint8_op, ArchOpcode int16_op,
     ArchOpcode uint16_op, ArchOpcode word32_op) {
-  MachineType type = AtomicOpType(node->op());
-  ArchOpcode opcode;
-  if (type == MachineType::Int8()) {
-    opcode = int8_op;
-  } else if (type == MachineType::Uint8()) {
-    opcode = uint8_op;
-  } else if (type == MachineType::Int16()) {
-    opcode = int16_op;
-  } else if (type == MachineType::Uint16()) {
-    opcode = uint16_op;
-  } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
-    opcode = word32_op;
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
   } else {
-    UNREACHABLE();
+    MachineType type = AtomicOpType(node->op());
+    ArchOpcode opcode;
+    if (type == MachineType::Int8()) {
+      opcode = int8_op;
+    } else if (type == MachineType::Uint8()) {
+      opcode = uint8_op;
+    } else if (type == MachineType::Int16()) {
+      opcode = int16_op;
+    } else if (type == MachineType::Uint16()) {
+      opcode = uint16_op;
+    } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
+      opcode = word32_op;
+    } else {
+      UNREACHABLE();
+    }
+    VisitAtomicBinOp(this, node, opcode, type.representation());
   }
-  VisitAtomicBinOp(this, node, opcode, type.representation());
 }
 
-#define VISIT_ATOMIC_BINOP(op)                                           \
-  void InstructionSelector::VisitWord32Atomic##op(Node* node) {          \
-    VisitWord32AtomicBinaryOperation(                                    \
-        node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16, \
-        kAtomic##op##Uint16, kAtomic##op##Word32);                       \
+#define VISIT_ATOMIC_BINOP(op)                                             \
+  template <typename Adapter>                                              \
+  void InstructionSelectorT<Adapter>::VisitWord32Atomic##op(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                 \
+      UNIMPLEMENTED();                                                     \
+    } else {                                                               \
+      VisitWord32AtomicBinaryOperation(                                    \
+          node, kAtomic##op##Int8, kAtomic##op##Uint8, kAtomic##op##Int16, \
+          kAtomic##op##Uint16, kAtomic##op##Word32);                       \
+    }                                                                      \
   }
 VISIT_ATOMIC_BINOP(Add)
 VISIT_ATOMIC_BINOP(Sub)
@@ -2147,10 +2590,11 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairLoad(Node* node) {
   // Both acquire and sequentially consistent loads can emit MOV.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<Adapter> g(this);
   AddressingMode mode;
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -2183,12 +2627,13 @@ void InstructionSelector::VisitWord32AtomicPairLoad(Node* node) {
   }
 }
 
-void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairStore(Node* node) {
   // Release pair stores emit a MOVQ via a double register, and sequentially
   // consistent stores emit CMPXCHG8B.
   // https://www.cl.cam.ac.uk/~pes20/cpp/cpp0xmappings.html
 
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<Adapter> g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
@@ -2225,32 +2670,40 @@ void InstructionSelector::VisitWord32AtomicPairStore(Node* node) {
   }
 }
 
-void InstructionSelector::VisitWord32AtomicPairAdd(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAdd(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAdd);
 }
 
-void InstructionSelector::VisitWord32AtomicPairSub(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairSub(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairSub);
 }
 
-void InstructionSelector::VisitWord32AtomicPairAnd(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairAnd(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairAnd);
 }
 
-void InstructionSelector::VisitWord32AtomicPairOr(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairOr(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairOr);
 }
 
-void InstructionSelector::VisitWord32AtomicPairXor(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairXor(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairXor);
 }
 
-void InstructionSelector::VisitWord32AtomicPairExchange(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairExchange(Node* node) {
   VisitPairAtomicBinOp(this, node, kIA32Word32AtomicPairExchange);
 }
 
-void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
-  IA32OperandGenerator g(this);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitWord32AtomicPairCompareExchange(
+    Node* node) {
+  IA32OperandGeneratorT<Adapter> g(this);
   Node* index = node->InputAt(1);
   AddressingMode addressing_mode;
 
@@ -2427,8 +2880,14 @@ void InstructionSelector::VisitWord32AtomicPairCompareExchange(Node* node) {
   V(I16x8ShrS)                               \
   V(I16x8ShrU)
 
-void InstructionSelector::VisitS128Const(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128Const(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS128Const(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   static const int kUint32Immediates = kSimd128Size / sizeof(uint32_t);
   uint32_t val[kUint32Immediates];
   memcpy(val, S128ImmediateParameterOf(node->op()).data(), kSimd128Size);
@@ -2451,8 +2910,14 @@ void InstructionSelector::VisitS128Const(Node* node) {
   }
 }
 
-void InstructionSelector::VisitF64x2Min(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2Min(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2Min(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
 
@@ -2463,8 +2928,14 @@ void InstructionSelector::VisitF64x2Min(Node* node) {
   }
 }
 
-void InstructionSelector::VisitF64x2Max(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2Max(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2Max(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
   if (IsSupported(AVX)) {
@@ -2474,16 +2945,36 @@ void InstructionSelector::VisitF64x2Max(Node* node) {
   }
 }
 
-void InstructionSelector::VisitF64x2Splat(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2Splat(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2Splat(Node* node) {
   VisitRRSimd(this, node, kIA32F64x2Splat);
 }
 
-void InstructionSelector::VisitF64x2ExtractLane(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2ExtractLane(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2ExtractLane(Node* node) {
   VisitRRISimd(this, node, kIA32F64x2ExtractLane, kIA32F64x2ExtractLane);
 }
 
-void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2SplatI32Pair(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2SplatI32Pair(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Int32Matcher match_left(node->InputAt(0));
   Int32Matcher match_right(node->InputAt(1));
   if (match_left.Is(0) && match_right.Is(0)) {
@@ -2495,8 +2986,16 @@ void InstructionSelector::VisitI64x2SplatI32Pair(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2ReplaceLaneI32Pair(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2ReplaceLaneI32Pair(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand operand = g.UseRegister(node->InputAt(0));
   InstructionOperand lane = g.UseImmediate(OpParameter<int32_t>(node->op()));
   InstructionOperand low = g.Use(node->InputAt(1));
@@ -2505,8 +3004,14 @@ void InstructionSelector::VisitI64x2ReplaceLaneI32Pair(Node* node) {
        low, high);
 }
 
-void InstructionSelector::VisitI64x2Neg(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2Neg(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2Neg(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   // If AVX unsupported, make sure dst != src to avoid a move.
   InstructionOperand operand0 = IsSupported(AVX)
                                     ? g.UseRegister(node->InputAt(0))
@@ -2514,8 +3019,14 @@ void InstructionSelector::VisitI64x2Neg(Node* node) {
   Emit(kIA32I64x2Neg, g.DefineAsRegister(node), operand0);
 }
 
-void InstructionSelector::VisitI64x2ShrS(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2ShrS(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2ShrS(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
 
@@ -2529,8 +3040,14 @@ void InstructionSelector::VisitI64x2ShrS(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI64x2Mul(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2Mul(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2Mul(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempSimd128Register(),
                                 g.TempSimd128Register()};
   Emit(kIA32I64x2Mul, g.DefineAsRegister(node),
@@ -2538,24 +3055,53 @@ void InstructionSelector::VisitI64x2Mul(Node* node) {
        g.UseUniqueRegister(node->InputAt(1)), arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitF32x4Splat(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF32x4Splat(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF32x4Splat(Node* node) {
   VisitRRSimd(this, node, kIA32F32x4Splat);
 }
 
-void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF32x4ExtractLane(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF32x4ExtractLane(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand operand1 =
       g.UseImmediate(OpParameter<int32_t>(node->op()));
   Emit(kIA32F32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
 }
 
-void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF32x4UConvertI32x4(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF32x4UConvertI32x4(
+    Node* node) {
   VisitRRSimd(this, node, kIA32F32x4UConvertI32x4);
 }
 
-void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI32x4SConvertF32x4(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI32x4SConvertF32x4(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
@@ -2563,8 +3109,16 @@ void InstructionSelector::VisitI32x4SConvertF32x4(Node* node) {
        arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI32x4UConvertF32x4(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI32x4UConvertF32x4(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempSimd128Register()};
   InstructionCode opcode =
       IsSupported(AVX) ? kAVXI32x4UConvertF32x4 : kSSEI32x4UConvertF32x4;
@@ -2572,21 +3126,39 @@ void InstructionSelector::VisitI32x4UConvertF32x4(Node* node) {
        arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitS128Zero(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128Zero(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS128Zero(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   Emit(kIA32S128Zero, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitS128Select(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128Select(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS128Select(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
   Emit(kIA32S128Select, dst, g.UseRegister(node->InputAt(0)),
        g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
 }
 
-void InstructionSelector::VisitS128AndNot(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitS128AndNot(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitS128AndNot(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   // andnps a b does ~a & b, but we want a & !b, so flip the input.
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
@@ -2594,38 +3166,68 @@ void InstructionSelector::VisitS128AndNot(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
-#define VISIT_SIMD_SPLAT(Type)                               \
-  void InstructionSelector::Visit##Type##Splat(Node* node) { \
-    Int32Matcher int32_matcher(node->InputAt(0));            \
-    if (int32_matcher.Is(0)) {                               \
-      IA32OperandGenerator g(this);                          \
-      Emit(kIA32S128Zero, g.DefineAsRegister(node));         \
-    } else {                                                 \
-      VisitRO(this, node, kIA32##Type##Splat);               \
-    }                                                        \
+#define VISIT_SIMD_SPLAT(Type)                                          \
+  template <typename Adapter>                                           \
+  void InstructionSelectorT<Adapter>::Visit##Type##Splat(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                              \
+      UNIMPLEMENTED();                                                  \
+    } else {                                                            \
+      Int32Matcher int32_matcher(node->InputAt(0));                     \
+      if (int32_matcher.Is(0)) {                                        \
+        IA32OperandGeneratorT<Adapter> g(this);                         \
+        Emit(kIA32S128Zero, g.DefineAsRegister(node));                  \
+      } else {                                                          \
+        VisitRO(this, node, kIA32##Type##Splat);                        \
+      }                                                                 \
+    }                                                                   \
   }
 SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #undef SIMD_INT_TYPES
 #undef VISIT_SIMD_SPLAT
 
-void InstructionSelector::VisitI8x16ExtractLaneU(Node* node) {
-  VisitRRISimd(this, node, kIA32Pextrb);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneU(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRISimd(this, node, kIA32Pextrb);
+  }
 }
 
-void InstructionSelector::VisitI8x16ExtractLaneS(Node* node) {
-  VisitRRISimd(this, node, kIA32I8x16ExtractLaneS);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16ExtractLaneS(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRISimd(this, node, kIA32I8x16ExtractLaneS);
+  }
 }
 
-void InstructionSelector::VisitI16x8ExtractLaneU(Node* node) {
-  VisitRRISimd(this, node, kIA32Pextrw);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8ExtractLaneU(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRISimd(this, node, kIA32Pextrw);
+  }
 }
 
-void InstructionSelector::VisitI16x8ExtractLaneS(Node* node) {
-  VisitRRISimd(this, node, kIA32I16x8ExtractLaneS);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8ExtractLaneS(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRISimd(this, node, kIA32I16x8ExtractLaneS);
+  }
 }
 
-void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
-  VisitRRISimd(this, node, kIA32I32x4ExtractLane);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4ExtractLane(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitRRISimd(this, node, kIA32I32x4ExtractLane);
+  }
 }
 
 #define SIMD_REPLACE_LANE_TYPE_OP(V) \
@@ -2634,23 +3236,35 @@ void InstructionSelector::VisitI32x4ExtractLane(Node* node) {
   V(I8x16, kIA32Pinsrb)              \
   V(F32x4, kIA32Insertps)
 
-#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                              \
-  void InstructionSelector::Visit##TYPE##ReplaceLane(Node* node) {         \
-    IA32OperandGenerator g(this);                                          \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));         \
-    InstructionOperand operand1 =                                          \
-        g.UseImmediate(OpParameter<int32_t>(node->op()));                  \
-    InstructionOperand operand2 = g.Use(node->InputAt(1));                 \
-    InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)   \
-                                              : g.DefineSameAsFirst(node); \
-    Emit(OPCODE, dst, operand0, operand1, operand2);                       \
+#define VISIT_SIMD_REPLACE_LANE(TYPE, OPCODE)                                 \
+  template <typename Adapter>                                                 \
+  void InstructionSelectorT<Adapter>::Visit##TYPE##ReplaceLane(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                                    \
+      UNIMPLEMENTED();                                                        \
+    } else {                                                                  \
+      IA32OperandGeneratorT<Adapter> g(this);                                 \
+      InstructionOperand operand0 = g.UseRegister(node->InputAt(0));          \
+      InstructionOperand operand1 =                                           \
+          g.UseImmediate(OpParameter<int32_t>(node->op()));                   \
+      InstructionOperand operand2 = g.Use(node->InputAt(1));                  \
+      InstructionOperand dst = IsSupported(AVX) ? g.DefineAsRegister(node)    \
+                                                : g.DefineSameAsFirst(node);  \
+      Emit(OPCODE, dst, operand0, operand1, operand2);                        \
+    }                                                                         \
   }
 SIMD_REPLACE_LANE_TYPE_OP(VISIT_SIMD_REPLACE_LANE)
 #undef VISIT_SIMD_REPLACE_LANE
 #undef SIMD_REPLACE_LANE_TYPE_OP
 
-void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2ReplaceLane(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2ReplaceLane(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   int32_t lane = OpParameter<int32_t>(node->op());
   // When no-AVX, define dst == src to save a move.
   InstructionOperand dst =
@@ -2659,9 +3273,14 @@ void InstructionSelector::VisitF64x2ReplaceLane(Node* node) {
        g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));
 }
 
-#define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)        \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    VisitRROSimdShift(this, node, kIA32##Opcode);       \
+#define VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX(Opcode)                   \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                         \
+      UNIMPLEMENTED();                                             \
+    } else {                                                       \
+      VisitRROSimdShift(this, node, kIA32##Opcode);                \
+    }                                                              \
   }
 SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX
@@ -2671,82 +3290,111 @@ SIMD_SHIFT_OPCODES_UNIFED_SSE_AVX(VISIT_SIMD_SHIFT_UNIFIED_SSE_AVX)
 // alignment yet. For AVX, memory operands are fine, but can have performance
 // issues if not aligned to 16/32 bytes (based on load size), see SDM Vol 1,
 // chapter 14.9
-#define VISIT_SIMD_UNOP(Opcode)                         \
-  void InstructionSelector::Visit##Opcode(Node* node) { \
-    IA32OperandGenerator g(this);                       \
-    Emit(kIA32##Opcode, g.DefineAsRegister(node),       \
-         g.UseRegister(node->InputAt(0)));              \
+#define VISIT_SIMD_UNOP(Opcode)                                    \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    if constexpr (Adapter::IsTurboshaft) {                         \
+      UNIMPLEMENTED();                                             \
+    } else {                                                       \
+      IA32OperandGeneratorT<Adapter> g(this);                      \
+      Emit(kIA32##Opcode, g.DefineAsRegister(node),                \
+           g.UseRegister(node->InputAt(0)));                       \
+    }                                                              \
   }
 SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
 #undef VISIT_SIMD_UNOP
 #undef SIMD_UNOP_LIST
 
-void InstructionSelector::VisitV128AnyTrue(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempRegister()};
-  Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitV128AnyTrue(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempRegister()};
+    Emit(kIA32S128AnyTrue, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)), arraysize(temps), temps);
+  }
 }
 
-#define VISIT_SIMD_ALLTRUE(Opcode)                                            \
-  void InstructionSelector::Visit##Opcode(Node* node) {                       \
-    IA32OperandGenerator g(this);                                             \
-    InstructionOperand temps[] = {g.TempRegister(), g.TempSimd128Register()}; \
-    Emit(kIA32##Opcode, g.DefineAsRegister(node),                             \
-         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);     \
+#define VISIT_SIMD_ALLTRUE(Opcode)                                          \
+  template <typename Adapter>                                               \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) {          \
+    if constexpr (Adapter::IsTurboshaft) {                                  \
+      UNIMPLEMENTED();                                                      \
+    } else {                                                                \
+      IA32OperandGeneratorT<Adapter> g(this);                               \
+      InstructionOperand temps[] = {g.TempRegister(),                       \
+                                    g.TempSimd128Register()};               \
+      Emit(kIA32##Opcode, g.DefineAsRegister(node),                         \
+           g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps); \
+    }                                                                       \
   }
 SIMD_ALLTRUE_LIST(VISIT_SIMD_ALLTRUE)
 #undef VISIT_SIMD_ALLTRUE
 #undef SIMD_ALLTRUE_LIST
 
-#define VISIT_SIMD_BINOP(Opcode)                          \
-  void InstructionSelector::Visit##Opcode(Node* node) {   \
-    VisitRROSimd(this, node, kAVX##Opcode, kSSE##Opcode); \
+#define VISIT_SIMD_BINOP(Opcode)                                   \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    VisitRROSimd(this, node, kAVX##Opcode, kSSE##Opcode);          \
   }
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
 #undef SIMD_BINOP_LIST
 
-#define VISIT_SIMD_BINOP_UNIFIED_SSE_AVX(Opcode)            \
-  void InstructionSelector::Visit##Opcode(Node* node) {     \
-    VisitRROSimd(this, node, kIA32##Opcode, kIA32##Opcode); \
+#define VISIT_SIMD_BINOP_UNIFIED_SSE_AVX(Opcode)                   \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##Opcode(node_t node) { \
+    VisitRROSimd(this, node, kIA32##Opcode, kIA32##Opcode);        \
   }
 SIMD_BINOP_UNIFIED_SSE_AVX_LIST(VISIT_SIMD_BINOP_UNIFIED_SSE_AVX)
 #undef VISIT_SIMD_BINOP_UNIFIED_SSE_AVX
 #undef SIMD_BINOP_UNIFIED_SSE_AVX_LIST
 
-#define VISIT_SIMD_BINOP_RRR(OPCODE)                    \
-  void InstructionSelector::Visit##OPCODE(Node* node) { \
-    VisitRRRSimd(this, node, kIA32##OPCODE);            \
+#define VISIT_SIMD_BINOP_RRR(OPCODE)                               \
+  template <typename Adapter>                                      \
+  void InstructionSelectorT<Adapter>::Visit##OPCODE(node_t node) { \
+    VisitRRRSimd(this, node, kIA32##OPCODE);                       \
   }
 SIMD_BINOP_RRR(VISIT_SIMD_BINOP_RRR)
 #undef VISIT_SIMD_BINOP_RRR
 #undef SIMD_BINOP_RRR
 
-void InstructionSelector::VisitI16x8BitMask(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kIA32I16x8BitMask, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8BitMask(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kIA32I16x8BitMask, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)), arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::VisitI8x16Shl(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16Shl(node_t node) {
   VisitI8x16Shift(this, node, kIA32I8x16Shl);
 }
 
-void InstructionSelector::VisitI8x16ShrS(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16ShrS(node_t node) {
   VisitI8x16Shift(this, node, kIA32I8x16ShrS);
 }
 
-void InstructionSelector::VisitI8x16ShrU(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16ShrU(node_t node) {
   VisitI8x16Shift(this, node, kIA32I8x16ShrU);
 }
 
-void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt32AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
-void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitInt64AbsWithOverflow(node_t node) {
   UNREACHABLE();
 }
 
@@ -2889,7 +3537,13 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 
 }  // namespace
 
-void InstructionSelector::VisitI8x16Shuffle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
   uint8_t shuffle[kSimd128Size];
   bool is_swizzle;
   CanonicalizeShuffle(node, shuffle, &is_swizzle);
@@ -2901,7 +3555,7 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   static const int kMaxTemps = 2;
   InstructionOperand temps[kMaxTemps];
 
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   bool use_avx = CpuFeatures::IsSupported(AVX);
   // AVX and swizzles don't generally need DefineSameAsFirst to avoid a move.
   bool no_same_as_first = use_avx || is_swizzle;
@@ -3041,7 +3695,13 @@ void InstructionSelector::VisitI8x16Shuffle(Node* node) {
   Emit(opcode, 1, &dst, input_count, inputs, temp_count, temps);
 }
 
-void InstructionSelector::VisitI8x16Swizzle(Node* node) {
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Swizzle(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
   InstructionCode op = kIA32I8x16Swizzle;
 
   bool relaxed = OpParameter<bool>(node->op());
@@ -3058,7 +3718,7 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
     }
   }
 
-  IA32OperandGenerator g(this);
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempRegister()};
   Emit(op,
        IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node),
@@ -3066,16 +3726,37 @@ void InstructionSelector::VisitI8x16Swizzle(Node* node) {
        arraysize(temps), temps);
 }
 #else
-void InstructionSelector::VisitI8x16Shuffle(Node* node) { UNREACHABLE(); }
-void InstructionSelector::VisitI8x16Swizzle(Node* node) { UNREACHABLE(); }
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Shuffle(node_t node) {
+  UNREACHABLE();
+}
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Shuffle(Node* node) {
+  UNREACHABLE();
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Swizzle(node_t node) {
+  UNREACHABLE();
+}
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Swizzle(Node* node) {
+  UNREACHABLE();
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 namespace {
-void VisitMinOrMax(InstructionSelector* selector, Node* node, ArchOpcode opcode,
+void VisitMinOrMax(InstructionSelectorT<TurboshaftAdapter>* selector,
+                   turboshaft::OpIndex node, ArchOpcode opcode,
                    bool flip_inputs) {
+  UNIMPLEMENTED();
+}
+
+void VisitMinOrMax(InstructionSelectorT<TurbofanAdapter>* selector, Node* node,
+                   ArchOpcode opcode, bool flip_inputs) {
   // Due to the way minps/minpd work, we want the dst to be same as the second
   // input: b = pmin(a, b) directly maps to minps b a.
-  IA32OperandGenerator g(selector);
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand dst = selector->IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineSameAsFirst(node);
@@ -3091,42 +3772,56 @@ void VisitMinOrMax(InstructionSelector* selector, Node* node, ArchOpcode opcode,
 }
 }  // namespace
 
-void InstructionSelector::VisitF32x4Pmin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Pmin(node_t node) {
   VisitMinOrMax(this, node, kIA32Minps, true);
 }
 
-void InstructionSelector::VisitF32x4Pmax(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Pmax(node_t node) {
   VisitMinOrMax(this, node, kIA32Maxps, true);
 }
 
-void InstructionSelector::VisitF64x2Pmin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Pmin(node_t node) {
   VisitMinOrMax(this, node, kIA32Minpd, true);
 }
 
-void InstructionSelector::VisitF64x2Pmax(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Pmax(node_t node) {
   VisitMinOrMax(this, node, kIA32Maxpd, true);
 }
 
-void InstructionSelector::VisitF32x4RelaxedMin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMin(node_t node) {
   VisitMinOrMax(this, node, kIA32Minps, false);
 }
 
-void InstructionSelector::VisitF32x4RelaxedMax(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4RelaxedMax(node_t node) {
   VisitMinOrMax(this, node, kIA32Maxps, false);
 }
 
-void InstructionSelector::VisitF64x2RelaxedMin(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMin(node_t node) {
   VisitMinOrMax(this, node, kIA32Minpd, false);
 }
 
-void InstructionSelector::VisitF64x2RelaxedMax(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2RelaxedMax(node_t node) {
   VisitMinOrMax(this, node, kIA32Maxpd, false);
 }
 
 namespace {
-void VisitExtAddPairwise(InstructionSelector* selector, Node* node,
-                         ArchOpcode opcode, bool need_temp) {
-  IA32OperandGenerator g(selector);
+void VisitExtAddPairwise(InstructionSelectorT<TurboshaftAdapter>* selector,
+                         turboshaft::OpIndex node, ArchOpcode opcode,
+                         bool need_temp) {
+  UNIMPLEMENTED();
+}
+
+void VisitExtAddPairwise(InstructionSelectorT<TurbofanAdapter>* selector,
+                         Node* node, ArchOpcode opcode, bool need_temp) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
   InstructionOperand dst = (selector->IsSupported(AVX))
                                ? g.DefineAsRegister(node)
@@ -3140,24 +3835,38 @@ void VisitExtAddPairwise(InstructionSelector* selector, Node* node,
 }
 }  // namespace
 
-void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8S(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8S(
+    node_t node) {
   VisitExtAddPairwise(this, node, kIA32I32x4ExtAddPairwiseI16x8S, true);
 }
 
-void InstructionSelector::VisitI32x4ExtAddPairwiseI16x8U(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4ExtAddPairwiseI16x8U(
+    node_t node) {
   VisitExtAddPairwise(this, node, kIA32I32x4ExtAddPairwiseI16x8U, false);
 }
 
-void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16S(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16S(
+    node_t node) {
   VisitExtAddPairwise(this, node, kIA32I16x8ExtAddPairwiseI8x16S, true);
 }
 
-void InstructionSelector::VisitI16x8ExtAddPairwiseI8x16U(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8ExtAddPairwiseI8x16U(
+    node_t node) {
   VisitExtAddPairwise(this, node, kIA32I16x8ExtAddPairwiseI8x16U, true);
 }
 
-void InstructionSelector::VisitI8x16Popcnt(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI8x16Popcnt(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI8x16Popcnt(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand dst = CpuFeatures::IsSupported(AVX)
                                ? g.DefineAsRegister(node)
                                : g.DefineAsRegister(node);
@@ -3166,8 +3875,16 @@ void InstructionSelector::VisitI8x16Popcnt(Node* node) {
        arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2ConvertLowI32x4U(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2ConvertLowI32x4U(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
@@ -3175,8 +3892,16 @@ void InstructionSelector::VisitF64x2ConvertLowI32x4U(Node* node) {
        arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI32x4TruncSatF64x2SZero(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI32x4TruncSatF64x2SZero(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempRegister()};
   if (IsSupported(AVX)) {
     // Requires dst != src.
@@ -3188,8 +3913,16 @@ void InstructionSelector::VisitI32x4TruncSatF64x2SZero(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI32x4TruncSatF64x2UZero(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI32x4TruncSatF64x2UZero(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionOperand temps[] = {g.TempRegister()};
   InstructionOperand dst =
       IsSupported(AVX) ? g.DefineAsRegister(node) : g.DefineSameAsFirst(node);
@@ -3197,24 +3930,37 @@ void InstructionSelector::VisitI32x4TruncSatF64x2UZero(Node* node) {
        arraysize(temps), temps);
 }
 
-void InstructionSelector::VisitI32x4RelaxedTruncF64x2SZero(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF64x2SZero(
+    node_t node) {
   VisitRRSimd(this, node, kIA32Cvttpd2dq);
 }
 
-void InstructionSelector::VisitI32x4RelaxedTruncF64x2UZero(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kIA32I32x4TruncF64x2UZero);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF64x2UZero(
+    node_t node) {
+  VisitFloatUnop(this, node, this->input_at(node, 0),
+                 kIA32I32x4TruncF64x2UZero);
 }
 
-void InstructionSelector::VisitI32x4RelaxedTruncF32x4S(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4S(node_t node) {
   VisitRRSimd(this, node, kIA32Cvttps2dq);
 }
 
-void InstructionSelector::VisitI32x4RelaxedTruncF32x4U(Node* node) {
-  VisitFloatUnop(this, node, node->InputAt(0), kIA32I32x4TruncF32x4U);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedTruncF32x4U(node_t node) {
+  VisitFloatUnop(this, node, this->input_at(node, 0), kIA32I32x4TruncF32x4U);
 }
 
-void InstructionSelector::VisitI64x2GtS(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2GtS(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2GtS(Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kIA32I64x2GtS, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
@@ -3228,8 +3974,14 @@ void InstructionSelector::VisitI64x2GtS(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI64x2GeS(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitI64x2GeS(node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitI64x2GeS(node_t node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   if (CpuFeatures::IsSupported(AVX)) {
     Emit(kIA32I64x2GeS, g.DefineAsRegister(node),
          g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
@@ -3244,12 +3996,21 @@ void InstructionSelector::VisitI64x2GeS(Node* node) {
   }
 }
 
-void InstructionSelector::VisitI64x2Abs(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2Abs(node_t node) {
   VisitRRSimd(this, node, kIA32I64x2Abs, kIA32I64x2Abs);
 }
 
-void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
-  IA32OperandGenerator g(this);
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitF64x2PromoteLowF32x4(
+    node_t node) {
+  UNIMPLEMENTED();
+}
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitF64x2PromoteLowF32x4(
+    Node* node) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(this);
   InstructionCode code = kIA32F64x2PromoteLowF32x4;
   Node* input = node->InputAt(0);
   LoadTransformMatcher m(input);
@@ -3268,9 +4029,15 @@ void InstructionSelector::VisitF64x2PromoteLowF32x4(Node* node) {
 }
 
 namespace {
-void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node,
+void VisitRelaxedLaneSelect(InstructionSelectorT<TurboshaftAdapter>* selector,
+                            turboshaft::OpIndex node,
                             InstructionCode code = kIA32Pblendvb) {
-  IA32OperandGenerator g(selector);
+  UNIMPLEMENTED();
+}
+
+void VisitRelaxedLaneSelect(InstructionSelectorT<TurbofanAdapter>* selector,
+                            Node* node, InstructionCode code = kIA32Pblendvb) {
+  IA32OperandGeneratorT<TurbofanAdapter> g(selector);
   // pblendvb/blendvps/blendvpd copies src2 when mask is set, opposite from Wasm
   // semantics. node's inputs are: mask, lhs, rhs (determined in
   // wasm-compiler.cc).
@@ -3288,54 +4055,86 @@ void VisitRelaxedLaneSelect(InstructionSelector* selector, Node* node,
 }
 }  // namespace
 
-void InstructionSelector::VisitI8x16RelaxedLaneSelect(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI8x16RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node);
 }
-void InstructionSelector::VisitI16x8RelaxedLaneSelect(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node);
 }
-void InstructionSelector::VisitI32x4RelaxedLaneSelect(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node, kIA32Blendvps);
 }
-void InstructionSelector::VisitI64x2RelaxedLaneSelect(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI64x2RelaxedLaneSelect(node_t node) {
   VisitRelaxedLaneSelect(this, node, kIA32Blendvpd);
 }
 
-void InstructionSelector::VisitF64x2Qfma(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Qfma(node_t node) {
   VisitRRRR(this, node, kIA32F64x2Qfma);
 }
 
-void InstructionSelector::VisitF64x2Qfms(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF64x2Qfms(node_t node) {
   VisitRRRR(this, node, kIA32F64x2Qfms);
 }
 
-void InstructionSelector::VisitF32x4Qfma(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Qfma(node_t node) {
   VisitRRRR(this, node, kIA32F32x4Qfma);
 }
 
-void InstructionSelector::VisitF32x4Qfms(Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitF32x4Qfms(node_t node) {
   VisitRRRR(this, node, kIA32F32x4Qfms);
 }
 
-void InstructionSelector::VisitI16x8DotI8x16I7x16S(Node* node) {
-  IA32OperandGenerator g(this);
-  Emit(kIA32I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
-       g.UseUniqueRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI16x8DotI8x16I7x16S(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    Emit(kIA32I16x8DotI8x16I7x16S, g.DefineAsRegister(node),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseRegister(node->InputAt(1)));
+  }
 }
 
-void InstructionSelector::VisitI32x4DotI8x16I7x16AddS(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionOperand temps[] = {g.TempSimd128Register()};
-  Emit(kIA32I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
-       g.UseUniqueRegister(node->InputAt(0)),
-       g.UseUniqueRegister(node->InputAt(1)),
-       g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitI32x4DotI8x16I7x16AddS(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    IA32OperandGeneratorT<Adapter> g(this);
+    InstructionOperand temps[] = {g.TempSimd128Register()};
+    Emit(kIA32I32x4DotI8x16I7x16AddS, g.DefineSameAsInput(node, 2),
+         g.UseUniqueRegister(node->InputAt(0)),
+         g.UseUniqueRegister(node->InputAt(1)),
+         g.UseUniqueRegister(node->InputAt(2)), arraysize(temps), temps);
+  }
 }
 
-void InstructionSelector::AddOutputToSelectContinuation(OperandGenerator* g,
-                                                        int first_input_index,
-                                                        Node* node) {
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
+    OperandGeneratorT<Adapter>* g, int first_input_index, node_t node) {
   UNREACHABLE();
+}
+
+template <>
+Node* InstructionSelectorT<TurbofanAdapter>::FindProjection(
+    Node* node, size_t projection_index) {
+  return NodeProperties::FindProjection(node, projection_index);
+}
+
+template <>
+TurboshaftAdapter::node_t
+InstructionSelectorT<TurboshaftAdapter>::FindProjection(
+    node_t node, size_t projection_index) {
+  UNIMPLEMENTED();
 }
 
 // static
@@ -3366,6 +4165,11 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    InstructionSelectorT<TurbofanAdapter>;
+template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
+    InstructionSelectorT<TurboshaftAdapter>;
 
 }  // namespace compiler
 }  // namespace internal

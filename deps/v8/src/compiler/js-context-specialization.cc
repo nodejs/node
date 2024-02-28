@@ -177,19 +177,14 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
                                  depth);
   }
 
-  if (!maybe_value->IsSmi()) {
-    // Even though the context slot is immutable, the context might have escaped
-    // before the function to which it belongs has initialized the slot.
-    // We must be conservative and check if the value in the slot is currently
-    // the hole or undefined. Only if it is neither of these, can we be sure
-    // that it won't change anymore.
-    OddballType oddball_type =
-        maybe_value->AsHeapObject().map(broker()).oddball_type(broker());
-    if (oddball_type == OddballType::kUndefined ||
-        oddball_type == OddballType::kHole) {
-      return SimplifyJSLoadContext(
-          node, jsgraph()->Constant(concrete, broker()), depth);
-    }
+  // Even though the context slot is immutable, the context might have escaped
+  // before the function to which it belongs has initialized the slot.
+  // We must be conservative and check if the value in the slot is currently
+  // the hole or undefined. Only if it is neither of these, can we be sure
+  // that it won't change anymore.
+  if (maybe_value->IsUndefined() || maybe_value->IsTheHole()) {
+    return SimplifyJSLoadContext(node, jsgraph()->Constant(concrete, broker()),
+                                 depth);
   }
 
   // Success. The context load can be replaced with the constant.
@@ -286,7 +281,7 @@ Reduction JSContextSpecialization::ReduceJSGetImportMeta(Node* node) {
       module->AsSourceTextModule().import_meta(broker());
   if (!import_meta.has_value()) return NoChange();
   if (!import_meta->IsJSObject()) {
-    DCHECK(import_meta->IsTheHole(broker()));
+    DCHECK(import_meta->IsTheHole());
     // The import.meta object has not yet been created. Let JSGenericLowering
     // replace the operator with a runtime call.
     return NoChange();

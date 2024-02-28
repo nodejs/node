@@ -13,9 +13,7 @@
 #include "test/common/assembler-tester.h"
 #include "test/unittests/test-utils.h"
 
-#if !V8_HOST_ARCH_X64 || !V8_TARGET_ARCH_ARM64
-#error "Only include this file on arm64 simulator builds on x64."
-#endif
+#ifdef V8_TRAP_HANDLER_VIA_SIMULATOR
 
 namespace v8 {
 namespace internal {
@@ -111,6 +109,8 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   // Test that the trap handler can recover a memory access violation in
   // wasm code (we fake the wasm code and the access violation).
   std::unique_ptr<TestingAssemblerBuffer> buffer = AllocateAssemblerBuffer();
+
+#ifdef V8_TARGET_ARCH_ARM64
   constexpr Register scratch = x0;
   MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
                       buffer->CreateView());
@@ -121,9 +121,23 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   uint32_t recovery_offset = masm.pc_offset();
   // Return.
   masm.Ret();
+#elif V8_TARGET_ARCH_LOONG64
+  constexpr Register scratch = a0;
+  MacroAssembler masm(nullptr, AssemblerOptions{}, CodeObjectRequired::kNo,
+                      buffer->CreateView());
+  // Generate an illegal memory access.
+  masm.li(scratch, static_cast<int64_t>(InaccessibleMemoryPtr()));
+  uint32_t crash_offset = masm.pc_offset();
+  masm.St_d(scratch, MemOperand(scratch, 0));  // load from inaccessible memory.
+  uint32_t recovery_offset = masm.pc_offset();
+  // Return.
+  masm.Ret();
+#else
+#error Unsupported platform
+#endif
 
   CodeDesc desc;
-  masm.GetCode(nullptr, &desc);
+  masm.GetCode(static_cast<LocalIsolate*>(nullptr), &desc);
 
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
@@ -151,3 +165,5 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TRAP_HANDLER_VIA_SIMULATOR

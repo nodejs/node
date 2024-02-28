@@ -62,7 +62,6 @@ MaybeLocal<Object> PipeWrap::Instantiate(Environment* env,
       constructor->NewInstance(env->context(), 1, &type_value));
 }
 
-
 void PipeWrap::Initialize(Local<Object> target,
                           Local<Value> unused,
                           Local<Context> context,
@@ -71,8 +70,7 @@ void PipeWrap::Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   Local<FunctionTemplate> t = NewFunctionTemplate(isolate, New);
-  t->InstanceTemplate()
-    ->SetInternalFieldCount(StreamBase::kInternalFieldCount);
+  t->InstanceTemplate()->SetInternalFieldCount(StreamBase::kInternalFieldCount);
 
   t->Inherit(LibuvStreamWrap::GetConstructorTemplate(env));
 
@@ -102,9 +100,7 @@ void PipeWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, IPC);
   NODE_DEFINE_CONSTANT(constants, UV_READABLE);
   NODE_DEFINE_CONSTANT(constants, UV_WRITABLE);
-  target->Set(context,
-              env->constants_string(),
-              constants).Check();
+  target->Set(context, env->constants_string(), constants).Check();
 }
 
 void PipeWrap::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -152,7 +148,6 @@ void PipeWrap::New(const FunctionCallbackInfo<Value>& args) {
   new PipeWrap(env, args.This(), provider, ipc);
 }
 
-
 PipeWrap::PipeWrap(Environment* env,
                    Local<Object> object,
                    ProviderType provider,
@@ -163,15 +158,13 @@ PipeWrap::PipeWrap(Environment* env,
                    // Suggestion: uv_pipe_init() returns void.
 }
 
-
 void PipeWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   node::Utf8Value name(args.GetIsolate(), args[0]);
-  int err = uv_pipe_bind(&wrap->handle_, *name);
+  int err = uv_pipe_bind2(&wrap->handle_, *name, name.length(), 0);
   args.GetReturnValue().Set(err);
 }
-
 
 #ifdef _WIN32
 void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
@@ -183,7 +176,6 @@ void PipeWrap::SetPendingInstances(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
-
 void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
@@ -193,19 +185,16 @@ void PipeWrap::Fchmod(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
 void PipeWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   PipeWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());
   Environment* env = wrap->env();
   int backlog;
   if (!args[0]->Int32Value(env->context()).To(&backlog)) return;
-  int err = uv_listen(reinterpret_cast<uv_stream_t*>(&wrap->handle_),
-                      backlog,
-                      OnConnection);
+  int err = uv_listen(
+      reinterpret_cast<uv_stream_t*>(&wrap->handle_), backlog, OnConnection);
   args.GetReturnValue().Set(err);
 }
-
 
 void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -222,7 +211,6 @@ void PipeWrap::Open(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
 void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
@@ -237,20 +225,24 @@ void PipeWrap::Connect(const FunctionCallbackInfo<Value>& args) {
 
   ConnectWrap* req_wrap =
       new ConnectWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_PIPECONNECTWRAP);
-  req_wrap->Dispatch(uv_pipe_connect,
-                     &wrap->handle_,
-                     *name,
-                     AfterConnect);
+  int err = req_wrap->Dispatch(
+      uv_pipe_connect2, &wrap->handle_, *name, name.length(), 0, AfterConnect);
+  if (err) {
+    delete req_wrap;
+  } else {
+    const char* path_type = (*name)[0] == '\0' ? "abstract socket" : "file";
+    const char* pipe_path = (*name)[0] == '\0' ? (*name) + 1 : *name;
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
+                                      "connect",
+                                      req_wrap,
+                                      "path_type",
+                                      path_type,
+                                      "pipe_path",
+                                      TRACE_STR_COPY(pipe_path));
+  }
 
-  TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE2(net, native),
-                                    "connect",
-                                    req_wrap,
-                                    "pipe_path",
-                                    TRACE_STR_COPY(*name));
-
-  args.GetReturnValue().Set(0);  // uv_pipe_connect() doesn't return errors.
+  args.GetReturnValue().Set(err);
 }
-
 
 }  // namespace node
 

@@ -8,8 +8,8 @@ namespace proxy {
 
 // Proxy Revocation Functions
 // https://tc39.github.io/ecma262/#sec-proxy-revocation-functions
-transitioning javascript builtin
-ProxyRevoke(js-implicit context: Context)(): Undefined {
+transitioning javascript builtin ProxyRevoke(js-implicit context: Context)():
+    Undefined {
   const context = %RawDownCast<ProxyRevokeFunctionContext>(context);
 
   // 1. Let p be F.[[RevocableProxy]].

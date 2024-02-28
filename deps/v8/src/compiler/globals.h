@@ -8,6 +8,7 @@
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
 #include "src/objects/js-objects.h"
+#include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +32,18 @@ enum class StackCheckKind : uint8_t {
   kCodeStubAssembler,
   kWasm,
 };
+
+inline Runtime::FunctionId GetBuiltinForStackCheckKind(StackCheckKind kind) {
+  if (kind == StackCheckKind::kJSFunctionEntry) {
+    return Runtime::kStackGuardWithGap;
+  } else if (kind == StackCheckKind::kJSIterationBody) {
+    return Runtime::kHandleNoHeapWritesInterrupts;
+  } else {
+    return Runtime::kStackGuard;
+  }
+}
+
+enum class CanThrow : uint8_t { kNo, kYes };
 
 inline std::ostream& operator<<(std::ostream& os, StackCheckKind kind) {
   switch (kind) {
@@ -103,20 +116,19 @@ const int kMaxFastLiteralProperties = JSObject::kMaxInObjectProperties;
 
 enum BaseTaggedness : uint8_t { kUntaggedBase, kTaggedBase };
 
+enum class MemoryAccessKind : uint8_t {
+  kNormal,
+  kUnaligned,
+  kProtected,
+};
+
+size_t hash_value(MemoryAccessKind);
+
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, MemoryAccessKind);
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
-
-// Support for floating point parameters in calls to C.
-// It's currently enabled only for the platforms listed below. We don't plan
-// to add support for IA32, because it has a totally different approach
-// (using FP stack). As support is added to more platforms, please make sure
-// to list them here in order to enable tests of this functionality.
-// Make sure to sync the following with src/d8/d8-test.cc.
-#if defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) || \
-    defined(V8_TARGET_ARCH_MIPS64) || defined(V8_TARGET_ARCH_LOONG64)
-#define V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#endif
 
 // The biggest double value that fits within the int64_t/uint64_t value range.
 // This is different from safe integer range in that there are gaps of integers
@@ -125,5 +137,14 @@ constexpr double kMaxDoubleRepresentableInt64 = 9223372036854774784.0;
 constexpr double kMinDoubleRepresentableInt64 =
     std::numeric_limits<int64_t>::min();
 constexpr double kMaxDoubleRepresentableUint64 = 18446744073709549568.0;
+
+// There is no (currently) available constexpr version of base::bit_cast, so
+// we have to make do with constructing the -0.0 bits manually (by setting the
+// sign bit to 1 and everything else to 0).
+// TODO(leszeks): Revisit when upgrading to C++20.
+constexpr int32_t kMinusZeroLoBits = static_cast<int32_t>(0);
+constexpr int32_t kMinusZeroHiBits = static_cast<int32_t>(1) << 31;
+constexpr int64_t kMinusZeroBits =
+    (static_cast<uint64_t>(kMinusZeroHiBits) << 32) | kMinusZeroLoBits;
 
 #endif  // V8_COMPILER_GLOBALS_H_
