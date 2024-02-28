@@ -95,29 +95,29 @@ template("openssl_gn_build") {
 
     config_path_name = ""
     if (is_win) {
-      if (target_cpu == "x86") {
+      if (current_cpu == "x86") {
         config_path_name = "VC-WIN32"
-      } else if (target_cpu == "x64") {
+      } else if (current_cpu == "x64") {
         config_path_name = "VC-WIN64A"
-      } else if (target_cpu == "arm64") {
+      } else if (current_cpu == "arm64") {
         config_path_name = "VC-WIN64-ARM"
       }
     } else if (is_linux) {
-      if (target_cpu == "x86") {
+      if (current_cpu == "x86") {
         config_path_name = "linux-elf"
-      } else if (target_cpu == "x64") {
+      } else if (current_cpu == "x64") {
         config_path_name = "linux-x86_64"
-      } else if (target_cpu == "arm") {
+      } else if (current_cpu == "arm") {
         config_path_name = "linux-armv4"
-      } else if (target_cpu == "arm64") {
+      } else if (current_cpu == "arm64") {
         config_path_name = "linux-aarch64"
       }
     } else if (is_apple) {
-      if (target_cpu == "x86") {
+      if (current_cpu == "x86") {
         config_path_name = "darwin-i386-cc"
-      } else if (target_cpu == "x64") {
+      } else if (current_cpu == "x64") {
         config_path_name = "darwin64-x86_64-cc"
-      } else if (target_cpu == "arm64") {
+      } else if (current_cpu == "arm64") {
         config_path_name = "darwin64-arm64-cc"
       }
     }
@@ -132,7 +132,7 @@ template("openssl_gn_build") {
       # TODO(zcbenz): Check gas_version and nasm_version.
       asm_name = "asm_avx2"
     }
-    if (is_win && target_cpu == "arm64") {
+    if (is_win && current_cpu == "arm64") {
       asm_name = "no-asm"
     }
     config_path = "config/archs/" + config_path_name + "/" + asm_name
