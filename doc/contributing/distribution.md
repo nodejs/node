@@ -13,5 +13,5 @@ officially support multiple dependencies or tools that serve the same purpose.
 
 ## Package managers
 
-The Node.js distribution will include `npm`, and will not include any other
+The Node.js distribution includes `npm`, and does not include any other
 package managers.
