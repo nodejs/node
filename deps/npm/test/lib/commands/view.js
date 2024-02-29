@@ -250,6 +250,8 @@ const packument = (nv, opts) => {
           },
         },
         '1.0.1': {},
+        '100000000000000000.0.0': {
+        },
       },
     },
   }
@@ -312,6 +314,12 @@ t.test('package with maintainers info as object', async t => {
 t.test('package with homepage', async t => {
   const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
   await view.exec(['orange@1.0.0'])
+  t.matchSnapshot(outputs.join('\n'))
+})
+
+t.test('package with invalid version', async t => {
+  const { view, outputs } = await loadMockNpm(t, { config: { unicode: false } })
+  await view.exec(['orange', 'versions'])
   t.matchSnapshot(outputs.join('\n'))
 })
 

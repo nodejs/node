@@ -16,7 +16,6 @@ const realpath = require('../realpath.js')
 
 // public symbols
 const _changePath = Symbol.for('_changePath')
-const _global = Symbol.for('global')
 const _setWorkspaces = Symbol.for('setWorkspaces')
 const _rpcache = Symbol.for('realpathCache')
 const _stcache = Symbol.for('statCache')
@@ -45,8 +44,6 @@ module.exports = cls => class ActualLoader extends cls {
   constructor (options) {
     super(options)
 
-    this[_global] = !!options.global
-
     // the tree of nodes on disk
     this.actualTree = options.actualTree
 
@@ -58,6 +55,7 @@ module.exports = cls => class ActualLoader extends cls {
   }
 
   // public method
+  // TODO remove options param in next semver major
   async loadActual (options = {}) {
     // In the past this.actualTree was set as a promise that eventually
     // resolved, and overwrite this.actualTree with the resolved value.  This
@@ -100,7 +98,7 @@ module.exports = cls => class ActualLoader extends cls {
   async #loadActual (options) {
     // mostly realpath to throw if the root doesn't exist
     const {
-      global = false,
+      global,
       filter = () => true,
       root = null,
       transplantFilter = () => true,
