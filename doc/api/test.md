@@ -2438,8 +2438,8 @@ A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
 `TestsStream` will emit events, in the order of the tests definition
 
-some of the events are guaranteed to be emitted in the same order as the tests
-are defined, while others are emitted in the order of the tests execution.
+Some of the events are guaranteed to be emitted in the same order as the tests
+are defined, while others are emitted in the order that the tests execute.
 
 ### Event: `'test:coverage'`
 
@@ -2513,7 +2513,7 @@ Emitted when code coverage is enabled and all tests have completed.
 Emitted when a test completes its execution.
 This event is not emitted in the same order as the tests are
 defined.
-the corresponding declaration ordered events are `test:pass` and `test:fail`.
+The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`.
 
 ### Event: `'test:dequeue'`
 
@@ -2529,7 +2529,7 @@ the corresponding declaration ordered events are `test:pass` and `test:fail`.
 
 Emitted when a test is dequeued, right before it is executed.
 This event is not guaranteed to be emitted in the same order as the tests are
-defined. the corresponding declaration ordered event is `test:start`.
+defined. The corresponding declaration ordered event is `'test:start'`.
 
 ### Event: `'test:diagnostic'`
 
@@ -2585,7 +2585,7 @@ Emitted when a test is enqueued for execution.
 Emitted when a test fails.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
-the corresponding exectuion ordered event is `test:complete`.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:pass'`
 
@@ -2609,7 +2609,7 @@ the corresponding exectuion ordered event is `test:complete`.
 Emitted when a test passes.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
-the corresponding exectuion ordered event is `test:complete`.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:plan'`
 
@@ -2642,7 +2642,7 @@ defined.
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
-the corresponding exectuion ordered event is `test:dequeue`.
+The corresponding execution ordered event is `'test:dequeue'`.
 
 ### Event: `'test:stderr'`
 
