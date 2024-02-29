@@ -382,8 +382,9 @@ test('assertion errors display actual and expected properly', async () => {
   circular.c = circular;
   const tmpLimit = Error.stackTraceLimit;
   Error.stackTraceLimit = 1;
+  const boo = [1];
   try {
-    assert.deepEqual({ foo: 1, bar: 1 }, circular); // eslint-disable-line no-restricted-properties
+    assert.deepEqual({ foo: 1, bar: 1, boo }, { boo, circular }); // eslint-disable-line no-restricted-properties
   } catch (err) {
     Error.stackTraceLimit = tmpLimit;
     throw err;
