@@ -263,20 +263,28 @@
   
   {
     bar: 1,
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: { foo: 1, bar: 1 },
-    expected: <ref *1> { bar: 2, c: [Circular *1] },
+    actual: { foo: 1, bar: 1, boo: [ 1 ] },
+    expected: { boo: [ 1 ], circular: <ref *1> { bar: 2, c: [Circular *1] } },
     operator: 'deepEqual'
   }
 
@@ -528,20 +536,28 @@
   
   {
     bar: 1,
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
-    actual: { foo: 1, bar: 1 },
-    expected: <ref *1> { bar: 2, c: [Circular *1] },
+    actual: { foo: 1, bar: 1, boo: [ 1 ] },
+    expected: { boo: [ 1 ], circular: <ref *1> { bar: 2, c: [Circular *1] } },
     operator: 'deepEqual'
   }
 
