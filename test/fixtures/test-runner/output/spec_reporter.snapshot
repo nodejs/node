@@ -263,14 +263,22 @@
   
   {
     bar: 1,
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,
@@ -528,14 +536,22 @@
   
   {
     bar: 1,
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,
