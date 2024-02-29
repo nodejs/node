@@ -21,12 +21,14 @@ static void Finalize(napi_env env, void* data, void* hint) {
   // or during environment shutdown (where napi_cannot_run_js or
   // napi_pending_exception is returned). This is not deterministic from
   // the point of view of the addon.
-  NODE_API_NOGC_ASSERT_RETURN_VOID(
+
 #ifdef NAPI_EXPERIMENTAL
+  NODE_API_NOGC_ASSERT_RETURN_VOID(
       result == napi_cannot_run_js || result == napi_ok,
       "getting named property from global in finalizer should succeed "
       "or return napi_cannot_run_js");
 #else
+  NODE_API_NOGC_ASSERT_RETURN_VOID(
       result == napi_pending_exception || result == napi_ok,
       "getting named property from global in finalizer should succeed "
       "or return napi_pending_exception");
