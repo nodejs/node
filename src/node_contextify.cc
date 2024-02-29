@@ -1646,8 +1646,8 @@ static void CompileFunctionForCJSLoader(
                       hdo);
   ScriptCompiler::CachedData* cached_data = nullptr;
 
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   bool used_cache_from_sea = false;
+#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
   if (sea::IsSingleExecutable()) {
     sea::SeaResource sea = sea::FindSingleExecutableResource();
     if (sea.use_code_cache()) {
@@ -1660,7 +1660,24 @@ static void CompileFunctionForCJSLoader(
     }
   }
 #endif
+
+  CompileCacheEntry* cache_entry = nullptr;
+  if (!used_cache_from_sea && env->use_compile_cache()) {
+    cache_entry = env->compile_cache_handler()->GetOrInsert(
+        code, filename, CachedCodeType::kCommonJS);
+  }
+  if (cache_entry != nullptr && cache_entry->cache != nullptr) {
+    // source will take ownership of cached_data.
+    cached_data = cache_entry->CopyCache();
+  }
+
   ScriptCompiler::Source source(code, origin, cached_data);
+  ScriptCompiler::CompileOptions options;
+  if (cached_data == nullptr) {
+    options = ScriptCompiler::kNoCompileOptions;
+  } else {
+    options = ScriptCompiler::kConsumeCodeCache;
+  }
 
   TryCatchScope try_catch(env);
 
@@ -1674,8 +1691,7 @@ static void CompileFunctionForCJSLoader(
       0,       /* context extensions size */
       nullptr, /* context extensions data */
       // TODO(joyeecheung): allow optional eager compilation.
-      cached_data == nullptr ? ScriptCompiler::kNoCompileOptions
-                             : ScriptCompiler::kConsumeCodeCache,
+      options,
       v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
 
   Local<Function> fn;
@@ -1690,11 +1706,12 @@ static void CompileFunctionForCJSLoader(
   }
 
   bool cache_rejected = false;
-#ifndef DISABLE_SINGLE_EXECUTABLE_APPLICATION
-  if (used_cache_from_sea) {
+  if (options == ScriptCompiler::kConsumeCodeCache) {
     cache_rejected = source.GetCachedData()->rejected;
   }
-#endif
+  if (cache_entry != nullptr) {
+    env->compile_cache_handler()->MaybeSave(cache_entry, fn, cache_rejected);
+  }
 
   std::vector<Local<Name>> names = {
       env->cached_data_rejected_string(),

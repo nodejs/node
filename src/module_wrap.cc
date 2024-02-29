@@ -134,7 +134,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   int column_offset = 0;
 
   bool synthetic = args[2]->IsArray();
-
+  bool can_use_builtin_cache = false;
   Local<PrimitiveArray> host_defined_options =
       PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
   Local<Symbol> id_symbol;
@@ -153,6 +153,9 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     column_offset = args[4].As<Int32>()->Value();
     if (args[5]->IsSymbol()) {
       id_symbol = args[5].As<Symbol>();
+      can_use_builtin_cache =
+          (id_symbol ==
+           realm->isolate_data()->source_text_module_default_hdo());
     } else {
       id_symbol = Symbol::New(isolate, url);
     }
@@ -190,7 +193,10 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         SyntheticModuleEvaluationStepsCallback);
     } else {
       ScriptCompiler::CachedData* cached_data = nullptr;
+      bool used_cache_from_user = false;
       if (args[5]->IsArrayBufferView()) {
+        DCHECK(!can_use_builtin_cache);  // We don't use this option internally.
+        used_cache_from_user = true;
         Local<ArrayBufferView> cached_data_buf = args[5].As<ArrayBufferView>();
         uint8_t* data =
             static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
@@ -211,6 +217,17 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                           false,                            // is WASM
                           true,                             // is ES Module
                           host_defined_options);
+
+      CompileCacheEntry* cache_entry = nullptr;
+      if (can_use_builtin_cache && realm->env()->use_compile_cache()) {
+        cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
+            source_text, url, CachedCodeType::kESM);
+      }
+      if (cache_entry != nullptr && cache_entry->cache != nullptr) {
+        // source will take ownership of cached_data.
+        cached_data = cache_entry->CopyCache();
+      }
+
       ScriptCompiler::Source source(source_text, origin, cached_data);
       ScriptCompiler::CompileOptions options;
       if (source.GetCachedData() == nullptr) {
@@ -231,8 +248,19 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         }
         return;
       }
-      if (options == ScriptCompiler::kConsumeCodeCache &&
-          source.GetCachedData()->rejected) {
+
+      bool cache_rejected = false;
+      if (options == ScriptCompiler::kConsumeCodeCache) {
+        cache_rejected = source.GetCachedData()->rejected;
+      }
+
+      if (cache_entry != nullptr) {
+        realm->env()->compile_cache_handler()->MaybeSave(
+            cache_entry, module, cache_rejected);
+      }
+
+      // If the cache comes from builtin compile cache, fail silently.
+      if (cache_rejected && used_cache_from_user) {
         THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
             realm, "cachedData buffer was rejected");
         try_catch.ReThrow();

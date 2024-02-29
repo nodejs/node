@@ -367,6 +367,7 @@ typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,

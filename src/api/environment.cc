@@ -512,6 +512,7 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   if (preload) {
     env->set_embedder_preload(std::move(preload));
   }
+  env->InitializeCompileCache();
 
   return StartExecution(env, cb);
 }
