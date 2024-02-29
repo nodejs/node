@@ -643,23 +643,36 @@ not ok 61 - assertion errors display actual and expected properly
     
     {
       bar: 1,
+      boo: [
+        1
+      ],
       foo: 1
     }
     
     should loosely deep-equal
     
-    <ref *1> {
-      bar: 2,
-      c: [Circular *1]
+    {
+      boo: [
+        1
+      ],
+      circular: <ref *1> {
+        bar: 2,
+        c: [Circular *1]
+      }
     }
   code: 'ERR_ASSERTION'
   name: 'AssertionError'
   expected:
-    bar: 2
-    c: <Circular>
+    boo:
+      0: 1
+    circular:
+      bar: 2
+      c: <Circular>
   actual:
     foo: 1
     bar: 1
+    boo:
+      0: 1
   operator: 'deepEqual'
   stack: |-
     *
