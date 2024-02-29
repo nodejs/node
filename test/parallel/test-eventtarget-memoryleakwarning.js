@@ -11,18 +11,18 @@ const { setTimeout } = require('timers/promises');
 
 common.expectWarning({
   MaxListenersExceededWarning: [
-    ['Possible EventTarget memory leak detected. 3 foo listeners added to ' +
+    ['Possible EventTarget memory leak detected. MaxListeners is 2. 3 foo listeners added to ' +
      'EventTarget. Use events.setMaxListeners() ' +
      'to increase limit'],
-    ['Possible EventTarget memory leak detected. 3 foo listeners added to ' +
+    ['Possible EventTarget memory leak detected. MaxListeners is 2. 3 foo listeners added to ' +
      '[MessagePort [EventTarget]]. ' +
      'Use events.setMaxListeners() to increase ' +
      'limit'],
-    ['Possible EventTarget memory leak detected. 3 foo listeners added to ' +
+    ['Possible EventTarget memory leak detected. MaxListeners is 2. 3 foo listeners added to ' +
      '[MessagePort [EventTarget]]. ' +
      'Use events.setMaxListeners() to increase ' +
      'limit'],
-    ['Possible EventTarget memory leak detected. 3 foo listeners added to ' +
+    ['Possible EventTarget memory leak detected. MaxListeners is 2. 3 foo listeners added to ' +
      '[AbortSignal]. ' +
      'Use events.setMaxListeners() to increase ' +
      'limit'],
