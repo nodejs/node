@@ -29,15 +29,16 @@
 const { resolve } = require('path')
 const { homedir } = require('os')
 const { depth } = require('treeverse')
+const mapWorkspaces = require('@npmcli/map-workspaces')
+const log = require('proc-log')
+
 const { saveTypeMap } = require('../add-rm-pkg-deps.js')
+const AuditReport = require('../audit-report.js')
+const relpath = require('../relpath.js')
 
 const mixins = [
   require('../tracker.js'),
-  require('./pruner.js'),
-  require('./deduper.js'),
-  require('./audit.js'),
   require('./build-ideal-tree.js'),
-  require('./set-workspaces.js'),
   require('./load-actual.js'),
   require('./load-virtual.js'),
   require('./rebuild.js'),
@@ -45,9 +46,8 @@ const mixins = [
   require('./isolated-reifier.js'),
 ]
 
-const _workspacesEnabled = Symbol.for('workspacesEnabled')
+const _setWorkspaces = Symbol.for('setWorkspaces')
 const Base = mixins.reduce((a, b) => b(a), require('events'))
-const getWorkspaceNodes = require('../get-workspace-nodes.js')
 
 // if it's 1, 2, or 3, set it explicitly that.
 // if undefined or null, set it null
@@ -72,19 +72,25 @@ class Arborist extends Base {
       nodeVersion: process.version,
       ...options,
       Arborist: this.constructor,
-      path: options.path || '.',
+      binLinks: 'binLinks' in options ? !!options.binLinks : true,
       cache: options.cache || `${homedir()}/.npm/_cacache`,
-      packumentCache: options.packumentCache || new Map(),
-      workspacesEnabled: options.workspacesEnabled !== false,
-      replaceRegistryHost: options.replaceRegistryHost,
-      lockfileVersion: lockfileVersion(options.lockfileVersion),
+      force: !!options.force,
+      global: !!options.global,
+      ignoreScripts: !!options.ignoreScripts,
       installStrategy: options.global ? 'shallow' : (options.installStrategy ? options.installStrategy : 'hoisted'),
+      lockfileVersion: lockfileVersion(options.lockfileVersion),
+      packumentCache: options.packumentCache || new Map(),
+      path: options.path || '.',
+      rebuildBundle: 'rebuildBundle' in options ? !!options.rebuildBundle : true,
+      replaceRegistryHost: options.replaceRegistryHost,
+      scriptShell: options.scriptShell,
+      workspaces: options.workspaces || [],
+      workspacesEnabled: options.workspacesEnabled !== false,
     }
+    // TODO is this even used? If not is that a bug?
     this.replaceRegistryHost = this.options.replaceRegistryHost =
       (!this.options.replaceRegistryHost || this.options.replaceRegistryHost === 'npmjs') ?
         'registry.npmjs.org' : this.options.replaceRegistryHost
-
-    this[_workspacesEnabled] = this.options.workspacesEnabled
 
     if (options.saveType && !saveTypeMap.get(options.saveType)) {
       throw new Error(`Invalid saveType ${options.saveType}`)
@@ -97,12 +103,40 @@ class Arborist extends Base {
   // TODO: We should change these to static functions instead
   //   of methods for the next major version
 
-  // returns an array of the actual nodes for all the workspaces
+  // Get the actual nodes corresponding to a root node's child workspaces,
+  // given a list of workspace names.
   workspaceNodes (tree, workspaces) {
-    return getWorkspaceNodes(tree, workspaces)
+    const wsMap = tree.workspaces
+    if (!wsMap) {
+      log.warn('workspaces', 'filter set, but no workspaces present')
+      return []
+    }
+
+    const nodes = []
+    for (const name of workspaces) {
+      const path = wsMap.get(name)
+      if (!path) {
+        log.warn('workspaces', `${name} in filter set, but not in workspaces`)
+        continue
+      }
+
+      const loc = relpath(tree.realpath, path)
+      const node = tree.inventory.get(loc)
+
+      if (!node) {
+        log.warn('workspaces', `${name} in filter set, but no workspace folder present`)
+        continue
+      }
+
+      nodes.push(node)
+    }
+
+    return nodes
   }
 
   // returns a set of workspace nodes and all their deps
+  // TODO why is includeWorkspaceRoot a param?
+  // TODO why is workspaces a param?
   workspaceDependencySet (tree, workspaces, includeWorkspaceRoot) {
     const wsNodes = this.workspaceNodes(tree, workspaces)
     if (includeWorkspaceRoot) {
@@ -161,6 +195,60 @@ class Arborist extends Base {
         [...tree.edgesOut.values()].map(edge => edge.to),
     })
     return rootDepSet
+  }
+
+  async [_setWorkspaces] (node) {
+    const workspaces = await mapWorkspaces({
+      cwd: node.path,
+      pkg: node.package,
+    })
+
+    if (node && workspaces.size) {
+      node.workspaces = workspaces
+    }
+
+    return node
+  }
+
+  async audit (options = {}) {
+    this.addTracker('audit')
+    if (this.options.global) {
+      throw Object.assign(
+        new Error('`npm audit` does not support testing globals'),
+        { code: 'EAUDITGLOBAL' }
+      )
+    }
+
+    // allow the user to set options on the ctor as well.
+    // XXX: deprecate separate method options objects.
+    options = { ...this.options, ...options }
+
+    process.emit('time', 'audit')
+    let tree
+    if (options.packageLock === false) {
+      // build ideal tree
+      await this.loadActual(options)
+      await this.buildIdealTree()
+      tree = this.idealTree
+    } else {
+      tree = await this.loadVirtual()
+    }
+    if (this.options.workspaces.length) {
+      options.filterSet = this.workspaceDependencySet(
+        tree,
+        this.options.workspaces,
+        this.options.includeWorkspaceRoot
+      )
+    }
+    if (!options.workspacesEnabled) {
+      options.filterSet =
+        this.excludeWorkspacesDependencySet(tree)
+    }
+    this.auditReport = await AuditReport.load(tree, options)
+    const ret = options.fix ? this.reify(options) : this.auditReport
+    process.emit('timeEnd', 'audit')
+    this.finishTracker('audit')
+    return ret
   }
 }
 
