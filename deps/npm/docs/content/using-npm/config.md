@@ -6,6 +6,9 @@ description: More than you probably want to know about npm configuration
 
 ### Description
 
+This article details npm configuration in general. To learn about the `config` command,
+see [`npm config`](/commands/npm-config).
+
 npm gets its configuration values from the following sources, sorted by priority:
 
 #### Command Line Flags
@@ -489,6 +492,25 @@ This can be overridden by setting the `--force` flag.
 
 
 
+#### `expect-result-count`
+
+* Default: null
+* Type: null or Number
+
+Tells to expect a specific number of results from the command.
+
+This config can not be used with: `expect-results`
+
+#### `expect-results`
+
+* Default: null
+* Type: null or Boolean
+
+Tells npm whether or not to expect results from the command. Can be either
+true (expect some results) or false (expect no results).
+
+This config can not be used with: `expect-result-count`
+
 #### `fetch-retries`
 
 * Default: 2
@@ -570,7 +592,8 @@ recommended that you do not use this option!
 
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
