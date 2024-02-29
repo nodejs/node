@@ -105,6 +105,87 @@ t.test('dry run', async t => {
   t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
 })
 
+t.test('foreground-scripts defaults to true', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-fg-scripts',
+        version: '0.0.0',
+        scripts: {
+          prepack: 'echo prepack!',
+          postpack: 'echo postpack!',
+        },
+      }
+      ),
+    },
+    config: { 'dry-run': true },
+  })
+
+  /* eslint no-console: 0 */
+  // TODO: replace this with `const results = t.intercept(console, 'log')`
+  const log = console.log
+  t.teardown(() => {
+    console.log = log
+  })
+  const caughtLogs = []
+  console.log = (...args) => {
+    caughtLogs.push(args)
+  }
+  // end TODO
+
+  await npm.exec('pack', [])
+  const filename = 'test-fg-scripts-0.0.0.tgz'
+  t.same(
+    caughtLogs,
+    [
+      ['\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n'],
+      ['\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n'],
+    ],
+    'prepack and postpack log to stdout')
+  t.strictSame(outputs, [[filename]])
+  t.matchSnapshot(logs.notice.map(([, m]) => m), 'logs pack contents')
+  t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
+})
+
+t.test('foreground-scripts can still be set to false', async t => {
+  const { npm, outputs, logs } = await loadMockNpm(t, {
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-fg-scripts',
+        version: '0.0.0',
+        scripts: {
+          prepack: 'echo prepack!',
+          postpack: 'echo postpack!',
+        },
+      }
+      ),
+    },
+    config: { 'dry-run': true, 'foreground-scripts': false },
+  })
+
+  /* eslint no-console: 0 */
+  // TODO: replace this with `const results = t.intercept(console, 'log')`
+  const log = console.log
+  t.teardown(() => {
+    console.log = log
+  })
+  const caughtLogs = []
+  console.log = (...args) => {
+    caughtLogs.push(args)
+  }
+  // end TODO
+
+  await npm.exec('pack', [])
+  const filename = 'test-fg-scripts-0.0.0.tgz'
+  t.same(
+    caughtLogs,
+    [],
+    'prepack and postpack do not log to stdout')
+  t.strictSame(outputs, [[filename]])
+  t.matchSnapshot(logs.notice.map(([, m]) => m), 'logs pack contents')
+  t.throws(() => fs.statSync(path.resolve(npm.prefix, filename)))
+})
+
 t.test('invalid packument', async t => {
   const { npm, outputs } = await loadMockNpm(t, {
     prefixDir: {

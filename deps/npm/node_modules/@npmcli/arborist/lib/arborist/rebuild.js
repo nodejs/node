@@ -7,7 +7,7 @@ const promiseAllRejectLate = require('promise-all-reject-late')
 const rpj = require('read-package-json-fast')
 const binLinks = require('bin-links')
 const runScript = require('@npmcli/run-script')
-const promiseCallLimit = require('promise-call-limit')
+const { callLimit: promiseCallLimit } = require('promise-call-limit')
 const { resolve } = require('path')
 const {
   isNodeGypPackage,
@@ -19,67 +19,37 @@ const boolEnv = b => b ? '1' : ''
 const sortNodes = (a, b) =>
   (a.depth - b.depth) || localeCompare(a.path, b.path)
 
-const _workspaces = Symbol.for('workspaces')
-const _build = Symbol('build')
-const _loadDefaultNodes = Symbol('loadDefaultNodes')
-const _retrieveNodesByType = Symbol('retrieveNodesByType')
-const _resetQueues = Symbol('resetQueues')
-const _rebuildBundle = Symbol('rebuildBundle')
-const _ignoreScripts = Symbol('ignoreScripts')
-const _binLinks = Symbol('binLinks')
-const _oldMeta = Symbol('oldMeta')
-const _createBinLinks = Symbol('createBinLinks')
-const _doHandleOptionalFailure = Symbol('doHandleOptionalFailure')
-const _linkAllBins = Symbol('linkAllBins')
-const _runScripts = Symbol('runScripts')
-const _buildQueues = Symbol('buildQueues')
-const _addToBuildSet = Symbol('addToBuildSet')
 const _checkBins = Symbol.for('checkBins')
-const _queues = Symbol('queues')
-const _scriptShell = Symbol('scriptShell')
-const _includeWorkspaceRoot = Symbol.for('includeWorkspaceRoot')
-const _workspacesEnabled = Symbol.for('workspacesEnabled')
-
-const _force = Symbol.for('force')
-const _global = Symbol.for('global')
 
 // defined by reify mixin
 const _handleOptionalFailure = Symbol.for('handleOptionalFailure')
 const _trashList = Symbol.for('trashList')
 
 module.exports = cls => class Builder extends cls {
+  #doHandleOptionalFailure
+  #oldMeta = null
+  #queues
+
   constructor (options) {
     super(options)
 
-    const {
-      ignoreScripts = false,
-      scriptShell,
-      binLinks = true,
-      rebuildBundle = true,
-    } = options
-
     this.scriptsRun = new Set()
-    this[_binLinks] = binLinks
-    this[_ignoreScripts] = !!ignoreScripts
-    this[_scriptShell] = scriptShell
-    this[_rebuildBundle] = !!rebuildBundle
-    this[_resetQueues]()
-    this[_oldMeta] = null
+    this.#resetQueues()
   }
 
   async rebuild ({ nodes, handleOptionalFailure = false } = {}) {
     // nothing to do if we're not building anything!
-    if (this[_ignoreScripts] && !this[_binLinks]) {
+    if (this.options.ignoreScripts && !this.options.binLinks) {
       return
     }
 
     // when building for the first time, as part of reify, we ignore
     // failures in optional nodes, and just delete them.  however, when
     // running JUST a rebuild, we treat optional failures as real fails
-    this[_doHandleOptionalFailure] = handleOptionalFailure
+    this.#doHandleOptionalFailure = handleOptionalFailure
 
     if (!nodes) {
-      nodes = await this[_loadDefaultNodes]()
+      nodes = await this.#loadDefaultNodes()
     }
 
     // separates links nodes so that it can run
@@ -89,15 +59,15 @@ module.exports = cls => class Builder extends cls {
     const {
       depNodes,
       linkNodes,
-    } = this[_retrieveNodesByType](nodes)
+    } = this.#retrieveNodesByType(nodes)
 
     // build regular deps
-    await this[_build](depNodes, {})
+    await this.#build(depNodes, {})
 
     // build link deps
     if (linkNodes.size) {
-      this[_resetQueues]()
-      await this[_build](linkNodes, { type: 'links' })
+      this.#resetQueues()
+      await this.#build(linkNodes, { type: 'links' })
     }
 
     process.emit('timeEnd', 'build')
@@ -105,20 +75,20 @@ module.exports = cls => class Builder extends cls {
 
   // if we don't have a set of nodes, then just rebuild
   // the actual tree on disk.
-  async [_loadDefaultNodes] () {
+  async #loadDefaultNodes () {
     let nodes
     const tree = await this.loadActual()
     let filterSet
-    if (!this[_workspacesEnabled]) {
+    if (!this.options.workspacesEnabled) {
       filterSet = this.excludeWorkspacesDependencySet(tree)
       nodes = tree.inventory.filter(node =>
         filterSet.has(node) || node.isProjectRoot
       )
-    } else if (this[_workspaces] && this[_workspaces].length) {
+    } else if (this.options.workspaces.length) {
       filterSet = this.workspaceDependencySet(
         tree,
-        this[_workspaces],
-        this[_includeWorkspaceRoot]
+        this.options.workspaces,
+        this.options.includeWorkspaceRoot
       )
       nodes = tree.inventory.filter(node => filterSet.has(node))
     } else {
@@ -127,7 +97,7 @@ module.exports = cls => class Builder extends cls {
     return nodes
   }
 
-  [_retrieveNodesByType] (nodes) {
+  #retrieveNodesByType (nodes) {
     const depNodes = new Set()
     const linkNodes = new Set()
     const storeNodes = new Set()
@@ -154,7 +124,7 @@ module.exports = cls => class Builder extends cls {
     //
     // we avoid doing so if global=true since `bin-links` relies
     // on having the target nodes available in global mode.
-    if (!this[_global]) {
+    if (!this.options.global) {
       for (const node of linkNodes) {
         depNodes.delete(node.target)
       }
@@ -166,8 +136,8 @@ module.exports = cls => class Builder extends cls {
     }
   }
 
-  [_resetQueues] () {
-    this[_queues] = {
+  #resetQueues () {
+    this.#queues = {
       preinstall: [],
       install: [],
       postinstall: [],
@@ -176,46 +146,46 @@ module.exports = cls => class Builder extends cls {
     }
   }
 
-  async [_build] (nodes, { type = 'deps' }) {
+  async #build (nodes, { type = 'deps' }) {
     process.emit('time', `build:${type}`)
 
-    await this[_buildQueues](nodes)
+    await this.#buildQueues(nodes)
 
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('preinstall')
+    if (!this.options.ignoreScripts) {
+      await this.#runScripts('preinstall')
     }
 
     // links should run prepare scripts and only link bins after that
     if (type === 'links') {
-      await this[_runScripts]('prepare')
+      await this.#runScripts('prepare')
     }
-    if (this[_binLinks]) {
-      await this[_linkAllBins]()
+    if (this.options.binLinks) {
+      await this.#linkAllBins()
     }
 
-    if (!this[_ignoreScripts]) {
-      await this[_runScripts]('install')
-      await this[_runScripts]('postinstall')
+    if (!this.options.ignoreScripts) {
+      await this.#runScripts('install')
+      await this.#runScripts('postinstall')
     }
 
     process.emit('timeEnd', `build:${type}`)
   }
 
-  async [_buildQueues] (nodes) {
+  async #buildQueues (nodes) {
     process.emit('time', 'build:queue')
     const set = new Set()
 
     const promises = []
     for (const node of nodes) {
-      promises.push(this[_addToBuildSet](node, set))
+      promises.push(this.#addToBuildSet(node, set))
 
       // if it has bundle deps, add those too, if rebuildBundle
-      if (this[_rebuildBundle] !== false) {
+      if (this.options.rebuildBundle !== false) {
         const bd = node.package.bundleDependencies
         if (bd && bd.length) {
           dfwalk({
             tree: node,
-            leave: node => promises.push(this[_addToBuildSet](node, set)),
+            leave: node => promises.push(this.#addToBuildSet(node, set)),
             getChildren: node => [...node.children.values()],
             filter: node => node.inBundle,
           })
@@ -236,7 +206,7 @@ module.exports = cls => class Builder extends cls {
       const tests = { bin, preinstall, install, postinstall, prepare }
       for (const [key, has] of Object.entries(tests)) {
         if (has) {
-          this[_queues][key].push(node)
+          this.#queues[key].push(node)
         }
       }
     }
@@ -249,21 +219,21 @@ module.exports = cls => class Builder extends cls {
     // the node path.  Otherwise a package can have a preinstall script
     // that unlinks something, to allow them to silently overwrite system
     // binaries, which is unsafe and insecure.
-    if (!node.globalTop || this[_force]) {
+    if (!node.globalTop || this.options.force) {
       return
     }
     const { path, package: pkg } = node
     await binLinks.checkBins({ pkg, path, top: true, global: true })
   }
 
-  async [_addToBuildSet] (node, set, refreshed = false) {
+  async #addToBuildSet (node, set, refreshed = false) {
     if (set.has(node)) {
       return
     }
 
-    if (this[_oldMeta] === null) {
+    if (this.#oldMeta === null) {
       const { root: { meta } } = node
-      this[_oldMeta] = meta && meta.loadedFromDisk &&
+      this.#oldMeta = meta && meta.loadedFromDisk &&
         !(meta.originalLockfileVersion >= 2)
     }
 
@@ -272,7 +242,7 @@ module.exports = cls => class Builder extends cls {
 
     const { preinstall, install, postinstall, prepare } = scripts
     const anyScript = preinstall || install || postinstall || prepare
-    if (!refreshed && !anyScript && (hasInstallScript || this[_oldMeta])) {
+    if (!refreshed && !anyScript && (hasInstallScript || this.#oldMeta)) {
       // we either have an old metadata (and thus might have scripts)
       // or we have an indication that there's install scripts (but
       // don't yet know what they are) so we have to load the package.json
@@ -286,7 +256,7 @@ module.exports = cls => class Builder extends cls {
 
       const { scripts = {} } = pkg
       node.package.scripts = scripts
-      return this[_addToBuildSet](node, set, true)
+      return this.#addToBuildSet(node, set, true)
     }
 
     // Rebuild node-gyp dependencies lacking an install or preinstall script
@@ -309,8 +279,8 @@ module.exports = cls => class Builder extends cls {
     }
   }
 
-  async [_runScripts] (event) {
-    const queue = this[_queues][event]
+  async #runScripts (event) {
+    const queue = this.#queues[event]
 
     if (!queue.length) {
       return
@@ -358,7 +328,7 @@ module.exports = cls => class Builder extends cls {
         pkg,
         stdio,
         env,
-        scriptShell: this[_scriptShell],
+        scriptShell: this.options.scriptShell,
       }
       const p = runScript(runOpts).catch(er => {
         const { code, signal } = er
@@ -382,17 +352,17 @@ module.exports = cls => class Builder extends cls {
         log.info('run', pkg._id, event, { code, signal })
       })
 
-      await (this[_doHandleOptionalFailure]
+      await (this.#doHandleOptionalFailure
         ? this[_handleOptionalFailure](node, p)
         : p)
 
       process.emit('timeEnd', timer)
-    }), limit)
+    }), { limit })
     process.emit('timeEnd', `build:run:${event}`)
   }
 
-  async [_linkAllBins] () {
-    const queue = this[_queues].bin
+  async #linkAllBins () {
+    const queue = this.#queues.bin
     if (!queue.length) {
       return
     }
@@ -402,14 +372,15 @@ module.exports = cls => class Builder extends cls {
     // sort the queue by node path, so that the module-local collision
     // detector in bin-links will always resolve the same way.
     for (const node of queue.sort(sortNodes)) {
-      promises.push(this[_createBinLinks](node))
+      // TODO these run before they're awaited
+      promises.push(this.#createBinLinks(node))
     }
 
     await promiseAllRejectLate(promises)
     process.emit('timeEnd', 'build:link')
   }
 
-  async [_createBinLinks] (node) {
+  async #createBinLinks (node) {
     if (this[_trashList].has(node.path)) {
       return
     }
@@ -420,11 +391,11 @@ module.exports = cls => class Builder extends cls {
       pkg: node.package,
       path: node.path,
       top: !!(node.isTop || node.globalTop),
-      force: this[_force],
+      force: this.options.force,
       global: !!node.globalTop,
     })
 
-    await (this[_doHandleOptionalFailure]
+    await (this.#doHandleOptionalFailure
       ? this[_handleOptionalFailure](node, p)
       : p)
 

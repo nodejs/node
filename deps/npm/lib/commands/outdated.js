@@ -1,5 +1,6 @@
-const os = require('os')
-const { resolve } = require('path')
+const os = require('node:os')
+const { resolve } = require('node:path')
+const { stripVTControlCharacters } = require('node:util')
 const pacote = require('pacote')
 const table = require('text-table')
 const npa = require('npm-package-arg')
@@ -22,7 +23,6 @@ class Outdated extends ArboristWorkspaceCmd {
   ]
 
   async exec (args) {
-    const { default: stripAnsi } = await import('strip-ansi')
     const global = resolve(this.npm.globalDir, '..')
     const where = this.npm.global
       ? global
@@ -106,7 +106,7 @@ class Outdated extends ArboristWorkspaceCmd {
 
       const tableOpts = {
         align: ['l', 'r', 'r', 'r', 'l'],
-        stringLength: s => stripAnsi(s).length,
+        stringLength: s => stripVTControlCharacters(s).length,
       }
       this.npm.output(table(outTable, tableOpts))
     }

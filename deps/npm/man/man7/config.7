@@ -1,7 +1,9 @@
-.TH "CONFIG" "7" "January 2024" "" ""
+.TH "CONFIG" "7" "February 2024" "" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
+.P
+This article details npm configuration in general. To learn about the \fBconfig\fR command, see npm help config.
 .P
 npm gets its configuration values from the following sources, sorted by priority:
 .SS "Command Line Flags"
@@ -498,6 +500,30 @@ Type: Boolean
 If set to true, then npm will stubbornly refuse to install (or even consider installing) any package that claims to not be compatible with the current Node.js version.
 .P
 This can be overridden by setting the \fB--force\fR flag.
+.SS "\fBexpect-result-count\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+Tells to expect a specific number of results from the command.
+.P
+This config can not be used with: \fBexpect-results\fR
+.SS "\fBexpect-results\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Tells npm whether or not to expect results from the command. Can be either true (expect some results) or false (expect no results).
+.P
+This config can not be used with: \fBexpect-result-count\fR
 .SS "\fBfetch-retries\fR"
 .RS 0
 .IP \(bu 4
@@ -590,7 +616,7 @@ If you don't have a clear idea of what you want to do, it is strongly recommende
 .SS "\fBforeground-scripts\fR"
 .RS 0
 .IP \(bu 4
-Default: false
+Default: \fBfalse\fR unless when using \fBnpm pack\fR or \fBnpm publish\fR where it defaults to \fBtrue\fR
 .IP \(bu 4
 Type: Boolean
 .RE 0

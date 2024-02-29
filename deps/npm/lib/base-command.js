@@ -5,6 +5,7 @@ const { relative } = require('path')
 const { definitions } = require('@npmcli/config/lib/definitions')
 const getWorkspaces = require('./workspaces/get-workspaces.js')
 const { aliases: cmdAliases } = require('./utils/cmd-list')
+const log = require('./utils/log-shim.js')
 
 class BaseCommand {
   static workspaces = false
@@ -140,6 +141,24 @@ class BaseCommand {
     }
 
     return this.exec(args)
+  }
+
+  // Compare the number of entries with what was expected
+  checkExpected (entries) {
+    if (!this.npm.config.isDefault('expect-results')) {
+      const expected = this.npm.config.get('expect-results')
+      if (!!entries !== !!expected) {
+        log.warn(this.name, `Expected ${expected ? '' : 'no '}results, got ${entries}`)
+        process.exitCode = 1
+      }
+    } else if (!this.npm.config.isDefault('expect-result-count')) {
+      const expected = this.npm.config.get('expect-result-count')
+      if (expected !== entries) {
+        /* eslint-disable-next-line max-len */
+        log.warn(this.name, `Expected ${expected} result${expected === 1 ? '' : 's'}, got ${entries}`)
+        process.exitCode = 1
+      }
+    }
   }
 
   async setWorkspaces () {
