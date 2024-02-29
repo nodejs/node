@@ -80,6 +80,9 @@ class Publish extends BaseCommand {
     // we pass dryRun: true to libnpmpack so it doesn't write the file to disk
     const tarballData = await pack(spec, {
       ...opts,
+      foregroundScripts: this.npm.config.isDefault('foreground-scripts')
+        ? true
+        : this.npm.config.get('foreground-scripts'),
       dryRun: true,
       prefix: this.npm.localPrefix,
       workspaces: this.workspacePaths,

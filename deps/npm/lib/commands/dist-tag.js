@@ -89,6 +89,9 @@ class DistTag extends BaseCommand {
 
     log.verbose('dist-tag add', defaultTag, 'to', spec.name + '@' + version)
 
+    // make sure new spec with tag is valid, this will throw if invalid
+    npa(`${spec.name}@${defaultTag}`)
+
     if (!spec.name || !version || !defaultTag) {
       throw this.usageError('must provide a spec with a name and version, and a tag to add')
     }

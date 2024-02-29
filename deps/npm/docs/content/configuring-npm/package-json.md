@@ -726,7 +726,7 @@ in which case they will be normalized to a relative path and added to your
 
 This feature is helpful for local offline development and creating tests
 that require npm installing where you don't want to hit an external server,
-but should not be used when publishing packages to the public registry.
+but should not be used when publishing your package to the public registry.
 
 *note*: Packages linked by local path will not have their own
 dependencies installed when `npm install` is ran in this case.  You must

@@ -529,6 +529,10 @@ tuple.  For example, `1.2.3.4` will return `2.3.4` in rtl mode, not
 `4.0.0`.  `1.2.3/4` will return `4.0.0`, because the `4` is not a part of
 any other overlapping SemVer tuple.
 
+If the `options.includePrerelease` flag is set, then the `coerce` result will contain
+prerelease and build parts of a version.  For example, `1.2.3.4-rc.1+rev.2`
+will preserve prerelease `rc.1` and build `rev.2` in the result.
+
 ### Clean
 
 * `clean(version)`: Clean a string to be a valid semver if possible
@@ -543,7 +547,7 @@ ex.
 * `s.clean(' = v 2.1.5-foo')`: `null`
 * `s.clean(' = v 2.1.5-foo', { loose: true })`: `'2.1.5-foo'`
 * `s.clean('=v2.1.5')`: `'2.1.5'`
-* `s.clean('  =v2.1.5')`: `2.1.5`
+* `s.clean('  =v2.1.5')`: `'2.1.5'`
 * `s.clean('      2.1.5   ')`: `'2.1.5'`
 * `s.clean('~1.0.0')`: `null`
 

@@ -50,6 +50,7 @@ class Query extends BaseCommand {
     'workspaces',
     'include-workspace-root',
     'package-lock-only',
+    'expect-results',
   ]
 
   get parsedResponse () {
@@ -81,6 +82,7 @@ class Query extends BaseCommand {
     const items = await tree.querySelectorAll(args[0], this.npm.flatOptions)
     this.buildResponse(items)
 
+    this.checkExpected(this.#response.length)
     this.npm.output(this.parsedResponse)
   }
 
@@ -104,6 +106,7 @@ class Query extends BaseCommand {
       }
       this.buildResponse(items)
     }
+    this.checkExpected(this.#response.length)
     this.npm.output(this.parsedResponse)
   }
 

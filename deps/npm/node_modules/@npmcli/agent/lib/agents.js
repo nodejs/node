@@ -62,7 +62,7 @@ module.exports = class Agent extends AgentBase {
 
     let ProxyAgent = this.#ProxyAgent
     if (Array.isArray(ProxyAgent)) {
-      ProxyAgent = options.secureEndpoint ? ProxyAgent[1] : ProxyAgent[0]
+      ProxyAgent = this.isSecureEndpoint(options) ? ProxyAgent[1] : ProxyAgent[0]
     }
 
     const proxyAgent = new ProxyAgent(proxy, this.#options)
@@ -106,6 +106,7 @@ module.exports = class Agent extends AgentBase {
 
     let socket
     let timeout = this.#timeouts.connection
+    const isSecureEndpoint = this.isSecureEndpoint(options)
 
     const proxy = this.#getProxy(options)
     if (proxy) {
@@ -124,7 +125,7 @@ module.exports = class Agent extends AgentBase {
         timeout = timeout - (Date.now() - start)
       }
     } else {
-      socket = (options.secureEndpoint ? tls : net).connect(options)
+      socket = (isSecureEndpoint ? tls : net).connect(options)
     }
 
     socket.setKeepAlive(this.keepAlive, this.keepAliveMsecs)
@@ -133,8 +134,8 @@ module.exports = class Agent extends AgentBase {
     const abortController = new AbortController()
     const { signal } = abortController
 
-    const connectPromise = socket[options.secureEndpoint ? 'secureConnecting' : 'connecting']
-      ? once(socket, options.secureEndpoint ? 'secureConnect' : 'connect', { signal })
+    const connectPromise = socket[isSecureEndpoint ? 'secureConnecting' : 'connecting']
+      ? once(socket, isSecureEndpoint ? 'secureConnect' : 'connect', { signal })
       : Promise.resolve()
 
     await this.#timeoutConnection({

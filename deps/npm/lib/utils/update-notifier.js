@@ -98,11 +98,16 @@ const updateNotifier = async (npm, spec = 'latest') => {
     return null
   }
 
+  // intentional.  do not await this.  it's a best-effort update.  if this
+  // fails, it's ok.  might be using /dev/null as the cache or something weird
+  // like that.
+  writeFile(lastCheckedFile(npm), '').catch(() => {})
+
   return updateCheck(npm, spec, version, current)
 }
 
 // only update the notification timeout if we actually finished checking
-module.exports = async npm => {
+module.exports = npm => {
   if (
     // opted out
     !npm.config.get('update-notifier')
@@ -113,14 +118,8 @@ module.exports = async npm => {
     // CI
     || ciInfo.isCI
   ) {
-    return null
+    return Promise.resolve(null)
   }
 
-  const notification = await updateNotifier(npm)
-
-  // intentional.  do not await this.  it's a best-effort update.  if this
-  // fails, it's ok.  might be using /dev/null as the cache or something weird
-  // like that.
-  writeFile(lastCheckedFile(npm), '').catch(() => {})
-  return notification
+  return updateNotifier(npm)
 }

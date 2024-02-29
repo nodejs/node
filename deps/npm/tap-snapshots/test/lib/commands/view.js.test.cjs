@@ -190,6 +190,10 @@ dist-tags:
 [1m[32mlatest[39m[22m: 1.0.0
 `
 
+exports[`test/lib/commands/view.js TAP package with invalid version > must match snapshot 1`] = `
+[ [32m'1.0.0'[39m, [32m'1.0.1'[39m ]
+`
+
 exports[`test/lib/commands/view.js TAP package with maintainers info as object > must match snapshot 1`] = `
 
 [4m[1m[32mpink[39m@[32m1.0.0[39m[22m[24m | [1m[31mProprietary[39m[22m | deps: [32mnone[39m | versions: [33m2[39m

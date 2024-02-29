@@ -318,6 +318,15 @@ t.test('add missing pkg name', async t => {
   )
 })
 
+t.test('add invalid tag', async t => {
+  const { distTag } = await mockDist(t)
+  await t.rejects(
+    distTag.exec(['add', '@tag']),
+    { code: 'EINVALIDTAGNAME' },
+    'should exit with invalid tag name error'
+  )
+})
+
 t.test('set existing version', async t => {
   const { distTag, logs } = await mockDist(t)
   await distTag.exec(['set', '@scoped/another@0.6.0', 'b'])

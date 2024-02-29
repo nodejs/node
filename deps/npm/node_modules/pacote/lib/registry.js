@@ -321,6 +321,7 @@ class RegistryFetcher extends Fetcher {
               // specify a public key from the keys endpoint: `registry-host.tld/-/npm/v1/keys`
               const options = {
                 tufCachePath: this.tufCache,
+                tufForceCache: true,
                 keySelector: publicKey ? () => publicKey.pemkey : undefined,
               }
               await sigstore.verify(bundle, options)

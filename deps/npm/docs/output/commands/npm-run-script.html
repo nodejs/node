@@ -305,7 +305,8 @@ will still run their intended script if <code>ignore-scripts</code> is set, but 
 will <em>not</em> run any pre- or post-scripts.</p>
 <h4 id="foreground-scripts"><code>foreground-scripts</code></h4>
 <ul>
-<li>Default: false</li>
+<li>Default: <code>false</code> unless when using <code>npm pack</code> or <code>npm publish</code> where it
+defaults to <code>true</code></li>
 <li>Type: Boolean</li>
 </ul>
 <p>Run all build scripts (ie, <code>preinstall</code>, <code>install</code>, and <code>postinstall</code>)

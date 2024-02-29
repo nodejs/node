@@ -15,6 +15,7 @@ const ms = require('ms')
 const npmAuditReport = require('npm-audit-report')
 const { readTree: getFundingInfo } = require('libnpmfund')
 const auditError = require('./audit-error.js')
+const Table = require('cli-table3')
 
 // TODO: output JSON if flatOptions.json is true
 const reifyOutput = (npm, arb) => {
@@ -41,17 +42,51 @@ const reifyOutput = (npm, arb) => {
   }
 
   if (diff) {
+    let diffTable
+    if (npm.config.get('dry-run') || npm.config.get('long')) {
+      diffTable = new Table({
+        chars: {
+          top: '',
+          'top-mid': '',
+          'top-left': '',
+          'top-right': '',
+          bottom: '',
+          'bottom-mid': '',
+          'bottom-left': '',
+          'bottom-right': '',
+          left: '',
+          'left-mid': '',
+          mid: '',
+          'mid-mid': '',
+          right: '',
+          'right-mid': '',
+          middle: '  ',
+        },
+        style: {
+          'padding-left': 0,
+          'padding-right': 0,
+          border: 0,
+        },
+      })
+    }
+
     depth({
       tree: diff,
       visit: d => {
         switch (d.action) {
           case 'REMOVE':
+            diffTable?.push(['remove', d.actual.name, d.actual.package.version])
             summary.removed++
             break
           case 'ADD':
+            diffTable?.push(['add', d.ideal.name, d.ideal.package.version])
             actualTree.inventory.has(d.ideal) && summary.added++
             break
           case 'CHANGE':
+            diffTable?.push(['change',
+              d.actual.name,
+              d.actual.package.version + ' -> ' + d.ideal.package.version,
+            ])
             summary.changed++
             break
           default:
@@ -62,6 +97,10 @@ const reifyOutput = (npm, arb) => {
       },
       getChildren: d => d.children,
     })
+
+    if (diffTable) {
+      npm.output('\n' + diffTable.toString())
+    }
   }
 
   if (npm.flatOptions.fund) {
