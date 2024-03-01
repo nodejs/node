@@ -3514,7 +3514,7 @@ Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 
 <!-- YAML
 added:
- - REPLACEME
+ - v21.7.0
 -->
 
 > Stability: 1.2 - Release candidate

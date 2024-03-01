@@ -3088,7 +3088,7 @@ The JavaScript `string` type is described in
 #### `node_api_create_property_key_utf16`
 
 <!-- YAML
-added: REPLACEME
+added: v21.7.0
 -->
 
 > Stability: 1 - Experimental
