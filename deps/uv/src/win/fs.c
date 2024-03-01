@@ -176,9 +176,11 @@ static int32_t fs__decode_wtf8_char(const char** input) {
   if ((b4 & 0xC0) != 0x80)
     return -1; /* invalid: not a continuation byte */
   code_point = (code_point << 6) | (b4 & 0x3F);
-  if (b1 <= 0xF4)
+  if (b1 <= 0xF4) {
+    code_point &= 0x1FFFFF;
     if (code_point <= 0x10FFFF)
       return code_point; /* four-byte character */
+  }
 
   /* code point too large */
   return -1;
