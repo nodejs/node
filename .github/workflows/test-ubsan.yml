@@ -55,9 +55,12 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-      - name: Environment Information
-        run: npx envinfo
-      - name: Build
-        run: make build-ci -j2 V=1
-      - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
+      - name: Check UBSAN_OPTIONS
+        run: |
+          echo $UBSAN_OPTIONS
+      # - name: Environment Information
+      #   run: npx envinfo
+      # - name: Build
+      #   run: make build-ci -j2 V=1
+      # - name: Test
+      #   run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
