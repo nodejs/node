@@ -5,15 +5,16 @@ Node.js distribution.
 
 ## Inclusion
 
-The Node.js distribution includes some external projects that the Node.js project does not maintain.
-The fact of a project's inclusion should not imply anything about the project
-relative to its competitors; in some cases, a project was added when it had no
-competitors. While the Node.js project supports and encourages competition in the
-JavaScript ecosystem, as a policy, the Node.js project does not include multiple
-dependencies or tools that serve the same purpose.
+The Node.js distribution includes some external software that the Node.js
+project does not maintain. The choice to include a particular piece of software
+should not imply anything about that software relative to its competitors; in
+some cases, software was added when it had no competitors. While the Node.js
+project supports and encourages competition in the JavaScript ecosystem, as a
+policy, the Node.js project does not include multiple dependencies or tools that
+serve the same purpose.
 
-The following user-accessible external projects are the ones chosen for their
-particular purposes:
+The following user-accessible external tools or libraries are the ones chosen
+for their particular purposes:
 
 * JavaScript engine: V8
 * Package manager: `npm`
