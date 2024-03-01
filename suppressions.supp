@@ -1,4 +1,3 @@
-deps/icu-small/*
 vptr:deps/icu-small/source/common/uloc_tag.cpp
 vptr:deps/icu-small/source/common/unistr.cpp
 shift-base:deps/v8/src/wasm/decoder.h
