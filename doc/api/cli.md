@@ -1747,6 +1747,15 @@ Enables report to be generated when the process exits due to an uncaught
 exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
 
+### `--report-exclude-network`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Exclude `header.networkInterfaces` from the diagnostic report. By default
+this is not set and the network interfaces are included.
+
 ### `-r`, `--require module`
 
 <!-- YAML
@@ -2551,6 +2560,7 @@ Node.js options that are allowed are:
 * `--redirect-warnings`
 * `--report-compact`
 * `--report-dir`, `--report-directory`
+* `--report-exclude-network`
 * `--report-filename`
 * `--report-on-fatalerror`
 * `--report-on-signal`
