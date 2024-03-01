@@ -293,8 +293,9 @@ import('./my-app.mjs');
 In this example, the registered hooks will form chains. These chains run
 last-in, first out (LIFO). If both `foo.mjs` and `bar.mjs` define a `resolve`
 hook, they will be called like so (note the right-to-left):
-node's default ← `./foo.mjs` ← `./bar.mjs`. The same applies to all the other
-hooks.
+node's default ← `./foo.mjs` ← `./bar.mjs`
+(starting with `./bar.mjs`, then `./foo.mjs`, then node's default).
+The same applies to all the other hooks.
 
 The registered hooks also affect `register` itself. In this example,
 `bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
