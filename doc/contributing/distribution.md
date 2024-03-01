@@ -8,7 +8,7 @@ Node.js distribution.
 Node.js includes some external projects that the Node.js team does not maintain.
 The fact of a project's inclusion should not imply anything about the project
 relative to its competitors; in some cases, a project was added when it had no
-competitors. While the Node.js team supports and encourages competition in the
+competitors. While the Node.js project supports and encourages competition in the
 JavaScript ecosystem, as a policy, the Node.js project does not include multiple
 dependencies or tools that serve the same purpose.
 
