@@ -201,6 +201,13 @@ the community they pose.
   that artifact is large enough to impact performance or
   cause the runtime to run out of resources.
 
+#### Vulnerabilities affecting software downloaded by Corepack
+
+* Corepack defaults to downloading the latest version of the software requested
+  by the user, or a specific version requested by the user. For this reason,
+  Node.js releases won't be affected by such vulnerabilities, users are
+  responsible to keep the software they use through Corepack up-to-date.
+
 ## Assessing experimental features reports
 
 Experimental features are eligible to reports as any other stable feature of
