@@ -3685,7 +3685,7 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 [`setTimeout()`]: timers.md#settimeoutcallback-delay-args
 [`socket.bufferSize`]: net.md#socketbuffersize
 [`timeout.ref()`]: timers.md#timeoutref
-[`timeout.refresh()`]: timers.md#timeoutrefresh
+[`timeout.refresh()`]: timers.md#timeoutrefreshdelay-resetinterval
 [`timeout.unref()`]: timers.md#timeoutunref
 [`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions

@@ -123,18 +123,26 @@ When called, requests that the Node.js event loop _not_ exit so long as the
 By default, all `Timeout` objects are "ref'ed", making it normally unnecessary
 to call `timeout.ref()` unless `timeout.unref()` had been called previously.
 
-### `timeout.refresh()`
+### `timeout.refresh([delay[, resetInterval]])`
 
 <!-- YAML
 added: v10.2.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/40434
+    description: Added `delay` and `resetInterval` parameters.
 -->
 
+* `delay` {number} The number of milliseconds to wait before calling the
+  original callback.
+* `resetInterval` {boolean} For an interval timer, should the interval be set to
+  `delay`? **Default:** `false`.
 * Returns: {Timeout} a reference to `timeout`
 
 Sets the timer's start time to the current time, and reschedules the timer to
-call its callback at the previously specified duration adjusted to the current
-time. This is useful for refreshing a timer without allocating a new
-JavaScript object.
+call its callback at the previously specified duration or the duration specified
+by `delay` adjusted to the current time. This is useful for refreshing a timer
+without allocating a new JavaScript object.
 
 Using this on a timer that has already called its callback will reactivate the
 timer.
