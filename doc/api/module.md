@@ -300,8 +300,8 @@ The same applies to all the other hooks.
 The registered hooks also affect `register` itself. In this example,
 `bar.mjs` will be resolved and loaded via the hooks registered by `foo.mjs`
 (because `foo`'s hooks will have already been added to the chain). This allows
-for things like writing hooks in non-JavaScript languages, so long as an
-earlier registered loader is one that transpiles into JavaScript.
+for things like writing hooks in non-JavaScript languages, so long as
+earlier registered hooks transpile into JavaScript.
 
 The `register` method cannot be called from within the module that defines the
 hooks.
