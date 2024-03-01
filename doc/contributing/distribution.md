@@ -5,13 +5,20 @@ Node.js distribution.
 
 ## Inclusion
 
-Node.js includes many dependencies, such as V8, Undici and others; and comes
-bundled with standalone tools such as `npm`. It is not a goal of the Node.js
-project to provide a level playing field for all dependencies or bundled tools.
-With limited resources, the Node.js project does not intend to bundle or
-officially support multiple dependencies or tools that serve the same purpose.
+Node.js includes some external projects that the Node.js team does not maintain.
+The fact of a project's inclusion should not imply anything about the project
+relative to its competitors; in some cases, a project was added when it had no
+competitors. While the Node.js team supports and encourages competition in the
+JavaScript ecosystem, as a policy, the Node.js project does not include multiple
+dependencies or tools that serve the same purpose.
 
-## Package managers
+The following user-accessible external projects are the ones chosen for their
+particular purposes:
 
-The Node.js distribution includes `npm`, and does not include any other
-package managers.
+* JavaScript engine: V8
+* Package manager: `npm`
+
+Being user-accessible, removal or replacement of these projects could happen
+only as a semver-major change. In addition, Node.js includes external projects
+as internal dependencies. These may be replaced or removed at any time, provided
+that doing so is not a breaking change.
