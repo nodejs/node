@@ -3440,7 +3440,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.7.0
     pr-url: https://github.com/nodejs/node/pull/51442
     description: End-of-Life.
   - version:

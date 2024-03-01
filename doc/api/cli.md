@@ -665,7 +665,7 @@ of `--enable-source-maps`.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v21.7.0
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->

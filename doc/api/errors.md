@@ -2369,7 +2369,7 @@ V8 startup snapshot even though Node.js isn't building one.
 ### `ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION`
 
 <!-- YAML
-added: REPLACEME
+added: v21.7.0
 -->
 
 The operation cannot be performed when it's not in a single-executable
@@ -2526,7 +2526,7 @@ and HTTP/2 `Server` instances.
 ### `ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND`
 
 <!-- YAML
-added: REPLACEME
+added: v21.7.0
 -->
 
 A key was passed to single executable application APIs to identify an asset,
