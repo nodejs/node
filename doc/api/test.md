@@ -2445,6 +2445,9 @@ A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
 `TestsStream` will emit events, in the order of the tests definition
 
+Some of the events are guaranteed to be emitted in the same order as the tests
+are defined, while others are emitted in the order that the tests execute.
+
 ### Event: `'test:coverage'`
 
 * `data` {Object}
@@ -2491,6 +2494,34 @@ object, streaming a series of events representing the execution of the tests.
 
 Emitted when code coverage is enabled and all tests have completed.
 
+### Event: `'test:complete'`
+
+* `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `details` {Object} Additional execution metadata.
+    * `passed` {boolean} Whether the test passed or not.
+    * `duration_ms` {number} The duration of the test in milliseconds.
+    * `error` {Error|undefined} An error wrapping the error thrown by the test
+      if it did not pass.
+      * `cause` {Error} The actual error thrown by the test.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
+  * `file` {string|undefined} The path of the test file,
+    `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test completes its execution.
+This event is not emitted in the same order as the tests are
+defined.
+The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`.
+
 ### Event: `'test:dequeue'`
 
 * `data` {Object}
@@ -2504,6 +2535,8 @@ Emitted when code coverage is enabled and all tests have completed.
   * `nesting` {number} The nesting level of the test.
 
 Emitted when a test is dequeued, right before it is executed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined. The corresponding declaration ordered event is `'test:start'`.
 
 ### Event: `'test:diagnostic'`
 
@@ -2518,6 +2551,8 @@ Emitted when a test is dequeued, right before it is executed.
   * `nesting` {number} The nesting level of the test.
 
 Emitted when [`context.diagnostic`][] is called.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:enqueue'`
 
@@ -2555,6 +2590,9 @@ Emitted when a test is enqueued for execution.
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
 Emitted when a test fails.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:pass'`
 
@@ -2576,6 +2614,9 @@ Emitted when a test fails.
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
 Emitted when a test passes.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:plan'`
 
@@ -2590,6 +2631,8 @@ Emitted when a test passes.
   * `count` {number} The number of subtests that have ran.
 
 Emitted when all subtests have completed for a given test.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:start'`
 
@@ -2606,6 +2649,7 @@ Emitted when all subtests have completed for a given test.
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
+The corresponding execution ordered event is `'test:dequeue'`.
 
 ### Event: `'test:stderr'`
 
@@ -2619,6 +2663,8 @@ defined.
 
 Emitted when a running test writes to `stderr`.
 This event is only emitted if `--test` flag is passed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:stdout'`
 
@@ -2632,6 +2678,8 @@ This event is only emitted if `--test` flag is passed.
 
 Emitted when a running test writes to `stdout`.
 This event is only emitted if `--test` flag is passed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:watch:drained'`
 
