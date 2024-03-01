@@ -5,7 +5,7 @@ Node.js distribution.
 
 ## Inclusion
 
-Node.js includes some external projects that the Node.js team does not maintain.
+The Node.js distribution includes some external projects that the Node.js project does not maintain.
 The fact of a project's inclusion should not imply anything about the project
 relative to its competitors; in some cases, a project was added when it had no
 competitors. While the Node.js project supports and encourages competition in the
