@@ -183,6 +183,25 @@
     });
   }
 
+  const listenScrollToTopButton = () => {
+    const scrollToTop = document.querySelector('#scroll-to-top');
+
+    const showScrollToTopIfOutOfBounds = () =>
+      window.requestAnimationFrame(
+        () =>
+          (scrollToTop.style.display = window.pageYOffset * 2 > window.innerHeight ? 'block' : 'none')
+      );
+
+    document.addEventListener('scroll', showScrollToTopIfOutOfBounds, {
+      passive: true,
+    });
+
+    scrollToTop.addEventListener('click', (e) => {
+      e.preventDefault();
+      window.scrollTo(0, 0);
+    });
+  };
+
   function bootstrap() {
     // Check if we have JavaScript support.
     document.documentElement.classList.add('has-js');
@@ -202,6 +221,8 @@
     setupFlavorToggles();
 
     setupCopyButton();
+
+    listenScrollToTopButton();
   }
 
   if (document.readyState === 'loading') {
