@@ -171,12 +171,48 @@ ok 15 - no
   duration_ms: *
   type: 'suite'
   ...
-1..15
-# tests 21
-# suites 10
-# pass 13
+# Subtest: DescribeForMatchWithAncestors
+    # Subtest: NestedTest
+    ok 1 - NestedTest # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    # Subtest: NestedDescribeForMatchWithAncestors
+        # Subtest: NestedTest
+        ok 1 - NestedTest
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 2 - NestedDescribeForMatchWithAncestors
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..2
+ok 16 - DescribeForMatchWithAncestors
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: DescribeForMatchWithAncestors
+    # Subtest: NestedTest
+    ok 1 - NestedTest # SKIP test name does not match pattern
+      ---
+      duration_ms: *
+      ...
+    1..1
+ok 17 - DescribeForMatchWithAncestors
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..17
+# tests 24
+# suites 13
+# pass 14
 # fail 0
 # cancelled 0
-# skipped 8
+# skipped 10
 # todo 0
 # duration_ms *

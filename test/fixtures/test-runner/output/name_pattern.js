@@ -1,4 +1,4 @@
-// Flags: --test-name-pattern=enabled --test-name-pattern=yes --test-name-pattern=/pattern/i
+// Flags: --test-name-pattern=enabled --test-name-pattern=yes --test-name-pattern=/pattern/i --test-name-pattern=/^DescribeForMatchWithAncestors\sNestedDescribeForMatchWithAncestors\sNestedTest$/
 'use strict';
 const common = require('../../../common');
 const {
@@ -65,3 +65,15 @@ describe('no', function() {
     it('yes', () => {});
   });
 });
+
+describe('DescribeForMatchWithAncestors', () => {
+  it('NestedTest', () => common.mustNotCall());
+
+  describe('NestedDescribeForMatchWithAncestors', () => {
+    it('NestedTest', common.mustCall());
+  });
+})
+
+describe('DescribeForMatchWithAncestors', () => {
+  it('NestedTest', () => common.mustNotCall());
+})
