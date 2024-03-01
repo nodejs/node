@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
       - name: Store suppressions path
         run: |
-          echo "::set-env name=UBSAN_OPTIONS=$GITHUB_WORKSPACE/suppressions.supp:print_stacktrace=1"
+          echo "UBSAN_OPTIONS=$GITHUB_WORKSPACE/suppressions.supp:print_stacktrace=1" >> $GITHUB_ENV
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v4
         with:
