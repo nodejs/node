@@ -109,6 +109,7 @@ class ExternalReferenceRegistry {
   V(fs_event_wrap)                                                             \
   V(handle_wrap)                                                               \
   V(heap_utils)                                                                \
+  V(internal_only_v8)                                                          \
   V(messaging)                                                                 \
   V(mksnapshot)                                                                \
   V(module_wrap)                                                               \

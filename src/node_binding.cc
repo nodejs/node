@@ -26,6 +26,8 @@
 // function. This helps the built-in bindings are loaded properly when
 // node is built as static library. No need to depend on the
 // __attribute__((constructor)) like mechanism in GCC.
+// The binding IDs that start with 'internal_only' are not exposed to the user
+// land even from internal/test/binding module under --expose-internals.
 #define NODE_BUILTIN_STANDARD_BINDINGS(V)                                      \
   V(async_wrap)                                                                \
   V(blob)                                                                      \
@@ -46,6 +48,7 @@
   V(http2)                                                                     \
   V(http_parser)                                                               \
   V(inspector)                                                                 \
+  V(internal_only_v8)                                                          \
   V(js_stream)                                                                 \
   V(js_udp_wrap)                                                               \
   V(messaging)                                                                 \

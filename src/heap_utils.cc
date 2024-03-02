@@ -474,39 +474,6 @@ void TriggerHeapSnapshot(const FunctionCallbackInfo<Value>& args) {
   return args.GetReturnValue().Set(filename_v);
 }
 
-class PrototypeChainHas : public v8::QueryObjectPredicate {
- public:
-  PrototypeChainHas(Local<Context> context, Local<Object> search)
-      : context_(context), search_(search) {}
-
-  // What we can do in the filter can be quite limited, but looking up
-  // the prototype chain is something that the inspector console API
-  // queryObject() does so it is supported.
-  bool Filter(Local<Object> object) override {
-    for (Local<Value> proto = object->GetPrototype(); proto->IsObject();
-         proto = proto.As<Object>()->GetPrototype()) {
-      if (search_ == proto) return true;
-    }
-    return false;
-  }
-
- private:
-  Local<Context> context_;
-  Local<Object> search_;
-};
-
-void CountObjectsWithPrototype(const FunctionCallbackInfo<Value>& args) {
-  CHECK_EQ(args.Length(), 1);
-  CHECK(args[0]->IsObject());
-  Local<Object> proto = args[0].As<Object>();
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  PrototypeChainHas prototype_chain_has(context, proto);
-  std::vector<Global<Object>> out;
-  isolate->GetHeapProfiler()->QueryObjects(context, &prototype_chain_has, &out);
-  args.GetReturnValue().Set(static_cast<uint32_t>(out.size()));
-}
-
 void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
@@ -515,15 +482,12 @@ void Initialize(Local<Object> target,
   SetMethod(context, target, "triggerHeapSnapshot", TriggerHeapSnapshot);
   SetMethod(
       context, target, "createHeapSnapshotStream", CreateHeapSnapshotStream);
-  SetMethod(
-      context, target, "countObjectsWithPrototype", CountObjectsWithPrototype);
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(BuildEmbedderGraph);
   registry->Register(TriggerHeapSnapshot);
   registry->Register(CreateHeapSnapshotStream);
-  registry->Register(CountObjectsWithPrototype);
 }
 
 }  // namespace heap
