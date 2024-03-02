@@ -96,7 +96,6 @@
 /doc/api/packages.md @nodejs/loaders
 /lib/internal/bootstrap/realm.js @nodejs/loaders
 /lib/internal/modules/* @nodejs/loaders
-/lib/internal/process/esm_loader.js @nodejs/loaders
 /lib/internal/process/execution.js @nodejs/loaders
 /lib/module.js @nodejs/loaders
 /src/module_wrap* @nodejs/loaders @nodejs/vm
