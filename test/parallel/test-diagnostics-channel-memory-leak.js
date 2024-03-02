@@ -1,4 +1,4 @@
-// Flags: --expose-internals --max-old-space-size=16
+// Flags: --max-old-space-size=16
 'use strict';
 
 // This test ensures that diagnostic channel references aren't leaked.

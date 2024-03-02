@@ -80,6 +80,7 @@
       'src/handle_wrap.cc',
       'src/heap_utils.cc',
       'src/histogram.cc',
+      'src/internal_only_v8.cc',
       'src/js_native_api.h',
       'src/js_native_api_types.h',
       'src/js_native_api_v8.cc',
