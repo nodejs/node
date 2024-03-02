@@ -422,12 +422,19 @@ Error [ERR_TEST_FAILURE]: bar
 }
 		</failure>
 	</testcase>
-	<testcase name="assertion errors display actual and expected properly" time="*" classname="test" failure="Expected values to be loosely deep-equal:{  bar: 1,  boo: [    1  ],  foo: 1}should loosely deep-equal{  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
-		<failure type="testCodeFailure" message="Expected values to be loosely deep-equal:{  bar: 1,  boo: [    1  ],  foo: 1}should loosely deep-equal{  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
+	<testcase name="assertion errors display actual and expected properly" time="*" classname="test" failure="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
+		<failure type="testCodeFailure" message="Expected values to be loosely deep-equal:{  bar: 1,  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  foo: 1}should loosely deep-equal{  baz: {    date: 1970-01-01T00:00:00.000Z,    null: null,    number: 1,    string: 'Hello',    undefined: undefined  },  boo: [    1  ],  circular: &lt;ref *1> {    bar: 2,    c: [Circular *1]  }}">
 [Error [ERR_TEST_FAILURE]: Expected values to be loosely deep-equal:
 
 {
   bar: 1,
+  baz: {
+    date: 1970-01-01T00:00:00.000Z,
+    null: null,
+    number: 1,
+    string: 'Hello',
+    undefined: undefined
+  },
   boo: [
     1
   ],
@@ -437,6 +444,13 @@ Error [ERR_TEST_FAILURE]: bar
 should loosely deep-equal
 
 {
+  baz: {
+    date: 1970-01-01T00:00:00.000Z,
+    null: null,
+    number: 1,
+    string: 'Hello',
+    undefined: undefined
+  },
   boo: [
     1
   ],
@@ -451,6 +465,13 @@ should loosely deep-equal
   
   {
     bar: 1,
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
     boo: [
       1
     ],
@@ -460,6 +481,13 @@ should loosely deep-equal
   should loosely deep-equal
   
   {
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
     boo: [
       1
     ],
