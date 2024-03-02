@@ -36,7 +36,7 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
-          persist-credentials: false
+          persist-credentials: true 
       - name: Check commit message
         run: npx -q core-validate-commit ${{ github.event.after }} || echo "INVALID_COMMIT_MESSAGE=1" >> $GITHUB_ENV
       - name: Retrieve PR number if possible
@@ -68,3 +68,12 @@ jobs:
             After: <https://github.com/${{ github.repository }}/commit/${{ github.event.after }}|${{ github.event.after }}>
           SLACK_USERNAME: nodejs-bot
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+      
+      - name: Setup Jira
+              # You may pin to the exact commit or the version.
+        uses: atlassian/gajira-cli@7b8487d76cd88bf5d50ba00c6cca6edff1ddd507
+            uses: atlassian/gajira-cli@v3
+         with:
+                Version of the CLI to use
+           version:  optional, default is 1.0.27
+          
