@@ -1,11 +1,11 @@
-// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { resolve, dirname, sep } from 'node:path';
-import { mkdir, writeFile, symlink } from 'node:fs/promises';
-import { test } from 'node:test';
+import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
+import { glob, globSync } from 'node:fs';
+import { test, describe } from 'node:test';
+import { promisify } from 'node:util';
 import assert from 'node:assert';
-import glob from 'internal/fs/glob';
 
 tmpdir.refresh();
 
@@ -301,10 +301,35 @@ const patterns = {
   ],
 };
 
-for (const [pattern, expected] of Object.entries(patterns)) {
-  test(pattern, () => {
-    const actual = new glob.Glob([pattern], { cwd: fixtureDir }).globSync().sort();
-    const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
-    assert.deepStrictEqual(actual, normalized);
-  });
-}
+describe('glob', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = (await promisified(pattern, { cwd: fixtureDir })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('globSync', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, { cwd: fixtureDir }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises glob', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: fixtureDir })) actual.push(item);
+      actual.sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
