@@ -227,11 +227,7 @@ const vectors = {
         { message: /Usages cannot be empty/ });
     }
 
-    const invalidUsages = [];
-    allUsages.forEach((usage) => {
-      if (!vectors[name].usages.includes(usage))
-        invalidUsages.push(usage);
-    });
+    const invalidUsages = allUsages.filter(usage => !vectors[name].usages.includes(usage));
     for (const invalidUsage of invalidUsages) {
       await assert.rejects(
         subtle.generateKey(
