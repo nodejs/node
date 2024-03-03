@@ -168,7 +168,7 @@ The following are not considered technical priorities for the project:
 * **Unbundling `npm`**. When `npm` was included in the Node.js distribution, it
   was the only JavaScript package manager available, and it was provided as a
   way to help developers easily install other JavaScript software. `npm` is also
-  the reference implementation for the `npm` registry, which is the de facto
+  the reference implementation for the npm registry, which is the de facto
   primary source for most JavaScript software. Today, `npm` is one of many
   high-quality options. However, the potential removal of `npm` would be a very
   disruptive breaking change, even as a semver-major change, and therefore it is
