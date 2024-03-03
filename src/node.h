@@ -738,8 +738,8 @@ using EmbedderPreloadCallback =
 
 // Run initialization for the environment.
 //
-// The |preload| function will run before executing the entry point, which
-// is usually used by embedders to inject scripts.
+// The |preload| function, usually used by embedders to inject scripts,
+// will be run by Node.js before Node.js executes the entry point.
 // The function is guaranteed to run before the user land module loader running
 // any user code, so it is safe to assume that at this point, no user code has
 // been run yet.
