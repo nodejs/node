@@ -54,8 +54,10 @@ const server = tls.createServer(options, (conn) => {
   if (common.hasFipsCrypto)
     unsupportedCurves.push('brainpoolP256r1');
 
-  unsupportedCurves.forEach((ecdhCurve) => {
-    assert.throws(() => tls.createServer({ ecdhCurve }),
-                  /Error: Failed to set ECDH curve/);
-  });
+  for (const ecdhCurve of unsupportedCurves) {
+    assert.throws(
+      () => tls.createServer({ ecdhCurve }),
+      /Error: Failed to set ECDH curve/
+    );
+  }
 }
