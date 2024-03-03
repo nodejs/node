@@ -630,13 +630,13 @@ bool DeathTestImpl::Passed(bool status_ok) {
 #ifndef GTEST_OS_WINDOWS
 // Note: The return value points into args, so the return value's lifetime is
 // bound to that of args.
-static std::unique_ptr<char*[]> CreateArgvFromArgs(
-    std::vector<std::string>& args) {
-  auto result = std::make_unique<char*[]>(args.size() + 1);
-  for (size_t i = 0; i < args.size(); ++i) {
-    result[i] = &args[i][0];
+static std::vector<char*> CreateArgvFromArgs(std::vector<std::string>& args) {
+  std::vector<char*> result;
+  result.reserve(args.size() + 1);
+  for (auto& arg : args) {
+    result.push_back(&arg[0]);
   }
-  result[args.size()] = nullptr;  // extra null terminator
+  result.push_back(nullptr);  // Extra null terminator.
   return result;
 }
 #endif
@@ -1036,8 +1036,8 @@ DeathTest::TestRole FuchsiaDeathTest::AssumeRole() {
   // "Fuchsia Test Component" which contains a "Fuchsia Component Manifest")
   // Launching processes is a privileged operation in Fuchsia, and the
   // declaration indicates that the ability is required for the component.
-  std::unique_ptr<char*[]> argv = CreateArgvFromArgs(args);
-  status = fdio_spawn_etc(child_job, FDIO_SPAWN_CLONE_ALL, argv[0], argv.get(),
+  std::vector<char*> argv = CreateArgvFromArgs(args);
+  status = fdio_spawn_etc(child_job, FDIO_SPAWN_CLONE_ALL, argv[0], argv.data(),
                           nullptr, 2, spawn_actions,
                           child_process_.reset_and_get_address(), nullptr);
   GTEST_DEATH_TEST_CHECK_(status == ZX_OK);
@@ -1388,8 +1388,8 @@ DeathTest::TestRole ExecDeathTest::AssumeRole() {
   // is necessary.
   FlushInfoLog();
 
-  std::unique_ptr<char*[]> argv = CreateArgvFromArgs(args);
-  const pid_t child_pid = ExecDeathTestSpawnChild(argv.get(), pipe_fd[0]);
+  std::vector<char*> argv = CreateArgvFromArgs(args);
+  const pid_t child_pid = ExecDeathTestSpawnChild(argv.data(), pipe_fd[0]);
   GTEST_DEATH_TEST_CHECK_SYSCALL_(close(pipe_fd[1]));
   set_child_pid(child_pid);
   set_read_fd(pipe_fd[0]);

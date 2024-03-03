@@ -709,18 +709,6 @@ class GTEST_API_ UnitTestImpl {
     return type_parameterized_test_registry_;
   }
 
-  // Sets the TestSuite object for the test that's currently running.
-  void set_current_test_suite(TestSuite* a_current_test_suite) {
-    current_test_suite_ = a_current_test_suite;
-  }
-
-  // Sets the TestInfo object for the test that's currently running.  If
-  // current_test_info is NULL, the assertion results will be stored in
-  // ad_hoc_test_result_.
-  void set_current_test_info(TestInfo* a_current_test_info) {
-    current_test_info_ = a_current_test_info;
-  }
-
   // Registers all parameterized tests defined using TEST_P and
   // INSTANTIATE_TEST_SUITE_P, creating regular tests for each test/parameter
   // combination. This method can be called more then once; it has guards
@@ -840,6 +828,18 @@ class GTEST_API_ UnitTestImpl {
   // Used by UnitTest::Run() to capture the state of
   // GTEST_FLAG(catch_exceptions) at the moment it starts.
   void set_catch_exceptions(bool value) { catch_exceptions_ = value; }
+
+  // Sets the TestSuite object for the test that's currently running.
+  void set_current_test_suite(TestSuite* a_current_test_suite) {
+    current_test_suite_ = a_current_test_suite;
+  }
+
+  // Sets the TestInfo object for the test that's currently running.  If
+  // current_test_info is NULL, the assertion results will be stored in
+  // ad_hoc_test_result_.
+  void set_current_test_info(TestInfo* a_current_test_info) {
+    current_test_info_ = a_current_test_info;
+  }
 
   // The UnitTest object that owns this implementation object.
   UnitTest* const parent_;
