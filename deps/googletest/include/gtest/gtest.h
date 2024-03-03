@@ -1262,6 +1262,20 @@ class GTEST_API_ UnitTest {
   // total_test_suite_count() - 1. If i is not in that range, returns NULL.
   TestSuite* GetMutableTestSuite(int i);
 
+  // Invokes OsStackTrackGetterInterface::UponLeavingGTest. UponLeavingGTest()
+  // should be called immediately before Google Test calls user code. It saves
+  // some information about the current stack that CurrentStackTrace() will use
+  // to find and hide Google Test stack frames.
+  void UponLeavingGTest();
+
+  // Sets the TestSuite object for the test that's currently running.
+  void set_current_test_suite(TestSuite* a_current_test_suite)
+      GTEST_LOCK_EXCLUDED_(mutex_);
+
+  // Sets the TestInfo object for the test that's currently running.
+  void set_current_test_info(TestInfo* a_current_test_info)
+      GTEST_LOCK_EXCLUDED_(mutex_);
+
   // Accessors for the implementation object.
   internal::UnitTestImpl* impl() { return impl_; }
   const internal::UnitTestImpl* impl() const { return impl_; }
@@ -1270,6 +1284,8 @@ class GTEST_API_ UnitTest {
   // members of UnitTest.
   friend class ScopedTrace;
   friend class Test;
+  friend class TestInfo;
+  friend class TestSuite;
   friend class internal::AssertHelper;
   friend class internal::StreamingListenerTest;
   friend class internal::UnitTestRecordPropertyTestHelper;
