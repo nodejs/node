@@ -160,3 +160,18 @@ and integration with other systems.
 As TypeScript usage continues to grow and gains more prominence in the
 ecosystem, enhancing its support is essential for delivering an improved
 developer experience for newcomers and experienced users alike.
+
+## Non-goals
+
+The following are not considered technical priorities for the project:
+
+* **Unbundling `npm`**. When `npm` was included in the Node.js distribution, it
+  was the only JavaScript package manager available, and it was provided as a
+  way to help developers easily install other JavaScript software. `npm` is also
+  the reference implementation for the `npm` registry, which is the de facto
+  primary source for most JavaScript software. Today, `npm` is one of many
+  high-quality options. However, the potential removal of `npm` would be a very
+  disruptive breaking change, even as a semver-major change, and therefore it is
+  not a goal of the Node.js project to work toward such a goal. The `npm`
+  library included with the Node.js distribution can be freely used as a
+  dependency of other parts of the Node.js distribution.
