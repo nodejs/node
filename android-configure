@@ -3,6 +3,9 @@
 # Locate an acceptable Python interpreter and then re-execute the script.
 # Note that the mix of single and double quotes is intentional,
 # as is the fact that the ] goes on a new line.
+
+# Define the "_" variable as a multiline string containing a command to
+# locate an acceptable Python interpreter and re-execute the script.
 _=[ 'exec' '/bin/sh' '-c' '''
 command -v python3.11 >/dev/null && exec python3.11 "$0" "$@"
 command -v python3.10 >/dev/null && exec python3.10 "$0" "$@"
@@ -14,23 +17,42 @@ command -v python3 >/dev/null && exec python3 "$0" "$@"
 exec python "$0" "$@"
 ''' "$0" "$@"
 ]
+
+# Delete the "_" variable to ensure it doesn't interfere with the rest of the script.
 del _
 
+# Import the "sys" module, which provides access to some variables used or maintained by the interpreter,
+# and the "which" function from the "shutil" module or "find_executable" function from "distutils.spawn" module.
 import sys
 try:
   from shutil import which
 except ImportError:
   from distutils.spawn import find_executable as which
 
+# Print a message indicating which version of Python was found.
 print('Node.js android configure: Found Python {}.{}.{}...'.format(*sys.version_info))
+
+# Define a tuple of acceptable Python versions.
 acceptable_pythons = ((3, 11), (3, 10), (3, 9), (3, 8), (3, 7), (3, 6))
+
+# If the version of Python that the script is running on is in the list of acceptable versions,
+# import a module called "android_configure".
 if sys.version_info[:2] in acceptable_pythons:
   import android_configure
+
+# Otherwise, print an error message and exit with status code 1.
 else:
+  # Define a list of Python commands that the script can be run with.
   python_cmds = ['python{}.{}'.format(*vers) for vers in acceptable_pythons]
+  
+  # Print an error message indicating which version of Python should be used.
   sys.stderr.write('Please use {}.\n'.format(' or '.join(python_cmds)))
+  
+  # For each Python command, check if it is available and print a message if it is.
   for python_cmd in python_cmds:
       python_cmd_path = which(python_cmd)
       if python_cmd_path and 'pyenv/shims' not in python_cmd_path:
         sys.stderr.write('\t{} {}\n'.format(python_cmd_path, ' '.join(sys.argv[:1])))
+  
+  # Exit with status code 1.
   sys.exit(1)
