@@ -1002,6 +1002,9 @@ class Environment : public MemoryRetainer {
 
 #endif  // HAVE_INSPECTOR
 
+  inline const EmbedderPreloadCallback& embedder_preload() const;
+  inline void set_embedder_preload(EmbedderPreloadCallback fn);
+
   inline void set_process_exit_handler(
       std::function<void(Environment*, ExitCode)>&& handler);
 
@@ -1207,6 +1210,7 @@ class Environment : public MemoryRetainer {
   std::unique_ptr<PrincipalRealm> principal_realm_ = nullptr;
 
   builtins::BuiltinLoader builtin_loader_;
+  EmbedderPreloadCallback embedder_preload_;
 
   // Used by allocate_managed_buffer() and release_managed_buffer() to keep
   // track of the BackingStore for a given pointer.

@@ -1418,6 +1418,17 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
+void RunEmbedderPreload(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK(env->embedder_preload());
+  CHECK_EQ(args.Length(), 2);
+  Local<Value> process_obj = args[0];
+  Local<Value> require_fn = args[1];
+  CHECK(process_obj->IsObject());
+  CHECK(require_fn->IsFunction());
+  env->embedder_preload()(env, process_obj, require_fn);
+}
+
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
   Local<String> filename = args[0].As<String>();
@@ -1541,6 +1552,7 @@ void CreatePerContextProperties(Local<Object> target,
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
+  SetMethod(isolate, target, "runEmbedderPreload", RunEmbedderPreload);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1553,6 +1565,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(RunEmbedderPreload);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);

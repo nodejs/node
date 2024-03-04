@@ -731,12 +731,33 @@ struct StartExecutionCallbackInfo {
 
 using StartExecutionCallback =
     std::function<v8::MaybeLocal<v8::Value>(const StartExecutionCallbackInfo&)>;
+using EmbedderPreloadCallback =
+    std::function<void(Environment* env,
+                       v8::Local<v8::Value> process,
+                       v8::Local<v8::Value> require)>;
 
+// Run initialization for the environment.
+//
+// The |preload| function, usually used by embedders to inject scripts,
+// will be run by Node.js before Node.js executes the entry point.
+// The function is guaranteed to run before the user land module loader running
+// any user code, so it is safe to assume that at this point, no user code has
+// been run yet.
+// The function will be executed with preload(process, require), and the passed
+// require function has access to internal Node.js modules. There is no
+// stability guarantee about the internals exposed to the internal require
+// function. Expect breakages when updating Node.js versions if the embedder
+// imports internal modules with the internal require function.
+// Worker threads created in the environment will also respect The |preload|
+// function, so make sure the function is thread-safe.
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
     Environment* env,
-    StartExecutionCallback cb);
+    StartExecutionCallback cb,
+    EmbedderPreloadCallback preload = nullptr);
 NODE_EXTERN v8::MaybeLocal<v8::Value> LoadEnvironment(
-    Environment* env, std::string_view main_script_source_utf8);
+    Environment* env,
+    std::string_view main_script_source_utf8,
+    EmbedderPreloadCallback preload = nullptr);
 NODE_EXTERN void FreeEnvironment(Environment* env);
 
 // Set a callback that is called when process.exit() is called from JS,
