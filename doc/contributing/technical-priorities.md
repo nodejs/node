@@ -164,7 +164,7 @@ developer experience for newcomers and experienced users alike.
 ## Package management
 
 The ability to easily install and manage dependencies and development tools is a
-key part of the developer experience, and therefore Node.js must provide a
+key part of the user experience, and for that reason Node.js must provide a
 package manager as part of its distribution. Node.js includes npm for this
 purpose. This is for historical reasons — when `npm` was added in 2011, it was the
 only JavaScript package manager — and because it is the reference implementation
