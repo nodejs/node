@@ -1305,6 +1305,12 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
           .IsNothing())
     return;
 
+  if (ret->Set(context,
+               FIXED_ONE_BYTE_STRING(env->isolate(), "hasEmbedderPreload"),
+               Boolean::New(isolate, env->embedder_preload() != nullptr))
+          .IsNothing())
+    return;
+
   args.GetReturnValue().Set(ret);
 }
 
