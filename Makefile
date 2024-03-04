@@ -77,7 +77,8 @@ EXEEXT := $(shell $(PYTHON) -c \
 		"import sys; print('.exe' if sys.platform == 'win32' else '')")
 
 NODE_EXE = node$(EXEEXT)
-NODE ?= ./$(NODE_EXE)
+# Use $(PWD) so we can cd to anywhere before calling this
+NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
 
@@ -91,10 +92,9 @@ BUILD_RELEASE_FLAGS ?= $(BUILD_DOWNLOAD_FLAGS) $(BUILD_INTL_FLAGS)
 V ?= 0
 
 # Use -e to double check in case it's a broken link
-# Use $(PWD) so we can cd to anywhere before calling this
 available-node = \
-	if [ -x $(PWD)/$(NODE) ] && [ -e $(PWD)/$(NODE) ]; then \
-		$(PWD)/$(NODE) $(1); \
+	if [ -x "$(NODE)" ] && [ -e "$(NODE)" ]; then \
+		"$(NODE)" $(1); \
 	elif [ -x `command -v node` ] && [ -e `command -v node` ] && [ `command -v node` ]; then \
 		`command -v node` $(1); \
 	else \

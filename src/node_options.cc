@@ -785,6 +785,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
             &EnvironmentOptions::tls_max_v1_3,
             kAllowedInEnvvar);
+
+  AddOption("--report-exclude-network",
+            "exclude network interface diagnostics."
+            " (default: false)",
+            &EnvironmentOptions::report_exclude_network,
+            kAllowedInEnvvar);
 }
 
 PerIsolateOptionsParser::PerIsolateOptionsParser(
@@ -1301,6 +1307,12 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   if (ret->Set(context,
                FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
                Boolean::New(isolate, env->no_browser_globals()))
+          .IsNothing())
+    return;
+
+  if (ret->Set(context,
+               FIXED_ONE_BYTE_STRING(env->isolate(), "hasEmbedderPreload"),
+               Boolean::New(isolate, env->embedder_preload() != nullptr))
           .IsNothing())
     return;
 

@@ -167,6 +167,92 @@ t.test('dry-run', async t => {
   t.matchSnapshot(logs.notice)
 })
 
+t.test('foreground-scripts defaults to true', async t => {
+  const { joinedOutput, npm, logs } = await loadMockNpm(t, {
+    config: {
+      'dry-run': true,
+      ...auth,
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-fg-scripts',
+        version: '0.0.0',
+        scripts: {
+          prepack: 'echo prepack!',
+          postpack: 'echo postpack!',
+        },
+      }
+      ),
+    },
+  })
+
+  /* eslint no-console: 0 */
+  // TODO: replace this with `const results = t.intercept(console, 'log')`
+  const log = console.log
+  t.teardown(() => {
+    console.log = log
+  })
+  const caughtLogs = []
+  console.log = (...args) => {
+    caughtLogs.push(args)
+  }
+  // end TODO
+
+  await npm.exec('publish', [])
+  t.equal(joinedOutput(), `+ test-fg-scripts@0.0.0`)
+  t.matchSnapshot(logs.notice)
+
+  t.same(
+    caughtLogs,
+    [
+      ['\n> test-fg-scripts@0.0.0 prepack\n> echo prepack!\n'],
+      ['\n> test-fg-scripts@0.0.0 postpack\n> echo postpack!\n'],
+    ],
+    'prepack and postpack log to stdout')
+})
+
+t.test('foreground-scripts can still be set to false', async t => {
+  const { joinedOutput, npm, logs } = await loadMockNpm(t, {
+    config: {
+      'dry-run': true,
+      'foreground-scripts': false,
+      ...auth,
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        name: 'test-fg-scripts',
+        version: '0.0.0',
+        scripts: {
+          prepack: 'echo prepack!',
+          postpack: 'echo postpack!',
+        },
+      }
+      ),
+    },
+  })
+
+  /* eslint no-console: 0 */
+  // TODO: replace this with `const results = t.intercept(console, 'log')`
+  const log = console.log
+  t.teardown(() => {
+    console.log = log
+  })
+  const caughtLogs = []
+  console.log = (...args) => {
+    caughtLogs.push(args)
+  }
+  // end TODO
+
+  await npm.exec('publish', [])
+  t.equal(joinedOutput(), `+ test-fg-scripts@0.0.0`)
+  t.matchSnapshot(logs.notice)
+
+  t.same(
+    caughtLogs,
+    [],
+    'prepack and postpack do not log to stdout')
+})
+
 t.test('shows usage with wrong set of arguments', async t => {
   const { publish } = await loadMockNpm(t, { command: 'publish' })
   await t.rejects(publish.exec(['a', 'b', 'c']), publish.usage)

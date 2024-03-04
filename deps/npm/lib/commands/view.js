@@ -211,7 +211,13 @@ class View extends BaseCommand {
 
     const data = []
     const versions = pckmnt.versions || {}
-    pckmnt.versions = Object.keys(versions).sort(semver.compareLoose)
+    pckmnt.versions = Object.keys(versions).filter(v => {
+      if (semver.valid(v)) {
+        return true
+      }
+      log.info('view', `Ignoring invalid version: ${v}`)
+      return false
+    }).sort(semver.compareLoose)
 
     // remove readme unless we asked for it
     if (args.indexOf('readme') === -1) {

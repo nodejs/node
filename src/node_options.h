@@ -218,6 +218,8 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> user_argv;
 
+  bool report_exclude_network = false;
+
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
 

@@ -56,6 +56,92 @@ Array [
 ]
 `
 
+exports[`test/lib/commands/publish.js TAP foreground-scripts can still be set to false > must match snapshot 1`] = `
+Array [
+  Array [
+    "",
+  ],
+  Array [
+    "",
+    "package: test-fg-scripts@0.0.0",
+  ],
+  Array [
+    "=== Tarball Contents ===",
+  ],
+  Array [
+    "",
+    "110B package.json",
+  ],
+  Array [
+    "=== Tarball Details ===",
+  ],
+  Array [
+    "",
+    String(
+      name:          test-fg-scripts
+      version:       0.0.0
+      filename:      test-fg-scripts-0.0.0.tgz
+      package size:  {size}
+      unpacked size: 110 B
+      shasum:        {sha}
+      integrity:     {integrity}
+      total files:   1
+    ),
+  ],
+  Array [
+    "",
+    "",
+  ],
+  Array [
+    "",
+    "Publishing to https://registry.npmjs.org/ with tag latest and default access (dry-run)",
+  ],
+]
+`
+
+exports[`test/lib/commands/publish.js TAP foreground-scripts defaults to true > must match snapshot 1`] = `
+Array [
+  Array [
+    "",
+  ],
+  Array [
+    "",
+    "package: test-fg-scripts@0.0.0",
+  ],
+  Array [
+    "=== Tarball Contents ===",
+  ],
+  Array [
+    "",
+    "110B package.json",
+  ],
+  Array [
+    "=== Tarball Details ===",
+  ],
+  Array [
+    "",
+    String(
+      name:          test-fg-scripts
+      version:       0.0.0
+      filename:      test-fg-scripts-0.0.0.tgz
+      package size:  {size}
+      unpacked size: 110 B
+      shasum:        {sha}
+      integrity:     {integrity}
+      total files:   1
+    ),
+  ],
+  Array [
+    "",
+    "",
+  ],
+  Array [
+    "",
+    "Publishing to https://registry.npmjs.org/ with tag latest and default access (dry-run)",
+  ],
+]
+`
+
 exports[`test/lib/commands/publish.js TAP has mTLS auth for scope configured registry > new package version 1`] = `
 + @npm/test-package@1.0.0
 `

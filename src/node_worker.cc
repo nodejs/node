@@ -62,6 +62,7 @@ Worker::Worker(Environment* env,
       thread_id_(AllocateEnvironmentThreadId()),
       name_(name),
       env_vars_(env_vars),
+      embedder_preload_(env->embedder_preload()),
       snapshot_data_(snapshot_data) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
@@ -386,8 +387,12 @@ void Worker::Run() {
         }
 
         Debug(this, "Created message port for worker %llu", thread_id_.id);
-        if (LoadEnvironment(env_.get(), StartExecutionCallback{}).IsEmpty())
+        if (LoadEnvironment(env_.get(),
+                            StartExecutionCallback{},
+                            std::move(embedder_preload_))
+                .IsEmpty()) {
           return;
+        }
 
         Debug(this, "Loaded environment for worker %llu", thread_id_.id);
       }

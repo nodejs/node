@@ -430,6 +430,14 @@ inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
 }
 
+inline const EmbedderPreloadCallback& Environment::embedder_preload() const {
+  return embedder_preload_;
+}
+
+inline void Environment::set_embedder_preload(EmbedderPreloadCallback fn) {
+  embedder_preload_ = std::move(fn);
+}
+
 inline double Environment::new_async_id() {
   async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter] += 1;
   return async_hooks()->async_id_fields()[AsyncHooks::kAsyncIdCounter];
