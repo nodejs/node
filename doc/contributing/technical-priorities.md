@@ -171,6 +171,7 @@ the only JavaScript package manager — and because it is the reference
 implementation for the npm registry, which is the de facto primary source for
 most JavaScript software. In accordance with our [policy][distribution-policy]
 of not including multiple dependencies or tools that serve the same purpose, the
-Node.js project does not include any other package managers.
+Node.js project does not include any other package managers; though it may
+include other software to download other package managers.
 
 [distribution-policy]: ./distribution.md
