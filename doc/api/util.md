@@ -1803,7 +1803,10 @@ added: REPLACEME
 * `format` {string} A text format defined in `util.inspect.colors`.
 * `text` {string} The text to to be formatted.
 
-This function returns a formatted text considering the `format` passed.
+This function returns a formatted text considering the `format` passed
+for printing in a terminal, it is aware of the terminal's capabilities
+and act according to the configuration set via `NO_COLORS`,
+`NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
 import { styleText } from 'node:util';
