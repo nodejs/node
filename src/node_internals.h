@@ -98,7 +98,11 @@ void PrintCaughtException(v8::Isolate* isolate,
 std::string FormatCaughtException(v8::Isolate* isolate,
                                   v8::Local<v8::Context> context,
                                   const v8::TryCatch& try_catch);
-
+std::string FormatErrorMessage(v8::Isolate* isolate,
+                               v8::Local<v8::Context> context,
+                               const std::string& reason,
+                               v8::Local<v8::Message> message,
+                               bool add_source_line = true);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
