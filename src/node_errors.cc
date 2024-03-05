@@ -303,17 +303,27 @@ std::string FormatCaughtException(Isolate* isolate,
                                   Local<Value> err,
                                   Local<Message> message,
                                   bool add_source_line = true) {
-  std::string result;
   node::Utf8Value reason(isolate,
                          err->ToDetailString(context)
                              .FromMaybe(Local<String>()));
+  std::string reason_str = reason.ToString();
+  return FormatErrorMessage(
+      isolate, context, reason_str, message, add_source_line);
+}
+
+std::string FormatErrorMessage(Isolate* isolate,
+                               Local<Context> context,
+                               const std::string& reason,
+                               Local<Message> message,
+                               bool add_source_line) {
+  std::string result;
   if (add_source_line) {
     bool added_exception_line = false;
     std::string source =
         GetErrorSource(isolate, context, message, &added_exception_line);
     result = source + '\n';
   }
-  result += reason.ToString() + '\n';
+  result += reason + '\n';
 
   Local<v8::StackTrace> stack = message->GetStackTrace();
   if (!stack.IsEmpty()) result += FormatStackTrace(isolate, stack);
