@@ -6999,6 +6999,9 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51879
+    description: Public constructor is deprecated.
   - version: v8.1.0
     pr-url: https://github.com/nodejs/node/pull/13173
     description: Added times as numbers.
@@ -7011,6 +7014,7 @@ their synchronous counterparts are of this type.
 If `bigint` in the `options` passed to those methods is true, the numeric values
 will be `bigint` instead of `number`, and the object will contain additional
 nanosecond-precision properties suffixed with `Ns`.
+`Stat` objects are not to be created directly using the `new` keyword.
 
 ```console
 Stats {
