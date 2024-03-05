@@ -41,6 +41,7 @@ using v8::ArrayBuffer;
 using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -622,6 +623,12 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+static void SetEmitWarningSync(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  Environment* env = Environment::GetCurrent(args);
+  env->set_process_emit_warning_sync(args[0].As<Function>());
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -655,6 +662,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
 
   SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
+
+  SetMethod(isolate, target, "setEmitWarningSync", SetEmitWarningSync);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -695,6 +704,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(PatchProcessObject);
 
   registry->Register(LoadEnvFile);
+
+  registry->Register(SetEmitWarningSync);
 }
 
 }  // namespace process
