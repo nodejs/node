@@ -3517,6 +3517,8 @@ added:
  - REPLACEME
 -->
 
+> Stability: 1.2 - Release candidate
+
 * `algorithm` {string|undefined}
 * `data` {string|ArrayBuffer|Buffer|TypedArray|DataView} When `data` is a
   string, it will be encoded as UTF-8 before being hashed. If a different
