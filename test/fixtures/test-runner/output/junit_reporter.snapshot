@@ -372,8 +372,6 @@ Error [ERR_TEST_FAILURE]: thrown from subtest sync throw fails at second
       *
       *
       *
-      *
-      *
 }
 			</failure>
 		</testcase>
