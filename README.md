@@ -465,6 +465,8 @@ For information about the governance of the Node.js project, see
   **Trivikram Kamat** <<trivikr.dev@gmail.com>>
 * [Trott](https://github.com/Trott) -
   **Rich Trott** <<rtrott@gmail.com>> (he/him)
+* [UlisesGascon](https://github.com/ulisesgascon) -
+  **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>> (he/him)
 * [vdeturckheim](https://github.com/vdeturckheim) -
   **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
 * [vmoroz](https://github.com/vmoroz) -
