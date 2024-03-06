@@ -25,3 +25,11 @@ only as a semver-major change, unless the related feature or project is
 documented as experimental. In addition, Node.js includes external projects as
 internal dependencies. These may be replaced or removed at any time, provided
 that doing so is not a breaking change.
+
+## Placeholder executables
+
+Installing Node.js will not create "placeholder" executables: commands that
+refer to software that is not distributed with Node.js, but instead would be
+downloaded when the command is run. For example, Node.js will not create a
+`yarn` placeholder executable that will download Yarn when run or an `eslint`
+placeholder executable that will download ESLint when run.
