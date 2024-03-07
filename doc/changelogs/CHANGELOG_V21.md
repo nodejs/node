@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#21.7.1">21.7.1</a><br/>
 <a href="#21.7.0">21.7.0</a><br/>
 <a href="#21.6.2">21.6.2</a><br/>
 <a href="#21.6.1">21.6.1</a><br/>
@@ -44,6 +45,47 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.7.1"></a>
+
+## 2024-03-08, Version 21.7.1 (Current), @targos
+
+### Notable Changes
+
+This release reverts [#51389](https://github.com/nodejs/node/pull/51389), which
+landed in Node.js 21.7.0. It is a documented feature that `t.after()` hooks are
+run even if a test has no subtests. The hook can be used to clean up the test
+itself.
+
+### Commits
+
+* \[[`0dfe810ac7`](https://github.com/nodejs/node/commit/0dfe810ac7)] - **benchmark**: update iterations of benchmark/async\_hooks/async-local- (Lei Shi) [#51420](https://github.com/nodejs/node/pull/51420)
+* \[[`625c9e0ac9`](https://github.com/nodejs/node/commit/625c9e0ac9)] - **benchmark**: update iterations of benchmark/domain/domain-fn-args.js (Lei Shi) [#51408](https://github.com/nodejs/node/pull/51408)
+* \[[`7ff3551bad`](https://github.com/nodejs/node/commit/7ff3551bad)] - **build**: fix arm64 host cross-compilation in GN (Cheng Zhao) [#51903](https://github.com/nodejs/node/pull/51903)
+* \[[`fd86ea8b71`](https://github.com/nodejs/node/commit/fd86ea8b71)] - _**Revert**_ "**build**: workaround for node-core-utils" (Richard Lau) [#51975](https://github.com/nodejs/node/pull/51975)
+* \[[`23c32ab3a7`](https://github.com/nodejs/node/commit/23c32ab3a7)] - **build**: respect the `NODE` env variable in `Makefile` (Antoine du Hamel) [#51743](https://github.com/nodejs/node/pull/51743)
+* \[[`9617adc064`](https://github.com/nodejs/node/commit/9617adc064)] - _**Revert**_ "**build**: fix warning in cares under GN build" (Luigi Pinca) [#51865](https://github.com/nodejs/node/pull/51865)
+* \[[`5864534095`](https://github.com/nodejs/node/commit/5864534095)] - **deps**: update nghttp2 to 1.60.0 (Node.js GitHub Bot) [#51948](https://github.com/nodejs/node/pull/51948)
+* \[[`fcf235d623`](https://github.com/nodejs/node/commit/fcf235d623)] - **doc**: add policy for distribution (Geoffrey Booth) [#51918](https://github.com/nodejs/node/pull/51918)
+* \[[`87d2acc8b1`](https://github.com/nodejs/node/commit/87d2acc8b1)] - **doc**: fix actual result of example is different in events (Deokjin Kim) [#51925](https://github.com/nodejs/node/pull/51925)
+* \[[`5908c121c6`](https://github.com/nodejs/node/commit/5908c121c6)] - **doc**: clarify Corepack threat model (Antoine du Hamel) [#51917](https://github.com/nodejs/node/pull/51917)
+* \[[`20e0ba3b94`](https://github.com/nodejs/node/commit/20e0ba3b94)] - **doc,module**: clarify hook chain execution sequence (Jacob Smith) [#51884](https://github.com/nodejs/node/pull/51884)
+* \[[`4d997971ac`](https://github.com/nodejs/node/commit/4d997971ac)] - **lib**: make sure close net server (theanarkh) [#51929](https://github.com/nodejs/node/pull/51929)
+* \[[`fcc6d54aa3`](https://github.com/nodejs/node/commit/fcc6d54aa3)] - **lib**: return directly if udp socket close before lookup (theanarkh) [#51914](https://github.com/nodejs/node/pull/51914)
+* \[[`10aaabd158`](https://github.com/nodejs/node/commit/10aaabd158)] - **meta**: bump github/codeql-action from 3.23.2 to 3.24.6 (dependabot\[bot]) [#51942](https://github.com/nodejs/node/pull/51942)
+* \[[`78f38a0143`](https://github.com/nodejs/node/commit/78f38a0143)] - **meta**: bump actions/upload-artifact from 4.3.0 to 4.3.1 (dependabot\[bot]) [#51941](https://github.com/nodejs/node/pull/51941)
+* \[[`42ca5452c4`](https://github.com/nodejs/node/commit/42ca5452c4)] - **meta**: bump codecov/codecov-action from 4.0.1 to 4.1.0 (dependabot\[bot]) [#51940](https://github.com/nodejs/node/pull/51940)
+* \[[`015a157375`](https://github.com/nodejs/node/commit/015a157375)] - **meta**: bump actions/cache from 4.0.0 to 4.0.1 (dependabot\[bot]) [#51939](https://github.com/nodejs/node/pull/51939)
+* \[[`e476cb4a32`](https://github.com/nodejs/node/commit/e476cb4a32)] - **meta**: bump actions/download-artifact from 4.1.1 to 4.1.3 (dependabot\[bot]) [#51938](https://github.com/nodejs/node/pull/51938)
+* \[[`67e8001790`](https://github.com/nodejs/node/commit/67e8001790)] - **meta**: bump actions/setup-node from 4.0.1 to 4.0.2 (dependabot\[bot]) [#51937](https://github.com/nodejs/node/pull/51937)
+* \[[`50343636e8`](https://github.com/nodejs/node/commit/50343636e8)] - **src**: fix --disable-single-executable-application (Joyee Cheung) [#51808](https://github.com/nodejs/node/pull/51808)
+* \[[`a48c9ca0db`](https://github.com/nodejs/node/commit/a48c9ca0db)] - **stream**: do not defer construction by one microtick (Matteo Collina) [#52005](https://github.com/nodejs/node/pull/52005)
+* \[[`bee3b364f9`](https://github.com/nodejs/node/commit/bee3b364f9)] - **test**: add regression test for test\_runner after hook (Colin Ihrig) [#51998](https://github.com/nodejs/node/pull/51998)
+* \[[`fff7f48f50`](https://github.com/nodejs/node/commit/fff7f48f50)] - **test**: reduce flakiness of `test-runner-output` (Antoine du Hamel) [#51952](https://github.com/nodejs/node/pull/51952)
+* \[[`57ba8f5acb`](https://github.com/nodejs/node/commit/57ba8f5acb)] - **test**: fix flaky http-chunk-extensions-limit test (Ethan Arrowood) [#51943](https://github.com/nodejs/node/pull/51943)
+* \[[`9d2c03990a`](https://github.com/nodejs/node/commit/9d2c03990a)] - **test**: remove flaky designation (Luigi Pinca) [#51736](https://github.com/nodejs/node/pull/51736)
+* \[[`e992af81d3`](https://github.com/nodejs/node/commit/e992af81d3)] - **test**: skip SEA tests when SEA generation fails (Joyee Cheung) [#51887](https://github.com/nodejs/node/pull/51887)
+* \[[`85aa6ca850`](https://github.com/nodejs/node/commit/85aa6ca850)] - _**Revert**_ "**test\_runner**: do not invoke after hook when test is empty" (Colin Ihrig) [#51998](https://github.com/nodejs/node/pull/51998)
 
 <a id="21.7.0"></a>
 
