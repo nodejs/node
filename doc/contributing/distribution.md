@@ -28,6 +28,6 @@ that doing so is not a breaking change.
 
 ## Executables
 
-The Node.js distribution adds a number of executable commands into the user's
-`PATH`, such as `node`. The distribution will only include executables whose
-names refer to software that is vendored within the Node.js distribution.
+The Node.js distribution includes a number of executables, such as `node`. The
+distribution will only include executables whose names refer to software that is
+vendored within the Node.js distribution.
