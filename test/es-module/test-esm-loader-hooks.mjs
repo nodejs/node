@@ -51,7 +51,7 @@ describe('Loader hooks', { concurrency: true }, () => {
   });
 
   describe('should handle never-settling hooks in ESM files', { concurrency: true }, () => {
-    it('top-level await of a never-settling resolve', async () => {
+    it('top-level await of a never-settling resolve without warning', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
@@ -65,7 +65,20 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
 
-    it('top-level await of a never-settling load', async () => {
+    it('top-level await of a never-settling resolve with warning', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-resolve.mjs'),
+      ]);
+
+      assert.match(stderr, /Warning: Detected unsettled top-level await at.+never-resolve\.mjs:5/);
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
+
+    it('top-level await of a never-settling load without warning', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
         '--experimental-loader',
@@ -79,6 +92,18 @@ describe('Loader hooks', { concurrency: true }, () => {
       assert.strictEqual(signal, null);
     });
 
+    it('top-level await of a never-settling load with warning', async () => {
+      const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+        '--experimental-loader',
+        fixtures.fileURL('es-module-loaders/never-settling-resolve-step/loader.mjs'),
+        fixtures.path('es-module-loaders/never-settling-resolve-step/never-load.mjs'),
+      ]);
+
+      assert.match(stderr, /Warning: Detected unsettled top-level await at.+never-load\.mjs:5/);
+      assert.match(stdout, /^should be output\r?\n$/);
+      assert.strictEqual(code, 13);
+      assert.strictEqual(signal, null);
+    });
 
     it('top-level await of a race of never-settling hooks', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [

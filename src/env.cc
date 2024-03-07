@@ -4,6 +4,7 @@
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
+#include "module_wrap.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
@@ -50,6 +51,7 @@ using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
@@ -1226,6 +1228,41 @@ void Environment::RunAtExitCallbacks() {
 
 void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
+}
+
+Maybe<bool> Environment::CheckUnsettledTopLevelAwait() {
+  HandleScope scope(isolate_);
+  Local<Context> ctx = context();
+  Local<Value> value;
+
+  Local<Value> entry_point_promise;
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_promise_private_symbol())
+           .ToLocal(&entry_point_promise)) {
+    return v8::Nothing<bool>();
+  }
+  if (!entry_point_promise->IsPromise()) {
+    return v8::Just(true);
+  }
+  if (entry_point_promise.As<Promise>()->State() !=
+      Promise::PromiseState::kPending) {
+    return v8::Just(true);
+  }
+
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_module_private_symbol())
+           .ToLocal(&value)) {
+    return v8::Nothing<bool>();
+  }
+  if (!value->IsObject()) {
+    return v8::Just(true);
+  }
+  Local<Object> object = value.As<Object>();
+  CHECK(BaseObject::IsBaseObject(isolate_data_, object));
+  CHECK_EQ(object->InternalFieldCount(),
+           loader::ModuleWrap::kInternalFieldCount);
+  auto* wrap = BaseObject::FromJSObject<loader::ModuleWrap>(object);
+  return wrap->CheckUnsettledTopLevelAwait();
 }
 
 void Environment::RunAndClearInterrupts() {
