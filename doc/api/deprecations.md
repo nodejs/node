@@ -3527,7 +3527,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v21.7.0
     pr-url: https://github.com/nodejs/node/pull/51442
     description: End-of-Life.
   - version:
@@ -3574,6 +3574,35 @@ Calling `Hash` class directly with `Hash()` or `new Hash()` is
 deprecated due to being internals, not intended for public use.
 Please use the [`crypto.createHash()`][] method to create Hash instances.
 
+### DEP0180: `fs.Stats` constructor
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51879
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `fs.Stats` class directly with `Stats()` or `new Stats()` is
+deprecated due to being internals, not intended for public use.
+
+### DEP0181: `Hmac` constructor
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51881
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+Calling `Hmac` class directly with `Hmac()` or `new Hmac()` is
+deprecated due to being internals, not intended for public use.
+Please use the [`crypto.createHmac()`][] method to create Hmac instances.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3611,6 +3640,7 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 [`crypto.createCipheriv()`]: crypto.md#cryptocreatecipherivalgorithm-key-iv-options
 [`crypto.createDecipheriv()`]: crypto.md#cryptocreatedecipherivalgorithm-key-iv-options
 [`crypto.createHash()`]: crypto.md#cryptocreatehashalgorithm-options
+[`crypto.createHmac()`]: crypto.md#cryptocreatehmacalgorithm-key-options
 [`crypto.fips`]: crypto.md#cryptofips
 [`crypto.pbkdf2()`]: crypto.md#cryptopbkdf2password-salt-iterations-keylen-digest-callback
 [`crypto.randomBytes()`]: crypto.md#cryptorandombytessize-callback

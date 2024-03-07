@@ -15,14 +15,14 @@ function check(found) {
 }
 
 const handlers = {
-  start: common.mustCall(check, 2),
-  end: common.mustCall(check, 2),
-  asyncStart: common.mustCall(check, 2),
-  asyncEnd: common.mustCall(check, 2),
+  start: common.mustCall(check),
+  end: common.mustCall(check),
+  asyncStart: common.mustCall(check),
+  asyncEnd: common.mustCall(check),
   error: common.mustCall((found) => {
     check(found);
     assert.deepStrictEqual(found.error, expectedError);
-  }, 2)
+  })
 };
 
 channel.subscribe(handlers);
@@ -34,13 +34,3 @@ channel.traceCallback(function(cb, err) {
   assert.strictEqual(err, expectedError);
   assert.strictEqual(res, undefined);
 }), expectedError);
-
-channel.tracePromise(function(value) {
-  assert.deepStrictEqual(this, thisArg);
-  return Promise.reject(value);
-}, input, thisArg, expectedError).then(
-  common.mustNotCall(),
-  common.mustCall((value) => {
-    assert.deepStrictEqual(value, expectedError);
-  })
-);
