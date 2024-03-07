@@ -31,10 +31,5 @@ that doing so is not a breaking change.
 The Node.js distribution adds a number of executable commands into the user's
 `PATH`, such as `node`. The distribution will only include executables that run
 code that is vendored within the Node.js distribution. The distribution will not
-include executables to run code that is downloaded after installation.
-
-For example, the distribution includes an `npm` executable to run the npm
-package manager, which can be used to download other software, some of which may
-create their own executables. The Node.js distribution will not include a `foo`
-executable that would either directly download the full `foo` software or use
-`npm` or Corepack to download `foo`.
+include executables whose names refer to software that is not included in the
+Node.js distribution.
