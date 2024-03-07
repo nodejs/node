@@ -311,8 +311,8 @@ std::optional<StartExecutionCallbackInfo> CallbackInfoFromArray(
 MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
   InternalCallbackScope callback_scope(
       env,
-      Object::New(env->isolate()),
-      { 1, 0 },
+      env->principal_realm()->async_hooks_top_level_resource(),
+      {1, 0},
       InternalCallbackScope::kSkipAsyncHooks);
 
   // Only snapshot builder or embedder applications set the

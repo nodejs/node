@@ -81,6 +81,9 @@ void Realm::CreateProperties() {
   Local<Object> process_object =
       node::CreateProcessObject(this).FromMaybe(Local<Object>());
   set_process_object(process_object);
+
+  set_async_hooks_top_level_resource(
+      Object::New(isolate_, v8::Null(isolate_), nullptr, nullptr, 0));
 }
 
 RealmSerializeInfo Realm::Serialize(SnapshotCreator* creator) {

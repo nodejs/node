@@ -412,6 +412,9 @@ void AsyncWrap::CreatePerContextProperties(Local<Object> target,
                          "execution_async_resources",
                          env->async_hooks()->js_execution_async_resources());
 
+  FORCE_SET_TARGET_FIELD(
+      target, "topLevelResource", realm->async_hooks_top_level_resource());
+
   target->Set(context,
               env->async_ids_stack_string(),
               env->async_hooks()->async_ids_stack().GetJSArray()).Check();
