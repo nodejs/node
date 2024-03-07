@@ -2628,10 +2628,14 @@ V8 options that are allowed are:
 
 <!-- node-options-v8 end -->
 
+<!-- node-options-others start -->
+
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
 
 `--enable-etw-stack-walking` is only available on Windows.
+
+<!-- node-options-others end -->
 
 ### `NODE_PATH=path[:…]`
 
@@ -2925,6 +2929,32 @@ options are of interest only to V8 developers. Despite this, there is a small
 set of V8 options that are widely applicable to Node.js, and they are
 documented here:
 
+<!-- v8-options start -->
+
+### `--abort-on-uncaught-exception`
+
+### `--disallow-code-generation-from-strings`
+
+### `--enable-etw-stack-walking`
+
+### `--harmony-shadow-realm`
+
+### `--huge-max-old-generation-size`
+
+### `--jitless`
+
+### `--interpreted-frames-native-stack`
+
+### `--prof`
+
+### `--perf-basic-prof`
+
+### `--perf-basic-prof-only-functions`
+
+### `--perf-prof`
+
+### `--perf-prof-unwinding-info`
+
 ### `--max-old-space-size=SIZE` (in megabytes)
 
 Sets the max memory size of V8's old memory section. As memory
@@ -2962,6 +2992,19 @@ for MiB in 16 32 64 128; do
     node --max-semi-space-size=$MiB index.js
 done
 ```
+
+### `--security-revert`
+
+### `--stack-trace-limit=limit`
+
+The maximum number of stack frames to collect in an error's stack trace.
+Setting it to 0 disables stack trace collection. The default value is 10.
+
+```bash
+node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
+```
+
+<!-- v8-options end -->
 
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
