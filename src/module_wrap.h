@@ -58,6 +58,7 @@ class ModuleWrap : public BaseObject {
   }
 
   v8::Local<v8::Context> context() const;
+  v8::Maybe<bool> CheckUnsettledTopLevelAwait();
 
   SET_MEMORY_INFO_NAME(ModuleWrap)
   SET_SELF_SIZE(ModuleWrap)
