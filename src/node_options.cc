@@ -420,7 +420,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "experimental WebSocket API",
             &EnvironmentOptions::experimental_websocket,
             kAllowedInEnvvar,
-            true);
+            false);
   AddOption("--experimental-global-customevent",
             "expose experimental CustomEvent on the global scope",
             &EnvironmentOptions::experimental_global_customevent,
