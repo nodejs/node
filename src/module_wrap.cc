@@ -104,6 +104,44 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
   return nullptr;
 }
 
+v8::Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
+  Isolate* isolate = env()->isolate();
+  Local<Context> context = env()->context();
+
+  // This must be invoked when the environment is shutting down, and the module
+  // is kept alive by the module wrap via an internal field.
+  CHECK(env()->exiting());
+  CHECK(!module_.IsEmpty());
+
+  Local<Module> module = module_.Get(isolate);
+  // It's a synthetic module, likely a facade wrapping CJS.
+  if (!module->IsSourceTextModule()) {
+    return v8::Just(true);
+  }
+
+  if (!module->IsGraphAsync()) {  // There is no TLA, no need to check.
+    return v8::Just(true);
+  }
+  auto stalled = module->GetStalledTopLevelAwaitMessage(isolate);
+  if (stalled.size() == 0) {
+    return v8::Just(true);
+  }
+
+  if (env()->options()->warnings) {
+    for (auto pair : stalled) {
+      Local<v8::Message> message = std::get<1>(pair);
+
+      std::string reason = "Warning: Detected unsettled top-level await at ";
+      std::string info =
+          FormatErrorMessage(isolate, context, "", message, true);
+      reason += info;
+      FPrintF(stderr, "%s\n", reason);
+    }
+  }
+
+  return v8::Just(false);
+}
+
 // new ModuleWrap(url, context, source, lineOffset, columnOffset)
 // new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {

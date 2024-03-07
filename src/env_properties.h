@@ -24,6 +24,8 @@
   V(transfer_mode_private_symbol, "node:transfer_mode")                        \
   V(host_defined_option_symbol, "node:host_defined_option_symbol")             \
   V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
+  V(entry_point_module_private_symbol, "node:entry_point_module")              \
+  V(entry_point_promise_private_symbol, "node:entry_point_promise")            \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
