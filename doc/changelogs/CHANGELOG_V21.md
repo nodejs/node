@@ -61,7 +61,7 @@ const errorMessage = styleText('red', 'Error! Error!');
 console.log(errorMessage);
 ```
 
-Contributed by Rafael Gonzaga in [#51850](https://github.com/nodejs/node/pull/51850).
+Contributed by Rafael Gonzaga and Hemanth HM in [#51850](https://github.com/nodejs/node/pull/51850).
 
 ### Loading and parsing environment variables
 
