@@ -57,7 +57,6 @@ typedef struct napi_handle_scope__* napi_handle_scope;
 typedef struct napi_escapable_handle_scope__* napi_escapable_handle_scope;
 typedef struct napi_callback_info__* napi_callback_info;
 typedef struct napi_deferred__* napi_deferred;
-typedef struct napi_platform__* napi_platform;
 
 typedef enum {
   napi_default = 0,

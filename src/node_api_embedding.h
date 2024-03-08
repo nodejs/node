@@ -12,6 +12,8 @@
 #define EXTERN_C_END
 #endif
 
+typedef struct napi_platform__* napi_platform;
+
 EXTERN_C_START
 
 typedef void (*napi_error_message_handler)(const char* msg);
