@@ -878,7 +878,7 @@ NODE_EXTERN v8::Maybe<int> SpinEventLoopWithoutCleanup(Environment* env);
 //   3. If the event loop is alive again, go to Step 1.
 // 4. Call EmitProcessExit() and forward the return value.
 // If at any point node::Stop() is called, the function will attempt to return
-// as soon as possible, returning an empty `Maybe`. Ohterwise it will return
+// as soon as possible, returning an empty `Maybe`. Otherwise it will return
 // a reference to the exit value.
 // This function only works if `env` has an associated `MultiIsolatePlatform`.
 NODE_EXTERN v8::Maybe<int> SpinEventLoop(Environment* env);
