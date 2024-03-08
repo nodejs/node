@@ -1,14 +1,16 @@
 'use strict';
 
 const common = require('../common');
+const tmpdir = require('../common/tmpdir');
 const { strictEqual } = require('assert');
-const { tmpdir } = require('os');
 const { join } = require('path');
 const fs = require('fs');
 
 // Regression test for https://github.com/nodejs/node/issues/51993
 
-const file = join(tmpdir(), `test-fs-writestream-open-write-${process.pid}.txt`);
+tmpdir.refresh();
+
+const file = join(tmpdir.path, `test-fs-writestream-open-write.txt`);
 
 const w = fs.createWriteStream(file);
 
