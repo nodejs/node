@@ -3,14 +3,13 @@
 const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { strictEqual } = require('assert');
-const { join } = require('path');
 const fs = require('fs');
 
 // Regression test for https://github.com/nodejs/node/issues/51993
 
 tmpdir.refresh();
 
-const file = join(tmpdir.path, `test-fs-writestream-open-write.txt`);
+const file = tmpdir.resolve('test-fs-writestream-open-write.txt');
 
 const w = fs.createWriteStream(file);
 
