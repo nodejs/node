@@ -1,6 +1,6 @@
 #!/bin/sh
 set -e
-# Shell script to update histogram in the source tree to specific version
+# Shell script to update gyp-next in the source tree to specific version
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 
