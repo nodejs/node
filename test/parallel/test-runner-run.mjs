@@ -513,3 +513,21 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     for await (const _ of stream);
   });
 });
+
+describe('forceExit', () => {
+  it('throws for non-boolean values', () => {
+    [Symbol(), {}, 0, 1, '1', Promise.resolve([])].forEach((forceExit) => {
+      assert.throws(() => run({ forceExit }), {
+        code: 'ERR_INVALID_ARG_TYPE',
+        message: /The "options\.forceExit" property must be of type boolean\./
+      });
+    });
+  });
+
+  it('throws if enabled with watch mode', () => {
+    assert.throws(() => run({ forceExit: true, watch: true }), {
+      code: 'ERR_INVALID_ARG_VALUE',
+      message: /The property 'options\.forceExit' is not supported with watch mode\./
+    });
+  });
+});

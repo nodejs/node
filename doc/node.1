@@ -422,6 +422,10 @@ Starts the Node.js command line test runner.
 The maximum number of test files that the test runner CLI will execute
 concurrently.
 .
+.It Fl -test-force-exit
+Configures the test runner to exit the process once all known tests have
+finished executing even if the event loop would otherwise remain active.
+.
 .It Fl -test-name-pattern
 A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern.
