@@ -1117,13 +1117,13 @@ changes:
     [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Object} contextified object.
 
-If given a `contextObject`, the `vm.createContext()` method will [prepare
-that object][contextified] so that it can be used in calls to
-[`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
-the `contextObject` will be the global object, retaining all of its existing
-properties but also having the built-in objects and functions any standard
-[global object][] has. Outside of scripts run by the vm module, global variables
-will remain unchanged.
+If given a `contextObject`, the `vm.createContext()` method will [prepare that
+object][contextified] and return a reference to it so that it can be used in
+calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such
+scripts, the `contextObject` will be the global object, retaining all of its
+existing properties but also having the built-in objects and functions any
+standard [global object][] has. Outside of scripts run by the vm module, global
+variables will remain unchanged.
 
 ```js
 const vm = require('node:vm');
