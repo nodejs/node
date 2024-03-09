@@ -112,6 +112,7 @@ const tests = [
   { name: 'test-runner/output/output_cli.js' },
   { name: 'test-runner/output/name_pattern.js' },
   { name: 'test-runner/output/name_pattern_with_only.js' },
+  { name: 'test-runner/output/unfinished-suite-async-error.js' },
   { name: 'test-runner/output/unresolved_promise.js' },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
   { name: 'test-runner/output/arbitrary-output.js' },
