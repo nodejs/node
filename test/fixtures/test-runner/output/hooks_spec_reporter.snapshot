@@ -9,6 +9,7 @@
 
  describe hooks (*ms)
 
+ describe hooks - no subtests (*ms)
  before throws
    1
     'test did not finish before its parent and was cancelled'
@@ -29,11 +30,35 @@
       *
       *
 
+ before throws - no subtests (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
  after throws
    1 (*ms)
    2 (*ms)
  after throws (*ms)
 
+  Error: after
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+ after throws - no subtests (*ms)
   Error: after
       *
       *
@@ -155,6 +180,7 @@
 
  test hooks (*ms)
 
+ test hooks - no subtests (*ms)
  t.before throws
    1 (*ms)
     Error: before
@@ -183,6 +209,61 @@
         *
 
  t.before throws (*ms)
+
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+ t.before throws - no subtests (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+ t.after throws
+   1 (*ms)
+   2 (*ms)
+ t.after throws (*ms)
+
+  Error: after
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+ t.after throws - no subtests (*ms)
+  Error: after
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
 
  t.beforeEach throws
    1 (*ms)
@@ -329,10 +410,10 @@
  before 2 called
  after 1 called
  after 2 called
- tests 43
- suites 9
- pass 16
- fail 24
+ tests 49
+ suites 12
+ pass 19
+ fail 27
  cancelled 3
  skipped 0
  todo 0
@@ -362,7 +443,33 @@
       *
 
 *
+ before throws - no subtests (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
  after throws (*ms)
+  Error: after
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
+ after throws - no subtests (*ms)
   Error: after
       *
       *
@@ -485,6 +592,62 @@
 *
  2 (*ms)
   Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
+ t.before throws (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
+ t.before throws - no subtests (*ms)
+  Error: before
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
+ t.after throws (*ms)
+  Error: after
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+
+*
+ t.after throws - no subtests (*ms)
+  Error: after
       *
       *
       *
