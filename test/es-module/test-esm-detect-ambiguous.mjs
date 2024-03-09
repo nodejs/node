@@ -234,6 +234,47 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       });
     }
   });
+
+  // https://github.com/nodejs/node/issues/50917
+  describe('syntax that errors in CommonJS but works in ESM', { concurrency: true }, () => {
+    it('permits top-level `await`', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'await Promise.resolve(); console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('still throws on `await` in an ordinary sync function', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'function fn() { await Promise.resolve(); } fn();',
+      ]);
+
+      match(stderr, /SyntaxError: await is only valid in async function/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+
+    it('permits declaration of CommonJS module variables', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        fixtures.path('es-modules/package-without-type/commonjs-wrapper-variables.js'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'exports require module __filename __dirname\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+  });
 });
 
 // Validate temporarily disabling `--abort-on-uncaught-exception`
