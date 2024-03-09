@@ -1,0 +1,28 @@
+TAP version 13
+# Subtest: callback test that times out
+not ok 1 - callback test that times out
+  ---
+  duration_ms: *
+  location: '/test/fixtures/test-runner/output/timeout_ref.js:(LINE):1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 1ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: promise test that times out
+not ok 2 - promise test that times out
+  ---
+  duration_ms: *
+  location: '/test/fixtures/test-runner/output/timeout_ref.js:(LINE):1'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 1ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 0
+# fail 0
+# cancelled 2
+# skipped 0
+# todo 0
+# duration_ms *
