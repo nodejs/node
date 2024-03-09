@@ -494,10 +494,9 @@ not ok 50 - custom inspect symbol that throws fail
         *
         *
         *
-        *
-        *
-        *
         async Promise.all (index 0)
+        *
+        *
       ...
     1..2
 not ok 51 - subtest sync throw fails
@@ -627,7 +626,6 @@ not ok 54 - timeouts
       error: 'custom error'
       code: 'ERR_TEST_FAILURE'
       stack: |-
-        *
         *
       ...
     1..2
