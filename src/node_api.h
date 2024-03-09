@@ -209,7 +209,7 @@ napi_create_threadsafe_function(napi_env env,
                                 size_t max_queue_size,
                                 size_t initial_thread_count,
                                 void* thread_finalize_data,
-                                node_api_nogc_finalize thread_finalize_cb,
+                                napi_finalize thread_finalize_cb,
                                 void* context,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result);
