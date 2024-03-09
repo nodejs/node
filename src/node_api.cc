@@ -1319,12 +1319,10 @@ napi_create_threadsafe_function(napi_env env,
                                 size_t max_queue_size,
                                 size_t initial_thread_count,
                                 void* thread_finalize_data,
-                                node_api_nogc_finalize nogc_thread_finalize_cb,
+                                napi_finalize thread_finalize_cb,
                                 void* context,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
-  napi_finalize thread_finalize_cb =
-      reinterpret_cast<napi_finalize>(nogc_thread_finalize_cb);
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);
