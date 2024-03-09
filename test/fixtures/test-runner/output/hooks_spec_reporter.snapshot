@@ -7,6 +7,11 @@
      nested 2 (*ms)
    nested (*ms)
 
+   nested 2
+     nested 2.1 (*ms)
+     nested 2.2 (*ms)
+   nested 2 (*ms)
+
  describe hooks (*ms)
 
  before throws
@@ -99,6 +104,50 @@
         *
 
  afterEach throws (*ms)
+
+ beforeEachSuit throws
+   suite
+     1
+      'test did not finish before its parent and was cancelled'
+
+     2
+      'test did not finish before its parent and was cancelled'
+
+   suite (*ms)
+
+    Error: beforeEachSuit
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        at async Promise.all (index 0)
+        *
+        *
+
+ beforeEachSuit throws (*ms)
+
+ afterEachSuit throws
+   suite
+     1 (*ms)
+     2 (*ms)
+   suite (*ms)
+
+    Error: afterEachSuit
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        *
+        at async Promise.all (index 0)
+        *
+
+ afterEachSuit throws (*ms)
 
  afterEach when test fails
    1 (*ms)
@@ -329,11 +378,11 @@
  before 2 called
  after 1 called
  after 2 called
- tests 43
- suites 9
- pass 16
+ tests 49
+ suites 14
+ pass 20
  fail 24
- cancelled 3
+ cancelled 5
  skipped 0
  todo 0
  duration_ms *
@@ -425,6 +474,42 @@
       *
       *
       *
+      *
+
+*
+ 1
+  'test did not finish before its parent and was cancelled'
+
+*
+ 2
+  'test did not finish before its parent and was cancelled'
+
+*
+ suite (*ms)
+  Error: beforeEachSuit
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      at async Promise.all (index 0)
+      *
+      *
+
+*
+ suite (*ms)
+  Error: afterEachSuit
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      *
+      at async Promise.all (index 0)
       *
 
 *

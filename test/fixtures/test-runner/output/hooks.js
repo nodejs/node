@@ -1,7 +1,7 @@
 'use strict';
 const common = require('../../../common');
 const assert = require('assert');
-const { test, describe, it, before, after, beforeEach, afterEach } = require('node:test');
+const { test, describe, it, before, after, beforeEach, afterEach, beforeEachSuite, afterEachSuite } = require('node:test');
 
 before((t) => t.diagnostic('before 1 called'));
 after((t) => t.diagnostic('after 1 called'));
@@ -17,10 +17,20 @@ describe('describe hooks', () => {
       'before describe hooks',
       'beforeEach 1', '1', 'afterEach 1',
       'beforeEach 2', '2', 'afterEach 2',
+      'beforeEachSuite describe hooks',
       'before nested',
       'beforeEach nested 1', '+beforeEach nested 1', 'nested 1', 'afterEach nested 1', '+afterEach nested 1',
       'beforeEach nested 2', '+beforeEach nested 2', 'nested 2', 'afterEach nested 2', '+afterEach nested 2',
+      'afterEachSuite describe hooks',
       'after nested',
+      'beforeEachSuite describe hooks',
+      'beforeEach nested 2.1',
+      'nested 2.1',
+      'afterEach nested 2.1',
+      'beforeEach nested 2.2',
+      'nested 2.2',
+      'afterEach nested 2.2',
+      'afterEachSuite describe hooks',
       'after describe hooks',
     ]);
   });
@@ -30,6 +40,12 @@ describe('describe hooks', () => {
   afterEach(function() {
     testArr.push('afterEach ' + this.name);
   });
+  beforeEachSuite(function() {
+    testArr.push('beforeEachSuite ' + this.name);
+  })
+  afterEachSuite(function() {
+    testArr.push('afterEachSuite ' + this.name);
+  })
 
   it('1', () => testArr.push('1'));
   test('2', () => testArr.push('2'));
@@ -49,6 +65,11 @@ describe('describe hooks', () => {
     });
     it('nested 1', () => testArr.push('nested 1'));
     test('nested 2', () => testArr.push('nested 2'));
+  });
+
+  describe('nested 2', () => {
+    it('nested 2.1', () => testArr.push('nested 2.1'));
+    test('nested 2.2', () => testArr.push('nested 2.2'));
   });
 });
 
@@ -74,6 +95,22 @@ describe('afterEach throws', () => {
   afterEach(() => { throw new Error('afterEach'); });
   it('1', () => {});
   test('2', () => {});
+});
+
+describe('beforeEachSuit throws', () => {
+  beforeEachSuite(() => { throw new Error('beforeEachSuit'); });
+  describe("suite", () => {
+    it('1', () => {});
+    test('2', () => {});
+  })
+});
+
+describe('afterEachSuit throws', () => {
+  afterEachSuite(() => { throw new Error('afterEachSuit'); });
+  describe("suite", () => {
+    it('1', () => {});
+    test('2', () => {});
+  })
 });
 
 describe('afterEach when test fails', () => {
