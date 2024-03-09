@@ -95,6 +95,7 @@ const tests = [
   { name: 'test-runner/output/hooks_spec_reporter.js', transform: specTransform },
   { name: 'test-runner/output/timeout_in_before_each_should_not_affect_further_tests.js' },
   { name: 'test-runner/output/hooks-with-no-global-test.js' },
+  { name: 'test-runner/output/global-hooks-with-no-tests.js' },
   { name: 'test-runner/output/before-and-after-each-too-many-listeners.js' },
   { name: 'test-runner/output/before-and-after-each-with-timeout-too-many-listeners.js' },
   { name: 'test-runner/output/global_after_should_fail_the_test.js' },
