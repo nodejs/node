@@ -287,6 +287,19 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(code, 0);
       strictEqual(signal, null);
     });
+
+    it('permits declaration of CommonJS module variables above import/export', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'const module = 3; import "node:os"; console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
   });
 });
 
