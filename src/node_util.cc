@@ -148,9 +148,15 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<StackFrame> frame = trace->GetFrame(isolate, 1);
+  Local<Value> file = frame->GetScriptNameOrSourceURL();
+
+  if (file.IsEmpty()) {
+    return;
+  }
+
   Local<Value> ret[] = {Integer::New(isolate, frame->GetLineNumber()),
                         Integer::New(isolate, frame->GetColumn()),
-                        frame->GetScriptNameOrSourceURL()};
+                        file};
 
   args.GetReturnValue().Set(Array::New(args.GetIsolate(), ret, arraysize(ret)));
 }
