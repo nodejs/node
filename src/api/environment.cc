@@ -553,7 +553,9 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
 MaybeLocal<Value> LoadEnvironment(Environment* env,
                                   std::string_view main_script_source_utf8,
                                   EmbedderPreloadCallback preload) {
-  CHECK_NOT_NULL(main_script_source_utf8.data());
+  // It could be empty when it's used by SEA to load an empty script.
+  CHECK_IMPLIES(main_script_source_utf8.size() > 0,
+                main_script_source_utf8.data());
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
