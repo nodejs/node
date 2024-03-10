@@ -1541,9 +1541,28 @@ void ContextifyContext::ContainsModuleSyntax(
             true,
             id_symbol,
             second_parse_try_catch);
-        if (!second_parse_try_catch.HasCaught() &&
-            !second_parse_try_catch.HasTerminated()) {
-          should_retry_as_esm = true;
+        if (!second_parse_try_catch.HasTerminated()) {
+          if (second_parse_try_catch.HasCaught()) {
+            // If on the second parse an error is thrown by ESM syntax, then
+            // what happened was that the user had top-level `await` or a
+            // top-level declaration of one of the CommonJS module variables
+            // above the first `import` or `export`.
+            Utf8Value second_message_value(
+                env->isolate(), second_parse_try_catch.Message()->Get());
+            auto second_message = second_message_value.ToStringView();
+            for (const auto& error_message : esm_syntax_error_messages) {
+              if (second_message.find(error_message) !=
+                  std::string_view::npos) {
+                should_retry_as_esm = true;
+                break;
+              }
+            }
+          } else {
+            // No errors thrown in the second parse, so most likely the error
+            // was caused by a top-level `await` or a top-level declaration of
+            // one of the CommonJS module variables.
+            should_retry_as_esm = true;
+          }
         }
         break;
       }

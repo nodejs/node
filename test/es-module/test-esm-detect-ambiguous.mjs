@@ -250,6 +250,19 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(signal, null);
     });
 
+    it('permits top-level `await` above import/export syntax', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'await Promise.resolve(); import "node:os"; console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
     it('still throws on `await` in an ordinary sync function', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
