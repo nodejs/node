@@ -799,7 +799,7 @@ CommonJS. This includes the following:
 * `export` statements.
 * `import.meta` references.
 * `await` at the top level of a module.
-* `const` declarations of the CommonJS wrapper variables (`require`, `module`,
+* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
   `exports`, `__dirname`, `__filename`).
 
 ### `--experimental-import-meta-resolve`

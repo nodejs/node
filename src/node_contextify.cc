@@ -1510,38 +1510,31 @@ void ContextifyContext::ContainsModuleSyntax(
     if (!should_retry_as_esm) {
       for (const auto& error_message : throws_only_in_cjs_error_messages) {
         if (message.find(error_message) != std::string_view::npos) {
-          // Try parsing again where the user's code is wrapped within an async
-          // function. If the new parse succeeds, then the error was caused by
-          // either a top-level declaration of one of the CommonJS module
-          // variables, or a top-level `await`.
+          // Try parsing again where the CommonJS wrapper is replaced by an
+          // async function wrapper. If the new parse succeeds, then the error
+          // was caused by either a top-level declaration of one of the CommonJS
+          // module variables, or a top-level `await`.
           TryCatchScope second_parse_try_catch(env);
-          Local<String> wrapped_code =
+          code =
               String::Concat(isolate,
                              String::NewFromUtf8(isolate, "(async function() {")
                                  .ToLocalChecked(),
                              code);
-          wrapped_code = String::Concat(
+          code = String::Concat(
               isolate,
-              wrapped_code,
+              code,
               String::NewFromUtf8(isolate, "})();").ToLocalChecked());
-          ScriptCompiler::Source wrapped_source =
-              GetCommonJSSourceInstance(isolate,
-                                        wrapped_code,
-                                        filename,
-                                        0,
-                                        0,
-                                        host_defined_options,
-                                        nullptr);
-          ContextifyContext::CompileFunctionAndCacheResult(
-              env,
+          ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
+              isolate, code, filename, 0, 0, host_defined_options, nullptr);
+          std::ignore = ScriptCompiler::CompileFunction(
               context,
               &wrapped_source,
-              std::move(params),
-              std::vector<Local<Object>>(),
+              params.size(),
+              params.data(),
+              0,
+              nullptr,
               options,
-              true,
-              id_symbol,
-              second_parse_try_catch);
+              v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
           if (!second_parse_try_catch.HasTerminated()) {
             if (second_parse_try_catch.HasCaught()) {
               // If on the second parse an error is thrown by ESM syntax, then

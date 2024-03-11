@@ -276,6 +276,19 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(signal, null);
     });
 
+    it('throws on undefined `require` when top-level `await` triggers ESM parsing', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'const fs = require("node:fs"); await Promise.resolve();',
+      ]);
+
+      match(stderr, /ReferenceError: require is not defined in ES module scope/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+
     it('permits declaration of CommonJS module variables', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
         '--experimental-detect-module',
