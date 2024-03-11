@@ -1517,9 +1517,9 @@ void ContextifyContext::ContainsModuleSyntax(
           TryCatchScope second_parse_try_catch(env);
           Local<String> wrapped_code =
               String::Concat(isolate,
-                            String::NewFromUtf8(isolate, "(async function() {")
-                                .ToLocalChecked(),
-                            code);
+                             String::NewFromUtf8(isolate, "(async function() {")
+                                 .ToLocalChecked(),
+                             code);
           wrapped_code = String::Concat(
               isolate,
               wrapped_code,
