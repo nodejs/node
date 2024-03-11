@@ -300,6 +300,19 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       strictEqual(code, 0);
       strictEqual(signal, null);
     });
+
+    it('still throws on double `const` declaration not at the top level', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'function fn() { const require = 1; const require = 2; } fn();',
+      ]);
+
+      match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
   });
 });
 
