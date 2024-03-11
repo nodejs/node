@@ -1114,15 +1114,19 @@ over the IPC channel using `process.send()`.
 added:
   - v19.6.0
   - v18.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52039
+    description: Aligned return value with `uv_get_constrained_memory`.
 -->
 
 > Stability: 1 - Experimental
 
-* {number|undefined}
+* {number}
 
 Gets the amount of memory available to the process (in bytes) based on
 limits imposed by the OS. If there is no such constraint, or the constraint
-is unknown, `undefined` is returned.
+is unknown, `0` is returned.
 
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
 information.
