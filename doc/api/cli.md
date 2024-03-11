@@ -1501,6 +1501,16 @@ Instructs Node.js to error prior to running any code if the policy does not have
 the specified integrity. It expects a [Subresource Integrity][] string as a
 parameter.
 
+### `--policy-required`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Instructs Node.js to error prior to running any code if no policy is supplied.
+
 ### `--preserve-symlinks`
 
 <!-- YAML
@@ -2554,6 +2564,7 @@ Node.js options that are allowed are:
 * `--openssl-shared-config`
 * `--pending-deprecation`
 * `--policy-integrity`
+* `--policy-required`
 * `--preserve-symlinks-main`
 * `--preserve-symlinks`
 * `--prof-process`
