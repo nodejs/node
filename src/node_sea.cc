@@ -31,7 +31,6 @@ using node::ExitCode;
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::Context;
-using v8::DataView;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -219,6 +218,10 @@ bool SeaResource::use_snapshot() const {
   return static_cast<bool>(flags & SeaFlags::kUseSnapshot);
 }
 
+bool SeaResource::use_code_cache() const {
+  return static_cast<bool>(flags & SeaFlags::kUseCodeCache);
+}
+
 SeaResource FindSingleExecutableResource() {
   static const SeaResource sea_resource = []() -> SeaResource {
     std::string_view blob = FindSingleExecutableBlob();
@@ -256,35 +259,6 @@ void IsExperimentalSeaWarningNeeded(const FunctionCallbackInfo<Value>& args) {
   SeaResource sea_resource = FindSingleExecutableResource();
   args.GetReturnValue().Set(!static_cast<bool>(
       sea_resource.flags & SeaFlags::kDisableExperimentalSeaWarning));
-}
-
-void GetCodeCache(const FunctionCallbackInfo<Value>& args) {
-  if (!IsSingleExecutable()) {
-    return;
-  }
-
-  Isolate* isolate = args.GetIsolate();
-
-  SeaResource sea_resource = FindSingleExecutableResource();
-
-  if (!static_cast<bool>(sea_resource.flags & SeaFlags::kUseCodeCache)) {
-    return;
-  }
-
-  std::shared_ptr<BackingStore> backing_store = ArrayBuffer::NewBackingStore(
-      const_cast<void*>(
-          static_cast<const void*>(sea_resource.code_cache->data())),
-      sea_resource.code_cache->length(),
-      [](void* /* data */, size_t /* length */, void* /* deleter_data */) {
-        // The code cache data blob is not freed here because it is a static
-        // blob which is not allocated by the BackingStore allocator.
-      },
-      nullptr);
-  Local<ArrayBuffer> array_buffer = ArrayBuffer::New(isolate, backing_store);
-  Local<DataView> data_view =
-      DataView::New(array_buffer, 0, array_buffer->ByteLength());
-
-  args.GetReturnValue().Set(data_view);
 }
 
 void GetCodePath(const FunctionCallbackInfo<Value>& args) {
@@ -653,7 +627,6 @@ void Initialize(Local<Object> target,
             "isExperimentalSeaWarningNeeded",
             IsExperimentalSeaWarningNeeded);
   SetMethod(context, target, "getCodePath", GetCodePath);
-  SetMethod(context, target, "getCodeCache", GetCodeCache);
   SetMethod(context, target, "getAsset", GetAsset);
 }
 
@@ -661,7 +634,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(IsSea);
   registry->Register(IsExperimentalSeaWarningNeeded);
   registry->Register(GetCodePath);
-  registry->Register(GetCodeCache);
   registry->Register(GetAsset);
 }
 
