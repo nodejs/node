@@ -25,6 +25,7 @@ on:
           - eslint
           - github_reporter
           - googletest
+          - gyp-next
           - histogram
           - icu
           # - libuv
@@ -155,6 +156,14 @@ jobs:
             label: dependencies, test
             run: |
               ./tools/dep_updaters/update-googletest.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: gyp-next
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-gyp-next.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
