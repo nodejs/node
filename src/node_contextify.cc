@@ -1507,64 +1507,66 @@ void ContextifyContext::ContainsModuleSyntax(
       }
     }
 
-    for (const auto& error_message : throws_only_in_cjs_error_messages) {
-      if (message.find(error_message) != std::string_view::npos) {
-        // Try parsing again where the user's code is wrapped within an async
-        // function. If the new parse succeeds, then the error was caused by
-        // either a top-level declaration of one of the CommonJS module
-        // variables, or a top-level `await`.
-        TryCatchScope second_parse_try_catch(env);
-        Local<String> wrapped_code =
-            String::Concat(isolate,
-                           String::NewFromUtf8(isolate, "(async function() {")
-                               .ToLocalChecked(),
-                           code);
-        wrapped_code = String::Concat(
-            isolate,
-            wrapped_code,
-            String::NewFromUtf8(isolate, "})();").ToLocalChecked());
-        ScriptCompiler::Source wrapped_source =
-            GetCommonJSSourceInstance(isolate,
-                                      wrapped_code,
-                                      filename,
-                                      0,
-                                      0,
-                                      host_defined_options,
-                                      nullptr);
-        ContextifyContext::CompileFunctionAndCacheResult(
-            env,
-            context,
-            &wrapped_source,
-            std::move(params),
-            std::vector<Local<Object>>(),
-            options,
-            true,
-            id_symbol,
-            second_parse_try_catch);
-        if (!second_parse_try_catch.HasTerminated()) {
-          if (second_parse_try_catch.HasCaught()) {
-            // If on the second parse an error is thrown by ESM syntax, then
-            // what happened was that the user had top-level `await` or a
-            // top-level declaration of one of the CommonJS module variables
-            // above the first `import` or `export`.
-            Utf8Value second_message_value(
-                env->isolate(), second_parse_try_catch.Message()->Get());
-            auto second_message = second_message_value.ToStringView();
-            for (const auto& error_message : esm_syntax_error_messages) {
-              if (second_message.find(error_message) !=
-                  std::string_view::npos) {
-                should_retry_as_esm = true;
-                break;
+    if (!should_retry_as_esm) {
+      for (const auto& error_message : throws_only_in_cjs_error_messages) {
+        if (message.find(error_message) != std::string_view::npos) {
+          // Try parsing again where the user's code is wrapped within an async
+          // function. If the new parse succeeds, then the error was caused by
+          // either a top-level declaration of one of the CommonJS module
+          // variables, or a top-level `await`.
+          TryCatchScope second_parse_try_catch(env);
+          Local<String> wrapped_code =
+              String::Concat(isolate,
+                            String::NewFromUtf8(isolate, "(async function() {")
+                                .ToLocalChecked(),
+                            code);
+          wrapped_code = String::Concat(
+              isolate,
+              wrapped_code,
+              String::NewFromUtf8(isolate, "})();").ToLocalChecked());
+          ScriptCompiler::Source wrapped_source =
+              GetCommonJSSourceInstance(isolate,
+                                        wrapped_code,
+                                        filename,
+                                        0,
+                                        0,
+                                        host_defined_options,
+                                        nullptr);
+          ContextifyContext::CompileFunctionAndCacheResult(
+              env,
+              context,
+              &wrapped_source,
+              std::move(params),
+              std::vector<Local<Object>>(),
+              options,
+              true,
+              id_symbol,
+              second_parse_try_catch);
+          if (!second_parse_try_catch.HasTerminated()) {
+            if (second_parse_try_catch.HasCaught()) {
+              // If on the second parse an error is thrown by ESM syntax, then
+              // what happened was that the user had top-level `await` or a
+              // top-level declaration of one of the CommonJS module variables
+              // above the first `import` or `export`.
+              Utf8Value second_message_value(
+                  env->isolate(), second_parse_try_catch.Message()->Get());
+              auto second_message = second_message_value.ToStringView();
+              for (const auto& error_message : esm_syntax_error_messages) {
+                if (second_message.find(error_message) !=
+                    std::string_view::npos) {
+                  should_retry_as_esm = true;
+                  break;
+                }
               }
+            } else {
+              // No errors thrown in the second parse, so most likely the error
+              // was caused by a top-level `await` or a top-level declaration of
+              // one of the CommonJS module variables.
+              should_retry_as_esm = true;
             }
-          } else {
-            // No errors thrown in the second parse, so most likely the error
-            // was caused by a top-level `await` or a top-level declaration of
-            // one of the CommonJS module variables.
-            should_retry_as_esm = true;
           }
+          break;
         }
-        break;
       }
     }
   }
