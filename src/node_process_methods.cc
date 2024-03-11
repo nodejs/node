@@ -211,9 +211,7 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
   uint64_t value = uv_get_constrained_memory();
-  if (value != 0) {
-    args.GetReturnValue().Set(static_cast<double>(value));
-  }
+  args.GetReturnValue().Set(static_cast<double>(value));
 }
 
 static void GetAvailableMemory(const FunctionCallbackInfo<Value>& args) {
