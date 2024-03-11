@@ -279,6 +279,61 @@ static Local<Object> createImportAttributesContainer(
   return attributes;
 }
 
+void ModuleWrap::GetModuleRequestsSync(
+    const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+
+  Local<Object> that = args.This();
+
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, that);
+
+  CHECK(!obj->linked_);
+
+  Local<Module> module = obj->module_.Get(isolate);
+  Local<FixedArray> module_requests = module->GetModuleRequests();
+  const int module_requests_length = module_requests->Length();
+
+  std::vector<Local<Value>> requests;
+  requests.reserve(module_requests_length);
+  // call the dependency resolve callbacks
+  for (int i = 0; i < module_requests_length; i++) {
+    Local<ModuleRequest> module_request =
+        module_requests->Get(realm->context(), i).As<ModuleRequest>();
+    Local<FixedArray> raw_attributes = module_request->GetImportAssertions();
+    std::vector<Local<Value>> request = {
+        module_request->GetSpecifier(),
+        createImportAttributesContainer(realm, isolate, raw_attributes, 3),
+    };
+    requests.push_back(Array::New(isolate, request.data(), request.size()));
+  }
+
+  args.GetReturnValue().Set(
+      Array::New(isolate, requests.data(), requests.size()));
+}
+
+void ModuleWrap::CacheResolvedWrapsSync(
+    const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+
+  CHECK_EQ(args.Length(), 3);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsPromise());
+  CHECK(args[2]->IsBoolean());
+
+  ModuleWrap* dependent;
+  ASSIGN_OR_RETURN_UNWRAP(&dependent, args.This());
+
+  Utf8Value specifier(isolate, args[0]);
+  dependent->resolve_cache_[specifier.ToString()].Reset(isolate,
+                                                        args[1].As<Promise>());
+
+  if (args[2].As<v8::Boolean>()->Value()) {
+    dependent->linked_ = true;
+  }
+}
+
 void ModuleWrap::Link(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -442,6 +497,129 @@ void ModuleWrap::Evaluate(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(result.ToLocalChecked());
+}
+
+void ModuleWrap::InstantiateSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Context> context = obj->context();
+  Local<Module> module = obj->module_.Get(isolate);
+  Environment* env = realm->env();
+
+  {
+    TryCatchScope try_catch(env);
+    USE(module->InstantiateModule(context, ResolveModuleCallback));
+
+    // clear resolve cache on instantiate
+    obj->resolve_cache_.clear();
+
+    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+      CHECK(!try_catch.Message().IsEmpty());
+      CHECK(!try_catch.Exception().IsEmpty());
+      AppendExceptionLine(env,
+                          try_catch.Exception(),
+                          try_catch.Message(),
+                          ErrorHandlingMode::MODULE_ERROR);
+      try_catch.ReThrow();
+      return;
+    }
+  }
+
+  // If --experimental-print-required-tla is true, proceeds to evaluation even
+  // if it's async because we want to search for the TLA and help users locate
+  // them.
+  if (module->IsGraphAsync() && !env->options()->print_required_tla) {
+    THROW_ERR_REQUIRE_ASYNC_MODULE(env);
+    return;
+  }
+}
+
+void ModuleWrap::EvaluateSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Context> context = obj->context();
+  Local<Module> module = obj->module_.Get(isolate);
+  Environment* env = realm->env();
+
+  Local<Value> result;
+  {
+    TryCatchScope try_catch(env);
+    if (!module->Evaluate(context).ToLocal(&result)) {
+      if (try_catch.HasCaught()) {
+        if (!try_catch.HasTerminated()) {
+          try_catch.ReThrow();
+        }
+        return;
+      }
+    }
+  }
+
+  CHECK(result->IsPromise());
+  Local<Promise> promise = result.As<Promise>();
+  if (promise->State() == Promise::PromiseState::kRejected) {
+    Local<Value> exception = promise->Result();
+    Local<v8::Message> message =
+        v8::Exception::CreateMessage(isolate, exception);
+    AppendExceptionLine(
+        env, exception, message, ErrorHandlingMode::MODULE_ERROR);
+    isolate->ThrowException(exception);
+    return;
+  }
+
+  if (module->IsGraphAsync()) {
+    CHECK(env->options()->print_required_tla);
+    auto stalled = module->GetStalledTopLevelAwaitMessage(isolate);
+    if (stalled.size() != 0) {
+      for (auto pair : stalled) {
+        Local<v8::Message> message = std::get<1>(pair);
+
+        std::string reason = "Error: unexpected top-level await at ";
+        std::string info =
+            FormatErrorMessage(isolate, context, "", message, true);
+        reason += info;
+        FPrintF(stderr, "%s\n", reason);
+      }
+    }
+    THROW_ERR_REQUIRE_ASYNC_MODULE(env);
+    return;
+  }
+
+  CHECK_EQ(promise->State(), Promise::PromiseState::kFulfilled);
+
+  args.GetReturnValue().Set(module->GetModuleNamespace());
+}
+
+void ModuleWrap::GetNamespaceSync(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+  Isolate* isolate = args.GetIsolate();
+  ModuleWrap* obj;
+  ASSIGN_OR_RETURN_UNWRAP(&obj, args.This());
+  Local<Module> module = obj->module_.Get(isolate);
+
+  switch (module->GetStatus()) {
+    case v8::Module::Status::kUninstantiated:
+    case v8::Module::Status::kInstantiating:
+      return realm->env()->ThrowError(
+          "cannot get namespace, module has not been instantiated");
+    case v8::Module::Status::kEvaluating:
+      return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env());
+    case v8::Module::Status::kInstantiated:
+    case v8::Module::Status::kEvaluated:
+    case v8::Module::Status::kErrored:
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (module->IsGraphAsync()) {
+    return THROW_ERR_REQUIRE_ASYNC_MODULE(realm->env());
+  }
+  Local<Value> result = module->GetModuleNamespace();
+  args.GetReturnValue().Set(result);
 }
 
 void ModuleWrap::GetNamespace(const FunctionCallbackInfo<Value>& args) {
@@ -776,6 +954,12 @@ void ModuleWrap::CreatePerIsolateProperties(IsolateData* isolate_data,
       ModuleWrap::kInternalFieldCount);
 
   SetProtoMethod(isolate, tpl, "link", Link);
+  SetProtoMethod(isolate, tpl, "getModuleRequestsSync", GetModuleRequestsSync);
+  SetProtoMethod(
+      isolate, tpl, "cacheResolvedWrapsSync", CacheResolvedWrapsSync);
+  SetProtoMethod(isolate, tpl, "instantiateSync", InstantiateSync);
+  SetProtoMethod(isolate, tpl, "evaluateSync", EvaluateSync);
+  SetProtoMethod(isolate, tpl, "getNamespaceSync", GetNamespaceSync);
   SetProtoMethod(isolate, tpl, "instantiate", Instantiate);
   SetProtoMethod(isolate, tpl, "evaluate", Evaluate);
   SetProtoMethod(isolate, tpl, "setExport", SetSyntheticExport);
@@ -827,6 +1011,11 @@ void ModuleWrap::RegisterExternalReferences(
   registry->Register(New);
 
   registry->Register(Link);
+  registry->Register(GetModuleRequestsSync);
+  registry->Register(CacheResolvedWrapsSync);
+  registry->Register(InstantiateSync);
+  registry->Register(EvaluateSync);
+  registry->Register(GetNamespaceSync);
   registry->Register(Instantiate);
   registry->Register(Evaluate);
   registry->Register(SetSyntheticExport);
