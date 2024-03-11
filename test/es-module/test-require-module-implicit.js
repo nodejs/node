@@ -8,11 +8,12 @@ const assert = require('assert');
 
 common.expectWarning(
   'Warning',
-  'To load an ES module:\n' +
-  '- Either the nearest package.json should set "type":"module", ' +
-  'or the module should use the .mjs extension.\n' +
-  '- If it\'s loaded using require(), use --experimental-require-module'
+  'The module being require()d looks like an ES module, but it is ' +
+  'not explicitly marked with "type": "module" in the package.json ' +
+  'or with a .mjs extention. To enable automatic detection of module ' +
+  'syntax in require(), use --experimental-require-module-with-detection.'
 );
+
 common.expectWarning(
   'ExperimentalWarning',
   'Support for loading ES Module in require() is an experimental feature ' +

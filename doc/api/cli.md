@@ -883,6 +883,19 @@ Supports loading a synchronous ES module graph in `require()`.
 
 See [Loading ECMAScript modules using `require()`][].
 
+### `--experimental-require-module-with-detection`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Developement
+
+In addition to what `--experimental-require-module` supports, when the module
+being `require()`'d is not explicitly marked as an ES Module using the
+`"type": "module"` field in `package.json` or the `.mjs` extension, it will
+try to detect module type based on the syntax of the module.
+
 ### `--experimental-sea-config`
 
 <!-- YAML
@@ -2537,6 +2550,7 @@ Node.js options that are allowed are:
 * `--experimental-permission`
 * `--experimental-policy`
 * `--experimental-print-required-tla`
+* `--experimental-require-module-with-detection`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`

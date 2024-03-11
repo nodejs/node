@@ -107,6 +107,7 @@ class EnvironmentOptions : public Options {
   bool detect_module = false;
   bool print_required_tla = false;
   bool require_module = false;
+  bool require_module_with_detection = false;
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;

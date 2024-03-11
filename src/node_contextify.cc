@@ -1510,6 +1510,13 @@ const char* require_esm_warning =
     "or the module should use the .mjs extension.\n"
     "- If it's loaded using require(), use --experimental-require-module";
 
+static bool warned_about_require_esm_detection = false;
+const char* require_esm_warning_without_detection =
+    "The module being require()d looks like an ES module, but it is not "
+    "explicitly marked with \"type\": \"module\" in the package.json or "
+    "with a .mjs extention. To enable automatic detection of module syntax "
+    "in require(), use --experimental-require-module-with-detection.";
+
 static void CompileFunctionForCJSLoader(
     const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
@@ -1553,6 +1560,7 @@ static void CompileFunctionForCJSLoader(
 
   std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
 
+  bool retry_as_esm = false;
   Local<Function> fn;
 
   {
@@ -1597,13 +1605,29 @@ static void CompileFunctionForCJSLoader(
           return;
         }
 
-        if (!warned_about_require_esm) {
-          USE(ProcessEmitWarningSync(env, require_esm_warning));
-          warned_about_require_esm = true;
+        if (!env->options()->require_module) {
+          if (!warned_about_require_esm) {
+            USE(ProcessEmitWarningSync(env, require_esm_warning));
+            warned_about_require_esm = true;
+          }
+          errors::DecorateErrorStack(env, try_catch);
+          try_catch.ReThrow();
+          return;
         }
-        errors::DecorateErrorStack(env, try_catch);
-        try_catch.ReThrow();
-        return;
+
+        if (!env->options()->require_module_with_detection) {
+          if (!warned_about_require_esm_detection) {
+            USE(ProcessEmitWarningSync(env,
+                                       require_esm_warning_without_detection));
+            warned_about_require_esm_detection = true;
+          }
+          errors::DecorateErrorStack(env, try_catch);
+          try_catch.ReThrow();
+          return;
+        }
+
+        // The file being compiled is likely ESM.
+        retry_as_esm = true;
       }
     }
   }
@@ -1623,11 +1647,14 @@ static void CompileFunctionForCJSLoader(
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
       env->function_string(),
+      FIXED_ONE_BYTE_STRING(isolate, "retryAsESM"),
   };
   std::vector<Local<Value>> values = {
       Boolean::New(isolate, cache_rejected),
-      fn->GetScriptOrigin().SourceMapUrl(),
-      fn.As<Value>(),
+      retry_as_esm ? v8::Undefined(isolate).As<Value>()
+                   : fn->GetScriptOrigin().SourceMapUrl(),
+      retry_as_esm ? v8::Undefined(isolate).As<Value>() : fn.As<Value>(),
+      Boolean::New(isolate, retry_as_esm),
   };
   Local<Object> result = Object::New(
       isolate, v8::Null(isolate), names.data(), values.data(), names.size());

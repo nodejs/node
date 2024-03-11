@@ -363,6 +363,14 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "Allow loading explicit ES Modules in require().",
             &EnvironmentOptions::require_module,
             kAllowedInEnvvar);
+  AddOption("--experimental-require-module-with-detection",
+            "Allow loading ES Modules with syntax-based detection of module "
+            "types for implicit ES modules in require().",
+            &EnvironmentOptions::require_module_with_detection,
+            kAllowedInEnvvar);
+  Implies("--experimental-require-module-with-detection",
+          "--experimental-require-module");
+
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",
