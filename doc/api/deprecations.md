@@ -3563,12 +3563,15 @@ release lines. Please use [`dirent.parentPath`][] instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51880
+    description: Runtime deprecation.
   - version: v21.5.0
     pr-url: https://github.com/nodejs/node/pull/51077
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling `Hash` class directly with `Hash()` or `new Hash()` is
 deprecated due to being internals, not intended for public use.
