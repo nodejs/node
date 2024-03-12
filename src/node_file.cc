@@ -2598,8 +2598,10 @@ static void FChown(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 3);
 
-  CHECK(args[0]->IsInt32());
-  const int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
 
   CHECK(IsSafeJsInt(args[1]));
   const uv_uid_t uid = static_cast<uv_uid_t>(args[1].As<Integer>()->Value());
