@@ -845,7 +845,7 @@ releases on a rotation basis as outlined in the
 * Datadog
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-* NearForm
+* NodeSource
   * [RafaelGSS](https://github.com/RafaelGSS) -
     **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * NodeSource
