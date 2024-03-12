@@ -1468,6 +1468,10 @@ subprocess.ref();
 <!-- YAML
 added: v0.5.9
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52061
+    description: support `keepOpen` options for TCP/UDP Socket
+                 and net Server.
   - version: v5.8.0
     pr-url: https://github.com/nodejs/node/pull/5283
     description: The `options` parameter, and the `keepOpen` option
@@ -1486,8 +1490,12 @@ changes:
   parameterize the sending of certain types of handles. `options` supports
   the following properties:
   * `keepOpen` {boolean} A value that can be used when passing instances of
-    `net.Socket`. When `true`, the socket is kept open in the sending process.
-    **Default:** `false`.
+    [`net.Server`][], [`net.Socket`][] and [`dgram.Socket`][].
+    When `true`, the socket is kept open in the sending process.
+    When `false`, the socket will be closed in the sending process when the
+    worker process receives it.
+    The default value of [`net.Server`][] and [`dgram.Socket`][] is `true`,
+    The default value of [`net.Socket`][] is `false`.
 * `callback` {Function}
 * Returns: {boolean}
 
@@ -1872,6 +1880,7 @@ or [`child_process.fork()`][].
 [`child_process.fork()`]: #child_processforkmodulepath-args-options
 [`child_process.spawn()`]: #child_processspawncommand-args-options
 [`child_process.spawnSync()`]: #child_processspawnsynccommand-args-options
+[`dgram.Socket`]: dgram.md#class-dgramsocket
 [`maxBuffer` and Unicode]: #maxbuffer-and-unicode
 [`net.Server`]: net.md#class-netserver
 [`net.Socket`]: net.md#class-netsocket
