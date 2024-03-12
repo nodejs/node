@@ -981,8 +981,10 @@ void Close(const FunctionCallbackInfo<Value>& args) {
   const int argc = args.Length();
   CHECK_GE(argc, 1);
 
-  CHECK(args[0]->IsInt32());
-  int fd = args[0].As<Int32>()->Value();
+  int fd;
+  if (!GetValidatedFd(env, args[0]).To(&fd)) {
+    return;
+  }
   env->RemoveUnmanagedFd(fd);
 
   if (argc > 1) {  // close(fd, req)
