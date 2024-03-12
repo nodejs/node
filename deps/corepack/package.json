@@ -1,6 +1,6 @@
 {
   "name": "corepack",
-  "version": "0.25.2",
+  "version": "0.26.0",
   "homepage": "https://github.com/nodejs/corepack#readme",
   "bugs": {
     "url": "https://github.com/nodejs/corepack/issues"
@@ -35,6 +35,7 @@
     "@yarnpkg/fslib": "^3.0.0-rc.48",
     "@zkochan/cmd-shim": "^6.0.0",
     "babel-plugin-dynamic-import-node": "^2.3.3",
+    "better-sqlite3": "^9.4.1",
     "clipanion": "^3.0.1",
     "debug": "^4.1.1",
     "esbuild": "0.19.5",
@@ -46,7 +47,7 @@
     "supports-color": "^9.0.0",
     "tar": "^6.0.1",
     "ts-node": "^10.0.0",
-    "typescript": "^5.0.4",
+    "typescript": "^5.3.3",
     "undici": "^6.6.1",
     "v8-compile-cache": "^2.3.0",
     "which": "^4.0.0"
