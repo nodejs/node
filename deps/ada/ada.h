@@ -1,4 +1,4 @@
-/* auto-generated on 2024-01-29 13:13:24 -0500. Do not edit! */
+/* auto-generated on 2024-03-07 13:23:39 -0500. Do not edit! */
 /* begin file include/ada.h */
 /**
  * @file ada.h
@@ -482,6 +482,9 @@ namespace ada {
 #include <cstdint>
 
 /**
+ * These functions are not part of our public API and may
+ * change at any time.
+ * @private
  * @namespace ada::character_sets
  * @brief Includes the definitions for unicode character sets.
  */
@@ -492,6 +495,11 @@ ada_really_inline bool bit_at(const uint8_t a[], uint8_t i);
 #endif  // ADA_CHARACTER_SETS_H
 /* end file include/ada/character_sets.h */
 
+/**
+ * These functions are not part of our public API and may
+ * change at any time.
+ * @private
+ */
 namespace ada::character_sets {
 
 constexpr char hex[1024] =
@@ -936,7 +944,7 @@ constexpr uint8_t WWW_FORM_URLENCODED_PERCENT_ENCODE[32] = {
     // 20     21     22     23     24     25     26     27
     0x00 | 0x02 | 0x04 | 0x08 | 0x10 | 0x20 | 0x40 | 0x80,
     // 28     29     2A     2B     2C     2D     2E     2F
-    0x01 | 0x02 | 0x00 | 0x08 | 0x10 | 0x00 | 0x00 | 0x00,
+    0x01 | 0x02 | 0x00 | 0x08 | 0x10 | 0x00 | 0x00 | 0x80,
     // 30     31     32     33     34     35     36     37
     0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00 | 0x00,
     // 38     39     3A     3B     3C     3D     3E     3F
@@ -1540,6 +1548,9 @@ struct url_base {
 #include <optional>
 
 /**
+ * These functions are not part of our public API and may
+ * change at any time.
+ *
  * @private
  * @namespace ada::helpers
  * @brief Includes the definitions for helper functions
@@ -1702,6 +1713,7 @@ inline void inner_concat(std::string& buffer, T t, Args... args) {
 }
 
 /**
+ * @private
  * Concatenate the arguments and return a string.
  * @returns a string
  */
@@ -1713,6 +1725,7 @@ std::string concat(Args... args) {
 }
 
 /**
+ * @private
  * @return Number of leading zeroes.
  */
 inline int leading_zeroes(uint32_t input_num) noexcept {
@@ -1726,6 +1739,7 @@ inline int leading_zeroes(uint32_t input_num) noexcept {
 }
 
 /**
+ * @private
  * Counts the number of decimal digits necessary to represent x.
  * faster than std::to_string(x).size().
  * @return digit count
@@ -4434,12 +4448,17 @@ std::string ipv4(uint64_t address) noexcept;
 #include <optional>
 
 /**
+ * Unicode operations. These functions are not part of our public API and may
+ * change at any time.
+ *
+ * @private
  * @namespace ada::unicode
  * @brief Includes the definitions for unicode operations
  */
 namespace ada::unicode {
 
 /**
+ * @private
  * We receive a UTF-8 string representing a domain name.
  * If the string is percent encoded, we apply percent decoding.
  *
@@ -4483,11 +4502,13 @@ bool to_ascii(std::optional<std::string>& out, std::string_view plain,
               size_t first_percent);
 
 /**
+ * @private
  * @see https://www.unicode.org/reports/tr46/#ToUnicode
  */
 std::string to_unicode(std::string_view input);
 
 /**
+ * @private
  * Checks if the input has tab or newline characters.
  *
  * @attention The has_tabs_or_newline function is a bottleneck and it is simple
@@ -4497,12 +4518,14 @@ ada_really_inline bool has_tabs_or_newline(
     std::string_view user_input) noexcept;
 
 /**
+ * @private
  * Checks if the input is a forbidden host code point.
  * @see https://url.spec.whatwg.org/#forbidden-host-code-point
  */
 ada_really_inline constexpr bool is_forbidden_host_code_point(char c) noexcept;
 
 /**
+ * @private
  * Checks if the input contains a forbidden domain code point.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
@@ -4510,6 +4533,7 @@ ada_really_inline constexpr bool contains_forbidden_domain_code_point(
     const char* input, size_t length) noexcept;
 
 /**
+ * @private
  * Checks if the input contains a forbidden domain code point in which case
  * the first bit is set to 1. If the input contains an upper case ASCII letter,
  * then the second bit is set to 1.
@@ -4520,6 +4544,7 @@ contains_forbidden_domain_code_point_or_upper(const char* input,
                                               size_t length) noexcept;
 
 /**
+ * @private
  * Checks if the input is a forbidden domain code point.
  * @see https://url.spec.whatwg.org/#forbidden-domain-code-point
  */
@@ -4527,11 +4552,13 @@ ada_really_inline constexpr bool is_forbidden_domain_code_point(
     char c) noexcept;
 
 /**
+ * @private
  * Checks if the input is alphanumeric, '+', '-' or '.'
  */
 ada_really_inline constexpr bool is_alnum_plus(char c) noexcept;
 
 /**
+ * @private
  * @details An ASCII hex digit is an ASCII upper hex digit or ASCII lower hex
  * digit. An ASCII upper hex digit is an ASCII digit or a code point in the
  * range U+0041 (A) to U+0046 (F), inclusive. An ASCII lower hex digit is an
@@ -4540,6 +4567,7 @@ ada_really_inline constexpr bool is_alnum_plus(char c) noexcept;
 ada_really_inline constexpr bool is_ascii_hex_digit(char c) noexcept;
 
 /**
+ * @private
  * Checks if the input is a C0 control or space character.
  *
  * @details A C0 control or space is a C0 control or U+0020 SPACE.
@@ -4549,6 +4577,7 @@ ada_really_inline constexpr bool is_ascii_hex_digit(char c) noexcept;
 ada_really_inline constexpr bool is_c0_control_or_space(char c) noexcept;
 
 /**
+ * @private
  * Checks if the input is a ASCII tab or newline character.
  *
  * @details An ASCII tab or newline is U+0009 TAB, U+000A LF, or U+000D CR.
@@ -4556,6 +4585,7 @@ ada_really_inline constexpr bool is_c0_control_or_space(char c) noexcept;
 ada_really_inline constexpr bool is_ascii_tab_or_newline(char c) noexcept;
 
 /**
+ * @private
  * @details A double-dot path segment must be ".." or an ASCII case-insensitive
  * match for ".%2e", "%2e.", or "%2e%2e".
  */
@@ -4563,6 +4593,7 @@ ada_really_inline ada_constexpr bool is_double_dot_path_segment(
     std::string_view input) noexcept;
 
 /**
+ * @private
  * @details A single-dot path segment must be "." or an ASCII case-insensitive
  * match for "%2e".
  */
@@ -4570,17 +4601,20 @@ ada_really_inline constexpr bool is_single_dot_path_segment(
     std::string_view input) noexcept;
 
 /**
+ * @private
  * @details ipv4 character might contain 0-9 or a-f character ranges.
  */
 ada_really_inline constexpr bool is_lowercase_hex(char c) noexcept;
 
 /**
+ * @private
  * @details Convert hex to binary. Caller is responsible to ensure that
  * the parameter is an hexadecimal digit (0-9, A-F, a-f).
  */
 ada_really_inline unsigned constexpr convert_hex_to_binary(char c) noexcept;
 
 /**
+ * @private
  * first_percent should be  = input.find('%')
  *
  * @todo It would be faster as noexcept maybe, but it could be unsafe since.
@@ -4591,12 +4625,14 @@ ada_really_inline unsigned constexpr convert_hex_to_binary(char c) noexcept;
 std::string percent_decode(std::string_view input, size_t first_percent);
 
 /**
+ * @private
  * Returns a percent-encoding string whether percent encoding was needed or not.
  * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
  */
 std::string percent_encode(std::string_view input,
                            const uint8_t character_set[]);
 /**
+ * @private
  * Returns a percent-encoded string version of input, while starting the percent
  * encoding at the provided index.
  * @see https://github.com/nodejs/node/blob/main/src/node_url.cc#L226
@@ -4604,6 +4640,7 @@ std::string percent_encode(std::string_view input,
 std::string percent_encode(std::string_view input,
                            const uint8_t character_set[], size_t index);
 /**
+ * @private
  * Returns true if percent encoding was needed, in which case, we store
  * the percent-encoded content in 'out'. If the boolean 'append' is set to
  * true, the content is appended to 'out'.
@@ -4614,12 +4651,14 @@ template <bool append>
 bool percent_encode(std::string_view input, const uint8_t character_set[],
                     std::string& out);
 /**
+ * @private
  * Returns the index at which percent encoding should start, or (equivalently),
  * the length of the prefix that does not require percent encoding.
  */
 ada_really_inline size_t percent_encode_index(std::string_view input,
                                               const uint8_t character_set[]);
 /**
+ * @private
  * Lowers the string in-place, assuming that the content is ASCII.
  * Return true if the content was ASCII.
  */
@@ -4957,12 +4996,16 @@ inline std::ostream &operator<<(std::ostream &out, const ada::url &u);
 #include <cstring>
 
 /**
+ * These functions are not part of our public API and may
+ * change at any time.
+ * @private
  * @namespace ada::checkers
  * @brief Includes the definitions for validation functions
  */
 namespace ada::checkers {
 
 /**
+ * @private
  * Assuming that x is an ASCII letter, this function returns the lower case
  * equivalent.
  * @details More likely to be inlined by the compiler and constexpr.
@@ -4970,6 +5013,7 @@ namespace ada::checkers {
 constexpr char to_lower(char x) noexcept;
 
 /**
+ * @private
  * Returns true if the character is an ASCII letter. Equivalent to std::isalpha
  * but more likely to be inlined by the compiler.
  *
@@ -4978,6 +5022,7 @@ constexpr char to_lower(char x) noexcept;
 constexpr bool is_alpha(char x) noexcept;
 
 /**
+ * @private
  * Check whether a string starts with 0x or 0X. The function is only
  * safe if input.size() >=2.
  *
@@ -4985,17 +5030,20 @@ constexpr bool is_alpha(char x) noexcept;
  */
 inline bool has_hex_prefix_unsafe(std::string_view input);
 /**
+ * @private
  * Check whether a string starts with 0x or 0X.
  */
 inline bool has_hex_prefix(std::string_view input);
 
 /**
+ * @private
  * Check whether x is an ASCII digit. More likely to be inlined than
  * std::isdigit.
  */
 constexpr bool is_digit(char x) noexcept;
 
 /**
+ * @private
  * @details A string starts with a Windows drive letter if all of the following
  * are true:
  *
@@ -5009,6 +5057,7 @@ constexpr bool is_digit(char x) noexcept;
 inline constexpr bool is_windows_drive_letter(std::string_view input) noexcept;
 
 /**
+ * @private
  * @details A normalized Windows drive letter is a Windows drive letter of which
  * the second code point is U+003A (:).
  */
@@ -5016,12 +5065,14 @@ inline constexpr bool is_normalized_windows_drive_letter(
     std::string_view input) noexcept;
 
 /**
+ * @private
  * @warning Will be removed when Ada requires C++20.
  */
 ada_really_inline bool begins_with(std::string_view view,
                                    std::string_view prefix);
 
 /**
+ * @private
  * Returns true if an input is an ipv4 address. It is assumed that the string
  * does not contain uppercase ASCII characters (the input should have been
  * lowered cased before calling this function) and is not empty.
@@ -5029,6 +5080,7 @@ ada_really_inline bool begins_with(std::string_view view,
 ada_really_inline ada_constexpr bool is_ipv4(std::string_view view) noexcept;
 
 /**
+ * @private
  * Returns a bitset. If the first bit is set, then at least one character needs
  * percent encoding. If the second bit is set, a \\ is found. If the third bit
  * is set then we have a dot. If the fourth bit is set, then we have a percent
@@ -5038,6 +5090,7 @@ ada_really_inline constexpr uint8_t path_signature(
     std::string_view input) noexcept;
 
 /**
+ * @private
  * Returns true if the length of the domain name and its labels are according to
  * the specifications. The length of the domain must be 255 octets (253
  * characters not including the last 2 which are the empty label reserved at the
@@ -5751,6 +5804,10 @@ ada_really_inline size_t url::parse_port(std::string_view view,
 #include <algorithm>
 
 /**
+ * Unicode operations. These functions are not part of our public API and may
+ * change at any time.
+ *
+ * private
  * @namespace ada::unicode
  * @brief Includes the declarations for unicode operations
  */
@@ -7080,14 +7137,14 @@ url_search_params_entries_iter::next() {
 #ifndef ADA_ADA_VERSION_H
 #define ADA_ADA_VERSION_H
 
-#define ADA_VERSION "2.7.6"
+#define ADA_VERSION "2.7.7"
 
 namespace ada {
 
 enum {
   ADA_VERSION_MAJOR = 2,
   ADA_VERSION_MINOR = 7,
-  ADA_VERSION_REVISION = 6,
+  ADA_VERSION_REVISION = 7,
 };
 
 }  // namespace ada
