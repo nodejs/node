@@ -1409,6 +1409,25 @@ constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
     "Unexpected token 'export'",                     // `export` statements
     "Cannot use 'import.meta' outside a module"};    // `import.meta` references
 
+// Another class of error messages that we need to check for are syntax errors
+// where the syntax throws when parsed as CommonJS but succeeds when parsed as
+// ESM. So far, the cases we've found are:
+// - CommonJS module variables (`module`, `exports`, `require`, `__filename`,
+//   `__dirname`): if the user writes code such as `const module =` in the top
+//   level of a CommonJS module, it will throw a syntax error; but the same
+//   code is valid in ESM.
+// - Top-level `await`: if the user writes `await` at the top level of a
+//   CommonJS module, it will throw a syntax error; but the same code is valid
+//   in ESM.
+constexpr std::array<std::string_view, 6> throws_only_in_cjs_error_messages = {
+    "Identifier 'module' has already been declared",
+    "Identifier 'exports' has already been declared",
+    "Identifier 'require' has already been declared",
+    "Identifier '__filename' has already been declared",
+    "Identifier '__dirname' has already been declared",
+    "await is only valid in async functions and "
+    "the top level bodies of modules"};
+
 void ContextifyContext::ContainsModuleSyntax(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1476,19 +1495,75 @@ void ContextifyContext::ContainsModuleSyntax(
                                                    id_symbol,
                                                    try_catch);
 
-  bool found_error_message_caused_by_module_syntax = false;
+  bool should_retry_as_esm = false;
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
     Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
     auto message = message_value.ToStringView();
 
     for (const auto& error_message : esm_syntax_error_messages) {
       if (message.find(error_message) != std::string_view::npos) {
-        found_error_message_caused_by_module_syntax = true;
+        should_retry_as_esm = true;
         break;
       }
     }
+
+    if (!should_retry_as_esm) {
+      for (const auto& error_message : throws_only_in_cjs_error_messages) {
+        if (message.find(error_message) != std::string_view::npos) {
+          // Try parsing again where the CommonJS wrapper is replaced by an
+          // async function wrapper. If the new parse succeeds, then the error
+          // was caused by either a top-level declaration of one of the CommonJS
+          // module variables, or a top-level `await`.
+          TryCatchScope second_parse_try_catch(env);
+          code =
+              String::Concat(isolate,
+                             String::NewFromUtf8(isolate, "(async function() {")
+                                 .ToLocalChecked(),
+                             code);
+          code = String::Concat(
+              isolate,
+              code,
+              String::NewFromUtf8(isolate, "})();").ToLocalChecked());
+          ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
+              isolate, code, filename, 0, 0, host_defined_options, nullptr);
+          std::ignore = ScriptCompiler::CompileFunction(
+              context,
+              &wrapped_source,
+              params.size(),
+              params.data(),
+              0,
+              nullptr,
+              options,
+              v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
+          if (!second_parse_try_catch.HasTerminated()) {
+            if (second_parse_try_catch.HasCaught()) {
+              // If on the second parse an error is thrown by ESM syntax, then
+              // what happened was that the user had top-level `await` or a
+              // top-level declaration of one of the CommonJS module variables
+              // above the first `import` or `export`.
+              Utf8Value second_message_value(
+                  env->isolate(), second_parse_try_catch.Message()->Get());
+              auto second_message = second_message_value.ToStringView();
+              for (const auto& error_message : esm_syntax_error_messages) {
+                if (second_message.find(error_message) !=
+                    std::string_view::npos) {
+                  should_retry_as_esm = true;
+                  break;
+                }
+              }
+            } else {
+              // No errors thrown in the second parse, so most likely the error
+              // was caused by a top-level `await` or a top-level declaration of
+              // one of the CommonJS module variables.
+              should_retry_as_esm = true;
+            }
+          }
+          break;
+        }
+      }
+    }
   }
-  args.GetReturnValue().Set(found_error_message_caused_by_module_syntax);
+  args.GetReturnValue().Set(should_retry_as_esm);
 }
 
 static void CompileFunctionForCJSLoader(
