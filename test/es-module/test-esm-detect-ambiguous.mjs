@@ -234,6 +234,99 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       });
     }
   });
+
+  // https://github.com/nodejs/node/issues/50917
+  describe('syntax that errors in CommonJS but works in ESM', { concurrency: true }, () => {
+    it('permits top-level `await`', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'await Promise.resolve(); console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('permits top-level `await` above import/export syntax', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'await Promise.resolve(); import "node:os"; console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('still throws on `await` in an ordinary sync function', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'function fn() { await Promise.resolve(); } fn();',
+      ]);
+
+      match(stderr, /SyntaxError: await is only valid in async function/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+
+    it('throws on undefined `require` when top-level `await` triggers ESM parsing', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'const fs = require("node:fs"); await Promise.resolve();',
+      ]);
+
+      match(stderr, /ReferenceError: require is not defined in ES module scope/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+
+    it('permits declaration of CommonJS module variables', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        fixtures.path('es-modules/package-without-type/commonjs-wrapper-variables.js'),
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'exports require module __filename __dirname\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('permits declaration of CommonJS module variables above import/export', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'const module = 3; import "node:os"; console.log("executed");',
+      ]);
+
+      strictEqual(stderr, '');
+      strictEqual(stdout, 'executed\n');
+      strictEqual(code, 0);
+      strictEqual(signal, null);
+    });
+
+    it('still throws on double `const` declaration not at the top level', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        '--eval',
+        'function fn() { const require = 1; const require = 2; } fn();',
+      ]);
+
+      match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
+      strictEqual(stdout, '');
+      strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+  });
 });
 
 // Validate temporarily disabling `--abort-on-uncaught-exception`
