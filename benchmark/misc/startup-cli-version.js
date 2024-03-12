@@ -14,7 +14,6 @@ const bench = common.createBenchmark(main, {
     'tools/node_modules/eslint/bin/eslint.js',
     'deps/npm/bin/npx-cli.js',
     'deps/npm/bin/npm-cli.js',
-    'deps/corepack/dist/corepack.js',
   ],
   count: [30],
 });

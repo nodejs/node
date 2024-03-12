@@ -21,7 +21,6 @@
 * [Cluster](cluster.md)
 * [Command-line options](cli.md)
 * [Console](console.md)
-* [Corepack](corepack.md)
 * [Crypto](crypto.md)
 * [Debugger](debugger.md)
 * [Deprecated APIs](deprecations.md)

@@ -81,8 +81,8 @@ def uninstall(options, paths, dest):
   for path in paths:
     try_remove(options, path, dest)
 
-def package_files(options, action, name, bins):
-  target_path = os.path.join('lib/node_modules', name)
+def npm_files(options, action):
+  target_path = 'lib/node_modules/npm/'
 
   # don't install npm if the target path is a symlink, it probably means
   # that a dev version of npm is installed there
@@ -90,38 +90,28 @@ def package_files(options, action, name, bins):
 
   # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
   # so we walk its source directory instead...
-  root = os.path.join('deps', name)
-  for dirname, subdirs, basenames in os.walk(root, topdown=True):
+  for dirname, subdirs, basenames in os.walk('deps/npm', topdown=True):
     subdirs[:] = [subdir for subdir in subdirs if subdir != 'test']
     paths = [os.path.join(dirname, basename) for basename in basenames]
-    action(options, paths,
-           os.path.join(target_path, dirname[len(root) + 1:]) + os.path.sep)
+    action(paths, target_path + dirname[9:] + '/')
 
-  # create/remove symlinks
-  for bin_name, bin_target in bins.items():
-    link_path = abspath(options.install_path, os.path.join('bin', bin_name))
-    if action == uninstall:
-      action(options, [link_path], os.path.join('bin', bin_name))
-    elif action == install:
-      try_symlink(options, os.path.join('../lib/node_modules', name, bin_target), link_path)
-    else:
-      assert 0  # unhandled action type
+  # create/remove symlink
+  link_path = abspath(options.install_path, 'bin/npm')
+  if action == uninstall:
+    action([link_path], 'bin/npm')
+  elif action == install:
+    try_symlink('../lib/node_modules/npm/bin/npm-cli.js', link_path)
+  else:
+    assert 0  # unhandled action type
 
-def npm_files(options, action):
-  package_files(options, action, 'npm', {
-    'npm': 'bin/npm-cli.js',
-    'npx': 'bin/npx-cli.js',
-  })
-
-def corepack_files(options, action):
-  package_files(options, action, 'corepack', {
-    'corepack': 'dist/corepack.js',
-#   Not the default just yet:
-#   'yarn': 'dist/yarn.js',
-#   'yarnpkg': 'dist/yarn.js',
-#   'pnpm': 'dist/pnpm.js',
-#   'pnpx': 'dist/pnpx.js',
-  })
+  # create/remove symlink
+  link_path = abspath(options.install_path, 'bin/npx')
+  if action == uninstall:
+    action([link_path], 'bin/npx')
+  elif action == install:
+    try_symlink('../lib/node_modules/npm/bin/npx-cli.js', link_path)
+  else:
+    assert 0 # unhandled action type
 
   # On z/OS, we install node-gyp for convenience, as some vendors don't have
   # external access and may want to build native addons.
@@ -187,11 +177,7 @@ def files(options, action):
   else:
     action(options, ['doc/node.1'], 'share/man/man1/')
 
-  if 'true' == options.variables.get('node_install_npm'):
-    npm_files(options, action)
-
-  if 'true' == options.variables.get('node_install_corepack'):
-    corepack_files(options, action)
+  if 'true' == options.variables.get('node_install_npm'): npm_files(options, action)
 
   headers(options, action)
 
