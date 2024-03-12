@@ -36,6 +36,8 @@ template <typename... Args>
 inline v8::Maybe<bool> ProcessEmitWarning(Environment* env,
                                           const char* fmt,
                                           Args&&... args);
+
+v8::Maybe<bool> ProcessEmitWarningSync(Environment* env, const char* message);
 v8::Maybe<bool> ProcessEmitExperimentalWarning(Environment* env,
                                               const char* warning);
 v8::Maybe<bool> ProcessEmitDeprecationWarning(Environment* env,

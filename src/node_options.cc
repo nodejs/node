@@ -352,6 +352,25 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "ES module syntax, try again to evaluate them as ES modules",
             &EnvironmentOptions::detect_module,
             kAllowedInEnvvar);
+  AddOption("--experimental-print-required-tla",
+            "Print pending top-level await. If --experimental-require-module "
+            "is true, evaluate asynchronous graphs loaded by `require()` but "
+            "do not run the microtasks, in order to to find and print "
+            "top-level await in the graph",
+            &EnvironmentOptions::print_required_tla,
+            kAllowedInEnvvar);
+  AddOption("--experimental-require-module",
+            "Allow loading explicit ES Modules in require().",
+            &EnvironmentOptions::require_module,
+            kAllowedInEnvvar);
+  AddOption("--experimental-require-module-with-detection",
+            "Allow loading ES Modules with syntax-based detection of module "
+            "types for implicit ES modules in require().",
+            &EnvironmentOptions::require_module_with_detection,
+            kAllowedInEnvvar);
+  Implies("--experimental-require-module-with-detection",
+          "--experimental-require-module");
+
   AddOption("--diagnostic-dir",
             "set dir for all output files"
             " (default: current working directory)",

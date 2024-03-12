@@ -871,6 +871,31 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
+### `--experimental-require-module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Developement
+
+Supports loading a synchronous ES module graph in `require()`.
+
+See [Loading ECMAScript modules using `require()`][].
+
+### `--experimental-require-module-with-detection`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Developement
+
+In addition to what `--experimental-require-module` supports, when the module
+being `require()`'d is not explicitly marked as an ES Module using the
+`"type": "module"` field in `package.json` or the `.mjs` extension, it will
+try to detect module type based on the syntax of the module.
+
 ### `--experimental-sea-config`
 
 <!-- YAML
@@ -1577,6 +1602,18 @@ changes:
 -->
 
 Identical to `-e` but prints the result.
+
+### `--experimental-print-required-tla`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This flag is only useful when `--experimental-require-module` is enabled.
+
+If the ES module being `require()`'d contains top-level await, this flag
+allows Node.js to evaluate the module, try to locate the
+top-level awaits, and print their location to help users fix them.
 
 ### `--prof`
 
@@ -2512,6 +2549,9 @@ Node.js options that are allowed are:
 * `--experimental-network-imports`
 * `--experimental-permission`
 * `--experimental-policy`
+* `--experimental-print-required-tla`
+* `--experimental-require-module-with-detection`
+* `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
@@ -3016,6 +3056,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
+[Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders

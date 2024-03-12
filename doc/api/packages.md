@@ -1371,7 +1371,7 @@ This field defines [subpath imports][] for the current package.
 [entry points]: #package-entry-points
 [folders as modules]: modules.md#folders-as-modules
 [import maps]: https://github.com/WICG/import-maps
-[load ECMASCript modules from CommonJS modules]: modules.md#the-mjs-extension
+[load ECMASCript modules from CommonJS modules]: modules.md#loading-ecmascript-modules-using-require
 [loader hooks]: esm.md#loaders
 [packages folder mapping]: https://github.com/WICG/import-maps#packages-via-trailing-slashes
 [self-reference]: #self-referencing-a-package-using-its-name

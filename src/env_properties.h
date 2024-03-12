@@ -438,6 +438,7 @@
   V(performance_entry_callback, v8::Function)                                  \
   V(prepare_stack_trace_callback, v8::Function)                                \
   V(process_object, v8::Object)                                                \
+  V(process_emit_warning_sync, v8::Function)                                   \
   V(primordials, v8::Object)                                                   \
   V(primordials_safe_map_prototype_object, v8::Object)                         \
   V(primordials_safe_set_prototype_object, v8::Object)                         \

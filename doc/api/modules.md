@@ -167,15 +167,49 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
-## The `.mjs` extension
+## Loading ECMAScript modules using `require()`
 
-Due to the synchronous nature of `require()`, it is not possible to use it to
-load ECMAScript module files. Attempting to do so will throw a
-[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
-
-The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
-loaded via `require()`. See [Determining module system][] section for more info
+Currently, if the flag `--experimental-require-module` is not used, loading
+an ECMAScript module using `require()` will throw a [`ERR_REQUIRE_ESM`][]
+error, and users need to use [`import()`][] instead. See
+[Determining module system][] section for more info
 regarding which files are parsed as ECMAScript modules.
+
+If `--experimental-require-module` is enabled, and the ECMAScript module being
+loaded by `require()` meets the following requirements:
+
+* Explicitly marked as an ES module with a `"type": "module"` field in
+  the closest package.json or a `.mjs` extension.
+* Fully synchronous (contains no top-level `await`).
+
+`require()` will load the requested module as an ES Module, and return
+the module name space object.
+
+```mjs
+// point.mjs
+export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+class Point {
+  constructor(x, y) { this.x = x; this.y = y; }
+}
+export default Point;
+```
+
+```cjs
+// [Module: null prototype] {
+//   default: [class Point],
+//   distance: [Function: distance]
+// }
+console.log(require('./point.mjs'));
+```
+
+If the module being `require()`'d contains top-level `await`, or the module
+graph it `import`s contains top-level `await`,
+[`ERR_REQUIRE_ASYNC_MODULE`][] will be thrown.
+
+If `--experimental-print-required-tla` is enabled, instead of throwing
+`ERR_REQUIRE_ASYNC_MODULE` before evaluation, Node.js will evaluate the
+module, try to locate the top-level awaits, and print their location to
+help users fix them.
 
 ## All together
 
@@ -186,6 +220,8 @@ the `require.resolve()` function.
 
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what `require()` does:
+
+<!-- TODO(joyeecheung): update this for --experimental-require-module-->
 
 <pre>
 require(X) from module at path Y
@@ -1085,6 +1121,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`ERR_REQUIRE_ASYNC_MODULE`]: errors.md#err_require_async_module
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found
