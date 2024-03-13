@@ -1127,6 +1127,22 @@ is unknown, `undefined` is returned.
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
 information.
 
+## `process.availableMemory()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {number}
+
+Gets the amount of free memory that is still available to the process
+(in bytes).
+
+See [`uv_get_available_memory`][uv_get_available_memory] for more
+information.
+
 ## `process.cpuUsage([previousValue])`
 
 <!-- YAML
@@ -4026,6 +4042,7 @@ cases:
 [process_warning]: #event-warning
 [report documentation]: report.md
 [terminal raw mode]: tty.md#readstreamsetrawmodemode
+[uv_get_available_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_available_memory
 [uv_get_constrained_memory]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_get_constrained_memory
 [uv_rusage_t]: https://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
 [wikipedia_major_fault]: https://en.wikipedia.org/wiki/Page_fault#Major

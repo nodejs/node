@@ -1883,25 +1883,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 }
 
-uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
-}
-
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
@@ -2006,7 +1987,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
         static_cast<uint64_t>(old_gen_size),
         static_cast<uint64_t>(young_gen_size + old_gen_size));
 
-  uint64_t available = GuessMemoryAvailableToTheProcess();
+  uint64_t available = uv_get_available_memory();
   // TODO(joyeecheung): get a better estimate about the native memory
   // usage into the overhead, e.g. based on the count of objects.
   uint64_t estimated_overhead = max_young_gen_size;
