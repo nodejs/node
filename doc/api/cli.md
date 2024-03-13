@@ -2302,6 +2302,9 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52074
+    description: Watch mode is now stable.
   - version:
       - v19.2.0
       - v18.13.0
@@ -2309,7 +2312,7 @@ changes:
     description: Test runner now supports running in watch mode.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Starts Node.js in watch mode.
 When in watch mode, changes in the watched files cause the Node.js process to
@@ -2331,9 +2334,13 @@ node --watch index.js
 added:
   - v18.11.0
   - v16.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52074
+    description: Watch mode is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Starts Node.js in watch mode and specifies what paths to watch.
 When in watch mode, changes in the watched paths cause the Node.js process to
