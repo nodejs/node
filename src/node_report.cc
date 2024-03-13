@@ -641,13 +641,8 @@ static void PrintResourceUsage(JSONWriter* writer) {
     writer->json_keyvalue("constrained_memory", constrained_memory);
   }
 
-  // See GuessMemoryAvailableToTheProcess
-  if (!err && constrained_memory && constrained_memory >= rss) {
-    uint64_t available_memory = constrained_memory - rss;
-    writer->json_keyvalue("available_memory", available_memory);
-  } else {
-    writer->json_keyvalue("available_memory", free_memory);
-  }
+  uint64_t available_memory = uv_get_available_memory();
+  writer->json_keyvalue("available_memory", available_memory);
 
   if (uv_getrusage(&rusage) == 0) {
     double user_cpu =

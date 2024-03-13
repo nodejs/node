@@ -216,6 +216,11 @@ static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void GetAvailableMemory(const FunctionCallbackInfo<Value>& args) {
+  uint64_t value = uv_get_available_memory();
+  args.GetReturnValue().Set(static_cast<double>(value));
+}
+
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.Length() == 1 && args[0]->IsString() &&
         "must be called with a single string");
@@ -633,6 +638,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "umask", Umask);
   SetMethod(isolate, target, "memoryUsage", MemoryUsage);
   SetMethod(isolate, target, "constrainedMemory", GetConstrainedMemory);
+  SetMethod(isolate, target, "availableMemory", GetAvailableMemory);
   SetMethod(isolate, target, "rss", Rss);
   SetMethod(isolate, target, "cpuUsage", CPUUsage);
   SetMethod(isolate, target, "resourceUsage", ResourceUsage);
@@ -674,6 +680,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RawDebug);
   registry->Register(MemoryUsage);
   registry->Register(GetConstrainedMemory);
+  registry->Register(GetAvailableMemory);
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ResourceUsage);
