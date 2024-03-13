@@ -2500,7 +2500,9 @@ NODE_OPTIONS='--require "./a.js"' node --require "./b.js"
 node --require "./a.js" --require "./b.js"
 ```
 
-Node.js options that are allowed are:
+Node.js options that are allowed are in the following list. If an option
+supports both --XX and --no-XX variants, they are both supported but only
+the default is included in the list below.
 
 <!-- node-options-node start -->
 
