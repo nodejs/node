@@ -1305,9 +1305,13 @@ void InitializeHttpParser(Local<Object> target,
          Integer::NewFromUnsigned(env->isolate(), kLenientAll));
 
   Local<Array> methods = Array::New(env->isolate());
-#define V(num, name, string)                                                  \
-    methods->Set(env->context(),                                              \
-        num, FIXED_ONE_BYTE_STRING(env->isolate(), #string)).Check();
+  size_t method_index = -1;
+#define V(num, name, string)                                                   \
+  methods                                                                      \
+      ->Set(env->context(),                                                    \
+            ++method_index,                                                    \
+            FIXED_ONE_BYTE_STRING(env->isolate(), #string))                    \
+      .Check();
   HTTP_METHOD_MAP(V)
 #undef V
   target->Set(env->context(),
