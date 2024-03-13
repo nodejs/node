@@ -29,4 +29,7 @@ that doing so is not a breaking change.
 ## Executables
 
 The Node.js distribution includes only executables whose names refer to software
-that is vendored within the Node.js distribution.
+that is vendored within the Node.js distribution. For example, Node.js includes
+an executable `npm` to run the npm software included within the Node.js
+distribution; Node.js does not include a `foo` executable which would download
+software named Foo.
