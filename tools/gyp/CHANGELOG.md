@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.2](https://github.com/nodejs/gyp-next/compare/v0.16.1...v0.16.2) (2024-03-07)
+
+
+### Bug Fixes
+
+* avoid quoting cflag name and parameter with space separator ([#223](https://github.com/nodejs/gyp-next/issues/223)) ([2b9703d](https://github.com/nodejs/gyp-next/commit/2b9703dbd5b3b8a935faf257c6103033b47bf8bf))
+
 ## [0.16.1](https://github.com/nodejs/gyp-next/compare/v0.16.0...v0.16.1) (2023-10-25)
 
 
