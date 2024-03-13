@@ -698,6 +698,13 @@ by the `node:assert` module.
 An attempt was made to register something that is not a function as an
 `AsyncHooks` callback.
 
+<a id="ERR_ASYNC_LOCAL_STORAGE_NOT_DISPOSED"></a>
+
+### `ERR_ASYNC_LOCAL_STORAGE_NOT_DISPOSED`
+
+An AsyncLocalStorage disposable store was not disposed when the current
+async resource scope was exited.
+
 <a id="ERR_ASYNC_TYPE"></a>
 
 ### `ERR_ASYNC_TYPE`
