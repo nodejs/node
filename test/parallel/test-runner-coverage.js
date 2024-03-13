@@ -249,8 +249,8 @@ test('coverage with source maps', skipIfNoInspector, () => {
     '# --------------------------------------------------------------',
     '# file          | line % | branch % | funcs % | uncovered lines',
     '# --------------------------------------------------------------',
-    '# a.test.ts     |  53.85 |   100.00 |  100.00 | 8-13',  // part of a bunlde
-    '# b.test.ts     |  55.56 |   100.00 |  100.00 | 1 7-9', // part of a bunlde
+    '# a.test.ts     |  53.85 |   100.00 |  100.00 | 8-13',  // part of a bundle
+    '# b.test.ts     |  55.56 |   100.00 |  100.00 | 1 7-9', // part of a bundle
     '# index.test.js |  71.43 |    66.67 |  100.00 | 6-7',  // no source map
     '# stdin.test.ts |  57.14 |   100.00 |  100.00 | 4-6',  // Source map without original file
     '# --------------------------------------------------------------',
@@ -270,7 +270,6 @@ test('coverage with source maps', skipIfNoInspector, () => {
   const result = spawnSync(process.execPath, args, { cwd: fixture });
 
   assert.strictEqual(result.stderr.toString(), '');
-  console.log(result.stdout.toString());
   assert(result.stdout.toString().includes(report));
   assert.strictEqual(result.status, 1);
 });
