@@ -1872,6 +1872,15 @@ added:
 The maximum number of test files that the test runner CLI will execute
 concurrently. The default value is `os.availableParallelism() - 1`.
 
+### `--test-force-exit`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Configures the test runner to exit the process once all known tests have
+finished executing even if the event loop would otherwise remain active.
+
 ### `--test-name-pattern`
 
 <!-- YAML
