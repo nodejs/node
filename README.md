@@ -845,12 +845,11 @@ releases on a rotation basis as outlined in the
 * Datadog
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-* NearForm
-  * [RafaelGSS](https://github.com/RafaelGSS) -
-    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * NodeSource
   * [juanarbol](https://github.com/juanarbol) -
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
+  * [RafaelGSS](https://github.com/RafaelGSS) -
+    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * Platformatic
   * [mcollina](https://github.com/mcollina) -
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)
