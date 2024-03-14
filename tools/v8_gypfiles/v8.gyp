@@ -261,6 +261,7 @@
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
+        'generate_bytecode_builtins_list',
         'run_torque',
       ],
       'cflags!': ['-O3'],
