@@ -379,17 +379,25 @@ async function abortListenerRemovedAfterComplete() {
 
   const i = setInterval(() => ee.emit('foo', 'foo'), 1);
   try {
+    // Below: either the kEvents map is empty or the 'abort' listener list is empty
+
     // Return case
     const endedIterator = on(ee, 'foo', { signal: ac.signal });
-    assert.ok(ac.signal[kEvents].size > 0);
+    assert.ok(ac.signal[kEvents].get('abort').size > 0);
     endedIterator.return();
-    assert.strictEqual(ac.signal[kEvents].size, 0);
+    assert.strictEqual(ac.signal[kEvents].get('abort')?.size ?? ac.signal[kEvents].size, 0);
 
     // Throw case
     const throwIterator = on(ee, 'foo', { signal: ac.signal });
-    assert.ok(ac.signal[kEvents].size > 0);
+    assert.ok(ac.signal[kEvents].get('abort').size > 0);
     throwIterator.throw(new Error());
-    assert.strictEqual(ac.signal[kEvents].size, 0);
+    assert.strictEqual(ac.signal[kEvents].get('abort')?.size ?? ac.signal[kEvents].size, 0);
+
+    // Abort case
+    on(ee, 'foo', { signal: ac.signal });
+    assert.ok(ac.signal[kEvents].get('abort').size > 0);
+    ac.abort(new Error());
+    assert.strictEqual(ac.signal[kEvents].get('abort')?.size ?? ac.signal[kEvents].size, 0);
   } finally {
     clearInterval(i);
   }
