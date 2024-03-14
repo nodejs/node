@@ -898,6 +898,21 @@ try {
 }
 ```
 
+```cjs
+const { access, constants } =  require('node:fs/promises');
+
+async function checkAccess () {
+  try {
+    await access('/etc/passwd', constants.R_OK | constants.W_OK);
+    console.log('can access');
+  } catch {
+    console.error('cannot access');
+  }
+}
+
+checkAccess()
+```
+
 Using `fsPromises.access()` to check for the accessibility of a file before
 calling `fsPromises.open()` is not recommended. Doing so introduces a race
 condition, since other processes may change the file's state between the two
