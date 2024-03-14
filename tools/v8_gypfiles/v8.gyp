@@ -254,11 +254,40 @@
       ],
     },  # v8_init
     {
+      # This target is used to work around a GCC issue that causes the
+      # compilation to take several minutes when using -O2 or -O3.
+      # This is fixed in GCC 13.
+      'target_name': 'v8_initializers_slow',
+      'type': 'static_library',
+      'toolsets': ['host', 'target'],
+      'dependencies': [
+        'generate_bytecode_builtins_list',
+        'run_torque',
+      ],
+      'cflags!': ['-O3'],
+      'cflags': ['-O1'],
+      'sources': [
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
+      ],
+      'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
+      ],
+    },  # v8_initializers_slow
+    {
       'target_name': 'v8_initializers',
       'type': 'static_library',
       'toolsets': ['host', 'target'],
       'dependencies': [
         'torque_generated_initializers',
+        'v8_initializers_slow',
         'v8_base_without_compiler',
         'v8_shared_internal_headers',
         'v8_pch',
@@ -266,6 +295,13 @@
       'include_dirs': [
         '<(SHARED_INTERMEDIATE_DIR)',
         '<(generate_bytecode_output_root)',
+      ],
+      # Compiled by v8_initializers_slow target.
+      'sources!': [
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.h',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/js-to-wasm-tq-csa.cc',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
+        '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
       ],
       'sources': [
         '<!@pymod_do_main(GN-scraper "<(V8_ROOT)/BUILD.gn"  "\\"v8_initializers.*?sources = ")',
