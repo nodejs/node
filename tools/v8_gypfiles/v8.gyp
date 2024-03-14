@@ -272,6 +272,14 @@
         '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.h',
         '<(SHARED_INTERMEDIATE_DIR)/torque-generated/src/builtins/wasm-to-js-tq-csa.cc',
       ],
+      'conditions': [
+        ['v8_enable_i18n_support==1', {
+          'dependencies': [
+            '<(icu_gyp_path):icui18n',
+            '<(icu_gyp_path):icuuc',
+          ],
+        }],
+      ],
     },  # v8_initializers_slow
     {
       'target_name': 'v8_initializers',
