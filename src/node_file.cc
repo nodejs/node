@@ -38,6 +38,7 @@
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
+#include "uv.h"
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <io.h>
@@ -950,10 +951,12 @@ void Access(const FunctionCallbackInfo<Value>& args) {
   HandleScope scope(isolate);
 
   const int argc = args.Length();
-  CHECK_GE(argc, 2);
+  CHECK_GE(argc, 2);  // path, mode
 
-  CHECK(args[1]->IsInt32());
-  int mode = args[1].As<Int32>()->Value();
+  int mode;
+  if (!GetValidFileMode(env, args[1], UV_FS_ACCESS).To(&mode)) {
+    return;
+  }
 
   BufferValue path(isolate, args[0]);
   CHECK_NOT_NULL(*path);
@@ -2079,7 +2082,12 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
 
   const int argc = args.Length();
-  CHECK_GE(argc, 3);
+  CHECK_GE(argc, 3);  // src, dest, flags
+
+  int flags;
+  if (!GetValidFileMode(env, args[2], UV_FS_COPYFILE).To(&flags)) {
+    return;
+  }
 
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
@@ -2090,9 +2098,6 @@ static void CopyFile(const FunctionCallbackInfo<Value>& args) {
   CHECK_NOT_NULL(*dest);
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
-
-  CHECK(args[2]->IsInt32());
-  const int flags = args[2].As<Int32>()->Value();
 
   if (argc > 3) {  // copyFile(src, dest, flags, req)
     FSReqBase* req_wrap_async = GetReqWrap(args, 3);

@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "uv.h"
 #include "v8.h"
 
 #include "node.h"
@@ -1017,6 +1018,9 @@ std::string DetermineSpecificErrorType(Environment* env,
                                        v8::Local<v8::Value> input);
 
 v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
+v8::Maybe<int> GetValidFileMode(Environment* env,
+                                v8::Local<v8::Value> input,
+                                uv_fs_type type);
 
 // Returns true if OS==Windows and filename ends in .bat or .cmd,
 // case insensitive.
