@@ -1661,12 +1661,31 @@ console.log(listenerCount(myEmitter, 'event'));
 added:
  - v13.6.0
  - v12.16.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52080
+    description: Support `highWaterMark` and `lowWaterMark` options,
+                 For consistency. Old options are still supported.
+  - version:
+    - v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/41276
+    description: The `close`, `highWatermark`, and `lowWatermark`
+                 options are supported now.
 -->
 
 * `emitter` {EventEmitter}
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
+  * `close` - {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+    The high watermark. The emitter is paused every time the size of events
+    being buffered is higher than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
+  * `lowWaterMark` - {integer} **Default:** `1`
+    The low watermark. The emitter is resumed every time the size of events
+    being buffered is lower than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
 ```mjs
