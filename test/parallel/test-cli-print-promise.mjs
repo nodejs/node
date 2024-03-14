@@ -15,7 +15,7 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { 42 }\n',
+      stdout: '42\n',
     });
   });
 
@@ -29,7 +29,7 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: '42\n',
     });
   });
 
@@ -43,7 +43,7 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: '',
     });
   });
 
@@ -57,11 +57,11 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: '',
     });
   });
 
-  it('should handle rejected promises', async () => {
+  it('should handle rejected promises with unhandled-rejections=none', async () => {
     const result = await spawnPromisified(execPath, [
       '--unhandled-rejections=none',
       '--print',
@@ -72,11 +72,11 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <rejected> 1 }\n',
+      stdout: '',
     });
   });
 
-  it('should handle promises that reject after one tick', async () => {
+  it('should handle promises that reject after one tick with unhandled-rejections=none', async () => {
     const result = await spawnPromisified(execPath, [
       '--unhandled-rejections=none',
       '--print',
@@ -87,7 +87,32 @@ describe('--print with a promise', { concurrency: true }, () => {
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: '',
     });
+  });
+
+  it('should error with unhandled rejected promises', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--print',
+      'Promise.reject(1)',
+    ]);
+
+    assert.strictEqual(result.code, 1);
+    assert.strictEqual(result.signal, null);
+    assert.strictEqual(result.stdout, '');
+    assert.ok(result.stderr.includes('ERR_UNHANDLED_REJECTION'), 'Not found ERR_UNHANDLED_REJECTION');
+  });
+
+  it('should error when throw inside fn', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--print',
+      'Promise.resolve().then(()=>{throw new Error(10)})',
+    ]);
+
+    assert.strictEqual(result.code, 1);
+    assert.strictEqual(result.signal, null);
+    assert.strictEqual(result.stdout, '');
+    assert.ok(result.stderr.includes('throw new Error(10)'), `Found: ${result.stderr}`);
+    assert.ok(result.stderr.includes('Error: 10'), `Found: ${result.stderr}`);
   });
 });
