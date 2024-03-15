@@ -16,7 +16,8 @@
 namespace node {
 
 #define SECURITY_REVERSIONS(XX)                                                \
-  XX(CVE_2023_46809, "CVE-2023-46809", "Marvin attack on PKCS#1 padding")
+  XX(CVE_2023_46809, "CVE-2023-46809", "Marvin attack on PKCS#1 padding")      \
+  XX(CVE_2024_27980, "CVE-2024-27980", "Unsafe Windows batch file execution")
 
 enum reversion {
 #define V(code, ...) SECURITY_REVERT_##code,
