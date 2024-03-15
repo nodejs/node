@@ -12,9 +12,8 @@ DEPS_DIR="${BASE_DIR}/deps"
 # shellcheck disable=SC1091
 . "$BASE_DIR/tools/dep_updaters/utils.sh"
 
-if test -e $LOCAL_COPY; then
+if [ -n "$LOCAL_COPY" ]; then
   NEW_VERSION=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$LOCAL_COPY/package.json', 'utf-8')).version)")
-  echo $NEW_VERSION
 else
   NEW_VERSION="$("$NODE" --input-type=module <<'EOF'
   const res = await fetch('https://api.github.com/repos/nodejs/llhttp/releases/latest',
@@ -53,12 +52,12 @@ cd "$WORKSPACE"
 echo "Replacing existing llhttp (except GYP and GN build files)"
 mv "$DEPS_DIR/llhttp/"*.gn "$DEPS_DIR/llhttp/"*.gni "$WORKSPACE/"
 
-if test -n "$LOCAL_COPY"; then
+if [ -n "$LOCAL_COPY" ]; then
   echo "Copying llhttp release from $LOCAL_COPY ..."
   
   echo "Building llhttp ..."
-  cd $BASE_DIR
-  cd $LOCAL_COPY
+  cd "$BASE_DIR"
+  cd "$LOCAL_COPY"
   npm install
   RELEASE=$NEW_VERSION make release
 
