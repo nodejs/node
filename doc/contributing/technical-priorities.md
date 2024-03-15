@@ -160,3 +160,18 @@ and integration with other systems.
 As TypeScript usage continues to grow and gains more prominence in the
 ecosystem, enhancing its support is essential for delivering an improved
 developer experience for newcomers and experienced users alike.
+
+## Package management
+
+The ability to easily install and manage dependencies and development tools is a
+key part of the user experience, and for that reason Node.js must provide a
+package manager as part of its distribution. Node.js includes `npm` for this
+purpose. This is for historical reasons — when `npm` was added in 2011, it was
+the only JavaScript package manager — and because it is the reference
+implementation for the npm registry, which is the de facto primary source for
+most JavaScript software. In accordance with our [policy][distribution-policy]
+of not including multiple dependencies or tools that serve the same purpose, the
+Node.js project does not include any other package managers; though it may
+include other software to download other package managers.
+
+[distribution-policy]: ./distribution.md
