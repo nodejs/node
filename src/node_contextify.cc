@@ -345,6 +345,7 @@ void ContextifyContext::CreatePerIsolateProperties(
   SetMethod(isolate, target, "makeContext", MakeContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
   SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
+  SetMethod(isolate, target, "shouldRetryAsESM", ShouldRetryAsESM);
 }
 
 void ContextifyContext::RegisterExternalReferences(
@@ -352,6 +353,7 @@ void ContextifyContext::RegisterExternalReferences(
   registry->Register(MakeContext);
   registry->Register(CompileFunction);
   registry->Register(ContainsModuleSyntax);
+  registry->Register(ShouldRetryAsESM);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
@@ -1561,6 +1563,83 @@ void ContextifyContext::ContainsModuleSyntax(
           break;
         }
       }
+    }
+  }
+  args.GetReturnValue().Set(should_retry_as_esm);
+}
+
+void ContextifyContext::ShouldRetryAsESM(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  if (args.Length() != 1) {
+    return THROW_ERR_MISSING_ARGS(env, "shouldRetryAsESM needs 1 argument");
+  }
+  // Argument 1: source code
+  Local<String> code;
+  CHECK(args[0]->IsString());
+  code = args[0].As<String>();
+
+  Local<String> script_id =
+      String::NewFromUtf8(isolate, "throwaway").ToLocalChecked();
+  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
+
+  Local<PrimitiveArray> host_defined_options =
+      GetHostDefinedOptions(isolate, id_symbol);
+  ScriptCompiler::Source source = GetCommonJSSourceInstance(
+      isolate, code, script_id, 0, 0, host_defined_options, nullptr);
+  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
+
+  TryCatchScope try_catch(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+
+  // Try parsing where instead of the CommonJS wrapper we use an async function
+  // wrapper. If the parse succeeds, then any CommonJS parse error for this
+  // module was caused by either a top-level declaration of one of the CommonJS
+  // module variables, or a top-level `await`.
+  code = String::Concat(
+      isolate,
+      String::NewFromUtf8(isolate, "(async function() {").ToLocalChecked(),
+      code);
+  code = String::Concat(
+      isolate, code, String::NewFromUtf8(isolate, "})();").ToLocalChecked());
+
+  ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
+      isolate, code, script_id, 0, 0, host_defined_options, nullptr);
+
+  std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
+  std::ignore = ScriptCompiler::CompileFunction(
+      context,
+      &wrapped_source,
+      params.size(),
+      params.data(),
+      0,
+      nullptr,
+      options,
+      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
+
+  bool should_retry_as_esm = false;
+  if (!try_catch.HasTerminated()) {
+    if (try_catch.HasCaught()) {
+      // If on the second parse an error is thrown by ESM syntax, then
+      // what happened was that the user had top-level `await` or a
+      // top-level declaration of one of the CommonJS module variables
+      // above the first `import` or `export`.
+      Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
+      auto message_view = message_value.ToStringView();
+      for (const auto& error_message : esm_syntax_error_messages) {
+        if (message_view.find(error_message) != std::string_view::npos) {
+          should_retry_as_esm = true;
+          break;
+        }
+      }
+    } else {
+      // No errors thrown in the second parse, so most likely the error
+      // was caused by a top-level `await` or a top-level declaration of
+      // one of the CommonJS module variables.
+      should_retry_as_esm = true;
     }
   }
   args.GetReturnValue().Set(should_retry_as_esm);
