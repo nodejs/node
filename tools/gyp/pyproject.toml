@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.16.1"
+version = "0.16.2"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
@@ -29,7 +29,7 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = ["flake8", "ruff", "pytest"]
+dev = ["flake8", "ruff == 0.3.0", "pytest"]
 
 [project.scripts]
 gyp = "gyp:script_main"
