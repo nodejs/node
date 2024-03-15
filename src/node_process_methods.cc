@@ -9,6 +9,7 @@
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
+#include "node_revert.h"
 #include "util-inl.h"
 #include "uv.h"
 #include "v8-fast-api-calls.h"
@@ -499,6 +500,38 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+static void CveRevert(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  Utf8Value cve_string(env->isolate(), args[0]);
+  std::string revert_error;
+
+  Revert(*cve_string, &revert_error);
+  if (revert_error.empty()) {
+    // Revert sets the reversion at the C level but we have to
+    // set the property on the Object as it does not do that
+    Isolate* isolate = env->isolate();
+    Local<Context> context = env->context();
+#define V(code, label, __)                                                     \
+  do {                                                                         \
+    if (strcmp(*cve_string, label) == 0) {                                     \
+      READONLY_PROPERTY(args.This(), REVERT_PREFIX #code, True(isolate));      \
+    }                                                                          \
+  } while (0);
+    SECURITY_REVERSIONS(V)
+#undef V
+  }
+
+  Local<String> revert_error_return =
+      String::NewFromUtf8(env->isolate(),
+                          revert_error.c_str(),
+                          NewStringType::kNormal,
+                          revert_error.length())
+          .ToLocalChecked();
+  args.GetReturnValue().Set(revert_error_return);
+}
+
 namespace process {
 
 BindingData::BindingData(Realm* realm,
@@ -655,6 +688,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
 
   SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
+  SetMethod(isolate, target, "cveRevert", CveRevert);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -695,6 +729,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(PatchProcessObject);
 
   registry->Register(LoadEnvFile);
+
+  registry->Register(CveRevert);
 }
 
 }  // namespace process

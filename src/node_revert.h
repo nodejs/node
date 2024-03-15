@@ -15,7 +15,9 @@
  **/
 namespace node {
 
-#define SECURITY_REVERSIONS(XX)                                            \
+#define SECURITY_REVERSIONS(XX)                                                \
+  XX(CVE_2000_TST1, "CVE-2000-TST1", "First test cve")                         \
+  XX(CVE_2000_TST2, "CVE-2000-TST2", "Second test cve")
 //  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
 
 enum reversion {

@@ -213,11 +213,11 @@ void PatchProcessObject(const FunctionCallbackInfo<Value>& args) {
                              GetParentProcessId).FromJust());
 
   // --security-revert flags
-#define V(code, _, __)                                                        \
-  do {                                                                        \
-    if (IsReverted(SECURITY_REVERT_ ## code)) {                               \
-      READONLY_PROPERTY(process, "REVERT_" #code, True(isolate));             \
-    }                                                                         \
+#define V(code, _, __)                                                         \
+  do {                                                                         \
+    if (IsReverted(SECURITY_REVERT_##code)) {                                  \
+      READONLY_PROPERTY(process, REVERT_PREFIX #code, True(isolate));          \
+    }                                                                          \
   } while (0);
   SECURITY_REVERSIONS(V)
 #undef V

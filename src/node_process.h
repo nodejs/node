@@ -7,6 +7,8 @@
 #include "v8-fast-api-calls.h"
 #include "v8.h"
 
+#define REVERT_PREFIX "REVERT_"
+
 namespace node {
 
 class Environment;
