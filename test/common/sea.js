@@ -46,6 +46,10 @@ function skipIfSingleExecutableIsNotSupported() {
     }
   }
 
+  if (process.config.variables.ubsan) {
+    common.skip('UndefinedBehavior Sanitizer is not supported');
+  }
+
   tmpdir.refresh();
 
   // The SEA tests involve making a copy of the executable and writing some fixtures
