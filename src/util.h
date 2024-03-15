@@ -1018,6 +1018,10 @@ std::string DetermineSpecificErrorType(Environment* env,
 
 v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
 
+// Returns true if OS==Windows and filename ends in .bat or .cmd,
+// case insensitive.
+inline bool IsWindowsBatchFile(const char* filename);
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
