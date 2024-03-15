@@ -35,6 +35,7 @@ This a list of all the dependencies:
 * [uvwasi][]
 * [V8][]
 * [zlib][]
+* [zstd][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -393,6 +394,11 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
+### zstd
+
+The [zstd](https://github.com/facebook/zstd) dependency is used for compression
+according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
+
 [acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
@@ -428,3 +434,4 @@ performance improvements not currently available in standard zlib.
 [uvwasi]: #uvwasi
 [v8]: #v8
 [zlib]: #zlib
+[zstd]: #zstd

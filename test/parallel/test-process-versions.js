@@ -9,6 +9,7 @@ const cjs_module_lexer = require('../../deps/cjs-module-lexer/src/package.json')
 const expected_keys = [
   'ares',
   'brotli',
+  'zstd',
   'modules',
   'uv',
   'v8',
@@ -72,6 +73,7 @@ assert.match(process.versions.node, commonTemplate);
 assert.match(process.versions.uv, commonTemplate);
 assert.match(process.versions.nbytes, commonTemplate);
 assert.match(process.versions.zlib, /^\d+(?:\.\d+){1,3}(?:-.*)?$/);
+assert.match(process.versions.zstd, commonTemplate);
 
 if (hasUndici) {
   assert.match(process.versions.undici, commonTemplate);
