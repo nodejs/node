@@ -1231,12 +1231,6 @@ provided.
 Encoding provided to `TextDecoder()` API was not one of the
 [WHATWG Supported Encodings][].
 
-<a id="ERR_EVAL_ESM_CANNOT_PRINT"></a>
-
-### `ERR_EVAL_ESM_CANNOT_PRINT`
-
-`--print` cannot be used with ESM input.
-
 <a id="ERR_EVENT_RECURSION"></a>
 
 ### `ERR_EVENT_RECURSION`
@@ -3695,6 +3689,17 @@ removed: v15.0.0
 -->
 
 The native call from `process.cpuUsage` could not be processed.
+
+<a id="ERR_EVAL_ESM_CANNOT_PRINT"></a>
+
+### `ERR_EVAL_ESM_CANNOT_PRINT`
+
+<!--
+added: v14.3.0
+removed: REPLACEME
+-->
+
+`--print` cannot be used with ESM input.
 
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
