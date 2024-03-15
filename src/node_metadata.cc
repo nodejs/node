@@ -15,6 +15,7 @@
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
+#include "zstd.h"
 
 #ifdef NODE_BUNDLED_ZLIB
 #include "zlib_version.h"
@@ -114,6 +115,7 @@ Metadata::Versions::Versions() {
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   base64 = BASE64_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+  zstd = ZSTD_VERSION_STRING;
 
 #if HAVE_OPENSSL
   openssl = GetOpenSSLVersion();

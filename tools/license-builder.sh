@@ -128,6 +128,10 @@ addlicense "caja" "lib/internal/freeze_intrinsics.js" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/brotli/LICENSE")"
 addlicense "brotli" "deps/brotli" "$licenseText"
 
+# zstd
+licenseText="$(cat "${rootdir}/deps/zstd/LICENSE")"
+addlicense "zstd" "deps/zstd" "$licenseText"
+
 licenseText="$(cat "${rootdir}/deps/histogram/LICENSE.txt")"
 addlicense "HdrHistogram" "deps/histogram" "$licenseText"
 

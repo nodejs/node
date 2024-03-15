@@ -216,6 +216,10 @@
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
+    [ 'node_shared_zstd=="false"', {
+      'dependencies': [ 'deps/zstd/zstd.gyp:zstd' ],
+    }],
+
     [ 'OS=="mac"', {
       # linking Corefoundation is needed since certain OSX debugging tools
       # like Instruments require it for some features
