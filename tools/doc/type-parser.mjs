@@ -251,6 +251,7 @@ const customTypesMap = {
   'X509Certificate': 'crypto.html#class-x509certificate',
 
   'zlib options': 'zlib.html#class-options',
+  'zstd options': 'zlib.html#class-zstdoptions',
 
   'ReadableStream':
     'webstreams.html#class-readablestream',
