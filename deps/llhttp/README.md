@@ -345,16 +345,33 @@ make
 
 ### Using with CMake
 
-If you want to use this library in a CMake project you can use the snippet below.
+If you want to use this library in a CMake project as a shared library, you can use the snippet below.
 
 ```
 FetchContent_Declare(llhttp
-  URL "https://github.com/nodejs/llhttp/archive/refs/tags/v6.0.5.tar.gz")  # Using version 6.0.5
+  URL "https://github.com/nodejs/llhttp/archive/refs/tags/release/v8.1.0.tar.gz")
 
 FetchContent_MakeAvailable(llhttp)
 
-target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp ${PROJECT_NAME})
+# Link with the llhttp_shared target
+target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp_shared ${PROJECT_NAME})
 ```
+
+If you want to use this library in a CMake project as a static library, you can set some cache variables first.
+
+```
+FetchContent_Declare(llhttp
+  URL "https://github.com/nodejs/llhttp/archive/refs/tags/release/v8.1.0.tar.gz")
+
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "")
+set(BUILD_STATIC_LIBS ON CACHE INTERNAL "")
+FetchContent_MakeAvailable(llhttp)
+
+# Link with the llhttp_static target
+target_link_libraries(${EXAMPLE_PROJECT_NAME} ${PROJECT_LIBRARIES} llhttp_static ${PROJECT_NAME})
+```
+
+_Note that using the git repo directly (e.g., via a git repo url and tag) will not work with FetchContent_Declare because [CMakeLists.txt](./CMakeLists.txt) requires string replacements (e.g., `_RELEASE_`) before it will build._
 
 ## Building on Windows
 
