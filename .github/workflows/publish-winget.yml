@@ -1,0 +1,74 @@
+# Create winget pacakge YAML file and open a PR in the repository
+# 
+# Required secrets:
+# - WINGET_UPSTREAM_REPO - repository with the YAML files, by default microsoft/winget-pkgs
+# - WINGET_WORKER_NAME - GitHub username of the machine account that will create the PR. The account
+#                        must have a fork of the upstream repo
+# - WINGET_WORKER_EMAIL - machine account e-mail
+# - WINGET_WORKER_PAT- machine account Personal Access Token
+
+name: publish-winget
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-winget:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::set-env name=VERSION::${GITHUB_REF:11}"
+      - name: Test if the package isn't already published
+        run: |
+          echo Looking for https://raw.githubusercontent.com/${{ secrets.WINGET_UPSTREAM_REPO }}/master/manifests/OpenJS/NodeJS/$VERSION.yaml
+          if curl --output /dev/null --silent --head --fail https://raw.githubusercontent.com/${{ secrets.WINGET_UPSTREAM_REPO }}/master/manifests/OpenJS/NodeJS/$VERSION.yaml; then
+            echo "Package already exists, exiting"
+            exit 1
+          fi
+      - name: Setup repository
+        run: |
+          git config --global user.name ${{ secrets.WINGET_WORKER_NAME }}
+          git config --global user.email ${{ secrets.WINGET_WORKER_EMAIL }}
+          git clone https://github.com/${{ secrets.WINGET_WORKER_NAME }}/winget-pkgs
+          cd winget-pkgs
+          git remote add upstream https://github.com/${{ secrets.WINGET_UPSTREAM_REPO }}
+          git fetch upstream
+          git checkout -b add-v$VERSION -t upstream/master
+      - run: echo "::set-env name=YAMLFILE::manifests/OpenJS/NodeJS/$VERSION.yaml"
+      - name: Create YAML file
+        run: |
+          cd winget-pkgs
+          MSISHA256=`curl --silent https://nodejs.org/dist/v$VERSION/SHASUMS256.txt | grep node-v$VERSION-x64.msi | awk '{print $1;}'`
+          echo "Id: OpenJS.Nodejs" > $YAMLFILE
+          echo "Version: $VERSION" >> $YAMLFILE
+          echo "Name: Node.js" >> $YAMLFILE
+          echo "Publisher: OpenJS Foundation" >> $YAMLFILE
+          echo "AppMoniker: node" >> $YAMLFILE
+          echo "License: Copyright Node.js contributors. All rights reserved." >> $YAMLFILE
+          echo "LicenseUrl: https://raw.githubusercontent.com/nodejs/node/master/LICENSE" >> $YAMLFILE
+          echo "Homepage: https://nodejs.org/" >> $YAMLFILE
+          echo "Description: Node.js® is a JavaScript runtime built on Chrome's V8 JavaScript engine." >> $YAMLFILE
+          echo "InstallerType: msi" >> $YAMLFILE
+          echo "Installers:" >> $YAMLFILE
+          echo "  - Arch: x64" >> $YAMLFILE
+          echo "    Url: https://nodejs.org/dist/v$VERSION/node-v$VERSION-x64.msi" >> $YAMLFILE
+          echo "    Sha256: $MSISHA256" >> $YAMLFILE
+          cat $YAMLFILE;
+      - name: Create commit
+        run: |
+          cd winget-pkgs
+          git add $YAMLFILE;
+          git commit -m "Add Node.js $VERSION package";
+          git push https://${{ secrets.WINGET_WORKER_NAME }}:${{ secrets.WINGET_WORKER_PAT }}@github.com/${{ secrets.WINGET_WORKER_NAME }}/winget-pkgs add-v$VERSION
+      - name: Open PR
+        run: |
+          curl --request POST \
+               --url "https://api.github.com/repos/${{ secrets.WINGET_UPSTREAM_REPO }}/pulls" \
+               --header "authorization: Bearer ${{ secrets.WINGET_WORKER_PAT }}" \
+               --header 'content-type: application/json' \
+               --data "{ \
+                        \"title\": \"Add Node.js v$VERSION\", \
+                        \"body\": \"Add Node.js installer $VERSION\", \
+                        \"head\": \"${{ secrets.WINGET_WORKER_NAME }}:add-v$VERSION\", \
+                        \"base\": \"master\" \
+                      }"
