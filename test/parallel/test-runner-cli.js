@@ -334,3 +334,27 @@ const testFixtures = fixtures.path('test-runner');
   assert.match(stdout, /# fail 0/);
   assert.match(stdout, /# skipped 0/);
 }
+
+{
+  // --require should only be applied to individual test processes, not the orchestrator
+  const args = ['--test', '--require', join(testFixtures, 'print_pid.js'), join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  assert.match(child.stdout.toString(), /pid: \d+/);
+  assert.doesNotMatch(child.stdout.toString(), new RegExp(`pid: ${child.pid}`));
+}
+
+{
+  // --import should only be applied to individual test processes, not the orchestrator
+  const args = ['--test', '--require', join(testFixtures, 'print_pid.js'), join(testFixtures, 'index.js')];
+  const child = spawnSync(process.execPath, args, { cwd: testFixtures });
+
+  assert.strictEqual(child.status, 1);
+  assert.strictEqual(child.signal, null);
+  assert.strictEqual(child.stderr.toString(), '');
+  assert.match(child.stdout.toString(), /pid: \d+/);
+  assert.doesNotMatch(child.stdout.toString(), new RegExp(`pid: ${child.pid}`));
+}
