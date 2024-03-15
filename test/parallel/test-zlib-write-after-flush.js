@@ -27,6 +27,7 @@ const zlib = require('zlib');
 for (const [ createCompress, createDecompress ] of [
   [ zlib.createGzip, zlib.createGunzip ],
   [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
+  [ zlib.createZstdCompress, zlib.createZstdDecompress ],
 ]) {
   const gzip = createCompress();
   const gunz = createDecompress();

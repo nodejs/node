@@ -3670,6 +3670,12 @@ removed: v10.0.0
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
 
+<a id="ERR_ZSTD_INVALID_PARAM"></a>
+
+### `ERR_ZSTD_INVALID_PARAM`
+
+An invalid parameter key was passed during construction of a Zstd stream.
+
 <a id="ERR_CPU_USAGE"></a>
 
 ### `ERR_CPU_USAGE`
