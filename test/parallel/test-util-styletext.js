@@ -12,7 +12,6 @@ const util = require('util');
   Symbol(),
   () => {},
   {},
-  [],
 ].forEach((invalidOption) => {
   assert.throws(() => {
     util.styleText(invalidOption, 'test');
@@ -33,3 +32,12 @@ assert.throws(() => {
 });
 
 assert.strictEqual(util.styleText('red', 'test'), '\u001b[31mtest\u001b[39m');
+
+assert.strictEqual(util.styleText(['bold', 'red'], 'test'), '\u001b[1m\u001b[31mtest\u001b[39m\u001b[22m');
+assert.strictEqual(util.styleText(['bold', 'red'], 'test'), util.styleText('bold', util.styleText('red', 'test')));
+
+assert.throws(() => {
+  util.styleText(['invalid'], 'text');
+}, {
+  code: 'ERR_INVALID_ARG_VALUE',
+});
