@@ -18,8 +18,7 @@ using v8::String;
  */
 const std::regex LINE(
     "\\s*(?:export\\s+)?([\\w.-]+)(?:\\s*=\\s*?|:\\s+?)(\\s*'(?:\\\\'|[^']"
-    ")*'|\\s*\"(?:\\\\\"|[^\"])*\"|\\s*`(?:\\\\`|[^`])*`|[^#\r\n]+)?\\s*(?"
-    ":#.*)?");  // NOLINT(whitespace/line_length)
+    ")*'|\\s*\"(?:\\\\\"|[^\"])*\"|\\s*`(?:\\\\`|[^`])*`|[^#\r\n]+)?\\s*");
 
 std::vector<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
@@ -104,6 +103,7 @@ Local<Object> Dotenv::ToObject(Environment* env) {
 void Dotenv::ParseContent(const std::string_view content) {
   std::string lines = std::string(content);
   lines = std::regex_replace(lines, std::regex("\r\n?"), "\n");
+  lines = RemoveComments(lines);
 
   std::smatch match;
   while (std::regex_search(lines, match, LINE)) {
@@ -126,7 +126,7 @@ void Dotenv::ParseContent(const std::string_view content) {
     }
 
     // Remove surrounding quotes
-    value = trim_quotes(value);
+    value = TrimQuotes(value);
 
     store_.insert_or_assign(std::string(key), value);
     lines = match.suffix();
@@ -179,13 +179,30 @@ void Dotenv::AssignNodeOptionsIfAvailable(std::string* node_options) {
   }
 }
 
-std::string_view Dotenv::trim_quotes(std::string_view str) {
+std::string_view Dotenv::TrimQuotes(std::string_view str) {
   static const std::unordered_set<char> quotes = {'"', '\'', '`'};
   if (str.size() >= 2 && quotes.count(str.front()) &&
       quotes.count(str.back())) {
     str = str.substr(1, str.size() - 2);
   }
   return str;
+}
+
+std::string Dotenv::RemoveComments(const std::string& content) {
+  std::istringstream iss(content);
+  std::string result;
+  std::string line;
+
+  while (std::getline(iss, line)) {
+    auto firstNonWhitespace = line.find_first_not_of(" \t");
+    // Check if line is empty or starts with '#'
+    if (firstNonWhitespace == std::string::npos ||
+        line[firstNonWhitespace] == '#') {
+      continue;
+    }
+    result.append(line + "\n");
+  }
+  return result;
 }
 
 }  // namespace node

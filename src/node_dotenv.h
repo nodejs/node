@@ -32,7 +32,8 @@ class Dotenv {
 
  private:
   std::map<std::string, std::string> store_;
-  std::string_view trim_quotes(std::string_view str);
+  std::string_view TrimQuotes(std::string_view str);
+  std::string RemoveComments(const std::string& str);
 };
 
 }  // namespace node
