@@ -9,22 +9,6 @@ const {
   it,
 } = require('node:test');
 
-// before(() => {
-//   console.log('BEFORE');
-// });
-
-// beforeEach(() => {
-//   console.log('BEFORE EACH');
-// });
-
-// after(() => {
-//   console.log('AFTER');
-// });
-
-// afterEach(() => {
-//   console.log('AFTER EACH');
-// });
-
 describe('skip all hooks in this suite', { skip: true }, () => {
   before(() => {
     console.log('BEFORE 1');
