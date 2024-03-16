@@ -532,15 +532,20 @@ make test-only
 #### Speeding up frequent rebuilds when developing
 
 If you plan to frequently rebuild Node.js, especially if using several branches,
-installing `ccache` can help to greatly reduce build times. Set up with:
+installing `ccache` and `mold` can help to greatly reduce build times. Set up with:
 
 On GNU/Linux:
 
 ```bash
-sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
-export CC="ccache gcc"    # add to your .profile
-export CXX="ccache g++"   # add to your .profile
+sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
+export CC="ccache gcc"         # add to your .profile
+export CXX="ccache g++"        # add to your .profile
+export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
+
+Refs: 
+1. https://ccache.dev/performance.html
+2. https://github.com/rui314/mold
 
 On macOS:
 
