@@ -578,7 +578,7 @@ void InsertSyntheticTestCase(const std::string& name, CodeLocation location,
 void RegisterTypeParameterizedTestSuite(const char* test_suite_name,
                                         CodeLocation code_location) {
   GetUnitTestImpl()->type_parameterized_test_registry().RegisterTestSuite(
-      test_suite_name, code_location);
+      test_suite_name, std::move(code_location));
 }
 
 void RegisterTypeParameterizedTestSuiteInstantiation(const char* case_name) {
@@ -589,7 +589,7 @@ void RegisterTypeParameterizedTestSuiteInstantiation(const char* case_name) {
 void TypeParameterizedTestSuiteRegistry::RegisterTestSuite(
     const char* test_suite_name, CodeLocation code_location) {
   suites_.emplace(std::string(test_suite_name),
-                  TypeParameterizedTestSuiteInfo(code_location));
+                  TypeParameterizedTestSuiteInfo(std::move(code_location)));
 }
 
 void TypeParameterizedTestSuiteRegistry::RegisterInstantiation(
@@ -801,7 +801,7 @@ class UnitTestFilter {
   // Returns true if and only if name matches at least one of the patterns in
   // the filter.
   bool MatchesName(const std::string& name) const {
-    return exact_match_patterns_.count(name) > 0 ||
+    return exact_match_patterns_.find(name) != exact_match_patterns_.end() ||
            std::any_of(glob_patterns_.begin(), glob_patterns_.end(),
                        [&name](const std::string& pattern) {
                          return PatternMatchesString(
@@ -2740,18 +2740,16 @@ bool Test::IsSkipped() {
 
 // Constructs a TestInfo object. It assumes ownership of the test factory
 // object.
-TestInfo::TestInfo(const std::string& a_test_suite_name,
-                   const std::string& a_name, const char* a_type_param,
-                   const char* a_value_param,
+TestInfo::TestInfo(std::string a_test_suite_name, std::string a_name,
+                   const char* a_type_param, const char* a_value_param,
                    internal::CodeLocation a_code_location,
                    internal::TypeId fixture_class_id,
                    internal::TestFactoryBase* factory)
-    : test_suite_name_(a_test_suite_name),
-      // begin()/end() is MSVC 17.3.3 ASAN crash workaround (GitHub issue #3997)
-      name_(a_name.begin(), a_name.end()),
+    : test_suite_name_(std::move(a_test_suite_name)),
+      name_(std::move(a_name)),
       type_param_(a_type_param ? new std::string(a_type_param) : nullptr),
       value_param_(a_value_param ? new std::string(a_value_param) : nullptr),
-      location_(a_code_location),
+      location_(std::move(a_code_location)),
       fixture_class_id_(fixture_class_id),
       should_run_(false),
       is_disabled_(false),
@@ -2784,19 +2782,19 @@ namespace internal {
 //                     The newly created TestInfo instance will assume
 //                     ownership of the factory object.
 TestInfo* MakeAndRegisterTestInfo(
-    const char* test_suite_name, const char* name, const char* type_param,
+    std::string test_suite_name, const char* name, const char* type_param,
     const char* value_param, CodeLocation code_location,
     TypeId fixture_class_id, SetUpTestSuiteFunc set_up_tc,
     TearDownTestSuiteFunc tear_down_tc, TestFactoryBase* factory) {
   TestInfo* const test_info =
-      new TestInfo(test_suite_name, name, type_param, value_param,
-                   code_location, fixture_class_id, factory);
+      new TestInfo(std::move(test_suite_name), name, type_param, value_param,
+                   std::move(code_location), fixture_class_id, factory);
   GetUnitTestImpl()->AddTestInfo(set_up_tc, tear_down_tc, test_info);
   return test_info;
 }
 
 void ReportInvalidTestSuiteType(const char* test_suite_name,
-                                CodeLocation code_location) {
+                                const CodeLocation& code_location) {
   Message errors;
   errors
       << "Attempted redefinition of test suite " << test_suite_name << ".\n"
@@ -2948,7 +2946,7 @@ int TestSuite::total_test_count() const {
 //                 this is not a typed or a type-parameterized test suite.
 //   set_up_tc:    pointer to the function that sets up the test suite
 //   tear_down_tc: pointer to the function that tears down the test suite
-TestSuite::TestSuite(const char* a_name, const char* a_type_param,
+TestSuite::TestSuite(const std::string& a_name, const char* a_type_param,
                      internal::SetUpTestSuiteFunc set_up_tc,
                      internal::TearDownTestSuiteFunc tear_down_tc)
     : name_(a_name),
@@ -5746,29 +5744,6 @@ void UnitTestImpl::PostFlagParsingInit() {
   }
 }
 
-// A predicate that checks the name of a TestSuite against a known
-// value.
-//
-// This is used for implementation of the UnitTest class only.  We put
-// it in the anonymous namespace to prevent polluting the outer
-// namespace.
-//
-// TestSuiteNameIs is copyable.
-class TestSuiteNameIs {
- public:
-  // Constructor.
-  explicit TestSuiteNameIs(const std::string& name) : name_(name) {}
-
-  // Returns true if and only if the name of test_suite matches name_.
-  bool operator()(const TestSuite* test_suite) const {
-    return test_suite != nullptr &&
-           strcmp(test_suite->name(), name_.c_str()) == 0;
-  }
-
- private:
-  std::string name_;
-};
-
 // Finds and returns a TestSuite with the given name.  If one doesn't
 // exist, creates one and returns it.  It's the CALLER'S
 // RESPONSIBILITY to ensure that this function is only called WHEN THE
@@ -5782,19 +5757,27 @@ class TestSuiteNameIs {
 //   set_up_tc:       pointer to the function that sets up the test suite
 //   tear_down_tc:    pointer to the function that tears down the test suite
 TestSuite* UnitTestImpl::GetTestSuite(
-    const char* test_suite_name, const char* type_param,
+    const std::string& test_suite_name, const char* type_param,
     internal::SetUpTestSuiteFunc set_up_tc,
     internal::TearDownTestSuiteFunc tear_down_tc) {
-  // Can we find a TestSuite with the given name?
-  const auto test_suite =
-      std::find_if(test_suites_.rbegin(), test_suites_.rend(),
-                   TestSuiteNameIs(test_suite_name));
+  // During initialization, all TestInfos for a given suite are added in
+  // sequence. To optimize this case, see if the most recently added suite is
+  // the one being requested now.
+  if (!test_suites_.empty() &&
+      (*test_suites_.rbegin())->name_ == test_suite_name) {
+    return *test_suites_.rbegin();
+  }
 
-  if (test_suite != test_suites_.rend()) return *test_suite;
+  // Fall back to searching the collection.
+  auto item_it = test_suites_by_name_.find(test_suite_name);
+  if (item_it != test_suites_by_name_.end()) {
+    return item_it->second;
+  }
 
-  // No.  Let's create one.
+  // Not found. Create a new instance.
   auto* const new_test_suite =
       new TestSuite(test_suite_name, type_param, set_up_tc, tear_down_tc);
+  test_suites_by_name_.emplace(test_suite_name, new_test_suite);
 
   const UnitTestFilter death_test_suite_filter(kDeathTestSuiteFilter);
   // Is this a death test suite?
@@ -6146,12 +6129,11 @@ int UnitTestImpl::FilterTests(ReactionToSharding shard_tests) {
   int num_runnable_tests = 0;
   int num_selected_tests = 0;
   for (auto* test_suite : test_suites_) {
-    const std::string& test_suite_name = test_suite->name();
+    const std::string& test_suite_name = test_suite->name_;
     test_suite->set_should_run(false);
 
-    for (size_t j = 0; j < test_suite->test_info_list().size(); j++) {
-      TestInfo* const test_info = test_suite->test_info_list()[j];
-      const std::string test_name(test_info->name());
+    for (TestInfo* test_info : test_suite->test_info_list()) {
+      const std::string& test_name = test_info->name_;
       // A test is disabled if test suite name or test name matches
       // kDisableTestFilter.
       const bool is_disabled =

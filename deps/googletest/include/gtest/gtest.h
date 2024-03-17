@@ -607,7 +607,7 @@ class GTEST_API_ TestInfo {
   friend class internal::UnitTestImpl;
   friend class internal::StreamingListenerTest;
   friend TestInfo* internal::MakeAndRegisterTestInfo(
-      const char* test_suite_name, const char* name, const char* type_param,
+      std::string test_suite_name, const char* name, const char* type_param,
       const char* value_param, internal::CodeLocation code_location,
       internal::TypeId fixture_class_id, internal::SetUpTestSuiteFunc set_up_tc,
       internal::TearDownTestSuiteFunc tear_down_tc,
@@ -615,7 +615,7 @@ class GTEST_API_ TestInfo {
 
   // Constructs a TestInfo object. The newly constructed instance assumes
   // ownership of the factory object.
-  TestInfo(const std::string& test_suite_name, const std::string& name,
+  TestInfo(std::string test_suite_name, std::string name,
            const char* a_type_param,   // NULL if not a type-parameterized test
            const char* a_value_param,  // NULL if not a value-parameterized test
            internal::CodeLocation a_code_location,
@@ -683,7 +683,7 @@ class GTEST_API_ TestSuite {
   //                 this is not a type-parameterized test.
   //   set_up_tc:    pointer to the function that sets up the test suite
   //   tear_down_tc: pointer to the function that tears down the test suite
-  TestSuite(const char* name, const char* a_type_param,
+  TestSuite(const std::string& name, const char* a_type_param,
             internal::SetUpTestSuiteFunc set_up_tc,
             internal::TearDownTestSuiteFunc tear_down_tc);
 
