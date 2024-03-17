@@ -1517,7 +1517,6 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
       GetHostDefinedOptions(isolate, id_symbol);
   ScriptCompiler::Source source = GetCommonJSSourceInstance(
       isolate, code, script_id, 0, 0, host_defined_options, nullptr);
-  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
 
   TryCatchScope try_catch(env);
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
@@ -1545,7 +1544,7 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
       params.data(),
       0,
       nullptr,
-      options,
+      ScriptCompiler::kNoCompileOptions,
       v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
 
   if (!try_catch.HasTerminated()) {
