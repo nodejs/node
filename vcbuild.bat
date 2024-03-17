@@ -327,7 +327,7 @@ if "%target%"=="Build" (
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
-if defined ccache_path set "extra_msbuild_args=%extra_msbuild_args% /p:TrackFileAccess=false /p:CLToolPath=%ccache_path%"
+if defined ccache_path set "extra_msbuild_args=%extra_msbuild_args% /p:TrackFileAccess=false /p:CLToolPath=%ccache_path% /p:ForceImportAfterCppProps=%CD%\props_4_ccache.props"
 @rem Setup env variables to use multiprocessor build
 set "extra_msbuild_args=%extra_msbuild_args% /p:UseMultiToolTask=True"
 set "extra_msbuild_args=%extra_msbuild_args% /p:EnforceProcessCountAcrossBuilds=True"
