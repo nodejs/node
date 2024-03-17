@@ -5868,7 +5868,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
-    <td>Instructs OpenSSL to use Cisco's "speshul" version of DTLS_BAD_VER.</td>
+    <td>Instructs OpenSSL to use Cisco's version identifier of DTLS_BAD_VER.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_COOKIE_EXCHANGE</code></td>
