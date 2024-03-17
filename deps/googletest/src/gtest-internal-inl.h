@@ -46,6 +46,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "gtest/internal/gtest-port.h"
@@ -649,13 +650,15 @@ class GTEST_API_ UnitTestImpl {
   //                    this is not a typed or a type-parameterized test.
   //   set_up_tc:       pointer to the function that sets up the test suite
   //   tear_down_tc:    pointer to the function that tears down the test suite
-  TestSuite* GetTestSuite(const char* test_suite_name, const char* type_param,
+  TestSuite* GetTestSuite(const std::string& test_suite_name,
+                          const char* type_param,
                           internal::SetUpTestSuiteFunc set_up_tc,
                           internal::TearDownTestSuiteFunc tear_down_tc);
 
 //  Legacy API is deprecated but still available
 #ifndef GTEST_REMOVE_LEGACY_TEST_CASEAPI_
-  TestCase* GetTestCase(const char* test_case_name, const char* type_param,
+  TestCase* GetTestCase(const std::string& test_case_name,
+                        const char* type_param,
                         internal::SetUpTestSuiteFunc set_up_tc,
                         internal::TearDownTestSuiteFunc tear_down_tc) {
     return GetTestSuite(test_case_name, type_param, set_up_tc, tear_down_tc);
@@ -681,13 +684,13 @@ class GTEST_API_ UnitTestImpl {
     // AddTestInfo(), which is called to register a TEST or TEST_F
     // before main() is reached.
     if (original_working_dir_.IsEmpty()) {
-      original_working_dir_.Set(FilePath::GetCurrentDir());
+      original_working_dir_ = FilePath::GetCurrentDir();
       GTEST_CHECK_(!original_working_dir_.IsEmpty())
           << "Failed to get the current working directory.";
     }
 #endif  // GTEST_HAS_FILE_SYSTEM
 
-    GetTestSuite(test_info->test_suite_name(), test_info->type_param(),
+    GetTestSuite(test_info->test_suite_name_, test_info->type_param(),
                  set_up_tc, tear_down_tc)
         ->AddTestInfo(test_info);
   }
@@ -823,6 +826,12 @@ class GTEST_API_ UnitTestImpl {
   bool catch_exceptions() const { return catch_exceptions_; }
 
  private:
+  struct CompareTestSuitesByPointer {
+    bool operator()(const TestSuite* lhs, const TestSuite* rhs) const {
+      return lhs->name_ < rhs->name_;
+    }
+  };
+
   friend class ::testing::UnitTest;
 
   // Used by UnitTest::Run() to capture the state of
@@ -872,6 +881,9 @@ class GTEST_API_ UnitTestImpl {
   // The vector of TestSuites in their original order.  It owns the
   // elements in the vector.
   std::vector<TestSuite*> test_suites_;
+
+  // The set of TestSuites by name.
+  std::unordered_map<std::string, TestSuite*> test_suites_by_name_;
 
   // Provides a level of indirection for the test suite list to allow
   // easy shuffling and restoring the test suite order.  The i-th
