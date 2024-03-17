@@ -47,6 +47,12 @@ test('only = true, with subtests', { only: true }, async (t) => {
   await t.test('skipped subtest 4', { skip: true });
 });
 
+test('only = true, with subtests and test.only', { only: true }, async (t) => {
+  await t.test('skipped subtest 1');
+  await t.test.skip('skipped subtest 2');
+  await t.test.only('running subtest 3');
+});
+
 describe.only('describe only = true, with subtests', () => {
   it.only('`it` subtest 1 should run', () => {});
 
