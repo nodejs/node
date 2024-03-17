@@ -1509,7 +1509,8 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
                                                  Local<String> code) {
   Isolate* isolate = env->isolate();
 
-  Local<String> script_id = FIXED_ONE_BYTE_STRING(isolate, "throwaway");
+  Local<String> script_id = FIXED_ONE_BYTE_STRING(isolate,
+                                                  "[retry_as_esm_check]");
   Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
 
   Local<PrimitiveArray> host_defined_options =
@@ -1527,10 +1528,10 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
   // module variables, or a top-level `await`.
   code = String::Concat(
       isolate,
-      String::NewFromUtf8(isolate, "(async function() {").ToLocalChecked(),
+      FIXED_ONE_BYTE_STRING(isolate, "(async function() {"),
       code);
   code = String::Concat(
-      isolate, code, String::NewFromUtf8(isolate, "})();").ToLocalChecked());
+      isolate, code, FIXED_ONE_BYTE_STRING(isolate, "})();"));
 
   ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
       isolate, code, script_id, 0, 0, host_defined_options, nullptr);
