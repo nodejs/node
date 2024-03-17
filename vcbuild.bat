@@ -332,6 +332,7 @@ if defined ccache_path set "extra_msbuild_args=%extra_msbuild_args% /p:TrackFile
 set "extra_msbuild_args=%extra_msbuild_args% /p:UseMultiToolTask=True"
 set "extra_msbuild_args=%extra_msbuild_args% /p:EnforceProcessCountAcrossBuilds=True"
 set "extra_msbuild_args=%extra_msbuild_args% /p:MultiProcMaxCount=%NUMBER_OF_PROCESSORS%"
+set "extra_msbuild_args=%extra_msbuild_args% /p:VcpkgEnabled=false"
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
