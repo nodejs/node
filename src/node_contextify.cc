@@ -1728,6 +1728,7 @@ static void CreatePerContextProperties(Local<Object> target,
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
   Local<Object> memory_execution = Object::New(env->isolate());
+  Local<Object> syntax_detection_errors = Object::New(env->isolate());
 
   {
     Local<Object> memory_mode = Object::New(env->isolate());
@@ -1747,6 +1748,40 @@ static void CreatePerContextProperties(Local<Object> target,
   }
 
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
+
+  {
+    Local<Array> esm_syntax_error_messages_array =
+        Array::New(env->isolate(), esm_syntax_error_messages.size());
+    for (size_t i = 0; i < esm_syntax_error_messages.size(); i++) {
+      const char* message = esm_syntax_error_messages[i].data();
+      (void)esm_syntax_error_messages_array->Set(
+          context,
+          static_cast<uint32_t>(i),
+          String::NewFromUtf8(env->isolate(), message)
+              .ToLocalChecked());
+    }
+    READONLY_PROPERTY(syntax_detection_errors, "esmSyntaxErrorMessages",
+                      esm_syntax_error_messages_array);
+  }
+
+  {
+    Local<Array> throws_only_in_cjs_error_messages_array =
+        Array::New(env->isolate(), throws_only_in_cjs_error_messages.size());
+    for (size_t i = 0; i < throws_only_in_cjs_error_messages.size(); i++) {
+      const char* message = throws_only_in_cjs_error_messages[i].data();
+      (void)throws_only_in_cjs_error_messages_array->Set(
+          context,
+          static_cast<uint32_t>(i),
+          String::NewFromUtf8(env->isolate(), message)
+              .ToLocalChecked());
+    }
+    READONLY_PROPERTY(syntax_detection_errors,
+                      "throwsOnlyInCommonJSErrorMessages",
+                      throws_only_in_cjs_error_messages_array);
+  }
+
+  READONLY_PROPERTY(constants, "syntaxDetectionErrors",
+                    syntax_detection_errors);
 
   target->Set(context, env->constants_string(), constants).Check();
 }
