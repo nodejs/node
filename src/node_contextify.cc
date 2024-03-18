@@ -1509,8 +1509,8 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
                                                  Local<String> code) {
   Isolate* isolate = env->isolate();
 
-  Local<String> script_id = FIXED_ONE_BYTE_STRING(isolate,
-                                                  "[retry_as_esm_check]");
+  Local<String> script_id =
+      FIXED_ONE_BYTE_STRING(isolate, "[retry_as_esm_check]");
   Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
 
   Local<PrimitiveArray> host_defined_options =
@@ -1526,11 +1526,8 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
   // module was caused by either a top-level declaration of one of the CommonJS
   // module variables, or a top-level `await`.
   code = String::Concat(
-      isolate,
-      FIXED_ONE_BYTE_STRING(isolate, "(async function() {"),
-      code);
-  code = String::Concat(
-      isolate, code, FIXED_ONE_BYTE_STRING(isolate, "})();"));
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "(async function() {"), code);
+  code = String::Concat(isolate, code, FIXED_ONE_BYTE_STRING(isolate, "})();"));
 
   ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
       isolate, code, script_id, 0, 0, host_defined_options, nullptr);
@@ -1757,10 +1754,10 @@ static void CreatePerContextProperties(Local<Object> target,
       USE(esm_syntax_error_messages_array->Set(
           context,
           static_cast<uint32_t>(i),
-          String::NewFromUtf8(env->isolate(), message)
-              .ToLocalChecked()));
+          String::NewFromUtf8(env->isolate(), message).ToLocalChecked()));
     }
-    READONLY_PROPERTY(syntax_detection_errors, "esmSyntaxErrorMessages",
+    READONLY_PROPERTY(syntax_detection_errors,
+                      "esmSyntaxErrorMessages",
                       esm_syntax_error_messages_array);
   }
 
@@ -1772,16 +1769,15 @@ static void CreatePerContextProperties(Local<Object> target,
       USE(throws_only_in_cjs_error_messages_array->Set(
           context,
           static_cast<uint32_t>(i),
-          String::NewFromUtf8(env->isolate(), message)
-              .ToLocalChecked()));
+          String::NewFromUtf8(env->isolate(), message).ToLocalChecked()));
     }
     READONLY_PROPERTY(syntax_detection_errors,
                       "throwsOnlyInCommonJSErrorMessages",
                       throws_only_in_cjs_error_messages_array);
   }
 
-  READONLY_PROPERTY(constants, "syntaxDetectionErrors",
-                    syntax_detection_errors);
+  READONLY_PROPERTY(
+      constants, "syntaxDetectionErrors", syntax_detection_errors);
 
   target->Set(context, env->constants_string(), constants).Check();
 }
