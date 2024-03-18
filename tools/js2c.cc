@@ -613,8 +613,8 @@ bool Simplify(const std::vector<char>& code,
   }
 
   if (simplified_count > 0) {
-    Debug("Simplified %d characters, ", simplified_count);
-    Debug("old size %d, new size %d\n", code_size, simplified->size());
+    Debug("Simplified %lu characters, ", simplified_count);
+    Debug("old size %lu, new size %lu\n", code_size, simplified->size());
     return true;
   }
   return false;
