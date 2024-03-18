@@ -66,6 +66,16 @@ describe('no', function() {
   });
 });
 
+describe('no with todo', { todo: true }, () => {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
+
 describe('DescribeForMatchWithAncestors', () => {
   it('NestedTest', () => common.mustNotCall());
 
