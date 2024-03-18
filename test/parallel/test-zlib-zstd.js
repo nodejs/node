@@ -61,8 +61,48 @@ const sampleBuffer = fixtures.readSync('/pss-vectors.json');
   assert.throws(() => {
     zlib.createZstdCompress({
       params: {
-        // This is a boolean flag
-        [zlib.constants.BROTLI_PARAM_DISABLE_LITERAL_CONTEXT_MODELING]: 42
+        // This param must be a valid ZSTD_strategy value.
+        [zlib.constants.ZSTD_c_strategy]: 130
+      }
+    });
+  }, {
+    code: 'ERR_ZLIB_INITIALIZATION_FAILED',
+    name: 'Error',
+    message: 'Initialization failed'
+  });
+
+  // Test that setting out-of-bounds option values or keys fails.
+  assert.throws(() => {
+    zlib.createZstdDecompress({
+      params: {
+        10000: 0
+      }
+    });
+  }, {
+    code: 'ERR_ZSTD_INVALID_PARAM',
+    name: 'RangeError',
+    message: '10000 is not a valid zstd parameter'
+  });
+
+  // Test that accidentally using duplicate keys fails.
+  assert.throws(() => {
+    zlib.createZstdDecompress({
+      params: {
+        '0': 0,
+        '00': 0
+      }
+    });
+  }, {
+    code: 'ERR_ZSTD_INVALID_PARAM',
+    name: 'RangeError',
+    message: '00 is not a valid zstd parameter'
+  });
+
+  assert.throws(() => {
+    zlib.createZstdDecompress({
+      params: {
+        // This param must be >= 10 (ZSTD_WINDOWLOG_ABSOLUTEMIN).
+        [zlib.constants.ZSTD_d_windowLogMax]: 1
       }
     });
   }, {

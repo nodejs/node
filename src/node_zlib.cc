@@ -304,9 +304,6 @@ class ZstdContext : public MemoryRetainer {
   ZstdContext(const ZstdContext&) = delete;
   ZstdContext& operator=(const ZstdContext&) = delete;
 
-  // Wrap ZSTD_freeCCtx to remove the return type.
-  static void FreeCCtx(ZSTD_CCtx* cctx) { ZSTD_freeCCtx(cctx); }
-
  protected:
   ZSTD_EndDirective flush_ = ZSTD_e_continue;
 
