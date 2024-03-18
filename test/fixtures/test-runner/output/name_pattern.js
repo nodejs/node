@@ -65,3 +65,13 @@ describe('no', function() {
     it('yes', () => {});
   });
 });
+
+describe('no with todo', { todo: true }, () => {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
