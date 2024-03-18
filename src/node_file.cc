@@ -2402,7 +2402,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (CheckOpenPermissions(env, path, flags).IsNothing()) return;
 
     FS_SYNC_TRACE_BEGIN(open);
-    file = uv_fs_open(nullptr, &req, *path, flags, O_RDONLY, nullptr);
+    file = uv_fs_open(nullptr, &req, *path, flags, 0666, nullptr);
     FS_SYNC_TRACE_END(open);
     if (req.result < 0) {
       uv_fs_req_cleanup(&req);
