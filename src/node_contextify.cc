@@ -1472,7 +1472,7 @@ void ContextifyContext::ContainsModuleSyntax(
   ContextifyContext::CompileFunctionAndCacheResult(env,
                                                    context,
                                                    &source,
-                                                   std::move(params),
+                                                   params,
                                                    std::vector<Local<Object>>(),
                                                    options,
                                                    true,
