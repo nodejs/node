@@ -224,7 +224,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCheckAbstract(Node* node) {
     // The none-types only perform a null check. They need no control flow.
     if (to_rep == wasm::HeapType::kNone ||
         to_rep == wasm::HeapType::kNoExtern ||
-        to_rep == wasm::HeapType::kNoFunc) {
+        to_rep == wasm::HeapType::kNoFunc || to_rep == wasm::HeapType::kNoExn) {
       result = IsNull(object, config.from);
       break;
     }
@@ -398,7 +398,7 @@ Reduction WasmGCLowering::ReduceWasmTypeCastAbstract(Node* node) {
     // The none-types only perform a null check.
     if (to_rep == wasm::HeapType::kNone ||
         to_rep == wasm::HeapType::kNoExtern ||
-        to_rep == wasm::HeapType::kNoFunc) {
+        to_rep == wasm::HeapType::kNoFunc || to_rep == wasm::HeapType::kNoExn) {
       gasm_.TrapUnless(IsNull(object, config.from), TrapId::kTrapIllegalCast);
       UpdateSourcePosition(gasm_.effect(), node);
       break;
