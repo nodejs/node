@@ -48,7 +48,7 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
-        run: npx envinfo
+        run: npx envinfo@7.11.0
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
       # now so that we don't have to wait 2 hours for the Build step to pass
       # first before that failure happens. (And if there's something about
