@@ -7325,6 +7325,8 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
           // TODO(14034): Add more fast paths?
           case wasm::HeapType::kExtern:
           case wasm::HeapType::kNoExtern:
+          case wasm::HeapType::kExn:
+          case wasm::HeapType::kNoExn:
             if (type.kind() == wasm::kRef) {
               Node* null_value = gasm_->LoadImmutable(
                   MachineType::Pointer(), gasm_->LoadRootRegister(),
@@ -7345,9 +7347,6 @@ class WasmWrapperGraphBuilder : public WasmGraphBuilder {
             return input;
           case wasm::HeapType::kString:
             return BuildCheckString(input, js_context, type);
-          case wasm::HeapType::kExn:
-          case wasm::HeapType::kNoExn:
-            return input;
           case wasm::HeapType::kNone:
           case wasm::HeapType::kNoFunc:
           case wasm::HeapType::kI31:

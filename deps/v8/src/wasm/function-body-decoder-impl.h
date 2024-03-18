@@ -4659,7 +4659,8 @@ class WasmFullDecoder : public WasmDecoder<ValidationTag, decoding_mode> {
            ((!null_succeeds || !obj.type.is_nullable()) &&
             (expected_type.representation() == HeapType::kNone ||
              expected_type.representation() == HeapType::kNoFunc ||
-             expected_type.representation() == HeapType::kNoExtern));
+             expected_type.representation() == HeapType::kNoExtern ||
+             expected_type.representation() == HeapType::kNoExn));
   }
   bool TypeCheckAlwaysFails(Value obj, uint32_t ref_index) {
     // All old casts / checks treat null as failure.

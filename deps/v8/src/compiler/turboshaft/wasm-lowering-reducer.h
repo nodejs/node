@@ -556,7 +556,8 @@ class WasmLoweringReducer : public Next {
       // The none-types only perform a null check. They need no control flow.
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
-          to_rep == wasm::HeapType::kNoFunc) {
+          to_rep == wasm::HeapType::kNoFunc ||
+          to_rep == wasm::HeapType::kNoExn) {
         result = __ IsNull(object, config.from);
         break;
       }
@@ -628,7 +629,8 @@ class WasmLoweringReducer : public Next {
       // The none-types only perform a null check.
       if (to_rep == wasm::HeapType::kNone ||
           to_rep == wasm::HeapType::kNoExtern ||
-          to_rep == wasm::HeapType::kNoFunc) {
+          to_rep == wasm::HeapType::kNoFunc ||
+          to_rep == wasm::HeapType::kNoExn) {
         __ TrapIfNot(__ IsNull(object, config.from), OpIndex::Invalid(),
                      TrapId::kTrapIllegalCast);
         break;
