@@ -1537,7 +1537,7 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
 
   Local<Context> context = env->context();
   std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
-  std::ignore = ScriptCompiler::CompileFunction(
+  USE(ScriptCompiler::CompileFunction(
       context,
       &wrapped_source,
       params.size(),
@@ -1545,7 +1545,7 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
       0,
       nullptr,
       ScriptCompiler::kNoCompileOptions,
-      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
+      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason));
 
   if (!try_catch.HasTerminated()) {
     if (try_catch.HasCaught()) {
@@ -1754,11 +1754,11 @@ static void CreatePerContextProperties(Local<Object> target,
         Array::New(env->isolate(), esm_syntax_error_messages.size());
     for (size_t i = 0; i < esm_syntax_error_messages.size(); i++) {
       const char* message = esm_syntax_error_messages[i].data();
-      (void)esm_syntax_error_messages_array->Set(
+      USE(esm_syntax_error_messages_array->Set(
           context,
           static_cast<uint32_t>(i),
           String::NewFromUtf8(env->isolate(), message)
-              .ToLocalChecked());
+              .ToLocalChecked()));
     }
     READONLY_PROPERTY(syntax_detection_errors, "esmSyntaxErrorMessages",
                       esm_syntax_error_messages_array);
@@ -1769,11 +1769,11 @@ static void CreatePerContextProperties(Local<Object> target,
         Array::New(env->isolate(), throws_only_in_cjs_error_messages.size());
     for (size_t i = 0; i < throws_only_in_cjs_error_messages.size(); i++) {
       const char* message = throws_only_in_cjs_error_messages[i].data();
-      (void)throws_only_in_cjs_error_messages_array->Set(
+      USE(throws_only_in_cjs_error_messages_array->Set(
           context,
           static_cast<uint32_t>(i),
           String::NewFromUtf8(env->isolate(), message)
-              .ToLocalChecked());
+              .ToLocalChecked()));
     }
     READONLY_PROPERTY(syntax_detection_errors,
                       "throwsOnlyInCommonJSErrorMessages",
