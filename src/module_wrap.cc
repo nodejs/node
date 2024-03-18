@@ -128,7 +128,7 @@ v8::Maybe<bool> ModuleWrap::CheckUnsettledTopLevelAwait() {
   }
 
   if (env()->options()->warnings) {
-    for (auto pair : stalled) {
+    for (auto& pair : stalled) {
       Local<v8::Message> message = std::get<1>(pair);
 
       std::string reason = "Warning: Detected unsettled top-level await at ";
