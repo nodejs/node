@@ -128,8 +128,8 @@ test('top level test', async (t) => {
 > between each subtest execution.
 
 In this example, `await` is used to ensure that both subtests have completed.
-This is necessary because parent tests do not wait for their subtests to
-complete, unlike tests created with the `describe` and `it` syntax.
+This is necessary because tests do not wait for their subtests to
+complete, unlike tests created within suites.
 Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
@@ -162,12 +162,11 @@ test('skip() method with message', (t) => {
 });
 ```
 
-## `describe`/`it` syntax
+## `describe()` and `it()` aliases
 
-Running tests can also be done using `describe` to declare a suite
-and `it` to declare a test.
-A suite is used to organize and group related tests together.
-`it` is a shorthand for [`test()`][].
+Suites and tests can also be written using the `describe()` and `it()`
+functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
+alias for [`test()`][].
 
 ```js
 describe('A thing', () => {
@@ -187,7 +186,7 @@ describe('A thing', () => {
 });
 ```
 
-`describe` and `it` are imported from the `node:test` module.
+`describe()` and `it()` are imported from the `node:test` module.
 
 ```mjs
 import { describe, it } from 'node:test';
@@ -1204,6 +1203,51 @@ run({ files: [path.resolve('./tests/test.js')] })
  .pipe(process.stdout);
 ```
 
+## `suite([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The name of the suite, which is displayed when reporting test
+  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
+  does not have a name.
+* `options` {Object} Optional configuration options for the suite.
+  This supports the same options as `test([name][, options][, fn])`.
+* `fn` {Function|AsyncFunction} The suite function declaring nested tests and
+  suites. The first argument to this function is a [`SuiteContext`][] object.
+  **Default:** A no-op function.
+* Returns: {Promise} Immediately fulfilled with `undefined`.
+
+The `suite()` function is imported from the `node:test` module.
+
+## `suite.skip([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for skipping a suite. This is the same as
+[`suite([name], { skip: true }[, fn])`][suite options].
+
+## `suite.todo([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a suite as `TODO`. This is the same as
+[`suite([name], { todo: true }[, fn])`][suite options].
+
+## `suite.only([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a suite as `only`. This is the same as
+[`suite([name], { only: true }[, fn])`][suite options].
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
@@ -1257,7 +1301,7 @@ changes:
   the callback function is passed as the second argument. **Default:** A no-op
   function.
 * Returns: {Promise} Fulfilled with `undefined` once
-  the test completes, or immediately if the test runs within [`describe()`][].
+  the test completes, or immediately if the test runs within a suite.
 
 The `test()` function is the value imported from the `test` module. Each
 invocation of this function results in reporting the test to the {TestsStream}.
@@ -1267,7 +1311,7 @@ actions related to the current test. Examples include skipping the test, adding
 additional diagnostic information, or creating subtests.
 
 `test()` returns a `Promise` that fulfills once the test completes.
-if `test()` is called within a `describe()` block, it fulfills immediately.
+if `test()` is called within a suite, it fulfills immediately.
 The return value can usually be discarded for top level tests.
 However, the return value from subtests should be used to prevent the parent
 test from finishing first and cancelling the subtest
@@ -1308,29 +1352,18 @@ same as [`test([name], { only: true }[, fn])`][it options].
 
 ## `describe([name][, options][, fn])`
 
-* `name` {string} The name of the suite, which is displayed when reporting test
-  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
-  does not have a name.
-* `options` {Object} Configuration options for the suite.
-  supports the same options as `test([name][, options][, fn])`.
-* `fn` {Function|AsyncFunction} The function under suite
-  declaring all subtests and subsuites.
-  The first argument to this function is a [`SuiteContext`][] object.
-  **Default:** A no-op function.
-* Returns: {Promise} Immediately fulfilled with `undefined`.
+Alias for [`suite()`][].
 
-The `describe()` function imported from the `node:test` module. Each
-invocation of this function results in the creation of a Subtest.
-After invocation of top level `describe` functions,
-all top level tests and suites will execute.
+The `describe()` function is imported from the `node:test` module.
 
 ## `describe.skip([name][, options][, fn])`
 
-Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][describe options].
+Shorthand for skipping a suite. This is the same as
+[`describe([name], { skip: true }[, fn])`][describe options].
 
 ## `describe.todo([name][, options][, fn])`
 
-Shorthand for marking a suite as `TODO`, same as
+Shorthand for marking a suite as `TODO`. This is the same as
 [`describe([name], { todo: true }[, fn])`][describe options].
 
 ## `describe.only([name][, options][, fn])`
@@ -1341,7 +1374,7 @@ added:
   - v18.15.0
 -->
 
-Shorthand for marking a suite as `only`, same as
+Shorthand for marking a suite as `only`. This is the same as
 [`describe([name], { only: true }[, fn])`][describe options].
 
 ## `it([name][, options][, fn])`
@@ -1358,7 +1391,7 @@ changes:
     description: Calling `it()` is now equivalent to calling `test()`.
 -->
 
-Shorthand for [`test()`][].
+Alias for [`test()`][].
 
 The `it()` function is imported from the `node:test` module.
 
@@ -1402,7 +1435,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running before running a suite.
+This function creates a hook that runs before executing a suite.
 
 ```js
 describe('tests', async () => {
@@ -1432,7 +1465,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running after  running a suite.
+This function creates a hook that runs after executing a suite.
 
 ```js
 describe('tests', async () => {
@@ -1465,8 +1498,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-before each subtest of the current suite.
+This function creates a hook that runs before each test in the current suite.
 
 ```js
 describe('tests', async () => {
@@ -1496,11 +1528,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-after each subtest of the current test.
-
-**Note:** The `afterEach` hook is guaranteed to run after every test,
-even if any of the tests fail.
+This function creates a hook that runs after each test in the current suite.
+The `afterEach()` hook is run even if the test fails.
 
 ```js
 describe('tests', async () => {
@@ -3075,10 +3104,13 @@ Can be used to abort test subtasks when the test has been aborted.
 [`context.todo`]: #contexttodomessage
 [`describe()`]: #describename-options-fn
 [`glob(7)`]: https://man7.org/linux/man-pages/man7/glob.7.html
+[`it()`]: #itname-options-fn
 [`run()`]: #runoptions
+[`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model
