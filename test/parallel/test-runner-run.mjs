@@ -195,9 +195,16 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         signal: controller.signal,
       })
         .compose(async function* (source) {
+          let waitForCancel = 2;
           for await (const chunk of source) {
-            if (chunk.type === 'test:pass') {
+            if (chunk.type === 'test:watch:drained' ||
+                (chunk.type === 'test:diagnostic' && chunk.data.message.startsWith('duration_ms'))) {
+              waitForCancel--;
+            }
+            if (waitForCancel === 0) {
               controller.abort();
+            }
+            if (chunk.type === 'test:pass') {
               yield chunk.data.name;
             }
           }
