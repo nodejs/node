@@ -25,32 +25,55 @@ option(ENABLE_SIMD_OPTIMIZATIONS "Enable all SIMD optimizations" OFF)
 option(ENABLE_SIMD_AVX512 "Enable SIMD AXV512 optimizations" OFF)
 option(USE_ZLIB_RABIN_KARP_HASH "Enable bitstream compatibility with canonical zlib" OFF)
 option(BUILD_UNITTESTS "Enable standalone unit tests build" OFF)
+option(BUILD_MINIZIP_BIN "Enable building minzip_bin tool" OFF)
 
 if (USE_ZLIB_RABIN_KARP_HASH)
    add_definitions(-DUSE_ZLIB_RABIN_KARP_ROLLING_HASH)
 endif()
 
-# TODO(cavalcantii): add support for other OSes (e.g. Android, fuchsia, osx)
-# and architectures (e.g. Arm).
+# TODO(cavalcantii): add support for other OSes (e.g. Android, Fuchsia, etc)
+# and architectures (e.g. RISCV).
 if (ENABLE_SIMD_OPTIMIZATIONS)
-   add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
-   add_definitions(-DADLER32_SIMD_SSSE3)
-   add_definitions(-DINFLATE_CHUNK_READ_64LE)
-   add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
-   if (ENABLE_SIMD_AVX512)
-    add_definitions(-DCRC32_SIMD_AVX512_PCLMUL)
-    add_compile_options(-mvpclmulqdq -msse2 -mavx512f -mpclmul)
-   else()
-    add_compile_options(-msse4.2 -mpclmul)
-   endif()
-   add_definitions(-DDEFLATE_SLIDE_HASH_SSE2)
-   # Required by CPU features detection code.
-   add_definitions(-DX86_NOT_WINDOWS)
-   # Apparently some environments (e.g. CentOS) require to explicitly link
-   # with pthread and that is required by the CPU features detection code.
-   find_package (Threads REQUIRED)
-   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
-   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+  # Apparently some environments (e.g. CentOS) require to explicitly link
+  # with pthread and that is required by the CPU features detection code.
+  find_package (Threads REQUIRED)
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+
+  if (CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
+    add_definitions(-DINFLATE_CHUNK_SIMD_SSE2)
+    add_definitions(-DADLER32_SIMD_SSSE3)
+    add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DCRC32_SIMD_SSE42_PCLMUL)
+    if (ENABLE_SIMD_AVX512)
+      add_definitions(-DCRC32_SIMD_AVX512_PCLMUL)
+      add_compile_options(-mvpclmulqdq -msse2 -mavx512f -mpclmul)
+    else()
+      add_compile_options(-msse4.2 -mpclmul)
+    endif()
+    add_definitions(-DDEFLATE_SLIDE_HASH_SSE2)
+    # Required by CPU features detection code.
+    add_definitions(-DX86_NOT_WINDOWS)
+  endif()
+
+  if ((CMAKE_SYSTEM_PROCESSOR STREQUAL "arm64") OR
+      (CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64"))
+    add_definitions(-DINFLATE_CHUNK_SIMD_NEON)
+    add_definitions(-DADLER32_SIMD_NEON)
+    add_definitions(-DINFLATE_CHUNK_READ_64LE)
+    add_definitions(-DCRC32_ARMV8_CRC32)
+    add_definitions(-DDEFLATE_SLIDE_HASH_NEON)
+    # Required by CPU features detection code.
+    if (APPLE)
+      add_definitions(-DARMV8_OS_MACOS)
+    endif()
+
+    if (UNIX AND NOT APPLE)
+      add_definitions(-DARMV8_OS_LINUX)
+    endif()
+
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a+crc+crypto")
+  endif()
 endif()
 
 #
@@ -300,8 +323,11 @@ endif()
 #============================================================================
 # Minigzip tool
 #============================================================================
-add_executable(minizip_bin contrib/minizip/minizip.c contrib/minizip/ioapi.c
-contrib/minizip/ioapi.h contrib/minizip/unzip.c
-contrib/minizip/unzip.h contrib/minizip/zip.c contrib/minizip/zip.h
-)
-target_link_libraries(minizip_bin zlib)
+# TODO(cavalcantii): get it working on Windows.
+if (BUILD_MINIZIP_BIN)
+  add_executable(minizip_bin contrib/minizip/minizip.c contrib/minizip/ioapi.c
+    contrib/minizip/ioapi.h contrib/minizip/unzip.c
+    contrib/minizip/unzip.h contrib/minizip/zip.c contrib/minizip/zip.h
+    )
+  target_link_libraries(minizip_bin zlib)
+endif()
