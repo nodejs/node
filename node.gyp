@@ -398,6 +398,7 @@
       'test/cctest/test_environment.cc',
       'test/cctest/test_linked_binding.cc',
       'test/cctest/test_node_api.cc',
+      'test/cctest/test_path.cc',
       'test/cctest/test_per_process.cc',
       'test/cctest/test_platform.cc',
       'test/cctest/test_report.cc',
