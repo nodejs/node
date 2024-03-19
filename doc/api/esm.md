@@ -466,11 +466,10 @@ compatibility.
 
 ### `require`
 
-The CommonJS module `require` always treats the files it references as CommonJS.
+The CommonJS module `require` currently only supports loading synchronous ES
+modules when `--experimental-require-module` is enabled.
 
-Using `require` to load an ES module is not supported because ES modules have
-asynchronous execution. Instead, use [`import()`][] to load an ES module
-from a CommonJS module.
+See [Loading ECMAScript modules using `require()`][] for details.
 
 ### CommonJS Namespaces
 
@@ -1142,6 +1141,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Import Attributes]: #import-attributes
 [Import Attributes proposal]: https://github.com/tc39/proposal-import-attributes
 [JSON modules]: #json-modules
+[Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
 [Terminology]: #terminology

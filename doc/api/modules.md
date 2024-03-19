@@ -167,15 +167,59 @@ variable. Since the module lookups using `node_modules` folders are all
 relative, and based on the real path of the files making the calls to
 `require()`, the packages themselves can be anywhere.
 
-## The `.mjs` extension
+## Loading ECMAScript modules using `require()`
 
-Due to the synchronous nature of `require()`, it is not possible to use it to
-load ECMAScript module files. Attempting to do so will throw a
-[`ERR_REQUIRE_ESM`][] error. Use [`import()`][] instead.
-
-The `.mjs` extension is reserved for [ECMAScript Modules][] which cannot be
-loaded via `require()`. See [Determining module system][] section for more info
+The `.mjs` extension is reserved for [ECMAScript Modules][].
+Currently, if the flag `--experimental-require-module` is not used, loading
+an ECMAScript module using `require()` will throw a [`ERR_REQUIRE_ESM`][]
+error, and users need to use [`import()`][] instead. See
+[Determining module system][] section for more info
 regarding which files are parsed as ECMAScript modules.
+
+If `--experimental-require-module` is enabled, and the ECMAScript module being
+loaded by `require()` meets the following requirements:
+
+* Explicitly marked as an ES module with a `"type": "module"` field in
+  the closest package.json or a `.mjs` extension.
+* Fully synchronous (contains no top-level `await`).
+
+`require()` will load the requested module as an ES Module, and return
+the module name space object. In this case it is similar to dynamic
+`import()` but is run synchronously and returns the name space object
+directly.
+
+```mjs
+// point.mjs
+export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+class Point {
+  constructor(x, y) { this.x = x; this.y = y; }
+}
+export default Point;
+```
+
+```cjs
+const required = require('./point.mjs');
+// [Module: null prototype] {
+//   default: [class Point],
+//   distance: [Function: distance]
+// }
+console.log(required);
+
+(async () => {
+  const imported = await import('./point.mjs');
+  console.log(imported === required);  // true
+})();
+```
+
+If the module being `require()`'d contains top-level `await`, or the module
+graph it `import`s contains top-level `await`,
+[`ERR_REQUIRE_ASYNC_MODULE`][] will be thrown. In this case, users should
+load the asynchronous module using `import()`.
+
+If `--experimental-print-required-tla` is enabled, instead of throwing
+`ERR_REQUIRE_ASYNC_MODULE` before evaluation, Node.js will evaluate the
+module, try to locate the top-level awaits, and print their location to
+help users fix them.
 
 ## All together
 
@@ -206,12 +250,24 @@ require(X) from module at path Y
 
 LOAD_AS_FILE(X)
 1. If X is a file, load X as its file extension format. STOP
-2. If X.js is a file, load X.js as JavaScript text. STOP
-3. If X.json is a file, parse X.json to a JavaScript Object. STOP
+2. If X.js is a file,
+    a. Find the closest package scope SCOPE to X.
+    b. If no scope was found, load X.js as a CommonJS module. STOP.
+    c. If the SCOPE/package.json contains "type" field,
+      1. If the "type" field is "module", load X.js as an ECMAScript module. STOP.
+      2. Else, load X.js as an CommonJS module. STOP.
+3. If X.json is a file, load X.json to a JavaScript Object. STOP
 4. If X.node is a file, load X.node as binary addon. STOP
+5. If X.mjs is a file, and `--experimental-require-module` is enabled,
+   load X.mjs as an ECMAScript module. STOP
 
 LOAD_INDEX(X)
-1. If X/index.js is a file, load X/index.js as JavaScript text. STOP
+1. If X/index.js is a file
+    a. Find the closest package scope SCOPE to X.
+    b. If no scope was found, load X/index.js as a CommonJS module. STOP.
+    c. If the SCOPE/package.json contains "type" field,
+      1. If the "type" field is "module", load X/index.js as an ECMAScript module. STOP.
+      2. Else, load X/index.js as an CommonJS module. STOP.
 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
 3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
@@ -1085,6 +1141,7 @@ This section was moved to
 [GLOBAL_FOLDERS]: #loading-from-the-global-folders
 [`"main"`]: packages.md#main
 [`"type"`]: packages.md#type
+[`ERR_REQUIRE_ASYNC_MODULE`]: errors.md#err_require_async_module
 [`ERR_REQUIRE_ESM`]: errors.md#err_require_esm
 [`ERR_UNSUPPORTED_DIR_IMPORT`]: errors.md#err_unsupported_dir_import
 [`MODULE_NOT_FOUND`]: errors.md#module_not_found

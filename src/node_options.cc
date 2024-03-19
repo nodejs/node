@@ -179,6 +179,9 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (force_repl) {
       errors->push_back("either --watch or --interactive "
                         "can be used, not both");
+    } else if (test_runner_force_exit) {
+      errors->push_back("either --watch or --test-force-exit "
+                        "can be used, not both");
     } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
       errors->push_back("--watch requires specifying a file");
     }
@@ -351,6 +354,17 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "when ambiguous modules fail to evaluate because they contain "
             "ES module syntax, try again to evaluate them as ES modules",
             &EnvironmentOptions::detect_module,
+            kAllowedInEnvvar);
+  AddOption("--experimental-print-required-tla",
+            "Print pending top-level await. If --experimental-require-module "
+            "is true, evaluate asynchronous graphs loaded by `require()` but "
+            "do not run the microtasks, in order to to find and print "
+            "top-level await in the graph",
+            &EnvironmentOptions::print_required_tla,
+            kAllowedInEnvvar);
+  AddOption("--experimental-require-module",
+            "Allow loading explicit ES Modules in require().",
+            &EnvironmentOptions::require_module,
             kAllowedInEnvvar);
   AddOption("--diagnostic-dir",
             "set dir for all output files"
@@ -616,6 +630,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency);
+  AddOption("--test-force-exit",
+            "force test runner to exit upon completion",
+            &EnvironmentOptions::test_runner_force_exit);
   AddOption("--test-timeout",
             "specify test runner timeout",
             &EnvironmentOptions::test_runner_timeout);

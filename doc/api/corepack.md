@@ -144,7 +144,7 @@ install. To avoid this problem, consider one of the following options:
 [`corepack pack`]: https://github.com/nodejs/corepack#corepack-pack---all--nameversion
 [`corepack use`]: https://github.com/nodejs/corepack#corepack-use-nameversion
 [`package.json`]: packages.md#nodejs-packagejson-field-definitions
-[pnpm]: https://pnpm.js.org
+[pnpm]: https://pnpm.io
 [supported binaries]: #supported-package-managers
 [supported package manager]: #supported-package-managers
 [various flags]: https://github.com/nodejs/corepack#utility-commands

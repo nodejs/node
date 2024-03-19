@@ -3510,17 +3510,17 @@ Computes the Diffie-Hellman secret based on a `privateKey` and a `publicKey`.
 Both keys must have the same `asymmetricKeyType`, which must be one of `'dh'`
 (for Diffie-Hellman), `'ec'` (for ECDH), `'x448'`, or `'x25519'` (for ECDH-ES).
 
-### `crypto.hash(algorith, data[, outputEncoding])`
+### `crypto.hash(algorithm, data[, outputEncoding])`
 
 <!-- YAML
 added:
- - REPLACEME
+ - v21.7.0
 -->
 
 > Stability: 1.2 - Release candidate
 
 * `algorithm` {string|undefined}
-* `data` {string|ArrayBuffer|Buffer|TypedArray|DataView} When `data` is a
+* `data` {string|Buffer|TypedArray|DataView} When `data` is a
   string, it will be encoded as UTF-8 before being hashed. If a different
   input encoding is desired for a string input, user could encode the string
   into a `TypedArray` using either `TextEncoder` or `Buffer.from()` and passing
@@ -5809,7 +5809,7 @@ See the [list of SSL OP Flags][] for details.
   </tr>
   <tr>
     <td><code>SSL_OP_CISCO_ANYCONNECT</code></td>
-    <td>Instructs OpenSSL to use Cisco's "speshul" version of DTLS_BAD_VER.</td>
+    <td>Instructs OpenSSL to use Cisco's version identifier of DTLS_BAD_VER.</td>
   </tr>
   <tr>
     <td><code>SSL_OP_COOKIE_EXCHANGE</code></td>

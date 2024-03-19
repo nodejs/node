@@ -68,7 +68,7 @@ void SyncProcessOutputBuffer::OnRead(const uv_buf_t* buf, size_t nread) {
 
 
 size_t SyncProcessOutputBuffer::Copy(char* dest) const {
-  memcpy(dest, data_, used());
+  if (dest != nullptr) memcpy(dest, data_, used());
   return used();
 }
 

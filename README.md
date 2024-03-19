@@ -195,7 +195,7 @@ For information about the governance of the Node.js project, see
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
-  **Ruy Adorno** <<ruyadorno@google.com>> (he/him)
+  **Ruy Adorno** <<ruy@vlt.sh>> (he/him)
 * [ShogunPanda](https://github.com/ShogunPanda) -
   **Paolo Insogna** <<paolo@cowtech.it>> (he/him)
 * [targos](https://github.com/targos) -
@@ -440,7 +440,7 @@ For information about the governance of the Node.js project, see
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
-  **Ruy Adorno** <<ruyadorno@google.com>> (he/him)
+  **Ruy Adorno** <<ruy@vlt.sh>> (he/him)
 * [ryzokuken](https://github.com/ryzokuken) -
   **Ujjwal Sharma** <<ryzokuken@disroot.org>> (he/him)
 * [santigimeno](https://github.com/santigimeno) -
@@ -465,6 +465,8 @@ For information about the governance of the Node.js project, see
   **Trivikram Kamat** <<trivikr.dev@gmail.com>>
 * [Trott](https://github.com/Trott) -
   **Rich Trott** <<rtrott@gmail.com>> (he/him)
+* [UlisesGascon](https://github.com/ulisesgascon) -
+  **Ulises Gascón** <<ulisesgascongonzalez@gmail.com>> (he/him)
 * [vdeturckheim](https://github.com/vdeturckheim) -
   **Vladimir de Turckheim** <<vlad2t@hotmail.com>> (he/him)
 * [vmoroz](https://github.com/vmoroz) -
@@ -843,12 +845,11 @@ releases on a rotation basis as outlined in the
 * Datadog
   * [bengl](https://github.com/bengl) -
     **Bryan English** <<bryan@bryanenglish.com>> (he/him)
-* NearForm
-  * [RafaelGSS](https://github.com/RafaelGSS) -
-    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * NodeSource
   * [juanarbol](https://github.com/juanarbol) -
     **Juan José Arboleda** <<soyjuanarbol@gmail.com>> (he/him)
+  * [RafaelGSS](https://github.com/RafaelGSS) -
+    **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
 * Platformatic
   * [mcollina](https://github.com/mcollina) -
     **Matteo Collina** <<matteo.collina@gmail.com>> (he/him)

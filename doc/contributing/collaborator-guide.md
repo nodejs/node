@@ -879,9 +879,13 @@ If you cannot find who to cc for a file, `git shortlog -n -s <file>` can help.
 
 * `confirmed-bug`: Bugs you have verified
 * `discuss`: Things that need larger discussion
+* `fast-track`: PRs that need to land faster - see
+  [Waiting for approvals](#waiting-for-approvals)
 * `feature request`: Any issue that requests a new feature
 * `good first issue`: Issues suitable for newcomers to fix
 * `meta`: Governance, policies, procedures, etc.
+* `request-ci`: When this label is added to a PR, CI will be started
+  automatically. See [Starting a Jenkins CI job](#starting-a-jenkins-ci-job)
 * `tsc-agenda`: Open issues and pull requests with this label will be added to
   the Technical Steering Committee meeting agenda
 

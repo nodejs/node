@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.26.0](https://github.com/nodejs/corepack/compare/v0.25.2...v0.26.0) (2024-03-08)
+
+
+### Features
+
+* Pins the package manager as it's used for the first time ([#413](https://github.com/nodejs/corepack/issues/413)) ([8b6c6d4](https://github.com/nodejs/corepack/commit/8b6c6d4b2b7a9d61ae6c33c07e12354bd5afc2ba))
+* update package manager versions ([#415](https://github.com/nodejs/corepack/issues/415)) ([e8edba7](https://github.com/nodejs/corepack/commit/e8edba771bca6fb10c855c04eee8102ffa792d58))
+
+
+### Bug Fixes
+
+* group the download prompt together ([#391](https://github.com/nodejs/corepack/issues/391)) ([00506b2](https://github.com/nodejs/corepack/commit/00506b2a15dd87ec03240578077a35b7980e00c1))
+* ignore `EROFS` errors ([#421](https://github.com/nodejs/corepack/issues/421)) ([b7ec137](https://github.com/nodejs/corepack/commit/b7ec137210efd35c3461321b6434e3e13a87d42f))
+* improve support for `COREPACK_NPM_REGISTRY` with Yarn Berry ([#396](https://github.com/nodejs/corepack/issues/396)) ([47be27c](https://github.com/nodejs/corepack/commit/47be27c9db988e10f651d23b3f53bcf55318a894))
+* Windows malicious file analysis waiting problem ([#398](https://github.com/nodejs/corepack/issues/398)) ([295a1cd](https://github.com/nodejs/corepack/commit/295a1cdb9cbbbce8434e8d82b96eb63e57c46c1a))
+
 ## [0.25.2](https://github.com/nodejs/corepack/compare/v0.25.1...v0.25.2) (2024-02-21)
 
 

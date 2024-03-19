@@ -735,6 +735,7 @@ class Environment : public MemoryRetainer {
   // a pseudo-boolean to indicate whether the exit code is undefined.
   inline AliasedInt32Array& exit_info();
   inline void set_exiting(bool value);
+  bool exiting() const;
   inline ExitCode exit_code(const ExitCode default_code) const;
 
   // This stores whether the --abort-on-uncaught-exception flag was passed
@@ -840,6 +841,7 @@ class Environment : public MemoryRetainer {
   void AtExit(void (*cb)(void* arg), void* arg);
   void RunAtExitCallbacks();
 
+  v8::Maybe<bool> CheckUnsettledTopLevelAwait();
   void RunWeakRefCleanup();
 
   v8::MaybeLocal<v8::Value> RunSnapshotSerializeCallback() const;

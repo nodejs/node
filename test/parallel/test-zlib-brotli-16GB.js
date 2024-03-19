@@ -3,6 +3,7 @@
 const common = require('../common');
 const { createBrotliDecompress } = require('node:zlib');
 const strictEqual = require('node:assert').strictEqual;
+const { getDefaultHighWaterMark } = require('stream');
 
 // This tiny HEX string is a 16GB file.
 // This test verifies that the stream actually stops.
@@ -18,5 +19,5 @@ decoder.end(buf);
 // to process the data and the buffer is not empty.
 setTimeout(common.mustCall(() => {
   // There is only one chunk in the buffer
-  strictEqual(decoder._readableState.buffer.length, 1);
+  strictEqual(decoder._readableState.buffer.length, getDefaultHighWaterMark() / (16 * 1024));
 }), common.platformTimeout(500));

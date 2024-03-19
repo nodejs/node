@@ -4,6 +4,7 @@
 #include "debug_utils-inl.h"
 #include "diagnosticfilename-inl.h"
 #include "memory_tracker-inl.h"
+#include "module_wrap.h"
 #include "node_buffer.h"
 #include "node_context_data.h"
 #include "node_contextify.h"
@@ -50,6 +51,7 @@ using v8::HeapSpaceStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::Maybe;
 using v8::MaybeLocal;
 using v8::NewStringType;
 using v8::Number;
@@ -1228,6 +1230,41 @@ void Environment::AtExit(void (*cb)(void* arg), void* arg) {
   at_exit_functions_.push_front(ExitCallback{cb, arg});
 }
 
+Maybe<bool> Environment::CheckUnsettledTopLevelAwait() {
+  HandleScope scope(isolate_);
+  Local<Context> ctx = context();
+  Local<Value> value;
+
+  Local<Value> entry_point_promise;
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_promise_private_symbol())
+           .ToLocal(&entry_point_promise)) {
+    return v8::Nothing<bool>();
+  }
+  if (!entry_point_promise->IsPromise()) {
+    return v8::Just(true);
+  }
+  if (entry_point_promise.As<Promise>()->State() !=
+      Promise::PromiseState::kPending) {
+    return v8::Just(true);
+  }
+
+  if (!ctx->Global()
+           ->GetPrivate(ctx, entry_point_module_private_symbol())
+           .ToLocal(&value)) {
+    return v8::Nothing<bool>();
+  }
+  if (!value->IsObject()) {
+    return v8::Just(true);
+  }
+  Local<Object> object = value.As<Object>();
+  CHECK(BaseObject::IsBaseObject(isolate_data_, object));
+  CHECK_EQ(object->InternalFieldCount(),
+           loader::ModuleWrap::kInternalFieldCount);
+  auto* wrap = BaseObject::FromJSObject<loader::ModuleWrap>(object);
+  return wrap->CheckUnsettledTopLevelAwait();
+}
+
 void Environment::RunAndClearInterrupts() {
   while (native_immediates_interrupts_.size() > 0) {
     NativeImmediateQueue queue;
@@ -1846,25 +1883,6 @@ void Environment::DeserializeProperties(const EnvSerializeInfo* info) {
   should_abort_on_uncaught_toggle_.Deserialize(ctx);
 }
 
-uint64_t GuessMemoryAvailableToTheProcess() {
-  uint64_t free_in_system = uv_get_free_memory();
-  size_t allowed = uv_get_constrained_memory();
-  if (allowed == 0) {
-    return free_in_system;
-  }
-  size_t rss;
-  int err = uv_resident_set_memory(&rss);
-  if (err) {
-    return free_in_system;
-  }
-  if (allowed < rss) {
-    // Something is probably wrong. Fallback to the free memory.
-    return free_in_system;
-  }
-  // There may still be room for swap, but we will just leave it here.
-  return allowed - rss;
-}
-
 void Environment::BuildEmbedderGraph(Isolate* isolate,
                                      EmbedderGraph* graph,
                                      void* data) {
@@ -1969,7 +1987,7 @@ size_t Environment::NearHeapLimitCallback(void* data,
         static_cast<uint64_t>(old_gen_size),
         static_cast<uint64_t>(young_gen_size + old_gen_size));
 
-  uint64_t available = GuessMemoryAvailableToTheProcess();
+  uint64_t available = uv_get_available_memory();
   // TODO(joyeecheung): get a better estimate about the native memory
   // usage into the overhead, e.g. based on the count of objects.
   uint64_t estimated_overhead = max_young_gen_size;

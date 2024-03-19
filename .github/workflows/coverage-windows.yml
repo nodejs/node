@@ -70,3 +70,4 @@ jobs:
         uses: codecov/codecov-action@54bcd8715eee62d40e33596ef5e8f0f48dbbccab  # v4.1.0
         with:
           directory: ./coverage
+          token: ${{ secrets.CODECOV_TOKEN }}

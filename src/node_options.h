@@ -105,6 +105,8 @@ class EnvironmentOptions : public Options {
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
   bool detect_module = false;
+  bool print_required_tla = false;
+  bool require_module = false;
   std::string dns_result_order;
   bool enable_source_maps = false;
   bool experimental_fetch = true;
@@ -166,6 +168,7 @@ class EnvironmentOptions : public Options {
   uint64_t test_runner_concurrency = 0;
   uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
+  bool test_runner_force_exit = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;

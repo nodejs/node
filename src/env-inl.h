@@ -371,6 +371,10 @@ inline void Environment::set_exiting(bool value) {
   exit_info_[kExiting] = value ? 1 : 0;
 }
 
+inline bool Environment::exiting() const {
+  return exit_info_[kExiting] == 1;
+}
+
 inline ExitCode Environment::exit_code(const ExitCode default_code) const {
   return exit_info_[kHasExitCode] == 0
              ? default_code
