@@ -317,12 +317,18 @@ test('subtest sync throw fails', async (t) => {
 
 test('timed out async test', { timeout: 5 }, async (t) => {
   return new Promise((resolve) => {
-    setTimeout(resolve, 100);
+    setTimeout(() => {
+      // Empty timer so the process doesn't exit before the timeout triggers.
+    }, 5);
+    setTimeout(resolve, 30_000_000).unref();
   });
 });
 
 test('timed out callback test', { timeout: 5 }, (t, done) => {
-  setTimeout(done, 100);
+  setTimeout(() => {
+    // Empty timer so the process doesn't exit before the timeout triggers.
+  }, 5);
+  setTimeout(done, 30_000_000).unref();
 });
 
 
