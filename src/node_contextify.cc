@@ -1406,7 +1406,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
 // While top-level `await` is not permitted in CommonJS, it returns the same
 // error message as when `await` is used in a sync function, so we don't use it
 // as a disambiguation.
-constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
+static std::vector<std::string_view> esm_syntax_error_messages = {
     "Cannot use import statement outside a module",  // `import` statements
     "Unexpected token 'export'",                     // `export` statements
     "Cannot use 'import.meta' outside a module"};    // `import.meta` references
@@ -1421,7 +1421,7 @@ constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
 // - Top-level `await`: if the user writes `await` at the top level of a
 //   CommonJS module, it will throw a syntax error; but the same code is valid
 //   in ESM.
-constexpr std::array<std::string_view, 6> throws_only_in_cjs_error_messages = {
+static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
     "Identifier 'module' has already been declared",
     "Identifier 'exports' has already been declared",
     "Identifier 'require' has already been declared",
@@ -1752,30 +1752,16 @@ static void CreatePerContextProperties(Local<Object> target,
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
 
   {
-    Local<Array> esm_syntax_error_messages_array =
-        Array::New(env->isolate(), esm_syntax_error_messages.size());
-    for (size_t i = 0; i < esm_syntax_error_messages.size(); i++) {
-      const char* message = esm_syntax_error_messages[i].data();
-      USE(esm_syntax_error_messages_array->Set(
-          context,
-          static_cast<uint32_t>(i),
-          String::NewFromUtf8(env->isolate(), message).ToLocalChecked()));
-    }
+    Local<Value> esm_syntax_error_messages_array =
+        ToV8Value(context, esm_syntax_error_messages).ToLocalChecked();
     READONLY_PROPERTY(syntax_detection_errors,
                       "esmSyntaxErrorMessages",
                       esm_syntax_error_messages_array);
   }
 
   {
-    Local<Array> throws_only_in_cjs_error_messages_array =
-        Array::New(env->isolate(), throws_only_in_cjs_error_messages.size());
-    for (size_t i = 0; i < throws_only_in_cjs_error_messages.size(); i++) {
-      const char* message = throws_only_in_cjs_error_messages[i].data();
-      USE(throws_only_in_cjs_error_messages_array->Set(
-          context,
-          static_cast<uint32_t>(i),
-          String::NewFromUtf8(env->isolate(), message).ToLocalChecked()));
-    }
+    Local<Value> throws_only_in_cjs_error_messages_array =
+        ToV8Value(context, throws_only_in_cjs_error_messages).ToLocalChecked();
     READONLY_PROPERTY(syntax_detection_errors,
                       "throwsOnlyInCommonJSErrorMessages",
                       throws_only_in_cjs_error_messages_array);
