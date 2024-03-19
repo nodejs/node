@@ -154,3 +154,28 @@ fs.open(__filename, 'r', undefined, common.mustCall((err, fd) => {
 
 // Should not throw an error
 fs.lstat(__filename, undefined, common.mustCall());
+
+{
+  fs.Stats(
+    0,                                        // dev
+    0,                                        // mode
+    0,                                        // nlink
+    0,                                        // uid
+    0,                                        // gid
+    0,                                        // rdev
+    0,                                        // blksize
+    0,                                        // ino
+    0,                                        // size
+    0,                                        // blocks
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // atime
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // mtime
+    Date.UTC(1970, 0, 1, 0, 0, 0),            // ctime
+    Date.UTC(1970, 0, 1, 0, 0, 0)             // birthtime
+  );
+  common.expectWarning({
+    DeprecationWarning: [
+      ['fs.Stats constructor is deprecated.',
+       'DEP0180'],
+    ]
+  });
+}
