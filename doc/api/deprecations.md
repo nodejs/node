@@ -3582,11 +3582,14 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52067
+    description: Runtime deprecation.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 Calling `fs.Stats` class directly with `Stats()` or `new Stats()` is
 deprecated due to being internals, not intended for public use.
