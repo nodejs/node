@@ -1442,9 +1442,8 @@ void ContextifyContext::ContainsModuleSyntax(
   }
 
   // Argument 1: source code
-  Local<String> code;
   CHECK(args[0]->IsString());
-  code = args[0].As<String>();
+  auto code = args[0].As<String>();
 
   // Argument 2: filename; if undefined, use empty string
   Local<String> filename = String::Empty(isolate);
@@ -1492,7 +1491,7 @@ void ContextifyContext::ShouldRetryAsESM(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  CHECK_EQ(args.Length(), 1);
+  CHECK_EQ(args.Length(), 1);  // code
 
   // Argument 1: source code
   Local<String> code;
@@ -1515,8 +1514,14 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
 
   Local<PrimitiveArray> host_defined_options =
       GetHostDefinedOptions(isolate, id_symbol);
-  ScriptCompiler::Source source = GetCommonJSSourceInstance(
-      isolate, code, script_id, 0, 0, host_defined_options, nullptr);
+  ScriptCompiler::Source source =
+      GetCommonJSSourceInstance(isolate,
+                                code,
+                                script_id,  // filename
+                                0,          // line offset
+                                0,          // column offset
+                                host_defined_options,
+                                nullptr);   // cached_data
 
   TryCatchScope try_catch(env);
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
