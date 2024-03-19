@@ -1521,7 +1521,7 @@ bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
                                 0,          // line offset
                                 0,          // column offset
                                 host_defined_options,
-                                nullptr);   // cached_data
+                                nullptr);  // cached_data
 
   TryCatchScope try_catch(env);
   ShouldNotAbortOnUncaughtScope no_abort_scope(env);
