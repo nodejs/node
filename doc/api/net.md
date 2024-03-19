@@ -20,6 +20,14 @@ const net = require('node:net');
 
 ## IPC support
 
+<!-- YAML
+changes:
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49667
+    description: Support binding to abstract Unix domain socket path like `\0abstract`.
+                 We can bind '\0' for Node.js `< v20.4.0`.
+-->
+
 The `node:net` module supports IPC with named pipes on Windows, and Unix domain
 sockets on other operating systems.
 
