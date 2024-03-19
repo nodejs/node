@@ -1,6 +1,6 @@
 'use strict';
 
-require('../common');
+require('../../common');
 
 const { inspect } = require('util');
 
