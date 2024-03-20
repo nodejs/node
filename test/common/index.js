@@ -965,8 +965,13 @@ function getPrintedStackTrace(stderr) {
  * @param {object} expectation shape of expected namespace.
  */
 function expectRequiredModule(mod, expectation) {
-  assert(isModuleNamespaceObject(mod));
-  assert.deepStrictEqual({ ...mod }, { ...expectation });
+  const clone = { ...mod };
+  if (Object.hasOwn(mod, 'default')) {
+    assert.strictEqual(mod.__esModule, true);
+    delete clone.__esModule;
+  }
+  isModuleNamespaceObject(mod);
+  assert.deepStrictEqual(clone, { ...expectation });
 }
 
 const common = {
