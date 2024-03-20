@@ -1057,6 +1057,8 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> supported_hash_algorithms;
 #endif  // HAVE_OPENSSL
 
+  v8::Global<v8::Module> temporary_required_module_facade_original;
+
  private:
   inline void ThrowError(v8::Local<v8::Value> (*fun)(v8::Local<v8::String>,
                                                      v8::Local<v8::Value>),
