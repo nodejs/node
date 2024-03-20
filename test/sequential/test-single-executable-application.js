@@ -14,7 +14,7 @@ skipIfSingleExecutableIsNotSupported();
 const fixtures = require('../common/fixtures');
 const tmpdir = require('../common/tmpdir');
 const { copyFileSync, writeFileSync, existsSync } = require('fs');
-const { spawnSyncAndExitWithoutError } = require('../common/child_process');
+const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/child_process');
 const { join } = require('path');
 const assert = require('assert');
 
@@ -45,14 +45,13 @@ copyFileSync(inputFile, tmpdir.resolve('sea.js'));
 spawnSyncAndExitWithoutError(
   process.execPath,
   ['--experimental-sea-config', 'sea-config.json'],
-  { cwd: tmpdir.path },
-  {});
+  { cwd: tmpdir.path });
 
 assert(existsSync(seaPrepBlob));
 
 generateSEA(outputFile, process.execPath, seaPrepBlob);
 
-spawnSyncAndExitWithoutError(
+spawnSyncAndAssert(
   outputFile,
   [ '-a', '--b=c', 'd' ],
   {

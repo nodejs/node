@@ -14,7 +14,7 @@ skipIfSingleExecutableIsNotSupported();
 const tmpdir = require('../common/tmpdir');
 const { writeFileSync, existsSync } = require('fs');
 const {
-  spawnSyncAndExitWithoutError
+  spawnSyncAndAssert,
 } = require('../common/child_process');
 const { join } = require('path');
 const assert = require('assert');
@@ -45,7 +45,7 @@ const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 
   }
   `);
 
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     process.execPath,
     ['--experimental-sea-config', 'sea-config.json'],
     {
@@ -64,7 +64,7 @@ const outputFile = join(tmpdir.path, process.platform === 'win32' ? 'sea.exe' : 
 
   generateSEA(outputFile, process.execPath, seaPrepBlob);
 
-  spawnSyncAndExitWithoutError(
+  spawnSyncAndAssert(
     outputFile,
     {
       env: {

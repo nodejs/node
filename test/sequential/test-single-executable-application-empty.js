@@ -60,5 +60,4 @@ spawnSyncAndExitWithoutError(
       NODE_DEBUG_NATIVE: 'SEA',
       ...process.env,
     }
-  },
-  {});
+  });
