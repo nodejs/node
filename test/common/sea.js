@@ -92,8 +92,8 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
 
   if (process.platform === 'darwin') {
     try {
-      spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ], {});
-      spawnSyncAndExitWithoutError('codesign', [ '--verify', targetExecutable ], {});
+      spawnSyncAndExitWithoutError('codesign', [ '--sign', '-', targetExecutable ]);
+      spawnSyncAndExitWithoutError('codesign', [ '--verify', targetExecutable ]);
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}`;
       if (verifyWorkflow) {
@@ -104,7 +104,7 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
     console.log(`Signed ${targetExecutable}`);
   } else if (process.platform === 'win32') {
     try {
-      spawnSyncAndExitWithoutError('where', [ 'signtool' ], {});
+      spawnSyncAndExitWithoutError('where', [ 'signtool' ]);
     } catch (e) {
       const message = `Cannot find signtool: ${inspect(e)}`;
       if (verifyWorkflow) {
@@ -114,8 +114,8 @@ function generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow
     }
     let stderr;
     try {
-      ({ stderr } = spawnSyncAndExitWithoutError('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ], {}));
-      spawnSyncAndExitWithoutError('signtool', 'verify', '/pa', 'SHA256', targetExecutable, {});
+      ({ stderr } = spawnSyncAndExitWithoutError('signtool', [ 'sign', '/fd', 'SHA256', targetExecutable ]));
+      spawnSyncAndExitWithoutError('signtool', ['verify', '/pa', 'SHA256', targetExecutable]);
     } catch (e) {
       const message = `Cannot sign ${targetExecutable}: ${inspect(e)}\n${stderr}`;
       if (verifyWorkflow) {

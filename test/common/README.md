@@ -70,11 +70,15 @@ gathering more information about test failures coming from child processes.
   * `stderr` [\<string>][<string>] The output from the child process to stderr.
   * `stdout` [\<string>][<string>] The output from the child process to stdout.
 
-### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions], expectations)`
+### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions])`
 
 Similar to `expectSyncExit()` with the `status` expected to be 0 and
-`signal` expected to be `null`. Any other optional options are passed
-into `expectSyncExit()`.
+`signal` expected to be `null`.
+
+### `spawnSyncAndAssert(command[, args][, spawnOptions], expectations)`
+
+Similar to `spawnSyncAndExitWithoutError()`, but with an additional
+`expectations` parameter.
 
 ## Common Module API
 

@@ -51,8 +51,7 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         ...process.env,
       },
       cwd: tmpdir.path
-    },
-    {});
+    });
 
   assert(existsSync(seaPrepBlob));
 
@@ -67,6 +66,5 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         __TEST_PERSON_JPG: fixtures.path('person.jpg'),
       }
     },
-    { }
   );
 }
