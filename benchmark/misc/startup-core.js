@@ -9,6 +9,7 @@ const bench = common.createBenchmark(main, {
   script: [
     'benchmark/fixtures/require-builtins',
     'test/fixtures/semicolon',
+    'test/fixtures/snapshot/typescript',
   ],
   mode: ['process', 'worker'],
   n: [30],

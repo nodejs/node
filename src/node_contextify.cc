@@ -364,6 +364,7 @@ void ContextifyContext::CreatePerIsolateProperties(
   SetMethod(isolate, target, "makeContext", MakeContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
   SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
+  SetMethod(isolate, target, "shouldRetryAsESM", ShouldRetryAsESM);
 }
 
 void ContextifyContext::RegisterExternalReferences(
@@ -371,6 +372,7 @@ void ContextifyContext::RegisterExternalReferences(
   registry->Register(MakeContext);
   registry->Register(CompileFunction);
   registry->Register(ContainsModuleSyntax);
+  registry->Register(ShouldRetryAsESM);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
@@ -1447,7 +1449,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
 // While top-level `await` is not permitted in CommonJS, it returns the same
 // error message as when `await` is used in a sync function, so we don't use it
 // as a disambiguation.
-constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
+static std::vector<std::string_view> esm_syntax_error_messages = {
     "Cannot use import statement outside a module",  // `import` statements
     "Unexpected token 'export'",                     // `export` statements
     "Cannot use 'import.meta' outside a module"};    // `import.meta` references
@@ -1462,7 +1464,7 @@ constexpr std::array<std::string_view, 3> esm_syntax_error_messages = {
 // - Top-level `await`: if the user writes `await` at the top level of a
 //   CommonJS module, it will throw a syntax error; but the same code is valid
 //   in ESM.
-constexpr std::array<std::string_view, 6> throws_only_in_cjs_error_messages = {
+static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
     "Identifier 'module' has already been declared",
     "Identifier 'exports' has already been declared",
     "Identifier 'require' has already been declared",
@@ -1482,33 +1484,15 @@ void ContextifyContext::ContainsModuleSyntax(
         env, "containsModuleSyntax needs at least 1 argument");
   }
 
+  // Argument 1: source code
+  CHECK(args[0]->IsString());
+  auto code = args[0].As<String>();
+
   // Argument 2: filename; if undefined, use empty string
   Local<String> filename = String::Empty(isolate);
   if (!args[1]->IsUndefined()) {
     CHECK(args[1]->IsString());
     filename = args[1].As<String>();
-  }
-
-  // Argument 1: source code; if undefined, read from filename in argument 2
-  Local<String> code;
-  if (args[0]->IsUndefined()) {
-    CHECK(!filename.IsEmpty());
-    const char* filename_str = Utf8Value(isolate, filename).out();
-    std::string contents;
-    int result = ReadFileSync(&contents, filename_str);
-    if (result != 0) {
-      isolate->ThrowException(
-          ERR_MODULE_NOT_FOUND(isolate, "Cannot read file %s", filename_str));
-      return;
-    }
-    code = String::NewFromUtf8(isolate,
-                               contents.c_str(),
-                               v8::NewStringType::kNormal,
-                               contents.length())
-               .ToLocalChecked();
-  } else {
-    CHECK(args[0]->IsString());
-    code = args[0].As<String>();
   }
 
   // TODO(geoffreybooth): Centralize this rather than matching the logic in
@@ -1540,73 +1524,95 @@ void ContextifyContext::ContainsModuleSyntax(
 
   bool should_retry_as_esm = false;
   if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
-    auto message = message_value.ToStringView();
-
-    for (const auto& error_message : esm_syntax_error_messages) {
-      if (message.find(error_message) != std::string_view::npos) {
-        should_retry_as_esm = true;
-        break;
-      }
-    }
-
-    if (!should_retry_as_esm) {
-      for (const auto& error_message : throws_only_in_cjs_error_messages) {
-        if (message.find(error_message) != std::string_view::npos) {
-          // Try parsing again where the CommonJS wrapper is replaced by an
-          // async function wrapper. If the new parse succeeds, then the error
-          // was caused by either a top-level declaration of one of the CommonJS
-          // module variables, or a top-level `await`.
-          TryCatchScope second_parse_try_catch(env);
-          code =
-              String::Concat(isolate,
-                             String::NewFromUtf8(isolate, "(async function() {")
-                                 .ToLocalChecked(),
-                             code);
-          code = String::Concat(
-              isolate,
-              code,
-              String::NewFromUtf8(isolate, "})();").ToLocalChecked());
-          ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
-              isolate, code, filename, 0, 0, host_defined_options, nullptr);
-          std::ignore = ScriptCompiler::CompileFunction(
-              context,
-              &wrapped_source,
-              params.size(),
-              params.data(),
-              0,
-              nullptr,
-              options,
-              v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
-          if (!second_parse_try_catch.HasTerminated()) {
-            if (second_parse_try_catch.HasCaught()) {
-              // If on the second parse an error is thrown by ESM syntax, then
-              // what happened was that the user had top-level `await` or a
-              // top-level declaration of one of the CommonJS module variables
-              // above the first `import` or `export`.
-              Utf8Value second_message_value(
-                  env->isolate(), second_parse_try_catch.Message()->Get());
-              auto second_message = second_message_value.ToStringView();
-              for (const auto& error_message : esm_syntax_error_messages) {
-                if (second_message.find(error_message) !=
-                    std::string_view::npos) {
-                  should_retry_as_esm = true;
-                  break;
-                }
-              }
-            } else {
-              // No errors thrown in the second parse, so most likely the error
-              // was caused by a top-level `await` or a top-level declaration of
-              // one of the CommonJS module variables.
-              should_retry_as_esm = true;
-            }
-          }
-          break;
-        }
-      }
-    }
+    should_retry_as_esm =
+        ContextifyContext::ShouldRetryAsESMInternal(env, code);
   }
   args.GetReturnValue().Set(should_retry_as_esm);
+}
+
+void ContextifyContext::ShouldRetryAsESM(
+    const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 1);  // code
+
+  // Argument 1: source code
+  Local<String> code;
+  CHECK(args[0]->IsString());
+  code = args[0].As<String>();
+
+  bool should_retry_as_esm =
+      ContextifyContext::ShouldRetryAsESMInternal(env, code);
+
+  args.GetReturnValue().Set(should_retry_as_esm);
+}
+
+bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
+                                                 Local<String> code) {
+  Isolate* isolate = env->isolate();
+
+  Local<String> script_id =
+      FIXED_ONE_BYTE_STRING(isolate, "[retry_as_esm_check]");
+  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
+
+  Local<PrimitiveArray> host_defined_options =
+      GetHostDefinedOptions(isolate, id_symbol);
+  ScriptCompiler::Source source =
+      GetCommonJSSourceInstance(isolate,
+                                code,
+                                script_id,  // filename
+                                0,          // line offset
+                                0,          // column offset
+                                host_defined_options,
+                                nullptr);  // cached_data
+
+  TryCatchScope try_catch(env);
+  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+
+  // Try parsing where instead of the CommonJS wrapper we use an async function
+  // wrapper. If the parse succeeds, then any CommonJS parse error for this
+  // module was caused by either a top-level declaration of one of the CommonJS
+  // module variables, or a top-level `await`.
+  code = String::Concat(
+      isolate, FIXED_ONE_BYTE_STRING(isolate, "(async function() {"), code);
+  code = String::Concat(isolate, code, FIXED_ONE_BYTE_STRING(isolate, "})();"));
+
+  ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
+      isolate, code, script_id, 0, 0, host_defined_options, nullptr);
+
+  Local<Context> context = env->context();
+  std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
+  USE(ScriptCompiler::CompileFunction(
+      context,
+      &wrapped_source,
+      params.size(),
+      params.data(),
+      0,
+      nullptr,
+      ScriptCompiler::kNoCompileOptions,
+      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason));
+
+  if (!try_catch.HasTerminated()) {
+    if (try_catch.HasCaught()) {
+      // If on the second parse an error is thrown by ESM syntax, then
+      // what happened was that the user had top-level `await` or a
+      // top-level declaration of one of the CommonJS module variables
+      // above the first `import` or `export`.
+      Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
+      auto message_view = message_value.ToStringView();
+      for (const auto& error_message : esm_syntax_error_messages) {
+        if (message_view.find(error_message) != std::string_view::npos) {
+          return true;
+        }
+      }
+    } else {
+      // No errors thrown in the second parse, so most likely the error
+      // was caused by a top-level `await` or a top-level declaration of
+      // one of the CommonJS module variables.
+      return true;
+    }
+  }
+  return false;
 }
 
 static void CompileFunctionForCJSLoader(
@@ -1767,6 +1773,7 @@ static void CreatePerContextProperties(Local<Object> target,
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
   Local<Object> memory_execution = Object::New(env->isolate());
+  Local<Object> syntax_detection_errors = Object::New(env->isolate());
 
   {
     Local<Object> memory_mode = Object::New(env->isolate());
@@ -1786,6 +1793,25 @@ static void CreatePerContextProperties(Local<Object> target,
   }
 
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
+
+  {
+    Local<Value> esm_syntax_error_messages_array =
+        ToV8Value(context, esm_syntax_error_messages).ToLocalChecked();
+    READONLY_PROPERTY(syntax_detection_errors,
+                      "esmSyntaxErrorMessages",
+                      esm_syntax_error_messages_array);
+  }
+
+  {
+    Local<Value> throws_only_in_cjs_error_messages_array =
+        ToV8Value(context, throws_only_in_cjs_error_messages).ToLocalChecked();
+    READONLY_PROPERTY(syntax_detection_errors,
+                      "throwsOnlyInCommonJSErrorMessages",
+                      throws_only_in_cjs_error_messages_array);
+  }
+
+  READONLY_PROPERTY(
+      constants, "syntaxDetectionErrors", syntax_detection_errors);
 
   target->Set(context, env->constants_string(), constants).Check();
 }
