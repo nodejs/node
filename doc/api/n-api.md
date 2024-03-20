@@ -773,7 +773,7 @@ handle and/or callback scope inside a `napi_callback` is not necessary.
 #### `node_api_nogc_finalize`
 
 <!-- YAML
-added: REPLACEME
+added: v18.20.0
 -->
 
 > Stability: 1 - Experimental

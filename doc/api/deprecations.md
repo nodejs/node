@@ -3337,7 +3337,7 @@ In a future version of Node.js, [`message.headers`][],
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v18.20.0
     pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
 -->
