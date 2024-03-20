@@ -1049,7 +1049,7 @@ static void InternalModuleStat(const FunctionCallbackInfo<Value>& args) {
   int rc = uv_fs_stat(env->event_loop(), &req, *path, nullptr);
   if (rc == 0) {
     const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    rc = !!(s->st_mode & S_IFDIR);
+    rc = S_ISDIR(s->st_mode);
   }
   uv_fs_req_cleanup(&req);
 
@@ -2854,7 +2854,7 @@ BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
 
   if (rc == 0) {
     const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    rc = !!(s->st_mode & S_IFDIR);
+    rc = S_ISDIR(s->st_mode);
   }
 
   uv_fs_req_cleanup(&req);
