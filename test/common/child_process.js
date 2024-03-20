@@ -140,7 +140,7 @@ module.exports = {
   logAfterTime,
   kExpiringChildRunTime,
   kExpiringParentTimer,
+  spawnSyncAndAssert,
   spawnSyncAndExit,
   spawnSyncAndExitWithoutError,
-  spawnSyncAndAssert,
 };
