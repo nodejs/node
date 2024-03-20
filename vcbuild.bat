@@ -48,6 +48,7 @@ set lint_js=
 set lint_cpp=
 set lint_md=
 set lint_md_build=
+set lint_yaml=
 set i18n_arg=
 set download_arg=
 set build_release=
@@ -94,7 +95,7 @@ if /i "%1"=="nonpm"         set nonpm=1&goto arg-ok
 if /i "%1"=="nocorepack"    set nocorepack=1&goto arg-ok
 if /i "%1"=="ltcg"          set ltcg=1&goto arg-ok
 if /i "%1"=="licensertf"    set licensertf=1&goto arg-ok
-if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
+if /i "%1"=="test"          set test_args=%test_args% %common_test_suites%&set lint_cpp=1&set lint_js=1&set lint_md=1&set lint_yaml=1&goto arg-ok
 if /i "%1"=="test-ci-native" set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_NATIVE_SUITES% %CI_DOC%&set build_addons=1&set build_js_native_api_tests=1&set build_node_api_tests=1&set cctest_args=%cctest_args% --gtest_output=xml:cctest.junit.xml&goto arg-ok
 if /i "%1"=="test-ci-js"    set test_args=%test_args% %test_ci_args% -p tap --logfile test.tap %CI_JS_SUITES%&set no_cctest=1&goto arg-ok
 if /i "%1"=="build-addons"   set build_addons=1&goto arg-ok
@@ -120,8 +121,9 @@ if /i "%1"=="lint-js"       set lint_js=1&goto arg-ok
 if /i "%1"=="jslint"        set lint_js=1&echo Please use lint-js instead of jslint&goto arg-ok
 if /i "%1"=="lint-md"       set lint_md=1&goto arg-ok
 if /i "%1"=="lint-md-build" set lint_md_build=1&goto arg-ok
-if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&goto arg-ok
+if /i "%1"=="lint"          set lint_cpp=1&set lint_js=1&set lint_md=1&set lint_yaml=1&goto arg-ok
 if /i "%1"=="lint-ci"       set lint_cpp=1&set lint_js_ci=1&goto arg-ok
+if /i "%1"=="lint-yaml"     set lint_yaml=1&goto arg-ok
 if /i "%1"=="package"       set package=1&goto arg-ok
 if /i "%1"=="msi"           set msi=1&set licensertf=1&set download_arg="--download=all"&set i18n_arg=full-icu&goto arg-ok
 if /i "%1"=="build-release" set build_release=1&set sign=1&goto arg-ok
@@ -644,10 +646,10 @@ goto lint-cpp
 :lint-cpp
 if not defined lint_cpp goto lint-js
 if defined NODEJS_MAKE goto run-make-lint
-where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
-if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
 where wsl > NUL 2>&1
 if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-lint
+where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
+if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-lint
 echo Could not find GNU Make, needed for linting C/C++
 goto lint-js
 
@@ -673,7 +675,7 @@ echo "Deprecated no-op target 'lint_md_build'"
 goto lint-md
 
 :lint-md
-if not defined lint_md goto exit
+if not defined lint_md goto lint-yaml
 echo Running Markdown linter on docs...
 SETLOCAL ENABLEDELAYEDEXPANSION
 set lint_md_files=
@@ -684,7 +686,7 @@ for /D %%D IN (doc\*) do (
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
 ENDLOCAL
-goto exit
+goto lint-yaml
 
 :format-md
 if not defined lint_md goto exit
@@ -700,6 +702,24 @@ for /D %%D IN (doc\*) do (
 ENDLOCAL
 goto exit
 
+:lint-yaml
+if not defined lint_yaml goto exit
+if defined NODEJS_MAKE goto run-make-yaml-lint
+where wsl > NUL 2>&1
+if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=wsl make" & goto run-make-yaml-lint
+where make > NUL 2>&1 && make -v | findstr /C:"GNU Make" 1> NUL
+if "%ERRORLEVEL%"=="0" set "NODEJS_MAKE=make PYTHON=python" & goto run-make-yaml-lint
+echo Could not find GNU Make, needed for linting Yaml
+goto exit
+
+
+:run-make-yaml-lint
+echo Setting up Yamllint...
+%NODEJS_MAKE% lint-yaml-build
+echo Linting Yaml files...
+%NODEJS_MAKE% lint-yaml
+goto exit
+
 :create-msvs-files-failed
 echo Failed to create vc project files.
 del .used_configure_flags
@@ -707,7 +727,7 @@ set exit_code=1
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
+echo vcbuild.bat [debug/release] [msi] [doc] [test/test-all/test-addons/test-doc/test-js-native-api/test-node-api/test-internet/test-tick-processor/test-known-issues/test-node-inspect/test-check-deopts/test-npm/test-v8/test-v8-intl/test-v8-benchmarks/test-v8-all] [ignore-flaky] [static/dll] [noprojgen] [projgen] [small-icu/full-icu/without-intl] [nobuild] [nosnapshot] [nonpm] [nocorepack] [ltcg] [licensetf] [sign] [ia32/x86/x64/arm64] [vs2022] [download-all] [enable-vtune] [lint/lint-ci/lint-js/lint-md/lint-yaml] [lint-md-build] [package] [build-release] [upload] [no-NODE-OPTIONS] [link-module path-to-module] [debug-http2] [debug-nghttp2] [clean] [cctest] [no-cctest] [openssl-no-asm]
 echo Examples:
 echo   vcbuild.bat                          : builds release build
 echo   vcbuild.bat debug                    : builds debug build
@@ -716,7 +736,7 @@ echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune             : builds Node.js with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
-echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
+echo   vcbuild.bat lint                     : runs the C++, documentation, JavaScript and Yaml linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
 

@@ -4,3 +4,5 @@ deps/npm/bin/npm text eol=lf
 deps/npm/bin/npx text eol=lf
 deps/corepack/shims/corepack text eol=lf
 tools/msvs/find_python.cmd text eol=crlf
+*.yaml text eol=lf
+*.yml text eol=lf
