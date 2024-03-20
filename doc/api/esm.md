@@ -1085,8 +1085,8 @@ _isImports_, _conditions_)
 > 10. If _url_ ends in _".js"_, then
 >     1. If _packageType_ is not **null**, then
 >        1. Return _packageType_.
->     2. If `--experimental-detect-module` is enabled and the source of
->        module contains static import or export syntax, then
+>     2. If `--experimental-detect-module` is enabled and the result of
+>        **DETECT\_MODULE\_SYNTAX**(_source_) is true, then
 >        1. Return _"module"_.
 >     3. Return _"commonjs"_.
 > 11. If _url_ does not have any extension, then
@@ -1122,6 +1122,17 @@ _isImports_, _conditions_)
 > 3. If the file at _packageURL_ does not parse as valid JSON, then
 >    1. Throw an _Invalid Package Configuration_ error.
 > 4. Return the parsed JSON source of the file at _pjsonURL_.
+
+**DETECT\_MODULE\_SYNTAX**(_source_)
+
+> 1. Parse _source_ as an ECMAScript module.
+> 2. If the parse is successful, then
+>    1. If _source_ contains top-level `await`, static `import` or `export`
+>       statements, or `import.meta`, return **true**.
+>    2. If _source_ contains a top-level lexical declaration (`const`, `let`,
+>       or `class`) of any of the CommonJS wrapper variables (`require`,
+>       `exports`, `module`, `__filename`, or `__dirname`) then return **true**.
+> 3. Else return **false**.
 
 ### Customizing ESM specifier resolution algorithm
 
