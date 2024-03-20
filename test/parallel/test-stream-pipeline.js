@@ -1476,10 +1476,14 @@ const tsp = require('timers/promises');
     });
 
     const duplex = new PassThrough();
+    const transform = new PassThrough();
 
     read.push(null);
 
-    await pipelinePromise(read, duplex, { end: false });
+    await pipelinePromise(read, transform, duplex, { end: false });
+
+    assert.strictEqual(transform.destroyed, true);
+    assert.strictEqual(transform.writableEnded, true);
 
     assert.strictEqual(duplex.destroyed, false);
     assert.strictEqual(duplex.writableEnded, false);

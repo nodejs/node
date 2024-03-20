@@ -65,6 +65,15 @@ or `require('node:stream').promises`.
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version:
+      - v18.0.0
+      - v17.2.0
+      - v16.14.0
+    pr-url: https://github.com/nodejs/node/pull/40886
+    description: Add the `end` option, which can be set to `false` to prevent
+                 automatically closing the destination stream when the source
+                 ends.
 -->
 
 * `streams` {Stream\[]|Iterable\[]|AsyncIterable\[]|Function\[]}
@@ -76,9 +85,11 @@ added: v15.0.0
 * `destination` {Stream|Function}
   * `source` {AsyncIterable}
   * Returns: {Promise|AsyncIterable}
-* `options` {Object}
+* `options` {Object} Pipeline options
   * `signal` {AbortSignal}
-  * `end` {boolean}
+  * `end` {boolean} End the destination stream when the source stream ends.
+    Transform streams are always ended, even if this value is `false`.
+    **Default:** `true`.
 * Returns: {Promise} Fulfills when the pipeline is complete.
 
 ```cjs
