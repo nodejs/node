@@ -1061,6 +1061,8 @@ class Environment : public MemoryRetainer {
   std::vector<std::string> supported_hash_algorithms;
 #endif  // HAVE_OPENSSL
 
+  v8::Global<v8::Module> temporary_required_module_facade_original;
+
  private:
   // V8 has changed the constructor of exceptions, support both APIs before Node
   // updates to V8 12.1.
