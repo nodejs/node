@@ -110,6 +110,9 @@ class ContextifyContext : public BaseObject {
       const v8::ScriptCompiler::Source& source);
   static void ContainsModuleSyntax(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void ShouldRetryAsESM(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool ShouldRetryAsESMInternal(Environment* env,
+                                       v8::Local<v8::String> code);
   static void WeakCallback(
       const v8::WeakCallbackInfo<ContextifyContext>& data);
   static void PropertyGetterCallback(
