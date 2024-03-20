@@ -10,6 +10,7 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Add experimental support for import attributes.
   - version:
@@ -264,7 +265,7 @@ changes:
   - version:
     - v21.0.0
     - v20.10.0
-    - v18.19.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/50140
     description: Switch from Import Assertions to Import Attributes.
 -->

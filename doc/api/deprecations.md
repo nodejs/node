@@ -3549,7 +3549,9 @@ Please use `value instanceof WebAssembly.Module` instead.
 
 <!-- YAML
 changes:
-  - version: v21.5.0
+  - version:
+    - v21.5.0
+    - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
 -->

@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.0">18.20.0</a><br/>
 <a href="#18.19.1">18.19.1</a><br/>
 <a href="#18.19.0">18.19.0</a><br/>
 <a href="#18.18.2">18.18.2</a><br/>
@@ -66,6 +67,180 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.0"></a>
+
+## 2024-03-26, Version 18.20.0 'Hydrogen' (LTS), @richardlau
+
+### Notable Changes
+
+#### Added support for import attributes
+
+Support has been added for import attributes, to replace the old import
+assertions syntax. This will aid migration by making the new syntax available
+across all currently supported Node.js release lines.
+
+This adds the `with` keyword which should be used in place of the previous
+`assert` keyword, which will be removed in a future semver-major Node.js
+release.
+
+For example,
+
+```console
+import "foo" assert { ... }
+```
+
+should be replaced with
+
+```console
+import "foo" with { ... }
+```
+
+For more details, see
+
+* [#50134](https://github.com/nodejs/node/issues/50134)
+* [#51622](https://github.com/nodejs/node/issues/51622)
+
+Contributed by Nicolò Ribaudo in [#51136](https://github.com/nodejs/node/pull/51136)
+and Antoine du Hamel in [#50140](https://github.com/nodejs/node/pull/50140).
+
+#### Doc deprecation for `dirent.path`
+
+Please use newly added `dirent.parentPath` instead.
+
+Contributed by Antoine du Hamel in [#50976](https://github.com/nodejs/node/pull/50976)
+and [#51020](https://github.com/nodejs/node/pull/51020).
+
+#### Experimental node-api feature flags
+
+Introduces an experimental feature to segregate finalizers that affect GC state.
+A new type called `node_api_nogc_env` has been introduced as the const version
+of `napi_env` and `node_api_nogc_finalize` as a variant of `napi_finalize` that
+accepts a `node_api_nogc_env` as its first argument.
+
+This feature can be turned off by defining
+`NODE_API_EXPERIMENTAL_NOGC_ENV_OPT_OUT`.
+
+Contributed by Gabriel Schulhof in [#50060](https://github.com/nodejs/node/pull/50060).
+
+#### Root certificates updated to NSS 3.98
+
+Certificates added:
+
+* Telekom Security TLS ECC Root 2020
+* Telekom Security TLS RSA Root 2023
+
+Certificates removed:
+
+* Security Communication Root CA
+
+#### Updated dependencies
+
+* ada updated to 2.7.6.
+* base64 updated to 0.5.2.
+* c-ares updated to 1.27.0.
+* corepack updated to 0.25.2.
+* ICU updated to 74.2. Includes CLDR 44.1 and Unicode 15.1.
+* npm updated to 10.5.0. Fixes a regression in signals not being passed onto child processes.
+* simdutf8 updated to 4.0.8.
+* Timezone updated to 2024a.
+* zlib updated to 1.3.0.1-motley-40e35a7.
+
+#### vm: fix V8 compilation cache support for vm.Script
+
+Previously repeated compilation of the same source code using `vm.Script`
+stopped hitting the V8 compilation cache after v16.x when support for
+`importModuleDynamically` was added to `vm.Script`, resulting in a performance
+regression that blocked users (in particular Jest users) from upgrading from
+v16.x.
+
+The recent fixes allow the compilation cache to be hit again
+for `vm.Script` when `--experimental-vm-modules` is not used even in the
+presence of the `importModuleDynamically` option, so that users affected by the
+performance regression can now upgrade. Ongoing work is also being done to
+enable compilation cache support for `vm.CompileFunction`.
+
+Contributed by Joyee Cheung in [#49950](https://github.com/nodejs/node/pull/49950)
+and [#50137](https://github.com/nodejs/node/pull/50137).
+
+### Commits
+
+* \[[`c70383b8d4`](https://github.com/nodejs/node/commit/c70383b8d4)] - **build**: support Python 3.12 (Shi Pujin) [#50209](https://github.com/nodejs/node/pull/50209)
+* \[[`4b960c3a4a`](https://github.com/nodejs/node/commit/4b960c3a4a)] - **build**: fix incorrect g++ warning message (Richard Lau) [#51695](https://github.com/nodejs/node/pull/51695)
+* \[[`8fdea67694`](https://github.com/nodejs/node/commit/8fdea67694)] - **crypto**: update root certificates to NSS 3.98 (Node.js GitHub Bot) [#51794](https://github.com/nodejs/node/pull/51794)
+* \[[`812b126dd9`](https://github.com/nodejs/node/commit/812b126dd9)] - **deps**: V8: cherry-pick d90d4533b053 (Michaël Zasso) [#50077](https://github.com/nodejs/node/pull/50077)
+* \[[`9ab8c3db87`](https://github.com/nodejs/node/commit/9ab8c3db87)] - **deps**: update c-ares to 1.27.0 (Node.js GitHub Bot) [#51846](https://github.com/nodejs/node/pull/51846)
+* \[[`c688680387`](https://github.com/nodejs/node/commit/c688680387)] - **deps**: update c-ares to 1.26.0 (Node.js GitHub Bot) [#51582](https://github.com/nodejs/node/pull/51582)
+* \[[`9498ac8a47`](https://github.com/nodejs/node/commit/9498ac8a47)] - **deps**: compile c-ares with C11 support (Michaël Zasso) [#51410](https://github.com/nodejs/node/pull/51410)
+* \[[`8fb743642f`](https://github.com/nodejs/node/commit/8fb743642f)] - **deps**: update c-ares to 1.25.0 (Node.js GitHub Bot) [#51385](https://github.com/nodejs/node/pull/51385)
+* \[[`7bea2d7c12`](https://github.com/nodejs/node/commit/7bea2d7c12)] - **deps**: update zlib to 1.3.0.1-motley-40e35a7 (Node.js GitHub Bot) [#51274](https://github.com/nodejs/node/pull/51274)
+* \[[`57a38c8f75`](https://github.com/nodejs/node/commit/57a38c8f75)] - **deps**: update zlib to 1.3.0.1-motley-dd5fc13 (Node.js GitHub Bot) [#51105](https://github.com/nodejs/node/pull/51105)
+* \[[`b0ca084a6b`](https://github.com/nodejs/node/commit/b0ca084a6b)] - **deps**: update zlib to 1.3-22124f5 (Node.js GitHub Bot) [#50910](https://github.com/nodejs/node/pull/50910)
+* \[[`4b43823f37`](https://github.com/nodejs/node/commit/4b43823f37)] - **deps**: update zlib to 1.2.13.1-motley-5daffc7 (Node.js GitHub Bot) [#50803](https://github.com/nodejs/node/pull/50803)
+* \[[`f0da591812`](https://github.com/nodejs/node/commit/f0da591812)] - **deps**: update zlib to 1.2.13.1-motley-dfc48fc (Node.js GitHub Bot) [#50456](https://github.com/nodejs/node/pull/50456)
+* \[[`16d28a883a`](https://github.com/nodejs/node/commit/16d28a883a)] - **deps**: update base64 to 0.5.2 (Node.js GitHub Bot) [#51455](https://github.com/nodejs/node/pull/51455)
+* \[[`13a9e81cb6`](https://github.com/nodejs/node/commit/13a9e81cb6)] - **deps**: update base64 to 0.5.1 (Node.js GitHub Bot) [#50629](https://github.com/nodejs/node/pull/50629)
+* \[[`b4502d3ac5`](https://github.com/nodejs/node/commit/b4502d3ac5)] - **deps**: update simdutf to 4.0.8 (Node.js GitHub Bot) [#51000](https://github.com/nodejs/node/pull/51000)
+* \[[`183cf8a74a`](https://github.com/nodejs/node/commit/183cf8a74a)] - **deps**: update simdutf to 4.0.4 (Node.js GitHub Bot) [#50772](https://github.com/nodejs/node/pull/50772)
+* \[[`11ba8593ea`](https://github.com/nodejs/node/commit/11ba8593ea)] - **deps**: update ada to 2.7.6 (Node.js GitHub Bot) [#51542](https://github.com/nodejs/node/pull/51542)
+* \[[`73a946d55c`](https://github.com/nodejs/node/commit/73a946d55c)] - **deps**: update ada to 2.7.5 (Node.js GitHub Bot) [#51542](https://github.com/nodejs/node/pull/51542)
+* \[[`cc434c1a39`](https://github.com/nodejs/node/commit/cc434c1a39)] - **deps**: update ada to 2.7.4 (Node.js GitHub Bot) [#50815](https://github.com/nodejs/node/pull/50815)
+* \[[`3a3808a6ae`](https://github.com/nodejs/node/commit/3a3808a6ae)] - **deps**: upgrade npm to 10.5.0 (npm team) [#51913](https://github.com/nodejs/node/pull/51913)
+* \[[`c8876d765c`](https://github.com/nodejs/node/commit/c8876d765c)] - **deps**: upgrade npm to 10.3.0 (npm team) [#51431](https://github.com/nodejs/node/pull/51431)
+* \[[`5aec3af460`](https://github.com/nodejs/node/commit/5aec3af460)] - **deps**: update corepack to 0.25.2 (Node.js GitHub Bot) [#51810](https://github.com/nodejs/node/pull/51810)
+* \[[`a593985326`](https://github.com/nodejs/node/commit/a593985326)] - **deps**: update corepack to 0.24.1 (Node.js GitHub Bot) [#51459](https://github.com/nodejs/node/pull/51459)
+* \[[`d1a9237bf5`](https://github.com/nodejs/node/commit/d1a9237bf5)] - **deps**: update corepack to 0.24.0 (Node.js GitHub Bot) [#51318](https://github.com/nodejs/node/pull/51318)
+* \[[`adac0c7a63`](https://github.com/nodejs/node/commit/adac0c7a63)] - **deps**: update corepack to 0.23.0 (Node.js GitHub Bot) [#50563](https://github.com/nodejs/node/pull/50563)
+* \[[`4a6f83e32a`](https://github.com/nodejs/node/commit/4a6f83e32a)] - **deps**: escape Python strings correctly (Michaël Zasso) [#50695](https://github.com/nodejs/node/pull/50695)
+* \[[`c13969e52a`](https://github.com/nodejs/node/commit/c13969e52a)] - **deps**: V8: cherry-pick ea996ad04a68 (Nicolò Ribaudo) [#51136](https://github.com/nodejs/node/pull/51136)
+* \[[`6fbf0ba5c3`](https://github.com/nodejs/node/commit/6fbf0ba5c3)] - **deps**: V8: cherry-pick a0fd3209dda8 (Nicolò Ribaudo) [#51136](https://github.com/nodejs/node/pull/51136)
+* \[[`68fd7516e1`](https://github.com/nodejs/node/commit/68fd7516e1)] - **deps**: update timezone to 2024a (Michaël Zasso) [#51723](https://github.com/nodejs/node/pull/51723)
+* \[[`f9b229ebe1`](https://github.com/nodejs/node/commit/f9b229ebe1)] - **deps**: update icu to 74.2 (Michaël Zasso) [#51723](https://github.com/nodejs/node/pull/51723)
+* \[[`90c73d2eb4`](https://github.com/nodejs/node/commit/90c73d2eb4)] - **deps**: update timezone to 2023d (Node.js GitHub Bot) [#51461](https://github.com/nodejs/node/pull/51461)
+* \[[`2a2bf57028`](https://github.com/nodejs/node/commit/2a2bf57028)] - **deps**: update icu to 74.1 (Node.js GitHub Bot) [#50515](https://github.com/nodejs/node/pull/50515)
+* \[[`425e011e52`](https://github.com/nodejs/node/commit/425e011e52)] - **deps**: add v8::Object::SetInternalFieldForNodeCore() (Joyee Cheung) [#49874](https://github.com/nodejs/node/pull/49874)
+* \[[`58c70344a2`](https://github.com/nodejs/node/commit/58c70344a2)] - **deps**: V8: cherry-pick 705e374124ae (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`b0e88899e1`](https://github.com/nodejs/node/commit/b0e88899e1)] - **deps**: V8: cherry-pick 1fada6b36f8d (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`d87a810b81`](https://github.com/nodejs/node/commit/d87a810b81)] - **deps**: V8: cherry-pick 3dd9576ce336 (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`6d50966876`](https://github.com/nodejs/node/commit/6d50966876)] - **deps**: V8: cherry-pick 94e8282325a1 (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`fafbacdfec`](https://github.com/nodejs/node/commit/fafbacdfec)] - **deps**: V8: cherry-pick 9a98f96b6d68 (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`d4a530ed8d`](https://github.com/nodejs/node/commit/d4a530ed8d)] - **deps**: V8: cherry-pick 7f5daed62d47 (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`1ce901b164`](https://github.com/nodejs/node/commit/1ce901b164)] - **deps**: V8: cherry-pick c400af48b5ef (Joyee Cheung) [#51004](https://github.com/nodejs/node/pull/51004)
+* \[[`f232064f35`](https://github.com/nodejs/node/commit/f232064f35)] - **doc**: fix historical experimental fetch flag (Kenrick) [#51506](https://github.com/nodejs/node/pull/51506)
+* \[[`194ff6a40f`](https://github.com/nodejs/node/commit/194ff6a40f)] - **(SEMVER-MINOR)** **doc**: add deprecation notice to `dirent.path` (Antoine du Hamel) [#50976](https://github.com/nodejs/node/pull/50976)
+* \[[`0f09267dc6`](https://github.com/nodejs/node/commit/0f09267dc6)] - **(SEMVER-MINOR)** **doc**: deprecate `dirent.path` (Antoine du Hamel) [#50976](https://github.com/nodejs/node/pull/50976)
+* \[[`8bfb8f5b2f`](https://github.com/nodejs/node/commit/8bfb8f5b2f)] - **doc,crypto**: further clarify RSA\_PKCS1\_PADDING support (Tobias Nießen) [#51799](https://github.com/nodejs/node/pull/51799)
+* \[[`c7baf7b274`](https://github.com/nodejs/node/commit/c7baf7b274)] - **doc,crypto**: add changelog and note about disabled RSA\_PKCS1\_PADDING (Filip Skokan) [#51782](https://github.com/nodejs/node/pull/51782)
+* \[[`a193be3dc2`](https://github.com/nodejs/node/commit/a193be3dc2)] - **esm**: use import attributes instead of import assertions (Antoine du Hamel) [#50140](https://github.com/nodejs/node/pull/50140)
+* \[[`26e8f7793e`](https://github.com/nodejs/node/commit/26e8f7793e)] - **(SEMVER-MINOR)** **fs**: introduce `dirent.parentPath` (Antoine du Hamel) [#50976](https://github.com/nodejs/node/pull/50976)
+* \[[`5b5e5192f7`](https://github.com/nodejs/node/commit/5b5e5192f7)] - **lib**: fix compileFunction throws range error for negative numbers (Jithil P Ponnan) [#49855](https://github.com/nodejs/node/pull/49855)
+* \[[`7552de6806`](https://github.com/nodejs/node/commit/7552de6806)] - **module**: fix the leak in SourceTextModule and ContextifySript (Joyee Cheung) [#48510](https://github.com/nodejs/node/pull/48510)
+* \[[`2e05cf1c60`](https://github.com/nodejs/node/commit/2e05cf1c60)] - **module**: fix leak of vm.SyntheticModule (Joyee Cheung) [#48510](https://github.com/nodejs/node/pull/48510)
+* \[[`a86a2e14a3`](https://github.com/nodejs/node/commit/a86a2e14a3)] - **module**: use symbol in WeakMap to manage host defined options (Joyee Cheung) [#48510](https://github.com/nodejs/node/pull/48510)
+* \[[`32906ddcac`](https://github.com/nodejs/node/commit/32906ddcac)] - **node-api**: segregate nogc APIs from rest via type system (Gabriel Schulhof) [#50060](https://github.com/nodejs/node/pull/50060)
+* \[[`1aa71c26ff`](https://github.com/nodejs/node/commit/1aa71c26ff)] - **node-api**: factor out common code into macros (Gabriel Schulhof) [#50664](https://github.com/nodejs/node/pull/50664)
+* \[[`3d0b233f52`](https://github.com/nodejs/node/commit/3d0b233f52)] - **node-api**: introduce experimental feature flags (Gabriel Schulhof) [#50991](https://github.com/nodejs/node/pull/50991)
+* \[[`96514a8b9f`](https://github.com/nodejs/node/commit/96514a8b9f)] - **src**: iterate on import attributes array correctly (Michaël Zasso) [#50703](https://github.com/nodejs/node/pull/50703)
+* \[[`2c2892bf88`](https://github.com/nodejs/node/commit/2c2892bf88)] - **src**: set ModuleWrap internal fields only once (Joyee Cheung) [#49391](https://github.com/nodejs/node/pull/49391)
+* \[[`ff334cb774`](https://github.com/nodejs/node/commit/ff334cb774)] - **src**: cast v8::Object::GetInternalField() return value to v8::Value (Joyee Cheung) [#48943](https://github.com/nodejs/node/pull/48943)
+* \[[`270b519971`](https://github.com/nodejs/node/commit/270b519971)] - **stream**: do not defer construction by one microtick (Matteo Collina) [#52005](https://github.com/nodejs/node/pull/52005)
+* \[[`95d7a75084`](https://github.com/nodejs/node/commit/95d7a75084)] - **test**: fix dns test case failures after c-ares update to 1.21.0+ (Brad House) [#50743](https://github.com/nodejs/node/pull/50743)
+* \[[`cd613e5167`](https://github.com/nodejs/node/commit/cd613e5167)] - **test**: handle relative https redirect (Richard Lau) [#51121](https://github.com/nodejs/node/pull/51121)
+* \[[`40f10eafcf`](https://github.com/nodejs/node/commit/40f10eafcf)] - **test**: fix `internet/test-inspector-help-page` (Richard Lau) [#51693](https://github.com/nodejs/node/pull/51693)
+* \[[`5e426511b1`](https://github.com/nodejs/node/commit/5e426511b1)] - **test**: deflake test-vm-contextified-script-leak (Joyee Cheung) [#49710](https://github.com/nodejs/node/pull/49710)
+* \[[`0b156c6d28`](https://github.com/nodejs/node/commit/0b156c6d28)] - **test**: use checkIfCollectable in vm leak tests (Joyee Cheung) [#49671](https://github.com/nodejs/node/pull/49671)
+* \[[`1586c11b3c`](https://github.com/nodejs/node/commit/1586c11b3c)] - **test**: add checkIfCollectable to test/common/gc.js (Joyee Cheung) [#49671](https://github.com/nodejs/node/pull/49671)
+* \[[`902d8b3d4b`](https://github.com/nodejs/node/commit/902d8b3d4b)] - **test**: fix flaky http-chunk-extensions-limit test (Ethan Arrowood) [#51943](https://github.com/nodejs/node/pull/51943)
+* \[[`1743d2bdc1`](https://github.com/nodejs/node/commit/1743d2bdc1)] - **test**: test surrogate pair filenames on windows (Mert Can Altın) [#51800](https://github.com/nodejs/node/pull/51800)
+* \[[`1c1a7ec22d`](https://github.com/nodejs/node/commit/1c1a7ec22d)] - **test**: increase platform timeout zlib-brotli-16gb (Rafael Gonzaga) [#51792](https://github.com/nodejs/node/pull/51792)
+* \[[`931d02fe3e`](https://github.com/nodejs/node/commit/931d02fe3e)] - **test, v8**: fix wrong import attributes test (Nicolò Ribaudo) [#52184](https://github.com/nodejs/node/pull/52184)
+* \[[`d9ea6c1f8d`](https://github.com/nodejs/node/commit/d9ea6c1f8d)] - **tls**: fix order of setting cipher before setting cert and key (Kumar Rishav) [#50186](https://github.com/nodejs/node/pull/50186)
+* \[[`3184befa2e`](https://github.com/nodejs/node/commit/3184befa2e)] - **tools**: fix update-icu.sh (Michaël Zasso) [#51723](https://github.com/nodejs/node/pull/51723)
+* \[[`06646e11be`](https://github.com/nodejs/node/commit/06646e11be)] - **(SEMVER-MINOR)** **vm**: use import attributes instead of import assertions (Antoine du Hamel) [#50141](https://github.com/nodejs/node/pull/50141)
+* \[[`fe66e9d06e`](https://github.com/nodejs/node/commit/fe66e9d06e)] - **vm**: reject in importModuleDynamically without --experimental-vm-modules (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
+* \[[`052e095c6b`](https://github.com/nodejs/node/commit/052e095c6b)] - **vm**: use internal versions of compileFunction and Script (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
+* \[[`9f7899ed0a`](https://github.com/nodejs/node/commit/9f7899ed0a)] - **vm**: unify host-defined option generation in vm.compileFunction (Joyee Cheung) [#50137](https://github.com/nodejs/node/pull/50137)
+* \[[`6291c107d0`](https://github.com/nodejs/node/commit/6291c107d0)] - **vm**: use default HDO when importModuleDynamically is not set (Joyee Cheung) [#49950](https://github.com/nodejs/node/pull/49950)
 
 <a id="18.19.1"></a>
 
