@@ -6,8 +6,9 @@ const assert = require('assert');
 const { isModuleNamespaceObject } = require('util/types');
 
 const mod = require('../fixtures/es-modules/package-default-extension/index.mjs');
-assert.deepStrictEqual({ ...mod }, { entry: 'mjs' });
-assert(isModuleNamespaceObject(mod));
+const namespace = Object.getPrototypeOf(mod);
+assert.deepStrictEqual({ ...namespace }, { entry: 'mjs' });
+assert(isModuleNamespaceObject(namespace));
 
 assert.throws(() => {
   const mod = require('../fixtures/es-modules/package-default-extension');

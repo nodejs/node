@@ -21,7 +21,7 @@ const { pathToFileURL } = require('url');
     const url = pathToFileURL(path.resolve(__dirname, id));
     const imported = await import(url);
     const required = require(id);
-    assert.strictEqual(imported, required,
+    assert.strictEqual(imported, Object.getPrototypeOf(required),
                        `import()'ed and require()'ed result of ${id} was not reference equal`);
   }
 
