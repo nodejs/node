@@ -338,7 +338,7 @@ test('ESM mocking with namedExports option', async (t) => {
     assert.strictEqual(mocked.default, 'mock default');
     assert.strictEqual(mocked.val1, 'mock value');
     t.mock.reset();
-    assert.strictEqual(original, require(fixture));
+    common.expectRequiredModule(require(fixture), original);
   });
 
   await t.test('throws if named exports cannot be applied to defaultExport as CJS', async (t) => {

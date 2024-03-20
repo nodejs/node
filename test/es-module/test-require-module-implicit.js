@@ -3,9 +3,8 @@
 
 // Tests that require()ing modules without explicit module type information
 // warns and errors.
-require('../common');
+const common = require('../common');
 const assert = require('assert');
-const { isModuleNamespaceObject } = require('util/types');
 
 assert.throws(() => {
   require('../fixtures/es-modules/package-without-type/noext-esm');
@@ -28,6 +27,5 @@ assert.throws(() => {
     code: 'MODULE_NOT_FOUND'
   });
   const mod = require(`${id}.mjs`);
-  assert.deepStrictEqual({ ...mod }, { hello: 'world' });
-  assert(isModuleNamespaceObject(mod));
+  common.expectRequiredModule(mod, { hello: 'world' });
 }
