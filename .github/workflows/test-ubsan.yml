@@ -9,7 +9,7 @@ on:
       - AUTHORS
       - doc/**
       - .github/**
-      - '!.github/workflows/ubsan-asan.yml'
+      - '!.github/workflows/test-ubsan.yml'
   push:
     branches:
       - main
@@ -22,7 +22,7 @@ on:
       - AUTHORS
       - doc/**
       - .github/**
-      - '!.github/workflows/ubsan-asan.yml'
+      - '!.github/workflows/test-ubsan.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -45,14 +45,14 @@ jobs:
       LINK: g++
       CONFIG_FLAGS: --enable-ubsan
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
         with:
           persist-credentials: false
       - name: Store suppressions path
         run: |
           echo "UBSAN_OPTIONS=suppressions=$GITHUB_WORKSPACE/suppressions.supp" >> $GITHUB_ENV
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@0a5c61591373683505ea898e09a3ea4f39ef2b9c  # v5.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Environment Information
@@ -60,4 +60,4 @@ jobs:
       - name: Build
         run: make build-ci -j2 V=1
       - name: Test
-        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions -t 300 --measure-flakiness 9"
+        run: make run-ci -j2 V=1 TEST_CI_ARGS="-p actions --node-args='--test-reporter=spec' --node-args='--test-reporter-destination=stdout' -t 300 --measure-flakiness 9"
