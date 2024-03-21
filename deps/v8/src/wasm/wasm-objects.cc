@@ -2547,6 +2547,12 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       case HeapType::kStringViewIter:
         *error_message = "stringview_iter has no JS representation";
         return {};
+      case HeapType::kExn:
+        *error_message = "invalid type (ref null exn)";
+        return {};
+      case HeapType::kNoExn:
+        *error_message = "invalid type (ref null noexn)";
+        return {};
       default: {
         HeapType::Representation repr =
             expected_canonical.heap_representation_non_shared();
@@ -2589,8 +2595,7 @@ MaybeHandle<Object> JSToWasmObject(Isolate* isolate, Handle<Object> value,
       return {};
     }
     case HeapType::kExn:
-      if (!IsNull(*value, isolate)) return value;
-      *error_message = "null is not allowed for (ref exn)";
+      *error_message = "invalid type (ref exn)";
       return {};
     case HeapType::kStruct: {
       if (IsWasmStruct(*value)) {

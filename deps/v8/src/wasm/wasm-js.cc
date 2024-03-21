@@ -2445,9 +2445,9 @@ void WebAssemblyTableGrowImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
 namespace {
 void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
                                i::Handle<i::Object> value,
-                               i::wasm::HeapType type, i::Isolate* isolate,
+                               i::wasm::ValueType type, i::Isolate* isolate,
                                ErrorThrower* thrower) {
-  switch (type.representation()) {
+  switch (type.heap_type().representation()) {
     case internal::wasm::HeapType::kStringViewWtf8:
       thrower->TypeError("%s", "stringview_wtf8 has no JS representation");
       break;
@@ -2456,6 +2456,10 @@ void WasmObjectToJSReturnValue(v8::ReturnValue<v8::Value>& return_value,
       break;
     case internal::wasm::HeapType::kStringViewIter:
       thrower->TypeError("%s", "stringview_iter has no JS representation");
+      break;
+    case internal::wasm::HeapType::kExn:
+    case internal::wasm::HeapType::kNoExn:
+      thrower->TypeError("invalid type %s", type.name().c_str());
       break;
     default: {
       return_value.Set(Utils::ToLocal(i::wasm::WasmToJSObject(isolate, value)));
@@ -2490,8 +2494,8 @@ void WebAssemblyTableGetImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::WasmTableObject::Get(i_isolate, receiver, index);
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
-  WasmObjectToJSReturnValue(return_value, result, receiver->type().heap_type(),
-                            i_isolate, &thrower);
+  WasmObjectToJSReturnValue(return_value, result, receiver->type(), i_isolate,
+                            &thrower);
 }
 
 // WebAssembly.Table.set(num, any)
@@ -2767,8 +2771,7 @@ void WebAssemblyExceptionGetArgImpl(
     case i::wasm::kRefNull: {
       i::Handle<i::Object> obj = handle(values->get(decode_index), i_isolate);
       ReturnValue<Value> return_value = info.GetReturnValue();
-      return WasmObjectToJSReturnValue(return_value, obj,
-                                       signature->get(index).heap_type(),
+      return WasmObjectToJSReturnValue(return_value, obj, signature->get(index),
                                        i_isolate, &thrower);
     }
     case i::wasm::kRtt:
@@ -2836,8 +2839,7 @@ void WebAssemblyGlobalGetValueCommon(
     case i::wasm::kRef:
     case i::wasm::kRefNull: {
       WasmObjectToJSReturnValue(return_value, receiver->GetRef(),
-                                receiver->type().heap_type(), i_isolate,
-                                &thrower);
+                                receiver->type(), i_isolate, &thrower);
       break;
     }
     case i::wasm::kRtt:
