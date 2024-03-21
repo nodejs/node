@@ -611,12 +611,11 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
           kExprEnd,
           kExprReturn,
         kExprEnd,
-        kExprGlobalSet, g.index,
+        kExprThrowRef
   ]).exportFunc();
   let instance = builder.instantiate();
 
-  instance.exports.catch_all_ref();
-  assertTrue(instance.exports.g.value instanceof WebAssembly.Exception);
+  assertThrows(instance.exports.catch_all_ref, WebAssembly.Exception);
 })();
 
 (function TestCatchRefTwoParams() {

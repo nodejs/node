@@ -7,82 +7,142 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 let getExnRef = function() {
-  let tag = new WebAssembly.Tag({parameters:[]});
+  let tag = new WebAssembly.Tag({parameters: []});
   return new WebAssembly.Exception(tag, []);
-};
+}
+
+// Helper module to produce an exnref or convert a JS value to an exnref.
+let helper = (function () {
+  let builder = new WasmModuleBuilder();
+  let tag_index = builder.addTag(kSig_v_v);
+  let throw_index = builder.addImport('m', 'import', kSig_v_r);
+  builder.addFunction('get_exnref', makeSig([], [kWasmExnRef]))
+      .addBody([
+          kExprTryTable, kWasmVoid, 1,
+          kCatchAllRef, 0,
+          kExprThrow, tag_index,
+          kExprEnd,
+          kExprUnreachable,
+      ]).exportFunc();
+  builder.addFunction('to_exnref', makeSig([kWasmExternRef], [kWasmExnRef]))
+      .addBody([
+          kExprTryTable, kWasmVoid, 1,
+          kCatchAllRef, 0,
+          kExprLocalGet, 0,
+          kExprCallFunction, throw_index,
+          kExprEnd,
+          kExprUnreachable,
+      ]).exportFunc();
+  function throw_js(r) { throw r; }
+  let instance = builder.instantiate({m: {import: throw_js}});
+  return instance;
+})();
 
 (function RefTestExnRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let tag = builder.addTag(makeSig([], []));
 
+  let get_exnref = builder.addImport('m', 'get_exnref', makeSig([], [kWasmExnRef]));
   builder.addFunction('testExnRef',
-      makeSig([kWasmExnRef], [kWasmI32, kWasmI32]))
+      makeSig([], [kWasmI32, kWasmI32, kWasmI32, kWasmI32]))
+    .addLocals(kWasmExnRef, 1)
     .addBody([
-      kExprLocalGet, 0, kGCPrefix, kExprRefTest, kExnRefCode,
-      kExprLocalGet, 0, kGCPrefix, kExprRefTest, kNullExnRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTest, kExnRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTest, kNullExnRefCode,
+      kExprCallFunction, get_exnref,
+      kGCPrefix, kExprRefTest, kExnRefCode,
+      kExprCallFunction, get_exnref,
+      kGCPrefix, kExprRefTest, kNullExnRefCode,
     ]).exportFunc();
 
   builder.addFunction('testNullExnRef',
-      makeSig([kWasmExnRef], [kWasmI32, kWasmI32]))
+      makeSig([], [kWasmI32, kWasmI32, kWasmI32, kWasmI32]))
+    .addLocals(kWasmExnRef, 1)
     .addBody([
-      kExprLocalGet, 0, kGCPrefix, kExprRefTestNull, kExnRefCode,
-      kExprLocalGet, 0, kGCPrefix, kExprRefTestNull, kNullExnRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTestNull, kExnRefCode,
+      kExprLocalGet, 0,
+      kGCPrefix, kExprRefTestNull, kNullExnRefCode,
+      kExprCallFunction, get_exnref,
+      kGCPrefix, kExprRefTestNull, kExnRefCode,
+      kExprCallFunction, get_exnref,
+      kGCPrefix, kExprRefTestNull, kNullExnRefCode,
     ]).exportFunc();
 
-  let instance = builder.instantiate();
+
+  let instance = builder.instantiate({m: {get_exnref: helper.exports.get_exnref}});
   let wasm = instance.exports;
-  assertEquals([0, 0], wasm.testExnRef(null));
-  assertEquals([1, 0], wasm.testExnRef(getExnRef()));
-  assertEquals([1, 1], wasm.testNullExnRef(null));
-  assertEquals([1, 0], wasm.testNullExnRef(getExnRef()));
+  assertEquals([0, 0, 1, 0], wasm.testExnRef());
+  assertEquals([1, 1, 1, 0], wasm.testNullExnRef());
 })();
 
 (function RefCastExnRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
+  let to_exnref = builder.addImport('m', 'to_exnref', makeSig([kWasmExternRef], [kWasmExnRef]));
 
   builder.addFunction('castToExnRef',
-      makeSig([kWasmExnRef], [kWasmExnRef]))
-    .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefCast, kExnRefCode])
+      makeSig([kWasmExternRef], []))
+    .addBody([
+        kExprLocalGet, 0,
+        kExprCallFunction, to_exnref,
+        kGCPrefix, kExprRefCast, kExnRefCode,
+        kExprThrowRef])
     .exportFunc();
   builder.addFunction('castToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmExnRef]))
-  .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefCast, kNullExnRefCode])
+    makeSig([kWasmExternRef], []))
+  .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
+      kGCPrefix, kExprRefCast, kNullExnRefCode,
+      kExprDrop])
   .exportFunc();
   builder.addFunction('castNullToExnRef',
-    makeSig([kWasmExnRef], [kWasmExnRef]))
-  .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefCastNull, kExnRefCode])
+    makeSig([kWasmExternRef], []))
+  .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
+      kGCPrefix, kExprRefCastNull, kExnRefCode,
+      kExprThrowRef])
   .exportFunc();
   builder.addFunction('castNullToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmExnRef]))
-  .addBody([kExprLocalGet, 0, kGCPrefix, kExprRefCastNull, kNullExnRefCode])
+    makeSig([kWasmExternRef], []))
+  .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
+      kGCPrefix, kExprRefCastNull, kNullExnRefCode,
+      kGCPrefix, kExprRefCastNull, kExnRefCode,
+      kExprThrowRef])
   .exportFunc();
 
-  let instance = builder.instantiate();
+  let instance = builder.instantiate({m: {to_exnref: helper.exports.to_exnref}});
   let wasm = instance.exports;
 
   let exnRef = getExnRef();
   assertTraps(kTrapIllegalCast, () => wasm.castToExnRef(null));
-  assertEquals(exnRef, wasm.castToExnRef(exnRef));
+  assertThrowsEquals(() => wasm.castToExnRef(exnRef), exnRef);
   assertTraps(kTrapIllegalCast, () => wasm.castToNullExnRef(null));
   assertTraps(kTrapIllegalCast, () => wasm.castToNullExnRef(exnRef));
 
-  assertSame(null, wasm.castNullToExnRef(null));
-  assertEquals(exnRef, wasm.castNullToExnRef(exnRef));
-  assertSame(null, wasm.castNullToNullExnRef(null));
+  assertThrows(() => wasm.castNullToExnRef(null), Error, /rethrowing null value/);
+  assertThrowsEquals(() => wasm.castNullToExnRef(exnRef), exnRef);
+  assertThrows(() => wasm.castNullToNullExnRef(null), Error, /rethrowing null value/);
   assertTraps(kTrapIllegalCast, () => wasm.castNullToNullExnRef(exnRef));
 })();
 
 (function BrOnCastExnRef() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
+  let to_exnref = builder.addImport('m', 'to_exnref', makeSig([kWasmExternRef], [kWasmExnRef]));
 
   builder.addFunction('castToExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRef, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCast(
           0, wasmRefNullType(kWasmExnRef), wasmRefType(kWasmExnRef)),
       kExprI32Const, 0,
@@ -94,10 +154,11 @@ let getExnRef = function() {
   ])
   .exportFunc();
   builder.addFunction('castToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRef, kNullExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCast(
           0, wasmRefNullType(kWasmExnRef), wasmRefType(kWasmNullExnRef)),
       kExprI32Const, 0,
@@ -110,10 +171,11 @@ let getExnRef = function() {
   .exportFunc();
 
   builder.addFunction('castNullToExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRefNull, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCast(0,
           wasmRefNullType(kWasmExnRef), wasmRefNullType(kWasmExnRef)),
       kExprI32Const, 0,
@@ -125,10 +187,11 @@ let getExnRef = function() {
   ])
   .exportFunc();
   builder.addFunction('castNullToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRefNull, kNullExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCast(0,
           wasmRefNullType(kWasmExnRef), wasmRefNullType(kWasmNullExnRef)),
       kExprI32Const, 0,
@@ -141,10 +204,11 @@ let getExnRef = function() {
   .exportFunc();
 
   builder.addFunction('castFailToExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRefNull, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCastFail(0,
           wasmRefNullType(kWasmExnRef), wasmRefType(kWasmExnRef)),
       kExprI32Const, 0,
@@ -156,10 +220,11 @@ let getExnRef = function() {
   ])
   .exportFunc();
   builder.addFunction('castFailToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRefNull, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCastFail(0,
           wasmRefNullType(kWasmExnRef), wasmRefType(kWasmNullExnRef)),
       kExprI32Const, 0,
@@ -172,10 +237,11 @@ let getExnRef = function() {
   .exportFunc();
 
   builder.addFunction('castFailNullToExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRef, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCastFail(0,
           wasmRefNullType(kWasmExnRef), wasmRefNullType(kWasmExnRef)),
       kExprI32Const, 0,
@@ -187,10 +253,11 @@ let getExnRef = function() {
   ])
   .exportFunc();
   builder.addFunction('castFailNullToNullExnRef',
-    makeSig([kWasmExnRef], [kWasmI32]))
+    makeSig([kWasmExternRef], [kWasmI32]))
   .addBody([
     kExprBlock, kWasmRef, kExnRefCode,
       kExprLocalGet, 0,
+      kExprCallFunction, to_exnref,
       ...wasmBrOnCastFail(0,
           wasmRefNullType(kWasmExnRef), wasmRefNullType(kWasmNullExnRef)),
       kExprI32Const, 0,
@@ -202,7 +269,7 @@ let getExnRef = function() {
   ])
   .exportFunc();
 
-  let instance = builder.instantiate();
+  let instance = builder.instantiate({m: {to_exnref: helper.exports.to_exnref}});
   let wasm = instance.exports;
   let exnRef = getExnRef();
 
