@@ -17,24 +17,42 @@ npm i undici
 
 ## Benchmarks
 
-The benchmark is a simple `hello world` [example](benchmarks/benchmark.js) using a
+The benchmark is a simple getting data [example](benchmarks/benchmark.js) using a
 50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
-```
-│ Tests               │ Samples │          Result │ Tolerance │ Difference with slowest │
-|─────────────────────|─────────|─────────────────|───────────|─────────────────────────|
-│ got                 │      45 │ 1661.71 req/sec │  ± 2.93 % │                       - │
-│ node-fetch          │      20 │ 2164.81 req/sec │  ± 2.63 % │               + 30.28 % │
-│ undici - fetch      │      35 │ 2274.27 req/sec │  ± 2.70 % │               + 36.86 % │
-│ http - no keepalive │      15 │ 2376.04 req/sec │  ± 2.99 % │               + 42.99 % │
-│ axios               │      25 │ 2612.93 req/sec │  ± 2.89 % │               + 57.24 % │
-│ request             │      40 │ 2712.19 req/sec │  ± 2.92 % │               + 63.22 % │
-│ http - keepalive    │      45 │ 4393.25 req/sec │  ± 2.86 % │              + 164.38 % │
-│ undici - pipeline   │      45 │ 5484.69 req/sec │  ± 2.87 % │              + 230.06 % │
-│ undici - request    │      55 │ 7773.98 req/sec │  ± 2.93 % │              + 367.83 % │
-│ undici - stream     │      70 │ 8425.96 req/sec │  ± 2.91 % │              + 407.07 % │
-│ undici - dispatch   │      50 │ 9488.99 req/sec │  ± 2.85 % │              + 471.04 % │
-```
+|       _Tests_       | _Samples_ |     _Result_     | _Tolerance_ | _Difference with slowest_ |
+| :-----------------: | :-------: | :--------------: | :---------: | :-----------------------: |
+|   undici - fetch    |    30     | 3704.43 req/sec  |  ± 2.95 %   |             -             |
+| http - no keepalive |    20     | 4275.30 req/sec  |  ± 2.60 %   |         + 15.41 %         |
+|     node-fetch      |    10     | 4759.42 req/sec  |  ± 0.87 %   |         + 28.48 %         |
+|       request       |    40     | 4803.37 req/sec  |  ± 2.77 %   |         + 29.67 %         |
+|        axios        |    45     | 4951.97 req/sec  |  ± 2.88 %   |         + 33.68 %         |
+|         got         |    10     | 5969.67 req/sec  |  ± 2.64 %   |         + 61.15 %         |
+|     superagent      |    10     | 9471.48 req/sec  |  ± 1.50 %   |        + 155.68 %         |
+|  http - keepalive   |    25     | 10327.49 req/sec |  ± 2.95 %   |        + 178.79 %         |
+|  undici - pipeline  |    10     | 15053.41 req/sec |  ± 1.63 %   |        + 306.36 %         |
+|  undici - request   |    10     | 19264.24 req/sec |  ± 1.74 %   |        + 420.03 %         |
+|   undici - stream   |    15     | 20317.29 req/sec |  ± 2.13 %   |        + 448.46 %         |
+|  undici - dispatch  |    10     | 24883.28 req/sec |  ± 1.54 %   |        + 571.72 %         |
+
+The benchmark is a simple sending data [example](benchmarks/post-benchmark.js) using a
+50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
+
+|       _Tests_       | _Samples_ |    _Result_     | _Tolerance_ | _Difference with slowest_ |
+| :-----------------: | :-------: | :-------------: | :---------: | :-----------------------: |
+|   undici - fetch    |    20     | 1968.42 req/sec |  ± 2.63 %   |             -             |
+| http - no keepalive |    25     | 2330.30 req/sec |  ± 2.99 %   |         + 18.38 %         |
+|     node-fetch      |    20     | 2485.36 req/sec |  ± 2.70 %   |         + 26.26 %         |
+|         got         |    15     | 2787.68 req/sec |  ± 2.56 %   |         + 41.62 %         |
+|       request       |    30     | 2805.10 req/sec |  ± 2.59 %   |         + 42.50 %         |
+|        axios        |    10     | 3040.45 req/sec |  ± 1.72 %   |         + 54.46 %         |
+|     superagent      |    20     | 3358.29 req/sec |  ± 2.51 %   |         + 70.61 %         |
+|  http - keepalive   |    20     | 3477.94 req/sec |  ± 2.51 %   |         + 76.69 %         |
+|  undici - pipeline  |    25     | 3812.61 req/sec |  ± 2.80 %   |         + 93.69 %         |
+|  undici - request   |    10     | 6067.00 req/sec |  ± 0.94 %   |        + 208.22 %         |
+|   undici - stream   |    10     | 6391.61 req/sec |  ± 1.98 %   |        + 224.71 %         |
+|  undici - dispatch  |    10     | 6397.00 req/sec |  ± 1.48 %   |        + 224.98 %         |
+
 
 ## Quick Start
 
@@ -60,9 +78,13 @@ console.log('trailers', trailers)
 
 The `body` mixins are the most common way to format the request/response body. Mixins include:
 
-- [`.formData()`](https://fetch.spec.whatwg.org/#dom-body-formdata)
+- [`.arrayBuffer()`](https://fetch.spec.whatwg.org/#dom-body-arraybuffer)
+- [`.blob()`](https://fetch.spec.whatwg.org/#dom-body-blob)
 - [`.json()`](https://fetch.spec.whatwg.org/#dom-body-json)
 - [`.text()`](https://fetch.spec.whatwg.org/#dom-body-text)
+
+> [!NOTE]
+> The body returned from `undici.request` does not implement `.formData()`.
 
 Example usage:
 
@@ -123,14 +145,14 @@ Returns a promise with the result of the `Dispatcher.stream` method.
 
 Calls `options.dispatcher.stream(options, factory)`.
 
-See [Dispatcher.stream](docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
+See [Dispatcher.stream](./docs/api/Dispatcher.md#dispatcherstreamoptions-factory-callback) for more details.
 
 ### `undici.pipeline([url, options, ]handler): Duplex`
 
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`PipelineOptions`](docs/api/Dispatcher.md#parameter-pipelineoptions)
+* **options** [`PipelineOptions`](./docs/api/Dispatcher.md#parameter-pipelineoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **method** `String` - Default: `PUT` if `options.body`, otherwise `GET`
   * **maxRedirections** `Integer` - Default: `0`
@@ -140,7 +162,7 @@ Returns: `stream.Duplex`
 
 Calls `options.dispatch.pipeline(options, handler)`.
 
-See [Dispatcher.pipeline](docs/api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
+See [Dispatcher.pipeline](./docs/api/Dispatcher.md#dispatcherpipelineoptions-handler) for more details.
 
 ### `undici.connect([url, options]): Promise`
 
@@ -149,7 +171,7 @@ Starts two-way communications with the requested resource using [HTTP CONNECT](h
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`ConnectOptions`](docs/api/Dispatcher.md#parameter-connectoptions)
+* **options** [`ConnectOptions`](./docs/api/Dispatcher.md#parameter-connectoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **maxRedirections** `Integer` - Default: `0`
 * **callback** `(err: Error | null, data: ConnectData | null) => void` (optional)
@@ -158,7 +180,7 @@ Returns a promise with the result of the `Dispatcher.connect` method.
 
 Calls `options.dispatch.connect(options)`.
 
-See [Dispatcher.connect](docs/api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
+See [Dispatcher.connect](./docs/api/Dispatcher.md#dispatcherconnectoptions-callback) for more details.
 
 ### `undici.fetch(input[, init]): Promise`
 
@@ -226,7 +248,7 @@ await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' 
 
 - half
 
-In this implementation of fetch, `request.duplex` must be set if `request.body` is `ReadableStream` or `Async Iterables`. And fetch requests are currently always be full duplex. More detail refer to [Fetch Standard.](https://fetch.spec.whatwg.org/#dom-requestinit-duplex)
+In this implementation of fetch, `request.duplex` must be set if `request.body` is `ReadableStream` or `Async Iterables`, however, fetch requests are currently always full duplex. For more detail refer to the [Fetch Standard.](https://fetch.spec.whatwg.org/#dom-requestinit-duplex).
 
 #### `response.body`
 
@@ -297,7 +319,7 @@ Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](h
 Arguments:
 
 * **url** `string | URL | UrlObject`
-* **options** [`UpgradeOptions`](docs/api/Dispatcher.md#parameter-upgradeoptions)
+* **options** [`UpgradeOptions`](./docs/api/Dispatcher.md#parameter-upgradeoptions)
   * **dispatcher** `Dispatcher` - Default: [getGlobalDispatcher](#undicigetglobaldispatcher)
   * **maxRedirections** `Integer` - Default: `0`
 * **callback** `(error: Error | null, data: UpgradeData) => void` (optional)
@@ -306,7 +328,7 @@ Returns a promise with the result of the `Dispatcher.upgrade` method.
 
 Calls `options.dispatcher.upgrade(options)`.
 
-See [Dispatcher.upgrade](docs/api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
+See [Dispatcher.upgrade](./docs/api/Dispatcher.md#dispatcherupgradeoptions-callback) for more details.
 
 ### `undici.setGlobalDispatcher(dispatcher)`
 
@@ -400,9 +422,9 @@ Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 
 If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
 first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case
-undici will throw an error with code `UND_ERR_CONNECT_TIMEOUT`. 
+undici will throw an error with code `UND_ERR_CONNECT_TIMEOUT`.
 
-If the target server resolves to both a IPv6 and IPv4 (A records) address and you are using a compatible Node version 
+If the target server resolves to both a IPv6 and IPv4 (A records) address and you are using a compatible Node version
 (18.3.0 and above), you can fix the problem by providing the `autoSelectFamily` option (support by both `undici.request`
 and `undici.Agent`) which will enable the family autoselection algorithm when establishing the connection.
 

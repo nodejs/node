@@ -11,16 +11,18 @@ const { ReadableStreamFrom } = require('../core/util')
 const kConsume = Symbol('kConsume')
 const kReading = Symbol('kReading')
 const kBody = Symbol('kBody')
-const kAbort = Symbol('abort')
+const kAbort = Symbol('kAbort')
 const kContentType = Symbol('kContentType')
+const kContentLength = Symbol('kContentLength')
 
 const noop = () => {}
 
-module.exports = class BodyReadable extends Readable {
+class BodyReadable extends Readable {
   constructor ({
     resume,
     abort,
     contentType = '',
+    contentLength,
     highWaterMark = 64 * 1024 // Same as nodejs fs streams.
   }) {
     super({
@@ -35,6 +37,7 @@ module.exports = class BodyReadable extends Readable {
     this[kConsume] = null
     this[kBody] = null
     this[kContentType] = contentType
+    this[kContentLength] = contentLength
 
     // Is stream being consumed through Readable API?
     // This is an optimization so that we avoid checking
@@ -146,7 +149,7 @@ module.exports = class BodyReadable extends Readable {
   }
 
   async dump (opts) {
-    let limit = Number.isFinite(opts?.limit) ? opts.limit : 262144
+    let limit = Number.isFinite(opts?.limit) ? opts.limit : 128 * 1024
     const signal = opts?.signal
 
     if (signal != null && (typeof signal !== 'object' || !('aborted' in signal))) {
@@ -160,6 +163,10 @@ module.exports = class BodyReadable extends Readable {
     }
 
     return await new Promise((resolve, reject) => {
+      if (this[kContentLength] > limit) {
+        this.destroy(new AbortError())
+      }
+
       const onAbort = () => {
         this.destroy(signal.reason ?? new AbortError())
       }
@@ -284,16 +291,17 @@ function chunksDecode (chunks, length) {
     return ''
   }
   const buffer = chunks.length === 1 ? chunks[0] : Buffer.concat(chunks, length)
+  const bufferLength = buffer.length
 
+  // Skip BOM.
   const start =
-   buffer.length >= 3 &&
-   // Skip BOM.
-      buffer[0] === 0xef &&
-      buffer[1] === 0xbb &&
-      buffer[2] === 0xbf
-     ? 3
-     : 0
-  return buffer.utf8Slice(start, buffer.length - start)
+    bufferLength > 2 &&
+    buffer[0] === 0xef &&
+    buffer[1] === 0xbb &&
+    buffer[2] === 0xbf
+      ? 3
+      : 0
+  return buffer.utf8Slice(start, bufferLength)
 }
 
 function consumeEnd (consume) {
@@ -347,3 +355,5 @@ function consumeFinish (consume, err) {
   consume.length = 0
   consume.body = null
 }
+
+module.exports = { Readable: BodyReadable, chunksDecode }
