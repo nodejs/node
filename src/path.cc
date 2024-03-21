@@ -101,7 +101,7 @@ std::string PathResolve(Environment* env,
   const size_t numArgs = paths.size();
   auto cwd = env->GetCwd(env->exec_path());
 
-  for (int i = numArgs - 1; i >= -1 && !resolvedAbsolute; i--) {
+  for (int i = numArgs - 1; i >= -1; i--) {
     std::string path;
     if (i >= 0) {
       path = std::string(paths[i]);
