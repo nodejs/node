@@ -11,10 +11,10 @@
 
  describe hooks - no subtests (*ms)
  before throws
-   1
+   1 (*ms)
     'test did not finish before its parent and was cancelled'
 
-   2
+   2 (*ms)
     'test did not finish before its parent and was cancelled'
 
  before throws (*ms)
@@ -390,7 +390,7 @@
 
  - after() called
  run after when before throws
-   1
+   1 (*ms)
     'test did not finish before its parent and was cancelled'
 
  run after when before throws (*ms)
@@ -422,11 +422,11 @@
  failing tests:
 
 *
- 1
+ 1 (*ms)
   'test did not finish before its parent and was cancelled'
 
 *
- 2
+ 2 (*ms)
   'test did not finish before its parent and was cancelled'
 
 *
@@ -772,7 +772,7 @@
       *
 
 *
- 1
+ 1 (*ms)
   'test did not finish before its parent and was cancelled'
 
 *
