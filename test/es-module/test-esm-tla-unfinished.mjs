@@ -10,7 +10,7 @@ const commonArgs = [
   '--eval',
 ];
 
-describe('ESM: unsettled and rejected promises', { concurrency: true }, () => {
+describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should exit for an unsettled TLA promise via --eval with a warning', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       ...commonArgs,

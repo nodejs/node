@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-describe('esm source-map', { concurrency: true }, () => {
+describe('esm source-map', { concurrency: !process.env.TEST_PARALLEL }, () => {
   // Issue: https://github.com/nodejs/node/issues/51522
 
   [

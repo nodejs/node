@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-describe('Loader hooks', { concurrency: true }, () => {
+describe('Loader hooks', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('are called with all expected arguments', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -50,7 +50,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     assert.strictEqual(lines.length, 5);
   });
 
-  describe('should handle never-settling hooks in ESM files', { concurrency: true }, () => {
+  describe('should handle never-settling hooks in ESM files', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('top-level await of a never-settling resolve without warning', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',
@@ -134,7 +134,7 @@ describe('Loader hooks', { concurrency: true }, () => {
     });
   });
 
-  describe('should handle never-settling hooks in CJS files', { concurrency: true }, () => {
+  describe('should handle never-settling hooks in CJS files', { concurrency: !process.env.TEST_PARALLEL }, () => {
     it('never-settling resolve', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
         '--no-warnings',

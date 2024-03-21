@@ -5,7 +5,7 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 
-describe('ESM: warn for obsolete hooks provided', { concurrency: true }, () => {
+describe('ESM: warn for obsolete hooks provided', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should not print warnings when no experimental features are enabled or used', async () => {
     const { code, signal, stderr } = await spawnPromisified(execPath, [
       '--input-type=module',
