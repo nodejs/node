@@ -205,7 +205,7 @@ a C port of High Dynamic Range (HDR) Histogram.
 The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
 support for software applications.
-See [maintaining-icu][] for more informations.
+See [maintaining-icu][] for more information.
 
 ### libuv
 
@@ -217,7 +217,7 @@ It was primarily developed for use by Node.js.
 
 The [llhttp](https://github.com/nodejs/llhttp) dependency is
 the http parser used by Node.js.
-See [maintaining-http][] for more informations.
+See [maintaining-http][] for more information.
 
 ### minimatch
 
@@ -228,12 +228,12 @@ minimal matching utility.
 
 The [nghttp2](https://github.com/nghttp2/nghttp2) dependency is a C library
 implementing HTTP/2 protocol.
-See [maintaining-http][] for more informations.
+See [maintaining-http][] for more information.
 
 ### nghttp3
 
 The [nghttp3](https://github.com/ngtcp2/nghttp3) dependency is HTTP/3 library
-written in C. See ngtcp2 for more informations.
+written in C. See ngtcp2 for more information.
 
 ### ngtcp2
 
@@ -280,7 +280,7 @@ cryptography and secure communication.
 Node.js currently uses the quictls/openssl fork, which closely tracks
 the main openssl/openssl releases with the addition of APIs to support
 the QUIC protocol.
-See [maintaining-openssl][] for more informations.
+See [maintaining-openssl][] for more information.
 
 ### postject
 
@@ -301,7 +301,7 @@ a C++ library for fast UTF-8 decoding and encoding.
 
 The [undici](https://github.com/nodejs/undici) dependency is an HTTP/1.1 client,
 written from scratch for Node.js..
-See [maintaining-http][] for more informations.
+See [maintaining-http][] for more information.
 
 ### uvwasi
 
@@ -309,13 +309,13 @@ The [uvwasi](https://github.com/nodejs/uvwasi) dependency implements
 the WASI system call API, so that WebAssembly runtimes can easily
 implement WASI calls.
 Under the hood, uvwasi leverages libuv where possible for maximum portability.
-See [maintaining-web-assembly][] for more informations.
+See [maintaining-web-assembly][] for more information.
 
 ### V8
 
 [V8](https://chromium.googlesource.com/v8/v8.git/) is Google's open source
 high-performance JavaScript and WebAssembly engine, written in C++.
-See [maintaining-V8][] for more informations.
+See [maintaining-V8][] for more information.
 
 ### zlib
 
