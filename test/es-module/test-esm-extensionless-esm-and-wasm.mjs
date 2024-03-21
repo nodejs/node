@@ -4,7 +4,9 @@ import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
 import { match, ok, strictEqual } from 'node:assert';
 
-describe('extensionless ES modules within a "type": "module" package scope', { concurrency: !process.env.TEST_PARALLEL }, () => {
+describe('extensionless ES modules within a "type": "module" package scope', {
+  concurrency: !process.env.TEST_PARALLEL,
+}, () => {
   it('should run as the entry point', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       fixtures.path('es-modules/package-type-module/noext-esm'),
@@ -29,7 +31,9 @@ describe('extensionless ES modules within a "type": "module" package scope', { c
     strictEqual(defaultExport, 'module');
   });
 });
-describe('extensionless Wasm modules within a "type": "module" package scope', { concurrency: !process.env.TEST_PARALLEL }, () => {
+describe('extensionless Wasm modules within a "type": "module" package scope', {
+  concurrency: !process.env.TEST_PARALLEL,
+}, () => {
   it('should run as the entry point', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
       '--experimental-wasm-modules',
