@@ -36,6 +36,39 @@ using v8::String;
 using v8::Undefined;
 using v8::Value;
 
+// Takes two JS callbacks, and calls the first one in a TryCatch scope.
+// If the first one throws, call the second one with the exception.
+// If the second one returns true, rethrow the original exception.
+// This is to keep the location of the original throw in JS.
+static void TryCatchRethrow(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args.Length() == 2);
+  CHECK(args[0]->IsFunction());
+  CHECK(args[1]->IsFunction());
+
+  Local<Function> try_fn = args[0].As<Function>();
+  Local<Function> catch_fn = args[1].As<Function>();
+
+  Isolate* isolate = args.GetIsolate();
+  Environment* env = Environment::GetCurrent(isolate);
+  Local<Context> context = isolate->GetCurrentContext();
+
+  TryCatchScope try_catch_scope(env);
+  USE(try_fn->Call(context, Undefined(isolate), 0, nullptr));
+
+  if (try_catch_scope.HasCaught()) {
+    Local<Value> exception = try_catch_scope.Exception();
+    Local<Value> argv[] = {exception};
+    Local<Value> result;
+    if (!catch_fn->Call(context, Undefined(isolate), 1, argv)
+             .ToLocal(&result)) {
+      return;
+    }
+    if (result->IsTrue()) {
+      try_catch_scope.ReThrow();
+    }
+  }
+}
+
 bool IsExceptionDecorated(Environment* env, Local<Value> er) {
   if (!er.IsEmpty() && er->IsObject()) {
     Local<Object> err_obj = er.As<Object>();
@@ -1089,6 +1122,7 @@ static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
+  registry->Register(TryCatchRethrow);
   registry->Register(SetPrepareStackTraceCallback);
   registry->Register(SetGetSourceMapErrorSource);
   registry->Register(SetSourceMapsEnabled);
@@ -1102,6 +1136,7 @@ void Initialize(Local<Object> target,
                 Local<Value> unused,
                 Local<Context> context,
                 void* priv) {
+  SetMethod(context, target, "tryCatchRethrow", TryCatchRethrow);
   SetMethod(context,
             target,
             "setPrepareStackTraceCallback",
