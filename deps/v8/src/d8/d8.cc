@@ -4022,7 +4022,9 @@ V8_NOINLINE void FuzzerMonitor::UseAfterFree() {
   // Use-after-free caught by ASAN.
   std::vector<bool>* storage = new std::vector<bool>(3);
   delete storage;
+#if defined(__clang__)
   USE(storage->at(1));
+#endif
 }
 
 V8_NOINLINE void FuzzerMonitor::UseOfUninitializedValue() {
