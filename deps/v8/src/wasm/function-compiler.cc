@@ -110,7 +110,7 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     case ExecutionTier::kNone:
       UNREACHABLE();
 
-    case ExecutionTier::kLiftoff:
+    case ExecutionTier::kLiftoff: {
       // The --wasm-tier-mask-for-testing flag can force functions to be
       // compiled with TurboFan, and the --wasm-debug-mask-for-testing can force
       // them to be compiled for debugging, see documentation.
@@ -144,8 +144,8 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
       // TODO(wasm): We could actually stop or remove the tiering unit for this
       // function to avoid compiling it twice with TurboFan.
       V8_FALLTHROUGH;
-
-    case ExecutionTier::kTurbofan:
+    }
+    case ExecutionTier::kTurbofan: {
       compiler::WasmCompilationData data(func_body);
       data.func_index = func_index_;
       data.wire_bytes_storage = wire_bytes_storage;
@@ -165,6 +165,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
                                                         detected);
       result.for_debugging = for_debugging_;
       break;
+    }
+    default:
+      UNREACHABLE();
   }
 
   DCHECK(result.succeeded());
