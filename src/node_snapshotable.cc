@@ -599,16 +599,17 @@ std::vector<char> SnapshotData::ToBlob() const {
   size_t written_total = 0;
 
   // Metadata
-  w.Debug("Write magic %" PRIx32 "\n", kMagic);
+  w.Debug("0x%x: Write magic %" PRIx32 "\n", w.sink.size(), kMagic);
   written_total += w.WriteArithmetic<uint32_t>(kMagic);
-  w.Debug("Write metadata\n");
+  w.Debug("0x%x: Write metadata\n", w.sink.size());
   written_total += w.Write<SnapshotMetadata>(metadata);
-
+  w.Debug("0x%x: Write snapshot blob\n", w.sink.size());
   written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
-  w.Debug("Write isolate_data_indices\n");
+  w.Debug("0x%x: Write IsolateDataSerializeInfo\n", w.sink.size());
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
+  w.Debug("0x%x: Write EnvSerializeInfo\n", w.sink.size());
   written_total += w.Write<EnvSerializeInfo>(env_info);
-  w.Debug("Write code_cache\n");
+  w.Debug("0x%x: Write CodeCacheInfo\n", w.sink.size());
   written_total += w.WriteVector<builtins::CodeCacheInfo>(code_cache);
   w.Debug("SnapshotData::ToBlob() Wrote %d bytes\n", written_total);
 
