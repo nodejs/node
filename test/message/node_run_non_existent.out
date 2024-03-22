@@ -1,0 +1,10 @@
+Missing script: "non-existent-command"
+
+Available scripts are:
+  test: echo "Error: no test specified" && exit 1
+  ada: ada
+  ada-windows: ada.bat
+  positional-args: positional-args
+  positional-args-windows: positional-args.bat
+  custom-env: custom-env
+  custom-env-windows: custom-env.bat
