@@ -302,7 +302,7 @@ To install this version of Node.js into a system directory:
 To verify the build:
 
 ```bash
-make test-only
+[sudo] make test-only
 ```
 
 At this point, you are ready to make code changes and re-run the tests.
