@@ -260,7 +260,9 @@ void PerIsolatePlatformData::PostTask(std::unique_ptr<Task> task) {
 }
 
 void PerIsolatePlatformData::PostDelayedTask(
-    std::unique_ptr<Task> task, double delay_in_seconds) {
+    std::unique_ptr<Task> task,
+    double delay_in_seconds,
+    DelayedTask::Nestability nestability) {
   if (flush_tasks_ == nullptr) {
     // V8 may post tasks during Isolate disposal. In that case, the only
     // sensible path forward is to discard the task.
@@ -270,8 +272,15 @@ void PerIsolatePlatformData::PostDelayedTask(
   delayed->task = std::move(task);
   delayed->platform_data = shared_from_this();
   delayed->timeout = delay_in_seconds;
+  delayed->nestability = nestability;
   foreground_delayed_tasks_.Push(std::move(delayed));
   uv_async_send(flush_tasks_);
+}
+
+void PerIsolatePlatformData::PostDelayedTask(std::unique_ptr<Task> task,
+                                             double delay_in_seconds) {
+  PostDelayedTask(
+      std::move(task), delay_in_seconds, DelayedTask::Nestability::kNestable);
 }
 
 void PerIsolatePlatformData::PostNonNestableTask(std::unique_ptr<Task> task) {
@@ -281,7 +290,9 @@ void PerIsolatePlatformData::PostNonNestableTask(std::unique_ptr<Task> task) {
 void PerIsolatePlatformData::PostNonNestableDelayedTask(
     std::unique_ptr<Task> task,
     double delay_in_seconds) {
-  PostDelayedTask(std::move(task), delay_in_seconds);
+  PostDelayedTask(std::move(task),
+                  delay_in_seconds,
+                  DelayedTask::Nestability::kNonNestable);
 }
 
 PerIsolatePlatformData::~PerIsolatePlatformData() {
@@ -475,7 +486,12 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
     // Timers may not guarantee queue ordering of events with the same delay if
     // the delay is non-zero. This should not be a problem in practice.
     uv_timer_start(&delayed->timer, RunForegroundTask, delay_millis, 0);
-    uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
+    // Do not unref non-nestable tasks which can run call into JS.
+    // For the moment all nestable tasks are from GC or logging so it's
+    // okay to unref the timer for them.
+    if (delayed->nestability == DelayedTask::Nestability::kNestable) {
+      uv_unref(reinterpret_cast<uv_handle_t*>(&delayed->timer));
+    }
     uv_handle_count_++;
 
     scheduled_delayed_tasks_.emplace_back(delayed.release(),

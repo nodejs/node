@@ -43,10 +43,12 @@ class TaskQueue {
 };
 
 struct DelayedTask {
+  enum class Nestability { kNestable, kNonNestable };
   std::unique_ptr<v8::Task> task;
   uv_timer_t timer;
   double timeout;
   std::shared_ptr<PerIsolatePlatformData> platform_data;
+  Nestability nestability;
 };
 
 // This acts as the foreground task runner for a given Isolate.
@@ -86,6 +88,9 @@ class PerIsolatePlatformData :
   void DeleteFromScheduledTasks(DelayedTask* task);
   void DecreaseHandleCount();
 
+  void PostDelayedTask(std::unique_ptr<v8::Task> task,
+                       double delay_in_seconds,
+                       DelayedTask::Nestability nestability);
   static void FlushTasks(uv_async_t* handle);
   void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
