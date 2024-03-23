@@ -183,6 +183,8 @@ li.picker-header {
 }
 
 li.picker-header .collapsed-arrow, li.picker-header .expanded-arrow {
+  position: relative;
+  bottom: 0.2rem;
   width: 1.5ch;
   height: 1.5em;
 }
