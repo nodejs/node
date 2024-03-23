@@ -19,7 +19,7 @@ const mustNotIncludeMessage = {
   includeNote: false,
 };
 
-describe('ESM: Errors for unexpected exports', { concurrency: true }, () => {
+describe('ESM: Errors for unexpected exports', { concurrency: !process.env.TEST_PARALLEL }, () => {
   for (
     const { errorNeedle, filePath, getMessage, includeNote }
     of [

@@ -10,7 +10,7 @@ const mjsEntry = fixtures.path('es-modules', 'mjs-file.mjs');
 const mjsImport = fixtures.fileURL('es-modules', 'mjs-file.mjs');
 
 
-describe('import modules using --import', { concurrency: true }, () => {
+describe('import modules using --import', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should import when using --eval', async () => {
     const { code, signal, stderr, stdout } = await spawnPromisified(
       execPath,

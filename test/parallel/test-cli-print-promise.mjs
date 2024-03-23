@@ -4,7 +4,7 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 
-describe('--print with a promise', { concurrency: true }, () => {
+describe('--print with a promise', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should handle directly-fulfilled promises', async () => {
     const result = await spawnPromisified(execPath, [
       '--print',

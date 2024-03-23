@@ -5,7 +5,7 @@ import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
 
-describe('ESM: module not found hint', { concurrency: true }, () => {
+describe('ESM: module not found hint', { concurrency: !process.env.TEST_PARALLEL }, () => {
   for (
     const { input, expected, cwd = fixturesDir }
     of [

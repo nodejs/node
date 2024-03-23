@@ -4,7 +4,7 @@ import * as snapshot from '../common/assertSnapshot.js';
 import * as path from 'node:path';
 import { describe, it } from 'node:test';
 
-describe('sourcemaps output', { concurrency: true }, () => {
+describe('sourcemaps output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     const result = str
     .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')

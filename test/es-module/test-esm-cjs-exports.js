@@ -7,7 +7,7 @@ const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
 
 
-describe('ESM: importing CJS', { concurrency: true }, () => {
+describe('ESM: importing CJS', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should support valid CJS exports', async () => {
     const validEntry = fixtures.path('/es-modules/cjs-exports.mjs');
     const { code, signal, stdout } = await spawnPromisified(execPath, [validEntry]);
