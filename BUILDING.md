@@ -569,9 +569,10 @@ the specified directory. The JS debugger of Visual Studio Code supports this
 configuration since the November 2020 version and allows for setting
 breakpoints.
 
-Refs: 
-1. https://ccache.dev/performance.html
-2. https://github.com/rui314/mold
+Refs:
+
+1. <https://ccache.dev/performance.html>
+2. <https://github.com/rui314/mold>
 
 #### Troubleshooting Unix and macOS builds
 
