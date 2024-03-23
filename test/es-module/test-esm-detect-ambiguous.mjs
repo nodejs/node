@@ -101,6 +101,7 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
     ]) {
       it(testName, async () => {
         const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+          '--no-warnings',
           '--experimental-detect-module',
           entryPath,
         ]);
@@ -142,6 +143,7 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
     ]) {
       it(testName, async () => {
         const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+          '--no-warnings',
           '--experimental-detect-module',
           entryPath,
         ]);
@@ -291,6 +293,7 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
 
     it('permits declaration of CommonJS module variables', async () => {
       const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--no-warnings',
         '--experimental-detect-module',
         fixtures.path('es-modules/package-without-type/commonjs-wrapper-variables.js'),
       ]);
@@ -324,6 +327,48 @@ describe('--experimental-detect-module', { concurrency: true }, () => {
       match(stderr, /SyntaxError: Identifier 'require' has already been declared/);
       strictEqual(stdout, '');
       strictEqual(code, 1);
+      strictEqual(signal, null);
+    });
+  });
+
+  describe('warn about typeless packages for .js files with ESM syntax', { concurrency: true }, () => {
+    for (const { testName, entryPath } of [
+      {
+        testName: 'warns for ESM syntax in a .js entry point in a typeless package',
+        entryPath: fixtures.path('es-modules/package-without-type/module.js'),
+      },
+      {
+        testName: 'warns for ESM syntax in a .js file imported by a CommonJS entry point in a typeless package',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-esm.js'),
+      },
+      {
+        testName: 'warns for ESM syntax in a .js file imported by an ESM entry point in a typeless package',
+        entryPath: fixtures.path('es-modules/package-without-type/imports-esm.mjs'),
+      },
+    ]) {
+      it(testName, async () => {
+        const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+          '--experimental-detect-module',
+          entryPath,
+        ]);
+
+        match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
+        strictEqual(stdout, 'executed\n');
+        strictEqual(code, 0);
+        strictEqual(signal, null);
+      });
+    }
+
+    it('warns only once for a package.json that affects multiple files', async () => {
+      const { stdout, stderr, code, signal } = await spawnPromisified(process.execPath, [
+        '--experimental-detect-module',
+        fixtures.path('es-modules/package-without-type/detected-as-esm.js'),
+      ]);
+
+      match(stderr, /MODULE_TYPELESS_PACKAGE_JSON/);
+      strictEqual(stderr.match(/MODULE_TYPELESS_PACKAGE_JSON/g).length, 1);
+      strictEqual(stdout, 'executed\nexecuted\n');
+      strictEqual(code, 0);
       strictEqual(signal, null);
     });
   });
