@@ -40,7 +40,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
 template <typename IsolateT>
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
     IsolateT* isolate, int register_count, int parameter_count,
-    Handle<ByteArray> handler_table) {
+    Handle<TrustedByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
@@ -49,19 +49,18 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
       constant_array_builder()->ToFixedArray(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
-      constant_pool);
-  bytecode_array->set_handler_table(*handler_table);
+      constant_pool, handler_table);
   return bytecode_array;
 }
 
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
         Isolate* isolate, int register_count, int parameter_count,
-        Handle<ByteArray> handler_table);
+        Handle<TrustedByteArray> handler_table);
 template EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
     Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
         LocalIsolate* isolate, int register_count, int parameter_count,
-        Handle<ByteArray> handler_table);
+        Handle<TrustedByteArray> handler_table);
 
 template <typename IsolateT>
 Handle<ByteArray> BytecodeArrayWriter::ToSourcePositionTable(

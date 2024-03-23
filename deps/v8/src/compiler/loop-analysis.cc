@@ -625,8 +625,7 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             Builtin::kWasmTableGetFuncRef, Builtin::kWasmTableSetFuncRef,
             Builtin::kWasmTableGrow,
             // Atomics.
-            Builtin::kWasmAtomicNotify, Builtin::kWasmI32AtomicWait,
-            Builtin::kWasmI64AtomicWait,
+            Builtin::kWasmI32AtomicWait, Builtin::kWasmI64AtomicWait,
             // Exceptions.
             Builtin::kWasmAllocateFixedArray, Builtin::kWasmThrow,
             Builtin::kWasmRethrow, Builtin::kWasmRethrowExplicitContext,

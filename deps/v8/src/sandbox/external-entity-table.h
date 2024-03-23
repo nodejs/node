@@ -208,6 +208,17 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
     base::Mutex mutex_;
   };
 
+  // A Space that supports black allocations.
+  struct SpaceWithBlackAllocationSupport : public Space {
+    bool allocate_black() { return allocate_black_; }
+    void set_allocate_black(bool allocate_black) {
+      allocate_black_ = allocate_black;
+    }
+
+   private:
+    bool allocate_black_ = false;
+  };
+
   ExternalEntityTable() = default;
   ExternalEntityTable(const ExternalEntityTable&) = delete;
   ExternalEntityTable& operator=(const ExternalEntityTable&) = delete;
@@ -274,6 +285,13 @@ class V8_EXPORT_PRIVATE ExternalEntityTable {
   //
   // The memory of this segment will afterwards be inaccessible.
   void FreeTableSegment(Segment segment);
+
+  // Iterate over all entries in the given space.
+  //
+  // The callback function will be invoked for every entry and be passed the
+  // index of that entry as argument.
+  template <typename Callback>
+  void IterateEntriesIn(Space* space, Callback callback);
 
   // Marker value for the freelist_head_ member to indicate that entry
   // allocation is currently forbidden, for example because the table is being

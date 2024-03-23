@@ -15,50 +15,19 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(RegExpMatchInfo)
-OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, FixedArray)
+OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, RegExpMatchInfo::Super)
 
-int RegExpMatchInfo::NumberOfCaptureRegisters() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  Tagged<Object> obj = get(kNumberOfCapturesIndex);
-  return Smi::ToInt(obj);
-}
+SMI_ACCESSORS(RegExpMatchInfo, number_of_capture_registers,
+              RegExpMatchInfo::kNumberOfCaptureRegistersOffset)
+ACCESSORS_NOCAGE(RegExpMatchInfo, last_subject, Tagged<String>,
+                 RegExpMatchInfo::kLastSubjectOffset)
+ACCESSORS_NOCAGE(RegExpMatchInfo, last_input, Tagged<Object>,
+                 RegExpMatchInfo::kLastInputOffset)
 
-void RegExpMatchInfo::SetNumberOfCaptureRegisters(int value) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kNumberOfCapturesIndex, Smi::FromInt(value));
-}
+int RegExpMatchInfo::capture(int index) const { return get(index).value(); }
 
-Tagged<String> RegExpMatchInfo::LastSubject() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return String::cast(get(kLastSubjectIndex));
-}
-
-void RegExpMatchInfo::SetLastSubject(Tagged<String> value,
-                                     WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastSubjectIndex, value, mode);
-}
-
-Tagged<Object> RegExpMatchInfo::LastInput() {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  return get(kLastInputIndex);
-}
-
-void RegExpMatchInfo::SetLastInput(Tagged<Object> value,
-                                   WriteBarrierMode mode) {
-  DCHECK_GE(length(), kLastMatchOverhead);
-  set(kLastInputIndex, value, mode);
-}
-
-int RegExpMatchInfo::Capture(int i) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  Tagged<Object> obj = get(kFirstCaptureIndex + i);
-  return Smi::ToInt(obj);
-}
-
-void RegExpMatchInfo::SetCapture(int i, int value) {
-  DCHECK_LT(i, NumberOfCaptureRegisters());
-  set(kFirstCaptureIndex + i, Smi::FromInt(value));
+void RegExpMatchInfo::set_capture(int index, int value) {
+  set(index, Smi::FromInt(value));
 }
 
 }  // namespace internal

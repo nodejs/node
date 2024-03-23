@@ -375,7 +375,6 @@ class Assembler : public AssemblerBase {
   }
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
-    DCHECK(src.ra_ != r0);                                                  \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
   }
 

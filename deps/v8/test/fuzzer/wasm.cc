@@ -30,13 +30,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8_flags.wasm_max_mem_pages = 32;
   v8_flags.wasm_max_table_size = 100;
 
+  // Disable lazy compilation to find compiler bugs easier.
+  v8_flags.wasm_lazy_compilation = false;
+
+  // Choose one of Liftoff or TurboFan, depending on the size of the input (we
+  // can't use a dedicated byte from the input, because we want to be able to
+  // pass Wasm modules unmodified to this fuzzer).
+  v8_flags.liftoff = size & 1;
+
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);
 
-  // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
   }
 
   v8::HandleScope handle_scope(isolate);
@@ -55,10 +63,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ErrorThrower thrower(i_isolate, "wasm fuzzer");
   Handle<WasmModuleObject> module_object;
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
-  bool compiles =
-      GetWasmEngine()
-          ->SyncCompile(i_isolate, enabled_features, &thrower, wire_bytes)
-          .ToHandle(&module_object);
+  bool compiles = GetWasmEngine()
+                      ->SyncCompile(i_isolate, enabled_features,
+                                    CompileTimeImports{}, &thrower, wire_bytes)
+                      .ToHandle(&module_object);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, compiles);

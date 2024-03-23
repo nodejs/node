@@ -84,6 +84,42 @@ bool PagedSpaceBase::Contains(Tagged<Object> o) const {
   return Page::FromAddress(o.ptr())->owner() == this;
 }
 
+template <bool during_sweep>
+size_t PagedSpaceBase::FreeInternal(Address start, size_t size_in_bytes) {
+  if (size_in_bytes == 0) return 0;
+  size_t wasted;
+  if (executable_) {
+    WritableJitPage jit_page(start, size_in_bytes);
+    WritableFreeSpace free_space = jit_page.FreeRange(start, size_in_bytes);
+    heap()->CreateFillerObjectAtBackground(free_space);
+    wasted = free_list_->Free(
+        free_space, during_sweep ? kDoNotLinkCategory : kLinkCategory);
+  } else {
+    WritableFreeSpace free_space =
+        WritableFreeSpace::ForNonExecutableMemory(start, size_in_bytes);
+    heap()->CreateFillerObjectAtBackground(free_space);
+    wasted = free_list_->Free(
+        free_space, during_sweep ? kDoNotLinkCategory : kLinkCategory);
+  }
+
+  if constexpr (!during_sweep) {
+    Page* page = Page::FromAddress(start);
+    accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
+    free_list()->increase_wasted_bytes(wasted);
+  }
+
+  DCHECK_GE(size_in_bytes, wasted);
+  return size_in_bytes - wasted;
+}
+
+size_t PagedSpaceBase::Free(Address start, size_t size_in_bytes) {
+  return FreeInternal</*during_sweep=*/false>(start, size_in_bytes);
+}
+
+size_t PagedSpaceBase::FreeDuringSweep(Address start, size_t size_in_bytes) {
+  return FreeInternal</*during_sweep=*/true>(start, size_in_bytes);
+}
+
 }  // namespace internal
 }  // namespace v8
 

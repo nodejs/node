@@ -25,13 +25,13 @@ class CanBeHandledVisitor final : private RegExpVisitor {
  public:
   static bool Check(RegExpTree* tree, RegExpFlags flags, int capture_count) {
     if (!AreSuitableFlags(flags)) return false;
-    CanBeHandledVisitor visitor;
+    CanBeHandledVisitor visitor{flags};
     tree->Accept(&visitor, nullptr);
     return visitor.result_;
   }
 
  private:
-  CanBeHandledVisitor() = default;
+  explicit CanBeHandledVisitor(RegExpFlags flags) : flags_(flags) {}
 
   static bool AreSuitableFlags(RegExpFlags flags) {
     // TODO(mbid, v8:10765): We should be able to support all flags in the
@@ -155,19 +155,48 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    node->body()->Accept(this, nullptr);
+    if (inside_positive_lookbehind_) {
+      // Positive lookbehinds with capture groups are not currently supported
+      result_ = false;
+    } else {
+      node->body()->Accept(this, nullptr);
+    }
+
     return nullptr;
   }
 
   void* VisitGroup(RegExpGroup* node, void*) override {
+    if (flags() != node->flags()) {
+      // Flags that aren't supported by the experimental engine at all, are not
+      // supported via modifiers either.
+      // TODO(pthier): Currently the only flag supported in modifiers and in
+      // the experimental engine is multi-line, which is already handled in the
+      // parser. If more flags are supported either by the experimental engine
+      // or in modifiers we need to add general support for modifiers to the
+      // experimental engine.
+      if (!AreSuitableFlags(node->flags())) {
+        result_ = false;
+        return nullptr;
+      }
+    }
     node->body()->Accept(this, nullptr);
     return nullptr;
   }
 
   void* VisitLookaround(RegExpLookaround* node, void*) override {
-    // TODO(mbid, v8:10765): This will be hard to support, but not impossible I
-    // think.  See product automata.
-    result_ = false;
+    bool parent_is_positive_lookbehind = inside_positive_lookbehind_;
+    inside_positive_lookbehind_ = node->is_positive();
+
+    // The current lookbehind implementation does not support sticky or global
+    // flags.
+    if (node->type() == RegExpLookaround::Type::LOOKAHEAD ||
+        IsGlobal(flags()) || IsSticky(flags())) {
+      result_ = false;
+    } else {
+      node->body()->Accept(this, nullptr);
+    }
+
+    inside_positive_lookbehind_ = parent_is_positive_lookbehind;
     return nullptr;
   }
 
@@ -180,10 +209,17 @@ class CanBeHandledVisitor final : private RegExpVisitor {
   void* VisitEmpty(RegExpEmpty* node, void*) override { return nullptr; }
 
  private:
+  RegExpFlags flags() const { return flags_; }
+
   // See comment in `VisitQuantifier`:
   int replication_factor_ = 1;
 
+  // The current implementation does not support capture groups in positive
+  // lookbehinds.
+  bool inside_positive_lookbehind_ = false;
+
   bool result_ = true;
+  RegExpFlags flags_;
 };
 
 }  // namespace
@@ -267,6 +303,14 @@ class BytecodeAssembler {
 
   void EndLoop() { code_.Add(RegExpInstruction::EndLoop(), zone_); }
 
+  void WriteLookTable(int index) {
+    code_.Add(RegExpInstruction::WriteLookTable(index), zone_);
+  }
+
+  void ReadLookTable(int index, bool is_positive) {
+    code_.Add(RegExpInstruction::ReadLookTable(index, is_positive), zone_);
+  }
+
   void Bind(Label& target) {
     DCHECK_EQ(target.state_, Label::UNBOUND);
 
@@ -330,11 +374,43 @@ class CompileVisitor : private RegExpVisitor {
     compiler.assembler_.SetRegisterToCp(1);
     compiler.assembler_.Accept();
 
+    // To handle captureless lookbehinds, we run independent automata for each
+    // lookbehind in lockstep with the main expression. To do so, we compile
+    // each lookbehind to a separate bytecode that we append to the main
+    // expression bytecode. At the end of each lookbehind, we add a
+    // WriteLookTable instruction, writing to a truth table that the lookbehind
+    // holds at the current position.
+    //
+    // This approach prevents the use of the sticky or global flags. In both
+    // cases, when resuming the search, it starts at a non null index, while the
+    // lookbehinds always need to start at the beginning of the string. A future
+    // implementation for the global flag may store the active lookbehind
+    // threads in the regexp to resume the execution of the lookbehinds
+    // automata.
+    compiler.inside_lookaround_ = true;
+    while (!compiler.lookbehinds_.empty()) {
+      auto node = compiler.lookbehinds_.front();
+
+      // Lookbehinds are never anchored, i.e. may start at any input position,
+      // so we emit a preamble corresponding to /.*?/.  This skips an arbitrary
+      // prefix in the input.
+      compiler.CompileNonGreedyStar(
+          [&]() { compiler.assembler_.ConsumeAnyChar(); });
+
+      node->body()->Accept(&compiler, nullptr);
+      compiler.assembler_.WriteLookTable(node->index());
+      compiler.lookbehinds_.pop_front();
+    }
+
     return std::move(compiler.assembler_).IntoCode();
   }
 
  private:
-  explicit CompileVisitor(Zone* zone) : zone_(zone), assembler_(zone) {}
+  explicit CompileVisitor(Zone* zone)
+      : zone_(zone),
+        lookbehinds_(zone),
+        assembler_(zone),
+        inside_lookaround_(false) {}
 
   // Generate a disjunction of code fragments compiled by a function `alt_gen`.
   // `alt_gen` is called repeatedly with argument `int i = 0, 1, ..., alt_num -
@@ -749,12 +825,20 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitCapture(RegExpCapture* node, void*) override {
-    int index = node->index();
-    int start_register = RegExpCapture::StartRegister(index);
-    int end_register = RegExpCapture::EndRegister(index);
-    assembler_.SetRegisterToCp(start_register);
-    node->body()->Accept(this, nullptr);
-    assembler_.SetRegisterToCp(end_register);
+    // Only negative lookbehinds contain captures (enforced by the
+    // `CanBeHandled` visitor). Capture groups inside negative lookarounds
+    // always yield undefined, so we can avoid the SetRegister instructions.
+    if (inside_lookaround_) {
+      node->body()->Accept(this, nullptr);
+    } else {
+      int index = node->index();
+      int start_register = RegExpCapture::StartRegister(index);
+      int end_register = RegExpCapture::EndRegister(index);
+      assembler_.SetRegisterToCp(start_register);
+      node->body()->Accept(this, nullptr);
+      assembler_.SetRegisterToCp(end_register);
+    }
+
     return nullptr;
   }
 
@@ -764,8 +848,12 @@ class CompileVisitor : private RegExpVisitor {
   }
 
   void* VisitLookaround(RegExpLookaround* node, void*) override {
-    // TODO(mbid,v8:10765): Support this case.
-    UNREACHABLE();
+    assembler_.ReadLookTable(node->index(), node->is_positive());
+
+    // Add the lookbehind to the queue of lookbehinds to be compiled.
+    lookbehinds_.push_back(node);
+
+    return nullptr;
   }
 
   void* VisitBackReference(RegExpBackReference* node, void*) override {
@@ -783,7 +871,13 @@ class CompileVisitor : private RegExpVisitor {
 
  private:
   Zone* zone_;
+
+  // Stores the AST of the lookbehinds encountered in a queue. They are compiled
+  // after the main expression, in breadth-first order.
+  ZoneLinkedList<RegExpLookaround*> lookbehinds_;
+
   BytecodeAssembler assembler_;
+  bool inside_lookaround_;
 };
 
 }  // namespace

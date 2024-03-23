@@ -325,7 +325,7 @@ inline bool IsTransitionElementsKind(ElementsKind kind) {
          kind == FAST_STRING_WRAPPER_ELEMENTS;
 }
 
-inline bool IsDoubleElementsKind(ElementsKind kind) {
+constexpr bool IsDoubleElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_DOUBLE_ELEMENTS, HOLEY_DOUBLE_ELEMENTS);
 }
 
@@ -386,7 +386,7 @@ inline bool IsSmiOrObjectElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_ELEMENTS);
 }
 
-inline bool IsSmiElementsKind(ElementsKind kind) {
+constexpr bool IsSmiElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS);
 }
 
@@ -394,7 +394,7 @@ inline bool IsFastNumberElementsKind(ElementsKind kind) {
   return IsSmiElementsKind(kind) || IsDoubleElementsKind(kind);
 }
 
-inline bool IsObjectElementsKind(ElementsKind kind) {
+constexpr bool IsObjectElementsKind(ElementsKind kind) {
   return base::IsInRange(kind, PACKED_ELEMENTS, HOLEY_ELEMENTS);
 }
 
@@ -407,7 +407,7 @@ inline bool IsAnyHoleyNonextensibleElementsKind(ElementsKind kind) {
          kind == HOLEY_SEALED_ELEMENTS || kind == HOLEY_FROZEN_ELEMENTS;
 }
 
-inline bool IsHoleyElementsKind(ElementsKind kind) {
+constexpr bool IsHoleyElementsKind(ElementsKind kind) {
   return kind % 2 == 1 && kind <= HOLEY_DOUBLE_ELEMENTS;
 }
 

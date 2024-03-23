@@ -68,9 +68,15 @@ ControlNode* NearestPostDominatingHole(ControlNode* node) {
   // If the node is a Jump, it may be a hole, but only if it is not a
   // fallthrough (jump to the immediately next block). Otherwise, it will point
   // to the nearest post-dominating hole in its own "next" field.
-  if (Jump* jump = node->TryCast<Jump>()) {
-    if (IsTargetOfNodeFallthrough(jump, jump->target())) {
-      return jump->next_post_dominating_hole();
+  if (node->Is<Jump>() || node->Is<CheckpointedJump>()) {
+    BasicBlock* target;
+    if (auto jmp = node->TryCast<Jump>()) {
+      target = jmp->target();
+    } else {
+      target = node->Cast<CheckpointedJump>()->target();
+    }
+    if (IsTargetOfNodeFallthrough(node, target)) {
+      return node->next_post_dominating_hole();
     }
   }
 
@@ -371,6 +377,10 @@ void StraightForwardRegisterAllocator::AllocateRegisters() {
     constant->SetConstantLocation();
     USE(value);
   }
+  for (const auto& [value, constant] : graph_->uint32()) {
+    constant->SetConstantLocation();
+    USE(value);
+  }
   for (const auto& [value, constant] : graph_->float64()) {
     constant->SetConstantLocation();
     USE(value);
@@ -651,6 +661,7 @@ void StraightForwardRegisterAllocator::AllocateEagerDeopt(
     const EagerDeoptInfo& deopt_info) {
   detail::DeepForEachInput(
       &deopt_info, [&](ValueNode* node, InputLocation* input) {
+        DCHECK(!node->Is<Identity>());
         // We might have dropped this node without spilling it. Spill it now.
         if (!node->has_register() && !node->is_loadable()) {
           Spill(node);
@@ -664,6 +675,7 @@ void StraightForwardRegisterAllocator::AllocateLazyDeopt(
     const LazyDeoptInfo& deopt_info) {
   detail::DeepForEachInput(&deopt_info,
                            [&](ValueNode* node, InputLocation* input) {
+                             DCHECK(!node->Is<Identity>());
                              // Lazy deopts always need spilling, and should
                              // always be loaded from their loadable slot.
                              Spill(node);
@@ -745,6 +757,7 @@ void StraightForwardRegisterAllocator::AllocateNode(Node* node) {
     AllocateLazyDeopt(*node->lazy_deopt_info());
   }
 
+  // Make sure to save snapshot after allocate eager deopt registers.
   if (node->properties().needs_register_snapshot()) SaveRegisterSnapshot(node);
 
   if (v8_flags.trace_maglev_regalloc) {
@@ -1573,6 +1586,25 @@ void StraightForwardRegisterAllocator::SaveRegisterSnapshot(NodeBase* node) {
       snapshot.live_registers.clear(reg);
       snapshot.live_tagged_registers.clear(reg);
     }
+  }
+  if (node->properties().can_eager_deopt()) {
+    // If we eagerly deopt after a deferred call, the registers saved by the
+    // runtime call might not include the inputs into the eager deopt. Here, we
+    // make sure that all the eager deopt registers are included in the
+    // snapshot.
+    detail::DeepForEachInput(
+        node->eager_deopt_info(), [&](ValueNode* node, InputLocation* input) {
+          if (!input->IsAnyRegister()) return;
+          if (input->IsDoubleRegister()) {
+            snapshot.live_double_registers.set(input->AssignedDoubleRegister());
+          } else {
+            snapshot.live_registers.set(input->AssignedGeneralRegister());
+            if (node->is_tagged()) {
+              snapshot.live_tagged_registers.set(
+                  input->AssignedGeneralRegister());
+            }
+          }
+        });
   }
   node->set_register_snapshot(snapshot);
 }

@@ -71,14 +71,13 @@ static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
-bool g_hard_abort = false;
 // We only use this stack size to get the topmost stack frame.
 const int kStackSize = 1;
 
 }  // namespace
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
-  g_hard_abort = hard_abort;
+void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
+  g_abort_mode = abort_mode;
   // This is only used on Posix, we don't need to use it for anything.
 }
 

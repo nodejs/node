@@ -64,6 +64,7 @@ class JSFinalizationRegistry;
 class JSWeakMap;
 class JSWeakRef;
 class JSWeakSet;
+class OSROptimizedCodeCache;
 class ProfileDataFromFile;
 class PromiseCapability;
 class PromiseFulfillReactionJobTask;
@@ -542,7 +543,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<TaggedIndex> TaggedIndexConstant(intptr_t value);
   TNode<RawPtrT> PointerConstant(void* value) {
     return ReinterpretCast<RawPtrT>(
-        IntPtrConstant(base::bit_cast<intptr_t>(value)));
+        IntPtrConstant(reinterpret_cast<intptr_t>(value)));
   }
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Tagged<Smi> value);
@@ -553,10 +554,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     static_assert(sizeof(E) <= sizeof(int));
     return SmiConstant(static_cast<int>(value));
   }
-  TNode<HeapObject> UntypedHeapConstant(Handle<HeapObject> object);
+  TNode<HeapObject> UntypedHeapConstantNoHole(Handle<HeapObject> object);
+  TNode<HeapObject> UntypedHeapConstantMaybeHole(Handle<HeapObject> object);
+  TNode<HeapObject> UntypedHeapConstantHole(Handle<HeapObject> object);
   template <class Type>
-  TNode<Type> HeapConstant(Handle<Type> object) {
-    return UncheckedCast<Type>(UntypedHeapConstant(object));
+  TNode<Type> HeapConstantNoHole(Handle<Type> object) {
+    return UncheckedCast<Type>(UntypedHeapConstantNoHole(object));
+  }
+  template <class Type>
+  TNode<Type> HeapConstantMaybeHole(Handle<Type> object) {
+    return UncheckedCast<Type>(UntypedHeapConstantMaybeHole(object));
+  }
+  template <class Type>
+  TNode<Type> HeapConstantHole(Handle<Type> object) {
+    return UncheckedCast<Type>(UntypedHeapConstantHole(object));
   }
   TNode<String> StringConstant(const char* str);
   TNode<Boolean> BooleanConstant(bool value);
@@ -649,17 +660,27 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void AbortCSADcheck(Node* message);
   void DebugBreak();
   void Unreachable();
-  void Comment(const char* msg) {
-    if (!v8_flags.code_comments) return;
-    Comment(std::string(msg));
-  }
-  void Comment(std::string msg);
+
+  // Hack for supporting SourceLocation alongside template packs.
+  struct MessageWithSourceLocation {
+    const char* message;
+    SourceLocation loc;
+
+    // Allow implicit construction, necessary for the hack.
+    // NOLINTNEXTLINE
+    MessageWithSourceLocation(const char* message,
+                              SourceLocation loc = SourceLocation::Current())
+        : message(message), loc(loc) {}
+  };
   template <class... Args>
-  void Comment(Args&&... args) {
+  void Comment(MessageWithSourceLocation message, Args&&... args) {
     if (!v8_flags.code_comments) return;
     std::ostringstream s;
-    USE((s << std::forward<Args>(args))...);
-    Comment(s.str());
+    USE(s << message.message, (s << std::forward<Args>(args))...);
+    if (message.loc.FileName()) {
+      s << " - " << message.loc.ToString();
+    }
+    EmitComment(std::move(s).str());
   }
 
   void StaticAssert(TNode<BoolT> value,
@@ -737,12 +758,19 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Switch(Node* index, Label* default_label, const int32_t* case_values,
               Label** case_labels, size_t case_count);
 
-  // Access to the frame pointer
+  // Access to the frame pointer.
   TNode<RawPtrT> LoadFramePointer();
   TNode<RawPtrT> LoadParentFramePointer();
   TNode<RawPtrT> StackSlotPtr(int size, int alignment);
 
+#if V8_ENABLE_WEBASSEMBLY
+  // Access to the stack pointer.
+  TNode<RawPtrT> LoadStackPointer();
+  void SetStackPointer(TNode<RawPtrT> ptr, wasm::FPRelativeScope fp_scope);
+#endif  // V8_ENABLE_WEBASSEMBLY
+
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
+  TNode<Uint8T> LoadUint8FromRootRegister(TNode<IntPtrT> offset);
 
   // Load raw memory location.
   Node* Load(MachineType type, Node* base);
@@ -1164,6 +1192,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // int_min instead of int_max on arm platforms by using parameter
   // kSetOverflowToMin.
   TNode<Int32T> TruncateFloat32ToInt32(TNode<Float32T> value);
+  TNode<Int64T> TruncateFloat64ToInt64(TNode<Float64T> value);
 
   // Projections
   template <int index, class T1, class T2>
@@ -1199,15 +1228,35 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   }
 
   //
-  // If context passed to CallStub is nullptr, it won't be passed to the stub.
+  // If context passed to CallBuiltin is nullptr, it won't be passed to the
+  // builtin.
   //
 
-  template <class T = Object, class... TArgs>
-  TNode<T> CallStub(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstant(callable.code());
+  template <typename T = Object, class... TArgs>
+  TNode<T> CallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
     return CallStub<T>(callable.descriptor(), target, context, args...);
   }
+
+  template <class... TArgs>
+  void CallBuiltinVoid(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
+              context, args...);
+  }
+
+  template <class... TArgs>
+  void TailCallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), id);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    TailCallStub(callable.descriptor(), target, context, args...);
+  }
+
+  //
+  // If context passed to CallStub is nullptr, it won't be passed to the stub.
+  //
 
   template <class T = Object, class... TArgs>
   TNode<T> CallStub(const CallInterfaceDescriptor& descriptor,
@@ -1216,27 +1265,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                       target, context, args...));
   }
 
-  template <class... TArgs>
-  void CallStubVoid(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstant(callable.code());
-    CallStubR(StubCallMode::kCallCodeObject, callable.descriptor(), target,
-              context, args...);
-  }
-
   template <class T = Object, class... TArgs>
   TNode<T> CallBuiltinPointer(const CallInterfaceDescriptor& descriptor,
                               TNode<BuiltinPtr> target, TNode<Object> context,
                               TArgs... args) {
     return UncheckedCast<T>(CallStubR(StubCallMode::kCallBuiltinPointer,
                                       descriptor, target, context, args...));
-  }
-
-  template <class... TArgs>
-  void TailCallStub(Callable const& callable, TNode<Object> context,
-                    TArgs... args) {
-    TNode<Code> target = HeapConstant(callable.code());
-    TailCallStub(callable.descriptor(), target, context, args...);
   }
 
   template <class... TArgs>
@@ -1250,10 +1284,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                                 TNode<RawPtrT> target, TArgs... args);
 
   template <class... TArgs>
-  void TailCallStubThenBytecodeDispatch(
-      const CallInterfaceDescriptor& descriptor, Node* target, Node* context,
-      TArgs... args) {
-    TailCallStubThenBytecodeDispatchImpl(descriptor, target, context,
+  void TailCallBuiltinThenBytecodeDispatch(Builtin builtin, Node* context,
+                                           TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    TailCallStubThenBytecodeDispatchImpl(callable.descriptor(), target, context,
                                          {args...});
   }
 
@@ -1269,31 +1304,41 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                       TNode<Int32T> arg_count);
 
   template <class... TArgs>
-  TNode<Object> CallJS(Callable const& callable, Node* context, Node* function,
-                       Node* receiver, TArgs... args) {
+  TNode<Object> CallJS(Builtin builtin, TNode<Context> context,
+                       TNode<Object> function,
+                       base::Optional<TNode<Object>> new_target,
+                       TNode<Object> receiver, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    // CallTrampolineDescriptor doesn't have |new_target| parameter.
+    DCHECK_IMPLIES(callable.descriptor() == CallTrampolineDescriptor{},
+                   !new_target.has_value());
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
-    TNode<Code> target = HeapConstant(callable.code());
-    return CAST(CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                               CAST(function), {}, arity, {receiver, args...}));
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, {receiver, args...}));
   }
 
   template <class... TArgs>
-  Node* ConstructJSWithTarget(Callable const& callable, Node* context,
-                              Node* function, Node* new_target, TArgs... args) {
+  TNode<Object> ConstructJSWithTarget(Builtin builtin, TNode<Context> context,
+                                      TNode<Object> function,
+                                      TNode<Object> new_target, TArgs... args) {
+    Callable callable = Builtins::CallableFor(isolate(), builtin);
+    // Only descriptors with |new_target| parameter are allowed here.
+    DCHECK_EQ(callable.descriptor(), JSTrampolineDescriptor{});
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
     TNode<Object> receiver = LoadRoot(RootIndex::kUndefinedValue);
-    TNode<Code> target = HeapConstant(callable.code());
-    return CallJSStubImpl(callable.descriptor(), target, CAST(context),
-                          CAST(function), CAST(new_target), arity,
-                          {receiver, args...});
+    TNode<Code> target = HeapConstantNoHole(callable.code());
+    return CAST(CallJSStubImpl(callable.descriptor(), target, context, function,
+                               new_target, arity, {receiver, args...}));
   }
+
   template <class... TArgs>
-  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
-                    TArgs... args) {
-    return ConstructJSWithTarget(callable, context, new_target, new_target,
-                                 args...);
+  TNode<Object> ConstructJS(Builtin builtin, TNode<Context> context,
+                            TNode<Object> target, TArgs... args) {
+    return CallOrConstructJSWithTarget(builtin, context, target, target,
+                                       args...);
   }
 
   Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
@@ -1417,6 +1462,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   Node* UnalignedLoad(MachineType type, TNode<RawPtrT> base,
                       TNode<WordT> offset);
+
+  void EmitComment(std::string msg);
 
   // These two don't have definitions and are here only for catching use cases
   // where the cast is not necessary.

@@ -407,6 +407,13 @@ constexpr auto StoreDescriptor::registers() {
 }
 
 // static
+constexpr auto StoreNoFeedbackDescriptor::registers() {
+  return RegisterArray(StoreDescriptor::ReceiverRegister(),
+                       StoreDescriptor::NameRegister(),
+                       StoreDescriptor::ValueRegister());
+}
+
+// static
 constexpr auto StoreBaselineDescriptor::registers() {
   return StoreDescriptor::registers();
 }
@@ -671,6 +678,7 @@ constexpr auto CallApiCallbackOptimizedDescriptor::registers() {
 // static
 constexpr auto CallApiCallbackGenericDescriptor::registers() {
   return RegisterArray(ActualArgumentsCountRegister(),
+                       TopmostScriptHavingContextRegister(),
                        CallHandlerInfoRegister(), HolderRegister());
 }
 

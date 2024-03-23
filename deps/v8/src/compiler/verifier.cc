@@ -380,6 +380,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kPlug:
     case IrOpcode::kTrapIf:
     case IrOpcode::kTrapUnless:
+    case IrOpcode::kAssert:
       CheckNotTyped(node);
       break;
     case IrOpcode::kDeoptimize:
@@ -838,6 +839,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     }
 
     case IrOpcode::kJSConstructForwardVarargs:
+    case IrOpcode::kJSConstructForwardAllArgs:
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:
@@ -1537,6 +1539,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kConvertReceiver:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Any());
+      CheckValueInputIs(node, 2, Type::Any());
       CheckTypeIs(node, Type::Receiver());
       break;
 
@@ -1714,8 +1717,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kIsNull:
     case IrOpcode::kIsNotNull:
     case IrOpcode::kAssertNotNull:
-    case IrOpcode::kWasmExternInternalize:
-    case IrOpcode::kWasmExternExternalize:
+    case IrOpcode::kWasmAnyConvertExtern:
+    case IrOpcode::kWasmExternConvertAny:
     case IrOpcode::kWasmStructGet:
     case IrOpcode::kWasmStructSet:
     case IrOpcode::kWasmArrayGet:
@@ -1724,6 +1727,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWasmArrayInitializeLength:
     case IrOpcode::kStringAsWtf16:
     case IrOpcode::kStringPrepareForGetCodeunit:
+    case IrOpcode::kLoadStackPointer:
+    case IrOpcode::kSetStackPointer:
       // TODO(7748): What are the constraints here?
       break;
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1918,8 +1923,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kWord32PairSar:
     case IrOpcode::kLoadStackCheckOffset:
     case IrOpcode::kLoadFramePointer:
-    case IrOpcode::kLoadStackPointer:
-    case IrOpcode::kSetStackPointer:
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kLoadRootRegister:
     case IrOpcode::kUnalignedLoad:
@@ -1963,7 +1966,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD128_OP_LIST(SIMD_MACHINE_OP_CASE)
-      MACHINE_SIMD256_OP_LIST(SIMD_MACHINE_OP_CASE)
+      IF_WASM(MACHINE_SIMD256_OP_LIST, SIMD_MACHINE_OP_CASE)
 #undef SIMD_MACHINE_OP_CASE
 
       // TODO(rossberg): Check.
@@ -2231,8 +2234,22 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
 #ifdef DEBUG
 
+namespace {
+// Print more debug information just before a DCHECK failure.
+bool FailSoon(Node* node) {
+  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
+  node->Print(std::cerr);
+  return false;
+}
+}  // namespace
+
 // static
 void Verifier::VerifyNode(Node* node) {
+  if (OperatorProperties::GetTotalInputCount(node->op()) !=
+      node->InputCount()) {
+    v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
+    node->Print(std::cerr);
+  }
   DCHECK_EQ(OperatorProperties::GetTotalInputCount(node->op()),
             node->InputCount());
   // If this node has no effect or no control outputs,
@@ -2243,13 +2260,13 @@ void Verifier::VerifyNode(Node* node) {
   if (check_no_effect || check_no_control) {
     for (Edge edge : node->use_edges()) {
       Node* const user = edge.from();
-      DCHECK(!user->IsDead());
+      DCHECK(!user->IsDead() || FailSoon(node));
       if (NodeProperties::IsControlEdge(edge)) {
-        DCHECK(!check_no_control);
+        DCHECK(!check_no_control || FailSoon(node));
       } else if (NodeProperties::IsEffectEdge(edge)) {
-        DCHECK(!check_no_effect);
+        DCHECK(!check_no_effect || FailSoon(node));
       } else if (NodeProperties::IsFrameStateEdge(edge)) {
-        DCHECK(!check_no_frame_state);
+        DCHECK(!check_no_frame_state || FailSoon(node));
       }
     }
   }
@@ -2260,19 +2277,19 @@ void Verifier::VerifyNode(Node* node) {
     DCHECK(input->opcode() == IrOpcode::kFrameState ||
            input->opcode() == IrOpcode::kStart ||
            input->opcode() == IrOpcode::kDead ||
-           input->opcode() == IrOpcode::kDeadValue);
+           input->opcode() == IrOpcode::kDeadValue || FailSoon(node));
   }
   // Effect inputs should be effect-producing nodes (or sentinels).
   for (int i = 0; i < node->op()->EffectInputCount(); i++) {
     Node* input = NodeProperties::GetEffectInput(node, i);
     DCHECK(input->op()->EffectOutputCount() > 0 ||
-           input->opcode() == IrOpcode::kDead);
+           input->opcode() == IrOpcode::kDead || FailSoon(node));
   }
   // Control inputs should be control-producing nodes (or sentinels).
   for (int i = 0; i < node->op()->ControlInputCount(); i++) {
     Node* input = NodeProperties::GetControlInput(node, i);
     DCHECK(input->op()->ControlOutputCount() > 0 ||
-           input->opcode() == IrOpcode::kDead);
+           input->opcode() == IrOpcode::kDead || FailSoon(node));
   }
 }
 

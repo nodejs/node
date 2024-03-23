@@ -9,14 +9,19 @@ type PodArrayOfWasmValueType extends ByteArray
 type ManagedWasmNativeModule extends Foreign
     constexpr 'Managed<wasm::NativeModule>';
 
-extern class WasmInstanceObject extends JSObject;
+extern class WasmTrustedInstanceData extends ExposedTrustedObject;
+
+extern class WasmInstanceObject extends JSObject {
+  @if(V8_ENABLE_SANDBOX) trusted_data:
+      IndirectPointer<WasmTrustedInstanceData>;
+  @ifnot(V8_ENABLE_SANDBOX) trusted_data: WasmTrustedInstanceData;
+  module_object: WasmModuleObject;
+  exports_object: JSObject;
+}
 
 // Represents the context of a function that is defined through the JS or C
 // APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
 // reference.
-// TODO(manoskouk): If V8_ENABLE_SANDBOX, we cannot encode the isolate_root as
-// a sandboxed pointer, because that would require having access to the isolate
-// root in the first place.
 extern class WasmApiFunctionRef extends HeapObject {
   native_context: NativeContext;
   callable: JSReceiver|Undefined;
@@ -42,10 +47,11 @@ extern class WasmInternalFunction extends HeapObject {
   ref: WasmInstanceObject|WasmApiFunctionRef;
   // The external (JS) representation of this function reference.
   external: JSFunction|Undefined;
-  // This field is used when the call target is null.
-  code: Code;
   // The function index if ref is a WasmInstanceObject, -1 otherwise.
   function_index: Smi;
+  // This field is used when the call target is null.
+  @if(V8_ENABLE_SANDBOX) code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) code: Code;
   // The call target. Tagged with the kWasmInternalFunctionCallTargetTag
   call_target: ExternalPointer;
 }
@@ -54,10 +60,11 @@ extern operator '.call_target_ptr' macro LoadWasmInternalFunctionCallTargetPtr(
     WasmInternalFunction): RawPtr;
 
 extern class WasmFunctionData extends HeapObject {
+  // Used for calling this function from JavaScript.
+  @if(V8_ENABLE_SANDBOX) wrapper_code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) wrapper_code: Code;
   // The wasm-internal representation of this function object.
   internal: WasmInternalFunction;
-  // Used for calling this function from JavaScript.
-  wrapper_code: Code;
   // Encode the {promising} and {suspending} flags in a single smi.
   js_promise_flags: Smi;
 }
@@ -71,9 +78,10 @@ extern class WasmExportedFunctionData extends WasmFunctionData {
   wrapper_budget: Smi;
   // The next two fields are for fast calling from C++. The contract is
   // that they are lazily populated, and either all will be present or none.
-  c_wrapper_code: Code;
   packed_args_size: Smi;
   canonical_type_index: Smi;
+  @if(V8_ENABLE_SANDBOX) c_wrapper_code: IndirectPointer<Code>;
+  @ifnot(V8_ENABLE_SANDBOX) c_wrapper_code: Code;
   sig: ExternalPointer;  // wasm::FunctionSig*
 }
 
@@ -119,7 +127,7 @@ extern class WasmSuspenderObject extends JSObject {
   // Number of Wasm-to-JS frames in this suspender's stack.
   // If the value is non-zero, this means that there are JS frames on the stack
   // and trying to suspend should trap.
-  wasm_to_js_counter: uint32;
+  has_js_frames: uint32;  // Boolean.
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
 }
@@ -140,9 +148,8 @@ extern class WasmModuleObject extends JSObject {
 
 extern class WasmTableObject extends JSObject {
   // The instance in which this WasmTableObject is defined.
-  // This field is undefined if the global is defined outside any Wasm module,
+  // This field is undefined if the table is defined outside any Wasm module,
   // i.e., through the JS API (WebAssembly.Table).
-  // Because it might be undefined, we declare it as a HeapObject.
   instance: WasmInstanceObject|Undefined;
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
@@ -157,7 +164,7 @@ extern class WasmMemoryObject extends JSObject {
   array_buffer: JSArrayBuffer;
   maximum_pages: Smi;
   is_memory64: Smi;  // Boolean
-  instances: WeakArrayList|Undefined;
+  instances: WeakArrayList;
 }
 
 extern class WasmGlobalObject extends JSObject {

@@ -173,8 +173,13 @@ class V8_EXPORT_PRIVATE JumpTableAssembler : public MacroAssembler {
 // that the instruction containing the call target does not cross cache-line
 // boundaries. The jump table line size has been chosen to satisfy this.
 #if V8_TARGET_ARCH_X64
+#ifdef V8_ENABLE_CET_IBT
+  static constexpr int kEndbrSize = 4;
+#else  // V8_ENABLE_CET_IBT
+  static constexpr int kEndbrSize = 0;
+#endif
   static constexpr int kJumpTableLineSize = 64;
-  static constexpr int kJumpTableSlotSize = 5;
+  static constexpr int kJumpTableSlotSize = 5 + kEndbrSize;
   static constexpr int kFarJumpTableSlotSize = 16;
   static constexpr int kLazyCompileTableSlotSize = 10;
 #elif V8_TARGET_ARCH_IA32

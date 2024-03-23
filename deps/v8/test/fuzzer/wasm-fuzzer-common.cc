@@ -46,8 +46,9 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
-  native_module =
-      GetWasmEngine()->NewNativeModule(isolate, enabled_features, module, 0);
+  // TODO(14179): Add fuzzer support for compile-time imports.
+  native_module = GetWasmEngine()->NewNativeModule(
+      isolate, enabled_features, CompileTimeImports{}, module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
@@ -112,7 +113,7 @@ void ExecuteAgainstReference(Isolate* isolate,
              ->SyncInstantiate(isolate, &thrower, module_ref, {},
                                {})  // no imports & memory
              .ToHandle(&instance_ref)) {
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
       thrower.Reset();  // Ignore errors.
       return;
     }
@@ -257,6 +258,10 @@ std::string HeapTypeToConstantName(HeapType heap_type) {
       return "kWasmNullFuncRef";
     case HeapType::kNoExtern:
       return "kWasmNullExternRef";
+    case HeapType::kExn:
+      return "kWasmExnRef";
+    case HeapType::kNoExn:
+      return "kWasmNullExnRef";
     case HeapType::kBottom:
       UNREACHABLE();
     default:
@@ -407,11 +412,11 @@ class InitExprInterface {
   void UnOp(FullDecoder* decoder, WasmOpcode opcode, const Value& value,
             Value* result) {
     switch (opcode) {
-      case kExprExternInternalize:
-        os_ << "kGCPrefix, kExprExternInternalize, ";
+      case kExprAnyConvertExtern:
+        os_ << "kGCPrefix, kExprAnyConvertExtern, ";
         break;
-      case kExprExternExternalize:
-        os_ << "kGCPrefix, kExprExternExternalize, ";
+      case kExprExternConvertAny:
+        os_ << "kGCPrefix, kExprExternConvertAny, ";
         break;
       default:
         UNREACHABLE();
@@ -553,8 +558,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
         "can be\n"
         "// found in the LICENSE file.\n"
         "\n"
-        "// Flags: --wasm-staging --experimental-wasm-gc\n"
-        "// Flags: --experimental-wasm-relaxed-simd\n"
+        "// Flags: --wasm-staging\n"
         "\n"
         "d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');\n"
         "\n"
@@ -767,7 +771,11 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   if (compiles) {
     os << "const instance = builder.instantiate();\n"
-          "print(instance.exports.main(1, 2, 3));\n";
+          "try {\n"
+          "  print(instance.exports.main(1, 2, 3));\n"
+          "} catch (e) {\n"
+          "  print('caught exception', e);\n"
+          "}\n";
   } else {
     os << "assertThrows(function() { builder.instantiate(); }, "
           "WebAssembly.CompileError);\n";
@@ -784,7 +792,7 @@ void EnableExperimentalWasmFeatures(v8::Isolate* isolate) {
 #undef ENABLE_STAGED_FEATURES
 
       // Enable non-staged experimental features that we also want to fuzz.
-      v8_flags.experimental_wasm_gc = true;
+      // <currently none>
 
       // Enforce implications from enabling features.
       FlagList::EnforceFlagImplications();
@@ -813,9 +821,9 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   v8::Isolate::Scope isolate_scope(isolate);
 
-  // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
+  // Clear any exceptions from a prior run.
+  if (i_isolate->has_exception()) {
+    i_isolate->clear_exception();
   }
 
   v8::HandleScope handle_scope(isolate);
@@ -866,9 +874,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
+  // TODO(14179): Add fuzzer support for compile-time imports.
+  CompileTimeImports compile_imports;
 
-  bool valid =
-      GetWasmEngine()->SyncValidate(i_isolate, enabled_features, wire_bytes);
+  bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
+                                             compile_imports, wire_bytes);
 
   if (v8_flags.wasm_fuzzer_gen_test) {
     GenerateTestCase(i_isolate, wire_bytes, valid);
@@ -887,7 +897,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
 
   ErrorThrower thrower(i_isolate, "WasmFuzzerSyncCompile");
   MaybeHandle<WasmModuleObject> compiled_module = GetWasmEngine()->SyncCompile(
-      i_isolate, enabled_features, &thrower, wire_bytes);
+      i_isolate, enabled_features, compile_imports, &thrower, wire_bytes);
   CHECK_EQ(valid, !compiled_module.is_null());
   CHECK_EQ(!valid, thrower.error());
   if (require_valid && !valid) {

@@ -379,6 +379,7 @@ class InstructionSelectorT final : public Adapter {
   using block_t = typename Adapter::block_t;
   using block_range_t = typename Adapter::block_range_t;
   using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
   using id_t = typename Adapter::id_t;
   using source_position_table_t = typename Adapter::source_position_table_t;
 
@@ -573,6 +574,8 @@ class InstructionSelectorT final : public Adapter {
     return instr_origins_;
   }
 
+  node_t FindProjection(node_t node, size_t projection_index);
+
  private:
   friend class OperandGeneratorT<Adapter>;
 
@@ -717,8 +720,6 @@ class InstructionSelectorT final : public Adapter {
   // Visit the node and generate code for IEEE 754 functions.
   void VisitFloat64Ieee754Binop(node_t, InstructionCode code);
   void VisitFloat64Ieee754Unop(node_t, InstructionCode code);
-
-  node_t FindProjection(node_t node, size_t projection_index);
 
 #define DECLARE_GENERATOR_T(x) void Visit##x(node_t node);
   DECLARE_GENERATOR_T(Word32And)
@@ -925,25 +926,25 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word64AtomicXor)
   DECLARE_GENERATOR_T(Word64AtomicExchange)
   DECLARE_GENERATOR_T(Word64AtomicCompareExchange)
+  DECLARE_GENERATOR_T(Word32AtomicLoad)
+  DECLARE_GENERATOR_T(Word64AtomicLoad)
+  DECLARE_GENERATOR_T(Word32AtomicPairLoad)
+  DECLARE_GENERATOR_T(Word32AtomicPairStore)
+  DECLARE_GENERATOR_T(Word32AtomicPairAdd)
+  DECLARE_GENERATOR_T(Word32AtomicPairSub)
+  DECLARE_GENERATOR_T(Word32AtomicPairAnd)
+  DECLARE_GENERATOR_T(Word32AtomicPairOr)
+  DECLARE_GENERATOR_T(Word32AtomicPairXor)
+  DECLARE_GENERATOR_T(Word32AtomicPairExchange)
+  DECLARE_GENERATOR_T(Word32AtomicPairCompareExchange)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
+  IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
+  IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
 #undef DECLARE_GENERATOR_T
 
 #define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  DECLARE_GENERATOR(Word32AtomicLoad)
-  DECLARE_GENERATOR(Word32AtomicPairLoad)
-  DECLARE_GENERATOR(Word32AtomicPairStore)
-  DECLARE_GENERATOR(Word32AtomicPairAdd)
-  DECLARE_GENERATOR(Word32AtomicPairSub)
-  DECLARE_GENERATOR(Word32AtomicPairAnd)
-  DECLARE_GENERATOR(Word32AtomicPairOr)
-  DECLARE_GENERATOR(Word32AtomicPairXor)
-  DECLARE_GENERATOR(Word32AtomicPairExchange)
-  DECLARE_GENERATOR(Word32AtomicPairCompareExchange)
-  DECLARE_GENERATOR(Word64AtomicLoad)
   DECLARE_GENERATOR(Simd128ReverseBytes)
-  DECLARE_GENERATOR(LoadStackPointer)
-  DECLARE_GENERATOR(SetStackPointer)
 #undef DECLARE_GENERATOR
 
   // Visit the load node with a value and opcode to replace with.
@@ -1015,35 +1016,36 @@ class InstructionSelectorT final : public Adapter {
   template <const int simd_size = kSimd128Size,
             typename = std::enable_if_t<simd_size == kSimd128Size ||
                                         simd_size == kSimd256Size>>
-  void CanonicalizeShuffle(Node* node, uint8_t* shuffle, bool* is_swizzle) {
+  void CanonicalizeShuffle(typename Adapter::SimdShuffleView& view,
+                           uint8_t* shuffle, bool* is_swizzle) {
     // Get raw shuffle indices.
     if constexpr (simd_size == kSimd128Size) {
-      memcpy(shuffle, S128ImmediateParameterOf(node->op()).data(),
-             kSimd128Size);
+      DCHECK(view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd128Size);
     } else if constexpr (simd_size == kSimd256Size) {
-      memcpy(shuffle, S256ImmediateParameterOf(node->op()).data(),
-             kSimd256Size);
+      DCHECK(!view.isSimd128());
+      memcpy(shuffle, view.data(), kSimd256Size);
     } else {
       UNREACHABLE();
     }
     bool needs_swap;
-    bool inputs_equal = GetVirtualRegister(node->InputAt(0)) ==
-                        GetVirtualRegister(node->InputAt(1));
+    bool inputs_equal =
+        GetVirtualRegister(view.input(0)) == GetVirtualRegister(view.input(1));
     wasm::SimdShuffle::CanonicalizeShuffle<simd_size>(inputs_equal, shuffle,
                                                       &needs_swap, is_swizzle);
     if (needs_swap) {
-      SwapShuffleInputs(node);
+      SwapShuffleInputs(view);
     }
     // Duplicate the first input; for some shuffles on some architectures, it's
     // easiest to implement a swizzle as a shuffle so it might be used.
     if (*is_swizzle) {
-      node->ReplaceInput(1, node->InputAt(0));
+      view.DuplicateFirstInput();
     }
   }
 
   // Swaps the two first input operands of the node, to help match shuffles
   // to specific architectural instructions.
-  void SwapShuffleInputs(Node* node);
+  void SwapShuffleInputs(typename Adapter::SimdShuffleView& node);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   // ===========================================================================
@@ -1063,6 +1065,9 @@ class InstructionSelectorT final : public Adapter {
     instruction_selection_failed_ = true;
   }
   bool instruction_selection_failed() { return instruction_selection_failed_; }
+
+  FlagsCondition GetComparisonFlagCondition(
+      const turboshaft::ComparisonOp& op) const;
 
   void MarkPairProjectionsAsWord32(node_t node);
   bool IsSourcePositionUsed(node_t node);

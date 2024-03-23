@@ -79,7 +79,7 @@ TEST(SandboxTest, Contains) {
 
   Address base = sandbox.base();
   size_t size = sandbox.size();
-  base::RandomNumberGenerator rng(::testing::FLAGS_gtest_random_seed);
+  base::RandomNumberGenerator rng(GTEST_FLAG_GET(random_seed));
 
   EXPECT_TRUE(sandbox.Contains(base));
   EXPECT_TRUE(sandbox.Contains(base + size - 1));

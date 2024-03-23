@@ -492,6 +492,10 @@ void CallPrinter::VisitCallRuntime(CallRuntime* node) {
   FindArguments(node->arguments());
 }
 
+void CallPrinter::VisitSuperCallForwardArgs(SuperCallForwardArgs* node) {
+  Find(node->expression(), true);
+  Print("(...forwarded args...)");
+}
 
 void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
@@ -1480,11 +1484,14 @@ void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
   IndentedScope indent(this, "SUPER-PROPERTY-REFERENCE", node->position());
 }
 
-
 void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
   IndentedScope indent(this, "SUPER-CALL-REFERENCE", node->position());
 }
 
+void AstPrinter::VisitSuperCallForwardArgs(SuperCallForwardArgs* node) {
+  IndentedScope indent(this, "SUPER FORWARD-VARARGS", node->position());
+  Visit(node->expression());
+}
 
 #endif  // DEBUG
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-stringref
+// Flags: --experimental-wasm-stringref
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -364,7 +364,7 @@ assertInvalid(
         ...GCInstr(kExprStringNewWtf8), 1
       ]);
   },
-  /expected a single 0 byte for the memory index, found 1 encoded in 1 bytes/);
+  /memory index 1 exceeds number of declared memories \(1\)/);
 
 assertInvalid(
   builder => {
@@ -385,7 +385,7 @@ assertInvalid(
         ...GCInstr(kExprStringEncodeWtf8), 1
       ]);
   },
-  /expected a single 0 byte for the memory index, found 1 encoded in 1 bytes/);
+  /memory index 1 exceeds number of declared memories \(1\)/);
 
 assertInvalid(
   builder => {

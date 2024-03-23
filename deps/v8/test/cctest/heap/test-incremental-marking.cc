@@ -48,7 +48,9 @@ class MockPlatform : public TestPlatform {
     return taskrunner_;
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
     worker_tasks_.push_back(std::move(task));
   }
 

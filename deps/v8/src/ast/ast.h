@@ -85,6 +85,7 @@ namespace internal {
   V(BinaryOperation)            \
   V(NaryOperation)              \
   V(Call)                       \
+  V(SuperCallForwardArgs)       \
   V(CallNew)                    \
   V(CallRuntime)                \
   V(ClassLiteral)               \
@@ -800,13 +801,13 @@ class TryCatchStatement final : public TryStatement {
   }
 
   // Indicates whether or not code should be generated to clear the pending
-  // exception. The pending exception is cleared for cases where the exception
+  // exception. The exception is cleared for cases where the exception
   // is not guaranteed to be rethrown, indicated by the value
   // HandlerTable::UNCAUGHT. If both the current and surrounding catch handler's
   // are predicted uncaught, the exception is not cleared.
   //
   // If this handler is not going to simply rethrow the exception, this method
-  // indicates that the isolate's pending exception message should be cleared
+  // indicates that the isolate's exception message should be cleared
   // before executing the catch_block.
   // In the normal use case, this flag is always on because the message object
   // is not needed anymore when entering the catch block and should not be
@@ -821,7 +822,7 @@ class TryCatchStatement final : public TryStatement {
   // For scripts in repl mode there is exactly one catch block with
   // UNCAUGHT_ASYNC_AWAIT prediction. This catch block needs to preserve
   // the exception so it can be re-used later by the inspector.
-  inline bool ShouldClearPendingException(
+  inline bool ShouldClearException(
       HandlerTable::CatchPrediction outer_catch_prediction) const {
     if (catch_prediction_ == HandlerTable::UNCAUGHT_ASYNC_AWAIT) {
       DCHECK_EQ(outer_catch_prediction, HandlerTable::UNCAUGHT);
@@ -1534,6 +1535,12 @@ class VariableProxy final : public Expression {
     bit_field_ = IsRemovedFromUnresolvedField::update(bit_field_, true);
   }
 
+  bool is_home_object() const { return IsHomeObjectField::decode(bit_field_); }
+
+  void set_is_home_object() {
+    bit_field_ = IsHomeObjectField::update(bit_field_, true);
+  }
+
   // Provides filtered access to the unresolved variable proxy threaded list.
   struct UnresolvedNext {
     static VariableProxy** filter(VariableProxy** t) {
@@ -1565,6 +1572,7 @@ class VariableProxy final : public Expression {
     bit_field_ |= IsAssignedField::encode(false) |
                   IsResolvedField::encode(false) |
                   IsRemovedFromUnresolvedField::encode(false) |
+                  IsHomeObjectField::encode(false) |
                   HoleCheckModeField::encode(HoleCheckMode::kElided);
   }
 
@@ -1574,7 +1582,8 @@ class VariableProxy final : public Expression {
   using IsResolvedField = IsAssignedField::Next<bool, 1>;
   using IsRemovedFromUnresolvedField = IsResolvedField::Next<bool, 1>;
   using IsNewTargetField = IsRemovedFromUnresolvedField::Next<bool, 1>;
-  using HoleCheckModeField = IsNewTargetField::Next<HoleCheckMode, 1>;
+  using IsHomeObjectField = IsNewTargetField::Next<bool, 1>;
+  using HoleCheckModeField = IsHomeObjectField::Next<HoleCheckMode, 1>;
 
   union {
     const AstRawString* raw_name_;  // if !is_resolved_
@@ -1792,6 +1801,24 @@ class CallNew final : public CallBase {
   CallNew(Zone* zone, Expression* expression,
           const ScopedPtrList<Expression>& arguments, int pos, bool has_spread)
       : CallBase(zone, kCallNew, expression, arguments, pos, has_spread) {}
+};
+
+// SuperCallForwardArgs is not utterable in JavaScript. It is used to
+// implement the default derived constructor, which forwards all arguments to
+// the super constructor without going through the user-visible spread
+// machinery.
+class SuperCallForwardArgs final : public Expression {
+ public:
+  SuperCallReference* expression() const { return expression_; }
+
+ private:
+  friend class AstNodeFactory;
+  friend Zone;
+
+  SuperCallForwardArgs(Zone* zone, SuperCallReference* expression, int pos)
+      : Expression(pos, kSuperCallForwardArgs), expression_(expression) {}
+
+  SuperCallReference* expression_;
 };
 
 // The CallRuntime class does not represent any official JavaScript
@@ -3115,6 +3142,11 @@ class AstNodeFactory final {
     DCHECK_IMPLIES(possibly_eval == Call::IS_POSSIBLY_EVAL, !optional_chain);
     return zone_->New<Call>(zone_, expression, arguments, pos, has_spread,
                             possibly_eval, optional_chain);
+  }
+
+  SuperCallForwardArgs* NewSuperCallForwardArgs(SuperCallReference* expression,
+                                                int pos) {
+    return zone_->New<SuperCallForwardArgs>(zone_, expression, pos);
   }
 
   Call* NewTaggedTemplate(Expression* expression,

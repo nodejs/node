@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-inlining --experimental-wasm-return-call
-// Flags: --experimental-wasm-typed-funcref --experimental-wasm-type-reflection
+// Flags: --experimental-wasm-inlining --experimental-wasm-type-reflection
 // Flags: --no-wasm-tier-up --wasm-dynamic-tiering --allow-natives-syntax
 
 // These tests check if functions are speculatively inlined as expected. We do

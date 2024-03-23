@@ -1053,10 +1053,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserScopedStatementList* body, PreParserStatement block,
       const PreParserExpression& return_value) {}
 
-  V8_INLINE PreParserExpression
-  RewriteReturn(const PreParserExpression& return_value, int pos) {
-    return return_value;
-  }
   V8_INLINE PreParserStatement
   RewriteSwitchStatement(PreParserStatement switch_statement, Scope* scope) {
     return PreParserStatement::Default();
@@ -1536,8 +1532,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::This();
   }
 
-  V8_INLINE PreParserExpression
-  NewSuperPropertyReference(Scope* home_object_scope, int pos) {
+  V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
     return PreParserExpression::Default();
   }
 

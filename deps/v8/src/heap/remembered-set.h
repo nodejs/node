@@ -301,8 +301,9 @@ class UpdateTypedSlotHelper {
   // of the uncompressed constant pool entry.
   // The callback accepts FullMaybeObjectSlot and returns SlotCallbackResult.
   template <typename Callback>
-  static SlotCallbackResult UpdateTypedSlot(Heap* heap, SlotType slot_type,
-                                            Address addr, Callback callback);
+  static SlotCallbackResult UpdateTypedSlot(
+      WritableJitAllocation& jit_allocation, Heap* heap, SlotType slot_type,
+      Address addr, Callback callback);
 
   // Returns the HeapObject referenced by the given typed slot entry.
   inline static Tagged<HeapObject> GetTargetObject(Heap* heap,

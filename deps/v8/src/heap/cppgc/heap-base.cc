@@ -13,6 +13,7 @@
 #include "src/base/sanitizer/lsan-page-allocator.h"
 #include "src/heap/base/stack.h"
 #include "src/heap/cppgc/globals.h"
+#include "src/heap/cppgc/heap-config.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/heap-page.h"
 #include "src/heap/cppgc/heap-statistics-collector.h"
@@ -268,8 +269,7 @@ void HeapBase::Terminate() {
     sweeper().Start({SweepingConfig::SweepingType::kAtomic,
                      SweepingConfig::CompactableSpaceHandling::kSweep});
     in_atomic_pause_ = false;
-
-    sweeper().NotifyDoneIfNeeded();
+    sweeper().FinishIfRunning();
     more_termination_gcs_needed =
         strong_persistent_region_.NodesInUse() ||
         weak_persistent_region_.NodesInUse() || [this]() {

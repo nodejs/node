@@ -41,6 +41,9 @@ void CombinedWriteBarrier(Tagged<HeapObject> object, ObjectSlot slot,
 void CombinedWriteBarrier(Tagged<HeapObject> object, MaybeObjectSlot slot,
                           MaybeObject value, WriteBarrierMode mode);
 
+void CombinedWriteBarrier(HeapObjectLayout* object, TaggedMemberBase* slot,
+                          Tagged<Object> value, WriteBarrierMode mode);
+
 void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> object,
                                    ObjectSlot slot, Tagged<Object> value,
                                    WriteBarrierMode mode);
@@ -69,6 +72,9 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static inline void Marking(Tagged<DescriptorArray>,
                              int number_of_own_descriptors);
   static inline void Marking(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static inline void Marking(Tagged<TrustedObject> host,
+                             ProtectedPointerSlot slot,
+                             Tagged<TrustedObject> value);
 
   static inline void Shared(Tagged<InstructionStream> host, RelocInfo*,
                             Tagged<HeapObject> value);
@@ -97,6 +103,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
 #ifdef ENABLE_SLOW_DCHECKS
   template <typename T>
   static inline bool IsRequired(Tagged<HeapObject> host, T value);
+  template <typename T>
+  static inline bool IsRequired(const HeapObjectLayout* host, T value);
   static bool IsImmortalImmovableHeapObject(Tagged<HeapObject> object);
 #endif
 
@@ -112,6 +120,8 @@ class V8_EXPORT_PRIVATE WriteBarrier {
   static void MarkingSlow(Tagged<DescriptorArray>,
                           int number_of_own_descriptors);
   static void MarkingSlow(Tagged<HeapObject> host, IndirectPointerSlot slot);
+  static void MarkingSlow(Tagged<TrustedObject> host, ProtectedPointerSlot slot,
+                          Tagged<TrustedObject> value);
   static void MarkingSlowFromGlobalHandle(Tagged<HeapObject> value);
   static void MarkingSlowFromInternalFields(Heap* heap, Tagged<JSObject> host);
 

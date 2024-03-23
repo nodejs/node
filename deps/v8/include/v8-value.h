@@ -16,7 +16,7 @@
  */
 namespace v8 {
 
-class Primiitive;
+class Primitive;
 class Numeric;
 class BigInt;
 class Int32;
@@ -63,7 +63,7 @@ class V8_EXPORT Value : public Data {
    * conversion to boolean, i.e. the result of `Boolean(value)` in JS, whereas
    * this checks `value === true`.
    */
-  bool IsTrue() const;
+  V8_INLINE bool IsTrue() const;
 
   /**
    * Returns true if this value is false.
@@ -72,7 +72,7 @@ class V8_EXPORT Value : public Data {
    * conversion to boolean, i.e. the result of `!Boolean(value)` in JS, whereas
    * this checks `value === false`.
    */
-  bool IsFalse() const;
+  V8_INLINE bool IsFalse() const;
 
   /**
    * Returns true if this value is a symbol or a string.
@@ -461,9 +461,15 @@ class V8_EXPORT Value : public Data {
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
   V8_INLINE bool QuickIsNullOrUndefined() const;
+#if V8_STATIC_ROOTS_BOOL
+  V8_INLINE bool QuickIsTrue() const;
+  V8_INLINE bool QuickIsFalse() const;
+#endif  // V8_STATIC_ROOTS_BOOL
   V8_INLINE bool QuickIsString() const;
   bool FullIsUndefined() const;
   bool FullIsNull() const;
+  bool FullIsTrue() const;
+  bool FullIsFalse() const;
   bool FullIsString() const;
 
   static void CheckCast(Data* that);
@@ -575,6 +581,40 @@ bool Value::QuickIsNullOrUndefined() const {
   return kind == I::kNullOddballKind || kind == I::kUndefinedOddballKind;
 #endif  // V8_STATIC_ROOTS_BOOL
 }
+
+bool Value::IsTrue() const {
+#if V8_STATIC_ROOTS_BOOL && !defined(V8_ENABLE_CHECKS)
+  return QuickIsTrue();
+#else
+  return FullIsTrue();
+#endif
+}
+
+#if V8_STATIC_ROOTS_BOOL
+bool Value::QuickIsTrue() const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kTrueValue);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
+
+bool Value::IsFalse() const {
+#if V8_STATIC_ROOTS_BOOL && !defined(V8_ENABLE_CHECKS)
+  return QuickIsFalse();
+#else
+  return FullIsFalse();
+#endif
+}
+
+#if V8_STATIC_ROOTS_BOOL
+bool Value::QuickIsFalse() const {
+  using A = internal::Address;
+  using I = internal::Internals;
+  A obj = internal::ValueHelper::ValueAsAddress(this);
+  return I::is_identical(obj, I::StaticReadOnlyRoot::kFalseValue);
+}
+#endif  // V8_STATIC_ROOTS_BOOL
 
 bool Value::IsString() const {
 #ifdef V8_ENABLE_CHECKS

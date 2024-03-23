@@ -42,6 +42,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(Catch, 0x07, _, "catch")                                                   \
   V(Throw, 0x08, _, "throw")                                                   \
   V(Rethrow, 0x09, _, "rethrow")                                               \
+  V(TryTable, 0x1f, _, "try_table")                                            \
+  V(ThrowRef, 0x0a, _, "throw_ref")                                            \
   V(End, 0x0b, _, "end")                                                       \
   V(Br, 0x0c, _, "br")                                                         \
   V(BrIf, 0x0d, _, "br_if")                                                    \
@@ -116,8 +118,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
 
 // Expressions with signatures.
 
-// The following opcodes can be used as constant expressions under
-// --experimental-wasm-extended-const.
+// Opcodes that can also be used in constant expressions (via the 'extended
+// constant expressions' proposal).
 #define FOREACH_SIMPLE_EXTENDED_CONST_OPCODE(V) \
   V(I32Add, 0x6a, i_ii, "i32.add")              \
   V(I32Sub, 0x6b, i_ii, "i32.sub")              \
@@ -715,8 +717,8 @@ V8_EXPORT_PRIVATE bool IsJSCompatibleSignature(const FunctionSig* sig);
   V(RefCastNull, 0xfb17, _, "ref.cast null")                                   \
   V(BrOnCastGeneric, 0xfb18, _, "br_on_cast")                                  \
   V(BrOnCastFailGeneric, 0xfb19, _, "br_on_cast_fail")                         \
-  V(ExternInternalize, 0xfb1a, _, "extern.internalize")                        \
-  V(ExternExternalize, 0xfb1b, _, "extern.externalize")                        \
+  V(AnyConvertExtern, 0xfb1a, _, "any.convert_extern")                         \
+  V(ExternConvertAny, 0xfb1b, _, "extern.convert_any")                         \
   V(RefI31, 0xfb1c, _, "ref.i31")                                              \
   V(I31GetS, 0xfb1d, _, "i31.get_s")                                           \
   V(I31GetU, 0xfb1e, _, "i31.get_u")                                           \
@@ -902,6 +904,9 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static constexpr bool IsExternRefOpcode(WasmOpcode);
   static constexpr bool IsThrowingOpcode(WasmOpcode);
   static constexpr bool IsRelaxedSimdOpcode(WasmOpcode);
+#if DEBUG
+  static constexpr bool IsMemoryAccessOpcode(WasmOpcode);
+#endif  // DEBUG
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static constexpr bool IsUnconditionalJump(WasmOpcode);

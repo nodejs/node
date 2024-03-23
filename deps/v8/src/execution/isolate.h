@@ -32,7 +32,6 @@
 #include "src/execution/stack-guard.h"
 #include "src/handles/handles.h"
 #include "src/handles/traced-handles.h"
-#include "src/heap/base/stack.h"
 #include "src/heap/factory.h"
 #include "src/heap/heap.h"
 #include "src/heap/read-only-heap.h"
@@ -45,11 +44,15 @@
 #include "src/runtime/runtime.h"
 #include "src/sandbox/code-pointer-table.h"
 #include "src/sandbox/external-pointer-table.h"
-#include "src/sandbox/indirect-pointer-table.h"
+#include "src/sandbox/trusted-pointer-table.h"
 #include "src/utils/allocation.h"
 
 #ifdef DEBUG
 #include "src/runtime/runtime-utils.h"
+#endif
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/stacks.h"
 #endif
 
 #ifdef V8_INTL_SUPPORT
@@ -139,8 +142,10 @@ class ReadOnlyArtifacts;
 class RegExpStack;
 class RootVisitor;
 class SetupIsolateDelegate;
+class SharedStructTypeRegistry;
 class Simulator;
 class SnapshotData;
+class StackFrame;
 class StringForwardingTable;
 class StringTable;
 class StubCache;
@@ -177,65 +182,48 @@ class Recorder;
 }  // namespace metrics
 
 namespace wasm {
-class StackMemory;
+class WasmCodeLookupCache;
 }
 
-#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
-  do {                                                 \
-    Isolate* __isolate__ = (isolate);                  \
-    DCHECK(!__isolate__->has_pending_exception());     \
-    if (__isolate__->has_scheduled_exception()) {      \
-      return __isolate__->PromoteScheduledException(); \
-    }                                                  \
+#define RETURN_FAILURE_IF_EXCEPTION(isolate)         \
+  do {                                               \
+    Isolate* __isolate__ = (isolate);                \
+    if (__isolate__->has_exception()) {              \
+      return ReadOnlyRoots(__isolate__).exception(); \
+    }                                                \
   } while (false)
 
-#define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector) \
-  do {                                                                    \
-    Isolate* __isolate__ = (isolate);                                     \
-    DCHECK(!__isolate__->has_pending_exception());                        \
-    if (__isolate__->has_scheduled_exception()) {                         \
-      detector.AcceptSideEffects();                                       \
-      return __isolate__->PromoteScheduledException();                    \
-    }                                                                     \
+#define RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, detector) \
+  do {                                                          \
+    Isolate* __isolate__ = (isolate);                           \
+    if (__isolate__->has_exception()) {                         \
+      detector.AcceptSideEffects();                             \
+      return ReadOnlyRoots(__isolate__).exception();            \
+    }                                                           \
   } while (false)
 
 // Macros for MaybeHandle.
 
-#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, value) \
-  do {                                                      \
-    Isolate* __isolate__ = (isolate);                       \
-    DCHECK(!__isolate__->has_pending_exception());          \
-    if (__isolate__->has_scheduled_exception()) {           \
-      __isolate__->PromoteScheduledException();             \
-      return value;                                         \
-    }                                                       \
+#define RETURN_VALUE_IF_EXCEPTION(isolate, value) \
+  do {                                            \
+    Isolate* __isolate__ = (isolate);             \
+    if (__isolate__->has_exception()) {           \
+      return value;                               \
+    }                                             \
   } while (false)
 
-#define RETURN_VALUE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, detector, value) \
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate,                                 \
-                                      (detector.AcceptSideEffects(), value))
+#define RETURN_VALUE_IF_EXCEPTION_DETECTOR(isolate, detector, value) \
+  RETURN_VALUE_IF_EXCEPTION(isolate, (detector.AcceptSideEffects(), value))
 
-#define RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, T) \
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, MaybeHandle<T>())
+#define RETURN_EXCEPTION_IF_EXCEPTION(isolate, T) \
+  RETURN_VALUE_IF_EXCEPTION(isolate, MaybeHandle<T>())
 
-#define ASSIGN_RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, dst, call, value) \
-  do {                                                                        \
-    Isolate* __isolate__ = (isolate);                                         \
-    if (!(call).ToLocal(&dst)) {                                              \
-      DCHECK(__isolate__->has_scheduled_exception());                         \
-      __isolate__->PromoteScheduledException();                               \
-      return value;                                                           \
-    }                                                                         \
-  } while (false)
-
-#define RETURN_ON_SCHEDULED_EXCEPTION_VALUE(isolate, call, value) \
-  do {                                                            \
-    Isolate* __isolate__ = (isolate);                             \
-    if ((call).IsNothing()) {                                     \
-      DCHECK(__isolate__->has_scheduled_exception());             \
-      __isolate__->PromoteScheduledException();                   \
-      return value;                                               \
-    }                                                             \
+#define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
+  do {                                                        \
+    if ((call).IsNothing()) {                                 \
+      DCHECK((isolate)->has_exception());                     \
+      return value;                                           \
+    }                                                         \
   } while (false)
 
 /**
@@ -261,17 +249,17 @@ class StackMemory;
     Handle<Object> __result__;                       \
     Isolate* __isolate__ = (isolate);                \
     if (!(call).ToHandle(&__result__)) {             \
-      DCHECK(__isolate__->has_pending_exception());  \
+      DCHECK(__isolate__->has_exception());          \
       return ReadOnlyRoots(__isolate__).exception(); \
     }                                                \
-    DCHECK(!__isolate__->has_pending_exception());   \
+    DCHECK(!__isolate__->has_exception());           \
     return *__result__;                              \
   } while (false)
 
 #define ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                              \
     if (!(call).ToHandle(&dst)) {                                   \
-      DCHECK((isolate)->has_pending_exception());                   \
+      DCHECK((isolate)->has_exception());                           \
       return value;                                                 \
     }                                                               \
   } while (false)
@@ -338,7 +326,7 @@ class StackMemory;
 #define RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                  \
     if ((call).is_null()) {                             \
-      DCHECK((isolate)->has_pending_exception());       \
+      DCHECK((isolate)->has_exception());               \
       return value;                                     \
     }                                                   \
   } while (false)
@@ -410,10 +398,18 @@ class StackMemory;
 
 #define MAYBE_RETURN_NULL(call) MAYBE_RETURN(call, MaybeHandle<Object>())
 
+#define API_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
+  do {                                                                  \
+    if (!(call).ToLocal(&dst)) {                                        \
+      DCHECK((isolate)->has_exception());                               \
+      return value;                                                     \
+    }                                                                   \
+  } while (false)
+
 #define MAYBE_RETURN_ON_EXCEPTION_VALUE(isolate, call, value) \
   do {                                                        \
     if ((call).IsNothing()) {                                 \
-      DCHECK((isolate)->has_pending_exception());             \
+      DCHECK((isolate)->has_exception());                     \
       return value;                                           \
     }                                                         \
   } while (false)
@@ -421,7 +417,7 @@ class StackMemory;
 #define MAYBE_ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, dst, call, value) \
   do {                                                                    \
     if (!(call).To(&dst)) {                                               \
-      DCHECK((isolate)->has_pending_exception());                         \
+      DCHECK((isolate)->has_exception());                                 \
       return value;                                                       \
     }                                                                     \
   } while (false)
@@ -430,7 +426,7 @@ class StackMemory;
   do {                                                               \
     Isolate* __isolate__ = (isolate);                                \
     if (!(call).To(&dst)) {                                          \
-      DCHECK(__isolate__->has_pending_exception());                  \
+      DCHECK(__isolate__->has_exception());                          \
       return ReadOnlyRoots(__isolate__).exception();                 \
     }                                                                \
   } while (false)
@@ -538,8 +534,6 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(bool, disable_bytecode_flushing, false)                                   \
   V(int, last_console_context_id, 0)                                          \
   V(v8_inspector::V8Inspector*, inspector, nullptr)                           \
-  V(bool, next_v8_call_is_safe_for_termination, false)                        \
-  V(bool, only_terminate_in_safe_scope, false)                                \
   V(int, embedder_wrapper_type_index, -1)                                     \
   V(int, embedder_wrapper_object_index, -1)                                   \
   V(compiler::NodeObserver*, node_observer, nullptr)                          \
@@ -623,6 +617,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     friend class Isolate;
     friend class ThreadDataTable;
     friend class EntryStackItem;
+  };
+
+  // Used for walking the promise tree for catch prediction.
+  struct PromiseHandler {
+    Handle<JSReceiver> receiver;
+    bool catches;
   };
 
   static void InitializeOncePerProcess();
@@ -754,9 +754,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   // The isolate's string table.
-  StringTable* string_table() const { return string_table_.get(); }
+  StringTable* string_table() const {
+    return OwnsStringTables() ? string_table_.get()
+                              : shared_space_isolate()->string_table_.get();
+  }
   StringForwardingTable* string_forwarding_table() const {
-    return string_forwarding_table_.get();
+    return OwnsStringTables()
+               ? string_forwarding_table_.get()
+               : shared_space_isolate()->string_forwarding_table_.get();
+  }
+
+  SharedStructTypeRegistry* shared_struct_type_registry() const {
+    return is_shared_space_isolate()
+               ? shared_struct_type_registry_.get()
+               : shared_space_isolate()->shared_struct_type_registry_.get();
   }
 
   Address get_address_from_id(IsolateAddressId id);
@@ -765,6 +776,19 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Tagged<Context> context() const { return thread_local_top()->context_; }
   inline void set_context(Tagged<Context> context);
   Tagged<Context>* context_address() { return &thread_local_top()->context_; }
+
+  // The "topmost script-having execution context" from the Web IDL spec
+  // (i.e. the context of the topmost user JavaScript code, see
+  // https://html.spec.whatwg.org/multipage/webappapis.html#topmost-script-having-execution-context)
+  // if known or Context::kNoContext otherwise.
+  Tagged<Context> topmost_script_having_context() const {
+    return thread_local_top()->topmost_script_having_context_;
+  }
+  inline void set_topmost_script_having_context(Tagged<Context> context);
+  inline void clear_topmost_script_having_context();
+  Tagged<Context>* topmost_script_having_context_address() {
+    return &thread_local_top()->topmost_script_having_context_;
+  }
 
   // Access to current thread id.
   inline void set_thread_id(ThreadId id) {
@@ -793,32 +817,26 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_sp)
   THREAD_LOCAL_TOP_ADDRESS(uintptr_t, num_frames_above_pending_handler)
 
-  THREAD_LOCAL_TOP_ACCESSOR(bool, external_caught_exception)
-
   v8::TryCatch* try_catch_handler() {
     return thread_local_top()->try_catch_handler_;
   }
 
-  THREAD_LOCAL_TOP_ADDRESS(bool, external_caught_exception)
+  // Interface to exception.
+  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, exception)
+  inline Tagged<Object> exception();
+  inline void set_exception(Tagged<Object> exception_obj);
+  // Clear thrown exception from V8 and a possible TryCatch.
+  inline void clear_exception();
 
-  // Interface to pending exception.
-  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_exception)
-  inline Tagged<Object> pending_exception();
-  inline void set_pending_exception(Tagged<Object> exception_obj);
-  inline void clear_pending_exception();
-  inline bool has_pending_exception();
+  // Clear the exception only from V8, not from a possible external try-catch.
+  inline void clear_internal_exception();
+  inline bool has_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, pending_message)
   inline void clear_pending_message();
   inline Tagged<Object> pending_message();
   inline bool has_pending_message();
   inline void set_pending_message(Tagged<Object> message_obj);
-
-  THREAD_LOCAL_TOP_ADDRESS(Tagged<Object>, scheduled_exception)
-  inline Tagged<Object> scheduled_exception();
-  inline bool has_scheduled_exception();
-  inline void clear_scheduled_exception();
-  inline void set_scheduled_exception(Tagged<Object> exception);
 
 #ifdef DEBUG
   inline Tagged<Object> VerifyBuiltinsResult(Tagged<Object> result);
@@ -836,7 +854,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline bool is_catchable_by_javascript(Tagged<Object> exception);
   inline bool is_catchable_by_wasm(Tagged<Object> exception);
   inline bool is_execution_terminating();
-  inline bool is_execution_termination_pending();
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {
@@ -900,12 +917,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static int ArchiveSpacePerThread() { return sizeof(ThreadLocalTop); }
   void FreeThreadResources() { thread_local_top()->Free(); }
 
-  // This method is called by the api after operations that may throw
-  // exceptions.  If an exception was thrown and not handled by an external
-  // handler the exception is scheduled to be rethrown when we return to running
-  // JavaScript code.  If an exception is scheduled true is returned.
-  bool OptionalRescheduleException(bool clear_exception);
-
   // Push and pop a promise and the current try-catch handler.
   void PushPromise(Handle<JSObject> promise);
   void PopPromise();
@@ -918,6 +929,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // Heuristically guess whether a Promise is handled by user catch handler
   bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
 
+  // Walks the promise tree and calls a callback on every handler an exception
+  // is likely to hit. Used in catch prediction. Will end the walk and return
+  // true if a callback returns true, otherwise returns false.
+  bool WalkPromiseTree(Handle<JSPromise> promise,
+                       std::function<bool(PromiseHandler)> callback);
+
   class V8_NODISCARD ExceptionScope {
    public:
     // Scope currently can only be used for regular exceptions,
@@ -927,7 +944,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
    private:
     Isolate* isolate_;
-    Handle<Object> pending_exception_;
+    Handle<Object> exception_;
   };
 
   void SetCaptureStackTraceForUncaughtExceptions(
@@ -968,7 +985,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Address GetAbstractPC(int* line, int* column);
 
   // Returns if the given context may access the given global object. If
-  // the result is false, the pending exception is guaranteed to be
+  // the result is false, the exception is guaranteed to be
   // set.
   bool MayAccess(Handle<NativeContext> accessing_context,
                  Handle<JSObject> receiver);
@@ -977,11 +994,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8_WARN_UNUSED_RESULT MaybeHandle<Object> ReportFailedAccessCheck(
       Handle<JSObject> receiver);
 
-  // Exception throwing support. The caller should use the result
-  // of Throw() as its return value.
-  Tagged<Object> Throw(Tagged<Object> exception) {
-    return ThrowInternal(exception, nullptr);
-  }
+  // Exception throwing support. The caller should use the result of Throw() as
+  // its return value. Returns the Exception sentinel.
+  Tagged<Object> Throw(Tagged<Object> exception,
+                       MessageLocation* location = nullptr);
   Tagged<Object> ThrowAt(Handle<JSObject> exception, MessageLocation* location);
   Tagged<Object> ThrowIllegalOperation();
 
@@ -1027,8 +1043,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Tagged<Object> ReThrow(Tagged<Object> exception);
   Tagged<Object> ReThrow(Tagged<Object> exception, Tagged<Object> message);
 
-  // Find the correct handler for the current pending exception. This also
-  // clears and returns the current pending exception.
+  // Find the correct handler for the current exception. This also
+  // clears and returns the current exception.
   Tagged<Object> UnwindAndFindHandler();
 
   // Tries to predict whether an exception will be caught. Note that this can
@@ -1042,17 +1058,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_ASYNC_AWAIT
   };
   CatchType PredictExceptionCatcher();
+  CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
 
-  void ScheduleThrow(Tagged<Object> exception);
-  // Re-set pending message, script and positions reported to the TryCatch
-  // back to the TLS for re-use when rethrowing.
-  void RestorePendingMessageFromTryCatch(v8::TryCatch* handler);
-  // Un-schedule an exception that was caught by a TryCatch handler.
-  void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
-  void ReportPendingMessages();
-
-  // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
-  Tagged<Object> PromoteScheduledException();
+  void ReportPendingMessages(bool report = true);
 
   // Attempts to compute the current source location, storing the
   // result in the target out parameter. The source location is attached to a
@@ -1095,7 +1103,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   inline Handle<NativeContext> native_context();
   inline Tagged<NativeContext> raw_native_context();
 
-  Handle<NativeContext> GetIncumbentContext();
+  inline Handle<NativeContext> GetIncumbentContext();
+  Handle<NativeContext> GetIncumbentContextSlow();
 
   void RegisterTryCatchHandler(v8::TryCatch* that);
   void UnregisterTryCatchHandler(v8::TryCatch* that);
@@ -1296,9 +1305,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
         isolate_root_bias());
   }
 
+  static uint32_t error_message_param_offset() {
+    return static_cast<uint32_t>(OFFSET_OF(Isolate, isolate_data_) +
+                                 OFFSET_OF(IsolateData, error_message_param_) -
+                                 isolate_root_bias());
+  }
+
+  uint8_t error_message_param() { return isolate_data_.error_message_param_; }
+
   THREAD_LOCAL_TOP_ADDRESS(Address, thread_in_wasm_flag_address)
 
-  THREAD_LOCAL_TOP_ADDRESS(bool, is_on_central_stack_flag)
+  THREAD_LOCAL_TOP_ADDRESS(uint8_t, is_on_central_stack_flag)
 
   MaterializedObjectStore* materialized_object_store() const {
     return materialized_object_store_;
@@ -1322,6 +1339,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   InnerPointerToCodeCache* inner_pointer_to_code_cache() {
     return inner_pointer_to_code_cache_;
   }
+
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodeLookupCache* wasm_code_look_up_cache() {
+    return wasm_code_look_up_cache_;
+  }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   GlobalHandles* global_handles() const { return global_handles_; }
 
@@ -1571,10 +1594,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool IsDeferredHandle(Address* location);
 #endif  // DEBUG
 
+#ifdef V8_ENABLE_SPARKPLUG
   baseline::BaselineBatchCompiler* baseline_batch_compiler() const {
     DCHECK_NOT_NULL(baseline_batch_compiler_);
     return baseline_batch_compiler_;
   }
+#endif  // V8_ENABLE_SPARKPLUG
 
 #ifdef V8_ENABLE_MAGLEV
   maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher() {
@@ -1680,7 +1705,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void SetUseCounterCallback(v8::Isolate::UseCounterCallback callback);
   void CountUsage(v8::Isolate::UseCounterFeature feature);
-  void CountUsage(v8::Isolate::UseCounterFeature feature, int count);
+  // Count multiple usages at once; cheaper than calling the {CountUsage}
+  // separately for each feature.
+  void CountUsage(base::Vector<const v8::Isolate::UseCounterFeature> features);
 
   static std::string GetTurboCfgFileName(Isolate* isolate);
 
@@ -1931,6 +1958,36 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool IsIsolateInBackground() { return is_isolate_in_background_; }
 
+  // When efficiency mode is enabled we can favor single core throughput without
+  // latency requirements. Any decision based on this flag must be quickly
+  // reversible as we have to expect to migrate out of efficiency mode on short
+  // notice. E.g., it would not be advisable to generate worse code in
+  // efficiency mode. The decision when to enable efficiency mode is steered by
+  // the embedder. Currently the only signal (potentially) being considered is
+  // if an isolate is in foreground or background mode.
+  bool UseEfficiencyMode() {
+    if (V8_UNLIKELY(v8_flags.efficiency_mode.value().has_value())) {
+      return *v8_flags.efficiency_mode.value();
+    }
+    return IsIsolateInBackground();
+  }
+  // This is a temporary api until we use it by default.
+  bool UseEfficiencyModeForTiering() {
+    if (!v8_flags.efficiency_mode_for_tiering_heuristics) return false;
+    return UseEfficiencyMode();
+  }
+
+  // In battery saver mode we optimize to reduce total cpu cycles spent. Battery
+  // saver mode is opt-in by the embedder. As with efficiency mode we must
+  // expect that the mode is toggled off again and we should be able to ramp up
+  // quickly after that.
+  bool UseBatterySaverMode() {
+    if (V8_UNLIKELY(v8_flags.battery_saver_mode.value().has_value())) {
+      return *v8_flags.battery_saver_mode.value();
+    }
+    return V8_UNLIKELY(battery_saver_mode_enabled());
+  }
+
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
@@ -1952,11 +2009,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope() const {
-    return top_backup_incumbent_scope_;
+    return thread_local_top()->top_backup_incumbent_scope_;
   }
   void set_top_backup_incumbent_scope(
       const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope) {
-    top_backup_incumbent_scope_ = top_backup_incumbent_scope;
+    thread_local_top()->top_backup_incumbent_scope_ =
+        top_backup_incumbent_scope;
   }
 
   void SetIdle(bool is_idle);
@@ -2029,19 +2087,26 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   }
 
   ExternalPointerHandle GetOrCreateWaiterQueueNodeExternalPointer();
-
-  IndirectPointerTable& indirect_pointer_table() {
-    return isolate_data_.indirect_pointer_table_;
-  }
-
-  const IndirectPointerTable& indirect_pointer_table() const {
-    return isolate_data_.indirect_pointer_table_;
-  }
-
-  Address indirect_pointer_table_base_address() const {
-    return isolate_data_.indirect_pointer_table_.base_address();
-  }
 #endif  // V8_COMPRESS_POINTERS
+
+#ifdef V8_ENABLE_SANDBOX
+  TrustedPointerTable& trusted_pointer_table() {
+    return isolate_data_.trusted_pointer_table_;
+  }
+
+  const TrustedPointerTable& trusted_pointer_table() const {
+    return isolate_data_.trusted_pointer_table_;
+  }
+
+  Address trusted_pointer_table_base_address() const {
+    return isolate_data_.trusted_pointer_table_.base_address();
+  }
+#endif  // V8_ENABLE_SANDBOX
+
+  Address continuation_preserved_embedder_data_address() {
+    return reinterpret_cast<Address>(
+        &isolate_data_.continuation_preserved_embedder_data_);
+  }
 
   struct PromiseHookFields {
     using HasContextPromiseHook = base::BitField<bool, 0, 1>;
@@ -2072,7 +2137,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // TODO(pthier): Unify with owns_shareable_data() once the flag
   // --shared-string-table is removed.
-  bool OwnsStringTables() {
+  bool OwnsStringTables() const {
     return !v8_flags.shared_string_table || is_shared_space_isolate();
   }
 
@@ -2080,15 +2145,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data() { return simulator_data_; }
 #endif
 
-  ::heap::base::Stack& stack() { return stack_; }
-
 #ifdef V8_ENABLE_WEBASSEMBLY
+  bool IsOnCentralStack();
   wasm::StackMemory*& wasm_stacks() { return wasm_stacks_; }
   // Update the thread local's Stack object so that it is aware of the new stack
   // start and the inactive stacks.
-  void RecordStackSwitchForScanning();
+  void UpdateCentralStackInfo();
 
   void SyncStackLimit();
+#else
+  bool IsOnCentralStack() { return true; }
 #endif
 
   // Access to the global "locals block list cache". Caches outer-stack
@@ -2126,6 +2192,43 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     return enable_ro_allocation_for_snapshot_;
   }
 
+  // If script calls quit(), then it is possible that the Isolate is disposed
+  // without giving on-stack objects any chance to clean up after themselves. By
+  // inheriting from this class, a class ensures that its destructor will be
+  // called before Isolate::Dispose.
+  class ToDestroyBeforeSuddenShutdown {
+   public:
+    explicit ToDestroyBeforeSuddenShutdown(Isolate* isolate);
+    virtual ~ToDestroyBeforeSuddenShutdown();
+
+    // This class only supports being allocated on the stack.
+    void* operator new(size_t) = delete;
+    void* operator new(size_t, void*) = delete;
+
+    // Copying is not allowed.
+    ToDestroyBeforeSuddenShutdown(const ToDestroyBeforeSuddenShutdown& other) =
+        delete;
+    ToDestroyBeforeSuddenShutdown& operator=(
+        const ToDestroyBeforeSuddenShutdown& other) = delete;
+
+    Isolate* isolate() const { return isolate_; }
+
+   private:
+    Isolate* isolate_;
+  };
+
+  // Called by d8 right before Dispose, if the shell is quitting with a dirty
+  // stack.
+  void PrepareForSuddenShutdown();
+
+  bool battery_saver_mode_enabled() const {
+    return battery_saver_mode_enabled_;
+  }
+
+  void set_battery_saver_mode_enabled(bool battery_saver_mode_enabled) {
+    battery_saver_mode_enabled_ = battery_saver_mode_enabled;
+  }
+
  private:
   explicit Isolate(std::unique_ptr<IsolateAllocator> isolate_allocator);
   ~Isolate();
@@ -2140,6 +2243,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InitializeCodeRanges();
   void AddCodeMemoryRange(MemoryRange range);
+
+  // See IsolateForSandbox.
+  Isolate* ForSandbox() { return this; }
 
   static void RemoveContextIdCallback(const v8::WeakCallbackInfo<void>& data);
 
@@ -2196,11 +2302,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void FillCache();
 
-  // Propagate pending exception message to the v8::TryCatch.
+  // Propagate exception message to the v8::TryCatch.
   // If there is no external try-catch or message was successfully propagated,
   // then return true.
-  bool PropagatePendingExceptionToExternalTryCatch(
-      ExceptionHandlerType top_handler);
+  bool PropagateExceptionToExternalTryCatch(ExceptionHandlerType top_handler);
 
   bool HasIsolatePromiseHooks() const {
     return PromiseHookFields::HasIsolatePromiseHook::decode(
@@ -2228,9 +2333,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void AddCrashKeysForIsolateAndHeapPointers();
 
-  // Returns the Exception sentinel.
-  Tagged<Object> ThrowInternal(Tagged<Object> exception,
-                               MessageLocation* location);
+#if V8_ENABLE_WEBASSEMBLY
+  bool IsOnCentralStack(Address addr);
+#else
+  bool IsOnCentralStack(Address addr) { return true; }
+#endif
 
   // This class contains a collection of data accessible from both C++ runtime
   // and compiled code (including assembly stubs, builtins, interpreter bytecode
@@ -2244,8 +2351,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Heap heap_;
   ReadOnlyHeap* read_only_heap_ = nullptr;
   std::shared_ptr<ReadOnlyArtifacts> artifacts_;
-  std::shared_ptr<StringTable> string_table_;
-  std::shared_ptr<StringForwardingTable> string_forwarding_table_;
+
+  // These are guaranteed empty when !OwnsStringTables().
+  std::unique_ptr<StringTable> string_table_;
+  std::unique_ptr<StringForwardingTable> string_forwarding_table_;
 
   const int id_;
   std::atomic<EntryStackItem*> entry_stack_ = nullptr;
@@ -2312,12 +2421,14 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   std::atomic<debug::CoverageMode> code_coverage_mode_{
       debug::CoverageMode::kBestEffort};
 
+  std::atomic<bool> battery_saver_mode_enabled_ = false;
+
   // Helper function for RunHostImportModuleDynamicallyCallback.
   // Unpacks import assertions, if present, from the second argument to dynamic
   // import() and returns them in a FixedArray, sorted by code point order of
   // the keys, in the form [key1, value1, key2, value2, ...]. Returns an empty
   // MaybeHandle if an error was thrown.  In this case, the host callback should
-  // not be called and instead the caller should use the pending exception to
+  // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
   MaybeHandle<FixedArray> GetImportAssertionsFromArgument(
       MaybeHandle<Object> maybe_import_assertions_argument);
@@ -2400,7 +2511,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   Zone* compiler_zone_ = nullptr;
 
   std::unique_ptr<LazyCompileDispatcher> lazy_compile_dispatcher_;
+#ifdef V8_ENABLE_SPARKPLUG
   baseline::BaselineBatchCompiler* baseline_batch_compiler_ = nullptr;
+#endif  // V8_ENABLE_SPARKPLUG
 #ifdef V8_ENABLE_MAGLEV
   maglev::MaglevConcurrentDispatcher* maglev_concurrent_dispatcher_ = nullptr;
 #endif  // V8_ENABLE_MAGLEV
@@ -2537,10 +2650,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   EmbeddedFileWriterInterface* embedded_file_writer_ = nullptr;
 
-  // The top entry of the v8::Context::BackupIncumbentScope stack.
-  const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =
-      nullptr;
-
   PrepareStackTraceCallback prepare_stack_trace_callback_ = nullptr;
 
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
@@ -2555,6 +2664,11 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Stores the isolate containing the shared space.
   base::Optional<Isolate*> shared_space_isolate_;
+
+  // Used to deduplicate registered SharedStructType shapes.
+  //
+  // This is guaranteed empty when !is_shared_space_isolate().
+  std::unique_ptr<SharedStructTypeRegistry> shared_struct_type_registry_;
 
 #ifdef V8_COMPRESS_POINTERS
   // Stores the external pointer table space for the shared external pointer
@@ -2582,10 +2696,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // The mutex only guards adding pages, the retrieval is signal safe.
   base::Mutex code_pages_mutex_;
 
-  // Stack information for the main thread.
-  ::heap::base::Stack stack_;
-
 #ifdef V8_ENABLE_WEBASSEMBLY
+  wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   wasm::StackMemory* wasm_stacks_;
 #endif
 
@@ -2593,6 +2705,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // predefined set of data as crash keys to be used in postmortem debugging
   // in case of a crash.
   AddCrashKeyCallback add_crash_key_callback_ = nullptr;
+
+  std::vector<ToDestroyBeforeSuddenShutdown*>
+      to_destroy_before_sudden_shutdown_;
 
   // Delete new/delete operators to ensure that Isolate::New() and
   // Isolate::Delete() are used for Isolate creation and deletion.
@@ -2602,10 +2717,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   SimulatorData* simulator_data_ = nullptr;
 #endif
 
+#ifdef V8_ENABLE_CHECKS
+  ThreadId current_thread_id_;
+  int current_thread_counter_ = 0;
+#endif
+
   friend class heap::HeapTester;
   friend class GlobalSafepoint;
   friend class TestSerializer;
   friend class SharedHeapNoClientsTest;
+  friend class IsolateForSandbox;
 };
 
 // The current entered Isolate and its thread data. Do not access these
@@ -2633,6 +2754,7 @@ class V8_EXPORT_PRIVATE SaveContext {
  private:
   Isolate* const isolate_;
   Handle<Context> context_;
+  Handle<Context> topmost_script_having_context_;
 };
 
 // Like SaveContext, but also switches the Context to a new one in the
@@ -2654,11 +2776,19 @@ class AssertNoContextChange {
 #ifdef DEBUG
  public:
   explicit AssertNoContextChange(Isolate* isolate);
-  ~AssertNoContextChange() { DCHECK(isolate_->context() == *context_); }
+  ~AssertNoContextChange() {
+    CHECK_EQ(isolate_->context(), *context_);
+    // The caller context is either cleared or not modified.
+    if (!isolate_->topmost_script_having_context().is_null()) {
+      CHECK_EQ(isolate_->topmost_script_having_context(),
+               *topmost_script_having_context_);
+    }
+  }
 
  private:
   Isolate* isolate_;
   Handle<Context> context_;
+  Handle<Context> topmost_script_having_context_;
 #else
  public:
   explicit AssertNoContextChange(Isolate* isolate) {}

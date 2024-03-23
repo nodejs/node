@@ -68,15 +68,14 @@ BytecodeIterator::BytecodeIterator(const uint8_t* start, const uint8_t* end,
   if (pc_ > end_) pc_ = end_;
 }
 
-DecodeResult ValidateFunctionBody(WasmFeatures enabled,
+DecodeResult ValidateFunctionBody(Zone* zone, WasmFeatures enabled,
                                   const WasmModule* module,
                                   WasmFeatures* detected,
                                   const FunctionBody& body) {
   // Asm.js functions should never be validated; they are valid by design.
   DCHECK_EQ(kWasmOrigin, module->origin);
-  Zone zone(GetWasmEngine()->allocator(), ZONE_NAME);
   WasmFullDecoder<Decoder::FullValidationTag, EmptyInterface> decoder(
-      &zone, module, enabled, detected, body);
+      zone, module, enabled, detected, body);
   decoder.Decode();
   return decoder.toResult(nullptr);
 }
@@ -200,7 +199,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     }
     if (line_numbers) line_numbers->push_back(i.position());
     if (opcode == kExprElse || opcode == kExprCatch ||
-        opcode == kExprCatchAll) {
+        opcode == kExprCatchAll || opcode == kExprDelegate) {
       control_depth--;
     }
 
@@ -267,6 +266,15 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         for (uint32_t j = 0; j < imm.out_arity(); j++) {
           os << " " << imm.out_type(j).name();
         }
+        control_depth++;
+        break;
+      }
+      case kExprTryTable: {
+        BlockTypeImmediate block_imm(WasmFeatures::All(), &i, i.pc() + 1,
+                                     Decoder::kNoValidation);
+        TryTableImmediate imm(&i, i.pc() + block_imm.length + 1,
+                              Decoder::kNoValidation);
+        os << " entries=" << imm.table_count;
         control_depth++;
         break;
       }

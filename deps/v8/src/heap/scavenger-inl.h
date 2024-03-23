@@ -127,8 +127,8 @@ CopyAndForwardResult Scavenger::SemiSpaceCopyObject(
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   DCHECK(heap()->AllowedToBeMigrated(map, object, NEW_SPACE));
   AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
-  AllocationResult allocation = allocator_.Allocate(
-      NEW_SPACE, object_size, AllocationOrigin::kGC, alignment);
+  AllocationResult allocation =
+      allocator_.Allocate(NEW_SPACE, object_size, alignment);
 
   Tagged<HeapObject> target;
   if (allocation.To(&target)) {
@@ -169,8 +169,7 @@ CopyAndForwardResult Scavenger::PromoteObject(Tagged<Map> map,
   AllocationResult allocation;
   switch (promotion_heap_choice) {
     case kPromoteIntoLocalHeap:
-      allocation = allocator_.Allocate(OLD_SPACE, object_size,
-                                       AllocationOrigin::kGC, alignment);
+      allocation = allocator_.Allocate(OLD_SPACE, object_size, alignment);
       break;
     case kPromoteIntoSharedHeap:
       DCHECK_NOT_NULL(shared_old_allocator_);

@@ -37,13 +37,19 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to HeapNumber::value() field.
   static FieldAccess ForHeapNumberValue();
 
+  // Provides access to HeapNumber::value() and Oddball::to_number_raw() fields.
+  // This is the same as ForHeapNumberValue, except it documents (and static
+  // asserts) that both inputs are valid.
+  static FieldAccess ForHeapNumberOrOddballOrHoleValue();
+
   // Provides access to BigInt's bit field.
   static FieldAccess ForBigIntBitfield();
 
+#ifdef BIGINT_NEEDS_PADDING
   // Provides access to BigInt's 32 bit padding that is placed after the
-  // bitfield on 64 bit architectures without pointer compression. Do not use
-  // this on 32 bit architectures.
+  // bitfield on 64 bit architectures without pointer compression.
   static FieldAccess ForBigIntOptionalPadding();
+#endif
 
   // Provides access to BigInt's least significant digit on 64 bit
   // architectures. Do not use this on 32 bit architectures.
@@ -271,9 +277,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to SeqTwoByteString characters.
   static ElementAccess ForSeqTwoByteStringCharacter();
-
-  // Provides access to JSGlobalProxy::native_context() field.
-  static FieldAccess ForJSGlobalProxyNativeContext();
 
   // Provides access to JSArrayIterator::iterated_object() field.
   static FieldAccess ForJSArrayIteratorIteratedObject();

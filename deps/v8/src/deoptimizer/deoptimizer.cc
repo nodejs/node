@@ -334,7 +334,11 @@ class ActivationsFinder : public ThreadVisitor {
                 SafepointTable::FindEntry(isolate, code, it.frame()->pc());
             trampoline_pc = safepoint.trampoline_pc();
           }
-          DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
+          // TODO(saelo): currently we have to use full pointer comparison as
+          // builtin Code is still inside the sandbox while runtime-generated
+          // Code is in trusted space.
+          static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+          DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
           // Replace the current pc on the stack with the trampoline.
@@ -431,8 +435,12 @@ void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
-  function->ResetIfCodeFlushed();
-  if (code.is_null()) code = function->code();
+  if (v8_flags.profile_guided_optimization) {
+    function->shared()->set_cached_tiering_decision(
+        CachedTieringDecision::kNormal);
+  }
+  function->ResetIfCodeFlushed(isolate);
+  if (code.is_null()) code = function->code(isolate);
 
   if (CodeKindCanDeoptimize(code->kind())) {
     // Mark the code for deoptimization and unlink any functions that also
@@ -904,9 +912,12 @@ void Deoptimizer::DoComputeOutputFrames() {
   // deoptimized.
   bool osr_early_exit = Deoptimizer::GetDeoptInfo().deopt_reason ==
                         DeoptimizeReason::kOSREarlyExit;
+  // TODO(saelo): We have to use full pointer comparisons here while not all
+  // Code objects have been migrated into trusted space.
+  static_assert(!kAllCodeObjectsLiveInTrustedSpace);
   if (IsJSFunction(function_) &&
       (compiled_code_->osr_offset().IsNone()
-           ? function_->code() == compiled_code_
+           ? function_->code(isolate()).SafeEquals(compiled_code_)
            : (!osr_early_exit &&
               DeoptExitIsInsideOsrLoop(isolate(), function_,
                                        bytecode_offset_in_outermost_frame_,
@@ -1024,7 +1035,7 @@ void Deoptimizer::DoComputeUnoptimizedFrame(TranslatedFrame* translated_frame,
   base::Optional<Tagged<DebugInfo>> debug_info =
       shared->TryGetDebugInfo(isolate());
   if (debug_info.has_value() && debug_info.value()->HasBreakInfo()) {
-    bytecode_array = debug_info.value()->DebugBytecodeArray();
+    bytecode_array = debug_info.value()->DebugBytecodeArray(isolate());
   } else {
     bytecode_array = shared->GetBytecodeArray(isolate());
   }

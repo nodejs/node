@@ -32,6 +32,10 @@
   # Slow tests.
   'ParsingTest.ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'LogAllTest.LogAll': [PASS, SLOW, HEAVY],
+  'WasmModuleVerifyTest.NGlobals': [PASS, HEAVY],
+
   # BUG(13660): Flaky test.
   'OS.RemapPages': [SKIP],
 }],  # ALWAYS
@@ -144,10 +148,6 @@
   # https://crbug.com/v8/9380
   # The test is broken and needs to be fixed to use separate isolates.
   'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
-
-  # Tests that need to run sequentially (e.g. due to memory consumption).
-  'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
-  'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
 
   # https://crbug.com/v8/12997
   # These skips should be removed after tsan errors in libsampler are fixed.

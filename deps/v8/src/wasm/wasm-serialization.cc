@@ -61,7 +61,7 @@ class Writer {
   void WriteVector(const base::Vector<T> v) {
     base::Vector<const uint8_t> bytes = base::Vector<const uint8_t>::cast(v);
     DCHECK_GE(current_size(), bytes.size());
-    if (bytes.size() > 0) {
+    if (!bytes.empty()) {
       memcpy(current_location(), bytes.begin(), bytes.size());
       pos_ += bytes.size();
     }
@@ -335,6 +335,8 @@ size_t NativeModuleSerializer::Measure() const {
   size += import_statuses_.size() * sizeof(WellKnownImport);
   // Add the size of the tiering budget.
   size += native_module_->module()->num_declared_functions * sizeof(uint32_t);
+  // Add the size of the compile-time imports.
+  size += sizeof(typename CompileTimeImports::StorageType);
 
   return size;
 }
@@ -344,6 +346,7 @@ void NativeModuleSerializer::WriteHeader(Writer* writer,
   // TODO(eholk): We need to properly preserve the flag whether the trap
   // handler was used or not when serializing.
 
+  writer->Write(native_module_->compile_imports().ToIntegral());
   writer->Write(total_code_size);
 
   // We do not ship lazy validation, so in most cases all functions will be
@@ -623,6 +626,7 @@ class V8_EXPORT_PRIVATE NativeModuleDeserializer {
   // Updated in {ReadCode}.
   size_t remaining_code_size_ = 0;
   bool all_functions_validated_ = false;
+  CompileTimeImports compile_imports_;
   base::Vector<uint8_t> current_code_space_;
   NativeModule::JumpTablesRef current_jump_tables_;
   std::vector<int> lazy_functions_;
@@ -700,6 +704,8 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 #endif
 
   ReadHeader(reader);
+  if (compile_imports_ != native_module_->compile_imports()) return false;
+
   uint32_t total_fns = native_module_->num_functions();
   uint32_t first_wasm_fn = native_module_->num_imported_functions();
 
@@ -756,6 +762,9 @@ bool NativeModuleDeserializer::Read(Reader* reader) {
 }
 
 void NativeModuleDeserializer::ReadHeader(Reader* reader) {
+  auto compile_imports = reader->Read<CompileTimeImports::StorageType>();
+  compile_imports_ = CompileTimeImports::FromIntegral(compile_imports);
+
   remaining_code_size_ = reader->Read<size_t>();
   all_functions_validated_ = reader->Read<bool>();
 
@@ -930,7 +939,7 @@ bool IsSupportedVersion(base::Vector<const uint8_t> header) {
 MaybeHandle<WasmModuleObject> DeserializeNativeModule(
     Isolate* isolate, base::Vector<const uint8_t> data,
     base::Vector<const uint8_t> wire_bytes_vec,
-    base::Vector<const char> source_url) {
+    CompileTimeImports compile_imports, base::Vector<const char> source_url) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) return {};
   if (!IsSupportedVersion(data)) return {};
 
@@ -951,15 +960,16 @@ MaybeHandle<WasmModuleObject> DeserializeNativeModule(
 
   WasmEngine* wasm_engine = GetWasmEngine();
   auto shared_native_module = wasm_engine->MaybeGetNativeModule(
-      module->origin, owned_wire_bytes.as_vector(), isolate);
+      module->origin, owned_wire_bytes.as_vector(), compile_imports, isolate);
   if (shared_native_module == nullptr) {
     const bool dynamic_tiering = v8_flags.wasm_dynamic_tiering;
     const bool include_liftoff = !dynamic_tiering;
     size_t code_size_estimate =
         wasm::WasmCodeManager::EstimateNativeModuleCodeSize(
             module.get(), include_liftoff, DynamicTiering{dynamic_tiering});
-    shared_native_module = wasm_engine->NewNativeModule(
-        isolate, enabled_features, std::move(module), code_size_estimate);
+    shared_native_module =
+        wasm_engine->NewNativeModule(isolate, enabled_features, compile_imports,
+                                     std::move(module), code_size_estimate);
     // We have to assign a compilation ID here, as it is required for a
     // potential re-compilation, e.g. triggered by
     // {EnterDebuggingForIsolate}. The value is -2 so that it is different

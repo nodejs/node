@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Tier up quickly to save time:
-// Flags: --wasm-tiering-budget=100 --experimental-wasm-gc
+// Flags: --wasm-tiering-budget=100
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 

@@ -16,7 +16,6 @@
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/map-inl.h"
-#include "src/objects/object-macros.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
@@ -195,21 +194,29 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot,
 
 // static
 Handle<ClosureFeedbackCellArray> ClosureFeedbackCellArray::New(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
-  Factory* factory = isolate->factory();
-
-  int num_feedback_cells =
-      shared->feedback_metadata()->create_closure_slot_count();
-
-  Handle<ClosureFeedbackCellArray> feedback_cell_array =
-      factory->NewClosureFeedbackCellArray(num_feedback_cells);
-
-  for (int i = 0; i < num_feedback_cells; i++) {
-    Handle<FeedbackCell> cell =
-        factory->NewNoClosuresCell(factory->undefined_value());
-    feedback_cell_array->set(i, *cell);
+    Isolate* isolate, Handle<SharedFunctionInfo> shared,
+    AllocationType allocation) {
+  int length = shared->feedback_metadata()->create_closure_slot_count();
+  if (length == 0) {
+    return isolate->factory()->empty_closure_feedback_cell_array();
   }
-  return feedback_cell_array;
+
+  // Pre-allocate the cells s.t. we can initialize `result` without further
+  // allocation.
+  Handle<HeapObject> undefined = isolate->factory()->undefined_value();
+  std::vector<Handle<FeedbackCell>> cells;
+  cells.reserve(length);
+  for (int i = 0; i < length; i++) {
+    cells.push_back(isolate->factory()->NewNoClosuresCell(undefined));
+  }
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  auto result = Allocate(isolate, length, &no_gc, allocation);
+  for (int i = 0; i < length; i++) {
+    result->set(i, *cells[i]);
+  }
+
+  return result;
 }
 
 // static
@@ -347,16 +354,17 @@ void FeedbackVector::AddToVectorsForProfilingTools(
   isolate->SetFeedbackVectorsForProfilingTools(*list);
 }
 
-void FeedbackVector::SetOptimizedCode(Tagged<Code> code) {
+void FeedbackVector::SetOptimizedCode(IsolateForSandbox isolate,
+                                      Tagged<Code> code) {
   DCHECK(CodeKindIsOptimizedJSFunction(code->kind()));
   int32_t state = flags();
   // Skip setting optimized code if it would cause us to tier down.
   if (!has_optimized_code()) {
     state = MaybeHasTurbofanCodeBit::update(state, false);
-  } else if (!CodeKindCanTierUp(optimized_code()->kind()) ||
-             optimized_code()->kind() > code->kind()) {
+  } else if (!CodeKindCanTierUp(optimized_code(isolate)->kind()) ||
+             optimized_code(isolate)->kind() > code->kind()) {
     if (!v8_flags.stress_concurrent_inlining_attach_code &&
-        !optimized_code()->marked_for_deoptimization()) {
+        !optimized_code(isolate)->marked_for_deoptimization()) {
       return;
     }
     // If we fall through, we may be tiering down. This is fine since we only do
@@ -369,7 +377,7 @@ void FeedbackVector::SetOptimizedCode(Tagged<Code> code) {
   // re-mark the function for non-concurrent optimization after an OSR. We
   // should avoid these cases and also check that marker isn't
   // TieringState::kRequestTurbofan*.
-  set_maybe_optimized_code(HeapObjectReference::Weak(code));
+  set_maybe_optimized_code(HeapObjectReference::Weak(code->wrapper()));
   // TODO(leszeks): Reconsider whether this could clear the tiering state vs.
   // the callers doing so.
   state = TieringStateBits::update(state, TieringState::kNone);
@@ -400,7 +408,7 @@ void FeedbackVector::SetOptimizedOsrCode(Isolate* isolate, FeedbackSlot slot,
   if (V8_UNLIKELY(current && current.value()->kind() > code->kind())) {
     return;
   }
-  Set(slot, HeapObjectReference::Weak(code));
+  Set(slot, HeapObjectReference::Weak(code->wrapper()));
   set_maybe_has_optimized_osr_code(true, code->kind());
 }
 
@@ -446,7 +454,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     return;
   }
 
-  Tagged<Code> code = Code::cast(slot.GetHeapObject());
+  Tagged<Code> code = CodeWrapper::cast(slot.GetHeapObject())->code(isolate);
   if (code->marked_for_deoptimization()) {
     Deoptimizer::TraceEvictFromOptimizedCodeCache(isolate, shared, reason);
     ClearOptimizedCode();
@@ -471,6 +479,36 @@ bool FeedbackVector::ClearSlots(Isolate* isolate, ClearBehavior behavior) {
   }
   return feedback_updated;
 }
+
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+
+// static
+void FeedbackVector::TraceFeedbackChange(Isolate* isolate,
+                                         Tagged<FeedbackVector> vector,
+                                         FeedbackSlot slot,
+                                         const char* reason) {
+  int slot_count = vector->metadata()->slot_count();
+  StdoutStream os;
+  if (slot.IsInvalid()) {
+    os << "[Feedback slots in ";
+  } else {
+    FeedbackSlotKind kind = vector->metadata()->GetKind(slot);
+    os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " ("
+       << FeedbackMetadata::Kind2String(kind) << ")"
+       << " in ";
+  }
+  ShortPrint(vector->shared_function_info(), os);
+  if (slot.IsInvalid()) {
+    os << " updated - ";
+  } else {
+    os << " updated to ";
+    vector->FeedbackSlotPrint(os, slot);
+    os << " - ";
+  }
+  os << reason << "]" << std::endl;
+}
+
+#endif
 
 MaybeObjectHandle NexusConfig::NewHandle(MaybeObject object) const {
   if (mode() == Mode::MainThread) {
@@ -919,10 +957,10 @@ void FeedbackNexus::ConfigureCloneObject(
             CreateArrayOfSize(2 * kCloneObjectPolymorphicEntrySize);
         DisallowGarbageCollection no_gc;
         Tagged<WeakFixedArray> raw_array = *array;
-        raw_array->Set(0, HeapObjectReference::Weak(*feedback));
-        raw_array->Set(1, GetFeedbackExtra());
-        raw_array->Set(2, HeapObjectReference::Weak(*source_map));
-        raw_array->Set(3, GetHandler());
+        raw_array->set(0, HeapObjectReference::Weak(*feedback));
+        raw_array->set(1, GetFeedbackExtra());
+        raw_array->set(2, HeapObjectReference::Weak(*source_map));
+        raw_array->set(3, GetHandler());
         SetFeedback(raw_array, UPDATE_WRITE_BARRIER,
                     HeapObjectReference::ClearedValue(isolate));
       }
@@ -933,7 +971,7 @@ void FeedbackNexus::ConfigureCloneObject(
       Handle<WeakFixedArray> array = Handle<WeakFixedArray>::cast(feedback);
       int i = 0;
       for (; i < array->length(); i += kCloneObjectPolymorphicEntrySize) {
-        MaybeObject feedback_map = array->Get(i);
+        MaybeObject feedback_map = array->get(i);
         if (feedback_map->IsCleared()) break;
         Handle<Map> cached_map(Map::cast(feedback_map.GetHeapObject()),
                                isolate);
@@ -955,14 +993,14 @@ void FeedbackNexus::ConfigureCloneObject(
         Handle<WeakFixedArray> new_array = CreateArrayOfSize(
             array->length() + kCloneObjectPolymorphicEntrySize);
         for (int j = 0; j < array->length(); ++j) {
-          new_array->Set(j, array->Get(j));
+          new_array->set(j, array->get(j));
         }
         SetFeedback(*new_array);
         array = new_array;
       }
 
-      array->Set(i, HeapObjectReference::Weak(*source_map));
-      array->Set(i + 1, GetHandler());
+      array->set(i, HeapObjectReference::Weak(*source_map));
+      array->set(i + 1, GetHandler());
       break;
     }
 
@@ -1036,8 +1074,8 @@ void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,
                   UPDATE_WRITE_BARRIER, *handler);
     } else {
       Handle<WeakFixedArray> array = CreateArrayOfSize(2);
-      array->Set(0, HeapObjectReference::Weak(*receiver_map));
-      array->Set(1, *handler);
+      array->set(0, HeapObjectReference::Weak(*receiver_map));
+      array->set(1, *handler);
       SetFeedback(*name, UPDATE_WRITE_BARRIER, *array);
     }
   }
@@ -1051,10 +1089,10 @@ void FeedbackNexus::ConfigurePolymorphic(
 
   for (int current = 0; current < receiver_count; ++current) {
     Handle<Map> map = maps_and_handlers[current].first;
-    array->Set(current * 2, HeapObjectReference::Weak(*map));
+    array->set(current * 2, HeapObjectReference::Weak(*map));
     MaybeObjectHandle handler = maps_and_handlers[current].second;
     DCHECK(IC::IsHandler(*handler));
-    array->Set(current * 2 + 1, *handler);
+    array->set(current * 2 + 1, *handler);
   }
 
   if (name.is_null()) {
@@ -1159,23 +1197,26 @@ Tagged<Name> FeedbackNexus::GetName() const {
       return Name::cast(extra.GetHeapObjectAssumeStrong());
     }
   }
-  return Name();
+  return {};
 }
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
 
-  if (GetKeyType() == IcCheckType::kProperty) return STANDARD_LOAD;
+  // TODO(victorgomes): The KeyedAccessLoadMode::kInBounds is doing double duty
+  // here. It shouldn't be used for property loads.
+  if (GetKeyType() == IcCheckType::kProperty)
+    return KeyedAccessLoadMode::kInBounds;
 
   std::vector<MapAndHandler> maps_and_handlers;
   ExtractMapsAndHandlers(&maps_and_handlers);
   for (MapAndHandler map_and_handler : maps_and_handlers) {
     KeyedAccessLoadMode mode =
         LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second);
-    if (mode != STANDARD_LOAD) return mode;
+    if (LoadModeHandlesOOB(mode)) return mode;
   }
 
-  return STANDARD_LOAD;
+  return KeyedAccessLoadMode::kInBounds;
 }
 
 namespace {
@@ -1183,17 +1224,17 @@ namespace {
 bool BuiltinHasKeyedAccessStoreMode(Builtin builtin) {
   DCHECK(Builtins::IsBuiltinId(builtin));
   switch (builtin) {
-    case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
+    case Builtin::kKeyedStoreIC_SloppyArguments_InBounds:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionGrowAndHandleCOW:
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreTypedArrayOOB:
     case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
-    case Builtin::kStoreFastElementIC_Standard:
-    case Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW:
-    case Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB:
+    case Builtin::kStoreFastElementIC_InBounds:
+    case Builtin::kStoreFastElementIC_NoTransitionGrowAndHandleCOW:
+    case Builtin::kStoreFastElementIC_NoTransitionIgnoreTypedArrayOOB:
     case Builtin::kStoreFastElementIC_NoTransitionHandleCOW:
-    case Builtin::kElementsTransitionAndStore_Standard:
-    case Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
-    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
+    case Builtin::kElementsTransitionAndStore_InBounds:
+    case Builtin::kElementsTransitionAndStore_NoTransitionGrowAndHandleCOW:
+    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreTypedArrayOOB:
     case Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW:
       return true;
     default:
@@ -1205,22 +1246,22 @@ bool BuiltinHasKeyedAccessStoreMode(Builtin builtin) {
 KeyedAccessStoreMode KeyedAccessStoreModeForBuiltin(Builtin builtin) {
   DCHECK(BuiltinHasKeyedAccessStoreMode(builtin));
   switch (builtin) {
-    case Builtin::kKeyedStoreIC_SloppyArguments_Standard:
-    case Builtin::kStoreFastElementIC_Standard:
-    case Builtin::kElementsTransitionAndStore_Standard:
-      return STANDARD_STORE;
-    case Builtin::kKeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW:
-    case Builtin::kStoreFastElementIC_GrowNoTransitionHandleCOW:
-    case Builtin::kElementsTransitionAndStore_GrowNoTransitionHandleCOW:
-      return STORE_AND_GROW_HANDLE_COW;
-    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB:
-    case Builtin::kStoreFastElementIC_NoTransitionIgnoreOOB:
-    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreOOB:
-      return STORE_IGNORE_OUT_OF_BOUNDS;
+    case Builtin::kKeyedStoreIC_SloppyArguments_InBounds:
+    case Builtin::kStoreFastElementIC_InBounds:
+    case Builtin::kElementsTransitionAndStore_InBounds:
+      return KeyedAccessStoreMode::kInBounds;
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionGrowAndHandleCOW:
+    case Builtin::kStoreFastElementIC_NoTransitionGrowAndHandleCOW:
+    case Builtin::kElementsTransitionAndStore_NoTransitionGrowAndHandleCOW:
+      return KeyedAccessStoreMode::kGrowAndHandleCOW;
+    case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionIgnoreTypedArrayOOB:
+    case Builtin::kStoreFastElementIC_NoTransitionIgnoreTypedArrayOOB:
+    case Builtin::kElementsTransitionAndStore_NoTransitionIgnoreTypedArrayOOB:
+      return KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
     case Builtin::kKeyedStoreIC_SloppyArguments_NoTransitionHandleCOW:
     case Builtin::kStoreFastElementIC_NoTransitionHandleCOW:
     case Builtin::kElementsTransitionAndStore_NoTransitionHandleCOW:
-      return STORE_HANDLE_COW;
+      return KeyedAccessStoreMode::kHandleCOW;
     default:
       UNREACHABLE();
   }
@@ -1232,7 +1273,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
   DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()) ||
          IsDefineKeyedOwnPropertyInLiteralKind(kind()) ||
          IsDefineKeyedOwnICKind(kind()));
-  KeyedAccessStoreMode mode = STANDARD_STORE;
+  KeyedAccessStoreMode mode = KeyedAccessStoreMode::kInBounds;
 
   if (GetKeyType() == IcCheckType::kProperty) return mode;
 
@@ -1250,7 +1291,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
         // Decode the KeyedAccessStoreMode information from the Handler.
         mode = StoreHandler::GetKeyedAccessStoreMode(
             MaybeObject::FromObject(data_handler->smi_handler()));
-        if (mode != STANDARD_STORE) return mode;
+        if (!StoreModeIsInBounds(mode)) return mode;
         continue;
       } else {
         Tagged<Code> code = Code::cast(data_handler->smi_handler());
@@ -1264,11 +1305,11 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
       }
       // Decode the KeyedAccessStoreMode information from the Handler.
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
-      if (mode != STANDARD_STORE) return mode;
+      if (!StoreModeIsInBounds(mode)) return mode;
       continue;
     } else if (IsDefineKeyedOwnICKind(kind())) {
       mode = StoreHandler::GetKeyedAccessStoreMode(*maybe_code_handler);
-      if (mode != STANDARD_STORE) return mode;
+      if (!StoreModeIsInBounds(mode)) return mode;
       continue;
     } else {
       // Element store without prototype chain check.
@@ -1393,8 +1434,8 @@ void FeedbackIterator::AdvancePolymorphic() {
   Tagged<HeapObject> heap_object;
 
   while (index_ < length) {
-    if (polymorphic_feedback_->Get(index_).GetHeapObjectIfWeak(&heap_object)) {
-      MaybeObject handler = polymorphic_feedback_->Get(index_ + kHandlerOffset);
+    if (polymorphic_feedback_->get(index_).GetHeapObjectIfWeak(&heap_object)) {
+      MaybeObject handler = polymorphic_feedback_->get(index_ + kHandlerOffset);
       map_ = Map::cast(heap_object);
       handler_ = handler;
       index_ += kEntrySize;

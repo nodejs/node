@@ -2042,16 +2042,16 @@ EnumerateCompiledFunctions(Heap* heap) {
       // TODO(jarin) This leaves out deoptimized code that might still be on the
       // stack. Also note that we will not log optimized code objects that are
       // only on a type feedback vector. We should make this more precise.
-      if (function->HasAttachedOptimizedCode() &&
+      if (function->HasAttachedOptimizedCode(isolate) &&
           Script::cast(function->shared()->script())->HasValidSource()) {
-        record(function->shared(), AbstractCode::cast(function->code()));
+        record(function->shared(), AbstractCode::cast(function->code(isolate)));
 #if V8_ENABLE_WEBASSEMBLY
       } else if (WasmJSFunction::IsWasmJSFunction(function)) {
-        record(function->shared(),
-               AbstractCode::cast(function->shared()
-                                      ->wasm_js_function_data()
-                                      ->internal()
-                                      ->code()));
+        record(
+            function->shared(),
+            AbstractCode::cast(
+                function->shared()->wasm_js_function_data()->internal()->code(
+                    isolate)));
 #endif  // V8_ENABLE_WEBASSEMBLY
       }
     }
@@ -2106,7 +2106,7 @@ void ExistingCodeLogger::LogInterpretedFunctions() {
   std::vector<Handle<SharedFunctionInfo>> interpreted_funcs =
       EnumerateInterpretedFunctions(heap);
   for (Handle<SharedFunctionInfo> sfi : interpreted_funcs) {
-    if (sfi->HasInterpreterData() || !sfi->HasSourceCode() ||
+    if (sfi->HasInterpreterData(isolate_) || !sfi->HasSourceCode() ||
         !sfi->HasBytecodeArray()) {
       continue;
     }
@@ -2526,11 +2526,12 @@ void ExistingCodeLogger::LogCompiledFunctions(
     if (ensure_source_positions_available) {
       SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate_, shared);
     }
-    if (shared->HasInterpreterData()) {
+    if (shared->HasInterpreterData(isolate_)) {
       LogExistingFunction(
           shared,
           Handle<AbstractCode>(
-              AbstractCode::cast(shared->InterpreterTrampoline()), isolate_));
+              AbstractCode::cast(shared->InterpreterTrampoline(isolate_)),
+              isolate_));
     }
     if (shared->HasBaselineCode()) {
       LogExistingFunction(
@@ -2538,7 +2539,12 @@ void ExistingCodeLogger::LogCompiledFunctions(
                       AbstractCode::cast(shared->baseline_code(kAcquireLoad)),
                       isolate_));
     }
-    if (pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy))) {
+    // TODO(saelo): remove the "!IsTrustedSpaceObject" once builtin Code
+    // objects are also in trusted space. Currently this breaks because we must
+    // not compare objects in trusted space with ones inside the sandbox.
+    static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+    if (!IsTrustedSpaceObject(*pair.second) &&
+        pair.second.is_identical_to(BUILTIN_CODE(isolate_, CompileLazy))) {
       continue;
     }
     LogExistingFunction(pair.first, pair.second);

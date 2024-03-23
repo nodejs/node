@@ -547,20 +547,21 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK(enabled_features_.has_gc());
     uint8_t kind = consume_u8(" kind: ", tracer_);
     if (tracer_) tracer_->Description(TypeKindName(kind));
+    const bool is_final = true;
     switch (kind) {
       case kWasmFunctionTypeCode: {
         const FunctionSig* sig = consume_sig(&module_->signature_zone);
-        return {sig, kNoSuperType, v8_flags.wasm_final_types};
+        return {sig, kNoSuperType, is_final};
       }
       case kWasmStructTypeCode: {
         module_->is_wasm_gc = true;
         const StructType* type = consume_struct(&module_->signature_zone);
-        return {type, kNoSuperType, v8_flags.wasm_final_types};
+        return {type, kNoSuperType, is_final};
       }
       case kWasmArrayTypeCode: {
         module_->is_wasm_gc = true;
         const ArrayType* type = consume_array(&module_->signature_zone);
-        return {type, kNoSuperType, v8_flags.wasm_final_types};
+        return {type, kNoSuperType, is_final};
       }
       default:
         if (tracer_) tracer_->NextLine();
@@ -574,8 +575,7 @@ class ModuleDecoderImpl : public Decoder {
     uint8_t kind = read_u8<Decoder::FullValidationTag>(pc(), "type kind");
     if (kind == kWasmSubtypeCode || kind == kWasmSubtypeFinalCode) {
       module_->is_wasm_gc = true;
-      bool is_final =
-          v8_flags.wasm_final_types && kind == kWasmSubtypeFinalCode;
+      bool is_final = kind == kWasmSubtypeFinalCode;
       consume_bytes(1, is_final ? " subtype final, " : " subtype extensible, ",
                     tracer_);
       constexpr uint32_t kMaximumSupertypes = 1;
@@ -630,8 +630,9 @@ class ModuleDecoderImpl : public Decoder {
             consume_bytes(1, "function");
             const FunctionSig* sig = consume_sig(&module_->signature_zone);
             if (!ok()) break;
-            module_->types[i] = {sig, kNoSuperType, v8_flags.wasm_final_types};
-            type_canon->AddRecursiveGroup(module_.get(), 1, i);
+            const bool is_final = true;
+            module_->types[i] = {sig, kNoSuperType, is_final};
+            type_canon->AddRecursiveSingletonGroup(module_.get(), i);
             break;
           }
           case kWasmArrayTypeCode:
@@ -679,12 +680,10 @@ class ModuleDecoderImpl : public Decoder {
         for (uint32_t j = 0; j < group_size; j++) {
           if (tracer_) tracer_->TypeOffset(pc_offset());
           TypeDefinition type = consume_subtype_definition();
-          if (ok()) module_->types[initial_size + j] = type;
+          module_->types[initial_size + j] = type;
         }
-        if (ok()) {
-          type_canon->AddRecursiveGroup(module_.get(), group_size,
-                                        static_cast<uint32_t>(initial_size));
-        }
+        if (failed()) return;
+        type_canon->AddRecursiveGroup(module_.get(), group_size);
         if (tracer_) {
           tracer_->Description("end of rec. group");
           tracer_->NextLine();
@@ -697,7 +696,7 @@ class ModuleDecoderImpl : public Decoder {
         TypeDefinition type = consume_subtype_definition();
         if (ok()) {
           module_->types[initial_size] = type;
-          type_canon->AddRecursiveGroup(module_.get(), 1);
+          type_canon->AddRecursiveSingletonGroup(module_.get());
         }
       }
     }
@@ -1739,7 +1738,7 @@ class ModuleDecoderImpl : public Decoder {
     FunctionBody body{function.sig, off(pc_), pc_, end_};
 
     WasmFeatures unused_detected_features;
-    DecodeResult result = ValidateFunctionBody(enabled_features_, module,
+    DecodeResult result = ValidateFunctionBody(zone, enabled_features_, module,
                                                &unused_detected_features, body);
 
     if (result.failed()) return FunctionResult{std::move(result).error()};
@@ -1863,7 +1862,7 @@ class ModuleDecoderImpl : public Decoder {
     }
     if (count > maximum) {
       errorf(p, "%s of %u exceeds internal limit of %zu", name, count, maximum);
-      return static_cast<uint32_t>(maximum);
+      return 0;
     }
     return count;
   }
@@ -2096,7 +2095,7 @@ class ModuleDecoderImpl : public Decoder {
 #undef TYPE_CHECK
 
     auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-    FunctionBody body(&sig, buffer_offset_, pc_, end_);
+    FunctionBody body(&sig, this->pc_offset(), pc_, end_);
     WasmFeatures detected;
     WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
                     kConstantExpression>
@@ -2108,7 +2107,16 @@ class ModuleDecoderImpl : public Decoder {
     decoder.DecodeFunctionBody();
 
     if (tracer_) {
-      tracer_->InitializerExpression(pc_, decoder.end(), expected);
+      // In case of error, decoder.end() is set to the position right before
+      // the byte(s) that caused the error. For debugging purposes, we should
+      // print these bytes, but we don't know how many of them there are, so
+      // for now we have to guess. For more accurate behavior, we'd have to
+      // pass {num_invalid_bytes} to every {decoder->DecodeError()} call.
+      static constexpr size_t kInvalidBytesGuess = 4;
+      const uint8_t* end =
+          decoder.ok() ? decoder.end()
+                       : std::min(decoder.end() + kInvalidBytesGuess, end_);
+      tracer_->InitializerExpression(pc_, end, expected);
     }
     this->pc_ = decoder.end();
 
@@ -2175,35 +2183,32 @@ class ModuleDecoderImpl : public Decoder {
     // Parse parameter types.
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
-    if (failed()) return nullptr;
-    std::vector<ValueType> params;
-    for (uint32_t i = 0; ok() && i < param_count; ++i) {
-      params.push_back(consume_value_type());
+    // We don't know the return count yet, so decode the parameters into a
+    // temporary SmallVector. This needs to be copied over into the permanent
+    // storage later.
+    base::SmallVector<ValueType, 8> params{param_count};
+    for (uint32_t i = 0; i < param_count; ++i) {
+      params[i] = consume_value_type();
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
-    if (failed()) return nullptr;
 
     // Parse return types.
-    std::vector<ValueType> returns;
     uint32_t return_count =
         consume_count("return count", kV8MaxWasmFunctionReturns);
-    if (failed()) return nullptr;
-    for (uint32_t i = 0; ok() && i < return_count; ++i) {
-      returns.push_back(consume_value_type());
+    // Now that we know the param count and the return count, we can allocate
+    // the permanent storage.
+    ValueType* sig_storage =
+        zone->AllocateArray<ValueType>(param_count + return_count);
+    // Note: Returns come first in the signature storage.
+    std::copy_n(params.begin(), param_count, sig_storage + return_count);
+    for (uint32_t i = 0; i < return_count; ++i) {
+      sig_storage[i] = consume_value_type();
       if (tracer_) tracer_->NextLineIfFull();
     }
     if (tracer_) tracer_->NextLineIfNonEmpty();
-    if (failed()) return nullptr;
 
-    // FunctionSig stores the return types first.
-    ValueType* buffer =
-        zone->AllocateArray<ValueType>(param_count + return_count);
-    uint32_t b = 0;
-    for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
-    for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];
-
-    return zone->New<FunctionSig>(return_count, param_count, buffer);
+    return zone->New<FunctionSig>(return_count, param_count, sig_storage);
   }
 
   const StructType* consume_struct(Zone* zone) {
@@ -2431,7 +2436,9 @@ class ModuleDecoderImpl : public Decoder {
     DCHECK_NOT_NULL(func);
     DCHECK_EQ(index, func->func_index);
     ValueType entry_type = ValueType::Ref(func->sig_index);
-    if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
+    if (V8_LIKELY(expected == kWasmFuncRef)) {
+      DCHECK(IsSubtypeOf(entry_type, expected, module));
+    } else if (V8_UNLIKELY(!IsSubtypeOf(entry_type, expected, module))) {
       errorf(initial_pc,
              "Invalid type in element entry: expected %s, got %s instead.",
              expected.name().c_str(), entry_type.name().c_str());

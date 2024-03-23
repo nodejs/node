@@ -96,6 +96,7 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   bool DependOnPromiseThenProtector();
   bool DependOnMegaDOMProtector();
   bool DependOnNoProfilingProtector();
+  bool DependOnNoUndetectableObjectsProtector();
 
   // Record the assumption that {site}'s {ElementsKind} doesn't change.
   void DependOnElementsKind(AllocationSiteRef site);
@@ -110,8 +111,9 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that the {value} read from {holder} at {index} on the
   // background thread is the correct value for a given property.
   void DependOnOwnConstantDataProperty(JSObjectRef holder, MapRef map,
-                                       Representation representation,
                                        FieldIndex index, ObjectRef value);
+  void DependOnOwnConstantDoubleProperty(JSObjectRef holder, MapRef map,
+                                         FieldIndex index, Float64 value);
 
   // Record the assumption that the {value} read from {holder} at {index} on the
   // background thread is the correct value for a given dictionary property.

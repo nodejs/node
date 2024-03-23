@@ -144,8 +144,20 @@ void SetSnapshotFromFile(StartupData* snapshot_blob);
 // The implementation of the API-exposed class SnapshotCreator.
 class SnapshotCreatorImpl final {
  public:
+  // This ctor is used for internal usages:
+  // 1. mksnapshot: Could be refactored to use public APIs.
+  // 2. %ProfileCreateSnapshotDataBlob(): Needs to hook into an existing
+  //    Isolate.
+  //
+  // TODO(v8:14490): Refactor 1. to go through the public API and simplify this
+  // part of the internal snapshot creator.
   SnapshotCreatorImpl(Isolate* isolate, const intptr_t* api_external_references,
                       const StartupData* existing_blob, bool owns_isolate);
+  explicit SnapshotCreatorImpl(const v8::Isolate::CreateParams& params);
+
+  SnapshotCreatorImpl(Isolate* isolate,
+                      const v8::Isolate::CreateParams& params);
+
   ~SnapshotCreatorImpl();
 
   Isolate* isolate() const { return isolate_; }
@@ -176,12 +188,14 @@ class SnapshotCreatorImpl final {
     SerializeInternalFieldsCallback callback;
   };
 
+  void InitInternal(const StartupData*);
+
   Handle<NativeContext> context_at(size_t i) const;
   bool created() const { return contexts_.size() == 0; }
 
   const bool owns_isolate_;
   Isolate* const isolate_;
-  v8::ArrayBuffer::Allocator* const array_buffer_allocator_;
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator_;
   std::vector<SerializableContext> contexts_;
 };
 

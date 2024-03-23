@@ -14,11 +14,14 @@
 #include "src/wasm/wasm-feature-flags.h"
 
 // Features that are always enabled and do not have a flag.
-#define FOREACH_WASM_NON_FLAG_FEATURE(V)      \
-  V(eh, "exception handling opcodes", true)   \
-  V(reftypes, "reference type opcodes", true) \
-  V(simd, "SIMD opcodes", true)               \
-  V(threads, "thread opcodes", true)
+#define FOREACH_WASM_NON_FLAG_FEATURE(V)             \
+  V(eh, "exception handling opcodes")                \
+  V(reftypes, "reference type opcodes")              \
+  V(simd, "SIMD opcodes")                            \
+  V(threads, "thread opcodes")                       \
+  V(return_call, "return call opcodes")              \
+  V(extended_const, "extended constant expressions") \
+  V(relaxed_simd, "relaxed simd")
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \
@@ -81,6 +84,18 @@ constexpr WasmFeatures WasmFeatures::None() { return {}; }
 
 // static
 constexpr WasmFeatures WasmFeatures::ForAsmjs() { return {}; }
+
+enum class CompileTimeImport {
+  kJsString,
+  kTextEncoder,
+  kTextDecoder,
+};
+
+inline std::ostream& operator<<(std::ostream& os, CompileTimeImport imp) {
+  return os << static_cast<int>(imp);
+}
+
+using CompileTimeImports = base::EnumSet<CompileTimeImport, int>;
 
 }  // namespace wasm
 }  // namespace internal

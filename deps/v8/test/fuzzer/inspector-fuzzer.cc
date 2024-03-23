@@ -2,10 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>
-#endif  // !defined(_WIN32) && !defined(_WIN64)
-
 #include <locale.h>
 
 #include <string>
@@ -25,6 +21,10 @@
 #include "test/inspector/isolate-data.h"
 #include "test/inspector/task-runner.h"
 #include "test/inspector/tasks.h"
+
+#if !defined(V8_OS_WIN)
+#include <unistd.h>
+#endif  // !defined(V8_OS_WIN)
 
 namespace v8 {
 namespace internal {

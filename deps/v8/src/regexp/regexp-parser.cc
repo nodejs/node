@@ -20,7 +20,7 @@
 #include "unicode/unistr.h"
 #include "unicode/usetiter.h"
 #include "unicode/utf16.h"  // For U16_NEXT
-#endif  // V8_INTL_SUPPORT
+#endif                      // V8_INTL_SUPPORT
 
 namespace v8 {
 namespace internal {
@@ -270,7 +270,7 @@ RegExpTree* RegExpTextBuilder::PopLastAtom() {
     characters_ = nullptr;
     atom = zone()->New<RegExpAtom>(char_vector);
     return atom;
-  } else if (text_.size() > 0) {
+  } else if (!text_.empty()) {
     atom = text_.back();
     text_.pop_back();
     return atom;
@@ -514,7 +514,7 @@ class RegExpParserImpl final {
   int captures_started() const { return captures_started_; }
   int position() const { return next_pos_ - 1; }
   bool failed() const { return failed_; }
-  RegExpFlags flags() const { return top_level_flags_; }
+  RegExpFlags flags() const { return flags_; }
   bool IsUnicodeMode() const {
     // Either /v or /u enable UnicodeMode
     // https://tc39.es/ecma262/#sec-parsepattern
@@ -608,11 +608,12 @@ class RegExpParserImpl final {
   const CharT* const input_;
   const int input_length_;
   base::uc32 current_;
-  const RegExpFlags top_level_flags_;
+  RegExpFlags flags_;
   bool force_unicode_ = false;  // Force parser to act as if unicode were set.
   int next_pos_;
   int captures_started_;
   int capture_count_;  // Only valid after we have scanned for captures.
+  int lookaround_count_;  // Only valid after we have scanned for lookbehinds.
   bool has_more_;
   bool simple_;
   bool contains_anchor_;
@@ -635,10 +636,11 @@ RegExpParserImpl<CharT>::RegExpParserImpl(
       input_(input),
       input_length_(input_length),
       current_(kEndMarker),
-      top_level_flags_(flags),
+      flags_(flags),
       next_pos_(0),
       captures_started_(0),
       capture_count_(0),
+      lookaround_count_(0),
       has_more_(true),
       simple_(false),
       contains_anchor_(false),
@@ -926,14 +928,15 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
           capture->set_body(body);
           body = capture;
         } else if (group_type == GROUPING) {
-          body = zone()->template New<RegExpGroup>(body);
+          body = zone()->template New<RegExpGroup>(body, builder->flags());
         } else {
           DCHECK(group_type == POSITIVE_LOOKAROUND ||
                  group_type == NEGATIVE_LOOKAROUND);
           bool is_positive = (group_type == POSITIVE_LOOKAROUND);
           body = zone()->template New<RegExpLookaround>(
               body, is_positive, end_capture_index - capture_index,
-              capture_index, state->lookaround_type());
+              capture_index, state->lookaround_type(), lookaround_count_);
+          lookaround_count_++;
         }
 
         // Restore previous state.
@@ -994,6 +997,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
       case '(': {
         state = ParseOpenParenthesis(state CHECK_FAILED);
         builder = state->builder();
+        flags_ = builder->flags();
         continue;
       }
       case '[': {
@@ -1047,8 +1051,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
                 builder->AddEmpty();
               } else {
                 RegExpCapture* capture = GetCapture(index);
-                RegExpTree* atom = zone()->template New<RegExpBackReference>(
-                    capture, builder->flags());
+                RegExpTree* atom =
+                    zone()->template New<RegExpBackReference>(capture);
                 builder->AddAtom(atom);
               }
               break;
@@ -1256,43 +1260,91 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
   bool is_named_capture = false;
   const ZoneVector<base::uc16>* capture_name = nullptr;
   SubexpressionType subexpr_type = CAPTURE;
+  RegExpFlags flags = state->builder()->flags();
+  bool parsing_modifiers = false;
+  bool modifiers_polarity = true;
+  RegExpFlags modifiers;
   Advance();
   if (current() == '?') {
-    switch (Next()) {
-      case ':':
-        Advance(2);
-        subexpr_type = GROUPING;
-        break;
-      case '=':
-        Advance(2);
-        lookaround_type = RegExpLookaround::LOOKAHEAD;
-        subexpr_type = POSITIVE_LOOKAROUND;
-        break;
-      case '!':
-        Advance(2);
-        lookaround_type = RegExpLookaround::LOOKAHEAD;
-        subexpr_type = NEGATIVE_LOOKAROUND;
-        break;
-      case '<':
-        Advance();
-        if (Next() == '=') {
-          Advance(2);
-          lookaround_type = RegExpLookaround::LOOKBEHIND;
-          subexpr_type = POSITIVE_LOOKAROUND;
+    do {
+      switch (Next()) {
+        case '-':
+          if (!v8_flags.js_regexp_modifiers) {
+            ReportError(RegExpError::kInvalidGroup);
+            return nullptr;
+          }
+          Advance();
+          parsing_modifiers = true;
+          if (modifiers_polarity == false) {
+            ReportError(RegExpError::kMultipleFlagDashes);
+            return nullptr;
+          }
+          modifiers_polarity = false;
           break;
-        } else if (Next() == '!') {
-          Advance(2);
-          lookaround_type = RegExpLookaround::LOOKBEHIND;
-          subexpr_type = NEGATIVE_LOOKAROUND;
+        case 'm':
+        case 'i':
+        case 's': {
+          if (!v8_flags.js_regexp_modifiers) {
+            ReportError(RegExpError::kInvalidGroup);
+            return nullptr;
+          }
+          Advance();
+          parsing_modifiers = true;
+          RegExpFlag flag = TryRegExpFlagFromChar(current()).value();
+          if ((modifiers & flag) != 0) {
+            ReportError(RegExpError::kRepeatedFlag);
+            return nullptr;
+          }
+          modifiers |= flag;
+          flags.set(flag, modifiers_polarity);
           break;
         }
-        is_named_capture = true;
-        has_named_captures_ = true;
-        Advance();
-        break;
-      default:
-        ReportError(RegExpError::kInvalidGroup);
-        return nullptr;
+        case ':':
+          Advance(2);
+          parsing_modifiers = false;
+          subexpr_type = GROUPING;
+          break;
+        case '=':
+          Advance(2);
+          parsing_modifiers = false;
+          lookaround_type = RegExpLookaround::LOOKAHEAD;
+          subexpr_type = POSITIVE_LOOKAROUND;
+          break;
+        case '!':
+          Advance(2);
+          parsing_modifiers = false;
+          lookaround_type = RegExpLookaround::LOOKAHEAD;
+          subexpr_type = NEGATIVE_LOOKAROUND;
+          break;
+        case '<':
+          Advance();
+          parsing_modifiers = false;
+          if (Next() == '=') {
+            Advance(2);
+            lookaround_type = RegExpLookaround::LOOKBEHIND;
+            subexpr_type = POSITIVE_LOOKAROUND;
+            break;
+          } else if (Next() == '!') {
+            Advance(2);
+            lookaround_type = RegExpLookaround::LOOKBEHIND;
+            subexpr_type = NEGATIVE_LOOKAROUND;
+            break;
+          }
+          is_named_capture = true;
+          has_named_captures_ = true;
+          Advance();
+          break;
+        default:
+          ReportError(RegExpError::kInvalidGroup);
+          return nullptr;
+      }
+    } while (parsing_modifiers);
+  }
+  if (modifiers_polarity == false) {
+    // We encountered a dash.
+    if (modifiers == 0) {
+      ReportError(RegExpError::kInvalidFlagGroup);
+      return nullptr;
     }
   }
   if (subexpr_type == CAPTURE) {
@@ -1309,7 +1361,7 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
   // Store current state and begin new disjunction parsing.
   return zone()->template New<RegExpParserState>(
       state, subexpr_type, lookaround_type, captures_started_, capture_name,
-      state->builder()->flags(), zone());
+      flags, zone());
 }
 
 // In order to know whether an escape is a backreference or not we have to scan
@@ -1567,8 +1619,7 @@ bool RegExpParserImpl<CharT>::ParseNamedBackReference(
   if (state->IsInsideCaptureGroup(name)) {
     builder->AddEmpty();
   } else {
-    RegExpBackReference* atom =
-        zone()->template New<RegExpBackReference>(builder->flags());
+    RegExpBackReference* atom = zone()->template New<RegExpBackReference>();
     atom->set_name(name);
 
     builder->AddAtom(atom);
@@ -3083,7 +3134,7 @@ bool RegExpBuilder::AddQuantifierToAtom(
   RegExpTree* atom = text_builder().PopLastAtom();
   if (atom != nullptr) {
     FlushText();
-  } else if (terms_.size() > 0) {
+  } else if (!terms_.empty()) {
     atom = terms_.back();
     terms_.pop_back();
     if (atom->IsLookaround()) {

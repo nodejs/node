@@ -158,6 +158,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
   void PauseBlackAllocation();
   void FinishBlackAllocation();
 
+  void StartPointerTableBlackAllocation();
+  void StopPointerTableBlackAllocation();
+
   void MarkRoots();
   // Returns true if the function succeeds in transitioning the object
   // from white to grey.

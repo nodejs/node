@@ -7,9 +7,9 @@
 namespace data_view {
 
 const kBuiltinNameByteLength: constexpr string =
-    'DataView.prototype.byteLength';
+    'get DataView.prototype.byteLength';
 const kBuiltinNameByteOffset: constexpr string =
-    'DataView.prototype.byteOffset';
+    'get DataView.prototype.byteOffset';
 
 macro MakeDataViewGetterNameString(kind: constexpr ElementsKind): String {
   if constexpr (kind == ElementsKind::UINT8_ELEMENTS) {
@@ -96,7 +96,7 @@ javascript builtin DataViewPrototypeGetByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Number {
   const dataView: JSDataViewOrRabGsabDataView =
-      ValidateDataView(context, receiver, 'get DataView.prototype.byte_length');
+      ValidateDataView(context, receiver, 'get DataView.prototype.byteLength');
   if (IsVariableLengthJSArrayBufferView(dataView)) {
     try {
       const byteLength = LoadVariableLengthJSArrayBufferViewByteLength(
@@ -120,7 +120,7 @@ javascript builtin DataViewPrototypeGetByteOffset(
     js-implicit context: NativeContext, receiver: JSAny)(
     ...arguments): Number {
   const dataView: JSDataViewOrRabGsabDataView =
-      ValidateDataView(context, receiver, 'get DataView.prototype.byte_offset');
+      ValidateDataView(context, receiver, 'get DataView.prototype.byteOffset');
   try {
     typed_array::IsJSArrayBufferViewDetachedOrOutOfBounds(dataView)
         otherwise DetachedOrOutOfBounds, NotDetachedNorOutOfBounds;

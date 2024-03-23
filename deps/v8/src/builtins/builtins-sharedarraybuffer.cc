@@ -219,13 +219,13 @@ Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
   if (IsUndefined(*timeout, isolate)) {
-    timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
+    timeout_number = Object::Number(ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
     timeout_number = Object::Number(*timeout);
     if (std::isnan(timeout_number))
-      timeout_number = Object::Number(*ReadOnlyRoots(isolate).infinity_value());
+      timeout_number = Object::Number(ReadOnlyRoots(isolate).infinity_value());
     else if (timeout_number < 0)
       timeout_number = 0;
   }

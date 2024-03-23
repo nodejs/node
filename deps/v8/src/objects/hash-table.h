@@ -126,12 +126,15 @@ class V8_EXPORT_PRIVATE HashTableBase : public NON_EXPORTED_BASE(FixedArray) {
   OBJECT_CONSTRUCTORS(HashTableBase, FixedArray);
 };
 
-template <typename Derived, typename Shape>
+template <typename Derived, typename ShapeT>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
     : public HashTableBase {
  public:
-  using ShapeT = Shape;
-  using Key = typename Shape::Key;
+  // TODO(jgruber): Derive from TaggedArrayBase instead of FixedArray, and
+  // merge with TaggedArraryBase's Shape class. Once the naming conflict is
+  // resolved rename all TodoShape occurrences back to Shape.
+  using TodoShape = ShapeT;
+  using Key = typename TodoShape::Key;
 
   // Returns a new HashTable object.
   template <typename IsolateT>
@@ -174,8 +177,9 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
   inline void SetKeyAt(InternalIndex entry, Tagged<Object> value,
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  static const int kElementsStartIndex = kPrefixStartIndex + Shape::kPrefixSize;
-  static const int kEntrySize = Shape::kEntrySize;
+  static const int kElementsStartIndex =
+      kPrefixStartIndex + TodoShape::kPrefixSize;
+  static const int kEntrySize = TodoShape::kEntrySize;
   static_assert(kEntrySize > 0);
   static const int kEntryKeyIndex = 0;
   static const int kElementsStartOffset =
@@ -257,7 +261,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
   static_assert(EntryToIndex(InternalIndex(kMaxRegularCapacity)) <
-                kMaxRegularLength);
+                FixedArray::kMaxRegularLength);
   static_assert(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
   static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
   static const int kMaxRegularIndex =

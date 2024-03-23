@@ -48,7 +48,7 @@ class OpIndex {
                   "to resolve() it in the assembler?");
   }
 
-  uint32_t id() const {
+  constexpr uint32_t id() const {
     // Operations are stored at an offset that's a multiple of
     // `sizeof(OperationStorageSlot)`. In addition, an operation occupies at
     // least `kSlotsPerId` many `OperationSlot`s. Therefore, we can assign id's
@@ -130,7 +130,7 @@ class OpIndex {
   }
 #endif
 
- private:
+ protected:
   static constexpr uint32_t kGenerationMaskShift = 1;
   static constexpr uint32_t kGenerationMask = 1 << kGenerationMaskShift;
   static constexpr uint32_t kUnmaskGenerationMask = ~kGenerationMask;
@@ -141,9 +141,45 @@ class OpIndex {
   uint32_t offset_;
 
   static constexpr uint32_t kTurbofanNodeIdFlag = 1;
+
+  template <typename H>
+  friend H AbslHashValue(H h, const OpIndex& idx) {
+    return H::combine(std::move(h), idx.offset_);
+  }
 };
 
-std::ostream& operator<<(std::ostream& os, OpIndex idx);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, OpIndex idx);
+
+class OptionalOpIndex : protected OpIndex {
+ public:
+  using OpIndex::OpIndex;
+  using OpIndex::valid;
+
+  constexpr OptionalOpIndex(OpIndex other)  // NOLINT(runtime/explicit)
+      : OpIndex(other) {}
+
+  static constexpr OptionalOpIndex Invalid() {
+    return OptionalOpIndex{OpIndex::Invalid()};
+  }
+
+  uint32_t hash() const { return OpIndex::hash(); }
+
+  constexpr bool has_value() const { return valid(); }
+  constexpr OpIndex value() const {
+    DCHECK(has_value());
+    return OpIndex(*this);
+  }
+  constexpr OpIndex value_or_invalid() const { return OpIndex(*this); }
+
+  template <typename H>
+  friend H AbslHashValue(H h, const OptionalOpIndex& idx) {
+    return H::combine(std::move(h), idx.offset_);
+  }
+};
+
+V8_INLINE std::ostream& operator<<(std::ostream& os, OptionalOpIndex idx) {
+  return os << idx.value_or_invalid();
+}
 
 // Dummy value for abstract representation classes that don't have a
 // RegisterRepresentation.
@@ -353,6 +389,40 @@ class V : public OpIndex {
   }
 };
 
+template <typename T>
+class OptionalV : public OptionalOpIndex {
+ public:
+  using type = T;
+  static constexpr auto rep = v_traits<type>::rep;
+  constexpr OptionalV() : OptionalOpIndex() {}
+
+  // OptionalV<T> is implicitly constructible from plain OptionalOpIndex.
+  template <typename U,
+            typename = std::enable_if_t<std::is_same_v<U, OptionalOpIndex> ||
+                                        std::is_same_v<U, OpIndex>>>
+  OptionalV(U index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+
+  // OptionalV<T> is implicitly constructible from OptionalV<U> iff
+  // `v_traits<U>::implicitly_convertible_to<T>::value`. This is typically the
+  // case if T == U or T is a subclass of U. Different types may specify
+  // different conversion rules in the corresponding `v_traits` when necessary.
+  template <typename U, typename = std::enable_if_t<v_traits<
+                            U>::template implicitly_convertible_to<T>::value>>
+  OptionalV(OptionalV<U> index)
+      : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+  template <typename U, typename = std::enable_if_t<v_traits<
+                            U>::template implicitly_convertible_to<T>::value>>
+  OptionalV(V<U> index) : OptionalOpIndex(index) {}  // NOLINT(runtime/explicit)
+
+  template <typename U>
+  static OptionalV<T> Cast(OptionalV<U> index) {
+    return OptionalV<T>(OptionalOpIndex{index});
+  }
+  static OptionalV<T> Cast(OptionalOpIndex index) {
+    return OptionalV<T>(index);
+  }
+};
+
 // ConstOrV<> is a generalization of V<> that allows constexpr values
 // (constants) to be passed implicitly. This allows reducers to write things
 // like
@@ -411,6 +481,9 @@ struct fast_hash<OpIndex> {
 };
 
 V8_INLINE size_t hash_value(OpIndex op) { return base::hash_value(op.hash()); }
+V8_INLINE size_t hash_value(OptionalOpIndex op) {
+  return base::hash_value(op.hash());
+}
 
 // `BlockIndex` is the index of a bound block.
 // A dominating block always has a smaller index.
@@ -443,7 +516,35 @@ struct fast_hash<BlockIndex> {
 
 V8_INLINE size_t hash_value(BlockIndex op) { return base::hash_value(op.id()); }
 
-std::ostream& operator<<(std::ostream& os, BlockIndex b);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os, BlockIndex b);
+
+#define DEFINE_STRONG_ORDERING_COMPARISON(lhs_type, rhs_type, lhs_access, \
+                                          rhs_access)                     \
+  V8_INLINE constexpr bool operator==(lhs_type l, rhs_type r) {           \
+    return lhs_access == rhs_access;                                      \
+  }                                                                       \
+  V8_INLINE constexpr bool operator!=(lhs_type l, rhs_type r) {           \
+    return lhs_access != rhs_access;                                      \
+  }                                                                       \
+  V8_INLINE constexpr bool operator<(lhs_type l, rhs_type r) {            \
+    return lhs_access < rhs_access;                                       \
+  }                                                                       \
+  V8_INLINE constexpr bool operator<=(lhs_type l, rhs_type r) {           \
+    return lhs_access <= rhs_access;                                      \
+  }                                                                       \
+  V8_INLINE constexpr bool operator>(lhs_type l, rhs_type r) {            \
+    return lhs_access > rhs_access;                                       \
+  }                                                                       \
+  V8_INLINE constexpr bool operator>=(lhs_type l, rhs_type r) {           \
+    return lhs_access >= rhs_access;                                      \
+  }
+DEFINE_STRONG_ORDERING_COMPARISON(OptionalOpIndex, OptionalOpIndex,
+                                  l.value_or_invalid(), r.value_or_invalid())
+DEFINE_STRONG_ORDERING_COMPARISON(OpIndex, OptionalOpIndex, l,
+                                  r.value_or_invalid())
+DEFINE_STRONG_ORDERING_COMPARISON(OptionalOpIndex, OpIndex,
+                                  l.value_or_invalid(), r)
+#undef DEFINE_STRONG_ORDERING_COMPARISON
 
 }  // namespace v8::internal::compiler::turboshaft
 

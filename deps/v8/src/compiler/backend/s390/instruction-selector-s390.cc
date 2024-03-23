@@ -1734,13 +1734,21 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
     node_t node) {
-  UNIMPLEMENTED();
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kS390_DoubleToInt32, node);
+  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
     node_t node) {
-  UNIMPLEMENTED();
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kS390_DoubleToUint32, node);
+  }
 }
 
 template <typename Adapter>
@@ -2497,10 +2505,15 @@ bool InstructionSelectorT<Adapter>::IsTailCallAddressImmediate() {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoad(node, node, SelectLoadOpcode(load_rep));
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoad(node, node, SelectLoadOpcode(load_rep));
+  }
 }
 
 template <typename Adapter>
@@ -2797,10 +2810,15 @@ VISIT_ATOMIC64_BINOP(Xor)
 #undef VISIT_ATOMIC64_BINOP
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoad(node, node, SelectLoadOpcode(load_rep));
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoad(node, node, SelectLoadOpcode(load_rep));
+  }
 }
 
 template <typename Adapter>
@@ -3161,7 +3179,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
-    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+    // implemented.
+    auto view = this->simd_shuffle_view(node);
+    CanonicalizeShuffle(view, shuffle, &is_swizzle);
     S390OperandGeneratorT<Adapter> g(this);
     Node* input0 = node->InputAt(0);
     Node* input1 = node->InputAt(1);
@@ -3200,6 +3221,22 @@ void InstructionSelectorT<Adapter>::VisitI8x16Swizzle(node_t node) {
          g.UseUniqueRegister(node->InputAt(1)));
   }
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  OperandGenerator g(this);
+  // TODO(miladfarca): Optimize by using UseAny.
+  auto input = g.UseRegister(node->InputAt(0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
+    node_t node) {
+  // TODO(miladfarca): Implement.
+  UNREACHABLE();
+}
+
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
@@ -3243,11 +3280,12 @@ void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
     } else {
       // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
       // Which in this case is ineffective on LE.
-      Emit(kS390_S128Const, dst,
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]))),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 4)),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
+      Emit(
+          kS390_S128Const, dst,
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]))),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 4)),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 8)),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 12)));
     }
   }
 }

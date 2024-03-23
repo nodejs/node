@@ -16,21 +16,31 @@ namespace internal {
 
 class Heap;
 
-HeapAllocator::HeapAllocator(Heap* heap) : heap_(heap) {}
+HeapAllocator::HeapAllocator(LocalHeap* local_heap)
+    : local_heap_(local_heap), heap_(local_heap->heap()) {}
 
-void HeapAllocator::Setup() {
+void HeapAllocator::Setup(LinearAllocationArea* new_allocation_info,
+                          LinearAllocationArea* old_allocation_info) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; ++i) {
     spaces_[i] = heap_->space(i);
   }
 
-  new_space_allocator_ =
-      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
-  old_space_allocator_ = heap_->old_space()->main_allocator();
-  trusted_space_allocator_ = heap_->trusted_space()->main_allocator();
-  code_space_allocator_ = heap_->code_space()->main_allocator();
+  if (heap_->new_space() && local_heap_->is_main_thread()) {
+    new_space_allocator_.emplace(local_heap_, heap_->new_space(),
+                                 new_allocation_info);
+  }
 
-  shared_old_allocator_ = heap_->shared_space_allocator_.get();
-  shared_lo_space_ = heap_->shared_lo_allocation_space();
+  old_space_allocator_.emplace(local_heap_, heap_->old_space(),
+                               old_allocation_info);
+
+  trusted_space_allocator_.emplace(local_heap_, heap_->trusted_space());
+  code_space_allocator_.emplace(local_heap_, heap_->code_space());
+
+  if (heap_->isolate()->has_shared_space()) {
+    shared_space_allocator_.emplace(local_heap_,
+                                    heap_->shared_allocation_space());
+    shared_lo_space_ = heap_->shared_lo_allocation_space();
+  }
 }
 
 void HeapAllocator::SetReadOnlySpace(ReadOnlySpace* read_only_space) {
@@ -43,16 +53,15 @@ AllocationResult HeapAllocator::AllocateRawLargeInternal(
   DCHECK_GT(size_in_bytes, heap_->MaxRegularHeapObjectSize(allocation));
   switch (allocation) {
     case AllocationType::kYoung:
-      return new_lo_space()->AllocateRaw(size_in_bytes);
+      return new_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kOld:
-      return lo_space()->AllocateRaw(size_in_bytes);
+      return lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kCode:
-      return code_lo_space()->AllocateRaw(size_in_bytes);
+      return code_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kSharedOld:
-      return shared_lo_space()->AllocateRawBackground(
-          heap_->main_thread_local_heap(), size_in_bytes);
+      return shared_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kTrusted:
-      return trusted_lo_space()->AllocateRaw(size_in_bytes);
+      return trusted_lo_space()->AllocateRaw(local_heap_, size_in_bytes);
     case AllocationType::kMap:
     case AllocationType::kReadOnly:
     case AllocationType::kSharedMap:
@@ -139,16 +148,35 @@ AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
                               V8::kHeapOOM);
 }
 
-void HeapAllocator::MakeLinearAllocationAreaIterable() {
+void HeapAllocator::MakeLinearAllocationAreasIterable() {
   if (new_space_allocator_) {
     new_space_allocator_->MakeLinearAllocationAreaIterable();
   }
   old_space_allocator_->MakeLinearAllocationAreaIterable();
   trusted_space_allocator_->MakeLinearAllocationAreaIterable();
   code_space_allocator_->MakeLinearAllocationAreaIterable();
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MakeLinearAllocationAreaIterable();
+  }
 }
 
-void HeapAllocator::MarkLinearAllocationAreaBlack() {
+#if DEBUG
+void HeapAllocator::VerifyLinearAllocationAreas() const {
+  if (new_space_allocator_) {
+    new_space_allocator_->Verify();
+  }
+  old_space_allocator_->Verify();
+  trusted_space_allocator_->Verify();
+  code_space_allocator_->Verify();
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->Verify();
+  }
+}
+#endif  // DEBUG
+
+void HeapAllocator::MarkLinearAllocationAreasBlack() {
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();
 
@@ -159,7 +187,7 @@ void HeapAllocator::MarkLinearAllocationAreaBlack() {
   }
 }
 
-void HeapAllocator::UnmarkLinearAllocationArea() {
+void HeapAllocator::UnmarkLinearAllocationsArea() {
   old_space_allocator_->UnmarkLinearAllocationArea();
   trusted_space_allocator_->UnmarkLinearAllocationArea();
 
@@ -168,6 +196,52 @@ void HeapAllocator::UnmarkLinearAllocationArea() {
         "Marking Code objects requires write access to the Code page header");
     code_space_allocator_->UnmarkLinearAllocationArea();
   }
+}
+
+void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->MarkLinearAllocationAreaBlack();
+  }
+}
+
+void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
+  if (shared_space_allocator_) {
+    shared_space_allocator_->UnmarkLinearAllocationArea();
+  }
+}
+
+void HeapAllocator::FreeLinearAllocationAreas() {
+  if (new_space_allocator_) {
+    new_space_allocator_->FreeLinearAllocationArea();
+  }
+  old_space_allocator_->FreeLinearAllocationArea();
+  trusted_space_allocator_->FreeLinearAllocationArea();
+
+  {
+    CodePageHeaderModificationScope rwx_write_scope(
+        "Setting the high water mark requires write access to the Code page "
+        "header");
+    code_space_allocator_->FreeLinearAllocationArea();
+  }
+
+  if (shared_space_allocator_) {
+    shared_space_allocator_->FreeLinearAllocationArea();
+  }
+}
+
+void HeapAllocator::PublishPendingAllocations() {
+  if (new_space_allocator_) {
+    new_space_allocator_->MoveOriginalTopForward();
+  }
+
+  old_space_allocator_->MoveOriginalTopForward();
+  trusted_space_allocator_->MoveOriginalTopForward();
+  code_space_allocator_->MoveOriginalTopForward();
+
+  lo_space()->ResetPendingObject();
+  if (new_lo_space()) new_lo_space()->ResetPendingObject();
+  code_lo_space()->ResetPendingObject();
+  trusted_lo_space()->ResetPendingObject();
 }
 
 void HeapAllocator::AddAllocationObserver(
@@ -266,9 +340,7 @@ void HeapAllocator::UpdateAllocationTimeout() {
   }
 
   int interval = allocation_gc_interval_.load(std::memory_order_relaxed);
-  if (interval >= 0) {
-    allocation_timeout_ = interval;
-  }
+  allocation_timeout_ = std::max(0, interval);
 }
 
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT

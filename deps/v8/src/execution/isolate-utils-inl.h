@@ -34,6 +34,15 @@ V8_INLINE Isolate* GetIsolateFromWritableObject(Tagged<HeapObject> object) {
 #endif  // V8_ENABLE_THIRD_PARTY_HEAP
 }
 
+V8_INLINE Heap* GetHeapFromWritableObject(const HeapObjectLayout& object) {
+  return GetHeapFromWritableObject(Tagged(&object));
+}
+
+V8_INLINE Isolate* GetIsolateFromWritableObject(
+    const HeapObjectLayout& object) {
+  return GetIsolateFromWritableObject(Tagged(&object));
+}
+
 V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
                                         Isolate** isolate) {
 #ifdef V8_ENABLE_THIRD_PARTY_HEAP

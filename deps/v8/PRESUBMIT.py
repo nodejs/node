@@ -132,7 +132,8 @@ def _V8PresubmitChecks(input_api, output_api):
     results.append(output_api.PresubmitError("GCMole pattern check failed"))
   results.extend(input_api.canned_checks.CheckAuthorizedAuthor(
       input_api, output_api, bot_allowlist=[
-        'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com'
+        'v8-ci-autoroll-builder@chops-service-accounts.iam.gserviceaccount.com',
+        'v8-ci-test262-import-export@chops-service-accounts.iam.gserviceaccount.com',
       ]))
   return results
 

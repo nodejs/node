@@ -178,13 +178,14 @@ class DeadCodeAnalysis {
  public:
   explicit DeadCodeAnalysis(Graph& graph, Zone* phase_zone)
       : graph_(graph),
-        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone),
+        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone,
+                  &graph),
         entry_control_state_(graph.block_count(), ControlState::Unreachable(),
                              phase_zone),
         rewritable_branch_targets_(phase_zone) {}
 
   template <bool trace_analysis>
-  std::pair<FixedSidetable<OperationState::Liveness>,
+  std::pair<FixedOpIndexSidetable<OperationState::Liveness>,
             ZoneMap<uint32_t, BlockIndex>>
   Run() {
     if constexpr (trace_analysis) {
@@ -257,15 +258,7 @@ class DeadCodeAnalysis {
 
       if (op.Is<CallOp>()) {
         // The function contains a call, so it's not a leaf function.
-        DCHECK_NE(is_leaf_function, LeafFunctionState::kLeafFunction);
-        is_leaf_function = LeafFunctionState::kNotLeafFunction;
-      } else if (is_leaf_function != LeafFunctionState::kNotLeafFunction &&
-                 op.Is<StackCheckOp>() &&
-                 op.Cast<StackCheckOp>().check_kind ==
-                     StackCheckOp::CheckKind::kFunctionHeaderCheck) {
-        is_leaf_function = LeafFunctionState::kLeafFunction;
-        DCHECK_EQ(op_state, OperationState::kDead);
-        op_state = OperationState::kDead;
+        is_leaf_function_ = false;
       } else if (op.Is<BranchOp>()) {
         if (control_state != ControlState::NotEliminatable()) {
           // Branch is still dead.
@@ -415,20 +408,17 @@ class DeadCodeAnalysis {
     entry_control_state_[block.index()] = control_state;
   }
 
+  bool is_leaf_function() const { return is_leaf_function_; }
+
  private:
   Graph& graph_;
-  FixedSidetable<OperationState::Liveness> liveness_;
+  FixedOpIndexSidetable<OperationState::Liveness> liveness_;
   FixedBlockSidetable<ControlState> entry_control_state_;
   ZoneMap<uint32_t, BlockIndex> rewritable_branch_targets_;
   // The stack check at function entry of leaf functions can be eliminated, as
   // it is guaranteed that another stack check will be hit eventually. This flag
   // records if the current function is a leaf function.
-  enum class LeafFunctionState {
-    kMaybeLeafFunction,
-    kNotLeafFunction,
-    kLeafFunction
-  };
-  LeafFunctionState is_leaf_function = LeafFunctionState::kMaybeLeafFunction;
+  bool is_leaf_function_ = true;
 };
 
 template <class Next>
@@ -465,8 +455,10 @@ class DeadCodeEliminationReducer
     return Continuation{this}.ReduceInputGraph(ig_index, op);
   }
 
+  bool IsLeafFunction() const { return analyzer_.is_leaf_function(); }
+
  private:
-  base::Optional<FixedSidetable<OperationState::Liveness>> liveness_;
+  base::Optional<FixedOpIndexSidetable<OperationState::Liveness>> liveness_;
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_{Asm().phase_zone()};
   DeadCodeAnalysis analyzer_{Asm().modifiable_input_graph(),
                              Asm().phase_zone()};

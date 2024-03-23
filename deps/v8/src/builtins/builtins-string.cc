@@ -150,7 +150,7 @@ BUILTIN(StringPrototypeLocaleCompare) {
       isolate, str1, str2, args.atOrUndefined(isolate, 2),
       args.atOrUndefined(isolate, 3), kMethod);
   if (!result.has_value()) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return ReadOnlyRoots(isolate).exception();
   }
   return Smi::FromInt(result.value());

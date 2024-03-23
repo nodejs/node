@@ -294,6 +294,7 @@ void JsonPrintAllSourceWithPositionsWasm(
   os << "\"inlinings\": {";
   for (size_t i = 0; i < positions.size(); ++i) {
     if (i != 0) os << ", ";
+    DCHECK(source_map.contains(positions[i].inlinee_func_index));
     size_t source_id = source_map.find(positions[i].inlinee_func_index)->second;
     SourcePosition inlining_pos = positions[i].caller_pos;
     os << '"' << i << "\": {\"inliningId\": " << i
@@ -529,8 +530,7 @@ class GraphC1Visualizer {
   void PrintSchedule(const char* phase, const Schedule* schedule,
                      const SourcePositionTable* positions,
                      const InstructionSequence* instructions);
-  void PrintLiveRanges(const char* phase,
-                       const TopTierRegisterAllocationData* data);
+  void PrintLiveRanges(const char* phase, const RegisterAllocationData* data);
   Zone* zone() const { return zone_; }
 
  private:
@@ -811,8 +811,8 @@ void GraphC1Visualizer::PrintSchedule(const char* phase,
   }
 }
 
-void GraphC1Visualizer::PrintLiveRanges(
-    const char* phase, const TopTierRegisterAllocationData* data) {
+void GraphC1Visualizer::PrintLiveRanges(const char* phase,
+                                        const RegisterAllocationData* data) {
   Tag tag(this, "intervals");
   PrintStringProperty("name", phase);
 
@@ -924,14 +924,9 @@ std::ostream& operator<<(std::ostream& os, const AsC1V& ac) {
 
 std::ostream& operator<<(std::ostream& os,
                          const AsC1VRegisterAllocationData& ac) {
-  // TODO(rmcilroy): Add support for fast register allocator.
-  if (ac.data_->type() == RegisterAllocationData::kTopTier) {
-    AccountingAllocator allocator;
-    Zone tmp_zone(&allocator, ZONE_NAME);
-    GraphC1Visualizer(os, &tmp_zone)
-        .PrintLiveRanges(ac.phase_,
-                         TopTierRegisterAllocationData::cast(ac.data_));
-  }
+  AccountingAllocator allocator;
+  Zone tmp_zone(&allocator, ZONE_NAME);
+  GraphC1Visualizer(os, &tmp_zone).PrintLiveRanges(ac.phase_, ac.data_);
   return os;
 }
 
@@ -1180,22 +1175,12 @@ void PrintTopLevelLiveRanges(std::ostream& os,
 
 std::ostream& operator<<(std::ostream& os,
                          const RegisterAllocationDataAsJSON& ac) {
-  if (ac.data_.type() == RegisterAllocationData::kTopTier) {
-    const TopTierRegisterAllocationData& ac_data =
-        TopTierRegisterAllocationData::cast(ac.data_);
-    os << "\"fixed_double_live_ranges\": ";
-    PrintTopLevelLiveRanges(os, ac_data.fixed_double_live_ranges(), ac.code_);
-    os << ",\"fixed_live_ranges\": ";
-    PrintTopLevelLiveRanges(os, ac_data.fixed_live_ranges(), ac.code_);
-    os << ",\"live_ranges\": ";
-    PrintTopLevelLiveRanges(os, ac_data.live_ranges(), ac.code_);
-  } else {
-    // TODO(rmcilroy): Add support for fast register allocation data. For now
-    // output the expected fields to keep Turbolizer happy.
-    os << "\"fixed_double_live_ranges\": {}";
-    os << ",\"fixed_live_ranges\": {}";
-    os << ",\"live_ranges\": {}";
-  }
+  os << "\"fixed_double_live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.fixed_double_live_ranges(), ac.code_);
+  os << ",\"fixed_live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.fixed_live_ranges(), ac.code_);
+  os << ",\"live_ranges\": ";
+  PrintTopLevelLiveRanges(os, ac.data_.live_ranges(), ac.code_);
   return os;
 }
 

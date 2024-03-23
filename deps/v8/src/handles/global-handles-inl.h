@@ -34,7 +34,7 @@ GlobalHandleVector<T>::GlobalHandleVector(LocalHeap* local_heap)
 
 template <typename T>
 GlobalHandleVector<T>::GlobalHandleVector(Heap* heap)
-    : locations_(StrongRootBlockAllocator(heap)) {}
+    : locations_(StrongRootAllocator<Address>(heap)) {}
 
 }  // namespace internal
 }  // namespace v8

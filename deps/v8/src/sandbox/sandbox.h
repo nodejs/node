@@ -240,6 +240,23 @@ V8_EXPORT_PRIVATE Sandbox* GetProcessWideSandbox();
 
 #endif  // V8_ENABLE_SANDBOX
 
+// Helper function that can be used to ensure that certain objects are not
+// located inside the sandbox. Typically used for trusted objects.
+// Will always return false when the sandbox is disabled or partially reserved.
+V8_INLINE bool InsideSandbox(uintptr_t address) {
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* sandbox = GetProcessWideSandbox();
+  // On some platforms we cannot always reserve the full address space for
+  // the sandbox. In this case, unrelated objects may legitimately end up
+  // inside the sandbox address space and as such we have to skip this test
+  // as it would otherwise fail. This is fine, however, since such
+  // configurations are already assumed to be insecure.
+  return !sandbox->is_partially_reserved() && sandbox->Contains(address);
+#else
+  return false;
+#endif
+}
+
 V8_INLINE void* EmptyBackingStoreBuffer() {
 #ifdef V8_ENABLE_SANDBOX
   return reinterpret_cast<void*>(

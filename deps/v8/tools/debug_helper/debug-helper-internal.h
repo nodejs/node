@@ -236,10 +236,6 @@ uintptr_t EnsureDecompressed(uintptr_t address,
 // into the corresponding PropertyKind for the array.
 d::PropertyKind GetArrayKind(d::MemoryAccessResult mem_result);
 
-// List of fully-qualified names for every Object subtype, generated based on
-// Torque class definitions.
-extern const d::ClassList kObjectClassList;
-
 }  // namespace debug_helper_internal
 }  // namespace internal
 }  // namespace v8

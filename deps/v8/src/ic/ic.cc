@@ -21,6 +21,7 @@
 #include "src/handles/maybe-handles.h"
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-configuration-inl.h"
+#include "src/ic/handler-configuration.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/stub-cache.h"
@@ -82,19 +83,19 @@ char IC::TransitionMarkFromState(IC::State state) {
 namespace {
 
 const char* GetModifier(KeyedAccessLoadMode mode) {
-  if (mode == LOAD_IGNORE_OUT_OF_BOUNDS) return ".IGNORE_OOB";
+  if (mode == KeyedAccessLoadMode::kHandleOOB) return ".IGNORE_OOB";
   return "";
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {
   switch (mode) {
-    case STORE_HANDLE_COW:
+    case KeyedAccessStoreMode::kHandleCOW:
       return ".COW";
-    case STORE_AND_GROW_HANDLE_COW:
+    case KeyedAccessStoreMode::kGrowAndHandleCOW:
       return ".STORE+COW";
-    case STORE_IGNORE_OUT_OF_BOUNDS:
+    case KeyedAccessStoreMode::kIgnoreTypedArrayOOB:
       return ".IGNORE_OOB";
-    case STANDARD_STORE:
+    case KeyedAccessStoreMode::kInBounds:
       return "";
   }
   UNREACHABLE();
@@ -151,17 +152,18 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   int code_offset = 0;
   Tagged<AbstractCode> code = function->abstract_code(isolate_);
-  if (function->ActiveTierIsIgnition()) {
+  if (function->ActiveTierIsIgnition(isolate())) {
     code_offset = InterpretedFrame::GetBytecodeOffset(frame->fp());
-  } else if (function->ActiveTierIsBaseline()) {
+  } else if (function->ActiveTierIsBaseline(isolate())) {
     // TODO(pthier): AbstractCode should fully support Baseline code.
     BaselineFrame* baseline_frame = BaselineFrame::cast(frame);
     code_offset = baseline_frame->GetBytecodeOffset();
     code = AbstractCode::cast(baseline_frame->GetBytecodeArray());
   } else {
-    code_offset = static_cast<int>(frame->pc() - function->instruction_start());
+    code_offset =
+        static_cast<int>(frame->pc() - function->instruction_start(isolate()));
   }
-  JavaScriptFrame::CollectFunctionAndOffsetForICStats(function, code,
+  JavaScriptFrame::CollectFunctionAndOffsetForICStats(isolate(), function, code,
                                                       code_offset);
 
   // Reserve enough space for IC transition state, the longest length is 17.
@@ -314,22 +316,7 @@ void IC::OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                            FeedbackSlot slot, const char* reason) {
 #ifdef V8_TRACE_FEEDBACK_UPDATES
   if (v8_flags.trace_feedback_updates) {
-    int slot_count = vector->metadata()->slot_count();
-    StdoutStream os;
-    if (slot.IsInvalid()) {
-      os << "[Feedback slots in ";
-    } else {
-      os << "[Feedback slot " << slot.ToInt() << "/" << slot_count << " in ";
-    }
-    ShortPrint(vector->shared_function_info(), os);
-    if (slot.IsInvalid()) {
-      os << " updated - ";
-    } else {
-      os << " updated to ";
-      vector->FeedbackSlotPrint(os, slot);
-      os << " - ";
-    }
-    os << reason << "]" << std::endl;
+    FeedbackVector::TraceFeedbackChange(isolate, vector, slot, reason);
   }
 #endif
 
@@ -493,9 +480,8 @@ MaybeHandle<Object> LoadGlobalIC::Load(Handle<Name> name,
 
     VariableLookupResult lookup_result;
     if (script_contexts->Lookup(str_name, &lookup_result)) {
-      Handle<Context> script_context = ScriptContextTable::GetContext(
-          isolate(), script_contexts, lookup_result.context_index);
-
+      Handle<Context> script_context(
+          script_contexts->get(lookup_result.context_index), isolate());
       Handle<Object> result(script_context->get(lookup_result.slot_index),
                             isolate());
 
@@ -1154,14 +1140,38 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
   return MaybeObjectHandle(Handle<InstructionStream>::null());
 }
 
-bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
+std::optional<KeyedLoadIC::HandlerInfo> KeyedLoadIC::GetHandlerInfoFor(
+    Handle<Map> receiver_map) {
   const MaybeObjectHandle& handler = nexus()->FindHandlerForMap(receiver_map);
-  if (handler.is_null()) return false;
-  return LoadHandler::GetKeyedAccessLoadMode(*handler) == STANDARD_LOAD;
+  if (handler.is_null()) return {};
+  KeyedAccessLoadMode load_mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
+  bool convert_hole = LoadHandler::GetConvertHole(*handler);
+  return HandlerInfo{load_mode, convert_hole};
+}
+
+KeyedLoadIC::HandlerInfo KeyedLoadIC::GeneralizeHandlerInfo(
+    std::optional<HandlerInfo> old_info, const HandlerInfo new_info) {
+  if (!old_info.has_value()) return new_info;
+  KeyedAccessLoadMode load_mode = (LoadModeIsInBounds(old_info->load_mode)
+                                       ? new_info.load_mode
+                                       : KeyedAccessLoadMode::kHandleOOB);
+  DCHECK_IMPLIES(
+      LoadModeHandlesOOB(old_info->load_mode) || old_info->convert_hole,
+      LoadModeHandlesOOB(new_info.load_mode) || new_info.convert_hole);
+  bool convert_hole = old_info->convert_hole || new_info.convert_hole;
+  return HandlerInfo{load_mode, convert_hole};
+}
+
+bool KeyedLoadIC::AllowedHandlerChange(std::optional<HandlerInfo> old_info,
+                                       const HandlerInfo new_info) {
+  if (!old_info.has_value()) return true;
+  // Only allow transitions to allow OOB or allow convert to a hole.
+  return old_info->load_mode < new_info.load_mode ||
+         old_info->convert_hole < new_info.convert_hole;
 }
 
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
-                                    KeyedAccessLoadMode load_mode) {
+                                    const HandlerInfo new_info) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
@@ -1169,7 +1179,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.empty()) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
+    Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1198,7 +1208,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
              target_receiver_maps.at(0)->elements_kind(),
              Handle<JSObject>::cast(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
-      Handle<Object> handler = LoadElementHandler(receiver_map, load_mode);
+      Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }
   }
@@ -1207,14 +1217,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
+  std::optional<KeyedLoadIC::HandlerInfo> old_info;
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
-    // If the {receiver_map} previously had a handler that didn't handle
-    // out-of-bounds access, but can generally handle it, we can just go
-    // on and update the handler appropriately below.
-    if (load_mode != LOAD_IGNORE_OUT_OF_BOUNDS ||
-        !CanChangeToAllowOutOfBounds(receiver_map)) {
-      // If the miss wasn't due to an unseen map, a polymorphic stub
-      // won't help, use the generic stub.
+    old_info = GetHandlerInfoFor(receiver_map);
+    if (!AllowedHandlerChange(old_info, new_info)) {
       set_slow_stub_reason("same map added twice");
       return;
     }
@@ -1230,7 +1236,8 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   MaybeObjectHandles handlers;
   handlers.reserve(target_receiver_maps.size());
-  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
+  HandlerInfo info = GeneralizeHandlerInfo(old_info, new_info);
+  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, info);
   DCHECK_LE(1, target_receiver_maps.size());
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
@@ -1271,10 +1278,77 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
 
   return false;
 }
+
+bool AllowConvertHoleElementToUndefined(Isolate* isolate,
+                                        Handle<Object> receiver) {
+  if (!IsHeapObject(*receiver)) return false;
+  DCHECK(IsHeapObject(*receiver));
+  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
+  return AllowConvertHoleElementToUndefined(isolate, receiver_map);
+}
+
+bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
+  size_t length;
+  if (IsJSArray(*receiver)) {
+    length = Object::Number(JSArray::cast(*receiver)->length());
+  } else if (IsJSTypedArray(*receiver)) {
+    length = JSTypedArray::cast(*receiver)->GetLength();
+  } else if (IsJSObject(*receiver)) {
+    length = JSObject::cast(*receiver)->elements()->length();
+  } else if (IsString(*receiver)) {
+    length = String::cast(*receiver)->length();
+  } else {
+    return false;
+  }
+  return index >= length;
+}
+
+bool AllowReadingHoleElement(ElementsKind elements_kind) {
+  // TODO(victorgomes): TF does not support reading holes in holey double
+  // arrays. Checking only for HOLEY_SMI_ELEMENTS and HOLEY_ELEMENTS avoid
+  // a deopt-loop.
+  return (elements_kind == HOLEY_SMI_ELEMENTS ||
+          elements_kind == HOLEY_ELEMENTS);
+}
+
+KeyedLoadIC::HandlerInfo GetHandlerInfo(Isolate* isolate,
+                                        Handle<Object> receiver, size_t index,
+                                        bool is_found) {
+  if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
+    return KeyedLoadIC::kInBoundsNoHollyAccess;
+  }
+  bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
+  KeyedAccessLoadMode load_mode = is_oob_access
+                                      ? KeyedAccessLoadMode::kHandleOOB
+                                      : KeyedAccessLoadMode::kInBounds;
+  DCHECK(IsHeapObject(*receiver));
+  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
+  bool is_hole = !is_found && !is_oob_access &&
+                 AllowReadingHoleElement(receiver_map->elements_kind());
+  return KeyedLoadIC::HandlerInfo{load_mode, is_hole};
+}
+
+KeyedLoadIC::HandlerInfo GetUpdatedHandlerInfoForMap(
+    Isolate* isolate, Handle<Map> map, KeyedLoadIC::HandlerInfo info) {
+  // Check if we can convert the result to undefined, either due to an OOB or
+  // reading a hole.
+  bool allow_convert_hole_to_undefined =
+      AllowConvertHoleElementToUndefined(isolate, map);
+  // Check if the elements kind allow reading a hole.
+  bool allow_reading_hole_element =
+      AllowReadingHoleElement(map->elements_kind());
+  KeyedAccessLoadMode load_mode = allow_convert_hole_to_undefined
+                                      ? info.load_mode
+                                      : KeyedAccessLoadMode::kInBounds;
+  bool convert_hole = allow_convert_hole_to_undefined &&
+                      allow_reading_hole_element && info.convert_hole;
+  return KeyedLoadIC::HandlerInfo{load_mode, convert_hole};
+}
+
 }  // namespace
 
 Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
-                                               KeyedAccessLoadMode load_mode) {
+                                               const HandlerInfo info) {
   // Has a getter interceptor, or is any has and has a query interceptor.
   if (receiver_map->has_indexed_interceptor() &&
       (!IsUndefined(receiver_map->GetIndexedInterceptor()->getter(),
@@ -1293,7 +1367,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
     if (IsAnyHas()) return LoadHandler::LoadSlow(isolate());
-    return LoadHandler::LoadIndexedString(isolate(), load_mode);
+    return LoadHandler::LoadIndexedString(isolate(), info.load_mode);
   }
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
@@ -1321,24 +1395,22 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (elements_kind == DICTIONARY_ELEMENTS) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
     return LoadHandler::LoadElement(isolate(), elements_kind, false,
-                                    is_js_array, load_mode);
+                                    is_js_array, info.load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
-  bool convert_hole_to_undefined =
-      (elements_kind == HOLEY_SMI_ELEMENTS ||
-       elements_kind == HOLEY_ELEMENTS) &&
-      AllowConvertHoleElementToUndefined(isolate(), receiver_map);
+  DCHECK_IMPLIES(info.convert_hole, AllowReadingHoleElement(elements_kind) &&
+                                        AllowConvertHoleElementToUndefined(
+                                            isolate(), receiver_map));
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
-  return LoadHandler::LoadElement(isolate(), elements_kind,
-                                  convert_hole_to_undefined, is_js_array,
-                                  load_mode);
+  return LoadHandler::LoadElement(isolate(), elements_kind, info.convert_hole,
+                                  is_js_array, info.load_mode);
 }
 
-void KeyedLoadIC::LoadElementPolymorphicHandlers(
-    MapHandles* receiver_maps, MaybeObjectHandles* handlers,
-    KeyedAccessLoadMode load_mode) {
+void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
+                                                 MaybeObjectHandles* handlers,
+                                                 const HandlerInfo info) {
   // Filter out deprecated maps to ensure their instances get migrated.
   receiver_maps->erase(
       std::remove_if(
@@ -1357,8 +1429,9 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(
         receiver_map->NotifyLeafMapLayoutChange(isolate());
       }
     }
-    handlers->push_back(
-        MaybeObjectHandle(LoadElementHandler(receiver_map, load_mode)));
+    handlers->push_back(MaybeObjectHandle(LoadElementHandler(
+        receiver_map,
+        GetUpdatedHandlerInfoForMap(isolate(), receiver_map, info))));
   }
 }
 
@@ -1436,44 +1509,18 @@ bool CanCache(Handle<Object> receiver, InlineCacheState state) {
   return !IsAccessCheckNeeded(*receiver) && !IsJSPrimitiveWrapper(*receiver);
 }
 
-bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
-  size_t length;
-  if (IsJSArray(*receiver)) {
-    length = Object::Number(JSArray::cast(*receiver)->length());
-  } else if (IsJSTypedArray(*receiver)) {
-    length = JSTypedArray::cast(*receiver)->GetLength();
-  } else if (IsJSObject(*receiver)) {
-    length = JSObject::cast(*receiver)->elements()->length();
-  } else if (IsString(*receiver)) {
-    length = String::cast(*receiver)->length();
-  } else {
-    return false;
-  }
-  return index >= length;
-}
-
-KeyedAccessLoadMode GetLoadMode(Isolate* isolate, Handle<Object> receiver,
-                                size_t index) {
-  if (IsOutOfBoundsAccess(receiver, index)) {
-    DCHECK(IsHeapObject(*receiver));
-    Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(),
-                             isolate);
-    if (AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
-      return LOAD_IGNORE_OUT_OF_BOUNDS;
-    }
-  }
-  return STANDARD_LOAD;
-}
-
 }  // namespace
 
 MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
-                                             Handle<Object> key) {
+                                             Handle<Object> key,
+                                             bool* is_found) {
   Handle<Object> result;
 
   if (IsKeyedLoadIC()) {
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate(), result, Runtime::GetObjectProperty(isolate(), object, key),
+        isolate(), result,
+        Runtime::GetObjectProperty(isolate(), object, key, Handle<Object>(),
+                                   is_found),
         Object);
   } else {
     DCHECK(IsKeyedHasIC());
@@ -1484,27 +1531,42 @@ MaybeHandle<Object> KeyedLoadIC::RuntimeLoad(Handle<Object> object,
   return result;
 }
 
+MaybeHandle<Object> KeyedLoadIC::LoadName(Handle<Object> object,
+                                          Handle<Object> key,
+                                          Handle<Name> name) {
+  Handle<Object> load_handle;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle, LoadIC::Load(object, name),
+                             Object);
+
+  if (vector_needs_update()) {
+    ConfigureVectorState(MEGAMORPHIC, key);
+    TraceIC("LoadIC", key);
+  }
+
+  DCHECK(!load_handle.is_null());
+  return load_handle;
+}
+
 MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                       Handle<Object> key) {
   if (MigrateDeprecated(isolate(), object)) {
     return RuntimeLoad(object, key);
   }
 
-  Handle<Object> load_handle;
-
   intptr_t maybe_index;
-  size_t index;
   Handle<Name> maybe_name;
   KeyType key_type = TryConvertKey(key, isolate(), &maybe_index, &maybe_name);
 
-  if (key_type == kName) {
-    ASSIGN_RETURN_ON_EXCEPTION(isolate(), load_handle,
-                               LoadIC::Load(object, maybe_name), Object);
-  } else if (key_type == kIntPtr && CanCache(object, state()) &&
-             IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object),
-                             &index)) {
-    KeyedAccessLoadMode load_mode = GetLoadMode(isolate(), object, index);
-    UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
+  if (key_type == kName) return LoadName(object, key, maybe_name);
+
+  bool is_found = false;
+  MaybeHandle<Object> result = RuntimeLoad(object, key, &is_found);
+
+  size_t index;
+  if (key_type == kIntPtr && CanCache(object, state()) &&
+      IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object), &index)) {
+    UpdateLoadElement(Handle<HeapObject>::cast(object),
+                      GetHandlerInfo(isolate(), object, index, is_found));
     if (is_vector_set()) {
       TraceIC("LoadIC", key);
     }
@@ -1515,9 +1577,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     TraceIC("LoadIC", key);
   }
 
-  if (!load_handle.is_null()) return load_handle;
-
-  return RuntimeLoad(object, key);
+  return result;
 }
 
 bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
@@ -1625,18 +1685,22 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(str_name, &lookup_result)) {
-    Handle<Context> script_context = ScriptContextTable::GetContext(
-        isolate(), script_contexts, lookup_result.context_index);
+    DisallowGarbageCollection no_gc;
+    DisableGCMole no_gcmole;
+    Tagged<Context> script_context =
+        script_contexts->get(lookup_result.context_index);
     if (lookup_result.mode == VariableMode::kConst) {
+      AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
     }
 
-    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
-                                  isolate());
+    Tagged<Object> previous_value =
+        script_context->get(lookup_result.slot_index);
 
-    if (IsTheHole(*previous_value, isolate())) {
-      // Do not install stubs and stay pre-monomorphic for
-      // uninitialized accesses.
+    if (IsTheHole(previous_value, isolate())) {
+      // Do not install stubs and stay pre-monomorphic for uninitialized
+      // accesses.
+      AllowGarbageCollection yes_gc;
       THROW_NEW_ERROR(
           isolate(),
           NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
@@ -2184,7 +2248,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     // there is only a change in the store_mode we can still stay monomorphic.
     if (receiver_map.is_identical_to(previous_receiver_map) &&
         new_receiver_map.is_identical_to(receiver_map) &&
-        old_store_mode == STANDARD_STORE && store_mode != STANDARD_STORE) {
+        StoreModeIsInBounds(old_store_mode) &&
+        !StoreModeIsInBounds(store_mode)) {
       if (IsJSArrayMap(*receiver_map) &&
           JSArray::MayHaveReadOnlyLength(*receiver_map)) {
         set_slow_stub_reason(
@@ -2225,8 +2290,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
-  if (old_store_mode != STANDARD_STORE) {
-    if (store_mode == STANDARD_STORE) {
+  if (!StoreModeIsInBounds(old_store_mode)) {
+    if (StoreModeIsInBounds(store_mode)) {
       store_mode = old_store_mode;
     } else if (store_mode != old_store_mode) {
       set_slow_stub_reason("store mode mismatch");
@@ -2237,7 +2302,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // If the store mode isn't the standard mode, make sure that all polymorphic
   // receivers are either external arrays, or all "normal" arrays with writable
   // length. Otherwise, use the megamorphic stub.
-  if (store_mode != STANDARD_STORE) {
+  if (!StoreModeIsInBounds(store_mode)) {
     size_t external_arrays = 0;
     for (MapAndHandler map_and_handler : target_maps_and_handlers) {
       Handle<Map> map = map_and_handler.first;
@@ -2280,7 +2345,8 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   // initializing store to array literal.
   DCHECK_IMPLIES(
       !receiver_map->has_dictionary_elements() &&
-          receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate()),
+          receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+              isolate()),
       IsStoreInArrayLiteralIC());
 
   if (IsJSProxyMap(*receiver_map)) {
@@ -2310,7 +2376,8 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         receiver_map->has_fast_packed_elements()) {
       // Allow fast behaviour for in-bounds stores while making it miss and
       // properly handle the out of bounds store case.
-      code = StoreHandler::StoreFastElementBuiltin(isolate(), STANDARD_STORE);
+      code = StoreHandler::StoreFastElementBuiltin(
+          isolate(), KeyedAccessStoreMode::kInBounds);
     } else {
       code = StoreHandler::StoreFastElementBuiltin(isolate(), store_mode);
       if (receiver_map->has_typed_array_or_rab_gsab_typed_array_elements()) {
@@ -2361,7 +2428,8 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     Handle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
-        receiver_map->MayHaveReadOnlyElementsInPrototypeChain(isolate())) {
+        receiver_map->ShouldCheckForReadOnlyElementsInPrototypeChain(
+            isolate())) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
@@ -2429,13 +2497,14 @@ KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver, size_t index) {
       IsJSArray(*receiver) && oob_access && index <= JSArray::kMaxArrayIndex &&
       !receiver->WouldConvertToSlowElements(static_cast<uint32_t>(index));
   if (allow_growth) {
-    return STORE_AND_GROW_HANDLE_COW;
+    return KeyedAccessStoreMode::kGrowAndHandleCOW;
   }
   if (receiver->map()->has_typed_array_or_rab_gsab_typed_array_elements() &&
       oob_access) {
-    return STORE_IGNORE_OUT_OF_BOUNDS;
+    return KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
   }
-  return receiver->elements()->IsCowArray() ? STORE_HANDLE_COW : STANDARD_STORE;
+  return receiver->elements()->IsCowArray() ? KeyedAccessStoreMode::kHandleCOW
+                                            : KeyedAccessStoreMode::kInBounds;
 }
 
 }  // namespace
@@ -2506,7 +2575,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   Handle<Map> old_receiver_map;
   bool is_arguments = false;
   bool key_is_valid_index = (key_type == kIntPtr);
-  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds;
   if (use_ic && IsJSReceiver(*object) && key_is_valid_index) {
     Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
@@ -2532,7 +2601,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           : Runtime::SetObjectProperty(isolate(), object, key, value,
                                        StoreOrigin::kMaybeKeyed);
   if (result.is_null()) {
-    DCHECK(isolate()->has_pending_exception());
+    DCHECK(isolate()->has_exception());
     set_slow_stub_reason("failed to set property");
     use_ic = false;
   }
@@ -2540,7 +2609,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     if (!old_receiver_map.is_null()) {
       if (is_arguments) {
         set_slow_stub_reason("arguments receiver");
-      } else if (IsJSArray(*object) && IsGrowStoreMode(store_mode) &&
+      } else if (IsJSArray(*object) && StoreModeCanGrow(store_mode) &&
                  JSArray::HasReadOnlyLength(Handle<JSArray>::cast(object))) {
         set_slow_stub_reason("array has read only length");
       } else if (IsJSObject(*object) && MayHaveTypedArrayInPrototypeChain(
@@ -2554,8 +2623,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         if (old_receiver_map->is_abandoned_prototype_map()) {
           set_slow_stub_reason("receiver with prototype map");
         } else if (old_receiver_map->has_dictionary_elements() ||
-                   !old_receiver_map->MayHaveReadOnlyElementsInPrototypeChain(
-                       isolate())) {
+                   !old_receiver_map
+                        ->ShouldCheckForReadOnlyElementsInPrototypeChain(
+                            isolate())) {
           // We should go generic if receiver isn't a dictionary, but our
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
@@ -2611,7 +2681,7 @@ MaybeHandle<Object> StoreInArrayLiteralIC::Store(Handle<JSArray> array,
 
   // TODO(neis): Convert HeapNumber to Smi if possible?
 
-  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  KeyedAccessStoreMode store_mode = KeyedAccessStoreMode::kInBounds;
   if (IsSmi(*index)) {
     DCHECK_GE(Smi::ToInt(*index), 0);
     uint32_t index32 = static_cast<uint32_t>(Smi::ToInt(*index));
@@ -2809,6 +2879,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
+    DCHECK(!vector_slot.IsInvalid());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
@@ -2837,6 +2908,7 @@ RUNTIME_FUNCTION(Runtime_DefineNamedOwnIC_Miss) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>();
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
+    DCHECK(!vector_slot.IsInvalid());
     vector = Handle<FeedbackVector>::cast(maybe_vector);
     kind = vector->GetKind(vector_slot);
   }
@@ -2930,17 +3002,21 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(name, &lookup_result)) {
-    Handle<Context> script_context = ScriptContextTable::GetContext(
-        isolate, script_contexts, lookup_result.context_index);
+    DisallowGarbageCollection no_gc;
+    DisableGCMole no_gcmole;
+    Tagged<Context> script_context =
+        script_contexts->get(lookup_result.context_index);
     if (lookup_result.mode == VariableMode::kConst) {
+      AllowGarbageCollection yes_gc;
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
-    Handle<Object> previous_value(script_context->get(lookup_result.slot_index),
-                                  isolate);
+    Tagged<Object> previous_value =
+        script_context->get(lookup_result.slot_index);
 
-    if (IsTheHole(*previous_value, isolate)) {
+    if (IsTheHole(previous_value, isolate)) {
+      AllowGarbageCollection yes_gc;
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(
                        MessageTemplate::kAccessedUninitializedVariable, name));
@@ -2960,11 +3036,10 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  int slot = args.tagged_index_value_at(1);
   Handle<HeapObject> maybe_vector = args.at<HeapObject>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot);
+  FeedbackSlot vector_slot;
 
   // When the feedback vector is not valid the slot can only be of type
   // StoreKeyed. Storing in array literals falls back to
@@ -2977,6 +3052,8 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   if (!IsUndefined(*maybe_vector, isolate)) {
     DCHECK(IsFeedbackVector(*maybe_vector));
     vector = Handle<FeedbackVector>::cast(maybe_vector);
+    int slot = args.tagged_index_value_at(1);
+    vector_slot = FeedbackVector::ToSlot(slot);
     kind = vector->GetKind(vector_slot);
   }
 
@@ -3382,7 +3459,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
                                       Nothing<ShouldThrow>());
   arguments.CallAccessorSetter(info, name, value);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
   return *value;
 }
 
@@ -3409,7 +3486,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
     Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
 
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+    RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
     if (!result.is_null()) {
       arguments.AcceptSideEffects();
@@ -3475,7 +3552,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
                                         *receiver, Just(kDontThrow));
 
     Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
-    RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+    RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
     if (!result.is_null()) return *value;
     // If the interceptor didn't handle the request, then there must be no
     // side effects.
@@ -3509,7 +3586,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
                                       *receiver, Just(kDontThrow));
   Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION_DETECTOR(isolate, arguments);
+  RETURN_FAILURE_IF_EXCEPTION_DETECTOR(isolate, arguments);
 
   if (result.is_null()) {
     LookupIterator it(isolate, receiver, index, receiver);

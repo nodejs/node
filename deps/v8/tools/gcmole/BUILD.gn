@@ -31,6 +31,7 @@ if (v8_gcmole) {
       "../../test/cctest/",
       "../../test/common/",
       "../../testing/gtest/include/gtest/gtest_prod.h",
+      "../../third_party/abseil-cpp/",
       "../../third_party/glibc/",
       "../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h",
       "../../third_party/icu/source/common/",

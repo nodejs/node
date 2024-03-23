@@ -222,6 +222,14 @@ class LoadGlobalIC : public LoadIC {
 
 class KeyedLoadIC : public LoadIC {
  public:
+  struct HandlerInfo {
+    KeyedAccessLoadMode load_mode;
+    bool convert_hole;
+  };
+
+  static constexpr HandlerInfo kInBoundsNoHollyAccess =
+      HandlerInfo{KeyedAccessLoadMode::kInBounds, false};
+
   KeyedLoadIC(Isolate* isolate, Handle<FeedbackVector> vector,
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
@@ -230,27 +238,35 @@ class KeyedLoadIC : public LoadIC {
                                                  Handle<Object> key);
 
  protected:
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(Handle<Object> object,
-                                                        Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
+      Handle<Object> object, Handle<Object> key, bool* is_found = nullptr);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<Object> object,
+                                                     Handle<Object> key,
+                                                     Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(Handle<HeapObject> receiver,
-                         KeyedAccessLoadMode load_mode);
+                         const HandlerInfo new_info);
 
  private:
   friend class IC;
 
   Handle<Object> LoadElementHandler(Handle<Map> receiver_map,
-                                    KeyedAccessLoadMode load_mode);
+                                    const HandlerInfo new_info);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       MaybeObjectHandles* handlers,
-                                      KeyedAccessLoadMode load_mode);
+                                      const HandlerInfo new_info);
 
-  // Returns true if the receiver_map has a kElement or kIndexedString
-  // handler in the nexus currently but didn't yet allow out of bounds
-  // accesses.
-  bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
+  std::optional<HandlerInfo> GetHandlerInfoFor(Handle<Map> receiver_map);
+  HandlerInfo GeneralizeHandlerInfo(std::optional<HandlerInfo> old_info,
+                                    const HandlerInfo new_info);
+
+  // Returns whether the transitions in load mode and convert hole bit are
+  // allowed.
+  bool AllowedHandlerChange(std::optional<HandlerInfo> old_info,
+                            const HandlerInfo new_info);
 };
 
 class StoreIC : public IC {

@@ -603,10 +603,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     needs_home_object_ = true;
   }
 
-  VariableProxy* NewHomeObjectVariableProxy(AstNodeFactory* factory,
-                                            const AstRawString* name,
-                                            int start_pos);
-
   bool RemoveInnerScope(Scope* inner_scope) {
     DCHECK_NOT_NULL(inner_scope);
     if (inner_scope == inner_scope_) {
@@ -865,7 +861,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   FunctionKind function_kind() const { return function_kind_; }
 
   // Inform the scope that the corresponding code uses "super".
-  Scope* RecordSuperPropertyUsage() {
+  void RecordSuperPropertyUsage() {
     DCHECK(IsConciseMethod(function_kind()) ||
            IsAccessorFunction(function_kind()) ||
            IsClassConstructor(function_kind()));
@@ -873,7 +869,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
     Scope* home_object_scope = GetHomeObjectScope();
     DCHECK_NOT_NULL(home_object_scope);
     home_object_scope->set_needs_home_object();
-    return home_object_scope;
   }
 
   bool uses_super_property() const { return uses_super_property_; }

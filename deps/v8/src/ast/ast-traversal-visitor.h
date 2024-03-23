@@ -580,6 +580,13 @@ void AstTraversalVisitor<Subclass>::VisitSuperCallReference(
   RECURSE_EXPRESSION(VisitVariableProxy(expr->this_function_var()));
 }
 
+template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitSuperCallForwardArgs(
+    SuperCallForwardArgs* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->expression()));
+}
+
 #undef PROCESS_NODE
 #undef PROCESS_EXPRESSION
 #undef RECURSE_EXPRESSION

@@ -5,6 +5,7 @@
 #include "src/compiler/wasm-graph-assembler.h"
 
 #include "src/common/globals.h"
+#include "src/compiler/access-builder.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/wasm-compiler-definitions.h"
@@ -12,9 +13,7 @@
 #include "src/wasm/object-access.h"
 #include "src/wasm/wasm-objects.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
+namespace v8::internal::compiler {
 
 // static
 CallDescriptor* GetBuiltinCallDescriptor(Builtin name, Zone* zone,
@@ -174,7 +173,7 @@ Node* WasmGraphAssembler::InitializeImmutableInObject(ObjectAccess access,
 
 Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
     Node* handle, ExternalPointerTag tag, Node* isolate_root) {
-#ifdef V8_ENABLE_SANDBOX
+#if V8_ENABLE_SANDBOX
   Node* index = Word32Shr(handle, Int32Constant(kExternalPointerIndexShift));
   Node* offset = ChangeUint32ToUint64(
       Word32Shl(index, Int32Constant(kExternalPointerTableEntrySizeLog2)));
@@ -194,7 +193,31 @@ Node* WasmGraphAssembler::BuildDecodeSandboxedExternalPointer(
   return WordAnd(decoded_ptr, IntPtrConstant(~tag));
 #else
   UNREACHABLE();
-#endif
+#endif  // V8_ENABLE_SANDBOX
+}
+
+Node* WasmGraphAssembler::BuildDecodeTrustedPointer(Node* handle,
+                                                    IndirectPointerTag tag) {
+#if V8_ENABLE_SANDBOX
+  Node* index = Word32Shr(handle, Int32Constant(kTrustedPointerHandleShift));
+  Node* offset = ChangeUint32ToUint64(
+      Word32Shl(index, Int32Constant(kTrustedPointerTableEntrySizeLog2)));
+  Node* table = Load(MachineType::Pointer(), LoadRootRegister(),
+                     IsolateData::trusted_pointer_table_offset() +
+                         Internals::kTrustedPointerTableBasePointerOffset);
+  Node* decoded_ptr = Load(MachineType::Pointer(), table, offset);
+  // Mask out the tag.
+  // TODO(saelo): Enable this once we tag pointers in the trusted table.
+  // decoded_ptr = WordAnd(decoded_ptr, IntPtrConstant(~tag));
+  // Always set the tagged bit, used as a marking bit in that table.
+  decoded_ptr = WordOr(decoded_ptr, IntPtrConstant(kHeapObjectTag));
+  // We have to change the type of the result value to Tagged, so if the value
+  // gets spilled on the stack, it will get processed by the GC.
+  decoded_ptr = BitcastWordToTagged(decoded_ptr);
+  return decoded_ptr;
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
 }
 
 Node* WasmGraphAssembler::BuildLoadExternalPointerFromObject(
@@ -320,6 +343,17 @@ Node* WasmGraphAssembler::LoadExternalPointerArrayElement(
 #endif
 }
 
+Node* WasmGraphAssembler::LoadImmutableTrustedPointerFromObject(
+    Node* object, int field_offset, IndirectPointerTag tag) {
+  Node* offset = IntPtrConstant(field_offset);
+#ifdef V8_ENABLE_SANDBOX
+  Node* handle = LoadImmutableFromObject(MachineType::Uint32(), object, offset);
+  return BuildDecodeTrustedPointer(handle, tag);
+#else
+  return LoadImmutableFromObject(MachineType::TaggedPointer(), object, offset);
+#endif
+}
+
 Node* WasmGraphAssembler::StoreFixedArrayElement(Node* array, int index,
                                                  Node* value,
                                                  ObjectAccess access) {
@@ -440,13 +474,13 @@ Node* WasmGraphAssembler::AssertNotNull(Node* object, wasm::ValueType type,
                                   object, effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternInternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternInternalize(), object,
+Node* WasmGraphAssembler::WasmAnyConvertExtern(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmAnyConvertExtern(), object,
                                   effect(), control()));
 }
 
-Node* WasmGraphAssembler::WasmExternExternalize(Node* object) {
-  return AddNode(graph()->NewNode(simplified_.WasmExternExternalize(), object,
+Node* WasmGraphAssembler::WasmExternConvertAny(Node* object) {
+  return AddNode(graph()->NewNode(simplified_.WasmExternConvertAny(), object,
                                   effect(), control()));
 }
 
@@ -492,7 +526,7 @@ void WasmGraphAssembler::ArrayInitializeLength(Node* array, Node* length) {
 Node* WasmGraphAssembler::LoadStringLength(Node* string) {
   return LoadImmutableFromObject(
       MachineType::Int32(), string,
-      wasm::ObjectAccess::ToTagged(String::kLengthOffset));
+      wasm::ObjectAccess::ToTagged(AccessBuilder::ForStringLength().offset));
 }
 
 Node* WasmGraphAssembler::StringAsWtf16(Node* string) {
@@ -505,6 +539,14 @@ Node* WasmGraphAssembler::StringPrepareForGetCodeunit(Node* string) {
                                   string, effect(), control()));
 }
 
+Node* WasmGraphAssembler::LoadTrustedDataFromInstanceObject(
+    Node* instance_object) {
+  return LoadImmutableTrustedPointerFromObject(
+      instance_object,
+      wasm::ObjectAccess::ToTagged(WasmInstanceObject::kTrustedDataOffset),
+      kWasmTrustedInstanceDataIndirectPointerTag);
+}
+
 // Generic HeapObject helpers.
 
 Node* WasmGraphAssembler::HasInstanceType(Node* heap_object,
@@ -514,6 +556,4 @@ Node* WasmGraphAssembler::HasInstanceType(Node* heap_object,
   return Word32Equal(instance_type, Int32Constant(type));
 }
 
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler

@@ -220,6 +220,11 @@ class V8_EXPORT_PRIVATE LookupIterator final {
   bool TryLookupCachedProperty(Handle<AccessorPair> accessor);
   bool TryLookupCachedProperty();
 
+  // Test whether the object has an internal marker property.
+  static bool HasInternalMarkerProperty(Isolate* isolate,
+                                        Tagged<JSReceiver> object,
+                                        Handle<Symbol> marker);
+
  private:
   friend PropertyKey;
 

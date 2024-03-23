@@ -175,10 +175,20 @@ KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(MaybeObject handler) {
     Kind const kind = KindBits::decode(raw_handler);
     if ((kind == Kind::kElement || kind == Kind::kIndexedString) &&
         AllowOutOfBoundsBits::decode(raw_handler)) {
-      return LOAD_IGNORE_OUT_OF_BOUNDS;
+      return KeyedAccessLoadMode::kHandleOOB;
     }
   }
-  return STANDARD_LOAD;
+  return KeyedAccessLoadMode::kInBounds;
+}
+
+// static
+bool LoadHandler::GetConvertHole(MaybeObject handler) {
+  DisallowGarbageCollection no_gc;
+  if (IsSmi(handler)) {
+    int const raw_handler = handler.ToSmi().value();
+    return ConvertHoleBits::decode(raw_handler);
+  }
+  return false;
 }
 
 // static
@@ -191,15 +201,15 @@ KeyedAccessStoreMode StoreHandler::GetKeyedAccessStoreMode(
     // All the handlers except the Slow Handler that use the
     // KeyedAccessStoreMode, compute it using KeyedAccessStoreModeForBuiltin
     // method. Hence if any other Handler get to this path, just return
-    // STANDARD_STORE.
+    // KeyedAccessStoreMode::kInBounds.
     if (kind != Kind::kSlow) {
-      return STANDARD_STORE;
+      return KeyedAccessStoreMode::kInBounds;
     }
     KeyedAccessStoreMode store_mode =
         KeyedAccessStoreModeBits::decode(raw_handler);
     return store_mode;
   }
-  return STANDARD_STORE;
+  return KeyedAccessStoreMode::kInBounds;
 }
 
 // static
@@ -441,20 +451,6 @@ void PrintSmiLoadHandler(int raw_handler, std::ostream& os) {
   }
 }
 
-const char* KeyedAccessStoreModeToString(KeyedAccessStoreMode mode) {
-  switch (mode) {
-    case STANDARD_STORE:
-      return "STANDARD_STORE";
-    case STORE_AND_GROW_HANDLE_COW:
-      return "STORE_AND_GROW_HANDLE_COW";
-    case STORE_IGNORE_OUT_OF_BOUNDS:
-      return "STORE_IGNORE_OUT_OF_BOUNDS";
-    case STORE_HANDLE_COW:
-      return "STORE_HANDLE_COW";
-  }
-  UNREACHABLE();
-}
-
 void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
   StoreHandler::Kind kind = StoreHandler::KindBits::decode(raw_handler);
   os << "kind = ";
@@ -502,8 +498,7 @@ void PrintSmiStoreHandler(int raw_handler, std::ostream& os) {
     case StoreHandler::Kind::kSlow: {
       KeyedAccessStoreMode keyed_access_store_mode =
           StoreHandler::KeyedAccessStoreModeBits::decode(raw_handler);
-      os << "kSlow, keyed access store mode = "
-         << KeyedAccessStoreModeToString(keyed_access_store_mode);
+      os << "kSlow, keyed access store mode = " << keyed_access_store_mode;
       break;
     }
     case StoreHandler::Kind::kProxy:

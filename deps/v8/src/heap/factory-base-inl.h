@@ -86,7 +86,7 @@ template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumber(double value) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value(value, kRelaxedStore);
+  heap_number->set_value(value);
   return heap_number;
 }
 
@@ -94,7 +94,7 @@ template <typename Impl>
 template <AllocationType allocation>
 Handle<HeapNumber> FactoryBase<Impl>::NewHeapNumberFromBits(uint64_t bits) {
   Handle<HeapNumber> heap_number = NewHeapNumber<allocation>();
-  heap_number->set_value_as_bits(bits, kRelaxedStore);
+  heap_number->set_value_as_bits(bits);
   return heap_number;
 }
 

@@ -102,17 +102,17 @@ Node* GraphAssembler::Float64Constant(double value) {
 
 TNode<HeapObject> JSGraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return TNode<HeapObject>::UncheckedCast(
-      AddClonedNode(jsgraph()->HeapConstant(object)));
+      AddClonedNode(jsgraph()->HeapConstantNoHole(object)));
 }
 
 TNode<Object> JSGraphAssembler::Constant(ObjectRef ref) {
   return TNode<Object>::UncheckedCast(
-      AddClonedNode(jsgraph()->Constant(ref, broker())));
+      AddClonedNode(jsgraph()->ConstantNoHole(ref, broker())));
 }
 
 TNode<Number> JSGraphAssembler::NumberConstant(double value) {
   return TNode<Number>::UncheckedCast(
-      AddClonedNode(jsgraph()->Constant(value)));
+      AddClonedNode(jsgraph()->ConstantNoHole(value)));
 }
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
@@ -132,18 +132,21 @@ Node* GraphAssembler::LoadFramePointer() {
   return AddNode(graph()->NewNode(machine()->LoadFramePointer()));
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 Node* GraphAssembler::LoadStackPointer() {
   return AddNode(graph()->NewNode(machine()->LoadStackPointer(), effect()));
 }
 
-Node* GraphAssembler::SetStackPointer(Node* node) {
-  return AddNode(graph()->NewNode(machine()->SetStackPointer(), node, effect(),
-                                  control()));
+Node* GraphAssembler::SetStackPointer(Node* node,
+                                      wasm::FPRelativeScope fp_scope) {
+  return AddNode(
+      graph()->NewNode(machine()->SetStackPointer(fp_scope), node, effect()));
 }
+#endif
 
 Node* GraphAssembler::LoadHeapNumberValue(Node* heap_number) {
   return Load(MachineType::Float64(), heap_number,
-              IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag));
+              IntPtrConstant(offsetof(HeapNumber, value_) - kHeapObjectTag));
 }
 
 #define SINGLETON_CONST_DEF(Name, Type)              \
@@ -322,6 +325,14 @@ Node* JSGraphAssembler::StoreField(FieldAccess const& access, Node* object,
                                   value, effect(), control()));
 }
 
+Node* JSGraphAssembler::ClearPendingMessage() {
+  ExternalReference const ref =
+      ExternalReference::address_of_pending_message(isolate());
+  return AddNode(graph()->NewNode(
+      simplified()->StoreMessage(), jsgraph()->ExternalConstant(ref),
+      jsgraph()->TheHoleConstant(), effect(), control()));
+}
+
 #ifdef V8_MAP_PACKING
 TNode<Map> GraphAssembler::UnpackMapWord(Node* map_word) {
   map_word = BitcastTaggedToWordForTagAndSmiBits(map_word);
@@ -456,6 +467,13 @@ Node* JSGraphAssembler::CheckIf(Node* cond, DeoptimizeReason reason,
                                 const FeedbackSource& feedback) {
   return AddNode(graph()->NewNode(simplified()->CheckIf(reason, feedback), cond,
                                   effect(), control()));
+}
+
+Node* JSGraphAssembler::Assert(Node* cond, const char* condition_string,
+                               const char* file, int line) {
+  return AddNode(graph()->NewNode(
+      common()->Assert(BranchSemantics::kJS, condition_string, file, line),
+      cond, effect(), control()));
 }
 
 TNode<Boolean> JSGraphAssembler::NumberIsFloat64Hole(TNode<Number> value) {
@@ -821,6 +839,18 @@ class ArrayBufferViewAccessBuilder {
     TNode<Word32T> backed_by_rab_bit = a.Word32And(
         bitfield, a.Uint32Constant(JSArrayBufferView::kIsBackedByRab));
 
+    auto RabLengthTracking = [&]() {
+      TNode<UintPtrT> byte_offset = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferViewByteOffset(), view,
+          UseInfo::Word());
+
+      TNode<UintPtrT> underlying_byte_length = MachineLoadField<UintPtrT>(
+          AccessBuilder::ForJSArrayBufferByteLength(), buffer, UseInfo::Word());
+
+      return a.Word32Or(detached_bit,
+                        a.UintPtrLessThan(underlying_byte_length, byte_offset));
+    };
+
     auto RabFixed = [&]() {
       TNode<UintPtrT> unchecked_byte_length = MachineLoadField<UintPtrT>(
           AccessBuilder::ForJSArrayBufferViewByteLength(), view,
@@ -839,14 +869,14 @@ class ArrayBufferViewAccessBuilder {
     };
 
     // Dispatch depending on rab/gsab and length tracking.
-    return a.MachineSelectIf<Word32T>(length_tracking_bit)
-        .Then([&]() { return detached_bit; })
-        .Else([&]() {
-          return a.MachineSelectIf<Word32T>(backed_by_rab_bit)
-              .Then(RabFixed)
-              .Else([&]() { return detached_bit; })
+    return a.MachineSelectIf<Word32T>(backed_by_rab_bit)
+        .Then([&]() {
+          return a.MachineSelectIf<Word32T>(length_tracking_bit)
+              .Then(RabLengthTracking)
+              .Else(RabFixed)
               .Value();
         })
+        .Else([&]() { return detached_bit; })
         .Value();
   }
 

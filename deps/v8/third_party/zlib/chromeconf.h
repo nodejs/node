@@ -199,6 +199,5 @@
 /* Symbols added by cpu_features.c */
 #define cpu_check_features Cr_z_cpu_check_features
 #define x86_cpu_enable_sse2 Cr_z_x86_cpu_enable_sse2
-#define x86_cpu_enable_avx512 Cr_z_x86_cpu_enable_avx512
 
 #endif /* THIRD_PARTY_ZLIB_CHROMECONF_H_ */
