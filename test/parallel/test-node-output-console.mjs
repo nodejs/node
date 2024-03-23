@@ -11,7 +11,7 @@ function replaceStackTrace(str) {
   return snapshot.replaceStackTrace(str, '$1at *$7\n');
 }
 
-describe('console output', { concurrency: true }, () => {
+describe('console output', { concurrency: !process.env.TEST_PARALLEL }, () => {
   function normalize(str) {
     return str.replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '').replaceAll('/', '*').replaceAll(process.version, '*').replaceAll(/\d+/g, '*');
   }

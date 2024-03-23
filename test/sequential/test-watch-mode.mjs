@@ -87,7 +87,7 @@ async function failWriteSucceed({ file, watchedFile }) {
 
 tmpdir.refresh();
 
-describe('watch mode', { concurrency: true, timeout: 60_000 }, () => {
+describe('watch mode', { concurrency: !process.env.TEST_PARALLEL, timeout: 60_000 }, () => {
   it('should watch changes to a file', async () => {
     const file = createTmpFile();
     const { stderr, stdout } = await runWriteSucceed({ file, watchedFile: file, watchFlag: '--watch=true', options: {
