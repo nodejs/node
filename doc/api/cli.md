@@ -699,7 +699,7 @@ Any text after a `#` is treated as a comment:
 PORT=3000 # This is also a comment
 ```
 
-Values can start and end with the following quotes: `\`, `"` or `'`.
+Values can start and end with the following quotes: `` ` ``, `"` or `'`.
 They are omitted from the values.
 
 ```text
