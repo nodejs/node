@@ -531,10 +531,13 @@ make test-only
 
 #### Speeding up frequent rebuilds when developing
 
-Tips: The `ccache` utility is widely used and should generally work fine. If you encounter any difficulties, consider disabling `mold` as a troubleshooting step.
+Tips: The `ccache` utility is widely used and should generally work fine.
+If you encounter any difficulties, consider disabling `mold` as a
+troubleshooting step.
 
-If you plan to frequently rebuild Node.js, especially if using several branches,
-installing `ccache` and `mold` can help to greatly reduce build times. Set up with:
+If you plan to frequently rebuild Node.js, especially if using several
+branches, installing `ccache` and `mold` can help to greatly reduce build
+times. Set up with:
 
 On GNU/Linux:
 
