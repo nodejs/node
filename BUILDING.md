@@ -579,14 +579,20 @@ to run it again before invoking `make -j4`.
 ### Windows
 
 #### Tips
-You may need disable vcpkg integration if you got link error about symbol redefine related to zlib.lib(zlib1.dll), even you never install it by hand, as vcpkg is part of CLion and Visual Studio now.
 
-```bat
-REM find your vcpkg
+You may need disable vcpkg integration if you got link error about symbol
+redefine related to zlib.lib(zlib1.dll), even you never install it by hand,
+as vcpkg is part of CLion and Visual Studio now.
+
+```powershell
+# find your vcpkg
+# double check vcpkg install the related file
+vcpkg owns zlib.lib
+vcpkg owns zlib1.dll
 vcpkg integration remove
 ```
 
-Refs: #24448, https://github.com/microsoft/vcpkg/issues/37518, [vcpkg](https://github.com/microsoft/vcpkg/)
+Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https://github.com/microsoft/vcpkg/)
 
 #### Prerequisites
 
