@@ -2334,7 +2334,7 @@ added: v0.1.3
 
 Print node's version.
 
-### `--watch`
+### `-w`, `--watch`
 
 <!-- YAML
 added:
@@ -2349,6 +2349,10 @@ changes:
       - v18.13.0
     pr-url: https://github.com/nodejs/node/pull/45214
     description: Test runner now supports running in watch mode.
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51696
+    description: With this pull request, node -w also will be activate watch mode alongside node --watch.
 -->
 
 > Stability: 2 - Stable
@@ -2653,7 +2657,7 @@ one is included in the list below.
 * `--v8-pool-size`
 * `--watch-path`
 * `--watch-preserve-output`
-* `--watch`
+* `--watch`, `-w`
 * `--zero-fill-buffers`
 
 <!-- node-options-node end -->
