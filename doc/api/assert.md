@@ -1437,6 +1437,90 @@ suppressFrame();
 //     ...
 ```
 
+## `assert.unreachable(actual, [message])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `actual` {any}
+* `message` {string|Error} **Default:** `'Expected this assertion not to be reached'`
+
+Asserts that a code path does not execute. This is like `assert.fail` but it
+takes a value, usually used in a branch condition, that caused this branch to
+execute.
+
+This is useful for writing exhaustive checks, when you want to indicate to
+readers that you think you've covered all cases, and error at runtime which
+value caused this branch to execute.
+
+```mjs
+import assert from 'node:assert/strict';
+
+/**
+ * @param {'a' | 'b'} type
+ */
+function fn(type) {
+  if (type === 'a' || type === 'b') {
+    // Do something with a or b
+  } else {
+    // Will throw on an unexpected type
+    assert.unreachable(type, 'Unexpected type');
+  }
+}
+```
+
+```cjs
+const assert = require('node:assert/strict');
+
+/**
+ * @param {'a' | 'b'} type
+ */
+function fn(type) {
+  if (type === 'a' || type === 'b') {
+    // Do something with a or b
+  } else {
+    // Will throw on an unexpected type
+    assert.unreachable(type, 'Unexpected type');
+  }
+}
+```
+
+With a type checker that can follow types thru conditional branches, like
+TypeScript, uncovered branches can be detected without running your code.
+
+```mjs
+import assert from 'node:assert/strict';
+
+/**
+ * @param {'a' | 'b' | 'c'} type
+ */
+function fn(type) {
+  if (type === 'a' || type === 'b') {
+    // Do something with a or b
+  } else {
+    assert.unreachable(type, 'Unexpected type');
+    //                  ^? Argument of type 'c' does not satisfy never
+  }
+}
+```
+
+```cjs
+const assert = require('node:assert/strict');
+
+/**
+ * @param {'a' | 'b' | 'c'} type
+ */
+function fn(type) {
+  if (type === 'a' || type === 'b') {
+    // Do something with a or b
+  } else {
+    assert.unreachable(type, 'Unexpected type');
+    //                  ^? Argument of type 'c' does not satisfy never
+  }
+}
+```
+
 ## `assert.ifError(value)`
 
 <!-- YAML
