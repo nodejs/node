@@ -246,12 +246,16 @@ and can be queried with `performance.getEntries`,
 observation is performed, the entries should be cleared from the global
 Performance Timeline manually with `performance.clearMarks`.
 
-### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode)`
+### `performance.markResourceTiming(timingInfo, requestedUrl, initiatorType, global, cacheMode, bodyInfo, responseStatus[, deliveryType])`
 
 <!-- YAML
 added:
   - v18.2.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51589
+    description: Added bodyInfo, responseStatus, and deliveryType arguments.
 -->
 
 * `timingInfo` {Object} [Fetch Timing Info][]
@@ -259,6 +263,9 @@ added:
 * `initiatorType` {string} The initiator name, e.g: 'fetch'
 * `global` {Object}
 * `cacheMode` {string} The cache mode must be an empty string ('') or 'local'
+* `bodyInfo` {Object} [Fetch Response Body Info][]
+* `responseStatus` {number} The response's status code
+* `deliveryType` {string} The delivery type.  **Default:** `''`.
 
 _This property is an extension by Node.js. It is not available in Web browsers._
 
@@ -1911,6 +1918,7 @@ dns.promises.resolve('localhost');
 ```
 
 [Async Hooks]: async_hooks.md
+[Fetch Response Body Info]: https://fetch.spec.whatwg.org/#response-body-info
 [Fetch Timing Info]: https://fetch.spec.whatwg.org/#fetch-timing-info
 [High Resolution Time]: https://www.w3.org/TR/hr-time-2
 [Performance Timeline]: https://w3c.github.io/performance-timeline/
