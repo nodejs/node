@@ -88,8 +88,8 @@ typedef struct nghttp3_varint_read_state {
 typedef struct nghttp3_stream_read_state {
   nghttp3_varint_read_state rvint;
   nghttp3_frame fr;
-  int state;
   int64_t left;
+  int state;
 } nghttp3_stream_read_state;
 
 /* NGHTTP3_STREAM_FLAG_NONE indicates that no flag is set. */
@@ -186,9 +186,6 @@ typedef struct nghttp3_stream_callbacks {
 } nghttp3_stream_callbacks;
 
 typedef struct nghttp3_http_state {
-  /* status_code is HTTP status code received.  This field is used
-     if connection is initialized as client. */
-  int32_t status_code;
   /* content_length is the value of received content-length header
      field. */
   int64_t content_length;
@@ -196,6 +193,9 @@ typedef struct nghttp3_http_state {
      far. */
   int64_t recv_content_length;
   nghttp3_pri pri;
+  /* status_code is HTTP status code received.  This field is used
+     if connection is initialized as client. */
+  int32_t status_code;
   uint32_t flags;
 } nghttp3_http_state;
 
@@ -233,6 +233,9 @@ struct nghttp3_stream {
          they are acknowledged inside the first outq element if it is of
          type NGHTTP3_BUF_TYPE_ALIEN. */
       uint64_t ack_done;
+      /* ack_total is the cumulative number of bytes acknowledged so
+         far. */
+      uint64_t ack_total;
       uint64_t unscheduled_nwrite;
       nghttp3_stream_type type;
       nghttp3_stream_read_state rstate;
