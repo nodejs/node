@@ -68,6 +68,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/process/warning',
   'NativeModule internal/console/constructor',
   'NativeModule internal/console/global',
+  'NativeModule internal/console/inspect',
   'NativeModule internal/querystring',
   'NativeModule querystring',
   'Internal Binding url',

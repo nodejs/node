@@ -350,6 +350,7 @@ Examples of breaking changes include:
 * Adding or removing errors.
 * Altering expected timing of an event.
 * Changing the side effects of using a particular API.
+* Changing the output of console APIs.
 
 #### Breaking changes and deprecations
 
