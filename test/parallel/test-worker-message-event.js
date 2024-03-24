@@ -92,3 +92,12 @@ const dummyPort = new MessageChannel().port1;
 {
   assert(new MessageEvent('message') instanceof Event);
 }
+
+{
+  // https://github.com/nodejs/node/issues/51767
+  const event = new MessageEvent('type', { cancelable: true });
+  event.preventDefault();
+
+  assert(event.cancelable);
+  assert(event.defaultPrevented);
+}
