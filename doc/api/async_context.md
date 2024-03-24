@@ -361,6 +361,57 @@ try {
 }
 ```
 
+### `asyncLocalStorage.disposableStore(store)`
+
+<!-- YAML
+added:
+ - REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `store` {any}
+* Returns: {AsyncLocalStorageDisposableStore}
+
+Transitions into the context until the returned
+[`AsyncLocalStorageDisposableStore`][] instance is disposed, and then persists
+the store through any following asynchronous calls.
+
+Example:
+
+```js
+const store = { id: 1 };
+{
+  // Replaces previous store with the given store object
+  using _ = asyncLocalStorage.disposableStore(store);
+  asyncLocalStorage.getStore(); // Returns the store object
+  someAsyncOperation(() => {
+    asyncLocalStorage.getStore(); // Returns the same object
+  });
+  // The store goes out of scope
+}
+asyncLocalStorage.getStore(); // Returns undefined
+```
+
+This transition will continue for the _entire_ synchronous execution scope
+until the returned `AsyncLocalStorageDisposableStore` instance is disposed.
+
+```js
+const store = { id: 1 };
+
+emitter.on('my-event', () => {
+  // Declare a disposable store with using statement.
+  using _ = asyncLocalStorage.disposableStore(store);
+});
+emitter.on('my-event', () => {
+  asyncLocalStorage.getStore(); // Returns undefined
+});
+
+asyncLocalStorage.getStore(); // Returns undefined
+emitter.emit('my-event');
+asyncLocalStorage.getStore(); // Returns undefined
+```
+
 ### Usage with `async/await`
 
 If, within an async function, only one `await` call is to run within a context,
@@ -394,6 +445,83 @@ Find the function call responsible for the context loss by logging the content
 of `asyncLocalStorage.getStore()` after the calls you suspect are responsible
 for the loss. When the code logs `undefined`, the last callback called is
 probably responsible for the context loss.
+
+## Class: `AsyncLocalStorageDisposableStore`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+A utility class that enables `using` statement to dispose of a store value for
+an `AsyncLocalStorage` store when the current scope was exited.
+
+### `asyncLocalStorageDisposableStore[Symbol.dispose]()`
+
+Restores the previous store for the creation `AsyncLocalStorage`.
+
+### Usage with `AsyncLocalStorage`
+
+```js
+const http = require('node:http');
+const { AsyncLocalStorage } = require('node:async_hooks');
+
+const asyncLocalStorage = new AsyncLocalStorage();
+
+function logWithId(msg) {
+  const id = asyncLocalStorage.getStore();
+  console.log(`${id !== undefined ? id : '-'}:`, msg);
+}
+
+let idSeq = 0;
+http.createServer((req, res) => {
+  using _ = asyncLocalStorage.disposableStore(idSeq++);
+  logWithId('start');
+  // Imagine any chain of async operations here
+  setImmediate(() => {
+    logWithId('finish');
+    res.end();
+  });
+}).listen(8080);
+
+http.get('http://localhost:8080');
+http.get('http://localhost:8080');
+// Prints:
+//   0: start
+//   1: start
+//   0: finish
+//   1: finish
+```
+
+### Troubleshooting: Instance not disposed
+
+The instantiation of the [`AsyncLocalStorageDisposableStore`][] can be used
+without the using statement. This can be problematic that if, for example, the
+context is entered within an event handler and the
+`AsyncLocalStorageDisposableStore` instance is not disposed, subsequent
+event handlers will also run within that context unless specifically bound to
+another context with an `AsyncResource`.
+
+```js
+const store = { id: 1 };
+
+emitter.on('leaking-event', () => {
+  // Declare a disposable store with variable declaration and did not dispose it.
+  const _ = asyncLocalStorage.disposableStore(store);
+});
+emitter.on('leaking-event', () => {
+  asyncLocalStorage.getStore(); // Returns the store object
+});
+
+asyncLocalStorage.getStore(); // Returns undefined
+emitter.emit('my-event');
+asyncLocalStorage.getStore(); // Returns the store object
+```
+
+To hint such a misuse, an [`ERR_ASYNC_LOCAL_STORAGE_NOT_DISPOSED`][] error is
+thrown if an `AsyncLocalStorageDisposableStore` instance is not disposed at the
+end of the current async resource scope.
 
 ## Class: `AsyncResource`
 
@@ -881,7 +1009,9 @@ const server = createServer((req, res) => {
 }).listen(3000);
 ```
 
+[`AsyncLocalStorageDisposableStore`]: #class-asynclocalstoragedisposablestore
 [`AsyncResource`]: #class-asyncresource
+[`ERR_ASYNC_LOCAL_STORAGE_NOT_DISPOSED`]: errors.md#err_async_local_storage_not_disposed
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
 [`Worker`]: worker_threads.md#class-worker

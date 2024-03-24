@@ -19,6 +19,7 @@ const hacks = [
   'eslint-plugin-markdown',
   '@babel/eslint-parser',
   '@babel/plugin-syntax-import-attributes',
+  '@babel/plugin-proposal-explicit-resource-management',
 ];
 Module._findPath = (request, paths, isMain) => {
   const r = ModuleFindPath(request, paths, isMain);
@@ -45,6 +46,7 @@ module.exports = {
     babelOptions: {
       plugins: [
         Module._findPath('@babel/plugin-syntax-import-attributes'),
+        Module._findPath('@babel/plugin-proposal-explicit-resource-management'),
       ],
     },
     requireConfigFile: false,
