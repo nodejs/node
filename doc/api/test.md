@@ -162,6 +162,37 @@ test('skip() method with message', (t) => {
 });
 ```
 
+## TODO tests
+
+Individual tests can be marked as flaky or incomplete by passing the `todo`
+option to the test, or by calling the test context's `todo()` method, as shown
+in the following example. These tests represent a pending implementation or bug
+that needs to be fixed. TODO tests are executed, but are not treated as test
+failures, and therefore do not affect the process exit code. If a test is marked
+as both TODO and skipped, the TODO option is ignored.
+
+```js
+// The todo option is used, but no message is provided.
+test('todo option', { todo: true }, (t) => {
+  // This code is executed, but not treated as a failure.
+  throw new Error('this does not fail the test');
+});
+
+// The todo option is used, and a message is provided.
+test('todo option with message', { todo: 'this is a todo test' }, (t) => {
+  // This code is executed.
+});
+
+test('todo() method', (t) => {
+  t.todo();
+});
+
+test('todo() method with message', (t) => {
+  t.todo('this is a todo test and is not treated as a failure');
+  throw new Error('this does not fail the test');
+});
+```
+
 ## `describe()` and `it()` aliases
 
 Suites and tests can also be written using the `describe()` and `it()`
