@@ -1182,7 +1182,7 @@ struct SimplifiedOperatorGlobalCache final {
               IrOpcode::kConvertReceiver,  // opcode
               Operator::kEliminatable,     // flags
               "ConvertReceiver",           // name
-              2, 1, 1, 1, 1, 0,            // counts
+              3, 1, 1, 1, 1, 0,            // counts
               kMode) {}                    // param
   };
   ConvertReceiverOperator<ConvertReceiverMode::kAny>
@@ -1567,15 +1567,15 @@ const Operator* SimplifiedOperatorBuilder::StringPrepareForGetCodeunit() {
   return &cache_.kStringPrepareForGetCodeunit;
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {
-  return zone()->New<Operator>(IrOpcode::kWasmExternInternalize,
-                               Operator::kEliminatable, "WasmExternInternalize",
+const Operator* SimplifiedOperatorBuilder::WasmAnyConvertExtern() {
+  return zone()->New<Operator>(IrOpcode::kWasmAnyConvertExtern,
+                               Operator::kEliminatable, "WasmAnyConvertExtern",
                                1, 1, 1, 1, 1, 1);
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
-  return zone()->New<Operator>(IrOpcode::kWasmExternExternalize,
-                               Operator::kEliminatable, "WasmExternExternalize",
+const Operator* SimplifiedOperatorBuilder::WasmExternConvertAny() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternConvertAny,
+                               Operator::kEliminatable, "WasmExternConvertAny",
                                1, 1, 1, 1, 1, 1);
 }
 

@@ -148,7 +148,7 @@ struct JumpOptimizationInfo {
   std::map<int, int> align_pos_size;
 
   int farjmp_num = 0;
-  // For collecting stage, should contains all far jump informatino after
+  // For collecting stage, should contains all far jump information after
   // collecting.
   std::vector<JumpInfo> farjmps;
 
@@ -204,7 +204,7 @@ enum class BuiltinCallJumpMode {
   // 1) we encode the target as an offset from the code range which is not
   // always available (32-bit architectures don't have it),
   // 2) serialization of RelocInfo::RUNTIME_ENTRY is not implemented yet.
-  // TODO(v8:11527): Address the resons above and remove the kForMksnapshot in
+  // TODO(v8:11527): Address the reasons above and remove the kForMksnapshot in
   // favor of kPCRelative or kIndirect.
   kForMksnapshot,
 };
@@ -250,6 +250,8 @@ struct V8_EXPORT_PRIVATE AssemblerOptions {
   // Whether to emit code comments.
   bool emit_code_comments = v8_flags.code_comments;
 
+  bool is_wasm = false;
+
   static AssemblerOptions Default(Isolate* isolate);
 };
 
@@ -267,8 +269,8 @@ class AssemblerBuffer {
 
 // Describes a HeapObject slot containing a pointer to another HeapObject. Such
 // a slot can either contain a direct/tagged pointer, or an indirect pointer
-// (i.e. an index into an indirect pointer table, which then contains the
-// actual pointer to the object) together with a specific IndirectPointerTag.
+// (i.e. an index into a pointer table, which then contains the actual pointer
+// to the object) together with a specific IndirectPointerTag.
 class SlotDescriptor {
  public:
   bool contains_direct_pointer() const {
@@ -292,12 +294,16 @@ class SlotDescriptor {
     return SlotDescriptor(tag);
   }
 
-  static SlotDescriptor ForMaybeIndirectPointerSlot(IndirectPointerTag tag) {
+  static SlotDescriptor ForTrustedPointerSlot(IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
     return ForIndirectPointerSlot(tag);
 #else
     return ForDirectPointerSlot();
 #endif
+  }
+
+  static SlotDescriptor ForCodePointerSlot() {
+    return ForTrustedPointerSlot(kCodeIndirectPointerTag);
   }
 
  private:
@@ -401,39 +407,52 @@ class V8_EXPORT_PRIVATE AssemblerBase : public Malloced {
 
   // Record an inline code comment that can be used by a disassembler.
   // Use --code-comments to enable.
-  V8_INLINE void RecordComment(const char* comment) {
+  V8_INLINE void RecordComment(const char* comment,
+                               SourceLocation loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::string(comment));
+      std::string comment_str(comment);
+      if (loc.FileName()) {
+        comment_str += " - " + loc.ToString();
+      }
+      code_comments_writer_.Add(pc_offset(), comment_str);
     }
   }
 
-  V8_INLINE void RecordComment(std::string comment) {
+  V8_INLINE void RecordComment(std::string comment,
+                               SourceLocation loc = SourceLocation::Current()) {
     // Set explicit dependency on --code-comments for dead-code elimination in
     // release builds.
     if (!v8_flags.code_comments) return;
     if (options().emit_code_comments) {
-      code_comments_writer_.Add(pc_offset(), std::move(comment));
+      std::string comment_str(comment);
+      if (loc.FileName()) {
+        comment_str += " - " + loc.ToString();
+      }
+      code_comments_writer_.Add(pc_offset(), comment_str);
     }
   }
 
 #ifdef V8_CODE_COMMENTS
   class CodeComment {
    public:
-    V8_NODISCARD CodeComment(Assembler* assembler, const std::string& comment)
+    V8_NODISCARD CodeComment(Assembler* assembler, std::string comment,
+                             SourceLocation loc = SourceLocation::Current())
         : assembler_(assembler) {
-      if (v8_flags.code_comments) Open(comment);
+      if (!v8_flags.code_comments) return;
+      Open(comment, loc);
     }
     ~CodeComment() {
-      if (v8_flags.code_comments) Close();
+      if (!v8_flags.code_comments) return;
+      Close();
     }
     static const int kIndentWidth = 2;
 
    private:
     int depth() const;
-    void Open(const std::string& comment);
+    void Open(const std::string& comment, const SourceLocation& loc);
     void Close();
     Assembler* assembler_;
   };
@@ -575,7 +594,12 @@ class V8_EXPORT_PRIVATE V8_NODISCARD CpuFeatureScope {
 };
 
 #ifdef V8_CODE_COMMENTS
+#if V8_SUPPORTS_SOURCE_LOCATION
+// We'll get the function name from the source location, no need to pass it in.
+#define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, "")
+#else
 #define ASM_CODE_COMMENT(asm) ASM_CODE_COMMENT_STRING(asm, __func__)
+#endif
 #define ASM_CODE_COMMENT_STRING(asm, comment) \
   AssemblerBase::CodeComment UNIQUE_IDENTIFIER(asm_code_comment)(asm, comment)
 #else

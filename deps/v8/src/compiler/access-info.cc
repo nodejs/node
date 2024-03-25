@@ -567,7 +567,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     }
     if (DEBUG_BOOL && holder.has_value()) {
       base::Optional<Tagged<NativeContext>> holder_creation_context =
-          holder->object()->GetCreationContextRaw();
+          holder->object()->GetCreationContext();
       CHECK(holder_creation_context.has_value());
       CHECK_EQ(*broker->target_native_context().object(),
                holder_creation_context.value());

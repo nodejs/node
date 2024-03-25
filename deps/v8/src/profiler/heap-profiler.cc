@@ -137,27 +137,37 @@ class FileOutputStream : public v8::OutputStream {
 
 // Precondition: only call this if you have just completed a full GC cycle.
 void HeapProfiler::WriteSnapshotToDiskAfterGC() {
-  int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
-  std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
-  v8::HeapProfiler::HeapSnapshotOptions options;
-  std::unique_ptr<HeapSnapshot> result(
-      new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
-  HeapSnapshotGenerator generator(result.get(), options.control,
-                                  options.global_object_name_resolver, heap(),
-                                  options.stack_state);
-  if (!generator.GenerateSnapshotAfterGC()) return;
+  // We need to set a stack marker for the stack walk performed by the
+  // snapshot generator to work.
+  heap()->stack().SetMarkerIfNeededAndCallback([this]() {
+    int64_t time = V8::GetCurrentPlatform()->CurrentClockTimeMilliseconds();
+    std::string filename = "v8-heap-" + std::to_string(time) + ".heapsnapshot";
+    v8::HeapProfiler::HeapSnapshotOptions options;
+    std::unique_ptr<HeapSnapshot> result(
+        new HeapSnapshot(this, options.snapshot_mode, options.numerics_mode));
+    HeapSnapshotGenerator generator(result.get(), options.control,
+                                    options.global_object_name_resolver, heap(),
+                                    options.stack_state);
+    if (!generator.GenerateSnapshotAfterGC()) return;
+    FileOutputStream stream(filename.c_str());
+    HeapSnapshotJSONSerializer serializer(result.get());
+    serializer.Serialize(&stream);
+    PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
+  });
+}
+
+void HeapProfiler::TakeSnapshotToFile(
+    const v8::HeapProfiler::HeapSnapshotOptions options, std::string filename) {
+  HeapSnapshot* snapshot = TakeSnapshot(options);
   FileOutputStream stream(filename.c_str());
-  HeapSnapshotJSONSerializer serializer(result.get());
+  HeapSnapshotJSONSerializer serializer(snapshot);
   serializer.Serialize(&stream);
-  PrintF("Wrote heap snapshot to %s.\n", filename.c_str());
 }
 
 bool HeapProfiler::StartSamplingHeapProfiler(
     uint64_t sample_interval, int stack_depth,
     v8::HeapProfiler::SamplingFlags flags) {
-  if (sampling_heap_profiler_.get()) {
-    return false;
-  }
+  if (sampling_heap_profiler_) return false;
   sampling_heap_profiler_.reset(new SamplingHeapProfiler(
       heap(), names_.get(), sample_interval, stack_depth, flags));
   return true;
@@ -169,7 +179,7 @@ void HeapProfiler::StopSamplingHeapProfiler() {
 }
 
 v8::AllocationProfile* HeapProfiler::GetAllocationProfile() {
-  if (sampling_heap_profiler_.get()) {
+  if (sampling_heap_profiler_) {
     return sampling_heap_profiler_->GetAllocationProfile();
   } else {
     return nullptr;

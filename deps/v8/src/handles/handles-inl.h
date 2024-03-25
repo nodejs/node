@@ -97,6 +97,16 @@ V8_INLINE Handle<T> handle(T object, LocalHeap* local_heap) {
 }
 
 template <typename T>
+V8_INLINE Handle<T> handle(DirectHandle<T> handle, Isolate* isolate) {
+  return Handle<T>(*handle, isolate);
+}
+
+template <typename T>
+V8_INLINE Handle<T> handle(DirectHandle<T> handle, LocalIsolate* isolate) {
+  return Handle<T>(*handle, isolate);
+}
+
+template <typename T>
 inline std::ostream& operator<<(std::ostream& os, Handle<T> handle) {
   return os << Brief(*handle);
 }
@@ -170,6 +180,9 @@ HandleScope::HandleScope(Isolate* isolate) {
   prev_next_ = data->next;
   prev_limit_ = data->limit;
   data->level++;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = data->level;
+#endif
 }
 
 HandleScope::HandleScope(HandleScope&& other) V8_NOEXCEPT
@@ -177,10 +190,16 @@ HandleScope::HandleScope(HandleScope&& other) V8_NOEXCEPT
       prev_next_(other.prev_next_),
       prev_limit_(other.prev_limit_) {
   other.isolate_ = nullptr;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = other.scope_level_;
+#endif
 }
 
 HandleScope::~HandleScope() {
   if (V8_UNLIKELY(isolate_ == nullptr)) return;
+#ifdef V8_ENABLE_CHECKS
+  CHECK_EQ(scope_level_, isolate_->handle_scope_data()->level);
+#endif
   CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
@@ -189,11 +208,17 @@ HandleScope& HandleScope::operator=(HandleScope&& other) V8_NOEXCEPT {
     isolate_ = other.isolate_;
   } else {
     DCHECK_EQ(isolate_, other.isolate_);
+#ifdef V8_ENABLE_CHECKS
+    CHECK_EQ(scope_level_, isolate_->handle_scope_data()->level);
+#endif
     CloseScope(isolate_, prev_next_, prev_limit_);
   }
   prev_next_ = other.prev_next_;
   prev_limit_ = other.prev_limit_;
   other.isolate_ = nullptr;
+#ifdef V8_ENABLE_CHECKS
+  scope_level_ = other.scope_level_;
+#endif
   return *this;
 }
 
@@ -231,6 +256,9 @@ template <typename T>
 Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
   HandleScopeData* current = isolate_->handle_scope_data();
   Tagged<T> value = *handle_value;
+#ifdef V8_ENABLE_CHECKS
+  CHECK_EQ(scope_level_, isolate_->handle_scope_data()->level);
+#endif
   // Throw away all handles in the current scope.
   CloseScope(isolate_, prev_next_, prev_limit_);
   // Allocate one handle in the parent scope.
@@ -289,6 +317,28 @@ inline SealHandleScope::~SealHandleScope() {
 #endif  // DEBUG
 
 #ifdef V8_ENABLE_DIRECT_HANDLE
+bool HandleBase::is_identical_to(const DirectHandleBase& that) const {
+  SLOW_DCHECK(
+      (this->location_ == nullptr || this->IsDereferenceAllowed()) &&
+      (that.address() == kTaggedNullAddress || that.IsDereferenceAllowed()));
+  if (this->location_ == nullptr && that.address() == kTaggedNullAddress)
+    return true;
+  if (this->location_ == nullptr || that.address() == kTaggedNullAddress)
+    return false;
+  return Tagged<Object>(*this->location_) == Tagged<Object>(that.address());
+}
+
+bool DirectHandleBase::is_identical_to(const HandleBase& that) const {
+  SLOW_DCHECK(
+      (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&
+      (that.location_ == nullptr || that.IsDereferenceAllowed()));
+  if (this->address() == kTaggedNullAddress && that.location_ == nullptr)
+    return true;
+  if (this->address() == kTaggedNullAddress || that.location_ == nullptr)
+    return false;
+  return Tagged<Object>(this->address()) == Tagged<Object>(*that.location_);
+}
+
 bool DirectHandleBase::is_identical_to(const DirectHandleBase& that) const {
   SLOW_DCHECK(
       (this->address() == kTaggedNullAddress || this->IsDereferenceAllowed()) &&

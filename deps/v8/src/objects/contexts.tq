@@ -14,6 +14,14 @@ extern class Context extends HeapObject {
   elements[length]: Object;
 }
 
+@cppObjectDefinition
+extern class ScriptContextTable extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  names_to_context_index: NameToIndexHashTable;
+  objects[capacity]: Context;
+}
+
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
 extern class CatchContext extends Context generates 'TNode<Context>';
@@ -121,6 +129,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   REGEXP_LAST_MATCH_INFO_INDEX: Slot<NativeContext, RegExpMatchInfo>,
   INITIAL_STRING_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
   INITIAL_ARRAY_ITERATOR_MAP_INDEX: Slot<NativeContext, Map>,
+  INITIAL_ITERATOR_PROTOTYPE_INDEX: Slot<NativeContext, JSObject>,
   SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP: Slot<NativeContext, Map>,
   STRICT_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
   SLOPPY_ARGUMENTS_MAP_INDEX: Slot<NativeContext, Map>,
@@ -165,6 +174,7 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
   PROMISE_HOOK_AFTER_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
   PROMISE_HOOK_RESOLVE_FUNCTION_INDEX: Slot<NativeContext, Undefined|Callable>,
 
+  // @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
   CONTINUATION_PRESERVED_EMBEDDER_DATA_INDEX: Slot<NativeContext, HeapObject>,
 
   BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX: Slot<NativeContext, Map>,

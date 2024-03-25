@@ -34,6 +34,9 @@ import re
 import subprocess
 import sys
 import shutil
+import time
+
+from enum import IntEnum
 from pathlib import Path
 
 USE_PTY = "linux" in sys.platform
@@ -69,8 +72,8 @@ DEFAULT_MODES = ["release", "debug"]
 # Build targets that can be manually specified.
 TARGETS = [
     "d8", "cctest", "v8_unittests", "v8_fuzzers", "wasm_api_tests", "wee8",
-    "mkgrokdump", "generate-bytecode-expectations", "inspector-test",
-    "bigint_shell", "wami"
+    "mkgrokdump", "mksnapshot", "generate-bytecode-expectations",
+    "inspector-test", "bigint_shell", "wami", "gn_args"
 ]
 # Build targets that get built when you don't specify any (and specified tests
 # don't imply any other targets).
@@ -142,8 +145,76 @@ TESTSUITES_TARGETS = {
     "webkit": "d8"
 }
 
-OUTDIR = Path("out")
+out_dir_override = os.getenv("V8_GM_OUTDIR")
+if out_dir_override and Path(out_dir_override).is_file:
+  OUTDIR = Path(out_dir_override)
+else:
+  OUTDIR = Path("out")
 
+V8_DIR = Path(__file__).resolve().parent.parent.parent
+GCLIENT_FILE_PATH = V8_DIR.parent / ".gclient"
+RECLIENT_CERT_CACHE = V8_DIR / ".#gm_reclient_cert_cache"
+
+BUILD_DISTRIBUTION_RE = re.compile(r"use_(remoteexec|goma) = (false|true)")
+RECLIENT_CFG_RE = re.compile(r"rbe_cfg_dir = \"[^\"]+\"\n")
+
+class Reclient(IntEnum):
+  NONE = 0
+  GOOGLE = 1
+  CUSTOM = 2
+
+
+def get_v8_solution(solutions):
+  for solution in solutions:
+    if (solution["name"] == "v8" or
+        solution["url"] == "https://chromium.googlesource.com/v8/v8.git"):
+      return solution
+  return None
+
+
+def detect_reclient():
+  if not GCLIENT_FILE_PATH.exists():
+    return Reclient.NONE
+  with open(GCLIENT_FILE_PATH) as f:
+    content = f.read()
+  try:
+    config_dict = {}
+    exec(content, config_dict)
+  except SyntaxError as e:
+    print("# Can't detect reclient due to .gclient syntax errors.")
+    return Reclient.NONE
+  v8_solution = get_v8_solution(config_dict["solutions"])
+  if not v8_solution:
+    print("# Can't detect reclient due to missing v8 gclient solution.")
+    return Reclient.NONE
+  custom_vars = v8_solution.get("custom_vars", {})
+  if custom_vars.get("rbe_instance"):
+    return Reclient.CUSTOM
+  if custom_vars.get("download_remoteexec_cfg"):
+    return Reclient.GOOGLE
+  return Reclient.NONE
+
+
+def detect_reclient_cert():
+  now = int(time.time())
+  # We cache the cert expiration time in a file, because that's much faster
+  # to read than invoking `gcertstatus`.
+  if RECLIENT_CERT_CACHE.exists():
+    with open(RECLIENT_CERT_CACHE, 'r') as f:
+      cached_time = int(f.read())
+    if now < cached_time:
+      return True
+  cmd = ["gcertstatus", "-nocheck_ssh", "-format=simple"]
+  ret = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  if ret.returncode != 0:
+    return False
+  MARGIN = 300  # Request fresh cert if less than 5 mins remain.
+  lifetime = int(ret.stdout.decode("utf-8").strip().split(':')[1]) - MARGIN
+  if lifetime < 0:
+    return False
+  with open(RECLIENT_CERT_CACHE, 'w') as f:
+    f.write(str(now + lifetime))
+  return True
 
 # Note: this function is reused by update-compile-commands.py. When renaming
 # this, please update that file too!
@@ -169,16 +240,26 @@ def detect_goma():
   return None
 
 
+RECLIENT_MODE = detect_reclient()
 GOMADIR = detect_goma()
-IS_GOMA_MACHINE = GOMADIR is not None
 
-USE_GOMA = "true" if IS_GOMA_MACHINE else "false"
+# Let reclient have precendence over goma.
+IS_GOMA_MACHINE = not RECLIENT_MODE and GOMADIR is not None
+
+RECLIENT_CFG_REL = "../../buildtools/reclient_cfgs/linux"
+BUILD_DISTRIBUTION_LINE = ""
+if RECLIENT_MODE:
+  BUILD_DISTRIBUTION_LINE = "use_remoteexec = true"
+  if RECLIENT_MODE == Reclient.CUSTOM:
+    BUILD_DISTRIBUTION_LINE += f"\nrbe_cfg_dir = \"{RECLIENT_CFG_REL}\""
+elif IS_GOMA_MACHINE:
+  BUILD_DISTRIBUTION_LINE = "use_goma = true"
 
 RELEASE_ARGS_TEMPLATE = f"""\
 is_component_build = false
 is_debug = false
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_disassembler = true
 v8_enable_object_print = true
@@ -191,7 +272,7 @@ is_component_build = true
 is_debug = true
 symbol_level = 2
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_slow_dchecks = true
@@ -203,7 +284,7 @@ is_component_build = true
 is_debug = true
 symbol_level = 1
 %s
-use_goma = {USE_GOMA}
+{BUILD_DISTRIBUTION_LINE}
 v8_enable_backtrace = true
 v8_enable_fast_mksnapshot = true
 v8_enable_verify_heap = true
@@ -272,8 +353,9 @@ def _call_with_output(cmd):
   return p.returncode, "".join(output)
 
 
-def _write(filename, content):
-  print(f"# echo > {filename} << EOF\n{content}EOF")
+def _write(filename, content, log=True):
+  if log:
+    print(f"# echo > {filename} << EOF\n{content}EOF")
   with filename.open("w") as f:
     f.write(content)
 
@@ -466,6 +548,20 @@ class ManagedConfig(RawConfig):
         self.get_sandbox_flag())
     return template % "\n".join(arch_specific)
 
+  def update_build_distribution_args(self):
+    args_gn = self.path / "args.gn"
+    assert args_gn.exists()
+    with open(args_gn) as f:
+      gn_args = f.read()
+    # Remove custom reclient config path (it will be added again as part of
+    # the config line below if needed).
+    new_gn_args = RECLIENT_CFG_RE.sub("", gn_args)
+    new_gn_args = BUILD_DISTRIBUTION_RE.sub(
+        BUILD_DISTRIBUTION_LINE, new_gn_args)
+    if gn_args != new_gn_args:
+      print(f"# Updated gn args:\n{BUILD_DISTRIBUTION_LINE}")
+      _write(args_gn, new_gn_args, log=False)
+
   def build(self):
     path = self.path
     args_gn = path / "args.gn"
@@ -474,6 +570,14 @@ class ManagedConfig(RawConfig):
       path.mkdir(parents=True)
     if not args_gn.exists():
       _write(args_gn, self.get_gn_args())
+    else:
+      self.update_build_distribution_args()
+    # If the target is to just build args.gn then we are done here; otherwise
+    # drop that target because it's not something ninja can build.
+    if 'gn_args' in self.targets:
+      self.targets.remove('gn_args')
+    if len(self.targets) == 0:
+      return 0
     return super().build()
 
   def run_tests(self):
@@ -547,6 +651,7 @@ class ArgumentParser(object):
       else:
         break
       path_end -= 1
+    targets = targets or DEFAULT_TARGETS
     path = Path('.'.join(words[:path_end]))
     args_gn = path / "args.gn"
     # Only accept existing build output directories, otherwise fall back
@@ -554,7 +659,8 @@ class ArgumentParser(object):
     if not args_gn.is_file():
       return False
     if path not in self.configs:
-      self.configs[path] = RawConfig(path, targets, tests, clean)
+      self.configs[path] = RawConfig(path, targets, tests, clean,
+                                     self.testrunner_args)
     else:
       self.configs[path].extend(targets, tests, clean)
     return True
@@ -653,6 +759,11 @@ def main(argv):
       _call("pgrep -x compiler_proxy > /dev/null", silent=True) != 0):
     goma_ctl = GOMADIR / "goma_ctl.py"
     _call(f"{goma_ctl} ensure_start")
+  # If we have Reclient with the Google configuration, check for current
+  # certificate.
+  if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):
+    print("Found Reclient/Google setup without cert, running 'gcert' for you:")
+    subprocess.check_call("gcert", shell=True)
   for c in configs:
     return_code += configs[c].build()
   if return_code == 0:

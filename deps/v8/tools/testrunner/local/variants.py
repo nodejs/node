@@ -40,9 +40,6 @@ ALL_VARIANT_FLAGS = {
         "--turboshaft-future",
         "--turboshaft-wasm",
         "--no-liftoff",
-        # We need this to correctly bailout for call_indirect with subtyping
-        # until we turn it on by default, or remove the bailout.
-        "--wasm-final-types"
     ]],
     "concurrent_sparkplug": [["--concurrent-sparkplug", "--sparkplug"]],
     "always_sparkplug": [["--always-sparkplug", "--sparkplug"]],

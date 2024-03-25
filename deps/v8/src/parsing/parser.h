@@ -302,7 +302,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ImportAssertions* ParseImportAssertClause();
   Statement* BuildInitializationBlock(DeclarationParsingResult* parsing_result);
-  Expression* RewriteReturn(Expression* return_value, int pos);
   Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
                                     Scope* scope);
   Block* RewriteCatchPattern(CatchInfo* catch_info);
@@ -798,8 +797,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return factory()->NewThisExpression(pos);
   }
 
-  Expression* NewSuperPropertyReference(Scope* home_object_scope, int pos);
-  Expression* NewSuperCallReference(int pos);
+  Expression* NewSuperPropertyReference(int pos);
+  SuperCallReference* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
   Expression* ImportMetaExpression(int pos);
 

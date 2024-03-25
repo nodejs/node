@@ -113,7 +113,7 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> HandleApiCallHelper(
                                      argv, argc);
     Handle<Object> result = custom.Call(call_data);
 
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate, Object);
     if (result.is_null()) {
       if (is_construct) return js_receiver;
       return isolate->factory()->undefined_value();
@@ -253,7 +253,7 @@ HandleApiCallAsFunctionOrConstructorDelegate(Isolate* isolate,
     }
   }
   // Check for exceptions and return result.
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
+  RETURN_FAILURE_IF_EXCEPTION(isolate);
   return result;
 }
 

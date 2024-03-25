@@ -103,7 +103,7 @@ class ExternalStringStream {
   ExternalStringStream(Tagged<ExternalString> string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string->GetChars(GetPtrComprCageBase(string)) + start_offset),
+        data_(string->GetChars() + start_offset),
         length_(length) {}
 
   ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT

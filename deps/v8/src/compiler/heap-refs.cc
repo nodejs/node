@@ -4,6 +4,7 @@
 
 #include "src/compiler/heap-refs.h"
 
+#include "src/compiler/js-heap-broker.h"
 #include "src/objects/elements-kind.h"
 
 #ifdef ENABLE_SLOW_DCHECKS
@@ -281,10 +282,15 @@ class JSObjectData : public JSReceiverData {
 
 namespace {
 
-OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
-                                                 JSObjectRef holder,
-                                                 Representation representation,
-                                                 FieldIndex field_index) {
+// Separate function for racy HeapNumber value read, so that we can explicitly
+// suppress it in TSAN (see tools/sanitizers/tsan_suppressions.txt).
+uint64_t RacyReadHeapNumberBits(Tagged<HeapNumber> value) {
+  return value->value_as_bits();
+}
+
+base::Optional<Tagged<Object>> GetOwnFastConstantDataPropertyFromHeap(
+    JSHeapBroker* broker, JSObjectRef holder, Representation representation,
+    FieldIndex field_index) {
   base::Optional<Tagged<Object>> constant;
   {
     DisallowGarbageCollection no_gc;
@@ -361,12 +367,7 @@ OptionalObjectRef GetOwnFastDataPropertyFromHeap(JSHeapBroker* broker,
       return {};
     }
   }
-
-  // Now that we can safely inspect the constant, it may need to be wrapped.
-  Handle<Object> value = broker->CanonicalPersistentHandle(constant.value());
-  Handle<Object> possibly_wrapped = Object::WrapForRead<AllocationType::kOld>(
-      broker->local_isolate_or_isolate(), value, representation);
-  return TryMakeRef(broker, *possibly_wrapped);
+  return constant;
 }
 
 // Tries to get the property at {dict_index}. If we are within bounds of the
@@ -798,6 +799,10 @@ InstanceType HeapObjectData::GetMapInstanceType() const {
   if (map_data->should_access_heap()) {
     return Handle<Map>::cast(map_data->object())->instance_type();
   }
+  if (this == map_data) {
+    // Handle infinite recursion in case this object is a contextful meta map.
+    return MAP_TYPE;
+  }
   return map_data->AsMap()->instance_type();
 }
 
@@ -887,11 +892,11 @@ class FixedArrayData : public FixedArrayBaseData {
 };
 
 // Only used in JSNativeContextSpecialization.
-class ScriptContextTableData : public FixedArrayData {
+class ScriptContextTableData : public FixedArrayBaseData {
  public:
   ScriptContextTableData(JSHeapBroker* broker, ObjectData** storage,
                          Handle<ScriptContextTable> object, ObjectDataKind kind)
-      : FixedArrayData(broker, storage, object, kind) {}
+      : FixedArrayBaseData(broker, storage, object, kind) {}
 };
 
 class JSArrayData : public JSObjectData {
@@ -1207,17 +1212,7 @@ OddballType MapRef::oddball_type(JSHeapBroker* broker) const {
   if (equals(broker->boolean_map())) {
     return OddballType::kBoolean;
   }
-  if (equals(broker->uninitialized_map())) {
-    return OddballType::kUninitialized;
-  }
-  DCHECK(equals(broker->termination_exception_map()) ||
-         equals(broker->arguments_marker_map()) ||
-         equals(broker->optimized_out_map()) ||
-         equals(broker->exception_map()) ||
-         equals(broker->self_reference_marker_map()) ||
-         equals(broker->basic_block_counters_marker_map()) ||
-         equals(broker->stale_register_map()));
-  return OddballType::kOther;
+  UNREACHABLE();
 }
 
 FeedbackCellRef FeedbackVectorRef::GetClosureFeedbackCell(JSHeapBroker* broker,
@@ -1426,8 +1421,7 @@ Handle<ByteArray> BytecodeArrayRef::SourcePositionTable(
 }
 
 Address BytecodeArrayRef::handler_table_address() const {
-  return reinterpret_cast<Address>(
-      object()->handler_table()->GetDataStartAddress());
+  return reinterpret_cast<Address>(object()->handler_table()->begin());
 }
 
 int BytecodeArrayRef::handler_table_size() const {
@@ -1491,6 +1485,7 @@ int64_t BigIntRef::AsInt64(bool* lossless) const {
   return ObjectRef::data()->AsBigInt()->AsInt64(lossless);
 }
 
+int BytecodeArrayRef::length() const { return object()->length(); }
 int BytecodeArrayRef::register_count() const {
   return object()->register_count();
 }
@@ -1507,7 +1502,7 @@ BIMODAL_ACCESSOR(HeapObject, Map, map)
 HEAP_ACCESSOR_C(HeapNumber, double, value)
 
 uint64_t HeapNumberRef::value_as_bits() const {
-  return object()->value_as_bits(kRelaxedLoad);
+  return object()->value_as_bits();
 }
 
 JSReceiverRef JSBoundFunctionRef::bound_target_function(
@@ -1554,7 +1549,9 @@ BIMODAL_ACCESSOR_C(Map, int, UnusedPropertyFields)
 HEAP_ACCESSOR_C(Map, InstanceType, instance_type)
 BIMODAL_ACCESSOR_C(Map, bool, is_abandoned_prototype_map)
 
-int ObjectBoilerplateDescriptionRef::size() const { return object()->size(); }
+int ObjectBoilerplateDescriptionRef::boilerplate_properties_count() const {
+  return object()->boilerplate_properties_count();
+}
 
 BIMODAL_ACCESSOR(PropertyCell, Object, value)
 BIMODAL_ACCESSOR_C(PropertyCell, PropertyDetails, property_details)
@@ -1872,15 +1869,15 @@ bool ObjectRef::IsHashTableHole() const {
 }
 
 HoleType ObjectRef::HoleType() const {
-  if (i::IsTheHole(*object())) {
-    return HoleType::kGeneric;
-  } else if (i::IsPropertyCellHole(*object())) {
-    return HoleType::kPropertyCell;
-  } else if (i::IsHashTableHole(*object())) {
-    return HoleType::kHashTable;
-  } else {
-    return HoleType::kNone;
+#define IF_HOLE_THEN_RETURN(Name, name, Root) \
+  if (i::Is##Name(*object())) {               \
+    return HoleType::k##Name;                 \
   }
+
+  HOLE_LIST(IF_HOLE_THEN_RETURN)
+#undef IF_HOLE_THEN_RETURN
+
+  return HoleType::kNone;
 }
 
 bool ObjectRef::IsNullOrUndefined() const { return IsNull() || IsUndefined(); }
@@ -1981,16 +1978,43 @@ base::Optional<Tagged<Object>> JSObjectRef::GetOwnConstantElementFromHeap(
   return maybe_element;
 }
 
-OptionalObjectRef JSObjectRef::GetOwnFastDataProperty(
+OptionalObjectRef JSObjectRef::GetOwnFastConstantDataProperty(
     JSHeapBroker* broker, Representation field_representation, FieldIndex index,
     CompilationDependencies* dependencies) const {
-  OptionalObjectRef result = GetOwnFastDataPropertyFromHeap(
-      broker, *this, field_representation, index);
-  if (result.has_value()) {
-    dependencies->DependOnOwnConstantDataProperty(
-        *this, map(broker), field_representation, index, *result);
-  }
+  // Use GetOwnFastConstantDoubleProperty for doubles.
+  DCHECK(!field_representation.IsDouble());
+
+  base::Optional<Tagged<Object>> constant =
+      GetOwnFastConstantDataPropertyFromHeap(broker, *this,
+                                             field_representation, index);
+  if (!constant) return {};
+
+  OptionalObjectRef result =
+      TryMakeRef(broker, broker->CanonicalPersistentHandle(constant.value()));
+
+  if (!result.has_value()) return {};
+
+  dependencies->DependOnOwnConstantDataProperty(*this, map(broker), index,
+                                                *result);
   return result;
+}
+
+base::Optional<double> JSObjectRef::GetOwnFastConstantDoubleProperty(
+    JSHeapBroker* broker, FieldIndex index,
+    CompilationDependencies* dependencies) const {
+  base::Optional<Tagged<Object>> constant =
+      GetOwnFastConstantDataPropertyFromHeap(broker, *this,
+                                             Representation::Double(), index);
+  if (!constant) return {};
+
+  DCHECK(i::IsHeapNumber(constant.value()));
+
+  Float64 unboxed_value = Float64::FromBits(
+      RacyReadHeapNumberBits(HeapNumber::cast(constant.value())));
+
+  dependencies->DependOnOwnConstantDoubleProperty(*this, map(broker), index,
+                                                  unboxed_value);
+  return unboxed_value.get_scalar();
 }
 
 OptionalObjectRef JSObjectRef::GetOwnDictionaryProperty(
@@ -2087,13 +2111,7 @@ OddballType GetOddballType(Isolate* isolate, Tagged<Map> map) {
   if (map == roots.boolean_map()) {
     return OddballType::kBoolean;
   }
-  if (map == roots.uninitialized_map()) {
-    return OddballType::kUninitialized;
-  }
-  DCHECK(map == roots.termination_exception_map() ||
-         map == roots.arguments_marker_map() ||
-         map == roots.optimized_out_map() || map == roots.stale_register_map());
-  return OddballType::kOther;
+  UNREACHABLE();
 }
 
 }  // namespace
@@ -2275,7 +2293,7 @@ BIMODAL_ACCESSOR(JSFunction, SharedFunctionInfo, shared)
 #undef JSFUNCTION_BIMODAL_ACCESSOR_WITH_DEP_C
 
 OptionalCodeRef JSFunctionRef::code(JSHeapBroker* broker) const {
-  return TryMakeRef(broker, object()->code());
+  return TryMakeRef(broker, object()->code(broker->isolate()));
 }
 
 NativeContextRef JSFunctionRef::native_context(JSHeapBroker* broker) const {
@@ -2286,8 +2304,7 @@ NativeContextRef JSFunctionRef::native_context(JSHeapBroker* broker) const {
 OptionalFunctionTemplateInfoRef SharedFunctionInfoRef::function_template_info(
     JSHeapBroker* broker) const {
   if (!object()->IsApiFunction()) return {};
-  return TryMakeRef(broker, FunctionTemplateInfo::cast(
-                                object()->function_data(kAcquireLoad)));
+  return TryMakeRef(broker, object()->api_func_data());
 }
 
 int SharedFunctionInfoRef::context_header_size() const {
@@ -2313,7 +2330,7 @@ OptionalMapRef JSObjectRef::GetObjectCreateMap(JSHeapBroker* broker) const {
 
   MaybeObject maybe_object_create_map =
       Handle<PrototypeInfo>::cast(maybe_proto_info)
-          ->object_create_map(kAcquireLoad);
+          ->ObjectCreateMap(kAcquireLoad);
   if (!maybe_object_create_map->IsWeak()) return {};
 
   return MapRef(broker->GetOrCreateData(

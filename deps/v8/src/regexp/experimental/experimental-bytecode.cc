@@ -77,6 +77,16 @@ std::ostream& operator<<(std::ostream& os, const RegExpInstruction& inst) {
     case RegExpInstruction::END_LOOP:
       os << "END_LOOP";
       break;
+    case RegExpInstruction::WRITE_LOOKBEHIND_TABLE:
+      os << "WRITE_LOOKBEHIND_TABLE " << inst.payload.looktable_index;
+      break;
+    case RegExpInstruction::READ_LOOKBEHIND_TABLE:
+      os << "READ_LOOKBEHIND_TABLE "
+         << inst.payload.read_lookbehind.lookbehind_index() << " ("
+         << (inst.payload.read_lookbehind.is_positive() ? "positive"
+                                                        : "negative")
+         << ")";
+      break;
   }
   return os;
 }

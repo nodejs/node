@@ -648,7 +648,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
       !InitClassPrototype(isolate, class_boilerplate, prototype,
                           Handle<HeapObject>::cast(prototype_parent),
                           constructor, args)) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     return MaybeHandle<Object>();
   }
   if (v8_flags.log_maps) {

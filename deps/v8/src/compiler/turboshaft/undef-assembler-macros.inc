@@ -14,6 +14,8 @@
 
 #undef __
 
+#undef Assert
+
 #undef BIND
 #undef ELSE
 #undef ELSE_IF

@@ -38,6 +38,7 @@ struct TypeswitchCase {
 struct EnumEntry {
   Identifier* name;
   base::Optional<TypeExpression*> type;
+  base::Optional<std::string> alias_entry;
 };
 
 class BuildFlags : public base::ContextualClass<BuildFlags> {
@@ -56,6 +57,11 @@ class BuildFlags : public base::ContextualClass<BuildFlags> {
     build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = true;
 #else
     build_flags_["V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS"] = false;
+#endif
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+    build_flags_["V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA"] = true;
+#else
+    build_flags_["V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA"] = false;
 #endif
     build_flags_["TRUE_FOR_TESTING"] = true;
     build_flags_["FALSE_FOR_TESTING"] = false;
@@ -361,7 +367,7 @@ Expression* MakeCall(IdentifierExpression* callee,
   for (auto* statement : otherwise) {
     if (auto* e = ExpressionStatement::DynamicCast(statement)) {
       if (auto* id = IdentifierExpression::DynamicCast(e->expression)) {
-        if (id->generic_arguments.size() != 0) {
+        if (!id->generic_arguments.empty()) {
           ReportError("An otherwise label cannot have generic parameters");
         }
         labels.push_back(id->name);
@@ -617,7 +623,7 @@ namespace {
 bool HasAnnotation(ParseResultIterator* child_results, const char* annotation,
                    const char* declaration) {
   auto annotations = child_results->NextAs<std::vector<Annotation>>();
-  if (annotations.size()) {
+  if (!annotations.empty()) {
     if (annotations.size() > 1 || annotations[0].name->value != annotation) {
       Error(declaration, " declarations only support a single ", annotation,
             " annotation");
@@ -918,7 +924,7 @@ base::Optional<ParseResult> YieldIntegerLiteral(
   std::string value = child_results->matched_input().ToString();
   // Consume a leading minus.
   bool negative = false;
-  if (value.size() > 0 && value[0] == '-') {
+  if (!value.empty() && value[0] == '-') {
     negative = true;
     value = value.substr(1);
   }
@@ -984,7 +990,8 @@ base::Optional<ParseResult> MakeClassDeclaration(
        ANNOTATION_GENERATE_UNIQUE_MAP, ANNOTATION_GENERATE_FACTORY_FUNCTION,
        ANNOTATION_HIGHEST_INSTANCE_TYPE_WITHIN_PARENT,
        ANNOTATION_LOWEST_INSTANCE_TYPE_WITHIN_PARENT,
-       ANNOTATION_CPP_OBJECT_DEFINITION},
+       ANNOTATION_CPP_OBJECT_DEFINITION,
+       ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION},
       {ANNOTATION_RESERVE_BITS_IN_INSTANCE_TYPE,
        ANNOTATION_INSTANCE_TYPE_VALUE});
   ClassFlags flags = ClassFlag::kNone;
@@ -1031,6 +1038,9 @@ base::Optional<ParseResult> MakeClassDeclaration(
   }
   if (annotations.Contains(ANNOTATION_CPP_OBJECT_DEFINITION)) {
     flags |= ClassFlag::kCppObjectDefinition;
+  }
+  if (annotations.Contains(ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION)) {
+    flags |= ClassFlag::kCppObjectLayoutDefinition;
   }
 
   auto is_extern = child_results->NextAs<bool>();
@@ -1518,8 +1528,12 @@ base::Optional<ParseResult> MakeEnumDeclaration(
       const std::string entry_name = entry.name->value;
       const std::string entry_constexpr_type =
           CONSTEXPR_TYPE_PREFIX + entry_name;
-      enum_description.entries.push_back(constexpr_generates +
-                                         "::" + entry_name);
+      std::string alias_entry;
+      if (entry.alias_entry) {
+        alias_entry = constexpr_generates + "::" + *entry.alias_entry;
+      }
+      enum_description.entries.emplace_back(
+          constexpr_generates + "::" + entry_name, alias_entry);
 
       entry_decls.push_back(MakeNode<AbstractTypeDeclaration>(
           MakeNode<Identifier>(entry_constexpr_type),
@@ -2042,9 +2056,14 @@ base::Optional<ParseResult> MakeNameAndType(
 }
 
 base::Optional<ParseResult> MakeEnumEntry(ParseResultIterator* child_results) {
+  AnnotationSet annotations(child_results, {}, {ANNOTATION_SAME_ENUM_VALUE_AS});
+  std::vector<ConditionalAnnotation> conditions;
+  base::Optional<std::string> alias_entry =
+      annotations.GetStringParam(ANNOTATION_SAME_ENUM_VALUE_AS);
+
   auto name = child_results->NextAs<Identifier*>();
   auto type = child_results->NextAs<base::Optional<TypeExpression*>>();
-  return ParseResult{EnumEntry{name, type}};
+  return ParseResult{EnumEntry{name, type, alias_entry}};
 }
 
 base::Optional<ParseResult> MakeNameAndExpression(
@@ -2688,7 +2707,8 @@ struct TorqueGrammar : Grammar {
       Optional<TypeExpression*>(Sequence({Token(":"), &type}));
 
   // Result: EnumEntry
-  Symbol enumEntry = {Rule({&name, optionalTypeSpecifier}, MakeEnumEntry)};
+  Symbol enumEntry = {
+      Rule({annotations, &name, optionalTypeSpecifier}, MakeEnumEntry)};
 
   // Result: Statement*
   Symbol varDeclaration = {

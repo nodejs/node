@@ -5,6 +5,8 @@
 #include "src/compiler/turboshaft/late-load-elimination-reducer.h"
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/opmasks.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/objects/code-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
@@ -13,6 +15,15 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
                                                bool compute_start_snapshot) {
   if (compute_start_snapshot) {
     BeginBlock(&block);
+  }
+  if (block.IsLoop() && BackedgeHasSnapshot(block)) {
+    // Update the associated snapshot for the forward edge with the merged
+    // snapshot information from the forward- and backward edge.
+    // This will make sure that when evaluating whether a loop needs to be
+    // revisited, the inner loop compares the merged state with the backedge
+    // preventing us from exponential revisits for loops where the backedge
+    // invalidates loads which are eliminatable on the forward edge.
+    StoreLoopSnapshotInForwardPredecessor(block);
   }
 
   for (OpIndex op_idx : graph_.OperationIndices(block)) {
@@ -52,22 +63,17 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAtomicWord32Pair:
       case Opcode::kMemoryBarrier:
       case Opcode::kStackCheck:
+      case Opcode::kParameter:
+      case Opcode::kDebugBreak:
 #ifdef V8_ENABLE_WEBASSEMBLY
       case Opcode::kSimd128LaneMemory:
       case Opcode::kGlobalSet:
       case Opcode::kArraySet:
       case Opcode::kStructSet:
+      case Opcode::kSetStackPointer:
 #endif  // V8_ENABLE_WEBASSEMBLY
         // We explicitely break for those operations that have can_write effects
         // but don't actually write, or cannot interfere with load elimination.
-        break;
-      case Opcode::kParameter:
-#if V8_ENABLE_WEBASSEMBLY
-        if (is_wasm_ && op.Cast<ParameterOp>().parameter_index == 0) {
-          // This is the instance parameter.
-          non_aliasing_objects_.Set(op_idx, true);
-        }
-#endif
         break;
       default:
         // Operations that `can_write` should invalidate the state. All such
@@ -83,10 +89,10 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
 
 namespace {
 
-// Returns true if replacing a Load with a RegisterReprsentation
+// Returns true if replacing a Load with a RegisterRepresentation
 // {expected_reg_rep} and MemoryRepresentation of {expected_loaded_repr} with an
 // operation with RegisterRepresentation {actual} is valid. For instance,
-// replacing a operation that returns a Float64 by one that returns a Word64 is
+// replacing an operation that returns a Float64 by one that returns a Word64 is
 // not valid. Similarly, replacing a Tagged with an untagged value is probably
 // not valid because of the GC.
 bool RepIsCompatible(RegisterRepresentation actual,
@@ -101,7 +107,7 @@ bool RepIsCompatible(RegisterRepresentation actual,
     // truncation), we just prevent load elimination in this case.
 
     // TODO(dmercadier): add more truncations operators to Turboshaft, and
-    // insert the correct truncation when there is a missmatch between
+    // insert the correct truncation when there is a mismatch between
     // {expected_loaded_repr} and {actual}.
 
     return false;
@@ -114,7 +120,7 @@ bool RepIsCompatible(RegisterRepresentation actual,
 
 void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
                                               const LoadOp& load) {
-  if (!load.kind.always_canonically_accessed) {
+  if (!load.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
     return;
@@ -162,7 +168,16 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
 
 void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
                                                const StoreOp& store) {
-  if (!store.kind.always_canonically_accessed) {
+  // If we have a raw base and we allow those to be inner pointers, we can
+  // overwrite arbitrary values and need to invalidate anything that is
+  // potentially aliasing.
+  const bool invalidate_maybe_aliasing =
+      !store.kind.tagged_base &&
+      raw_base_assumption_ == RawBaseAssumption::kMaybeInnerPointer;
+
+  if (invalidate_maybe_aliasing) memory_.InvalidateMaybeAliasing();
+
+  if (!store.kind.load_eliminable) {
     // We don't optimize Loads/Stores to addresses that could be accessed
     // non-canonically.
     return;
@@ -170,8 +185,8 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 
   OpIndex value = store.value();
 
-  // Updating the known stored values
-  memory_.Invalidate(store);
+  // Updating the known stored values.
+  if (!invalidate_maybe_aliasing) memory_.Invalidate(store);
   memory_.Insert(store);
 
   // Updating aliases if the value stored was known as non-aliasing.
@@ -186,16 +201,27 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 // call if it was an argument of the call.
 void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
                                               const CallOp& op) {
+  const Operation& callee = graph_.Get(op.callee());
+  if (const ConstantOp* external_constant =
+          callee.template TryCast<Opmask::kExternalConstant>()) {
+    if (external_constant->external_reference() ==
+        ExternalReference::check_object_type()) {
+      return;
+    }
+  }
+
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
   // invalidate the state, and record the non-alias if any.
   if (!op.Effects().can_write()) return;
+  // Note: This does not detect wasm stack checks, but those are detected by the
+  // check just above.
   if (op.IsStackCheck(graph_, broker_, StackCheckKind::kJSIterationBody)) {
     // This is a stack check that cannot write heap memory.
     return;
   }
-  if (auto builtin_id = TryGetBuiltinId(
-          graph_.Get(op.callee()).TryCast<ConstantOp>(), broker_)) {
+  if (auto builtin_id =
+          TryGetBuiltinId(callee.TryCast<ConstantOp>(), broker_)) {
     switch (*builtin_id) {
       // TODO(dmercadier): extend this list.
       case Builtin::kCopyFastSmiOrObjectElements:
@@ -228,6 +254,18 @@ void LateLoadEliminationAnalyzer::InvalidateIfAlias(OpIndex op_idx) {
     // could create aliases, so we have to consider going forward that this
     // object could actually have aliases.
     non_aliasing_objects_.Set(*key, false);
+  }
+  if (const FrameStateOp* frame_state =
+          graph_.Get(op_idx).TryCast<FrameStateOp>()) {
+    // We also mark the arguments of FrameState passed on to calls as
+    // potentially-aliasing, because they could be accessed by the caller with a
+    // function_name.arguments[index].
+    // TODO(dmercadier): this is more conservative that we'd like, since only a
+    // few functions use .arguments. Using a native-context-specific protector
+    // for .arguments might allow to avoid invalidating frame states' content.
+    for (OpIndex input : frame_state->inputs()) {
+      InvalidateIfAlias(input);
+    }
   }
 }
 
@@ -264,6 +302,29 @@ void LateLoadEliminationAnalyzer::SealAndDiscard() {
   non_aliasing_objects_.Seal();
   object_maps_.Seal();
   memory_.Seal();
+}
+
+void LateLoadEliminationAnalyzer::StoreLoopSnapshotInForwardPredecessor(
+    const Block& loop_header) {
+  auto non_aliasing_snapshot = non_aliasing_objects_.Seal();
+  auto object_maps_snapshot = object_maps_.Seal();
+  auto memory_snapshot = memory_.Seal();
+
+  block_to_snapshot_mapping_
+      [loop_header.LastPredecessor()->NeighboringPredecessor()->index()] =
+          Snapshot{non_aliasing_snapshot, object_maps_snapshot,
+                   memory_snapshot};
+
+  non_aliasing_objects_.StartNewSnapshot(non_aliasing_snapshot);
+  object_maps_.StartNewSnapshot(object_maps_snapshot);
+  memory_.StartNewSnapshot(memory_snapshot);
+}
+
+bool LateLoadEliminationAnalyzer::BackedgeHasSnapshot(
+    const Block& loop_header) const {
+  DCHECK(loop_header.IsLoop());
+  return block_to_snapshot_mapping_[loop_header.LastPredecessor()->index()]
+      .has_value();
 }
 
 template <bool for_loop_revisit>
@@ -350,7 +411,7 @@ bool LateLoadEliminationAnalyzer::BeginBlock(const Block* block) {
   // TODO(dmercadier): we could insert of Phis during the pass to merge existing
   // information. This is a bit hard, because we are currently in an analyzer
   // rather than a reducer. Still, we could "prepare" the insertion now and then
-  // really insert them during the Reduce phase of the OptimizationPhase.
+  // really insert them during the Reduce phase of the CopyingPhase.
   auto merge_memory = [&](MemoryKey key,
                           base::Vector<const OpIndex> predecessors) -> OpIndex {
     if (for_loop_revisit && predecessors[kForwardEdgeOffset].valid() &&

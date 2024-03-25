@@ -7,6 +7,9 @@
 
 #include "src/common/code-memory-access.h"
 #include "src/flags/flags.h"
+#include "src/objects/instruction-stream-inl.h"
+#include "src/objects/instruction-stream.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/tagged.h"
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
 #include "src/base/platform/memory-protection-key.h"
@@ -55,6 +58,15 @@ WritableJitAllocation WritableJitAllocation::ForNonExecutableMemory(
   return WritableJitAllocation(addr, size, type);
 }
 
+// static
+WritableJitAllocation WritableJitAllocation::ForInstructionStream(
+    Tagged<InstructionStream> istream) {
+  return WritableJitAllocation(
+      istream->address(), istream->Size(),
+      ThreadIsolation::JitAllocationType::kInstructionStream,
+      JitAllocationSource::kLookup);
+}
+
 WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
                                              size_t jump_table_size,
                                              Address far_jump_table_address,
@@ -74,12 +86,16 @@ WritableJumpTablePair::WritableJumpTablePair(Address jump_table_address,
 
 template <typename T, size_t offset>
 void WritableJitAllocation::WriteHeaderSlot(T value) {
-  // These asserts are no strict requirements, they just guard against
+  // This assert is no strict requirement, it just guards against
   // non-implemented functionality.
   static_assert(!is_taggable_v<T>);
-  static_assert(offset != HeapObject::kMapOffset);
 
-  WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(
+        HeapObject::FromAddress(address_), value);
+  } else {
+    WriteMaybeUnalignedValue<T>(address_ + offset, value);
+  }
 }
 
 template <typename T, size_t offset>
@@ -100,6 +116,34 @@ void WritableJitAllocation::WriteHeaderSlot(Tagged<T> value, RelaxedStoreTag) {
   } else {
     TaggedField<T, offset>::Relaxed_Store(HeapObject::FromAddress(address_),
                                           value);
+  }
+}
+
+template <typename T, size_t offset>
+void WritableJitAllocation::WriteProtectedPointerHeaderSlot(Tagged<T> value,
+                                                            RelaxedStoreTag) {
+  static_assert(offset != HeapObject::kMapOffset);
+  TaggedField<T, offset, TrustedSpaceCompressionScheme>::Relaxed_Store(
+      HeapObject::FromAddress(address_), value);
+}
+
+template <typename T>
+V8_INLINE void WritableJitAllocation::WriteHeaderSlot(Address address, T value,
+                                                      RelaxedStoreTag tag) {
+  CHECK_EQ(allocation_.Type(),
+           ThreadIsolation::JitAllocationType::kInstructionStream);
+  size_t offset = address - address_;
+  Tagged<T> tagged(value);
+  switch (offset) {
+    case InstructionStream::kCodeOffset:
+      WriteProtectedPointerHeaderSlot<T, InstructionStream::kCodeOffset>(tagged,
+                                                                         tag);
+      break;
+    case InstructionStream::kRelocationInfoOffset:
+      WriteHeaderSlot<T, InstructionStream::kRelocationInfoOffset>(tagged, tag);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -130,13 +174,48 @@ WritableJitAllocation WritableJitPage::LookupAllocationContaining(
                                pair.second.Type());
 }
 
+V8_INLINE WritableFreeSpace WritableJitPage::FreeRange(Address addr,
+                                                       size_t size) {
+  page_ref_.UnregisterRange(addr, size);
+  return WritableFreeSpace(addr, size, true);
+}
+
+WritableFreeSpace::~WritableFreeSpace() = default;
+
+// static
+V8_INLINE WritableFreeSpace
+WritableFreeSpace::ForNonExecutableMemory(base::Address addr, size_t size) {
+  return WritableFreeSpace(addr, size, false);
+}
+
+V8_INLINE WritableFreeSpace::WritableFreeSpace(base::Address addr, size_t size,
+                                               bool executable)
+    : address_(addr), size_(static_cast<int>(size)), executable_(executable) {}
+
+template <typename T, size_t offset>
+void WritableFreeSpace::WriteHeaderSlot(Tagged<T> value,
+                                        RelaxedStoreTag) const {
+  Tagged<HeapObject> object = HeapObject::FromAddress(address_);
+  // TODO(v8:13355): add validation before the write.
+  if constexpr (offset == HeapObject::kMapOffset) {
+    TaggedField<T, offset>::Relaxed_Store_Map_Word(object, value);
+  } else {
+    TaggedField<T, offset>::Relaxed_Store(object, value);
+  }
+}
+
+template <size_t offset>
+void WritableFreeSpace::ClearTagged(size_t count) const {
+  base::Address start = address_ + offset;
+  // TODO(v8:13355): add validation before the write.
+  MemsetTagged(ObjectSlot(start), Tagged<Object>(kClearedFreeMemoryValue),
+               count);
+}
+
 #if V8_HAS_PTHREAD_JIT_WRITE_PROTECT
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return true; }
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return true; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {
@@ -163,13 +242,6 @@ bool RwxMemoryWriteScope::IsSupported() {
   // tests won't be able to run with/without pkey support anymore in the same
   // process.
   return v8_flags.memory_protection_keys && ThreadIsolation::pkey() >= 0;
-}
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() {
-  DCHECK(ThreadIsolation::initialized());
-  return v8_flags.memory_protection_keys &&
-         ThreadIsolation::untrusted_pkey() >= 0;
 }
 
 // static
@@ -204,9 +276,6 @@ void RwxMemoryWriteScope::SetExecutable() {
 
 // static
 bool RwxMemoryWriteScope::IsSupported() { return false; }
-
-// static
-bool RwxMemoryWriteScope::IsSupportedUntrusted() { return false; }
 
 // static
 void RwxMemoryWriteScope::SetWritable() {}

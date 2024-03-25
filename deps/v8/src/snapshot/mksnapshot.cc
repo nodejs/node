@@ -279,7 +279,7 @@ int main(int argc, char** argv) {
                          i::kMaxPCRelativeCodeRangeInMB);
       v8::ResourceConstraints constraints;
       constraints.set_code_range_size_in_bytes(code_range_size_mb * i::MB);
-      i_isolate->heap()->ConfigureHeap(constraints);
+      i_isolate->heap()->ConfigureHeap(constraints, nullptr);
       // The isolate contains data from builtin compilation that needs
       // to be written out if builtins are embedded.
       i_isolate->RegisterEmbeddedFileWriter(&embedded_writer);

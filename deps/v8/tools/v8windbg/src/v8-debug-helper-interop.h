@@ -5,7 +5,9 @@
 #ifndef V8_TOOLS_V8WINDBG_SRC_V8_DEBUG_HELPER_INTEROP_H_
 #define V8_TOOLS_V8WINDBG_SRC_V8_DEBUG_HELPER_INTEROP_H_
 
-#include <wrl/client.h>
+// Must be included before DbgModel.h.
+#include <new>
+#include <wrl.h>
 
 #include <DbgModel.h>
 
@@ -16,10 +18,8 @@
 
 namespace WRL = Microsoft::WRL;
 
-constexpr char kObject[] = "v8::internal::Object";
-constexpr char16_t kObjectU[] = u"v8::internal::Object";
-constexpr char kTaggedValue[] = "v8::internal::TaggedValue";
-constexpr char16_t kTaggedValueU[] = u"v8::internal::TaggedValue";
+constexpr char16_t kTaggedObjectU[] =
+    u"v8::internal::Tagged<v8::internal::Object>";
 
 enum class PropertyType {
   kPointer = 0,
@@ -114,8 +114,6 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
 // Expand a compressed pointer from 32 bits to the format that
 // GetObjectProperties expects for compressed pointers.
 inline uint64_t ExpandCompressedPointer(uint32_t ptr) { return ptr; }
-
-std::vector<std::u16string> ListObjectClasses();
 
 const char* BitsetName(uint64_t payload);
 

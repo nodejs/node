@@ -140,21 +140,11 @@ namespace internal {
 #define V8_ENABLE_SANDBOX_BOOL false
 #endif
 
-// D8's MultiMappedAllocator is only available on Linux, and only if the sandbox
-// is not enabled.
-#if V8_OS_LINUX && !V8_ENABLE_SANDBOX_BOOL
-#define MULTI_MAPPED_ALLOCATOR_AVAILABLE true
-#else
-#define MULTI_MAPPED_ALLOCATOR_AVAILABLE false
-#endif
-
 #ifdef V8_ENABLE_CONTROL_FLOW_INTEGRITY
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL true
 #else
 #define ENABLE_CONTROL_FLOW_INTEGRITY_BOOL false
 #endif
-
-#define ENABLE_SPARKPLUG true
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64
 // Set stack limit lower for ARM and ARM64 than for other architectures because:
@@ -414,6 +404,9 @@ constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 32;
 constexpr uint32_t kDefaultMaxWasmCodeSpaceSizeMb = 1024;
 #endif
 
+// Align IsolateData to a most common CPU cache line size.
+constexpr size_t kIsolateDataAlignment = 64;
+
 #if V8_HOST_ARCH_64_BIT
 constexpr int kSystemPointerSizeLog2 = 3;
 constexpr intptr_t kIntptrSignBit =
@@ -444,6 +437,10 @@ constexpr size_t kReservedCodeRangePages = 1;
 constexpr size_t kMinimumCodeRangeSize = 3 * MB;
 constexpr size_t kReservedCodeRangePages = 0;
 #endif
+
+// These constants define the total trusted space memory per process.
+constexpr size_t kMaximalTrustedRangeSize = 256 * MB;
+constexpr size_t kMinimumTrustedRangeSize = 3 * MB;
 
 #else  // V8_HOST_ARCH_64_BIT
 
@@ -538,7 +535,16 @@ static_assert(kExternalPointerSlotSize == kTaggedSize);
 static_assert(kExternalPointerSlotSize == kSystemPointerSize);
 #endif
 
-constexpr int kIndirectPointerSlotSize = sizeof(IndirectPointerHandle);
+constexpr int kIndirectPointerSize = sizeof(IndirectPointerHandle);
+// When the sandbox is enabled, trusted pointers are implemented as indirect
+// pointers (indices into the trusted pointer table). Otherwise they are regular
+// tagged pointers.
+#ifdef V8_ENABLE_SANDBOX
+constexpr int kTrustedPointerSize = kIndirectPointerSize;
+#else
+constexpr int kTrustedPointerSize = kTaggedSize;
+#endif
+constexpr int kCodePointerSize = kTrustedPointerSize;
 
 constexpr int kEmbedderDataSlotSize = kSystemPointerSize;
 
@@ -932,6 +938,7 @@ class DirectHandle;
 #endif
 class TransitionArray;
 class ExternalReference;
+class ExposedTrustedObject;
 class FeedbackVector;
 class FixedArray;
 class Foreign;
@@ -1000,7 +1007,17 @@ class CompressedObjectSlot;
 class CompressedMaybeObjectSlot;
 class CompressedMapWordSlot;
 class CompressedHeapObjectSlot;
-class V8HeapCompressionScheme;
+template <typename Cage>
+class V8HeapCompressionSchemeImpl;
+class MainCage;
+using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
+#ifdef V8_ENABLE_SANDBOX
+class TrustedCage;
+using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
+#else
+// The trusted cage does not exist in this case.
+using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
+#endif
 class ExternalCodeCompressionScheme;
 template <typename CompressionScheme>
 class OffHeapCompressedObjectSlot;
@@ -1025,6 +1042,12 @@ class Symbol;
 template <typename T>
 class Tagged;
 class Variable;
+namespace maglev {
+class MaglevAssembler;
+}
+namespace compiler {
+class AccessBuilder;
+}
 
 // Slots are either full-pointer slots or compressed slots depending on whether
 // pointer compression is enabled or not.
@@ -1048,6 +1071,12 @@ struct SlotTraits {
   using TOffHeapObjectSlot = OffHeapFullObjectSlot;
   using TInstructionStreamSlot = OffHeapFullObjectSlot;
 #endif  // V8_COMPRESS_POINTERS
+#ifdef V8_ENABLE_SANDBOX
+  using TProtectedPointerSlot =
+      OffHeapCompressedObjectSlot<TrustedSpaceCompressionScheme>;
+#else
+  using TProtectedPointerSlot = TObjectSlot;
+#endif  // V8_ENABLE_SANDBOX
 };
 
 // An ObjectSlot instance describes a kTaggedSize-sized on-heap field ("slot")
@@ -1074,6 +1103,13 @@ using OffHeapObjectSlot = SlotTraits::TOffHeapObjectSlot;
 // be allocated off the main heap the load operations require explicit cage base
 // value for code space.
 using InstructionStreamSlot = SlotTraits::TInstructionStreamSlot;
+
+// A protected pointer is one where both the pointer itself and the pointed-to
+// object are protected from modifications by an attacker if the sandbox is
+// enabled. In practice, this means that they are pointers from one
+// TrustedObject to another TrustedObject as (only) trusted objects cannot
+// directly be manipulated by an attacker.
+using ProtectedPointerSlot = SlotTraits::TProtectedPointerSlot;
 
 using WeakSlotCallback = bool (*)(FullObjectSlot pointer);
 
@@ -1114,6 +1150,9 @@ static_assert(FIRST_SPACE == 0);
 
 constexpr bool IsAnyCodeSpace(AllocationSpace space) {
   return space == CODE_SPACE || space == CODE_LO_SPACE;
+}
+constexpr bool IsAnyTrustedSpace(AllocationSpace space) {
+  return space == TRUSTED_SPACE || space == TRUSTED_LO_SPACE;
 }
 
 constexpr const char* ToString(AllocationSpace space) {
@@ -1571,7 +1610,9 @@ enum class BranchHint : uint8_t { kNone, kTrue, kFalse };
 enum class ConvertReceiverMode : unsigned {
   kNullOrUndefined,     // Guaranteed to be null or undefined.
   kNotNullOrUndefined,  // Guaranteed to never be null or undefined.
-  kAny                  // No specific knowledge about receiver.
+  kAny,                 // No specific knowledge about receiver.
+
+  kLast = kAny
 };
 
 inline size_t hash_value(ConvertReceiverMode mode) {
@@ -2180,6 +2221,31 @@ inline std::ostream& operator<<(std::ostream& os, TieringState marker) {
 
 #undef TIERING_STATE_LIST
 
+// State machine:
+// S(tate)0: kPending
+// S1: kEarlyMaglev
+// S2: kEarlyTurbofan
+// S3: kNormal
+//
+// C(ondition)0: maglev compile
+// C1: ic was stable early
+// C2: turbofan compile
+// C3: ic change or deopt
+//
+// S0 -- C0 -- C1 --> S1 -- C2 -- C3 --> S2 --|
+//             |      |                       |
+//             |      |-----------------------|
+//             |                 |
+//             |                 C3
+//             |                 |
+//             |-----------------------> S3
+enum class CachedTieringDecision : int32_t {
+  kPending,
+  kEarlyMaglev,
+  kEarlyTurbofan,
+  kNormal,
+};
+
 enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
 enum class CallFeedbackContent { kTarget, kReceiver };
 
@@ -2232,14 +2298,14 @@ enum class AliasingKind {
   C(CEntryFP, c_entry_fp)                                           \
   C(CFunction, c_function)                                          \
   C(Context, context)                                               \
-  C(PendingException, pending_exception)                            \
+  C(Exception, exception)                                           \
+  C(TopmostScriptHavingContext, topmost_script_having_context)      \
   C(PendingHandlerContext, pending_handler_context)                 \
   C(PendingHandlerEntrypoint, pending_handler_entrypoint)           \
   C(PendingHandlerConstantPool, pending_handler_constant_pool)      \
   C(PendingHandlerFP, pending_handler_fp)                           \
   C(PendingHandlerSP, pending_handler_sp)                           \
   C(NumFramesAbovePendingHandler, num_frames_above_pending_handler) \
-  C(ExternalCaughtException, external_caught_exception)             \
   C(IsOnCentralStackFlag, is_on_central_stack_flag)                 \
   C(JSEntrySP, js_entry_sp)
 
@@ -2270,35 +2336,69 @@ enum IsolateAddressId {
   V(TrapArrayTooLarge)             \
   V(TrapStringOffsetOutOfBounds)
 
-enum KeyedAccessLoadMode {
-  STANDARD_LOAD,
-  LOAD_IGNORE_OUT_OF_BOUNDS,
+enum class KeyedAccessLoadMode {
+  kInBounds,
+  kHandleOOB,
 };
 
-enum KeyedAccessStoreMode {
-  STANDARD_STORE,
-  STORE_AND_GROW_HANDLE_COW,
-  STORE_IGNORE_OUT_OF_BOUNDS,
-  STORE_HANDLE_COW
+inline bool LoadModeIsInBounds(KeyedAccessLoadMode load_mode) {
+  return load_mode == KeyedAccessLoadMode::kInBounds;
+}
+
+inline bool LoadModeHandlesOOB(KeyedAccessLoadMode load_mode) {
+  return load_mode == KeyedAccessLoadMode::kHandleOOB;
+}
+
+enum class KeyedAccessStoreMode {
+  kInBounds,
+  kGrowAndHandleCOW,
+  kIgnoreTypedArrayOOB,
+  kHandleCOW,
 };
+
+inline std::ostream& operator<<(std::ostream& os, KeyedAccessStoreMode mode) {
+  switch (mode) {
+    case KeyedAccessStoreMode::kInBounds:
+      return os << "kInBounds";
+    case KeyedAccessStoreMode::kGrowAndHandleCOW:
+      return os << "kGrowAndHandleCOW";
+    case KeyedAccessStoreMode::kIgnoreTypedArrayOOB:
+      return os << "kIgnoreTypedArrayOOB";
+    case KeyedAccessStoreMode::kHandleCOW:
+      return os << "kHandleCOW";
+  }
+  UNREACHABLE();
+}
 
 enum MutableMode { MUTABLE, IMMUTABLE };
 
-inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_HANDLE_COW ||
-         store_mode == STORE_AND_GROW_HANDLE_COW;
+inline bool StoreModeIsInBounds(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kInBounds;
 }
 
-inline bool IsGrowStoreMode(KeyedAccessStoreMode store_mode) {
-  return store_mode == STORE_AND_GROW_HANDLE_COW;
+inline bool StoreModeHandlesCOW(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kHandleCOW ||
+         store_mode == KeyedAccessStoreMode::kGrowAndHandleCOW;
+}
+
+inline bool StoreModeSupportsTypeArray(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kInBounds ||
+         store_mode == KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
+}
+
+inline bool StoreModeIgnoresTypeArrayOOB(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kIgnoreTypedArrayOOB;
+}
+
+inline bool StoreModeCanGrow(KeyedAccessStoreMode store_mode) {
+  return store_mode == KeyedAccessStoreMode::kGrowAndHandleCOW;
 }
 
 enum class IcCheckType { kElement, kProperty };
 
 // Helper stubs can be called in different ways depending on where the target
 // code is located and how the call sequence is expected to look like:
-//  - CodeObject: Call on-heap {Code} object via
-//  {RelocInfo::CODE_TARGET}.
+//  - CodeObject: Call on-heap {Code} object via {RelocInfo::CODE_TARGET}.
 //  - WasmRuntimeStub: Call native {WasmCode} stub via
 //    {RelocInfo::WASM_STUB_CALL}.
 //  - BuiltinPointer: Call a builtin based on a builtin pointer with dynamic

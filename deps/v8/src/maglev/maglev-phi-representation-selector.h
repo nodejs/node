@@ -42,13 +42,16 @@ class MaglevPhiRepresentationSelector {
       StdoutStream{} << "\n";
     }
   }
-  void PreProcessBasicBlock(BasicBlock* block) {
-    MergeNewNodesInBlock(current_block_);
-    PreparePhiTaggings(current_block_, block);
-    current_block_ = block;
-  }
+  void PreProcessBasicBlock(BasicBlock* block);
 
-  ProcessResult Process(Phi* node, const ProcessingState&);
+  enum ProcessPhiResult { kNone, kRetryOnChange, kChanged };
+  ProcessPhiResult ProcessPhi(Phi* node);
+
+  // The visitor method is a no-op since phis are processed in
+  // PreProcessBasicBlock.
+  ProcessResult Process(Phi* node, const ProcessingState&) {
+    return ProcessResult::kContinue;
+  }
 
   ProcessResult Process(JumpLoop* node, const ProcessingState&) {
     FixLoopPhisBackedge(node->target());
@@ -61,9 +64,17 @@ class MaglevPhiRepresentationSelector {
   }
 
  private:
+  enum class HoistType {
+    kNone,
+    kLoopEntry,
+    kLoopEntryUnchecked,
+    kPrologue,
+  };
+
   // Update the inputs of {phi} so that they all have {repr} representation, and
   // updates {phi}'s representation to {repr}.
-  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr);
+  void ConvertTaggedPhiTo(Phi* phi, ValueRepresentation repr,
+                          HoistType hoist_untagging);
 
   // Since this pass changes the representation of Phis, it makes some untagging
   // operations outdated: if we've decided that a Phi should have Int32

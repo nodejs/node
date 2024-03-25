@@ -181,10 +181,11 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
   // inconsistency is fixed.
   Address lo = static_cast<intptr_t>(static_cast<int32_t>(value));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Tagged<Smi>(lo));
-  Address hi = value >> 32;
-  // Here we use MaybeObjectSlot because ObjectSlot expects a valid `Object`.
-  // This allows us to store a non-smi, that is not a valid `HeapObject`.
-  MaybeObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(MaybeObject(hi));
+  Tagged_t hi = static_cast<Tagged_t>(value >> 32);
+  // The raw part of the payload does not contain a valid tagged value, so we
+  // need to use a raw store operation for it here.
+  AsAtomicTagged::Relaxed_Store(
+      reinterpret_cast<AtomicTagged_t*>(address() + kRawPayloadOffset), hi);
 #else
   ObjectSlot(address() + kTaggedPayloadOffset)
       .Relaxed_Store(Tagged<Smi>(value));

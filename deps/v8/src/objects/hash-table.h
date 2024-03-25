@@ -130,6 +130,9 @@ template <typename Derived, typename Shape>
 class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
     : public HashTableBase {
  public:
+  // TODO(jgruber): Derive from TaggedArrayBase instead of FixedArray, and
+  // merge with TaggedArraryBase's Shape class. Once the naming conflict is
+  // resolved rename all TodoShape occurrences back to Shape.
   using ShapeT = Shape;
   using Key = typename Shape::Key;
 
@@ -257,7 +260,7 @@ class EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE) HashTable
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
   static_assert(EntryToIndex(InternalIndex(kMaxRegularCapacity)) <
-                kMaxRegularLength);
+                FixedArray::kMaxRegularLength);
   static_assert(v8::base::bits::IsPowerOfTwo(kMaxRegularCapacity));
   static const int kMaxRegularEntry = kMaxRegularCapacity / kEntrySize;
   static const int kMaxRegularIndex =

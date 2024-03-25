@@ -29,7 +29,8 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       InstructionSelectorT<Adapter>* selector)
       : super(selector) {}
 
-  InstructionOperand UseOperand(Node* node, InstructionCode opcode) {
+  InstructionOperand UseOperand(typename Adapter::node_t node,
+                                InstructionCode opcode) {
     if (CanBeImmediate(node, opcode)) {
       return UseImmediate(node);
     }
@@ -38,11 +39,15 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
   // Use the zero register if the node has the immediate value zero, otherwise
   // assign a register.
-  InstructionOperand UseRegisterOrImmediateZero(Node* node) {
-    if ((IsIntegerConstant(node) && (GetIntegerConstantValue(node) == 0)) ||
-        (IsFloatConstant(node) &&
-         (base::bit_cast<int64_t>(GetFloatConstantValue(node)) == 0))) {
-      return UseImmediate(node);
+  InstructionOperand UseRegisterOrImmediateZero(typename Adapter::node_t node) {
+    if (this->is_constant(node)) {
+      auto constant = selector()->constant_view(node);
+      if ((IsIntegerConstant(constant) &&
+           GetIntegerConstantValue(constant) == 0) ||
+          (constant.is_float() &&
+           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+        return UseImmediate(node);
+      }
     }
     return UseRegister(node);
   }
@@ -50,6 +55,27 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
   bool IsIntegerConstant(Node* node);
 
   int64_t GetIntegerConstantValue(Node* node);
+
+  bool IsIntegerConstant(typename Adapter::ConstantView constant) {
+    return constant.is_int32() || constant.is_int64();
+  }
+
+  int64_t GetIntegerConstantValue(typename Adapter::ConstantView constant) {
+    if (constant.is_int32()) {
+      return constant.int32_value();
+    }
+    DCHECK(constant.is_int64());
+    return constant.int64_value();
+  }
+
+  base::Optional<int64_t> GetOptionalIntegerConstant(
+      InstructionSelectorT<TurboshaftAdapter>* selector,
+      turboshaft::OpIndex operation) {
+    if (!this->is_constant(operation)) return {};
+    auto constant = selector->constant_view(operation);
+    if (!this->IsIntegerConstant(constant)) return {};
+    return this->GetIntegerConstantValue(constant);
+  }
 
   bool IsFloatConstant(Node* node) {
     return (node->opcode() == IrOpcode::kFloat32Constant) ||
@@ -63,9 +89,23 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
     DCHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
     return OpParameter<double>(node->op());
   }
+  bool CanBeZero(typename Adapter::node_t node) {
+    if (this->is_constant(node)) {
+      auto constant = selector()->constant_view(node);
+      if ((IsIntegerConstant(constant) &&
+           GetIntegerConstantValue(constant) == 0) ||
+          (constant.is_float() &&
+           (base::bit_cast<int64_t>(constant.float_value()) == 0))) {
+        return true;
+      }
+    }
+    return false;
+  }
 
-  bool CanBeImmediate(Node* node, InstructionCode mode) {
-    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+  bool CanBeImmediate(node_t node, InstructionCode mode) {
+    if (!this->is_constant(node)) return false;
+    auto constant = this->constant_view(node);
+    if (constant.is_compressed_heap_object()) {
       if (!COMPRESS_POINTERS_BOOL) return false;
       // For builtin code we need static roots
       if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
@@ -73,9 +113,8 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
       const RootsTable& roots_table = selector()->isolate()->roots_table();
       RootIndex root_index;
-      CompressedHeapObjectMatcher m(node);
-      if (m.HasResolvedValue() &&
-          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+      Handle<HeapObject> value = constant.heap_object_value();
+      if (roots_table.IsRootHandle(value, &root_index)) {
         if (!RootsTable::IsReadOnly(root_index)) return false;
         return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
                                   root_index, selector()->isolate()),
@@ -83,8 +122,9 @@ class RiscvOperandGeneratorT final : public OperandGeneratorT<Adapter> {
       }
       return false;
     }
-    return IsIntegerConstant(node) &&
-           CanBeImmediate(GetIntegerConstantValue(node), mode);
+
+    return IsIntegerConstant(constant) &&
+           CanBeImmediate(GetIntegerConstantValue(constant), mode);
   }
 
   bool CanBeImmediate(int64_t value, InstructionCode opcode);
@@ -108,16 +148,20 @@ void InstructionSelectorT<Adapter>::VisitProtectedLoad(node_t node) {
   UNIMPLEMENTED();
 }
 
-template <typename T>
-void VisitRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
-  UNIMPLEMENTED();
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
+             typename Adapter::node_t node) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
-void VisitRR(InstructionSelectorT<TurbofanAdapter>* selector,
-             InstructionCode opcode, Node* node) {
-  RiscvOperandGeneratorT<TurbofanAdapter> g(selector);
+template <typename Adapter>
+void VisitRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
+             typename Adapter::node_t node) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)));
+                 g.UseRegister(selector->input_at(node, 0)));
 }
 
 template <typename Adapter>
@@ -154,9 +198,13 @@ static void VisitRRIR(InstructionSelectorT<Adapter>* selector,
                  g.UseRegister(node->InputAt(1)));
 }
 
-template <typename T>
-void VisitRRR(InstructionSelectorT<TurboshaftAdapter>*, InstructionCode, T) {
-  UNIMPLEMENTED();
+template <typename Adapter>
+void VisitRRR(InstructionSelectorT<Adapter>* selector, InstructionCode opcode,
+              typename Adapter::node_t node) {
+  RiscvOperandGeneratorT<Adapter> g(selector);
+  selector->Emit(opcode, g.DefineAsRegister(node),
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseRegister(selector->input_at(node, 1)));
 }
 
 void VisitRRR(InstructionSelectorT<TurbofanAdapter>* selector,
@@ -187,16 +235,17 @@ void VisitRRRR(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
 
 template <typename Adapter>
 static void VisitRRO(InstructionSelectorT<Adapter>* selector, ArchOpcode opcode,
-                     Node* node) {
+                     typename Adapter::node_t node) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->Emit(opcode, g.DefineAsRegister(node),
-                 g.UseRegister(node->InputAt(0)),
-                 g.UseOperand(node->InputAt(1), opcode));
+                 g.UseRegister(selector->input_at(node, 0)),
+                 g.UseOperand(selector->input_at(node, 1), opcode));
 }
 
 template <typename Adapter>
 bool TryMatchImmediate(InstructionSelectorT<Adapter>* selector,
-                       InstructionCode* opcode_return, Node* node,
+                       InstructionCode* opcode_return,
+                       typename Adapter::node_t node,
                        size_t* input_count_return, InstructionOperand* inputs) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   if (g.CanBeImmediate(node, *opcode_return)) {
@@ -209,6 +258,66 @@ bool TryMatchImmediate(InstructionSelectorT<Adapter>* selector,
 }
 
 // Shared routine for multiple binary operations.
+template <typename Adapter, typename Matcher>
+static void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
+                       typename TurboshaftAdapter::node_t node,
+                       InstructionCode opcode, bool has_reverse_opcode,
+                       InstructionCode reverse_opcode,
+                       FlagsContinuationT<TurboshaftAdapter>* cont) {
+  using namespace turboshaft;  // NOLINT(build/namespaces)
+  RiscvOperandGeneratorT<TurboshaftAdapter> g(selector);
+  InstructionOperand inputs[2];
+  size_t input_count = 0;
+  InstructionOperand outputs[1];
+  size_t output_count = 0;
+
+  const Operation& binop = selector->Get(node);
+  OpIndex left_node = binop.input(0);
+  OpIndex right_node = binop.input(1);
+
+  if (TryMatchImmediate(selector, &opcode, right_node, &input_count,
+                        &inputs[1])) {
+    inputs[0] = g.UseRegisterOrImmediateZero(left_node);
+    input_count++;
+  } else if (has_reverse_opcode &&
+             TryMatchImmediate(selector, &reverse_opcode, left_node,
+                               &input_count, &inputs[1])) {
+    inputs[0] = g.UseRegisterOrImmediateZero(right_node);
+    opcode = reverse_opcode;
+    input_count++;
+  } else {
+    inputs[input_count++] = g.UseRegister(left_node);
+    inputs[input_count++] = g.UseOperand(right_node, opcode);
+  }
+
+  if (cont->IsDeoptimize()) {
+    // If we can deoptimize as a result of the binop, we need to make sure that
+    // the deopt inputs are not overwritten by the binop result. One way
+    // to achieve that is to declare the output register as same-as-first.
+    outputs[output_count++] = g.DefineSameAsFirst(node);
+  } else {
+    outputs[output_count++] = g.DefineAsRegister(node);
+  }
+
+  DCHECK_NE(0u, input_count);
+  DCHECK_EQ(1u, output_count);
+  DCHECK_GE(arraysize(inputs), input_count);
+  DCHECK_GE(arraysize(outputs), output_count);
+
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
+}
+
+template <typename Adapter, typename Matcher>
+static void VisitBinop(InstructionSelectorT<TurboshaftAdapter>* selector,
+                       TurboshaftAdapter::node_t node, InstructionCode opcode,
+                       bool has_reverse_opcode,
+                       InstructionCode reverse_opcode) {
+  FlagsContinuationT<TurboshaftAdapter> cont;
+  VisitBinop<Adapter, Matcher>(selector, node, opcode, has_reverse_opcode,
+                               reverse_opcode, &cont);
+}
+
 template <typename Adapter, typename Matcher>
 static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
                        InstructionCode opcode, bool has_reverse_opcode,
@@ -264,32 +373,26 @@ static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
 }
 
 template <typename Adapter, typename Matcher>
-static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                       InstructionCode opcode,
+static void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                       typename Adapter::node_t node, InstructionCode opcode,
                        FlagsContinuationT<Adapter>* cont) {
   VisitBinop<Adapter, Matcher>(selector, node, opcode, false, kArchNop, cont);
 }
 
 template <typename Adapter, typename Matcher>
-static void VisitBinop(InstructionSelectorT<Adapter>* selector, Node* node,
-                       InstructionCode opcode) {
+static void VisitBinop(InstructionSelectorT<Adapter>* selector,
+                       typename Adapter::node_t node, InstructionCode opcode) {
   VisitBinop<Adapter, Matcher>(selector, node, opcode, false, kArchNop);
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    StackSlotRepresentation rep = StackSlotRepresentationOf(node->op());
-    int alignment = rep.alignment();
-    int slot = frame_->AllocateSpillSlot(rep.size(), alignment);
-    OperandGenerator g(this);
+  StackSlotRepresentation rep = this->stack_slot_representation_of(node);
+  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  OperandGenerator g(this);
 
-    Emit(kArchStackSlot, g.DefineAsRegister(node),
-         sequence()->AddImmediate(Constant(slot)),
-         sequence()->AddImmediate(Constant(alignment)), 0, nullptr);
-  }
+  Emit(kArchStackSlot, g.DefineAsRegister(node),
+       sequence()->AddImmediate(Constant(slot)), 0, nullptr);
 }
 
 template <typename Adapter>
@@ -415,7 +518,23 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
                          typename Adapter::node_t node,
                          FlagsContinuationT<Adapter>* cont) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    RiscvOperandGeneratorT<Adapter> g(selector);
+    using namespace turboshaft;  // NOLINT(build/namespaces)
+    const Operation& compare = selector->Get(node);
+    DCHECK(compare.Is<ComparisonOp>());
+    OpIndex lhs = compare.input(0);
+    OpIndex rhs = compare.input(1);
+    if (selector->MatchZero(rhs)) {
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseImmediate(0),
+                   cont);
+    } else if (selector->MatchZero(lhs)) {
+      cont->Commute();
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(rhs), g.UseImmediate(0),
+                   cont);
+    } else {
+      VisitCompare(selector, kRiscvCmpD, g.UseRegister(lhs), g.UseRegister(rhs),
+                   cont);
+    }
   } else {
     RiscvOperandGeneratorT<Adapter> g(selector);
     Float64BinopMatcher m(node);
@@ -431,12 +550,13 @@ void VisitFloat64Compare(InstructionSelectorT<Adapter>* selector,
 
 // Shared routine for multiple word compare operations.
 template <typename Adapter>
-void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
-                      InstructionCode opcode, FlagsContinuationT<Adapter>* cont,
-                      bool commutative) {
+void VisitWordCompare(InstructionSelectorT<Adapter>* selector,
+                      typename Adapter::node_t node, InstructionCode opcode,
+                      FlagsContinuationT<Adapter>* cont, bool commutative) {
   RiscvOperandGeneratorT<Adapter> g(selector);
-  Node* left = node->InputAt(0);
-  Node* right = node->InputAt(1);
+  DCHECK_EQ(selector->value_input_count(node), 2);
+  auto left = selector->input_at(node, 0);
+  auto right = selector->input_at(node, 1);
   // If one of the two inputs is an immediate, make sure it's on the right.
   if (!g.CanBeImmediate(right, opcode) && g.CanBeImmediate(left, opcode)) {
     cont->Commute();
@@ -449,9 +569,16 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
 #elif V8_TARGET_ARCH_RISCV32
     if (opcode == kRiscvTst32) {
 #endif
-      if (left->opcode() == IrOpcode::kTruncateInt64ToInt32) {
-        VisitCompare(selector, opcode, g.UseRegister(left->InputAt(0)),
-                     g.UseImmediate(right), cont);
+      if constexpr (Adapter::IsTurbofan) {
+        if (selector->opcode(left) ==
+            Adapter::opcode_t::kTruncateInt64ToInt32) {
+          VisitCompare(selector, opcode,
+                       g.UseRegister(selector->input_at(left, 0)),
+                       g.UseImmediate(right), cont);
+        } else {
+          VisitCompare(selector, opcode, g.UseRegister(left),
+                       g.UseImmediate(right), cont);
+        }
       } else {
         VisitCompare(selector, opcode, g.UseRegister(left),
                      g.UseImmediate(right), cont);
@@ -464,9 +591,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
             VisitCompare(selector, opcode, g.UseRegister(left),
                          g.UseImmediate(right), cont);
           } else {
-            Int32BinopMatcher m(node, true);
-            NumberBinopMatcher n(node, true);
-            if (m.right().Is(0) || n.right().IsZero()) {
+            if (g.CanBeZero(right)) {
               VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                    cont);
             } else {
@@ -479,8 +604,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
         case kSignedGreaterThanOrEqual:
         case kUnsignedLessThan:
         case kUnsignedGreaterThanOrEqual: {
-          Int32BinopMatcher m(node, true);
-          if (m.right().Is(0)) {
+          if (g.CanBeZero(right)) {
             VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                  cont);
           } else {
@@ -489,8 +613,7 @@ void VisitWordCompare(InstructionSelectorT<Adapter>* selector, Node* node,
           }
         } break;
         default:
-          Int32BinopMatcher m(node, true);
-          if (m.right().Is(0)) {
+          if (g.CanBeZero(right)) {
             VisitWordCompareZero(selector, g.UseRegisterOrImmediateZero(left),
                                  cont);
           } else {
@@ -544,7 +667,8 @@ void InstructionSelectorT<Adapter>::VisitSwitch(node_t node,
 }
 
 template <typename Adapter>
-void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector, Node* value,
+void EmitWordCompareZero(InstructionSelectorT<Adapter>* selector,
+                         typename Adapter::node_t value,
                          FlagsContinuationT<Adapter>* cont) {
   RiscvOperandGeneratorT<Adapter> g(selector);
   selector->EmitWithContinuation(kRiscvCmpZero,
@@ -947,7 +1071,8 @@ void InstructionSelectorT<Adapter>::VisitTruncateFloat64ToFloat32(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
   if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
+    // todo(RISCV): Optimize it
+    VisitRRO(this, kRiscvShl32, node);
   } else {
     Int32BinopMatcher m(node);
     if (m.left().IsWord32And() && CanCover(node, m.left().node()) &&
@@ -981,17 +1106,14 @@ void InstructionSelectorT<Adapter>::VisitWord32Shl(node_t node) {
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitWord32Shr(node_t node) {
-  if constexpr (Adapter::IsTurboshaft) {
-    UNIMPLEMENTED();
-  } else {
-    VisitRRO(this, kRiscvShr32, node);
-  }
+  VisitRRO(this, kRiscvShr32, node);
 }
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitWord32Sar(
-    turboshaft::OpIndex) {
-  UNIMPLEMENTED();
+    turboshaft::OpIndex node) {
+  // todo(RISCV): Optimize it
+  VisitRRO(this, kRiscvSar32, node);
 }
 
 template <>
@@ -1938,7 +2060,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
-    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    // TODO(riscv): Properly use view here once Turboshaft support is
+    // implemented.
+    auto view = this->simd_shuffle_view(node);
+    CanonicalizeShuffle(view, shuffle, &is_swizzle);
     Node* input0 = node->InputAt(0);
     Node* input1 = node->InputAt(1);
     RiscvOperandGeneratorT<Adapter> g(this);
@@ -2256,6 +2381,23 @@ void InstructionSelectorT<Adapter>::AddOutputToSelectContinuation(
     OperandGenerator* g, int first_input_index, node_t node) {
   UNREACHABLE();
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+template <typename Adapter>
+void InstructionSelectorT<Adapter>::VisitSetStackPointer(node_t node) {
+  OperandGenerator g(this);
+  auto input = g.UseRegister(this->input_at(node, 0));
+  wasm::FPRelativeScope fp_scope;
+  if constexpr (Adapter::IsTurboshaft) {
+    fp_scope =
+        this->Get(node).template Cast<turboshaft::SetStackPointerOp>().fp_scope;
+  } else {
+    fp_scope = OpParameter<wasm::FPRelativeScope>(node->op());
+  }
+  Emit(kArchSetStackPointer | MiscField::encode(fp_scope), 0, nullptr, 1,
+       &input);
+}
+#endif
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

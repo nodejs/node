@@ -285,14 +285,15 @@ bool NativeRegExpMacroAssembler::CanReadUnaligned() const {
 int NativeRegExpMacroAssembler::CheckStackGuardState(
     Isolate* isolate, int start_index, RegExp::CallOrigin call_origin,
     Address* return_address, Tagged<InstructionStream> re_code,
-    Address* subject, const uint8_t** input_start, const uint8_t** input_end) {
+    Address* subject, const uint8_t** input_start, const uint8_t** input_end,
+    uintptr_t gap) {
   DisallowGarbageCollection no_gc;
   Address old_pc = PointerAuthentication::AuthenticatePC(return_address, 0);
   DCHECK_LE(re_code->instruction_start(), old_pc);
   DCHECK_LE(old_pc, re_code->code(kAcquireLoad)->instruction_end());
 
   StackLimitCheck check(isolate);
-  bool js_has_overflowed = check.JsHasOverflowed();
+  bool js_has_overflowed = check.JsHasOverflowed(gap);
 
   if (call_origin == RegExp::CallOrigin::kFromJs) {
     // Direct calls from JavaScript can be interrupted in two ways:
@@ -434,7 +435,7 @@ int NativeRegExpMacroAssembler::Execute(
   RegExpStackScope stack_scope(isolate);
 
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
-  Tagged<Code> code = Code::cast(regexp->code(is_one_byte));
+  Tagged<Code> code = Code::cast(regexp->code(isolate, is_one_byte));
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;
 
   using RegexpMatcherSig =
@@ -448,7 +449,7 @@ int NativeRegExpMacroAssembler::Execute(
                        output, output_size, call_origin, isolate, regexp.ptr());
   DCHECK_GE(result, SMALLEST_REGEXP_RESULT);
 
-  if (result == EXCEPTION && !isolate->has_pending_exception()) {
+  if (result == EXCEPTION && !isolate->has_exception()) {
     // We detected a stack overflow (on the backtrack stack) in RegExp code,
     // but haven't created the exception yet. Additionally, we allow heap
     // allocation because even though it invalidates {input_start} and

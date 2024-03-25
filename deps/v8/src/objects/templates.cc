@@ -84,12 +84,14 @@ bool FunctionTemplateInfo::IsTemplateFor(Tagged<Map> map) const {
   Tagged<Object> type;
   if (IsJSFunction(cons_obj)) {
     Tagged<JSFunction> fun = JSFunction::cast(cons_obj);
-    type = fun->shared()->function_data(kAcquireLoad);
+    if (!fun->shared()->IsApiFunction()) return false;
+    type = fun->shared()->api_func_data();
   } else if (IsFunctionTemplateInfo(cons_obj)) {
     type = FunctionTemplateInfo::cast(cons_obj);
   } else {
     return false;
   }
+  DCHECK(IsFunctionTemplateInfo(type));
   // Iterate through the chain of inheriting function templates to
   // see if the required one occurs.
   while (IsFunctionTemplateInfo(type)) {
@@ -113,7 +115,7 @@ bool FunctionTemplateInfo::IsLeafTemplateForApiObject(
   Tagged<Object> constructor_obj = map->GetConstructor();
   if (IsJSFunction(constructor_obj)) {
     Tagged<JSFunction> fun = JSFunction::cast(constructor_obj);
-    result = (*this == fun->shared()->function_data(kAcquireLoad));
+    result = (*this == fun->shared()->api_func_data());
   } else if (IsFunctionTemplateInfo(constructor_obj)) {
     result = (*this == constructor_obj);
   }

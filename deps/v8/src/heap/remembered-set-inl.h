@@ -14,24 +14,25 @@ namespace v8 {
 namespace internal {
 
 template <typename Callback>
-SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(Heap* heap,
-                                                          SlotType slot_type,
-                                                          Address addr,
-                                                          Callback callback) {
+SlotCallbackResult UpdateTypedSlotHelper::UpdateTypedSlot(
+    WritableJitAllocation& jit_allocation, Heap* heap, SlotType slot_type,
+    Address addr, Callback callback) {
   switch (slot_type) {
     case SlotType::kCodeEntry: {
-      WritableRelocInfo rinfo(addr, RelocInfo::CODE_TARGET);
+      WritableRelocInfo rinfo(jit_allocation, addr, RelocInfo::CODE_TARGET);
       return UpdateCodeTarget(&rinfo, callback);
     }
     case SlotType::kConstPoolCodeEntry: {
       return UpdateCodeEntry(addr, callback);
     }
     case SlotType::kEmbeddedObjectCompressed: {
-      WritableRelocInfo rinfo(addr, RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
+      WritableRelocInfo rinfo(jit_allocation, addr,
+                              RelocInfo::COMPRESSED_EMBEDDED_OBJECT);
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
     case SlotType::kEmbeddedObjectFull: {
-      WritableRelocInfo rinfo(addr, RelocInfo::FULL_EMBEDDED_OBJECT);
+      WritableRelocInfo rinfo(jit_allocation, addr,
+                              RelocInfo::FULL_EMBEDDED_OBJECT);
       return UpdateEmbeddedPointer(heap, &rinfo, callback);
     }
     case SlotType::kConstPoolEmbeddedObjectCompressed: {

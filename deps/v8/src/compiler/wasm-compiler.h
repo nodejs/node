@@ -31,9 +31,10 @@ namespace v8 {
 class CFunctionInfo;
 
 namespace internal {
+enum class AbortReason : uint8_t;
 struct AssemblerOptions;
-class TurbofanCompilationJob;
 enum class BranchHint : uint8_t;
+class TurbofanCompilationJob;
 
 namespace compiler {
 // Forward declarations for some compiler data structures.
@@ -165,31 +166,27 @@ struct WasmCompilationData {
 // the wasm decoder from the internal details of TurboFan.
 class WasmGraphBuilder {
  public:
-  // The parameter at index 0 in a wasm function has special meaning:
-  // - For normal wasm functions, it points to the function's instance.
-  // - For Wasm-to-JS and C-API wrappers, it points to a {WasmApiFunctionRef}
-  //   object which represents the function's context.
-  // - For JS-to-Wasm and JS-to-JS wrappers (which are JS functions), it does
-  //   not have a special meaning. In these cases, we need access to an isolate
-  //   at compile time, i.e., {isolate_} needs to be non-null.
-  enum Parameter0Mode {
-    kInstanceMode,
+  // ParameterMode specifies how the instance is passed.
+  enum ParameterMode {
+    // Normal wasm functions pass the instance as an implicit first parameter.
+    kInstanceParameterMode,
+    // For Wasm-to-JS and C-API wrappers, a {WasmApiFunctionRef} object is
+    // passed as first parameter.
     kWasmApiFunctionRefMode,
+    // For JS-to-Wasm wrappers (which are JS functions), we load the Wasm
+    // instance from the JS function data. The generated code objects live on
+    // the JS heap, so those compilation pass an isolate.
+    kJSFunctionAbiMode,
+    // The JS-to-JS wrapper does not have an associated instance.
+    // The C-entry stub uses a custom ABI (see {CWasmEntryParameters}).
     kNoSpecialParameterMode
   };
-
-  V8_EXPORT_PRIVATE WasmGraphBuilder(
-      wasm::CompilationEnv* env, Zone* zone, MachineGraph* mcgraph,
-      const wasm::FunctionSig* sig,
-      compiler::SourcePositionTable* spt = nullptr)
-      : WasmGraphBuilder(env, zone, mcgraph, sig, spt, kInstanceMode, nullptr,
-                         env->enabled_features) {}
 
   V8_EXPORT_PRIVATE WasmGraphBuilder(wasm::CompilationEnv* env, Zone* zone,
                                      MachineGraph* mcgraph,
                                      const wasm::FunctionSig* sig,
                                      compiler::SourcePositionTable* spt,
-                                     Parameter0Mode parameter_mode,
+                                     ParameterMode parameter_mode,
                                      Isolate* isolate,
                                      wasm::WasmFeatures enabled_features);
 
@@ -632,7 +629,7 @@ class WasmGraphBuilder {
  protected:
   Node* NoContextConstant();
 
-  Node* GetInstance();
+  Node* GetInstanceData();
   Node* BuildLoadIsolateRoot();
   Node* UndefinedValue();
 
@@ -653,7 +650,8 @@ class WasmGraphBuilder {
   // the kind of bounds check performed (or why none was needed).
   std::pair<Node*, BoundsCheckResult> BoundsCheckMem(
       const wasm::WasmMemory* memory, uint8_t access_size, Node* index,
-      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck);
+      uintptr_t offset, wasm::WasmCodePosition, EnforceBoundsCheck,
+      AlignmentCheck alignment_check);
 
   std::pair<Node*, BoundsCheckResult> CheckBoundsAndAlignment(
       const wasm::WasmMemory* memory, int8_t access_size, Node* index,
@@ -686,11 +684,11 @@ class WasmGraphBuilder {
                           IsReturnCall continuation);
   Node* BuildWasmCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                       base::Vector<Node*> rets, wasm::WasmCodePosition position,
-                      Node* instance_node, Node* frame_state = nullptr);
+                      Node* implicit_first_arg, Node* frame_state = nullptr);
   Node* BuildWasmReturnCall(const wasm::FunctionSig* sig,
                             base::Vector<Node*> args,
                             wasm::WasmCodePosition position,
-                            Node* instance_node);
+                            Node* implicit_first_arg);
   Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, int func_index,
@@ -698,11 +696,19 @@ class WasmGraphBuilder {
   Node* BuildImportCall(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                         base::Vector<Node*> rets,
                         wasm::WasmCodePosition position, Node* func_index,
-                        IsReturnCall continuation);
+                        IsReturnCall continuation, Node* frame_state = nullptr);
   Node* BuildCallRef(const wasm::FunctionSig* sig, base::Vector<Node*> args,
                      base::Vector<Node*> rets, CheckForNull null_check,
                      IsReturnCall continuation,
                      wasm::WasmCodePosition position);
+
+  // Load the trusted data if the given object is a WasmInstanceObject.
+  // Otherwise return the value unmodified.
+  // This is used when calling via WasmInternalFunction where the "ref" is
+  // either an instance object or a WasmApiFunctionRef.
+  // TODO(14499): Refactor WasmInternalFunction to avoid this conditional
+  // indirect load.
+  Node* LoadTrustedDataFromMaybeInstanceObject(Node* maybe_instance_object);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
@@ -836,7 +842,7 @@ class WasmGraphBuilder {
   Node* BuildMultiReturnFixedArrayFromIterable(const wasm::FunctionSig* sig,
                                                Node* iterable, Node* context);
 
-  Node* BuildLoadCodeEntrypoint(Node* code_object);
+  Node* BuildLoadCodeEntrypointViaCodePointer(Node* object, int offset);
 
   Node* BuildLoadCallTargetFromExportedFunctionData(Node* function_data);
 
@@ -859,6 +865,8 @@ class WasmGraphBuilder {
 
   Node* StoreArgsInStackSlot(
       std::initializer_list<std::pair<MachineRepresentation, Node*>> args);
+
+  void Assert(Node* condition, AbortReason abort_reason);
 
   std::unique_ptr<WasmGraphAssembler> gasm_;
   Zone* const zone_;
@@ -885,9 +893,9 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
   int inlining_id_ = -1;
-  Parameter0Mode parameter_mode_;
+  const ParameterMode parameter_mode_;
   Isolate* const isolate_;
-  SetOncePointer<Node> instance_node_;
+  SetOncePointer<Node> instance_data_node_;
   NullCheckStrategy null_check_strategy_;
   static constexpr int kNoCachedMemoryIndex = -1;
   int cached_memory_index_ = kNoCachedMemoryIndex;
@@ -895,7 +903,7 @@ class WasmGraphBuilder {
 
 V8_EXPORT_PRIVATE void BuildInlinedJSToWasmWrapper(
     Zone* zone, MachineGraph* mcgraph, const wasm::FunctionSig* signature,
-    const wasm::WasmModule* module, Isolate* isolate,
+    bool is_import, const wasm::WasmModule* module, Isolate* isolate,
     compiler::SourcePositionTable* spt, wasm::WasmFeatures features,
     Node* frame_state, bool set_in_wasm_flag);
 

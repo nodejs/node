@@ -150,7 +150,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodeRange) {
   Handle<JSFunction> foo =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
-  Tagged<Code> code = foo->code();
+  Tagged<Code> code = foo->code(i_isolate());
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code->is_optimized_code()) return;
@@ -200,7 +200,7 @@ TEST_F(CodePagesTest, OptimizedCodeWithCodePages) {
         EXPECT_TRUE(v8_flags.always_sparkplug);
         return;
       }
-      Tagged<Code> code = foo->code();
+      Tagged<Code> code = foo->code(i_isolate());
       // We don't produce optimized code when run with --no-turbofan and
       // --no-maglev.
       if (!code->is_optimized_code()) return;

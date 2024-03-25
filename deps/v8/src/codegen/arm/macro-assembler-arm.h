@@ -306,6 +306,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
+  void StoreRootRelative(int32_t offset, Register value) final;
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -350,6 +351,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // instruction following the call.
   // The return address on the stack is used by frame iteration.
   void StoreReturnAddressAndCall(Register target);
+
+  // Enforce platform specific stack alignment.
+  void EnforceStackAlignment();
 
   void BailoutIfDeoptimized();
   void CallForDeoptimization(Builtin target, int deopt_id, Label* exit,
@@ -458,6 +462,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(const ExternalReference& reference);
 
+  void GetLabelAddress(Register dst, Label* target);
+
   // Perform a floating-point min or max operation with the
   // (IEEE-754-compatible) semantics of ARM64's fmin/fmax. Some cases, typically
   // NaNs or +/-0.0, are expected to be rare and are handled in out-of-line
@@ -560,6 +566,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void JumpIfSmi(Register value, Label* smi_label);
 
   void JumpIfEqual(Register x, int32_t y, Label* dest);
+
   void JumpIfLessThan(Register x, int32_t y, Label* dest);
 
   void LoadMap(Register destination, Register object);
@@ -618,6 +625,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
     SmiTst(src);
     return eq;
   }
+
+  void Zero(const MemOperand& dest);
+  void Zero(const MemOperand& dest1, const MemOperand& dest2);
 
   void DecompressTagged(const Register& destination,
                         const MemOperand& field_operand) {
@@ -831,6 +841,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   // Compare the object in a register to a value from the root list.
   // Acquires a scratch register.
   void CompareRoot(Register obj, RootIndex index);
+  void CompareTaggedRoot(Register with, RootIndex index);
   void PushRoot(RootIndex index) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -1025,10 +1036,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   int CalculateStackPassedWords(int num_reg_arguments,
                                 int num_double_arguments);
 
-  void CallCFunctionHelper(Register function, int num_reg_arguments,
-                           int num_double_arguments,
-                           SetIsolateDataSlots set_isolate_data_slots);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(MacroAssembler);
 };
 
@@ -1068,7 +1075,7 @@ void CallApiFunctionAndReturn(MacroAssembler* masm, bool with_profiling,
                               Register function_address,
                               ExternalReference thunk_ref, Register thunk_arg,
                               int stack_space, MemOperand* stack_space_operand,
-                              MemOperand return_value_operand, Label* done);
+                              MemOperand return_value_operand);
 
 #define ACCESS_MASM(masm) masm->
 

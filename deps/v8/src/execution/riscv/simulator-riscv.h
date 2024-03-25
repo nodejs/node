@@ -432,7 +432,7 @@ class Simulator : public SimulatorBase {
   int32_t get_fpu_register_signed_word(int fpureg) const;
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
-  Float32 get_fpu_register_Float32(int fpureg) const;
+  Float32 get_fpu_register_Float32(int fpureg, bool check_nanbox = true) const;
   double get_fpu_register_double(int fpureg) const;
   Float64 get_fpu_register_Float64(int fpureg) const;
 

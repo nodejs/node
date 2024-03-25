@@ -101,6 +101,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_lzcnt() const { return has_lzcnt_; }
   bool has_popcnt() const { return has_popcnt_; }
   bool is_atom() const { return is_atom_; }
+  bool has_intel_jcc_erratum() const { return has_intel_jcc_erratum_; }
   bool has_cetss() const { return has_cetss_; }
   bool has_non_stop_time_stamp_counter() const {
     return has_non_stop_time_stamp_counter_;
@@ -169,6 +170,7 @@ class V8_BASE_EXPORT CPU final {
   bool has_sse41_;
   bool has_sse42_;
   bool is_atom_;
+  bool has_intel_jcc_erratum_;
   bool has_cetss_;
   bool has_osxsave_;
   bool has_avx_;

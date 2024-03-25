@@ -20,6 +20,7 @@ with different test suite extensions and build configurations.
 from collections import deque
 from pathlib import Path
 
+import re
 import sys
 import unittest
 from mock import patch
@@ -168,7 +169,7 @@ class StandardRunnerTest(TestRunnerTest):
     # With test processors we don't count reruns as separated failures.
     # TODO(majeski): fix it?
     result.stdout_includes('1 tests failed')
-    result.has_returncode(0)
+    result.has_returncode(1)
 
     # TODO(majeski): Previously we only reported the variant flags in the
     # flags field of the test result.
@@ -220,8 +221,14 @@ class StandardRunnerTest(TestRunnerTest):
     result.stdout_includes('=== sweet/bananaflakes (flaky) ===')
     result.stdout_includes('1 tests failed')
     result.stdout_includes('1 tests were flaky')
-    result.has_returncode(0)
+    result.has_returncode(1)
     result.json_content_equals('expected_test_results2.json')
+    self.assertTrue(re.search(
+        r'sweet/bananaflakes default: FAIL \(\d+\.\d+:\d+\.\d+\)',
+        result.test_schedule))
+    self.assertTrue(re.search(
+        r'sweet/bananaflakes default: PASS \(\d+\.\d+:\d+\.\d+\)',
+        result.test_schedule))
 
   def testAutoDetect(self):
     """Fake a build with several auto-detected options.

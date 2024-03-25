@@ -38,6 +38,7 @@
 #include "src/objects/property-details.h"
 #include "src/objects/smi.h"
 #include "src/objects/transitions-inl.h"
+#include "src/regexp/regexp.h"
 #include "src/snapshot/code-serializer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -731,8 +732,9 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
       case PACKED_SMI_ELEMENTS: {
         DisallowGarbageCollection no_gc;
         Tagged<FixedArray> elements = FixedArray::cast(array->elements());
-        for (i = 0; i < length; i++)
-          WriteSmi(Smi::cast(elements->get(cage_base, i)));
+        for (i = 0; i < length; i++) {
+          WriteSmi(Smi::cast(elements->get(i)));
+        }
         break;
       }
       case PACKED_DOUBLE_ELEMENTS: {
@@ -756,8 +758,8 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
             // Fall back to slow path.
             break;
           }
-          Handle<Object> element(
-              FixedArray::cast(array->elements())->get(cage_base, i), isolate_);
+          Handle<Object> element(FixedArray::cast(array->elements())->get(i),
+                                 isolate_);
           if (!WriteObject(element).FromMaybe(false)) return Nothing<bool>();
         }
         break;
@@ -934,7 +936,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
     Maybe<uint32_t> index = delegate_->GetSharedArrayBufferId(
         v8_isolate, Utils::ToLocalShared(array_buffer));
-    RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+    RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
 
     WriteTag(SerializationTag::kSharedArrayBuffer);
     WriteVarint(index.FromJust());
@@ -1064,15 +1066,6 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     WriteString(message);
   }
 
-  if (cause_found.FromJust() &&
-      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
-    Handle<Object> cause = cause_desc.value();
-    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
-    if (!WriteObject(cause).FromMaybe(false)) {
-      return Nothing<bool>();
-    }
-  }
-
   if (!Object::GetProperty(isolate_, error, isolate_->factory()->stack_string())
            .ToHandle(&stack)) {
     return Nothing<bool>();
@@ -1080,6 +1073,17 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
   if (IsString(*stack)) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kStack));
     WriteString(Handle<String>::cast(stack));
+  }
+
+  // The {cause} can self-reference the error. We add at the end, so that we can
+  // create the Error first when deserializing.
+  if (cause_found.FromJust() &&
+      PropertyDescriptor::IsDataDescriptor(&cause_desc)) {
+    Handle<Object> cause = cause_desc.value();
+    WriteVarint(static_cast<uint8_t>(ErrorTag::kCause));
+    if (!WriteObject(cause).FromMaybe(false)) {
+      return Nothing<bool>();
+    }
   }
 
   WriteVarint(static_cast<uint8_t>(ErrorTag::kEnd));
@@ -1108,7 +1112,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
       reinterpret_cast<v8::Isolate*>(isolate_),
       v8::Local<v8::WasmModuleObject>::Cast(
           Utils::ToLocal(Handle<JSObject>::cast(object))));
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   uint32_t id = 0;
   if (transfer_id.To(&id)) {
     WriteTag(SerializationTag::kWasmModuleTransfer);
@@ -1151,7 +1155,7 @@ Maybe<bool> ValueSerializer::WriteSharedObject(Handle<HeapObject> object) {
     if (!delegate_->AdoptSharedValueConveyor(v8_isolate,
                                              std::move(v8_conveyor))) {
       shared_object_conveyor_ = nullptr;
-      RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+      RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
       return Nothing<bool>();
     }
   }
@@ -1172,7 +1176,7 @@ Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   Maybe<bool> result =
       delegate_->WriteHostObject(v8_isolate, Utils::ToLocal(object));
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   USE(result);
   DCHECK(!result.IsNothing());
   DCHECK(result.ToChecked());
@@ -1215,7 +1219,7 @@ Maybe<bool> ValueSerializer::IsHostObject(Handle<JSObject> js_object) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   Maybe<bool> result =
       delegate_->IsHostObject(v8_isolate, Utils::ToLocal(js_object));
-  RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate_, Nothing<bool>());
+  RETURN_VALUE_IF_EXCEPTION(isolate_, Nothing<bool>());
   DCHECK(!result.IsNothing());
 
   if (V8_UNLIKELY(out_of_memory_)) return ThrowIfOutOfMemory();
@@ -1237,15 +1241,13 @@ Maybe<bool> ValueSerializer::ThrowDataCloneError(
 
 Maybe<bool> ValueSerializer::ThrowDataCloneError(MessageTemplate index,
                                                  Handle<Object> arg0) {
-  Handle<String> message = MessageFormatter::Format(isolate_, index, arg0);
+  Handle<String> message =
+      MessageFormatter::Format(isolate_, index, base::VectorOf({arg0}));
   if (delegate_) {
     delegate_->ThrowDataCloneError(Utils::ToLocal(message));
   } else {
     isolate_->Throw(
         *isolate_->factory()->NewError(isolate_->error_function(), message));
-  }
-  if (isolate_->has_scheduled_exception()) {
-    isolate_->PromoteScheduledException();
   }
   return Nothing<bool>();
 }
@@ -1495,14 +1497,13 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectWrapper() {
 
   // The deserialization code doesn't throw errors for invalid data. It throws
   // errors for stack overflows, though, and in that case we won't retry.
-  if (result.is_null() && version_ == 13 &&
-      !isolate_->has_pending_exception()) {
+  if (result.is_null() && version_ == 13 && !isolate_->has_exception()) {
     version_13_broken_data_mode_ = true;
     position_ = original_position;
     result = ReadObject();
   }
 
-  if (result.is_null() && !isolate_->has_pending_exception()) {
+  if (result.is_null() && !isolate_->has_exception()) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
@@ -1528,7 +1529,7 @@ MaybeHandle<Object> ValueDeserializer::ReadObject() {
   }
 
   if (result.is_null() && !suppress_deserialization_errors_ &&
-      !isolate_->has_pending_exception()) {
+      !isolate_->has_exception()) {
     isolate_->Throw(*isolate_->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
@@ -1960,6 +1961,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
     bad_flags_mask |= JSRegExp::kLinear;
   }
   if ((raw_flags & bad_flags_mask) ||
+      !RegExp::VerifyFlags(static_cast<RegExpFlags>(raw_flags)) ||
       !JSRegExp::New(isolate_, pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
     return MaybeHandle<JSRegExp>();
@@ -2059,7 +2061,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
              ->GetSharedArrayBufferFromId(
                  reinterpret_cast<v8::Isolate*>(isolate_), clone_id)
              .ToLocal(&sab_value)) {
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSArrayBuffer);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSArrayBuffer);
       return MaybeHandle<JSArrayBuffer>();
     }
     Handle<JSArrayBuffer> array_buffer = Utils::OpenHandle(*sab_value);
@@ -2230,85 +2232,105 @@ bool ValueDeserializer::ValidateJSArrayBufferViewFlags(
 MaybeHandle<Object> ValueDeserializer::ReadJSError() {
   uint32_t id = next_id_++;
 
-  Handle<Object> message = isolate_->factory()->undefined_value();
-  Handle<Object> options = isolate_->factory()->undefined_value();
-  Handle<Object> stack = isolate_->factory()->undefined_value();
-  Handle<Object> no_caller;
-  auto constructor = isolate_->error_function();
-  bool done = false;
+#define READ_NEXT_ERROR_TAG()              \
+  do {                                     \
+    if (!ReadVarint<uint8_t>().To(&tag)) { \
+      return MaybeHandle<JSObject>();      \
+    }                                      \
+  } while (false)
 
-  while (!done) {
-    uint8_t tag;
-    if (!ReadVarint<uint8_t>().To(&tag)) {
-      return MaybeHandle<JSObject>();
-    }
-    switch (static_cast<ErrorTag>(tag)) {
-      case ErrorTag::kEvalErrorPrototype:
-        constructor = isolate_->eval_error_function();
-        break;
-      case ErrorTag::kRangeErrorPrototype:
-        constructor = isolate_->range_error_function();
-        break;
-      case ErrorTag::kReferenceErrorPrototype:
-        constructor = isolate_->reference_error_function();
-        break;
-      case ErrorTag::kSyntaxErrorPrototype:
-        constructor = isolate_->syntax_error_function();
-        break;
-      case ErrorTag::kTypeErrorPrototype:
-        constructor = isolate_->type_error_function();
-        break;
-      case ErrorTag::kUriErrorPrototype:
-        constructor = isolate_->uri_error_function();
-        break;
-      case ErrorTag::kMessage: {
-        Handle<String> message_string;
-        if (!ReadString().ToHandle(&message_string)) {
-          return MaybeHandle<JSObject>();
-        }
-        message = message_string;
-        break;
-      }
-      case ErrorTag::kCause: {
-        Handle<Object> cause;
-        if (!ReadObject().ToHandle(&cause)) {
-          return MaybeHandle<JSObject>();
-        }
-        options = isolate_->factory()->NewJSObject(isolate_->object_function());
-        if (JSObject::DefinePropertyOrElementIgnoreAttributes(
-                Handle<JSObject>::cast(options),
-                isolate_->factory()->cause_string(), cause, DONT_ENUM)
-                .is_null()) {
-          return MaybeHandle<JSObject>();
-        }
-        break;
-      }
-      case ErrorTag::kStack: {
-        Handle<String> stack_string;
-        if (!ReadString().ToHandle(&stack_string)) {
-          return MaybeHandle<JSObject>();
-        }
-        stack = stack_string;
-        break;
-      }
-      case ErrorTag::kEnd:
-        done = true;
-        break;
-      default:
-        return MaybeHandle<JSObject>();
-    }
+  uint8_t tag;
+  READ_NEXT_ERROR_TAG();
+
+  // Read error type constructor.
+  Handle<JSFunction> constructor;
+  switch (static_cast<ErrorTag>(tag)) {
+    case ErrorTag::kEvalErrorPrototype:
+      constructor = isolate_->eval_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kRangeErrorPrototype:
+      constructor = isolate_->range_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kReferenceErrorPrototype:
+      constructor = isolate_->reference_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kSyntaxErrorPrototype:
+      constructor = isolate_->syntax_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kTypeErrorPrototype:
+      constructor = isolate_->type_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kUriErrorPrototype:
+      constructor = isolate_->uri_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    default:
+      // The default prototype in the deserialization side is Error.prototype,
+      // so we don't have to do anything here.
+      constructor = isolate_->error_function();
+      break;
   }
 
+  // Check for message property.
+  Handle<Object> message = isolate_->factory()->undefined_value();
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kMessage) {
+    Handle<String> message_string;
+    if (!ReadString().ToHandle(&message_string)) {
+      return MaybeHandle<JSObject>();
+    }
+    message = message_string;
+    READ_NEXT_ERROR_TAG();
+  }
+
+  // Check for stack property.
+  Handle<Object> stack = isolate_->factory()->undefined_value();
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kStack) {
+    Handle<String> stack_string;
+    if (!ReadString().ToHandle(&stack_string)) {
+      return MaybeHandle<JSObject>();
+    }
+    stack = stack_string;
+    READ_NEXT_ERROR_TAG();
+  }
+
+  // Create error object before adding the cause property.
   Handle<JSObject> error;
+  Handle<Object> no_caller;
+  Handle<Object> undefined_options = isolate_->factory()->undefined_value();
   if (!ErrorUtils::Construct(isolate_, constructor, constructor, message,
-                             options, SKIP_NONE, no_caller,
+                             undefined_options, SKIP_NONE, no_caller,
                              ErrorUtils::StackTraceCollection::kDisabled)
            .ToHandle(&error)) {
     return MaybeHandle<Object>();
   }
-
   ErrorUtils::SetFormattedStack(isolate_, error, stack);
   AddObjectWithID(id, error);
+
+  // Add cause property if needed.
+  if (static_cast<ErrorTag>(tag) == ErrorTag::kCause) {
+    Handle<Object> cause;
+    if (!ReadObject().ToHandle(&cause)) {
+      return MaybeHandle<JSObject>();
+    }
+    Handle<Name> cause_string = isolate_->factory()->cause_string();
+    if (JSObject::SetOwnPropertyIgnoreAttributes(error, cause_string, cause,
+                                                 DONT_ENUM)
+            .is_null()) {
+      return MaybeHandle<JSObject>();
+    };
+    READ_NEXT_ERROR_TAG();
+  }
+
+#undef READ_NEXT_ERROR_TAG
+
+  if (static_cast<ErrorTag>(tag) != ErrorTag::kEnd) {
+    return MaybeHandle<Object>();
+  }
   return error;
 }
 
@@ -2321,7 +2343,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModuleTransfer() {
            ->GetWasmModuleFromId(reinterpret_cast<v8::Isolate*>(isolate_),
                                  transfer_id)
            .ToLocal(&module_value)) {
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
     return MaybeHandle<JSObject>();
   }
   uint32_t id = next_id_++;
@@ -2363,11 +2385,11 @@ namespace {
 // Throws a generic "deserialization failed" exception by default, unless a more
 // specific exception has already been thrown.
 void ThrowDeserializationExceptionIfNonePending(Isolate* isolate) {
-  if (!isolate->has_pending_exception()) {
+  if (!isolate->has_exception()) {
     isolate->Throw(*isolate->factory()->NewError(
         MessageTemplate::kDataCloneDeserializationError));
   }
-  DCHECK(isolate->has_pending_exception());
+  DCHECK(isolate->has_exception());
 }
 
 }  // namespace
@@ -2378,7 +2400,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
 
   uint32_t shared_object_id;
   if (!ReadVarint<uint32_t>().To(&shared_object_id)) {
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
     return MaybeHandle<HeapObject>();
   }
 
@@ -2391,7 +2413,7 @@ MaybeHandle<HeapObject> ValueDeserializer::ReadSharedObject() {
     const v8::SharedValueConveyor* conveyor = delegate_->GetSharedValueConveyor(
         reinterpret_cast<v8::Isolate*>(isolate_));
     if (!conveyor) {
-      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, HeapObject);
+      RETURN_EXCEPTION_IF_EXCEPTION(isolate_, HeapObject);
       return MaybeHandle<HeapObject>();
     }
     shared_object_conveyor_ = conveyor->private_.get();
@@ -2410,7 +2432,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   v8::Local<v8::Object> object;
   if (!delegate_->ReadHostObject(v8_isolate).ToLocal(&object)) {
-    RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
+    RETURN_EXCEPTION_IF_EXCEPTION(isolate_, JSObject);
     return MaybeHandle<JSObject>();
   }
   Handle<JSObject> js_object =

@@ -8,6 +8,7 @@
 
 #include "src/base/hashmap.h"
 #include "src/codegen/code-desc.h"
+#include "src/codegen/compiler.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/register.h"
@@ -21,6 +22,7 @@
 #include "src/deoptimizer/frame-translation-builder.h"
 #include "src/execution/frame-constants.h"
 #include "src/flags/flags.h"
+#include "src/handles/global-handles-inl.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-assembler-inl.h"
 #include "src/maglev/maglev-code-gen-state.h"
@@ -617,7 +619,7 @@ class ExceptionHandlerTrampolineBuilder {
       DCHECK(!source->allocation().IsRegister());
 
       switch (source->properties().value_representation()) {
-        case ValueRepresentation::kWord64:
+        case ValueRepresentation::kIntPtr:
           UNREACHABLE();
         case ValueRepresentation::kTagged:
           direct_moves->RecordMove(
@@ -1265,7 +1267,7 @@ class MaglevFrameTranslationBuilder {
   void BuildDeoptStoreRegister(const compiler::AllocatedOperand& operand,
                                ValueRepresentation repr) {
     switch (repr) {
-      case ValueRepresentation::kWord64:
+      case ValueRepresentation::kIntPtr:
         UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreRegister(operand.GetRegister());
@@ -1291,7 +1293,7 @@ class MaglevFrameTranslationBuilder {
                                 ValueRepresentation repr) {
     int stack_slot = DeoptStackSlotFromStackSlot(operand);
     switch (repr) {
-      case ValueRepresentation::kWord64:
+      case ValueRepresentation::kIntPtr:
         UNREACHABLE();
       case ValueRepresentation::kTagged:
         translation_array_builder_->StoreStackSlot(stack_slot);
@@ -1313,6 +1315,7 @@ class MaglevFrameTranslationBuilder {
 
   void BuildDeoptFrameSingleValue(const ValueNode* value,
                                   const InputLocation*& input_location) {
+    DCHECK(!value->Is<Identity>());
     if (input_location->operand().IsConstant()) {
       translation_array_builder_->StoreLiteral(
           GetDeoptLiteral(*value->Reify(local_isolate_)));
@@ -1426,7 +1429,12 @@ MaglevCodeGenerator::MaglevCodeGenerator(
       code_gen_state_(compilation_info, &safepoint_table_builder_),
       masm_(isolate->GetMainThreadIsolateUnsafe(), &code_gen_state_),
       graph_(graph),
-      deopt_literals_(isolate->heap()->heap()) {}
+      deopt_literals_(isolate->heap()->heap()),
+      retained_maps_(isolate->heap()) {
+  DCHECK(maglev::IsMaglevEnabled());
+  DCHECK_IMPLIES(compilation_info->toplevel_is_osr(),
+                 maglev::IsMaglevOsrEnabled());
+}
 
 bool MaglevCodeGenerator::Assemble() {
   if (!EmitCode()) {
@@ -1442,6 +1450,10 @@ bool MaglevCodeGenerator::Assemble() {
   if (v8_flags.maglev_build_code_on_background) {
     code_ = local_isolate_->heap()->NewPersistentMaybeHandle(
         BuildCodeObject(local_isolate_));
+    Handle<Code> code;
+    if (code_.ToHandle(&code)) {
+      retained_maps_ = CollectRetainedMaps(code);
+    }
   } else if (v8_flags.maglev_deopt_data_on_background) {
     // Only do this if not --maglev-build-code-on-background, since that will do
     // it itself.
@@ -1461,6 +1473,14 @@ MaybeHandle<Code> MaglevCodeGenerator::Generate(Isolate* isolate) {
   }
 
   return BuildCodeObject(isolate->main_thread_local_isolate());
+}
+
+GlobalHandleVector<Map> MaglevCodeGenerator::RetainedMaps(Isolate* isolate) {
+  DisallowGarbageCollection no_gc;
+  GlobalHandleVector<Map> maps(isolate->heap());
+  maps.Reserve(retained_maps_.size());
+  for (Handle<Map> map : retained_maps_) maps.Push(*map);
+  return maps;
 }
 
 bool MaglevCodeGenerator::EmitCode() {
@@ -1635,6 +1655,26 @@ MaybeHandle<Code> MaglevCodeGenerator::BuildCodeObject(
       .set_deoptimization_data(deopt_data)
       .set_osr_offset(code_gen_state_.compilation_info()->toplevel_osr_offset())
       .TryBuild();
+}
+
+GlobalHandleVector<Map> MaglevCodeGenerator::CollectRetainedMaps(
+    Handle<Code> code) {
+  DCHECK(code->is_optimized_code());
+
+  DisallowGarbageCollection no_gc;
+  GlobalHandleVector<Map> maps(local_isolate_->heap());
+  PtrComprCageBase cage_base(local_isolate_);
+  int const mode_mask = RelocInfo::EmbeddedObjectModeMask();
+  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
+    Tagged<HeapObject> target_object = it.rinfo()->target_object(cage_base);
+    if (code->IsWeakObjectInOptimizedCode(target_object)) {
+      if (IsMap(target_object, cage_base)) {
+        maps.Push(Map::cast(target_object));
+      }
+    }
+  }
+  return maps;
 }
 
 Handle<DeoptimizationData> MaglevCodeGenerator::GenerateDeoptimizationData(

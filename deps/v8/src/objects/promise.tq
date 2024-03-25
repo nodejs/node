@@ -25,8 +25,16 @@ const kPromiseReactionFulfillHandlerOffset: constexpr int31
     generates 'PromiseReaction::kFulfillHandlerOffset';
 const kPromiseReactionPromiseOrCapabilityOffset: constexpr int31
     generates 'PromiseReaction::kPromiseOrCapabilityOffset';
-const kPromiseReactionContinuationPreservedEmbedderDataOffset: constexpr int31
-    generates 'PromiseReaction::kContinuationPreservedEmbedderDataOffset';
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionIsolateContinuationPreservedEmbedderDataOffset:
+    constexpr int31
+    generates 'PromiseReaction::kIsolateContinuationPreservedEmbedderDataOffset'
+    ;
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionContextContinuationPreservedEmbedderDataOffset:
+    constexpr int31
+    generates 'PromiseReaction::kContextContinuationPreservedEmbedderDataOffset'
+    ;
 
 extern class PromiseReaction extends Struct {
   next: PromiseReaction|Zero;
@@ -35,7 +43,10 @@ extern class PromiseReaction extends Struct {
   // Either a JSPromise (in case of native promises), a PromiseCapability
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
-  continuation_preserved_embedder_data: Object|Undefined;
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  isolate_continuation_preserved_embedder_data: Object|Undefined;
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  context_continuation_preserved_embedder_data: Object|Undefined;
 }
 
 // PromiseReactionJobTask constants
@@ -45,9 +56,15 @@ const kPromiseReactionJobTaskHandlerOffset: constexpr int31
     generates 'PromiseReactionJobTask::kHandlerOffset';
 const kPromiseReactionJobTaskPromiseOrCapabilityOffset: constexpr int31
     generates 'PromiseReactionJobTask::kPromiseOrCapabilityOffset';
-const kPromiseReactionJobTaskContinuationPreservedEmbedderDataOffset:
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionJobTaskIsolateContinuationPreservedEmbedderDataOffset:
     constexpr int31
-    generates 'PromiseReactionJobTask::kContinuationPreservedEmbedderDataOffset'
+    generates 'PromiseReactionJobTask::kIsolateContinuationPreservedEmbedderDataOffset'
+    ;
+// @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+const kPromiseReactionJobTaskContextContinuationPreservedEmbedderDataOffset:
+    constexpr int31
+    generates 'PromiseReactionJobTask::kContextContinuationPreservedEmbedderDataOffset'
     ;
 
 @abstract
@@ -58,7 +75,10 @@ extern class PromiseReactionJobTask extends Microtask {
   // Either a JSPromise (in case of native promises), a PromiseCapability
   // (general case), or undefined (in case of await).
   promise_or_capability: JSPromise|PromiseCapability|Undefined;
-  continuation_preserved_embedder_data: Object|Undefined;
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  isolate_continuation_preserved_embedder_data: Object|Undefined;
+  @if(V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA)
+  context_continuation_preserved_embedder_data: Object|Undefined;
 }
 
 extern class PromiseFulfillReactionJobTask extends PromiseReactionJobTask {}

@@ -32,7 +32,7 @@ void FillCurrentPage(v8::internal::NewSpace* space,
                      std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
 void FillCurrentPageButNBytes(
-    v8::internal::NewSpace* space, int extra_bytes,
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
 // Helper function that simulates many incremental marking steps until

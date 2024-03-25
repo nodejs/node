@@ -56,7 +56,7 @@
 using i::AllocationTraceNode;
 using i::AllocationTraceTree;
 using i::AllocationTracker;
-using i::SourceLocation;
+using i::EntrySourceLocation;
 using i::heap::GrowNewSpaceToMaximumCapacity;
 using v8::base::ArrayVector;
 using v8::base::Optional;
@@ -162,18 +162,18 @@ static const v8::HeapGraphNode* GetRootChild(const v8::HeapSnapshot* snapshot,
   return GetChildByName(snapshot->GetRoot(), name);
 }
 
-static Optional<SourceLocation> GetLocation(const v8::HeapSnapshot* s,
-                                            const v8::HeapGraphNode* node) {
+static Optional<EntrySourceLocation> GetLocation(
+    const v8::HeapSnapshot* s, const v8::HeapGraphNode* node) {
   const i::HeapSnapshot* snapshot = reinterpret_cast<const i::HeapSnapshot*>(s);
-  const std::vector<SourceLocation>& locations = snapshot->locations();
+  const std::vector<EntrySourceLocation>& locations = snapshot->locations();
   const i::HeapEntry* entry = reinterpret_cast<const i::HeapEntry*>(node);
   for (const auto& loc : locations) {
     if (loc.entry_index == entry->index()) {
-      return Optional<SourceLocation>(loc);
+      return Optional<EntrySourceLocation>(loc);
     }
   }
 
-  return Optional<SourceLocation>();
+  return Optional<EntrySourceLocation>();
 }
 
 static const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
@@ -303,7 +303,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "x");
   CHECK(x);
 
-  Optional<SourceLocation> x_loc = GetLocation(snapshot, x);
+  Optional<EntrySourceLocation> x_loc = GetLocation(snapshot, x);
   CHECK(x_loc);
   CHECK_EQ(0, x_loc->line);
   CHECK_EQ(31, x_loc->col);
@@ -312,7 +312,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "g");
   CHECK(x);
 
-  Optional<SourceLocation> g_loc = GetLocation(snapshot, g);
+  Optional<EntrySourceLocation> g_loc = GetLocation(snapshot, g);
   CHECK(g_loc);
   CHECK_EQ(1, g_loc->line);
   CHECK_EQ(15, g_loc->col);
@@ -321,7 +321,7 @@ TEST(HeapSnapshotLocations) {
       GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "o");
   CHECK(x);
 
-  Optional<SourceLocation> o_loc = GetLocation(snapshot, o);
+  Optional<EntrySourceLocation> o_loc = GetLocation(snapshot, o);
   CHECK(o_loc);
   CHECK_EQ(2, o_loc->line);
   CHECK_EQ(0, o_loc->col);
@@ -1960,10 +1960,6 @@ TEST(GlobalObjectFields) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* native_context =
-      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kInternal,
-                  "native_context");
-  CHECK(native_context);
   const v8::HeapGraphNode* global_proxy = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kInternal, "global_proxy");
   CHECK(global_proxy);
@@ -3172,13 +3168,17 @@ TEST(HeapSnapshotScriptContext) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* global_map = GetProperty(
+      env->GetIsolate(), global, v8::HeapGraphEdge::kInternal, "map");
+  const v8::HeapGraphNode* map_map = GetProperty(
+      env->GetIsolate(), global_map, v8::HeapGraphEdge::kInternal, "map");
   const v8::HeapGraphNode* native_context =
-      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kInternal,
+      GetProperty(env->GetIsolate(), map_map, v8::HeapGraphEdge::kInternal,
                   "native_context");
-  CHECK(native_context);
   const v8::HeapGraphNode* script_context_table =
       GetProperty(env->GetIsolate(), native_context,
                   v8::HeapGraphEdge::kInternal, "script_context_table");
+
   CHECK(script_context_table);
   bool found_foo = false;
   for (int i = 0, count = script_context_table->GetChildrenCount(); i < count;
@@ -4168,7 +4168,7 @@ TEST(WeakReference) {
 
   // Manually inlined version of FeedbackVector::SetOptimizedCode (needed due
   // to the FOR_TESTING code kind).
-  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(*code));
+  fv->set_maybe_optimized_code(i::HeapObjectReference::Weak(code->wrapper()));
   fv->set_flags(
       i::FeedbackVector::MaybeHasTurbofanCodeBit::encode(true) |
       i::FeedbackVector::TieringStateBits::encode(i::TieringState::kNone));

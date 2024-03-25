@@ -267,11 +267,12 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
 
   // The result is a compiled module and serialized standard library uses.
   wasm::ErrorThrower thrower(isolate, "AsmJs::Compile");
+  Handle<Script> script(Script::cast(shared_info->script()), isolate);
   Handle<AsmWasmData> result =
       wasm::GetWasmEngine()
           ->SyncCompileTranslatedAsmJs(
               isolate, &thrower,
-              wasm::ModuleWireBytes(module_->begin(), module_->end()),
+              wasm::ModuleWireBytes(module_->begin(), module_->end()), script,
               base::VectorOf(*asm_offsets_), uses_bitset,
               shared_info->language_mode())
           .ToHandleChecked();
@@ -281,8 +282,7 @@ UnoptimizedCompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(
   compilation_info()->SetAsmWasmData(result);
 
   RecordHistograms(isolate);
-  ReportCompilationSuccess(handle(Script::cast(shared_info->script()), isolate),
-                           shared_info->StartPosition(), compile_time_,
+  ReportCompilationSuccess(script, shared_info->StartPosition(), compile_time_,
                            module_->size());
   return SUCCEEDED;
 }
@@ -310,6 +310,12 @@ inline bool IsValidAsmjsMemorySize(size_t size) {
   }
   // Enforce multiple of 2^24 for sizes >= 2^24
   if ((size % (1u << 24u)) != 0) return false;
+  // Limitation of our implementation: for performance reasons, we use unsigned
+  // uint32-to-uintptr extensions for memory addresses, which would give
+  // incorrect behavior for memories larger than 2 GiB.
+  // Note that this does not affect Chrome, which does not allow allocating
+  // larger ArrayBuffers anyway.
+  if (size > 0x8000'0000u) return false;
   // All checks passed!
   return true;
 }
@@ -345,8 +351,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;
   wasm::AsmJsParser::StdlibSet stdlib_uses =
-      wasm::AsmJsParser::StdlibSet::FromIntegral(
-          uses_bitset->value_as_bits(kRelaxedLoad));
+      wasm::AsmJsParser::StdlibSet::FromIntegral(uses_bitset->value_as_bits());
   if (!stdlib_uses.empty()) {  // No checking needed if no uses.
     if (stdlib.is_null()) {
       ReportInstantiationFailure(script, position, "Requires standard library");
@@ -403,9 +408,11 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   MaybeHandle<WasmInstanceObject> maybe_instance =
       wasm_engine->SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_instance.is_null()) {
-    // An exception caused by the module start function will be set as pending
-    // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
-    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
+    // Clear a possible stack overflow from function entry that would have
+    // bypassed the {ErrorThrower}. Be careful not to clear a termination
+    // exception.
+    if (isolate->is_execution_terminating()) return {};
+    if (isolate->has_exception()) isolate->clear_exception();
     if (thrower.error()) {
       base::ScopedVector<char> error_reason(100);
       SNPrintF(error_reason, "Internal wasm failure: %s", thrower.error_msg());
@@ -414,7 +421,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
       ReportInstantiationFailure(script, position, "Internal wasm failure");
     }
     thrower.Reset();  // Ensure exceptions do not propagate.
-    return MaybeHandle<Object>();
+    return {};
   }
   DCHECK(!thrower.error());
   Handle<WasmInstanceObject> instance = maybe_instance.ToHandleChecked();

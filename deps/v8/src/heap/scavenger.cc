@@ -7,7 +7,6 @@
 #include "src/common/globals.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/array-buffer-sweeper.h"
-#include "src/heap/concurrent-allocator.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/ephemeron-remembered-set.h"
 #include "src/heap/gc-tracer-inl.h"
@@ -149,7 +148,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
           MemoryChunk::FromHeapObject(host), slot.address());
     }
 
-    if (target.InWritableSharedSpace()) {
+    if (InWritableSharedSpace(target)) {
       MemoryChunk* chunk = MemoryChunk::FromHeapObject(host);
       RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                                slot.address());
@@ -226,7 +225,8 @@ size_t ScavengerCollector::JobTask::GetMaxConcurrency(
   size_t wanted_num_workers = std::max<size_t>(
       remaining_memory_chunks_.load(std::memory_order_relaxed),
       worker_count + copied_list_->Size() + promotion_list_->Size());
-  if (!outer_->heap_->ShouldUseBackgroundThreads()) {
+  if (!outer_->heap_->ShouldUseBackgroundThreads() ||
+      outer_->heap_->ShouldOptimizeForBattery()) {
     return std::min<size_t>(wanted_num_workers, 1);
   }
   return std::min<size_t>(scavengers_->size(), wanted_num_workers);
@@ -326,6 +326,8 @@ class V8_NODISCARD ScopedFullHeapCrashKey {
 void ScavengerCollector::CollectGarbage() {
   ScopedFullHeapCrashKey collect_full_heap_dump_if_crash(isolate_);
 
+  DCHECK(!heap_->allocator()->new_space_allocator()->IsLabValid());
+
   DCHECK(surviving_new_large_objects_.empty());
   std::vector<std::unique_ptr<Scavenger>> scavengers;
   Scavenger::EmptyChunksList empty_chunks;
@@ -359,8 +361,7 @@ void ScavengerCollector::CollectGarbage() {
       TRACE_GC(
           heap_->tracer(),
           GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-      isolate_->traced_handles()->ComputeWeaknessForYoungObjects(
-          &JSObject::IsUnmodifiedApiObject);
+      isolate_->traced_handles()->ComputeWeaknessForYoungObjects();
     }
     {
       // Copy roots.
@@ -462,8 +463,10 @@ void ScavengerCollector::CollectGarbage() {
 
   ProcessWeakReferences(&ephemeron_table_list);
 
-  // Set age mark.
-  semi_space_new_space->set_age_mark(heap_->NewSpaceTop());
+  // Need to free new space LAB that was allocated during scavenge.
+  heap_->allocator()->new_space_allocator()->FreeLinearAllocationArea();
+  // Now that the LAB was freed, set age mark.
+  semi_space_new_space->set_age_mark_to_top();
 
   // Since we promote all surviving large objects immediately, all remaining
   // large objects must be dead.
@@ -610,10 +613,10 @@ Scavenger::PromotionList::Local::Local(Scavenger::PromotionList* promotion_list)
           promotion_list->large_object_promotion_list_) {}
 
 namespace {
-ConcurrentAllocator* CreateSharedOldAllocator(Heap* heap) {
+MainAllocator* CreateSharedOldAllocator(Heap* heap) {
   if (v8_flags.shared_string_table && heap->isolate()->has_shared_space()) {
-    return new ConcurrentAllocator(nullptr, heap->shared_allocation_space(),
-                                   ConcurrentAllocator::Context::kGC);
+    return new MainAllocator(heap, heap->shared_allocation_space(),
+                             MainAllocator::kInGC);
   }
   return nullptr;
 }
@@ -678,7 +681,6 @@ void Scavenger::RememberPromotedEphemeron(Tagged<EphemeronHashTable> table,
 }
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
-  CodePageMemoryModificationScope memory_modification_scope(page);
   const bool record_old_to_shared_slots = heap_->isolate()->has_shared_space();
 
   if (page->slot_set<OLD_TO_NEW, AccessMode::ATOMIC>() != nullptr) {
@@ -696,23 +698,51 @@ void Scavenger::ScavengePage(MemoryChunk* page) {
         &empty_chunks_local_);
   }
 
-  RememberedSet<OLD_TO_NEW>::IterateTyped(
-      page, [this, page, record_old_to_shared_slots](SlotType slot_type,
-                                                     Address slot_address) {
-        return UpdateTypedSlotHelper::UpdateTypedSlot(
-            heap_, slot_type, slot_address,
-            [this, page, slot_type, slot_address,
-             record_old_to_shared_slots](FullMaybeObjectSlot slot) {
-              SlotCallbackResult result = CheckAndScavengeObject(heap(), slot);
-              // A new space string might have been promoted into the shared
-              // heap during GC.
-              if (result == REMOVE_SLOT && record_old_to_shared_slots) {
-                CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address,
-                                                *slot);
-              }
-              return result;
-            });
-      });
+  if (page->executable()) {
+    std::vector<std::tuple<Tagged<HeapObject>, SlotType, Address>> slot_updates;
+
+    // The code running write access to executable memory poses CFI attack
+    // surface and needs to be kept to a minimum. So we do the the iteration in
+    // two rounds. First we iterate the slots and scavenge objects and in the
+    // second round with write access, we only perform the pointer updates.
+    RememberedSet<OLD_TO_NEW>::IterateTyped(
+        page, [this, page, record_old_to_shared_slots, &slot_updates](
+                  SlotType slot_type, Address slot_address) {
+          Tagged<HeapObject> old_target =
+              UpdateTypedSlotHelper::GetTargetObject(heap_, slot_type,
+                                                     slot_address);
+          Tagged<HeapObject> new_target = old_target;
+          FullMaybeObjectSlot slot(&new_target);
+          SlotCallbackResult result = CheckAndScavengeObject(heap(), slot);
+          if (result == REMOVE_SLOT && record_old_to_shared_slots) {
+            CheckOldToNewSlotForSharedTyped(page, slot_type, slot_address,
+                                            *slot);
+          }
+          if (new_target != old_target) {
+            slot_updates.emplace_back(new_target, slot_type, slot_address);
+          }
+          return result;
+        });
+
+    WritableJitPage jit_page = ThreadIsolation::LookupWritableJitPage(
+        page->area_start(), page->area_size());
+    for (auto& slot_update : slot_updates) {
+      Tagged<HeapObject> new_target = std::get<0>(slot_update);
+      SlotType slot_type = std::get<1>(slot_update);
+      Address slot_address = std::get<2>(slot_update);
+
+      WritableJitAllocation jit_allocation =
+          jit_page.LookupAllocationContaining(slot_address);
+      UpdateTypedSlotHelper::UpdateTypedSlot(
+          jit_allocation, heap_, slot_type, slot_address,
+          [new_target](FullMaybeObjectSlot slot) {
+            slot.store(MaybeObject::FromObject(new_target));
+            return KEEP_SLOT;
+          });
+    }
+  } else {
+    DCHECK_NULL(page->typed_slot_set<OLD_TO_NEW>());
+  }
 
   if (page->slot_set<OLD_TO_NEW_BACKGROUND, AccessMode::ATOMIC>() != nullptr) {
     RememberedSet<OLD_TO_NEW_BACKGROUND>::IterateAndTrackEmptyBuckets(
@@ -859,7 +889,7 @@ void Scavenger::CheckOldToNewSlotForSharedUntyped(MemoryChunk* chunk,
   Tagged<HeapObject> heap_object;
 
   if (object.GetHeapObject(&heap_object) &&
-      heap_object.InWritableSharedSpace()) {
+      InWritableSharedSpace(heap_object)) {
     RememberedSet<OLD_TO_SHARED>::Insert<AccessMode::ATOMIC>(chunk,
                                                              slot.address());
   }
@@ -872,7 +902,7 @@ void Scavenger::CheckOldToNewSlotForSharedTyped(MemoryChunk* chunk,
   Tagged<HeapObject> heap_object;
 
   if (new_target.GetHeapObject(&heap_object) &&
-      heap_object.InWritableSharedSpace()) {
+      InWritableSharedSpace(heap_object)) {
     const uintptr_t offset = slot_address - chunk->address();
     DCHECK_LT(offset, static_cast<uintptr_t>(TypedSlotSet::kMaxOffset));
 

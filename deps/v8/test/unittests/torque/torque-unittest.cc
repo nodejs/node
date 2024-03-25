@@ -625,7 +625,7 @@ TEST(Torque, Enums) {
     extern enum MyEnum {
       kValue0,
       kValue1,
-      kValue2,
+      @sameEnumValueAs(kValue0) kValue2,
       kValue3
     }
   )");

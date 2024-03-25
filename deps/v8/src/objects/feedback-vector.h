@@ -12,6 +12,7 @@
 #include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/objects/elements-kind.h"
+#include "src/objects/feedback-cell.h"
 #include "src/objects/map.h"
 #include "src/objects/maybe-object.h"
 #include "src/objects/name.h"
@@ -172,27 +173,46 @@ class FeedbackMetadata;
 
 #include "torque-generated/src/objects/feedback-vector-tq.inc"
 
-// ClosureFeedbackCellArray is a FixedArray that contains feedback cells used
-// when creating closures from a function. This is created once the function is
-// compiled and is either held by the feedback vector (if allocated) or by the
-// FeedbackCell of the closure.
-class ClosureFeedbackCellArray : public FixedArray {
+class ClosureFeedbackCellArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = FeedbackCell;
+  static constexpr RootIndex kMapRootIndex =
+      RootIndex::kClosureFeedbackCellArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// ClosureFeedbackCellArray contains feedback cells used when creating closures
+// from a function. This is created once the function is compiled and is either
+// held by the feedback vector (if allocated) or by the FeedbackCell of the
+// closure.
+class ClosureFeedbackCellArray
+    : public TaggedArrayBase<ClosureFeedbackCellArray,
+                             ClosureFeedbackCellArrayShape> {
+  using Super =
+      TaggedArrayBase<ClosureFeedbackCellArray, ClosureFeedbackCellArrayShape>;
+  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, Super);
+
  public:
   NEVER_READ_ONLY_SPACE
-
-  DECL_CAST(ClosureFeedbackCellArray)
+  using Shape = ClosureFeedbackCellArrayShape;
 
   V8_EXPORT_PRIVATE static Handle<ClosureFeedbackCellArray> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
-
-  inline Handle<FeedbackCell> GetFeedbackCell(int index);
-  inline Tagged<FeedbackCell> cell(int index);
+      Isolate* isolate, Handle<SharedFunctionInfo> shared,
+      AllocationType allocation = AllocationType::kYoung);
 
   DECL_VERIFIER(ClosureFeedbackCellArray)
   DECL_PRINTER(ClosureFeedbackCellArray)
+  DECL_CAST(ClosureFeedbackCellArray)
 
- private:
-  OBJECT_CONSTRUCTORS(ClosureFeedbackCellArray, FixedArray);
+  class BodyDescriptor;
 };
 
 class NexusConfig;
@@ -229,6 +249,9 @@ class FeedbackVector
   using TorqueGeneratedFeedbackVector::set_invocation_count;
   DECL_RELAXED_INT32_ACCESSORS(invocation_count)
   inline void clear_invocation_count(RelaxedStoreTag tag);
+  using TorqueGeneratedFeedbackVector::invocation_count_before_stable;
+  using TorqueGeneratedFeedbackVector::set_invocation_count_before_stable;
+  DECL_UINT8_ACCESSORS(invocation_count_before_stable)
 
   // The [osr_urgency] controls when OSR is attempted, and is incremented as
   // the function becomes hotter. When the current loop depth is less than the
@@ -252,7 +275,7 @@ class FeedbackVector
   // The `osr_state` contains the osr_urgency and maybe_has_optimized_osr_code.
   inline void reset_osr_state();
 
-  inline Tagged<Code> optimized_code() const;
+  inline Tagged<Code> optimized_code(IsolateForSandbox isolate) const;
   // Whether maybe_optimized_code contains a cached Code object.
   inline bool has_optimized_code() const;
 
@@ -266,7 +289,7 @@ class FeedbackVector
   inline bool maybe_has_turbofan_code() const;
   inline void set_maybe_has_turbofan_code(bool value);
 
-  void SetOptimizedCode(Tagged<Code> code);
+  void SetOptimizedCode(IsolateForSandbox isolate, Tagged<Code> code);
   void EvictOptimizedCodeMarkedForDeoptimization(
       Isolate* isolate, Tagged<SharedFunctionInfo> shared, const char* reason);
   void ClearOptimizedCode();
@@ -284,6 +307,9 @@ class FeedbackVector
 
   TieringState osr_tiering_state();
   void set_osr_tiering_state(TieringState marker);
+
+  inline bool interrupt_budget_reset_by_ic_change() const;
+  inline void set_interrupt_budget_reset_by_ic_change(bool value);
 
   void reset_flags();
 
@@ -304,7 +330,8 @@ class FeedbackVector
 
   // Returns the feedback cell at |index| that is used to create the
   // closure.
-  inline Handle<FeedbackCell> GetClosureFeedbackCell(int index) const;
+  inline Handle<FeedbackCell> GetClosureFeedbackCell(Isolate* isolate,
+                                                     int index) const;
   inline Tagged<FeedbackCell> closure_feedback_cell(int index) const;
 
   // Gives access to raw memory which stores the array's data.
@@ -355,6 +382,12 @@ class FeedbackVector
   DECL_PRINTER(FeedbackVector)
 
   void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);
+
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+  static void TraceFeedbackChange(Isolate* isolate,
+                                  Tagged<FeedbackVector> vector,
+                                  FeedbackSlot slot, const char* reason);
+#endif
 
   // Clears the vector slots. Return true if feedback has changed.
   bool ClearSlots(Isolate* isolate) {

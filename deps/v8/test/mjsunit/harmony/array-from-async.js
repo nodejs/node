@@ -38,3 +38,25 @@ function* gen() {
   const arr = await Array.fromAsync([1, 2, 3], v => v + 4);
   assertEquals([5, 6, 7], arr);
 })();
+
+(async function TestArrayFromAsyncArrayLike() {
+  const arrayLike = {
+    length: 3,
+    0: 1,
+    1: 2,
+    2: 3
+  };
+  const arr = await Array.fromAsync(arrayLike);
+  assertEquals([1, 2, 3], arr);
+})();
+
+(async function TestArrayFromAsyncArrayLikeWithMapping() {
+  const arrayLike = {
+    length: 3,
+    0: 1,
+    1: 2,
+    2: 3
+  };
+  const arr = await Array.fromAsync(arrayLike, v => v **2);
+  assertEquals([1, 4, 9], arr);
+})();

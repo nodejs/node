@@ -1006,7 +1006,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       logging.debug('Dumping logcat into %s', logcat_file)
 
     output = Output()
-    start = time.time()
+    output.start_time = time.time()
     try:
       if not self.is_dry_run:
         output.stdout = self.driver.run(
@@ -1025,7 +1025,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
       output.timed_out = True
     if runnable.process_size:
       output.stdout += 'MaxMemory: Unsupported'
-    output.duration = time.time() - start
+    output.end_time = time.time()
     return output
 
 

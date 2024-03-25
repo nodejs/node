@@ -147,14 +147,6 @@ inline constexpr MachineType CommonMachineType(MachineType type1,
                                  : MachineType::None());
 }
 
-template <class T1, class T2>
-struct UnionT;
-
-template <typename T>
-struct is_union_t : public std::false_type {};
-template <typename T1, typename T2>
-struct is_union_t<UnionT<T1, T2>> : public std::true_type {};
-
 template <class Type, class Enable = void>
 struct MachineTypeOf {
   static constexpr MachineType value = Type::kMachineType;
@@ -182,14 +174,17 @@ struct MachineTypeOf<TaggedIndex> {
 template <class HeapObjectSubtype>
 struct MachineTypeOf<
     HeapObjectSubtype,
-    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>> {
+    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype> ||
+                     std::is_base_of_v<HeapObjectLayout, HeapObjectSubtype>>> {
   static constexpr MachineType value = MachineType::TaggedPointer();
 };
 
 template <class HeapObjectSubtype>
 constexpr MachineType MachineTypeOf<
     HeapObjectSubtype,
-    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype>>>::value;
+    std::enable_if_t<std::is_base_of_v<HeapObject, HeapObjectSubtype> ||
+                     std::is_base_of_v<HeapObjectLayout, HeapObjectSubtype>>>::
+    value;
 
 template <>
 struct MachineTypeOf<ExternalReference> {
@@ -297,11 +292,6 @@ template <>
 struct is_subtype<ExternalReference, RawPtrT> {
   static const bool value = true;
 };
-// All subtypes of Object are also subtypes of MaybeObject.
-template <typename T>
-struct is_subtype<T, MaybeObject, std::enable_if_t<!is_union_t<T>::value>>
-    : public std::disjunction<std::is_base_of<MaybeObject, T>,
-                              is_subtype<T, Object>> {};
 // All subtypes of HeapObject are also subtypes of HeapObjectReference.
 template <typename T>
 struct is_subtype<T, HeapObjectReference,

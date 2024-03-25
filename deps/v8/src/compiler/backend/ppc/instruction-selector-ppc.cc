@@ -7,6 +7,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/execution/ppc/frame-constants-ppc.h"
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -41,6 +42,25 @@ class PPCOperandGeneratorT final : public OperandGeneratorT<Adapter> {
   }
 
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
+    if (node->opcode() == IrOpcode::kCompressedHeapConstant) {
+      if (!COMPRESS_POINTERS_BOOL) return false;
+      // For builtin code we need static roots
+      if (selector()->isolate()->bootstrapper() && !V8_STATIC_ROOTS_BOOL) {
+        return false;
+      }
+      const RootsTable& roots_table = selector()->isolate()->roots_table();
+      RootIndex root_index;
+      CompressedHeapObjectMatcher m(node);
+      if (m.HasResolvedValue() &&
+          roots_table.IsRootHandle(m.ResolvedValue(), &root_index)) {
+        if (!RootsTable::IsReadOnly(root_index)) return false;
+        return CanBeImmediate(MacroAssemblerBase::ReadOnlyRootPtr(
+                                  root_index, selector()->isolate()),
+                              mode);
+      }
+      return false;
+    }
+
     int64_t value;
     if (node->opcode() == IrOpcode::kInt32Constant)
       value = OpParameter<int32_t>(node->op());
@@ -223,25 +243,28 @@ static void VisitLoadCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kIndirectPointer:  // Fall through.
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
-      opcode = kPPC_LoadWordS32;
-      if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
-      break;
+        opcode = kPPC_LoadWordS32;
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
 #else
-      UNREACHABLE();
+        UNREACHABLE();
 #endif
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        UNREACHABLE();
+      case MachineRepresentation::kSandboxedPointer:
+        opcode = kPPC_LoadDecodeSandboxedPointer;
+        break;
 #ifdef V8_COMPRESS_POINTERS
-    case MachineRepresentation::kTaggedSigned:
-      opcode = kPPC_LoadDecompressTaggedSigned;
-      break;
-    case MachineRepresentation::kTaggedPointer:
-      opcode = kPPC_LoadDecompressTagged;
-      break;
-    case MachineRepresentation::kTagged:
-      opcode = kPPC_LoadDecompressTagged;
-      break;
+      case MachineRepresentation::kTaggedSigned:
+        opcode = kPPC_LoadDecompressTaggedSigned;
+        break;
+      case MachineRepresentation::kTaggedPointer:
+        opcode = kPPC_LoadDecompressTagged;
+        break;
+      case MachineRepresentation::kTagged:
+        opcode = kPPC_LoadDecompressTagged;
+        break;
 #else
     case MachineRepresentation::kTaggedSigned:   // Fall through.
     case MachineRepresentation::kTaggedPointer:  // Fall through.
@@ -323,15 +346,15 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
   }
 
   if (v8_flags.enable_unconditional_write_barriers &&
-      CanBeTaggedOrCompressedPointer(rep)) {
+      CanBeTaggedOrCompressedOrIndirectPointer(rep)) {
     write_barrier_kind = kFullWriteBarrier;
   }
 
   if (write_barrier_kind != kNoWriteBarrier &&
       !v8_flags.disable_write_barriers) {
-    DCHECK(CanBeTaggedOrCompressedPointer(rep));
+    DCHECK(CanBeTaggedOrCompressedOrIndirectPointer(rep));
     AddressingMode addressing_mode;
-    InstructionOperand inputs[3];
+    InstructionOperand inputs[4];
     size_t input_count = 0;
     inputs[input_count++] = g.UseUniqueRegister(base);
     // OutOfLineRecordWrite uses the offset in an 'add' instruction as well as
@@ -352,7 +375,17 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         WriteBarrierKindToRecordWriteMode(write_barrier_kind);
     InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
     size_t const temp_count = arraysize(temps);
-    InstructionCode code = kArchStoreWithWriteBarrier;
+    InstructionCode code;
+    if (rep == MachineRepresentation::kIndirectPointer) {
+      DCHECK_EQ(node->opcode(), IrOpcode::kStoreIndirectPointer);
+      DCHECK_EQ(write_barrier_kind, kIndirectPointerWriteBarrier);
+      // In this case we need to add the IndirectPointerTag as additional input.
+      code = kArchStoreIndirectWithWriteBarrier;
+      Node* tag = node->InputAt(3);
+      inputs[input_count++] = g.UseImmediate(tag);
+    } else {
+      code = kArchStoreWithWriteBarrier;
+    }
     code |= AddressingModeField::encode(addressing_mode);
     code |= RecordWriteModeField::encode(record_write_mode);
     CHECK_EQ(is_atomic, false);
@@ -390,14 +423,21 @@ void VisitStoreCommon(InstructionSelectorT<Adapter>* selector, Node* node,
         break;
       case MachineRepresentation::kCompressedPointer:  // Fall through.
       case MachineRepresentation::kCompressed:
-      case MachineRepresentation::kIndirectPointer:  // Fall through.
-      case MachineRepresentation::kSandboxedPointer:  // Fall through.
 #ifdef V8_COMPRESS_POINTERS
+        if (mode != kInt34Imm) mode = kInt16Imm;
         opcode = kPPC_StoreCompressTagged;
-        break;
 #else
         UNREACHABLE();
 #endif
+        break;
+      case MachineRepresentation::kIndirectPointer:
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+        opcode = kPPC_StoreIndirectPointer;
+        break;
+      case MachineRepresentation::kSandboxedPointer:
+        if (mode != kInt34Imm) mode = kInt16Imm_4ByteAligned;
+        opcode = kPPC_StoreEncodeSandboxedPointer;
+        break;
       case MachineRepresentation::kTaggedSigned:   // Fall through.
       case MachineRepresentation::kTaggedPointer:  // Fall through.
       case MachineRepresentation::kTagged:
@@ -1233,10 +1273,11 @@ void InstructionSelectorT<Adapter>::VisitWord64ReverseBytes(node_t node) {
     if (CanCover(node, input.node()) && input.IsLoad()) {
       LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
       if (load_rep.representation() == MachineRepresentation::kWord64) {
-        Node* base = input.node()->InputAt(0);
-        Node* offset = input.node()->InputAt(1);
-        bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
-                          node->opcode() == IrOpcode::kWord64AtomicLoad);
+        Node* load_op = input.node();
+        Node* base = load_op->InputAt(0);
+        Node* offset = load_op->InputAt(1);
+        bool is_atomic = (load_op->opcode() == IrOpcode::kWord32AtomicLoad ||
+                          load_op->opcode() == IrOpcode::kWord64AtomicLoad);
         Emit(kPPC_LoadByteRev64 | AddressingModeField::encode(kMode_MRR),
              g.DefineAsRegister(node), g.UseRegister(base),
              g.UseRegister(offset), g.UseImmediate(is_atomic));
@@ -1258,10 +1299,11 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
     if (CanCover(node, input.node()) && input.IsLoad()) {
       LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
       if (load_rep.representation() == MachineRepresentation::kWord32) {
-        Node* base = input.node()->InputAt(0);
-        Node* offset = input.node()->InputAt(1);
-        bool is_atomic = (node->opcode() == IrOpcode::kWord32AtomicLoad ||
-                          node->opcode() == IrOpcode::kWord64AtomicLoad);
+        Node* load_op = input.node();
+        Node* base = load_op->InputAt(0);
+        Node* offset = load_op->InputAt(1);
+        bool is_atomic = (load_op->opcode() == IrOpcode::kWord32AtomicLoad ||
+                          load_op->opcode() == IrOpcode::kWord64AtomicLoad);
         Emit(kPPC_LoadByteRev32 | AddressingModeField::encode(kMode_MRR),
              g.DefineAsRegister(node), g.UseRegister(base),
              g.UseRegister(offset), g.UseImmediate(is_atomic));
@@ -1681,13 +1723,21 @@ void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint64(
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToInt32(
     node_t node) {
-  UNIMPLEMENTED();
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToInt32, node);
+  }
 }
 
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitTryTruncateFloat64ToUint32(
     node_t node) {
-  UNIMPLEMENTED();
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    VisitTryTruncateDouble(this, kPPC_DoubleToUint32, node);
+  }
 }
 
 template <typename Adapter>
@@ -2605,6 +2655,40 @@ void InstructionSelectorT<Adapter>::VisitWord32Equal(node_t const node) {
   UNIMPLEMENTED();
   } else {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
+  if (isolate() && (V8_STATIC_ROOTS_BOOL ||
+                    (COMPRESS_POINTERS_BOOL && !isolate()->bootstrapper()))) {
+  PPCOperandGeneratorT<Adapter> g(this);
+  const RootsTable& roots_table = isolate()->roots_table();
+  RootIndex root_index;
+  Node* left = nullptr;
+  Handle<HeapObject> right;
+  // HeapConstants and CompressedHeapConstants can be treated the same when
+  // using them as an input to a 32-bit comparison. Check whether either is
+  // present.
+  {
+      CompressedHeapObjectBinopMatcher m(node);
+      if (m.right().HasResolvedValue()) {
+      left = m.left().node();
+      right = m.right().ResolvedValue();
+      } else {
+      HeapObjectBinopMatcher m2(node);
+      if (m2.right().HasResolvedValue()) {
+          left = m2.left().node();
+          right = m2.right().ResolvedValue();
+      }
+      }
+  }
+  if (!right.is_null() && roots_table.IsRootHandle(right, &root_index)) {
+      DCHECK_NE(left, nullptr);
+      if (RootsTable::IsReadOnly(root_index)) {
+      Tagged_t ptr = MacroAssemblerBase::ReadOnlyRootPtr(root_index, isolate());
+      if (g.CanBeImmediate(ptr, kInt16Imm)) {
+          return VisitCompare(this, kPPC_Cmp32, g.UseRegister(left),
+                              g.TempImmediate(ptr), &cont);
+      }
+      }
+  }
+  }
   VisitWord32Compare(this, node, &cont);
   }
 }
@@ -2865,17 +2949,27 @@ void InstructionSelectorT<Adapter>::VisitMemoryBarrier(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoadCommon(this, node, load_rep);
+void InstructionSelectorT<Adapter>::VisitWord32AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoadCommon(this, node, load_rep);
+  }
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(Node* node) {
-  AtomicLoadParameters atomic_load_params = AtomicLoadParametersOf(node->op());
-  LoadRepresentation load_rep = atomic_load_params.representation();
-  VisitLoadCommon(this, node, load_rep);
+void InstructionSelectorT<Adapter>::VisitWord64AtomicLoad(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    AtomicLoadParameters atomic_load_params =
+        AtomicLoadParametersOf(node->op());
+    LoadRepresentation load_rep = atomic_load_params.representation();
+    VisitLoadCommon(this, node, load_rep);
+  }
 }
 
 template <typename Adapter>
@@ -3372,7 +3466,7 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, U, 8)
 SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
 #undef SIMD_VISIT_EXTRACT_LANE
 
-#define SIMD_VISIT_REPLACE_LANE(Type)                                         \
+#define SIMD_VISIT_REPLACE_LANE(Type, T, LaneSize)                            \
   template <typename Adapter>                                                 \
   void InstructionSelectorT<Adapter>::Visit##Type##ReplaceLane(node_t node) { \
     if constexpr (Adapter::IsTurboshaft) {                                    \
@@ -3380,12 +3474,17 @@ SIMD_VISIT_EXTRACT_LANE(I8x16, I, S, 8)
     } else {                                                                  \
       PPCOperandGeneratorT<Adapter> g(this);                                  \
       int32_t lane = OpParameter<int32_t>(node->op());                        \
-      Emit(kPPC_##Type##ReplaceLane, g.DefineSameAsFirst(node),               \
-           g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),             \
-           g.UseRegister(node->InputAt(1)));                                  \
+      Emit(kPPC_##T##ReplaceLane | LaneSizeField::encode(LaneSize),           \
+           g.DefineSameAsFirst(node), g.UseRegister(node->InputAt(0)),        \
+           g.UseImmediate(lane), g.UseRegister(node->InputAt(1)));            \
     }                                                                         \
   }
-SIMD_TYPES(SIMD_VISIT_REPLACE_LANE)
+SIMD_VISIT_REPLACE_LANE(F64x2, F, 64)
+SIMD_VISIT_REPLACE_LANE(F32x4, F, 32)
+SIMD_VISIT_REPLACE_LANE(I64x2, I, 64)
+SIMD_VISIT_REPLACE_LANE(I32x4, I, 32)
+SIMD_VISIT_REPLACE_LANE(I16x8, I, 16)
+SIMD_VISIT_REPLACE_LANE(I8x16, I, 8)
 #undef SIMD_VISIT_REPLACE_LANE
 
 #define SIMD_VISIT_BINOP(Opcode)                                             \
@@ -3471,7 +3570,10 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
   } else {
     uint8_t shuffle[kSimd128Size];
     bool is_swizzle;
-    CanonicalizeShuffle(node, shuffle, &is_swizzle);
+    // TODO(nicohartmann@): Properly use view here once Turboshaft support is
+    // implemented.
+    auto view = this->simd_shuffle_view(node);
+    CanonicalizeShuffle(view, shuffle, &is_swizzle);
     PPCOperandGeneratorT<Adapter> g(this);
     Node* input0 = node->InputAt(0);
     Node* input1 = node->InputAt(1);
@@ -3494,6 +3596,22 @@ void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
          g.UseImmediate(wasm::SimdShuffle::Pack4Lanes(shuffle_remapped + 12)));
   }
 }
+
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitSetStackPointer(Node* node) {
+  OperandGenerator g(this);
+  // TODO(miladfarca): Optimize by using UseAny.
+  auto input = g.UseRegister(node->InputAt(0));
+  Emit(kArchSetStackPointer, 0, nullptr, 1, &input);
+}
+
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitSetStackPointer(
+    node_t node) {
+  // TODO(miladfarca): Implement.
+  UNREACHABLE();
+}
+
 #else
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitI8x16Shuffle(node_t node) {
@@ -3555,11 +3673,12 @@ void InstructionSelectorT<Adapter>::VisitS128Const(node_t node) {
     } else {
       // We have to use Pack4Lanes to reverse the bytes (lanes) on BE,
       // Which in this case is ineffective on LE.
-      Emit(kPPC_S128Const, g.DefineAsRegister(node),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]))),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 4)),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 8)),
-           g.UseImmediate(Pack4Lanes(base::bit_cast<uint8_t*>(&val[0]) + 12)));
+      Emit(
+          kPPC_S128Const, g.DefineAsRegister(node),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]))),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 4)),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 8)),
+          g.UseImmediate(Pack4Lanes(reinterpret_cast<uint8_t*>(&val[0]) + 12)));
     }
   }
 }

@@ -61,7 +61,7 @@ class V8_EXPORT Template : public Data {
       Local<Name> name,
       Local<FunctionTemplate> getter = Local<FunctionTemplate>(),
       Local<FunctionTemplate> setter = Local<FunctionTemplate>(),
-      PropertyAttribute attribute = None, AccessControl settings = DEFAULT);
+      PropertyAttribute attribute = None);
 
   /**
    * Whenever the property with the given name is accessed on objects
@@ -74,29 +74,33 @@ class V8_EXPORT Template : public Data {
    * \param setter The callback to invoke when setting the property.
    * \param data A piece of data that will be passed to the getter and setter
    *   callbacks whenever they are invoked.
-   * \param settings Access control settings for the accessor. This is a bit
-   *   field consisting of one of more of
-   *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2.
-   *   The default is to not allow cross-context access.
-   *   ALL_CAN_READ means that all cross-context reads are allowed.
-   *   ALL_CAN_WRITE means that all cross-context writes are allowed.
-   *   The combination ALL_CAN_READ | ALL_CAN_WRITE can be used to allow all
-   *   cross-context access.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
+  V8_DEPRECATE_SOON("Use SetNativeDataProperty without AccessControl instead")
+  void SetNativeDataProperty(
+      Local<String> name, AccessorGetterCallback getter,
+      AccessorSetterCallback setter, Local<Value> data,
+      PropertyAttribute attribute, AccessControl settings,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
+  V8_DEPRECATE_SOON("Use SetNativeDataProperty without AccessControl instead")
+  void SetNativeDataProperty(
+      Local<Name> name, AccessorNameGetterCallback getter,
+      AccessorNameSetterCallback setter, Local<Value> data,
+      PropertyAttribute attribute, AccessControl settings,
+      SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
+      SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetNativeDataProperty(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      AccessControl settings = DEFAULT,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetNativeDataProperty(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
       Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
-      AccessControl settings = DEFAULT,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 
@@ -604,27 +608,22 @@ enum class PropertyHandlerFlags {
    */
   kNone = 0,
 
-  /**
-   * See ALL_CAN_READ above.
-   */
-  kAllCanRead = 1,
-
   /** Will not call into interceptor for properties on the receiver or prototype
    * chain, i.e., only call into interceptor for properties that do not exist.
    * Currently only valid for named interceptors.
    */
-  kNonMasking = 1 << 1,
+  kNonMasking = 1,
 
   /**
    * Will not call into interceptor for symbol lookup.  Only meaningful for
    * named interceptors.
    */
-  kOnlyInterceptStrings = 1 << 2,
+  kOnlyInterceptStrings = 1 << 1,
 
   /**
    * The getter, query, enumerator callbacks do not produce side effects.
    */
-  kHasNoSideEffect = 1 << 3,
+  kHasNoSideEffect = 1 << 2,
 };
 
 struct NamedPropertyHandlerConfiguration {
@@ -795,29 +794,19 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param setter The callback to invoke when setting the property.
    * \param data A piece of data that will be passed to the getter and setter
    *   callbacks whenever they are invoked.
-   * \param settings Access control settings for the accessor. This is a bit
-   *   field consisting of one of more of
-   *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2.
-   *   The default is to not allow cross-context access.
-   *   ALL_CAN_READ means that all cross-context reads are allowed.
-   *   ALL_CAN_WRITE means that all cross-context writes are allowed.
-   *   The combination ALL_CAN_READ | ALL_CAN_WRITE can be used to allow all
-   *   cross-context access.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
   void SetAccessor(
       Local<String> name, AccessorGetterCallback getter,
       AccessorSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), AccessControl settings = DEFAULT,
-      PropertyAttribute attribute = None,
+      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
   void SetAccessor(
       Local<Name> name, AccessorNameGetterCallback getter,
       AccessorNameSetterCallback setter = nullptr,
-      Local<Value> data = Local<Value>(), AccessControl settings = DEFAULT,
-      PropertyAttribute attribute = None,
+      Local<Value> data = Local<Value>(), PropertyAttribute attribute = None,
       SideEffectType getter_side_effect_type = SideEffectType::kHasSideEffect,
       SideEffectType setter_side_effect_type = SideEffectType::kHasSideEffect);
 

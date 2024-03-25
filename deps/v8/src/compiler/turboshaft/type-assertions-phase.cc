@@ -6,6 +6,8 @@
 
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/assert-types-reducer.h"
+#include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/value-numbering-reducer.h"
 
@@ -19,9 +21,10 @@ void TypeAssertionsPhase::Run(Zone* temp_zone) {
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::
           kPreserveFromInputGraph};
 
-  turboshaft::OptimizationPhase<
-      turboshaft::AssertTypesReducer, turboshaft::ValueNumberingReducer,
-      turboshaft::TypeInferenceReducer>::Run(temp_zone);
+  turboshaft::CopyingPhase<turboshaft::VariableReducerHotfix,
+                           turboshaft::AssertTypesReducer,
+                           turboshaft::ValueNumberingReducer,
+                           turboshaft::TypeInferenceReducer>::Run<false>(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

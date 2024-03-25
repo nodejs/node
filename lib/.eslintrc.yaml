@@ -65,6 +65,8 @@ rules:
       # disabled with --without-intl build flag.
     - name: Intl
       message: Use `const { Intl } = globalThis;` instead of the global.
+    - name: Iterator
+      message: Use `const { Iterator } = globalThis;` instead of the global.
     - name: MessageChannel
       message: Use `const { MessageChannel } = require('internal/worker/io');` instead of the global.
     - name: MessageEvent

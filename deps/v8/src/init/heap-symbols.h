@@ -208,7 +208,6 @@
   V(_, caller_string, "caller")                                               \
   V(_, cause_string, "cause")                                                 \
   V(_, character_string, "character")                                         \
-  V(_, closure_string, "(closure)")                                           \
   V(_, code_string, "code")                                                   \
   V(_, column_string, "column")                                               \
   V(_, computed_string, "<computed>")                                         \
@@ -257,6 +256,7 @@
   V(_, epochSeconds_string, "epochSeconds")                                   \
   V(_, era_string, "era")                                                     \
   V(_, eraYear_string, "eraYear")                                             \
+  V(_, error_string, "error")                                                 \
   V(_, errors_string, "errors")                                               \
   V(_, error_to_string, "[object Error]")                                     \
   V(_, eval_string, "eval")                                                   \
@@ -315,6 +315,7 @@
   V(_, isoNanosecond_string, "isoNanosecond")                                 \
   V(_, isoSecond_string, "isoSecond")                                         \
   V(_, isoYear_string, "isoYear")                                             \
+  V(_, Iterator_string, "Iterator")                                           \
   V(_, jsMemoryEstimate_string, "jsMemoryEstimate")                           \
   V(_, jsMemoryRange_string, "jsMemoryRange")                                 \
   V(_, keys_string, "keys")                                                   \
@@ -430,6 +431,8 @@
   V(_, String_string, "String")                                               \
   V(_, string_string, "string")                                               \
   V(_, string_to_string, "[object String]")                                   \
+  V(_, suppressed_string, "suppressed")                                       \
+  V(_, SuppressedError_string, "SuppressedError")                             \
   V(_, Symbol_iterator_string, "Symbol.iterator")                             \
   V(_, Symbol_match_all_string, "Symbol.matchAll")                            \
   V(_, Symbol_replace_string, "Symbol.replace")                               \
@@ -512,6 +515,8 @@
   V(_, regexp_result_regexp_input_symbol)                 \
   V(_, regexp_result_regexp_last_index_symbol)            \
   V(_, sealed_symbol)                                     \
+  V(_, shared_struct_map_elements_template_symbol)        \
+  V(_, shared_struct_map_registry_key_symbol)             \
   V(_, strict_function_transition_symbol)                 \
   V(_, template_literal_function_literal_id_symbol)       \
   V(_, template_literal_slot_id_symbol)                   \
@@ -566,7 +571,6 @@
 #define MC_INCREMENTAL_SCOPES(F)                                   \
   /* MC_INCREMENTAL is the top-level incremental marking scope. */ \
   F(MC_INCREMENTAL)                                                \
-  F(MC_INCREMENTAL_EMBEDDER_PROLOGUE)                              \
   F(MC_INCREMENTAL_EMBEDDER_TRACING)                               \
   F(MC_INCREMENTAL_EXTERNAL_EPILOGUE)                              \
   F(MC_INCREMENTAL_EXTERNAL_PROLOGUE)                              \
@@ -623,7 +627,6 @@
 #define SCAVENGER_MAIN_THREAD_SCOPES(F)              \
   F(SCAVENGER)                                       \
   F(SCAVENGER_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
-  F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_FREE_REMEMBERED_SET)                   \
   F(SCAVENGER_SCAVENGE)                              \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
@@ -637,64 +640,66 @@
   F(SCAVENGER_SCAVENGE_FINALIZE)                     \
   F(SCAVENGER_SWEEP_ARRAY_BUFFERS)
 
-#define MC_MAIN_THREAD_SCOPES(F)              \
-  F(MARK_COMPACTOR)                           \
-  TOP_MC_SCOPES(F)                            \
-  F(MC_CLEAR_DEPENDENT_CODE)                  \
-  F(MC_CLEAR_EXTERNAL_STRING_TABLE)           \
-  F(MC_CLEAR_STRING_FORWARDING_TABLE)         \
-  F(MC_CLEAR_FLUSHABLE_BYTECODE)              \
-  F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)            \
-  F(MC_CLEAR_JOIN_JOB)                        \
-  F(MC_CLEAR_MAPS)                            \
-  F(MC_CLEAR_SLOTS_BUFFER)                    \
-  F(MC_CLEAR_STRING_TABLE)                    \
-  F(MC_CLEAR_WEAK_COLLECTIONS)                \
-  F(MC_CLEAR_WEAK_GLOBAL_HANDLES)             \
-  F(MC_CLEAR_WEAK_LISTS)                      \
-  F(MC_CLEAR_WEAK_REFERENCES)                 \
-  F(MC_SWEEP_EXTERNAL_POINTER_TABLE)          \
-  F(MC_SWEEP_CODE_POINTER_TABLE)              \
-  F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)          \
-  F(MC_COMPLETE_SWEEPING)                     \
-  F(MC_EVACUATE_CANDIDATES)                   \
-  F(MC_EVACUATE_CLEAN_UP)                     \
-  F(MC_EVACUATE_COPY)                         \
-  F(MC_EVACUATE_COPY_PARALLEL)                \
-  F(MC_EVACUATE_EPILOGUE)                     \
-  F(MC_EVACUATE_PROLOGUE)                     \
-  F(MC_EVACUATE_REBALANCE)                    \
-  F(MC_EVACUATE_UPDATE_POINTERS)              \
-  F(MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS) \
-  F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)     \
-  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)   \
-  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS) \
-  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)         \
-  F(MC_FINISH_SWEEP_ARRAY_BUFFERS)            \
-  F(MC_MARK_CLIENT_HEAPS)                     \
-  F(MC_MARK_EMBEDDER_PROLOGUE)                \
-  F(MC_MARK_EMBEDDER_TRACING)                 \
-  F(MC_MARK_FINISH_INCREMENTAL)               \
-  F(MC_MARK_FULL_CLOSURE_PARALLEL)            \
-  F(MC_MARK_FULL_CLOSURE_PARALLEL_JOIN)       \
-  F(MC_MARK_FULL_CLOSURE_SERIAL)              \
-  F(MC_MARK_RETAIN_MAPS)                      \
-  F(MC_MARK_ROOTS)                            \
-  F(MC_MARK_FULL_CLOSURE)                     \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)   \
-  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)    \
-  F(MC_MARK_VERIFY)                           \
-  F(MC_SWEEP_CODE)                            \
-  F(MC_SWEEP_CODE_LO)                         \
-  F(MC_SWEEP_LO)                              \
-  F(MC_SWEEP_MAP)                             \
-  F(MC_SWEEP_NEW)                             \
-  F(MC_SWEEP_NEW_LO)                          \
-  F(MC_SWEEP_OLD)                             \
-  F(MC_SWEEP_SHARED)                          \
-  F(MC_SWEEP_SHARED_LO)                       \
-  F(MC_SWEEP_TRUSTED)                         \
-  F(MC_SWEEP_TRUSTED_LO)                      \
+#define MC_MAIN_THREAD_SCOPES(F)                \
+  F(MARK_COMPACTOR)                             \
+  TOP_MC_SCOPES(F)                              \
+  F(MC_CLEAR_DEPENDENT_CODE)                    \
+  F(MC_CLEAR_EXTERNAL_STRING_TABLE)             \
+  F(MC_CLEAR_STRING_FORWARDING_TABLE)           \
+  F(MC_CLEAR_FLUSHABLE_BYTECODE)                \
+  F(MC_CLEAR_FLUSHED_JS_FUNCTIONS)              \
+  F(MC_CLEAR_JOIN_JOB)                          \
+  F(MC_CLEAR_MAPS)                              \
+  F(MC_CLEAR_SLOTS_BUFFER)                      \
+  F(MC_CLEAR_STRING_TABLE)                      \
+  F(MC_CLEAR_WEAK_COLLECTIONS)                  \
+  F(MC_CLEAR_WEAK_GLOBAL_HANDLES)               \
+  F(MC_CLEAR_WEAK_LISTS)                        \
+  F(MC_CLEAR_WEAK_REFERENCES)                   \
+  F(MC_SWEEP_EXTERNAL_POINTER_TABLE)            \
+  F(MC_SWEEP_TRUSTED_POINTER_TABLE)             \
+  F(MC_SWEEP_CODE_POINTER_TABLE)                \
+  F(MC_COMPLETE_SWEEP_ARRAY_BUFFERS)            \
+  F(MC_COMPLETE_SWEEPING)                       \
+  F(MC_EVACUATE_CANDIDATES)                     \
+  F(MC_EVACUATE_CLEAN_UP)                       \
+  F(MC_EVACUATE_COPY)                           \
+  F(MC_EVACUATE_COPY_PARALLEL)                  \
+  F(MC_EVACUATE_EPILOGUE)                       \
+  F(MC_EVACUATE_PROLOGUE)                       \
+  F(MC_EVACUATE_REBALANCE)                      \
+  F(MC_EVACUATE_UPDATE_POINTERS)                \
+  F(MC_EVACUATE_UPDATE_POINTERS_CLIENT_HEAPS)   \
+  F(MC_EVACUATE_UPDATE_POINTERS_PARALLEL)       \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)     \
+  F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)   \
+  F(MC_EVACUATE_UPDATE_POINTERS_WEAK)           \
+  F(MC_EVACUATE_UPDATE_POINTERS_POINTER_TABLES) \
+  F(MC_FINISH_SWEEP_ARRAY_BUFFERS)              \
+  F(MC_MARK_CLIENT_HEAPS)                       \
+  F(MC_MARK_EMBEDDER_PROLOGUE)                  \
+  F(MC_MARK_EMBEDDER_TRACING)                   \
+  F(MC_MARK_FINISH_INCREMENTAL)                 \
+  F(MC_MARK_FULL_CLOSURE_PARALLEL)              \
+  F(MC_MARK_FULL_CLOSURE_PARALLEL_JOIN)         \
+  F(MC_MARK_FULL_CLOSURE_SERIAL)                \
+  F(MC_MARK_RETAIN_MAPS)                        \
+  F(MC_MARK_ROOTS)                              \
+  F(MC_MARK_FULL_CLOSURE)                       \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_MARKING)     \
+  F(MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR)      \
+  F(MC_MARK_VERIFY)                             \
+  F(MC_SWEEP_CODE)                              \
+  F(MC_SWEEP_CODE_LO)                           \
+  F(MC_SWEEP_LO)                                \
+  F(MC_SWEEP_MAP)                               \
+  F(MC_SWEEP_NEW)                               \
+  F(MC_SWEEP_NEW_LO)                            \
+  F(MC_SWEEP_OLD)                               \
+  F(MC_SWEEP_SHARED)                            \
+  F(MC_SWEEP_SHARED_LO)                         \
+  F(MC_SWEEP_TRUSTED)                           \
+  F(MC_SWEEP_TRUSTED_LO)                        \
   F(MC_SWEEP_START_JOBS)
 
 #define TRACER_SCOPES(F)                 \
@@ -717,7 +722,6 @@
   SCAVENGER_MAIN_THREAD_SCOPES(F)        \
   F(TIME_TO_GLOBAL_SAFEPOINT)            \
   F(TIME_TO_SAFEPOINT)                   \
-  F(UNMAPPER)                            \
   F(UNPARK)                              \
   F(YOUNG_ARRAY_BUFFER_SWEEP)            \
   F(FULL_ARRAY_BUFFER_SWEEP)             \
@@ -728,7 +732,6 @@
   F(BACKGROUND_YOUNG_ARRAY_BUFFER_SWEEP)    \
   F(BACKGROUND_FULL_ARRAY_BUFFER_SWEEP)     \
   F(BACKGROUND_COLLECTION)                  \
-  F(BACKGROUND_UNMAPPER)                    \
   F(BACKGROUND_UNPARK)                      \
   F(BACKGROUND_SAFEPOINT)                   \
   F(MC_BACKGROUND_EVACUATE_COPY)            \

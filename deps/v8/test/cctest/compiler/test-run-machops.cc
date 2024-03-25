@@ -7673,16 +7673,6 @@ TEST(Regression738952) {
 }
 
 #if V8_TARGET_ARCH_64_BIT
-TEST(Regression12330) {
-  FLAG_SCOPE(turbo_force_mid_tier_regalloc);
-
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
-  Node* add = m.Int64SubWithOverflow(m.Int64Constant(0), m.Parameter(0));
-  Node* ovf = m.Projection(1, add);
-  m.Return(ovf);
-  m.GenerateCode();
-}
-
 TEST(Regression12373) {
   FOR_INT64_INPUTS(i) {
     RawMachineAssemblerTester<int64_t> m(MachineType::Int64(),

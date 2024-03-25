@@ -9,9 +9,10 @@
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/main-allocator-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/heap/zapping.h"
 
@@ -21,68 +22,7 @@ namespace internal {
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
-  DCHECK(!v8_flags.enable_third_party_heap);
-#if DEBUG
-  VerifyCurrent();
-  DCHECK(AllowHandleAllocation::IsAllowed());
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kTaggedAligned);
-  Heap::HeapState state = heap()->gc_state();
-  DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
-  DCHECK(IsRunning());
-#endif
-
-  // Each allocation is supposed to be a safepoint.
-  Safepoint();
-
-  bool large_object = size_in_bytes > heap_->MaxRegularHeapObjectSize(type);
-
-  if (type == AllocationType::kCode) {
-    CodePageHeaderModificationScope header_modification_scope(
-        "Code allocation needs header access.");
-
-    AllocationResult alloc;
-    if (large_object) {
-      alloc =
-          heap()->code_lo_space()->AllocateRawBackground(this, size_in_bytes);
-    } else {
-      alloc =
-          code_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-    Tagged<HeapObject> object;
-    if (heap::ShouldZapGarbage() && alloc.To(&object) &&
-        !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      heap::ZapCodeBlock(object.address(), size_in_bytes);
-    }
-    return alloc;
-  }
-
-  if (type == AllocationType::kOld) {
-    if (large_object)
-      return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
-    else
-      return old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                origin);
-  }
-
-  if (type == AllocationType::kTrusted) {
-    if (large_object)
-      return heap()->trusted_lo_space()->AllocateRawBackground(this,
-                                                               size_in_bytes);
-    else
-      return trusted_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                    origin);
-  }
-
-  DCHECK_EQ(type, AllocationType::kSharedOld);
-  if (large_object) {
-    return heap()->shared_lo_allocation_space()->AllocateRawBackground(
-        this, size_in_bytes);
-  } else {
-    return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                     origin);
-  }
+  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
 }
 
 template <typename LocalHeap::AllocationRetryMode mode>

@@ -9,7 +9,9 @@
 #include "src/common/assert-scope.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-pointer-table.h"
+#include "src/sandbox/external-pointer.h"
 #include "src/sandbox/indirect-pointer-tag.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -116,6 +118,7 @@ class FullObjectSlot : public SlotBase<FullObjectSlot, Address> {
   inline bool Relaxed_ContainsMapValue(Address raw_value) const;
 
   inline Tagged<Object> operator*() const;
+  inline Tagged<Object> load() const;
   inline Tagged<Object> load(PtrComprCageBase cage_base) const;
   inline void store(Tagged<Object> value) const;
   inline void store_map(Tagged<Map> map) const;
@@ -282,7 +285,6 @@ class OffHeapFullObjectSlot : public FullObjectSlot {
   inline Tagged<Object> operator*() const = delete;
 
   using FullObjectSlot::Relaxed_Load;
-  inline Tagged<Object> Relaxed_Load() const = delete;
 };
 
 // An ExternalPointerSlot instance describes a kExternalPointerSlotSize-sized
@@ -313,7 +315,17 @@ class ExternalPointerSlot
   {
   }
 
-  inline void init(Isolate* isolate, Address value);
+  template <ExternalPointerTag tag>
+  explicit ExternalPointerSlot(ExternalPointerMember<tag>* member)
+      : SlotBase(member->storage_address())
+#ifdef V8_ENABLE_SANDBOX
+        ,
+        tag_(tag)
+#endif
+  {
+  }
+
+  inline void init(IsolateForSandbox isolate, Address value);
 
 #ifdef V8_ENABLE_SANDBOX
   // When the external pointer is sandboxed, its slot stores a handle to an
@@ -327,8 +339,8 @@ class ExternalPointerSlot
   inline void Release_StoreHandle(ExternalPointerHandle handle) const;
 #endif  // V8_ENABLE_SANDBOX
 
-  inline Address load(const Isolate* isolate);
-  inline void store(Isolate* isolate, Address value);
+  inline Address load(IsolateForSandbox isolate);
+  inline void store(IsolateForSandbox isolate, Address value);
 
   // ExternalPointerSlot serialization support.
   // These methods can be used to clear an external pointer slot prior to
@@ -353,18 +365,12 @@ class ExternalPointerSlot
   ExternalPointerTag tag() const { return tag_; }
 #else
   ExternalPointerTag tag() const { return kExternalPointerNullTag; }
-#endif
+#endif  // V8_ENABLE_SANDBOX
 
  private:
 #ifdef V8_ENABLE_SANDBOX
   // The tag associated with this slot.
   ExternalPointerTag tag_;
-
-  inline const ExternalPointerTable& GetExternalPointerTable(
-      const Isolate* isolate);
-  inline ExternalPointerTable& GetExternalPointerTable(Isolate* isolate);
-  inline ExternalPointerTable::Space* GetDefaultExternalPointerSpace(
-      Isolate* isolate);
 #endif  // V8_ENABLE_SANDBOX
 };
 
@@ -398,14 +404,14 @@ class IndirectPointerSlot
   // Even though only HeapObjects can be stored into an IndirectPointerSlot,
   // these slots can be empty (containing kNullIndirectPointerHandle), in which
   // case load() will return Smi::zero().
-  inline Tagged<Object> load(const Isolate* isolate) const;
+  inline Tagged<Object> load(IsolateForSandbox isolate) const;
   inline void store(Tagged<ExposedTrustedObject> value) const;
 
   // Load the value of this slot.
   // The isolate parameter is required unless using the kCodeTag tag, as these
   // object use a different pointer table.
-  inline Tagged<Object> Relaxed_Load(const Isolate* isolate) const;
-  inline Tagged<Object> Acquire_Load(const Isolate* isolate) const;
+  inline Tagged<Object> Relaxed_Load(IsolateForSandbox isolate) const;
+  inline Tagged<Object> Acquire_Load(IsolateForSandbox isolate) const;
 
   // Store a reference to the given object into this slot. The object must be
   // indirectly refereceable.
@@ -423,14 +429,53 @@ class IndirectPointerSlot
   IndirectPointerTag tag() const { return kIndirectPointerNullTag; }
 #endif
 
+  // Whether this slot is empty, i.e. contains a null handle.
+  inline bool IsEmpty() const;
+
+  // Retrieve the object referenced by the given handle by determining the
+  // appropriate pointer table to use and loading the referenced entry in it.
+  // This method is used internally by load() and related functions but can
+  // also be used to manually implement indirect pointer accessors.
+  inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
+                                      IsolateForSandbox isolate) const;
+
  private:
 #ifdef V8_ENABLE_SANDBOX
+  // Retrieve the object referenced through the given trusted pointer handle
+  // from the trusted pointer table.
+  inline Tagged<Object> ResolveTrustedPointerHandle(
+      IndirectPointerHandle handle, IsolateForSandbox isolate) const;
+  // Retrieve the Code object referenced through the given code pointer handle
+  // from the code pointer table.
+  inline Tagged<Object> ResolveCodePointerHandle(
+      IndirectPointerHandle handle) const;
+
   // The tag associated with this slot.
   IndirectPointerTag tag_;
 #endif  // V8_ENABLE_SANDBOX
+};
 
-  inline Tagged<Object> ResolveHandle(IndirectPointerHandle handle,
-                                      const Isolate* isolate) const;
+class WritableJitAllocation;
+
+template <typename SlotT>
+class WriteProtectedSlot : public SlotT {
+ public:
+  using TObject = typename SlotT::TObject;
+  using SlotT::kCanBeWeak;
+
+  explicit WriteProtectedSlot(WritableJitAllocation& jit_allocation,
+                              Address ptr)
+      : SlotT(ptr), jit_allocation_(jit_allocation) {}
+
+  inline TObject Relaxed_Load() const { return SlotT::Relaxed_Load(); }
+  inline TObject Relaxed_Load(PtrComprCageBase cage_base) const {
+    return SlotT::Relaxed_Load(cage_base);
+  }
+
+  inline void Relaxed_Store(TObject value) const;
+
+ private:
+  WritableJitAllocation& jit_allocation_;
 };
 
 }  // namespace internal

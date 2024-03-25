@@ -385,18 +385,20 @@ BUILTIN(ArrayPush) {
     return GenericArrayPush(isolate, &args);
   }
 
+  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  bool has_read_only_length = JSArray::HasReadOnlyLength(array);
+
+  if (has_read_only_length) {
+    return GenericArrayPush(isolate, &args);
+  }
+
   // Fast Elements Path
   int to_add = args.length() - 1;
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
   uint32_t len = static_cast<uint32_t>(Object::Number(array->length()));
   if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
   DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
-
-  if (JSArray::HasReadOnlyLength(array)) {
-    return GenericArrayPush(isolate, &args);
-  }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
@@ -697,7 +699,7 @@ class ArrayConcatVisitor {
       set_exceeds_array_limit(true);
       // Exception hasn't been thrown at this point. Return true to
       // break out, and caller will throw. !visit would imply that
-      // there is already a pending exception.
+      // there is already a exception.
       return true;
     }
 
@@ -1571,8 +1573,7 @@ BUILTIN(ArrayConcat) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
   }
   // Reading @@species happens before anything else with a side effect, so
   // we can do it here to determine whether to take the fast path.
@@ -1583,8 +1584,7 @@ BUILTIN(ArrayConcat) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
   }
   return Slow_ArrayConcat(&args, species, isolate);
 }

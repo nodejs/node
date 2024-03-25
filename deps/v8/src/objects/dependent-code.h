@@ -118,7 +118,8 @@ class DependentCode : public WeakArrayList {
   // iff the current entry should be cleared.
   using IterateAndCompactFn =
       std::function<bool(Tagged<Code>, DependencyGroups)>;
-  void IterateAndCompact(const IterateAndCompactFn& fn);
+  void IterateAndCompact(IsolateForSandbox isolate,
+                         const IterateAndCompactFn& fn);
 
   // Fills the given entry with the last non-cleared entry in this list, and
   // returns the new length after the last non-cleared entry has been moved.

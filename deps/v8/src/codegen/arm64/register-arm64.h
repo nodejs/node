@@ -531,10 +531,9 @@ ALIAS_REGISTER(VRegister, fp_scratch2, d31);
 #undef ALIAS_REGISTER
 
 // Arm64 calling convention
-constexpr Register arg_reg_1 = x0;
-constexpr Register arg_reg_2 = x1;
-constexpr Register arg_reg_3 = x2;
-constexpr Register arg_reg_4 = x3;
+constexpr Register kCArgRegs[] = {x0, x1, x2, x3, x4, x5, x6, x7};
+constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
+constexpr int kFPRegisterPassedArguments = 8;
 
 // AreAliased returns true if any of the named registers overlap. Arguments set
 // to NoReg are ignored. The system stack pointer may be specified.
@@ -609,6 +608,8 @@ constexpr Register kRuntimeCallArgCountRegister = x0;
 constexpr Register kRuntimeCallArgvRegister = x11;
 constexpr Register kWasmInstanceRegister = x7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = x8;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = x16;
+constexpr Register kSimulatorHltArgument = x16;
 
 constexpr DoubleRegister kFPReturnRegister0 = d0;
 

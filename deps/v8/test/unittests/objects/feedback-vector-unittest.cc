@@ -85,7 +85,7 @@ TEST_F(FeedbackVectorTest, VectorStructure) {
     spec.AddForInSlot();
     vector = NewFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);
-    Tagged<FeedbackCell> cell = *vector->GetClosureFeedbackCell(0);
+    Tagged<FeedbackCell> cell = vector->closure_feedback_cell(0);
     CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }

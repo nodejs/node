@@ -2482,7 +2482,7 @@ void Simulator::set_fpu_register_float(int fpureg, Float32 value) {
 
 void Simulator::set_fpu_register_double(int fpureg, double value) {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  *base::bit_cast<double*>(&FPUregisters_[fpureg]) = value;
+  FPUregisters_[fpureg] = base::bit_cast<int64_t>(value);
 }
 
 void Simulator::set_fpu_register_double(int fpureg, Float64 value) {
@@ -2537,22 +2537,24 @@ float Simulator::get_fpu_register_float(int fpureg) const {
   if (!is_boxed_float(FPUregisters_[fpureg])) {
     return std::numeric_limits<float>::quiet_NaN();
   }
-  return *base::bit_cast<float*>(const_cast<int64_t*>(&FPUregisters_[fpureg]));
+  return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF).get_scalar();
 }
 
-Float32 Simulator::get_fpu_register_Float32(int fpureg) const {
+// Fix NaN boxing error according to
+// https://github.com/riscv/riscv-isa-manual/blob/main/src/d-st-ext.adoc#nan-boxing-of-narrower-values"
+Float32 Simulator::get_fpu_register_Float32(int fpureg,
+                                            bool check_nanbox) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  if (!is_boxed_float(FPUregisters_[fpureg])) {
+  if (check_nanbox && !is_boxed_float(FPUregisters_[fpureg])) {
     std::cout << std::hex << FPUregisters_[fpureg] << std::endl;
     return Float32::FromBits(0x7fc00000);
   }
-  return Float32::FromBits(
-      *base::bit_cast<uint32_t*>(const_cast<int64_t*>(&FPUregisters_[fpureg])));
+  return Float32::FromBits(FPUregisters_[fpureg] & 0xFFFF'FFFF);
 }
 
 double Simulator::get_fpu_register_double(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return *base::bit_cast<double*>(&FPUregisters_[fpureg]);
+  return base::bit_cast<double>(FPUregisters_[fpureg]);
 }
 
 Float64 Simulator::get_fpu_register_Float64(int fpureg) const {
@@ -3510,11 +3512,23 @@ void Simulator::DecodeRVRType() {
       set_rd(rs1() & rs2());
       break;
     }
+    case RO_ANDN:
+      set_rd(rs1() & ~rs2());
+      break;
+    case RO_ORN:
+      set_rd(rs1() | (~rs2()));
+      break;
+    case RO_XNOR:
+      set_rd((~rs1()) ^ (~rs2()));
+      break;
 #ifdef V8_TARGET_ARCH_RISCV64
     case RO_ADDW: {
       set_rd(sext32(rs1() + rs2()));
       break;
     }
+    case RO_ADDUW:
+      set_rd(zext32(rs1()) + rs2());
+      break;
     case RO_SUBW: {
       set_rd(sext32(rs1() - rs2()));
       break;
@@ -3529,6 +3543,18 @@ void Simulator::DecodeRVRType() {
     }
     case RO_SRAW: {
       set_rd(sext32(int32_t(rs1()) >> (rs2() & 0x1F)));
+      break;
+    }
+    case RO_SH1ADDUW: {
+      set_rd(rs2() + (zext32(rs1()) << 1));
+      break;
+    }
+    case RO_SH2ADDUW: {
+      set_rd(rs2() + (zext32(rs1()) << 2));
+      break;
+    }
+    case RO_SH3ADDUW: {
+      set_rd(rs2() + (zext32(rs1()) << 3));
       break;
     }
 #endif /* V8_TARGET_ARCH_RISCV64 */
@@ -3643,6 +3669,50 @@ void Simulator::DecodeRVRType() {
       break;
     }
 #endif /*V8_TARGET_ARCH_RISCV64*/
+    case RO_SH1ADD:
+      set_rd(rs2() + (rs1() << 1));
+      break;
+    case RO_SH2ADD:
+      set_rd(rs2() + (rs1() << 2));
+      break;
+    case RO_SH3ADD:
+      set_rd(rs2() + (rs1() << 3));
+      break;
+    case RO_MAX:
+      set_rd(rs1() < rs2() ? rs2() : rs1());
+      break;
+    case RO_MAXU:
+      set_rd(reg_t(rs1()) < reg_t(rs2()) ? rs2() : rs1());
+      break;
+    case RO_MIN:
+      set_rd(rs1() < rs2() ? rs1() : rs2());
+      break;
+    case RO_MINU:
+      set_rd(reg_t(rs1()) < reg_t(rs2()) ? rs1() : rs2());
+      break;
+    case RO_ZEXTH:
+      set_rd(zext_xlen(uint16_t(rs1())));
+      break;
+    case RO_BCLR: {
+      sreg_t index = rs2() & (xlen - 1);
+      set_rd(rs1() & ~(1l << index));
+      break;
+    }
+    case RO_BEXT: {
+      sreg_t index = rs2() & (xlen - 1);
+      set_rd((rs1() >> index) & 1);
+      break;
+    }
+    case RO_BINV: {
+      sreg_t index = rs2() & (xlen - 1);
+      set_rd(rs1() ^ (1 << index));
+      break;
+    }
+    case RO_BSET: {
+      sreg_t index = rs2() & (xlen - 1);
+      set_rd(rs1() | (1 << index));
+      break;
+    }
       // TODO(riscv): End Add RISCV M extension macro
     default: {
       switch (instr_.BaseOpcode()) {
@@ -4938,18 +5008,113 @@ void Simulator::DecodeRVIType() {
       set_rd(imm12() & rs1());
       break;
     }
-    case RO_SLLI: {
-      require(shamt6() < xlen);
-      set_rd(sext_xlen(rs1() << shamt6()));
+    case OP_SHL: {
+      switch (instr_.Funct6FieldRaw() | OP_SHL) {
+        case RO_SLLI:
+          require(shamt6() < xlen);
+          set_rd(sext_xlen(rs1() << shamt6()));
+          break;
+        case RO_BCLRI: {
+          require(shamt6() < xlen);
+          sreg_t index = shamt6() & (xlen - 1);
+          set_rd(rs1() & ~(1l << index));
+          break;
+        }
+        case RO_BINVI: {
+          require(shamt6() < xlen);
+          sreg_t index = shamt6() & (xlen - 1);
+          set_rd(rs1() ^ (1l << index));
+          break;
+        }
+        case RO_BSETI: {
+          require(shamt6() < xlen);
+          sreg_t index = shamt6() & (xlen - 1);
+          set_rd(rs1() | (1l << index));
+          break;
+        }
+        case OP_COUNT:
+          switch (instr_.Shamt()) {
+            case 0: {  // clz
+              sreg_t x = rs1();
+              int highest_setbit = -1;
+              for (auto i = xlen - 1; i >= 0; i--) {
+                if ((x & (1l << i))) {
+                  highest_setbit = i;
+                  break;
+                }
+              }
+              set_rd(xlen - 1 - highest_setbit);
+              break;
+            }
+            case 1: {  // ctz
+              sreg_t x = rs1();
+              int lowest_setbit = xlen;
+              for (auto i = 0; i < xlen; i++) {
+                if ((x & (1l << i))) {
+                  lowest_setbit = i;
+                  break;
+                }
+              }
+              set_rd(lowest_setbit);
+              break;
+            }
+            case 2: {  // cpop
+              int i = 0;
+              sreg_t n = rs1();
+              while (n) {
+                n &= (n - 1);
+                i++;
+              }
+              set_rd(i);
+              break;
+            }
+            case 4:
+              set_rd(int8_t(rs1()));
+              break;
+            case 5:
+              set_rd(int16_t(rs1()));
+              break;
+            default:
+              UNSUPPORTED_RISCV();
+          }
+          break;
+        default:
+          UNSUPPORTED_RISCV();
+      }
       break;
     }
-    case RO_SRLI: {  //  RO_SRAI
-      if (!instr_.IsArithShift()) {
-        require(shamt6() < xlen);
-        set_rd(sext_xlen(zext_xlen(rs1()) >> shamt6()));
-      } else {
-        require(shamt6() < xlen);
-        set_rd(sext_xlen(sext_xlen(rs1()) >> shamt6()));
+    case OP_SHR: {  //  RO_SRAI
+      switch (instr_.Funct6FieldRaw() | OP_SHR) {
+        case RO_SRLI:
+          require(shamt6() < xlen);
+          set_rd(sext_xlen(zext_xlen(rs1()) >> shamt6()));
+          break;
+        case RO_SRAI:
+          require(shamt6() < xlen);
+          set_rd(sext_xlen(sext_xlen(rs1()) >> shamt6()));
+          break;
+        case RO_BEXTI: {
+          require(shamt6() < xlen);
+          sreg_t index = shamt6() & (xlen - 1);
+          set_rd((rs1() >> index) & 1);
+          break;
+        }
+        case RO_REV8: {
+          if (imm12() == RO_REV8_IMM12) {
+            reg_t input = rs1();
+            reg_t output = 0;
+            reg_t j = xlen - 1;
+            for (int i = 0; i < xlen; i += 8) {
+              output |= ((input >> (j - 7)) & 0xff) << i;
+              j -= 8;
+            }
+            set_rd(output);
+            break;
+          }
+          UNSUPPORTED_RISCV();
+        }
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
     }
@@ -4958,15 +5123,69 @@ void Simulator::DecodeRVIType() {
       set_rd(sext32(rs1() + imm12()));
       break;
     }
-    case RO_SLLIW: {
-      set_rd(sext32(rs1() << shamt5()));
+    case OP_SHLW:
+      switch (instr_.Funct7FieldRaw() | OP_SHLW) {
+        case RO_SLLIW:
+          set_rd(sext32(rs1() << shamt5()));
+          break;
+        case RO_SLLIUW:
+          set_rd(zext32(rs1()) << shamt6());
+          break;
+        case OP_COUNTW: {
+          switch (instr_.Shamt()) {
+            case 0: {  // clzw
+              sreg_t x = rs1();
+              int highest_setbit = -1;
+              for (auto i = 31; i >= 0; i--) {
+                if ((x & (1l << i))) {
+                  highest_setbit = i;
+                  break;
+                }
+              }
+              set_rd(31 - highest_setbit);
+              break;
+            }
+            case 1: {  // ctzw
+              sreg_t x = rs1();
+              int lowest_setbit = 32;
+              for (auto i = 0; i < 32; i++) {
+                if ((x & (1l << i))) {
+                  lowest_setbit = i;
+                  break;
+                }
+              }
+              set_rd(lowest_setbit);
+              break;
+            }
+            case 2: {  // cpopw
+              int i = 0;
+              int32_t n = static_cast<int32_t>(rs1());
+              while (n) {
+                n &= (n - 1);
+                i++;
+              }
+              set_rd(i);
+              break;
+            }
+            default:
+              UNSUPPORTED_RISCV();
+          }
+          break;
+        }
+        default:
+          UNSUPPORTED_RISCV();
+      }
       break;
-    }
-    case RO_SRLIW: {  //  RO_SRAIW
-      if (!instr_.IsArithShift()) {
-        set_rd(sext32(uint32_t(rs1()) >> shamt5()));
-      } else {
-        set_rd(sext32(int32_t(rs1()) >> shamt5()));
+    case OP_SHRW: {  //  RO_SRAI
+      switch (instr_.Funct7FieldRaw() | OP_SHRW) {
+        case RO_SRLIW:
+          set_rd(sext32(uint32_t(rs1()) >> shamt5()));
+          break;
+        case RO_SRAIW:
+          set_rd(sext32(int32_t(rs1()) >> shamt5()));
+          break;
+        default:
+          UNSUPPORTED_RISCV();
       }
       break;
     }
@@ -5082,7 +5301,8 @@ void Simulator::DecodeRVSType() {
 #endif /*V8_TARGET_ARCH_RISCV64*/
     // TODO(riscv): use F Extension macro block
     case RO_FSW: {
-      WriteMem<Float32>(rs1() + s_imm12(), get_fpu_register_Float32(rs2_reg()),
+      WriteMem<Float32>(rs1() + s_imm12(),
+                        get_fpu_register_Float32(rs2_reg(), false),
                         instr_.instr());
       break;
     }
@@ -5328,7 +5548,7 @@ void Simulator::DecodeCSSType() {
 #if V8_TARGET_ARCH_RISCV32
     case RO_C_FSWSP: {
       sreg_t addr = get_register(sp) + rvc_imm6_sdsp();
-      WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg()),
+      WriteMem<Float32>(addr, get_fpu_register_Float32(rvc_rs2_reg(), false),
                         instr_.instr());
       break;
     }

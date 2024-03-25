@@ -123,12 +123,12 @@ void SourceTextModule::AddAsyncParentModule(Isolate* isolate,
 Handle<SourceTextModule> SourceTextModule::GetAsyncParentModule(
     Isolate* isolate, int index) {
   Handle<SourceTextModule> module(
-      SourceTextModule::cast(async_parent_modules()->Get(index)), isolate);
+      SourceTextModule::cast(async_parent_modules()->get(index)), isolate);
   return module;
 }
 
 int SourceTextModule::AsyncParentModuleCount() {
-  return async_parent_modules()->Length();
+  return async_parent_modules()->length();
 }
 
 bool SourceTextModule::IsAsyncEvaluating() const {

@@ -26,24 +26,26 @@ HRESULT V8CachedObject::Create(IModelObject* p_v8_object_instance,
   WRL::ComPtr<IDebugHostContext> context;
   RETURN_IF_FAIL(p_v8_object_instance->GetContext(&context));
 
-  WRL::ComPtr<IDebugHostType> sp_type;
+  WRL::ComPtr<IDebugHostType> sp_tagged_type;
+  RETURN_IF_FAIL(p_v8_object_instance->GetTypeInfo(&sp_tagged_type));
+
+  // The type is some Tagged<T>, so we need to get the first generic type
+  // parameter.
+  bool is_generic;
+  RETURN_IF_FAIL(sp_tagged_type->IsGeneric(&is_generic));
+  if (!is_generic) return E_FAIL;
+
+  WRL::ComPtr<IDebugHostSymbol> sp_generic_arg;
+  RETURN_IF_FAIL(sp_tagged_type->GetGenericArgumentAt(0, &sp_generic_arg));
+
   _bstr_t type_name;
-  RETURN_IF_FAIL(p_v8_object_instance->GetTypeInfo(&sp_type));
-  RETURN_IF_FAIL(sp_type->GetName(type_name.GetAddress()));
+  RETURN_IF_FAIL(sp_generic_arg->GetName(type_name.GetAddress()));
 
-  // If the object is of type v8::internal::TaggedValue, and this build uses
-  // compressed pointers, then the value is compressed. Other types such as
-  // v8::internal::Object represent uncompressed tagged values.
-  bool is_compressed =
-      COMPRESS_POINTERS_BOOL &&
-      static_cast<const char*>(type_name) == std::string(kTaggedValue);
-
-  const char* uncompressed_type_name =
-      is_compressed ? kObject : static_cast<const char*>(type_name);
-
-  *result = WRL::Make<V8CachedObject>(location, uncompressed_type_name, context,
-                                      is_compressed)
-                .Detach();
+  bool is_compressed = false;
+  *result =
+      WRL::Make<V8CachedObject>(location, static_cast<const char*>(type_name),
+                                context, is_compressed)
+          .Detach();
   return S_OK;
 }
 
@@ -543,19 +545,6 @@ IFACEMETHODIMP V8LocalValueProperty::GetValue(
   WRL::ComPtr<IDebugHostContext> sp_ctx;
   RETURN_IF_FAIL(p_v8_local_instance->GetContext(&sp_ctx));
 
-  WRL::ComPtr<IDebugHostType> sp_value_type =
-      Extension::Current()->GetTypeFromV8Module(
-          sp_ctx, reinterpret_cast<const char16_t*>(
-                      static_cast<const wchar_t*>(generic_name)));
-  if (sp_value_type == nullptr ||
-      !Extension::Current()->DoesTypeDeriveFromObject(sp_value_type)) {
-    // The value type doesn't derive from v8::internal::Object (probably a
-    // public API type), so just use plain v8::internal::Object. We could
-    // consider mapping some public API types to their corresponding internal
-    // types here, at the possible cost of increased maintenance.
-    sp_value_type = Extension::Current()->GetV8ObjectType(sp_ctx);
-  }
-
   Location loc;
   RETURN_IF_FAIL(p_v8_local_instance->GetLocation(&loc));
 
@@ -568,9 +557,23 @@ IFACEMETHODIMP V8LocalValueProperty::GetValue(
   if (obj_address == 0) {
     RETURN_IF_FAIL(CreateString(std::u16string{u"<empty>"}, pp_value));
   } else {
-    // Should be a v8::internal::Object at the address
+    // Get the corresponding Tagged<T> type for the generic_name found above.
+    std::string narrow_tagged_name = std::string("v8::internal::Tagged<") +
+                                     static_cast<const char*>(generic_name) +
+                                     ">";
+    std::u16string tagged_type_name = ConvertToU16String(narrow_tagged_name);
+    WRL::ComPtr<IDebugHostType> tagged_type =
+        Extension::Current()->GetTypeFromV8Module(sp_ctx,
+                                                  tagged_type_name.c_str());
+    if (tagged_type == nullptr) {
+      // If we couldn't find the specific tagged type, try to find
+      // Tagged<Object> instead.
+      tagged_type = Extension::Current()->GetV8TaggedObjectType(sp_ctx);
+    }
+
+    // Create the result.
     RETURN_IF_FAIL(sp_data_model_manager->CreateTypedObject(
-        sp_ctx.Get(), obj_address, sp_value_type.Get(), pp_value));
+        sp_ctx.Get(), obj_address, tagged_type.Get(), pp_value));
   }
 
   return S_OK;

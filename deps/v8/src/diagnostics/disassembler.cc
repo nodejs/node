@@ -102,9 +102,8 @@ const char* V8NameConverter::NameOfAddress(uint8_t* pc) const {
     }
 
 #if V8_ENABLE_WEBASSEMBLY
-    wasm::WasmCodeRefScope wasm_code_ref_scope;
     if (auto* wasm_code = wasm::GetWasmCodeManager()->LookupCode(
-            reinterpret_cast<Address>(pc))) {
+            isolate_, reinterpret_cast<Address>(pc))) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                wasm::GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.begin();
@@ -370,7 +369,13 @@ static int DecodeIt(Isolate* isolate, ExternalReferenceEncoder* ref_encoder,
 
     // Comments.
     for (size_t i = 0; i < comments.size(); i++) {
+      if (v8_flags.log_colour) {
+        out << "\033[34m";
+      }
       out << "                  " << comments[i];
+      if (v8_flags.log_colour) {
+        out << "\033[;m";
+      }
       DumpBuffer(os, out);
     }
 

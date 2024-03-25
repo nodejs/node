@@ -8,6 +8,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <functional>
+
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-object.h"        // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -42,6 +44,22 @@ class V8_EXPORT Array : public Object {
 #endif
     return static_cast<Array*>(value);
   }
+
+  /**
+   * Creates a JavaScript array from a provided callback.
+   *
+   * \param context The v8::Context to create the array in.
+   * \param length The length of the array to be created.
+   * \param next_value_callback The callback that is invoked to retrieve
+   *     elements for the array. The embedder can signal that the array
+   *     initialization should be aborted by throwing an exception and returning
+   *     an empty MaybeLocal.
+   * \returns The v8::Array if all elements were constructed successfully and an
+   *     empty MaybeLocal otherwise.
+   */
+  static MaybeLocal<Array> New(
+      Local<Context> context, size_t length,
+      std::function<MaybeLocal<v8::Value>()> next_value_callback);
 
   enum class CallbackResult {
     kException,

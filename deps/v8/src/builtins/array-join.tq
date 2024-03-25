@@ -158,7 +158,7 @@ macro StoreAndGrowFixedArray<T: type>(
       const newLength: intptr = CalculateNewElementsCapacity(length);
       dcheck(index < newLength);
       const newfixedArray: FixedArray =
-          ExtractFixedArray(fixedArray, 0, length, newLength);
+          ExtractFixedArray(fixedArray, 0, length, newLength, TheHole);
       newfixedArray.objects[index] = element;
       return newfixedArray;
     }

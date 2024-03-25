@@ -296,7 +296,7 @@ TEST(Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI) {
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*local_foo));
 
   // Put the current PC inside of the created code object.
-  Tagged<Code> code = foo->code();
+  Tagged<Code> code = foo->code(i_isolate);
   // We don't produce optimized code when run with --no-turbofan and
   // --no-maglev.
   if (!code->is_optimized_code()) return;

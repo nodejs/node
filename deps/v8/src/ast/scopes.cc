@@ -491,7 +491,6 @@ Scope* Scope::DeserializeScopeChain(IsolateT* isolate, Zone* zone,
     if (cache_scope_found) {
       outer_scope->set_deserialized_scope_uses_external_cache();
     } else {
-      DCHECK(!cache_scope_found);
       cache_scope_found =
           outer_scope->is_declaration_scope() && !outer_scope->is_eval_scope();
     }
@@ -970,9 +969,14 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
   DCHECK(!cache->deserialized_scope_uses_external_cache());
   // The case where where the cache can be another scope is when the cache scope
   // is the last scope that doesn't use an external cache.
+  //
+  // The one exception to this is when looking up the home object, which may
+  // skip multiple scopes that don't use an external cache (e.g., several arrow
+  // functions).
   DCHECK_IMPLIES(
       cache != this,
-      cache->outer_scope()->deserialized_scope_uses_external_cache());
+      cache->outer_scope()->deserialized_scope_uses_external_cache() ||
+          cache->GetHomeObjectScope() == this);
   DCHECK_NULL(cache->variables_.Lookup(name));
   DisallowGarbageCollection no_gc;
 
@@ -2282,7 +2286,33 @@ Variable* Scope::LookupSloppyEval(VariableProxy* proxy, Scope* scope,
 
 void Scope::ResolveVariable(VariableProxy* proxy) {
   DCHECK(!proxy->is_resolved());
-  Variable* var = Lookup<kParsedScope>(proxy, this, nullptr);
+  Variable* var;
+  if (V8_UNLIKELY(proxy->is_home_object())) {
+    // VariableProxies of the home object cannot be resolved like a normal
+    // variable. Consider the case of a super.property usage in heritage
+    // position:
+    //
+    //   class C extends super.foo { m() { super.bar(); } }
+    //
+    // The super.foo property access is logically nested under C's class scope,
+    // which also has a home object due to its own method m's usage of
+    // super.bar(). However, super.foo must resolve super in C's outer scope.
+    //
+    // Because of the above, start resolving home objects directly at the home
+    // object scope instead of the current scope.
+    Scope* scope = GetDeclarationScope()->GetHomeObjectScope();
+    DCHECK_NOT_NULL(scope);
+    if (scope->scope_info_.is_null()) {
+      var = Lookup<kParsedScope>(proxy, scope, nullptr);
+    } else {
+      Scope* entry_cache = scope->deserialized_scope_uses_external_cache()
+                               ? GetNonEvalDeclarationScope()
+                               : scope;
+      var = Lookup<kDeserializedScope>(proxy, scope, nullptr, entry_cache);
+    }
+  } else {
+    var = Lookup<kParsedScope>(proxy, this, nullptr);
+  }
   DCHECK_NOT_NULL(var);
   ResolveTo(proxy, var);
 }
@@ -2750,48 +2780,6 @@ int Scope::ContextLocalCount() const {
       function != nullptr && function->IsContextSlot();
   return num_heap_slots() - ContextHeaderLength() -
          (is_function_var_in_context ? 1 : 0);
-}
-
-VariableProxy* Scope::NewHomeObjectVariableProxy(AstNodeFactory* factory,
-                                                 const AstRawString* name,
-                                                 int start_pos) {
-  // VariableProxies of the home object cannot be resolved like a normal
-  // variable. Consider the case of a super.property usage in heritage position:
-  //
-  //   class C extends super.foo { m() { super.bar(); } }
-  //
-  // The super.foo property access is logically nested under C's class scope,
-  // which also has a home object due to its own method m's usage of
-  // super.bar(). However, super.foo must resolve super in C's outer scope.
-  //
-  // Because of the above, home object VariableProxies are always made directly
-  // on the Scope that needs the home object instead of the innermost scope.
-  DCHECK(needs_home_object());
-  if (!scope_info_.is_null()) {
-    // This is a lazy compile, so the home object's context slot is already
-    // known.
-    Variable* home_object = variables_.Lookup(name);
-    if (home_object == nullptr) {
-      VariableLookupResult lookup_result;
-      int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
-      DCHECK_GE(index, 0);
-      bool was_added;
-      home_object = variables_.Declare(zone(), this, name, lookup_result.mode,
-                                       NORMAL_VARIABLE, lookup_result.init_flag,
-                                       lookup_result.maybe_assigned_flag,
-                                       IsStaticFlag::kNotStatic, &was_added);
-      DCHECK(was_added);
-      home_object->AllocateTo(VariableLocation::CONTEXT, index);
-    }
-    return factory->NewVariableProxy(home_object, start_pos);
-  }
-  // This is not a lazy compile. Add the unresolved home object VariableProxy to
-  // the unresolved list of the home object scope, which is not necessarily the
-  // innermost scope.
-  VariableProxy* proxy =
-      factory->NewVariableProxy(name, NORMAL_VARIABLE, start_pos);
-  AddUnresolved(proxy);
-  return proxy;
 }
 
 bool IsComplementaryAccessorPair(VariableMode a, VariableMode b) {

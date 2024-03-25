@@ -514,8 +514,8 @@ void CollectAndMaybeResetCounts(Isolate* isolate,
           *isolate->factory()->feedback_vectors_for_profiling_tools()));
       Handle<ArrayList> list = Handle<ArrayList>::cast(
           isolate->factory()->feedback_vectors_for_profiling_tools());
-      for (int i = 0; i < list->Length(); i++) {
-        Tagged<FeedbackVector> vector = FeedbackVector::cast(list->Get(i));
+      for (int i = 0; i < list->length(); i++) {
+        Tagged<FeedbackVector> vector = FeedbackVector::cast(list->get(i));
         Tagged<SharedFunctionInfo> shared = vector->shared_function_info();
         DCHECK(shared->IsSubjectToDebugging());
         uint32_t count = static_cast<uint32_t>(vector->invocation_count());

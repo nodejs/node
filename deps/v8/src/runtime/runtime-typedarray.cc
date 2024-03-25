@@ -106,7 +106,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   DCHECK(!array->WasDetached());
   DCHECK(!array->IsOutOfBounds());
 
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
   if (v8_flags.multi_mapped_mock_allocator) {
     // Sorting is meaningless with the mock allocator, and std::sort
     // might crash (because aliasing elements violate its assumptions).
@@ -132,7 +132,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
     if (bytes <= static_cast<unsigned>(
                      ByteArray::LengthFor(kMaxRegularHeapObjectSize))) {
       array_copy = isolate->factory()->NewByteArray(static_cast<int>(bytes));
-      data_copy_ptr = array_copy->GetDataStartAddress();
+      data_copy_ptr = array_copy->begin();
     } else {
       // Allocate copy in C++ heap.
       offheap_copy.resize(bytes);

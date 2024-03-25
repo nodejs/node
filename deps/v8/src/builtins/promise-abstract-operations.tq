@@ -448,6 +448,7 @@ transitioning macro PerformPromiseThenImpl(
     const handlerContext = ExtractHandlerContext(onFulfilled, onRejected);
     const promiseReactions =
         UnsafeCast<(Zero | PromiseReaction)>(promise.reactions_or_result);
+
     const reaction = NewPromiseReaction(
         handlerContext, promiseReactions, resultPromiseOrCapability,
         onFulfilled, onRejected);
@@ -586,6 +587,8 @@ transitioning macro CallResolve(
 transitioning javascript builtin PromiseConstructorLazyDeoptContinuation(
     js-implicit context: NativeContext, receiver: JSAny)(promise: JSAny,
     reject: JSAny, exception: JSAny|TheHole, _result: JSAny): JSAny {
+  // Clear pending message since the exception is not going to be rethrown.
+  torque_internal::SetPendingMessage(TheHole);
   typeswitch (exception) {
     case (TheHole): {
     }

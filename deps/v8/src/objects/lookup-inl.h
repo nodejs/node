@@ -229,7 +229,7 @@ bool LookupIterator::IsElement(Tagged<JSReceiver> object) const {
 }
 
 bool LookupIterator::IsPrivateName() const {
-  return !IsElement() && name()->IsPrivateName(isolate());
+  return !IsElement() && name()->IsPrivateName();
 }
 
 bool LookupIterator::is_dictionary_holder() const {
@@ -257,8 +257,8 @@ bool LookupIterator::ExtendingNonExtensible(Handle<JSReceiver> receiver) {
   // Shared objects have fixed layout. No properties may be added to them, not
   // even private symbols.
   return !receiver->map(isolate_)->is_extensible() &&
-         (IsElement() || (!name_->IsPrivate(isolate_) ||
-                          IsAlwaysSharedSpaceJSObject(*receiver)));
+         (IsElement() ||
+          (!name_->IsPrivate() || IsAlwaysSharedSpaceJSObject(*receiver)));
 }
 
 bool LookupIterator::IsCacheableTransition() {
@@ -320,8 +320,8 @@ InternalIndex LookupIterator::dictionary_entry() const {
 // static
 LookupIterator::Configuration LookupIterator::ComputeConfiguration(
     Isolate* isolate, Configuration configuration, Handle<Name> name) {
-  return (!name.is_null() && name->IsPrivate(isolate)) ? OWN_SKIP_INTERCEPTOR
-                                                       : configuration;
+  return (!name.is_null() && name->IsPrivate()) ? OWN_SKIP_INTERCEPTOR
+                                                : configuration;
 }
 
 // static

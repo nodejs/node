@@ -41,7 +41,7 @@ class Page : public MemoryChunk {
   }
   static Page* FromHeapObject(Tagged<HeapObject> o) {
     DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<Page*>(o.ptr() & ~kAlignmentMask);
+    return reinterpret_cast<Page*>(o.ptr() & ~kPageAlignmentMask);
   }
 
   static Page* cast(BasicMemoryChunk* chunk) {

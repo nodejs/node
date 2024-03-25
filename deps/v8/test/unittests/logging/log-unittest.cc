@@ -617,7 +617,7 @@ TEST_F(LogInterpretedFramesNativeStackWithSerializationTest,
       v8::Local<v8::String> source = NewString(
           "function eyecatcher() { return a * a; } return eyecatcher();");
       v8::Local<v8::String> arg_str = NewString("a");
-      v8::ScriptOrigin origin(isolate, NewString("filename"));
+      v8::ScriptOrigin origin(NewString("filename"));
 
       i::DisallowCompilation* no_compile_expected =
           has_cache ? new i::DisallowCompilation(
@@ -746,7 +746,7 @@ TEST_F(LogExternalLogEventListenerInnerFunctionTest,
     code_event_handler.Enable();
 
     v8::Local<v8::String> source_string = NewString(source_cstring);
-    v8::ScriptOrigin origin(isolate1, NewString("test"));
+    v8::ScriptOrigin origin(NewString("test"));
     v8::ScriptCompiler::Source source(source_string, origin);
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source)
@@ -772,7 +772,7 @@ TEST_F(LogExternalLogEventListenerInnerFunctionTest,
     code_event_handler.Enable();
 
     v8::Local<v8::String> source_string = NewString(source_cstring);
-    v8::ScriptOrigin origin(isolate2, NewString("test"));
+    v8::ScriptOrigin origin(NewString("test"));
     v8::ScriptCompiler::Source source(source_string, origin, cache);
     {
       i::DisallowCompilation no_compile_expected(

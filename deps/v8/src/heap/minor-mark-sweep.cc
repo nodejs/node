@@ -128,6 +128,9 @@ class YoungGenerationMarkingVerifier : public MarkingVerifierBase {
         GetPtrComprCageBaseFromOnHeapAddress(start.address());
     for (TSlot slot = start; slot < end; ++slot) {
       typename TSlot::TObject object = slot.load(cage_base);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+      if (object.ptr() == kTaggedNullAddress) continue;
+#endif
       Tagged<HeapObject> heap_object;
       // Minor MS treats weak references as strong.
       if (object.GetHeapObject(&heap_object)) {
@@ -288,12 +291,13 @@ void MinorMarkSweepCollector::FinishConcurrentMarking() {
     heap_->concurrent_marking()->Join();
     heap_->concurrent_marking()->FlushPretenuringFeedback();
   }
+  CHECK(heap_->concurrent_marking()->IsStopped());
   if (auto* cpp_heap = CppHeap::From(heap_->cpp_heap_)) {
     cpp_heap->FinishConcurrentMarkingIfNeeded();
   }
 }
 
-void MinorMarkSweepCollector::StartMarking() {
+void MinorMarkSweepCollector::StartMarking(bool force_use_background_threads) {
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
     for (Page* page : *heap_->new_space()) {
@@ -302,12 +306,23 @@ void MinorMarkSweepCollector::StartMarking() {
   }
 #endif  // VERIFY_HEAP
 
+  // The state for background thread is saved here and maintained for the whole
+  // GC cycle. Both CppHeap and regular V8 heap will refer to this flag.
+  CHECK(!use_background_threads_in_cycle_.has_value());
+  // Once we decided to start concurrent marking we always need to use
+  // background threads, this is because Minor MS doesn't perform incremental
+  // marking. ShouldUseBackgroundThreads() on worker isolates can be updated
+  // concurrently from the main thread outside a task, so we shouldn't invoke it
+  // here again as it could return a different result.
+  use_background_threads_in_cycle_ =
+      force_use_background_threads || heap_->ShouldUseBackgroundThreads();
+
   auto* cpp_heap = CppHeap::From(heap_->cpp_heap_);
+  // CppHeap's marker must be initialized before the V8 marker to allow
+  // exchanging of worklists.
   if (cpp_heap && cpp_heap->generational_gc_supported()) {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_PROLOGUE);
-    // InitializeTracing should be called before visitor initialization in
-    // StartMarking.
-    cpp_heap->InitializeTracing(CppHeap::CollectionType::kMinor);
+    cpp_heap->InitializeMarking(CppHeap::CollectionType::kMinor);
   }
   DCHECK_NULL(ephemeron_table_list_);
   ephemeron_table_list_ = std::make_unique<EphemeronRememberedSet::TableList>();
@@ -327,12 +342,14 @@ void MinorMarkSweepCollector::StartMarking() {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_EMBEDDER_PROLOGUE);
     // StartTracing immediately starts marking which requires V8 worklists to
     // be set up.
-    cpp_heap->StartTracing();
+    cpp_heap->StartMarking();
   }
 }
 
 void MinorMarkSweepCollector::Finish() {
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH);
+
+  use_background_threads_in_cycle_.reset();
 
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_FINISH_ENSURE_CAPACITY);
@@ -363,7 +380,6 @@ void MinorMarkSweepCollector::CollectGarbage() {
   DCHECK(!sweeper()->AreMinorSweeperTasksRunning());
   DCHECK(sweeper()->IsSweepingDoneForSpace(NEW_SPACE));
 
-  heap_->allocator()->new_space_allocator()->FreeLinearAllocationArea();
   heap_->new_lo_space()->ResetPendingObject();
 
   is_in_atomic_pause_.store(true, std::memory_order_relaxed);
@@ -527,7 +543,7 @@ void MinorMarkSweepCollector::ClearNonLiveReferences() {
       }
     }
 
-    if (indices.size() == 0) {
+    if (indices.empty()) {
       it = table_map->erase(it);
     } else {
       ++it;
@@ -576,8 +592,7 @@ void MinorMarkSweepCollector::MarkRoots(
   // Seed the root set.
   {
     TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_SEED);
-    isolate->traced_handles()->ComputeWeaknessForYoungObjects(
-        &JSObject::IsUnmodifiedApiObject);
+    isolate->traced_handles()->ComputeWeaknessForYoungObjects();
     // MinorMS treats all weak roots except for global handles as strong.
     // That is why we don't set skip_weak = true here and instead visit
     // global handles separately.
@@ -595,6 +610,7 @@ void MinorMarkSweepCollector::MarkRoots(
 
 void MinorMarkSweepCollector::MarkRootsFromConservativeStack(
     YoungGenerationRootMarkingVisitor& root_visitor) {
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::CONSERVATIVE_STACK_SCANNING);
   heap_->IterateConservativeStackRoots(&root_visitor,
                                        Heap::IterateRootsMode::kMainIsolate);
 }
@@ -605,7 +621,7 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
   const bool was_marked_incrementally =
       !heap_->incremental_marking()->IsStopped();
   if (!was_marked_incrementally) {
-    StartMarking();
+    StartMarking(false);
   } else {
     auto* incremental_marking = heap_->incremental_marking();
     TRACE_GC_WITH_FLOW(
@@ -632,7 +648,9 @@ void MinorMarkSweepCollector::MarkLiveObjects() {
 
   {
     // Mark the transitive closure in parallel.
-    TRACE_GC(heap_->tracer(), GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL);
+    TRACE_GC_ARG1(heap_->tracer(),
+                  GCTracer::Scope::MINOR_MS_MARK_CLOSURE_PARALLEL,
+                  "UseBackgroundThreads", UseBackgroundThreadsInCycle());
     local_marking_worklists()->Publish();
     if (v8_flags.parallel_marking) {
       heap_->concurrent_marking()->RescheduleJobIfNeeded(
@@ -858,7 +876,7 @@ bool MinorMarkSweepCollector::SweepNewLargeSpace() {
     if (!non_atomic_marking_state_->IsMarked(object)) {
       // Object is dead and page can be released.
       new_lo_space->RemovePage(current);
-      heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kConcurrently,
+      heap_->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                       current);
       continue;
     }

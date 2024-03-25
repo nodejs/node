@@ -19,13 +19,12 @@ void InstructionStream::Relocate(WritableJitAllocation& jit_allocation,
   if (!TryGetCodeUnchecked(&code, kAcquireLoad)) return;
   // This is called during evacuation and code.instruction_stream() will point
   // to the old object. So pass *this directly to the RelocIterator.
-  for (WritableRelocIterator it(jit_allocation, *this,
-                                code->constant_pool((*this)),
+  for (WritableRelocIterator it(jit_allocation, *this, constant_pool(),
                                 RelocInfo::kApplyMask);
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
-  FlushInstructionCache(instruction_start(), code->instruction_size());
+  FlushInstructionCache(instruction_start(), body_size());
 }
 
 // This function performs the relocations but doesn't trigger any write barriers

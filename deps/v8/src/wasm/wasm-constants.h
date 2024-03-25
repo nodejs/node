@@ -37,6 +37,7 @@ enum ValueTypeCode : uint8_t {
   kNoExternCode = 0x72,         // -0x0e
   kNoneCode = 0x71,             // -0x0f
   kFuncRefCode = 0x70,          // -0x10
+  kExnRefCode = 0x69,           // -0x17
   kExternRefCode = 0x6f,        // -0x11
   kAnyRefCode = 0x6e,           // -0x12
   kEqRefCode = 0x6d,            // -0x13
@@ -145,6 +146,14 @@ enum NameSectionKindCode : uint8_t {
   kTagCode = 11,
 };
 
+enum CatchKind : uint8_t {
+  kCatch = 0x0,
+  kCatchRef = 0x1,
+  kCatchAll = 0x2,
+  kCatchAllRef = 0x3,
+  kLastCatchKind = kCatchAllRef,
+};
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
@@ -186,6 +195,11 @@ constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;
 #endif
+
+enum FPRelativeScope {
+  kEnterFPRelativeOnlyScope,
+  kLeaveFPRelativeOnlyScope,
+};
 
 }  // namespace wasm
 }  // namespace internal

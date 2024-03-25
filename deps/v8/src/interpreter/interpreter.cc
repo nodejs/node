@@ -159,7 +159,7 @@ bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
   if (shared->is_toplevel()) {
     base::Vector<const char> filter =
         base::CStrVector(v8_flags.print_bytecode_filter);
-    return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+    return filter.empty() || (filter.length() == 1 && filter[0] == '*');
   } else {
     return shared->PassesFilter(v8_flags.print_bytecode_filter);
   }

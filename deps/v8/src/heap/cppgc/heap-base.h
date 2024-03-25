@@ -246,6 +246,12 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
     --no_gc_scope_;
   }
 
+  void EnterDisallowGCScope() { ++disallow_gc_scope_; }
+  void LeaveDisallowGCScope() {
+    DCHECK_GT(disallow_gc_scope_, 0);
+    --disallow_gc_scope_;
+  }
+
   using HeapHandle::is_incremental_marking_in_progress;
 
  protected:

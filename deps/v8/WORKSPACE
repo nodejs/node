@@ -44,6 +44,21 @@ bind(
     actual = "@com_google_absl//absl/types:optional"
 )
 
+bind(
+    name = "absl_btree",
+    actual = "@com_google_absl//absl/container:btree"
+)
+
+bind(
+    name = "absl_flat_hash_map",
+    actual = "@com_google_absl//absl/container:flat_hash_map"
+)
+
+bind(
+    name = "absl_flat_hash_set",
+    actual = "@com_google_absl//absl/container:flat_hash_set"
+)
+
 new_local_repository(
     name = "com_googlesource_chromium_icu",
     build_file = "bazel/BUILD.icu",

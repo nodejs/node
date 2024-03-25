@@ -112,7 +112,7 @@ transitioning macro RegExpReplaceFastGlobalCallable(
   const matchesCapacityInt: intptr = Convert<intptr>(matchesCapacity);
 
   // Reload last match info since it might have changed.
-  const nofCaptures: Smi = GetRegExpLastMatchInfo().NumberOfCaptures();
+  const nofCaptures: Smi = GetRegExpLastMatchInfo().number_of_capture_registers;
 
   // If the number of captures is two then there are no explicit captures in
   // the regexp, just the implicit capture that captures the whole match. In

@@ -119,6 +119,7 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(DeoptimizeUnless)
       DECLARE_IMPOSSIBLE_CASE(TrapIf)
       DECLARE_IMPOSSIBLE_CASE(TrapUnless)
+      DECLARE_IMPOSSIBLE_CASE(Assert)
       DECLARE_IMPOSSIBLE_CASE(Return)
       DECLARE_IMPOSSIBLE_CASE(TailCall)
       DECLARE_IMPOSSIBLE_CASE(Terminate)
@@ -128,7 +129,7 @@ class Typer::Visitor : public Reducer {
       SIMPLIFIED_CHECKED_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
       MACHINE_SIMD128_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
-      MACHINE_SIMD256_OP_LIST(DECLARE_IMPOSSIBLE_CASE)
+      IF_WASM(MACHINE_SIMD256_OP_LIST, DECLARE_IMPOSSIBLE_CASE)
       MACHINE_UNOP_32_LIST(DECLARE_IMPOSSIBLE_CASE)
       DECLARE_IMPOSSIBLE_CASE(Word32Xor)
       DECLARE_IMPOSSIBLE_CASE(Word32Sar)
@@ -241,8 +242,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_IMPOSSIBLE_CASE(Float64Select)
       DECLARE_IMPOSSIBLE_CASE(LoadStackCheckOffset)
       DECLARE_IMPOSSIBLE_CASE(LoadFramePointer)
-      DECLARE_IMPOSSIBLE_CASE(LoadStackPointer)
-      DECLARE_IMPOSSIBLE_CASE(SetStackPointer)
+      IF_WASM(DECLARE_IMPOSSIBLE_CASE, LoadStackPointer)
+      IF_WASM(DECLARE_IMPOSSIBLE_CASE, SetStackPointer)
       DECLARE_IMPOSSIBLE_CASE(LoadParentFramePointer)
       DECLARE_IMPOSSIBLE_CASE(LoadRootRegister)
       DECLARE_IMPOSSIBLE_CASE(UnalignedLoad)
@@ -1707,6 +1708,10 @@ Type Typer::Visitor::TypeJSCreateBlockContext(Node* node) {
 // JS other operators.
 
 Type Typer::Visitor::TypeJSConstructForwardVarargs(Node* node) {
+  return Type::Receiver();
+}
+
+Type Typer::Visitor::TypeJSConstructForwardAllArgs(Node* node) {
   return Type::Receiver();
 }
 

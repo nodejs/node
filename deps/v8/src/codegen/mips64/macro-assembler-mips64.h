@@ -226,6 +226,7 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void LoadFromConstantsTable(Register destination, int constant_index) final;
   void LoadRootRegisterOffset(Register destination, intptr_t offset) final;
   void LoadRootRelative(Register destination, int32_t offset) final;
+  void StoreRootRelative(int32_t offset, Register value) final;
 
   // Operand pointing to an external reference.
   // May emit code to set up the scratch register. The operand is
@@ -268,6 +269,8 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void CallBuiltinByIndex(Register builtin_index, Register target);
   void CallBuiltin(Builtin builtin);
   void TailCallBuiltin(Builtin builtin);
+  void TailCallBuiltin(Builtin builtin, Condition cond, Register type,
+                       Operand range);
 
   // Load the code entry point from the Code object.
   void LoadCodeInstructionStart(Register destination,
@@ -1108,7 +1111,6 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
 
   // Jump to the builtin routine.
   void JumpToExternalReference(const ExternalReference& builtin,
-                               BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
 
   // ---------------------------------------------------------------------------
