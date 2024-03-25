@@ -531,23 +531,30 @@ make test-only
 
 #### Speeding up frequent rebuilds when developing
 
-If you plan to frequently rebuild Node.js, especially if using several branches,
-installing `ccache` can help to greatly reduce build times. Set up with:
+Tips: The `ccache` utility is widely used and should generally work fine.
+If you encounter any difficulties, consider disabling `mold` as a
+troubleshooting step.
+
+If you plan to frequently rebuild Node.js, especially if using several
+branches, installing `ccache` and `mold` can help to greatly reduce build
+times. Set up with:
 
 On GNU/Linux:
 
 ```bash
-sudo apt install ccache   # for Debian/Ubuntu, included in most Linux distros
-export CC="ccache gcc"    # add to your .profile
-export CXX="ccache g++"   # add to your .profile
+sudo apt install ccache mold   # for Debian/Ubuntu, included in most Linux distros
+export CC="ccache gcc"         # add to your .profile
+export CXX="ccache g++"        # add to your .profile
+export LDFLAGS="-fuse-ld=mold" # add to your .profile
 ```
 
 On macOS:
 
 ```bash
-brew install ccache      # see https://brew.sh
-export CC="ccache cc"    # add to ~/.zshrc or other shell config file
-export CXX="ccache c++"  # add to ~/.zshrc or other shell config file
+brew install ccache mold       # see https://brew.sh
+export CC="ccache cc"          # add to ~/.zshrc or other shell config file
+export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
+export LDFLAGS="-fuse-ld=mold" # add to ~/.zshrc or other shell config file
 ```
 
 This will allow for near-instantaneous rebuilds when switching branches back
@@ -564,6 +571,11 @@ The resulting binary won't include any JS files and will try to load them from
 the specified directory. The JS debugger of Visual Studio Code supports this
 configuration since the November 2020 version and allows for setting
 breakpoints.
+
+Refs:
+
+1. <https://ccache.dev/performance.html>
+2. <https://github.com/rui314/mold>
 
 #### Troubleshooting Unix and macOS builds
 
