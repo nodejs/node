@@ -111,10 +111,10 @@ class BaseObject : public MemoryRetainer {
 
   // Setter/Getter pair for internal fields that can be passed to SetAccessor.
   template <int Field>
-  static void InternalFieldGet(v8::Local<v8::String> property,
+  static void InternalFieldGet(v8::Local<v8::Name> property,
                                const v8::PropertyCallbackInfo<v8::Value>& info);
   template <int Field, bool (v8::Value::*typecheck)() const>
-  static void InternalFieldSet(v8::Local<v8::String> property,
+  static void InternalFieldSet(v8::Local<v8::Name> property,
                                v8::Local<v8::Value> value,
                                const v8::PropertyCallbackInfo<void>& info);
 

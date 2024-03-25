@@ -132,14 +132,14 @@ v8::EmbedderGraph::Node::Detachedness BaseObject::GetDetachedness() const {
 
 template <int Field>
 void BaseObject::InternalFieldGet(
-    v8::Local<v8::String> property,
+    v8::Local<v8::Name> property,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(
       info.This()->GetInternalField(Field).As<v8::Value>());
 }
 
-template <int Field, bool (v8::Value::* typecheck)() const>
-void BaseObject::InternalFieldSet(v8::Local<v8::String> property,
+template <int Field, bool (v8::Value::*typecheck)() const>
+void BaseObject::InternalFieldSet(v8::Local<v8::Name> property,
                                   v8::Local<v8::Value> value,
                                   const v8::PropertyCallbackInfo<void>& info) {
   // This could be e.g. value->IsFunction().
