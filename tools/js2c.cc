@@ -7,6 +7,7 @@
 #include <functional>
 #include <iostream>
 #include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <string_view>
@@ -54,7 +55,20 @@ int GetStats(const char* path, std::function<void(const uv_stat_t*)> func) {
   return r;
 }
 
+bool EndsWith(const std::string& str, std::string_view suffix) noexcept {
+  size_t suffix_len = suffix.length();
+  size_t str_len = str.length();
+  if (str_len < suffix_len) {
+    return false;
+  }
+  return str.compare(str_len - suffix_len, suffix_len, suffix) == 0;
+}
+
 bool IsDirectory(const std::string& filename, int* error) {
+  // Skip .js or .mjs files.
+  if (EndsWith(filename, ".js") || EndsWith(filename, ".mjs")) {
+    return false;
+  }
   bool result = false;
   *error = GetStats(filename.c_str(), [&](const uv_stat_t* stats) {
     result = !!(stats->st_mode & S_IFDIR);
@@ -70,15 +84,6 @@ size_t GetFileSize(const std::string& filename, int* error) {
   *error = GetStats(filename.c_str(),
                     [&](const uv_stat_t* stats) { result = stats->st_size; });
   return result;
-}
-
-bool EndsWith(const std::string& str, std::string_view suffix) {
-  size_t suffix_len = suffix.length();
-  size_t str_len = str.length();
-  if (str_len < suffix_len) {
-    return false;
-  }
-  return str.compare(str_len - suffix_len, suffix_len, suffix) == 0;
 }
 
 bool StartsWith(const std::string& str, std::string_view prefix) {
@@ -156,13 +161,14 @@ constexpr std::string_view libPrefix = "lib/";
 std::set<std::string_view> kAllowedExtensions{
     kGypiSuffix, kJsSuffix, kMjsSuffix};
 
-std::string_view HasAllowedExtensions(const std::string& filename) {
+std::optional<std::string_view> HasAllowedExtensions(
+    const std::string& filename) {
   for (const auto& ext : kAllowedExtensions) {
     if (EndsWith(filename, ext)) {
       return ext;
     }
   }
-  return {};
+  return std::nullopt;
 }
 
 using Fragment = std::vector<char>;
@@ -902,9 +908,8 @@ int Main(int argc, char* argv[]) {
     } else if (error != 0) {
       return 1;
     } else {  // It's a file.
-      std::string_view extension = HasAllowedExtensions(file);
-      if (extension.size() != 0) {
-        auto it = file_map.insert({std::string(extension), FileList()}).first;
+      if (auto extension = HasAllowedExtensions(file); extension.has_value()) {
+        auto it = file_map.insert({std::string(*extension), FileList()}).first;
         it->second.push_back(file);
       } else {
         fprintf(stderr, "Unsupported file: %s\n", file.c_str());
