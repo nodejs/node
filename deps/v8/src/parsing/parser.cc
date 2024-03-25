@@ -1400,6 +1400,9 @@ ImportAssertions* Parser::ParseImportAssertClause() {
     //
     // TODO(v8:13856): Remove once decision is made to unship 'assert' or keep.
     ++use_counts_[v8::Isolate::kImportAssertionDeprecatedSyntax];
+    info_->pending_error_handler()->ReportWarningAt(
+        position(), end_position(), MessageTemplate::kImportAssertDeprecated,
+        "12.6");
   } else {
     return import_assertions;
   }
