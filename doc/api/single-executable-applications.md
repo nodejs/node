@@ -279,7 +279,9 @@ from the JavaScript main script embedded into the executable.
 #### `sea.isSea()`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * Returns: {boolean} Whether this script is running inside a single-executable
@@ -288,7 +290,9 @@ added: v21.7.0
 ### `sea.getAsset(key[, encoding])`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the
@@ -306,7 +310,9 @@ An error is thrown when no matching asset can be found.
 ### `sea.getAssetAsBlob(key[, options])`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 Similar to [`sea.getAsset()`][], but returns the result in a [`Blob`][].
@@ -321,7 +327,9 @@ An error is thrown when no matching asset can be found.
 ### `sea.getRawAsset(key)`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the

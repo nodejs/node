@@ -3527,7 +3527,9 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
-  - version: v21.7.0
+  - version:
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51442
     description: End-of-Life.
   - version:
@@ -3551,6 +3553,7 @@ Please use `value instanceof WebAssembly.Module` instead.
 changes:
   - version:
     - v21.5.0
+    - v20.12.0
     - v18.20.0
     pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
@@ -3568,7 +3571,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/51880
     description: Runtime deprecation.
-  - version: v21.5.0
+  - version:
+    - v21.5.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51077
     description: Documentation-only deprecation.
 -->

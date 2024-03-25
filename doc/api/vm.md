@@ -60,6 +60,7 @@ added: v0.3.1
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -972,6 +973,7 @@ added: v10.10.0
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1039,7 +1041,9 @@ function with the given `params`.
 ## `vm.constants`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * {Object}
@@ -1049,7 +1053,9 @@ Returns an object containing commonly used constants for VM operations.
 ### `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1068,6 +1074,7 @@ added: v0.3.1
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                  `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1250,6 +1257,7 @@ added: v0.3.1
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1326,6 +1334,7 @@ added: v0.3.1
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1428,6 +1437,7 @@ added: v0.3.1
 changes:
   - version:
     - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.

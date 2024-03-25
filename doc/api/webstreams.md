@@ -1430,7 +1430,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->
@@ -1468,7 +1470,9 @@ changes:
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: v21.2.0
+  - version:
+    - v21.2.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/50097
     description: format now accepts `deflate-raw` value.
 -->

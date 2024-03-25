@@ -2285,7 +2285,9 @@ debugger. See [Signal Events][].
 ## `process.loadEnvFile(path)`
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 > Stability: 1.1 - Active development

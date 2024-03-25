@@ -6743,6 +6743,7 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 <!-- YAML
 added:
   - v21.4.0
+  - v20.12.0
   - v18.20.0
 -->
 
@@ -6760,6 +6761,7 @@ added:
   - v18.17.0
 deprecated:
   - v21.5.0
+  - v20.12.0
   - v18.20.0
 -->
 

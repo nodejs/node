@@ -1598,7 +1598,9 @@ $ node negate.js --no-logfile --logfile=test.log --color --no-color
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * `content` {string}
@@ -1797,7 +1799,9 @@ console.log(util.stripVTControlCharacters('\u001B[4mvalue\u001B[0m'));
 > Stability: 1.1 - Active development
 
 <!-- YAML
-added: v21.7.0
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * `format` {string | Array} A text format or an Array
