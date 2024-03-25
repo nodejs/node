@@ -994,7 +994,7 @@ import { chmod } from 'node:fs/promises';
 try {
   await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'));
 } catch {
-  console.log('The permissions for file "my_file.txt" failed to change!');
+  console.error('The permissions for file "my_file.txt" failed to change!');
 }
 ```
 
@@ -1005,7 +1005,7 @@ async function changeFilePermissions() {
   try {
     await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'));
   } catch {
-    console.log('The permissions for file "my_file.txt" failed to change!');
+    console.error('The permissions for file "my_file.txt" failed to change!');
   }
 }
 
@@ -1035,7 +1035,7 @@ const gid = getgid();
 try {
   await chown('my_file.txt', uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`));
 } catch {
-  console.log('Failed to chown my_file.txt!');
+  console.error('Failed to chown my_file.txt!');
 }
 ```
 
@@ -1050,7 +1050,7 @@ async function chownMyFile() {
   try {
     await chown('my_file.txt', uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`));
   } catch {
-    console.log('Failed to chown my_file.txt!');
+    console.error('Failed to chown my_file.txt!');
   }
 }
 
@@ -2436,7 +2436,7 @@ const uid = getuid();
 const gid = getgid();
 
 chown('my_file.txt', uid, gid, (err) => {
-  if (err) throw new Error('Could not chown my_file.txt');
+  if (err) throw err;
 
   console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`);
 });
@@ -2450,7 +2450,7 @@ const uid = getuid();
 const gid = getgid();
 
 chown('my_file.txt', uid, gid, (err) => {
-  if (err) throw new Error('Could not chown my_file.txt');
+  if (err) throw err  ;
 
   console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`);
 });
