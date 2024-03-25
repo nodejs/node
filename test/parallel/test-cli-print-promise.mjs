@@ -29,7 +29,7 @@ describe('--print with a promise', { concurrency: !process.env.TEST_PARALLEL }, 
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: 'Promise { 42 }\n',
     });
   });
 
@@ -50,11 +50,25 @@ describe('--print with a promise', { concurrency: !process.env.TEST_PARALLEL }, 
   it('should output something if process exits before promise settles', async () => {
     const result = await spawnPromisified(execPath, [
       '--print',
-      'setTimeout(process.exit,100, 0);timers.promises.setTimeout(200)',
+      'setTimeout(process.exit, 100, 0);timers.promises.setTimeout(200)',
     ]);
 
     assert.deepStrictEqual(result, {
       code: 0,
+      signal: null,
+      stderr: '',
+      stdout: 'Promise { <pending> }\n',
+    });
+  });
+
+  it('should respect exit code when process exits before promise settles', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--print',
+      'setTimeout(process.exit, 100, 42);timers.promises.setTimeout(200)',
+    ]);
+
+    assert.deepStrictEqual(result, {
+      code: 42,
       signal: null,
       stderr: '',
       stdout: 'Promise { <pending> }\n',
@@ -87,7 +101,52 @@ describe('--print with a promise', { concurrency: !process.env.TEST_PARALLEL }, 
       code: 0,
       signal: null,
       stderr: '',
-      stdout: 'Promise { <pending> }\n',
+      stdout: 'Promise { <rejected> 1 }\n',
+    });
+  });
+
+  it('should handle thenable that resolves', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--unhandled-rejections=none',
+      '--print',
+      '({ then(r) { r(42) } })',
+    ]);
+
+    assert.deepStrictEqual(result, {
+      code: 0,
+      signal: null,
+      stderr: '',
+      stdout: '{ then: [Function: then] }\n',
+    });
+  });
+
+  it('should handle thenable that rejects', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--unhandled-rejections=none',
+      '--print',
+      '({ then(_, r) { r(42) } })',
+    ]);
+
+    assert.deepStrictEqual(result, {
+      code: 0,
+      signal: null,
+      stderr: '',
+      stdout: '{ then: [Function: then] }\n',
+    });
+  });
+
+  it('should handle Promise.prototype', async () => {
+    const result = await spawnPromisified(execPath, [
+      '--unhandled-rejections=none',
+      '--print',
+      'Promise.prototype',
+    ]);
+
+    assert.deepStrictEqual(result, {
+      code: 0,
+      signal: null,
+      stderr: '',
+      stdout: 'Object [Promise] {}\n',
     });
   });
 });
