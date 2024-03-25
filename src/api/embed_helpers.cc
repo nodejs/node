@@ -19,6 +19,54 @@ using v8::TryCatch;
 
 namespace node {
 
+static const auto AlwaysTrue = []() { return true; };
+
+/**
+ * Spin the event loop until there are no pending callbacks or
+ * the condition returns false.
+ * Returns an error if the environment died and no failure if the environment is
+ * reusable.
+ */
+Maybe<ExitCode> SpinEventLoopWithoutCleanupInternal(
+    Environment* env, const std::function<bool(void)>& condition) {
+  CHECK_NOT_NULL(env);
+  MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
+  CHECK_NOT_NULL(platform);
+
+  Isolate* isolate = env->isolate();
+  HandleScope handle_scope(isolate);
+  Context::Scope context_scope(env->context());
+  SealHandleScope seal(isolate);
+
+  if (env->is_stopping()) return Nothing<ExitCode>();
+
+  env->set_trace_sync_io(env->options()->trace_sync_io);
+  bool more;
+  env->performance_state()->Mark(
+      node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
+  do {
+    if (env->is_stopping()) return Nothing<ExitCode>();
+    int loop;
+    do {
+      loop = uv_run(env->event_loop(), UV_RUN_ONCE);
+    } while (loop && condition() && !env->is_stopping());
+    if (env->is_stopping()) return Nothing<ExitCode>();
+
+    platform->DrainTasks(isolate);
+
+    more = uv_loop_alive(env->event_loop());
+  } while (more);
+  env->performance_state()->Mark(
+      node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
+  env->set_trace_sync_io(false);
+  return Just<ExitCode>(ExitCode::kNoFailure);
+}
+
+/**
+ * Spin the event loop until there are no pending callbacks and
+ * then shutdown the environment. Returns a reference to the
+ * exit value or an empty reference on unexpected exit.
+ */
 Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
   CHECK_NOT_NULL(env);
   MultiIsolatePlatform* platform = GetMultiIsolatePlatform(env);
@@ -34,20 +82,12 @@ Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
   env->set_trace_sync_io(env->options()->trace_sync_io);
   {
     bool more;
-    env->performance_state()->Mark(
-        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_START);
+
     do {
-      if (env->is_stopping()) break;
-      uv_run(env->event_loop(), UV_RUN_DEFAULT);
-      if (env->is_stopping()) break;
-
-      platform->DrainTasks(isolate);
-
-      more = uv_loop_alive(env->event_loop());
-      if (more && !env->is_stopping()) continue;
-
-      if (EmitProcessBeforeExit(env).IsNothing())
+      if (SpinEventLoopWithoutCleanupInternal(env, AlwaysTrue).IsNothing())
         break;
+
+      if (EmitProcessBeforeExit(env).IsNothing()) break;
 
       {
         HandleScope handle_scope(isolate);
@@ -56,16 +96,12 @@ Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
         }
       }
 
-      // Emit `beforeExit` if the loop became alive either after emitting
-      // event, or after running some callbacks.
+      // Loop if after `beforeExit` the loop became alive
       more = uv_loop_alive(env->event_loop());
     } while (more == true && !env->is_stopping());
-    env->performance_state()->Mark(
-        node::performance::NODE_PERFORMANCE_MILESTONE_LOOP_EXIT);
   }
   if (env->is_stopping()) return Nothing<ExitCode>();
 
-  env->set_trace_sync_io(false);
   // Clear the serialize callback even though the JS-land queue should
   // be empty this point so that the deserialized instance won't
   // attempt to call into JS again.
@@ -269,6 +305,17 @@ Maybe<int> SpinEventLoop(Environment* env) {
   return Just(static_cast<int>(result.FromJust()));
 }
 
+Maybe<int> SpinEventLoopWithoutCleanup(Environment* env) {
+  return SpinEventLoopWithoutCleanup(env, AlwaysTrue);
+}
+Maybe<int> SpinEventLoopWithoutCleanup(
+    Environment* env, const std::function<bool(void)>& condition) {
+  Maybe<ExitCode> result = SpinEventLoopWithoutCleanupInternal(env, condition);
+  if (result.IsNothing()) {
+    return Nothing<int>();
+  }
+  return Just(static_cast<int>(result.FromJust()));
+}
 uv_loop_t* CommonEnvironmentSetup::event_loop() const {
   return &impl_->loop;
 }

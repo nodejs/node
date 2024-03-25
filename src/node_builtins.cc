@@ -404,12 +404,10 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                      strlen("internal/bootstrap/")) == 0) {
     // internal/main/*, internal/bootstrap/*: process, require,
     //                                        internalBinding, primordials
-    parameters = {
-        FIXED_ONE_BYTE_STRING(isolate, "process"),
-        FIXED_ONE_BYTE_STRING(isolate, "require"),
-        FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
-        FIXED_ONE_BYTE_STRING(isolate, "primordials"),
-    };
+    parameters = {FIXED_ONE_BYTE_STRING(isolate, "process"),
+                  FIXED_ONE_BYTE_STRING(isolate, "require"),
+                  FIXED_ONE_BYTE_STRING(isolate, "internalBinding"),
+                  FIXED_ONE_BYTE_STRING(isolate, "primordials")};
   } else {
     // others: exports, require, module, process, internalBinding, primordials
     parameters = {
@@ -457,11 +455,17 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
                      "internal/bootstrap/",
                      strlen("internal/bootstrap/")) == 0) {
     // internal/main/*, internal/bootstrap/*: process, require,
-    //                                        internalBinding, primordials
+    //                                        internalBinding, primordials,
     arguments = {realm->process_object(),
                  realm->builtin_module_require(),
                  realm->internal_binding_loader(),
                  realm->primordials()};
+  } else if (strncmp(id, "embedder_main_", strlen("embedder_main_")) == 0) {
+    // Synthetic embedder main scripts from LoadEnvironment(): process, require
+    arguments = {
+        realm->process_object(),
+        realm->builtin_module_require(),
+    };
   } else {
     // This should be invoked with the other CompileAndCall() methods, as
     // we are unable to generate the arguments.
