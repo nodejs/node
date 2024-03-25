@@ -1,4 +1,4 @@
-/* auto-generated on 2024-02-18 11:50:12 -0500. Do not edit! */
+/* auto-generated on 2024-03-10 13:24:07 -0400. Do not edit! */
 /* including simdjson.h:  */
 /* begin file simdjson.h */
 #ifndef SIMDJSON_H
@@ -131,6 +131,8 @@
 #define SIMDJSON_IS_ARM64 1
 #elif defined(__riscv) && __riscv_xlen == 64
 #define SIMDJSON_IS_RISCV64 1
+#elif defined(__loongarch_lp64)
+#define SIMDJSON_IS_LOONGARCH64 1
 #elif defined(__PPC64__) || defined(_M_PPC64)
 #if defined(__ALTIVEC__)
 #define SIMDJSON_IS_PPC64_VMX 1
@@ -2344,7 +2346,7 @@ namespace std {
 #define SIMDJSON_SIMDJSON_VERSION_H
 
 /** The version of simdjson being used (major.minor.revision) */
-#define SIMDJSON_VERSION "3.7.0"
+#define SIMDJSON_VERSION "3.8.0"
 
 namespace simdjson {
 enum {
@@ -2355,7 +2357,7 @@ enum {
   /**
    * The minor version (major.MINOR.revision) of simdjson being used.
    */
-  SIMDJSON_VERSION_MINOR = 7,
+  SIMDJSON_VERSION_MINOR = 8,
   /**
    * The revision (major.minor.REVISION) of simdjson being used.
    */
@@ -2408,6 +2410,7 @@ enum error_code {
   F_ATOM_ERROR,               ///< Problem while parsing an atom starting with the letter 'f'
   N_ATOM_ERROR,               ///< Problem while parsing an atom starting with the letter 'n'
   NUMBER_ERROR,               ///< Problem while parsing a number
+  BIGINT_ERROR,               ///< The integer value exceeds 64 bits
   UTF8_ERROR,                 ///< the input is not valid UTF-8
   UNINITIALIZED,              ///< unknown error, or uninitialized document
   EMPTY,                      ///< no structural element found
@@ -10415,7 +10418,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace arm64
@@ -10863,11 +10867,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -11198,6 +11204,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -11277,6 +11287,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -11350,6 +11377,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -11429,11 +11468,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -11903,19 +11942,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -12093,6 +12145,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -12464,7 +12517,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace fallback
@@ -12912,11 +12966,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -13247,6 +13303,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -13326,6 +13386,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -13399,6 +13476,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -13478,11 +13567,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -13952,19 +14041,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -14142,6 +14244,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -15005,7 +15108,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace haswell
@@ -15453,11 +15557,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -15788,6 +15894,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -15867,6 +15977,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -15940,6 +16067,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -16019,11 +16158,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -16493,19 +16632,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -16683,6 +16835,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -17545,7 +17698,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace icelake
@@ -17993,11 +18147,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -18328,6 +18484,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -18407,6 +18567,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -18480,6 +18657,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -18559,11 +18748,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -19033,19 +19222,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -19223,6 +19425,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -20200,7 +20403,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace ppc64
@@ -20648,11 +20852,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -20983,6 +21189,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -21062,6 +21272,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -21135,6 +21362,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -21214,11 +21453,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -21688,19 +21927,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -21878,6 +22130,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -23178,7 +23431,8 @@ class dom_parser_implementation;
 enum class number_type {
     floating_point_number=1, /// a binary64 number
     signed_integer,          /// a signed integer that fits in a 64-bit word using two's complement
-    unsigned_integer         /// a positive integer larger or equal to 1<<63
+    unsigned_integer,        /// a positive integer larger or equal to 1<<63
+    big_integer              /// a big integer that does not fit in a 64-bit word
 };
 
 } // namespace westmere
@@ -23626,11 +23880,13 @@ namespace numberparsing {
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (found_integer((VALUE), (SRC)), (WRITER).append_s64((VALUE)))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (found_unsigned_integer((VALUE), (SRC)), (WRITER).append_u64((VALUE)))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (found_float((VALUE), (SRC)), (WRITER).append_double((VALUE)))
+#define BIGINT_NUMBER(SRC) (found_invalid_number((SRC)), BIGINT_ERROR)
 #else
 #define INVALID_NUMBER(SRC) (NUMBER_ERROR)
 #define WRITE_INTEGER(VALUE, SRC, WRITER) (WRITER).append_s64((VALUE))
 #define WRITE_UNSIGNED(VALUE, SRC, WRITER) (WRITER).append_u64((VALUE))
 #define WRITE_DOUBLE(VALUE, SRC, WRITER) (WRITER).append_double((VALUE))
+#define BIGINT_NUMBER(SRC) (BIGINT_ERROR)
 #endif
 
 namespace {
@@ -23961,6 +24217,10 @@ simdjson_inline bool parse_digit(const uint8_t c, I &i) {
   return true;
 }
 
+simdjson_inline bool is_digit(const uint8_t c) {
+  return static_cast<uint8_t>(c - '0') <= 9;
+}
+
 simdjson_inline error_code parse_decimal_after_separator(simdjson_unused const uint8_t *const src, const uint8_t *&p, uint64_t &i, int64_t &exponent) {
   // we continue with the fiction that we have an integer. If the
   // floating point number is representable as x * 10^z for some integer
@@ -24040,6 +24300,23 @@ simdjson_inline error_code parse_exponent(simdjson_unused const uint8_t *const s
   return SUCCESS;
 }
 
+simdjson_inline bool check_if_integer(const uint8_t *const src, size_t max_length) {
+  const uint8_t *const srcend = src + max_length;
+  bool negative = (*src == '-'); // we can always read at least one character after the '-'
+  const uint8_t *p = src + uint8_t(negative);
+  if(p == srcend) { return false; }
+  if(*p == '0') {
+    ++p;
+    if(p == srcend) { return true; }
+    if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+    return true;
+  }
+  while(p != srcend && is_digit(*p)) { ++p; }
+  if(p == srcend) { return true; }
+  if(jsoncharutils::is_not_structural_or_whitespace(*p)) { return false; }
+  return true;
+}
+
 simdjson_inline size_t significant_digits(const uint8_t * start_digits, size_t digit_count) {
   // It is possible that the integer had an overflow.
   // We have to handle the case where we have 0.0000somenumber.
@@ -24113,6 +24390,18 @@ simdjson_inline error_code write_float(const uint8_t *const src, bool negative, 
   WRITE_DOUBLE(d, src, writer);
   return SUCCESS;
 }
+
+// parse the number at src
+// define JSON_TEST_NUMBERS for unit testing
+//
+// It is assumed that the number is followed by a structural ({,},],[) character
+// or a white space character. If that is not the case (e.g., when the JSON
+// document is made of a single number), then it is necessary to copy the
+// content and append a space before calling this function.
+//
+// Our objective is accurate parsing (ULP of 0) at high speed.
+template<typename W>
+simdjson_inline error_code parse_number(const uint8_t *const src, W &writer);
 
 // for performance analysis, it is sometimes  useful to skip parsing
 #ifdef SIMDJSON_SKIPNUMBERPARSING
@@ -24192,11 +24481,11 @@ simdjson_inline error_code parse_number(const uint8_t *const src, W &writer) {
   // The longest positive 64-bit number is 20 digits.
   // We do it this way so we don't trigger this branch unless we must.
   size_t longest_digit_count = negative ? 19 : 20;
-  if (digit_count > longest_digit_count) { return INVALID_NUMBER(src); }
+  if (digit_count > longest_digit_count) { return BIGINT_NUMBER(src); }
   if (digit_count == longest_digit_count) {
     if (negative) {
       // Anything negative above INT64_MAX+1 is invalid
-      if (i > uint64_t(INT64_MAX)+1) { return INVALID_NUMBER(src);  }
+      if (i > uint64_t(INT64_MAX)+1) { return BIGINT_NUMBER(src);  }
       WRITE_INTEGER(~i+1, src, writer);
       if (jsoncharutils::is_not_structural_or_whitespace(*p)) { return INVALID_NUMBER(src); }
       return SUCCESS;
@@ -24666,19 +24955,32 @@ simdjson_unused simdjson_inline simdjson_result<number_type> get_number_type(con
   src += uint8_t(negative);
   const uint8_t *p = src;
   while(static_cast<uint8_t>(*p - '0') <= 9) { p++; }
+  size_t digit_count = size_t(p - src);
   if ( p == src ) { return NUMBER_ERROR; }
   if (jsoncharutils::is_structural_or_whitespace(*p)) {
+    static const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
     // We have an integer.
+    if(simdjson_unlikely(digit_count > 20)) {
+      return number_type::big_integer;
+    }
     // If the number is negative and valid, it must be a signed integer.
-    if(negative) { return number_type::signed_integer; }
+    if(negative) {
+      if (simdjson_unlikely(digit_count > 19)) return number_type::big_integer;
+      if (simdjson_unlikely(digit_count == 19 && memcmp(src, smaller_big_integer, 19) > 0)) {
+        return number_type::big_integer;
+      }
+      return number_type::signed_integer;
+    }
+    // Let us check if we have a big integer (>=2**64).
+    static const uint8_t * two_to_sixtyfour = reinterpret_cast<const uint8_t *>("18446744073709551616");
+    if((digit_count > 20) || (digit_count == 20 && memcmp(src, two_to_sixtyfour, 20) >= 0)) {
+      return number_type::big_integer;
+    }
+    // The number is positive and smaller than 18446744073709551616 (or 2**64).
     // We want values larger or equal to 9223372036854775808 to be unsigned
     // integers, and the other values to be signed integers.
-    int digit_count = int(p - src);
-    if(digit_count >= 19) {
-      const uint8_t * smaller_big_integer = reinterpret_cast<const uint8_t *>("9223372036854775808");
-      if((digit_count >= 20) || (memcmp(src, smaller_big_integer, 19) >= 0)) {
-        return number_type::unsigned_integer;
-      }
+    if((digit_count == 20) || (digit_count >= 19 && memcmp(src, smaller_big_integer, 19) >= 0)) {
+      return number_type::unsigned_integer;
     }
     return number_type::signed_integer;
   }
@@ -24856,6 +25158,7 @@ inline std::ostream& operator<<(std::ostream& out, number_type type) noexcept {
         case number_type::signed_integer: out << "integer in [-9223372036854775808,9223372036854775808)"; break;
         case number_type::unsigned_integer: out << "unsigned integer in [9223372036854775808,18446744073709551616)"; break;
         case number_type::floating_point_number: out << "floating-point number (binary64)"; break;
+        case number_type::big_integer: out << "big integer"; break;
         default: SIMDJSON_UNREACHABLE();
     }
     return out;
@@ -26278,6 +26581,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -26433,12 +26737,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -26593,7 +26898,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -26762,7 +27070,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -26837,10 +27145,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -26867,6 +27177,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -26881,7 +27193,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -27126,7 +27437,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -27312,7 +27623,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -27574,6 +27892,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -28951,21 +29277,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -28984,6 +29312,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -29158,7 +29495,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -29239,9 +29576,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -29554,7 +29893,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, arm64::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator arm64::ondemand::array() & noexcept(false);
   simdjson_inline operator arm64::ondemand::object() & noexcept(false);
@@ -29625,7 +29964,7 @@ public:
   simdjson_inline simdjson_result<arm64::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, arm64::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator arm64::ondemand::array() & noexcept(false);
   simdjson_inline operator arm64::ondemand::object() & noexcept(false);
@@ -30181,7 +30520,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -31214,7 +31553,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -31454,6 +31793,11 @@ simdjson_inline simdjson_result<arm64::ondemand::number> simdjson_result<arm64::
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, arm64::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<arm64::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<arm64::ondemand::document>::operator arm64::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -31761,6 +32105,11 @@ simdjson_inline simdjson_result<arm64::ondemand::number> simdjson_result<arm64::
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, arm64::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<arm64::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<arm64::ondemand::document_reference>::operator arm64::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -32648,6 +32997,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -32821,7 +33176,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -34204,6 +34558,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -34919,7 +35278,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -35031,7 +35390,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -35373,7 +35732,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35389,7 +35748,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<arm64::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -35397,7 +35756,12 @@ simdjson_inline simdjson_result<arm64::number_type> value_iterator::get_root_num
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -35405,15 +35769,21 @@ simdjson_inline simdjson_result<arm64::number_type> value_iterator::get_root_num
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -35445,7 +35815,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35461,7 +35831,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35477,7 +35847,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35494,7 +35864,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35511,7 +35881,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -35531,7 +35901,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -35550,7 +35920,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -35563,7 +35933,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -35634,6 +36004,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
@@ -36514,6 +36887,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -36669,12 +37043,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -36829,7 +37204,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -36998,7 +37376,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -37073,10 +37451,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -37103,6 +37483,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -37117,7 +37499,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -37362,7 +37743,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -37548,7 +37929,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -37810,6 +38198,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -39187,21 +39583,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -39220,6 +39618,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -39394,7 +39801,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -39475,9 +39882,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -39790,7 +40199,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, fallback::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator fallback::ondemand::array() & noexcept(false);
   simdjson_inline operator fallback::ondemand::object() & noexcept(false);
@@ -39861,7 +40270,7 @@ public:
   simdjson_inline simdjson_result<fallback::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, fallback::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator fallback::ondemand::array() & noexcept(false);
   simdjson_inline operator fallback::ondemand::object() & noexcept(false);
@@ -40417,7 +40826,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -41450,7 +41859,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -41690,6 +42099,11 @@ simdjson_inline simdjson_result<fallback::ondemand::number> simdjson_result<fall
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, fallback::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<fallback::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<fallback::ondemand::document>::operator fallback::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -41997,6 +42411,11 @@ simdjson_inline simdjson_result<fallback::ondemand::number> simdjson_result<fall
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, fallback::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<fallback::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<fallback::ondemand::document_reference>::operator fallback::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -42884,6 +43303,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -43057,7 +43482,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -44440,6 +44864,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -45155,7 +45584,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -45267,7 +45696,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -45609,7 +46038,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45625,7 +46054,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<fallback::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -45633,7 +46062,12 @@ simdjson_inline simdjson_result<fallback::number_type> value_iterator::get_root_
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -45641,15 +46075,21 @@ simdjson_inline simdjson_result<fallback::number_type> value_iterator::get_root_
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -45681,7 +46121,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45697,7 +46137,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45713,7 +46153,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45730,7 +46170,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45747,7 +46187,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -45767,7 +46207,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -45786,7 +46226,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -45799,7 +46239,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -45870,6 +46310,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
@@ -47242,6 +47685,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -47397,12 +47841,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -47557,7 +48002,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -47726,7 +48174,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -47801,10 +48249,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -47831,6 +48281,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -47845,7 +48297,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -48090,7 +48541,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -48276,7 +48727,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -48538,6 +48996,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -49915,21 +50381,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -49948,6 +50416,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -50122,7 +50599,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -50203,9 +50680,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -50518,7 +50997,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, haswell::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator haswell::ondemand::array() & noexcept(false);
   simdjson_inline operator haswell::ondemand::object() & noexcept(false);
@@ -50589,7 +51068,7 @@ public:
   simdjson_inline simdjson_result<haswell::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, haswell::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator haswell::ondemand::array() & noexcept(false);
   simdjson_inline operator haswell::ondemand::object() & noexcept(false);
@@ -51145,7 +51624,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -52178,7 +52657,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -52418,6 +52897,11 @@ simdjson_inline simdjson_result<haswell::ondemand::number> simdjson_result<haswe
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, haswell::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<haswell::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<haswell::ondemand::document>::operator haswell::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -52725,6 +53209,11 @@ simdjson_inline simdjson_result<haswell::ondemand::number> simdjson_result<haswe
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, haswell::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<haswell::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<haswell::ondemand::document_reference>::operator haswell::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -53612,6 +54101,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -53785,7 +54280,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -55168,6 +55662,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -55883,7 +56382,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -55995,7 +56494,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -56337,7 +56836,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56353,7 +56852,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<haswell::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -56361,7 +56860,12 @@ simdjson_inline simdjson_result<haswell::number_type> value_iterator::get_root_n
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -56369,15 +56873,21 @@ simdjson_inline simdjson_result<haswell::number_type> value_iterator::get_root_n
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -56409,7 +56919,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56425,7 +56935,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56441,7 +56951,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56458,7 +56968,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56475,7 +56985,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -56495,7 +57005,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -56514,7 +57024,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -56527,7 +57037,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -56598,6 +57108,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
@@ -57969,6 +58482,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -58124,12 +58638,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -58284,7 +58799,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -58453,7 +58971,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -58528,10 +59046,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -58558,6 +59078,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -58572,7 +59094,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -58817,7 +59338,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -59003,7 +59524,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -59265,6 +59793,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -60642,21 +61178,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -60675,6 +61213,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -60849,7 +61396,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -60930,9 +61477,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -61245,7 +61794,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, icelake::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator icelake::ondemand::array() & noexcept(false);
   simdjson_inline operator icelake::ondemand::object() & noexcept(false);
@@ -61316,7 +61865,7 @@ public:
   simdjson_inline simdjson_result<icelake::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, icelake::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator icelake::ondemand::array() & noexcept(false);
   simdjson_inline operator icelake::ondemand::object() & noexcept(false);
@@ -61872,7 +62421,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -62905,7 +63454,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -63145,6 +63694,11 @@ simdjson_inline simdjson_result<icelake::ondemand::number> simdjson_result<icela
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, icelake::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<icelake::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<icelake::ondemand::document>::operator icelake::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -63452,6 +64006,11 @@ simdjson_inline simdjson_result<icelake::ondemand::number> simdjson_result<icela
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, icelake::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<icelake::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<icelake::ondemand::document_reference>::operator icelake::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -64339,6 +64898,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -64512,7 +65077,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -65895,6 +66459,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -66610,7 +67179,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -66722,7 +67291,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -67064,7 +67633,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67080,7 +67649,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<icelake::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -67088,7 +67657,12 @@ simdjson_inline simdjson_result<icelake::number_type> value_iterator::get_root_n
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -67096,15 +67670,21 @@ simdjson_inline simdjson_result<icelake::number_type> value_iterator::get_root_n
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -67136,7 +67716,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67152,7 +67732,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67168,7 +67748,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67185,7 +67765,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67202,7 +67782,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -67222,7 +67802,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -67241,7 +67821,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -67254,7 +67834,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -67325,6 +67905,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
@@ -68811,6 +69394,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -68966,12 +69550,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -69126,7 +69711,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -69295,7 +69883,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -69370,10 +69958,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -69400,6 +69990,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -69414,7 +70006,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -69659,7 +70250,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -69845,7 +70436,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -70107,6 +70705,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -71484,21 +72090,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -71517,6 +72125,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -71691,7 +72308,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -71772,9 +72389,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -72087,7 +72706,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, ppc64::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator ppc64::ondemand::array() & noexcept(false);
   simdjson_inline operator ppc64::ondemand::object() & noexcept(false);
@@ -72158,7 +72777,7 @@ public:
   simdjson_inline simdjson_result<ppc64::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, ppc64::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator ppc64::ondemand::array() & noexcept(false);
   simdjson_inline operator ppc64::ondemand::object() & noexcept(false);
@@ -72714,7 +73333,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -73747,7 +74366,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -73987,6 +74606,11 @@ simdjson_inline simdjson_result<ppc64::ondemand::number> simdjson_result<ppc64::
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, ppc64::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<ppc64::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<ppc64::ondemand::document>::operator ppc64::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -74294,6 +74918,11 @@ simdjson_inline simdjson_result<ppc64::ondemand::number> simdjson_result<ppc64::
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, ppc64::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<ppc64::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<ppc64::ondemand::document_reference>::operator ppc64::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -75181,6 +75810,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -75354,7 +75989,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -76737,6 +77371,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -77452,7 +78091,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -77564,7 +78203,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -77906,7 +78545,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -77922,7 +78561,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<ppc64::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -77930,7 +78569,12 @@ simdjson_inline simdjson_result<ppc64::number_type> value_iterator::get_root_num
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -77938,15 +78582,21 @@ simdjson_inline simdjson_result<ppc64::number_type> value_iterator::get_root_num
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -77978,7 +78628,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -77994,7 +78644,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -78010,7 +78660,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -78027,7 +78677,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -78044,7 +78694,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -78064,7 +78714,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -78083,7 +78733,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -78096,7 +78746,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -78167,6 +78817,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
@@ -79976,6 +80629,7 @@ protected:
   simdjson_inline simdjson_result<bool> parse_bool(const uint8_t *json) const noexcept;
   simdjson_inline const uint8_t *peek_start() const noexcept;
   simdjson_inline uint32_t peek_start_length() const noexcept;
+  simdjson_inline uint32_t peek_root_length() const noexcept;
 
   /**
    * The general idea of the advance_... methods and the peek_* methods
@@ -80131,12 +80785,13 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -80291,7 +80946,10 @@ public:
 #if SIMDJSON_EXCEPTIONS
   /**
    * Cast this JSON value to an instance of type T. The programmer is responsible for
-   * providing an implementation of get<T> for the type T.
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.).
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
    *
    * @returns An instance of type T
    */
@@ -80460,7 +81118,7 @@ public:
    * that only one field is returned.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -80535,10 +81193,12 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
-   * Otherwise, get_number_type() has value number_type::floating_point_number
+   * integer that is less than 9223372036854775808.
+   * get_number_type() is number_type::big_integer for integers that do not fit in 64 bits,
+   * in which case the digit_count is set to the length of the big integer string.
+   * Otherwise, get_number_type() has value number_type::floating_point_number.
    *
    * This function requires processing the number string, but it is expected
    * to be faster than get_number().get_number_type() because it is does not
@@ -80565,6 +81225,8 @@ public:
    * You can recover the value by calling number.get_uint64() and you
    * have that number.is_uint64() is true.
    *
+   * For integers that do not fit in 64 bits, the function returns BIGINT_ERROR error code.
+   *
    * Otherwise, number.get_number_type() has value number_type::floating_point_number
    * and we have a binary64 number.
    * You can recover the value by calling number.get_double() and you
@@ -80579,7 +81241,6 @@ public:
    * efficiently the type and storing it in an efficient manner.
    */
   simdjson_warn_unused simdjson_inline simdjson_result<number> get_number() noexcept;
-
 
   /**
    * Get the raw JSON for this token.
@@ -80824,7 +81485,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field as not there when they are not in order).
    *
    * @param key The key to look up.
    * @returns The value of the field, or NO_SUCH_FIELD if the field is not in the object.
@@ -81010,7 +81671,14 @@ public:
    * @param position The position of the token.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
-
+  /**
+   * Get the maximum length of the JSON text for a root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token (start of the document).
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Return the current index.
    */
@@ -81272,6 +81940,14 @@ public:
    * @param position The position of the token to retrieve.
    */
   simdjson_inline uint32_t peek_length(token_position position) const noexcept;
+  /**
+   * Get the maximum length of the JSON text for the current root token.
+   *
+   * The length will include any whitespace at the end of the token.
+   *
+   * @param position The position of the token to retrieve.
+   */
+  simdjson_inline uint32_t peek_root_length(token_position position) const noexcept;
   /**
    * Get the JSON text for the last token in the document.
    *
@@ -82649,21 +83325,23 @@ public:
    * @returns INCORRECT_TYPE If the JSON value is not the given type.
    */
   template<typename T> simdjson_inline simdjson_result<T> get() & noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
   /** @overload template<typename T> simdjson_result<T> get() & noexcept */
   template<typename T> simdjson_inline simdjson_result<T> get() && noexcept {
-    // Unless the simdjson library provides an inline implementation, calling this method should
+    // Unless the simdjson library or the user provides an inline implementation, calling this method should
     // immediately fail.
     static_assert(!sizeof(T), "The get method with given type is not implemented by the simdjson library. "
       "The supported types are ondemand::object, ondemand::array, raw_json_string, std::string_view, uint64_t, "
       "int64_t, double, and bool. We recommend you use get_double(), get_bool(), get_uint64(), get_int64(), "
-      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template.");
+      " get_object(), get_array(), get_raw_json_string(), or get_string() instead of the get template."
+      " You may also add support for custom types, see our documentation.");
   }
 
   /**
@@ -82682,6 +83360,15 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 
 #if SIMDJSON_EXCEPTIONS
+  /**
+   * Cast this JSON value to an instance of type T. The programmer is responsible for
+   * providing an implementation of get<T> for the type T, if T is not one of the types
+   * supported by the library (object, array, raw_json_string, string_view, uint64_t, etc.)
+   *
+   * See https://github.com/simdjson/simdjson/blob/master/doc/basics.md#adding-support-for-custom-types
+   *
+   * @returns An instance of type T
+   */
   template <class T>
   explicit simdjson_inline operator T() noexcept(false);
   /**
@@ -82856,7 +83543,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * You must consume the fields on an object one at a time. A request for a new key
    * invalidates previous field values: it makes them unsafe. E.g., the array
@@ -82937,9 +83624,11 @@ public:
    * get_number().get_number_type().
    *
    * get_number_type() is number_type::unsigned_integer if we have
-   * an integer greater or equal to 9223372036854775808
+   * an integer greater or equal to 9223372036854775808 and no larger than 18446744073709551615.
    * get_number_type() is number_type::signed_integer if we have an
-   * integer that is less than 9223372036854775808
+   * integer that is less than 9223372036854775808 and greater or equal to -9223372036854775808.
+   * get_number_type() is number_type::big_integer if we have an integer outside
+   * of those ranges (either larger than 18446744073709551615 or smaller than -9223372036854775808).
    * Otherwise, get_number_type() has value number_type::floating_point_number
    *
    * This function requires processing the number string, but it is expected
@@ -83252,7 +83941,7 @@ public:
   template<typename T> simdjson_inline error_code get(T &out) & noexcept;
   template<typename T> simdjson_inline error_code get(T &out) && noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, westmere::ondemand::document>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator westmere::ondemand::array() & noexcept(false);
   simdjson_inline operator westmere::ondemand::object() & noexcept(false);
@@ -83323,7 +84012,7 @@ public:
   simdjson_inline simdjson_result<westmere::ondemand::value> get_value() noexcept;
   simdjson_inline simdjson_result<bool> is_null() noexcept;
 #if SIMDJSON_EXCEPTIONS
-  template <class T>
+  template <class T, typename std::enable_if<std::is_same<T, westmere::ondemand::document_reference>::value == false>::type>
   explicit simdjson_inline operator T() noexcept(false);
   simdjson_inline operator westmere::ondemand::array() & noexcept(false);
   simdjson_inline operator westmere::ondemand::object() & noexcept(false);
@@ -83879,7 +84568,7 @@ public:
    * APIs assume this. Therefore, you must be explicit if you want to treat objects as out of order.
    *
    * Use find_field() if you are sure fields will be in order (or are willing to treat it as if the
-   * field wasn't there when they aren't).
+   * field was not there when they are not in order).
    *
    * If you have multiple fields with a matching key ({"x": 1,  "x": 1}) be mindful
    * that only one field is returned.
@@ -84912,7 +85601,7 @@ simdjson_inline simdjson_result<number> document::get_number() noexcept {
 
 simdjson_inline simdjson_result<std::string_view> document::raw_json_token() noexcept {
   auto _iter = get_root_value_iterator();
-  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_start_length());
+  return std::string_view(reinterpret_cast<const char*>(_iter.peek_start()), _iter.peek_root_length());
 }
 
 simdjson_inline simdjson_result<value> document::at_pointer(std::string_view json_pointer) noexcept {
@@ -85152,6 +85841,11 @@ simdjson_inline simdjson_result<westmere::ondemand::number> simdjson_result<west
 
 
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, westmere::ondemand::document>::value == false>::type>
+simdjson_inline simdjson_result<westmere::ondemand::document>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<westmere::ondemand::document>::operator westmere::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -85459,6 +86153,11 @@ simdjson_inline simdjson_result<westmere::ondemand::number> simdjson_result<west
   return first.get_number();
 }
 #if SIMDJSON_EXCEPTIONS
+template <class T, typename std::enable_if<std::is_same<T, westmere::ondemand::document_reference>::value == false>::type>
+simdjson_inline simdjson_result<westmere::ondemand::document_reference>::operator T() noexcept(false) {
+  if (error()) { throw simdjson_error(error()); }
+  return first;
+}
 simdjson_inline simdjson_result<westmere::ondemand::document_reference>::operator westmere::ondemand::array() & noexcept(false) {
   if (error()) { throw simdjson_error(error()); }
   return first;
@@ -86346,6 +87045,12 @@ simdjson_inline uint32_t json_iterator::peek_length(token_position position) con
 #endif // SIMDJSON_CHECK_EOF
   return token.peek_length(position);
 }
+simdjson_inline uint32_t json_iterator::peek_root_length(token_position position) const noexcept {
+#if SIMDJSON_CHECK_EOF
+  assert_valid_position(position);
+#endif // SIMDJSON_CHECK_EOF
+  return token.peek_root_length(position);
+}
 
 simdjson_inline token_position json_iterator::last_position() const noexcept {
   // The following line fails under some compilers...
@@ -86519,7 +87224,6 @@ simdjson_inline uint64_t number::get_uint64() const noexcept {
 simdjson_inline number::operator uint64_t() const noexcept {
   return get_uint64();
 }
-
 
 simdjson_inline bool number::is_int64() const noexcept {
   return get_number_type() == number_type::signed_integer;
@@ -87902,6 +88606,11 @@ simdjson_inline uint32_t token_iterator::peek_length(token_position position) co
   return *(position+1) - *position;
 }
 
+simdjson_inline uint32_t token_iterator::peek_root_length(token_position position) const noexcept {
+  return *(position+2) - *(position) > *(position+1) - *(position) ?
+      *(position+1) - *(position)
+      : *(position+2) - *(position);
+}
 simdjson_inline const uint8_t *token_iterator::peek(int32_t delta) const noexcept {
   return &buf[*(_position+delta)];
 }
@@ -88617,7 +89326,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
   } else if (!is_open()) {
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -88729,7 +89438,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::find_
 
 #if SIMDJSON_DEVELOPMENT_CHECKS
     // If we're past the end of the object, we're being iterated out of order.
-    // Note: this isn't perfect detection. It's possible the user is inside some other object; if so,
+    // Note: this is not perfect detection. It's possible the user is inside some other object; if so,
     // this object iterator will blithely scan that object for fields.
     if (_json_iter->depth() < depth() - 1) { return OUT_OF_ORDER_ITERATION; }
 #endif
@@ -89071,7 +89780,7 @@ simdjson_inline simdjson_result<number> value_iterator::get_number() noexcept {
 }
 
 simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("is_root_integer");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89087,7 +89796,7 @@ simdjson_inline simdjson_result<bool> value_iterator::is_root_integer(bool check
 }
 
 simdjson_inline simdjson_result<westmere::number_type> value_iterator::get_root_number_type(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -89095,7 +89804,12 @@ simdjson_inline simdjson_result<westmere::number_type> value_iterator::get_root_
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return number_type::big_integer;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   auto answer = numberparsing::get_number_type(tmpbuf);
@@ -89103,15 +89817,21 @@ simdjson_inline simdjson_result<westmere::number_type> value_iterator::get_root_
   return answer;
 }
 simdjson_inline simdjson_result<number> value_iterator::get_root_number(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("number");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
   // number: -0.<fraction>e-308.
+  // NOTE: the current approach doesn't work for very big integer numbers containing more than 1074 digits.
   uint8_t tmpbuf[1074+8+1+1];
   tmpbuf[1074+8+1] = '\0'; // make sure that buffer is always null terminated.
   if (!_json_iter->copy_to_buffer(json, max_len, tmpbuf, 1074+8+1)) {
-    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters");
+    if(numberparsing::check_if_integer(json, max_len)) {
+      if (check_trailing && !_json_iter->is_single_token()) { return TRAILING_CONTENT; }
+      logger::log_error(*_json_iter, start_position(), depth(), "Found big integer");
+      return BIGINT_ERROR;
+    }
+    logger::log_error(*_json_iter, start_position(), depth(), "Root number more than 1082 characters and not a big integer");
     return NUMBER_ERROR;
   }
   number num;
@@ -89143,7 +89863,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<raw_json_string> value_iter
   return raw_json_string(json+1);
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89159,7 +89879,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::get_root_uint64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("uint64");
   uint8_t tmpbuf[20+1+1]{}; // <20 digits> is the longest possible unsigned integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89175,7 +89895,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<uint64_t> value_iterator::g
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89192,7 +89912,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::get_root_int64_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("int64");
   uint8_t tmpbuf[20+1+1]; // -<19 digits> is the longest possible integer
   tmpbuf[20+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89209,7 +89929,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<int64_t> value_iterator::ge
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -89229,7 +89949,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
 }
 
 simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get_root_double_in_string(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("double");
   // Per https://www.exploringbinary.com/maximum-number-of-decimal-digits-in-binary-floating-point-numbers/,
   // 1074 is the maximum number of significant fractional digits. Add 8 more digits for the biggest
@@ -89248,7 +89968,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<double> value_iterator::get
   return result;
 }
 simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_root_bool(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("bool");
   uint8_t tmpbuf[5+1+1]; // +1 for null termination
   tmpbuf[5+1] = '\0'; // make sure that buffer is always null terminated.
@@ -89261,7 +89981,7 @@ simdjson_warn_unused simdjson_inline simdjson_result<bool> value_iterator::get_r
   return result;
 }
 simdjson_inline simdjson_result<bool> value_iterator::is_root_null(bool check_trailing) noexcept {
-  auto max_len = peek_start_length();
+  auto max_len = peek_root_length();
   auto json = peek_root_scalar("null");
   bool result = (max_len >= 4 && !atomparsing::str4ncmp(json, "null") &&
          (max_len == 4 || jsoncharutils::is_structural_or_whitespace(json[4])));
@@ -89332,6 +90052,9 @@ simdjson_inline const uint8_t *value_iterator::peek_start() const noexcept {
 }
 simdjson_inline uint32_t value_iterator::peek_start_length() const noexcept {
   return _json_iter->peek_length(start_position());
+}
+simdjson_inline uint32_t value_iterator::peek_root_length() const noexcept {
+  return _json_iter->peek_root_length(start_position());
 }
 
 simdjson_inline const uint8_t *value_iterator::peek_scalar(const char *type) noexcept {
