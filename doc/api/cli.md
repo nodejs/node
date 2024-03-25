@@ -106,7 +106,7 @@ If this flag is passed, the behavior can still be set to not abort through
 ### `--allow-addons`
 
 <!-- YAML
-added: REPLACEME
+added: v20.12.0
 -->
 
 > Stability: 1.1 - Active development
@@ -367,7 +367,7 @@ Currently the support for run-time snapshot is experimental in that:
 ### `--build-snapshot-config`
 
 <!-- YAML
-added: REPLACEME
+added: v20.12.0
 -->
 
 > Stability: 1 - Experimental
@@ -656,7 +656,7 @@ of `--enable-source-maps`.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version: v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->

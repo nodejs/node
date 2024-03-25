@@ -6585,7 +6585,7 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v20.12.0
 -->
 
 > Stability: 1 – Experimental
@@ -6600,7 +6600,7 @@ The path to the parent directory of the file this {fs.Dirent} object refers to.
 added:
   - v20.1.0
   - v18.17.0
-deprecated: REPLACEME
+deprecated: v20.12.0
 -->
 
 > Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.

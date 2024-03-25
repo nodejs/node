@@ -3432,7 +3432,7 @@ deprecated. Get them from `fs.constants` or `fs.promises.constants` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51442
     description: End-of-Life.
   - version:
@@ -3453,7 +3453,7 @@ Please use `value instanceof WebAssembly.Module` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51020
     description: Documentation-only deprecation.
 -->
@@ -3467,7 +3467,7 @@ release lines. Please use [`dirent.parentPath`][] instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51077
     description: Documentation-only deprecation.
 -->
