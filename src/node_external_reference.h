@@ -68,8 +68,6 @@ class ExternalReferenceRegistry {
   V(CFunctionWithBool)                                                         \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
-  V(v8::AccessorGetterCallback)                                                \
-  V(v8::AccessorSetterCallback)                                                \
   V(v8::AccessorNameGetterCallback)                                            \
   V(v8::AccessorNameSetterCallback)                                            \
   V(v8::NamedPropertyGetterCallback)                                           \
