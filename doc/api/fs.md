@@ -899,9 +899,9 @@ try {
 ```
 
 ```cjs
-const { access, constants } =  require('node:fs/promises');
+const { access, constants } = require('node:fs/promises');
 
-async function checkAccess () {
+async function checkAccess() {
   try {
     await access('/etc/passwd', constants.R_OK | constants.W_OK);
     console.log('can access');
@@ -910,7 +910,7 @@ async function checkAccess () {
   }
 }
 
-checkAccess()
+checkAccess();
 ```
 
 Using `fsPromises.access()` to check for the accessibility of a file before
@@ -956,24 +956,24 @@ for appending (using `fsPromises.open()`).
 import { appendFile } from 'node:fs/promises';
 
 try {
-	await appendFile('message.txt', 'data to append');
+  await appendFile('message.txt', 'data to append');
 } catch {
-	console.error('The file could not be appended!');
+  console.error('The file could not be appended!');
 }
 ```
 
 ```cjs
 const { appendFile } = require('node:fs/promises');
 
-async function appendMessagesFile () {
-	try {
-		await appendFile('message.txt', 'data to append');
-	} catch {
-		console.error('The file could not be appended!');
-	}
+async function appendMessagesFile() {
+  try {
+    await appendFile('message.txt', 'data to append');
+  } catch {
+    console.error('The file could not be appended!');
+  }
 }
 
-appendMessagesFile()
+appendMessagesFile();
 ```
 
 ### `fsPromises.chmod(path, mode)`
@@ -992,7 +992,7 @@ Changes the permissions of a file.
 import { chmod } from 'node:fs/promises';
 
 try {
-  await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'))
+  await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'));
 } catch {
   console.log('The permissions for file "my_file.txt" failed to change!');
 }
@@ -1001,15 +1001,15 @@ try {
 ```cjs
 const { chmod } = require('node:fs/promises');
 
-async function changeFilePermissions () {
+async function changeFilePermissions() {
   try {
-    await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'))
+    await chmod('my_file.txt', 0o775).then(console.log('The permissions for file "my_file.txt" have been changed!'));
   } catch {
     console.log('The permissions for file "my_file.txt" failed to change!');
   }
 }
 
-changeFilePermissions()
+changeFilePermissions();
 ```
 
 ### `fsPromises.chown(path, uid, gid)`
@@ -1026,35 +1026,35 @@ added: v10.0.0
 Changes the ownership of a file.
 
 ```mjs
-import { chown } from 'node:fs/promises'
-import { getuid, getgid } from 'node:process'
+import { chown } from 'node:fs/promises';
+import { getuid, getgid } from 'node:process';
 
-const uid = getuid()
-const gid = getgid()
+const uid = getuid();
+const gid = getgid();
 
 try {
-	await chown("my_file.txt", uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`))
+  await chown('my_file.txt', uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`));
 } catch {
-	console.log("Failed to chown my_file.txt!")
+  console.log('Failed to chown my_file.txt!');
 }
 ```
 
 ```cjs
-const { chown } = require('node:fs/promises')
-const { getuid, getgid } = require('node:process')
+const { chown } = require('node:fs/promises');
+const { getuid, getgid } = require('node:process');
 
-async function chownMyFile () {
-	const uid = getuid()
-	const gid = getgid()
-	
-	try {
-		await chown("my_file.txt", uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`))
-	} catch {
-		console.log("Failed to chown my_file.txt!")
-	}
+async function chownMyFile() {
+  const uid = getuid();
+  const gid = getgid();
+
+  try {
+    await chown('my_file.txt', uid, gid).then(console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`));
+  } catch {
+    console.log('Failed to chown my_file.txt!');
+  }
 }
 
-chownMyFile()
+chownMyFile();
 ```
 
 ### `fsPromises.copyFile(src, dest[, mode])`
@@ -2429,31 +2429,31 @@ possible exception are given to the completion callback.
 See the POSIX chown(2) documentation for more detail.
 
 ```mjs
-import { chown } from 'node:fs'
-import { getuid, getgid } from 'node:process'
+import { chown } from 'node:fs';
+import { getuid, getgid } from 'node:process';
 
-const uid = getuid()
-const gid = getgid()
+const uid = getuid();
+const gid = getgid();
 
 chown('my_file.txt', uid, gid, (err) => {
-  if (err) throw "Coudln't chown my_file.txt"
+  if (err) throw new Error('Could not chown my_file.txt');
 
-  console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`)
-})
+  console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`);
+});
 ```
 
 ```cjs
-const { chown } = require('node:fs')
-const { getuid, getgid } = require('node:process')
+const { chown } = require('node:fs');
+const { getuid, getgid } = require('node:process');
 
-const uid = getuid()
-const gid = getgid()
+const uid = getuid();
+const gid = getgid();
 
 chown('my_file.txt', uid, gid, (err) => {
-  if (err) throw "Coudln't chown my_file.txt"
+  if (err) throw new Error('Could not chown my_file.txt');
 
-  console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`)
-})
+  console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`);
+});
 ```
 
 ### `fs.close(fd[, callback])`
