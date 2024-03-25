@@ -61,6 +61,7 @@
 #include <unicode/ucnv.h>
 #include <unicode/udata.h>
 #include <unicode/uidna.h>
+#include <unicode/uloc.h>
 #include <unicode/ulocdata.h>
 #include <unicode/urename.h>
 #include <unicode/ustring.h>
@@ -598,6 +599,13 @@ void SetDefaultTimeZone(const char* tzid) {
   u_charsToUChars(tzid, id.out(), tzidlen);
   // This is threadsafe:
   ucal_setDefaultTimeZone(id.out(), &status);
+  CHECK(U_SUCCESS(status));
+}
+
+void SetDefaultLocale(const char* localeid) {
+  UErrorCode status = U_ZERO_ERROR;
+
+  uloc_setDefault(localeid, &status);
   CHECK(U_SUCCESS(status));
 }
 
