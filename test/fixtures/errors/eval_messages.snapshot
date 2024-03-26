@@ -1,0 +1,76 @@
+[eval]
+[eval]:*
+with(this){__filename}
+^^^^
+
+SyntaxError: Strict mode code may not include a with statement
+    at makeContextifyScript (node:internal*vm:*:*)
+    at node:internal*process*execution:*:*
+    at [eval]-wrapper:*:*
+    at runScript (node:internal*process*execution:*:*)
+    at evalScript (node:internal*process*execution:*:*)
+    at node:internal*main*eval_string:*:*
+
+Node.js *
+42
+42
+[eval]:*
+throw new Error("hello")
+^
+
+Error: hello
+    at [eval]:*:*
+    at runScriptInThisContext (node:internal*vm:*:*)
+    at node:internal*process*execution:*:*
+    at [eval]-wrapper:*:*
+    at runScript (node:internal*process*execution:*:*)
+    at evalScript (node:internal*process*execution:*:*)
+    at node:internal*main*eval_string:*:*
+
+Node.js *
+[eval]:*
+throw new Error("hello")
+^
+
+Error: hello
+    at [eval]:*:*
+    at runScriptInThisContext (node:internal*vm:*:*)
+    at node:internal*process*execution:*:*
+    at [eval]-wrapper:*:*
+    at runScript (node:internal*process*execution:*:*)
+    at evalScript (node:internal*process*execution:*:*)
+    at node:internal*main*eval_string:*:*
+
+Node.js *
+100
+[eval]:*
+var x = 100; y = x;
+               ^
+
+ReferenceError: y is not defined
+    at [eval]:*:*
+    at runScriptInThisContext (node:internal*vm:*:*)
+    at node:internal*process*execution:*:*
+    at [eval]-wrapper:*:*
+    at runScript (node:internal*process*execution:*:*)
+    at evalScript (node:internal*process*execution:*:*)
+    at node:internal*main*eval_string:*:*
+
+Node.js *
+
+[eval]:*
+var ______________________________________________; throw 10
+                                                    ^
+10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+
+[eval]:*
+var ______________________________________________; throw 10
+                                                    ^
+10
+(Use `node --trace-uncaught ...` to show where the exception was thrown)
+
+Node.js *
+done

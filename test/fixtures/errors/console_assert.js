@@ -1,5 +1,5 @@
 'use strict';
 
-require('../common');
+require('../../common');
 
 console.assert(false, Symbol('hello'));
