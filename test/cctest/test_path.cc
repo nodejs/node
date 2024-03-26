@@ -68,10 +68,11 @@ TEST_F(PathTest, ToNamespacedPath) {
   //  > path.toNamespacedPath("C:")
   //  '\\\\?\\C:\\msys64\\home\\Daniel\\CVS\\github\\node
   //
-  //BufferValue data_2(isolate_,
-  //                   v8::String::NewFromUtf8(isolate_, "c:").ToLocalChecked());
-  //ToNamespacedPath(*env, &data_2);
-  //EXPECT_EQ(data_2.ToStringView(),
+  // BufferValue data_2(isolate_,
+  //                   v8::String::NewFromUtf8(isolate_,
+  //                   "c:").ToLocalChecked());
+  // ToNamespacedPath(*env, &data_2);
+  // EXPECT_EQ(data_2.ToStringView(),
   //          "c:");  // Input less than of equal to 2 characters
   //                  // should be returned directly
   BufferValue data_3(
