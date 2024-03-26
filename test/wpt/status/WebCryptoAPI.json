@@ -4,5 +4,19 @@
   },
   "historical.any.js": {
     "skip": "Not relevant in Node.js context"
+  },
+  "sign_verify/eddsa.https.any.js": {
+    "fail": {
+      "note": "see https://github.com/web-platform-tests/wpt/pull/43751",
+      "expected": [
+        "Ed25519 Verification checks with small-order key of order - Test 0",
+        "Ed25519 Verification checks with small-order key of order - Test 1",
+        "Ed25519 Verification checks with small-order key of order - Test 2",
+        "Ed25519 Verification checks with small-order key of order - Test 3",
+        "Ed25519 Verification checks with small-order key of order - Test 11",
+        "Ed25519 Verification checks with small-order key of order - Test 12",
+        "Ed25519 Verification checks with small-order key of order - Test 13"
+      ]
+    }
   }
 }
