@@ -350,7 +350,7 @@ The Node.js test runner can be invoked from the command line by passing the
 node --test
 ```
 
-By default Node.js will run all files matching these patterns:
+By default, Node.js will run all files matching these patterns:
 
 * `**/*.test.?(c|m)js`
 * `**/*-test.?(c|m)js`
@@ -362,9 +362,11 @@ By default Node.js will run all files matching these patterns:
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
 Glob patterns follow the behavior of [`glob(7)`][].
+The glob patterns should be enclosed in double quotes on the command line to
+prevent shell expansion, which can reduce portability across systems.
 
 ```bash
-node --test **/*.test.js **/*.spec.js
+node --test "**/*.test.js" "**/*.spec.js"
 ```
 
 Matching files are executed as test files.
