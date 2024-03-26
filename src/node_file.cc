@@ -2439,7 +2439,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
       uv_fs_req_cleanup(&req);
       // req will be cleaned up by scope leave.
       return env->ThrowUVException(
-          int(req.result), "open", nullptr, path.out());
+          static_cast<int>(req.result), "open", nullptr, path.out());
     }
   }
 
@@ -2462,7 +2462,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (req.result < 0) {
       FS_SYNC_TRACE_END(read);
       // req will be cleaned up by scope leave.
-      return env->ThrowUVException(int(req.result), "read", nullptr);
+      return env->ThrowUVException(static_cast<int>(req.result), "read", nullptr);
     }
     if (r <= 0) {
       break;
