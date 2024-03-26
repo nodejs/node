@@ -273,8 +273,9 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
   auto resolved_path = node::PathResolve(env, {path->ToStringView()});
 
   if (resolved_path.size() <= 2) {
+    path->AllocateSufficientStorage(resolved_path.size() + 1);
     path->SetLength(resolved_path.size());
-    memcpy(&path, resolved_path.c_str(), resolved_path.size());
+    memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
     return;
   }
 
@@ -288,12 +289,12 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
         std::string_view unc_prefix = R"(\\?\UNC\)";
         std::string_view resolved_path2 = resolved_path.substr(2);
         size_t new_length = unc_prefix.size() + resolved_path2.size();
-        path->AllocateSufficientStorage(new_length);
+        path->AllocateSufficientStorage(new_length + 1);
         path->SetLength(new_length);
         memcpy(path->out(), unc_prefix.data(), unc_prefix.size());
         memcpy(path->out() + unc_prefix.size(),
-               resolved_path2.data(),
-               resolved_path2.size());
+               resolved_path.c_str() + 2,
+               resolved_path2.size() + 1);
       }
     }
   } else if (IsWindowsDeviceRoot(resolved_path[0]) && resolved_path[1] == ':' &&
@@ -301,12 +302,12 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
     // Matched device root, convert the path to a long UNC path
     std::string_view new_prefix = R"(\\?\)";
     size_t new_length = new_prefix.size() + resolved_path.size();
-    path->AllocateSufficientStorage(new_length);
+    path->AllocateSufficientStorage(new_length + 1);
     path->SetLength(new_length);
     memcpy(path->out(), new_prefix.data(), new_prefix.size());
     memcpy(path->out() + new_prefix.size(),
-           resolved_path.data(),
-           resolved_path.size());
+           resolved_path.c_str(),
+           resolved_path.size() + 1);
   }
 #endif
 }
