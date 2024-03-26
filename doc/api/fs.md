@@ -2450,7 +2450,7 @@ const uid = getuid();
 const gid = getgid();
 
 chown('my_file.txt', uid, gid, (err) => {
-  if (err) throw err  ;
+  if (err) throw err;
 
   console.log(`Successfully ran chown on my_file.txt to UID ${uid} and GID ${gid}!`);
 });
