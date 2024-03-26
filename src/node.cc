@@ -1084,7 +1084,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
 
   if (!(flags & ProcessInitializationFlags::kNoInitOpenSSL)) {
 #if HAVE_OPENSSL
-#if !defined(OPENSSL_IS_BORINGSSL)
+#ifndef OPENSSL_IS_BORINGSSL
     auto GetOpenSSLErrorString = []() -> std::string {
       std::string ret;
       ERR_print_errors_cb(
