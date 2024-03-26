@@ -271,11 +271,7 @@ void ToNamespacedPath(Environment* env, BufferValue* path) {
 #ifdef _WIN32
   if (path->length() == 0) return;
   auto resolved_path = node::PathResolve(env, {path->ToStringView()});
-
   if (resolved_path.size() <= 2) {
-    path->AllocateSufficientStorage(resolved_path.size() + 1);
-    path->SetLength(resolved_path.size());
-    memcpy(path->out(), resolved_path.c_str(), resolved_path.size() + 1);
     return;
   }
 
