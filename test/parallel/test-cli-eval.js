@@ -32,6 +32,7 @@ const assert = require('assert');
 const child = require('child_process');
 const path = require('path');
 const fixtures = require('../common/fixtures');
+const { spawnSyncAndAssert } = require('../common/child_process');
 const nodejs = `"${process.execPath}"`;
 
 if (process.argv.length > 2) {
@@ -224,30 +225,31 @@ child.exec(`${nodejs} --use-strict -p process.execArgv`,
 
 
 // Assert that "42\n" is written to stdout on module eval.
-const execOptions = '--input-type module';
-child.exec(
-  `${nodejs} ${execOptions} --eval "console.log(42)"`,
-  common.mustSucceed((stdout) => {
-    assert.strictEqual(stdout, '42\n');
-  }));
+const execOptions = '--input-type=module';
+spawnSyncAndAssert(process.execPath, [execOptions, '--eval', 'console.log(42)'], {
+  stdout: '42\n',
+  stderr: '',
+});
 
 // Assert that "42\n" is written to stdout with print option.
-child.exec(
-  `${nodejs} ${execOptions} --print --eval "42"`,
-  common.mustCall((err, stdout, stderr) => {
-    assert.ok(err);
-    assert.strictEqual(stdout, '');
-    assert.ok(stderr.includes('--print cannot be used with ESM input'));
-  }));
+spawnSyncAndAssert(process.execPath, [execOptions, '--print', '--eval', 42], {
+  stdout: '42\n',
+  stderr: '',
+});
 
 // Assert that error is written to stderr on invalid input.
-child.exec(
-  `${nodejs} ${execOptions} --eval "!!!!"`,
-  common.mustCall((err, stdout, stderr) => {
-    assert.ok(err);
-    assert.strictEqual(stdout, '');
-    assert.ok(stderr.indexOf('SyntaxError: Unexpected end of input') > 0);
-  }));
+spawnSyncAndAssert(process.execPath, [execOptions, '--print', '--eval', '!!!!'], {
+  status: 1,
+  stdout: '',
+  stderr: /SyntaxError: Unexpected token '\)'\n/,
+});
+
+// Assert that error is written to stderr on unsupported input.
+spawnSyncAndAssert(process.execPath, [execOptions, '-p', 'import "node:os"'], {
+  status: 1,
+  stdout: '',
+  stderr: /SyntaxError: Unexpected string\n/,
+});
 
 // Assert that require is undefined in ESM support
 child.exec(
