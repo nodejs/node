@@ -1712,9 +1712,14 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
 
   BufferValue path(env->isolate(), args[0]);
   CHECK_NOT_NULL(*path);
-  ToNamespacedPath(env, &path);
+  // We deliberately do not normalize the path:
+  // ToNamespacedPath(env, &path);
+  BufferValue nmpath(env->isolate(), args[0]);
+  CHECK_NOT_NULL(*nmpath);
+  ToNamespacedPath(env, &nmpath);
+
   THROW_IF_INSUFFICIENT_PERMISSIONS(
-      env, permission::PermissionScope::kFileSystemWrite, path.ToStringView());
+      env, permission::PermissionScope::kFileSystemWrite, nmpath.ToStringView());
 
   CHECK(args[1]->IsInt32());
   const int mode = args[1].As<Int32>()->Value();
@@ -2431,7 +2436,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (req.result < 0) {
       uv_fs_req_cleanup(&req);
       // req will be cleaned up by scope leave.
-      return env->ThrowUVException(req.result, "open", nullptr, path.out());
+      return env->ThrowUVException(int(req.result), "open", nullptr, path.out());
     }
   }
 
@@ -2454,7 +2459,7 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     if (req.result < 0) {
       FS_SYNC_TRACE_END(read);
       // req will be cleaned up by scope leave.
-      return env->ThrowUVException(req.result, "read", nullptr);
+      return env->ThrowUVException(int(req.result), "read", nullptr);
     }
     if (r <= 0) {
       break;
