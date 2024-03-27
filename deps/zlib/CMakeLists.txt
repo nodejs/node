@@ -74,6 +74,16 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
 
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -march=armv8-a+crc+crypto")
   endif()
+
+  if (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+    add_definitions(-DRISCV_RVV)
+    add_definitions(-DDEFLATE_SLIDE_HASH_RVV)
+    add_definitions(-DADLER32_SIMD_RVV)
+    #TODO(cavalcantii): add remaining flags as we port optimizations to RVV.
+    # Required by CPU features detection code.
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=riscv64-unknown-linux-gnu -march=rv64gcv")
+  endif()
+
 endif()
 
 #
@@ -180,20 +190,28 @@ set(ZLIB_SRCS
 # Update list of source files if optimizations were enabled
 #============================================================================
 if (ENABLE_SIMD_OPTIMIZATIONS)
-  list(REMOVE_ITEM ZLIB_SRCS inflate.c)
+  if (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
+    message("RISCVV: Add optimizations.")
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.h)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.c)
+  else()
+    list(REMOVE_ITEM ZLIB_SRCS inflate.c)
 
-  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.h)
-  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/chunkcopy.h)
-  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.h)
-  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.h)
-  list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/chunkcopy.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.h)
 
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.c)
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.c)
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inflate.c)
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.c)
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.c)
-  list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc_folding.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inflate.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc32_simd.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/crc_folding.c)
+  endif()
 endif()
 
 # parse the full version number from zlib.h and include in ZLIB_FULL_VERSION
