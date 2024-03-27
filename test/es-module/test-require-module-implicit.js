@@ -28,6 +28,7 @@ assert.throws(() => {
     code: 'MODULE_NOT_FOUND'
   });
   const mod = require(`${id}.mjs`);
-  assert.deepStrictEqual({ ...mod }, { hello: 'world' });
-  assert(isModuleNamespaceObject(mod));
+  const namespace = Object.getPrototypeOf(mod);
+  assert.deepStrictEqual({ ...namespace }, { hello: 'world' });
+  assert(isModuleNamespaceObject(namespace));
 }
