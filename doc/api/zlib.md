@@ -124,8 +124,8 @@ operations be cached to avoid duplication of effort.
 
 ## Compressing HTTP requests and responses
 
-The `node:zlib` module can be used to implement support for the `gzip`, `deflate`
-and `br` content-encoding mechanisms defined by
+The `node:zlib` module can be used to implement support for the `gzip`, `deflate`,
+`br` and `zstd` content-encoding mechanisms defined by
 [HTTP](https://tools.ietf.org/html/rfc7230#section-4.2).
 
 The HTTP [`Accept-Encoding`][] header is used within an HTTP request to identify
@@ -148,7 +148,7 @@ const { pipeline } = require('node:stream');
 const request = http.get({ host: 'example.com',
                            path: '/',
                            port: 80,
-                           headers: { 'Accept-Encoding': 'br,gzip,deflate' } });
+                           headers: { 'Accept-Encoding': 'br,gzip,deflate,zstd' } });
 request.on('response', (response) => {
   const output = fs.createWriteStream('example.com_index.html');
 
@@ -169,6 +169,9 @@ request.on('response', (response) => {
       break;
     case 'deflate':
       pipeline(response, zlib.createInflate(), output, onError);
+      break;
+    case 'zstd':
+      pipeline(response, zlib.createZstdDecompress(), output, onError);
       break;
     default:
       pipeline(response, output, onError);
@@ -218,6 +221,9 @@ http.createServer((request, response) => {
   } else if (/\bbr\b/.test(acceptEncoding)) {
     response.writeHead(200, { 'Content-Encoding': 'br' });
     pipeline(raw, zlib.createBrotliCompress(), response, onError);
+  } else if (/\bzstd\b/.test(acceptEncoding)) {
+    response.writeHead(200, { 'Content-Encoding': 'zstd' });
+    pipeline(raw, zlib.createZstdCompress(), response, onError);
   } else {
     response.writeHead(200, {});
     pipeline(raw, response, onError);
@@ -238,6 +244,7 @@ const buffer = Buffer.from('eJzT0yMA', 'base64');
 zlib.unzip(
   buffer,
   // For Brotli, the equivalent is zlib.constants.BROTLI_OPERATION_FLUSH.
+  // For Zstd, the equivalent is zlib.constants.ZSTD_e_flush.
   { finishFlush: zlib.constants.Z_SYNC_FLUSH },
   (err, buffer) => {
     if (err) {
@@ -308,6 +315,16 @@ these options have different ranges than the zlib ones:
 * zlib's `windowBits` option matches Brotli's `BROTLI_PARAM_LGWIN` option.
 
 See [below][Brotli parameters] for more details on Brotli-specific options.
+
+### For Zstd-based streams
+
+There are equivalents to the zlib options for Zstd-based streams, although
+these options have different ranges than the zlib ones:
+
+* zlib's `level` option matches Zstd's `ZSTD_c_compressionLevel` option.
+* zlib's `windowBits` option matches Zstd's `ZSTD_c_windowLog` option.
+
+See [below][Zstd parameters] for more details on Zstd-specific options.
 
 ## Flushing
 
@@ -486,6 +503,44 @@ These advanced options are available for controlling decompression:
 * `BROTLI_DECODER_PARAM_LARGE_WINDOW`
   * Boolean flag enabling “Large Window Brotli” mode (not compatible with the
     Brotli format as standardized in [RFC 7932][]).
+
+### Zstd constants
+
+<!-- YAML
+added: REPLACEME
+-->
+
+There are several options and other constants available for Zstd-based
+streams:
+
+#### Flush operations
+
+The following values are valid flush operations for Zstd-based streams:
+
+* `zlib.constants.ZSTD_e_continue` (default for all operations)
+* `zlib.constants.ZSTD_e_flush` (default when calling `.flush()`)
+* `zlib.constants.ZSTD_e_end` (default for the last chunk)
+
+#### Compressor options
+
+There are several options that can be set on Zstd encoders, affecting
+compression efficiency and speed. Both the keys and the values can be accessed
+as properties of the `zlib.constants` object.
+
+The most important options are:
+
+* `ZSTD_c_compressionLevel`
+  * Set compression parameters according to pre-defined cLevel table. Default
+    level is ZSTD\_CLEVEL\_DEFAULT==3.
+
+#### Decompressor options
+
+These advanced options are available for controlling decompression:
+
+* `ZSTD_d_windowLogMax`
+  * Select a size limit (in power of 2) beyond which the streaming API will
+    refuse to allocate memory buffer in order to protect the host from
+    unreasonable memory requirements.
 
 ## Class: `Options`
 
@@ -684,6 +739,51 @@ base class of the compressor/decompressor classes.
 This class inherits from [`stream.Transform`][], allowing `node:zlib` objects to
 be used in pipes and similar stream operations.
 
+## Class: `ZstdOptions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!--type=misc-->
+
+Each Zstd-based class takes an `options` object. All options are optional.
+
+* `flush` {integer} **Default:** `zlib.constants.ZSTD_e_continue`
+* `finishFlush` {integer} **Default:** `zlib.constants.ZSTD_e_end`
+* `chunkSize` {integer} **Default:** `16 * 1024`
+* `params` {Object} Key-value object containing indexed [Zstd parameters][].
+* `maxOutputLength` {integer} Limits output size when using
+  [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+
+For example:
+
+```js
+const stream = zlib.createZstdCompress({
+  chunkSize: 32 * 1024,
+  params: {
+    [zlib.constants.ZSTD_c_compressionLevel]: 10,
+    [zlib.constants.ZSTD_c_checksumFlag]: 1,
+  },
+});
+```
+
+## Class: `zlib.ZstdCompress`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Compress data using the Zstd algorithm.
+
+## Class: `zlib.ZstdDecompress`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Decompress data using the Zstd algorithm.
+
 ### `zlib.bytesRead`
 
 <!-- YAML
@@ -873,6 +973,26 @@ added: v0.5.8
 * `options` {zlib options}
 
 Creates and returns a new [`Unzip`][] object.
+
+## `zlib.createZstdCompress([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {zstd options}
+
+Creates and returns a new [`ZstdCompress`][] object.
+
+## `zlib.createZstdDecompress([options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `options` {zstd options}
+
+Creates and returns a new [`ZstdDecompress`][] object.
 
 ## Convenience methods
 
@@ -1220,10 +1340,53 @@ changes:
 
 Decompress a chunk of data with [`Unzip`][].
 
+### `zlib.zstdCompress(buffer[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {zstd options}
+* `callback` {Function}
+
+### `zlib.zstdCompressSync(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {zstd options}
+
+Compress a chunk of data with [`ZstdCompress`][].
+
+### `zlib.zstdDecompress(buffer[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {zstd options}
+* `callback` {Function}
+
+### `zlib.zstdDecompressSync(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
+* `options` {zstd options}
+
+Decompress a chunk of data with [`ZstdDecompress`][].
+
 [Brotli parameters]: #brotli-constants
 [Memory usage tuning]: #memory-usage-tuning
 [RFC 7932]: https://www.rfc-editor.org/rfc/rfc7932.txt
 [Streams API]: stream.md
+[Zstd parameters]: #zstd-constants
 [`.flush()`]: #zlibflushkind-callback
 [`Accept-Encoding`]: https://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3
 [`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
@@ -1240,6 +1403,8 @@ Decompress a chunk of data with [`Unzip`][].
 [`Inflate`]: #class-zlibinflate
 [`TypedArray`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/TypedArray
 [`Unzip`]: #class-zlibunzip
+[`ZstdCompress`]: #class-zlibzstdcompress
+[`ZstdDecompress`]: #class-zlibzstddecompress
 [`buffer.kMaxLength`]: buffer.md#bufferkmaxlength
 [`deflateInit2` and `inflateInit2`]: https://zlib.net/manual.html#Advanced
 [`stream.Transform`]: stream.md#class-streamtransform

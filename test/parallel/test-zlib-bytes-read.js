@@ -33,6 +33,7 @@ for (const method of [
   ['createDeflate', 'createInflate', true],
   ['createDeflateRaw', 'createInflateRaw', true],
   ['createBrotliCompress', 'createBrotliDecompress', true],
+  ['createZstdCompress', 'createZstdDecompress', false],
 ]) {
   let compWriter;
   let compData = Buffer.alloc(0);

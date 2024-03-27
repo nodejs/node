@@ -144,6 +144,7 @@ class HashStream extends Stream {
 for (const [ createCompress, createDecompress ] of [
   [ zlib.createGzip, zlib.createGunzip ],
   [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
+  [ zlib.createZstdCompress, zlib.createZstdDecompress ],
 ]) {
   const inp = new RandomReadStream({ total: 1024, block: 256, jitter: 16 });
   const out = new HashStream();
