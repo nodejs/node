@@ -42,7 +42,8 @@
         }],
 
         # Runtime detection will happen for x86 CPUs
-        [ 'target_arch in "ia32 x64 x32"', {
+        # Except for ClangCL.
+        [ 'target_arch in "ia32 x64 x32" and OS!="win"', {
           'defines': [
             'HAVE_SSSE3=1',
             'HAVE_SSE41=1',
@@ -84,6 +85,14 @@
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-mssse3' ]
           },
+        }, {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '-mssse3',
+              ],
+            },
+          },
         }],
       ],
     },
@@ -100,6 +109,14 @@
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-msse4.1' ]
           },
+        }, {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '-msse4.1',
+              ],
+            },
+          },
         }],
       ],
     },
@@ -115,6 +132,14 @@
           'cflags': [ '-msse4.2' ],
           'xcode_settings': {
             'OTHER_CFLAGS': [ '-msse4.2' ]
+          },
+        }, {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '-msse4.2',
+              ],
+            },
           },
         }],
       ],
@@ -135,9 +160,7 @@
         }, {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'AdditionalOptions': [
-                '/arch:AVX'
-              ],
+              'EnableEnhancedInstructionSet': '3' # gyp uses a digit instead of a string such as 'AVX'
             },
           },
         }],
@@ -159,9 +182,7 @@
         }, {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'AdditionalOptions': [
-                '/arch:AVX2'
-              ],
+              'EnableEnhancedInstructionSet': '5' # gyp uses a digit instead of a string such as 'AVX2'
             },
           },
         }],
@@ -183,9 +204,7 @@
         }, {
           'msvs_settings': {
             'VCCLCompilerTool': {
-              'AdditionalOptions': [
-                '/arch:AVX512'
-              ],
+              'EnableEnhancedInstructionSet': '6' # gyp uses a digit instead of a string such as 'AVX512'
             },
           },
         }],

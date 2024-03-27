@@ -331,7 +331,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   friend class cppgc::testing::OverrideEmbedderStackStateScope;
 };
 
-class V8_NODISCARD V8_EXPORT_PRIVATE ClassNameAsHeapObjectNameScope final {
+class ClassNameAsHeapObjectNameScope final {
  public:
   explicit ClassNameAsHeapObjectNameScope(HeapBase& heap);
   ~ClassNameAsHeapObjectNameScope();

@@ -579,6 +579,8 @@ _msbuild_validators["ManifestResourceCompile"] = {}
 # Options that have the same name in MSVS and MSBuild
 _Same(_compile, "AdditionalIncludeDirectories", _folder_list)  # /I
 _Same(_compile, "AdditionalOptions", _string_list)
+_Same(_compile, "LanguageStandard", _string)
+_Same(_compile, "LanguageStandard_C", _string)
 _Same(_compile, "AdditionalUsingDirectories", _folder_list)  # /AI
 _Same(_compile, "AssemblerListingLocation", _file_name)  # /Fa
 _Same(_compile, "BrowseInformationFile", _file_name)
@@ -675,6 +677,7 @@ _Same(
             "NoExtensions",  # /arch:IA32 (vs2012+)
             # This one only exists in the new msbuild format.
             "AdvancedVectorExtensions2",  # /arch:AVX2 (vs2013r2+)
+            "AdvancedVectorExtensions512",  #  (vs2019+)
         ]
     ),
 )

@@ -52,6 +52,9 @@
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
+            'include_dirs': [
+              'tools/msvs/pch',
+            ],
             'sources': [
               '<(_msvs_precompiled_header)',
               '<(_msvs_precompiled_source)',
@@ -440,11 +443,14 @@
             '<(mksnapshot_exec)',
           ],
           'outputs': [
-            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            # snapshot.cc is always built in the 'asm_to_inline_asm' step.
             '<(INTERMEDIATE_DIR)/embedded.S',
           ],
-          'process_outputs_as_sources': 1,
           'conditions': [
+            # When not under Windows, embedded.S will be compiled directly.
+            ['OS != "win"', {
+                'process_outputs_as_sources': 1,
+            }],
             ['v8_random_seed', {
               'variables': {
                 'mksnapshot_flags': ['--random-seed', '<(v8_random_seed)'],
@@ -482,6 +488,39 @@
             '>@(_inputs)',
             '>@(mksnapshot_flags)',
           ],
+        },
+        {
+          # This action is only useful on Windows.
+          # Under non-Windows systems, we effectively ignore
+          # the output of this action.
+          'action_name': 'asm_to_inline_asm',
+          'message': 'generating: >@(_outputs)',
+          'inputs': [
+            '<(INTERMEDIATE_DIR)/embedded.S',
+          ],
+          'conditions': [
+            # Under Windows, we need to generate snapshot.cc and embedded.cc.
+            ['OS == "win"', {
+              'outputs': [
+            '<(INTERMEDIATE_DIR)/snapshot.cc',
+            '<(INTERMEDIATE_DIR)/embedded.cc',
+             ],
+             'action': [
+              '<(python)',
+              '<(V8_ROOT)/tools/snapshot/asm_to_inline_asm.py',
+              '<@(_inputs)',
+              '<(INTERMEDIATE_DIR)/embedded.cc', # important: embedded.cc is only ever generated if OS == "win"
+             ],
+            }],
+            # Under non-Windows systems, we effectively ignore the output of this
+            # action. We do need to build snapshot.cc, however.
+            ['OS != "win"', {
+              'outputs': ['<(INTERMEDIATE_DIR)/snapshot.cc'],
+              'action': [],
+            }],
+          ],
+          'process_outputs_as_sources': 1,
+          
         },
       ],
     },  # v8_snapshot
@@ -1831,25 +1870,6 @@
                 ],
               }],
             ]
-          }],
-          ['OS=="win"', {
-            'conditions': [
-              ['_toolset == "host" and host_arch == "x64" or _toolset == "target" and target_arch=="x64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/x64/push_registers_masm.asm',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "ia32" or _toolset == "target" and target_arch=="ia32"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/ia32/push_registers_masm.asm',
-                ],
-              }],
-              ['_toolset == "host" and host_arch == "arm64" or _toolset == "target" and target_arch=="arm64"', {
-                'sources': [
-                  '<(V8_ROOT)/src/heap/base/asm/arm64/push_registers_masm.S',
-                ],
-              }],
-            ],
           }],
         ],
       },

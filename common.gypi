@@ -91,6 +91,7 @@
 
     'conditions': [
       ['OS == "win"', {
+        'clang%': 1,
         'os_posix': 0,
         'v8_postmortem_support%': 0,
         'obj_dir': '<(PRODUCT_DIR)/obj',
@@ -284,9 +285,13 @@
     ],
     'msvs_settings': {
       'VCCLCompilerTool': {
+        # Node has C and C++ dependencies: we want to specify the standards
+        # independently. Recent versions of Visual Studio support C11 and C17
+        # https://learn.microsoft.com/en-us/cpp/overview/install-c17-support?view=msvc-170
+        'LanguageStandard': 'stdcpp17',       # can switch to stdcpp20 or better
+        'LanguageStandard_C': 'stdc11',       # can switch to stdc17 or better
         'AdditionalOptions': [
           '/Zc:__cplusplus',
-          '-std:c++17'
         ],
         'BufferSecurityCheck': 'true',
         'DebugInformationFormat': 1,          # /Z7 embed info in .obj files

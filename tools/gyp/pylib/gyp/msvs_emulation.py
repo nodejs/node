@@ -531,7 +531,7 @@ class MsvsSettings:
         cl("AdditionalOptions", prefix="")
         cl(
             "EnableEnhancedInstructionSet",
-            map={"1": "SSE", "2": "SSE2", "3": "AVX", "4": "IA32", "5": "AVX2"},
+            map={"1": "SSE", "2": "SSE2", "3": "AVX", "4": "IA32", "5": "AVX2", "6": "AVX512"},
             prefix="/arch:",
         )
         cflags.extend(
