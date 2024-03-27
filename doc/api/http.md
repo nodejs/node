@@ -142,7 +142,7 @@ changes:
     header is always sent when using an agent except when the `Connection`
     header is explicitly specified or when the `keepAlive` and `maxSockets`
     options are respectively set to `false` and `Infinity`, in which case
-    `Connection: close` will be used. **Default:** `false`.
+    `Connection: close` will be used. **Default:** `true`.
   * `keepAliveMsecs` {number} When using the `keepAlive` option, specifies
     the [initial delay][]
     for TCP Keep-Alive packets. Ignored when the
