@@ -209,6 +209,8 @@ bool SetGroups(SecureContext* sc, const char* groups) {
   return SSL_CTX_set1_groups_list(sc->ctx().get(), groups) == 1;
 }
 
+// When adding or removing errors below, please also update the list in the API
+// documentation. See the "OpenSSL Error Codes" section of doc/api/errors.md
 const char* X509ErrorCode(long err) {  // NOLINT(runtime/int)
   const char* code = "UNSPECIFIED";
 #define CASE_X509_ERR(CODE) case X509_V_ERR_##CODE: code = #CODE; break;
