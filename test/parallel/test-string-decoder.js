@@ -230,12 +230,12 @@ function test(encoding, input, expected, singleSequence) {
     sequences = [singleSequence];
   }
   const hexNumberRE = /.{2}/g;
-  sequences.forEach((sequence) => {
+  for (const sequence of sequences) {
     const decoder = new StringDecoder(encoding);
     let output = '';
-    sequence.forEach((write) => {
+    for (const write of sequence) {
       output += decoder.write(input.slice(write[0], write[1]));
-    });
+    }
     output += decoder.end();
     if (output !== expected) {
       const message =
@@ -246,7 +246,7 @@ function test(encoding, input, expected, singleSequence) {
         `Full Decoder State: ${inspect(decoder)}`;
       assert.fail(message);
     }
-  });
+  }
 }
 
 // unicodeEscape prints the str contents as unicode escape codes.
