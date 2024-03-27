@@ -18,6 +18,13 @@
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
 
+#ifdef _WIN32
+#include <Windows.h>
+#include <wincrypt.h>
+
+#include "base64-inl.h"
+#endif
+
 namespace node {
 
 using v8::Array;
@@ -196,6 +203,70 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
 
 }  // namespace
 
+void ReadSystemStoreCertificates(
+    std::vector<std::string>* system_root_certificates) {
+#ifdef _WIN32
+  const HCERTSTORE hStore = CertOpenSystemStoreW(0, L"ROOT");
+  CHECK_NE(hStore, nullptr);
+
+  auto cleanup =
+      OnScopeLeave([hStore]() { CHECK_EQ(CertCloseStore(hStore, 0), TRUE); });
+
+  PCCERT_CONTEXT certificate_context_ptr = nullptr;
+
+  std::vector<X509*> system_root_certificates_X509;
+
+  while ((certificate_context_ptr = CertEnumCertificatesInStore(
+              hStore, certificate_context_ptr)) != nullptr) {
+    const DWORD certificate_buffer_size =
+        CertGetNameStringW(certificate_context_ptr,
+                           CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                           0,
+                           nullptr,
+                           nullptr,
+                           0);
+
+    CHECK_GT(certificate_buffer_size, 0);
+
+    std::vector<wchar_t> certificate_name(certificate_buffer_size);
+
+    CHECK_GT(CertGetNameStringW(certificate_context_ptr,
+                                CERT_NAME_SIMPLE_DISPLAY_TYPE,
+                                0,
+                                nullptr,
+                                certificate_name.data(),
+                                certificate_buffer_size),
+             0);
+    const unsigned char* certificate_src_ptr =
+        reinterpret_cast<const unsigned char*>(
+            certificate_context_ptr->pbCertEncoded);
+    const size_t certificate_src_length =
+        certificate_context_ptr->cbCertEncoded;
+
+    X509* cert =
+        d2i_X509(nullptr, &certificate_src_ptr, certificate_src_length);
+
+    system_root_certificates_X509.emplace_back(cert);
+  }
+
+  for (size_t i = 0; i < system_root_certificates_X509.size(); i++) {
+    int result = 0;
+
+    BIOPointer bio(BIO_new(BIO_s_mem()));
+    CHECK(bio);
+
+    BUF_MEM* mem = nullptr;
+    result = PEM_write_bio_X509(bio.get(), system_root_certificates_X509[i]);
+
+    BIO_get_mem_ptr(bio.get(), &mem);
+    std::string certificate_string_pem(mem->data, mem->length);
+    system_root_certificates->emplace_back(certificate_string_pem);
+
+    bio.reset();
+  }
+#endif
+}
+
 X509_STORE* NewRootCertStore() {
   static std::vector<X509*> root_certs_vector;
   static Mutex root_certs_vector_mutex;
@@ -203,11 +274,22 @@ X509_STORE* NewRootCertStore() {
 
   if (root_certs_vector.empty() &&
       per_process::cli_options->ssl_openssl_cert_store == false) {
+    std::vector<std::string> combined_root_certs;
+
     for (size_t i = 0; i < arraysize(root_certs); i++) {
+      combined_root_certs.emplace_back(root_certs[i]);
+    }
+
+    if (per_process::cli_options->node_use_system_ca) {
+      ReadSystemStoreCertificates(&combined_root_certs);
+    }
+
+    for (size_t i = 0; i < combined_root_certs.size(); i++) {
       X509* x509 =
-          PEM_read_bio_X509(NodeBIO::NewFixed(root_certs[i],
-                                              strlen(root_certs[i])).get(),
-                            nullptr,   // no re-use of X509 structure
+          PEM_read_bio_X509(NodeBIO::NewFixed(combined_root_certs[i].c_str(),
+                                              combined_root_certs[i].length())
+                                .get(),
+                            nullptr,  // no re-use of X509 structure
                             NoPasswordCallback,
                             nullptr);  // no callback data
 
@@ -240,19 +322,30 @@ X509_STORE* NewRootCertStore() {
 
 void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  Local<Value> result[arraysize(root_certs)];
+
+  std::vector<std::string> combined_root_certs;
 
   for (size_t i = 0; i < arraysize(root_certs); i++) {
+    combined_root_certs.emplace_back(root_certs[i]);
+  }
+
+  if (per_process::cli_options->node_use_system_ca) {
+    ReadSystemStoreCertificates(&combined_root_certs);
+  }
+
+  std::vector<Local<Value>> result(combined_root_certs.size());
+
+  for (size_t i = 0; i < combined_root_certs.size(); i++) {
     if (!String::NewFromOneByte(
-            env->isolate(),
-            reinterpret_cast<const uint8_t*>(root_certs[i]))
-            .ToLocal(&result[i])) {
+             env->isolate(),
+             reinterpret_cast<const uint8_t*>(combined_root_certs[i].c_str()))
+             .ToLocal(&result[i])) {
       return;
     }
   }
 
   args.GetReturnValue().Set(
-      Array::New(env->isolate(), result, arraysize(root_certs)));
+      Array::New(env->isolate(), result.data(), combined_root_certs.size()));
 }
 
 bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
