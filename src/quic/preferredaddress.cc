@@ -97,23 +97,6 @@ bool resolve(const PreferredAddress::AddressInfo& address,
 }
 }  // namespace
 
-Maybe<PreferredAddress::Policy> PreferredAddress::GetPolicy(
-    Environment* env, Local<Value> value) {
-  CHECK(value->IsUint32());
-  uint32_t val = 0;
-  if (value->Uint32Value(env->context()).To(&val)) {
-    switch (val) {
-      case QUIC_PREFERRED_ADDRESS_USE:
-        return Just(Policy::USE_PREFERRED_ADDRESS);
-      case QUIC_PREFERRED_ADDRESS_IGNORE:
-        return Just(Policy::IGNORE_PREFERRED_ADDRESS);
-    }
-  }
-  THROW_ERR_INVALID_ARG_VALUE(
-      env, "%d is not a valid preferred address policy", val);
-  return Nothing<Policy>();
-}
-
 PreferredAddress::PreferredAddress(ngtcp2_path* dest,
                                    const ngtcp2_preferred_addr* paddr)
     : dest_(dest), paddr_(paddr) {
@@ -160,14 +143,15 @@ void PreferredAddress::Set(ngtcp2_transport_params* params,
 Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
     Environment* env, Local<Value> value) {
   if (value->IsUndefined()) {
-    return Just(PreferredAddress::Policy::USE_PREFERRED_ADDRESS);
+    return Just(PreferredAddress::Policy::USE_PREFERRED);
   }
   if (value->IsUint32()) {
-    auto val = value.As<Uint32>()->Value();
-    if (val == static_cast<uint32_t>(Policy::IGNORE_PREFERRED_ADDRESS))
-      return Just(Policy::IGNORE_PREFERRED_ADDRESS);
-    if (val == static_cast<uint32_t>(Policy::USE_PREFERRED_ADDRESS))
-      return Just(Policy::USE_PREFERRED_ADDRESS);
+    switch (value.As<Uint32>()->Value()) {
+      case PREFERRED_ADDRESS_IGNORE:
+        return Just(Policy::IGNORE_PREFERRED);
+      case PREFERRED_ADDRESS_USE:
+        return Just(Policy::USE_PREFERRED);
+    }
   }
   THROW_ERR_INVALID_ARG_VALUE(env, "invalid preferred address policy");
   return Nothing<PreferredAddress::Policy>();
@@ -175,8 +159,8 @@ Maybe<PreferredAddress::Policy> PreferredAddress::tryGetPolicy(
 
 void PreferredAddress::Initialize(Environment* env,
                                   v8::Local<v8::Object> target) {
-  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_IGNORE);
-  NODE_DEFINE_CONSTANT(target, QUIC_PREFERRED_ADDRESS_USE);
+  NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_IGNORE);
+  NODE_DEFINE_CONSTANT(target, PREFERRED_ADDRESS_USE);
   NODE_DEFINE_CONSTANT(target, DEFAULT_PREFERRED_ADDRESS_POLICY);
 }
 

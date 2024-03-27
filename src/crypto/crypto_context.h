@@ -24,6 +24,8 @@ void IsExtraRootCertsFileLoaded(
 
 X509_STORE* NewRootCertStore();
 
+X509_STORE* GetOrCreateRootCertStore();
+
 BIOPointer LoadBIO(Environment* env, v8::Local<v8::Value> v);
 
 class SecureContext final : public BaseObject {
@@ -152,6 +154,11 @@ class SecureContext final : public BaseObject {
   unsigned char ticket_key_aes_[16];
   unsigned char ticket_key_hmac_[16];
 };
+
+int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
+                                  BIOPointer&& in,
+                                  X509Pointer* cert,
+                                  X509Pointer* issuer);
 
 }  // namespace crypto
 }  // namespace node
