@@ -1,0 +1,9 @@
+<Project>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <!-- /Z7 of cl.exe, ref: https://learn.microsoft.com/en-us/cpp/build/reference/z7-zi-zi-debug-information-format -->
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
+      <ObjectFileName>$(IntDir)%(FileName).obj</ObjectFileName>      
+    </ClCompile>
+  </ItemDefinitionGroup>
+</Project>

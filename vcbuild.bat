@@ -65,6 +65,7 @@ set v8_build_options=
 set http2_debug=
 set nghttp2_debug=
 set link_module=
+set ccache_path=
 set no_cctest=
 set cctest=
 set openssl_no_asm=
@@ -138,6 +139,7 @@ if /i "%1"=="static"           set enable_static=1&goto arg-ok
 if /i "%1"=="no-NODE-OPTIONS"	set no_NODE_OPTIONS=1&goto arg-ok
 if /i "%1"=="debug-nghttp2" set debug_nghttp2=1&goto arg-ok
 if /i "%1"=="link-module"   set "link_module= --link-module=%2%link_module%"&goto arg-ok-2
+if /i "%1"=="ccache"        set "ccache_path=%2%"&goto arg-ok-2
 if /i "%1"=="no-cctest"     set no_cctest=1&goto arg-ok
 if /i "%1"=="cctest"        set cctest=1&goto arg-ok
 if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
@@ -325,10 +327,12 @@ if "%target%"=="Build" (
 )
 if "%target%"=="node" if exist "%config%\cctest.exe" del "%config%\cctest.exe"
 if defined msbuild_args set "extra_msbuild_args=%extra_msbuild_args% %msbuild_args%"
+if defined ccache_path set "extra_msbuild_args=%extra_msbuild_args% /p:TrackFileAccess=false /p:CLToolPath=%ccache_path% /p:ForceImportAfterCppProps=%CD%\props_4_ccache.props"
 @rem Setup env variables to use multiprocessor build
-set UseMultiToolTask=True
-set EnforceProcessCountAcrossBuilds=True
-set MultiProcMaxCount=%NUMBER_OF_PROCESSORS%
+set "extra_msbuild_args=%extra_msbuild_args% /p:UseMultiToolTask=True"
+set "extra_msbuild_args=%extra_msbuild_args% /p:EnforceProcessCountAcrossBuilds=True"
+set "extra_msbuild_args=%extra_msbuild_args% /p:MultiProcMaxCount=%NUMBER_OF_PROCESSORS%"
+set "extra_msbuild_args=%extra_msbuild_args% /p:VcpkgEnabled=false"
 msbuild node.sln %msbcpu% /t:%target% /p:Configuration=%config% /p:Platform=%msbplatform% /clp:NoItemAndPropertyList;Verbosity=minimal /nologo %extra_msbuild_args%
 if errorlevel 1 (
   if not defined project_generated echo Building Node with reused solution failed. To regenerate project files use "vcbuild projgen"
@@ -716,6 +720,7 @@ echo   vcbuild.bat test                     : builds debug build and runs tests
 echo   vcbuild.bat build-release            : builds the release distribution as used by nodejs.org
 echo   vcbuild.bat enable-vtune             : builds Node.js with Intel VTune profiling support to profile JavaScript
 echo   vcbuild.bat link-module my_module.js : bundles my_module as built-in module
+echo   vcbuild.bat ccache c:\ccache\        : use ccache to speed build
 echo   vcbuild.bat lint                     : runs the C++, documentation and JavaScript linter
 echo   vcbuild.bat no-cctest                : skip building cctest.exe
 goto exit
