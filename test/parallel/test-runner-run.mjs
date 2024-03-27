@@ -135,8 +135,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should skip tests not matching testNamePatterns - string', async () => {
@@ -146,8 +147,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
     })
       .compose(tap)
       .toArray();
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP test name does not match pattern\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should pass only to children', async () => {
@@ -158,8 +160,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       .compose(tap)
       .toArray();
 
-    assert.strictEqual(result[2], 'ok 1 - this should be skipped # SKIP \'only\' option not set\n');
-    assert.strictEqual(result[5], 'ok 2 - this should be executed\n');
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
   });
 
   it('should emit "test:watch:drained" event on watch mode', async () => {
