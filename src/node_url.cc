@@ -6,6 +6,7 @@
 #include "node_i18n.h"
 #include "node_metadata.h"
 #include "node_process-inl.h"
+#include "path.h"
 #include "util-inl.h"
 #include "v8-fast-api-calls.h"
 #include "v8.h"
