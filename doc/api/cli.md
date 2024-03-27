@@ -51,6 +51,37 @@ entry point, the `node` command will accept as input only files with `.js`,
 [`--experimental-wasm-modules`][] is enabled; and with no extension when
 [`--experimental-default-type=module`][] is passed.
 
+## Sub-commands
+
+### `node run <command> [<arguments>]`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+This runs a specified command from a package.json's `"scripts"` object.
+If no `"command"` is provided, it will list the available scripts.
+
+`node run` prepends `./node_modules/.bin`, relative to the current
+working directory, to the `PATH` in order to execute the binaries from
+dependencies.
+
+For example, the following command will run the `test` script of
+the `package.json` in the current folder:
+
+```console
+$ node run test
+```
+
+You can also pass arguments to the command. Any argument after the script
+name will be appended to the script:
+
+```console
+$ node run test --verbose
+```
+
 ## Options
 
 <!-- YAML

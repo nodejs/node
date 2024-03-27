@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "ada": "ada",
+    "positional-args": "positional-args",
+    "custom-env": "custom-env"
+  }
+}

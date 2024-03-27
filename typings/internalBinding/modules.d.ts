@@ -26,4 +26,5 @@ export interface ModulesBinding {
     string, // raw content
   ]
   getPackageScopeConfig(path: string): SerializedPackageConfig | undefined
+  getPackageJSONScripts(): string | undefined
 }

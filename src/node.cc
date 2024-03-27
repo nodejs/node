@@ -409,6 +409,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/watch_mode");
   }
 
+  if (!first_argv.empty() && first_argv == "run") {
+    return StartExecution(env, "internal/main/run");
+  }
+
   if (!first_argv.empty() && first_argv != "-") {
     return StartExecution(env, "internal/main/run_main_module");
   }
