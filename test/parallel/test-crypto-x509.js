@@ -359,3 +359,13 @@ UcXd/5qu2GhokrKU2cPttU+XAN2Om6a0
 
   assert.strictEqual(cert.checkIssued(cert), false);
 }
+
+{
+  // Test X509Certificate extension methods
+
+  const certPemWithExtensions = readFileSync(fixtures.path('keys', 'crypto-extensions.pem'));
+  const certWithExtensions = new X509Certificate(certPemWithExtensions);
+  const extensions = certWithExtensions.extensions;
+
+  assert.strictEqual(extensions.subjectAltName, 'DNS:example.com, DNS:www.example.com');
+}

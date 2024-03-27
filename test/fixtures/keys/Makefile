@@ -22,6 +22,7 @@ all: \
   ec10-cert.pem \
   ec10.pfx \
   dh512.pem \
+  crypto-extensions.pem \
   dh1024.pem \
   dh2048.pem \
   dherror.pem \
