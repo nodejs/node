@@ -41,7 +41,7 @@
 uint64_t ngtcp2_cc_compute_initcwnd(size_t max_udp_payload_size) {
   uint64_t n = 2 * max_udp_payload_size;
   n = ngtcp2_max(n, 14720);
-  return ngtcp2_min(10 * max_udp_payload_size, n);
+  return ngtcp2_min_uint64(10 * max_udp_payload_size, n);
 }
 
 ngtcp2_cc_pkt *ngtcp2_cc_pkt_init(ngtcp2_cc_pkt *pkt, int64_t pkt_num,

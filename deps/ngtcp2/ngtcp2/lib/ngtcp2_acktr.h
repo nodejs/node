@@ -108,17 +108,18 @@ typedef struct ngtcp2_acktr_ack_entry {
    expired and canceled. */
 #define NGTCP2_ACKTR_FLAG_CANCEL_TIMER 0x0100u
 
+ngtcp2_static_ringbuf_def(acks, 32, sizeof(ngtcp2_acktr_ack_entry));
+
 /*
  * ngtcp2_acktr tracks received packets which we have to send ack.
  */
 typedef struct ngtcp2_acktr {
   ngtcp2_objalloc objalloc;
-  ngtcp2_ringbuf acks;
+  ngtcp2_static_ringbuf_acks acks;
   /* ents includes ngtcp2_acktr_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
   ngtcp2_log *log;
-  const ngtcp2_mem *mem;
   /* flags is bitwise OR of zero, or more of NGTCP2_ACKTR_FLAG_*. */
   uint16_t flags;
   /* first_unacked_ts is timestamp when ngtcp2_acktr_entry is added
@@ -131,15 +132,9 @@ typedef struct ngtcp2_acktr {
 
 /*
  * ngtcp2_acktr_init initializes |acktr|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
  */
-int ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
-                      const ngtcp2_mem *mem);
+void ngtcp2_acktr_init(ngtcp2_acktr *acktr, ngtcp2_log *log,
+                       const ngtcp2_mem *mem);
 
 /*
  * ngtcp2_acktr_free frees resources allocated for |acktr|.  It frees

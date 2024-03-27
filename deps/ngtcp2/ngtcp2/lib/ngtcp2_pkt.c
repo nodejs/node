@@ -2208,7 +2208,7 @@ ngtcp2_pkt_write_stateless_reset(uint8_t *dest, size_t destlen,
 
   p = dest;
 
-  randlen = ngtcp2_min(destlen - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
+  randlen = ngtcp2_min_size(destlen - NGTCP2_STATELESS_RESET_TOKENLEN, randlen);
 
   p = ngtcp2_cpymem(p, rand, randlen);
   p = ngtcp2_cpymem(p, stateless_reset_token, NGTCP2_STATELESS_RESET_TOKENLEN);
@@ -2384,21 +2384,21 @@ size_t ngtcp2_pkt_stream_max_datalen(int64_t stream_id, uint64_t offset,
 #if SIZE_MAX > UINT32_MAX
     len = ngtcp2_min(len, 4611686018427387903lu);
 #endif /* SIZE_MAX > UINT32_MAX */
-    return (size_t)ngtcp2_min(len, (uint64_t)(left - 8));
+    return (size_t)ngtcp2_min_uint64(len, (uint64_t)(left - 8));
   }
 
   if (left > 4 + 16383 && len > 16383) {
     len = ngtcp2_min(len, 1073741823);
-    return (size_t)ngtcp2_min(len, (uint64_t)(left - 4));
+    return (size_t)ngtcp2_min_uint64(len, (uint64_t)(left - 4));
   }
 
   if (left > 2 + 63 && len > 63) {
     len = ngtcp2_min(len, 16383);
-    return (size_t)ngtcp2_min(len, (uint64_t)(left - 2));
+    return (size_t)ngtcp2_min_uint64(len, (uint64_t)(left - 2));
   }
 
   len = ngtcp2_min(len, 63);
-  return (size_t)ngtcp2_min(len, (uint64_t)(left - 1));
+  return (size_t)ngtcp2_min_uint64(len, (uint64_t)(left - 1));
 }
 
 size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
@@ -2416,21 +2416,21 @@ size_t ngtcp2_pkt_crypto_max_datalen(uint64_t offset, size_t len, size_t left) {
 #if SIZE_MAX > UINT32_MAX
     len = ngtcp2_min(len, 4611686018427387903lu);
 #endif /* SIZE_MAX > UINT32_MAX */
-    return ngtcp2_min(len, left - 8);
+    return ngtcp2_min_size(len, left - 8);
   }
 
   if (left > 4 + 16383 && len > 16383) {
     len = ngtcp2_min(len, 1073741823);
-    return ngtcp2_min(len, left - 4);
+    return ngtcp2_min_size(len, left - 4);
   }
 
   if (left > 2 + 63 && len > 63) {
     len = ngtcp2_min(len, 16383);
-    return ngtcp2_min(len, left - 2);
+    return ngtcp2_min_size(len, left - 2);
   }
 
   len = ngtcp2_min(len, 63);
-  return ngtcp2_min(len, left - 1);
+  return ngtcp2_min_size(len, left - 1);
 }
 
 size_t ngtcp2_pkt_datagram_framelen(size_t len) {

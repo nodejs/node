@@ -1689,7 +1689,8 @@ typedef enum ngtcp2_token_type {
 } ngtcp2_token_type;
 
 #define NGTCP2_SETTINGS_V1 1
-#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V1
+#define NGTCP2_SETTINGS_V2 2
+#define NGTCP2_SETTINGS_VERSION NGTCP2_SETTINGS_V2
 
 /**
  * @struct
@@ -1723,8 +1724,7 @@ typedef struct ngtcp2_settings {
   ngtcp2_printf log_printf;
   /**
    * :member:`max_tx_udp_payload_size` is the maximum size of UDP
-   * datagram payload that the local endpoint transmits.  It is used
-   * by congestion controller to compute congestion window.
+   * datagram payload that the local endpoint transmits.
    */
   size_t max_tx_udp_payload_size;
   /**
@@ -1877,6 +1877,24 @@ typedef struct ngtcp2_settings {
    * number space.  It must be in range [0, INT32_MAX], inclusive.
    */
   uint32_t initial_pkt_num;
+  /* The following fields have been added since NGTCP2_SETTINGS_V2. */
+  /**
+   * :member:`pmtud_probes` is the array of UDP datagram payload size
+   * to probe during Path MTU Discovery.  The discovery is done in the
+   * order appeared in this array.  The size must be strictly larger
+   * than 1200, otherwise the behavior is undefined.  The maximum
+   * value in this array should be set to
+   * :member:`max_tx_udp_payload_size`.  If this field is not set, the
+   * predefined PMTUD probes are made.  This field has been available
+   * since v1.4.0.
+   */
+  const uint16_t *pmtud_probes;
+  /**
+   * :member:`pmtud_probeslen` is the number of elements that are
+   * contained in the array pointed by :member:`pmtud_probes`.  This
+   * field has been available since v1.4.0.
+   */
+  size_t pmtud_probeslen;
 } ngtcp2_settings;
 
 /**
@@ -4388,7 +4406,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_stream_versioned(
  * handshake as well.
  *
  * |destlen| should be at least
- * :member:`ngtcp2_settings.max_tx_udp_payload_size`.
+ * :member:`ngtcp2_settings.max_tx_udp_payload_size`.  It must be at
+ * least :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
  *
  * Specifying -1 to |stream_id| means no new stream data to send.
  *
@@ -4573,7 +4592,8 @@ NGTCP2_EXTERN ngtcp2_ssize ngtcp2_conn_write_datagram_versioned(
  * as well.
  *
  * |destlen| should be at least
- * :member:`ngtcp2_settings.max_tx_udp_payload_size`.
+ * :member:`ngtcp2_settings.max_tx_udp_payload_size`.  It must be at
+ * least :macro:`NGTCP2_MAX_UDP_PAYLOAD_SIZE`.
  *
  * For |path| and |pi| parameters, refer to
  * `ngtcp2_conn_writev_stream`.
@@ -5193,7 +5213,19 @@ typedef enum ngtcp2_ccerr_type {
    * transport error, and it indicates that connection is closed
    * because of idle timeout.
    */
-  NGTCP2_CCERR_TYPE_IDLE_CLOSE
+  NGTCP2_CCERR_TYPE_IDLE_CLOSE,
+  /**
+   * :enum:`NGTCP2_CCERR_TYPE_DROP_CONN` is a special case of QUIC
+   * transport error, and it indicates that connection should be
+   * dropped without sending a CONNECTION_CLOSE frame.
+   */
+  NGTCP2_CCERR_TYPE_DROP_CONN,
+  /**
+   * :enum:`NGTCP2_CCERR_TYPE_RETRY` is a special case of QUIC
+   * transport error, and it indicates that RETRY packet should be
+   * sent to a client.
+   */
+  NGTCP2_CCERR_TYPE_RETRY
 } ngtcp2_ccerr_type;
 
 /**
@@ -5282,6 +5314,18 @@ NGTCP2_EXTERN void ngtcp2_ccerr_set_transport_error(ngtcp2_ccerr *ccerr,
  * <ngtcp2_ccerr.type>` is set to
  * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_IDLE_CLOSE`, and
  * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.
+ *
+ * If |liberr| is :macro:`NGTCP2_ERR_DROP_CONN`, :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_DROP_CONN`, and
+ * :member:`ccerr->error_code <ngtcp2_ccerr.error_code>` to
+ * :macro:`NGTCP2_NO_ERROR`.
+ *
+ * If |liberr| is :macro:`NGTCP2_ERR_RETRY`, :member:`ccerr->type
+ * <ngtcp2_ccerr.type>` is set to
+ * :enum:`ngtcp2_ccerr_type.NGTCP2_CCERR_TYPE_RETRY`, and
+ * :member:`ccerr->error_type <ngtcp2_ccerr.error_code>` to
  * :macro:`NGTCP2_NO_ERROR`.
  *
  * Otherwise, :member:`ccerr->type <ngtcp2_ccerr.type>` is set to

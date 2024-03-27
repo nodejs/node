@@ -558,11 +558,12 @@ static void bbr_init_lower_bounds(ngtcp2_cc_bbr *bbr, ngtcp2_conn_stat *cstat) {
 }
 
 static void bbr_loss_lower_bounds(ngtcp2_cc_bbr *bbr) {
-  bbr->bw_lo = ngtcp2_max(bbr->bw_latest, bbr->bw_lo * NGTCP2_BBR_BETA_NUMER /
-                                              NGTCP2_BBR_BETA_DENOM);
-  bbr->inflight_lo = ngtcp2_max(bbr->inflight_latest,
-                                bbr->inflight_lo * NGTCP2_BBR_BETA_NUMER /
-                                    NGTCP2_BBR_BETA_DENOM);
+  bbr->bw_lo =
+      ngtcp2_max_uint64(bbr->bw_latest, bbr->bw_lo * NGTCP2_BBR_BETA_NUMER /
+                                            NGTCP2_BBR_BETA_DENOM);
+  bbr->inflight_lo = ngtcp2_max_uint64(
+      bbr->inflight_latest,
+      bbr->inflight_lo * NGTCP2_BBR_BETA_NUMER / NGTCP2_BBR_BETA_DENOM);
 }
 
 static void bbr_bound_bw_for_model(ngtcp2_cc_bbr *bbr) {
@@ -801,13 +802,13 @@ static uint64_t bbr_inflight_with_headroom(ngtcp2_cc_bbr *bbr,
     return UINT64_MAX;
   }
 
-  headroom = ngtcp2_max(cstat->max_tx_udp_payload_size,
-                        bbr->inflight_hi * NGTCP2_BBR_HEADROOM_NUMER /
-                            NGTCP2_BBR_HEADROOM_DENOM);
+  headroom = ngtcp2_max_uint64(cstat->max_tx_udp_payload_size,
+                               bbr->inflight_hi * NGTCP2_BBR_HEADROOM_NUMER /
+                                   NGTCP2_BBR_HEADROOM_DENOM);
   mpcwnd = min_pipe_cwnd(cstat->max_tx_udp_payload_size);
 
   if (bbr->inflight_hi > headroom) {
-    return ngtcp2_max(bbr->inflight_hi - headroom, mpcwnd);
+    return ngtcp2_max_uint64(bbr->inflight_hi - headroom, mpcwnd);
   }
 
   return mpcwnd;
@@ -818,8 +819,8 @@ static void bbr_raise_inflight_hi_slope(ngtcp2_cc_bbr *bbr,
   uint64_t growth_this_round = cstat->max_tx_udp_payload_size
                                << bbr->bw_probe_up_rounds;
 
-  bbr->bw_probe_up_rounds = ngtcp2_min(bbr->bw_probe_up_rounds + 1, 30);
-  bbr->probe_up_cnt = ngtcp2_max(cstat->cwnd / growth_this_round, 1) *
+  bbr->bw_probe_up_rounds = ngtcp2_min_size(bbr->bw_probe_up_rounds + 1, 30);
+  bbr->probe_up_cnt = ngtcp2_max_uint64(cstat->cwnd / growth_this_round, 1) *
                       cstat->max_tx_udp_payload_size;
 }
 
@@ -946,7 +947,7 @@ static void bbr_handle_inflight_too_high(ngtcp2_cc_bbr *bbr,
   bbr->bw_probe_samples = 0;
 
   if (!rs->is_app_limited) {
-    bbr->inflight_hi = ngtcp2_max(
+    bbr->inflight_hi = ngtcp2_max_uint64(
         rs->tx_in_flight, bbr_target_inflight(bbr, cstat) *
                               NGTCP2_BBR_BETA_NUMER / NGTCP2_BBR_BETA_DENOM);
   }
@@ -1154,8 +1155,8 @@ static uint64_t bbr_quantization_budget(ngtcp2_cc_bbr *bbr,
   bbr_update_offload_budget(bbr, cstat);
 
   inflight = ngtcp2_max(inflight, bbr->offload_budget);
-  inflight =
-      ngtcp2_max(inflight, min_pipe_cwnd(cstat->max_tx_udp_payload_size));
+  inflight = ngtcp2_max_uint64(inflight,
+                               min_pipe_cwnd(cstat->max_tx_udp_payload_size));
 
   if (bbr->state == NGTCP2_BBR_STATE_PROBE_BW_UP) {
     inflight += 2 * cstat->max_tx_udp_payload_size;
@@ -1198,15 +1199,16 @@ static void bbr_modulate_cwnd_for_recovery(ngtcp2_cc_bbr *bbr,
   if (ack->bytes_lost > 0) {
     if (cstat->cwnd > ack->bytes_lost) {
       cstat->cwnd -= ack->bytes_lost;
-      cstat->cwnd = ngtcp2_max(cstat->cwnd, 2 * cstat->max_tx_udp_payload_size);
+      cstat->cwnd =
+          ngtcp2_max_uint64(cstat->cwnd, 2 * cstat->max_tx_udp_payload_size);
     } else {
       cstat->cwnd = 2 * cstat->max_tx_udp_payload_size;
     }
   }
 
   if (bbr->packet_conservation) {
-    cstat->cwnd =
-        ngtcp2_max(cstat->cwnd, cstat->bytes_in_flight + ack->bytes_delivered);
+    cstat->cwnd = ngtcp2_max_uint64(cstat->cwnd, cstat->bytes_in_flight +
+                                                     ack->bytes_delivered);
   }
 }
 
@@ -1400,8 +1402,8 @@ static void bbr_cc_on_persistent_congestion(ngtcp2_cc *cc,
 
   bbr_save_cwnd(bbr, cstat);
   cstat->cwnd = cstat->bytes_in_flight + cstat->max_tx_udp_payload_size;
-  cstat->cwnd =
-      ngtcp2_max(cstat->cwnd, min_pipe_cwnd(cstat->max_tx_udp_payload_size));
+  cstat->cwnd = ngtcp2_max_uint64(
+      cstat->cwnd, min_pipe_cwnd(cstat->max_tx_udp_payload_size));
 }
 
 static void bbr_cc_on_ack_recv(ngtcp2_cc *cc, ngtcp2_conn_stat *cstat,

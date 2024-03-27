@@ -65,9 +65,6 @@ typedef enum {
   NGTCP2_CS_DRAINING,
 } ngtcp2_conn_state;
 
-/* NGTCP2_MAX_STREAMS is the maximum number of streams. */
-#define NGTCP2_MAX_STREAMS (1LL << 60)
-
 /* NGTCP2_MAX_NUM_BUFFED_RX_PKTS is the maximum number of buffered
    reordered packets. */
 #define NGTCP2_MAX_NUM_BUFFED_RX_PKTS 4
@@ -121,12 +118,18 @@ typedef enum {
 /* NGTCP2_WRITE_PKT_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_WRITE_PKT_FLAG_NONE 0x00u
 /* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING indicates that packet other
-   than Initial packet should be padded.  Initial packet might be
-   padded based on QUIC requirement regardless of this flag. */
+   than Initial packet should be padded so that UDP datagram payload
+   is at least NGTCP2_MAX_UDP_PAYLOAD_SIZE bytes.  Initial packet
+   might be padded based on QUIC requirement regardless of this
+   flag. */
 #define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING 0x01u
 /* NGTCP2_WRITE_PKT_FLAG_MORE indicates that more frames might come
    and it should be encoded into the current packet. */
 #define NGTCP2_WRITE_PKT_FLAG_MORE 0x02u
+/* NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL is just like
+   NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING, but it requests to add
+   padding to the full UDP datagram payload size. */
+#define NGTCP2_WRITE_PKT_FLAG_REQUIRE_PADDING_FULL 0x04u
 
 /*
  * ngtcp2_max_frame is defined so that it covers the largest ACK
@@ -974,6 +977,12 @@ int ngtcp2_conn_track_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
 void ngtcp2_conn_untrack_retired_dcid_seq(ngtcp2_conn *conn, uint64_t seq);
 
 /*
+ * ngtcp2_conn_check_retired_dcid_tracked returns nonzero if |seq| has
+ * already been tracked.
+ */
+int ngtcp2_conn_check_retired_dcid_tracked(ngtcp2_conn *conn, uint64_t seq);
+
+/*
  * ngtcp2_conn_server_negotiate_version negotiates QUIC version.  It
  * is compatible version negotiation.  It returns the negotiated QUIC
  * version.  This function must not be called by client.
@@ -1155,5 +1164,17 @@ int ngtcp2_conn_create_ack_frame(ngtcp2_conn *conn, ngtcp2_frame **pfr,
                                  ngtcp2_pktns *pktns, uint8_t type,
                                  ngtcp2_tstamp ts, ngtcp2_duration ack_delay,
                                  uint64_t ack_delay_exponent);
+
+/*
+ * ngtcp2_conn_discard_initial_state discards state for Initial packet
+ * number space.
+ */
+void ngtcp2_conn_discard_initial_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_conn_discard_handshake_state discards state for Handshake
+ * packet number space.
+ */
+void ngtcp2_conn_discard_handshake_state(ngtcp2_conn *conn, ngtcp2_tstamp ts);
 
 #endif /* NGTCP2_CONN_H */
