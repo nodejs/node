@@ -242,14 +242,12 @@ class RetryHandler {
         }
 
         const { start, size, end = size } = range
-
         assert(
-          start != null && Number.isFinite(start) && this.start !== start,
+          start != null && Number.isFinite(start),
           'content-range mismatch'
         )
-        assert(Number.isFinite(start))
         assert(
-          end != null && Number.isFinite(end) && this.end !== end,
+          end != null && Number.isFinite(end),
           'invalid content-length'
         )
 

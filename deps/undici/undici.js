@@ -2102,6 +2102,9 @@ var require_util2 = __commonJS({
       }
       let location = response.headersList.get("location", true);
       if (location !== null && isValidHeaderValue(location)) {
+        if (!isValidEncodedURL(location)) {
+          location = normalizeBinaryStringToUtf8(location);
+        }
         location = new URL(location, responseURL(response));
       }
       if (location && !location.hash) {
@@ -2110,6 +2113,23 @@ var require_util2 = __commonJS({
       return location;
     }
     __name(responseLocationURL, "responseLocationURL");
+    function isValidEncodedURL(url) {
+      for (const c of url) {
+        const code = c.charCodeAt(0);
+        if (code >= 128) {
+          return false;
+        }
+        if (code >= 0 && code <= 31 || code === 127) {
+          return false;
+        }
+      }
+      return true;
+    }
+    __name(isValidEncodedURL, "isValidEncodedURL");
+    function normalizeBinaryStringToUtf8(value) {
+      return Buffer.from(value, "binary").toString("utf8");
+    }
+    __name(normalizeBinaryStringToUtf8, "normalizeBinaryStringToUtf8");
     function requestCurrentURL(request) {
       return request.urlList[request.urlList.length - 1];
     }
@@ -3708,6 +3728,7 @@ var require_formdata_parser = __commonJS({
         if ((chars.charCodeAt(i) & ~127) !== 0) {
           return false;
         }
+        this[kState] = [];
       }
       return true;
     }
@@ -3722,6 +3743,11 @@ var require_formdata_parser = __commonJS({
         if (!(cp >= 48 && cp <= 57 || cp >= 65 && cp <= 90 || cp >= 97 && cp <= 122 || cp === 39 || cp === 45 || cp === 95)) {
           return false;
         }
+        name = webidl.converters.USVString(name);
+        value = isBlobLike(value) ? webidl.converters.Blob(value, { strict: false }) : webidl.converters.USVString(value);
+        filename = arguments.length === 3 ? webidl.converters.USVString(filename) : void 0;
+        const entry = makeEntry(name, value, filename);
+        this[kState].push(entry);
       }
       return true;
     }
@@ -4192,12 +4218,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             );
           }, instance);
         }
-      };
-      return methods;
-    }
-    __name(bodyMixinMethods, "bodyMixinMethods");
-    function mixinBody(prototype) {
-      Object.assign(prototype.prototype, bodyMixinMethods(prototype));
+      });
     }
     __name(mixinBody, "mixinBody");
     async function consumeBody(object, convertBytesToJSValue, instance) {
@@ -4219,8 +4240,6 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         successSteps(new Uint8Array());
         return promise.promise;
       }
-      await fullyReadBody(object[kState].body, successSteps, errorSteps);
-      return promise.promise;
     }
     __name(consumeBody, "consumeBody");
     function bodyUnusable(body) {
@@ -4230,21 +4249,68 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     function parseJSONFromBytes(bytes) {
       return JSON.parse(utf8DecodeBytes(bytes));
     }
-    __name(parseJSONFromBytes, "parseJSONFromBytes");
-    function bodyMimeType(requestOrResponse) {
-      const headers = requestOrResponse[kState].headersList;
-      const mimeType = extractMimeType(headers);
-      if (mimeType === "failure") {
-        return null;
+    __name(fromInnerResponse, "fromInnerResponse");
+    webidl.converters.ReadableStream = webidl.interfaceConverter(
+      ReadableStream
+    );
+    webidl.converters.FormData = webidl.interfaceConverter(
+      FormData
+    );
+    webidl.converters.URLSearchParams = webidl.interfaceConverter(
+      URLSearchParams
+    );
+    webidl.converters.XMLHttpRequestBodyInit = function(V) {
+      if (typeof V === "string") {
+        return webidl.converters.USVString(V);
       }
-      return mimeType;
-    }
-    __name(bodyMimeType, "bodyMimeType");
+      if (isBlobLike(V)) {
+        return webidl.converters.Blob(V, { strict: false });
+      }
+      if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
+        return webidl.converters.BufferSource(V);
+      }
+      if (util.isFormDataLike(V)) {
+        return webidl.converters.FormData(V, { strict: false });
+      }
+      if (V instanceof URLSearchParams) {
+        return webidl.converters.URLSearchParams(V);
+      }
+      return webidl.converters.DOMString(V);
+    };
+    webidl.converters.BodyInit = function(V) {
+      if (V instanceof ReadableStream) {
+        return webidl.converters.ReadableStream(V);
+      }
+      if (V?.[Symbol.asyncIterator]) {
+        return V;
+      }
+      return webidl.converters.XMLHttpRequestBodyInit(V);
+    };
+    webidl.converters.ResponseInit = webidl.dictionaryConverter([
+      {
+        key: "status",
+        converter: webidl.converters["unsigned short"],
+        defaultValue: 200
+      },
+      {
+        key: "statusText",
+        converter: webidl.converters.ByteString,
+        defaultValue: ""
+      },
+      {
+        key: "headers",
+        converter: webidl.converters.HeadersInit
+      }
+    ]);
     module2.exports = {
-      extractBody,
-      safelyExtractBody,
-      cloneBody,
-      mixinBody
+      isNetworkError,
+      makeNetworkError,
+      makeResponse,
+      makeAppropriateNetworkError,
+      filterResponse,
+      Response,
+      cloneResponse,
+      fromInnerResponse
     };
   }
 });
@@ -4253,98 +4319,145 @@ Content-Type: ${value.type || "application/octet-stream"}\r
 var require_response = __commonJS({
   "lib/web/fetch/response.js"(exports2, module2) {
     "use strict";
-    var { Headers, HeadersList, fill } = require_headers();
-    var { extractBody, cloneBody, mixinBody } = require_body();
+    var { kConnected, kSize } = require_symbols();
+    var CompatWeakRef = class {
+      static {
+        __name(this, "CompatWeakRef");
+      }
+      constructor(value) {
+        this.value = value;
+      }
+      deref() {
+        return this.value[kConnected] === 0 && this.value[kSize] === 0 ? void 0 : this.value;
+      }
+    };
+    var CompatFinalizer = class {
+      static {
+        __name(this, "CompatFinalizer");
+      }
+      constructor(finalizer) {
+        this.finalizer = finalizer;
+      }
+      register(dispatcher, key) {
+        if (dispatcher.on) {
+          dispatcher.on("disconnect", () => {
+            if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
+              this.finalizer(key);
+            }
+          });
+        }
+      }
+      unregister(key) {
+      }
+    };
+    module2.exports = function() {
+      if (process.env.NODE_V8_COVERAGE) {
+        return {
+          WeakRef: CompatWeakRef,
+          FinalizationRegistry: CompatFinalizer
+        };
+      }
+      return { WeakRef, FinalizationRegistry };
+    };
+  }
+});
+
+// lib/web/fetch/request.js
+var require_request = __commonJS({
+  "lib/web/fetch/request.js"(exports2, module2) {
+    "use strict";
+    var { extractBody, mixinBody, cloneBody } = require_body();
+    var { Headers, fill: fillHeaders, HeadersList } = require_headers();
+    var { FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var util = require_util();
     var nodeUtil = require("node:util");
     var { kEnumerableProperty } = util;
     var {
-      isValidReasonPhrase,
-      isCancelled,
-      isAborted,
-      isBlobLike,
-      serializeJavascriptValueToJSONString,
-      isErrorLike,
-      isomorphicEncode
+      isValidHTTPToken,
+      sameOrigin,
+      normalizeMethod,
+      makePolicyContainer,
+      normalizeMethodRecord
     } = require_util2();
     var {
-      redirectStatusSet,
-      nullBodyStatus
+      forbiddenMethodsSet,
+      corsSafeListedMethodsSet,
+      referrerPolicy,
+      requestRedirect,
+      requestMode,
+      requestCredentials,
+      requestCache,
+      requestDuplex
     } = require_constants2();
-    var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
+    var { kEnumerableProperty } = util;
+    var { kHeaders, kSignal, kState, kGuard, kRealm, kDispatcher } = require_symbols2();
     var { webidl } = require_webidl();
-    var { FormData } = require_formdata();
     var { getGlobalOrigin } = require_global();
     var { URLSerializer } = require_data_url();
     var { kHeadersList, kConstruct } = require_symbols();
     var assert = require("node:assert");
-    var { types } = require("node:util");
-    var textEncoder = new TextEncoder("utf-8");
-    var Response = class _Response {
+    var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require("node:events");
+    var kAbortController = Symbol("abortController");
+    var requestFinalizer = new FinalizationRegistry2(({ signal, abort }) => {
+      signal.removeEventListener("abort", abort);
+    });
+    var patchMethodWarning = false;
+    var Request = class _Request {
       static {
-        __name(this, "Response");
+        __name(this, "Request");
       }
-      // Creates network error Response.
-      static error() {
-        const relevantRealm = { settingsObject: {} };
-        const responseObject = fromInnerResponse(makeNetworkError(), "immutable", relevantRealm);
-        return responseObject;
-      }
-      // https://fetch.spec.whatwg.org/#dom-response-json
-      static json(data, init = {}) {
-        webidl.argumentLengthCheck(arguments, 1, { header: "Response.json" });
-        if (init !== null) {
-          init = webidl.converters.ResponseInit(init);
-        }
-        const bytes = textEncoder.encode(
-          serializeJavascriptValueToJSONString(data)
-        );
-        const body = extractBody(bytes);
-        const relevantRealm = { settingsObject: {} };
-        const responseObject = fromInnerResponse(makeResponse({}), "response", relevantRealm);
-        initializeResponse(responseObject, init, { body: body[0], type: "application/json" });
-        return responseObject;
-      }
-      // Creates a redirect Response that redirects to url with status status.
-      static redirect(url, status = 302) {
-        const relevantRealm = { settingsObject: {} };
-        webidl.argumentLengthCheck(arguments, 1, { header: "Response.redirect" });
-        url = webidl.converters.USVString(url);
-        status = webidl.converters["unsigned short"](status);
-        let parsedURL;
-        try {
-          parsedURL = new URL(url, getGlobalOrigin());
-        } catch (err) {
-          throw new TypeError(`Failed to parse URL from ${url}`, { cause: err });
-        }
-        if (!redirectStatusSet.has(status)) {
-          throw new RangeError(`Invalid status code ${status}`);
-        }
-        const responseObject = fromInnerResponse(makeResponse({}), "immutable", relevantRealm);
-        responseObject[kState].status = status;
-        const value = isomorphicEncode(URLSerializer(parsedURL));
-        responseObject[kState].headersList.append("location", value, true);
-        return responseObject;
-      }
-      // https://fetch.spec.whatwg.org/#dom-response
-      constructor(body = null, init = {}) {
-        if (body === kConstruct) {
+      // https://fetch.spec.whatwg.org/#dom-request
+      constructor(input, init = {}) {
+        if (input === kConstruct) {
           return;
         }
-        if (body !== null) {
-          body = webidl.converters.BodyInit(body);
+        webidl.argumentLengthCheck(arguments, 1, { header: "Request constructor" });
+        input = webidl.converters.RequestInfo(input);
+        init = webidl.converters.RequestInit(init);
+        this[kRealm] = {
+          settingsObject: {
+            baseUrl: getGlobalOrigin(),
+            get origin() {
+              return this.baseUrl?.origin;
+            },
+            policyContainer: makePolicyContainer()
+          }
+        };
+        let request = null;
+        let fallbackMode = null;
+        const baseUrl = this[kRealm].settingsObject.baseUrl;
+        let signal = null;
+        if (typeof input === "string") {
+          this[kDispatcher] = init.dispatcher;
+          let parsedURL;
+          try {
+            parsedURL = new URL(input, baseUrl);
+          } catch (err) {
+            throw new TypeError("Failed to parse URL from " + input, { cause: err });
+          }
+          if (parsedURL.username || parsedURL.password) {
+            throw new TypeError(
+              "Request cannot be constructed from a URL that includes credentials: " + input
+            );
+          }
+          request = makeRequest({ urlList: [parsedURL] });
+          fallbackMode = "cors";
+        } else {
+          this[kDispatcher] = init.dispatcher || input[kDispatcher];
+          assert(input instanceof _Request);
+          request = input[kState];
+          signal = input[kSignal];
         }
-        init = webidl.converters.ResponseInit(init);
-        this[kRealm] = { settingsObject: {} };
-        this[kState] = makeResponse({});
-        this[kHeaders] = new Headers(kConstruct);
-        this[kHeaders][kGuard] = "response";
-        this[kHeaders][kHeadersList] = this[kState].headersList;
-        this[kHeaders][kRealm] = this[kRealm];
-        let bodyWithType = null;
-        if (body != null) {
-          const [extractedBody, type] = extractBody(body);
-          bodyWithType = { body: extractedBody, type };
+        const origin = this[kRealm].settingsObject.origin;
+        let window = "client";
+        if (request.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request.window, origin)) {
+          window = request.window;
+        }
+        if (init.window != null) {
+          throw new TypeError(`'window' option '${window}' must be null`);
+        }
+        if ("window" in init) {
+          window = "no-window";
         }
         initializeResponse(this, init, bodyWithType);
       }
@@ -4401,8 +4514,8 @@ var require_response = __commonJS({
         webidl.brandCheck(this, _Response);
         if (this.bodyUsed || this.body?.locked) {
           throw webidl.errors.exception({
-            header: "Response.clone",
-            message: "Body has already been consumed."
+            header: "Request constructor",
+            message: "invalid request mode navigate."
           });
         }
         const clonedResponse = cloneResponse(this[kState]);
@@ -4512,139 +4625,246 @@ var require_response = __commonJS({
           target[p] = value;
           return true;
         }
-      });
-    }
-    __name(makeFilteredResponse, "makeFilteredResponse");
-    function filterResponse(response, type) {
-      if (type === "basic") {
-        return makeFilteredResponse(response, {
-          type: "basic",
-          headersList: response.headersList
-        });
-      } else if (type === "cors") {
-        return makeFilteredResponse(response, {
-          type: "cors",
-          headersList: response.headersList
-        });
-      } else if (type === "opaque") {
-        return makeFilteredResponse(response, {
-          type: "opaque",
-          urlList: Object.freeze([]),
-          status: 0,
-          statusText: "",
-          body: null
-        });
-      } else if (type === "opaqueredirect") {
-        return makeFilteredResponse(response, {
-          type: "opaqueredirect",
-          status: 0,
-          statusText: "",
-          headersList: [],
-          body: null
-        });
-      } else {
-        assert(false);
-      }
-    }
-    __name(filterResponse, "filterResponse");
-    function makeAppropriateNetworkError(fetchParams, err = null) {
-      assert(isCancelled(fetchParams));
-      return isAborted(fetchParams) ? makeNetworkError(Object.assign(new DOMException("The operation was aborted.", "AbortError"), { cause: err })) : makeNetworkError(Object.assign(new DOMException("Request was cancelled."), { cause: err }));
-    }
-    __name(makeAppropriateNetworkError, "makeAppropriateNetworkError");
-    function initializeResponse(response, init, body) {
-      if (init.status !== null && (init.status < 200 || init.status > 599)) {
-        throw new RangeError('init["status"] must be in the range of 200 to 599, inclusive.');
-      }
-      if ("statusText" in init && init.statusText != null) {
-        if (!isValidReasonPhrase(String(init.statusText))) {
-          throw new TypeError("Invalid statusText");
+        if (init.credentials !== void 0) {
+          request.credentials = init.credentials;
         }
-      }
-      if ("status" in init && init.status != null) {
-        response[kState].status = init.status;
-      }
-      if ("statusText" in init && init.statusText != null) {
-        response[kState].statusText = init.statusText;
-      }
-      if ("headers" in init && init.headers != null) {
-        fill(response[kHeaders], init.headers);
-      }
-      if (body) {
-        if (nullBodyStatus.includes(response.status)) {
-          throw webidl.errors.exception({
-            header: "Response constructor",
-            message: `Invalid response status code ${response.status}`
-          });
+        if (init.cache !== void 0) {
+          request.cache = init.cache;
         }
-        response[kState].body = body.body;
-        if (body.type != null && !response[kState].headersList.contains("content-type", true)) {
-          response[kState].headersList.append("content-type", body.type, true);
+        if (request.cache === "only-if-cached" && request.mode !== "same-origin") {
+          throw new TypeError(
+            "'only-if-cached' can be set only with 'same-origin' mode"
+          );
         }
+        if (init.redirect !== void 0) {
+          request.redirect = init.redirect;
+        }
+        if (init.integrity != null) {
+          request.integrity = String(init.integrity);
+        }
+        if (init.keepalive !== void 0) {
+          request.keepalive = Boolean(init.keepalive);
+        }
+        if (init.method !== void 0) {
+          let method = init.method;
+          const mayBeNormalized = normalizeMethodRecord[method];
+          if (mayBeNormalized !== void 0) {
+            request.method = mayBeNormalized;
+          } else {
+            if (!isValidHTTPToken(method)) {
+              throw new TypeError(`'${method}' is not a valid HTTP method.`);
+            }
+            if (forbiddenMethodsSet.has(method.toUpperCase())) {
+              throw new TypeError(`'${method}' HTTP method is unsupported.`);
+            }
+            method = normalizeMethod(method);
+            request.method = method;
+          }
+          if (!patchMethodWarning && request.method === "patch") {
+            process.emitWarning("Using `patch` is highly likely to result in a `405 Method Not Allowed`. `PATCH` is much more likely to succeed.", {
+              code: "UNDICI-FETCH-patch"
+            });
+            patchMethodWarning = true;
+          }
+        }
+        if (init.signal !== void 0) {
+          signal = init.signal;
+        }
+        this[kState] = request;
+        const ac = new AbortController();
+        this[kSignal] = ac.signal;
+        this[kSignal][kRealm] = this[kRealm];
+        if (signal != null) {
+          if (!signal || typeof signal.aborted !== "boolean" || typeof signal.addEventListener !== "function") {
+            throw new TypeError(
+              "Failed to construct 'Request': member signal is not of type AbortSignal."
+            );
+          }
+          if (signal.aborted) {
+            ac.abort(signal.reason);
+          } else {
+            this[kAbortController] = ac;
+            const acRef = new WeakRef(ac);
+            const abort = /* @__PURE__ */ __name(function() {
+              const ac2 = acRef.deref();
+              if (ac2 !== void 0) {
+                requestFinalizer.unregister(abort);
+                this.removeEventListener("abort", abort);
+                ac2.abort(this.reason);
+              }
+            }, "abort");
+            try {
+              if (typeof getMaxListeners === "function" && getMaxListeners(signal) === defaultMaxListeners) {
+                setMaxListeners(100, signal);
+              } else if (getEventListeners(signal, "abort").length >= defaultMaxListeners) {
+                setMaxListeners(100, signal);
+              }
+            } catch {
+            }
+            util.addAbortListener(signal, abort);
+            requestFinalizer.register(ac, { signal, abort }, abort);
+          }
+        }
+        this[kHeaders] = new Headers(kConstruct);
+        this[kHeaders][kHeadersList] = request.headersList;
+        this[kHeaders][kGuard] = "request";
+        this[kHeaders][kRealm] = this[kRealm];
+        if (mode === "no-cors") {
+          if (!corsSafeListedMethodsSet.has(request.method)) {
+            throw new TypeError(
+              `'${request.method} is unsupported in no-cors mode.`
+            );
+          }
+          this[kHeaders][kGuard] = "request-no-cors";
+        }
+        if (initHasKey) {
+          const headersList = this[kHeaders][kHeadersList];
+          const headers = init.headers !== void 0 ? init.headers : new HeadersList(headersList);
+          headersList.clear();
+          if (headers instanceof HeadersList) {
+            for (const [key, val] of headers) {
+              headersList.append(key, val);
+            }
+            headersList.cookies = headers.cookies;
+          } else {
+            fillHeaders(this[kHeaders], headers);
+          }
+        }
+        const inputBody = input instanceof _Request ? input[kState].body : null;
+        if ((init.body != null || inputBody != null) && (request.method === "GET" || request.method === "HEAD")) {
+          throw new TypeError("Request with GET/HEAD method cannot have body.");
+        }
+        let initBody = null;
+        if (init.body != null) {
+          const [extractedBody, contentType] = extractBody(
+            init.body,
+            request.keepalive
+          );
+          initBody = extractedBody;
+          if (contentType && !this[kHeaders][kHeadersList].contains("content-type", true)) {
+            this[kHeaders].append("content-type", contentType);
+          }
+        }
+        const inputOrInitBody = initBody ?? inputBody;
+        if (inputOrInitBody != null && inputOrInitBody.source == null) {
+          if (initBody != null && init.duplex == null) {
+            throw new TypeError("RequestInit: duplex option is required when sending a body.");
+          }
+          if (request.mode !== "same-origin" && request.mode !== "cors") {
+            throw new TypeError(
+              'If request is made from ReadableStream, mode should be "same-origin" or "cors"'
+            );
+          }
+          request.useCORSPreflightFlag = true;
+        }
+        let finalBody = inputOrInitBody;
+        if (initBody == null && inputBody != null) {
+          if (util.isDisturbed(inputBody.stream) || inputBody.stream.locked) {
+            throw new TypeError(
+              "Cannot construct a Request with a Request object that has already been used."
+            );
+          }
+          const identityTransform = new TransformStream();
+          inputBody.stream.pipeThrough(identityTransform);
+          finalBody = {
+            source: inputBody.source,
+            length: inputBody.length,
+            stream: identityTransform.readable
+          };
+        }
+        this[kState].body = finalBody;
       }
-    }
-    __name(initializeResponse, "initializeResponse");
-    function fromInnerResponse(innerResponse, guard, realm) {
-      const response = new Response(kConstruct);
-      response[kState] = innerResponse;
-      response[kRealm] = realm;
-      response[kHeaders] = new Headers(kConstruct);
-      response[kHeaders][kHeadersList] = innerResponse.headersList;
-      response[kHeaders][kGuard] = guard;
-      response[kHeaders][kRealm] = realm;
-      return response;
-    }
-    __name(fromInnerResponse, "fromInnerResponse");
-    webidl.converters.ReadableStream = webidl.interfaceConverter(
-      ReadableStream
-    );
-    webidl.converters.FormData = webidl.interfaceConverter(
-      FormData
-    );
-    webidl.converters.URLSearchParams = webidl.interfaceConverter(
-      URLSearchParams
-    );
-    webidl.converters.XMLHttpRequestBodyInit = function(V) {
-      if (typeof V === "string") {
-        return webidl.converters.USVString(V);
+      // Returns request?s HTTP method, which is "GET" by default.
+      get method() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].method;
       }
-      if (isBlobLike(V)) {
-        return webidl.converters.Blob(V, { strict: false });
+      // Returns the URL of request as a string.
+      get url() {
+        webidl.brandCheck(this, _Request);
+        return URLSerializer(this[kState].url);
       }
-      if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
-        return webidl.converters.BufferSource(V);
+      // Returns a Headers object consisting of the headers associated with request.
+      // Note that headers added in the network layer by the user agent will not
+      // be accounted for in this object, e.g., the "Host" header.
+      get headers() {
+        webidl.brandCheck(this, _Request);
+        return this[kHeaders];
       }
-      if (util.isFormDataLike(V)) {
-        return webidl.converters.FormData(V, { strict: false });
+      // Returns the kind of resource requested by request, e.g., "document"
+      // or "script".
+      get destination() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].destination;
       }
-      if (V instanceof URLSearchParams) {
-        return webidl.converters.URLSearchParams(V);
+      // Returns the referrer of request. Its value can be a same-origin URL if
+      // explicitly set in init, the empty string to indicate no referrer, and
+      // "about:client" when defaulting to the global?s default. This is used
+      // during fetching to determine the value of the `Referer` header of the
+      // request being made.
+      get referrer() {
+        webidl.brandCheck(this, _Request);
+        if (this[kState].referrer === "no-referrer") {
+          return "";
+        }
+        if (this[kState].referrer === "client") {
+          return "about:client";
+        }
+        return this[kState].referrer.toString();
       }
-      return webidl.converters.DOMString(V);
-    };
-    webidl.converters.BodyInit = function(V) {
-      if (V instanceof ReadableStream) {
-        return webidl.converters.ReadableStream(V);
+      // Returns the referrer policy associated with request.
+      // This is used during fetching to compute the value of the request?s
+      // referrer.
+      get referrerPolicy() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].referrerPolicy;
       }
-      if (V?.[Symbol.asyncIterator]) {
-        return V;
+      // Returns the mode associated with request, which is a string indicating
+      // whether the request will use CORS, or will be restricted to same-origin
+      // URLs.
+      get mode() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].mode;
       }
-      return webidl.converters.XMLHttpRequestBodyInit(V);
-    };
-    webidl.converters.ResponseInit = webidl.dictionaryConverter([
-      {
-        key: "status",
-        converter: webidl.converters["unsigned short"],
-        defaultValue: 200
-      },
-      {
-        key: "statusText",
-        converter: webidl.converters.ByteString,
-        defaultValue: ""
-      },
-      {
-        key: "headers",
-        converter: webidl.converters.HeadersInit
+      // Returns the credentials mode associated with request,
+      // which is a string indicating whether credentials will be sent with the
+      // request always, never, or only when sent to a same-origin URL.
+      get credentials() {
+        return this[kState].credentials;
+      }
+      // Returns the cache mode associated with request,
+      // which is a string indicating how the request will
+      // interact with the browser?s cache when fetching.
+      get cache() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].cache;
+      }
+      // Returns the redirect mode associated with request,
+      // which is a string indicating how redirects for the
+      // request will be handled during fetching. A request
+      // will follow redirects by default.
+      get redirect() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].redirect;
+      }
+      // Returns request?s subresource integrity metadata, which is a
+      // cryptographic hash of the resource being fetched. Its value
+      // consists of multiple hashes separated by whitespace. [SRI]
+      get integrity() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].integrity;
+      }
+      // Returns a boolean indicating whether or not request can outlive the
+      // global in which it was created.
+      get keepalive() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].keepalive;
+      }
+      // Returns a boolean indicating whether or not request is for a reload
+      // navigation.
+      get isReloadNavigation() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].reloadNavigation;
       }
     ]);
     module2.exports = {
@@ -4669,37 +4889,66 @@ var require_dispatcher_weakref = __commonJS({
       static {
         __name(this, "CompatWeakRef");
       }
-      constructor(value) {
-        this.value = value;
+      // Returns the signal associated with request, which is an AbortSignal
+      // object indicating whether or not request has been aborted, and its
+      // abort event handler.
+      get signal() {
+        webidl.brandCheck(this, _Request);
+        return this[kSignal];
       }
-      deref() {
-        return this.value[kConnected] === 0 && this.value[kSize] === 0 ? void 0 : this.value;
+      get body() {
+        webidl.brandCheck(this, _Request);
+        return this[kState].body ? this[kState].body.stream : null;
       }
-    };
-    var CompatFinalizer = class {
-      static {
-        __name(this, "CompatFinalizer");
+      get bodyUsed() {
+        webidl.brandCheck(this, _Request);
+        return !!this[kState].body && util.isDisturbed(this[kState].body.stream);
       }
-      constructor(finalizer) {
-        this.finalizer = finalizer;
+      get duplex() {
+        webidl.brandCheck(this, _Request);
+        return "half";
       }
-      register(dispatcher, key) {
-        if (dispatcher.on) {
-          dispatcher.on("disconnect", () => {
-            if (dispatcher[kConnected] === 0 && dispatcher[kSize] === 0) {
-              this.finalizer(key);
-            }
-          });
+      // Returns a clone of request.
+      clone() {
+        webidl.brandCheck(this, _Request);
+        if (this.bodyUsed || this.body?.locked) {
+          throw new TypeError("unusable");
         }
+        const clonedRequest = cloneRequest(this[kState]);
+        const ac = new AbortController();
+        if (this.signal.aborted) {
+          ac.abort(this.signal.reason);
+        } else {
+          util.addAbortListener(
+            this.signal,
+            () => {
+              ac.abort(this.signal.reason);
+            }
+          );
+        }
+        return fromInnerRequest(clonedRequest, ac.signal, this[kHeaders][kGuard], this[kRealm]);
       }
-      unregister(key) {
-      }
-    };
-    module2.exports = function() {
-      if (process.env.NODE_V8_COVERAGE) {
-        return {
-          WeakRef: CompatWeakRef,
-          FinalizationRegistry: CompatFinalizer
+      [nodeUtil.inspect.custom](depth, options) {
+        if (options.depth === null) {
+          options.depth = 2;
+        }
+        options.colors ??= true;
+        const properties = {
+          method: this.method,
+          url: this.url,
+          headers: this.headers,
+          destination: this.destination,
+          referrer: this.referrer,
+          referrerPolicy: this.referrerPolicy,
+          mode: this.mode,
+          credentials: this.credentials,
+          cache: this.cache,
+          redirect: this.redirect,
+          integrity: this.integrity,
+          keepalive: this.keepalive,
+          isReloadNavigation: this.isReloadNavigation,
+          isHistoryNavigation: this.isHistoryNavigation,
+          signal: this.signal
         };
       }
       return { WeakRef, FinalizationRegistry };
@@ -6555,7 +6804,7 @@ var require_connect = __commonJS({
     function onConnectTimeout(socket) {
       let message = "Connect Timeout Error";
       if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
-        message = +` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")})`;
+        message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")})`;
       }
       util.destroy(socket, new ConnectTimeoutError(message));
     }
@@ -7214,6 +7463,7 @@ var require_client_h1 = __commonJS({
           }
           this.execute(chunk);
         }
+        this.trackHeader(buf.length);
       }
       execute(data) {
         assert(this.ptr != null);
@@ -7981,6 +8231,30 @@ upgrade: ${upgrade}\r
 \r
 `, "latin1");
           }
+          err = err || new RequestAbortedError();
+          if (stream != null) {
+            util.destroy(stream, err);
+            session[kOpenStreams] -= 1;
+            if (session[kOpenStreams] === 0) {
+              session.unref();
+            }
+          }
+          errorRequest(client, request, err);
+        });
+      } catch (err) {
+        errorRequest(client, request, err);
+      }
+      if (method === "CONNECT") {
+        session.ref();
+        stream = session.request(headers, { endStream: false, signal });
+        if (stream.id && !stream.pending) {
+          request.onUpgrade(null, null, stream);
+          ++session[kOpenStreams];
+        } else {
+          stream.once("ready", () => {
+            request.onUpgrade(null, null, stream);
+            ++session[kOpenStreams];
+          });
         }
         if (contentLength === null) {
           socket.write(`\r
@@ -8344,6 +8618,11 @@ var require_client_h2 = __commonJS({
         if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), "") === false) {
           stream.pause();
         }
+        stream.on("data", (chunk) => {
+          if (request.onData(chunk) === false) {
+            stream.pause();
+          }
+        });
       });
       stream.once("end", () => {
         if (stream.state?.state == null || stream.state.state < 6) {
@@ -8357,11 +8636,6 @@ var require_client_h2 = __commonJS({
         const err = new InformationalError("HTTP/2: stream half-closed (remote)");
         errorRequest(client, request, err);
         util.destroy(stream, err);
-      });
-      stream.on("data", (chunk) => {
-        if (request.onData(chunk) === false) {
-          stream.pause();
-        }
       });
       stream.once("close", () => {
         session[kOpenStreams] -= 1;
@@ -8492,6 +8766,7 @@ var require_client_h2 = __commonJS({
       } catch (err) {
         util.destroy(h2stream);
       }
+      return false;
     }
     __name(writeBlob, "writeBlob");
     async function writeIterable({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
@@ -12151,6 +12426,7 @@ var require_eventsource = __commonJS({
     var { MessageEvent } = require_events();
     var { isNetworkError } = require_response();
     var { delay } = require_util4();
+    var { kEnumerableProperty } = require_util();
     var experimentalWarned = false;
     var defaultReconnectionTime = 3e3;
     var CONNECTING = 0;
@@ -12416,6 +12692,15 @@ var require_eventsource = __commonJS({
     };
     Object.defineProperties(EventSource, constantsPropertyDescriptors);
     Object.defineProperties(EventSource.prototype, constantsPropertyDescriptors);
+    Object.defineProperties(EventSource.prototype, {
+      close: kEnumerableProperty,
+      onerror: kEnumerableProperty,
+      onmessage: kEnumerableProperty,
+      onopen: kEnumerableProperty,
+      readyState: kEnumerableProperty,
+      url: kEnumerableProperty,
+      withCredentials: kEnumerableProperty
+    });
     webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
       { key: "withCredentials", converter: webidl.converters.boolean, defaultValue: false }
     ]);

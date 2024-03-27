@@ -102,7 +102,7 @@ function setCookie (headers, cookie) {
   const str = stringify(cookie)
 
   if (str) {
-    headers.append('Set-Cookie', stringify(cookie))
+    headers.append('Set-Cookie', str)
   }
 }
 

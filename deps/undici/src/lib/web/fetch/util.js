@@ -44,6 +44,12 @@ function responseLocationURL (response, requestFragment) {
   // 3. If location is a header value, then set location to the result of
   //    parsing location with response’s URL.
   if (location !== null && isValidHeaderValue(location)) {
+    if (!isValidEncodedURL(location)) {
+      // Some websites respond location header in UTF-8 form without encoding them as ASCII
+      // and major browsers redirect them to correctly UTF-8 encoded addresses.
+      // Here, we handle that behavior in the same way.
+      location = normalizeBinaryStringToUtf8(location)
+    }
     location = new URL(location, responseURL(response))
   }
 
@@ -55,6 +61,36 @@ function responseLocationURL (response, requestFragment) {
 
   // 5. Return location.
   return location
+}
+
+/**
+ * @see https://www.rfc-editor.org/rfc/rfc1738#section-2.2
+ * @param {string} url
+ * @returns {boolean}
+ */
+function isValidEncodedURL (url) {
+  for (const c of url) {
+    const code = c.charCodeAt(0)
+    // Not used in US-ASCII
+    if (code >= 0x80) {
+      return false
+    }
+    // Control characters
+    if ((code >= 0x00 && code <= 0x1F) || code === 0x7F) {
+      return false
+    }
+  }
+  return true
+}
+
+/**
+ * If string contains non-ASCII characters, assumes it's UTF-8 encoded and decodes it.
+ * Since UTF-8 is a superset of ASCII, this will work for ASCII strings as well.
+ * @param {string} value
+ * @returns {string}
+ */
+function normalizeBinaryStringToUtf8 (value) {
+  return Buffer.from(value, 'binary').toString('utf8')
 }
 
 /** @returns {URL} */

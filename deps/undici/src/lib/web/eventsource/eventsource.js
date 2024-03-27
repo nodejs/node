@@ -10,6 +10,7 @@ const { parseMIMEType } = require('../fetch/data-url')
 const { MessageEvent } = require('../websocket/events')
 const { isNetworkError } = require('../fetch/response')
 const { delay } = require('./util')
+const { kEnumerableProperty } = require('../../core/util')
 
 let experimentalWarned = false
 
@@ -458,6 +459,16 @@ const constantsPropertyDescriptors = {
 
 Object.defineProperties(EventSource, constantsPropertyDescriptors)
 Object.defineProperties(EventSource.prototype, constantsPropertyDescriptors)
+
+Object.defineProperties(EventSource.prototype, {
+  close: kEnumerableProperty,
+  onerror: kEnumerableProperty,
+  onmessage: kEnumerableProperty,
+  onopen: kEnumerableProperty,
+  readyState: kEnumerableProperty,
+  url: kEnumerableProperty,
+  withCredentials: kEnumerableProperty
+})
 
 webidl.converters.EventSourceInitDict = webidl.dictionaryConverter([
   { key: 'withCredentials', converter: webidl.converters.boolean, defaultValue: false }

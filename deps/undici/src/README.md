@@ -17,7 +17,7 @@ npm i undici
 
 ## Benchmarks
 
-The benchmark is a simple getting data [example](benchmarks/benchmark.js) using a
+The benchmark is a simple getting data [example](https://github.com/nodejs/undici/blob/main/benchmarks/benchmark.js) using a
 50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
 |       _Tests_       | _Samples_ |     _Result_     | _Tolerance_ | _Difference with slowest_ |
@@ -35,7 +35,7 @@ The benchmark is a simple getting data [example](benchmarks/benchmark.js) using 
 |   undici - stream   |    15     | 20317.29 req/sec |  ± 2.13 %   |        + 448.46 %         |
 |  undici - dispatch  |    10     | 24883.28 req/sec |  ± 1.54 %   |        + 571.72 %         |
 
-The benchmark is a simple sending data [example](benchmarks/post-benchmark.js) using a
+The benchmark is a simple sending data [example](https://github.com/nodejs/undici/blob/main/benchmarks/post-benchmark.js) using a
 50 TCP connections with a pipelining depth of 10 running on Node 20.10.0.
 
 |       _Tests_       | _Samples_ |    _Result_     | _Tolerance_ | _Difference with slowest_ |

@@ -394,6 +394,12 @@ function writeH2 (client, request) {
     if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), '') === false) {
       stream.pause()
     }
+
+    stream.on('data', (chunk) => {
+      if (request.onData(chunk) === false) {
+        stream.pause()
+      }
+    })
   })
 
   stream.once('end', () => {
@@ -416,12 +422,6 @@ function writeH2 (client, request) {
     const err = new InformationalError('HTTP/2: stream half-closed (remote)')
     errorRequest(client, request, err)
     util.destroy(stream, err)
-  })
-
-  stream.on('data', (chunk) => {
-    if (request.onData(chunk) === false) {
-      stream.pause()
-    }
   })
 
   stream.once('close', () => {
