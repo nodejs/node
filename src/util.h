@@ -997,6 +997,30 @@ void SetConstructorFunction(v8::Isolate* isolate,
                             SetConstructorFunctionFlag flag =
                                 SetConstructorFunctionFlag::SET_CLASS_NAME);
 
+#define GET_OR_SET_CONSTRUCTOR_TEMPLATE(tmpl, isolate_data, id, name)          \
+  do {                                                                         \
+    v8::Isolate* isolate = isolate_data->isolate();                            \
+    tmpl = isolate_data->id##_constructor_template();                          \
+    if (tmpl.IsEmpty()) {                                                      \
+      tmpl = v8::FunctionTemplate::New(isolate, New);                          \
+      tmpl->InstanceTemplate()->SetInternalFieldCount(kInternalFieldCount);    \
+      tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, #name));               \
+      isolate_data->set_##id##_constructor_template(tmpl);                     \
+    }                                                                          \
+  } while (0);
+
+#define CONSTRUCTOR_TEMPLATE_GENERATOR(id, name)                               \
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(               \
+      IsolateData* isolate_data) {                                             \
+    v8::Local<v8::FunctionTemplate> tmpl;                                      \
+    GET_OR_SET_CONSTRUCTOR_TEMPLATE(tmpl, isolate_data, id, name);             \
+    return tmpl;                                                               \
+  }
+
+#define DECL_CONSTRUCTOR_TEMPLATE_GENERATOR()                                  \
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(               \
+      IsolateData* isolate_data);
+
 // Like RAIIIsolate, except doesn't enter the isolate while it's in scope.
 class RAIIIsolateWithoutEntering {
  public:
