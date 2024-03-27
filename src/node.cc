@@ -1184,7 +1184,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
       CHECK(crypto::CSPRNG(buffer, length).is_ok());
       return true;
     });
-#endif  // defined(OPENSSL_IS_BORINGSSL)
+#endif  // !defined(OPENSSL_IS_BORINGSSL)
     {
       std::string extra_ca_certs;
       if (credentials::SafeGetenv("NODE_EXTRA_CA_CERTS", &extra_ca_certs))
