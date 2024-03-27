@@ -1,3 +1,4 @@
+// Flags: --test-reporter=./test/common/test-error-reporter.js
 'use strict';
 require('../common');
 const fixtures = require('../common/fixtures');
@@ -23,4 +24,5 @@ test('concurrency of two', async () => {
   const args = ['--test', '--test-concurrency=2'];
   const cp = spawnSync(process.execPath, args, { cwd, env });
   assert.match(cp.stderr.toString(), /concurrency: 2,/);
+  throw new Error('bye');
 });
