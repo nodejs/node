@@ -265,6 +265,27 @@ class SerializerDeserializer : public RootVisitor {
   static const uint32_t kEmptyBackingStoreRefSentinel = 0;
 };
 
+struct SerializeEmbedderFieldsCallback {
+  SerializeEmbedderFieldsCallback(v8::SerializeInternalFieldsCallback js_cb =
+                                      v8::SerializeInternalFieldsCallback(),
+                                  v8::SerializeContextDataCallback context_cb =
+                                      v8::SerializeContextDataCallback())
+      : js_object_callback(js_cb), context_callback(context_cb) {}
+  v8::SerializeInternalFieldsCallback js_object_callback;
+  v8::SerializeContextDataCallback context_callback;
+};
+
+struct DeserializeEmbedderFieldsCallback {
+  DeserializeEmbedderFieldsCallback(
+      v8::DeserializeInternalFieldsCallback js_cb =
+          v8::DeserializeInternalFieldsCallback(),
+      v8::DeserializeContextDataCallback context_cb =
+          v8::DeserializeContextDataCallback())
+      : js_object_callback(js_cb), context_callback(context_cb) {}
+  v8::DeserializeInternalFieldsCallback js_object_callback;
+  v8::DeserializeContextDataCallback context_callback;
+};
+
 }  // namespace internal
 }  // namespace v8
 

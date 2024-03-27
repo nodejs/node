@@ -3801,6 +3801,232 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
   FreeCurrentEmbeddedBlob();
 }
 
+namespace context_data_test {
+
+// Data passed to callbacks.
+static int serialize_internal_fields_data = 2016;
+static int serialize_context_data_data = 2017;
+static int deserialize_internal_fields_data = 2018;
+static int deserialize_context_data_data = 2019;
+
+InternalFieldData context_data = InternalFieldData{11};
+InternalFieldData object_data = InternalFieldData{22};
+
+v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder, int index,
+                                        void* data) {
+  CHECK_EQ(data, &serialize_internal_fields_data);
+  InternalFieldData* field = static_cast<InternalFieldData*>(
+      holder->GetAlignedPointerFromInternalField(index));
+  if (index == 0) {
+    CHECK_NULL(field);
+    return {nullptr, 0};
+  }
+  CHECK_EQ(1, index);
+  CHECK_EQ(object_data.data, field->data);
+  int size = sizeof(*field);
+  char* payload = new char[size];
+  // We simply use memcpy to serialize the content.
+  memcpy(payload, field, size);
+  return {payload, size};
+}
+
+v8::StartupData SerializeContextData(v8::Local<v8::Context> context, int index,
+                                     void* data) {
+  CHECK_EQ(data, &serialize_context_data_data);
+  InternalFieldData* field = static_cast<InternalFieldData*>(
+      context->GetAlignedPointerFromEmbedderData(index));
+  if (index == 0) {
+    CHECK_NULL(field);
+    return {nullptr, 0};
+  }
+  CHECK_EQ(1, index);
+  CHECK_EQ(context_data.data, field->data);
+  int size = sizeof(*field);
+  char* payload = new char[size];
+  // We simply use memcpy to serialize the content.
+  memcpy(payload, field, size);
+  return {payload, size};
+}
+
+void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
+                               v8::StartupData payload, void* data) {
+  CHECK_EQ(data, &deserialize_internal_fields_data);
+  CHECK_EQ(1, index);
+  InternalFieldData* field = new InternalFieldData{0};
+  memcpy(field, payload.data, payload.raw_size);
+  CHECK_EQ(object_data.data, field->data);
+  holder->SetAlignedPointerInInternalField(index, field);
+}
+
+void DeserializeContextData(v8::Local<v8::Context> context, int index,
+                            v8::StartupData payload, void* data) {
+  CHECK_EQ(data, &deserialize_context_data_data);
+  CHECK_EQ(1, index);
+  InternalFieldData* field = new InternalFieldData{0};
+  memcpy(field, payload.data, payload.raw_size);
+  CHECK_EQ(context_data.data, field->data);
+  context->SetAlignedPointerInEmbedderData(index, field);
+}
+
+}  // namespace context_data_test
+
+UNINITIALIZED_TEST(SerializeContextData) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+
+  v8::SerializeInternalFieldsCallback serialize_internal_fields(
+      context_data_test::SerializeInternalFields,
+      &context_data_test::serialize_internal_fields_data);
+  v8::SerializeContextDataCallback serialize_context_data(
+      context_data_test::SerializeContextData,
+      &context_data_test::serialize_context_data_data);
+  v8::DeserializeInternalFieldsCallback deserialize_internal_fields(
+      context_data_test::DeserializeInternalFields,
+      &context_data_test::deserialize_internal_fields_data);
+  v8::DeserializeContextDataCallback deserialize_context_data(
+      context_data_test::DeserializeContextData,
+      &context_data_test::deserialize_context_data_data);
+
+  {
+    v8::StartupData blob;
+    {
+      SnapshotCreatorParams params;
+      v8::SnapshotCreator creator(params.create_params);
+      v8::Isolate* isolate = creator.GetIsolate();
+      {
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context = v8::Context::New(isolate);
+        v8::Context::Scope context_scope(context);
+        context->SetAlignedPointerInEmbedderData(0, nullptr);
+        context->SetAlignedPointerInEmbedderData(
+            1, &context_data_test::context_data);
+
+        v8::Local<v8::ObjectTemplate> object_template =
+            v8::ObjectTemplate::New(isolate);
+        object_template->SetInternalFieldCount(2);
+        v8::Local<v8::Object> obj =
+            object_template->NewInstance(context).ToLocalChecked();
+        obj->SetAlignedPointerInInternalField(0, nullptr);
+        obj->SetAlignedPointerInInternalField(1,
+                                              &context_data_test::object_data);
+
+        CHECK(context->Global()->Set(context, v8_str("obj"), obj).FromJust());
+        creator.SetDefaultContext(context, serialize_internal_fields,
+                                  serialize_context_data);
+      }
+
+      blob =
+          creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    }
+
+    {
+      v8::Isolate::CreateParams params;
+      params.snapshot_blob = &blob;
+      params.array_buffer_allocator = CcTest::array_buffer_allocator();
+      // Test-appropriate equivalent of v8::Isolate::New.
+      v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+      {
+        v8::Isolate::Scope isolate_scope(isolate);
+
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context = v8::Context::New(
+            isolate, nullptr, {}, {}, deserialize_internal_fields, nullptr,
+            deserialize_context_data);
+        InternalFieldData* data = static_cast<InternalFieldData*>(
+            context->GetAlignedPointerFromEmbedderData(1));
+        CHECK_EQ(context_data_test::context_data.data, data->data);
+        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        delete data;
+
+        v8::Local<v8::Value> obj_val =
+            context->Global()->Get(context, v8_str("obj")).ToLocalChecked();
+        CHECK(obj_val->IsObject());
+        v8::Local<v8::Object> obj = obj_val.As<v8::Object>();
+        InternalFieldData* field = static_cast<InternalFieldData*>(
+            obj->GetAlignedPointerFromInternalField(1));
+        CHECK_EQ(context_data_test::object_data.data, field->data);
+        obj->SetAlignedPointerInInternalField(1, nullptr);
+        delete field;
+      }
+      isolate->Dispose();
+    }
+    delete[] blob.data;
+  }
+  {
+    v8::StartupData blob;
+    {
+      SnapshotCreatorParams params;
+      v8::SnapshotCreator creator(params.create_params);
+      v8::Isolate* isolate = creator.GetIsolate();
+      {
+        v8::HandleScope handle_scope(isolate);
+
+        v8::Local<v8::Context> default_context = v8::Context::New(isolate);
+        creator.SetDefaultContext(default_context);
+
+        v8::Local<v8::Context> context = v8::Context::New(isolate);
+        v8::Context::Scope context_scope(context);
+        context->SetAlignedPointerInEmbedderData(0, nullptr);
+        context->SetAlignedPointerInEmbedderData(
+            1, &context_data_test::context_data);
+
+        v8::Local<v8::ObjectTemplate> object_template =
+            v8::ObjectTemplate::New(isolate);
+        object_template->SetInternalFieldCount(2);
+        v8::Local<v8::Object> obj =
+            object_template->NewInstance(context).ToLocalChecked();
+        obj->SetAlignedPointerInInternalField(0, nullptr);
+        obj->SetAlignedPointerInInternalField(1,
+                                              &context_data_test::object_data);
+
+        CHECK(context->Global()->Set(context, v8_str("obj"), obj).FromJust());
+        CHECK_EQ(0, creator.AddContext(context, serialize_internal_fields,
+                                       serialize_context_data));
+      }
+
+      blob =
+          creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+    }
+
+    {
+      v8::Isolate::CreateParams params;
+      params.snapshot_blob = &blob;
+      params.array_buffer_allocator = CcTest::array_buffer_allocator();
+      // Test-appropriate equivalent of v8::Isolate::New.
+      v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+      {
+        v8::Isolate::Scope isolate_scope(isolate);
+
+        v8::HandleScope handle_scope(isolate);
+        v8::Local<v8::Context> context =
+            v8::Context::FromSnapshot(isolate, 0, deserialize_internal_fields,
+                                      nullptr, v8::MaybeLocal<v8::Value>(),
+                                      nullptr, deserialize_context_data)
+                .ToLocalChecked();
+        InternalFieldData* data = static_cast<InternalFieldData*>(
+            context->GetAlignedPointerFromEmbedderData(1));
+        CHECK_EQ(context_data_test::context_data.data, data->data);
+        context->SetAlignedPointerInEmbedderData(1, nullptr);
+        delete data;
+
+        v8::Local<v8::Value> obj_val =
+            context->Global()->Get(context, v8_str("obj")).ToLocalChecked();
+        CHECK(obj_val->IsObject());
+        v8::Local<v8::Object> obj = obj_val.As<v8::Object>();
+        InternalFieldData* field = static_cast<InternalFieldData*>(
+            obj->GetAlignedPointerFromInternalField(1));
+        CHECK_EQ(context_data_test::object_data.data, field->data);
+        obj->SetAlignedPointerInInternalField(1, nullptr);
+        delete field;
+      }
+      isolate->Dispose();
+    }
+    delete[] blob.data;
+  }
+
+  FreeCurrentEmbeddedBlob();
+}
+
 MaybeLocal<v8::Module> ResolveCallback(Local<v8::Context> context,
                                        Local<v8::String> specifier,
                                        Local<v8::FixedArray> import_assertions,

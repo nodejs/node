@@ -173,7 +173,7 @@ class Genesis {
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
           size_t context_snapshot_index,
-          v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+          DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
           v8::MicrotaskQueue* microtask_queue);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
@@ -334,7 +334,7 @@ Handle<NativeContext> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     v8::MicrotaskQueue* microtask_queue) {
   HandleScope scope(isolate_);
   Handle<NativeContext> env;
@@ -6704,12 +6704,12 @@ Handle<Map> Genesis::CreateInitialMapForArraySubclass(int size,
   return initial_map;
 }
 
-Genesis::Genesis(
-    Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-    v8::Local<v8::ObjectTemplate> global_proxy_template,
-    size_t context_snapshot_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
-    v8::MicrotaskQueue* microtask_queue)
+Genesis::Genesis(Isolate* isolate,
+                 MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+                 v8::Local<v8::ObjectTemplate> global_proxy_template,
+                 size_t context_snapshot_index,
+                 DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
+                 v8::MicrotaskQueue* microtask_queue)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kGenesis);
   result_ = {};

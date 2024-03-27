@@ -4,6 +4,7 @@
 
 #include "src/snapshot/serializer-deserializer.h"
 
+#include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/objects-inl.h"
 
 namespace v8 {
@@ -57,12 +58,15 @@ bool SerializerDeserializer::CanBeDeferred(Tagged<HeapObject> o,
   //   identify the object.
   // * ByteArray cannot be deferred as JSTypedArray needs the base_pointer
   //   ByteArray immediately if it's on heap.
-  //
+  // * Non-empty EmbdderDataArrays cannot be deferred because the serialize
+  //   and deserialize callbacks need the back reference immediately to
+  //   identify the object.
   // TODO(leszeks): Could we defer string serialization if forward references
   // were resolved after object post processing?
   return !IsInternalizedString(o) &&
          !(IsJSObject(o) && JSObject::cast(o)->GetEmbedderFieldCount() > 0) &&
-         !IsByteArray(o);
+         !IsByteArray(o) &&
+         !(IsEmbedderDataArray(o) && EmbedderDataArray::cast(o)->length() > 0);
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirector(

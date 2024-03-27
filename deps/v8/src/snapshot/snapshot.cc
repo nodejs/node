@@ -199,7 +199,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
 MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy, size_t context_index,
-    v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
+    DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   if (!isolate->snapshot_available()) return Handle<Context>();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
@@ -359,7 +359,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
              ? Snapshot::kReconstructReadOnlyAndSharedObjectCachesForTesting
              : 0));
     std::vector<Tagged<Context>> contexts{*default_context};
-    std::vector<SerializeInternalFieldsCallback> callbacks{{}};
+    std::vector<SerializeEmbedderFieldsCallback> callbacks{{}};
     serialized_data = Snapshot::Create(isolate, &contexts, callbacks,
                                        safepoint_scope, no_gc, flags);
     auto_delete_serialized_data.reset(serialized_data.data);
@@ -402,7 +402,7 @@ void Snapshot::SerializeDeserializeAndVerifyForTesting(
 // static
 v8::StartupData Snapshot::Create(
     Isolate* isolate, std::vector<Tagged<Context>>* contexts,
-    const std::vector<SerializeInternalFieldsCallback>&
+    const std::vector<SerializeEmbedderFieldsCallback>&
         embedder_fields_serializers,
     const SafepointScope& safepoint_scope,
     const DisallowGarbageCollection& no_gc, SerializerFlags flags) {
@@ -794,7 +794,7 @@ v8::StartupData CreateSnapshotDataBlobInternal(
         !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    creator.SetDefaultContext(Utils::OpenHandle(*context), nullptr);
+    creator.SetDefaultContext(Utils::OpenHandle(*context), {});
   }
   return creator.CreateBlob(function_code_handling, serializer_flags);
 }
@@ -885,7 +885,7 @@ SnapshotCreatorImpl::~SnapshotCreatorImpl() {
 }
 
 void SnapshotCreatorImpl::SetDefaultContext(
-    Handle<NativeContext> context, SerializeInternalFieldsCallback callback) {
+    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
   DCHECK(contexts_[kDefaultContextIndex].handle_location == nullptr);
   DCHECK(!context.is_null());
   DCHECK(!created());
@@ -896,7 +896,7 @@ void SnapshotCreatorImpl::SetDefaultContext(
 }
 
 size_t SnapshotCreatorImpl::AddContext(
-    Handle<NativeContext> context, SerializeInternalFieldsCallback callback) {
+    Handle<NativeContext> context, SerializeEmbedderFieldsCallback callback) {
   DCHECK(!context.is_null());
   DCHECK(!created());
   CHECK_EQ(isolate_, context->GetIsolate());
@@ -1083,7 +1083,7 @@ StartupData SnapshotCreatorImpl::CreateBlob(
   }
 
   // Create a vector with all embedder fields serializers.
-  std::vector<SerializeInternalFieldsCallback> raw_callbacks;
+  std::vector<SerializeEmbedderFieldsCallback> raw_callbacks;
   raw_callbacks.reserve(num_contexts);
   for (size_t i = 0; i < num_contexts; i++) {
     raw_callbacks.push_back(contexts_[i].callback);

@@ -603,7 +603,7 @@ std::vector<char> SnapshotData::ToBlob() const {
   written_total += w.WriteArithmetic<uint32_t>(kMagic);
   w.Debug("Write metadata\n");
   written_total += w.Write<SnapshotMetadata>(metadata);
-
+  w.Debug("Write snapshot blob\n");
   written_total += w.Write<v8::StartupData>(v8_snapshot_blob_data);
   w.Debug("Write isolate_data_indices\n");
   written_total += w.Write<IsolateDataSerializeInfo>(isolate_data_info);
@@ -1155,8 +1155,11 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     CHECK_EQ(index, SnapshotData::kNodeVMContextIndex);
     index = creator->AddContext(base_context);
     CHECK_EQ(index, SnapshotData::kNodeBaseContextIndex);
-    index = creator->AddContext(main_context,
-                                {SerializeNodeContextInternalFields, env});
+    index = creator->AddContext(
+        main_context,
+        v8::SerializeInternalFieldsCallback(SerializeNodeContextInternalFields,
+                                            env),
+        v8::SerializeContextDataCallback(SerializeNodeContextData, env));
     CHECK_EQ(index, SnapshotData::kNodeMainContextIndex);
   }
 
@@ -1255,6 +1258,17 @@ std::string SnapshotableObject::GetTypeName() const {
   }
 }
 
+void DeserializeNodeContextData(Local<Context> holder,
+                                int index,
+                                StartupData payload,
+                                void* callback_data) {
+  DCHECK(index == ContextEmbedderIndex::kEnvironment ||
+         index == ContextEmbedderIndex::kRealm ||
+         index == ContextEmbedderIndex::kContextTag);
+  // This is a no-op for now. We will reset all the pointers in
+  // Environment::AssignToContext() via the realm constructor.
+}
+
 void DeserializeNodeInternalFields(Local<Object> holder,
                                    int index,
                                    StartupData payload,
@@ -1317,6 +1331,44 @@ void DeserializeNodeInternalFields(Local<Object> holder,
               static_cast<uint8_t>(info->type));
       ABORT();
     }
+  }
+}
+
+StartupData SerializeNodeContextData(Local<Context> holder,
+                                     int index,
+                                     void* callback_data) {
+  DCHECK(index == ContextEmbedderIndex::kEnvironment ||
+         index == ContextEmbedderIndex::kContextifyContext ||
+         index == ContextEmbedderIndex::kRealm ||
+         index == ContextEmbedderIndex::kContextTag);
+  void* data = holder->GetAlignedPointerFromEmbedderData(index);
+  per_process::Debug(DebugCategory::MKSNAPSHOT,
+                     "Serialize context data, index=%d, holder=%p, ptr=%p\n",
+                     static_cast<int>(index),
+                     *holder,
+                     data);
+  // Serialization of contextify context is not yet supported.
+  if (index == ContextEmbedderIndex::kContextifyContext) {
+    DCHECK_NULL(data);
+    return {nullptr, 0};
+  }
+
+  // We need to use use new[] because V8 calls delete[] on the returned data.
+  int size = sizeof(ContextEmbedderIndex);
+  char* result = new char[size];
+  ContextEmbedderIndex* index_data =
+      reinterpret_cast<ContextEmbedderIndex*>(result);
+  *index_data = static_cast<ContextEmbedderIndex>(index);
+
+  // For now we just reset all of them in Environment::AssignToContext()
+  switch (index) {
+    case ContextEmbedderIndex::kEnvironment:
+    case ContextEmbedderIndex::kContextifyContext:
+    case ContextEmbedderIndex::kRealm:
+    case ContextEmbedderIndex::kContextTag:
+      return StartupData{result, size};
+    default:
+      UNREACHABLE();
   }
 }
 
