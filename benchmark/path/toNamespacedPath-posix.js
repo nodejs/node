@@ -9,7 +9,7 @@ const bench = common.createBenchmark(main, {
     '.',
     '/tmp/bar',
     '/home/node/..',
-    __dirname + '/..',
+    posix.join(__dirname, '/..'),
     'bar/baz',
   ],
   n: [1e5],
@@ -22,5 +22,5 @@ function main({ n, path }) {
     a = posix.toNamespacedPath(path);
   }
   bench.end(n);
-  assert.ok(a + 'a')
+  assert.ok(a + 'a');
 }

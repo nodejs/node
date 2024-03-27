@@ -12,7 +12,7 @@ const bench = common.createBenchmark(main, {
     'c:/blah\\blah',
     'd:/games',
     'c:../a',
-    __dirname + '/..',
+    win32.join(__dirname, '/..'),
   ],
   n: [1e5],
 });
@@ -24,5 +24,5 @@ function main({ n, path }) {
     a = win32.toNamespacedPath(path);
   }
   bench.end(n);
-  assert.ok(a + 'a')
+  assert.ok(a + 'a');
 }
