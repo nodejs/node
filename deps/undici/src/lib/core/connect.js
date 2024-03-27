@@ -185,7 +185,7 @@ function setupTimeout (onConnectTimeout, timeout) {
 function onConnectTimeout (socket) {
   let message = 'Connect Timeout Error'
   if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
-    message = +` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')})`
+    message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')})`
   }
   util.destroy(socket, new ConnectTimeoutError(message))
 }
