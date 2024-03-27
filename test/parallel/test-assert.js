@@ -38,7 +38,7 @@ const start = 'Expected values to be strictly deep-equal:';
 const actExp = '+ actual - expected';
 
 assert.ok(a.AssertionError.prototype instanceof Error,
-          'a.AssertionError instanceof Error');
+  'a.AssertionError instanceof Error');
 
 assert.throws(() => a(false), a.AssertionError, 'ok(false)');
 assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
@@ -55,6 +55,27 @@ assert.throws(() => a.ok(false), a.AssertionError, 'ok(false)');
   assert.ok(threw, 'Error: ok(false)');
 }
 
+// Thrown error should be the passed through error instance of the native error
+{
+  const context = vm.createContext();
+  const error = vm.runInContext('new TypeError("custom error")', context);
+
+  assert.throws(() => assert(false, error), {
+    message: 'custom error',
+    name: 'TypeError'
+  });
+}
+
+// Thrown error should be the passed through error instance of the native error
+{
+  const context = vm.createContext();
+  const error = vm.runInContext('new SyntaxError("custom error")', context);
+
+  assert.throws(() => assert(false, error), {
+    message: 'custom error',
+    name: 'SyntaxError'
+  });
+}
 
 a(true);
 a('test', 'ok(\'test\')');
