@@ -907,6 +907,13 @@ void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {
 
   if (args.This()
           ->Set(env->context(),
+                env->source_url_string(),
+                v8_script->GetSourceURL())
+          .IsNothing())
+    return;
+
+  if (args.This()
+          ->Set(env->context(),
                 env->source_map_url_string(),
                 v8_script->GetSourceMappingURL())
           .IsNothing())
@@ -1373,6 +1380,15 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
     return Object::New(env->isolate());
+
+  // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
+  // present.
+  if (result
+          ->Set(parsing_context,
+                env->source_url_string(),
+                fn->GetScriptOrigin().ResourceName())
+          .IsNothing())
+    return Object::New(env->isolate());
   if (result
           ->Set(parsing_context,
                 env->source_map_url_string(),
@@ -1650,11 +1666,15 @@ static void CompileFunctionForCJSLoader(
   std::vector<Local<Name>> names = {
       env->cached_data_rejected_string(),
       env->source_map_url_string(),
+      env->source_url_string(),
       env->function_string(),
   };
   std::vector<Local<Value>> values = {
       Boolean::New(isolate, cache_rejected),
       fn->GetScriptOrigin().SourceMapUrl(),
+      // ScriptOrigin::ResourceName() returns SourceURL magic comment content if
+      // present.
+      fn->GetScriptOrigin().ResourceName(),
       fn,
   };
   Local<Object> result = Object::New(
