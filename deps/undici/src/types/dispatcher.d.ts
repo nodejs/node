@@ -18,6 +18,9 @@ declare class Dispatcher extends EventEmitter {
   /** Starts two-way communications with the requested resource. */
   connect(options: Dispatcher.ConnectOptions): Promise<Dispatcher.ConnectData>;
   connect(options: Dispatcher.ConnectOptions, callback: (err: Error | null, data: Dispatcher.ConnectData) => void): void;
+  /** Compose a chain of dispatchers */
+  compose(dispatchers: Dispatcher.DispatcherInterceptor[]): Dispatcher.ComposedDispatcher;
+  compose(...dispatchers: Dispatcher.DispatcherInterceptor[]): Dispatcher.ComposedDispatcher;
   /** Performs an HTTP request. */
   request(options: Dispatcher.RequestOptions): Promise<Dispatcher.ResponseData>;
   request(options: Dispatcher.RequestOptions, callback: (err: Error | null, data: Dispatcher.ResponseData) => void): void;
@@ -93,6 +96,8 @@ declare class Dispatcher extends EventEmitter {
 }
 
 declare namespace Dispatcher {
+  export interface ComposedDispatcher extends Dispatcher {}
+  export type DispatcherInterceptor = (dispatch: Dispatcher['dispatch']) => Dispatcher['dispatch'];
   export interface DispatchOptions {
     origin?: string | URL;
     path: string;
@@ -100,7 +105,7 @@ declare namespace Dispatcher {
     /** Default: `null` */
     body?: string | Buffer | Uint8Array | Readable | null | FormData;
     /** Default: `null` */
-    headers?: IncomingHttpHeaders | string[] | null;
+    headers?: IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null;
     /** Query string params to be embedded in the request URL. Default: `null` */
     query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */

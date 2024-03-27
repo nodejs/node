@@ -182,8 +182,8 @@ function bodyLength (body) {
   return null
 }
 
-function isDestroyed (stream) {
-  return !stream || !!(stream.destroyed || stream[kDestroyed])
+function isDestroyed (body) {
+  return body && !!(body.destroyed || body[kDestroyed] || (stream.isDestroyed?.(body)))
 }
 
 function isReadableAborted (stream) {
@@ -204,9 +204,9 @@ function destroy (stream, err) {
 
     stream.destroy(err)
   } else if (err) {
-    process.nextTick((stream, err) => {
+    queueMicrotask(() => {
       stream.emit('error', err)
-    }, stream, err)
+    })
   }
 
   if (stream.destroyed !== true) {
@@ -279,22 +279,30 @@ function parseHeaders (headers, obj) {
 }
 
 function parseRawHeaders (headers) {
-  const ret = []
+  const len = headers.length
+  const ret = new Array(len)
+
   let hasContentLength = false
   let contentDispositionIdx = -1
+  let key
+  let val
+  let kLen = 0
 
   for (let n = 0; n < headers.length; n += 2) {
-    const key = headers[n + 0].toString()
-    const val = headers[n + 1].toString('utf8')
+    key = headers[n]
+    val = headers[n + 1]
 
-    if (key.length === 14 && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
-      ret.push(key, val)
+    typeof key !== 'string' && (key = key.toString())
+    typeof val !== 'string' && (val = val.toString('utf8'))
+
+    kLen = key.length
+    if (kLen === 14 && key[7] === '-' && (key === 'content-length' || key.toLowerCase() === 'content-length')) {
       hasContentLength = true
-    } else if (key.length === 19 && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
-      contentDispositionIdx = ret.push(key, val) - 1
-    } else {
-      ret.push(key, val)
+    } else if (kLen === 19 && key[7] === '-' && (key === 'content-disposition' || key.toLowerCase() === 'content-disposition')) {
+      contentDispositionIdx = n + 1
     }
+    ret[n] = key
+    ret[n + 1] = val
   }
 
   // See https://github.com/nodejs/node/pull/46528
@@ -432,19 +440,22 @@ function addAbortListener (signal, listener) {
   return () => signal.removeListener('abort', listener)
 }
 
-const hasToWellFormed = !!String.prototype.toWellFormed
+const hasToWellFormed = typeof String.prototype.toWellFormed === 'function'
+const hasIsWellFormed = typeof String.prototype.isWellFormed === 'function'
 
 /**
  * @param {string} val
  */
 function toUSVString (val) {
-  if (hasToWellFormed) {
-    return `${val}`.toWellFormed()
-  } else if (nodeUtil.toUSVString) {
-    return nodeUtil.toUSVString(val)
-  }
+  return hasToWellFormed ? `${val}`.toWellFormed() : nodeUtil.toUSVString(val)
+}
 
-  return `${val}`
+/**
+ * @param {string} val
+ */
+// TODO: move this to webidl
+function isUSVString (val) {
+  return hasIsWellFormed ? `${val}`.isWellFormed() : toUSVString(val) === `${val}`
 }
 
 /**
@@ -493,6 +504,24 @@ function isValidHTTPToken (characters) {
   return true
 }
 
+// headerCharRegex have been lifted from
+// https://github.com/nodejs/node/blob/main/lib/_http_common.js
+
+/**
+ * Matches if val contains an invalid field-vchar
+ *  field-value    = *( field-content / obs-fold )
+ *  field-content  = field-vchar [ 1*( SP / HTAB ) field-vchar ]
+ *  field-vchar    = VCHAR / obs-text
+ */
+const headerCharRegex = /[^\t\x20-\x7e\x80-\xff]/
+
+/**
+ * @param {string} characters
+ */
+function isValidHeaderChar (characters) {
+  return !headerCharRegex.test(characters)
+}
+
 // Parsed accordingly to RFC 9110
 // https://www.rfc-editor.org/rfc/rfc9110#field.content-range
 function parseRangeHeader (range) {
@@ -518,6 +547,7 @@ module.exports = {
   isErrored,
   isReadable,
   toUSVString,
+  isUSVString,
   isReadableAborted,
   isBlobLike,
   parseOrigin,
@@ -543,6 +573,7 @@ module.exports = {
   buildURL,
   addAbortListener,
   isValidHTTPToken,
+  isValidHeaderChar,
   isTokenCharCode,
   parseRangeHeader,
   nodeMajor,
