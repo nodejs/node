@@ -41,7 +41,7 @@ using v8::Value;
 // If the second one returns true, rethrow the original exception.
 // This is to keep the location of the original throw in JS.
 static void TryCatchRethrow(const FunctionCallbackInfo<Value>& args) {
-  CHECK(args.Length() == 2);
+  CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsFunction());
   CHECK(args[1]->IsFunction());
 
