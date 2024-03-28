@@ -34,7 +34,7 @@ if (!validFormats.includes(format)) {
   return;
 }
 
-const cpuCoreSetting = cli.optional.set.find(s => s.startsWith('CPUCORE='));
+const cpuCoreSetting = cli.optional.set.find((s) => s.startsWith('CPUCORE='));
 let cpuCore = null;
 if (cpuCoreSetting) {
   cpuCore = cpuCoreSetting.split('=')[1];
@@ -52,8 +52,8 @@ if (format === 'csv') {
   let child;
 
   if (cpuCore !== null) {
-    child = spawn('taskset', [`-c`, cpuCore, `node`, scriptPath, ...args], {
-      stdio: ['inherit', 'pipe', 'ipc']
+    child = spawn('taskset', ['-c', cpuCore, 'node', scriptPath, ...args], {
+      stdio: ['inherit', 'pipe', 'ipc'],
     });
 
     child.stdout.on('data', (data) => {

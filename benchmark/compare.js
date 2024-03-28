@@ -40,7 +40,7 @@ if (benchmarks.length === 0) {
   return;
 }
 
-const cpuCoreSetting = cli.optional.set.find(s => s.startsWith('CPUCORE='));
+const cpuCoreSetting = cli.optional.set.find((s) => s.startsWith('CPUCORE='));
 let cpuCore = null;
 if (cpuCoreSetting) {
   cpuCore = cpuCoreSetting.split('=')[1];
