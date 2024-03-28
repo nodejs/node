@@ -554,7 +554,7 @@ On Windows:
 
 Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>
 
-First, create props\_4\_ccache.props， which is a props to force using old
+First, create props\_4\_ccache.props, which is a props to force using old
 debug format needed by ccache
 
 ```bash
