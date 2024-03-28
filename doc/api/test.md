@@ -233,7 +233,8 @@ If Node.js is started with the [`--test-only`][] command-line option, it is
 possible to skip all top level tests except for a selected subset by passing
 the `only` option to the tests that should be run. When a test with the `only`
 option set is run, all subtests are also run. The test context's `runOnly()`
-method can be used to implement the same behavior at the subtest level.
+method can be used to implement the same behavior at the subtest level. Tests
+that are not executed are omitted from the test runner output.
 
 ```js
 // Assume Node.js is run with the --test-only command-line option.
@@ -270,7 +271,7 @@ whose name matches the provided pattern. Test name patterns are interpreted as
 JavaScript regular expressions. The `--test-name-pattern` option can be
 specified multiple times in order to run nested tests. For each test that is
 executed, any corresponding test hooks, such as `beforeEach()`, are also
-run.
+run. Tests that are not executed are omitted from the test runner output.
 
 Given the following test file, starting Node.js with the
 `--test-name-pattern="test [1-3]"` option would cause the test runner to execute
