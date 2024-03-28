@@ -79,7 +79,7 @@ describe('ESM: Errors for unexpected exports', { concurrency: true }, () => {
       },
     ]
   ) {
-    it(`should ${includeNote ? '' : 'NOT'} include note`, async () => {
+    it(`should${includeNote ? '' : ' NOT'} include note`, async () => {
       const { code, stderr } = await spawnPromisified(execPath, [filePath]);
 
       assert.strictEqual(code, 1);
