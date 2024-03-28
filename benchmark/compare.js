@@ -1,6 +1,6 @@
 'use strict';
 
-const { fork } = require('child_process');
+const { spawn, fork } = require('child_process');
 const { inspect } = require('util');
 const path = require('path');
 const CLI = require('./_cli.js');
@@ -40,6 +40,12 @@ if (benchmarks.length === 0) {
   return;
 }
 
+const cpuCoreSetting = cli.optional.set.find(s => s.startsWith('CPUCORE='));
+let cpuCore = null;
+if (cpuCoreSetting) {
+  cpuCore = cpuCoreSetting.split('=')[1];
+}
+
 // Create queue from the benchmarks list such both node versions are tested
 // `runs` amount of times each.
 // Note: BenchmarkProgress relies on this order to estimate
@@ -70,9 +76,23 @@ if (showProgress) {
 (function recursive(i) {
   const job = queue[i];
 
-  const child = fork(path.resolve(__dirname, job.filename), cli.optional.set, {
-    execPath: cli.optional[job.binary],
-  });
+  const resolvedPath = path.resolve(__dirname, job.filename);
+  let child;
+  if (cpuCore !== null) {
+    const spawnArgs = ['-c', cpuCore, cli.optional[job.binary], resolvedPath, ...cli.optional.set];
+    child = spawn('taskset', spawnArgs, {
+      env: process.env,
+      stdio: ['inherit', 'pipe', 'ipc'],
+    });
+
+    child.stdout.on('data', (data) => {
+      process.stdout.write(data);
+    });
+  } else {
+    child = fork(resolvedPath, cli.optional.set, {
+      execPath: cli.optional[job.binary],
+    });
+  }
 
   child.on('message', (data) => {
     if (data.type === 'report') {

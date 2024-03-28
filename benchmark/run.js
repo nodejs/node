@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const fork = require('child_process').fork;
+const { spawn, fork } = require('child_process');
 const CLI = require('./_cli.js');
 
 const cli = new CLI(`usage: ./node run.js [options] [--] <category> ...
@@ -34,16 +34,37 @@ if (!validFormats.includes(format)) {
   return;
 }
 
+const cpuCoreSetting = cli.optional.set.find(s => s.startsWith('CPUCORE='));
+let cpuCore = null;
+if (cpuCoreSetting) {
+  cpuCore = cpuCoreSetting.split('=')[1];
+}
+
 if (format === 'csv') {
   console.log('"filename", "configuration", "rate", "time"');
 }
 
 (function recursive(i) {
   const filename = benchmarks[i];
-  const child = fork(
-    path.resolve(__dirname, filename),
-    cli.test ? ['--test'] : cli.optional.set,
-  );
+  const scriptPath = path.resolve(__dirname, filename);
+  const args = cli.test ? ['--test'] : cli.optional.set;
+
+  let child;
+
+  if (cpuCore !== null) {
+    child = spawn('taskset', [`-c`, cpuCore, `node`, scriptPath, ...args], {
+      stdio: ['inherit', 'pipe', 'ipc']
+    });
+
+    child.stdout.on('data', (data) => {
+      process.stdout.write(data);
+    });
+  } else {
+    child = fork(
+      scriptPath,
+      args,
+    );
+  }
 
   if (format !== 'csv') {
     console.log();
