@@ -24,6 +24,12 @@ const cli = new CLI(`usage: ./node compare.js [options] [--] <category> ...
                                 repeated)
   --set      variable=value     set benchmark variable (can be repeated)
   --no-progress                 don't show benchmark progress indicator
+
+  Examples:
+    --set CPUSET=0            Runs benchmarks on CPU core 0.
+    --set CPUSET=0-2          Specifies that benchmarks should run on CPU cores 0 to 2.
+
+  Note: The CPUSET format should match the specifications of the 'taskset' command
 `, { arrayArgs: ['set', 'filter', 'exclude'], boolArgs: ['no-progress'] });
 
 if (!cli.optional.new || !cli.optional.old) {
@@ -38,12 +44,6 @@ if (benchmarks.length === 0) {
   console.error('No benchmarks found');
   process.exitCode = 1;
   return;
-}
-
-const cpuCoreSetting = cli.optional.set.find((s) => s.startsWith('CPUCORE='));
-let cpuCore = null;
-if (cpuCoreSetting) {
-  cpuCore = cpuCoreSetting.split('=')[1];
 }
 
 // Create queue from the benchmarks list such both node versions are tested
@@ -75,8 +75,9 @@ if (showProgress) {
 
 (function recursive(i) {
   const job = queue[i];
-
   const resolvedPath = path.resolve(__dirname, job.filename);
+
+  const cpuCore = cli.getCpuCoreSetting();
   let child;
   if (cpuCore !== null) {
     const spawnArgs = ['-c', cpuCore, cli.optional[job.binary], resolvedPath, ...cli.optional.set];
