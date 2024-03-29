@@ -124,7 +124,8 @@ void Dotenv::ParseContent(const std::string_view content) {
       if (!value.empty() && value.front() == '"') {
         std::string unescaped_value;
         for (size_t i = 1; i < value.size() - 1; ++i) {
-          if (value[i] == '\\' && (value[i + 1] == 'n' || value[i + 1] == 'r')) {
+          if (value[i] == '\\' &&
+              (value[i + 1] == 'n' || value[i + 1] == 'r')) {
             unescaped_value += (value[i + 1] == 'n') ? '\n' : '\r';
             ++i;
           } else {
