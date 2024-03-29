@@ -33,6 +33,8 @@ module.exports = {
   kNeedDrain: Symbol('need drain'),
   kReset: Symbol('reset'),
   kDestroyed: Symbol.for('nodejs.stream.destroyed'),
+  kResume: Symbol('resume'),
+  kOnError: Symbol('on error'),
   kMaxHeadersSize: Symbol('max headers size'),
   kRunningIdx: Symbol('running index'),
   kPendingIdx: Symbol('pending index'),
@@ -54,10 +56,9 @@ module.exports = {
   kMaxResponseSize: Symbol('max response size'),
   kHTTP2Session: Symbol('http2Session'),
   kHTTP2SessionState: Symbol('http2Session state'),
-  kHTTP2BuildRequest: Symbol('http2 build request'),
-  kHTTP1BuildRequest: Symbol('http1 build request'),
-  kHTTP2CopyHeaders: Symbol('http2 copy headers'),
-  kHTTPConnVersion: Symbol('http connection version'),
   kRetryHandlerDefaultRetry: Symbol('retry agent default retry'),
-  kConstruct: Symbol('constructable')
+  kConstruct: Symbol('constructable'),
+  kListeners: Symbol('listeners'),
+  kHTTPContext: Symbol('http context'),
+  kMaxConcurrentStreams: Symbol('max concurrent streams')
 }

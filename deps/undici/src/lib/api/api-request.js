@@ -1,6 +1,6 @@
 'use strict'
 
-const Readable = require('./readable')
+const { Readable } = require('./readable')
 const {
   InvalidArgumentError,
   RequestAbortedError
@@ -91,7 +91,8 @@ class RequestHandler extends AsyncResource {
 
     const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
     const contentType = parsedHeaders['content-type']
-    const body = new Readable({ resume, abort, contentType, highWaterMark })
+    const contentLength = parsedHeaders['content-length']
+    const body = new Readable({ resume, abort, contentType, contentLength, highWaterMark })
 
     this.callback = null
     this.res = body
