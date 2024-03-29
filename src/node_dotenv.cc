@@ -112,13 +112,11 @@ void Dotenv::ParseContent(const std::string_view content) {
 
       // Remove leading whitespaces
       size_t start = value.find_first_not_of(" \t");
-      if (start != std::string::npos)
-        value = value.substr(start);
+      if (start != std::string::npos) value = value.substr(start);
 
       // Remove trailing whitespaces
       size_t end = value.find_last_not_of(" \t");
-      if (end != std::string::npos)
-        value = value.substr(0, end + 1);
+      if (end != std::string::npos) value = value.substr(0, end + 1);
 
       // Unescape characters if value starts with double quote
       if (!value.empty() && value.front() == '"') {
