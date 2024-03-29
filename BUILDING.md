@@ -589,7 +589,7 @@ as vcpkg is part of CLion and Visual Studio now.
 # double check vcpkg install the related file
 vcpkg owns zlib.lib
 vcpkg owns zlib1.dll
-vcpkg integration remove
+vcpkg integrate remove
 ```
 
 Refs: #24448, <https://github.com/microsoft/vcpkg/issues/37518>, [vcpkg](https://github.com/microsoft/vcpkg/)
