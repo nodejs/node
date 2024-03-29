@@ -102,34 +102,49 @@ Local<Object> Dotenv::ToObject(Environment* env) {
 }
 
 void Dotenv::ParseContent(const std::string_view content) {
-  std::string lines = std::string(content);
-  lines = std::regex_replace(lines, std::regex("\r\n?"), "\n");
+  std::string lines(content);
 
-  std::smatch match;
-  while (std::regex_search(lines, match, LINE)) {
-    const std::string key = match[1].str();
+  while (!lines.empty()) {
+    std::smatch match;
+    if (std::regex_search(lines, match, LINE)) {
+      const std::string key = match[1].str();
+      std::string value = match[2].str();
 
-    // Default undefined or null to an empty string
-    std::string value = match[2].str();
+      // Remove leading whitespaces
+      size_t start = value.find_first_not_of(" \t");
+      if (start != std::string::npos)
+        value = value.substr(start);
 
-    // Remove leading whitespaces
-    value.erase(0, value.find_first_not_of(" \t"));
+      // Remove trailing whitespaces
+      size_t end = value.find_last_not_of(" \t");
+      if (end != std::string::npos)
+        value = value.substr(0, end + 1);
 
-    // Remove trailing whitespaces
-    if (!value.empty()) {
-      value.erase(value.find_last_not_of(" \t") + 1);
+      // Unescape characters if value starts with double quote
+      if (!value.empty() && value.front() == '"') {
+        std::string unescaped_value;
+        for (size_t i = 1; i < value.size() - 1; ++i) {
+          if (value[i] == '\\' && (value[i + 1] == 'n' || value[i + 1] == 'r')) {
+            unescaped_value += (value[i + 1] == 'n') ? '\n' : '\r';
+            ++i;
+          } else {
+            unescaped_value += value[i];
+          }
+        }
+        value = std::move(unescaped_value);
+      }
+
+      // Remove surrounding quotes
+      value = trim_quotes(value);
+
+      store_.insert_or_assign(std::move(key), std::move(value));
+
+      // Proceed to the next line
+      lines = match.suffix().str();
+    } else {
+      // If no match is found, exit the loop
+      break;
     }
-
-    if (!value.empty() && value.front() == '"') {
-      value = std::regex_replace(value, std::regex("\\\\n"), "\n");
-      value = std::regex_replace(value, std::regex("\\\\r"), "\r");
-    }
-
-    // Remove surrounding quotes
-    value = trim_quotes(value);
-
-    store_.insert_or_assign(std::string(key), value);
-    lines = match.suffix();
   }
 }
 
