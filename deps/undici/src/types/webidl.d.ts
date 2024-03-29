@@ -5,7 +5,7 @@
  */
 type Converter<T> = (object: unknown) => T
 
-type SequenceConverter<T> = (object: unknown) => T[]
+type SequenceConverter<T> = (object: unknown, iterable?: IterableIterator<T>) => T[]
 
 type RecordConverter<K extends string, V> = (object: unknown) => Record<K, V>
 
@@ -62,6 +62,11 @@ interface WebidlUtil {
    * @see https://webidl.spec.whatwg.org/#abstract-opdef-converttoint
    */
   IntegerPart (N: number): number
+
+  /**
+   * Stringifies {@param V}
+   */
+  Stringify (V: any): string
 }
 
 interface WebidlConverters {
