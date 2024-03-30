@@ -58,7 +58,7 @@ bool SatisfiesAssertion(RegExpAssertion::Type type,
 base::Vector<RegExpInstruction> ToInstructionVector(
     Tagged<ByteArray> raw_bytes, const DisallowGarbageCollection& no_gc) {
   RegExpInstruction* inst_begin =
-      reinterpret_cast<RegExpInstruction*>(raw_bytes->GetDataStartAddress());
+      reinterpret_cast<RegExpInstruction*>(raw_bytes->begin());
   int inst_num = raw_bytes->length() / sizeof(RegExpInstruction);
   DCHECK_EQ(sizeof(RegExpInstruction) * inst_num, raw_bytes->length());
   return base::Vector<RegExpInstruction>(inst_begin, inst_num);
@@ -154,10 +154,26 @@ class NfaInterpreter {
         blocked_threads_(0, zone),
         register_array_allocator_(zone),
         best_match_registers_(base::nullopt),
+        lookbehind_pc_(0, zone),
+        lookbehind_table_(0, zone),
         zone_(zone) {
     DCHECK(!bytecode_.empty());
     DCHECK_GE(input_index_, 0);
     DCHECK_LE(input_index_, input_.length());
+
+    // Finds the starting PC of every lookbehind. Since they are listed one
+    // after the other, they start after each `ACCEPT` and
+    // `WRITE_LOOKBEHIND_TABLE` instructions (except the last one). We do not
+    // iterate over the last instruction, since it cannot be followed by a
+    // lookbehind's bytecode.
+    for (int i = 0; i < bytecode_.length() - 1; ++i) {
+      if ((bytecode_[i].opcode == RegExpInstruction::Opcode::ACCEPT ||
+           bytecode_[i].opcode ==
+               RegExpInstruction::Opcode::WRITE_LOOKBEHIND_TABLE)) {
+        lookbehind_pc_.Add(i + 1, zone_);
+        lookbehind_table_.Add(false, zone_);
+      }
+    }
 
     std::fill(pc_last_input_index_.begin(), pc_last_input_index_.end(),
               LastInputIndex());
@@ -329,6 +345,7 @@ class NfaInterpreter {
     // something about this in `SetInputIndex`.
     std::fill(pc_last_input_index_.begin(), pc_last_input_index_.end(),
               LastInputIndex());
+    std::fill(lookbehind_table_.begin(), lookbehind_table_.end(), false);
 
     // Clean up left-over data from a previous call to FindNextMatch.
     for (InterpreterThread t : blocked_threads_) {
@@ -346,13 +363,22 @@ class NfaInterpreter {
       best_match_registers_ = base::nullopt;
     }
 
-    // All threads start at bytecode 0.
-    // The initial value of consumed_since_last_quantifier is irrelevant before
-    // entering the first quantifier.
+    // The lookbehind threads need to be executed before the thread of their
+    // parent (lookbehind or main expression). The order of the bytecode (see
+    // also `BytecodeAssembler`) ensures that they need to be executed from last
+    // to first (as of their position in the bytecode). The main expression
+    // bytecode is located at PC 0, and is executed with the lowest priority.
     active_threads_.Add(
         InterpreterThread(0, NewRegisterArray(kUndefinedRegisterValue),
                           InterpreterThread::ConsumedCharacter::DidConsume),
         zone_);
+
+    for (int i : lookbehind_pc_) {
+      active_threads_.Add(
+          InterpreterThread(i, NewRegisterArray(kUndefinedRegisterValue),
+                            InterpreterThread::ConsumedCharacter::DidConsume),
+          zone_);
+    }
     // Run the initial thread, potentially forking new threads, until every
     // thread is blocked without further input.
     RunActiveThreads();
@@ -369,6 +395,8 @@ class NfaInterpreter {
       DCHECK(active_threads_.is_empty());
       base::uc16 input_char = input_[input_index_];
       ++input_index_;
+
+      std::fill(lookbehind_table_.begin(), lookbehind_table_.end(), false);
 
       static constexpr int kTicksBetweenInterruptHandling = 64;
       if (input_index_ % kTicksBetweenInterruptHandling == 0) {
@@ -462,6 +490,28 @@ class NfaInterpreter {
             DestroyThread(t);
             return;
           }
+          ++t.pc;
+          break;
+        case RegExpInstruction::WRITE_LOOKBEHIND_TABLE:
+          // Reaching this instruction means that the current lookbehind thread
+          // has found a match and needs to be destroyed. Since the lookbehind
+          // is verified at this position, we update the `lookbehind_table_`.
+          lookbehind_table_[inst.payload.looktable_index] = true;
+          DestroyThread(t);
+          return;
+        case RegExpInstruction::READ_LOOKBEHIND_TABLE:
+          // Destroy the thread if the corresponding lookbehind did or did not
+          // complete a match at the current position (depending on whether or
+          // not the lookbehind is positive). The thread's priority ensures that
+          // all the threads of the lookbehind have already been run at this
+          // position.
+          if (lookbehind_table_[inst.payload.read_lookbehind
+                                    .lookbehind_index()] !=
+              inst.payload.read_lookbehind.is_positive()) {
+            DestroyThread(t);
+            return;
+          }
+
           ++t.pc;
           break;
       }
@@ -629,6 +679,14 @@ class NfaInterpreter {
   // of the accepting thread with highest priority.  Should be deallocated with
   // `register_array_allocator_`.
   base::Optional<base::Vector<int>> best_match_registers_;
+
+  // Starting PC of each of the lookbehinds in the bytecode. Computed during the
+  // NFA instantiation (see the constructor).
+  ZoneList<int> lookbehind_pc_;
+
+  // Truth table for the lookbehinds. lookbehind_table_[k] indicates whether the
+  // lookbehind of index k did complete a match on the current position.
+  ZoneList<bool> lookbehind_table_;
 
   Zone* zone_;
 };

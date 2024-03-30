@@ -345,10 +345,15 @@ class LiveRangeAndNextUseProcessor {
     }
   }
   void MarkInputUses(Jump* node, const ProcessingState& state) {
+    MarkJumpInputUses(node->id(), node->target(), state);
+  }
+  void MarkInputUses(CheckpointedJump* node, const ProcessingState& state) {
+    MarkJumpInputUses(node->id(), node->target(), state);
+  }
+  void MarkJumpInputUses(uint32_t use, BasicBlock* target,
+                         const ProcessingState& state) {
     int i = state.block()->predecessor_id();
-    BasicBlock* target = node->target();
     if (!target->has_phi()) return;
-    uint32_t use = node->id();
     LoopUsedNodes* loop_used_nodes = GetCurrentLoopUsedNodes();
     Phi::List& phis = *target->phis();
     for (auto it = phis.begin(); it != phis.end();) {
@@ -388,6 +393,7 @@ class LiveRangeAndNextUseProcessor {
 
   void MarkUse(ValueNode* node, uint32_t use_id, InputLocation* input,
                LoopUsedNodes* loop_used_nodes) {
+    DCHECK(!node->Is<Identity>());
     node->record_next_use(use_id, input);
 
     // If we are in a loop, loop_used_nodes is non-null. In this case, check if
@@ -416,21 +422,27 @@ class LiveRangeAndNextUseProcessor {
     }
   }
 
-  void MarkCheckpointNodes(NodeBase* node, const EagerDeoptInfo* deopt_info,
+  void MarkCheckpointNodes(NodeBase* node, EagerDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
     detail::DeepForEachInput(deopt_info,
-                             [&](ValueNode* node, InputLocation* input) {
+                             [&](ValueNode*& node, InputLocation* input) {
+                               if (node->Is<Identity>()) {
+                                 node = node->input(0).node();
+                               }
                                MarkUse(node, use_id, input, loop_used_nodes);
                              });
   }
-  void MarkCheckpointNodes(NodeBase* node, const LazyDeoptInfo* deopt_info,
+  void MarkCheckpointNodes(NodeBase* node, LazyDeoptInfo* deopt_info,
                            LoopUsedNodes* loop_used_nodes,
                            const ProcessingState& state) {
     int use_id = node->id();
     detail::DeepForEachInput(deopt_info,
-                             [&](ValueNode* node, InputLocation* input) {
+                             [&](ValueNode*& node, InputLocation* input) {
+                               if (node->Is<Identity>()) {
+                                 node = node->input(0).node();
+                               }
                                MarkUse(node, use_id, input, loop_used_nodes);
                              });
   }

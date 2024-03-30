@@ -17,10 +17,9 @@ namespace internal {
 class Object;
 class Smi;
 class HeapObject;
+class HeapObjectLayout;
 class TaggedIndex;
 class FieldType;
-
-class HeapObjectLayout;
 
 // Tagged<T> represents an uncompressed V8 tagged pointer.
 //
@@ -75,11 +74,62 @@ template <>
 struct is_subtype<FieldType, Object> : public std::true_type {};
 template <typename Base>
 struct is_subtype<Base, Object,
-                  std::enable_if_t<std::is_base_of_v<HeapObject, Base>>>
+                  std::enable_if_t<std::disjunction_v<
+                      std::is_base_of<HeapObject, Base>,
+                      std::is_base_of<HeapObjectLayout, Base>>>>
     : public std::true_type {};
+template <typename Base>
+struct is_subtype<Base, HeapObject,
+                  std::enable_if_t<std::disjunction_v<
+                      std::is_base_of<HeapObject, Base>,
+                      std::is_base_of<HeapObjectLayout, Base>>>>
+    : public std::true_type {};
+
+// For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
+// to be part of the MaybeObject hierarchy wrt is_subtype.
+// But `Tagged<MaybeObject>` is invalid. Currently, just `MaybeObject` should
+// be used instead. This specialization ensures that no such instances are
+// constructed.
+//
+// The UnionT and is_union_t definitions have to be pulled in as well,
+// unfortunately.
+//
+// TODO(leszeks): Clean this up once MaybeObject is supported in Tagged land,
+// and move UnionT and is_union_t back to tnode.h
+template <class T1, class T2>
+struct UnionT;
+template <typename T>
+struct is_union_t : public std::false_type {};
+template <typename T1, typename T2>
+struct is_union_t<UnionT<T1, T2>> : public std::true_type {};
+template <typename Base>
+struct is_subtype<Base, MaybeObject, std::enable_if_t<!is_union_t<Base>::value>>
+    : public std::disjunction<std::is_base_of<MaybeObject, Base>,
+                              is_subtype<Base, Object>> {};
+
+// TODO(jgruber): Clean up this artificial FixedArrayBase hierarchy. Only types
+// that can be used as elements should be in it.
+// TODO(jgruber): Replace FixedArrayBase with a union type, once they exist.
+class FixedArrayBase;
+#define DEF_FIXED_ARRAY_SUBTYPE(Subtype) \
+  class Subtype;                         \
+  template <>                            \
+  struct is_subtype<Subtype, FixedArrayBase> : public std::true_type {};
+DEF_FIXED_ARRAY_SUBTYPE(FixedArray)
+DEF_FIXED_ARRAY_SUBTYPE(FixedDoubleArray)
+DEF_FIXED_ARRAY_SUBTYPE(ByteArray)
+DEF_FIXED_ARRAY_SUBTYPE(NameDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(NumberDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedHashMap)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedHashSet)
+DEF_FIXED_ARRAY_SUBTYPE(OrderedNameDictionary)
+DEF_FIXED_ARRAY_SUBTYPE(ScriptContextTable)
+DEF_FIXED_ARRAY_SUBTYPE(ArrayList)
+#undef DEF_FIXED_ARRAY_SUBTYPE
 
 static_assert(is_subtype_v<Smi, Object>);
 static_assert(is_subtype_v<HeapObject, Object>);
+static_assert(is_subtype_v<HeapObject, HeapObject>);
 
 // `is_taggable<T>::value` is true when T is a valid type for Tagged. This means
 // de-facto being a subtype of Object.
@@ -116,11 +166,12 @@ namespace detail {
 template <typename T>
 class TaggedOperatorArrowRef {
  public:
-  constexpr T* operator->() { return &object_; }
+  V8_INLINE constexpr T* operator->() { return &object_; }
 
  private:
   friend class Tagged<T>;
-  constexpr explicit TaggedOperatorArrowRef(T object) : object_(object) {}
+  V8_INLINE constexpr explicit TaggedOperatorArrowRef(T object)
+      : object_(object) {}
   T object_;
 };
 
@@ -145,10 +196,10 @@ class Tagged<Object> : public TaggedBase {
  public:
   // Allow all casts -- all classes are subclasses of Object, nothing to check
   // here.
-  static constexpr Tagged<Object> cast(TaggedBase other) {
+  static V8_INLINE constexpr Tagged<Object> cast(TaggedBase other) {
     return Tagged<Object>(other);
   }
-  static constexpr Tagged<Object> unchecked_cast(TaggedBase other) {
+  static V8_INLINE constexpr Tagged<Object> unchecked_cast(TaggedBase other) {
     return Tagged<Object>(other);
   }
 
@@ -157,18 +208,25 @@ class Tagged<Object> : public TaggedBase {
   // tagged null makes more sense.
 
   // Allow Tagged<Object> to be created from any address.
-  constexpr explicit Tagged(Address o) : TaggedBase(o) {}
+  V8_INLINE constexpr explicit Tagged(Address o) : TaggedBase(o) {}
 
   // Allow explicit uninitialized initialization.
   // TODO(leszeks): Consider zapping this instead, since it's odd that
   // Tagged<Object> implicitly initialises to Smi::zero().
-  constexpr Tagged() : TaggedBase(kNullAddress) {}
+  V8_INLINE constexpr Tagged() : TaggedBase(kNullAddress) {}
+
+  // Allow implicit conversion from const HeapObjectLayout* to Tagged<Object>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const HeapObjectLayout* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
 
   // Implicit conversion for subclasses -- all classes are subclasses of Object,
   // so allow all tagged pointers.
   // NOLINTNEXTLINE
-  constexpr Tagged(TaggedBase other) : TaggedBase(other.ptr()) {}
-  constexpr Tagged& operator=(TaggedBase other) {
+  V8_INLINE constexpr Tagged(TaggedBase other) : TaggedBase(other.ptr()) {}
+  V8_INLINE constexpr Tagged& operator=(TaggedBase other) {
     return *this = Tagged(other);
   }
 };
@@ -186,19 +244,21 @@ class Tagged<Smi> : public TaggedBase {
     DCHECK(other.IsSmi());
     return Tagged<Smi>(other.ptr());
   }
-  static constexpr Tagged<Smi> unchecked_cast(TaggedBase other) {
+  V8_INLINE static constexpr Tagged<Smi> unchecked_cast(TaggedBase other) {
     return Tagged<Smi>(other.ptr());
   }
 
-  constexpr Tagged() = default;
-  constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
+  V8_INLINE constexpr Tagged() = default;
+  V8_INLINE constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
 
   // No implicit conversions from other tagged pointers.
 
-  constexpr bool IsHeapObject() const { return false; }
-  constexpr bool IsSmi() const { return true; }
+  V8_INLINE constexpr bool IsHeapObject() const { return false; }
+  V8_INLINE constexpr bool IsSmi() const { return true; }
 
-  constexpr int32_t value() const { return Internals::SmiValue(ptr()); }
+  V8_INLINE constexpr int32_t value() const {
+    return Internals::SmiValue(ptr());
+  }
 };
 
 // Specialization for TaggedIndex disallowing any implicit creation or access
@@ -215,20 +275,21 @@ class Tagged<TaggedIndex> : public TaggedBase {
     DCHECK(IsTaggedIndex(other));
     return Tagged<TaggedIndex>(other.ptr());
   }
-  static constexpr Tagged<TaggedIndex> unchecked_cast(TaggedBase other) {
+  static V8_INLINE constexpr Tagged<TaggedIndex> unchecked_cast(
+      TaggedBase other) {
     return Tagged<TaggedIndex>(other.ptr());
   }
 
-  constexpr Tagged() = default;
-  constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
+  V8_INLINE constexpr Tagged() = default;
+  V8_INLINE constexpr explicit Tagged(Address ptr) : TaggedBase(ptr) {}
 
   // No implicit conversions from other tagged pointers.
 
-  constexpr bool IsHeapObject() const { return false; }
-  constexpr bool IsSmi() const { return true; }
+  V8_INLINE constexpr bool IsHeapObject() const { return false; }
+  V8_INLINE constexpr bool IsSmi() const { return true; }
 
   // Returns the integer value.
-  constexpr intptr_t value() const {
+  V8_INLINE constexpr intptr_t value() const {
     // Truncate and shift down (requires >> to be sign extending).
     return static_cast<intptr_t>(ptr()) >> kSmiTagSize;
   }
@@ -236,7 +297,7 @@ class Tagged<TaggedIndex> : public TaggedBase {
   // Implicit conversions to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   // NOLINTNEXTLINE
-  inline constexpr Tagged(TaggedIndex raw);
+  V8_INLINE constexpr Tagged(TaggedIndex raw);
 
  private:
   // Handles of the same type are allowed to access the Address constructor.
@@ -262,18 +323,26 @@ class Tagged<HeapObject> : public TaggedBase {
     DCHECK(other.IsHeapObject());
     return Tagged<HeapObject>(other.ptr());
   }
-  static constexpr Tagged<HeapObject> unchecked_cast(TaggedBase other) {
+  static V8_INLINE constexpr Tagged<HeapObject> unchecked_cast(
+      TaggedBase other) {
     // Don't check incoming type for unchecked casts, in case the object
     // definitions are not available.
     return Tagged<HeapObject>(other.ptr());
   }
 
-  constexpr Tagged() = default;
+  V8_INLINE constexpr Tagged() = default;
+  // Allow implicit conversion from const HeapObjectLayout* to
+  // Tagged<HeapObject>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const HeapObjectLayout* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {}
 
   // Implicit conversion for subclasses.
   template <typename U,
             typename = std::enable_if_t<is_subtype_v<U, HeapObject>>>
-  constexpr Tagged& operator=(Tagged<U> other) {
+  V8_INLINE constexpr Tagged& operator=(Tagged<U> other) {
     return *this = Tagged(other);
   }
 
@@ -281,22 +350,19 @@ class Tagged<HeapObject> : public TaggedBase {
   template <typename U,
             typename = std::enable_if_t<is_subtype_v<U, HeapObject>>>
   // NOLINTNEXTLINE
-  constexpr Tagged(Tagged<U> other) : Base(other) {}
+  V8_INLINE constexpr Tagged(Tagged<U> other) : Base(other) {}
 
-  constexpr HeapObject operator*() const;
-  constexpr detail::TaggedOperatorArrowRef<HeapObject> operator->() const;
+  V8_INLINE constexpr HeapObject operator*() const;
+  V8_INLINE constexpr detail::TaggedOperatorArrowRef<HeapObject> operator->()
+      const;
 
-  constexpr bool is_null() const {
+  V8_INLINE constexpr bool is_null() const {
     return static_cast<Tagged_t>(this->ptr()) ==
            static_cast<Tagged_t>(kNullAddress);
   }
 
-  constexpr bool IsHeapObject() const { return true; }
-  constexpr bool IsSmi() const { return false; }
-
-  inline bool InAnySharedSpace() const;
-  inline bool InWritableSharedSpace() const;
-  inline bool InReadOnlySpace() const;
+  constexpr V8_INLINE bool IsHeapObject() const { return true; }
+  constexpr V8_INLINE bool IsSmi() const { return false; }
 
   // Implicit conversions and explicit casts to/from raw pointers
   // TODO(leszeks): Remove once we're using Tagged everywhere.
@@ -315,7 +381,7 @@ class Tagged<HeapObject> : public TaggedBase {
   Address address() const { return this->ptr() - kHeapObjectTag; }
 
  protected:
-  constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+  V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
 
  private:
   friend class HeapObject;
@@ -327,10 +393,21 @@ class Tagged<HeapObject> : public TaggedBase {
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
 
-  constexpr HeapObject ToRawPtr() const;
+  V8_INLINE constexpr HeapObject ToRawPtr() const;
 };
 
 static_assert(Tagged<HeapObject>().is_null());
+
+// For reasons (the tnode.h type hierarchy), the Object hierarchy is considered
+// to be part of the MaybeObject hierarchy wrt is_subtype.
+// But `Tagged<MaybeObject>` is invalid. Currently, just `MaybeObject` should
+// be used instead. This specialization ensures that no such instances are
+// constructed.
+// TODO(leszeks): Clean this up once MaybeObject is supported in Tagged land.
+template <>
+class Tagged<MaybeObject> : public TaggedBase {
+  constexpr explicit Tagged(Address ptr) = delete;
+};
 
 // Generic Tagged<T> for any T that is a subclass of HeapObject. There are
 // separate Tagged<T> specializations for T==Smi and T==Object, so we know that
@@ -346,17 +423,26 @@ class Tagged : public detail::BaseForTagged<T>::type {
     static_assert(is_castable_v<T, U>);
     return T::cast(other);
   }
-  static constexpr Tagged<T> unchecked_cast(TaggedBase other) {
+  static V8_INLINE constexpr Tagged<T> unchecked_cast(TaggedBase other) {
     // Don't check incoming type for unchecked casts, in case the object
     // definitions are not available.
     return Tagged<T>(other.ptr());
   }
 
-  constexpr Tagged() = default;
+  V8_INLINE constexpr Tagged() = default;
+  template <typename U = T>
+  // Allow implicit conversion from const T* to Tagged<T>.
+  // TODO(leszeks): Make this more const-correct.
+  // TODO(leszeks): Consider making this an explicit conversion.
+  // NOLINTNEXTLINE
+  V8_INLINE Tagged(const T* ptr)
+      : Tagged(reinterpret_cast<Address>(ptr) + kHeapObjectTag) {
+    static_assert(std::is_base_of_v<HeapObjectLayout, U>);
+  }
 
   // Implicit conversion for subclasses.
   template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
-  constexpr Tagged& operator=(Tagged<U> other) {
+  V8_INLINE constexpr Tagged& operator=(Tagged<U> other) {
     *this = Tagged(other);
     return *this;
   }
@@ -364,10 +450,27 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // Implicit conversion for subclasses.
   template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
   // NOLINTNEXTLINE
-  constexpr Tagged(Tagged<U> other) : Base(other) {}
+  V8_INLINE constexpr Tagged(Tagged<U> other) : Base(other) {}
 
-  constexpr T operator*() const { return ToRawPtr(); }
-  constexpr detail::TaggedOperatorArrowRef<T> operator->() const {
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T& operator*() const {
+    return *ToRawPtr();
+  }
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T* operator->() const {
+    return ToRawPtr();
+  }
+
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE constexpr T operator*() const {
+    return ToRawPtr();
+  }
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE constexpr detail::TaggedOperatorArrowRef<T> operator->() const {
     return detail::TaggedOperatorArrowRef<T>{ToRawPtr()};
   }
 
@@ -375,7 +478,7 @@ class Tagged : public detail::BaseForTagged<T>::type {
   // TODO(leszeks): Remove once we're using Tagged everywhere.
   template <typename U, typename = std::enable_if_t<is_subtype_v<U, T>>>
   // NOLINTNEXTLINE
-  constexpr Tagged(U raw) : Base(raw.ptr()) {
+  V8_INLINE constexpr Tagged(U raw) : Base(raw.ptr()) {
     static_assert(kTaggedCanConvertToRawObjects);
   }
   template <typename U>
@@ -393,21 +496,42 @@ class Tagged : public detail::BaseForTagged<T>::type {
 #endif
   template <typename TFieldType, int kFieldOffset, typename CompressionScheme>
   friend class TaggedField;
+  template <typename TFieldType, typename CompressionScheme>
+  friend class TaggedMember;
 
-  constexpr explicit Tagged(Address ptr) : Base(ptr) {}
-  constexpr T ToRawPtr() const {
+  V8_INLINE constexpr explicit Tagged(Address ptr) : Base(ptr) {}
+
+  template <typename U = T,
+            typename = std::enable_if_t<std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE T* ToRawPtr() const {
+    // Check whether T is taggable on raw ptr access rather than top-level, to
+    // allow forward declarations.
+    static_assert(is_taggable_v<T>);
+    return reinterpret_cast<T*>(this->ptr() - kHeapObjectTag);
+  }
+
+  template <typename U = T, typename = std::enable_if_t<
+                                !std::is_base_of_v<HeapObjectLayout, U>>>
+  V8_INLINE constexpr T ToRawPtr() const {
     // Check whether T is taggable on raw ptr access rather than top-level, to
     // allow forward declarations.
     static_assert(is_taggable_v<T>);
     return T(this->ptr(), typename T::SkipTypeCheckTag{});
   }
-};
+};  // namespace internal
 
 // Deduction guide to simplify Foo->Tagged<Foo> transition.
 // TODO(leszeks): Remove once we're using Tagged everywhere.
 static_assert(kTaggedCanConvertToRawObjects);
 template <class T>
 Tagged(T object) -> Tagged<T>;
+
+Tagged(const HeapObjectLayout* object) -> Tagged<HeapObject>;
+
+template <class T>
+Tagged(const T* object) -> Tagged<T>;
+template <class T>
+Tagged(T* object) -> Tagged<T>;
 
 template <typename T>
 struct RemoveTagged {

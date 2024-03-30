@@ -91,7 +91,8 @@ std::ostream& operator<<(std::ostream& os, ConstructParameters const& p) {
 ConstructParameters const& ConstructParametersOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kJSConstruct ||
          op->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-         op->opcode() == IrOpcode::kJSConstructWithSpread);
+         op->opcode() == IrOpcode::kJSConstructWithSpread ||
+         op->opcode() == IrOpcode::kJSConstructForwardAllArgs);
   return OpParameter<ConstructParameters>(op);
 }
 
@@ -1003,6 +1004,20 @@ const Operator* JSOperatorBuilder::ConstructWithSpread(
       "JSConstructWithSpread",                                    // name
       parameters.arity(), 1, 1, 1, 1, 2,                          // counts
       parameters);                                                // parameter
+}
+
+const Operator* JSOperatorBuilder::ConstructForwardAllArgs(
+    CallFrequency const& frequency, FeedbackSource const& feedback) {
+  // Use 0 as a fake arity. This operator will be reduced away to either a call
+  // to Builtin::kConstructForwardAllArgs or an ordinary
+  // JSConstruct.
+  ConstructParameters parameters(JSConstructForwardAllArgsNode::ArityForArgc(0),
+                                 frequency, feedback);
+  return zone()->New<Operator1<ConstructParameters>>(                 // --
+      IrOpcode::kJSConstructForwardAllArgs, Operator::kNoProperties,  // opcode
+      "JSConstructForwardAllArgs",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                              // counts
+      parameters);  // parameter
 }
 
 const Operator* JSOperatorBuilder::LoadNamed(NameRef name,

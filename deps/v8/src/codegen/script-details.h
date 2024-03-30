@@ -30,6 +30,7 @@ struct ScriptDetails {
   MaybeHandle<Object> name_obj;
   MaybeHandle<Object> source_map_url;
   MaybeHandle<Object> host_defined_options;
+  MaybeHandle<FixedArray> wrapped_arguments;
   REPLMode repl_mode;
   const ScriptOriginOptions origin_options;
 };

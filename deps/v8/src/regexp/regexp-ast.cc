@@ -309,7 +309,7 @@ void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
 }
 
 void* RegExpUnparser::VisitGroup(RegExpGroup* that, void* data) {
-  os_ << "(?: ";
+  os_ << "(?" << that->flags() << ": ";
   that->body()->Accept(this, data);
   os_ << ")";
   return nullptr;

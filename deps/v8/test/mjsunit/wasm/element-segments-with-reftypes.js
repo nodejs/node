@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 (function TestGlobalGetElement() {
@@ -91,8 +89,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(instance.exports.table.get(3)(10), 11);
 })();
 
-// Test that mutable globals cannot be used in element segments, even under
-// --experimental-wasm-gc.
+// Test that mutable globals cannot be used in element segments, even with
+// wasm-gc.
 (function TestMutableGlobalInElementSegment() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();

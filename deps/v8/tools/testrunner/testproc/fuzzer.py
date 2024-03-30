@@ -54,7 +54,6 @@ EXTRA_FLAGS = [
     (0.2, '--turboshaft'),
     (0.1, '--turbo-instruction-scheduling'),
     (0.1, '--turbo-stress-instruction-scheduling'),
-    (0.1, '--turbo-force-mid-tier-regalloc'),
 ]
 
 MIN_DEOPT = 1

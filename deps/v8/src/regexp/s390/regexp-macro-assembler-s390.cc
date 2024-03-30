@@ -781,11 +781,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ mov(r2, Operand(stack_limit));
     __ LoadU64(r2, MemOperand(r2));
     __ SubS64(r2, sp, r2);
+    Operand extra_space_for_variables(num_registers_ * kSystemPointerSize);
+
     // Handle it if the stack pointer is already below the stack limit.
     __ ble(&stack_limit_hit);
     // Check if there is room for the variable number of registers above
     // the stack limit.
-    __ CmpU64(r2, Operand(num_registers_ * kSystemPointerSize));
+    __ CmpU64(r2, extra_space_for_variables);
     __ bge(&stack_ok);
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
@@ -793,7 +795,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ b(&return_r2);
 
     __ bind(&stack_limit_hit);
-    CallCheckStackGuardState(r2);
+    CallCheckStackGuardState(r2, extra_space_for_variables);
     __ CmpS64(r2, Operand::Zero());
     // If returned value is non-zero, we exit with the returned value as result.
     __ bne(&return_r2);
@@ -1205,16 +1207,19 @@ void RegExpMacroAssemblerS390::ClearRegisters(int reg_from, int reg_to) {
 
 // Private methods:
 
-void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
+void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch,
+                                                        Operand extra_space) {
   DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
-  static constexpr int num_arguments = 3;
+  static constexpr int num_arguments = 4;
   __ PrepareCallCFunction(num_arguments, scratch);
+  // Extra space for variables to consider in stack check.
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mov(r4, frame_pointer());
+  __ mov(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(r3, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =
@@ -1252,7 +1257,8 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
-                                                   Address re_frame) {
+                                                   Address re_frame,
+                                                   uintptr_t extra_space) {
   Tagged<InstructionStream> re_code =
       InstructionStream::cast(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
@@ -1263,7 +1269,8 @@ int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
       frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
-      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset),
+      extra_space);
 }
 
 MemOperand RegExpMacroAssemblerS390::register_location(int register_index) {

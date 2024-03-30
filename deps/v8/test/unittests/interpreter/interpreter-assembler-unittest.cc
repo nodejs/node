@@ -4,7 +4,8 @@
 
 #include "test/unittests/interpreter/interpreter-assembler-unittest.h"
 
-#include "src/codegen/code-factory.h"
+#include "src/builtins/builtins-inl.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -460,8 +461,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
       if (Bytecodes::IsCallRuntime(bytecode)) {
         InterpreterAssemblerTestState state(this, bytecode);
         InterpreterAssemblerForTest m(&state, bytecode);
-        Callable builtin =
-            CodeFactory::InterpreterCEntry(isolate(), result_size);
+        Callable builtin = Builtins::CallableFor(
+            isolate(), Builtins::InterpreterCEntry(result_size));
 
         TNode<Uint32T> function_id = m.Uint32Constant(0);
         InterpreterAssembler::RegListNodePair registers(m.IntPtrConstant(1),

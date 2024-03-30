@@ -2788,7 +2788,7 @@ int DisassemblerX64::InstructionDecode(v8::base::Vector<char> out_buffer,
         break;
 
       case 0x3C:
-        AppendToBuffer("cmp al,0x%x", Imm8(data + 1));
+        AppendToBuffer("cmpb al,0x%x", Imm8(data + 1));
         data += 2;
         break;
 

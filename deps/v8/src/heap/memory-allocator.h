@@ -43,101 +43,43 @@ class ReadOnlyPage;
 // pages for large object space.
 class MemoryAllocator {
  public:
-  // Unmapper takes care of concurrently unmapping and uncommitting memory
-  // chunks.
-  class Unmapper {
+  // Pool keeps pages allocated and accessible until explicitly flushed.
+  class V8_EXPORT_PRIVATE Pool {
    public:
-    class UnmapFreeMemoryJob;
+    explicit Pool(MemoryAllocator* allocator) : allocator_(allocator) {}
 
-    Unmapper(Heap* heap, MemoryAllocator* allocator)
-        : heap_(heap), allocator_(allocator) {
-      chunks_[ChunkQueueType::kRegular].reserve(kReservedQueueingSlots);
-      chunks_[ChunkQueueType::kPooled].reserve(kReservedQueueingSlots);
+    Pool(const Pool&) = delete;
+    Pool& operator=(const Pool&) = delete;
+
+    void Add(MemoryChunk* chunk) {
+      DCHECK_NOT_NULL(chunk);
+      DCHECK_EQ(chunk->size(), Page::kPageSize);
+      DCHECK(!chunk->IsLargePage());
+      DCHECK(!chunk->IsTrusted());
+      DCHECK_NE(chunk->executable(), EXECUTABLE);
+      chunk->ReleaseAllAllocatedMemory();
+      base::MutexGuard guard(&mutex_);
+      pooled_chunks_.push_back(chunk);
     }
 
-    void AddMemoryChunkSafe(MemoryChunk* chunk) {
-      if (!chunk->IsLargePage() && chunk->executable() != EXECUTABLE) {
-        AddMemoryChunkSafe(ChunkQueueType::kRegular, chunk);
-      } else {
-        AddMemoryChunkSafe(ChunkQueueType::kNonRegular, chunk);
-      }
-    }
-
-    MemoryChunk* TryGetPooledMemoryChunkSafe() {
-      // Procedure:
-      // (1) Try to get a chunk that was declared as pooled and already has
-      // been uncommitted.
-      // (2) Try to steal any memory chunk of kPageSize that would've been
-      // uncommitted.
-      MemoryChunk* chunk = GetMemoryChunkSafe(ChunkQueueType::kPooled);
-      if (chunk == nullptr) {
-        chunk = GetMemoryChunkSafe(ChunkQueueType::kRegular);
-        if (chunk != nullptr) {
-          // For stolen chunks we need to manually free any allocated memory.
-          chunk->ReleaseAllAllocatedMemory();
-        }
-      }
+    MemoryChunk* TryGetPooled() {
+      base::MutexGuard guard(&mutex_);
+      if (pooled_chunks_.empty()) return nullptr;
+      MemoryChunk* chunk = pooled_chunks_.back();
+      pooled_chunks_.pop_back();
       return chunk;
     }
 
-    V8_EXPORT_PRIVATE void FreeQueuedChunks();
-    void CancelAndWaitForPendingTasks();
-    void PrepareForGC();
-    V8_EXPORT_PRIVATE void EnsureUnmappingCompleted();
-    V8_EXPORT_PRIVATE void TearDown();
-    size_t NumberOfCommittedChunks();
-    V8_EXPORT_PRIVATE int NumberOfChunks();
-    size_t CommittedBufferedMemory();
+    void ReleasePooledChunks();
 
-    // Returns true when Unmapper task may be running.
-    bool IsRunning() const;
+    size_t NumberOfCommittedChunks() const;
+    int NumberOfChunks() const;
+    size_t CommittedBufferedMemory() const;
 
    private:
-    static const int kReservedQueueingSlots = 64;
-    static const int kMaxUnmapperTasks = 4;
-
-    enum ChunkQueueType {
-      kRegular,     // Pages of kPageSize that do not live in a CodeRange and
-                    // can thus be used for stealing.
-      kNonRegular,  // Large chunks and executable chunks.
-      kPooled,      // Pooled chunks, already freed and ready for reuse.
-      kNumberOfChunkQueues,
-    };
-
-    enum class FreeMode {
-      // Disables any access on pooled pages before adding them to the pool.
-      kUncommitPooled,
-
-      // Free pooled pages. Only used on tear down and last-resort GCs.
-      kFreePooled,
-    };
-
-    void AddMemoryChunkSafe(ChunkQueueType type, MemoryChunk* chunk) {
-      base::MutexGuard guard(&mutex_);
-      chunks_[type].push_back(chunk);
-    }
-
-    MemoryChunk* GetMemoryChunkSafe(ChunkQueueType type) {
-      base::MutexGuard guard(&mutex_);
-      if (chunks_[type].empty()) return nullptr;
-      MemoryChunk* chunk = chunks_[type].back();
-      chunks_[type].pop_back();
-      return chunk;
-    }
-
-    bool MakeRoomForNewTasks();
-
-    void PerformFreeMemoryOnQueuedChunks(FreeMode mode,
-                                         JobDelegate* delegate = nullptr);
-
-    void PerformFreeMemoryOnQueuedNonRegularChunks(
-        JobDelegate* delegate = nullptr);
-
-    Heap* const heap_;
     MemoryAllocator* const allocator_;
-    base::Mutex mutex_;
-    std::vector<MemoryChunk*> chunks_[ChunkQueueType::kNumberOfChunkQueues];
-    std::unique_ptr<v8::JobHandle> job_handle_;
+    std::vector<MemoryChunk*> pooled_chunks_;
+    mutable base::Mutex mutex_;
 
     friend class MemoryAllocator;
   };
@@ -154,13 +96,13 @@ class MemoryAllocator {
     // Frees page immediately on the main thread.
     kImmediately,
 
-    // Frees page on background thread.
-    kConcurrently,
+    // Postpone freeing, until MemoryAllocator::ReleaseQueuedPages() is called.
+    // This is used in the major GC to allow the pointer-update phase to touch
+    // dead memory.
+    kPostpone,
 
-    // Uncommits but does not free page on background thread. Page is added to
-    // pool. Used to avoid the munmap/mmap-cycle when we quickly reallocate
-    // pages.
-    kConcurrentlyAndPool,
+    // Pool page.
+    kPool,
   };
 
   // Initialize page sizes field in V8::Initialize.
@@ -184,6 +126,7 @@ class MemoryAllocator {
 
   V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
                                     v8::PageAllocator* code_page_allocator,
+                                    v8::PageAllocator* trusted_page_allocator,
                                     size_t max_capacity);
 
   V8_EXPORT_PRIVATE void TearDown();
@@ -288,7 +231,7 @@ class MemoryAllocator {
     }
   }
 
-  Unmapper* unmapper() { return &unmapper_; }
+  Pool* pool() { return &pool_; }
 
   void UnregisterReadOnlyPage(ReadOnlyPage* page);
 
@@ -306,6 +249,10 @@ class MemoryAllocator {
   void RecordNormalPageDestroyed(const Page& page);
   void RecordLargePageCreated(const LargePage& page);
   void RecordLargePageDestroyed(const LargePage& page);
+
+  // We postpone page freeing until the pointer-update phase is done (updating
+  // slots may happen for dead objects which point to dead memory).
+  void ReleaseQueuedPages();
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -374,9 +321,6 @@ class MemoryAllocator {
   // support pools for NOT_EXECUTABLE pages of size MemoryChunk::kPageSize.
   base::Optional<MemoryChunkAllocationResult> AllocateUninitializedPageFromPool(
       Space* space);
-
-  // Frees a pooled page. Only used on tear-down and last-resort GCs.
-  void FreePooledChunk(MemoryChunk* chunk);
 
   // Initializes pages in a chunk. Returns the first page address.
   // This function and GetChunkId() are provided for the mark-compact
@@ -490,7 +434,8 @@ class MemoryAllocator {
   std::atomic<Address> highest_executable_ever_allocated_{kNullAddress};
 
   base::Optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
-  Unmapper unmapper_;
+  Pool pool_;
+  std::vector<MemoryChunk*> queued_pages_to_be_freed_;
 
 #ifdef DEBUG
   // Data structure to remember allocated executable memory chunks.

@@ -114,6 +114,9 @@ static const char* const ANNOTATION_USE_PARENT_TYPE_CHECKER =
     "@useParentTypeChecker";
 static const char* const ANNOTATION_CPP_OBJECT_DEFINITION =
     "@cppObjectDefinition";
+static const char* const ANNOTATION_CPP_OBJECT_LAYOUT_DEFINITION =
+    "@cppObjectLayoutDefinition";
+static const char* const ANNOTATION_SAME_ENUM_VALUE_AS = "@sameEnumValueAs";
 // Generate C++ accessors with relaxed store semantics.
 // Weak<T> and MaybeObject fields always use relaxed store.
 static const char* const ANNOTATION_CPP_RELAXED_STORE = "@cppRelaxedStore";
@@ -169,6 +172,7 @@ enum class ClassFlag {
   kGenerateUniqueMap = 1 << 12,
   kGenerateFactoryFunction = 1 << 13,
   kCppObjectDefinition = 1 << 14,
+  kCppObjectLayoutDefinition = 1 << 15,
 };
 using ClassFlags = base::Flags<ClassFlag>;
 

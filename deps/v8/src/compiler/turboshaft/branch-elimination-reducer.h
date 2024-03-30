@@ -18,6 +18,9 @@ namespace v8::internal::compiler::turboshaft {
 
 #include "src/compiler/turboshaft/define-assembler-macros.inc"
 
+template <typename>
+class VariableReducer;
+
 template <class Next>
 class BranchEliminationReducer : public Next {
   // # General overview
@@ -192,6 +195,9 @@ class BranchEliminationReducer : public Next {
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
   TURBOSHAFT_REDUCER_BOILERPLATE()
+#if defined(__clang__)
+  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
+#endif
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -287,8 +293,10 @@ class BranchEliminationReducer : public Next {
     goto no_change;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination) {
-    LABEL_BLOCK(no_change) { return Next::ReduceGoto(destination); }
+  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
+    LABEL_BLOCK(no_change) {
+      return Next::ReduceGoto(destination, is_backedge);
+    }
     if (ShouldSkipOptimizationStep()) goto no_change;
 
     const Block* destination_origin = __ OriginForBlockStart(destination);
@@ -296,7 +304,7 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    if (destination_origin->HasExactlyNPredecessors(1)) {
+    if (destination_origin->PredecessorCount() == 1) {
       // This block has a single successor and `destination_origin` has a single
       // predecessor. We can merge these blocks (optimization 5).
       __ CloneAndInlineBlock(destination_origin);
@@ -328,12 +336,21 @@ class BranchEliminationReducer : public Next {
         // input is coming from the current block, then it still makes sense to
         // inline {destination_origin}: the condition will then be known.
         if (destination_origin->Contains(branch->condition())) {
-          const PhiOp* cond = __ input_graph()
-                                  .Get(branch->condition())
-                                  .template TryCast<PhiOp>();
-          if (!cond) goto no_change;
-          __ CloneAndInlineBlock(destination_origin);
-          return OpIndex::Invalid();
+          if (const PhiOp* cond = __ input_graph()
+                                      .Get(branch->condition())
+                                      .template TryCast<PhiOp>()) {
+            __ CloneAndInlineBlock(destination_origin);
+            return OpIndex::Invalid();
+          } else if (CanBeConstantFolded(branch->condition(),
+                                         destination_origin)) {
+            // If the {cond} only uses constant Phis that come from the current
+            // block, it's probably worth it to clone the block in order to
+            // constant-fold away the Branch.
+            __ CloneAndInlineBlock(destination_origin);
+            return OpIndex::Invalid();
+          } else {
+            goto no_change;
+          }
         }
       }
     } else if ([[maybe_unused]] const ReturnOp* return_op =
@@ -344,8 +361,8 @@ class BranchEliminationReducer : public Next {
       // TODO(nicohartmann@): Temporarily disable this "optimization" because
       // it prevents dead code elimination in some cases. Reevaluate this and
       // reenable if phases have been reordered properly.
-      // Asm().CloneAndInlineBlock(old_dst);
-      // return OpIndex::Invalid();
+      Asm().CloneAndInlineBlock(destination_origin);
+      return OpIndex::Invalid();
     }
 
     goto no_change;
@@ -437,7 +454,7 @@ class BranchEliminationReducer : public Next {
   // ReplayMissingPredecessors adds to {known_conditions_} and {dominator_path_}
   // the conditions/blocks that related to the dominators of {block} that are
   // not already present. This can happen when control-flow changes during the
-  // OptimizationPhase, which results in a block being visited not right after
+  // CopyingPhase, which results in a block being visited not right after
   // its dominator. For instance, when optimizing a double-diamond like:
   //
   //                  B0
@@ -504,6 +521,53 @@ class BranchEliminationReducer : public Next {
         }
       }
     }
+  }
+
+  // Checks that {idx} only depends on only on Constants or on Phi whose input
+  // from the current block is a Constant, and on a least one Phi (whose input
+  // from the current block is a Constant). If it is the case and {idx} is used
+  // in a Branch, then the Branch's block could be cloned in the current block,
+  // and {idx} could then be constant-folded away such that the Branch becomes a
+  // Goto.
+  bool CanBeConstantFolded(OpIndex idx, const Block* cond_input_block,
+                           bool has_phi = false, int depth = 0) {
+    // We limit the depth of the search to {kMaxDepth} in order to avoid
+    // potentially visiting a lot of nodes.
+    static constexpr int kMaxDepth = 4;
+    if (depth > kMaxDepth) return false;
+    const Operation& op = __ input_graph().Get(idx);
+    if (!cond_input_block->Contains(idx)) {
+      // If we reach a ConstantOp without having gone through a Phi, then the
+      // condition can be constant-folded without performing block cloning.
+      return has_phi && op.Is<ConstantOp>();
+    }
+    if (op.Is<PhiOp>()) {
+      int curr_block_pred_idx = cond_input_block->GetPredecessorIndex(
+          __ current_block()->OriginForBlockEnd());
+      // There is no need to increment {depth} on this recursive call, because
+      // it will anyways exit early because {idx} won't be in
+      // {cond_input_block}.
+      return CanBeConstantFolded(op.input(curr_block_pred_idx),
+                                 cond_input_block, /*has_phi*/ true, depth);
+    } else if (op.Is<ConstantOp>()) {
+      return true;
+    } else if (op.input_count == 0) {
+      // Any operation that has no input but is not a ConstantOp probably won't
+      // be able to be constant-folded away (eg, LoadRootRegister).
+      return false;
+    } else if (!op.Effects().can_be_constant_folded()) {
+      // Operations with side-effects won't be able to be constant-folded.
+      return false;
+    }
+
+    for (int i = 0; i < op.input_count; i++) {
+      if (!CanBeConstantFolded(op.input(i), cond_input_block, has_phi,
+                               depth + 1)) {
+        return false;
+      }
+    }
+
+    return has_phi;
   }
 
   // TODO(dmercadier): use the SnapshotTable to replace {dominator_path_} and

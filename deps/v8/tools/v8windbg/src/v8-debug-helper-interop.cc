@@ -148,15 +148,6 @@ V8HeapObject GetHeapObject(WRL::ComPtr<IDebugHostContext> sp_context,
   return obj;
 }
 
-std::vector<std::u16string> ListObjectClasses() {
-  const d::ClassList* class_list = d::ListObjectClasses();
-  std::vector<std::u16string> result;
-  for (size_t i = 0; i < class_list->num_class_names; ++i) {
-    result.push_back(ConvertToU16String(class_list->class_names[i]));
-  }
-  return result;
-}
-
 const char* BitsetName(uint64_t payload) { return d::BitsetName(payload); }
 
 std::vector<Property> GetStackFrame(WRL::ComPtr<IDebugHostContext> sp_context,

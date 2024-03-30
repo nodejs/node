@@ -76,6 +76,8 @@ void StatisticsExtension::GetCounters(
   Counters* counters = isolate->counters();
   v8::Local<v8::Object> result = v8::Object::New(info.GetIsolate());
 
+  heap->FreeMainThreadLinearAllocationAreas();
+
   struct StatisticsCounter {
     v8::internal::StatsCounter* counter;
     const char* name;

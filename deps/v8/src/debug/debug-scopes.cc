@@ -189,8 +189,13 @@ class ScopeChainRetriever {
     // context on the stack with a range that starts at Token::CLASS, and the
     // source position will also point to Token::CLASS.  To identify the
     // matching scope we include start in the accepted range for class scopes.
+    //
+    // Similarly "with" scopes can already have bytecodes where the source
+    // position points to the closing parenthesis with the "with" context
+    // already pushed.
     const bool position_fits_start =
-        scope->is_class_scope() ? start <= position_ : start < position_;
+        scope->is_class_scope() || scope->is_with_scope() ? start <= position_
+                                                          : start < position_;
     return position_fits_start && position_fits_end;
   }
 };
@@ -770,13 +775,12 @@ void ScopeIterator::VisitScriptScope(const Visitor& visitor) const {
       context_->native_context()->script_context_table(), isolate_);
 
   // Skip the first script since that just declares 'this'.
-  for (int context_index = 1;
-       context_index < script_contexts->used(kAcquireLoad); context_index++) {
-    Handle<Context> context = ScriptContextTable::GetContext(
-        isolate_, script_contexts, context_index);
+  for (int i = 1; i < script_contexts->length(kAcquireLoad); i++) {
+    Handle<Context> context(script_contexts->get(i), isolate_);
     Handle<ScopeInfo> scope_info(context->scope_info(), isolate_);
-    if (VisitContextLocals(visitor, scope_info, context, ScopeTypeScript))
+    if (VisitContextLocals(visitor, scope_info, context, ScopeTypeScript)) {
       return;
+    }
   }
 }
 
@@ -784,8 +788,9 @@ void ScopeIterator::VisitModuleScope(const Visitor& visitor) const {
   DCHECK(context_->IsModuleContext());
 
   Handle<ScopeInfo> scope_info(context_->scope_info(), isolate_);
-  if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule))
+  if (VisitContextLocals(visitor, scope_info, context_, ScopeTypeModule)) {
     return;
+  }
 
   int module_variable_count = scope_info->ModuleVariableCount();
 
@@ -1155,8 +1160,8 @@ bool ScopeIterator::SetScriptVariableValue(Handle<String> variable_name,
       context_->native_context()->script_context_table(), isolate_);
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
-    Handle<Context> script_context = ScriptContextTable::GetContext(
-        isolate_, script_contexts, lookup_result.context_index);
+    Handle<Context> script_context(
+        script_contexts->get(lookup_result.context_index), isolate_);
     script_context->set(lookup_result.slot_index, *new_value);
     return true;
   }

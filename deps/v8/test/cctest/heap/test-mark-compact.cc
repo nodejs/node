@@ -76,18 +76,18 @@ TEST(Promotion) {
   }
 }
 
-// This is the same as Factory::NewMap, except it doesn't retry on
-// allocation failure.
+// This is the same as Factory::NewContextfulMapForCurrentContext, except it
+// doesn't retry on allocation failure.
 AllocationResult HeapTester::AllocateMapForTest(Isolate* isolate) {
   Heap* heap = isolate->heap();
   Tagged<HeapObject> obj;
   AllocationResult alloc = heap->AllocateRaw(Map::kSize, AllocationType::kMap);
   if (!alloc.To(&obj)) return alloc;
-  obj->set_map_after_allocation(ReadOnlyRoots(heap).meta_map(),
-                                SKIP_WRITE_BARRIER);
+  ReadOnlyRoots roots(isolate);
+  obj->set_map_after_allocation(*isolate->meta_map());
   return AllocationResult::FromObject(isolate->factory()->InitializeMap(
       Map::cast(obj), JS_OBJECT_TYPE, JSObject::kHeaderSize,
-      TERMINAL_FAST_ELEMENTS_KIND, 0, heap));
+      TERMINAL_FAST_ELEMENTS_KIND, 0, roots));
 }
 
 // This is the same as Factory::NewFixedArray, except it doesn't retry
@@ -105,8 +105,8 @@ AllocationResult HeapTester::AllocateFixedArrayForTest(
                                 SKIP_WRITE_BARRIER);
   Tagged<FixedArray> array = FixedArray::cast(obj);
   array->set_length(length);
-  MemsetTagged(array->data_start(), ReadOnlyRoots(heap).undefined_value(),
-               length);
+  MemsetTagged(array->RawFieldOfFirstElement(),
+               ReadOnlyRoots(heap).undefined_value(), length);
   return AllocationResult::FromObject(array);
 }
 
@@ -356,7 +356,7 @@ TEST(Regress5829) {
   // Right trim the array without clearing the mark bits.
   array->set_length(9);
   heap->CreateFillerObjectAt(old_end - kTaggedSize, kTaggedSize);
-  heap->old_space()->FreeLinearAllocationArea();
+  heap->FreeMainThreadLinearAllocationAreas();
   Page* page = Page::FromAddress(array->address());
   for (auto object_and_size : LiveObjectRange(page)) {
     CHECK(!IsFreeSpaceOrFiller(object_and_size.first));

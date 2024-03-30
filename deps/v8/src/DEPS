@@ -18,6 +18,7 @@ include_rules = [
   "-src/heap",
   "+src/heap/basic-memory-chunk.h",
   "+src/heap/code-range.h",
+  "+src/heap/trusted-range.h",
   "+src/heap/combined-heap.h",
   "+src/heap/factory.h",
   "+src/heap/factory-inl.h",

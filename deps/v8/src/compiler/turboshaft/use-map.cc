@@ -9,8 +9,10 @@
 namespace v8::internal::compiler::turboshaft {
 
 UseMap::UseMap(const Graph& graph, Zone* zone)
-    : table_(graph.op_id_count(), zone), uses_(zone), saturated_uses_(zone) {
-  std::vector<std::pair<OpIndex, OpIndex>> delayed_phi_uses;
+    : table_(graph.op_id_count(), zone, &graph),
+      uses_(zone),
+      saturated_uses_(zone) {
+  ZoneVector<std::pair<OpIndex, OpIndex>> delayed_phi_uses(zone);
 
   // We preallocate for 2 uses per operation.
   uses_.reserve(graph.op_id_count() * 2);

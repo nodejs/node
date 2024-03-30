@@ -349,9 +349,81 @@ namespace compiler {
   V(RiscvVzextVf2)                        \
   V(RiscvVsextVf2)
 
-#define TARGET_ARCH_OPCODE_LIST(V)  \
-  TARGET_ARCH_OPCODE_LIST_COMMON(V) \
-  TARGET_ARCH_OPCODE_LIST_SPECAIL(V)
+#ifdef CAN_USE_ZBB_INSTRUCTIONS
+#define TARGET_ARCH_OPCODE_LIST_ZBB(V) \
+  V(RiscvAndn)                         \
+  V(RiscvOrn)                          \
+  V(RiscvXnor)                         \
+  V(RiscvClz)                          \
+  V(RiscvCtz)                          \
+  V(RiscvCpop)                         \
+  V(RiscvMax)                          \
+  V(RiscvMaxu)                         \
+  V(RiscvMin)                          \
+  V(RiscvMinu)                         \
+  V(RiscvSextb)                        \
+  V(RiscvSexth)                        \
+  V(RiscvZexth)                        \
+  V(RiscvRev8)
+
+#ifdef V8_TARGET_ARCH_RISCV64
+#define TARGET_ARCH_OPCODE_LIST_ZBB_32(V) \
+  V(RiscvClzw)                            \
+  V(RiscvCtzw)                            \
+  V(RiscvCpopw)
+#else
+#define TARGET_ARCH_OPCODE_LIST_ZBB_32(V)
+#endif
+
+#else
+#define TARGET_ARCH_OPCODE_LIST_ZBB(V)
+
+#define TARGET_ARCH_OPCODE_LIST_ZBB_32(V)
+#endif
+
+#ifdef CAN_USE_ZBA_INSTRUCTIONS
+#define TARGET_ARCH_OPCODE_LIST_ZBA(V) \
+  V(RiscvSh1add)                       \
+  V(RiscvSh2add)                       \
+  V(RiscvSh3add)
+
+#ifdef V8_TARGET_ARCH_RISCV64
+#define TARGET_ARCH_OPCODE_LIST_ZBA_32(V) \
+  V(RiscvAdduw)                           \
+  V(RiscvSh1adduw)                        \
+  V(RiscvSh2adduw)                        \
+  V(RiscvSh3adduw)                        \
+  V(RiscvSlliuw)
+#else
+#define TARGET_ARCH_OPCODE_LIST_ZBA_32(V)
+#endif
+#else
+#define TARGET_ARCH_OPCODE_LIST_ZBA(V)
+#define TARGET_ARCH_OPCODE_LIST_ZBA_32(V)
+#endif
+
+#ifdef CAN_USE_ZBS_INSTRUCTIONS
+#define TARGET_ARCH_OPCODE_LIST_ZBS(V) \
+  V(RiscvBclr)                         \
+  V(RiscvBclri)                        \
+  V(RiscvBext)                         \
+  V(RiscvBexti)                        \
+  V(RiscvBinv)                         \
+  V(RiscvBinvi)                        \
+  V(RiscvBset)                         \
+  V(RiscvBseti)
+#else
+#define TARGET_ARCH_OPCODE_LIST_ZBS(V)
+#endif
+
+#define TARGET_ARCH_OPCODE_LIST(V)   \
+  TARGET_ARCH_OPCODE_LIST_COMMON(V)  \
+  TARGET_ARCH_OPCODE_LIST_SPECAIL(V) \
+  TARGET_ARCH_OPCODE_LIST_ZBB(V)     \
+  TARGET_ARCH_OPCODE_LIST_ZBS(V)     \
+  TARGET_ARCH_OPCODE_LIST_ZBA(V)     \
+  TARGET_ARCH_OPCODE_LIST_ZBA_32(V)  \
+  TARGET_ARCH_OPCODE_LIST_ZBB_32(V)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

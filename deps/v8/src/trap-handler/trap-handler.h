@@ -58,11 +58,11 @@ namespace trap_handler {
 #endif
 
 // Setup for shared library export.
-#if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
+#if defined(BUILDING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
-#elif defined(BUILDING_V8_SHARED)
+#elif defined(BUILDING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
-#elif defined(USING_V8_SHARED) && defined(V8_OS_WIN)
+#elif defined(USING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define TH_EXPORT_PRIVATE
@@ -90,11 +90,6 @@ struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
   // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
   uint32_t instr_offset;
-
-  // The offset of the landing pad from the start of its code object.
-  //
-  // TODO(eholk): Using a single landing pad and store parameters here.
-  uint32_t landing_offset;
 };
 
 const int kInvalidIndex = -1;
@@ -128,6 +123,10 @@ TH_EXPORT_PRIVATE extern std::atomic<bool> g_can_enable_trap_handler;
 // use_v8_handler indicates that V8 should install its own handler
 // rather than relying on the embedder to do it.
 TH_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
+
+// Set the address that the trap handler should continue execution from when it
+// gets a fault at a recognised address.
+TH_EXPORT_PRIVATE void SetLandingPad(uintptr_t landing_pad);
 
 inline bool IsTrapHandlerEnabled() {
   TH_DCHECK(!g_is_trap_handler_enabled || V8_TRAP_HANDLER_SUPPORTED);

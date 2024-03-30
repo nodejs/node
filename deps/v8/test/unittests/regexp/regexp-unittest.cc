@@ -1166,8 +1166,8 @@ TEST_F(RegExpTest, MacroAssemblerStackOverflow) {
       *regexp, *input, 0, start_adr, start_adr + input->length(), nullptr);
 
   CHECK_EQ(NativeRegExpMacroAssembler::EXCEPTION, result);
-  CHECK(isolate()->has_pending_exception());
-  isolate()->clear_pending_exception();
+  CHECK(isolate()->has_exception());
+  isolate()->clear_exception();
 }
 
 TEST_F(RegExpTest, MacroAssemblerNativeLotsOfRegisters) {
@@ -1210,7 +1210,7 @@ TEST_F(RegExpTest, MacroAssemblerNativeLotsOfRegisters) {
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(42, captures[1]);
 
-  isolate()->clear_pending_exception();
+  isolate()->clear_exception();
 }
 
 TEST_F(RegExpTest, MacroAssembler) {
@@ -1720,7 +1720,7 @@ TEST_F(RegExpTestWithContext, UseCountRegExp) {
   CHECK(resultToStringError->IsObject());
 }
 
-class UncachedExternalString
+class UncachedExternalStringResource
     : public v8::String::ExternalOneByteStringResource {
  public:
   const char* data() const override { return "abcdefghijklmnopqrstuvwxyz"; }
@@ -1731,7 +1731,8 @@ class UncachedExternalString
 TEST_F(RegExpTestWithContext, UncachedExternalString) {
   v8::HandleScope scope(isolate());
   v8::Local<v8::String> external =
-      v8::String::NewExternalOneByte(isolate(), new UncachedExternalString())
+      v8::String::NewExternalOneByte(isolate(),
+                                     new UncachedExternalStringResource())
           .ToLocalChecked();
   CHECK(v8::Utils::OpenHandle(*external)->map() ==
         ReadOnlyRoots(i_isolate()).uncached_external_one_byte_string_map());
@@ -1785,12 +1786,12 @@ TEST_F(RegExpTest, PeepholeNoChange) {
   v8_flags.regexp_peephole_optimization = false;
   Handle<ByteArray> array = Handle<ByteArray>::cast(orig.GetCode(source));
   int length = array->length();
-  uint8_t* byte_array = array->GetDataStartAddress();
+  uint8_t* byte_array = array->begin();
 
   v8_flags.regexp_peephole_optimization = true;
   Handle<ByteArray> array_optimized =
       Handle<ByteArray>::cast(opt.GetCode(source));
-  uint8_t* byte_array_optimized = array_optimized->GetDataStartAddress();
+  uint8_t* byte_array_optimized = array_optimized->begin();
 
   CHECK_EQ(0, memcmp(byte_array, byte_array_optimized, length));
 }
@@ -2179,8 +2180,8 @@ TEST_F(RegExpTest, PeepholeLabelFixupsInside) {
   for (int label_idx = 0; label_idx < 3; label_idx++) {
     for (int pos_idx = 0; pos_idx < 2; pos_idx++) {
       int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
-      int jump_address = *reinterpret_cast<uint32_t*>(
-          array_optimized->GetDataStartAddress() + label_pos);
+      int jump_address =
+          *reinterpret_cast<uint32_t*>(array_optimized->begin() + label_pos);
       int expected_jump_address =
           labels[label_idx]->pos() + target_fixups[label_idx];
       CHECK_EQ(expected_jump_address, jump_address);
@@ -2289,8 +2290,8 @@ TEST_F(RegExpTest, PeepholeLabelFixupsComplex) {
   for (int label_idx = 0; label_idx < 4; label_idx++) {
     for (int pos_idx = 0; pos_idx < 3; pos_idx++) {
       int label_pos = label_positions[label_idx][pos_idx] + pos_fixups[pos_idx];
-      int jump_address = *reinterpret_cast<uint32_t*>(
-          array_optimized->GetDataStartAddress() + label_pos);
+      int jump_address =
+          *reinterpret_cast<uint32_t*>(array_optimized->begin() + label_pos);
       int expected_jump_address =
           labels[label_idx]->pos() + target_fixups[label_idx];
       CHECK_EQ(expected_jump_address, jump_address);
@@ -2308,7 +2309,7 @@ TEST_F(RegExpTestWithContext, UnicodePropertyEscapeCodeSize) {
 
   static constexpr int kMaxSize = 200 * KB;
   static constexpr bool kIsNotLatin1 = false;
-  Tagged<Object> maybe_code = re->code(kIsNotLatin1);
+  Tagged<Object> maybe_code = re->code(i_isolate(), kIsNotLatin1);
   Tagged<Object> maybe_bytecode = re->bytecode(kIsNotLatin1);
   if (IsByteArray(maybe_bytecode)) {
     // On x64, excessive inlining produced >250KB.

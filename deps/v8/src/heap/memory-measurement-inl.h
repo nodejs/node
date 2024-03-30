@@ -19,27 +19,9 @@ namespace internal {
 bool NativeContextInferrer::Infer(PtrComprCageBase cage_base, Tagged<Map> map,
                                   Tagged<HeapObject> object,
                                   Address* native_context) {
-  switch (map->visitor_id()) {
-    case kVisitContext:
-      return InferForContext(cage_base, Context::cast(object), native_context);
-    case kVisitNativeContext:
-      *native_context = object.ptr();
-      return true;
-    case kVisitJSFunction:
-      return InferForJSFunction(cage_base, JSFunction::cast(object),
-                                native_context);
-    case kVisitJSApiObject:
-    case kVisitJSArrayBuffer:
-    case kVisitJSFinalizationRegistry:
-    case kVisitJSObject:
-    case kVisitJSObjectFast:
-    case kVisitJSTypedArray:
-    case kVisitJSWeakCollection:
-      return InferForJSObject(cage_base, map, JSObject::cast(object),
-                              native_context);
-    default:
-      return false;
-  }
+  Tagged<Object> maybe_native_context = map->map()->native_context_or_null();
+  *native_context = maybe_native_context.ptr();
+  return !IsNull(maybe_native_context);
 }
 
 V8_INLINE bool NativeContextStats::HasExternalBytes(Tagged<Map> map) {

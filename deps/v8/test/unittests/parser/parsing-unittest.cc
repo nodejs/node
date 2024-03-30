@@ -76,11 +76,11 @@ struct Input {
     (info)->pending_error_handler()->ReportErrors((isolate), (script));       \
                                                                               \
     i::Handle<i::JSObject> exception_handle(                                  \
-        i::JSObject::cast((isolate)->pending_exception()), (isolate));        \
+        i::JSObject::cast((isolate)->exception()), (isolate));                \
     i::Handle<i::String> message_string = i::Handle<i::String>::cast(         \
         i::JSReceiver::GetProperty((isolate), exception_handle, "message")    \
             .ToHandleChecked());                                              \
-    (isolate)->clear_pending_exception();                                     \
+    (isolate)->clear_exception();                                             \
                                                                               \
     Tagged<String> script_source = String::cast((script)->source());          \
                                                                               \
@@ -272,13 +272,13 @@ class ParsingTest : public TestWithContextAndZone {
     // Check that preparsing fails iff parsing fails.
     if (function == nullptr) {
       // Extract exception from the parser.
-      CHECK(isolate->has_pending_exception());
+      CHECK(isolate->has_exception());
       i::Handle<i::JSObject> exception_handle(
-          i::JSObject::cast(isolate->pending_exception()), isolate);
+          i::JSObject::cast(isolate->exception()), isolate);
       i::Handle<i::String> message_string = i::Handle<i::String>::cast(
           i::JSReceiver::GetProperty(isolate, exception_handle, "message")
               .ToHandleChecked());
-      isolate->clear_pending_exception();
+      isolate->clear_exception();
 
       if (result == kSuccess) {
         FATAL(
@@ -517,6 +517,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -543,6 +544,7 @@ bool TokenIsCallable(Token::Value token) {
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
     case Token::AWAIT:
     case Token::YIELD:
@@ -569,6 +571,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
     case Token::IDENTIFIER:
     case Token::GET:
     case Token::SET:
+    case Token::OF:
     case Token::ASYNC:
       return true;
     case Token::YIELD:
@@ -4877,10 +4880,7 @@ TEST_F(ParsingTest, BasicImportAssertionParsing) {
     "import { a as b } from 'm.js' assert { c:\n 'd'};",
     "import { a as b } from 'm.js' assert { c:'d'\n};",
 
-    "import { a as b } from 'm.js' assert { 0: 'b', };",
-    "import { a as b } from 'm.js' assert { 0n: 'b', };",
     "import { a as b } from 'm.js' assert { '0': 'b', };",
-    "import { a as b } from 'm.js' assert { 0.0: 'b', };",
   };
   // clang-format on
 
@@ -4942,18 +4942,12 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
     "import { a } from 'm.js'\n assert { };",
     "export * from 'm.js'\n assert { };",
 
-    "import { a } from 'm.js' assert { 1: 2 };",
+    "import { a } from 'm.js' assert { x: 2 };",
     "import { a } from 'm.js' assert { b: c };",
     "import { a } from 'm.js' assert { 'b': c };",
     "import { a } from 'm.js' assert { , b: c };",
     "import { a } from 'm.js' assert { a: 'b', a: 'c' };",
     "import { a } from 'm.js' assert { a: 'b', 'a': 'c' };",
-
-    "import { a } from 'm.js' assert { 0: 'b', '0': 'c' };",
-    "import { a } from 'm.js' assert { 0n: 'b', '0': 'c' };",
-    "import { a } from 'm.js' assert { 0: 'b', 0n: 'c' };",
-    "import { a } from 'm.js' assert { 0: 'b', 0.0: 'c' };",
-    "import { a } from 'm.js' assert { '0': 'b', 0n: 'c' };",
 
     "import 'm.js' with { a: 'b' };"
   };
@@ -5008,10 +5002,7 @@ TEST_F(ParsingTest, BasicImportAttributesParsing) {
     "import { a as b } from 'm.js' with { c:\n 'd'};",
     "import { a as b } from 'm.js' with { c:'d'\n};",
 
-    "import { a as b } from 'm.js' with { 0: 'b', };",
-    "import { a as b } from 'm.js' with { 0n: 'b', };",
     "import { a as b } from 'm.js' with { '0': 'b', };",
-    "import { a as b } from 'm.js' with { 0.0: 'b', };",
 
     "import 'm.js'\n with { };",
     "import 'm.js' \nwith { };",
@@ -5073,18 +5064,12 @@ TEST_F(ParsingTest, ImportAttributesParsingErrors) {
     "export { a } with { };",
     "export * with { };",
 
-    "import { a } from 'm.js' with { 1: 2 };",
+    "import { a } from 'm.js' with { x: 2 };",
     "import { a } from 'm.js' with { b: c };",
     "import { a } from 'm.js' with { 'b': c };",
     "import { a } from 'm.js' with { , b: c };",
     "import { a } from 'm.js' with { a: 'b', a: 'c' };",
     "import { a } from 'm.js' with { a: 'b', 'a': 'c' };",
-
-    "import { a } from 'm.js' with { 0: 'b', '0': 'c' };",
-    "import { a } from 'm.js' with { 0n: 'b', '0': 'c' };",
-    "import { a } from 'm.js' with { 0: 'b', 0n: 'c' };",
-    "import { a } from 'm.js' with { 0: 'b', 0.0: 'c' };",
-    "import { a } from 'm.js' with { '0': 'b', 0n: 'c' };",
 
     "import 'm.js' assert { a: 'b' };"
   };
@@ -10237,6 +10222,7 @@ TEST_F(ParsingTest, EscapedKeywords) {
     "({\\u0067et get(){}})",
     "({\\u0073et set(){}})",
     "(async ()=>{var \\u0061wait = 100})()",
+    "for (var x o\\u0066 [])",
     nullptr
   };
   // clang-format on

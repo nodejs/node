@@ -421,14 +421,14 @@ MaybeHandle<JSCollator> JSCollator::New(Isolate* isolate, Handle<Map> map,
 
   std::unique_ptr<icu::Collator> icu_collator(
       icu::Collator::createInstance(icu_locale, status));
-  if (U_FAILURE(status) || icu_collator.get() == nullptr) {
+  if (U_FAILURE(status) || icu_collator == nullptr) {
     status = U_ZERO_ERROR;
     // Remove extensions and try again.
     icu::Locale no_extension_locale(icu_locale.getBaseName());
     icu_collator.reset(
         icu::Collator::createInstance(no_extension_locale, status));
 
-    if (U_FAILURE(status) || icu_collator.get() == nullptr) {
+    if (U_FAILURE(status) || icu_collator == nullptr) {
       THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kIcuError),
                       JSCollator);
     }
@@ -567,6 +567,7 @@ class CollatorAvailableLocales {
     const icu::Locale* icu_available_locales =
         icu::Collator::getAvailableLocales(num_locales);
     std::vector<std::string> locales;
+    locales.reserve(num_locales);
     for (int32_t i = 0; i < num_locales; ++i) {
       locales.push_back(
           Intl::ToLanguageTag(icu_available_locales[i]).FromJust());

@@ -24,22 +24,26 @@ namespace internal {
   V(AccessorInfo)                       \
   V(AllocationSite)                     \
   V(BigInt)                             \
-  V(ByteArray)                          \
   V(BytecodeArray)                      \
-  V(ExternalPointerArray)               \
+  V(BytecodeWrapper)                    \
   V(CallHandlerInfo)                    \
+  V(CallSiteInfo)                       \
   V(Cell)                               \
-  V(InstructionStream)                  \
   V(Code)                               \
+  V(CodeWrapper)                        \
+  V(ConsString)                         \
   V(CoverageInfo)                       \
   V(DataHandler)                        \
+  V(DebugInfo)                          \
   V(EmbedderDataArray)                  \
   V(EphemeronHashTable)                 \
+  V(ExternalPointerArray)               \
   V(ExternalString)                     \
   V(FeedbackCell)                       \
   V(FeedbackMetadata)                   \
-  V(FixedArray)                         \
-  V(FixedDoubleArray)                   \
+  V(Hole)                               \
+  V(InstructionStream)                  \
+  V(InterpreterData)                    \
   V(JSArrayBuffer)                      \
   V(JSDataViewOrRabGsabDataView)        \
   V(JSExternalObject)                   \
@@ -48,19 +52,20 @@ namespace internal {
   V(JSObject)                           \
   V(JSSynchronizationPrimitive)         \
   V(JSTypedArray)                       \
-  V(WeakCell)                           \
   V(JSWeakCollection)                   \
   V(JSWeakRef)                          \
   V(Map)                                \
   V(NativeContext)                      \
   V(Oddball)                            \
-  V(Hole)                               \
   V(PreparseData)                       \
   V(PromiseOnStack)                     \
   V(PropertyArray)                      \
   V(PropertyCell)                       \
   V(PrototypeInfo)                      \
+  V(SeqOneByteString)                   \
+  V(SeqTwoByteString)                   \
   V(SharedFunctionInfo)                 \
+  V(SlicedString)                       \
   V(SloppyArgumentsElements)            \
   V(SmallOrderedHashMap)                \
   V(SmallOrderedHashSet)                \
@@ -69,22 +74,26 @@ namespace internal {
   V(SwissNameDictionary)                \
   V(Symbol)                             \
   V(SyntheticModule)                    \
+  V(ThinString)                         \
   V(TransitionArray)                    \
+  V(WeakCell)                           \
   IF_WASM(V, WasmApiFunctionRef)        \
   IF_WASM(V, WasmArray)                 \
   IF_WASM(V, WasmCapiFunctionData)      \
+  IF_WASM(V, WasmContinuationObject)    \
   IF_WASM(V, WasmExportedFunctionData)  \
   IF_WASM(V, WasmFunctionData)          \
   IF_WASM(V, WasmIndirectFunctionTable) \
   IF_WASM(V, WasmInstanceObject)        \
   IF_WASM(V, WasmInternalFunction)      \
   IF_WASM(V, WasmJSFunctionData)        \
+  IF_WASM(V, WasmNull)                  \
+  IF_WASM(V, WasmResumeData)            \
   IF_WASM(V, WasmStruct)                \
   IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmResumeData)            \
+  IF_WASM(V, WasmTrustedInstanceData)   \
   IF_WASM(V, WasmTypeInfo)              \
-  IF_WASM(V, WasmContinuationObject)    \
-  IF_WASM(V, WasmNull)
+  SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)

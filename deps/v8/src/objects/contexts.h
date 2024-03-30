@@ -9,6 +9,7 @@
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
+
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
@@ -20,6 +21,7 @@ class JSGlobalProxy;
 class MicrotaskQueue;
 class NativeContext;
 class RegExpMatchInfo;
+struct VariableLookupResult;
 
 enum ContextLookupFlags {
   FOLLOW_CONTEXT_CHAIN = 1 << 0,
@@ -222,12 +224,13 @@ enum ContextLookupFlags {
   V(JSON_OBJECT, JSObject, json_object)                                        \
   V(PROMISE_WITHRESOLVERS_RESULT_MAP_INDEX, Map,                               \
     promise_withresolvers_result_map)                                          \
+  V(TEMPORAL_OBJECT_INDEX, HeapObject, temporal_object)                        \
   V(TEMPORAL_INSTANT_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,     \
     temporal_instant_fixed_array_from_iterable)                                \
   V(STRING_FIXED_ARRAY_FROM_ITERABLE_FUNCTION_INDEX, JSFunction,               \
     string_fixed_array_from_iterable)                                          \
   /* Context maps */                                                           \
-  V(NATIVE_CONTEXT_MAP_INDEX, Map, native_context_map)                         \
+  V(META_MAP_INDEX, Map, meta_map)                                             \
   V(FUNCTION_CONTEXT_MAP_INDEX, Map, function_context_map)                     \
   V(MODULE_CONTEXT_MAP_INDEX, Map, module_context_map)                         \
   V(EVAL_CONTEXT_MAP_INDEX, Map, eval_context_map)                             \
@@ -280,7 +283,7 @@ enum ContextLookupFlags {
   V(SCRIPT_CONTEXT_TABLE_INDEX, ScriptContextTable, script_context_table)      \
   V(SCRIPT_EXECUTION_CALLBACK_INDEX, Object, script_execution_callback)        \
   V(SECURITY_TOKEN_INDEX, Object, security_token)                              \
-  V(SERIALIZED_OBJECTS, FixedArray, serialized_objects)                        \
+  V(SERIALIZED_OBJECTS, HeapObject, serialized_objects)                        \
   V(SET_VALUE_ITERATOR_MAP_INDEX, Map, set_value_iterator_map)                 \
   V(SET_KEY_VALUE_ITERATOR_MAP_INDEX, Map, set_key_value_iterator_map)         \
   V(SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction, shared_array_buffer_fun)        \
@@ -372,6 +375,7 @@ enum ContextLookupFlags {
   V(SET_HAS_INDEX, JSFunction, set_has)                                        \
   V(SHADOW_REALM_IMPORT_VALUE_REJECTED_INDEX, JSFunction,                      \
     shadow_realm_import_value_rejected)                                        \
+  V(SUPPRESSED_ERROR_FUNCTION_INDEX, JSFunction, suppressed_error_function)    \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \
@@ -390,56 +394,6 @@ enum ContextLookupFlags {
     shared_space_js_object_has_instance)
 
 #include "torque-generated/src/objects/contexts-tq.inc"
-
-// A table of all script contexts. Every loaded top-level script with top-level
-// lexical declarations contributes its ScriptContext into this table.
-//
-// The table is a fixed array, its first slot is the current used count and
-// the subsequent slots 1..used contain ScriptContexts.
-
-struct VariableLookupResult;
-class ScriptContextTable : public FixedArray {
- public:
-  DECL_CAST(ScriptContextTable)
-
-  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(used)
-
-  static inline Handle<Context> GetContext(Isolate* isolate,
-                                           Handle<ScriptContextTable> table,
-                                           int i);
-  inline Tagged<Context> get_context(int i) const;
-  inline Tagged<Context> get_context(int i, AcquireLoadTag tag) const;
-
-  DECL_ACCESSORS(names_to_context_index, Tagged<NameToIndexHashTable>)
-
-  // Adds local names from `script_context` to the hash table.
-  static void AddLocalNamesFromContext(
-      Isolate* isolate, Handle<ScriptContextTable> script_context_table,
-      Handle<Context> script_context, bool ignore_duplicates,
-      int script_context_index);
-
-  // Lookup a variable `name` in a ScriptContextTable.
-  // If it returns true, the variable is found and `result` contains
-  // valid information about its location.
-  // If it returns false, `result` is untouched.
-  V8_WARN_UNUSED_RESULT
-  V8_EXPORT_PRIVATE bool Lookup(Handle<String> name,
-                                VariableLookupResult* result);
-
-  V8_WARN_UNUSED_RESULT
-  V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Extend(
-      Isolate* isolate, Handle<ScriptContextTable> table,
-      Handle<Context> script_context, bool ignore_duplicates = false);
-
-  static const int kHashTableIndex = 0;
-  static const int kUsedSlotIndex = 1;
-  static const int kFirstContextSlotIndex = 2;
-  static const int kMinLength = kFirstContextSlotIndex;
-
-  static const int kHashTableOffset = OffsetOfElementAt(kHashTableIndex);
-
-  OBJECT_CONSTRUCTORS(ScriptContextTable, FixedArray);
-};
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -493,7 +447,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   using TorqueGeneratedContext::length;      // Non-atomic.
   using TorqueGeneratedContext::set_length;  // Non-atomic.
-  DECL_RELAXED_SMI_ACCESSORS(length)
+  DECL_RELAXED_INT_ACCESSORS(length)
 
   // Setter and getter for elements.
   // Note the plain accessors use relaxed semantics.
@@ -807,6 +761,67 @@ class NativeContext : public Context {
                 Internals::kNativeContextEmbedderDataOffset);
 
   OBJECT_CONSTRUCTORS(NativeContext, Context);
+};
+
+class ScriptContextTableShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  using ElementT = Context;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kScriptContextTableMap;
+  static constexpr bool kLengthEqualsCapacity = false;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kLengthOffset, kTaggedSize)                                         \
+  V(kNamesToContextIndexOffset, kTaggedSize)                            \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// A table of all script contexts. Every loaded top-level script with top-level
+// lexical declarations contributes its ScriptContext into this table.
+class ScriptContextTable
+    : public TaggedArrayBase<ScriptContextTable, ScriptContextTableShape> {
+  using Super = TaggedArrayBase<ScriptContextTable, ScriptContextTableShape>;
+  OBJECT_CONSTRUCTORS(ScriptContextTable, Super);
+
+ public:
+  using Shape = ScriptContextTableShape;
+
+  static Handle<ScriptContextTable> New(
+      Isolate* isolate, int capacity,
+      AllocationType allocation = AllocationType::kYoung);
+
+  DECL_RELEASE_ACQUIRE_INT_ACCESSORS(length)
+  DECL_ACCESSORS(names_to_context_index, Tagged<NameToIndexHashTable>)
+
+  inline Tagged<Context> get(int index) const;
+  inline Tagged<Context> get(int index, AcquireLoadTag) const;
+
+  // Lookup a variable `name` in a ScriptContextTable.
+  // If it returns true, the variable is found and `result` contains
+  // valid information about its location.
+  // If it returns false, `result` is untouched.
+  V8_WARN_UNUSED_RESULT
+  V8_EXPORT_PRIVATE bool Lookup(Handle<String> name,
+                                VariableLookupResult* result);
+
+  V8_WARN_UNUSED_RESULT
+  V8_EXPORT_PRIVATE static Handle<ScriptContextTable> Add(
+      Isolate* isolate, Handle<ScriptContextTable> table,
+      Handle<Context> script_context, bool ignore_duplicates);
+
+  DECL_CAST(ScriptContextTable)
+  DECL_PRINTER(ScriptContextTable)
+  DECL_VERIFIER(ScriptContextTable)
+
+  class BodyDescriptor;
+
+  static constexpr int kLengthOffset = Shape::kLengthOffset;
+  static constexpr int kNamesToContextIndexOffset =
+      Shape::kNamesToContextIndexOffset;
 };
 
 using ContextField = Context::Field;

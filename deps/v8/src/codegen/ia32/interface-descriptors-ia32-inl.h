@@ -192,6 +192,14 @@ constexpr auto CallFunctionTemplateDescriptor::registers() {
 }
 
 // static
+constexpr auto CallFunctionTemplateGenericDescriptor::registers() {
+  // edx: the function template info
+  // ecx: number of arguments (on the stack)
+  // edi: topmost script-having context
+  return RegisterArray(edx, ecx, edi);
+}
+
+// static
 constexpr auto CallWithSpreadDescriptor::registers() {
   // eax : number of arguments (on the stack)
   // edi : the target to call
@@ -303,6 +311,11 @@ CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
   return ecx;
 }
 // static
+constexpr Register
+CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
+  return eax;
+}
+// static
 constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
   return edx;
 }
@@ -329,6 +342,12 @@ constexpr auto InterpreterPushArgsThenCallDescriptor::registers() {
 constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
   return RegisterArray(eax,   // argument count
                        ecx);  // address of first argument
+}
+
+// static
+constexpr auto ConstructForwardAllArgsDescriptor::registers() {
+  return RegisterArray(edi,   // the constructor
+                       edx);  // the new target
 }
 
 // static

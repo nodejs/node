@@ -75,25 +75,28 @@ class SlotAccessorForHeapObject {
     return Write(*value, ref_type, slot_offset);
   }
 
-  int WriteIndirect(Tagged<HeapObject> value) {
-    // TODO(saelo): currently, only Code objects can be referenced indirectly
-    // through a pointer table, and so here we directly downcast to Code
-    // because we need to know the offset at which the object has its pointer
-    // table entry index. However, in the future we might have other types of
-    // objects be referenced through the table. In that case, we should
-    // probably introduce some kind of "ExternalHeapObject" class which, in
-    // sandbox builds, owns a pointer table entry and contains the handle for
-    // it. Then we can unify this handling here to expect an ExternalHeapObject
-    // and simply copy the handle into the slot. For that we don't even need to
-    // know which table the object uses.
-    CHECK(IsCode(value));
-    Tagged<Code> code = Code::cast(value);
+  int WriteIndirectPointerTo(Tagged<HeapObject> value) {
+    // Only ExposedTrustedObjects can be referenced via indirect pointers, so
+    // we must have one of these objects here. See the comments in
+    // trusted-object.h for more details.
+    DCHECK(IsExposedTrustedObject(value));
+    Tagged<ExposedTrustedObject> object = ExposedTrustedObject::cast(value);
+
     InstanceType instance_type = value->map()->instance_type();
     IndirectPointerTag tag = IndirectPointerTagFromInstanceType(instance_type);
     IndirectPointerSlot dest = object_->RawIndirectPointerField(offset_, tag);
-    dest.store(code);
+    dest.store(object);
 
     IndirectPointerWriteBarrier(*object_, dest, value, UPDATE_WRITE_BARRIER);
+    return 1;
+  }
+
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value) {
+    DCHECK(IsTrustedObject(*object_));
+    Tagged<TrustedObject> host = TrustedObject::cast(*object_);
+    ProtectedPointerSlot dest = host->RawProtectedPointerField(offset_);
+    dest.store(value);
+    ProtectedPointerWriteBarrier(host, dest, value, UPDATE_WRITE_BARRIER);
     return 1;
   }
 
@@ -132,7 +135,8 @@ class SlotAccessorForRootSlots {
             int slot_offset = 0) {
     return Write(*value, ref_type, slot_offset);
   }
-  int WriteIndirect(Tagged<HeapObject> value) { UNREACHABLE(); }
+  int WriteIndirectPointerTo(Tagged<HeapObject> value) { UNREACHABLE(); }
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value) { UNREACHABLE(); }
 
  private:
   const FullMaybeObjectSlot slot_;
@@ -168,7 +172,8 @@ class SlotAccessorForHandle {
     *handle_ = value;
     return 1;
   }
-  int WriteIndirect(Tagged<HeapObject> value) { UNREACHABLE(); }
+  int WriteIndirectPointerTo(Tagged<HeapObject> value) { UNREACHABLE(); }
+  int WriteProtectedPointerTo(Tagged<TrustedObject> value) { UNREACHABLE(); }
 
  private:
   Handle<HeapObject>* handle_;
@@ -181,7 +186,7 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Tagged<HeapObject> heap_object,
                                              ReferenceDescriptor descr) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirect(heap_object);
+    return slot_accessor.WriteIndirectPointerTo(heap_object);
   } else {
     return slot_accessor.Write(heap_object, descr.type);
   }
@@ -193,7 +198,11 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
                                              Handle<HeapObject> heap_object,
                                              ReferenceDescriptor descr) {
   if (descr.is_indirect_pointer) {
-    return slot_accessor.WriteIndirect(*heap_object);
+    return slot_accessor.WriteIndirectPointerTo(*heap_object);
+  } else if (descr.is_protected_pointer) {
+    DCHECK(IsTrustedObject(*heap_object));
+    return slot_accessor.WriteProtectedPointerTo(
+        TrustedObject::cast(*heap_object));
   } else {
     return slot_accessor.Write(heap_object, descr.type);
   }
@@ -202,7 +211,8 @@ int Deserializer<IsolateT>::WriteHeapPointer(SlotAccessor slot_accessor,
 template <typename IsolateT>
 int Deserializer<IsolateT>::WriteExternalPointer(ExternalPointerSlot dest,
                                                  Address value) {
-  DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_);
+  DCHECK(!next_reference_is_weak_ && !next_reference_is_indirect_pointer_ &&
+         !next_reference_is_protected_pointer);
   dest.init(main_thread_isolate(), value);
   // ExternalPointers can only be written into HeapObject fields, therefore they
   // cover (kExternalPointerSlotSize / kTaggedSize) slots.
@@ -537,7 +547,6 @@ void Deserializer<IsolateT>::PostProcessNewObject(Handle<Map> map,
     }
   } else if (InstanceTypeChecker::IsCode(instance_type)) {
     Tagged<Code> code = Code::cast(raw_obj);
-    code->init_instruction_start(main_thread_isolate(), kNullAddress);
     if (!code->has_instruction_stream()) {
       code->SetInstructionStartForOffHeapBuiltin(
           main_thread_isolate(), EmbeddedData::FromBlob(main_thread_isolate())
@@ -594,6 +603,8 @@ Deserializer<IsolateT>::GetAndResetNextReferenceDescriptor() {
   next_reference_is_weak_ = false;
   desc.is_indirect_pointer = next_reference_is_indirect_pointer_;
   next_reference_is_indirect_pointer_ = false;
+  desc.is_protected_pointer = next_reference_is_protected_pointer;
+  next_reference_is_protected_pointer = false;
   return desc;
 }
 
@@ -641,7 +652,7 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
 
   // The map can't be a forward ref. If you want the map to be a forward ref,
   // then you're probably serializing the meta-map, in which case you want to
-  // use the kNewMetaMap bytecode.
+  // use the kNewContextlessMetaMap/kNewContextfulMetaMap bytecode.
   DCHECK_NE(source()->Peek(), kRegisterPendingForwardRef);
   Handle<Map> map = Handle<Map>::cast(ReadObject());
 
@@ -739,14 +750,18 @@ Handle<HeapObject> Deserializer<IsolateT>::ReadObject(SnapshotSpace space) {
   } else {
     DCHECK_NE(space, SnapshotSpace::kCode);
   }
+  if (IsTrustedObject(*obj)) {
+    DCHECK_EQ(space, SnapshotSpace::kTrusted);
+  } else {
+    DCHECK_NE(space, SnapshotSpace::kTrusted);
+  }
 #endif  // DEBUG
 
   return obj;
 }
 
 template <typename IsolateT>
-Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap() {
-  const SnapshotSpace space = SnapshotSpace::kReadOnlyHeap;
+Handle<HeapObject> Deserializer<IsolateT>::ReadMetaMap(SnapshotSpace space) {
   const int size_in_bytes = Map::kSize;
   const int size_in_tagged = size_in_bytes / kTaggedSize;
 
@@ -859,7 +874,8 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadStartupObjectCache(data, slot_accessor);
     case kSharedHeapObjectCache:
       return ReadSharedHeapObjectCache(data, slot_accessor);
-    case kNewMetaMap:
+    case kNewContextlessMetaMap:
+    case kNewContextfulMetaMap:
       return ReadNewMetaMap(data, slot_accessor);
     case kSandboxedExternalReference:
     case kExternalReference:
@@ -894,6 +910,10 @@ int Deserializer<IsolateT>::ReadSingleBytecodeData(uint8_t data,
       return ReadWeakPrefix(data, slot_accessor);
     case kIndirectPointerPrefix:
       return ReadIndirectPointerPrefix(data, slot_accessor);
+    case kInitializeSelfIndirectPointer:
+      return ReadInitializeSelfIndirectPointer(data, slot_accessor);
+    case kProtectedPointerPrefix:
+      return ReadProtectedPointerPrefix(data, slot_accessor);
     case CASE_RANGE(kRootArrayConstants, 32):
       return ReadRootArrayConstants(data, slot_accessor);
     case CASE_RANGE(kHotObject, 8):
@@ -1012,7 +1032,10 @@ template <typename IsolateT>
 template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadNewMetaMap(uint8_t data,
                                            SlotAccessor slot_accessor) {
-  Handle<HeapObject> heap_object = ReadMetaMap();
+  SnapshotSpace space = data == kNewContextlessMetaMap
+                            ? SnapshotSpace::kReadOnlyHeap
+                            : SnapshotSpace::kOld;
+  Handle<HeapObject> heap_object = ReadMetaMap(space);
   return slot_accessor.Write(heap_object, HeapObjectReferenceType::STRONG);
 }
 
@@ -1064,9 +1087,8 @@ template <typename SlotAccessor>
 int Deserializer<IsolateT>::ReadRegisterPendingForwardRef(
     uint8_t data, SlotAccessor slot_accessor) {
   ReferenceDescriptor descr = GetAndResetNextReferenceDescriptor();
-  DCHECK(!descr.is_indirect_pointer);
   unresolved_forward_refs_.emplace_back(slot_accessor.object(),
-                                        slot_accessor.offset(), descr.type);
+                                        slot_accessor.offset(), descr);
   num_unresolved_forward_refs_++;
   return 1;
 }
@@ -1077,14 +1099,15 @@ int Deserializer<IsolateT>::ReadResolvePendingForwardRef(
     uint8_t data, SlotAccessor slot_accessor) {
   // Pending forward refs can only be resolved after the heap object's map
   // field is deserialized; currently they only appear immediately after
-  // the map field.
-  DCHECK_EQ(slot_accessor.offset(), HeapObject::kHeaderSize);
+  // the map field or after the 'self' indirect pointer for trusted objects.
+  DCHECK(slot_accessor.offset() == HeapObject::kHeaderSize ||
+         slot_accessor.offset() == ExposedTrustedObject::kHeaderSize);
   Handle<HeapObject> obj = slot_accessor.object();
   int index = source_.GetUint30();
   auto& forward_ref = unresolved_forward_refs_[index];
-  SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
-                                           forward_ref.offset)
-      .Write(*obj, forward_ref.ref_type);
+  auto slot = SlotAccessorForHeapObject::ForSlotOffset(forward_ref.object,
+                                                       forward_ref.offset);
+  WriteHeapPointer(slot, obj, forward_ref.descr);
   num_unresolved_forward_refs_--;
   if (num_unresolved_forward_refs_ == 0) {
     // If there's no more pending fields, clear the entire pending field
@@ -1201,6 +1224,38 @@ int Deserializer<IsolateT>::ReadIndirectPointerPrefix(
   // We shouldn't have a indirect pointer prefix without a current object.
   DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
   next_reference_is_indirect_pointer_ = true;
+  return 0;
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadInitializeSelfIndirectPointer(
+    uint8_t data, SlotAccessor slot_accessor) {
+#ifdef V8_ENABLE_SANDBOX
+  DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
+  DCHECK(IsExposedTrustedObject(*slot_accessor.object()));
+  DCHECK_EQ(slot_accessor.offset(),
+            ExposedTrustedObject::kSelfIndirectPointerOffset);
+
+  Tagged<ExposedTrustedObject> host =
+      ExposedTrustedObject::cast(*slot_accessor.object());
+  host->init_self_indirect_pointer(isolate());
+
+  return 1;
+#else
+  UNREACHABLE();
+#endif  // V8_ENABLE_SANDBOX
+}
+
+template <typename IsolateT>
+template <typename SlotAccessor>
+int Deserializer<IsolateT>::ReadProtectedPointerPrefix(
+    uint8_t data, SlotAccessor slot_accessor) {
+  // We shouldn't have two protected pointer prefixes in a row.
+  DCHECK(!next_reference_is_protected_pointer);
+  // We shouldn't have a protected pointer prefix without a current object.
+  DCHECK_NE(slot_accessor.object()->address(), kNullAddress);
+  next_reference_is_protected_pointer = true;
   return 0;
 }
 

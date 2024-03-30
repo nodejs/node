@@ -8,6 +8,7 @@
 #include "src/base/flags.h"
 #include "src/builtins/builtins-definitions.h"
 #include "src/common/globals.h"
+#include "src/objects/type-hints.h"
 
 namespace v8 {
 namespace internal {
@@ -126,40 +127,43 @@ class Builtins {
   static BytecodeOffset GetContinuationBytecodeOffset(Builtin builtin);
   static Builtin GetBuiltinFromBytecodeOffset(BytecodeOffset);
 
-  static constexpr Builtin GetRecordWriteStub(SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kRecordWriteIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kRecordWriteSaveFP;
-    }
-  }
-
-  static constexpr Builtin GetIndirectPointerBarrierStub(
-      SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kIndirectPointerBarrierIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kIndirectPointerBarrierSaveFP;
-    }
-  }
-
-  static constexpr Builtin GetEphemeronKeyBarrierStub(SaveFPRegsMode fp_mode) {
-    switch (fp_mode) {
-      case SaveFPRegsMode::kIgnore:
-        return Builtin::kEphemeronKeyBarrierIgnoreFP;
-      case SaveFPRegsMode::kSave:
-        return Builtin::kEphemeronKeyBarrierSaveFP;
-    }
-  }
-
+  //
   // Convenience wrappers.
-  Handle<Code> CallFunction(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> Call(ConvertReceiverMode = ConvertReceiverMode::kAny);
-  Handle<Code> NonPrimitiveToPrimitive(
+  //
+  static inline constexpr Builtin RecordWrite(SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin IndirectPointerBarrier(
+      SaveFPRegsMode fp_mode);
+  static inline constexpr Builtin EphemeronKeyBarrier(SaveFPRegsMode fp_mode);
+
+  static inline constexpr Builtin CallFunction(
+      ConvertReceiverMode = ConvertReceiverMode::kAny);
+  static inline constexpr Builtin Call(
+      ConvertReceiverMode = ConvertReceiverMode::kAny);
+
+  static inline constexpr Builtin NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
-  Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
+  static inline constexpr Builtin OrdinaryToPrimitive(
+      OrdinaryToPrimitiveHint hint);
+
+  static inline constexpr Builtin StringAdd(
+      StringAddFlags flags = STRING_ADD_CHECK_NONE);
+
+  static inline constexpr Builtin LoadGlobalIC(TypeofMode typeof_mode);
+  static inline constexpr Builtin LoadGlobalICInOptimizedCode(
+      TypeofMode typeof_mode);
+
+  static inline constexpr Builtin CEntry(int result_size, ArgvMode argv_mode,
+                                         bool builtin_exit_frame = false,
+                                         bool switch_to_central_stack = false);
+
+  static inline constexpr Builtin RuntimeCEntry(
+      int result_size, bool switch_to_central_stack = false);
+
+  static inline constexpr Builtin InterpreterCEntry(int result_size);
+  static inline constexpr Builtin InterpreterPushArgsThenCall(
+      ConvertReceiverMode receiver_mode, InterpreterPushArgsMode mode);
+  static inline constexpr Builtin InterpreterPushArgsThenConstruct(
+      InterpreterPushArgsMode mode);
 
   // Used by CreateOffHeapTrampolines in isolate.cc.
   void set_code(Builtin builtin, Tagged<Code> code);
@@ -175,7 +179,8 @@ class Builtins {
   static int GetStackParameterCount(Builtin builtin);
 
   V8_EXPORT_PRIVATE static const char* name(Builtin builtin);
-  V8_EXPORT_PRIVATE static const char* NameForStackTrace(Builtin builtin);
+  V8_EXPORT_PRIVATE static const char* NameForStackTrace(Isolate* isolate,
+                                                         Builtin builtin);
 
   // Support for --print-builtin-size and --print-builtin-code.
   void PrintBuiltinCode();
@@ -243,17 +248,7 @@ class Builtins {
   static Handle<Code> CreateInterpreterEntryTrampolineForProfiling(
       Isolate* isolate);
 
-  static bool IsJSEntryVariant(Builtin builtin) {
-    switch (builtin) {
-      case Builtin::kJSEntry:
-      case Builtin::kJSConstructEntry:
-      case Builtin::kJSRunMicrotasksEntry:
-        return true;
-      default:
-        return false;
-    }
-    UNREACHABLE();
-  }
+  static inline constexpr bool IsJSEntryVariant(Builtin builtin);
 
   int js_entry_handler_offset() const {
     DCHECK_NE(js_entry_handler_offset_, 0);
@@ -283,6 +278,9 @@ class Builtins {
   // Returns given builtin's slot in the tier0 builtin table.
   FullObjectSlot builtin_tier0_slot(Builtin builtin);
 
+  // Public for ia32-specific helper.
+  enum class ForwardWhichFrame { kCurrentFrame, kParentFrame };
+
  private:
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
@@ -291,12 +289,12 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode);
 
-  enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructVarargs(MacroAssembler* masm,
-                                              Handle<Code> code);
+                                              Builtin target_builtin);
+  enum class CallOrConstructMode { kCall, kConstruct };
   static void Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
                                                      CallOrConstructMode mode,
-                                                     Handle<Code> code);
+                                                     Builtin target_builtin);
 
   static void Generate_MaglevFunctionEntryStackCheck(MacroAssembler* masm,
                                                      bool save_new_target);
@@ -319,6 +317,9 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsThenConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
+
+  static void Generate_ConstructForwardAllArgsImpl(
+      MacroAssembler* masm, ForwardWhichFrame which_frame);
 
   static void Generate_CallApiCallbackImpl(MacroAssembler* masm,
                                            CallApiCallbackMode mode);

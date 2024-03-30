@@ -21,7 +21,7 @@ namespace v8 {
 namespace internal {
 
 enum class MessageTemplate;
-class WasmInstanceObject;
+class WasmTrustedInstanceData;
 
 namespace wasm {
 
@@ -131,9 +131,9 @@ V8_INLINE WasmValue to_value(ValueOrError result) {
 // Evaluates a constant expression.
 // Returns a {WasmValue} if the evaluation succeeds, or an error as a
 // {MessageTemplate} if it fails.
-ValueOrError EvaluateConstantExpression(Zone* zone, ConstantExpression expr,
-                                        ValueType expected, Isolate* isolate,
-                                        Handle<WasmInstanceObject> instance);
+ValueOrError EvaluateConstantExpression(
+    Zone* zone, ConstantExpression expr, ValueType expected, Isolate* isolate,
+    Handle<WasmTrustedInstanceData> trusted_instance_data);
 
 }  // namespace wasm
 }  // namespace internal

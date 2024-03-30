@@ -95,10 +95,9 @@ class V8_EXPORT_PRIVATE TypeCache final {
   // [0, FixedArray::kMaxLength].
   Type const kFixedArrayLengthType = CreateRange(0.0, FixedArray::kMaxLength);
 
-  // The WeakFixedArray::length property always containts a smi in the range
-  // [0, WeakFixedArray::kMaxLength].
+  // The WeakFixedArray::length property always containts a smi in the range:
   Type const kWeakFixedArrayLengthType =
-      CreateRange(0.0, WeakFixedArray::kMaxLength);
+      CreateRange(0.0, WeakFixedArray::kMaxCapacity);
 
   // The FixedDoubleArray::length property always containts a smi in the range
   // [0, FixedDoubleArray::kMaxLength].

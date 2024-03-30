@@ -91,6 +91,16 @@ struct RuntimeCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
   };
 
+  struct StackGuardWithGap : public Descriptor<StackGuardWithGap> {
+    static constexpr auto kFunction = Runtime::kStackGuardWithGap;
+    using arguments_t = std::tuple<V<Smi>>;
+    using result_t = V<Object>;
+
+    static constexpr bool kNeedsFrameState = false;
+    // TODO(nicohartmann@): Verify this.
+    static constexpr Operator::Properties kProperties = Operator::kNoProperties;
+  };
+
   struct StringCharCodeAt : public Descriptor<StringCharCodeAt> {
     static constexpr auto kFunction = Runtime::kStringCharCodeAt;
     using arguments_t = std::tuple<V<String>, V<Number>>;

@@ -586,6 +586,7 @@ uint32_t ComputeFlagListHash() {
     // The following flags are implied by --predictable (some negated).
     if (flag.PointsTo(&v8_flags.concurrent_sparkplug) ||
         flag.PointsTo(&v8_flags.concurrent_recompilation) ||
+        flag.PointsTo(&v8_flags.lazy_feedback_allocation) ||
 #ifdef V8_ENABLE_MAGLEV
         flag.PointsTo(&v8_flags.maglev_deopt_data_on_background) ||
         flag.PointsTo(&v8_flags.maglev_build_code_on_background) ||
@@ -614,14 +615,20 @@ uint32_t ComputeFlagListHash() {
   }
 
 #ifdef DEBUG
-  for (const char* name : flags_implied_by_predictable) {
-    if (flags_ignored_because_of_predictable.find(name) ==
-        flags_ignored_because_of_predictable.end()) {
-      PrintF(
-          "%s should be added to the list of "
-          "flags_ignored_because_of_predictable\n",
-          name);
-      UNREACHABLE();
+  // Disable the check for fuzzing. This check is only here
+  // to ensure that we can generate reproducible code cache
+  // for production builds, we don't care as much about the
+  // reproducibility in the case of fuzzing.
+  if (!v8_flags.fuzzing) {
+    for (const char* name : flags_implied_by_predictable) {
+      if (flags_ignored_because_of_predictable.find(name) ==
+          flags_ignored_because_of_predictable.end()) {
+        PrintF(
+            "%s should be added to the list of "
+            "flags_ignored_because_of_predictable\n",
+            name);
+        UNREACHABLE();
+      }
     }
   }
 #endif

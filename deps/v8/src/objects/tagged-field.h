@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_TAGGED_FIELD_H_
 #define V8_OBJECTS_TAGGED_FIELD_H_
 
+#include "src/base/atomicops.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/common/ptr-compr.h"
 #include "src/objects/tagged-value.h"
@@ -26,14 +28,89 @@ template <typename T, typename CompressionScheme>
 class TaggedMember : public TaggedMemberBase {
  public:
   constexpr TaggedMember() = default;
-#ifdef V8_COMPRESS_POINTERS
-  constexpr explicit TaggedMember(Tagged<T> value)
-      : TaggedMemberBase(CompressionScheme::CompressObject(value.ptr())) {}
-#else
-  constexpr explicit TaggedMember(Tagged<T> value)
-      : TaggedMemberBase(value.ptr()) {}
-#endif
+
+  inline Tagged<T> load() const;
+  inline void store(HeapObjectLayout* host, Tagged<T> value,
+                    WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<T> Relaxed_Load() const;
+
+ private:
+  inline void store_no_write_barrier(Tagged<T> value);
+  inline void Relaxed_Store_no_write_barrier(Tagged<T> value);
+
+  static inline Address tagged_to_full(Tagged_t tagged_value);
+  static inline Tagged_t full_to_tagged(Address value);
 };
+
+static_assert(alignof(TaggedMember<Object>) == alignof(Tagged_t));
+static_assert(sizeof(TaggedMember<Object>) == sizeof(Tagged_t));
+
+template <typename T>
+class UnalignedValueMember {
+ public:
+  UnalignedValueMember() = default;
+
+  T value() const { return base::ReadUnalignedValue<T>(storage_); }
+  void set_value(T value) { base::WriteUnalignedValue(storage_, value); }
+
+ protected:
+  alignas(alignof(Tagged_t)) char storage_[sizeof(T)];
+};
+
+class UnalignedDoubleMember : public UnalignedValueMember<double> {
+ public:
+  UnalignedDoubleMember() = default;
+
+  uint64_t value_as_bits() const {
+    return base::ReadUnalignedValue<uint64_t>(storage_);
+  }
+  void set_value_as_bits(uint64_t value) {
+    base::WriteUnalignedValue(storage_, value);
+  }
+};
+static_assert(alignof(UnalignedDoubleMember) == alignof(Tagged_t));
+static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
+
+// FLEXIBLE_ARRAY_MEMBER(T, name) represents a marker for a variable-sized
+// suffix of members for a type.
+//
+// It behaves as if it were the last member of a class, and creates an accessor
+// for `T* name()`.
+//
+// This macro is used instead of the C99 flexible array member syntax, because
+//
+//   a) That syntax is only in C++ as an extension,
+//   b) On all our major compilers, it doesn't allow the class to have
+//      subclasses (which means it doesn't work for e.g. TaggedArrayBase or
+//      BigIntBase),
+//   c) The similar zero-length array extension _also_ doesn't allow subclasses
+//      on some compilers (specifically, MSVC).
+#define FLEXIBLE_ARRAY_MEMBER(Type, name)                                   \
+  /* Some typedefs so that error messages are a bit more transparent */     \
+  using Only_one_FLEXIBLE_ARRAY_MEMBER_allowed_per_class = void;            \
+  using OFFSET_OF_DATA_START_needs_class_with_FLEXIBLE_ARRAY_MEMBER = void; \
+                                                                            \
+  Type* name() {                                                            \
+    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
+    return reinterpret_cast<Type*>(this + 1);                               \
+  }                                                                         \
+  const Type* name() const {                                                \
+    static_assert(sizeof(decltype(*this)) % alignof(Type) == 0);            \
+    return reinterpret_cast<const Type*>(this + 1);                         \
+  }                                                                         \
+  using FlexibleDataType = Type
+
+// OFFSET_OF_DATA_START(T) returns the offset of the FLEXIBLE_ARRAY_MEMBER of
+// the class T.
+//
+// It forces an access of a dummy typedef in the class to make sure that it is
+// only used on classes with a FLEXIBLE_ARRAY_MEMBER.
+#define OFFSET_OF_DATA_START(Type)                                          \
+  (static_cast<                                                             \
+       typename Type::                                                      \
+           OFFSET_OF_DATA_START_needs_class_with_FLEXIBLE_ARRAY_MEMBER>(0), \
+   sizeof(Type))
 
 // This helper static class represents a tagged field of type T at offset
 // kFieldOffset inside some host HeapObject.

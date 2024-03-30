@@ -831,7 +831,7 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       if (this->cooked_strings()->at(i) != nullptr) {
         cooked_strings->set(i, *this->cooked_strings()->at(i)->string());
       } else {
-        cooked_strings->set_undefined(roots, i);
+        cooked_strings->set(i, roots.undefined_value(), SKIP_WRITE_BARRIER);
       }
     }
   }

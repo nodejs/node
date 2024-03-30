@@ -384,6 +384,7 @@ void PrintToStderr(const char* output) {
 // handler is restored and the signal delivered again.
 struct sigaction g_old_sigabrt_handler, g_old_sigtrap_handler,
     g_old_sigbus_handler, g_old_sigsegv_handler;
+
 void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   // NOTE: This code MUST be async-signal safe.
   // NO malloc or stdio is allowed here.
@@ -454,22 +455,70 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
     _exit(0);
   }
 
+  // Stack overflow detection.
+  //
+  // On Linux, we generally have two types of stacks:
+  //  1. The main thread's stack, allocated by the kernel, and
+  //  2. The stacks of any other thread, allocated by the application
+  //
+  // These stacks differ in some ways, and that affects the way stack overflows
+  // (caused e.g. by unbounded recursion) materialize: for (1) the kernel will
+  // use a "gap" region below the stack segment, i.e. an unmapped area into
+  // which the kernel itself will not place any mappings and into which the
+  // stack cannot grow. A stack overflow therefore crashes with a SEGV_MAPERR.
+  // On the other hand, for (2) the application is responsible for allocating
+  // the stack and therefore also for allocating any guard regions around it.
+  // As these guard regions must be regular mappings (with PROT_NONE), a stack
+  // overflow will crash with a SEGV_ACCERR.
+  //
+  // It's relatively hard to reliably and accurately detect stack overflow, so
+  // here we use a simple heuristic: did we crash on any kind of access
+  // violation on an address just below the current thread's stack region. This
+  // may cause both false positives (e.g. an access not through the stack
+  // pointer register that happens to also land just below the stack) and false
+  // negatives (e.g. a stack overflow on the main thread that "jumps over" the
+  // first page of the gap region), but is probably good enough in practice.
+  pthread_attr_t attr;
+  int pthread_error = pthread_getattr_np(pthread_self(), &attr);
+  if (!pthread_error) {
+    uintptr_t stack_base;
+    size_t stack_size;
+    pthread_error = pthread_attr_getstack(
+        &attr, reinterpret_cast<void**>(&stack_base), &stack_size);
+    // The main thread's stack on Linux typically has a fairly large gap region
+    // (1MB by default), but other thread's stacks usually have smaller guard
+    // regions so here we're conservative and assume that the guard region
+    // consists only of a single page.
+    const size_t kMinStackGuardRegionSize = sysconf(_SC_PAGESIZE);
+    uintptr_t stack_guard_region_start = stack_base - kMinStackGuardRegionSize;
+    uintptr_t stack_guard_region_end = stack_base;
+    if (!pthread_error && stack_guard_region_start <= faultaddr &&
+        faultaddr < stack_guard_region_end) {
+      PrintToStderr("Caught harmless stack overflow. Exiting process...\n");
+      _exit(0);
+    }
+  }
+
   if (info->si_code == SEGV_ACCERR) {
-    // This indicates an access to a (valid) mapping but with insufficient
-    // permissions (e.g. accessing a region mapped with PROT_NONE). Some
-    // mechanisms (e.g. the lookup of external pointers in an
-    // ExternalPointerTable) omit bounds checks and instead guarantee that any
-    // out-of-bounds access will land in a PROT_NONE mapping. Memory accesses
-    // that _always_ cause such a permission violation are not exploitable and
-    // so these crashes are filtered out here. However, testcases need to be
-    // written with this in mind and must access other memory ranges.
+    // This indicates an access to a valid mapping but with insufficient
+    // permissions, for example accessing a region mapped with PROT_NONE, or
+    // writing to a read-only mapping.
+    //
+    // The sandbox relies on such accesses crashing in a safe way in some
+    // cases. For example, the accesses into the various pointer tables are not
+    // bounds checked, but instead it is guaranteed that an out-of-bounds
+    // access will hit a PROT_NONE mapping.
+    //
+    // Memory accesses that _always_ cause such a permission violation are not
+    // exploitable and the crashes are therefore filtered out here. However,
+    // testcases need to be written with this behavior in mind and should
+    // typically try to access non-existing memory to demonstrate the ability
+    // to escape from the sandbox.
     PrintToStderr(
         "Caught harmless memory access violaton (memory permission violation). "
         "Exiting process...\n");
     _exit(0);
   }
-
-  // TODO(saelo) also try to detect harmless stack overflows here if possible.
 
   // Otherwise it's a sandbox violation, so restore the original signal
   // handlers, then return from this handler. The faulting instruction will be
@@ -487,6 +536,8 @@ void SandboxSignalHandler(int signal, siginfo_t* info, void* void_context) {
   sigaction(SIGTRAP, &g_old_sigtrap_handler, nullptr);
   sigaction(SIGBUS, &g_old_sigbus_handler, nullptr);
   sigaction(SIGSEGV, &g_old_sigsegv_handler, nullptr);
+
+  PrintToStderr("\n## V8 sandbox violation detected!\n\n");
 }
 #endif  // V8_OS_LINUX
 

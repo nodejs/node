@@ -74,18 +74,9 @@ class PredictablePlatform final : public Platform {
 
   bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    // Do not call {platform_->PostJob} here, as this would create a job that
-    // posts tasks directly to the underlying default platform.
-    std::unique_ptr<JobHandle> handle =
-        CreateJob(priority, std::move(job_task));
-    handle->NotifyConcurrencyIncrease();
-    return handle;
-  }
-
-  std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+  std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) override {
     // Do not call {platform_->PostJob} here, as this would create a job that
     // posts tasks directly to the underlying default platform.
     return platform::NewDefaultJobHandle(this, priority, std::move(job_task),
@@ -178,28 +169,28 @@ class DelayedTasksPlatform final : public Platform {
     return platform_->NumberOfWorkerThreads();
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
-    platform_->CallOnWorkerThread(MakeDelayedTask(std::move(task)));
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
+    platform_->CallOnWorkerThread(MakeDelayedTask(std::move(task)), location);
   }
 
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override {
     platform_->CallDelayedOnWorkerThread(MakeDelayedTask(std::move(task)),
-                                         delay_in_seconds);
+                                         delay_in_seconds, location);
   }
 
   bool IdleTasksEnabled(Isolate* isolate) override {
     return platform_->IdleTasksEnabled(isolate);
   }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->PostJob(priority, MakeDelayedJob(std::move(job_task)));
-  }
-
-  std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->CreateJob(priority, MakeDelayedJob(std::move(job_task)));
+  std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) override {
+    return platform_->CreateJob(priority, MakeDelayedJob(std::move(job_task)),
+                                location);
   }
 
   double MonotonicallyIncreasingTime() override {

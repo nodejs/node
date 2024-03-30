@@ -64,6 +64,11 @@ enum class EnforceBoundsCheck : bool {  // --
   kCanOmitBoundsCheck = false
 };
 
+enum class AlignmentCheck : bool {  // --
+  kYes = true,
+  kNo = false,
+};
+
 enum class BoundsCheckResult {
   // Dynamically checked (using 1-2 conditional branches).
   kDynamicallyChecked,

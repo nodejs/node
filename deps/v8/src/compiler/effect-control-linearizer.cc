@@ -2225,9 +2225,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2247,9 +2246,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToUint32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2269,9 +2267,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToInt64(Node* node) {
   __ Goto(&done, ChangeSmiToInt64(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt64(vfalse);
   __ Goto(&done, vfalse);
 
@@ -2296,9 +2293,8 @@ Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
   __ Goto(&done, value);
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ ChangeFloat64ToInt32(vfalse);
   vfalse = ChangeInt32ToSmi(vfalse);
   __ Goto(&done, vfalse);
@@ -2321,9 +2317,8 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
   __ Goto(&done, vtrue);
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   __ Goto(&done, vfalse);
 
   __ Bind(&done);
@@ -2668,8 +2663,8 @@ const Char* GetLiteralString(Node* node, JSHeapBroker* broker) {
   StringRef string = m.Ref(broker).AsString();
   DisallowGarbageCollection no_gc;
   SharedStringAccessGuardIfNeeded access_guard(broker->isolate());
-  const Char* str = string.object()->template GetDirectStringChars<Char>(
-      broker->isolate(), no_gc, access_guard);
+  const Char* str =
+      string.object()->template GetDirectStringChars<Char>(no_gc, access_guard);
   return str;
 }
 
@@ -2697,7 +2692,7 @@ void EffectControlLinearizer::IfThenElse(Node* condition,
 // allocated if we want to allocate a string of length {length} (in particular,
 // it takes headers and alignment into account).
 Node* EffectControlLinearizer::SizeForString(Node* length, Node* is_two_byte) {
-  Node* size = __ Int32Constant(String::kHeaderSize);
+  Node* size = __ Int32Constant(sizeof(SeqString));
   size = __ Int32Add(size, __ Word32Shl(length, is_two_byte));
 
   auto object_pointer_align = [&](Node* value) -> Node* {
@@ -3112,7 +3107,7 @@ Node* EffectControlLinearizer::EndStringBuilderConcat(Node* node) {
                      __ IntPtrConstant(kHeapObjectTag));
     Node* start = __ IntPtrSub(
         end, __ IntPtrSub(new_backing_store_real_size,
-                          __ IntPtrAdd(__ IntPtrConstant(String::kHeaderSize),
+                          __ IntPtrAdd(__ IntPtrConstant(sizeof(SeqString)),
                                        ChangeInt32ToIntPtr(__ Word32Shl(
                                            new_length, is_two_byte)))));
     auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
@@ -3143,7 +3138,7 @@ Node* EffectControlLinearizer::EndStringBuilderConcat(Node* node) {
   __ StoreField(AccessBuilder::ForMap(kNoWriteBarrier), node,
                 __ HeapConstant(factory()->free_space_map()));
   __ StoreField(AccessBuilder::ForFreeSpaceSize(), node,
-                ChangeInt32ToSmi(__ Int32Constant(SlicedString::kSize)));
+                ChangeInt32ToSmi(__ Int32Constant(sizeof(SlicedString))));
 
   return backing_store;
 }
@@ -4114,8 +4109,6 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
       __ DeoptimizeIfNot(DeoptimizeReason::kNotANumberOrBoolean, feedback,
                          __ TaggedEqual(value_map, __ BooleanMapConstant()),
                          frame_state);
-      STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                        Oddball::kToNumberRawOffset);
       __ Goto(&check_done);
 
       __ Bind(&check_done);
@@ -4133,15 +4126,14 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
           __ Word32Equal(instance_type, __ Int32Constant(ODDBALL_TYPE));
       __ DeoptimizeIfNot(DeoptimizeReason::kNotANumberOrOddball, feedback,
                          check_oddball, frame_state);
-      STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                        Oddball::kToNumberRawOffset);
       __ Goto(&check_done);
 
       __ Bind(&check_done);
       break;
     }
   }
-  return __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  return __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(),
+                      value);
 }
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
@@ -4436,9 +4428,8 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToWord32(Node* node) {
   __ Goto(&done, ChangeSmiToInt32(value));
 
   __ Bind(&if_not_smi);
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  Node* vfalse =
+      __ LoadField(AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), value);
   vfalse = __ TruncateFloat64ToWord32(vfalse);
   __ Goto(&done, vfalse);
 
@@ -5060,10 +5051,8 @@ Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
                 ChangeIntPtrToSmi(length));
 
   // Initialize the backing store with holes.
-  STATIC_ASSERT_FIELD_OFFSETS_EQUAL(HeapNumber::kValueOffset,
-                                    Oddball::kToNumberRawOffset);
-  Node* the_hole =
-      __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
+  Node* the_hole = __ LoadField(
+      AccessBuilder::ForHeapNumberOrOddballOrHoleValue(), __ TheHoleConstant());
   auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
@@ -5202,8 +5191,8 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* result_map = done.PhiAt(0);
 
   // Allocate the resulting ConsString.
-  Node* result =
-      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(ConsString::kSize));
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(sizeof(ConsString)));
   __ StoreField(AccessBuilder::ForMap(), result, result_map);
   __ StoreField(AccessBuilder::ForNameRawHashField(), result,
                 __ Int32Constant(Name::kEmptyHashField));
@@ -5552,7 +5541,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCharCode(Node* node) {
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord16, kNoWriteBarrier),
         vfalse1,
-        __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        __ IntPtrConstant(
+            AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+            kHeapObjectTag),
         code);
     __ Goto(&done, vfalse1);
   }
@@ -5656,7 +5647,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
       __ Store(
           StoreRepresentation(MachineRepresentation::kWord16, kNoWriteBarrier),
           vfalse1,
-          __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+          __ IntPtrConstant(
+              AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+              kHeapObjectTag),
           code);
       __ Goto(&done, vfalse1);
     }
@@ -5701,7 +5694,9 @@ Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
     __ Store(
         StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
         vfalse0,
-        __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        __ IntPtrConstant(
+            AccessBuilder::ForSeqTwoByteStringCharacter().header_size -
+            kHeapObjectTag),
         code);
     __ Goto(&done, vfalse0);
   }
@@ -6190,8 +6185,8 @@ void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
 }
 
 Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
-  Node* result =
-      __ Allocate(AllocationType::kYoung, __ IntPtrConstant(HeapNumber::kSize));
+  Node* result = __ Allocate(AllocationType::kYoung,
+                             __ IntPtrConstant(sizeof(HeapNumber)));
   __ StoreField(AccessBuilder::ForMap(), result, __ HeapNumberMapConstant());
   __ StoreField(AccessBuilder::ForHeapNumberValue(), result, value);
   return result;
@@ -6887,10 +6882,11 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
 
             Node* length_in_bytes =
                 __ LoadField(AccessBuilder::ForStringLength(), node);
-            Node* data_ptr =
-                __ IntPtrAdd(__ BitcastTaggedToWord(node),
-                             __ IntPtrConstant(SeqOneByteString::kHeaderSize -
-                                               kHeapObjectTag));
+            Node* data_ptr = __ IntPtrAdd(
+                __ BitcastTaggedToWord(node),
+                __ IntPtrConstant(
+                    AccessBuilder::ForSeqOneByteStringCharacter().header_size -
+                    kHeapObjectTag));
 
             constexpr int kAlign = alignof(FastOneByteString);
             constexpr int kSize = sizeof(FastOneByteString);
@@ -7671,7 +7667,11 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   //   if kind == HOLEY_SMI_ELEMENTS {
   //     Transition array to HOLEY_DOUBLE_ELEMENTS
   //   } else if kind != HOLEY_DOUBLE_ELEMENTS {
-  //     This is UNREACHABLE, execute a debug break.
+  //     if kind == HOLEY_ELEMENTS {
+  //       Store value as a HeapNumber in array[index].
+  //     } else {
+  //       This is UNREACHABLE, execute a debug break.
+  //     }
   //   }
   //
   //   -- STORE PHASE ----------------------
@@ -7688,19 +7688,36 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   }
 
   auto do_store = __ MakeLabel();
+  auto done = __ MakeLabel();
 
   // {value} is a float64.
   auto transition_smi_array = __ MakeDeferredLabel();
   {
+    auto do_store_holey_elements = __ MakeDeferredLabel();
+
     __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
                  &transition_smi_array);
     // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
-    // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. Force a debug break
-    // if this assumption is broken. It also would be the case that
-    // loop peeling can break this assumption.
+    // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. However, loop peeling can
+    // break this assumption, because in the peeled iteration, the array might
+    // have transitioned to HOLEY_ELEMENTS kind, so we handle this as well.
     __ GotoIf(__ Word32Equal(kind, __ Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
               &do_store);
+    __ GotoIf(__ Word32Equal(kind, __ Int32Constant(HOLEY_ELEMENTS)),
+              &do_store_holey_elements);
     __ Unreachable();
+
+    __ Bind(&do_store_holey_elements);  // deferred code.
+    {
+      Node* elements =
+          __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+      // Our ElementsKind is HOLEY_ELEMENTS.
+      ElementAccess access =
+          AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS);
+      __ StoreElement(access, elements, index,
+                      AllocateHeapNumberWithValue(value));
+      __ Goto(&done);
+    }
   }
 
   __ Bind(&transition_smi_array);  // deferred code.
@@ -7712,10 +7729,14 @@ void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
   }
 
   __ Bind(&do_store);
+  {
+    Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+    __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
+                    index, __ Float64SilenceNaN(value));
+    __ Goto(&done);
+  }
 
-  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
-  __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements, index,
-                  __ Float64SilenceNaN(value));
+  __ Bind(&done);
 }
 
 void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
@@ -7938,7 +7959,8 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
   DCHECK(!v8_flags.turboshaft);
   ConvertReceiverMode const mode = ConvertReceiverModeOf(node->op());
   Node* value = node->InputAt(0);
-  Node* global_proxy = node->InputAt(1);
+  Node* native_context = node->InputAt(1);
+  Node* global_proxy = node->InputAt(2);
 
   switch (mode) {
     case ConvertReceiverMode::kNullOrUndefined: {
@@ -7961,8 +7983,6 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), callable.descriptor(),
           callable.descriptor().GetStackParameterCount(), flags, properties);
-      Node* native_context = __ LoadField(
-          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
       Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
                              value, native_context);
       __ Goto(&done_convert, result);
@@ -7992,8 +8012,6 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       auto call_descriptor = Linkage::GetStubCallDescriptor(
           graph()->zone(), callable.descriptor(),
           callable.descriptor().GetStackParameterCount(), flags, properties);
-      Node* native_context = __ LoadField(
-          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
       Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
                              value, native_context);
       __ Goto(&done_convert, result);
@@ -8502,11 +8520,11 @@ Node* EffectControlLinearizer::BuildAllocateBigInt(Node* bitfield,
   __ StoreField(AccessBuilder::ForBigIntBitfield(), result,
                 bitfield ? bitfield : __ Int32Constant(zero_bitfield));
 
+#ifdef BIGINT_NEEDS_PADDING
   // BigInts have no padding on 64 bit architectures with pointer compression.
-  if (BigInt::HasOptionalPadding()) {
-    __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
-                  __ IntPtrConstant(0));
-  }
+  __ StoreField(AccessBuilder::ForBigIntOptionalPadding(), result,
+                __ IntPtrConstant(0));
+#endif
   if (digit) {
     __ StoreField(AccessBuilder::ForBigIntLeastSignificantDigit64(), result,
                   digit);

@@ -4,6 +4,7 @@
 
 #include "src/compiler/common-operator.h"
 
+#include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
@@ -90,6 +91,31 @@ BranchHint BranchHintOf(const Operator* const op) {
     default:
       UNREACHABLE();
   }
+}
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs) {
+  return lhs.semantics() == rhs.semantics() &&
+         strcmp(lhs.condition_string(), rhs.condition_string()) == 0 &&
+         strcmp(lhs.file(), rhs.file()) == 0 && lhs.line() == rhs.line();
+}
+
+size_t hash_value(const AssertParameters& p) {
+  return base::hash_combine(
+      p.semantics(),
+      base::hash_range(
+          p.condition_string(),
+          p.condition_string() + std::strlen(p.condition_string())),
+      base::hash_range(p.file(), p.file() + std::strlen(p.file())), p.line());
+}
+
+std::ostream& operator<<(std::ostream& os, const AssertParameters& p) {
+  return os << p.semantics() << ", " << p.condition_string() << ", " << p.file()
+            << ", " << p.line();
+}
+
+const AssertParameters& AssertParametersOf(const Operator* const op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kAssert);
+  return OpParameter<AssertParameters>(op);
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
@@ -1064,6 +1090,18 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       "DeoptimizeUnless",                               // name
       2, 1, 1, 0, 1, 1,                                 // counts
       parameter);                                       // parameter
+}
+
+const Operator* CommonOperatorBuilder::Assert(BranchSemantics semantics,
+                                              const char* condition_string,
+                                              const char* file, int line) {
+  AssertParameters parameter(semantics, condition_string, file, line);
+  return zone()->New<Operator1<AssertParameters>>(  // --
+      IrOpcode::kAssert,                            // opcode
+      Operator::kFoldable | Operator::kNoThrow,     // properties
+      "Assert",                                     // name
+      1, 1, 1, 0, 1, 0,                             // counts
+      parameter);                                   // parameter
 }
 
 #if V8_ENABLE_WEBASSEMBLY

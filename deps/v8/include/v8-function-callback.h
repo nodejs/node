@@ -5,6 +5,9 @@
 #ifndef INCLUDE_V8_FUNCTION_CALLBACK_H_
 #define INCLUDE_V8_FUNCTION_CALLBACK_H_
 
+#include <cstdint>
+#include <limits>
+
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
 #include "v8-primitive.h"     // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
@@ -39,14 +42,21 @@ class ReturnValue {
   template <typename S>
   V8_INLINE void Set(const Global<S>& handle);
   template <typename S>
+  V8_INLINE void SetNonEmpty(const Global<S>& handle);
+  template <typename S>
   V8_INLINE void Set(const BasicTracedReference<S>& handle);
   template <typename S>
+  V8_INLINE void SetNonEmpty(const BasicTracedReference<S>& handle);
+  template <typename S>
   V8_INLINE void Set(const Local<S> handle);
+  template <typename S>
+  V8_INLINE void SetNonEmpty(const Local<S> handle);
   // Fast primitive setters
   V8_INLINE void Set(bool value);
   V8_INLINE void Set(double i);
   V8_INLINE void Set(int32_t i);
   V8_INLINE void Set(uint32_t i);
+  V8_INLINE void Set(uint16_t);
   // Fast JS primitive setters
   V8_INLINE void SetNull();
   V8_INLINE void SetUndefined();
@@ -289,6 +299,16 @@ void ReturnValue<T>::Set(const Global<S>& handle) {
 
 template <typename T>
 template <typename S>
+void ReturnValue<T>::SetNonEmpty(const Global<S>& handle) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
+}
+
+template <typename T>
+template <typename S>
 void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (V8_UNLIKELY(handle.IsEmpty())) {
@@ -296,6 +316,16 @@ void ReturnValue<T>::Set(const BasicTracedReference<S>& handle) {
   } else {
     *value_ = handle.ptr();
   }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::SetNonEmpty(const BasicTracedReference<S>& handle) {
+  static_assert(std::is_base_of<T, S>::value, "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
 }
 
 template <typename T>
@@ -308,6 +338,17 @@ void ReturnValue<T>::Set(const Local<S> handle) {
   } else {
     *value_ = handle.ptr();
   }
+}
+
+template <typename T>
+template <typename S>
+void ReturnValue<T>::SetNonEmpty(const Local<S> handle) {
+  static_assert(std::is_void<T>::value || std::is_base_of<T, S>::value,
+                "type check");
+#ifdef V8_ENABLE_CHECKS
+  internal::VerifyHandleIsNonEmpty(handle.IsEmpty());
+#endif  // V8_ENABLE_CHECKS
+  *value_ = handle.ptr();
 }
 
 template <typename T>
@@ -340,9 +381,27 @@ void ReturnValue<T>::Set(uint32_t i) {
 }
 
 template <typename T>
+void ReturnValue<T>::Set(uint16_t i) {
+  static_assert(std::is_base_of<T, Integer>::value, "type check");
+  using I = internal::Internals;
+  static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::min()));
+  static_assert(I::IsValidSmi(std::numeric_limits<uint16_t>::max()));
+  *value_ = I::IntToSmi(i);
+}
+
+template <typename T>
 void ReturnValue<T>::Set(bool value) {
   static_assert(std::is_base_of<T, Boolean>::value, "type check");
   using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+#ifdef V8_ENABLE_CHECKS
+  internal::PerformCastCheck(
+      internal::ValueHelper::SlotAsValue<Value, true>(value_));
+#endif  // V8_ENABLE_CHECKS
+  *value_ = I::DecompressTaggedField(
+      *value_, value ? I::StaticReadOnlyRoot::kTrueValue
+                     : I::StaticReadOnlyRoot::kFalseValue);
+#else
   int root_index;
   if (value) {
     root_index = I::kTrueValueRootIndex;
@@ -350,27 +409,55 @@ void ReturnValue<T>::Set(bool value) {
     root_index = I::kFalseValueRootIndex;
   }
   *value_ = I::GetRoot(GetIsolate(), root_index);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 template <typename T>
 void ReturnValue<T>::SetNull() {
   static_assert(std::is_base_of<T, Primitive>::value, "type check");
   using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+#ifdef V8_ENABLE_CHECKS
+  internal::PerformCastCheck(
+      internal::ValueHelper::SlotAsValue<Value, true>(value_));
+#endif  // V8_ENABLE_CHECKS
+  *value_ =
+      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kNullValue);
+#else
   *value_ = I::GetRoot(GetIsolate(), I::kNullValueRootIndex);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 template <typename T>
 void ReturnValue<T>::SetUndefined() {
   static_assert(std::is_base_of<T, Primitive>::value, "type check");
   using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+#ifdef V8_ENABLE_CHECKS
+  internal::PerformCastCheck(
+      internal::ValueHelper::SlotAsValue<Value, true>(value_));
+#endif  // V8_ENABLE_CHECKS
+  *value_ =
+      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kUndefinedValue);
+#else
   *value_ = I::GetRoot(GetIsolate(), I::kUndefinedValueRootIndex);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 template <typename T>
 void ReturnValue<T>::SetEmptyString() {
   static_assert(std::is_base_of<T, String>::value, "type check");
   using I = internal::Internals;
+#if V8_STATIC_ROOTS_BOOL
+#ifdef V8_ENABLE_CHECKS
+  internal::PerformCastCheck(
+      internal::ValueHelper::SlotAsValue<Value, true>(value_));
+#endif  // V8_ENABLE_CHECKS
+  *value_ =
+      I::DecompressTaggedField(*value_, I::StaticReadOnlyRoot::kEmptyString);
+#else
   *value_ = I::GetRoot(GetIsolate(), I::kEmptyStringRootIndex);
+#endif  // V8_STATIC_ROOTS_BOOL
 }
 
 template <typename T>
@@ -385,7 +472,7 @@ Local<Value> ReturnValue<T>::Get() const {
   if (I::is_identical(*value_, I::StaticReadOnlyRoot::kTheHoleValue)) {
 #else
   if (*value_ == I::GetRoot(GetIsolate(), I::kTheHoleValueRootIndex)) {
-#endif
+#endif  // V8_STATIC_ROOTS_BOOL
     return Undefined(GetIsolate());
   }
   return Local<Value>::New(GetIsolate(), reinterpret_cast<Value*>(value_));

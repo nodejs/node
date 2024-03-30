@@ -50,6 +50,8 @@
        (bound = false), Asm().ControlFlowHelper_GotoEnd())
 #define END_IF Asm().ControlFlowHelper_EndIf();
 
+#define Assert(condition) AssertImpl(condition, #condition, __FILE__, __LINE__)
+
 #ifdef DEBUG
 // In debug builds, `Reduce(operation)` makes sure that `operation##Op` exists by using this name in an expression. This will detect typos in the name which would otherwise stay unnoticed potentially.
 #define REDUCE(operation) \

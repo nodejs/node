@@ -593,7 +593,7 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
                                        OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void SetNamedProperty(Callable ic, NamedPropertyType property_type) {
+  void SetNamedProperty(Builtin ic_bultin, NamedPropertyType property_type) {
     TNode<Object> object = LoadRegisterAtOperandIndex(0);
     TNode<Name> name = CAST(LoadConstantPoolEntryAtOperandIndex(1));
     TNode<Object> value = GetAccumulator();
@@ -601,8 +601,8 @@ class InterpreterSetNamedPropertyAssembler : public InterpreterAssembler {
     TNode<HeapObject> maybe_vector = LoadFeedbackVector();
     TNode<Context> context = GetContext();
 
-    TNode<Object> result =
-        CallStub(ic, context, object, name, value, slot, maybe_vector);
+    TNode<Object> result = CallBuiltin(ic_bultin, context, object, name, value,
+                                       slot, maybe_vector);
     // To avoid special logic in the deoptimizer to re-materialize the value in
     // the accumulator, we clobber the accumulator after the IC call. It
     // doesn't really matter what we write to the accumulator here, since we
@@ -624,8 +624,7 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
   // the paths are controlled by feedback.
   // TODO(v8:12548): refactor SetNamedIC as a subclass of StoreIC, which can be
   // called here.
-  Callable ic = Builtins::CallableFor(isolate(), Builtin::kStoreIC);
-  SetNamedProperty(ic, NamedPropertyType::kNotOwn);
+  SetNamedProperty(Builtin::kStoreIC, NamedPropertyType::kNotOwn);
 }
 
 // DefineNamedOwnProperty <object> <name_index> <slot>
@@ -634,8 +633,7 @@ IGNITION_HANDLER(SetNamedProperty, InterpreterSetNamedPropertyAssembler) {
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
 IGNITION_HANDLER(DefineNamedOwnProperty, InterpreterSetNamedPropertyAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtin::kDefineNamedOwnIC);
-  SetNamedProperty(ic, NamedPropertyType::kOwn);
+  SetNamedProperty(Builtin::kDefineNamedOwnIC, NamedPropertyType::kOwn);
 }
 
 // SetKeyedProperty <object> <key> <slot>
@@ -1582,7 +1580,7 @@ IGNITION_HANDLER(CallWithSpread, InterpreterAssembler) {
   CallJSWithSpreadAndDispatch(callable, context, args, slot_id);
 }
 
-// ConstructWithSpread <first_arg> <arg_count>
+// ConstructWithSpread <constructor> <first_arg> <arg_count>
 //
 // Call the constructor in |constructor| with the first argument in register
 // |first_arg| and |arg_count| arguments in subsequent registers. The final
@@ -1596,6 +1594,22 @@ IGNITION_HANDLER(ConstructWithSpread, InterpreterAssembler) {
   TNode<Context> context = GetContext();
   TNode<Object> result =
       ConstructWithSpread(constructor, context, new_target, args, slot_id);
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// ConstructForwardAllArgs <constructor>
+//
+// Call the constructor in |constructor|, forwarding all arguments in the
+// current frame. The new.target is in the accumulator.
+//
+IGNITION_HANDLER(ConstructForwardAllArgs, InterpreterAssembler) {
+  TNode<Object> new_target = GetAccumulator();
+  TNode<Object> constructor = LoadRegisterAtOperandIndex(0);
+  TNode<UintPtrT> slot_id = BytecodeOperandIdx(1);
+  TNode<Context> context = GetContext();
+  TNode<Object> result =
+      ConstructForwardAllArgs(constructor, context, new_target, slot_id);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2197,10 +2211,23 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   TNode<IntPtrT> relative_jump = Signed(BytecodeOperandUImmWord(0));
 
 #ifndef V8_JITLESS
+  TVARIABLE(HeapObject, maybe_feedback_vector);
   Label ok(this);
+  Label fbv_loaded(this);
 
-  TNode<FeedbackVector> feedback_vector =
+  // Load FeedbackVector from Cache.
+  maybe_feedback_vector = LoadFeedbackVector();
+  // If cache is empty, try to load from function closure.
+  GotoIfNot(IsUndefined(maybe_feedback_vector.value()), &fbv_loaded);
+  maybe_feedback_vector =
       CodeStubAssembler::LoadFeedbackVector(LoadFunctionClosure(), &ok);
+  // Update feedback vector stack cache.
+  StoreRegister(maybe_feedback_vector.value(), Register::feedback_vector());
+  Goto(&fbv_loaded);
+
+  BIND(&fbv_loaded);
+
+  TNode<FeedbackVector> feedback_vector = CAST(maybe_feedback_vector.value());
   TNode<Int8T> osr_state = LoadOsrState(feedback_vector);
   TNode<Int32T> loop_depth = BytecodeOperandImm(1);
 
@@ -2219,10 +2246,8 @@ IGNITION_HANDLER(JumpLoop, InterpreterAssembler) {
   Label maybe_osr_because_baseline(this);
   TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
       LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-  TNode<HeapObject> sfi_data =
-      LoadObjectField<HeapObject>(sfi, SharedFunctionInfo::kFunctionDataOffset);
-  Branch(InstanceTypeEqual(LoadInstanceType(sfi_data), CODE_TYPE),
-         &maybe_osr_because_baseline, &ok);
+  Branch(SharedFunctionInfoHasBaselineCode(sfi), &maybe_osr_because_baseline,
+         &ok);
 
   BIND(&ok);
 #endif  // !V8_JITLESS
@@ -2516,7 +2541,7 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   TNode<ClosureFeedbackCellArray> feedback_cell_array =
       LoadClosureFeedbackArray(LoadFunctionClosure());
   TNode<FeedbackCell> feedback_cell =
-      CAST(LoadFixedArrayElement(feedback_cell_array, slot));
+      LoadArrayElement(feedback_cell_array, slot);
 
   Label if_fast(this), if_slow(this, Label::kDeferred);
   Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,

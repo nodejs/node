@@ -72,13 +72,13 @@ class Sweeper {
     }
     ~LocalSweeper() = default;
 
-    int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
-                           int required_freed_bytes, int max_pages = 0);
+    void ParallelSweepSpace(AllocationSpace identity,
+                            SweepingMode sweeping_mode, int max_pages);
     void ContributeAndWaitForPromotedPagesIteration();
 
    private:
-    int ParallelSweepPage(Page* page, AllocationSpace identity,
-                          SweepingMode sweeping_mode);
+    void ParallelSweepPage(Page* page, AllocationSpace identity,
+                           SweepingMode sweeping_mode);
 
     void ParallelIterateAndSweepPromotedPages();
     void ParallelIterateAndSweepPromotedPage(MemoryChunk* chunk);
@@ -111,8 +111,8 @@ class Sweeper {
   void AddNewSpacePage(Page* page);
   void AddPromotedPage(MemoryChunk* chunk);
 
-  int ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
-                         int required_freed_bytes, int max_pages = 0);
+  void ParallelSweepSpace(AllocationSpace identity, SweepingMode sweeping_mode,
+                          int max_pages);
 
   void EnsurePageIsSwept(Page* page);
   void WaitForPageToBeSwept(Page* page);
@@ -164,9 +164,9 @@ class Sweeper {
  private:
   NonAtomicMarkingState* marking_state() const { return marking_state_; }
 
-  int RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
-               SweepingMode sweeping_mode, bool should_reduce_memory,
-               bool is_promoted_page);
+  void RawSweep(Page* p, FreeSpaceTreatmentMode free_space_treatment_mode,
+                SweepingMode sweeping_mode, bool should_reduce_memory,
+                bool is_promoted_page);
 
   void AddPageImpl(AllocationSpace space, Page* page);
 

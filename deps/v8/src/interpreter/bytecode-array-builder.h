@@ -330,6 +330,12 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                             RegisterList args,
                                             int feedback_slot);
 
+  // Call the Construct operator, forwarding all arguments passed to the current
+  // interpreted frame, including the receiver. The accumulator holds the
+  // |new_target|. The |constructor| is in a register.
+  BytecodeArrayBuilder& ConstructForwardAllArgs(Register constructor,
+                                                int feedback_slot);
+
   // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     RegisterList args);

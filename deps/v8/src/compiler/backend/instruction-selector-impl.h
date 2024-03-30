@@ -75,20 +75,21 @@ class SwitchInfoT {
   block_t default_branch_;
 };
 
-#define OPERAND_GENERATOR_T_BOILERPLATE(adapter)           \
-  using super = OperandGeneratorT<adapter>;                \
-  using node_t = typename adapter::node_t;                 \
-  using RegisterMode = typename super::RegisterMode;       \
-  using RegisterUseKind = typename super::RegisterUseKind; \
-  using super::selector;                                   \
-  using super::DefineAsRegister;                           \
-  using super::TempImmediate;                              \
-  using super::UseFixed;                                   \
-  using super::UseImmediate;                               \
-  using super::UseImmediate64;                             \
-  using super::UseNegatedImmediate;                        \
-  using super::UseRegister;                                \
-  using super::UseRegisterWithMode;                        \
+#define OPERAND_GENERATOR_T_BOILERPLATE(adapter)             \
+  using super = OperandGeneratorT<adapter>;                  \
+  using node_t = typename adapter::node_t;                   \
+  using optional_node_t = typename adapter::optional_node_t; \
+  using RegisterMode = typename super::RegisterMode;         \
+  using RegisterUseKind = typename super::RegisterUseKind;   \
+  using super::selector;                                     \
+  using super::DefineAsRegister;                             \
+  using super::TempImmediate;                                \
+  using super::UseFixed;                                     \
+  using super::UseImmediate;                                 \
+  using super::UseImmediate64;                               \
+  using super::UseNegatedImmediate;                          \
+  using super::UseRegister;                                  \
+  using super::UseRegisterWithMode;                          \
   using super::UseUniqueRegister;
 
 // A helper class for the instruction selector that simplifies construction of
@@ -98,6 +99,7 @@ class OperandGeneratorT : public Adapter {
  public:
   using block_t = typename Adapter::block_t;
   using node_t = typename Adapter::node_t;
+  using optional_node_t = typename Adapter::optional_node_t;
 
   explicit OperandGeneratorT(InstructionSelectorT<Adapter>* selector)
       : Adapter(selector->schedule()), selector_(selector) {}

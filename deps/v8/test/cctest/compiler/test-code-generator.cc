@@ -6,7 +6,7 @@
 
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/optimized-compilation-info.h"
@@ -104,7 +104,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
   params.push_back(__ Parameter<Object>(1));
   // The parameters of the teardown function are the results of the test
   // function.
-  params.push_back(__ HeapConstant(
+  params.push_back(__ HeapConstantNoHole(
       BuildTeardownFunction(isolate, teardown_call_descriptor, results)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
@@ -149,6 +149,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
       case MachineRepresentation::kFloat64:
         element = __ LoadHeapNumberValue(__ CAST(element));
         break;
+#if V8_ENABLE_WEBASSEMBLY
       case MachineRepresentation::kSimd128: {
         Node* vector = tester.raw_assembler_for_testing()->AddNode(
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
@@ -164,6 +165,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
         element = vector;
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
     }
@@ -239,11 +241,11 @@ Handle<Code> BuildTeardownFunction(
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
         V8_FALLTHROUGH;
       case MachineRepresentation::kFloat64: {
-        __ StoreObjectFieldNoWriteBarrier(
+        __ StoreHeapNumberValue(
             __ Cast(__ LoadFixedArrayElement(result_array, i)),
-            __ IntPtrConstant(HeapNumber::kValueOffset),
             __ UncheckedCast<Float64T>(param));
       } break;
+#if V8_ENABLE_WEBASSEMBLY
       case MachineRepresentation::kSimd128: {
         TNode<FixedArray> vector =
             __ Cast(__ LoadFixedArrayElement(result_array, i));
@@ -259,6 +261,7 @@ Handle<Code> BuildTeardownFunction(
         }
         break;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       default:
         UNREACHABLE();
     }
@@ -747,7 +750,8 @@ class TestEnvironment : public HandleAndZoneScope {
       FunctionTester ft(setup, 2);
       Handle<FixedArray> result = ft.CallChecked<FixedArray>(test, state_in);
       CHECK_EQ(result->length(), state_in->length());
-      result->CopyTo(0, *state_out, 0, result->length());
+      FixedArray::CopyElements(main_isolate(), *state_out, 0, *result, 0,
+                               result->length());
     }
     return state_out;
   }
@@ -819,7 +823,8 @@ class TestEnvironment : public HandleAndZoneScope {
         static_cast<int>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the moves on a
     // copy.
-    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
+                             state_in->length());
     DCHECK_EQ(kPreserveLayout, layout_mode_);
     for (auto move : *moves) {
       int to_index = OperandToStatePosition(
@@ -862,7 +867,8 @@ class TestEnvironment : public HandleAndZoneScope {
         static_cast<int>(setup_layout_.size()));
     // We do not want to modify `state_in` in place so perform the swaps on a
     // copy.
-    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    FixedArray::CopyElements(main_isolate(), *state_out, 0, *state_in, 0,
+                             state_in->length());
     for (auto swap : *swaps) {
       int lhs_index = OperandToStatePosition(
           setup_layout_, AllocatedOperand::cast(swap->destination()));
@@ -1439,7 +1445,8 @@ TEST(FuzzAssembleMoveAndSwap) {
   for (int extra_space : {0, kExtraSpace}) {
     CodeGeneratorTester c(&env, extra_space);
 
-    state_in->CopyTo(0, *expected, 0, state_in->length());
+    FixedArray::CopyElements(env.main_isolate(), *expected, 0, *state_in, 0,
+                             state_in->length());
 
     for (int i = 0; i < 1000; i++) {
       // Randomly alternate between swaps and moves.
@@ -1613,7 +1620,8 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   auto native_module = wasm::GetWasmEngine()->NewNativeModule(
-      isolate, wasm::WasmFeatures::All(), std::move(module), code_size);
+      isolate, wasm::WasmFeatures::All(), wasm::CompileTimeImports{},
+      std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
 }

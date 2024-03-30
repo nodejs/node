@@ -21,6 +21,20 @@ template <typename T>
 MaybeHandle<T>::MaybeHandle(Tagged<T> object, LocalHeap* local_heap)
     : MaybeHandle(handle(object, local_heap)) {}
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T>
+template <typename S>
+bool MaybeHandle<T>::ToHandle(DirectHandle<S>* out) const {
+  if (location_ == nullptr) {
+    *out = DirectHandle<T>::null();
+    return false;
+  } else {
+    *out = DirectHandle<T>(Handle<T>(location_));
+    return true;
+  }
+}
+#endif
+
 MaybeObjectHandle::MaybeObjectHandle(MaybeObject object, Isolate* isolate) {
   Tagged<HeapObject> heap_object;
   DCHECK(!object->IsCleared());
