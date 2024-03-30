@@ -144,7 +144,7 @@ putIn.run([`.save ${invalidFileName}`]);
 // Clear the REPL.
 putIn.run(['.clear']);
 
-// Error message when using save without a file 
+// Error message when using save without a file
 putIn.write = common.mustCall(function(data) {
   assert.strictEqual(data, 'The "file" argument must be specified\n');
   putIn.write = () => {};
@@ -156,7 +156,7 @@ putIn.run(['.save']);
 // Clear the REPL.
 putIn.run(['.clear']);
 
-// Error message when using load without a file 
+// Error message when using load without a file
 putIn.write = common.mustCall(function(data) {
   assert.strictEqual(data, 'The "file" argument must be specified\n');
   putIn.write = () => {};
