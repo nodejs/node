@@ -1058,6 +1058,13 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
   }
 
+  if (args.size() >= 2 && args.at(1) == "run") {
+    printf("This is a reserved command. Please run \"node run.js\" instead.\n");
+    result->exit_code_ = ExitCode::kGenericUserError;
+    result->early_return_ = true;
+    return result;
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoPrintHelpOrVersionOutput)) {
     if (per_process::cli_options->print_version) {
       printf("%s\n", NODE_VERSION);
