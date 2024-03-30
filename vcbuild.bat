@@ -66,6 +66,7 @@ set openssl_no_asm=
 set no_shared_roheap=
 set doc=
 set extra_msbuild_args=
+set compile_commands=
 set exit_code=0
 
 :next-arg
@@ -140,6 +141,7 @@ if /i "%1"=="openssl-no-asm"   set openssl_no_asm=1&goto arg-ok
 if /i "%1"=="no-shared-roheap" set no_shared_roheap=1&goto arg-ok
 if /i "%1"=="doc"           set doc=1&goto arg-ok
 if /i "%1"=="binlog"        set extra_msbuild_args=/binaryLogger:out\%config%\node.binlog&goto arg-ok
+if /i "%1"=="compile-commands" set compile_commands=1&goto arg-ok
 
 echo Error: invalid command line option `%1`.
 exit /b 1
@@ -196,6 +198,7 @@ if defined debug_nghttp2    set configure_flags=%configure_flags% --debug-nghttp
 if defined openssl_no_asm   set configure_flags=%configure_flags% --openssl-no-asm
 if defined no_shared_roheap set configure_flags=%configure_flags% --disable-shared-readonly-heap
 if defined DEBUG_HELPER     set configure_flags=%configure_flags% --verbose
+if defined compile_commands set configure_flags=%configure_flags% -C
 if "%target_arch%"=="x86" if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set configure_flags=%configure_flags% --no-cross-compiling
 
 if not exist "%~dp0deps\icu" goto no-depsicu
