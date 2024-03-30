@@ -84,3 +84,5 @@ assert.strictEqual(process.env.DONT_EXPAND_UNQUOTED, 'dontexpand\\nnewlines');
 assert.strictEqual(process.env.DONT_EXPAND_SQUOTED, 'dontexpand\\nnewlines');
 // Ignore export before key
 assert.strictEqual(process.env.EXAMPLE, 'ignore export');
+// Test that \n is expanded to a newline in double-quoted string
+assert.strictEqual(process.env.EXPAND_NEWLINES, 'wrong value here');
