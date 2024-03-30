@@ -559,32 +559,17 @@ export LDFLAGS="-fuse-ld=mold" # add to ~/.zshrc or other shell config file
 
 On Windows:
 
-Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>
+Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you should
+notice that obj file will be bigger the normal one.
 
-First, create props\_4\_ccache.props, which is a props to force using old
-debug format needed by ccache
-
-```bash
-tee props_4_ccache.props <<'EOF'
-<Project>
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <!-- /Z7 of cl.exe, ref: https://learn.microsoft.com/en-us/cpp/build/reference/z7-zi-zi-debug-information-format -->
-      <DebugInformationFormat>OldStyle</DebugInformationFormat>
-      <ObjectFileName>$(IntDir)%(FileName).obj</ObjectFileName>
-    </ClCompile>
-  </ItemDefinitionGroup>
-</Project>
-EOF
-```
-
-Second, set msbuild\_args to enable ccache, assume ccache install on c:\ccache,
-and copy c:\ccache\ccache.exe to c:\ccache\cl.exe
+First, install ccache, assume ccache install to c:\ccache， copy c:\ccache\ccache.exe
+to c:\ccache\cl.exe
 
 ```powershell
-set ccache_path=c:\ccache\
-set props_4_ccache_path=%CD%\props_4_ccache.props
-set msbuild_args=/p:UseMultiToolTask=True /p:TrackFileAccess=false /p:CLToolPath=%ccache_path% /p:ForceImportAfterCppProps=%props_4_ccache_path%
+set TrackFileAccess=false
+set UseMultiToolTask=True
+set CLToolPath=c:\ccache\
+set ForceImportAfterCppProps=%CD%\tools\msvc\props_4_ccache.props
 # run vcbuild to build node, rerun should be fast even after out dir be deleted
 .\vcbuild
 ```
