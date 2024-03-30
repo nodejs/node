@@ -129,3 +129,6 @@ bazel-v8
 /third_party/zlib/contrib/tests
 /third_party/zlib/google/test
 !/third_party/ittapi
+!/third_party/abseil-cpp
+/third_party/abseil-cpp/.github
+/third_party/abseil-cpp/ci

@@ -16,6 +16,7 @@
 #include "src/objects/objects.h"
 
 #if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/stacks.h"
 #include "src/wasm/wasm-code-manager.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
@@ -453,6 +454,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
     int SourceStatementPosition() const { return SourcePosition(); }
     Handle<Script> script() const;
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
     Handle<Context> native_context() const;
     bool at_to_number_conversion() const { return at_to_number_conversion_; }
     Handle<StackFrameInfo> CreateStackFrameInfo() const;
@@ -474,6 +476,7 @@ class V8_EXPORT_PRIVATE FrameSummary {
                             int function_index, int op_wire_bytes_offset);
 
     Handle<WasmInstanceObject> wasm_instance() const { return wasm_instance_; }
+    Handle<WasmTrustedInstanceData> wasm_trusted_instance_data() const;
     Handle<Object> receiver() const;
     uint32_t function_index() const;
     int code_offset() const { return op_wire_bytes_offset_; }
@@ -722,7 +725,8 @@ class JavaScriptFrame : public CommonFrameWithJSLinkage {
   static void PrintTop(Isolate* isolate, FILE* file, bool print_args,
                        bool print_line_number);
 
-  static void CollectFunctionAndOffsetForICStats(Tagged<JSFunction> function,
+  static void CollectFunctionAndOffsetForICStats(IsolateForSandbox isolate,
+                                                 Tagged<JSFunction> function,
                                                  Tagged<AbstractCode> code,
                                                  int code_offset);
 
@@ -1142,7 +1146,9 @@ class WasmFrame : public TypedFrame {
 
   // Accessors.
   virtual V8_EXPORT_PRIVATE Tagged<WasmInstanceObject> wasm_instance() const;
+  virtual Tagged<WasmTrustedInstanceData> trusted_instance_data() const;
   V8_EXPORT_PRIVATE wasm::NativeModule* native_module() const;
+
   wasm::WasmCode* wasm_code() const;
   int function_index() const;
   Tagged<Script> script() const;
@@ -1209,6 +1215,7 @@ class WasmToJsFrame : public WasmFrame {
 
   int position() const override { return 0; }
   Tagged<WasmInstanceObject> wasm_instance() const override;
+  Tagged<WasmTrustedInstanceData> trusted_instance_data() const override;
 
  protected:
   inline explicit WasmToJsFrame(StackFrameIteratorBase* iterator);
@@ -1598,6 +1605,16 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   void AdvanceOneFrame();
 
   bool IsValidStackAddress(Address addr) const {
+#if V8_ENABLE_WEBASSEMBLY
+    if (V8_UNLIKELY(v8_flags.experimental_wasm_stack_switching)) {
+      wasm::StackMemory* head = wasm_stacks_;
+      if (head->Contains(addr)) return true;
+      for (wasm::StackMemory* current = head->next(); current != head;
+           current = current->next()) {
+        if (current->Contains(addr)) return true;
+      }
+    }
+#endif
     return low_bound_ <= addr && addr <= high_bound_;
   }
   bool IsValidFrame(StackFrame* frame) const;
@@ -1619,6 +1636,9 @@ class StackFrameIteratorForProfiler : public StackFrameIteratorBase {
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
   Address top_link_register_;
+#if V8_ENABLE_WEBASSEMBLY
+  wasm::StackMemory* wasm_stacks_;
+#endif
 };
 
 // We cannot export 'StackFrameIteratorForProfiler' for cctests since the

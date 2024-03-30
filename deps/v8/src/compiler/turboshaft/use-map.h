@@ -29,7 +29,7 @@ class UseMap {
  private:
   void AddUse(const Graph* graph, OpIndex node, OpIndex use);
 
-  FixedSidetable<PerOperationUses> table_;
+  FixedOpIndexSidetable<PerOperationUses> table_;
   ZoneVector<OpIndex> uses_;
   ZoneVector<ZoneVector<OpIndex>> saturated_uses_;
 };

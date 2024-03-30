@@ -5,8 +5,6 @@
 // Flags: --experimental-wasm-stringref --allow-natives-syntax
 // We just want speculative inlining, but the "stress" variant doesn't like
 // that flag for some reason, so use the GC flag which implies it.
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kSig_w_v = makeSig([], [kWasmStringRef]);

@@ -8,9 +8,9 @@
 #include "include/v8-fast-api-calls.h"
 #include "src/compiler/fast-api-calls.h"
 #include "src/compiler/turboshaft/assembler.h"
+#include "src/compiler/turboshaft/copying-phase.h"
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
-#include "src/compiler/turboshaft/optimization-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/representations.h"
 
@@ -90,7 +90,7 @@ class FastApiCallReducer : public Next {
       // {data_argument}.
       OpIndex data_stack_slot =
           __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-      __ StoreOffHeap(data_stack_slot, __ BitcastTaggedToWord(data_argument),
+      __ StoreOffHeap(data_stack_slot, __ BitcastTaggedToWordPtr(data_argument),
                       MemoryRepresentation::PointerSized());
       // data = data_stack_slot
       __ StoreOffHeap(stack_slot, data_stack_slot,
@@ -161,7 +161,7 @@ class FastApiCallReducer : public Next {
 
           OpIndex stack_slot =
               __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-          __ StoreOffHeap(stack_slot, __ BitcastTaggedToWord(argument),
+          __ StoreOffHeap(stack_slot, __ BitcastHeapObjectToWordPtr(argument),
                           MemoryRepresentation::PointerSized());
           OpIndex target_address = __ ExternalConstant(
               ExternalReference::Create(c_functions[func_index].address,
@@ -241,7 +241,7 @@ class FastApiCallReducer : public Next {
             case CTypeInfo::Type::kV8Value: {
               OpIndex stack_slot =
                   __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-              __ StoreOffHeap(stack_slot, __ BitcastTaggedToWord(argument),
+              __ StoreOffHeap(stack_slot, __ BitcastTaggedToWordPtr(argument),
                               MemoryRepresentation::PointerSized());
               return stack_slot;
             }
@@ -274,8 +274,9 @@ class FastApiCallReducer : public Next {
             case CTypeInfo::Type::kSeqOneByteString: {
               // Check that the value is a HeapObject.
               GOTO_IF(__ ObjectIsSmi(argument), handle_error);
+              V<HeapObject> argument_obj = V<HeapObject>::Cast(argument);
 
-              V<Map> map = __ LoadMapField(argument);
+              V<Map> map = __ LoadMapField(argument_obj);
               V<Word32> instance_type = __ LoadInstanceTypeField(map);
 
               V<Word32> encoding = __ Word32BitwiseAnd(
@@ -284,11 +285,9 @@ class FastApiCallReducer : public Next {
                           handle_error);
 
               V<WordPtr> length_in_bytes = __ template LoadField<WordPtr>(
-                  V<HeapObject>::Cast(argument),
-                  AccessBuilder::ForStringLength());
-              OpIndex data_ptr = __ WordPtrAdd(
-                  __ BitcastTaggedToWord(argument),
-                  (SeqOneByteString::kHeaderSize - kHeapObjectTag));
+                  argument_obj, AccessBuilder::ForStringLength());
+              V<WordPtr> data_ptr = __ GetElementStartPointer(
+                  argument_obj, AccessBuilder::ForSeqOneByteStringCharacter());
 
               constexpr int kAlign = alignof(FastOneByteString);
               constexpr int kSize = sizeof(FastOneByteString);
@@ -325,7 +324,7 @@ class FastApiCallReducer : public Next {
 
         OpIndex stack_slot =
             __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-        __ StoreOffHeap(stack_slot, __ BitcastTaggedToWord(argument),
+        __ StoreOffHeap(stack_slot, __ BitcastHeapObjectToWordPtr(argument),
                         MemoryRepresentation::PointerSized());
 
         return stack_slot;
@@ -441,7 +440,7 @@ class FastApiCallReducer : public Next {
     } else {
       V<Object> base_pointer = __ template LoadField<Object>(
           argument, AccessBuilder::ForJSTypedArrayBasePointer());
-      V<WordPtr> base = __ BitcastTaggedToWord(base_pointer);
+      V<WordPtr> base = __ BitcastTaggedToWordPtr(base_pointer);
       if (COMPRESS_POINTERS_BOOL) {
         // Zero-extend Tagged_t to UintPtr according to current compression
         // scheme so that the addition with |external_pointer| (which already
@@ -606,7 +605,7 @@ class FastApiCallReducer : public Next {
     // CPU profiler support.
     OpIndex target_address = __ ExternalConstant(
         ExternalReference::fast_api_call_target_address(isolate_));
-    __ StoreOffHeap(target_address, __ BitcastTaggedToWord(callee),
+    __ StoreOffHeap(target_address, __ BitcastHeapObjectToWordPtr(callee),
                     MemoryRepresentation::PointerSized());
 
     // Disable JS execution.

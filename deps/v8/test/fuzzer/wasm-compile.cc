@@ -10,6 +10,7 @@
 
 #include "src/base/macros.h"
 #include "src/base/v8-fallthrough.h"
+#include "src/base/vector.h"
 #include "src/execution/isolate.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -36,6 +37,7 @@ constexpr int kMaxTables = 4;
 constexpr int kMaxArraySize = 20;
 constexpr int kMaxPassiveDataSegments = 2;
 constexpr uint32_t kMaxRecursionDepth = 64;
+constexpr int kMaxCatchCases = 6;
 
 class DataRange {
   // data_ is used for general random values for fuzzing.
@@ -266,8 +268,8 @@ class WasmGenerator {
         builder.AddReturn(type);
       }
       FunctionSig* sig = builder.Build();
-      int sig_id = gen->builder_->builder()->AddSignature(
-          sig, v8_flags.wasm_final_types);
+      const bool is_final = true;
+      int sig_id = gen->builder_->builder()->AddSignature(sig, is_final);
       gen->builder_->EmitI32V(sig_id);
     }
 
@@ -335,7 +337,7 @@ class WasmGenerator {
   void try_block_helper(ValueType return_type, DataRange* data) {
     bool has_catch_all = data->get<bool>();
     uint8_t num_catch =
-        data->get<uint8_t>() % (builder_->builder()->NumExceptions() + 1);
+        data->get<uint8_t>() % (builder_->builder()->NumTags() + 1);
     bool is_delegate = num_catch == 0 && !has_catch_all && data->get<bool>();
     // Allow one more target than there are enclosing try blocks, for delegating
     // to the caller.
@@ -349,8 +351,7 @@ class WasmGenerator {
     Generate(return_type, data);
     catch_blocks_.push_back(control_depth);
     for (int i = 0; i < num_catch; ++i) {
-      const FunctionSig* exception_type =
-          builder_->builder()->GetExceptionType(i);
+      const FunctionSig* exception_type = builder_->builder()->GetTagType(i);
       auto exception_type_vec =
           base::VectorOf(exception_type->parameters().begin(),
                          exception_type->parameter_count());
@@ -376,9 +377,111 @@ class WasmGenerator {
     try_block_helper(ValueType::Primitive(T), data);
   }
 
+  struct CatchCase {
+    int tag_index;
+    CatchKind kind;
+  };
+
+  FunctionSig* ToSig(base::Vector<const ValueType> param_types,
+                     base::Vector<const ValueType> return_types) {
+    FunctionSig::Builder builder(builder_->builder()->zone(),
+                                 return_types.size(), param_types.size());
+    for (auto& type : param_types) {
+      builder.AddParam(type);
+    }
+    for (auto& type : return_types) {
+      builder.AddReturn(type);
+    }
+    return builder.Build();
+  }
+
+  // Generates the i-th nested block for the try-table, and recursively generate
+  // the blocks inside it.
+  void try_table_rec(base::Vector<const ValueType> param_types,
+                     base::Vector<const ValueType> return_types,
+                     base::Vector<CatchCase> catch_cases, size_t i,
+                     DataRange* data) {
+    if (i == catch_cases.size()) {
+      // Base case: emit the try-table itself.
+      builder_->Emit(kExprTryTable);
+      blocks_.emplace_back(return_types.begin(), return_types.end());
+      const bool is_final = true;
+      uint32_t try_sig_index = builder_->builder()->AddSignature(
+          ToSig(param_types, return_types), is_final);
+      builder_->EmitI32V(try_sig_index);
+      builder_->EmitU32V(static_cast<uint32_t>(catch_cases.size()));
+      for (size_t j = 0; j < catch_cases.size(); ++j) {
+        builder_->EmitByte(catch_cases[j].kind);
+        if (catch_cases[j].kind == kCatch || catch_cases[j].kind == kCatchRef) {
+          builder_->EmitByte(catch_cases[j].tag_index);
+        }
+        builder_->EmitByte(catch_cases.size() - j - 1);
+      }
+      ConsumeAndGenerate(param_types, return_types, data);
+      builder_->Emit(kExprEnd);
+      blocks_.pop_back();
+      builder_->EmitWithI32V(kExprBr, static_cast<int32_t>(catch_cases.size()));
+      return;
+    }
+
+    // Enter the i-th nested block. The signature of the block is built as
+    // follows:
+    // - The input types are the same for each block, the operands are forwarded
+    // as-is to the inner try-table.
+    // - The output types can be empty, or contain the tag types and/or an
+    // exnref depending on the catch kind
+    const FunctionSig* type =
+        builder_->builder()->GetTagType(catch_cases[i].tag_index);
+    int has_tag =
+        catch_cases[i].kind == kCatchRef || catch_cases[i].kind == kCatch;
+    int has_ref =
+        catch_cases[i].kind == kCatchAllRef || catch_cases[i].kind == kCatchRef;
+    size_t return_count =
+        (has_tag ? type->parameter_count() : 0) + (has_ref ? 1 : 0);
+    auto block_returns =
+        builder_->builder()->zone()->AllocateVector<ValueType>(return_count);
+    if (has_tag) {
+      std::copy_n(type->parameters().begin(), type->parameter_count(),
+                  block_returns.begin());
+    }
+    if (has_ref) block_returns.last() = kWasmExnRef;
+    {
+      BlockScope block(this, kExprBlock, param_types, block_returns,
+                       base::VectorOf(block_returns));
+      try_table_rec(param_types, return_types, catch_cases, i + 1, data);
+    }
+    // Catch label. Consume the unpacked values and exnref (if any), produce
+    // values that match the outer scope, and branch to it.
+    ConsumeAndGenerate(block_returns, return_types, data);
+    builder_->EmitWithU32V(kExprBr, static_cast<uint32_t>(i));
+  }
+
+  void try_table_block_helper(base::Vector<const ValueType> param_types,
+                              base::Vector<const ValueType> return_types,
+                              DataRange* data) {
+    uint8_t num_catch = data->get<uint8_t>() % kMaxCatchCases;
+    auto catch_cases =
+        builder_->builder()->zone()->AllocateVector<CatchCase>(num_catch);
+    for (int i = 0; i < num_catch; ++i) {
+      catch_cases[i].tag_index =
+          data->get<uint8_t>() % builder_->builder()->NumTags();
+      catch_cases[i].kind =
+          static_cast<CatchKind>(data->get<uint8_t>() % (kLastCatchKind + 1));
+    }
+
+    BlockScope block_scope(this, kExprBlock, param_types, return_types,
+                           return_types);
+    try_table_rec(param_types, return_types, catch_cases, 0, data);
+  }
+
+  template <ValueKind T>
+  void try_table_block(DataRange* data) {
+    try_table_block_helper({}, base::VectorOf({ValueType::Primitive(T)}), data);
+  }
+
   void any_block(base::Vector<const ValueType> param_types,
                  base::Vector<const ValueType> return_types, DataRange* data) {
-    uint8_t block_type = data->get<uint8_t>() % 4;
+    uint8_t block_type = data->get<uint8_t>() % 5;
     switch (block_type) {
       case 0:
         block(param_types, return_types, data);
@@ -394,6 +497,9 @@ class WasmGenerator {
         V8_FALLTHROUGH;
       case 3:
         if_(param_types, return_types, kIfElse, data);
+        return;
+      case 4:
+        try_table_block_helper(param_types, return_types, data);
         return;
     }
   }
@@ -641,8 +747,11 @@ class WasmGenerator {
 
   template <WasmOpcode memory_op, ValueKind... arg_kinds>
   void memop(DataRange* data) {
-    const uint8_t align =
-        data->getPseudoRandom<uint8_t>() % (max_alignment(memory_op) + 1);
+    // Atomic operations need to be aligned exactly to their max alignment.
+    const bool is_atomic = memory_op >> 8 == kAtomicPrefix;
+    const uint8_t align = is_atomic ? max_alignment(memory_op)
+                                    : data->getPseudoRandom<uint8_t>() %
+                                          (max_alignment(memory_op) + 1);
     uint32_t offset = data->get<uint16_t>();
     // With a 1/256 chance generate potentially very large offsets.
     if ((offset & 0xff) == 0xff) {
@@ -664,8 +773,7 @@ class WasmGenerator {
 
   template <WasmOpcode Op, ValueKind... Args>
   void atomic_op(DataRange* data) {
-    const uint8_t align =
-        data->getPseudoRandom<uint8_t>() % (max_alignment(Op) + 1);
+    const uint8_t align = max_alignment(Op);
     uint32_t offset = data->get<uint16_t>();
     // With a 1/256 chance generate potentially very large offsets.
     if ((offset & 0xff) == 0xff) {
@@ -966,9 +1074,8 @@ class WasmGenerator {
       builder_->EmitWithU32V(kExprRethrow,
                              control_depth - catch_blocks_[catch_index]);
     } else {
-      int tag = data->get<uint8_t>() % builder_->builder()->NumExceptions();
-      const FunctionSig* exception_sig =
-          builder_->builder()->GetExceptionType(tag);
+      int tag = data->get<uint8_t>() % builder_->builder()->NumTags();
+      const FunctionSig* exception_sig = builder_->builder()->GetTagType(tag);
       base::Vector<const ValueType> exception_types(
           exception_sig->parameters().begin(),
           exception_sig->parameter_count());
@@ -1448,6 +1555,9 @@ class WasmGenerator {
       case HeapType::kExtern:
       case HeapType::kNoExtern:
         return HeapType(HeapType::kExtern);
+      case HeapType::kExn:
+      case HeapType::kNoExn:
+        return HeapType(HeapType::kExn);
       case HeapType::kFunc:
       case HeapType::kNoFunc:
         return HeapType(HeapType::kFunc);
@@ -1599,13 +1709,13 @@ class WasmGenerator {
     return true;
   }
 
-  bool extern_internalize(HeapType type, DataRange* data,
+  bool any_convert_extern(HeapType type, DataRange* data,
                           Nullability nullable) {
     if (type.representation() != HeapType::kAny) {
       return false;
     }
     GenerateRef(HeapType(HeapType::kExtern), data);
-    builder_->EmitWithPrefix(kExprExternInternalize);
+    builder_->EmitWithPrefix(kExprAnyConvertExtern);
     if (nullable == kNonNullable) {
       builder_->Emit(kExprRefAsNonNull);
     }
@@ -2646,7 +2756,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
   constexpr GenerateFnWithHeap alternatives_func_any[] = {
       &WasmGenerator::table_get,       &WasmGenerator::get_local_ref,
       &WasmGenerator::array_get_ref,   &WasmGenerator::struct_get_ref,
-      &WasmGenerator::ref_cast,        &WasmGenerator::extern_internalize,
+      &WasmGenerator::ref_cast,        &WasmGenerator::any_convert_extern,
       &WasmGenerator::ref_as_non_null, &WasmGenerator::br_on_cast};
 
   constexpr GenerateFnWithHeap alternatives_other[] = {
@@ -2763,10 +2873,18 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
       builder_->EmitWithPrefix(kExprRefI31);
       return;
     }
+    case HeapType::kExn: {
+      // TODO(manoskouk): Can we somehow come up with a nontrivial exnref?
+      ref_null(type, data);
+      if (nullability == kNonNullable) {
+        builder_->Emit(kExprRefAsNonNull);
+      }
+      return;
+    }
     case HeapType::kExtern:
       if (data->get<bool>()) {
         GenerateRef(HeapType(HeapType::kAny), data);
-        builder_->EmitWithPrefix(kExprExternExternalize);
+        builder_->EmitWithPrefix(kExprExternConvertAny);
         if (nullability == kNonNullable) {
           builder_->Emit(kExprRefAsNonNull);
         }
@@ -2776,6 +2894,7 @@ void WasmGenerator::GenerateRef(HeapType type, DataRange* data,
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
     case HeapType::kNone:
+    case HeapType::kNoExn:
       ref_null(type, data);
       if (nullability == kNonNullable) {
         builder_->Emit(kExprRefAsNonNull);
@@ -3067,7 +3186,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           // case.
           if (recursion_depth < kMaxRecursionDepth && range.size() > 0 &&
               range.get<uint8_t>() % 4 == 3) {
-            return WasmInitExpr::ExternInternalize(
+            return WasmInitExpr::AnyConvertExtern(
                 zone,
                 GenerateInitExpr(zone, range, builder,
                                  ValueType::RefMaybeNull(HeapType::kExtern,
@@ -3092,7 +3211,7 @@ WasmInitExpr GenerateInitExpr(Zone* zone, DataRange& range,
           return WasmInitExpr::RefFuncConst(index);
         }
         case HeapType::kExtern:
-          return WasmInitExpr::ExternExternalize(
+          return WasmInitExpr::ExternConvertAny(
               zone,
               GenerateInitExpr(
                   zone, range, builder,
@@ -3272,8 +3391,9 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     }
 
     // We keep the signature for the first (main) function constant.
+    const bool is_final = true;
     function_signatures.push_back(
-        builder.ForceAddSignature(sigs.i_iii(), v8_flags.wasm_final_types));
+        builder.ForceAddSignature(sigs.i_iii(), is_final));
     current_type_index++;
 
     for (; current_type_index < num_types; current_type_index++) {
@@ -3283,8 +3403,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
                                           : current_type_index;
       FunctionSig* sig = GenerateSig(zone, &module_range, kFunctionSig,
                                      current_rec_group_end + 1);
-      uint32_t signature_index =
-          builder.ForceAddSignature(sig, v8_flags.wasm_final_types);
+      uint32_t signature_index = builder.ForceAddSignature(sig, is_final);
       function_signatures.push_back(signature_index);
     }
 
@@ -3292,7 +3411,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     for (int i = 0; i < num_exceptions; ++i) {
       FunctionSig* sig =
           GenerateSig(zone, &module_range, kExceptionSig, num_types);
-      builder.AddException(sig);
+      builder.AddTag(sig);
     }
 
     // Generate function declarations before tables. This will be needed once we
@@ -3404,7 +3523,6 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   constexpr bool require_valid = true;
-  EXPERIMENTAL_FLAG_SCOPE(relaxed_simd);
   WasmCompileFuzzer().FuzzWasmModule({data, size}, require_valid);
   return 0;
 }

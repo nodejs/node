@@ -22,6 +22,7 @@
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/graph-assembler.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/map-inference.h"
 #include "src/compiler/node-matchers.h"
@@ -970,8 +971,8 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeStartsWith(
         TypeGuard(Type::UnsignedSmall(), NumberAdd(k, clamped_start)));
     Node* receiver_string_char =
         StringCharCodeAt(receiver_string, receiver_string_position);
-    Node* search_string_char =
-        jsgraph()->Constant(search_element_string.GetChar(broker(), i).value());
+    Node* search_string_char = jsgraph()->ConstantNoHole(
+        search_element_string.GetChar(broker(), i).value());
     auto is_equal = graph()->NewNode(simplified()->NumberEqual(),
                                      search_string_char, receiver_string_char);
     GotoIfNot(is_equal, &out, FalseConstant());
@@ -1066,8 +1067,8 @@ TNode<Boolean> JSCallReducerAssembler::ReduceStringPrototypeEndsWith(
         TypeGuard(Type::UnsignedSmall(), NumberAdd(k, start)));
     Node* receiver_string_char =
         StringCharCodeAt(receiver_string, receiver_string_position);
-    Node* search_string_char =
-        jsgraph()->Constant(search_element_string.GetChar(broker(), i).value());
+    Node* search_string_char = jsgraph()->ConstantNoHole(
+        search_element_string.GetChar(broker(), i).value());
     auto is_equal = graph()->NewNode(simplified()->NumberEqual(),
                                      receiver_string_char, search_string_char);
     GotoIfNot(is_equal, &out, FalseConstant());
@@ -1136,9 +1137,10 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
   if (s.IsOneByteRepresentation()) {
     OptionalObjectRef elem = s.GetCharAsStringOrUndefined(broker(), index);
     TNode<String> elem_string =
-        elem.has_value() ? TNode<String>::UncheckedCast(
-                               jsgraph()->Constant(elem.value(), broker()))
-                         : EmptyStringConstant();
+        elem.has_value()
+            ? TNode<String>::UncheckedCast(
+                  jsgraph()->ConstantNoHole(elem.value(), broker()))
+            : EmptyStringConstant();
     return elem_string;
   } else {
     const uint32_t length = static_cast<uint32_t>(s.length());
@@ -1151,7 +1153,7 @@ TNode<String> JSCallReducerAssembler::ReduceStringPrototypeCharAt(
             .ToHandleChecked());
     flat->SeqTwoByteStringSet(0, s.GetChar(broker(), index).value());
     TNode<String> two_byte_elem =
-        TNode<String>::UncheckedCast(jsgraph()->HeapConstant(flat));
+        TNode<String>::UncheckedCast(jsgraph()->HeapConstantNoHole(flat));
     return two_byte_elem;
   }
 }
@@ -1235,17 +1237,13 @@ TNode<Object> JSCallReducerAssembler::ReduceJSCallMathMinMaxWithArrayLike(
       NumberEqual(arguments_list_instance_type, NumberConstant(JS_ARRAY_TYPE));
   GotoIfNot(check_instance_type, &call_builtin);
 
-  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS or
-  // HOLEY_DOUBLE_ELEMENTS.
+  // Check if {arguments_list} has PACKED_DOUBLE_ELEMENTS.
   TNode<Number> arguments_list_elements_kind =
       LoadMapElementsKind(arguments_list_map);
 
-  static_assert(PACKED_DOUBLE_ELEMENTS == 4);
-  static_assert(HOLEY_DOUBLE_ELEMENTS == 5);
-  auto check_elements_kind = NumberEqual(
-      NumberBitwiseOr(arguments_list_elements_kind, NumberConstant(1)),
-      NumberConstant(HOLEY_DOUBLE_ELEMENTS));
-  GotoIfNot(check_elements_kind, &call_builtin);
+  auto check_element_kind = NumberEqual(arguments_list_elements_kind,
+                                        NumberConstant(PACKED_DOUBLE_ELEMENTS));
+  GotoIfNot(check_element_kind, &call_builtin);
 
   // If {arguments_list} is a JSArray with PACKED_DOUBLE_ELEMENTS, calculate the
   // result with inlined loop.
@@ -2456,6 +2454,8 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   Try(_ {
     CallPromiseExecutor(executor, resolve, reject, lazy_with_catch_frame_state);
   }).Catch([&](TNode<Object> exception) {
+    // Clear pending message since the exception is not going to be rethrown.
+    ClearPendingMessage();
     CallPromiseReject(reject, exception, lazy_with_catch_frame_state);
   });
 
@@ -2589,7 +2589,7 @@ Reduction JSCallReducer::ReduceMathClz32(Node* node) {
     return NoChange();
   }
   if (n.ArgumentCount() < 1) {
-    Node* value = jsgraph()->Constant(32);
+    Node* value = jsgraph()->ConstantNoHole(32);
     ReplaceWithValue(node, value);
     return Replace(value);
   }
@@ -2647,6 +2647,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
       return ReduceJSConstructWithArrayLike(node);
     case IrOpcode::kJSConstructWithSpread:
       return ReduceJSConstructWithSpread(node);
+    case IrOpcode::kJSConstructForwardAllArgs:
+      return ReduceJSConstructForwardAllArgs(node);
     case IrOpcode::kJSCall:
       return ReduceJSCall(node);
     case IrOpcode::kJSCallWithArrayLike:
@@ -3006,7 +3008,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   HeapObjectMatcher m(target);
   if (m.HasResolvedValue() && m.Ref(broker()).IsJSFunction()) {
     JSFunctionRef function = m.Ref(broker()).AsJSFunction();
-    context = jsgraph()->Constant(function.context(broker()), broker());
+    context = jsgraph()->ConstantNoHole(function.context(broker()), broker());
   } else {
     context = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
@@ -3095,7 +3097,7 @@ Reduction JSCallReducer::ReduceObjectGetPrototype(Node* node, Node* object) {
   if (!inference.RelyOnMapsViaStability(dependencies())) {
     return inference.NoChange();
   }
-  Node* value = jsgraph()->Constant(candidate_prototype, broker());
+  Node* value = jsgraph()->ConstantNoHole(candidate_prototype, broker());
   ReplaceWithValue(node, value);
   return Replace(value);
 }
@@ -3335,9 +3337,9 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   {
     if_false = efalse = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-        jsgraph()->Constant(
+        jsgraph()->ConstantNoHole(
             static_cast<int>(MessageTemplate::kCalledOnNonObject)),
-        jsgraph()->HeapConstant(factory()->ReflectGet_string()), context,
+        jsgraph()->HeapConstantNoHole(factory()->ReflectGet_string()), context,
         frame_state, efalse, if_false);
   }
 
@@ -3351,7 +3353,7 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
         graph()->zone(), callable.descriptor(),
         callable.descriptor().GetStackParameterCount(),
         CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
-    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* stub_code = jsgraph()->HeapConstantNoHole(callable.code());
     vtrue = etrue = if_true =
         graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
                          key, context, frame_state, etrue, if_true);
@@ -3406,9 +3408,9 @@ Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   {
     if_false = efalse = graph()->NewNode(
         javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-        jsgraph()->Constant(
+        jsgraph()->ConstantNoHole(
             static_cast<int>(MessageTemplate::kCalledOnNonObject)),
-        jsgraph()->HeapConstant(factory()->ReflectHas_string()), context,
+        jsgraph()->HeapConstantNoHole(factory()->ReflectHas_string()), context,
         frame_state, efalse, if_false);
   }
 
@@ -3851,6 +3853,19 @@ FastApiCallFunctionVector CanOptimizeFastCall(
         fast_api_call::CanOptimizeFastSignature(c_signature);
 
     if (optimize_to_fast_call) {
+      // TODO(nicohartmann@): {Flags::kEnforceRangeBit} is currently only
+      // supported on 64 bit architectures. We should support this on 32 bit
+      // architectures.
+#if defined(V8_TARGET_ARCH_32_BIT)
+      for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
+        const uint8_t flags =
+            static_cast<uint8_t>(c_signature->ArgumentInfo(i).GetFlags());
+        if (flags & static_cast<uint8_t>(CTypeInfo::Flags::kEnforceRangeBit)) {
+          // Bailout
+          return FastApiCallFunctionVector(zone);
+        }
+      }
+#endif
       result.push_back({functions[i], c_signature});
     }
   }
@@ -3864,7 +3879,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   CallParameters const& p = n.Parameters();
   int const argc = p.arity_without_implicit_args();
   Node* target = n.target();
-  Node* global_proxy = jsgraph()->Constant(
+  Node* global_proxy = jsgraph()->ConstantNoHole(
       native_context().global_proxy_object(broker()), broker());
   Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
                        ? global_proxy
@@ -3902,9 +3917,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
     //     are considered compatible at that point, and the {receiver}
     //     will be pass as the {holder}.
     //
-    receiver = holder = effect =
-        graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                         receiver, global_proxy, effect, control);
+    receiver = holder = effect = graph()->NewNode(
+        simplified()->ConvertReceiver(p.convert_mode()), receiver,
+        jsgraph()->ConstantNoHole(native_context(), broker()), global_proxy,
+        effect, control);
   } else {
     // Try to infer the {receiver} maps from the graph.
     MapInference inference(broker(), receiver, effect);
@@ -3978,7 +3994,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
 
       // Determine the appropriate holder for the {lookup}.
       holder = api_holder.lookup == CallOptimization::kHolderFound
-                   ? jsgraph()->Constant(*api_holder.holder, broker())
+                   ? jsgraph()->ConstantNoHole(*api_holder.holder, broker())
                    : receiver;
     } else {
       // We don't have enough information to eliminate the access check
@@ -3999,9 +4015,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
       // The CallFunctionTemplate builtin requires the {receiver} to be
       // an actual JSReceiver, so make sure we do the proper conversion
       // first if necessary.
-      receiver = holder = effect =
-          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
-                           receiver, global_proxy, effect, control);
+      receiver = holder = effect = graph()->NewNode(
+          simplified()->ConvertReceiver(p.convert_mode()), receiver,
+          jsgraph()->ConstantNoHole(native_context(), broker()), global_proxy,
+          effect, control);
 
       Callable callable = Builtins::CallableFor(isolate(), builtin_name);
       auto call_descriptor = Linkage::GetStubCallDescriptor(
@@ -4009,9 +4026,9 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
           argc + 1 /* implicit receiver */, CallDescriptor::kNeedsFrameState);
       node->RemoveInput(n.FeedbackVectorIndex());
       node->InsertInput(graph()->zone(), 0,
-                        jsgraph()->HeapConstant(callable.code()));
-      node->ReplaceInput(1,
-                         jsgraph()->Constant(function_template_info, broker()));
+                        jsgraph()->HeapConstantNoHole(callable.code()));
+      node->ReplaceInput(
+          1, jsgraph()->ConstantNoHole(function_template_info, broker()));
       node->InsertInput(graph()->zone(), 2,
                         jsgraph()->Int32Constant(JSParameterCount(argc)));
       node->ReplaceInput(3, receiver);       // Update receiver input.
@@ -4069,12 +4086,12 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
 
   node->RemoveInput(n.FeedbackVectorIndex());
   node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(call_api_callback.code()));
+                    jsgraph()->HeapConstantNoHole(call_api_callback.code()));
   node->ReplaceInput(1, jsgraph()->ExternalConstant(function_reference));
-  node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(argc));
+  node->InsertInput(graph()->zone(), 2, jsgraph()->ConstantNoHole(argc));
   node->InsertInput(
       graph()->zone(), 3,
-      jsgraph()->Constant(call_handler_info.data(broker()), broker()));
+      jsgraph()->ConstantNoHole(call_handler_info.data(broker()), broker()));
   node->InsertInput(graph()->zone(), 4, holder);
   node->ReplaceInput(5, receiver);  // Update receiver input.
   // 6 + argc is context input.
@@ -4131,7 +4148,8 @@ void JSCallReducer::CheckIfConstructor(Node* construct) {
   Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
   Node* check_throw = check_fail = graph()->NewNode(
       javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-      jsgraph()->Constant(static_cast<int>(MessageTemplate::kNotConstructor)),
+      jsgraph()->ConstantNoHole(
+          static_cast<int>(MessageTemplate::kNotConstructor)),
       new_target, n.context(), n.frame_state(), n.effect(), check_fail);
   control = graph()->NewNode(common()->IfTrue(), check_branch);
   NodeProperties::ReplaceControlInput(construct, control);
@@ -4202,7 +4220,7 @@ Node* JSCallReducer::CheckArrayLength(Node* array, ElementsKind elements_kind,
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(elements_kind)),
       array, effect, control);
   Node* check = graph()->NewNode(simplified()->NumberEqual(), length,
-                                 jsgraph()->Constant(array_length));
+                                 jsgraph()->ConstantNoHole(array_length));
   return graph()->NewNode(
       simplified()->CheckIf(DeoptimizeReason::kArrayLengthChanged,
                             feedback_source),
@@ -4500,7 +4518,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
       arguments_list, effect, control);
   for (int i = 0; i < array_length; i++) {
     // Load the i-th element from the array.
-    Node* index = jsgraph()->Constant(i);
+    Node* index = jsgraph()->ConstantNoHole(i);
     Node* load = effect = graph()->NewNode(
         simplified()->LoadElement(
             AccessBuilder::ForFixedArrayElement(elements_kind)),
@@ -4584,17 +4602,18 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
           return NoChange();
         }
-        args.emplace_back(jsgraph()->Constant(maybe_arg.value(), broker()));
+        args.emplace_back(
+            jsgraph()->ConstantNoHole(maybe_arg.value(), broker()));
       }
 
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
           node,
-          jsgraph()->Constant(function.bound_target_function(broker()),
-                              broker()),
+          jsgraph()->ConstantNoHole(function.bound_target_function(broker()),
+                                    broker()),
           JSCallNode::TargetIndex());
       NodeProperties::ReplaceValueInput(
-          node, jsgraph()->Constant(bound_this, broker()),
+          node, jsgraph()->ConstantNoHole(bound_this, broker()),
           JSCallNode::ReceiverIndex());
 
       // Insert the [[BoundArguments]] for {node}.
@@ -4697,7 +4716,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
   if (feedback_target.has_value() &&
       feedback_target->map(broker()).is_callable()) {
-    Node* target_function = jsgraph()->Constant(*feedback_target, broker());
+    Node* target_function =
+        jsgraph()->ConstantNoHole(*feedback_target, broker());
 
     // Check that the {target} is still the {target_function}.
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
@@ -4823,8 +4843,12 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayPrototypePush(node);
     case Builtin::kArrayPrototypePop:
       return ReduceArrayPrototypePop(node);
-    case Builtin::kArrayPrototypeShift:
-      return ReduceArrayPrototypeShift(node);
+    // TODO(v8:14409): The current implementation of the inlined
+    // ArrayPrototypeShift version doesn't seem to be beneficial and even
+    // counter-productive at least for Object ElementsKinds. Disable it until
+    // improvements/better heuristics have been implemented.
+    // case Builtin::kArrayPrototypeShift:
+    //   return ReduceArrayPrototypeShift(node);
     case Builtin::kArrayPrototypeSlice:
       return ReduceArrayPrototypeSlice(node);
     case Builtin::kArrayPrototypeEntries:
@@ -4972,10 +4996,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceMathImul(node);
     case Builtin::kMathMax:
       return ReduceMathMinMax(node, simplified()->NumberMax(),
-                              jsgraph()->Constant(-V8_INFINITY));
+                              jsgraph()->ConstantNoHole(-V8_INFINITY));
     case Builtin::kMathMin:
       return ReduceMathMinMax(node, simplified()->NumberMin(),
-                              jsgraph()->Constant(V8_INFINITY));
+                              jsgraph()->ConstantNoHole(V8_INFINITY));
     case Builtin::kNumberIsFinite:
       return ReduceNumberIsFinite(node);
     case Builtin::kNumberIsInteger:
@@ -5255,7 +5279,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // for the resulting arrays.  This has to be kept in sync with the
       // implementation in Ignition.
 
-      Node* array_function = jsgraph()->Constant(
+      Node* array_function = jsgraph()->ConstantNoHole(
           native_context().array_function(broker()), broker());
 
       // Check that the {target} is still the {array_function}.
@@ -5278,7 +5302,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
                !HeapObjectMatcher(new_target).HasResolvedValue() &&
                feedback_target->map(broker()).is_constructor()) {
       Node* new_target_feedback =
-          jsgraph()->Constant(*feedback_target, broker());
+          jsgraph()->ConstantNoHole(*feedback_target, broker());
 
       // Check that the {new_target} is still the {new_target_feedback}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), new_target,
@@ -5391,19 +5415,20 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           TRACE_BROKER_MISSING(broker(), "bound argument");
           return NoChange();
         }
-        args.emplace_back(jsgraph()->Constant(maybe_arg.value(), broker()));
+        args.emplace_back(
+            jsgraph()->ConstantNoHole(maybe_arg.value(), broker()));
       }
 
       // Patch {node} to use [[BoundTargetFunction]].
-      node->ReplaceInput(n.TargetIndex(),
-                         jsgraph()->Constant(bound_target_function, broker()));
+      node->ReplaceInput(n.TargetIndex(), jsgraph()->ConstantNoHole(
+                                              bound_target_function, broker()));
 
       // Patch {node} to use [[BoundTargetFunction]]
       // as new.target if {new_target} equals {target}.
       if (target == new_target) {
         node->ReplaceInput(
             n.NewTargetIndex(),
-            jsgraph()->Constant(bound_target_function, broker()));
+            jsgraph()->ConstantNoHole(bound_target_function, broker()));
       } else {
         node->ReplaceInput(
             n.NewTargetIndex(),
@@ -5411,7 +5436,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
                 common()->Select(MachineRepresentation::kTagged),
                 graph()->NewNode(simplified()->ReferenceEqual(), target,
                                  new_target),
-                jsgraph()->Constant(bound_target_function, broker()),
+                jsgraph()->ConstantNoHole(bound_target_function, broker()),
                 new_target));
       }
 
@@ -5687,6 +5712,40 @@ Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
       n.target(), n.effect(), n.control());
 }
 
+Reduction JSCallReducer::ReduceJSConstructForwardAllArgs(Node* node) {
+  JSConstructForwardAllArgsNode n(node);
+  DCHECK_EQ(n.ArgumentCount(), 0);
+
+  // If this frame is not being inlined, JSConstructForwardAllArgs will be
+  // lowered later in JSGenericLowering to a builtin call.
+  FrameState frame_state = n.frame_state();
+  if (frame_state.outer_frame_state()->opcode() != IrOpcode::kFrameState) {
+    return NoChange();
+  }
+
+  // Hook up the arguments directly when forwarding arguments of inlined frames.
+  FrameState outer_state{frame_state.outer_frame_state()};
+  FrameStateInfo outer_info = outer_state.frame_state_info();
+  if (outer_info.type() == FrameStateType::kInlinedExtraArguments) {
+    frame_state = outer_state;
+  }
+
+  int argc = 0;
+  StateValuesAccess parameters_access(frame_state.parameters());
+  for (auto it = parameters_access.begin_without_receiver(); !it.done(); ++it) {
+    DCHECK_NOT_NULL(it.node());
+    node->InsertInput(graph()->zone(),
+                      JSCallOrConstructNode::ArgumentIndex(argc++), it.node());
+  }
+
+  ConstructParameters const& p = n.Parameters();
+  NodeProperties::ChangeOp(
+      node, javascript()->Construct(JSConstructNode::ArityForArgc(argc),
+                                    p.frequency(), p.feedback()));
+  CheckIfConstructor(node);
+  return Changed(node).FollowedBy(ReduceJSConstruct(node));
+}
+
 Reduction JSCallReducer::ReduceReturnReceiver(Node* node) {
   JSCallNode n(node);
   Node* receiver = n.receiver();
@@ -5726,8 +5785,8 @@ Node* JSCallReducer::LoadReceiverElementsKind(Node* receiver, Effect* effect,
       simplified()->NumberShiftRightLogical(),
       graph()->NewNode(
           simplified()->NumberBitwiseAnd(), receiver_bit_field2,
-          jsgraph()->Constant(Map::Bits2::ElementsKindBits::kMask)),
-      jsgraph()->Constant(Map::Bits2::ElementsKindBits::kShift));
+          jsgraph()->ConstantNoHole(Map::Bits2::ElementsKindBits::kMask)),
+      jsgraph()->ConstantNoHole(Map::Bits2::ElementsKindBits::kShift));
   *effect = effect_node;
   return receiver_elements_kind;
 }
@@ -5737,7 +5796,7 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
                                         Node** if_true, Node** if_false) {
   Node* is_packed_kind =
       graph()->NewNode(simplified()->NumberEqual(), receiver_elements_kind,
-                       jsgraph()->Constant(GetPackedElementsKind(kind)));
+                       jsgraph()->ConstantNoHole(GetPackedElementsKind(kind)));
   Node* packed_branch =
       graph()->NewNode(common()->Branch(), is_packed_kind, control);
   Node* if_packed = graph()->NewNode(common()->IfTrue(), packed_branch);
@@ -5746,7 +5805,7 @@ void JSCallReducer::CheckIfElementsKind(Node* receiver_elements_kind,
     Node* if_not_packed = graph()->NewNode(common()->IfFalse(), packed_branch);
     Node* is_holey_kind =
         graph()->NewNode(simplified()->NumberEqual(), receiver_elements_kind,
-                         jsgraph()->Constant(GetHoleyElementsKind(kind)));
+                         jsgraph()->ConstantNoHole(GetHoleyElementsKind(kind)));
     Node* holey_branch =
         graph()->NewNode(common()->Branch(), is_holey_kind, if_not_packed);
     Node* if_holey = graph()->NewNode(common()->IfTrue(), holey_branch);
@@ -5990,6 +6049,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 }
 
 // ES6 section 22.1.3.22 Array.prototype.shift ( )
+// Currently disabled. See https://crbug.com/v8/14409
 Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   JSCallNode n(node);
   CallParameters const& p = n.Parameters();
@@ -6059,9 +6119,9 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     Node* vfalse0;
     {
       // Check if we should take the fast-path.
-      Node* check1 =
-          graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
-                           jsgraph()->Constant(JSArray::kMaxCopyElements));
+      Node* check1 = graph()->NewNode(
+          simplified()->NumberLessThanOrEqual(), length,
+          jsgraph()->ConstantNoHole(JSArray::kMaxCopyElements));
       Node* branch1 = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                        check1, if_false0);
 
@@ -6096,7 +6156,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         Node* index = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, 2),
             jsgraph()->OneConstant(),
-            jsgraph()->Constant(JSArray::kMaxCopyElements - 1), loop);
+            jsgraph()->ConstantNoHole(JSArray::kMaxCopyElements - 1), loop);
 
         {
           Node* check2 =
@@ -6179,8 +6239,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
         Address builtin_entry = Builtins::CppEntryOf(builtin);
         Node* entry = jsgraph()->ExternalConstant(
             ExternalReference::Create(builtin_entry));
-        Node* argc =
-            jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
+        Node* argc = jsgraph()->ConstantNoHole(
+            BuiltinArguments::kNumExtraArgsWithReceiver);
         if_false1 = efalse1 = vfalse1 =
             graph()->NewNode(common()->Call(call_descriptor), stub_code,
                              receiver, jsgraph()->PaddingConstant(), argc,
@@ -6300,9 +6360,10 @@ Reduction JSCallReducer::ReduceArrayPrototypeSlice(Node* node) {
 
   // Calls to Builtin::kCloneFastJSArray produce COW arrays
   // if the original array is COW
-  Node* clone = effect = graph()->NewNode(
-      common()->Call(call_descriptor), jsgraph()->HeapConstant(callable.code()),
-      receiver, context, effect, control);
+  Node* clone = effect =
+      graph()->NewNode(common()->Call(call_descriptor),
+                       jsgraph()->HeapConstantNoHole(callable.code()), receiver,
+                       context, effect, control);
 
   ReplaceWithValue(node, clone, effect, control);
   return Replace(clone);
@@ -6465,7 +6526,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
           simplified()->NumberEqual(),
           graph()->NewNode(
               simplified()->NumberBitwiseAnd(), buffer_bit_field,
-              jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+              jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
           jsgraph()->ZeroConstant());
       effect = graph()->NewNode(
           simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
@@ -6622,7 +6683,7 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
       // This is not necessary for JSTypedArray's, since the length of those
       // cannot change later and so if we were ever out of bounds for them
       // we will stay out-of-bounds forever.
-      Node* end_index = jsgraph()->Constant(index_access.type.Max());
+      Node* end_index = jsgraph()->ConstantNoHole(index_access.type.Max());
       efalse = graph()->NewNode(simplified()->StoreField(index_access),
                                 iterator, end_index, efalse, if_false);
     }
@@ -6886,7 +6947,7 @@ Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
   input = effect = graph()->NewNode(
       simplified()->CheckBounds(p.feedback(),
                                 CheckBoundsFlag::kConvertStringAndMinusZero),
-      input, jsgraph()->Constant(0x10FFFF + 1), effect, control);
+      input, jsgraph()->ConstantNoHole(0x10FFFF + 1), effect, control);
 
   Node* value =
       graph()->NewNode(simplified()->StringFromSingleCodePoint(), input);
@@ -6970,7 +7031,7 @@ Reduction JSCallReducer::ReduceStringPrototypeLocaleCompare(Node* node) {
     DCHECK_EQ(2, n.ArgumentCount());
   }
   node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(callable.code()));
+                    jsgraph()->HeapConstantNoHole(callable.code()));
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 #else
@@ -7076,7 +7137,7 @@ Reduction JSCallReducer::ReduceStringPrototypeConcat(Node* node) {
                                   argument_length);
   length = effect = graph()->NewNode(
       simplified()->CheckBounds(p.feedback()), length,
-      jsgraph()->Constant(String::kMaxLength + 1), effect, control);
+      jsgraph()->ConstantNoHole(String::kMaxLength + 1), effect, control);
 
   Node* value = graph()->NewNode(simplified()->StringConcat(), length, receiver,
                                  argument);
@@ -7139,8 +7200,8 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   // Massage the {node} to call "then" instead by first removing all inputs
   // following the onRejected parameter, and then filling up the parameters
   // to two inputs from the left with undefined.
-  Node* target =
-      jsgraph()->Constant(native_context().promise_then(broker()), broker());
+  Node* target = jsgraph()->ConstantNoHole(
+      native_context().promise_then(broker()), broker());
   NodeProperties::ReplaceValueInput(node, target, 0);
   NodeProperties::ReplaceEffectInput(node, effect);
   for (; arity > 1; --arity) node->RemoveInput(3);
@@ -7164,7 +7225,7 @@ Node* JSCallReducer::CreateClosureFromBuiltinSharedFunctionInfo(
       Builtins::CallableFor(isolate(), shared.builtin_id());
   CodeRef code = MakeRef(broker(), *callable.code());
   return graph()->NewNode(javascript()->CreateClosure(shared, code),
-                          jsgraph()->HeapConstant(feedback_cell), context,
+                          jsgraph()->HeapConstantNoHole(feedback_cell), context,
                           effect, control);
 }
 
@@ -7208,8 +7269,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   Node* catch_true;
   Node* then_true;
   {
-    Node* context = jsgraph()->Constant(native_context(), broker());
-    Node* constructor = jsgraph()->Constant(
+    Node* context = jsgraph()->ConstantNoHole(native_context(), broker());
+    Node* constructor = jsgraph()->ConstantNoHole(
         native_context().promise_function(broker()), broker());
 
     // Allocate shared context for the closures below.
@@ -7267,8 +7328,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
   // Massage the {node} to call "then" instead by first removing all inputs
   // following the onFinally parameter, and then replacing the only parameter
   // input with the {on_finally} value.
-  Node* target =
-      jsgraph()->Constant(native_context().promise_then(broker()), broker());
+  Node* target = jsgraph()->ConstantNoHole(
+      native_context().promise_then(broker()), broker());
   NodeProperties::ReplaceValueInput(node, target, n.TargetIndex());
   NodeProperties::ReplaceEffectInput(node, effect);
   NodeProperties::ReplaceControlInput(node, control);
@@ -7439,32 +7500,32 @@ Reduction JSCallReducer::ReduceTypedArrayPrototypeToStringTag(Node* node) {
       simplified()->NumberShiftRightLogical(),
       graph()->NewNode(
           simplified()->NumberBitwiseAnd(), receiver_bit_field2,
-          jsgraph()->Constant(Map::Bits2::ElementsKindBits::kMask)),
-      jsgraph()->Constant(Map::Bits2::ElementsKindBits::kShift));
+          jsgraph()->ConstantNoHole(Map::Bits2::ElementsKindBits::kMask)),
+      jsgraph()->ConstantNoHole(Map::Bits2::ElementsKindBits::kShift));
 
   // Offset the elements kind by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
   // so that the branch cascade below is turned into a simple table
   // switch by the ControlFlowOptimizer later.
   receiver_elements_kind = graph()->NewNode(
       simplified()->NumberSubtract(), receiver_elements_kind,
-      jsgraph()->Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+      jsgraph()->ConstantNoHole(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
 
   // To be converted into a switch by the ControlFlowOptimizer, the below
   // code requires that TYPED_ARRAYS and RAB_GSAB_TYPED_ARRAYS are consecutive.
   static_assert(LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND + 1 ==
                 FIRST_RAB_GSAB_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                      \
-  do {                                                                 \
-    Node* check = graph()->NewNode(                                    \
-        simplified()->NumberEqual(), receiver_elements_kind,           \
-        jsgraph()->Constant(TYPE##_ELEMENTS -                          \
-                            FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
-    control = graph()->NewNode(common()->Branch(), check, control);    \
-    values.push_back(jsgraph()->Constant(                              \
-        broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS), broker())); \
-    effects.push_back(effect);                                         \
-    controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
-    control = graph()->NewNode(common()->IfFalse(), control);          \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype)                          \
+  do {                                                                     \
+    Node* check = graph()->NewNode(                                        \
+        simplified()->NumberEqual(), receiver_elements_kind,               \
+        jsgraph()->ConstantNoHole(TYPE##_ELEMENTS -                        \
+                                  FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND)); \
+    control = graph()->NewNode(common()->Branch(), check, control);        \
+    values.push_back(jsgraph()->ConstantNoHole(                            \
+        broker()->GetTypedArrayStringTag(TYPE##_ELEMENTS), broker()));     \
+    effects.push_back(effect);                                             \
+    controls.push_back(graph()->NewNode(common()->IfTrue(), control));     \
+    control = graph()->NewNode(common()->IfFalse(), control);              \
   } while (false);
   TYPED_ARRAYS(TYPED_ARRAY_CASE)
   RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE)
@@ -7525,9 +7586,14 @@ Reduction JSCallReducer::ReduceArrayBufferViewByteLengthAccessor(
     return inference.NoChange();
   }
 
+  const CallParameters& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return inference.NoChange();
+  }
+  DCHECK(p.feedback().IsValid());
+
   inference.RelyOnMapsPreferStability(dependencies(), jsgraph(), &effect,
-                                      control,
-                                      CallParametersOf(node->op()).feedback());
+                                      control, p.feedback());
 
   const bool depended_on_detaching_protector =
       dependencies()->DependOnArrayBufferDetachingProtector();
@@ -7886,8 +7952,8 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         CallDescriptor::kNoFlags, Operator::kEliminatable);
     index = effect =
         graph()->NewNode(common()->Call(call_descriptor),
-                         jsgraph()->HeapConstant(callable.code()), table, index,
-                         jsgraph()->NoContextConstant(), effect);
+                         jsgraph()->HeapConstantNoHole(callable.code()), table,
+                         index, jsgraph()->NoContextConstant(), effect);
 
     index = effect = graph()->NewNode(
         common()->TypeGuard(TypeCache::Get()->kFixedArrayLengthType), index,
@@ -7969,7 +8035,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
         efalse0 = graph()->NewNode(
             simplified()->StoreField(
                 AccessBuilder::ForJSCollectionIteratorTable()),
-            receiver, jsgraph()->HeapConstant(empty_collection), efalse0,
+            receiver, jsgraph()->HeapConstantNoHole(empty_collection), efalse0,
             if_false0);
 
         controls[0] = if_false0;
@@ -7987,9 +8053,9 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
             graph()->NewNode(
                 simplified()->NumberAdd(),
                 graph()->NewNode(simplified()->NumberMultiply(), index,
-                                 jsgraph()->Constant(entry_size)),
+                                 jsgraph()->ConstantNoHole(entry_size)),
                 number_of_buckets),
-            jsgraph()->Constant(OrderedHashMap::HashTableStartIndex()));
+            jsgraph()->ConstantNoHole(OrderedHashMap::HashTableStartIndex()));
         Node* entry_key = etrue0 = graph()->NewNode(
             simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
             table, entry_start_position, etrue0, if_true0);
@@ -8038,7 +8104,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
                   table,
                   graph()->NewNode(
                       simplified()->NumberAdd(), entry_start_position,
-                      jsgraph()->Constant(OrderedHashMap::kValueOffset)),
+                      jsgraph()->ConstantNoHole(OrderedHashMap::kValueOffset)),
                   effect, control);
               break;
 
@@ -8049,7 +8115,7 @@ Reduction JSCallReducer::ReduceCollectionIteratorPrototypeNext(
                   table,
                   graph()->NewNode(
                       simplified()->NumberAdd(), entry_start_position,
-                      jsgraph()->Constant(OrderedHashMap::kValueOffset)),
+                      jsgraph()->ConstantNoHole(OrderedHashMap::kValueOffset)),
                   effect, control);
               value = effect =
                   graph()->NewNode(javascript()->CreateKeyValueArray(),
@@ -8152,7 +8218,7 @@ Reduction JSCallReducer::ReduceArrayBufferViewAccessor(
         simplified()->NumberEqual(),
         graph()->NewNode(
             simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
         jsgraph()->ZeroConstant());
 
     // TODO(turbofan): Ideally we would bail out here if the {receiver}s
@@ -8224,7 +8290,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
     if (length < element_size) return NoChange();
 
     // Check that the {offset} is within range of the {length}.
-    Node* byte_length = jsgraph()->Constant(length - (element_size - 1));
+    Node* byte_length = jsgraph()->ConstantNoHole(length - (element_size - 1));
     offset = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
                                        offset, byte_length, effect, control);
   } else {
@@ -8243,7 +8309,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
       byte_length = graph()->NewNode(
           simplified()->NumberMax(), jsgraph()->ZeroConstant(),
           graph()->NewNode(simplified()->NumberSubtract(), byte_length,
-                           jsgraph()->Constant(element_size - 1)));
+                           jsgraph()->ConstantNoHole(element_size - 1)));
     }
 
     // Check that the {offset} is within range of the {byte_length}.
@@ -8283,7 +8349,7 @@ Reduction JSCallReducer::ReduceDataViewAccess(Node* node, DataViewAccess access,
         simplified()->NumberEqual(),
         graph()->NewNode(
             simplified()->NumberBitwiseAnd(), buffer_bit_field,
-            jsgraph()->Constant(JSArrayBuffer::WasDetachedBit::kMask)),
+            jsgraph()->ConstantNoHole(JSArrayBuffer::WasDetachedBit::kMask)),
         jsgraph()->ZeroConstant());
     effect = graph()->NewNode(
         simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasDetached,
@@ -8497,9 +8563,10 @@ Reduction JSCallReducer::ReduceRegExpPrototypeTest(Node* node) {
   if (!holder.has_value()) return inference.NoChange();
 
   // Bail out if the exec method is not the original one.
-  OptionalObjectRef constant =
-      holder->GetOwnFastDataProperty(broker(), ai_exec.field_representation(),
-                                     ai_exec.field_index(), dependencies());
+  if (ai_exec.field_representation().IsDouble()) return inference.NoChange();
+  OptionalObjectRef constant = holder->GetOwnFastConstantDataProperty(
+      broker(), ai_exec.field_representation(), ai_exec.field_index(),
+      dependencies());
   if (!constant.has_value() ||
       !constant->equals(native_context().regexp_exec_function(broker()))) {
     return inference.NoChange();
@@ -8694,7 +8761,8 @@ base::Optional<Reduction> JSCallReducer::TryReduceJSCallMathMinMaxWithArrayLike(
     OptionalHeapObjectRef feedback_target = feedback.AsCall().target();
     if (feedback_target.has_value() &&
         feedback_target->map(broker()).is_callable()) {
-      Node* target_function = jsgraph()->Constant(*feedback_target, broker());
+      Node* target_function =
+          jsgraph()->ConstantNoHole(*feedback_target, broker());
       ObjectRef target_ref = feedback_target.value();
       if (!target_ref.IsJSFunction()) {
         return base::nullopt;

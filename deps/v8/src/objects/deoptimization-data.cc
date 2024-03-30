@@ -169,9 +169,8 @@ DeoptimizationFrameTranslation::Iterator::Iterator(
 
     CHECK_EQ(zlib_internal::UncompressHelper(
                  zlib_internal::ZRAW,
-                 base::bit_cast<Bytef*>(uncompressed_contents_.data()),
-                 &uncompressed_size,
-                 buffer_->GetDataStartAddress() + kCompressedDataOffset,
+                 reinterpret_cast<Bytef*>(uncompressed_contents_.data()),
+                 &uncompressed_size, buffer_->begin() + kCompressedDataOffset,
                  buffer_->DataSize()),
              Z_OK);
     DCHECK(index >= 0 && index < size);
@@ -183,19 +182,18 @@ DeoptimizationFrameTranslation::Iterator::Iterator(
   // Starting at a location other than a BEGIN would make
   // MATCH_PREVIOUS_TRANSLATION instructions not work.
   DCHECK(TranslationOpcodeIsBegin(
-      static_cast<TranslationOpcode>(buffer_->GetDataStartAddress()[index])));
+      static_cast<TranslationOpcode>(buffer_->begin()[index])));
 }
 
 int32_t DeoptimizationFrameTranslation::Iterator::NextOperand() {
   if (V8_UNLIKELY(v8_flags.turbo_compress_frame_translations)) {
     return uncompressed_contents_[index_++];
   } else if (remaining_ops_to_use_from_previous_translation_) {
-    int32_t value =
-        base::VLQDecode(buffer_->GetDataStartAddress(), &previous_index_);
+    int32_t value = base::VLQDecode(buffer_->begin(), &previous_index_);
     DCHECK_LT(previous_index_, index_);
     return value;
   } else {
-    int32_t value = base::VLQDecode(buffer_->GetDataStartAddress(), &index_);
+    int32_t value = base::VLQDecode(buffer_->begin(), &index_);
     DCHECK_LE(index_, buffer_->length());
     return value;
   }
@@ -213,8 +211,7 @@ DeoptimizationFrameTranslation::Iterator::NextOpcodeAtPreviousIndex() {
 
 uint32_t
 DeoptimizationFrameTranslation::Iterator::NextUnsignedOperandAtPreviousIndex() {
-  uint32_t value =
-      base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &previous_index_);
+  uint32_t value = base::VLQDecodeUnsigned(buffer_->begin(), &previous_index_);
   DCHECK_LT(previous_index_, index_);
   return value;
 }
@@ -225,8 +222,7 @@ uint32_t DeoptimizationFrameTranslation::Iterator::NextOperandUnsigned() {
   } else if (remaining_ops_to_use_from_previous_translation_) {
     return NextUnsignedOperandAtPreviousIndex();
   } else {
-    uint32_t value =
-        base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &index_);
+    uint32_t value = base::VLQDecodeUnsigned(buffer_->begin(), &index_);
     DCHECK_LE(index_, buffer_->length());
     return value;
   }
@@ -269,7 +265,7 @@ TranslationOpcode DeoptimizationFrameTranslation::Iterator::NextOpcode() {
     // previous BEGIN, or zero to indicate that MATCH_PREVIOUS_TRANSLATION will
     // not be used in this translation.
     uint32_t lookback_distance =
-        base::VLQDecodeUnsigned(buffer_->GetDataStartAddress(), &temp_index);
+        base::VLQDecodeUnsigned(buffer_->begin(), &temp_index);
     if (lookback_distance) {
       previous_index_ = index_ - 1 - lookback_distance;
       DCHECK(TranslationOpcodeIsBegin(

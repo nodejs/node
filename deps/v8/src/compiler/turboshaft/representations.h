@@ -114,6 +114,21 @@ class MaybeRegisterRepresentation {
     }
   }
 
+  constexpr bool IsTaggedOrCompressed() const {
+    switch (*this) {
+      case Enum::kTagged:
+      case Enum::kCompressed:
+        return true;
+      case Enum::kWord32:
+      case Enum::kWord64:
+      case Enum::kFloat32:
+      case Enum::kFloat64:
+      case Enum::kSimd128:
+      case Enum::kNone:
+        return false;
+    }
+  }
+
   uint64_t MaxUnsignedValue() const {
     switch (this->value()) {
       case Word32():
@@ -270,6 +285,14 @@ class RegisterRepresentation : public MaybeRegisterRepresentation {
 
   constexpr bool AllowImplicitRepresentationChangeTo(
       RegisterRepresentation dst_rep) const;
+
+  constexpr RegisterRepresentation MapTaggedToWord() const {
+    if (this->value() == RegisterRepresentation::Tagged()) {
+      return COMPRESS_POINTERS_BOOL ? RegisterRepresentation::Word32()
+                                    : RegisterRepresentation::PointerSized();
+    }
+    return *this;
+  }
 };
 
 V8_INLINE constexpr bool operator==(MaybeRegisterRepresentation a,
@@ -334,7 +357,8 @@ constexpr bool RegisterRepresentation::AllowImplicitRepresentationChangeTo(
   return false;
 }
 
-std::ostream& operator<<(std::ostream& os, MaybeRegisterRepresentation rep);
+V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
+                                           MaybeRegisterRepresentation rep);
 
 template <typename T>
 struct MultiSwitch<
@@ -826,10 +850,12 @@ class MemoryRepresentation {
   static constexpr Enum kInvalid = static_cast<Enum>(-1);
 };
 
-V8_INLINE bool operator==(MemoryRepresentation a, MemoryRepresentation b) {
+V8_INLINE constexpr bool operator==(MemoryRepresentation a,
+                                    MemoryRepresentation b) {
   return a.value() == b.value();
 }
-V8_INLINE bool operator!=(MemoryRepresentation a, MemoryRepresentation b) {
+V8_INLINE constexpr bool operator!=(MemoryRepresentation a,
+                                    MemoryRepresentation b) {
   return a.value() != b.value();
 }
 

@@ -781,9 +781,8 @@ assertThrows(
 assertThrows(() => WebAssembly.validate(), TypeError);
 assertThrows(() => WebAssembly.validate('hi'), TypeError);
 assertTrue(WebAssembly.validate(emptyModuleBinary));
-// TODO: other ways for validate to return false.
-assertFalse(WebAssembly.validate(moduleBinaryImporting2Memories));
-assertFalse(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
+assertTrue(WebAssembly.validate(moduleBinaryImporting2Memories));
+assertTrue(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');

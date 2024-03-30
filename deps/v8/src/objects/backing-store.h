@@ -168,8 +168,8 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
 
   BackingStore(void* buffer_start, size_t byte_length, size_t max_byte_length,
                size_t byte_capacity, SharedFlag shared, ResizableFlag resizable,
-               bool is_wasm_memory, bool has_guard_regions, bool custom_deleter,
-               bool empty_deleter);
+               bool is_wasm_memory, bool is_wasm_memory64,
+               bool has_guard_regions, bool custom_deleter, bool empty_deleter);
   BackingStore(const BackingStore&) = delete;
   BackingStore& operator=(const BackingStore&) = delete;
   void SetAllocatorFromIsolate(Isolate* isolate);
@@ -220,6 +220,7 @@ class V8_EXPORT_PRIVATE BackingStore : public BackingStoreBase {
   // Backing stores for (Resizable|GrowableShared)ArrayBuffer
   const bool is_resizable_by_js_ : 1;
   const bool is_wasm_memory_ : 1;
+  const bool is_wasm_memory64_ : 1;
   bool holds_shared_ptr_to_allocator_ : 1;
   const bool has_guard_regions_ : 1;
   bool globally_registered_ : 1;

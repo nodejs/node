@@ -39,7 +39,7 @@ class SerializerDeserializer : public RootVisitor {
   // clang-format off
 #define UNUSED_SERIALIZER_BYTE_CODES(V)                           \
   /* Free range 0x10..0x1f */                                     \
-  V(0x1c) V(0x1d) V(0x1e) V(0x1f)                                 \
+  V(0x1f)                                                         \
   /* Free range 0x20..0x2f */                                     \
   V(0x20) V(0x21) V(0x22) V(0x23) V(0x24) V(0x25) V(0x26) V(0x27) \
   V(0x28) V(0x29) V(0x2a) V(0x2b) V(0x2c) V(0x2d) V(0x2e) V(0x2f) \
@@ -140,17 +140,28 @@ class SerializerDeserializer : public RootVisitor {
     // Resolves an existing "pending" forward reference to point to the current
     // object.
     kResolvePendingForwardRef,
-    // Special construction bytecode for the metamap. In theory we could re-use
-    // forward-references for this, but then the forward reference would be
-    // registered during object map deserialization, before the object is
+    // Special construction bytecodes for the metamaps. In theory we could
+    // re-use forward-references for this, but then the forward reference would
+    // be registered during object map deserialization, before the object is
     // allocated, so there wouldn't be a allocated object whose map field we can
     // register as the pending field. We could either hack around this, or
     // simply introduce this new bytecode.
-    kNewMetaMap,
+    kNewContextlessMetaMap,
+    kNewContextfulMetaMap,
     // When the sandbox is enabled, a prefix indicating that the following
     // object is referenced through an indirect pointer, i.e. through an entry
     // in a pointer table.
     kIndirectPointerPrefix,
+    // When the sandbox is enabled, this bytecode instructs the deserializer to
+    // initialize the "self" indirect pointer of trusted objects, which
+    // references the object's pointer table entry. As the "self" indirect
+    // pointer is always the first field after the map word, it is guaranteed
+    // that it will be deserialized before any inner objects, which may require
+    // the pointer table entry for back reference to the trusted object.
+    kInitializeSelfIndirectPointer,
+    // A prefix indicating that the following object is referenced through a
+    // protected pointer, i.e. a pointer from one trusted object to another.
+    kProtectedPointerPrefix,
 
     //
     // ---------- byte code range 0x40..0x7f ----------

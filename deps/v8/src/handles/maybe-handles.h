@@ -66,6 +66,11 @@ class MaybeHandle final {
     }
   }
 
+#ifdef V8_ENABLE_DIRECT_HANDLE
+  template <typename S>
+  V8_WARN_UNUSED_RESULT V8_INLINE bool ToHandle(DirectHandle<S>* out) const;
+#endif
+
   // Location equality.
   bool equals(MaybeHandle<T> other) const {
     return address() == other.address();
@@ -202,6 +207,8 @@ class MaybeDirectHandle final {
   // other's location_.
   template <typename>
   friend class MaybeDirectHandle;
+  template <typename>
+  friend class MaybeHandle;
 };
 
 class MaybeObjectDirectHandle {

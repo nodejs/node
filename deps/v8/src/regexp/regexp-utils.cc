@@ -18,20 +18,20 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture,
     bool* ok) {
   const int index = capture * 2;
-  if (index >= match_info->NumberOfCaptureRegisters()) {
+  if (index >= match_info->number_of_capture_registers()) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
   }
 
-  const int match_start = match_info->Capture(index);
-  const int match_end = match_info->Capture(index + 1);
+  const int match_start = match_info->capture(index);
+  const int match_end = match_info->capture(index + 1);
   if (match_start == -1 || match_end == -1) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
   }
 
   if (ok != nullptr) *ok = true;
-  Handle<String> last_subject(match_info->LastSubject(), isolate);
+  Handle<String> last_subject(match_info->last_subject(), isolate);
   return isolate->factory()->NewSubString(last_subject, match_start, match_end);
 }
 

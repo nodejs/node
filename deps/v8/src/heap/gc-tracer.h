@@ -223,6 +223,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     // INCREMENTAL_MARK_COMPACTOR.
     base::TimeDelta incremental_marking_duration;
 
+    base::TimeTicks incremental_marking_start_time;
+
     // Start/end of atomic/safepoint pause.
     base::TimeTicks start_atomic_pause_time;
     base::TimeTicks end_atomic_pause_time;
@@ -509,17 +511,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   CollectionEpoch epoch_young_ = 0;
   CollectionEpoch epoch_full_ = 0;
 
-  // Size of incremental marking steps (in bytes) accumulated since the end of
-  // the last mark compact GC.
-  size_t incremental_marking_bytes_ = 0;
-
-  // Duration of incremental marking steps since the end of the last
-  // mark-compact event.
-  base::TimeDelta incremental_marking_duration_;
-
-  base::TimeTicks incremental_marking_start_time_;
-
-  double recorded_incremental_marking_speed_ = 0.0;
+  // Incremental marking speed for major GCs. Marking for minor GCs is ignored.
+  double recorded_major_incremental_marking_speed_ = 0.0;
 
   base::Optional<base::TimeDelta> average_time_to_incremental_marking_task_;
 

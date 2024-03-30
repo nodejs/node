@@ -139,6 +139,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
+  Reduction ReduceJSConstructForwardAllArgs(Node* node);
   Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSCall(Node* node, SharedFunctionInfoRef shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);

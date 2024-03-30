@@ -115,7 +115,11 @@ HeapType::Representation NullSentinelImpl(HeapType type,
       return HeapType::kNone;
     case HeapType::kExtern:
     case HeapType::kNoExtern:
+    case HeapType::kExternString:
       return HeapType::kNoExtern;
+    case HeapType::kExn:
+    case HeapType::kNoExn:
+      return HeapType::kNoExn;
     case HeapType::kFunc:
     case HeapType::kNoFunc:
       return HeapType::kNoFunc;
@@ -212,6 +216,10 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
       return super_heap == HeapType::kAny;
     case HeapType::kExtern:
       return super_heap == HeapType::kExtern;
+    case HeapType::kExternString:
+      return super_heap == sub_heap || super_heap == HeapType::kExtern;
+    case HeapType::kExn:
+      return super_heap == HeapType::kExn;
     case HeapType::kI31:
     case HeapType::kStruct:
     case HeapType::kArray:
@@ -227,17 +235,22 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     case HeapType::kBottom:
       UNREACHABLE();
     case HeapType::kNone:
-      // none is a subtype of every non-func, non-extern reference type under
-      // wasm-gc.
+      // none is a subtype of every non-func, non-extern and non-exn reference
+      // type under wasm-gc.
       if (super_heap.is_index()) {
         return !super_module->has_signature(super_heap.ref_index());
       }
       return super_heap != HeapType::kFunc && super_heap != HeapType::kNoFunc &&
              super_heap != HeapType::kExtern &&
-             super_heap != HeapType::kNoExtern;
+             super_heap != HeapType::kExternString &&
+             super_heap != HeapType::kNoExtern &&
+             super_heap != HeapType::kExn && super_heap != HeapType::kNoExn;
     case HeapType::kNoExtern:
       return super_heap == HeapType::kNoExtern ||
-             super_heap == HeapType::kExtern;
+             super_heap == HeapType::kExtern ||
+             super_heap == HeapType::kExternString;
+    case HeapType::kNoExn:
+      return super_heap == HeapType::kExn || super_heap == HeapType::kNoExn;
     case HeapType::kNoFunc:
       // nofunc is a subtype of every funcref type under wasm-gc.
       if (super_heap.is_index()) {
@@ -265,6 +278,8 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     case HeapType::kI31:
       return false;
     case HeapType::kExtern:
+    case HeapType::kExternString:
+    case HeapType::kExn:
       return false;
     case HeapType::kString:
     case HeapType::kStringViewWtf8:
@@ -276,6 +291,7 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
     case HeapType::kNone:
     case HeapType::kNoExtern:
     case HeapType::kNoFunc:
+    case HeapType::kNoExn:
       // Abstract null types are not supertypes for any index type.
       return false;
     default:
@@ -397,11 +413,14 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kAny;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -422,11 +441,14 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kAny;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -448,11 +470,14 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kAny;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -473,11 +498,14 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kAny;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -499,11 +527,14 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kAny;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -524,12 +555,15 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
         case HeapType::kString:
           return heap2.representation();
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
+        case HeapType::kNoExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:
@@ -543,12 +577,28 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
                  ? heap2.representation()
                  : HeapType::kBottom;
     case HeapType::kNoExtern:
-      return heap2 == HeapType::kExtern || heap2 == HeapType::kNoExtern
+      return heap2 == HeapType::kExtern || heap2 == HeapType::kNoExtern ||
+                     heap2 == HeapType::kExternString
                  ? heap2.representation()
                  : HeapType::kBottom;
     case HeapType::kExtern:
-      return heap2 == HeapType::kExtern || heap2 == HeapType::kNoExtern
+      return heap2 == HeapType::kExtern || heap2 == HeapType::kNoExtern ||
+                     heap2 == HeapType::kExternString
                  ? HeapType::kExtern
+                 : HeapType::kBottom;
+    case HeapType::kExternString:
+      return heap2 == HeapType::kExtern ? HeapType::kExtern
+             : (heap2 == HeapType::kNoExtern ||
+                heap2 == HeapType::kExternString)
+                 ? HeapType::kExternString
+                 : HeapType::kBottom;
+    case HeapType::kNoExn:
+      return heap2 == HeapType::kExn || heap2 == HeapType::kNoExn
+                 ? heap1.representation()
+                 : HeapType::kBottom;
+    case HeapType::kExn:
+      return heap2 == HeapType::kExn || heap2 == HeapType::kNoExn
+                 ? HeapType::kExn
                  : HeapType::kBottom;
     case HeapType::kString: {
       switch (heap2.representation()) {
@@ -563,11 +613,13 @@ HeapType::Representation CommonAncestorWithGeneric(HeapType heap1,
           return HeapType::kString;
         case HeapType::kFunc:
         case HeapType::kExtern:
+        case HeapType::kExternString:
         case HeapType::kNoExtern:
         case HeapType::kNoFunc:
         case HeapType::kStringViewIter:
         case HeapType::kStringViewWtf8:
         case HeapType::kStringViewWtf16:
+        case HeapType::kExn:
         case HeapType::kBottom:
           return HeapType::kBottom;
         default:

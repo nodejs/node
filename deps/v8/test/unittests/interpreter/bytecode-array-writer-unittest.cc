@@ -141,8 +141,11 @@ TEST_F(BytecodeArrayWriterUnittest, SimpleExample) {
     CHECK_EQ(bytecodes()->at(i), expected_bytes[i]);
   }
 
+  // TODO(saelo): consider adding an empty_trusted_byte_array once we have a
+  // trusted read-only space.
+  Handle<TrustedByteArray> handler_table = factory()->NewTrustedByteArray(0);
   Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+      writer()->ToBytecodeArray(isolate(), 0, 0, handler_table);
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   CHECK_EQ(bytecodes()->size(), arraysize(expected_bytes));
@@ -228,8 +231,11 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
              static_cast<int>(expected_bytes[i]));
   }
 
+  // TODO(saelo): consider adding an empty_trusted_byte_array once we have a
+  // trusted read-only space.
+  Handle<TrustedByteArray> handler_table = factory()->NewTrustedByteArray(0);
   Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+      writer()->ToBytecodeArray(isolate(), 0, 0, handler_table);
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -277,8 +283,11 @@ TEST_F(BytecodeArrayWriterUnittest, ElideNoneffectfulBytecodes) {
              static_cast<int>(expected_bytes[i]));
   }
 
+  // TODO(saelo): consider adding an empty_trusted_byte_array once we have a
+  // trusted read-only space.
+  Handle<TrustedByteArray> handler_table = factory()->NewTrustedByteArray(0);
   Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+      writer()->ToBytecodeArray(isolate(), 0, 0, handler_table);
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(
@@ -345,8 +354,11 @@ TEST_F(BytecodeArrayWriterUnittest, DeadcodeElimination) {
              static_cast<int>(expected_bytes[i]));
   }
 
+  // TODO(saelo): consider adding an empty_trusted_byte_array once we have a
+  // trusted read-only space.
+  Handle<TrustedByteArray> handler_table = factory()->NewTrustedByteArray(0);
   Handle<BytecodeArray> bytecode_array =
-      writer()->ToBytecodeArray(isolate(), 0, 0, factory()->empty_byte_array());
+      writer()->ToBytecodeArray(isolate(), 0, 0, handler_table);
   bytecode_array->set_source_position_table(
       *writer()->ToSourcePositionTable(isolate()), kReleaseStore);
   SourcePositionTableIterator source_iterator(

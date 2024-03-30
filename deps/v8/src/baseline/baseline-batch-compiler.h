@@ -33,6 +33,8 @@ class BaselineBatchCompiler {
   void InstallBatch();
 
  private:
+  bool concurrent() const;
+
   // Ensure there is enough space in the compilation queue to enqueue another
   // function, growing the queue if necessary.
   void EnsureQueueCapacity();

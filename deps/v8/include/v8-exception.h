@@ -213,7 +213,6 @@ class V8_EXPORT TryCatch {
   bool can_continue_ : 1;
   bool capture_message_ : 1;
   bool rethrow_ : 1;
-  bool has_terminated_ : 1;
 
   friend class internal::Isolate;
   friend class internal::ThreadLocalTop;

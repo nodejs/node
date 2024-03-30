@@ -5,8 +5,11 @@
 #include "src/json/json-stringifier.h"
 
 #include "src/base/strings.h"
+#include "src/common/assert-scope.h"
 #include "src/common/message-template.h"
+#include "src/execution/protectors-inl.h"
 #include "src/numbers/conversions.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-raw-json-inl.h"
@@ -15,6 +18,7 @@
 #include "src/objects/oddball-inl.h"
 #include "src/objects/ordered-hash-table.h"
 #include "src/objects/smi.h"
+#include "src/objects/tagged.h"
 #include "src/strings/string-builder-inl.h"
 
 namespace v8 {
@@ -133,35 +137,32 @@ class JsonStringifier {
     return CurrentPartCanFit(length << 3);
   }
 
-  void AppendStringByCopy(Handle<String> string) {
+  void AppendStringByCopy(Tagged<String> string,
+                          const DisallowGarbageCollection& no_gc) {
     DCHECK(encoding_ == String::TWO_BYTE_ENCODING ||
            (string->IsFlat() &&
-            String::IsOneByteRepresentationUnderneath(*string)));
+            String::IsOneByteRepresentationUnderneath(string)));
     DCHECK(CurrentPartCanFit(string->length()));
-
-    {
-      DisallowGarbageCollection no_gc;
-      if (encoding_ == String::ONE_BYTE_ENCODING) {
-        if (String::IsOneByteRepresentationUnderneath(*string)) {
-          CopyChars<uint8_t, uint8_t>(
-              one_byte_ptr_ + current_index_,
-              string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
-        } else {
-          ChangeEncoding();
-          CopyChars<uint16_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
-        }
+    if (encoding_ == String::ONE_BYTE_ENCODING) {
+      if (String::IsOneByteRepresentationUnderneath(string)) {
+        CopyChars<uint8_t, uint8_t>(
+            one_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
       } else {
-        if (String::IsOneByteRepresentationUnderneath(*string)) {
-          CopyChars<uint8_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
-        } else {
-          CopyChars<uint16_t, uint16_t>(
-              two_byte_ptr_ + current_index_,
-              string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
-        }
+        ChangeEncoding();
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
+      }
+    } else {
+      if (String::IsOneByteRepresentationUnderneath(string)) {
+        CopyChars<uint8_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint8_t>(no_gc).begin(), string->length());
+      } else {
+        CopyChars<uint16_t, uint16_t>(
+            two_byte_ptr_ + current_index_,
+            string->GetCharVector<uint16_t>(no_gc).begin(), string->length());
       }
     }
     current_index_ += string->length();
@@ -169,17 +170,21 @@ class JsonStringifier {
     if (current_index_ == part_length_) Extend();
   }
 
-  V8_NOINLINE void AppendString(Handle<String> string) {
-    const bool representation_ok =
-        encoding_ == String::TWO_BYTE_ENCODING ||
-        (string->IsFlat() &&
-         String::IsOneByteRepresentationUnderneath(*string));
-    if (representation_ok) {
-      while (!CurrentPartCanFit(string->length())) Extend();
-      AppendStringByCopy(string);
-      return;
+  V8_NOINLINE void AppendString(Handle<String> string_handle) {
+    {
+      DisallowGarbageCollection no_gc;
+      Tagged<String> string = *string_handle;
+      const bool representation_ok =
+          encoding_ == String::TWO_BYTE_ENCODING ||
+          (string->IsFlat() &&
+           String::IsOneByteRepresentationUnderneath(string));
+      if (representation_ok) {
+        while (!CurrentPartCanFit(string->length())) Extend();
+        AppendStringByCopy(string, no_gc);
+        return;
+      }
     }
-    SerializeString<true>(string);
+    SerializeString<true>(string_handle);
   }
 
   bool HasValidCurrentIndex() const { return current_index_ < part_length_; }
@@ -206,6 +211,16 @@ class JsonStringifier {
 
   Result SerializeJSProxy(Handle<JSProxy> object, Handle<Object> key);
   Result SerializeJSReceiverSlow(Handle<JSReceiver> object);
+  template <ElementsKind kind>
+  V8_INLINE Result SerializeFixedArrayWithInterruptCheck(
+      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+  template <ElementsKind kind>
+  V8_INLINE Result SerializeFixedArrayWithPossibleTransitions(
+      Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index);
+  template <ElementsKind kind, typename T>
+  V8_INLINE Result SerializeFixedArrayElement(Tagged<T> elements, uint32_t i,
+                                              Tagged<JSArray> array,
+                                              bool can_treat_hole_as_undefined);
   Result SerializeArrayLikeSlow(Handle<JSReceiver> object, uint32_t start,
                                 uint32_t length);
 
@@ -254,25 +269,32 @@ class JsonStringifier {
   // pointers again and again, and we can use a fast path to copy those keys to
   // the output. However, strings can be externalized any time JS runs, so the
   // caller is responsible for checking whether a string is still the expected
-  // type.
-  class SimplePropertyKeyCache {
+  // type. This cache is cleared on GC, since the GC could move those strings.
+  // Using Handles for the cache has been tried, but is too expensive to set up
+  // when JSON.stringify is called for tiny inputs.
+  class SimplePropertyKeyCache : public Isolate::ToDestroyBeforeSuddenShutdown {
    public:
-    explicit SimplePropertyKeyCache(Isolate* isolate) {
-      Tagged<String> zero;
-      for (size_t i = 0; i < kSize; ++i) {
-        keys_[i] = handle(zero, isolate);
-      }
+    explicit SimplePropertyKeyCache(Isolate* isolate)
+        : Isolate::ToDestroyBeforeSuddenShutdown(isolate) {
+      Clear();
+      isolate->main_thread_local_heap()->AddGCEpilogueCallback(
+          UpdatePointersCallback, this);
     }
 
-    void TryInsert(Tagged<String> string, Isolate* isolate) {
-      ReadOnlyRoots roots(isolate);
-      if (string->map(isolate) == roots.internalized_one_byte_string_map()) {
-        keys_[GetIndex(string)].PatchValue(string);
+    ~SimplePropertyKeyCache() {
+      isolate()->main_thread_local_heap()->RemoveGCEpilogueCallback(
+          UpdatePointersCallback, this);
+    }
+
+    void TryInsert(Tagged<String> string) {
+      ReadOnlyRoots roots(isolate());
+      if (string->map() == roots.internalized_one_byte_string_map()) {
+        keys_[GetIndex(string)] = MaybeCompress(string);
       }
     }
 
     bool Contains(Tagged<String> string) {
-      return *keys_[GetIndex(string)] == string;
+      return keys_[GetIndex(string)] == MaybeCompress(string);
     }
 
    private:
@@ -282,11 +304,23 @@ class JsonStringifier {
       return (string.ptr() >> 4) & kIndexMask;
     }
 
+    Tagged_t MaybeCompress(Tagged<String> string) {
+      return COMPRESS_POINTERS_BOOL
+                 ? V8HeapCompressionScheme::CompressObject(string.ptr())
+                 : static_cast<Tagged_t>(string.ptr());
+    }
+
+    void Clear() { MemsetTagged(keys_, Smi::zero(), kSize); }
+
+    static void UpdatePointersCallback(void* cache) {
+      reinterpret_cast<SimplePropertyKeyCache*>(cache)->Clear();
+    }
+
     static constexpr size_t kSizeBits = 6;
     static constexpr size_t kSize = 1 << kSizeBits;
     static constexpr size_t kIndexMask = kSize - 1;
 
-    Handle<String> keys_[kSize];
+    Tagged_t keys_[kSize];
   };
 
   // Returns whether any escape sequences were used.
@@ -296,12 +330,14 @@ class JsonStringifier {
 
   // Returns whether any escape sequences were used.
   template <typename SrcChar, typename DestChar, bool raw_json>
-  V8_INLINE bool SerializeString_(Handle<String> string);
+  V8_INLINE bool SerializeString_(Tagged<String> string,
+                                  const DisallowGarbageCollection& no_gc);
 
   // Tries to do fast-path serialization for a property key, and returns whether
   // it was successful.
   template <typename DestChar>
-  bool TrySerializeSimplePropertyKey(Tagged<String> string);
+  bool TrySerializeSimplePropertyKey(Tagged<String> string,
+                                     const DisallowGarbageCollection& no_gc);
 
   template <typename Char>
   V8_INLINE static bool DoNotEscape(Char c);
@@ -431,11 +467,11 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
                                                Handle<Object> replacer,
                                                Handle<Object> gap) {
   if (!InitializeReplacer(replacer)) {
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     return MaybeHandle<Object>();
   }
   if (!IsUndefined(*gap, isolate_) && !InitializeGap(gap)) {
-    CHECK(isolate_->has_pending_exception());
+    CHECK(isolate_->has_exception());
     return MaybeHandle<Object>();
   }
   Result result = SerializeObject(object);
@@ -460,7 +496,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
     }
   }
   DCHECK(result == EXCEPTION);
-  CHECK(isolate_->has_pending_exception());
+  CHECK(isolate_->has_exception());
   return MaybeHandle<Object>();
 }
 
@@ -502,7 +538,7 @@ bool JsonStringifier::InitializeReplacer(Handle<Object> replacer) {
       MaybeHandle<OrderedHashSet> set_candidate =
           OrderedHashSet::Add(isolate_, set, key);
       if (!set_candidate.ToHandle(&set)) {
-        CHECK(isolate_->has_pending_exception());
+        CHECK(isolate_->has_exception());
         return false;
       }
     }
@@ -954,6 +990,24 @@ JsonStringifier::Result JsonStringifier::SerializeDouble(double number) {
   return SUCCESS;
 }
 
+namespace {
+
+bool CanTreatHoleAsUndefined(Isolate* isolate, Tagged<JSArray> object) {
+  // We can treat holes as undefined if the {object}s prototype is either the
+  // initial Object.prototype  or the initial Array.prototype, which are both
+  // guarded by the "no elements" protector.
+  if (!Protectors::IsNoElementsIntact(isolate)) return false;
+  Tagged<HeapObject> proto = object->map(isolate)->prototype();
+  if (!isolate->IsInAnyContext(proto, Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
+      !isolate->IsInAnyContext(proto,
+                               Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 JsonStringifier::Result JsonStringifier::SerializeJSArray(
     Handle<JSArray> object, Handle<Object> key) {
   uint32_t length = 0;
@@ -964,95 +1018,161 @@ JsonStringifier::Result JsonStringifier::SerializeJSArray(
     return SUCCESS;
   }
 
-  PtrComprCageBase cage_base(isolate_);
   Result stack_push = StackPush(object, key);
   if (stack_push != SUCCESS) return stack_push;
 
   AppendCharacter('[');
   Indent();
-  uint32_t i = 0;
+  uint32_t slow_path_index = 0;
+  Result result = UNCHANGED;
   if (replacer_function_.is_null()) {
-    StackLimitCheck interrupt_check(isolate_);
-    const uint32_t kInterruptLength = 4000;
-    uint32_t limit = std::min(length, kInterruptLength);
-    const uint32_t kMaxAllowedFastPackedLength =
-        std::numeric_limits<uint32_t>::max() - kInterruptLength;
-    static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
-    switch (object->GetElementsKind(cage_base)) {
-      case PACKED_SMI_ELEMENTS: {
-        Handle<FixedArray> elements(
-            FixedArray::cast(object->elements(cage_base)), isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeSmi(Smi::cast(elements->get(cage_base, i)));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
-          if (interrupt_check.InterruptRequested() &&
-              IsException(isolate_->stack_guard()->HandleInterrupts(),
-                          isolate_)) {
-            return EXCEPTION;
-          }
-        }
-        break;
-      }
-      case PACKED_DOUBLE_ELEMENTS: {
-        Handle<FixedDoubleArray> elements(
-            FixedDoubleArray::cast(object->elements(cage_base)), isolate_);
-        while (true) {
-          for (; i < limit; i++) {
-            Separator(i == 0);
-            SerializeDouble(elements->get_scalar(i));
-          }
-          if (i >= length) break;
-          DCHECK_LT(limit, kMaxAllowedFastPackedLength);
-          limit = std::min(length, limit + kInterruptLength);
-          if (interrupt_check.InterruptRequested() &&
-              IsException(isolate_->stack_guard()->HandleInterrupts(),
-                          isolate_)) {
-            return EXCEPTION;
-          }
-        }
-        break;
-      }
-      case PACKED_ELEMENTS: {
-        HandleScope handle_scope(isolate_);
-        Handle<Object> old_length(object->length(), isolate_);
-        for (i = 0; i < length; i++) {
-          if (object->length() != *old_length ||
-              object->GetElementsKind(cage_base) != PACKED_ELEMENTS) {
-            // Fall back to slow path.
-            break;
-          }
-          Separator(i == 0);
-          Result result = SerializeElement(
-              isolate_,
-              handle(FixedArray::cast(object->elements())->get(cage_base, i),
-                     isolate_),
-              i);
-          if (result == UNCHANGED) {
-            AppendCStringLiteral("null");
-          } else if (result != SUCCESS) {
-            return result;
-          }
-        }
-        break;
-      }
+#define CASE_WITH_INTERRUPT(kind)                                           \
+  case kind:                                                                \
+    result = SerializeFixedArrayWithInterruptCheck<kind>(object, length,    \
+                                                         &slow_path_index); \
+    break;
+#define CASE_WITH_TRANSITION(kind)                             \
+  case kind:                                                   \
+    result = SerializeFixedArrayWithPossibleTransitions<kind>( \
+        object, length, &slow_path_index);                     \
+    break;
+
+    switch (object->GetElementsKind()) {
+      CASE_WITH_INTERRUPT(PACKED_SMI_ELEMENTS)
+      CASE_WITH_INTERRUPT(HOLEY_SMI_ELEMENTS)
+      CASE_WITH_TRANSITION(PACKED_ELEMENTS)
+      CASE_WITH_TRANSITION(HOLEY_ELEMENTS)
+      CASE_WITH_INTERRUPT(PACKED_DOUBLE_ELEMENTS)
+      CASE_WITH_INTERRUPT(HOLEY_DOUBLE_ELEMENTS)
       default:
         break;
     }
+
+#undef CASE_WITH_TRANSITION
+#undef CASE_WITH_INTERRUPT
   }
-  if (i < length) {
-    // Slow path for non-fast elements and fall-back in edge case.
-    Result result = SerializeArrayLikeSlow(object, i, length);
-    if (result != SUCCESS) return result;
+  if (result == UNCHANGED) {
+    // Slow path for non-fast elements and fall-back in edge cases.
+    result = SerializeArrayLikeSlow(object, slow_path_index, length);
   }
+  if (result != SUCCESS) return result;
   Unindent();
   NewLine();
   AppendCharacter(']');
   StackPop();
+  return SUCCESS;
+}
+
+template <ElementsKind kind>
+JsonStringifier::Result JsonStringifier::SerializeFixedArrayWithInterruptCheck(
+    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+  static_assert(IsSmiElementsKind(kind) || IsDoubleElementsKind(kind));
+  using ArrayT = typename std::conditional<IsDoubleElementsKind(kind),
+                                           FixedDoubleArray, FixedArray>::type;
+
+  StackLimitCheck interrupt_check(isolate_);
+  constexpr uint32_t kInterruptLength = 4000;
+  uint32_t limit = std::min(length, kInterruptLength);
+  constexpr uint32_t kMaxAllowedFastPackedLength =
+      std::numeric_limits<uint32_t>::max() - kInterruptLength;
+  static_assert(FixedArray::kMaxLength < kMaxAllowedFastPackedLength);
+
+  constexpr bool is_holey = IsHoleyElementsKind(kind);
+  bool bailout_on_hole =
+      is_holey ? !CanTreatHoleAsUndefined(isolate_, *array) : true;
+
+  uint32_t i = 0;
+  while (true) {
+    for (; i < limit; i++) {
+      Result result = SerializeFixedArrayElement<kind>(
+          ArrayT::cast(array->elements()), i, *array, bailout_on_hole);
+      if constexpr (is_holey) {
+        if (result != SUCCESS) {
+          *slow_path_index = i;
+          return result;
+        }
+      } else {
+        USE(result);
+        DCHECK_EQ(result, SUCCESS);
+      }
+    }
+    if (i >= length) return SUCCESS;
+    DCHECK_LT(limit, kMaxAllowedFastPackedLength);
+    limit = std::min(length, limit + kInterruptLength);
+    if (interrupt_check.InterruptRequested() &&
+        IsException(isolate_->stack_guard()->HandleInterrupts(), isolate_)) {
+      return EXCEPTION;
+    }
+  }
+  return SUCCESS;
+}
+
+template <ElementsKind kind>
+JsonStringifier::Result
+JsonStringifier::SerializeFixedArrayWithPossibleTransitions(
+    Handle<JSArray> array, uint32_t length, uint32_t* slow_path_index) {
+  static_assert(IsObjectElementsKind(kind));
+
+  HandleScope handle_scope(isolate_);
+  Handle<Object> old_length(array->length(), isolate_);
+  constexpr bool is_holey = IsHoleyElementsKind(kind);
+  bool should_check_treat_hole_as_undefined = true;
+  for (uint32_t i = 0; i < length; i++) {
+    if (array->length() != *old_length || kind != array->GetElementsKind()) {
+      // Array was modified during SerializeElement.
+      *slow_path_index = i;
+      return UNCHANGED;
+    }
+    Tagged<Object> current_element =
+        Tagged<FixedArray>::cast(array->elements())->get(i);
+    if (is_holey && IsTheHole(current_element)) {
+      if (should_check_treat_hole_as_undefined) {
+        if (!CanTreatHoleAsUndefined(isolate_, *array)) {
+          *slow_path_index = i;
+          return UNCHANGED;
+        }
+        should_check_treat_hole_as_undefined = false;
+      }
+      Separator(i == 0);
+      AppendCStringLiteral("null");
+    } else {
+      Separator(i == 0);
+      Result result =
+          SerializeElement(isolate_, handle(current_element, isolate_), i);
+      if (result == UNCHANGED) {
+        AppendCStringLiteral("null");
+      } else if (result != SUCCESS) {
+        return result;
+      }
+      if constexpr (is_holey) {
+        should_check_treat_hole_as_undefined = true;
+      }
+    }
+  }
+  return SUCCESS;
+}
+
+template <ElementsKind kind, typename T>
+JsonStringifier::Result JsonStringifier::SerializeFixedArrayElement(
+    Tagged<T> elements, uint32_t i, Tagged<JSArray> array,
+    bool bailout_on_hole) {
+  if constexpr (IsHoleyElementsKind(kind)) {
+    if (elements->is_the_hole(isolate_, i)) {
+      if (bailout_on_hole) return UNCHANGED;
+      Separator(i == 0);
+      AppendCStringLiteral("null");
+      return SUCCESS;
+    }
+  }
+  DCHECK(!elements->is_the_hole(isolate_, i));
+  Separator(i == 0);
+  if constexpr (IsSmiElementsKind(kind)) {
+    SerializeSmi(Smi::cast(elements->get(i)));
+  } else if constexpr (IsDoubleElementsKind(kind)) {
+    SerializeDouble(elements->get_scalar(i));
+  } else {
+    UNREACHABLE();
+  }
   return SUCCESS;
 }
 
@@ -1311,24 +1431,23 @@ bool JsonStringifier::SerializeStringUnchecked_(
 }
 
 template <typename SrcChar, typename DestChar, bool raw_json>
-bool JsonStringifier::SerializeString_(Handle<String> string) {
+bool JsonStringifier::SerializeString_(Tagged<String> string,
+                                       const DisallowGarbageCollection& no_gc) {
   int length = string->length();
   bool required_escaping = false;
   if (!raw_json) Append<uint8_t, DestChar>('"');
   // We might be able to fit the whole escaped string in the current string
   // part, or we might need to allocate.
+  base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
   if V8_LIKELY (EscapedLengthIfCurrentPartFits(length)) {
-    DisallowGarbageCollection no_gc;
-    base::Vector<const SrcChar> vector = string->GetCharVector<SrcChar>(no_gc);
     NoExtendBuilder<DestChar> no_extend(
         reinterpret_cast<DestChar*>(part_ptr_) + current_index_,
         &current_index_);
     required_escaping = SerializeStringUnchecked_<SrcChar, DestChar, raw_json>(
         vector, &no_extend);
   } else {
-    FlatStringReader reader(isolate_, string);
-    for (int i = 0; i < reader.length(); i++) {
-      SrcChar c = reader.Get<SrcChar>(i);
+    for (int i = 0; i < vector.length(); i++) {
+      SrcChar c = vector.at(i);
       if (raw_json || DoNotEscape(c)) {
         Append<SrcChar, DestChar>(c);
       } else if (sizeof(SrcChar) != 1 &&
@@ -1338,9 +1457,9 @@ bool JsonStringifier::SerializeString_(Handle<String> string) {
         required_escaping = true;
         if (c <= 0xDBFF) {
           // The current character is a leading surrogate.
-          if (i + 1 < reader.length()) {
+          if (i + 1 < vector.length()) {
             // There is a next character.
-            SrcChar next = reader.Get<SrcChar>(i + 1);
+            SrcChar next = vector.at(i + 1);
             if (base::IsInRange(next, static_cast<SrcChar>(0xDC00),
                                 static_cast<SrcChar>(0xDFFF))) {
               // The next character is a trailing surrogate, meaning this is a
@@ -1386,10 +1505,10 @@ bool JsonStringifier::SerializeString_(Handle<String> string) {
 }
 
 template <typename DestChar>
-bool JsonStringifier::TrySerializeSimplePropertyKey(Tagged<String> key) {
-  DisallowGarbageCollection no_gc;
+bool JsonStringifier::TrySerializeSimplePropertyKey(
+    Tagged<String> key, const DisallowGarbageCollection& no_gc) {
   ReadOnlyRoots roots(isolate_);
-  if (key->map(isolate_) != roots.internalized_one_byte_string_map()) {
+  if (key->map() != roots.internalized_one_byte_string_map()) {
     return false;
   }
   if (!key_cache_.Contains(key)) {
@@ -1420,7 +1539,7 @@ bool JsonStringifier::TrySerializeSimplePropertyKey(Tagged<String> key) {
   base::Vector<const uint8_t> chars(
       SeqOneByteString::cast(key)->GetChars(no_gc), copy_length);
   DCHECK_LE(reinterpret_cast<Address>(chars.end()),
-            key.address() + key->Size(isolate_));
+            key.address() + key->Size());
 #if DEBUG
   for (int i = 0; i < length; ++i) {
     DCHECK(DoNotEscape(chars[i]));
@@ -1464,15 +1583,19 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
                                            Handle<Object> deferred_key) {
   Separator(!deferred_comma);
   Handle<String> string_key = Handle<String>::cast(deferred_key);
-  bool wrote_simple =
-      encoding_ == String::ONE_BYTE_ENCODING
-          ? TrySerializeSimplePropertyKey<uint8_t>(*string_key)
-          : TrySerializeSimplePropertyKey<base::uc16>(*string_key);
+  bool wrote_simple = false;
+  {
+    DisallowGarbageCollection no_gc;
+    wrote_simple =
+        encoding_ == String::ONE_BYTE_ENCODING
+            ? TrySerializeSimplePropertyKey<uint8_t>(*string_key, no_gc)
+            : TrySerializeSimplePropertyKey<base::uc16>(*string_key, no_gc);
+  }
 
   if (!wrote_simple) {
     bool required_escaping = SerializeString<false>(string_key);
     if (!required_escaping) {
-      key_cache_.TryInsert(*string_key, isolate_);
+      key_cache_.TryInsert(*string_key);
     }
     AppendCharacter(':');
   }
@@ -1483,19 +1606,20 @@ void JsonStringifier::SerializeDeferredKey(bool deferred_comma,
 template <bool raw_json>
 bool JsonStringifier::SerializeString(Handle<String> object) {
   object = String::Flatten(isolate_, object);
+  DisallowGarbageCollection no_gc;
+  auto string = *object;
   if (encoding_ == String::ONE_BYTE_ENCODING) {
-    if (String::IsOneByteRepresentationUnderneath(*object)) {
-      return SerializeString_<uint8_t, uint8_t, raw_json>(object);
+    if (String::IsOneByteRepresentationUnderneath(string)) {
+      return SerializeString_<uint8_t, uint8_t, raw_json>(string, no_gc);
     } else {
       ChangeEncoding();
-      return SerializeString<raw_json>(object);
     }
+  }
+  DCHECK_EQ(encoding_, String::TWO_BYTE_ENCODING);
+  if (String::IsOneByteRepresentationUnderneath(string)) {
+    return SerializeString_<uint8_t, base::uc16, raw_json>(string, no_gc);
   } else {
-    if (String::IsOneByteRepresentationUnderneath(*object)) {
-      return SerializeString_<uint8_t, base::uc16, raw_json>(object);
-    } else {
-      return SerializeString_<base::uc16, base::uc16, raw_json>(object);
-    }
+    return SerializeString_<base::uc16, base::uc16, raw_json>(string, no_gc);
   }
 }
 

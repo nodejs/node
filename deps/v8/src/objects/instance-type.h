@@ -288,8 +288,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(_, FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArray)          \
   V(_, FunctionTemplateInfoMap, function_template_info_map,                    \
     FunctionTemplateInfo)                                                      \
+  V(_, InterpreterDataMap, interpreter_data_map, InterpreterData)              \
   V(_, MegaDomHandlerMap, mega_dom_handler_map, MegaDomHandler)                \
-  V(_, MetaMap, meta_map, Map)                                                 \
   V(_, PreparseDataMap, preparse_data_map, PreparseData)                       \
   V(_, PropertyArrayMap, property_array_map, PropertyArray)                    \
   V(_, PrototypeInfoMap, prototype_info_map, PrototypeInfo)                    \

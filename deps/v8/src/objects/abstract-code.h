@@ -62,6 +62,17 @@ class AbstractCode : public HeapObject {
   OBJECT_CONSTRUCTORS(AbstractCode, HeapObject);
 };
 
+// Currently we must use full-pointer comparisons (instead of
+// compressed-pointer comparisons) when comparing AbstractCode. This is because
+// AbstractCode is either a Code or a BytecodeArray, and the latter lives in
+// trusted space (outside of the main pointer compression cage) while the
+// former still lives inside of the sandbox.
+static_assert(!kAllCodeObjectsLiveInTrustedSpace);
+constexpr bool operator==(const Tagged<AbstractCode> lhs,
+                          const Tagged<AbstractCode> rhs) {
+  return lhs->ptr() == rhs->ptr();
+}
+
 }  // namespace internal
 }  // namespace v8
 

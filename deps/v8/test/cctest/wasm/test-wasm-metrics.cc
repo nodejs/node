@@ -31,17 +31,9 @@ class MockPlatform final : public TestPlatform {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
   }
 
-  std::unique_ptr<v8::JobHandle> PostJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override {
-    auto job_handle = CreateJob(priority, std::move(job_task));
-    job_handle->NotifyConcurrencyIncrease();
-    return job_handle;
-  }
-
-  std::unique_ptr<v8::JobHandle> CreateJob(
-      v8::TaskPriority priority,
-      std::unique_ptr<v8::JobTask> job_task) override {
+  std::unique_ptr<v8::JobHandle> CreateJobImpl(
+      v8::TaskPriority priority, std::unique_ptr<v8::JobTask> job_task,
+      const v8::SourceLocation& location) override {
     auto orig_job_handle = v8::platform::NewDefaultJobHandle(
         this, priority, std::move(job_task), 1);
     auto job_handle =
@@ -55,7 +47,9 @@ class MockPlatform final : public TestPlatform {
     return task_runner_;
   }
 
-  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
+  void PostTaskOnWorkerThreadImpl(v8::TaskPriority priority,
+                                  std::unique_ptr<v8::Task> task,
+                                  const v8::SourceLocation& location) override {
     task_runner_->PostTask(std::move(task));
   }
 
@@ -290,7 +284,7 @@ COMPILE_TEST(TestEventMetrics) {
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
   GetWasmEngine()->AsyncCompile(
-      isolate, enabled_features,
+      isolate, enabled_features, CompileTimeImports{},
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),
       ModuleWireBytes(buffer.begin(), buffer.end()), true,

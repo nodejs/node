@@ -439,6 +439,20 @@ void ExternalEntityTable<Entry, size>::FreeTableSegment(Segment segment) {
   vas_->FreePages(segment_start, kSegmentSize);
 }
 
+template <typename Entry, size_t size>
+template <typename Callback>
+void ExternalEntityTable<Entry, size>::IterateEntriesIn(Space* space,
+                                                        Callback callback) {
+  DCHECK(space->BelongsTo(this));
+
+  base::MutexGuard guard(&space->mutex_);
+  for (auto segment : space->segments_) {
+    for (uint32_t i = segment.first_entry(); i <= segment.last_entry(); i++) {
+      callback(i);
+    }
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

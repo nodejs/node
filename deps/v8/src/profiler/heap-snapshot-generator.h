@@ -45,8 +45,8 @@ class JSGlobalProxy;
 class JSPromise;
 class JSWeakCollection;
 
-struct SourceLocation {
-  SourceLocation(int entry_index, int scriptId, int line, int col)
+struct EntrySourceLocation {
+  EntrySourceLocation(int entry_index, int scriptId, int line, int col)
       : entry_index(entry_index), scriptId(scriptId), line(line), col(col) {}
 
   const int entry_index;
@@ -237,7 +237,9 @@ class HeapSnapshot {
   std::deque<HeapGraphEdge>& edges() { return edges_; }
   const std::deque<HeapGraphEdge>& edges() const { return edges_; }
   std::vector<HeapGraphEdge*>& children() { return children_; }
-  const std::vector<SourceLocation>& locations() const { return locations_; }
+  const std::vector<EntrySourceLocation>& locations() const {
+    return locations_;
+  }
   void RememberLastJSObjectId();
   SnapshotObjectId max_snapshot_js_object_id() const {
     return max_snapshot_js_object_id_;
@@ -280,7 +282,7 @@ class HeapSnapshot {
   std::deque<HeapGraphEdge> edges_;
   std::vector<HeapGraphEdge*> children_;
   std::unordered_map<SnapshotObjectId, HeapEntry*> entries_by_id_cache_;
-  std::vector<SourceLocation> locations_;
+  std::vector<EntrySourceLocation> locations_;
   SnapshotObjectId max_snapshot_js_object_id_ = -1;
   v8::HeapProfiler::HeapSnapshotMode snapshot_mode_;
   v8::HeapProfiler::NumericsMode numerics_mode_;
@@ -746,7 +748,7 @@ class HeapSnapshotJSONSerializer {
   void SerializeSamples();
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
-  void SerializeLocation(const SourceLocation& location);
+  void SerializeLocation(const EntrySourceLocation& location);
   void SerializeLocations();
 
   static const int kEdgeFieldsCount;

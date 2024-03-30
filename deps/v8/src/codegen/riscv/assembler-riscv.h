@@ -49,6 +49,7 @@
 #include "src/codegen/riscv/base-assembler-riscv.h"
 #include "src/codegen/riscv/base-riscv-i.h"
 #include "src/codegen/riscv/extension-riscv-a.h"
+#include "src/codegen/riscv/extension-riscv-b.h"
 #include "src/codegen/riscv/extension-riscv-c.h"
 #include "src/codegen/riscv/extension-riscv-d.h"
 #include "src/codegen/riscv/extension-riscv-f.h"
@@ -165,6 +166,7 @@ class V8_EXPORT_PRIVATE MemOperand : public Operand {
 class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVI,
                                     public AssemblerRISCVA,
+                                    public AssemblerRISCVB,
                                     public AssemblerRISCVF,
                                     public AssemblerRISCVD,
                                     public AssemblerRISCVM,
@@ -464,6 +466,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   Instruction* pc() const { return reinterpret_cast<Instruction*>(pc_); }
 
+  Instruction* InstructionAt(ptrdiff_t offset) const {
+    return reinterpret_cast<Instruction*>(buffer_start_ + offset);
+  }
+
   // Postpone the generation of the trampoline pool for the specified number of
   // instructions.
   void BlockTrampolinePoolFor(int instructions);
@@ -745,7 +751,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
   template <typename T>
   inline void EmitHelper(T x);
 
-  static void disassembleInstr(Instr instr);
+  static void disassembleInstr(uint8_t* pc);
 
   // Labels.
   void print(const Label* L);

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestReferenceGlobals() {
@@ -427,11 +425,11 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
   let internal = builder.addGlobal(
     kWasmAnyRef, false,
-    [kExprGlobalGet, imported, kGCPrefix, kExprExternInternalize]);
+    [kExprGlobalGet, imported, kGCPrefix, kExprAnyConvertExtern]);
 
   builder.addGlobal(
       kWasmExternRef, false,
-      [kExprGlobalGet, internal.index, kGCPrefix, kExprExternExternalize])
+      [kExprGlobalGet, internal.index, kGCPrefix, kExprExternConvertAny])
     .exportAs("exported")
 
   builder.addFunction("getter", kSig_i_v)

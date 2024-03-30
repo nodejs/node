@@ -5,6 +5,7 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_H_
 #define V8_OBJECTS_PROPERTY_CELL_H_
 
+#include "src/objects/dependent-code.h"
 #include "src/objects/heap-object.h"
 
 // Has to be the last include (doesn't have include guards):

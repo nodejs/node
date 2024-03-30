@@ -1006,12 +1006,12 @@ class MatchInfoBackedMatch : public String::Match {
   }
 
   Handle<String> GetPrefix() override {
-    const int match_start = match_info_->Capture(0);
+    const int match_start = match_info_->capture(0);
     return isolate_->factory()->NewSubString(subject_, 0, match_start);
   }
 
   Handle<String> GetSuffix() override {
-    const int match_end = match_info_->Capture(1);
+    const int match_end = match_info_->capture(1);
     return isolate_->factory()->NewSubString(subject_, match_end,
                                              subject_->length());
   }
@@ -1019,7 +1019,7 @@ class MatchInfoBackedMatch : public String::Match {
   bool HasNamedCaptures() override { return has_named_captures_; }
 
   int CaptureCount() override {
-    return match_info_->NumberOfCaptureRegisters() / 2;
+    return match_info_->number_of_capture_registers() / 2;
   }
 
   MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
@@ -1116,6 +1116,15 @@ class VectorBackedMatch : public String::Match {
                                       CaptureState* state) override {
     DCHECK(has_named_captures_);
 
+    // Strings representing integer indices are not valid identifiers (and
+    // therefore not valid capture names).
+    {
+      size_t unused;
+      if (name->AsIntegerIndex(&unused)) {
+        *state = UNMATCHED;
+        return isolate_->factory()->empty_string();
+      }
+    }
     Handle<Object> capture_obj;
     ASSIGN_RETURN_ON_EXCEPTION(isolate_, capture_obj,
                                Object::GetProperty(isolate_, groups_obj_, name),
@@ -1323,8 +1332,8 @@ static Tagged<Object> SearchRegExpMultiple(
       for (int i = 0; i < capture_registers; i++) {
         last_match_cache->set(i, Smi::FromInt(last_match[i]));
       }
-      Handle<FixedArray> result_fixed_array =
-          FixedArray::ShrinkOrEmpty(isolate, builder.array(), builder.length());
+      Handle<FixedArray> result_fixed_array = FixedArray::RightTrimOrEmpty(
+          isolate, builder.array(), builder.length());
       // Cache the result and copy the FixedArray into a COW array.
       Handle<FixedArray> copied_fixed_array =
           isolate->factory()->CopyFixedArrayWithMap(
@@ -1388,8 +1397,8 @@ V8_WARN_UNUSED_RESULT MaybeHandle<String> RegExpReplace(
 
     auto match_indices = Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-    const int start_index = match_indices->Capture(0);
-    const int end_index = match_indices->Capture(1);
+    const int start_index = match_indices->capture(0);
+    const int end_index = match_indices->capture(1);
 
     if (sticky) {
       regexp->set_last_index(Smi::FromInt(end_index), SKIP_WRITE_BARRIER);
@@ -1529,8 +1538,8 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   Handle<RegExpMatchInfo> match_indices =
       Handle<RegExpMatchInfo>::cast(match_indices_obj);
 
-  const int index = match_indices->Capture(0);
-  const int end_of_match = match_indices->Capture(1);
+  const int index = match_indices->capture(0);
+  const int end_of_match = match_indices->capture(1);
 
   if (sticky) {
     regexp->set_last_index(Smi::FromInt(end_of_match), SKIP_WRITE_BARRIER);
@@ -1544,7 +1553,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   // named captures, they are also passed as the last argument.
 
   // The number of captures plus one for the match.
-  const int m = match_indices->NumberOfCaptureRegisters() / 2;
+  const int m = match_indices->number_of_capture_registers() / 2;
 
   bool has_named_captures = false;
   Handle<FixedArray> capture_map;
@@ -1625,7 +1634,7 @@ Handle<JSArray> NewJSArrayWithElements(Isolate* isolate,
                                        Handle<FixedArray> elems,
                                        int num_elems) {
   return isolate->factory()->NewJSArrayWithElements(
-      FixedArray::ShrinkOrEmpty(isolate, elems, num_elems));
+      FixedArray::RightTrimOrEmpty(isolate, elems, num_elems));
 }
 
 }  // namespace

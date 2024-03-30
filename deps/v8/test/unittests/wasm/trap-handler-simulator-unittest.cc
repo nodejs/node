@@ -84,18 +84,23 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
   EXPECT_DEATH_IF_SUPPORTED(ProbeMemory(InaccessibleMemoryPtr(), kFakePc), "");
 }
 
-TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
-  constexpr uintptr_t kFakeLandingPad = 19;
+namespace {
+uintptr_t v8_landing_pad() {
+  EmbeddedData embedded_data = EmbeddedData::FromBlob();
+  return embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
+}
+}  // namespace
 
+TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithTrapHandled) {
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  ProtectedInstructionData fake_protected_instruction{kFakePc, kFakeLandingPad};
+  ProtectedInstructionData fake_protected_instruction{kFakePc};
   int handler_data_index =
       RegisterHandlerData(0, 128, 1, &fake_protected_instruction);
 
   SetThreadInWasm();
-  EXPECT_EQ(kFakeLandingPad, ProbeMemory(InaccessibleMemoryPtr(), kFakePc));
+  EXPECT_EQ(v8_landing_pad(), ProbeMemory(InaccessibleMemoryPtr(), kFakePc));
 
   // Reset everything.
   ResetThreadInWasm();
@@ -142,7 +147,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   constexpr bool kUseDefaultHandler = true;
   CHECK(v8::V8::EnableWebAssemblyTrapHandler(kUseDefaultHandler));
 
-  ProtectedInstructionData protected_instruction{crash_offset, recovery_offset};
+  ProtectedInstructionData protected_instruction{crash_offset};
   int handler_data_index =
       RegisterHandlerData(reinterpret_cast<Address>(desc.buffer),
                           desc.instr_size, 1, &protected_instruction);
@@ -152,12 +157,15 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryWithLandingPad) {
   GeneratedCode<void> code = GeneratedCode<void>::FromAddress(
       i_isolate(), reinterpret_cast<Address>(desc.buffer));
 
+  trap_handler::SetLandingPad(reinterpret_cast<uintptr_t>(buffer->start()) +
+                              recovery_offset);
   SetThreadInWasm();
   code.Call();
   ResetThreadInWasm();
 
   ReleaseHandlerData(handler_data_index);
   RemoveTrapHandler();
+  trap_handler::SetLandingPad(0);
 
   EXPECT_EQ(1u, GetRecoveredTrapCount());
 }

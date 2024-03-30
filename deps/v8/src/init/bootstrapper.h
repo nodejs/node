@@ -93,7 +93,7 @@ class Bootstrapper final {
   void FreeThreadResources();
 
   // Used for new context creation.
-  bool InstallExtensions(Handle<Context> native_context,
+  bool InstallExtensions(Handle<NativeContext> native_context,
                          v8::ExtensionConfiguration* extensions);
 
   SourceCodeCache* extensions_cache() { return &extensions_cache_; }

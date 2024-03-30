@@ -198,6 +198,14 @@ constexpr auto CallFunctionTemplateDescriptor::registers() {
 }
 
 // static
+constexpr auto CallFunctionTemplateGenericDescriptor::registers() {
+  // r3 : function template info
+  // r4 : number of arguments (on the stack)
+  // r5 : topmost script-having context
+  return RegisterArray(r3, r4, r5);
+}
+
+// static
 constexpr auto CallWithSpreadDescriptor::registers() {
   // r2: number of arguments (on the stack)
   // r3 : the target to call
@@ -304,6 +312,11 @@ CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
   return r4;
 }
 // static
+constexpr Register
+CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
+  return r3;
+}
+// static
 constexpr Register CallApiCallbackGenericDescriptor::CallHandlerInfoRegister() {
   return r5;
 }
@@ -334,6 +347,12 @@ constexpr auto InterpreterPushArgsThenConstructDescriptor::registers() {
       r3,   // constructor to call
       r5,   // new target
       r4);  // allocation site feedback if available, undefined otherwise
+}
+
+// static
+constexpr auto ConstructForwardAllArgsDescriptor::registers() {
+  return RegisterArray(r3,   // constructor to call
+                       r5);  // new target
 }
 
 // static

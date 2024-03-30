@@ -45,6 +45,7 @@ interface, Token::FUTURE_STRICT_RESERVED_WORD
 let, Token::LET
 new, Token::NEW
 null, Token::NULL_LITERAL
+of, Token::OF
 package, Token::FUTURE_STRICT_RESERVED_WORD
 private, Token::FUTURE_STRICT_RESERVED_WORD
 protected, Token::FUTURE_STRICT_RESERVED_WORD

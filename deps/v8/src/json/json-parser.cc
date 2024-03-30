@@ -319,17 +319,17 @@ JsonParser<Char>::JsonParser(Isolate* isolate, Handle<String> source)
   if (IsSlicedString(*source, cage_base)) {
     Tagged<SlicedString> string = SlicedString::cast(*source);
     start = string->offset();
-    Tagged<String> parent = string->parent(cage_base);
+    Tagged<String> parent = string->parent();
     if (IsThinString(parent, cage_base))
-      parent = ThinString::cast(parent)->actual(cage_base);
+      parent = ThinString::cast(parent)->actual();
     source_ = handle(parent, isolate);
   } else {
     source_ = String::Flatten(isolate, source);
   }
 
   if (StringShape(*source_, cage_base).IsExternal()) {
-    chars_ = static_cast<const Char*>(
-        SeqExternalString::cast(*source_)->GetChars(cage_base));
+    chars_ =
+        static_cast<const Char*>(SeqExternalString::cast(*source_)->GetChars());
     chars_may_relocate_ = false;
   } else {
     DisallowGarbageCollection no_gc;
@@ -468,8 +468,8 @@ void JsonParser<Char>::CalculateFileLocation(Handle<Object>& line,
 template <typename Char>
 void JsonParser<Char>::ReportUnexpectedToken(
     JsonToken token, base::Optional<MessageTemplate> errorMessage) {
-  // Some exception (for example stack overflow) is already pending.
-  if (isolate_->has_pending_exception()) return;
+  // Some exception (for example stack overflow) was already thrown.
+  if (isolate_->has_exception()) return;
 
   // Parse failed. Current character is the unexpected token.
   Factory* factory = this->factory();
@@ -555,7 +555,7 @@ MaybeHandle<Object> JsonParser<Char>::ParseJson(Handle<Object> reviver) {
         peek(), MessageTemplate::kJsonParseUnexpectedNonWhiteSpaceCharacter);
     return MaybeHandle<Object>();
   }
-  if (isolate_->has_pending_exception()) {
+  if (isolate_->has_exception()) {
     return MaybeHandle<Object>();
   }
   return result;
@@ -660,8 +660,10 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     const JsonContinuation& cont,
     const SmallVector<JsonProperty>& property_stack, Handle<Map> feedback) {
   size_t start = cont.index;
+  DCHECK_LE(start, property_stack.size());
   int length = static_cast<int>(property_stack.size() - start);
   int named_length = length - cont.elements;
+  DCHECK_LE(0, named_length);
 
   Handle<Map> initial_map = factory()->ObjectLiteralMapFromCache(
       isolate_->native_context(), named_length);
@@ -810,7 +812,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
   Handle<ByteArray> mutable_double_buffer;
   // Allocate enough space so we can double-align the payload.
   const int kMutableDoubleSize = sizeof(double) * 2;
-  static_assert(HeapNumber::kSize <= kMutableDoubleSize);
+  static_assert(sizeof(HeapNumber) <= kMutableDoubleSize);
   if (new_mutable_double > 0) {
     mutable_double_buffer =
         factory()->NewByteArray(kMutableDoubleSize * new_mutable_double);
@@ -830,14 +832,13 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     Address mutable_double_address =
         mutable_double_buffer.is_null()
             ? 0
-            : reinterpret_cast<Address>(
-                  mutable_double_buffer->GetDataStartAddress());
+            : reinterpret_cast<Address>(mutable_double_buffer->begin());
     Address filler_address = mutable_double_address;
     if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
       if (IsAligned(mutable_double_address, kDoubleAlignment)) {
         mutable_double_address += kTaggedSize;
       } else {
-        filler_address += HeapNumber::kSize;
+        filler_address += sizeof(HeapNumber);
       }
     }
     for (int j = 0; j < i; j++) {
@@ -868,7 +869,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
           Tagged<HeapObject> hn =
               HeapObject::FromAddress(mutable_double_address);
           hn->set_map_after_allocation(roots().heap_number_map());
-          HeapNumber::cast(hn)->set_value_as_bits(bits, kRelaxedStore);
+          HeapNumber::cast(hn)->set_value_as_bits(bits);
           value = hn;
           mutable_double_address +=
               ALIGN_TO_ALLOCATION_ALIGNMENT(kMutableDoubleSize);
@@ -881,8 +882,7 @@ Handle<Object> JsonParser<Char>::BuildJsonObject(
     // Make all mutable HeapNumbers alive.
     if (!mutable_double_buffer.is_null()) {
 #ifdef DEBUG
-      Address end =
-          reinterpret_cast<Address>(mutable_double_buffer->GetDataEndAddress());
+      Address end = reinterpret_cast<Address>(mutable_double_buffer->end());
       if (!V8_COMPRESS_POINTERS_8GB_BOOL && kTaggedSize != kDoubleSize) {
         DCHECK_EQ(std::min(filler_address, mutable_double_address), end);
         DCHECK_GE(filler_address, end);
@@ -995,7 +995,7 @@ bool JsonParser<Char>::ParseRawJson() {
       ReportUnexpectedCharacter(CurrentCharacter());
       return false;
   }
-  if (isolate_->has_pending_exception()) return false;
+  if (isolate_->has_exception()) return false;
   if (cursor_ != end_) {
     isolate_->Throw(*isolate_->factory()->NewSyntaxError(
         MessageTemplate::kInvalidRawJsonValue));
@@ -1375,7 +1375,16 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
       }
     } else {
       const Char* smi_start = cursor_;
-      AdvanceToNonDecimal();
+      static_assert(Smi::IsValid(-999999999));
+      static_assert(Smi::IsValid(999999999));
+      const int kMaxSmiLength = 9;
+      int32_t i = 0;
+      const Char* stop = cursor_ + kMaxSmiLength;
+      if (stop > end_) stop = end_;
+      while (cursor_ < stop && IsDecimalDigit(*cursor_)) {
+        i = (i * 10) + ((*cursor_) - '0');
+        cursor_++;
+      }
       if (V8_UNLIKELY(smi_start == cursor_)) {
         AllowGarbageCollection allow_before_exception;
         ReportUnexpectedToken(
@@ -1384,22 +1393,14 @@ Handle<Object> JsonParser<Char>::ParseJsonNumber() {
         return handle(Smi::FromInt(0), isolate_);
       }
       c = CurrentCharacter();
-      static_assert(Smi::IsValid(-999999999));
-      static_assert(Smi::IsValid(999999999));
-      const int kMaxSmiLength = 9;
-      if ((cursor_ - smi_start) <= kMaxSmiLength &&
-          (!base::IsInRange(c, 0,
-                            static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
-           !IsNumberPart(character_json_scan_flags[c]))) {
+      if (!base::IsInRange(c, 0,
+                           static_cast<int32_t>(unibrow::Latin1::kMaxChar)) ||
+          !IsNumberPart(character_json_scan_flags[c])) {
         // Smi.
-        int32_t i = 0;
-        for (; smi_start != cursor_; smi_start++) {
-          DCHECK(IsDecimalDigit(*smi_start));
-          i = (i * 10) + ((*smi_start) - '0');
-        }
         // TODO(verwaest): Cache?
         return handle(Smi::FromInt(i * sign), isolate_);
       }
+      AdvanceToNonDecimal();
     }
 
     if (CurrentCharacter() == '.') {

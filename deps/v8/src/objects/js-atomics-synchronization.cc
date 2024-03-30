@@ -48,6 +48,8 @@ namespace detail {
 //    and that main thread is the head of the waiter list), the Isolate's
 //    external pointer points to that WaiterQueueNode. Otherwise the external
 //    pointer points to null.
+//
+// TODO(v8:12547): Split out WaiterQueueNode and unittest it.
 class V8_NODISCARD WaiterQueueNode final {
  public:
   explicit WaiterQueueNode(Isolate* requester)
@@ -58,6 +60,13 @@ class V8_NODISCARD WaiterQueueNode final {
             requester->GetOrCreateWaiterQueueNodeExternalPointer())
 #endif  // V8_COMPRESS_POINTERS
   {
+  }
+
+  ~WaiterQueueNode() {
+    // Since waiter queue nodes are allocated on the stack, they must be removed
+    // from the intrusive linked list once they go out of scope, otherwise there
+    // will be dangling pointers.
+    VerifyNotInList();
   }
 
   template <typename T>
@@ -82,7 +91,7 @@ class V8_NODISCARD WaiterQueueNode final {
     auto state =
         static_cast<typename T::StateT>(head->external_pointer_handle_);
 #else
-    auto state = base::bit_cast<typename T::StateT>(head);
+    auto state = reinterpret_cast<typename T::StateT>(head);
 #endif  // V8_COMPRESS_POINTERS
 
     DCHECK_EQ(0, state & T::kLockBitsMask);
@@ -104,7 +113,7 @@ class V8_NODISCARD WaiterQueueNode final {
         requester->shared_external_pointer_table().Exchange(
             handle, kNullAddress, kWaiterQueueNodeTag));
 #else
-    return base::bit_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
+    return reinterpret_cast<WaiterQueueNode*>(state & T::kWaiterQueueHeadMask);
 #endif  // V8_COMPRESS_POINTERS
   }
 
@@ -141,7 +150,7 @@ class V8_NODISCARD WaiterQueueNode final {
     do {
       if (matcher(cur)) {
         WaiterQueueNode* next = cur->next_;
-        if (next == original_head) {
+        if (next == cur) {
           // The queue contains exactly 1 node.
           *head = nullptr;
         } else {
@@ -318,8 +327,6 @@ bool JSAtomicsMutex::TryLockExplicit(std::atomic<StateT>* state,
 // static
 bool JSAtomicsMutex::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
                                                 StateT& expected) {
-  // The queue lock can only be acquired on a locked mutex.
-  DCHECK(expected & kIsLockedBit);
   // Try to acquire the queue lock.
   expected &= ~kIsWaiterQueueLockedBit;
   return state->compare_exchange_weak(
@@ -328,9 +335,90 @@ bool JSAtomicsMutex::TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
 }
 
 // static
-void JSAtomicsMutex::LockSlowPath(Isolate* requester,
+void JSAtomicsMutex::UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
+                                                   StateT new_state) {
+  // Set the new state without changing the `kIsLockedBit` bit.
+  DCHECK_EQ(new_state & kQueueMask, new_state);
+  StateT expected = state->load(std::memory_order_relaxed);
+  StateT desired;
+  do {
+    desired = new_state | (expected & kIsLockedBit);
+  } while (!state->compare_exchange_weak(
+      expected, desired, std::memory_order_release, std::memory_order_relaxed));
+}
+
+// static
+bool JSAtomicsMutex::LockJSMutexOrDequeueTimedOutWaiter(
+    Isolate* requester, std::atomic<StateT>* state,
+    WaiterQueueNode* timed_out_waiter) {
+  // First acquire the queue lock, which is itself a spinlock.
+  StateT current_state = state->load(std::memory_order_relaxed);
+  // There are no waiters, but the js mutex lock may be held by another thread.
+  if (!(current_state & kQueueMask)) return false;
+  while (!TryLockWaiterQueueExplicit(state, current_state)) {
+    YIELD_PROCESSOR;
+  }
+
+  // Get the waiter queue head.
+  WaiterQueueNode* waiter_head =
+      WaiterQueueNode::DestructivelyDecodeHead<JSAtomicsMutex>(requester,
+                                                               current_state);
+
+  if (waiter_head == nullptr) {
+    // The queue is empty but the js mutex lock may be held by another thread,
+    // release the waiter queue bit without changing `kIsLockedBit`.
+    DCHECK_EQ(current_state & kQueueMask, 0);
+    UnlockWaiterQueueWithNewState(state, kUnlocked);
+    return false;
+  }
+
+  WaiterQueueNode* dequeued_node = WaiterQueueNode::DequeueMatching(
+      &waiter_head,
+      [&](WaiterQueueNode* node) { return node == timed_out_waiter; });
+
+  // Release the queue lock and install the new waiter queue head by creating a
+  // new state.
+  DCHECK_EQ(state->load(), current_state | kIsWaiterQueueLockedBit);
+  StateT new_state =
+      WaiterQueueNode::EncodeHead<JSAtomicsMutex>(requester, waiter_head);
+
+  if (!dequeued_node) {
+    // The timed out waiter was not in the queue, so it must have been dequeued
+    // and notified between the time this thread woke up and the time it
+    // acquired the queue lock, so there is a risk that the next queue head is
+    // never notified. Try to take the js mutex lock here, if we succeed, the
+    // next node will be notified by this thread, otherwise, it will be notified
+    // by the thread holding the lock now.
+
+    // Since we use strong CAS below, we know that the js mutex lock will be
+    // held by either this thread or another thread that can't go through the
+    // unlock fast path because this thread is holding the waiter queue lock.
+    // Hence, it is safe to always set the `kIsLockedBit` bit in new_state.
+    new_state |= kIsLockedBit;
+    DCHECK_EQ(new_state & kIsWaiterQueueLockedBit, 0);
+    current_state &= ~kIsLockedBit;
+    if (state->compare_exchange_strong(current_state, new_state,
+                                       std::memory_order_acq_rel,
+                                       std::memory_order_relaxed)) {
+      // The CAS atomically released the waiter queue lock and acquired the js
+      // mutex lock.
+      return true;
+    }
+
+    DCHECK(state->load() & kIsLockedBit);
+    state->store(new_state, std::memory_order_release);
+    return false;
+  }
+
+  UnlockWaiterQueueWithNewState(state, new_state);
+  return false;
+}
+
+// static
+bool JSAtomicsMutex::LockSlowPath(Isolate* requester,
                                   Handle<JSAtomicsMutex> mutex,
-                                  std::atomic<StateT>* state) {
+                                  std::atomic<StateT>* state,
+                                  base::Optional<base::TimeDelta> timeout) {
   for (;;) {
     // Spin for a little bit to try to acquire the lock, so as to be fast under
     // microcontention.
@@ -343,7 +431,7 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
     int backoff = 1;
     StateT current_state = state->load(std::memory_order_relaxed);
     do {
-      if (TryLockExplicit(state, current_state)) return;
+      if (TryLockExplicit(state, current_state)) return true;
 
       for (int yields = 0; yields < backoff; yields++) {
         YIELD_PROCESSOR;
@@ -370,7 +458,7 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
         }
         // Also check for the lock having been released by another thread during
         // attempts to acquire the queue lock.
-        if (TryLockExplicit(state, current_state)) return;
+        if (TryLockExplicit(state, current_state)) return true;
         YIELD_PROCESSOR;
       }
 
@@ -394,12 +482,25 @@ void JSAtomicsMutex::LockSlowPath(Isolate* requester,
       state->store(new_state, std::memory_order_release);
     }
 
+    bool rv;
     // Wait for another thread to release the lock and wake us up.
-    this_waiter.Wait();
-
-    // Reload the state pointer after wake up in case of shared GC while
-    // blocked.
-    state = mutex->AtomicStatePtr();
+    if (timeout) {
+      rv = this_waiter.WaitFor(*timeout);
+      // Reload the state pointer after wake up in case of shared GC while
+      // blocked.
+      state = mutex->AtomicStatePtr();
+      if (!rv) {
+        // If timed out, remove ourself from the waiter list, which is usually
+        // done by the thread performing the notifying.
+        rv = LockJSMutexOrDequeueTimedOutWaiter(requester, state, &this_waiter);
+        return rv;
+      }
+    } else {
+      this_waiter.Wait();
+      // Reload the state pointer after wake up in case of shared GC while
+      // blocked.
+      state = mutex->AtomicStatePtr();
+    }
 
     // After wake up we try to acquire the lock again by spinning, as the
     // contention at the point of going to sleep should not be correlated with

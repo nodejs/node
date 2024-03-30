@@ -12,7 +12,7 @@ namespace internal {
 
 #ifdef V8_ENABLE_SANDBOX
 
-class SandboxTesting {
+class SandboxTesting : public AllStatic {
  public:
 #ifdef V8_EXPOSE_MEMORY_CORRUPTION_API
   // A JavaScript API that emulates typical exploit primitives.

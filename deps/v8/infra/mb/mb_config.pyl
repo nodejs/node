@@ -103,11 +103,10 @@
       'V8 Official Mac ARM64': 'release_arm64',
       'V8 Official Mac ARM64 Debug': 'debug_arm64',
       'V8 Mac64 ASAN - builder': 'release_x64_asan_no_lsan',
+      'V8 Mac - arm64 - builder': 'release_arm64',
       'V8 Mac - arm64 - no pointer compression debug builder': 'debug_arm64_no_pointer_compression',
       'V8 Mac - arm64 - release builder': 'release_arm64',
       'V8 Mac - arm64 - debug builder': 'debug_arm64',
-      'V8 Mac - arm64 - sim - debug builder': 'debug_simulate_arm64',
-      'V8 Mac - arm64 - sim - release builder': 'release_simulate_arm64',
       # Sanitizers.
       'V8 Linux64 ASAN - builder': 'release_x64_asan',
       'V8 Linux64 TSAN - builder': 'release_x64_tsan',
@@ -146,6 +145,10 @@
       'V8 Random Deopt Fuzzer - debug': 'debug_x64',
     },
     'client.v8.clusterfuzz': {
+      'V8 Centipede Linux64 ASAN  - debug builder':
+        'debug_x64_asan_centipede',
+      'V8 Centipede Linux64 ASAN  - release builder':
+        'release_x64_asan_centipede',
       'V8 Clusterfuzz Win64 ASAN - release builder':
         'release_x64_asan_no_lsan_verify_heap',
       # Note this is called a debug builder, but it uses a release build
@@ -256,6 +259,8 @@
       'v8_linux64_arm64_compile_rel': 'release_arm64_trybot',
       'v8_linux64_arm64_no_pointer_compression_compile_rel':
           'release_simulate_arm64_no_pointer_compression',
+      'v8_linux64_asan_centipede_compile_dbg': 'debug_x64_asan_centipede',
+      'v8_linux64_asan_centipede_compile_rel': 'release_x64_asan_centipede',
       'v8_linux64_cppgc_non_default_compile_dbg': 'debug_x64_non_default_cppgc',
       'v8_linux64_compile_dbg': 'debug_x64_trybot',
       'v8_linux64_no_shared_cage_compile_dbg': 'debug_x64_no_shared_cage',
@@ -318,11 +323,8 @@
       'v8_mac_arm64_compile_rel': 'release_arm64',
       'v8_mac_arm64_compile_dbg': 'debug_arm64',
       'v8_mac_arm64_full_compile_dbg': 'full_debug_arm64',
+      'v8_mac_arm64_gc_stress_compile_dbg': 'debug_arm64',
       'v8_mac_arm64_no_pointer_compression_compile_dbg': 'debug_arm64_no_pointer_compression',
-      'v8_mac_arm64_sim_compile_rel': 'release_simulate_arm64_trybot',
-      'v8_mac_arm64_sim_compile_dbg': 'debug_simulate_arm64',
-      'v8_mac_arm64_sim_nodcheck_compile_rel': 'release_simulate_arm64',
-      'v8_mac64_gc_stress_compile_dbg': 'debug_x64_trybot',
       'v8_mac64_compile_rel': 'release_x64_trybot',
       'v8_mac64_dbg': 'debug_x64',
       'v8_mac64_compile_dbg': 'debug_x64',
@@ -451,8 +453,6 @@
       'release_trybot', 'simulate_arm', 'v8_enable_lite_mode'],
     'release_simulate_arm_trybot': [
       'release_trybot', 'simulate_arm'],
-    'release_simulate_arm64': [
-      'release_bot', 'simulate_arm64'],
     'release_simulate_arm64_cfi': [
       'release_bot', 'simulate_arm64', 'v8_control_flow_integrity'],
     'release_simulate_arm64_gcmole': [
@@ -470,8 +470,6 @@
       'release_bot', 'simulate_arm64', 'msan'],
     'release_simulate_arm64_msan_no_origins': [
       'release_bot', 'simulate_arm64', 'msan_no_origins'],
-    'release_simulate_arm64_trybot': [
-      'release_trybot', 'simulate_arm64'],
     'release_simulate_loong64': [
       'release_bot', 'simulate_loong64'],
     'release_simulate_mips64el': [
@@ -551,6 +549,8 @@
       'release_bot', 'x64'],
     'release_x64_asan': [
       'release_bot', 'x64', 'asan', 'lsan'],
+    'release_x64_asan_centipede': [
+      'release_bot', 'x64', 'asan', 'use_centipede'],
     'release_x64_asan_minimal_symbols': [
       'release_bot', 'x64', 'asan', 'lsan', 'minimal_symbols'],
     'release_x64_asan_no_lsan': [
@@ -648,6 +648,8 @@
       'debug_bot', 'x64'],
     'debug_x64_asan': [
       'debug_bot', 'x64', 'asan', 'lsan'],
+    'debug_x64_asan_centipede': [
+      'debug_bot', 'x64', 'asan', 'use_centipede'],
     'debug_x64_asan_no_lsan_static': [
       'debug', 'static', 'reclient', 'v8_enable_slow_dchecks', 'v8_optimized_debug',
       'x64', 'asan'],
@@ -1013,6 +1015,10 @@
       'mixins': ['v8_enable_test_features'],
       # Ubsan with recovery.
       'gn_args': 'is_ubsan=true is_ubsan_no_recover=false is_ubsan_vptr=true',
+    },
+
+    'use_centipede': {
+      'gn_args': 'use_centipede=true optimize_for_fuzzing = true',
     },
 
     'v8_check_header_includes': {

@@ -102,8 +102,8 @@ void BuiltinStringFromCharCode::GenerateCode(MaglevAssembler* masm,
       DCHECK(scratch != result_string);
       __ AllocateTwoByteString(register_snapshot(), result_string, 1);
       __ Move(scratch, char_code & 0xFFFF);
-      __ strh(scratch,
-              FieldMemOperand(result_string, SeqTwoByteString::kHeaderSize));
+      __ strh(scratch, FieldMemOperand(result_string,
+                                       OFFSET_OF_DATA_START(SeqTwoByteString)));
       if (reallocate_result) {
         __ Move(ToRegister(result()), result_string);
       }
@@ -488,9 +488,9 @@ DEF_BITWISE_BINOP(Int32BitwiseXor, eor)
          * we should not even emit the shift in the first place. We do a move  \
          * here for the moment. */                                             \
         __ Move(out, left);                                                    \
-        return;                                                                \
+      } else {                                                                 \
+        __ opcode(out, left, Operand(shift));                                  \
       }                                                                        \
-      __ opcode(out, left, Operand(shift));                                    \
     } else {                                                                   \
       MaglevAssembler::ScratchRegisterScope temps(masm);                       \
       Register scratch = temps.Acquire();                                      \
@@ -664,44 +664,27 @@ void Float64Ieee754Unary::GenerateCode(MaglevAssembler* masm,
   __ MovFromFloatResult(out);
 }
 
-void CheckJSTypedArrayBounds::SetValueLocationConstraints() {
+void LoadTypedArrayLength::SetValueLocationConstraints() {
   UseRegister(receiver_input());
-  if (ElementsKindSize(elements_kind_) == 1) {
-    UseRegister(index_input());
-  } else {
-    UseAndClobberRegister(index_input());
-  }
+  DefineAsRegister(this);
 }
-void CheckJSTypedArrayBounds::GenerateCode(MaglevAssembler* masm,
-                                           const ProcessingState& state) {
+void LoadTypedArrayLength::GenerateCode(MaglevAssembler* masm,
+                                        const ProcessingState& state) {
   Register object = ToRegister(receiver_input());
-  Register index = ToRegister(index_input());
-
+  Register result_register = ToRegister(result());
   if (v8_flags.debug_code) {
     __ CompareObjectTypeAndAssert(object, JS_TYPED_ARRAY_TYPE, eq,
                                   AbortReason::kUnexpectedValue);
   }
-
-  MaglevAssembler::ScratchRegisterScope temps(masm);
-  Register byte_length = temps.Acquire();
-  __ LoadBoundedSizeFromObject(byte_length, object,
+  __ LoadBoundedSizeFromObject(result_register, object,
                                JSTypedArray::kRawByteLengthOffset);
   int element_size = ElementsKindSize(elements_kind_);
   if (element_size > 1) {
+    // TODO(leszeks): Merge this shift with the one in LoadBoundedSize.
     DCHECK(element_size == 2 || element_size == 4 || element_size == 8);
-    __ mov(index,
-           Operand(index, LSL, base::bits::CountTrailingZeros(element_size)),
-           SetCC);
-    // MOVS does not affect the overflow flag on Arm. Since we know {index} is
-    // an unsigned integer, we check the carry flag.
-    __ EmitEagerDeoptIf(cs, DeoptimizeReason::kOutOfBounds, this);
-    __ cmp(byte_length, index);
-  } else {
-    __ cmp(byte_length, index);
+    __ lsr(result_register, result_register,
+           Operand(base::bits::CountTrailingZeros(element_size)));
   }
-  // We use an unsigned comparison to handle negative indices as well.
-  __ EmitEagerDeoptIf(kUnsignedLessThanEqual, DeoptimizeReason::kOutOfBounds,
-                      this);
 }
 
 int CheckJSDataViewBounds::MaxCallStackArgs() const { return 1; }

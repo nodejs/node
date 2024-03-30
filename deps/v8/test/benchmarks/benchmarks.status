@@ -125,6 +125,9 @@
   'octane/earley-boyer': [SKIP],
   'octane/gbemu-part1': [SKIP],
   'octane/pdfjs': [SKIP],
+
+  # https://crbug.com/v8/14512
+  'octane/raytrace': [SKIP],
 }],  # 'verify_predictable'
 
 ['variant == stress_snapshot', {

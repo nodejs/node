@@ -28,17 +28,14 @@ base::Optional<Tagged<NativeContext>> CallOptimization::GetAccessorContext(
   if (is_constant_call()) {
     return constant_function_->native_context();
   }
-  Tagged<Object> maybe_constructor = holder_map->GetConstructor();
-  if (IsJSFunction(maybe_constructor)) {
-    Tagged<JSFunction> constructor = JSFunction::cast(maybe_constructor);
-    return constructor->native_context();
+  Tagged<Object> maybe_native_context =
+      holder_map->map()->native_context_or_null();
+  if (IsNull(maybe_native_context)) {
+    // The holder is a remote object which doesn't have a creation context.
+    return {};
   }
-  // |maybe_constructor| might theoretically be |null| for some objects but
-  // they can't be holders for lazy accessor properties.
-  CHECK(IsFunctionTemplateInfo(maybe_constructor));
-
-  // The holder is a remote object which doesn't have a creation context.
-  return {};
+  DCHECK(IsNativeContext(maybe_native_context));
+  return NativeContext::cast(maybe_native_context);
 }
 
 bool CallOptimization::IsCrossContextLazyAccessorPair(
@@ -134,7 +131,7 @@ void CallOptimization::Initialize(
 template <class IsolateT>
 void CallOptimization::Initialize(IsolateT* isolate,
                                   Handle<JSFunction> function) {
-  if (function.is_null() || !function->is_compiled()) return;
+  if (function.is_null() || !function->is_compiled(isolate)) return;
 
   constant_function_ = function;
   AnalyzePossibleApiFunction(isolate, function);

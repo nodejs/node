@@ -28,6 +28,8 @@ static_assert(BasicMemoryChunk::Flag::TO_PAGE ==
               heap_internals::MemoryChunk::kToPageBit);
 static_assert(BasicMemoryChunk::Flag::READ_ONLY_HEAP ==
               heap_internals::MemoryChunk::kReadOnlySpaceBit);
+static_assert(BasicMemoryChunk::Flag::IS_TRUSTED ==
+              heap_internals::MemoryChunk::kIsTrustedBit);
 static_assert(BasicMemoryChunk::kFlagsOffset ==
               heap_internals::MemoryChunk::kFlagsOffset);
 static_assert(BasicMemoryChunk::kHeapOffset ==
@@ -71,6 +73,13 @@ bool BasicMemoryChunk::InOldSpace() const {
 
 bool BasicMemoryChunk::InLargeObjectSpace() const {
   return owner()->identity() == LO_SPACE;
+}
+
+bool BasicMemoryChunk::IsTrusted() const {
+  bool is_trusted = IsFlagSet(IS_TRUSTED);
+  DCHECK_EQ(is_trusted, owner()->identity() == TRUSTED_SPACE ||
+                            owner()->identity() == TRUSTED_LO_SPACE);
+  return is_trusted;
 }
 
 #ifdef THREAD_SANITIZER

@@ -124,9 +124,10 @@ class TestingModuleBuilder {
 
   // TODO(14034): Allow selecting type finality.
   uint8_t AddSignature(const FunctionSig* sig) {
-    test_module_->add_signature(sig, kNoSuperType, v8_flags.wasm_final_types);
+    const bool is_final = true;
+    test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
-    instance_object_->set_isorecursive_canonical_types(
+    trusted_instance_data_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());
     size_t size = test_module_->types.size();
     CHECK_GT(127, size);
@@ -189,9 +190,9 @@ class TestingModuleBuilder {
   void SetMaxMemPages(uint32_t maximum_pages) {
     CHECK_EQ(1, test_module_->memories.size());
     test_module_->memories[0].maximum_pages = maximum_pages;
-    DCHECK_EQ(instance_object_->memory_objects()->length(),
+    DCHECK_EQ(trusted_instance_data_->memory_objects()->length(),
               test_module_->memories.size());
-    instance_object_->memory_object(0)->set_maximum_pages(maximum_pages);
+    trusted_instance_data_->memory_object(0)->set_maximum_pages(maximum_pages);
   }
 
   void SetMemoryShared() {
@@ -229,6 +230,9 @@ class TestingModuleBuilder {
   Isolate* isolate() const { return isolate_; }
   Handle<WasmInstanceObject> instance_object() const {
     return instance_object_;
+  }
+  Handle<WasmTrustedInstanceData> trusted_instance_data() const {
+    return trusted_instance_data_;
   }
   WasmCode* GetFunctionCode(uint32_t index) const {
     return native_module_->GetCode(index);
@@ -281,6 +285,7 @@ class TestingModuleBuilder {
   uint8_t* globals_data_ = nullptr;
   TestExecutionTier execution_tier_;
   Handle<WasmInstanceObject> instance_object_;
+  Handle<WasmTrustedInstanceData> trusted_instance_data_;
   NativeModule* native_module_ = nullptr;
   int32_t max_steps_ = kMaxNumSteps;
   int32_t nondeterminism_ = 0;

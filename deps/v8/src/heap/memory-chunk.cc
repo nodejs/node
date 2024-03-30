@@ -44,63 +44,6 @@ void MemoryChunk::InitializationMemoryFence() {
 #endif
 }
 
-void MemoryChunk::DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-    PageAllocator::Permission permission) {
-  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-  DCHECK(permission == PageAllocator::kRead ||
-         permission == PageAllocator::kReadExecute);
-  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(IsAnyCodeSpace(owner_identity()));
-  page_protection_change_mutex_->AssertHeld();
-  Address protect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(protect_start, page_size));
-  size_t protect_size = RoundUp(area_size(), page_size);
-  CHECK(reservation_.SetPermissions(protect_start, protect_size, permission));
-}
-
-void MemoryChunk::SetReadable() {
-  DecrementWriteUnprotectCounterAndMaybeSetPermissions(PageAllocator::kRead);
-}
-
-void MemoryChunk::SetReadAndExecutable() {
-  DCHECK(!v8_flags.jitless);
-  DecrementWriteUnprotectCounterAndMaybeSetPermissions(
-      PageAllocator::kReadExecute);
-}
-
-base::MutexGuard MemoryChunk::SetCodeModificationPermissions() {
-  DCHECK(!V8_HEAP_USE_PTHREAD_JIT_WRITE_PROTECT);
-  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(IsAnyCodeSpace(owner_identity()));
-  // Incrementing the write_unprotect_counter_ and changing the page
-  // protection mode has to be atomic.
-  base::MutexGuard guard(page_protection_change_mutex_);
-
-  Address unprotect_start =
-      address() + MemoryChunkLayout::ObjectPageOffsetInCodePage();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAligned(unprotect_start, page_size));
-  size_t unprotect_size = RoundUp(area_size(), page_size);
-  // We may use RWX pages to write code. Some CPUs have optimisations to push
-  // updates to code to the icache through a fast path, and they may filter
-  // updates based on the written memory being executable.
-  CHECK(reservation_.SetPermissions(
-      unprotect_start, unprotect_size,
-      MemoryChunk::GetCodeModificationPermission()));
-
-  return guard;
-}
-
-void MemoryChunk::SetDefaultCodePermissions() {
-  if (v8_flags.jitless) {
-    SetReadable();
-  } else {
-    SetReadAndExecutable();
-  }
-}
-
 MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
                          Address area_start, Address area_end,
                          VirtualMemory reservation, Executability executable,
@@ -114,6 +57,17 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
 
   if (executable == EXECUTABLE) {
     SetFlag(IS_EXECUTABLE);
+    // Executable chunks are also trusted as they contain machine code and live
+    // outside the sandbox (when it is enabled). While mostly symbolic, this is
+    // needed for two reasons:
+    // 1. We have the invariant that IsTrustedObject(obj) implies
+    //    IsTrustedSpaceObject(obj), where IsTrustedSpaceObject checks the
+    //    IS_TRUSTED flag on the host chunk. As InstructionStream objects are
+    //    trusted, their host chunks must also be marked as such.
+    // 2. References between trusted objects must use the TRUSTED_TO_TRUSTED
+    //    remembered set. However, that will only be used if both the host
+    //    and the value chunk are marked as IS_TRUSTED.
+    SetFlag(IS_TRUSTED);
   }
 
   if (page_size == PageSize::kRegular) {
@@ -129,12 +83,22 @@ MemoryChunk::MemoryChunk(Heap* heap, BaseSpace* space, size_t chunk_size,
   // All pages of a shared heap need to be marked with this flag.
   if (owner()->identity() == SHARED_SPACE ||
       owner()->identity() == SHARED_LO_SPACE) {
-    SetFlag(MemoryChunk::IN_WRITABLE_SHARED_SPACE);
+    SetFlag(IN_WRITABLE_SHARED_SPACE);
+  }
+
+  // All pages belonging to a trusted space need to be marked with this flag.
+  if (space->identity() == TRUSTED_SPACE ||
+      space->identity() == TRUSTED_LO_SPACE) {
+    SetFlag(IS_TRUSTED);
   }
 
 #ifdef DEBUG
   ValidateOffsets(this);
 #endif
+
+  // "Trusted" chunks should never be located inside the sandbox as they
+  // couldn't be trusted in that case.
+  DCHECK_IMPLIES(IsFlagSet(IS_TRUSTED), !InsideSandbox(address()));
 }
 
 size_t MemoryChunk::CommittedPhysicalMemory() const {
@@ -204,6 +168,7 @@ void MemoryChunk::ReleaseAllocatedMemoryNeededForWritableChunk() {
   ReleaseSlotSet(OLD_TO_OLD);
   ReleaseSlotSet(OLD_TO_CODE);
   ReleaseSlotSet(OLD_TO_SHARED);
+  ReleaseSlotSet(TRUSTED_TO_TRUSTED);
   ReleaseTypedSlotSet(OLD_TO_NEW);
   ReleaseTypedSlotSet(OLD_TO_OLD);
   ReleaseTypedSlotSet(OLD_TO_SHARED);

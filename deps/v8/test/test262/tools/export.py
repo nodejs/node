@@ -27,12 +27,13 @@ def main():
   from blinkpy.common import exit_codes
   from blinkpy.common.host import Host
   from blinkpy.common.path_finder import add_depot_tools_dir_to_os_path
-  from blinkpy.w3c.test_exporter import TestExporter
+
+  from v8_exporter import V8TestExporter
   from v8configs import config_from_file
 
   add_depot_tools_dir_to_os_path()
   host = Host(project_config_factory=config_from_file(args.config_path))
-  exporter = TestExporter(host)
+  exporter = V8TestExporter(host)
   try:
     success = exporter.main(exporter_args[1:])
     host.exit(0 if success else 1)

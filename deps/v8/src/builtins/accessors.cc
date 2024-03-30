@@ -34,8 +34,6 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   {
     DisallowGarbageCollection no_gc;
     Tagged<AccessorInfo> raw = *info;
-    raw->set_all_can_read(false);
-    raw->set_all_can_write(false);
     raw->set_is_special_data_property(true);
     raw->set_is_sloppy(false);
     raw->set_replace_on_access(false);
@@ -76,7 +74,8 @@ bool Accessors::IsJSObjectFieldAccessor(Isolate* isolate, Handle<Map> map,
     default:
       if (map->instance_type() < FIRST_NONSTRING_TYPE) {
         return CheckForName(isolate, name, isolate->factory()->length_string(),
-                            String::kLengthOffset, FieldIndex::kWord32, index);
+                            offsetof(String, length_), FieldIndex::kWord32,
+                            index);
       }
 
       return false;
@@ -119,9 +118,7 @@ void Accessors::ReconfigureToDataProperty(
   Handle<Object> value = Utils::OpenHandle(*val);
   MaybeHandle<Object> result = Accessors::ReplaceAccessorWithDataProperty(
       isolate, receiver, holder, name, value);
-  if (result.is_null()) {
-    isolate->OptionalRescheduleException(false);
-  } else {
+  if (!result.is_null()) {
     info.GetReturnValue().Set(true);
   }
 }
@@ -177,7 +174,6 @@ void Accessors::ArrayLengthSetter(
 
   uint32_t length = 0;
   if (!JSArray::AnythingToArrayLength(isolate, length_obj, &length)) {
-    isolate->OptionalRescheduleException(false);
     return;
   }
 
@@ -193,7 +189,6 @@ void Accessors::ArrayLengthSetter(
       isolate->Throw(*factory->NewTypeError(
           MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
           i::Object::TypeOf(isolate, object), object));
-      isolate->OptionalRescheduleException(false);
     } else {
       info.GetReturnValue().Set(false);
     }
@@ -216,7 +211,6 @@ void Accessors::ArrayLengthSetter(
       isolate->Throw(*factory->NewTypeError(
           MessageTemplate::kStrictDeleteProperty,
           factory->NewNumberFromUint(actual_new_len - 1), array));
-      isolate->OptionalRescheduleException(false);
     } else {
       info.GetReturnValue().Set(false);
     }
@@ -241,11 +235,8 @@ void Accessors::ModuleNamespaceEntryGetter(
   Tagged<JSModuleNamespace> holder =
       JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
-  if (!holder
-           ->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
-           .ToHandle(&result)) {
-    isolate->OptionalRescheduleException(false);
-  } else {
+  if (holder->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
+          .ToHandle(&result)) {
     info.GetReturnValue().Set(Utils::ToLocal(result));
   }
 }
@@ -263,7 +254,6 @@ void Accessors::ModuleNamespaceEntrySetter(
     isolate->Throw(*factory->NewTypeError(
         MessageTemplate::kStrictReadOnlyProperty, Utils::OpenHandle(*name),
         i::Object::TypeOf(isolate, holder), holder));
-    isolate->OptionalRescheduleException(false);
   } else {
     info.GetReturnValue().Set(false);
   }
@@ -741,7 +731,6 @@ void Accessors::BoundFunctionLengthGetter(
 
   int length = 0;
   if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
-    isolate->OptionalRescheduleException(false);
     return;
   }
   Handle<Object> result(Smi::FromInt(length), isolate);
@@ -766,7 +755,6 @@ void Accessors::BoundFunctionNameGetter(
       Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSBoundFunction::GetName(isolate, function).ToHandle(&result)) {
-    isolate->OptionalRescheduleException(false);
     return;
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -791,7 +779,6 @@ void Accessors::WrappedFunctionLengthGetter(
 
   int length = 0;
   if (!JSWrappedFunction::GetLength(isolate, function).To(&length)) {
-    isolate->OptionalRescheduleException(false);
     return;
   }
   Handle<Object> result(Smi::FromInt(length), isolate);
@@ -814,7 +801,6 @@ void Accessors::ValueUnavailableGetter(
   HandleScope scope(isolate);
   isolate->Throw(*isolate->factory()->NewReferenceError(
       MessageTemplate::kAccessedUnavailableVariable, Utils::OpenHandle(*name)));
-  isolate->OptionalRescheduleException(false);
 }
 
 Handle<AccessorInfo> Accessors::MakeValueUnavailableInfo(Isolate* isolate) {
@@ -835,7 +821,6 @@ void Accessors::WrappedFunctionNameGetter(
       Handle<JSWrappedFunction>::cast(Utils::OpenHandle(*info.Holder()));
   Handle<Object> result;
   if (!JSWrappedFunction::GetName(isolate, function).ToHandle(&result)) {
-    isolate->OptionalRescheduleException(false);
     return;
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
@@ -860,7 +845,6 @@ void Accessors::ErrorStackGetter(
     if (!ErrorUtils::GetFormattedStack(
              isolate, Handle<JSObject>::cast(maybe_error_object))
              .ToHandle(&formatted_stack)) {
-      isolate->OptionalRescheduleException(false);
       return;
     }
   }

@@ -33,7 +33,7 @@ class AgeTableTest : public testing::TestSupportingAllocationOnly {
     auto* page =
         NormalPage::TryCreate(*Heap::From(GetHeap())->page_backend(), *space);
     CHECK_NOT_NULL(page);
-    allocated_pages_.push_back({page, &BasePage::Destroy});
+    allocated_pages_.push_back({page, DestroyPage});
     return page;
   }
 
@@ -45,7 +45,7 @@ class AgeTableTest : public testing::TestSupportingAllocationOnly {
     auto* page = LargePage::TryCreate(*Heap::From(GetHeap())->page_backend(),
                                       *space, kObjectSize);
     CHECK_NOT_NULL(page);
-    allocated_pages_.push_back({page, &BasePage::Destroy});
+    allocated_pages_.push_back({page, DestroyPage});
     return page;
   }
 
@@ -74,6 +74,10 @@ class AgeTableTest : public testing::TestSupportingAllocationOnly {
   }
 
  private:
+  static void DestroyPage(BasePage* page) {
+    BasePage::Destroy(page, FreeMemoryHandling::kDoNotDiscard);
+  }
+
   std::vector<std::unique_ptr<BasePage, void (*)(BasePage*)>> allocated_pages_;
   AgeTable& age_table_;
 };

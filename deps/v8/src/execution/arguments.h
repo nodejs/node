@@ -70,7 +70,10 @@ class Arguments {
   V8_INLINE Handle<Object> atOrUndefined(Isolate* isolate, int index) const;
 
   V8_INLINE Address* address_of_arg_at(int index) const {
-    DCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
+    // Corruption of certain heap objects (see e.g. crbug.com/1507223) can lead
+    // to OOB arguments access, and therefore OOB stack access. This SBXCHECK
+    // defends against that.
+    SBXCHECK_LE(static_cast<uint32_t>(index), static_cast<uint32_t>(length_));
     uintptr_t offset = index * kSystemPointerSize;
     if (arguments_type == ArgumentsType::kJS) {
       offset = (length_ - index - 1) * kSystemPointerSize;

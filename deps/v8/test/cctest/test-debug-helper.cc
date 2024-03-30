@@ -427,23 +427,6 @@ TEST(GetObjectProperties) {
                   0, 1, i::kSmiTagSize + i::kSmiShiftSize + 4);
 }
 
-TEST(ListObjectClasses) {
-  CcTest::InitializeVM();
-
-  // The ListObjectClasses result will change as classes are added, removed, or
-  // renamed. Just check that a few expected classes are included in the list,
-  // and that there are no duplicates.
-  const d::ClassList* class_list = d::ListObjectClasses();
-  std::unordered_set<std::string> class_set;
-  for (size_t i = 0; i < class_list->num_class_names; ++i) {
-    CHECK_WITH_MSG(class_set.insert(class_list->class_names[i]).second,
-                   "there should be no duplicate entries");
-  }
-  CHECK_NE(class_set.find("v8::internal::HeapObject"), class_set.end());
-  CHECK_NE(class_set.find("v8::internal::String"), class_set.end());
-  CHECK_NE(class_set.find("v8::internal::JSRegExp"), class_set.end());
-}
-
 static void FrameIterationCheck(
     v8::Local<v8::String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
