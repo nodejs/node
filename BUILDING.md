@@ -559,11 +559,11 @@ export LDFLAGS="-fuse-ld=mold" # add to ~/.zshrc or other shell config file
 
 On Windows:
 
-Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you should
-notice that obj file will be bigger the normal one.
+Tips: follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
+should notice that obj file will be bigger the normal one.
 
-First, install ccache, assume ccache install to c:\ccache， copy c:\ccache\ccache.exe
-to c:\ccache\cl.exe
+First, install ccache, assume ccache install to c:\ccache, copy
+c:\ccache\ccache.exe to c:\ccache\cl.exe
 
 ```powershell
 set TrackFileAccess=false
