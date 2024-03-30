@@ -433,7 +433,7 @@ if defined dll (
   copy /Y node.def %TARGET_NAME%\Release\ > nul
   if errorlevel 1 echo Cannot copy node.def && goto package_error
 
-  python ..\tools\install.py install --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only --silent
+  python ..\tools\install.py install --root-dir .. --config-gypi-path %CD%\..\config.gypi --dest-dir %CD%\%TARGET_NAME% --prefix \ --headers-only
   if errorlevel 1 echo Cannot install headers && goto package_error
 )
 cd ..
