@@ -566,8 +566,6 @@ First, install ccache, assume ccache install to c:\ccache, copy
 c:\ccache\ccache.exe to c:\ccache\cl.exe
 
 ```powershell
-set TrackFileAccess=false
-set UseMultiToolTask=True
 set CLToolPath=c:\ccache\
 set ForceImportAfterCppProps=%CD%\tools\msvc\props_4_ccache.props
 # run vcbuild to build node, rerun should be fast even after out dir be deleted
