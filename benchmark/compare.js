@@ -1,6 +1,6 @@
 'use strict';
 
-const { spawn, fork } = require('child_process');
+const { spawn, fork } = require('node:child_process');
 const { inspect } = require('util');
 const path = require('path');
 const CLI = require('./_cli.js');
