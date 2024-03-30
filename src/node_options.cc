@@ -179,6 +179,9 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
     } else if (force_repl) {
       errors->push_back("either --watch or --interactive "
                         "can be used, not both");
+    } else if (test_runner_force_exit) {
+      errors->push_back("either --watch or --test-force-exit "
+                        "can be used, not both");
     } else if (!test_runner && (argv->size() < 1 || (*argv)[1].empty())) {
       errors->push_back("--watch requires specifying a file");
     }
@@ -351,6 +354,17 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "when ambiguous modules fail to evaluate because they contain "
             "ES module syntax, try again to evaluate them as ES modules",
             &EnvironmentOptions::detect_module,
+            kAllowedInEnvvar);
+  AddOption("--experimental-print-required-tla",
+            "Print pending top-level await. If --experimental-require-module "
+            "is true, evaluate asynchronous graphs loaded by `require()` but "
+            "do not run the microtasks, in order to to find and print "
+            "top-level await in the graph",
+            &EnvironmentOptions::print_required_tla,
+            kAllowedInEnvvar);
+  AddOption("--experimental-require-module",
+            "Allow loading explicit ES Modules in require().",
+            &EnvironmentOptions::require_module,
             kAllowedInEnvvar);
   AddOption("--diagnostic-dir",
             "set dir for all output files"
@@ -616,6 +630,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency);
+  AddOption("--test-force-exit",
+            "force test runner to exit upon completion",
+            &EnvironmentOptions::test_runner_force_exit);
   AddOption("--test-timeout",
             "specify test runner timeout",
             &EnvironmentOptions::test_runner_timeout);
@@ -784,6 +801,12 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--tls-max-v1.3",
             "set default TLS maximum to TLSv1.3 (default: TLSv1.3)",
             &EnvironmentOptions::tls_max_v1_3,
+            kAllowedInEnvvar);
+
+  AddOption("--report-exclude-network",
+            "exclude network interface diagnostics."
+            " (default: false)",
+            &EnvironmentOptions::report_exclude_network,
             kAllowedInEnvvar);
 }
 
@@ -1301,6 +1324,12 @@ void GetEmbedderOptions(const FunctionCallbackInfo<Value>& args) {
   if (ret->Set(context,
                FIXED_ONE_BYTE_STRING(env->isolate(), "noBrowserGlobals"),
                Boolean::New(isolate, env->no_browser_globals()))
+          .IsNothing())
+    return;
+
+  if (ret->Set(context,
+               FIXED_ONE_BYTE_STRING(env->isolate(), "hasEmbedderPreload"),
+               Boolean::New(isolate, env->embedder_preload() != nullptr))
           .IsNothing())
     return;
 

@@ -2372,7 +2372,9 @@ V8 startup snapshot even though Node.js isn't building one.
 ### `ERR_NOT_IN_SINGLE_EXECUTABLE_APPLICATION`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 The operation cannot be performed when it's not in a single-executable
@@ -2487,6 +2489,19 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_REQUIRE_ASYNC_MODULE"></a>
+
+### `ERR_REQUIRE_ASYNC_MODULE`
+
+> Stability: 1 - Experimental
+
+When trying to `require()` a [ES Module][] under `--experimental-require-module`,
+the module turns out to be asynchronous. That is, it contains top-level await.
+
+To see where the top-level await is, use
+`--experimental-print-required-tla` (this would execute the modules
+before looking for the top-level awaits).
+
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`
@@ -2494,6 +2509,9 @@ object.
 > Stability: 1 - Experimental
 
 An attempt was made to `require()` an [ES Module][].
+
+To enable `require()` for synchronous module graphs (without
+top-level `await`), use `--experimental-require-module`.
 
 <a id="ERR_SCRIPT_EXECUTION_INTERRUPTED"></a>
 
@@ -2529,7 +2547,9 @@ and HTTP/2 `Server` instances.
 ### `ERR_SINGLE_EXECUTABLE_APPLICATION_ASSET_NOT_FOUND`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 A key was passed to single executable application APIs to identify an asset,

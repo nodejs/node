@@ -20,6 +20,14 @@ const net = require('node:net');
 
 ## IPC support
 
+<!-- YAML
+changes:
+  - version: v20.8.0
+    pr-url: https://github.com/nodejs/node/pull/49667
+    description: Support binding to abstract Unix domain socket path like `\0abstract`.
+                 We can bind '\0' for Node.js `< v20.4.0`.
+-->
+
 The `node:net` module supports IPC with named pipes on Windows, and Unix domain
 sockets on other operating systems.
 
@@ -694,7 +702,9 @@ See [`net.createConnection()`][].
 ### Event: `'connectionAttempt'`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
 -->
 
 * `ip` {string} The IP which the socket is attempting to connect to.
@@ -707,7 +717,9 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 ### Event: `'connectionAttemptFailed'`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
 -->
 
 * `ip` {string} The IP which the socket attempted to connect to.
@@ -721,7 +733,9 @@ if the family autoselection algorithm is enabled in [`socket.connect(options)`][
 ### Event: `'connectionAttemptTimeout'`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
 -->
 
 * `ip` {string} The IP which the socket attempted to connect to.

@@ -228,7 +228,7 @@ project.</p>
 <p>Scopes have a many-to-one relationship with registries: one registry can
 host multiple scopes, but a scope only ever points to one registry.</p>
 <p>You can also associate a scope with a registry using <code>npm config</code>:</p>
-<pre><code class="language-bash">npm config set @myco:registry http://reg.example.com
+<pre><code class="language-bash">npm config set @myco:registry=http://reg.example.com
 </code></pre>
 <p>Once a scope is associated with a registry, any <code>npm install</code> for a package
 with that scope will request packages from that registry instead. Any

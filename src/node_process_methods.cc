@@ -41,6 +41,7 @@ using v8::ArrayBuffer;
 using v8::CFunction;
 using v8::Context;
 using v8::Float64Array;
+using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::HeapStatistics;
 using v8::Integer;
@@ -211,9 +212,12 @@ static void MemoryUsage(const FunctionCallbackInfo<Value>& args) {
 
 static void GetConstrainedMemory(const FunctionCallbackInfo<Value>& args) {
   uint64_t value = uv_get_constrained_memory();
-  if (value != 0) {
-    args.GetReturnValue().Set(static_cast<double>(value));
-  }
+  args.GetReturnValue().Set(static_cast<double>(value));
+}
+
+static void GetAvailableMemory(const FunctionCallbackInfo<Value>& args) {
+  uint64_t value = uv_get_available_memory();
+  args.GetReturnValue().Set(static_cast<double>(value));
 }
 
 void RawDebug(const FunctionCallbackInfo<Value>& args) {
@@ -619,6 +623,12 @@ void BindingData::Deserialize(Local<Context> context,
   CHECK_NOT_NULL(binding);
 }
 
+static void SetEmitWarningSync(const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsFunction());
+  Environment* env = Environment::GetCurrent(args);
+  env->set_process_emit_warning_sync(args[0].As<Function>());
+}
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                        Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
@@ -633,6 +643,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "umask", Umask);
   SetMethod(isolate, target, "memoryUsage", MemoryUsage);
   SetMethod(isolate, target, "constrainedMemory", GetConstrainedMemory);
+  SetMethod(isolate, target, "availableMemory", GetAvailableMemory);
   SetMethod(isolate, target, "rss", Rss);
   SetMethod(isolate, target, "cpuUsage", CPUUsage);
   SetMethod(isolate, target, "resourceUsage", ResourceUsage);
@@ -651,6 +662,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
 
   SetMethod(isolate, target, "loadEnvFile", LoadEnvFile);
+
+  SetMethod(isolate, target, "setEmitWarningSync", SetEmitWarningSync);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -674,6 +687,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RawDebug);
   registry->Register(MemoryUsage);
   registry->Register(GetConstrainedMemory);
+  registry->Register(GetAvailableMemory);
   registry->Register(Rss);
   registry->Register(CPUUsage);
   registry->Register(ResourceUsage);
@@ -690,6 +704,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(PatchProcessObject);
 
   registry->Register(LoadEnvFile);
+
+  registry->Register(SetEmitWarningSync);
 }
 
 }  // namespace process

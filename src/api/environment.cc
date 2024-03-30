@@ -538,25 +538,33 @@ NODE_EXTERN std::unique_ptr<InspectorParentHandle> GetInspectorParentHandle(
 #endif
 }
 
-MaybeLocal<Value> LoadEnvironment(
-    Environment* env,
-    StartExecutionCallback cb) {
+MaybeLocal<Value> LoadEnvironment(Environment* env,
+                                  StartExecutionCallback cb,
+                                  EmbedderPreloadCallback preload) {
   env->InitializeLibuv();
   env->InitializeDiagnostics();
+  if (preload) {
+    env->set_embedder_preload(std::move(preload));
+  }
 
   return StartExecution(env, cb);
 }
 
 MaybeLocal<Value> LoadEnvironment(Environment* env,
-                                  std::string_view main_script_source_utf8) {
-  CHECK_NOT_NULL(main_script_source_utf8.data());
+                                  std::string_view main_script_source_utf8,
+                                  EmbedderPreloadCallback preload) {
+  // It could be empty when it's used by SEA to load an empty script.
+  CHECK_IMPLIES(main_script_source_utf8.size() > 0,
+                main_script_source_utf8.data());
   return LoadEnvironment(
-      env, [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
+      env,
+      [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
         Local<Value> main_script =
             ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
-      });
+      },
+      std::move(preload));
 }
 
 Environment* GetCurrentEnvironment(Local<Context> context) {
@@ -802,6 +810,9 @@ Maybe<bool> InitializePrimordials(Local<Context> context) {
   // relatively cheap and all the scripts that we may want to run at
   // startup are always present in it.
   thread_local builtins::BuiltinLoader builtin_loader;
+  // Primordials can always be just eagerly compiled.
+  builtin_loader.SetEagerCompile();
+
   for (const char** module = context_files; *module != nullptr; module++) {
     Local<Value> arguments[] = {exports, primordials};
     if (builtin_loader

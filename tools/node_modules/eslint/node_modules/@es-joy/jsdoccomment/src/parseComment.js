@@ -141,17 +141,36 @@ const getTokenizers = ({
 };
 
 /**
- * Accepts a comment token and converts it into `comment-parser` AST.
- * @param {{value: string}} commentNode
+ * Accepts a comment token or complete comment string and converts it into
+ * `comment-parser` AST.
+ * @param {string | {value: string}} commentOrNode
  * @param {string} [indent] Whitespace
  * @returns {import('./index.js').JsdocBlockWithInline}
  */
-const parseComment = (commentNode, indent = '') => {
-  // Preserve JSDoc block start/end indentation.
-  const [block] = commentParser(`${indent}/*${commentNode.value}*/`, {
-    // @see https://github.com/yavorskiy/comment-parser/issues/21
-    tokenizers: getTokenizers()
-  });
+const parseComment = (commentOrNode, indent = '') => {
+  let block;
+
+  switch (typeof commentOrNode) {
+  case 'string':
+    // Preserve JSDoc block start/end indentation.
+    [block] = commentParser(`${indent}${commentOrNode}`, {
+      // @see https://github.com/yavorskiy/comment-parser/issues/21
+      tokenizers: getTokenizers()
+    });
+    break;
+
+  case 'object':
+    // Preserve JSDoc block start/end indentation.
+    [block] = commentParser(`${indent}/*${commentOrNode.value}*/`, {
+      // @see https://github.com/yavorskiy/comment-parser/issues/21
+      tokenizers: getTokenizers()
+    });
+    break;
+
+  default:
+    throw new TypeError(`'commentOrNode' is not a string or object.`);
+  }
+
   return parseInlineTags(block);
 };
 

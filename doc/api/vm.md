@@ -59,7 +59,8 @@ executed in specific contexts.
 added: v0.3.1
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -971,7 +972,8 @@ const vm = require('node:vm');
 added: v10.10.0
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1039,7 +1041,9 @@ function with the given `params`.
 ## `vm.constants`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * {Object}
@@ -1049,7 +1053,9 @@ Returns an object containing commonly used constants for VM operations.
 ### `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1067,7 +1073,8 @@ For detailed information, see
 added: v0.3.1
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                  `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1117,13 +1124,13 @@ changes:
     [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Object} contextified object.
 
-If given a `contextObject`, the `vm.createContext()` method will [prepare
-that object][contextified] so that it can be used in calls to
-[`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such scripts,
-the `contextObject` will be the global object, retaining all of its existing
-properties but also having the built-in objects and functions any standard
-[global object][] has. Outside of scripts run by the vm module, global variables
-will remain unchanged.
+If given a `contextObject`, the `vm.createContext()` method will [prepare that
+object][contextified] and return a reference to it so that it can be used in
+calls to [`vm.runInContext()`][] or [`script.runInContext()`][]. Inside such
+scripts, the `contextObject` will be the global object, retaining all of its
+existing properties but also having the built-in objects and functions any
+standard [global object][] has. Outside of scripts run by the vm module, global
+variables will remain unchanged.
 
 ```js
 const vm = require('node:vm');
@@ -1249,7 +1256,8 @@ vm.measureMemory({ mode: 'detailed', execution: 'eager' })
 added: v0.3.1
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1325,7 +1333,8 @@ console.log(contextObject);
 added: v0.3.1
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.
@@ -1427,7 +1436,8 @@ console.log(contextObject);
 added: v0.3.1
 changes:
   - version:
-    - REPLACEME
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51244
     description: Added support for
                 `vm.constants.USE_MAIN_CONTEXT_DEFAULT_LOADER`.

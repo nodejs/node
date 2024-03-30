@@ -3,8 +3,10 @@ import * as fixtures from '../common/fixtures.mjs';
 import { describe, it } from 'node:test';
 import { deepStrictEqual, match, strictEqual } from 'node:assert';
 
-describe('--experimental-default-type=module', { concurrency: true }, () => {
-  describe('should not affect the interpretation of files with unknown extensions', { concurrency: true }, () => {
+describe('--experimental-default-type=module', { concurrency: !process.env.TEST_PARALLEL }, () => {
+  describe('should not affect the interpretation of files with unknown extensions', {
+    concurrency: !process.env.TEST_PARALLEL,
+  }, () => {
     it('should error on an entry point with an unknown extension', async () => {
       const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
         '--experimental-default-type=module',

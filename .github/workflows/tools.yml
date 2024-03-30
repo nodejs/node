@@ -25,9 +25,10 @@ on:
           - eslint
           - github_reporter
           - googletest
+          - gyp-next
           - histogram
           - icu
-          - libuv
+          # - libuv
           - lint-md-dependencies
           - llhttp
           - minimatch
@@ -158,6 +159,14 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
+          - id: gyp-next
+            subsystem: tools
+            label: tools
+            run: |
+              ./tools/dep_updaters/update-gyp-next.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
           - id: histogram
             subsystem: deps
             label: dependencies
@@ -174,14 +183,17 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: libuv
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-libuv.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
+          # libuv update was disabled because of Feb 14, 2024 security releas
+          # modified the bundled version of libuv, we cannot automatically update
+          # libuv without potentially undoing those changes.
+          # - id: libuv
+          #   subsystem: deps
+          #   label: dependencies
+          #   run: |
+          #     ./tools/dep_updaters/update-libuv.sh > temp-output
+          #     cat temp-output
+          #     tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+          #     rm temp-output
           - id: lint-md-dependencies
             subsystem: tools
             label: tools

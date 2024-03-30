@@ -1664,6 +1664,24 @@ config("toolchain") {
       # of `this` in capture-by-value lambdas and preventing a build roll which
       # enables C++20 (see https://crbug.com/1374227).
       "-Wno-deprecated",
+
+      # Fix build with older versions of GCC
+      # Ported from v8 bazel: https://crrev.com/c/3368869
+      "-Wno-stringop-overflow",
+
+      # Fix a number of bogus errors with gcc12
+      # TODO(miladfarca): re-evaluate for future gcc upgrades
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111499
+      "-Wno-stringop-overread",
+
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104336
+      "-Wno-restrict",
+
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105523
+      "-Wno-array-bounds",
+
+      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108517
+      "-Wno-nonnull",
     ]
   }
 

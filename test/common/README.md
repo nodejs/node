@@ -70,11 +70,15 @@ gathering more information about test failures coming from child processes.
   * `stderr` [\<string>][<string>] The output from the child process to stderr.
   * `stdout` [\<string>][<string>] The output from the child process to stdout.
 
-### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions], expectations)`
+### `spawnSyncAndExitWithoutError(command[, args][, spawnOptions])`
 
 Similar to `expectSyncExit()` with the `status` expected to be 0 and
-`signal` expected to be `null`. Any other optional options are passed
-into `expectSyncExit()`.
+`signal` expected to be `null`.
+
+### `spawnSyncAndAssert(command[, args][, spawnOptions], expectations)`
+
+Similar to `spawnSyncAndExitWithoutError()`, but with an additional
+`expectations` parameter.
 
 ## Common Module API
 
@@ -1048,11 +1052,13 @@ Application functionality.
 Skip the rest of the tests if single executable applications are not supported
 in the current configuration.
 
-### `injectAndCodeSign(targetExecutable, resource)`
+### `generateSEA(targetExecutable, sourceExecutable, seaBlob, verifyWorkflow)`
 
-Uses Postect to inject the contents of the file at the path `resource` into
-the target executable file at the path `targetExecutable` and ultimately code
-sign the final binary.
+Copy `sourceExecutable` to `targetExecutable`, use postject to inject `seaBlob`
+into `targetExecutable` and sign it if necessary.
+
+If `verifyWorkflow` is false (default) and any of the steps fails,
+it skips the tests. Otherwise, an error is thrown.
 
 ## tick Module
 

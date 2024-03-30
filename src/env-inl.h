@@ -371,6 +371,10 @@ inline void Environment::set_exiting(bool value) {
   exit_info_[kExiting] = value ? 1 : 0;
 }
 
+inline bool Environment::exiting() const {
+  return exit_info_[kExiting] == 1;
+}
+
 inline ExitCode Environment::exit_code(const ExitCode default_code) const {
   return exit_info_[kHasExitCode] == 0
              ? default_code
@@ -430,12 +434,12 @@ inline builtins::BuiltinLoader* Environment::builtin_loader() {
   return &builtin_loader_;
 }
 
-inline const StartExecutionCallback& Environment::embedder_entry_point() const {
-  return embedder_entry_point_;
+inline const EmbedderPreloadCallback& Environment::embedder_preload() const {
+  return embedder_preload_;
 }
 
-inline void Environment::set_embedder_entry_point(StartExecutionCallback&& fn) {
-  embedder_entry_point_ = std::move(fn);
+inline void Environment::set_embedder_preload(EmbedderPreloadCallback fn) {
+  embedder_preload_ = std::move(fn);
 }
 
 inline double Environment::new_async_id() {

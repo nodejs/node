@@ -106,7 +106,9 @@ If this flag is passed, the behavior can still be set to not abort through
 ### `--allow-addons`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
 -->
 
 > Stability: 1.1 - Active development
@@ -367,7 +369,9 @@ Currently the support for run-time snapshot is experimental in that:
 ### `--build-snapshot-config`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
 -->
 
 > Stability: 1 - Experimental
@@ -545,7 +549,7 @@ For example, the following script will emit the
 [DEP0025 `require('node:sys')`][DEP0025 warning], but not any Experimental
 Warnings (such as
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature][]
-in <=v21) when executed with `node --disable-warning=ExperimentalWarnings`:
+in <=v21) when executed with `node --disable-warning=ExperimentalWarning`:
 
 ```mjs
 import sys from 'node:sys';
@@ -667,7 +671,9 @@ of `--enable-source-maps`.
 <!-- YAML
 added: v20.6.0
 changes:
-  - version: REPLACEME
+  - version:
+    - v21.7.0
+    - v20.12.0
     pr-url: https://github.com/nodejs/node/pull/51289
     description: Add support to multi-line values.
 -->
@@ -699,7 +705,7 @@ Any text after a `#` is treated as a comment:
 PORT=3000 # This is also a comment
 ```
 
-Values can start and end with the following quotes: `\`, `"` or `'`.
+Values can start and end with the following quotes: `` ` ``, `"` or `'`.
 They are omitted from the values.
 
 ```text
@@ -777,7 +783,7 @@ added:
   - v20.10.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.1 - Active development
 
 Node.js will inspect the source code of ambiguous input to determine whether it
 contains ES module syntax; if such syntax is detected, the input will be treated
@@ -792,9 +798,15 @@ Ambiguous input is defined as:
   `--experimental-default-type` are specified.
 
 ES module syntax is defined as syntax that would throw when evaluated as
-CommonJS. This includes `import` and `export` statements and `import.meta`
-references. It does _not_ include `import()` expressions, which are valid in
-CommonJS.
+CommonJS. This includes the following:
+
+* `import` statements (but _not_ `import()` expressions, which are valid in
+  CommonJS).
+* `export` statements.
+* `import.meta` references.
+* `await` at the top level of a module.
+* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
+  `exports`, `__dirname`, `__filename`).
 
 ### `--experimental-import-meta-resolve`
 
@@ -870,6 +882,18 @@ added: v11.8.0
 -->
 
 Use the specified file as a security policy.
+
+### `--experimental-require-module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Developement
+
+Supports loading a synchronous ES module graph in `require()`.
+
+See [Loading ECMAScript modules using `require()`][].
 
 ### `--experimental-sea-config`
 
@@ -1578,6 +1602,18 @@ changes:
 
 Identical to `-e` but prints the result.
 
+### `--experimental-print-required-tla`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+This flag is only useful when `--experimental-require-module` is enabled.
+
+If the ES module being `require()`'d contains top-level await, this flag
+allows Node.js to evaluate the module, try to locate the
+top-level awaits, and print their location to help users find them.
+
 ### `--prof`
 
 <!-- YAML
@@ -1747,6 +1783,15 @@ Enables report to be generated when the process exits due to an uncaught
 exception. Useful when inspecting the JavaScript stack in conjunction with
 native stack and other runtime environment data.
 
+### `--report-exclude-network`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Exclude `header.networkInterfaces` from the diagnostic report. By default
+this is not set and the network interfaces are included.
+
 ### `-r`, `--require module`
 
 <!-- YAML
@@ -1856,6 +1901,15 @@ added:
 
 The maximum number of test files that the test runner CLI will execute
 concurrently. The default value is `os.availableParallelism() - 1`.
+
+### `--test-force-exit`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Configures the test runner to exit the process once all known tests have
+finished executing even if the event loop would otherwise remain active.
 
 ### `--test-name-pattern`
 
@@ -2293,6 +2347,9 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52074
+    description: Watch mode is now stable.
   - version:
       - v19.2.0
       - v18.13.0
@@ -2300,7 +2357,7 @@ changes:
     description: Test runner now supports running in watch mode.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Starts Node.js in watch mode.
 When in watch mode, changes in the watched files cause the Node.js process to
@@ -2322,9 +2379,13 @@ node --watch index.js
 added:
   - v18.11.0
   - v16.19.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52074
+    description: Watch mode is now stable.
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Starts Node.js in watch mode and specifies what paths to watch.
 When in watch mode, changes in the watched paths cause the Node.js process to
@@ -2476,7 +2537,9 @@ NODE_OPTIONS='--require "./a.js"' node --require "./b.js"
 node --require "./a.js" --require "./b.js"
 ```
 
-Node.js options that are allowed are:
+Node.js options that are allowed are in the following list. If an option
+supports both --XX and --no-XX variants, they are both supported but only
+one is included in the list below.
 
 <!-- node-options-node start -->
 
@@ -2503,6 +2566,8 @@ Node.js options that are allowed are:
 * `--experimental-network-imports`
 * `--experimental-permission`
 * `--experimental-policy`
+* `--experimental-print-required-tla`
+* `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`
 * `--experimental-top-level-await`
@@ -2551,6 +2616,7 @@ Node.js options that are allowed are:
 * `--redirect-warnings`
 * `--report-compact`
 * `--report-dir`, `--report-directory`
+* `--report-exclude-network`
 * `--report-filename`
 * `--report-on-fatalerror`
 * `--report-on-signal`
@@ -2618,10 +2684,14 @@ V8 options that are allowed are:
 
 <!-- node-options-v8 end -->
 
+<!-- node-options-others start -->
+
 `--perf-basic-prof-only-functions`, `--perf-basic-prof`,
 `--perf-prof-unwinding-info`, and `--perf-prof` are only available on Linux.
 
 `--enable-etw-stack-walking` is only available on Windows.
+
+<!-- node-options-others end -->
 
 ### `NODE_PATH=path[:…]`
 
@@ -2915,6 +2985,32 @@ options are of interest only to V8 developers. Despite this, there is a small
 set of V8 options that are widely applicable to Node.js, and they are
 documented here:
 
+<!-- v8-options start -->
+
+### `--abort-on-uncaught-exception`
+
+### `--disallow-code-generation-from-strings`
+
+### `--enable-etw-stack-walking`
+
+### `--harmony-shadow-realm`
+
+### `--huge-max-old-generation-size`
+
+### `--jitless`
+
+### `--interpreted-frames-native-stack`
+
+### `--prof`
+
+### `--perf-basic-prof`
+
+### `--perf-basic-prof-only-functions`
+
+### `--perf-prof`
+
+### `--perf-prof-unwinding-info`
+
 ### `--max-old-space-size=SIZE` (in megabytes)
 
 Sets the max memory size of V8's old memory section. As memory
@@ -2953,6 +3049,19 @@ for MiB in 16 32 64 128; do
 done
 ```
 
+### `--security-revert`
+
+### `--stack-trace-limit=limit`
+
+The maximum number of stack frames to collect in an error's stack trace.
+Setting it to 0 disables stack trace collection. The default value is 10.
+
+```bash
+node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
+```
+
+<!-- v8-options end -->
+
 [#42511]: https://github.com/nodejs/node/issues/42511
 [Chrome DevTools Protocol]: https://chromedevtools.github.io/devtools-protocol/
 [CommonJS]: modules.md
@@ -2963,6 +3072,7 @@ done
 [ExperimentalWarning: `vm.measureMemory` is an experimental feature]: vm.md#vmmeasurememoryoptions
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
 [File System Permissions]: permissions.md#file-system-permissions
+[Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Module customization hooks: enabling]: module.md#enabling
 [Modules loaders]: packages.md#modules-loaders

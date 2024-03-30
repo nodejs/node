@@ -4,7 +4,7 @@ const rpj = require('read-package-json-fast')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const cacache = require('cacache')
-const promiseCallLimit = require('promise-call-limit')
+const { callLimit: promiseCallLimit } = require('promise-call-limit')
 const realpath = require('../../lib/realpath.js')
 const { resolve, dirname } = require('path')
 const treeCheck = require('../tree-check.js')
@@ -38,48 +38,63 @@ const resetDepFlags = require('../reset-dep-flags.js')
 // them with unit tests and reuse them across mixins
 const _updateAll = Symbol.for('updateAll')
 const _flagsSuspect = Symbol.for('flagsSuspect')
-const _workspaces = Symbol.for('workspaces')
 const _setWorkspaces = Symbol.for('setWorkspaces')
 const _updateNames = Symbol.for('updateNames')
 const _resolvedAdd = Symbol.for('resolvedAdd')
 const _usePackageLock = Symbol.for('usePackageLock')
 const _rpcache = Symbol.for('realpathCache')
 const _stcache = Symbol.for('statCache')
-const _includeWorkspaceRoot = Symbol.for('includeWorkspaceRoot')
-
-// exposed symbol for unit testing the placeDep method directly
-const _peerSetSource = Symbol.for('peerSetSource')
 
 // used by Reify mixin
-const _force = Symbol.for('force')
-const _global = Symbol.for('global')
-const _idealTreePrune = Symbol.for('idealTreePrune')
+const _addNodeToTrashList = Symbol.for('addNodeToTrashList')
 
 // Push items in, pop them sorted by depth and then path
+// Sorts physically shallower deps up to the front of the queue, because
+// they'll affect things deeper in, then alphabetical for consistency between
+// installs
 class DepsQueue {
+  // [{ sorted, items }] indexed by depth
   #deps = []
   #sorted = true
+  #minDepth = 0
+  #length = 0
 
   get length () {
-    return this.#deps.length
+    return this.#length
   }
 
   push (item) {
-    if (!this.#deps.includes(item)) {
-      this.#sorted = false
-      this.#deps.push(item)
+    if (!this.#deps[item.depth]) {
+      this.#length++
+      this.#deps[item.depth] = { sorted: true, items: [item] }
+      // no minDepth check needed, this branch is only reached when we are in
+      // the middle of a shallower depth and creating a new one
+      return
+    }
+    if (!this.#deps[item.depth].items.includes(item)) {
+      this.#length++
+      this.#deps[item.depth].sorted = false
+      this.#deps[item.depth].items.push(item)
+      if (item.depth < this.#minDepth) {
+        this.#minDepth = item.depth
+      }
     }
   }
 
   pop () {
-    if (!this.#sorted) {
-      // sort physically shallower deps up to the front of the queue, because
-      // they'll affect things deeper in, then alphabetical
-      this.#deps.sort((a, b) =>
-        (a.depth - b.depth) || localeCompare(a.path, b.path))
-      this.#sorted = true
+    let depth
+    while (!depth?.items.length) {
+      depth = this.#deps[this.#minDepth]
+      if (!depth?.items.length) {
+        this.#minDepth++
+      }
     }
-    return this.#deps.shift()
+    if (!depth.sorted) {
+      depth.items.sort((a, b) => localeCompare(a.path, b.path))
+      depth.sorted = true
+    }
+    this.#length--
+    return depth.items.shift()
   }
 }
 
@@ -95,6 +110,10 @@ module.exports = cls => class IdealTreeBuilder extends cls {
   #loadFailures = new Set()
   #manifests = new Map()
   #mutateTree = false
+  // a map of each module in a peer set to the thing that depended on
+  // that set of peers in the first place.  Use a WeakMap so that we
+  // don't hold onto references for nodes that are garbage collected.
+  #peerSetSource = new WeakMap()
   #preferDedupe = false
   #prune
   #strictPeerDeps
@@ -109,20 +128,16 @@ module.exports = cls => class IdealTreeBuilder extends cls {
 
     const {
       follow = false,
-      force = false,
-      global = false,
       installStrategy = 'hoisted',
       idealTree = null,
-      includeWorkspaceRoot = false,
       installLinks = false,
       legacyPeerDeps = false,
       packageLock = true,
       strictPeerDeps = false,
-      workspaces = [],
+      workspaces,
+      global,
     } = options
 
-    this[_workspaces] = workspaces || []
-    this[_force] = !!force
     this.#strictPeerDeps = !!strictPeerDeps
 
     this.idealTree = idealTree
@@ -130,24 +145,16 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     this.legacyPeerDeps = legacyPeerDeps
 
     this[_usePackageLock] = packageLock
-    this[_global] = !!global
     this.#installStrategy = global ? 'shallow' : installStrategy
     this.#follow = !!follow
 
-    if (this[_workspaces].length && this[_global]) {
+    if (workspaces?.length && global) {
       throw new Error('Cannot operate on workspaces in global mode')
     }
 
     this[_updateAll] = false
     this[_updateNames] = []
     this[_resolvedAdd] = []
-
-    // a map of each module in a peer set to the thing that depended on
-    // that set of peers in the first place.  Use a WeakMap so that we
-    // don't hold onto references for nodes that are garbage collected.
-    this[_peerSetSource] = new WeakMap()
-
-    this[_includeWorkspaceRoot] = includeWorkspaceRoot
   }
 
   get explicitRequests () {
@@ -174,7 +181,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
 
     process.emit('time', 'idealTree')
 
-    if (!options.add && !options.rm && !options.update && this[_global]) {
+    if (!options.add && !options.rm && !options.update && this.options.global) {
       throw new Error('global requires add, rm, or update option')
     }
 
@@ -210,7 +217,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     for (const node of this.idealTree.inventory.values()) {
       if (!node.optional) {
         try {
-          checkEngine(node.package, npmVersion, nodeVersion, this[_force])
+          checkEngine(node.package, npmVersion, nodeVersion, this.options.force)
         } catch (err) {
           if (engineStrict) {
             throw err
@@ -221,7 +228,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
             current: err.current,
           })
         }
-        checkPlatform(node.package, this[_force])
+        checkPlatform(node.package, this.options.force)
       }
     }
   }
@@ -273,7 +280,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
   async #initTree () {
     process.emit('time', 'idealTree:init')
     let root
-    if (this[_global]) {
+    if (this.options.global) {
       root = await this.#globalRootNode()
     } else {
       try {
@@ -291,7 +298,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       // When updating all, we load the shrinkwrap, but don't bother
       // to build out the full virtual tree from it, since we'll be
       // reconstructing it anyway.
-      .then(root => this[_global] ? root
+      .then(root => this.options.global ? root
       : !this[_usePackageLock] || this[_updateAll]
         ? Shrinkwrap.reset({
           path: this.path,
@@ -307,7 +314,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       // Load on a new Arborist object, so the Nodes aren't the same,
       // or else it'll get super confusing when we change them!
       .then(async root => {
-        if ((!this[_updateAll] && !this[_global] && !root.meta.loadedFromDisk) || (this[_global] && this[_updateNames].length)) {
+        if ((!this[_updateAll] && !this.options.global && !root.meta.loadedFromDisk) || (this.options.global && this[_updateNames].length)) {
           await new this.constructor(this.options).loadActual({ root })
           const tree = root.target
           // even though we didn't load it from a package-lock.json FILE,
@@ -386,7 +393,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
       devOptional: false,
       peer: false,
       optional: false,
-      global: this[_global],
+      global: this.options.global,
       installLinks: this.installLinks,
       legacyPeerDeps: this.legacyPeerDeps,
       loadOverrides: true,
@@ -401,7 +408,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
         devOptional: false,
         peer: false,
         optional: false,
-        global: this[_global],
+        global: this.options.global,
         installLinks: this.installLinks,
         legacyPeerDeps: this.legacyPeerDeps,
         root,
@@ -416,11 +423,11 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     process.emit('time', 'idealTree:userRequests')
     const tree = this.idealTree.target
 
-    if (!this[_workspaces].length) {
+    if (!this.options.workspaces.length) {
       await this.#applyUserRequestsToNode(tree, options)
     } else {
-      const nodes = this.workspaceNodes(tree, this[_workspaces])
-      if (this[_includeWorkspaceRoot]) {
+      const nodes = this.workspaceNodes(tree, this.options.workspaces)
+      if (this.options.includeWorkspaceRoot) {
         nodes.push(tree)
       }
       const appliedRequests = nodes.map(
@@ -436,14 +443,14 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // If we have a list of package names to update, and we know it's
     // going to update them wherever they are, add any paths into those
     // named nodes to the buildIdealTree queue.
-    if (!this[_global] && this[_updateNames].length) {
+    if (!this.options.global && this[_updateNames].length) {
       this.#queueNamedUpdates()
     }
 
     // global updates only update the globalTop nodes, but we need to know
     // that they're there, and not reinstall the world unnecessarily.
     const globalExplicitUpdateNames = []
-    if (this[_global] && (this[_updateAll] || this[_updateNames].length)) {
+    if (this.options.global && (this[_updateAll] || this[_updateNames].length)) {
       const nm = resolve(this.path, 'node_modules')
       const paths = await readdirScoped(nm).catch(() => [])
       for (const p of paths) {
@@ -488,7 +495,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     // triggers a refresh of all edgesOut.  this has to be done BEFORE
     // adding the edges to explicitRequests, because the package setter
     // resets all edgesOut.
-    if (add && add.length || rm && rm.length || this[_global]) {
+    if (add && add.length || rm && rm.length || this.options.global) {
       tree.package = tree.package
     }
 
@@ -594,7 +601,7 @@ module.exports = cls => class IdealTreeBuilder extends cls {
     //
     // XXX: how to handle top nodes that aren't the root?  Maybe the report
     // just tells the user to cd into that directory and fix it?
-    if (this[_force] && this.auditReport && this.auditReport.topVulns.size) {
+    if (this.options.force && this.auditReport && this.auditReport.topVulns.size) {
       options.add = options.add || []
       options.rm = options.rm || []
       const nodesTouched = new Set()
@@ -878,7 +885,7 @@ This is a one-time fix-up, please be patient...
     // dep if allowed.
 
     const tasks = []
-    const peerSource = this[_peerSetSource].get(node) || node
+    const peerSource = this.#peerSetSource.get(node) || node
     for (const edge of this.#problemEdges(node)) {
       if (edge.peerConflicted) {
         continue
@@ -936,7 +943,7 @@ This is a one-time fix-up, please be patient...
 
         auditReport: this.auditReport,
         explicitRequest: this.#explicitRequests.has(edge),
-        force: this[_force],
+        force: this.options.force,
         installLinks: this.installLinks,
         installStrategy: this.#installStrategy,
         legacyPeerDeps: this.legacyPeerDeps,
@@ -1016,7 +1023,7 @@ This is a one-time fix-up, please be patient...
           // may well be an optional dep that has gone missing.  it'll
           // fail later anyway.
           for (const e of this.#problemEdges(placed)) {
-            promises.push(
+            promises.push(() =>
               this.#fetchManifest(npa.resolve(e.name, e.spec, fromPath(placed, e)))
                 .catch(er => null)
             )
@@ -1031,7 +1038,7 @@ This is a one-time fix-up, please be patient...
       }
     }
 
-    await Promise.all(promises)
+    await promiseCallLimit(promises)
     return this.#buildDepStep()
   }
 
@@ -1077,13 +1084,13 @@ This is a one-time fix-up, please be patient...
 
     // keep track of the thing that caused this node to be included.
     const src = parent.sourceReference
-    this[_peerSetSource].set(node, src)
+    this.#peerSetSource.set(node, src)
 
     // do not load the peers along with the set if this is a global top pkg
     // otherwise we'll be tempted to put peers as other top-level installed
     // things, potentially clobbering what's there already, which is not
     // what we want.  the missing edges will be picked up on the next pass.
-    if (this[_global] && edge.from.isProjectRoot) {
+    if (this.options.global && edge.from.isProjectRoot) {
       return node
     }
 
@@ -1208,8 +1215,12 @@ This is a one-time fix-up, please be patient...
     } else {
       const cleanRawSpec = cleanUrl(spec.rawSpec)
       log.silly('fetch manifest', spec.raw.replace(spec.rawSpec, cleanRawSpec))
-      const p = pacote.manifest(spec, options)
-        .then(mani => {
+      const o = {
+        ...options,
+        fullMetadata: true,
+      }
+      const p = pacote.manifest(spec, o)
+        .then(({ license, ...mani }) => {
           this.#manifests.set(spec.raw, mani)
           return mani
         })
@@ -1302,7 +1313,7 @@ This is a one-time fix-up, please be patient...
       const parentEdge = node.parent.edgesOut.get(edge.name)
       const { isProjectRoot, isWorkspace } = node.parent.sourceReference
       const isMine = isProjectRoot || isWorkspace
-      const conflictOK = this[_force] || !isMine && !this.#strictPeerDeps
+      const conflictOK = this.options.force || !isMine && !this.#strictPeerDeps
 
       if (!edge.to) {
         if (!parentEdge) {
@@ -1389,7 +1400,7 @@ This is a one-time fix-up, please be patient...
       currentEdge: currentEdge ? currentEdge.explain() : null,
       edge: edge.explain(),
       strictPeerDeps: this.#strictPeerDeps,
-      force: this[_force],
+      force: this.options.force,
     }
   }
 
@@ -1477,7 +1488,7 @@ This is a one-time fix-up, please be patient...
     // otherwise, don't bother.
     const needPrune = metaFromDisk && (mutateTree || flagsSuspect)
     if (this.#prune && needPrune) {
-      this[_idealTreePrune]()
+      this.#idealTreePrune()
       for (const node of this.idealTree.inventory.values()) {
         if (node.extraneous) {
           node.parent = null
@@ -1488,7 +1499,7 @@ This is a one-time fix-up, please be patient...
     process.emit('timeEnd', 'idealTree:fixDepFlags')
   }
 
-  [_idealTreePrune] () {
+  #idealTreePrune () {
     for (const node of this.idealTree.inventory.values()) {
       if (node.extraneous) {
         node.parent = null
@@ -1507,5 +1518,30 @@ This is a one-time fix-up, please be patient...
         node.parent = null
       }
     }
+  }
+
+  async prune (options = {}) {
+    // allow the user to set options on the ctor as well.
+    // XXX: deprecate separate method options objects.
+    options = { ...this.options, ...options }
+
+    await this.buildIdealTree(options)
+
+    this.#idealTreePrune()
+
+    if (!this.options.workspacesEnabled) {
+      const excludeNodes = this.excludeWorkspacesDependencySet(this.idealTree)
+      for (const node of this.idealTree.inventory.values()) {
+        if (
+          node.parent !== null
+          && !node.isProjectRoot
+          && !excludeNodes.has(node)
+        ) {
+          this[_addNodeToTrashList](node)
+        }
+      }
+    }
+
+    return this.reify(options)
   }
 }

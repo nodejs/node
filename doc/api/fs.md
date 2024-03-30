@@ -1069,6 +1069,38 @@ including subdirectories and files.
 When copying a directory to another directory, globs are not supported and
 behavior is similar to `cp dir1/ dir2/`.
 
+### `fsPromises.glob(pattern[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+* Returns: {AsyncIterator} An AsyncIterator that yields the paths of files
+  that match the pattern.
+
+```mjs
+import { glob } from 'node:fs/promises';
+
+for await (const entry of glob('**/*.js'))
+  console.log(entry);
+```
+
+```cjs
+const { glob } = require('node:fs/promises');
+
+(async () => {
+  for await (const entry of glob('**/*.js'))
+    console.log(entry);
+})();
+```
+
 ### `fsPromises.lchmod(path, mode)`
 
 <!-- YAML
@@ -3072,6 +3104,44 @@ changes:
 
 Change the file system timestamps of the object referenced by the supplied file
 descriptor. See [`fs.utimes()`][].
+
+### `fs.glob(pattern[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+
+* `callback` {Function}
+  * `err` {Error}
+
+* Retrieves the files matching the specified pattern.
+
+```mjs
+import { glob } from 'node:fs';
+
+glob('**/*.js', (err, matches) => {
+  if (err) throw err;
+  console.log(matches);
+});
+```
+
+```cjs
+const { glob } = require('node:fs');
+
+glob('**/*.js', (err, matches) => {
+  if (err) throw err;
+  console.log(matches);
+});
+```
 
 ### `fs.lchmod(path, mode, callback)`
 
@@ -5529,6 +5599,33 @@ changes:
 
 Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 
+### `fs.globSync(pattern[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `pattern` {string|string\[]}
+* `options` {Object}
+  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `exclude` {Function} Function to filter out files/directories. Return
+    `true` to exclude the item, `false` to include it. **Default:** `undefined`.
+* Returns: {string\[]} paths of files that match the pattern.
+
+```mjs
+import { globSync } from 'node:fs';
+
+console.log(globSync('**/*.js'));
+```
+
+```cjs
+const { globSync } = require('node:fs');
+
+console.log(globSync('**/*.js'));
+```
+
 ### `fs.lchmodSync(path, mode)`
 
 <!-- YAML
@@ -6646,6 +6743,8 @@ value is determined by the `options.encoding` passed to [`fs.readdir()`][] or
 <!-- YAML
 added:
   - v21.4.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 1 – Experimental
@@ -6660,7 +6759,10 @@ The path to the parent directory of the file this {fs.Dirent} object refers to.
 added:
   - v20.1.0
   - v18.17.0
-deprecated: v21.5.0
+deprecated:
+  - v21.5.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 0 - Deprecated: Use [`dirent.parentPath`][] instead.
@@ -6902,6 +7004,9 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/51879
+    description: Public constructor is deprecated.
   - version: v8.1.0
     pr-url: https://github.com/nodejs/node/pull/13173
     description: Added times as numbers.
@@ -6914,6 +7019,7 @@ their synchronous counterparts are of this type.
 If `bigint` in the `options` passed to those methods is true, the numeric values
 will be `bigint` instead of `number`, and the object will contain additional
 nanosecond-precision properties suffixed with `Ns`.
+`Stat` objects are not to be created directly using the `new` keyword.
 
 ```console
 Stats {

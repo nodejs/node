@@ -74,7 +74,7 @@ class MockInterceptor {
       if (opts.query) {
         opts.path = buildURL(opts.path, opts.query)
       } else {
-        // Matches https://github.com/nodejs/undici/blob/main/lib/fetch/index.js#L1811
+        // Matches https://github.com/nodejs/undici/blob/main/lib/web/fetch/index.js#L1811
         const parsedURL = new URL(opts.path, 'data://')
         opts.path = parsedURL.pathname + parsedURL.search
       }
@@ -106,7 +106,7 @@ class MockInterceptor {
     if (typeof data === 'undefined') {
       throw new InvalidArgumentError('data must be defined')
     }
-    if (typeof responseOptions !== 'object') {
+    if (typeof responseOptions !== 'object' || responseOptions === null) {
       throw new InvalidArgumentError('responseOptions must be an object')
     }
   }

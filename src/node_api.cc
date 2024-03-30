@@ -1118,6 +1118,8 @@ napi_status NAPI_CDECL napi_get_buffer_info(napi_env env,
   CHECK_ARG(env, value);
 
   v8::Local<v8::Value> buffer = v8impl::V8LocalValueFromJsValue(value);
+  RETURN_STATUS_IF_FALSE(
+      env, node::Buffer::HasInstance(buffer), napi_invalid_arg);
 
   if (data != nullptr) {
     *data = node::Buffer::Data(buffer);
@@ -1317,12 +1319,10 @@ napi_create_threadsafe_function(napi_env env,
                                 size_t max_queue_size,
                                 size_t initial_thread_count,
                                 void* thread_finalize_data,
-                                node_api_nogc_finalize nogc_thread_finalize_cb,
+                                napi_finalize thread_finalize_cb,
                                 void* context,
                                 napi_threadsafe_function_call_js call_js_cb,
                                 napi_threadsafe_function* result) {
-  napi_finalize thread_finalize_cb =
-      reinterpret_cast<napi_finalize>(nogc_thread_finalize_cb);
   CHECK_ENV_NOT_IN_GC(env);
   CHECK_ARG(env, async_resource_name);
   RETURN_STATUS_IF_FALSE(env, initial_thread_count > 0, napi_invalid_arg);

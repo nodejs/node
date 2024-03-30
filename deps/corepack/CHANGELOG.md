@@ -1,5 +1,72 @@
 # Changelog
 
+## [0.26.0](https://github.com/nodejs/corepack/compare/v0.25.2...v0.26.0) (2024-03-08)
+
+
+### Features
+
+* Pins the package manager as it's used for the first time ([#413](https://github.com/nodejs/corepack/issues/413)) ([8b6c6d4](https://github.com/nodejs/corepack/commit/8b6c6d4b2b7a9d61ae6c33c07e12354bd5afc2ba))
+* update package manager versions ([#415](https://github.com/nodejs/corepack/issues/415)) ([e8edba7](https://github.com/nodejs/corepack/commit/e8edba771bca6fb10c855c04eee8102ffa792d58))
+
+
+### Bug Fixes
+
+* group the download prompt together ([#391](https://github.com/nodejs/corepack/issues/391)) ([00506b2](https://github.com/nodejs/corepack/commit/00506b2a15dd87ec03240578077a35b7980e00c1))
+* ignore `EROFS` errors ([#421](https://github.com/nodejs/corepack/issues/421)) ([b7ec137](https://github.com/nodejs/corepack/commit/b7ec137210efd35c3461321b6434e3e13a87d42f))
+* improve support for `COREPACK_NPM_REGISTRY` with Yarn Berry ([#396](https://github.com/nodejs/corepack/issues/396)) ([47be27c](https://github.com/nodejs/corepack/commit/47be27c9db988e10f651d23b3f53bcf55318a894))
+* Windows malicious file analysis waiting problem ([#398](https://github.com/nodejs/corepack/issues/398)) ([295a1cd](https://github.com/nodejs/corepack/commit/295a1cdb9cbbbce8434e8d82b96eb63e57c46c1a))
+
+## [0.25.2](https://github.com/nodejs/corepack/compare/v0.25.1...v0.25.2) (2024-02-21)
+
+
+### Features
+
+* update package manager versions ([#362](https://github.com/nodejs/corepack/issues/362)) ([1423312](https://github.com/nodejs/corepack/commit/1423312a0eb7844dcdd43ae8a63cf12dcacedb2b))
+
+
+### Bug Fixes
+
+* do not hard fail if Corepack home folder cannot be created ([#382](https://github.com/nodejs/corepack/issues/382)) ([9834f57](https://github.com/nodejs/corepack/commit/9834f5790a99ce2c6c283321bb38b02e5561b7ca))
+* do not show download prompt when downloading JSON ([#383](https://github.com/nodejs/corepack/issues/383)) ([bc137a0](https://github.com/nodejs/corepack/commit/bc137a0073c3343ce2d552b6e13bfd2a48f08351))
+
+## [0.25.1](https://github.com/nodejs/corepack/compare/v0.25.0...v0.25.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* use valid semver range for `engines.node` ([#378](https://github.com/nodejs/corepack/issues/378)) ([f2185fe](https://github.com/nodejs/corepack/commit/f2185fefa145cc75fca082acc169f8aaef637ca2))
+
+## [0.25.0](https://github.com/nodejs/corepack/compare/v0.24.1...v0.25.0) (2024-02-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove `--all` flag ([#351](https://github.com/nodejs/corepack/issues/351))
+* remove Node.js 19.x from the range of supported versions ([#375](https://github.com/nodejs/corepack/issues/375))
+* use `fetch` ([#365](https://github.com/nodejs/corepack/issues/365))
+* remove old install folder migration ([#373](https://github.com/nodejs/corepack/issues/373))
+* prompt user before downloading software ([#360](https://github.com/nodejs/corepack/issues/360))
+
+### Features
+
+* add `corepack cache` command ([#363](https://github.com/nodejs/corepack/issues/363)) ([f442366](https://github.com/nodejs/corepack/commit/f442366c1c00d0c3f388b757c3797504f9a6b62e))
+* add support for URL in `"packageManager"` ([#359](https://github.com/nodejs/corepack/issues/359)) ([4a8ce6d](https://github.com/nodejs/corepack/commit/4a8ce6d42f081047a341f36067696346c9f3e1ea))
+* bump Known Good Release when downloading new version ([#364](https://github.com/nodejs/corepack/issues/364)) ([a56c13b](https://github.com/nodejs/corepack/commit/a56c13bd0b1c11e50361b8b4b6f8a53571e3981a))
+* prompt user before downloading software ([#360](https://github.com/nodejs/corepack/issues/360)) ([6b8d87f](https://github.com/nodejs/corepack/commit/6b8d87f2374f79855b24d659f2a2579d6b39f54f))
+* remove `--all` flag ([#351](https://github.com/nodejs/corepack/issues/351)) ([d9c70b9](https://github.com/nodejs/corepack/commit/d9c70b91f698787d693406626a73dc95cb18bc1d))
+* remove old install folder migration ([#373](https://github.com/nodejs/corepack/issues/373)) ([54e9510](https://github.com/nodejs/corepack/commit/54e9510cdaf6ed08c9dea1ed3999fa65116cb4c7))
+* use `fetch` ([#365](https://github.com/nodejs/corepack/issues/365)) ([fe6a307](https://github.com/nodejs/corepack/commit/fe6a3072f64efa810b90e4ee52e0b3ff14c63184))
+
+
+### Bug Fixes
+
+* remove unsafe remove of install folder ([#372](https://github.com/nodejs/corepack/issues/372)) ([65880ca](https://github.com/nodejs/corepack/commit/65880cafed5f4195f8e7656ca9af4cbcbb7682d3))
+
+
+### Miscellaneous Chores
+
+* remove Node.js 19.x from the range of supported versions ([#375](https://github.com/nodejs/corepack/issues/375)) ([9a1cb38](https://github.com/nodejs/corepack/commit/9a1cb385bba9ade8e9fbf5517c2bdff60295f9ed))
+
 ## [0.24.1](https://github.com/nodejs/corepack/compare/v0.24.0...v0.24.1) (2024-01-13)
 
 

@@ -3,8 +3,6 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#if !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
-
 #include <cinttypes>
 #include <optional>
 #include <string>
@@ -39,6 +37,8 @@ struct SeaResource {
   std::unordered_map<std::string_view, std::string_view> assets;
 
   bool use_snapshot() const;
+  bool use_code_cache() const;
+
   static constexpr size_t kHeaderSize = sizeof(kMagic) + sizeof(SeaFlags);
 };
 
@@ -51,8 +51,6 @@ node::ExitCode BuildSingleExecutableBlob(
     const std::vector<std::string>& exec_args);
 }  // namespace sea
 }  // namespace node
-
-#endif  // !defined(DISABLE_SINGLE_EXECUTABLE_APPLICATION)
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 

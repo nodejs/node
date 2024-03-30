@@ -1,3 +1,4 @@
+const { stripVTControlCharacters } = require('node:util')
 const { Minipass } = require('minipass')
 const columnify = require('columnify')
 
@@ -15,8 +16,8 @@ const columnify = require('columnify')
 // The returned stream will format this package data
 // into a byte stream of formatted, displayable output.
 
-module.exports = async (opts, clean) => {
-  return opts.json ? new JSONOutputStream() : new TextOutputStream(opts, clean)
+module.exports = async (opts) => {
+  return opts.json ? new JSONOutputStream() : new TextOutputStream(opts)
 }
 
 class JSONOutputStream extends Minipass {
@@ -40,13 +41,11 @@ class JSONOutputStream extends Minipass {
 }
 
 class TextOutputStream extends Minipass {
-  #clean
   #opts
   #line = 0
 
-  constructor (opts, clean) {
+  constructor (opts) {
     super()
-    this.#clean = clean
     this.#opts = opts
   }
 
@@ -56,17 +55,17 @@ class TextOutputStream extends Minipass {
 
   #prettify (data) {
     const pkg = {
-      author: data.maintainers.map((m) => `=${this.#clean(m.username)}`).join(' '),
+      author: data.maintainers.map((m) => `=${stripVTControlCharacters(m.username)}`).join(' '),
       date: 'prehistoric',
-      description: this.#clean(data.description ?? ''),
+      description: stripVTControlCharacters(data.description ?? ''),
       keywords: '',
-      name: this.#clean(data.name),
+      name: stripVTControlCharacters(data.name),
       version: data.version,
     }
     if (Array.isArray(data.keywords)) {
-      pkg.keywords = data.keywords.map((k) => this.#clean(k)).join(' ')
+      pkg.keywords = data.keywords.map((k) => stripVTControlCharacters(k)).join(' ')
     } else if (typeof data.keywords === 'string') {
-      pkg.keywords = this.#clean(data.keywords.replace(/[,\s]+/, ' '))
+      pkg.keywords = stripVTControlCharacters(data.keywords.replace(/[,\s]+/, ' '))
     }
     if (data.date) {
       pkg.date = data.date.toISOString().split('T')[0] // remove time

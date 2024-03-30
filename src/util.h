@@ -24,6 +24,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include "uv.h"
 #include "v8.h"
 
 #include "node.h"
@@ -697,6 +698,16 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
+// Convert a v8::Array into an std::vector using the callback-based API.
+// This can be faster than calling Array::Get() repeatedly when the array
+// has more than 2 entries.
+// Note that iterating over an array in C++ and performing operations on each
+// element in a C++ loop is still slower than iterating over the array in JS
+// and calling into native in the JS loop repeatedly on each element,
+// as of V8 11.9.
+inline v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Array> js_array,
+                                   std::vector<v8::Global<v8::Value>>* out);
 std::vector<std::string_view> SplitString(const std::string_view in,
                                           const std::string_view delim);
 
@@ -1017,6 +1028,9 @@ std::string DetermineSpecificErrorType(Environment* env,
                                        v8::Local<v8::Value> input);
 
 v8::Maybe<int32_t> GetValidatedFd(Environment* env, v8::Local<v8::Value> input);
+v8::Maybe<int> GetValidFileMode(Environment* env,
+                                v8::Local<v8::Value> input,
+                                uv_fs_type type);
 
 }  // namespace node
 

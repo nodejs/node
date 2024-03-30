@@ -15,7 +15,7 @@ changes:
     description: Added support for "useCodeCache".
 -->
 
-> Stability: 1 - Experimental: This feature is being designed and will change.
+> Stability: 1.1 - Active development
 
 <!-- source_link=src/node_sea.cc -->
 
@@ -279,7 +279,9 @@ from the JavaScript main script embedded into the executable.
 #### `sea.isSea()`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 * Returns: {boolean} Whether this script is running inside a single-executable
@@ -288,7 +290,9 @@ added: REPLACEME
 ### `sea.getAsset(key[, encoding])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the
@@ -306,7 +310,9 @@ An error is thrown when no matching asset can be found.
 ### `sea.getAssetAsBlob(key[, options])`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 Similar to [`sea.getAsset()`][], but returns the result in a [`Blob`][].
@@ -321,7 +327,9 @@ An error is thrown when no matching asset can be found.
 ### `sea.getRawAsset(key)`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 This method can be used to retrieve the assets configured to be bundled into the

@@ -229,8 +229,6 @@
         *
         *
         *
-        *
-        *
 
  subtest sync throw fails (*ms)
 
@@ -263,14 +261,36 @@
   
   {
     bar: 1,
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,
@@ -493,8 +513,6 @@
       *
       *
       *
-      *
-      *
 
 *
  timed out async test (*ms)
@@ -528,14 +546,36 @@
   
   {
     bar: 1,
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
     foo: 1
   }
   
   should loosely deep-equal
   
-  <ref *1> {
-    bar: 2,
-    c: [Circular *1]
+  {
+    baz: {
+      date: 1970-01-01T00:00:00.000Z,
+      null: null,
+      number: 1,
+      string: 'Hello',
+      undefined: undefined
+    },
+    boo: [
+      1
+    ],
+    circular: <ref *1> {
+      bar: 2,
+      c: [Circular *1]
+    }
   }
       * {
     generatedMessage: true,

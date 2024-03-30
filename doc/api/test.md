@@ -128,8 +128,8 @@ test('top level test', async (t) => {
 > between each subtest execution.
 
 In this example, `await` is used to ensure that both subtests have completed.
-This is necessary because parent tests do not wait for their subtests to
-complete, unlike tests created with the `describe` and `it` syntax.
+This is necessary because tests do not wait for their subtests to
+complete, unlike tests created within suites.
 Any subtests that are still outstanding when their parent finishes
 are cancelled and treated as failures. Any subtest failures cause the parent
 test to fail.
@@ -162,12 +162,42 @@ test('skip() method with message', (t) => {
 });
 ```
 
-## `describe`/`it` syntax
+## TODO tests
 
-Running tests can also be done using `describe` to declare a suite
-and `it` to declare a test.
-A suite is used to organize and group related tests together.
-`it` is a shorthand for [`test()`][].
+Individual tests can be marked as flaky or incomplete by passing the `todo`
+option to the test, or by calling the test context's `todo()` method, as shown
+in the following example. These tests represent a pending implementation or bug
+that needs to be fixed. TODO tests are executed, but are not treated as test
+failures, and therefore do not affect the process exit code. If a test is marked
+as both TODO and skipped, the TODO option is ignored.
+
+```js
+// The todo option is used, but no message is provided.
+test('todo option', { todo: true }, (t) => {
+  // This code is executed, but not treated as a failure.
+  throw new Error('this does not fail the test');
+});
+
+// The todo option is used, and a message is provided.
+test('todo option with message', { todo: 'this is a todo test' }, (t) => {
+  // This code is executed.
+});
+
+test('todo() method', (t) => {
+  t.todo();
+});
+
+test('todo() method with message', (t) => {
+  t.todo('this is a todo test and is not treated as a failure');
+  throw new Error('this does not fail the test');
+});
+```
+
+## `describe()` and `it()` aliases
+
+Suites and tests can also be written using the `describe()` and `it()`
+functions. [`describe()`][] is an alias for [`suite()`][], and [`it()`][] is an
+alias for [`test()`][].
 
 ```js
 describe('A thing', () => {
@@ -187,7 +217,7 @@ describe('A thing', () => {
 });
 ```
 
-`describe` and `it` are imported from the `node:test` module.
+`describe()` and `it()` are imported from the `node:test` module.
 
 ```mjs
 import { describe, it } from 'node:test';
@@ -203,7 +233,8 @@ If Node.js is started with the [`--test-only`][] command-line option, it is
 possible to skip all top level tests except for a selected subset by passing
 the `only` option to the tests that should be run. When a test with the `only`
 option set is run, all subtests are also run. The test context's `runOnly()`
-method can be used to implement the same behavior at the subtest level.
+method can be used to implement the same behavior at the subtest level. Tests
+that are not executed are omitted from the test runner output.
 
 ```js
 // Assume Node.js is run with the --test-only command-line option.
@@ -240,7 +271,7 @@ whose name matches the provided pattern. Test name patterns are interpreted as
 JavaScript regular expressions. The `--test-name-pattern` option can be
 specified multiple times in order to run nested tests. For each test that is
 executed, any corresponding test hooks, such as `beforeEach()`, are also
-run.
+run. Tests that are not executed are omitted from the test runner output.
 
 Given the following test file, starting Node.js with the
 `--test-name-pattern="test [1-3]"` option would cause the test runner to execute
@@ -266,6 +297,23 @@ Test name patterns can also be specified using regular expression literals. This
 allows regular expression flags to be used. In the previous example, starting
 Node.js with `--test-name-pattern="/test [4-5]/i"` would match `Test 4` and
 `Test 5` because the pattern is case-insensitive.
+
+To match a single test with a pattern, you can prefix it with all its ancestor
+test names separated by space, to ensure it is unique.
+For example, given the following test file:
+
+```js
+describe('test 1', (t) => {
+  it('some test');
+});
+
+describe('test 2', (t) => {
+  it('some test');
+});
+```
+
+Starting Node.js with `--test-name-pattern="test 1 some test"` would match
+only `some test` in `test 1`.
 
 Test name patterns do not change the set of files that the test runner executes.
 
@@ -334,7 +382,7 @@ The Node.js test runner can be invoked from the command line by passing the
 node --test
 ```
 
-By default Node.js will run all files matching these patterns:
+By default, Node.js will run all files matching these patterns:
 
 * `**/*.test.?(c|m)js`
 * `**/*-test.?(c|m)js`
@@ -346,9 +394,11 @@ By default Node.js will run all files matching these patterns:
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
 Glob patterns follow the behavior of [`glob(7)`][].
+The glob patterns should be enclosed in double quotes on the command line to
+prevent shell expansion, which can reduce portability across systems.
 
 ```bash
-node --test **/*.test.js **/*.spec.js
+node --test "**/*.test.js" "**/*.spec.js"
 ```
 
 Matching files are executed as test files.
@@ -1102,6 +1152,9 @@ added:
   - v18.9.0
   - v16.19.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52038
+    description: Added the `forceExit` option.
   - version:
     - v20.1.0
     - v18.17.0
@@ -1120,6 +1173,9 @@ changes:
     **Default:** `false`.
   * `files`: {Array} An array containing the list of files to run.
     **Default** matching files from [test runner execution model][].
+  * `forceExit`: {boolean} Configures the test runner to exit the process once
+    all known tests have finished executing even if the event loop would
+    otherwise remain active. **Default:** `false`.
   * `inspectPort` {number|Function} Sets inspector port of test child process.
     This can be a number, or a function that takes no arguments and returns a
     number. If a nullish value is provided, each process gets its own port,
@@ -1181,6 +1237,51 @@ run({ files: [path.resolve('./tests/test.js')] })
  .pipe(process.stdout);
 ```
 
+## `suite([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string} The name of the suite, which is displayed when reporting test
+  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
+  does not have a name.
+* `options` {Object} Optional configuration options for the suite.
+  This supports the same options as `test([name][, options][, fn])`.
+* `fn` {Function|AsyncFunction} The suite function declaring nested tests and
+  suites. The first argument to this function is a [`SuiteContext`][] object.
+  **Default:** A no-op function.
+* Returns: {Promise} Immediately fulfilled with `undefined`.
+
+The `suite()` function is imported from the `node:test` module.
+
+## `suite.skip([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for skipping a suite. This is the same as
+[`suite([name], { skip: true }[, fn])`][suite options].
+
+## `suite.todo([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a suite as `TODO`. This is the same as
+[`suite([name], { todo: true }[, fn])`][suite options].
+
+## `suite.only([name][, options][, fn])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Shorthand for marking a suite as `only`. This is the same as
+[`suite([name], { only: true }[, fn])`][suite options].
+
 ## `test([name][, options][, fn])`
 
 <!-- YAML
@@ -1234,7 +1335,7 @@ changes:
   the callback function is passed as the second argument. **Default:** A no-op
   function.
 * Returns: {Promise} Fulfilled with `undefined` once
-  the test completes, or immediately if the test runs within [`describe()`][].
+  the test completes, or immediately if the test runs within a suite.
 
 The `test()` function is the value imported from the `test` module. Each
 invocation of this function results in reporting the test to the {TestsStream}.
@@ -1244,7 +1345,7 @@ actions related to the current test. Examples include skipping the test, adding
 additional diagnostic information, or creating subtests.
 
 `test()` returns a `Promise` that fulfills once the test completes.
-if `test()` is called within a `describe()` block, it fulfills immediately.
+if `test()` is called within a suite, it fulfills immediately.
 The return value can usually be discarded for top level tests.
 However, the return value from subtests should be used to prevent the parent
 test from finishing first and cancelling the subtest
@@ -1285,29 +1386,18 @@ same as [`test([name], { only: true }[, fn])`][it options].
 
 ## `describe([name][, options][, fn])`
 
-* `name` {string} The name of the suite, which is displayed when reporting test
-  results. **Default:** The `name` property of `fn`, or `'<anonymous>'` if `fn`
-  does not have a name.
-* `options` {Object} Configuration options for the suite.
-  supports the same options as `test([name][, options][, fn])`.
-* `fn` {Function|AsyncFunction} The function under suite
-  declaring all subtests and subsuites.
-  The first argument to this function is a [`SuiteContext`][] object.
-  **Default:** A no-op function.
-* Returns: {Promise} Immediately fulfilled with `undefined`.
+Alias for [`suite()`][].
 
-The `describe()` function imported from the `node:test` module. Each
-invocation of this function results in the creation of a Subtest.
-After invocation of top level `describe` functions,
-all top level tests and suites will execute.
+The `describe()` function is imported from the `node:test` module.
 
 ## `describe.skip([name][, options][, fn])`
 
-Shorthand for skipping a suite, same as [`describe([name], { skip: true }[, fn])`][describe options].
+Shorthand for skipping a suite. This is the same as
+[`describe([name], { skip: true }[, fn])`][describe options].
 
 ## `describe.todo([name][, options][, fn])`
 
-Shorthand for marking a suite as `TODO`, same as
+Shorthand for marking a suite as `TODO`. This is the same as
 [`describe([name], { todo: true }[, fn])`][describe options].
 
 ## `describe.only([name][, options][, fn])`
@@ -1318,7 +1408,7 @@ added:
   - v18.15.0
 -->
 
-Shorthand for marking a suite as `only`, same as
+Shorthand for marking a suite as `only`. This is the same as
 [`describe([name], { only: true }[, fn])`][describe options].
 
 ## `it([name][, options][, fn])`
@@ -1335,7 +1425,7 @@ changes:
     description: Calling `it()` is now equivalent to calling `test()`.
 -->
 
-Shorthand for [`test()`][].
+Alias for [`test()`][].
 
 The `it()` function is imported from the `node:test` module.
 
@@ -1379,7 +1469,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running before running a suite.
+This function creates a hook that runs before executing a suite.
 
 ```js
 describe('tests', async () => {
@@ -1409,7 +1499,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running after  running a suite.
+This function creates a hook that runs after executing a suite.
 
 ```js
 describe('tests', async () => {
@@ -1442,8 +1532,7 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-before each subtest of the current suite.
+This function creates a hook that runs before each test in the current suite.
 
 ```js
 describe('tests', async () => {
@@ -1473,11 +1562,8 @@ added:
     If unspecified, subtests inherit this value from their parent.
     **Default:** `Infinity`.
 
-This function is used to create a hook running
-after each subtest of the current test.
-
-**Note:** The `afterEach` hook is guaranteed to run after every test,
-even if any of the tests fail.
+This function creates a hook that runs after each test in the current suite.
+The `afterEach()` hook is run even if the test fails.
 
 ```js
 describe('tests', async () => {
@@ -2438,6 +2524,9 @@ A successful call to [`run()`][] method will return a new {TestsStream}
 object, streaming a series of events representing the execution of the tests.
 `TestsStream` will emit events, in the order of the tests definition
 
+Some of the events are guaranteed to be emitted in the same order as the tests
+are defined, while others are emitted in the order that the tests execute.
+
 ### Event: `'test:coverage'`
 
 * `data` {Object}
@@ -2484,6 +2573,34 @@ object, streaming a series of events representing the execution of the tests.
 
 Emitted when code coverage is enabled and all tests have completed.
 
+### Event: `'test:complete'`
+
+* `data` {Object}
+  * `column` {number|undefined} The column number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `details` {Object} Additional execution metadata.
+    * `passed` {boolean} Whether the test passed or not.
+    * `duration_ms` {number} The duration of the test in milliseconds.
+    * `error` {Error|undefined} An error wrapping the error thrown by the test
+      if it did not pass.
+      * `cause` {Error} The actual error thrown by the test.
+    * `type` {string|undefined} The type of the test, used to denote whether
+      this is a suite.
+  * `file` {string|undefined} The path of the test file,
+    `undefined` if test was run through the REPL.
+  * `line` {number|undefined} The line number where the test is defined, or
+    `undefined` if the test was run through the REPL.
+  * `name` {string} The test name.
+  * `nesting` {number} The nesting level of the test.
+  * `testNumber` {number} The ordinal number of the test.
+  * `todo` {string|boolean|undefined} Present if [`context.todo`][] is called
+  * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
+
+Emitted when a test completes its execution.
+This event is not emitted in the same order as the tests are
+defined.
+The corresponding declaration ordered events are `'test:pass'` and `'test:fail'`.
+
 ### Event: `'test:dequeue'`
 
 * `data` {Object}
@@ -2497,6 +2614,8 @@ Emitted when code coverage is enabled and all tests have completed.
   * `nesting` {number} The nesting level of the test.
 
 Emitted when a test is dequeued, right before it is executed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined. The corresponding declaration ordered event is `'test:start'`.
 
 ### Event: `'test:diagnostic'`
 
@@ -2511,6 +2630,8 @@ Emitted when a test is dequeued, right before it is executed.
   * `nesting` {number} The nesting level of the test.
 
 Emitted when [`context.diagnostic`][] is called.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:enqueue'`
 
@@ -2548,6 +2669,9 @@ Emitted when a test is enqueued for execution.
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
 Emitted when a test fails.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:pass'`
 
@@ -2569,6 +2693,9 @@ Emitted when a test fails.
   * `skip` {string|boolean|undefined} Present if [`context.skip`][] is called
 
 Emitted when a test passes.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
+The corresponding execution ordered event is `'test:complete'`.
 
 ### Event: `'test:plan'`
 
@@ -2583,6 +2710,8 @@ Emitted when a test passes.
   * `count` {number} The number of subtests that have ran.
 
 Emitted when all subtests have completed for a given test.
+This event is guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:start'`
 
@@ -2599,6 +2728,7 @@ Emitted when all subtests have completed for a given test.
 Emitted when a test starts reporting its own and its subtests status.
 This event is guaranteed to be emitted in the same order as the tests are
 defined.
+The corresponding execution ordered event is `'test:dequeue'`.
 
 ### Event: `'test:stderr'`
 
@@ -2612,6 +2742,8 @@ defined.
 
 Emitted when a running test writes to `stderr`.
 This event is only emitted if `--test` flag is passed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:stdout'`
 
@@ -2625,6 +2757,8 @@ This event is only emitted if `--test` flag is passed.
 
 Emitted when a running test writes to `stdout`.
 This event is only emitted if `--test` flag is passed.
+This event is not guaranteed to be emitted in the same order as the tests are
+defined.
 
 ### Event: `'test:watch:drained'`
 
@@ -3004,10 +3138,13 @@ Can be used to abort test subtasks when the test has been aborted.
 [`context.todo`]: #contexttodomessage
 [`describe()`]: #describename-options-fn
 [`glob(7)`]: https://man7.org/linux/man-pages/man7/glob.7.html
+[`it()`]: #itname-options-fn
 [`run()`]: #runoptions
+[`suite()`]: #suitename-options-fn
 [`test()`]: #testname-options-fn
 [describe options]: #describename-options-fn
 [it options]: #testname-options-fn
 [stream.compose]: stream.md#streamcomposestreams
+[suite options]: #suitename-options-fn
 [test reporters]: #test-reporters
 [test runner execution model]: #test-runner-execution-model

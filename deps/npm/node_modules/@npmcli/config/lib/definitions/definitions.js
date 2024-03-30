@@ -665,6 +665,26 @@ define('engine-strict', {
   flatten,
 })
 
+define('expect-results', {
+  default: null,
+  type: [null, Boolean],
+  exclusive: ['expect-result-count'],
+  description: `
+    Tells npm whether or not to expect results from the command.
+    Can be either true (expect some results) or false (expect no results).
+  `,
+})
+
+define('expect-result-count', {
+  default: null,
+  type: [null, Number],
+  hint: '<count>',
+  exclusive: ['expect-results'],
+  description: `
+    Tells to expect a specific number of results from the command.
+  `,
+})
+
 define('fetch-retries', {
   default: 2,
   type: Number,
@@ -766,6 +786,8 @@ define('force', {
 
 define('foreground-scripts', {
   default: false,
+  defaultDescription: `\`false\` unless when using \`npm pack\` or \`npm publish\` where it
+  defaults to \`true\``,
   type: Boolean,
   description: `
     Run all build scripts (ie, \`preinstall\`, \`install\`, and

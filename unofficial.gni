@@ -37,8 +37,6 @@ template("node_gn_build") {
     }
     if (v8_enable_i18n_support) {
       defines += [ "NODE_HAVE_I18N_SUPPORT=1" ]
-    } else {
-      defines += [ "NODE_HAVE_I18N_SUPPORT=0" ]
     }
   }
 
@@ -84,10 +82,10 @@ template("node_gn_build") {
       "-Wno-unused-function",
     ]
 
-    if (target_cpu == "x86") {
+    if (current_cpu == "x86") {
       node_arch = "ia32"
     } else {
-      node_arch = target_cpu
+      node_arch = current_cpu
     }
     if (target_os == "win") {
       node_platform = "win32"
@@ -170,6 +168,10 @@ template("node_gn_build") {
     if (is_mac) {
       frameworks = [ "CoreFoundation.framework" ]
     }
+    if (is_posix) {
+      configs -= [ "//build/config/gcc:symbol_visibility_hidden" ]
+      configs += [ "//build/config/gcc:symbol_visibility_default" ]
+    }
 
     if (v8_enable_i18n_support) {
       deps += [ "//third_party/icu" ]
@@ -202,7 +204,10 @@ template("node_gn_build") {
     forward_variables_from(invoker, "*")
 
     sources = [ "src/node_main.cc" ]
-    deps = [ ":libnode" ]
+    deps = [
+      ":libnode",
+      "//build/win:default_exe_manifest",
+    ]
     if (node_use_node_snapshot) {
       sources += [ "$target_gen_dir/node_snapshot.cc" ]
       deps += [ ":run_node_mksnapshot" ]
@@ -216,6 +221,15 @@ template("node_gn_build") {
       sources += [ "src/node_snapshot_stub.cc" ]
     }
     output_name = "node"
+
+    if (is_apple) {
+      # Default optimization on apple adds "-dead_strip" to ldflags, which would
+      # strip exported V8 and NAPI symbols, has to remove it to make native
+      # modules work.
+      # There is almost no performance penalty since we are only removing
+      # optimization on the node_main.cc.
+      configs -= [ "//build/config/compiler:default_optimization" ]
+    }
   }
 
   if (node_use_node_snapshot) {
@@ -266,7 +280,10 @@ template("node_gn_build") {
     sources = [
       "tools/js2c.cc",
       "tools/executable_wrapper.h",
+      "src/embedded_data.cc",
+      "src/embedded_data.h",
     ]
+    include_dirs = [ "src" ]
   }
 
   action("run_node_js2c") {

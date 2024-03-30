@@ -3,7 +3,7 @@
 const common = require('../common');
 
 const {
-  injectAndCodeSign,
+  generateSEA,
   skipIfSingleExecutableIsNotSupported,
 } = require('../common/sea');
 
@@ -51,13 +51,11 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         ...process.env,
       },
       cwd: tmpdir.path
-    },
-    {});
+    });
 
   assert(existsSync(seaPrepBlob));
 
-  copyFileSync(process.execPath, outputFile);
-  injectAndCodeSign(outputFile, seaPrepBlob);
+  generateSEA(outputFile, process.execPath, seaPrepBlob);
 
   spawnSyncAndExitWithoutError(
     outputFile,
@@ -68,6 +66,5 @@ const outputFile = tmpdir.resolve(process.platform === 'win32' ? 'sea.exe' : 'se
         __TEST_PERSON_JPG: fixtures.path('person.jpg'),
       }
     },
-    { }
   );
 }

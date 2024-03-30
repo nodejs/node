@@ -17,17 +17,15 @@ function makeStatementFormatter(fn) {
     }
   };
 }
-const smart = makeStatementFormatter(body => {
+const smart = exports.smart = makeStatementFormatter(body => {
   if (body.length > 1) {
     return body;
   } else {
     return body[0];
   }
 });
-exports.smart = smart;
-const statements = makeStatementFormatter(body => body);
-exports.statements = statements;
-const statement = makeStatementFormatter(body => {
+const statements = exports.statements = makeStatementFormatter(body => body);
+const statement = exports.statement = makeStatementFormatter(body => {
   if (body.length === 0) {
     throw new Error("Found nothing to return.");
   }
@@ -36,8 +34,7 @@ const statement = makeStatementFormatter(body => {
   }
   return body[0];
 });
-exports.statement = statement;
-const expression = {
+const expression = exports.expression = {
   code: str => `(\n${str}\n)`,
   validate: ast => {
     if (ast.program.body.length > 1) {
@@ -55,12 +52,10 @@ const expression = {
     return stmt.expression;
   }
 };
-exports.expression = expression;
-const program = {
+const program = exports.program = {
   code: str => str,
   validate: () => {},
   unwrap: ast => ast.program
 };
-exports.program = program;
 
 //# sourceMappingURL=formatters.js.map

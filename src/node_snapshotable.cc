@@ -8,6 +8,7 @@
 #include "base_object-inl.h"
 #include "blob_serializer_deserializer-inl.h"
 #include "debug_utils-inl.h"
+#include "embedded_data.h"
 #include "encoding_binding.h"
 #include "env-inl.h"
 #include "json_parser.h"
@@ -40,7 +41,6 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::ScriptCompiler;
@@ -748,35 +748,6 @@ static std::string FormatSize(size_t size) {
   return buf;
 }
 
-std::string ToOctalString(const uint8_t ch) {
-  // We can print most printable characters directly. The exceptions are '\'
-  // (escape characters), " (would end the string), and ? (trigraphs). The
-  // latter may be overly conservative: we compile with C++17 which doesn't
-  // support trigraphs.
-  if (ch >= ' ' && ch <= '~' && ch != '\\' && ch != '"' && ch != '?') {
-    return std::string(1, static_cast<char>(ch));
-  }
-  // All other characters are blindly output as octal.
-  const char c0 = '0' + ((ch >> 6) & 7);
-  const char c1 = '0' + ((ch >> 3) & 7);
-  const char c2 = '0' + (ch & 7);
-  return std::string("\\") + c0 + c1 + c2;
-}
-
-std::vector<std::string> GetOctalTable() {
-  size_t size = 1 << 8;
-  std::vector<std::string> code_table(size);
-  for (size_t i = 0; i < size; ++i) {
-    code_table[i] = ToOctalString(static_cast<uint8_t>(i));
-  }
-  return code_table;
-}
-
-const std::string& GetOctalCode(uint8_t index) {
-  static std::vector<std::string> table = GetOctalTable();
-  return table[index];
-}
-
 template <typename T>
 void WriteByteVectorLiteral(std::ostream* ss,
                             const T* vec,
@@ -1069,10 +1040,12 @@ ExitCode BuildCodeCacheFromSnapshot(SnapshotData* out,
   Context::Scope context_scope(context);
   builtins::BuiltinLoader builtin_loader;
   // Regenerate all the code cache.
-  if (!builtin_loader.CompileAllBuiltins(context)) {
+  if (!builtin_loader.CompileAllBuiltinsAndCopyCodeCache(
+          context,
+          out->env_info.principal_realm.builtins,
+          &(out->code_cache))) {
     return ExitCode::kGenericUserError;
   }
-  builtin_loader.CopyCodeCache(&(out->code_cache));
   if (per_process::enabled_debug_list.enabled(DebugCategory::MKSNAPSHOT)) {
     for (const auto& item : out->code_cache) {
       std::string size_str = FormatSize(item.data.length);
@@ -1098,6 +1071,9 @@ ExitCode SnapshotBuilder::Generate(
   }
 
   if (!WithoutCodeCache(snapshot_config)) {
+    per_process::Debug(
+        DebugCategory::CODE_CACHE,
+        "---\nGenerate code cache to complement snapshot\n---\n");
     // Deserialize the snapshot to recompile code cache. We need to do this in
     // the second pass because V8 requires the code cache to be compiled with a
     // finalized read-only space.
@@ -1155,6 +1131,14 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
         env->ForEachRealm([](Realm* realm) { realm->PrintInfoForSnapshot(); });
         fprintf(stderr, "Environment = %p\n", env);
       }
+
+      // Clean up the states left by the inspector because V8 cannot serialize
+      // them. They don't need to be persisted and can be created from scratch
+      // after snapshot deserialization.
+      RunAtExit(env);
+#if HAVE_INSPECTOR
+      env->StopInspector();
+#endif
 
       // Serialize the native states
       out->isolate_data_info = setup->isolate_data()->Serialize(creator);
@@ -1434,23 +1418,15 @@ void SerializeSnapshotableObjects(Realm* realm,
   });
 }
 
-static void RunEmbedderEntryPoint(const FunctionCallbackInfo<Value>& args) {
+void RunEmbedderPreload(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  CHECK(env->embedder_preload());
+  CHECK_EQ(args.Length(), 2);
   Local<Value> process_obj = args[0];
   Local<Value> require_fn = args[1];
-  Local<Value> runcjs_fn = args[2];
   CHECK(process_obj->IsObject());
   CHECK(require_fn->IsFunction());
-  CHECK(runcjs_fn->IsFunction());
-
-  const node::StartExecutionCallback& callback = env->embedder_entry_point();
-  node::StartExecutionCallbackInfo info{process_obj.As<Object>(),
-                                        require_fn.As<Function>(),
-                                        runcjs_fn.As<Function>()};
-  MaybeLocal<Value> retval = callback(info);
-  if (!retval.IsEmpty()) {
-    args.GetReturnValue().Set(retval.ToLocalChecked());
-  }
+  env->embedder_preload()(env, process_obj, require_fn);
 }
 
 void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
@@ -1576,7 +1552,7 @@ void CreatePerContextProperties(Local<Object> target,
 void CreatePerIsolateProperties(IsolateData* isolate_data,
                                 Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(isolate, target, "runEmbedderEntryPoint", RunEmbedderEntryPoint);
+  SetMethod(isolate, target, "runEmbedderPreload", RunEmbedderPreload);
   SetMethod(isolate, target, "compileSerializeMain", CompileSerializeMain);
   SetMethod(isolate, target, "setSerializeCallback", SetSerializeCallback);
   SetMethod(isolate, target, "setDeserializeCallback", SetDeserializeCallback);
@@ -1589,7 +1565,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(RunEmbedderEntryPoint);
+  registry->Register(RunEmbedderPreload);
   registry->Register(CompileSerializeMain);
   registry->Register(SetSerializeCallback);
   registry->Register(SetDeserializeCallback);

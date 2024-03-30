@@ -26,6 +26,7 @@ class Hash final : public BaseObject {
 
   static void GetHashes(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetCachedAliases(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void OneShotDigest(const v8::FunctionCallbackInfo<v8::Value>& args);
 
  protected:
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);

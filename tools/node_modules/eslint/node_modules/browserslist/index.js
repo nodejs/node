@@ -893,7 +893,7 @@ var QUERIES = {
   },
   supports: {
     matches: ['supportType', 'feature'],
-    regexp: /^(?:(fully|partially) )?supports\s+([\w-]+)$/,
+    regexp: /^(?:(fully|partially)\s+)?supports\s+([\w-]+)$/,
     select: function (context, node) {
       env.loadFeature(browserslist.cache, node.feature)
       var withPartial = node.supportType !== 'fully'

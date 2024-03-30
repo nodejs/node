@@ -7,7 +7,7 @@ const { execPath } = require('node:process');
 const { describe, it } = require('node:test');
 
 
-describe('ESM: Package.json', { concurrency: true }, () => {
+describe('ESM: Package.json', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should throw on invalid pson', async () => {
     const entry = fixtures.path('/es-modules/import-invalid-pjson.mjs');
     const invalidJson = fixtures.path('/node_modules/invalid-pjson/package.json');

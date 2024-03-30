@@ -794,7 +794,10 @@ handle and/or callback scope inside a `napi_callback` is not necessary.
 #### `node_api_nogc_finalize`
 
 <!-- YAML
-added: v21.6.0
+added:
+  - v21.6.0
+  - v20.12.0
+  - v18.20.0
 -->
 
 > Stability: 1 - Experimental
@@ -3088,7 +3091,9 @@ The JavaScript `string` type is described in
 #### `node_api_create_property_key_utf16`
 
 <!-- YAML
-added: REPLACEME
+added:
+  - v21.7.0
+  - v20.12.0
 -->
 
 > Stability: 1 - Experimental
