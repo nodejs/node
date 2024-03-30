@@ -28,8 +28,15 @@ that doing so is not a breaking change.
 
 ## Placeholder executables
 
-Installing Node.js will not create "placeholder" executables: commands that
-refer to software that is not distributed with Node.js, but instead would be
-downloaded when the command is run. For example, Node.js will not create a
-`yarn` placeholder executable that will download Yarn when run or an `eslint`
-placeholder executable that will download ESLint when run.
+Installing Node.js will not create "placeholder" executables for package
+managers. A placeholder executable is a binary, symlink or script that has a
+name that refers to software that is not distributed with Node.js, but instead
+would be downloaded when the executable is run. For example, Node.js will not
+create `yarn` or `download_yarn` placeholder executables that will download Yarn
+when run. Node.js includes `npm` and `npx` executables, but these are not
+placeholders because the name of the executable refers to software that is
+contained within the Node.js distribution.
+
+Adding placeholder executables that refer to other types of software besides
+package managers will first require an affirmative vote of the Node.js Technical
+Steering Committee.
