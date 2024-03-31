@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base_object-inl.h"
+#include "cppgc_helpers.h"
 #include "node_context_data.h"
 #include "node_errors.h"
 
@@ -143,23 +144,21 @@ class ContextifyContext : public BaseObject {
   std::unique_ptr<v8::MicrotaskQueue> microtask_queue_;
 };
 
-class ContextifyScript : public BaseObject {
+class ContextifyScript final : CPPGC_MIXIN(ContextifyScript) {
  public:
-  enum InternalFields {
-    kUnboundScriptSlot = BaseObject::kInternalFieldCount,
-    kInternalFieldCount
-  };
-
-  SET_NO_MEMORY_INFO()
-  SET_MEMORY_INFO_NAME(ContextifyScript)
-  SET_SELF_SIZE(ContextifyScript)
+  SET_CPPGC_NAME(ContextifyScript)
+  void Trace(cppgc::Visitor* visitor) const final;
 
   ContextifyScript(Environment* env, v8::Local<v8::Object> object);
   ~ContextifyScript() override;
 
+  v8::Local<v8::UnboundScript> unbound_script() const;
+  void set_unbound_script(v8::Local<v8::UnboundScript>);
+
   static void CreatePerIsolateProperties(IsolateData* isolate_data,
                                          v8::Local<v8::ObjectTemplate> target);
   static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+  static ContextifyScript* New(Environment* env, v8::Local<v8::Object> object);
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static bool InstanceOf(Environment* env, const v8::Local<v8::Value>& args);
   static void CreateCachedData(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -174,7 +173,7 @@ class ContextifyScript : public BaseObject {
                           const v8::FunctionCallbackInfo<v8::Value>& args);
 
  private:
-  v8::Global<v8::UnboundScript> script_;
+  v8::TracedReference<v8::UnboundScript> script_;
 };
 
 v8::Maybe<bool> StoreCodeCacheResult(
