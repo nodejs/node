@@ -883,3 +883,37 @@ const char *ares_dns_rcode_tostr(ares_dns_rcode_t rcode)
 
   return "UNKNOWN";
 }
+
+/* Convert an rcode and ancount from a query reply into an ares_status_t
+ * value. Used internally by ares_search() and ares_query().
+ */
+ares_status_t ares_dns_query_reply_tostatus(ares_dns_rcode_t rcode,
+                                            size_t           ancount)
+{
+  ares_status_t status = ARES_SUCCESS;
+
+  switch (rcode) {
+    case ARES_RCODE_NOERROR:
+      status = (ancount > 0) ? ARES_SUCCESS : ARES_ENODATA;
+      break;
+    case ARES_RCODE_FORMERR:
+      status = ARES_EFORMERR;
+      break;
+    case ARES_RCODE_SERVFAIL:
+      status = ARES_ESERVFAIL;
+      break;
+    case ARES_RCODE_NXDOMAIN:
+      status = ARES_ENOTFOUND;
+      break;
+    case ARES_RCODE_NOTIMP:
+      status = ARES_ENOTIMP;
+      break;
+    case ARES_RCODE_REFUSED:
+      status = ARES_EREFUSED;
+      break;
+    default:
+      break;
+  }
+
+  return status;
+}

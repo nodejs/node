@@ -81,6 +81,7 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
 
   for (i = 0; i < ares_dns_record_query_cnt(dnsrec); i++) {
     const char         *name;
+    size_t              name_len;
     ares_dns_rec_type_t qtype;
     ares_dns_class_t    qclass;
 
@@ -114,7 +115,15 @@ static char *ares__qcache_calc_key(const ares_dns_record_t *dnsrec)
       goto fail;
     }
 
-    status = ares__buf_append_str(buf, name);
+    /* On queries, a '.' may be appended to the name to indicate an explicit
+     * name lookup without performing a search.  Strip this since its not part
+     * of a cached response. */
+    name_len = ares_strlen(name);
+    if (name_len && name[name_len - 1] == '.') {
+      name_len--;
+    }
+
+    status = ares__buf_append(buf, (const unsigned char *)name, name_len);
     if (status != ARES_SUCCESS) {
       goto fail;
     }
@@ -384,20 +393,24 @@ fail:
   return ARES_ENOMEM;
 }
 
-static ares_status_t ares__qcache_fetch(ares__qcache_t          *qcache,
-                                        const ares_dns_record_t *dnsrec,
-                                        const struct timeval    *now,
-                                        unsigned char **buf, size_t *buf_len)
+ares_status_t ares_qcache_fetch(ares_channel_t           *channel,
+                                const struct timeval     *now,
+                                const ares_dns_record_t  *dnsrec,
+                                const ares_dns_record_t **dnsrec_resp)
 {
   char                 *key = NULL;
   ares__qcache_entry_t *entry;
-  ares_status_t         status;
+  ares_status_t         status = ARES_SUCCESS;
 
-  if (qcache == NULL || dnsrec == NULL) {
+  if (channel == NULL || dnsrec == NULL || dnsrec_resp == NULL) {
     return ARES_EFORMERR;
   }
 
-  ares__qcache_expire(qcache, now);
+  if (channel->qcache == NULL) {
+    return ARES_ENOTFOUND;
+  }
+
+  ares__qcache_expire(channel->qcache, now);
 
   key = ares__qcache_calc_key(dnsrec);
   if (key == NULL) {
@@ -405,7 +418,7 @@ static ares_status_t ares__qcache_fetch(ares__qcache_t          *qcache,
     goto done;
   }
 
-  entry = ares__htable_strvp_get_direct(qcache->cache, key);
+  entry = ares__htable_strvp_get_direct(channel->qcache->cache, key);
   if (entry == NULL) {
     status = ARES_ENOTFOUND;
     goto done;
@@ -414,7 +427,7 @@ static ares_status_t ares__qcache_fetch(ares__qcache_t          *qcache,
   ares_dns_record_write_ttl_decrement(
     entry->dnsrec, (unsigned int)(now->tv_sec - entry->insert_ts));
 
-  status = ares_dns_write(entry->dnsrec, buf, buf_len);
+  *dnsrec_resp = entry->dnsrec;
 
 done:
   ares_free(key);
@@ -428,28 +441,4 @@ ares_status_t ares_qcache_insert(ares_channel_t       *channel,
 {
   return ares__qcache_insert(channel->qcache, dnsrec, query->qbuf, query->qlen,
                              now);
-}
-
-ares_status_t ares_qcache_fetch(ares_channel_t       *channel,
-                                const struct timeval *now,
-                                const unsigned char *qbuf, size_t qlen,
-                                unsigned char **abuf, size_t *alen)
-{
-  ares_status_t      status;
-  ares_dns_record_t *dnsrec = NULL;
-
-  if (channel->qcache == NULL) {
-    return ARES_ENOTFOUND;
-  }
-
-  status = ares_dns_parse(qbuf, qlen, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  status = ares__qcache_fetch(channel->qcache, dnsrec, now, abuf, alen);
-
-done:
-  ares_dns_record_destroy(dnsrec);
-  return status;
 }

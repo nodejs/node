@@ -212,6 +212,9 @@
 /* Define to 1 if you have the <netinet/in.h> header file. */
 #cmakedefine HAVE_NETINET_IN_H
 
+/* Define to 1 if you have the <netinet6/in6.h> header file. */
+#cmakedefine HAVE_NETINET6_IN6_H
+
 /* Define to 1 if you have the <netinet/tcp.h> header file. */
 #cmakedefine HAVE_NETINET_TCP_H
 
