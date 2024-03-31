@@ -152,7 +152,15 @@
       'type': '<(library)',
       'include_dirs': [ 'include' ],
       'direct_dependent_settings': {
-        'include_dirs': [ 'include' ]
+        'include_dirs': [ 'include' ],
+        'cflags': [ '-Wno-error=deprecated-declarations' ],
+        'conditions': [
+          [ 'OS=="mac"', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [ '-Wno-error=deprecated-declarations' ]
+            }
+          }]
+        ]
       },
       'sources': [
         '<@(cares_sources_common)',
