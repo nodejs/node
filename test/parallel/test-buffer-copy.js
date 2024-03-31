@@ -194,6 +194,13 @@ assert.strictEqual(b.copy(c, 0, 100, 10), 0);
 // When targetStart > targetLength, zero copied
 assert.strictEqual(b.copy(c, 512, 0, 10), 0);
 
+// When sourceEnd is NaN, buf length copied
+assert.strictEqual(b.copy(c, 0, 0, NaN), 512);
+// When sourceEnd < Number.MIN_SAFE_INTEGER, buf length copied
+assert.strictEqual(b.copy(c, 0, 0, Number.MIN_SAFE_INTEGER - 1), 512);
+// When sourceEnd > Number.MAX_SAFE_INTEGER, buf length copied
+assert.strictEqual(b.copy(c, 0, 0, Number.MAX_SAFE_INTEGER + 1), 512);
+
 // Test that the `target` can be a Uint8Array.
 {
   const d = new Uint8Array(c);
