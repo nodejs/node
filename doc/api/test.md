@@ -233,11 +233,11 @@ If Node.js is started with the [`--test-only`][] command-line option, it is
 possible to skip all tests except for a selected subset by passing
 the `only` option to the tests that should run. When a test with the `only`
 option is set, all subtests are also run.
-if a suite has the `only` option set, all tests within the suite are run,
+If a suite has the `only` option set, all tests within the suite are run,
 unless it has descendants with the `only` option set, in which case only those
 tests are run.
 
-When using [subtests][] without the `describe()` alias, it is required to mark
+When using [subtests][] within a `test()`/`it()`, it is required to mark
 all ancestor tests with the `only` option to run only a
 selected subset of tests.
 
@@ -247,7 +247,7 @@ that are not executed are omitted from the test runner output.
 
 ```js
 // Assume Node.js is run with the --test-only command-line option.
-// The 'only' option is set, so this test is run.
+// The suite's 'only' option is set, so these tests are run.
 test('this test is run', { only: true }, async (t) => {
   // Within this test, all subtests are run by default.
   await t.test('running subtest');
