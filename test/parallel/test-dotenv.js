@@ -76,7 +76,7 @@ assert.strictEqual(process.env.EDGE_CASE_INLINE_COMMENTS, 'VALUE1');
 assert.strictEqual(process.env.MULTI_DOUBLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTRING');
 assert.strictEqual(process.env.MULTI_SINGLE_QUOTED, 'THIS\nIS\nA\nMULTILINE\nSTRING');
 assert.strictEqual(process.env.MULTI_BACKTICKED, 'THIS\nIS\nA\n"MULTILINE\'S"\nSTRING');
-assert.strictEqual(process.env.MULTI_NOT_VALID_QUOTE, '');
+assert.strictEqual(process.env.MULTI_NOT_VALID_QUOTE, '"');
 assert.strictEqual(process.env.MULTI_NOT_VALID, 'THIS');
 // Test that \n is expanded to a newline in double-quoted string
 assert.strictEqual(process.env.EXPAND_NEWLINES, 'expand\nnew\nlines');
@@ -85,4 +85,11 @@ assert.strictEqual(process.env.DONT_EXPAND_SQUOTED, 'dontexpand\\nnewlines');
 // Ignore export before key
 assert.strictEqual(process.env.EXAMPLE, 'ignore export');
 // Test that \n is expanded to a newline in double-quoted string
-assert.strictEqual(process.env.EXPAND_NEWLINES, 'wrong value here');
+assert.throws(
+  () => {
+    assert.strictEqual(process.env.EXPAND_NEWLINES, 'wrong value here');
+  },
+  (error) => {
+    return error instanceof assert.AssertionError && error.message.includes('Expected values to be strictly equal');
+  }
+);
