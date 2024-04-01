@@ -101,7 +101,7 @@ describe('describe only = undefined, with subtests', common.mustCall(() => {
   test('async subtest should not run', common.mustNotCall());
 }));
 
-describe('describe only = false, with subtests', { only: false }, common.mustCall(() => {
+describe('describe only = false, with subtests', { only: false }, common.mustNotCall(() => {
   test('async subtest should not run', common.mustNotCall());
 }));
 
@@ -110,5 +110,12 @@ describe.only('describe only = true, with nested subtests', common.mustCall(() =
   test('async subtest should run', common.mustCall());
   describe('nested describe', common.mustCall(() => {
     test('nested test should run', common.mustCall());
+  }));
+}));
+
+describe('describe only = false, with nested only subtests', { only: false }, common.mustNotCall(() => {
+  test('async subtest should not run', common.mustNotCall());
+  describe('nested describe', common.mustNotCall(() => {
+    test.only('nested test should run', common.mustNotCall());
   }));
 }));
