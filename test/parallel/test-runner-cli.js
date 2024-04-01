@@ -337,7 +337,8 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --require should only be applied to individual test processes, not the orchestrator
-  const args = ['--test', '--require', join(testFixtures, 'print_pid.js'), join(testFixtures, 'index.js')];
+  const args = ['--test', '--require', join(testFixtures, 'print_pid.js'),
+                join(testFixtures, 'index.js'), join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
@@ -349,7 +350,8 @@ const testFixtures = fixtures.path('test-runner');
 
 {
   // --import should only be applied to individual test processes, not the orchestrator
-  const args = ['--test', '--require', join(testFixtures, 'print_pid.js'), join(testFixtures, 'index.js')];
+  const args = ['--test', '--import', fixtures.fileURL('test-runner/print_pid.js'),
+                join(testFixtures, 'index.js'), join(testFixtures, 'default-behavior', 'index.test.js')];
   const child = spawnSync(process.execPath, args, { cwd: testFixtures });
 
   assert.strictEqual(child.status, 1);
