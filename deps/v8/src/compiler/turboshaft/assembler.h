@@ -3934,7 +3934,7 @@ class TSAssembler
     : public Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
                                     TSReducerBase>> {
  public:
-#ifdef _WIN32
+#if defined(_MSC_VER) && !defined(__clang__)
   explicit TSAssembler(Graph& input_graph, Graph& output_graph,
                        Zone* phase_zone)
       : Assembler(input_graph, output_graph, phase_zone) {}

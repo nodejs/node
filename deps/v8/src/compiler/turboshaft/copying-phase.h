@@ -193,7 +193,12 @@ class GraphVisitor : public Next {
     DCHECK(old_index.valid());
     OpIndex result = op_mapping_[old_index];
 
+#if defined(_MSC_VER) && !defined(__clang__)
     if (contains_variable_reducer_) {
+#else
+    if constexpr (reducer_list_contains<typename Next::ReducerList,
+                                        VariableReducer>::value) {
+#endif
       if (!result.valid()) {
         // {op_mapping} doesn't have a mapping for {old_index}. The assembler
         // should provide the mapping.
@@ -1309,7 +1314,12 @@ class GraphVisitor : public Next {
     DCHECK(Asm().input_graph().BelongsToThisGraph(old_index));
     DCHECK_IMPLIES(new_index.valid(),
                    Asm().output_graph().BelongsToThisGraph(new_index));
+#if defined(_MSC_VER) && !defined(__clang__)
     if (contains_variable_reducer_) {
+#else
+    if constexpr (reducer_list_contains<typename Next::ReducerList,
+                                        VariableReducer>::value) {
+#endif
       if (current_block_needs_variables_) {
         MaybeVariable var = GetVariableFor(old_index);
         if (!var.has_value()) {
