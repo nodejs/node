@@ -196,7 +196,7 @@ class OpProperties {
   }
 
   constexpr bool is_pure() const {
-    return (bitfield_ | kPureMask) == kPureValue;
+    return (bitfield_ & kPureMask) == kPureValue;
   }
   constexpr bool is_required_when_unused() const {
     return can_write() || non_memory_side_effects();
