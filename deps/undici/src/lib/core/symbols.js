@@ -57,5 +57,7 @@ module.exports = {
   kHTTP2BuildRequest: Symbol('http2 build request'),
   kHTTP1BuildRequest: Symbol('http1 build request'),
   kHTTP2CopyHeaders: Symbol('http2 copy headers'),
-  kHTTPConnVersion: Symbol('http connection version')
+  kHTTPConnVersion: Symbol('http connection version'),
+  kRetryHandlerDefaultRetry: Symbol('retry agent default retry'),
+  kConstruct: Symbol('constructable')
 }

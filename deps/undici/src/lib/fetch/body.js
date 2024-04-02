@@ -1,6 +1,6 @@
 'use strict'
 
-const Busboy = require('busboy')
+const Busboy = require('@fastify/busboy')
 const util = require('../core/util')
 const {
   ReadableStreamFrom,
@@ -386,10 +386,9 @@ function bodyMixinMethods (instance) {
         let busboy
 
         try {
-          busboy = Busboy({
+          busboy = new Busboy({
             headers,
-            preservePath: true,
-            defParamCharset: 'utf8'
+            preservePath: true
           })
         } catch (err) {
           throw new DOMException(`${err}`, 'AbortError')
@@ -398,8 +397,7 @@ function bodyMixinMethods (instance) {
         busboy.on('field', (name, value) => {
           responseFormData.append(name, value)
         })
-        busboy.on('file', (name, value, info) => {
-          const { filename, encoding, mimeType } = info
+        busboy.on('file', (name, value, filename, encoding, mimeType) => {
           const chunks = []
 
           if (encoding === 'base64' || encoding.toLowerCase() === 'base64') {

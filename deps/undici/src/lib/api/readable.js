@@ -16,6 +16,8 @@ const kBody = Symbol('kBody')
 const kAbort = Symbol('abort')
 const kContentType = Symbol('kContentType')
 
+const noop = () => {}
+
 module.exports = class BodyReadable extends Readable {
   constructor ({
     resume,
@@ -149,37 +151,50 @@ module.exports = class BodyReadable extends Readable {
     return this[kBody]
   }
 
-  async dump (opts) {
+  dump (opts) {
     let limit = opts && Number.isFinite(opts.limit) ? opts.limit : 262144
     const signal = opts && opts.signal
-    const abortFn = () => {
-      this.destroy()
-    }
-    let signalListenerCleanup
+
     if (signal) {
-      if (typeof signal !== 'object' || !('aborted' in signal)) {
-        throw new InvalidArgumentError('signal must be an AbortSignal')
-      }
-      util.throwIfAborted(signal)
-      signalListenerCleanup = util.addAbortListener(signal, abortFn)
-    }
-    try {
-      for await (const chunk of this) {
-        util.throwIfAborted(signal)
-        limit -= Buffer.byteLength(chunk)
-        if (limit < 0) {
-          return
+      try {
+        if (typeof signal !== 'object' || !('aborted' in signal)) {
+          throw new InvalidArgumentError('signal must be an AbortSignal')
         }
-      }
-    } catch {
-      util.throwIfAborted(signal)
-    } finally {
-      if (typeof signalListenerCleanup === 'function') {
-        signalListenerCleanup()
-      } else if (signalListenerCleanup) {
-        signalListenerCleanup[Symbol.dispose]()
+        util.throwIfAborted(signal)
+      } catch (err) {
+        return Promise.reject(err)
       }
     }
+
+    if (this.closed) {
+      return Promise.resolve(null)
+    }
+
+    return new Promise((resolve, reject) => {
+      const signalListenerCleanup = signal
+        ? util.addAbortListener(signal, () => {
+          this.destroy()
+        })
+        : noop
+
+      this
+        .on('close', function () {
+          signalListenerCleanup()
+          if (signal && signal.aborted) {
+            reject(signal.reason || Object.assign(new Error('The operation was aborted'), { name: 'AbortError' }))
+          } else {
+            resolve(null)
+          }
+        })
+        .on('error', noop)
+        .on('data', function (chunk) {
+          limit -= chunk.length
+          if (limit <= 0) {
+            this.destroy()
+          }
+        })
+        .resume()
+    })
   }
 }
 

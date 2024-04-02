@@ -10,7 +10,8 @@ const {
   isValidHTTPToken,
   sameOrigin,
   normalizeMethod,
-  makePolicyContainer
+  makePolicyContainer,
+  normalizeMethodRecord
 } = require('./util')
 const {
   forbiddenMethodsSet,
@@ -27,13 +28,12 @@ const { kHeaders, kSignal, kState, kGuard, kRealm } = require('./symbols')
 const { webidl } = require('./webidl')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
-const { kHeadersList } = require('../core/symbols')
+const { kHeadersList, kConstruct } = require('../core/symbols')
 const assert = require('assert')
 const { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require('events')
 
 let TransformStream = globalThis.TransformStream
 
-const kInit = Symbol('init')
 const kAbortController = Symbol('abortController')
 
 const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
@@ -44,7 +44,7 @@ const requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
 class Request {
   // https://fetch.spec.whatwg.org/#dom-request
   constructor (input, init = {}) {
-    if (input === kInit) {
+    if (input === kConstruct) {
       return
     }
 
@@ -183,8 +183,10 @@ class Request {
       urlList: [...request.urlList]
     })
 
+    const initHasKey = Object.keys(init).length !== 0
+
     // 13. If init is not empty, then:
-    if (Object.keys(init).length > 0) {
+    if (initHasKey) {
       // 1. If request’s mode is "navigate", then set it to "same-origin".
       if (request.mode === 'navigate') {
         request.mode = 'same-origin'
@@ -299,7 +301,7 @@ class Request {
     }
 
     // 23. If init["integrity"] exists, then set request’s integrity metadata to it.
-    if (init.integrity !== undefined && init.integrity != null) {
+    if (init.integrity != null) {
       request.integrity = String(init.integrity)
     }
 
@@ -315,16 +317,16 @@ class Request {
 
       // 2. If method is not a method or method is a forbidden method, then
       // throw a TypeError.
-      if (!isValidHTTPToken(init.method)) {
-        throw TypeError(`'${init.method}' is not a valid HTTP method.`)
+      if (!isValidHTTPToken(method)) {
+        throw new TypeError(`'${method}' is not a valid HTTP method.`)
       }
 
       if (forbiddenMethodsSet.has(method.toUpperCase())) {
-        throw TypeError(`'${init.method}' HTTP method is unsupported.`)
+        throw new TypeError(`'${method}' HTTP method is unsupported.`)
       }
 
       // 3. Normalize method.
-      method = normalizeMethod(init.method)
+      method = normalizeMethodRecord[method] ?? normalizeMethod(method)
 
       // 4. Set request’s method to method.
       request.method = method
@@ -395,7 +397,7 @@ class Request {
     // 30. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is request’s header list and guard is
     // "request".
-    this[kHeaders] = new Headers()
+    this[kHeaders] = new Headers(kConstruct)
     this[kHeaders][kHeadersList] = request.headersList
     this[kHeaders][kGuard] = 'request'
     this[kHeaders][kRealm] = this[kRealm]
@@ -415,25 +417,25 @@ class Request {
     }
 
     // 32. If init is not empty, then:
-    if (Object.keys(init).length !== 0) {
+    if (initHasKey) {
+      /** @type {HeadersList} */
+      const headersList = this[kHeaders][kHeadersList]
       // 1. Let headers be a copy of this’s headers and its associated header
       // list.
-      let headers = new Headers(this[kHeaders])
-
       // 2. If init["headers"] exists, then set headers to init["headers"].
-      if (init.headers !== undefined) {
-        headers = init.headers
-      }
+      const headers = init.headers !== undefined ? init.headers : new HeadersList(headersList)
 
       // 3. Empty this’s headers’s header list.
-      this[kHeaders][kHeadersList].clear()
+      headersList.clear()
 
       // 4. If headers is a Headers object, then for each header in its header
       // list, append header’s name/header’s value to this’s headers.
-      if (headers.constructor.name === 'Headers') {
+      if (headers instanceof HeadersList) {
         for (const [key, val] of headers) {
-          this[kHeaders].append(key, val)
+          headersList.append(key, val)
         }
+        // Note: Copy the `set-cookie` meta-data.
+        headersList.cookies = headers.cookies
       } else {
         // 5. Otherwise, fill this’s headers with headers.
         fillHeaders(this[kHeaders], headers)
@@ -722,10 +724,10 @@ class Request {
 
     // 3. Let clonedRequestObject be the result of creating a Request object,
     // given clonedRequest, this’s headers’s guard, and this’s relevant Realm.
-    const clonedRequestObject = new Request(kInit)
+    const clonedRequestObject = new Request(kConstruct)
     clonedRequestObject[kState] = clonedRequest
     clonedRequestObject[kRealm] = this[kRealm]
-    clonedRequestObject[kHeaders] = new Headers()
+    clonedRequestObject[kHeaders] = new Headers(kConstruct)
     clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList
     clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard]
     clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm]
