@@ -107,7 +107,6 @@
 
    this subtest should make its parent test fail
  subtest sync throw fail (*ms)
-
  sync throw non-error fail (*ms)
   Symbol(thrown symbol from sync throw non-error fail)
 
@@ -117,7 +116,6 @@
    level 1c (*ms)
    level 1d (*ms)
  level 0a (*ms)
-
  top level
    +long running (*ms)
     'test did not finish before its parent and was cancelled'
@@ -125,9 +123,7 @@
    +short running
      ++short running (*ms)
    +short running (*ms)
-
  top level (*ms)
-
  invalid subtest - pass but subtest fails (*ms)
  sync skip option (*ms) # SKIP
  sync skip option with message (*ms) # this is skipped
@@ -197,7 +193,6 @@
    'only' and 'runOnly' require the --test-only command-line option.
    running subtest 4 (*ms)
  only is set but not in only mode (*ms)
-
  'only' and 'runOnly' require the --test-only command-line option.
  custom inspect symbol fail (*ms)
   customized
@@ -231,7 +226,6 @@
         *
 
  subtest sync throw fails (*ms)
-
  timed out async test (*ms)
   'test timed out after *ms'
 
