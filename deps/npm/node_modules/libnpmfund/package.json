@@ -1,0 +1,64 @@
+{
+  "name": "libnpmfund",
+  "version": "5.0.5",
+  "main": "lib/index.js",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "description": "Programmatic API for npm fund",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmfund"
+  },
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "git",
+    "fund",
+    "gitfund"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.21.3",
+    "tap": "^16.3.8"
+  },
+  "dependencies": {
+    "@npmcli/arborist": "^7.2.1"
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.21.3",
+    "content": "../../scripts/template-oss/index.js"
+  },
+  "tap": {
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  }
+}

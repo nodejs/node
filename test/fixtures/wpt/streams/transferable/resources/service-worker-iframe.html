@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="/resources/testharness.js"></script>
+<script src="helpers.js"></script>
+<script>
+'use strict';
+
+setup({
+  explicit_done: true
+});
+
+function startTests() {
+  promise_test(() => {
+    const orig = createOriginalReadableStream();
+    const promise = checkTestResults(navigator.serviceWorker);
+    navigator.serviceWorker.controller.postMessage(orig, [orig]);
+    assert_true(orig.locked, 'the original stream should be locked');
+    return promise;
+  }, 'serviceWorker.controller.postMessage should be able to transfer a ' +
+               'ReadableStream');
+
+  promise_test(() => {
+    const promise = testMessageEventOrErrorMessage(navigator.serviceWorker);
+    navigator.serviceWorker.controller.postMessage('SEND');
+    return promise;
+  }, 'postMessage in a service worker should be able to transfer ReadableStream');
+
+  done();
+}
+
+// Delay running the tests until we get a message from the page telling us to.
+// This is to work around an issue where testharness.js doesn't detect
+// completion of the tests if they fail too early.
+onmessage = msg => {
+  if (msg.data === 'explicit trigger')
+    startTests();
+};
+
+</script>

@@ -1,0 +1,39 @@
+{
+  "compilerOptions": {
+    "outDir": "build/",
+    "allowJs": false,
+    "target": "es2018",
+    "module": "es2015",
+    "sourceMap": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "moduleResolution": "node",
+    "noUnusedLocals": true,
+    "noImplicitReturns": true,
+    "noImplicitThis": true,
+    "lib": ["dom", "es6", "dom.iterable", "scripthost", "es2018"]
+  },
+  "files": [
+    "src/util.ts",
+    "src/node.ts",
+    "src/edge.ts",
+    "src/graph.ts",
+    "src/node-label.ts",
+    "src/source-resolver.ts",
+    "src/selection.ts",
+    "src/selection-broker.ts",
+    "src/selection-handler.ts",
+    "src/constants.ts",
+    "src/view.ts",
+    "src/text-view.ts",
+    "src/code-view.ts",
+    "src/graph-layout.ts",
+    "src/graph-view.ts",
+    "src/schedule-view.ts",
+    "src/disassembly-view.ts",
+    "src/graphmultiview.ts",
+    "src/turbo-visualizer.ts",
+    "src/resizer.ts",
+    "src/info-view.ts"
+  ]
+}

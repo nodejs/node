@@ -1,0 +1,57 @@
+{
+  "name": "npm-profile",
+  "version": "9.0.0",
+  "description": "Library for updating an npmjs.com profile",
+  "keywords": [],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "dependencies": {
+    "npm-registry-fetch": "^16.0.0",
+    "proc-log": "^3.0.0"
+  },
+  "main": "./lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/npm-profile.git"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.18.0",
+    "nock": "^13.2.4",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "posttest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "check-coverage": true,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.18.0",
+    "ciVersions": [
+      "16.14.0",
+      "16.x",
+      "18.0.0",
+      "18.x"
+    ],
+    "publish": true
+  }
+}

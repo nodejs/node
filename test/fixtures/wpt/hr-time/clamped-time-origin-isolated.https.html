@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+<head>
+<script src="/resources/testharness.js"></script>
+<script src="/resources/testharnessreport.js"></script>
+<script src="resources/clamped-time-origin.js"></script>
+</head>
+<body>
+<script>
+// Isolated contexts should be clamped to 5 microseconds.
+run_test(/*isolated=*/true);
+</script>
+</body>
+</html>

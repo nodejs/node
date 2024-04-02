@@ -1,0 +1,159 @@
+.TH "NPM-UNINSTALL" "1" "February 2024" "" ""
+.SH "NAME"
+\fBnpm-uninstall\fR - Remove a package
+.SS "Synopsis"
+.P
+.RS 2
+.nf
+npm uninstall \[lB]<@scope>/\[rB]<pkg>...
+
+aliases: unlink, remove, rm, r, un
+.fi
+.RE
+.SS "Description"
+.P
+This uninstalls a package, completely removing everything npm installed on its behalf.
+.P
+It also removes the package from the \fBdependencies\fR, \fBdevDependencies\fR, \fBoptionalDependencies\fR, and \fBpeerDependencies\fR objects in your \fBpackage.json\fR.
+.P
+Further, if you have an \fBnpm-shrinkwrap.json\fR or \fBpackage-lock.json\fR, npm will update those files as well.
+.P
+\fB--no-save\fR will tell npm not to remove the package from your \fBpackage.json\fR, \fBnpm-shrinkwrap.json\fR, or \fBpackage-lock.json\fR files.
+.P
+\fB--save\fR or \fB-S\fR will tell npm to remove the package from your \fBpackage.json\fR, \fBnpm-shrinkwrap.json\fR, and \fBpackage-lock.json\fR files. This is the default, but you may need to use this if you have for instance \fBsave=false\fR in your \fBnpmrc\fR file
+.P
+In global mode (ie, with \fB-g\fR or \fB--global\fR appended to the command), it uninstalls the current package context as a global package. \fB--no-save\fR is ignored in this case.
+.P
+Scope is optional and follows the usual rules for npm help scope.
+.SS "Examples"
+.P
+.RS 2
+.nf
+npm uninstall sax
+.fi
+.RE
+.P
+\fBsax\fR will no longer be in your \fBpackage.json\fR, \fBnpm-shrinkwrap.json\fR, or \fBpackage-lock.json\fR files.
+.P
+.RS 2
+.nf
+npm uninstall lodash --no-save
+.fi
+.RE
+.P
+\fBlodash\fR will not be removed from your \fBpackage.json\fR, \fBnpm-shrinkwrap.json\fR, or \fBpackage-lock.json\fR files.
+.SS "Configuration"
+.SS "\fBsave\fR"
+.RS 0
+.IP \(bu 4
+Default: \fBtrue\fR unless when using \fBnpm update\fR where it defaults to \fBfalse\fR
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Save installed packages to a \fBpackage.json\fR file as dependencies.
+.P
+When used with the \fBnpm rm\fR command, removes the dependency from \fBpackage.json\fR.
+.P
+Will also prevent writing to \fBpackage-lock.json\fR if set to \fBfalse\fR.
+.SS "\fBglobal\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Operates in "global" mode, so that packages are installed into the \fBprefix\fR folder instead of the current working directory. See npm help folders for more on the differences in behavior.
+.RS 0
+.IP \(bu 4
+packages are installed into the \fB{prefix}/lib/node_modules\fR folder, instead of the current working directory.
+.IP \(bu 4
+bin files are linked to \fB{prefix}/bin\fR
+.IP \(bu 4
+man pages are linked to \fB{prefix}/share/man\fR
+.RE 0
+
+.SS "\fBworkspace\fR"
+.RS 0
+.IP \(bu 4
+Default:
+.IP \(bu 4
+Type: String (can be set multiple times)
+.RE 0
+
+.P
+Enable running a command in the context of the configured workspaces of the current project while filtering by running only the workspaces defined by this configuration option.
+.P
+Valid values for the \fBworkspace\fR config are either:
+.RS 0
+.IP \(bu 4
+Workspace names
+.IP \(bu 4
+Path to a workspace directory
+.IP \(bu 4
+Path to a parent workspace directory (will result in selecting all workspaces within that folder)
+.RE 0
+
+.P
+When set for the \fBnpm init\fR command, this may be set to the folder of a workspace which does not yet exist, to create the folder and set it up as a brand new workspace within the project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBworkspaces\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Set to true to run the command in the context of \fBall\fR configured workspaces.
+.P
+Explicitly setting this to false will cause commands like \fBinstall\fR to ignore workspaces altogether. When not set explicitly:
+.RS 0
+.IP \(bu 4
+Commands that operate on the \fBnode_modules\fR tree (install, update, etc.) will link workspaces into the \fBnode_modules\fR folder. - Commands that do other things (test, exec, publish, etc.) will operate on the root project, \fIunless\fR one or more workspaces are specified in the \fBworkspace\fR config.
+.RE 0
+
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinclude-workspace-root\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Include the workspace root when workspaces are enabled for a command.
+.P
+When false, specifying individual workspaces via the \fBworkspace\fR config, or all workspaces via the \fBworkspaces\fR flag, will cause npm to operate only on the specified workspaces, and not on the root project.
+.P
+This value is not exported to the environment for child processes.
+.SS "\fBinstall-links\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+When set file: protocol dependencies will be packed and installed as regular dependencies instead of creating a symlink. This option has no effect on workspaces.
+.SS "See Also"
+.RS 0
+.IP \(bu 4
+npm help prune
+.IP \(bu 4
+npm help install
+.IP \(bu 4
+npm help folders
+.IP \(bu 4
+npm help config
+.IP \(bu 4
+npm help npmrc
+.RE 0

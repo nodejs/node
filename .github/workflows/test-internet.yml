@@ -1,0 +1,55 @@
+name: Test internet
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: 5 0 * * *
+
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
+  push:
+    branches:
+      - main
+      - canary
+      - v[0-9]+.x-staging
+      - v[0-9]+.x
+    paths:
+      - test/internet/**
+      - internal/dns/**
+      - lib/dns.js
+      - lib/net.js
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  FLAKY_TESTS: keep_retrying
+
+permissions:
+  contents: read
+
+jobs:
+  test-internet:
+    if: github.repository == 'nodejs/node' || github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0
+        with:
+          persist-credentials: false
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1  # v4.7.0
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Environment Information
+        run: npx envinfo
+      - name: Build
+        run: make build-ci -j2 V=1 CONFIG_FLAGS="--error-on-warn"
+      - name: Test Internet
+        run: make test-internet -j2 V=1;

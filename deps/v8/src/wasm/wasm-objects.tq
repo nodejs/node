@@ -1,0 +1,203 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+@useParentTypeChecker
+type PodArrayOfWasmValueType extends ByteArray
+    constexpr 'PodArray<wasm::ValueType>';
+@useParentTypeChecker
+type ManagedWasmNativeModule extends Foreign
+    constexpr 'Managed<wasm::NativeModule>';
+
+extern class WasmInstanceObject extends JSObject;
+
+// Represents the context of a function that is defined through the JS or C
+// APIs. Corresponds to the WasmInstanceObject passed to a Wasm function
+// reference.
+// TODO(manoskouk): If V8_SANDBOXED_EXTERNAL_POINTERS, we cannot encode the
+// isolate_root as a sandboxed pointer, because that would require having access
+// to the isolate root in the first place.
+extern class WasmApiFunctionRef extends HeapObject {
+  isolate_root: RawPtr;
+  native_context: NativeContext;
+  callable: JSReceiver|Undefined;
+  suspender: WasmSuspenderObject|Undefined;
+}
+
+// This is the representation that is used internally by wasm to represent
+// function references.
+// The {foreign_address} field inherited from {Foreign} points to the call
+// target.
+extern class WasmInternalFunction extends Foreign {
+  // This is the "reference" value that must be passed along in the "instance"
+  // register when calling the given function. It is either the target instance
+  // (for wasm functions), or a WasmApiFunctionRef object (for functions defined
+  // through the JS or C APIs).
+  // For imported functions, this value equals the respective entry in
+  // the module's imported_function_refs array.
+  ref: WasmInstanceObject|WasmApiFunctionRef;
+  // The external (JS) representation of this function reference.
+  external: JSFunction|Undefined;
+  // This field is used when the call target is null.
+  @if(V8_EXTERNAL_CODE_SPACE) code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) code: Code;
+}
+
+extern class WasmFunctionData extends HeapObject {
+  // The wasm-internal representation of this function object.
+  internal: WasmInternalFunction;
+  // Used for calling this function from JavaScript.
+  @if(V8_EXTERNAL_CODE_SPACE) wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) wrapper_code: Code;
+}
+
+extern class WasmExportedFunctionData extends WasmFunctionData {
+  // This is the instance that exported the function (which in case of
+  // imported and re-exported functions is different from the instance
+  // where the function is defined -- for the latter see WasmFunctionData::ref).
+  instance: WasmInstanceObject;
+  function_index: Smi;
+  signature: Foreign;
+  wrapper_budget: Smi;
+  // The remaining fields are for fast calling from C++. The contract is
+  // that they are lazily populated, and either all will be present or none.
+  @if(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: CodeDataContainer;
+  @ifnot(V8_EXTERNAL_CODE_SPACE) c_wrapper_code: Code;
+  packed_args_size: Smi;
+  // Functions returned by suspender.returnPromiseOnSuspend() have this field
+  // set to the host suspender object.
+  suspender: WasmSuspenderObject|Undefined;
+}
+
+extern class WasmJSFunctionData extends WasmFunctionData {
+  serialized_return_count: Smi;
+  serialized_parameter_count: Smi;
+  serialized_signature: PodArrayOfWasmValueType;
+}
+
+extern class WasmCapiFunctionData extends WasmFunctionData {
+  embedder_data: Foreign;  // Managed<wasm::FuncData>
+  serialized_signature: PodArrayOfWasmValueType;
+}
+
+extern class WasmOnFulfilledData extends HeapObject {
+  suspender: WasmSuspenderObject;
+}
+
+extern class WasmIndirectFunctionTable extends Struct {
+  size: uint32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+  sig_ids: RawPtr;
+  targets: RawPtr;
+  managed_native_allocations: Foreign|Undefined;
+  refs: FixedArray;
+}
+
+extern class WasmContinuationObject extends Struct {
+  stack: Foreign;
+  jmpbuf: Foreign;  // Direct access to the stack's jump buffer.
+  parent: WasmContinuationObject|Undefined;
+}
+
+extern class WasmSuspenderObject extends JSObject {
+  continuation: WasmContinuationObject|Undefined;
+  parent: WasmSuspenderObject|Undefined;
+  resume: JSObject;
+  state: Smi;  // 0: Inactive, 1: Active, 2: Suspended.
+}
+
+extern class WasmExceptionTag extends Struct {
+  // Note that this index is only useful for debugging purposes and it is not
+  // unique across modules. The GC however does not allow objects without at
+  // least one field, hence this also serves as a padding field for now.
+  index: Smi;
+}
+
+extern class WasmModuleObject extends JSObject {
+  managed_native_module: ManagedWasmNativeModule;
+  export_wrappers: FixedArray;
+  script: Script;
+}
+
+extern class WasmTableObject extends JSObject {
+  // The instance in which this WasmTableObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Table).
+  // Because it might be undefined, we declare it as a HeapObject.
+  instance: WasmInstanceObject|Undefined;
+  // The entries array is at least as big as {current_length()}, but might be
+  // bigger to make future growth more efficient.
+  entries: FixedArray;
+  current_length: Smi;
+  maximum_length: Smi|HeapNumber|Undefined;
+  dispatch_tables: FixedArray;
+  raw_type: Smi;
+}
+
+extern class WasmMemoryObject extends JSObject {
+  array_buffer: JSArrayBuffer;
+  maximum_pages: Smi;
+  instances: WeakArrayList|Undefined;
+}
+
+extern class WasmGlobalObject extends JSObject {
+  // The instance in which this WasmGlobalObject is defined.
+  // This field is undefined if the global is defined outside any Wasm module,
+  // i.e., through the JS API (WebAssembly.Global).
+  // Because it might be undefined, we declare it as a HeapObject.
+  instance: WasmInstanceObject|Undefined;
+  untagged_buffer: JSArrayBuffer|Undefined;
+  tagged_buffer: FixedArray|Undefined;
+  offset: Smi;
+  raw_type: Smi;
+  // TODO(7748): If we encode mutability in raw_type, turn this into a boolean
+  // accessor.
+  is_mutable: Smi;
+}
+
+extern class WasmTagObject extends JSObject {
+  serialized_signature: PodArrayOfWasmValueType;
+  tag: HeapObject;
+}
+
+type WasmExportedFunction extends JSFunction;
+
+extern class AsmWasmData extends Struct {
+  managed_native_module: ManagedWasmNativeModule;
+  export_wrappers: FixedArray;
+  uses_bitset: HeapNumber;
+}
+
+extern class WasmTypeInfo extends Foreign {
+  supertypes: FixedArray;
+  subtypes: ArrayList;
+  // In bytes, used for struct allocation.
+  instance_size: Smi;
+  // We must make sure that the StructType/ArrayType, which is allocated in
+  // the WasmModule's "signature_zone", stays around as long as there are
+  // HeapObjects referring to it. Short term, we simply keep a reference to
+  // the instance, which in turn keeps the entire WasmModule alive.
+  // TODO(jkummerow): Possible optimization: manage the "signature_zone"'s
+  // lifetime separately by having WasmModule refer to it via std::shared_ptr,
+  // and introduce a new link from here to just that zone using a Managed<...>.
+  // Details: https://bit.ly/2UxD4hW
+  instance: WasmInstanceObject;
+}
+
+// WasmObject corresponds to data ref types which are WasmStruct and WasmArray.
+@abstract
+extern class WasmObject extends JSReceiver {
+}
+
+@highestInstanceTypeWithinParentClassRange
+extern class WasmStruct extends WasmObject {
+}
+
+@lowestInstanceTypeWithinParentClassRange
+extern class WasmArray extends WasmObject {
+  length: uint32;
+
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}

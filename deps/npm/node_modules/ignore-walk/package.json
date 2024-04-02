@@ -1,0 +1,63 @@
+{
+  "name": "ignore-walk",
+  "version": "6.0.4",
+  "description": "Nested/recursive `.gitignore`/`.npmignore` parsing and filtering.",
+  "main": "lib/index.js",
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.19.0",
+    "mutate-fs": "^2.1.1",
+    "tap": "^16.0.1"
+  },
+  "scripts": {
+    "test": "tap",
+    "posttest": "npm run lint",
+    "lint": "eslint \"**/*.js\"",
+    "lintfix": "npm run lint -- --fix",
+    "postlint": "template-oss-check",
+    "template-oss-apply": "template-oss-apply --force",
+    "test:windows-coverage": "npm pkg set tap.statements=99 --json && npm pkg set tap.branches=98 --json && npm pkg set tap.lines=99 --json",
+    "snap": "tap"
+  },
+  "keywords": [
+    "ignorefile",
+    "ignore",
+    "file",
+    ".gitignore",
+    ".npmignore",
+    "glob"
+  ],
+  "author": "GitHub Inc.",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/ignore-walk.git"
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "dependencies": {
+    "minimatch": "^9.0.0"
+  },
+  "tap": {
+    "test-env": "LC_ALL=sk",
+    "before": "test/00-setup.js",
+    "after": "test/zz-cleanup.js",
+    "timeout": 600,
+    "jobs": 1,
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.19.0",
+    "content": "scripts/template-oss",
+    "publish": "true"
+  }
+}

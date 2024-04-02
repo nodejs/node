@@ -1,0 +1,19 @@
+{
+  "percent-encoding.window.js": {
+    "skip": "TODO: port from .window.js"
+  },
+  "historical.any.js": {
+    "fail": {
+      "expected": [
+        "URL: no structured serialize/deserialize support",
+        "URLSearchParams: no structured serialize/deserialize support"
+      ]
+    }
+  },
+  "url-setters-a-area.window.js": {
+    "skip": "already tested in url-setters.any.js"
+  },
+  "javascript-urls.window.js": {
+    "skip": "requires document.body reference"
+  }
+}

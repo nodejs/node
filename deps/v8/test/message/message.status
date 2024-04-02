@@ -1,0 +1,97 @@
+# Copyright 2008 the V8 project authors. All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+[
+[ALWAYS, {
+  # We don't parse RegExps at scanning time, so we can't fail on octal
+  # escapes (we need to parse to distinguish octal escapes from valid
+  # back-references).
+  'strict-octal-regexp': [SKIP],
+
+  # Modules which are only meant to be imported from by other tests, not to be
+  # tested standalone.
+  'fail/modules-skip*': [SKIP],
+}],  # ALWAYS
+
+# Skip Liftoff tests on platforms that don't support Liftoff.
+['arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x', {
+  'wasm-trace-memory-liftoff': [SKIP],
+  'wasm-trace-liftoff': [SKIP],
+}], # arch != x64 and arch != ia32 and arch != arm64 and arch != arm and arch != s390x
+
+['variant == code_serializer', {
+  # Code serializer output is incompatible with all message tests
+  # because the same test is executed twice.
+  '*': [SKIP],
+}],  # variant == code_serializer
+
+['no_i18n == True', {
+  'fail/list-format*': [SKIP],
+}],  # no_i18n == True
+
+##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'mjsunit/fail/assert-promise-result-wasm-compile-fail': [SKIP],
+  'mjsunit/fail/assert-in-promise-fail-recursive': [FAIL],
+  'fail/wasm-*': [SKIP],
+  'wasm-*': [SKIP],
+  'asm-*': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+################################################################################
+['arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64', {
+  # Tests that require Simd enabled.
+  'wasm-trace-memory': [SKIP],
+}], # arch == mips64el or arch == mipsel or arch == riscv64 or arch == loong64
+
+##############################################################################
+['no_simd_hardware == True', {
+  'wasm-trace-memory': [SKIP],
+  'wasm-trace-memory-liftoff': [SKIP],
+}],  # no_simd_hardware == True
+
+################################################################################
+['third_party_heap', {
+  # Performs GC
+  'weakref-finalizationregistry-error': [SKIP],
+}], # third_party_heap
+
+##############################################################################
+['not (arch == x64 and mode == release)', {
+  # Only run these known slow tests on bots that we think to be reasonably
+  # fast.
+  'fail/map-grow-failed': [SKIP],
+  'fail/set-grow-failed': [SKIP],
+}],  # not (arch == x64 and mode == release)
+
+]

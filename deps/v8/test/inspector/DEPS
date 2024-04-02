@@ -1,0 +1,8 @@
+include_rules = [
+  "-src",
+  "+src/base",
+  "+src/flags/flags.h",
+  "+src/heap/read-only-heap.h",
+  "+src/inspector/test-interface.h",
+  "+src/utils",
+]

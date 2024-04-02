@@ -1,0 +1,4 @@
+*%(basename)s:8: SyntaxError: for-in loop variable declaration may not have an initializer.
+  for (var [x, y] = {} in {});
+                ^^^^^^
+SyntaxError: for-in loop variable declaration may not have an initializer.

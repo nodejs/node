@@ -1,0 +1,141 @@
+# Copyright 2014 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+[
+##############################################################################
+['system == macos and asan', {
+  # BUG(820416).
+  'BitsDeathTest*': [SKIP],
+  'LiveRangeUnitTest*': [SKIP],
+  'LoggingDeathTest*': [SKIP],
+  'LoggingTest.CompareClassTypes': [SKIP],
+  'LoggingTest.CompareWithDifferentSignedness': [SKIP],
+  'LoggingTest.CompareWithReferenceType': [SKIP],
+  'RandomNumberGenerator.NextSampleInvalidParam': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam1': [SKIP],
+  'RandomNumberGenerator.NextSampleSlowInvalidParam2': [SKIP],
+}],  # system == macos and asan
+
+['system == macos and arch == arm64 and not simulator_run', {
+  # Throwing C++ exceptions doesn't work; probably because the unittests
+  # binary is built with -fno-exceptions?
+  'LanguageServerJson.LexerError': [SKIP],
+  'LanguageServerJson.ParserError': [SKIP],
+  'Torque.DoubleUnderScorePrefixIllegalForIdentifiers': [SKIP],
+  'Torque.Enums': [SKIP],
+  'Torque.ImportNonExistentFile': [SKIP],
+
+  # Test uses fancy signal handling. Needs investigation.
+  'MemoryAllocationPermissionsTest.DoTest': [SKIP],
+
+  # Time tick resolution appears to be ~42 microseconds. Tests expect 1 us.
+  'TimeTicks.NowResolution': [FAIL],
+  'RuntimeCallStatsTest.BasicJavaScript': [SKIP],
+  'RuntimeCallStatsTest.FunctionLengthGetter': [SKIP],
+}],  # system == macos and arch == arm64 and not simulator_run
+
+##############################################################################
+# TODO(v8:7777): Change this once wasm is supported in jitless mode.
+['not has_webassembly or variant == jitless', {
+  'ValueSerializerTestWithSharedArrayBufferClone.RoundTripWebAssemblyMemory': [SKIP],
+  'ValueSerializerTestWithWasm.*': [SKIP],
+}],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['system == aix', {
+  # PASE does not support detecting physical memory size
+  'SysInfoTest.AmountOfPhysicalMemory': [SKIP],
+}],  # system == aix
+
+##############################################################################
+['arch == ppc64', {
+  # PPC Page size is too large for these tests.
+  'HeapStatisticsCollectorTest.BriefStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'HeapStatisticsCollectorTest.DetailedStatisticsWithDiscardingOnNormalPage': [SKIP],
+  'SweeperTest.DiscardingNormalPageMemory': [SKIP],
+}],  # arch == ppc64
+
+##############################################################################
+['system == windows and asan', {
+  # BUG(893437).
+  'Torque*': [SKIP],
+
+  # Hangs on asan.
+  'PageMemoryRegionDeathTest*': [SKIP],
+}],  # system == windows and asan
+
+['system == windows and arch == x64 and mode == release', {
+  # BUG(992783).
+  'Torque.ConditionalFields': [SKIP],
+  'Torque.UsingUnderscorePrefixedIdentifierError': [SKIP],
+}],  # system == windows and arch == x64 and mode == release
+
+['tsan == True', {
+  # https://crbug.com/v8/9380
+  # The test is broken and needs to be fixed to use separate isolates.
+  'BackingStoreTest.RacyGrowWasmMemoryInPlace': [SKIP],
+
+  # Tests that need to run sequentially (e.g. due to memory consumption).
+  'MachineOperatorReducerTest.Word32EqualWithShiftedMaskedValueAndConstant': [PASS, HEAVY],
+  'SequentialUnmapperTest.UnmapOnTeardown': [PASS, HEAVY],
+
+  #https://crbug.com/v8/12638
+  # Test seems super flaky, disabling for now
+  'SandboxTest.PartiallyReservedSandboxPageAllocation':[SKIP],
+}],  # tsan == True
+
+##############################################################################
+['not pointer_compression', {
+  # Tests are irrelevant without pointer compression
+  'DecompressionOptimizerTest.*': [SKIP],
+}],  # not pointer_compression
+
+##############################################################################
+['variant == stress_incremental_marking', {
+  # BUG(v8:11820): the test adjusts GC flags, which does not work
+  # if GC starts before the test.
+  'RuntimeCallStatsTest.GarbageCollection': [SKIP],
+}],  # variant == stress_incremental_marking
+
+################################################################################
+['variant == stress_snapshot', {
+  '*': [SKIP],  # only relevant for mjsunit tests.
+}],
+
+################################################################################
+['is_clang == False and arch == riscv64',{
+  'LoggingTest.SourceLocation':[SKIP]  # issue-174
+}],
+
+################################################################################
+['third_party_heap', {
+  # Tests on OptimizingCompileDispatcher
+  'OptimizingCompileDispatcherTest.NonBlockingFlush': [SKIP],
+  'OptimizingCompileDispatcherTest.Construct': [SKIP],
+  # Test V8 stock GC
+  'SpacesTest.CompactionSpaceMerge': [SKIP],
+  # Requires --concurrent_inlining / --finalize_streaming_on_background:
+  'LocalFactoryTest.AstConsString_CreatesConsString': [SKIP],
+  'LocalFactoryTest.AstRawString_IsInternalized': [SKIP],
+  'LocalFactoryTest.EagerFunction': [SKIP],
+  'LocalFactoryTest.EmptyScript': [SKIP],
+  'LocalFactoryTest.GCDuringPublish': [SKIP],
+  'LocalFactoryTest.ImplicitNameFunction': [SKIP],
+  'LocalFactoryTest.LazyFunction': [SKIP],
+  'LocalFactoryTest.OneByteInternalizedString_DuplicateIsDeduplicated': [SKIP],
+  'LocalFactoryTest.OneByteInternalizedString_IsAddedToStringTable': [SKIP],
+  # Requires write barriers
+  'SpacesTest.WriteBarrierFromHeapObject': [SKIP],
+  'SpacesTest.WriteBarrierInYoungGenerationToSpace': [SKIP],
+  'SpacesTest.WriteBarrierInYoungGenerationFromSpace': [SKIP],
+  # Requires a second isolate
+  'ValueSerializerTest.DecodeArrayBufferOOM': [SKIP],
+  # Performs GC
+  'APIExceptionTest.ExceptionMessageDoesNotKeepContextAlive': [SKIP],
+  'LocalHeapTest.GCEpilogue': [SKIP],
+  'UnifiedHeapDetachedTest.AllocationBeforeConfigureHeap': [SKIP],
+  'UnifiedHeapTest.FindingV8ToBlinkReference': [SKIP],
+}], # third_party_heap
+
+]

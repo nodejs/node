@@ -1,0 +1,129 @@
+=pod
+
+=head1 NAME
+
+BN_rand_ex, BN_rand, BN_priv_rand_ex, BN_priv_rand, BN_pseudo_rand,
+BN_rand_range_ex, BN_rand_range, BN_priv_rand_range_ex, BN_priv_rand_range,
+BN_pseudo_rand_range
+- generate pseudo-random number
+
+=head1 SYNOPSIS
+
+ #include <openssl/bn.h>
+
+ int BN_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                unsigned int strength, BN_CTX *ctx);
+ int BN_rand(BIGNUM *rnd, int bits, int top, int bottom);
+
+ int BN_priv_rand_ex(BIGNUM *rnd, int bits, int top, int bottom,
+                     unsigned int strength, BN_CTX *ctx);
+ int BN_priv_rand(BIGNUM *rnd, int bits, int top, int bottom);
+
+ int BN_rand_range_ex(BIGNUM *rnd, const BIGNUM *range, unsigned int strength,
+                      BN_CTX *ctx);
+ int BN_rand_range(BIGNUM *rnd, const BIGNUM *range);
+
+ int BN_priv_rand_range_ex(BIGNUM *rnd, const BIGNUM *range, unsigned int strength,
+                           BN_CTX *ctx);
+ int BN_priv_rand_range(BIGNUM *rnd, const BIGNUM *range);
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ int BN_pseudo_rand(BIGNUM *rnd, int bits, int top, int bottom);
+ int BN_pseudo_rand_range(BIGNUM *rnd, const BIGNUM *range);
+
+=head1 DESCRIPTION
+
+BN_rand_ex() generates a cryptographically strong pseudo-random
+number of I<bits> in length and security strength at least I<strength> bits
+using the random number generator for the library context associated with
+I<ctx>. The function stores the generated data in I<rnd>. The parameter I<ctx>
+may be NULL in which case the default library context is used.
+If I<bits> is less than zero, or too small to
+accommodate the requirements specified by the I<top> and I<bottom>
+parameters, an error is returned.
+The I<top> parameters specifies
+requirements on the most significant bit of the generated number.
+If it is B<BN_RAND_TOP_ANY>, there is no constraint.
+If it is B<BN_RAND_TOP_ONE>, the top bit must be one.
+If it is B<BN_RAND_TOP_TWO>, the two most significant bits of
+the number will be set to 1, so that the product of two such random
+numbers will always have 2*I<bits> length.
+If I<bottom> is B<BN_RAND_BOTTOM_ODD>, the number will be odd; if it
+is B<BN_RAND_BOTTOM_ANY> it can be odd or even.
+If I<bits> is 1 then I<top> cannot also be B<BN_RAND_TOP_TWO>.
+
+BN_rand() is the same as BN_rand_ex() except that the default library context
+is always used.
+
+BN_rand_range_ex() generates a cryptographically strong pseudo-random
+number I<rnd>, of security strength at least I<strength> bits,
+in the range 0 E<lt>= I<rnd> E<lt> I<range> using the random number
+generator for the library context associated with I<ctx>. The parameter I<ctx>
+may be NULL in which case the default library context is used.
+
+BN_rand_range() is the same as BN_rand_range_ex() except that the default
+library context is always used.
+
+BN_priv_rand_ex(), BN_priv_rand(), BN_priv_rand_rand_ex() and
+BN_priv_rand_range() have the same semantics as BN_rand_ex(), BN_rand(),
+BN_rand_range_ex() and BN_rand_range() respectively.  They are intended to be
+used for generating values that should remain private, and mirror the
+same difference between L<RAND_bytes(3)> and L<RAND_priv_bytes(3)>.
+
+=head1 NOTES
+
+Always check the error return value of these functions and do not take
+randomness for granted: an error occurs if the CSPRNG has not been
+seeded with enough randomness to ensure an unpredictable byte sequence.
+
+=head1 RETURN VALUES
+
+The functions return 1 on success, 0 on error.
+The error codes can be obtained by L<ERR_get_error(3)>.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>,
+L<RAND_add(3)>,
+L<RAND_bytes(3)>,
+L<RAND_priv_bytes(3)>,
+L<RAND(7)>,
+L<EVP_RAND(7)>
+
+=head1 HISTORY
+
+=over 2
+
+=item *
+
+Starting with OpenSSL release 1.1.0, BN_pseudo_rand() has been identical
+to BN_rand() and BN_pseudo_rand_range() has been identical to
+BN_rand_range().
+The BN_pseudo_rand() and BN_pseudo_rand_range() functions were
+deprecated in OpenSSL 3.0.
+
+=item *
+
+The BN_priv_rand() and BN_priv_rand_range() functions were added in
+OpenSSL 1.1.1.
+
+=item *
+
+The BN_rand_ex(), BN_priv_rand_ex(), BN_rand_range_ex() and
+BN_priv_rand_range_ex() functions were added in OpenSSL 3.0.
+
+=back
+
+=head1 COPYRIGHT
+
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

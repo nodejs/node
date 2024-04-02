@@ -1,0 +1,332 @@
+# Copyright 2013 the V8 project authors. All rights reserved.
+# Copyright (C) 2005, 2006, 2007, 2008, 2009 Apple Inc. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1.  Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+# 2.  Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY APPLE INC. AND ITS CONTRIBUTORS ``AS IS'' AND ANY
+# EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+# DISCLAIMED. IN NO EVENT SHALL APPLE INC. OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+# DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+# ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+This tests that if a variable is dead on OSR exit, it will at least contain a valid JS value.
+
+On success, you will see a series of "PASS" messages, followed by "TEST COMPLETE".
+
+
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](2); foo(firstArg, secondArg) is 1
+PASS array[1](3); foo(firstArg, secondArg) is 1
+PASS array[2](4, 5); foo(firstArg, secondArg) is 1
+PASS array[2](5, 6); foo(firstArg, secondArg) is 1
+PASS array[3](6, 7, 8); foo(firstArg, secondArg) is 1
+PASS array[3](7, 8, 9); foo(firstArg, secondArg) is 1
+PASS array[4](8, 9, 10, 11); foo(firstArg, secondArg) is 1
+PASS array[4](9, 10, 11, 12); foo(firstArg, secondArg) is 1
+PASS array[5](10, 11, 12, 13, 14); foo(firstArg, secondArg) is 1
+PASS array[5](11, 12, 13, 14, 15); foo(firstArg, secondArg) is 1
+PASS array[6](12, 13, 14, 15, 16, 17); foo(firstArg, secondArg) is 1
+PASS array[6](13, 14, 15, 16, 17, 18); foo(firstArg, secondArg) is 1
+PASS array[7](14, 15, 16, 17, 18, 19, 20); foo(firstArg, secondArg) is 1
+PASS array[7](15, 16, 17, 18, 19, 20, 21); foo(firstArg, secondArg) is 1
+PASS array[8](16, 17, 18, 19, 20, 21, 22, 23); foo(firstArg, secondArg) is 1
+PASS array[8](17, 18, 19, 20, 21, 22, 23, 24); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](20); foo(firstArg, secondArg) is 1
+PASS array[1](21); foo(firstArg, secondArg) is 1
+PASS array[2](22, 23); foo(firstArg, secondArg) is 1
+PASS array[2](23, 24); foo(firstArg, secondArg) is 1
+PASS array[3](24, 25, 26); foo(firstArg, secondArg) is 1
+PASS array[3](25, 26, 27); foo(firstArg, secondArg) is 1
+PASS array[4](26, 27, 28, 29); foo(firstArg, secondArg) is 1
+PASS array[4](27, 28, 29, 30); foo(firstArg, secondArg) is 1
+PASS array[5](28, 29, 30, 31, 32); foo(firstArg, secondArg) is 1
+PASS array[5](29, 30, 31, 32, 33); foo(firstArg, secondArg) is 1
+PASS array[6](30, 31, 32, 33, 34, 35); foo(firstArg, secondArg) is 1
+PASS array[6](31, 32, 33, 34, 35, 36); foo(firstArg, secondArg) is 1
+PASS array[7](32, 33, 34, 35, 36, 37, 38); foo(firstArg, secondArg) is 1
+PASS array[7](33, 34, 35, 36, 37, 38, 39); foo(firstArg, secondArg) is 1
+PASS array[8](34, 35, 36, 37, 38, 39, 40, 41); foo(firstArg, secondArg) is 1
+PASS array[8](35, 36, 37, 38, 39, 40, 41, 42); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](38); foo(firstArg, secondArg) is 1
+PASS array[1](39); foo(firstArg, secondArg) is 1
+PASS array[2](40, 41); foo(firstArg, secondArg) is 1
+PASS array[2](41, 42); foo(firstArg, secondArg) is 1
+PASS array[3](42, 43, 44); foo(firstArg, secondArg) is 1
+PASS array[3](43, 44, 45); foo(firstArg, secondArg) is 1
+PASS array[4](44, 45, 46, 47); foo(firstArg, secondArg) is 1
+PASS array[4](45, 46, 47, 48); foo(firstArg, secondArg) is 1
+PASS array[5](46, 47, 48, 49, 50); foo(firstArg, secondArg) is 1
+PASS array[5](47, 48, 49, 50, 51); foo(firstArg, secondArg) is 1
+PASS array[6](48, 49, 50, 51, 52, 53); foo(firstArg, secondArg) is 1
+PASS array[6](49, 50, 51, 52, 53, 54); foo(firstArg, secondArg) is 1
+PASS array[7](50, 51, 52, 53, 54, 55, 56); foo(firstArg, secondArg) is 1
+PASS array[7](51, 52, 53, 54, 55, 56, 57); foo(firstArg, secondArg) is 1
+PASS array[8](52, 53, 54, 55, 56, 57, 58, 59); foo(firstArg, secondArg) is 1
+PASS array[8](53, 54, 55, 56, 57, 58, 59, 60); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](56); foo(firstArg, secondArg) is 1
+PASS array[1](57); foo(firstArg, secondArg) is 1
+PASS array[2](58, 59); foo(firstArg, secondArg) is 1
+PASS array[2](59, 60); foo(firstArg, secondArg) is 1
+PASS array[3](60, 61, 62); foo(firstArg, secondArg) is 1
+PASS array[3](61, 62, 63); foo(firstArg, secondArg) is 1
+PASS array[4](62, 63, 64, 65); foo(firstArg, secondArg) is 1
+PASS array[4](63, 64, 65, 66); foo(firstArg, secondArg) is 1
+PASS array[5](64, 65, 66, 67, 68); foo(firstArg, secondArg) is 1
+PASS array[5](65, 66, 67, 68, 69); foo(firstArg, secondArg) is 1
+PASS array[6](66, 67, 68, 69, 70, 71); foo(firstArg, secondArg) is 1
+PASS array[6](67, 68, 69, 70, 71, 72); foo(firstArg, secondArg) is 1
+PASS array[7](68, 69, 70, 71, 72, 73, 74); foo(firstArg, secondArg) is 1
+PASS array[7](69, 70, 71, 72, 73, 74, 75); foo(firstArg, secondArg) is 1
+PASS array[8](70, 71, 72, 73, 74, 75, 76, 77); foo(firstArg, secondArg) is 1
+PASS array[8](71, 72, 73, 74, 75, 76, 77, 78); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](74); foo(firstArg, secondArg) is 1
+PASS array[1](75); foo(firstArg, secondArg) is 1
+PASS array[2](76, 77); foo(firstArg, secondArg) is 1
+PASS array[2](77, 78); foo(firstArg, secondArg) is 1
+PASS array[3](78, 79, 80); foo(firstArg, secondArg) is 1
+PASS array[3](79, 80, 81); foo(firstArg, secondArg) is 1
+PASS array[4](80, 81, 82, 83); foo(firstArg, secondArg) is 1
+PASS array[4](81, 82, 83, 84); foo(firstArg, secondArg) is 1
+PASS array[5](82, 83, 84, 85, 86); foo(firstArg, secondArg) is 1
+PASS array[5](83, 84, 85, 86, 87); foo(firstArg, secondArg) is 1
+PASS array[6](84, 85, 86, 87, 88, 89); foo(firstArg, secondArg) is 1
+PASS array[6](85, 86, 87, 88, 89, 90); foo(firstArg, secondArg) is 1
+PASS array[7](86, 87, 88, 89, 90, 91, 92); foo(firstArg, secondArg) is 1
+PASS array[7](87, 88, 89, 90, 91, 92, 93); foo(firstArg, secondArg) is 1
+PASS array[8](88, 89, 90, 91, 92, 93, 94, 95); foo(firstArg, secondArg) is 1
+PASS array[8](89, 90, 91, 92, 93, 94, 95, 96); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](92); foo(firstArg, secondArg) is 1
+PASS array[1](93); foo(firstArg, secondArg) is 1
+PASS array[2](94, 95); foo(firstArg, secondArg) is 1
+PASS array[2](95, 96); foo(firstArg, secondArg) is 1
+PASS array[3](96, 97, 98); foo(firstArg, secondArg) is 1
+PASS array[3](97, 98, 99); foo(firstArg, secondArg) is 1
+PASS array[4](98, 99, 100, 101); foo(firstArg, secondArg) is 1
+PASS array[4](99, 100, 101, 102); foo(firstArg, secondArg) is 1
+PASS array[5](100, 101, 102, 103, 104); foo(firstArg, secondArg) is 1
+PASS array[5](101, 102, 103, 104, 105); foo(firstArg, secondArg) is 1
+PASS array[6](102, 103, 104, 105, 106, 107); foo(firstArg, secondArg) is 1
+PASS array[6](103, 104, 105, 106, 107, 108); foo(firstArg, secondArg) is 1
+PASS array[7](104, 105, 106, 107, 108, 109, 110); foo(firstArg, secondArg) is 1
+PASS array[7](105, 106, 107, 108, 109, 110, 111); foo(firstArg, secondArg) is 1
+PASS array[8](106, 107, 108, 109, 110, 111, 112, 113); foo(firstArg, secondArg) is 1
+PASS array[8](107, 108, 109, 110, 111, 112, 113, 114); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](110); foo(firstArg, secondArg) is 1
+PASS array[1](111); foo(firstArg, secondArg) is 1
+PASS array[2](112, 113); foo(firstArg, secondArg) is 1
+PASS array[2](113, 114); foo(firstArg, secondArg) is 1
+PASS array[3](114, 115, 116); foo(firstArg, secondArg) is 1
+PASS array[3](115, 116, 117); foo(firstArg, secondArg) is 1
+PASS array[4](116, 117, 118, 119); foo(firstArg, secondArg) is 1
+PASS array[4](117, 118, 119, 120); foo(firstArg, secondArg) is 1
+PASS array[5](118, 119, 120, 121, 122); foo(firstArg, secondArg) is 1
+PASS array[5](119, 120, 121, 122, 123); foo(firstArg, secondArg) is 1
+PASS array[6](120, 121, 122, 123, 124, 125); foo(firstArg, secondArg) is 1
+PASS array[6](121, 122, 123, 124, 125, 126); foo(firstArg, secondArg) is 1
+PASS array[7](122, 123, 124, 125, 126, 127, 128); foo(firstArg, secondArg) is 1
+PASS array[7](123, 124, 125, 126, 127, 128, 129); foo(firstArg, secondArg) is 1
+PASS array[8](124, 125, 126, 127, 128, 129, 130, 131); foo(firstArg, secondArg) is 1
+PASS array[8](125, 126, 127, 128, 129, 130, 131, 132); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](128); foo(firstArg, secondArg) is 1
+PASS array[1](129); foo(firstArg, secondArg) is 1
+PASS array[2](130, 131); foo(firstArg, secondArg) is 1
+PASS array[2](131, 132); foo(firstArg, secondArg) is 1
+PASS array[3](132, 133, 134); foo(firstArg, secondArg) is 1
+PASS array[3](133, 134, 135); foo(firstArg, secondArg) is 1
+PASS array[4](134, 135, 136, 137); foo(firstArg, secondArg) is 1
+PASS array[4](135, 136, 137, 138); foo(firstArg, secondArg) is 1
+PASS array[5](136, 137, 138, 139, 140); foo(firstArg, secondArg) is 1
+PASS array[5](137, 138, 139, 140, 141); foo(firstArg, secondArg) is 1
+PASS array[6](138, 139, 140, 141, 142, 143); foo(firstArg, secondArg) is 1
+PASS array[6](139, 140, 141, 142, 143, 144); foo(firstArg, secondArg) is 1
+PASS array[7](140, 141, 142, 143, 144, 145, 146); foo(firstArg, secondArg) is 1
+PASS array[7](141, 142, 143, 144, 145, 146, 147); foo(firstArg, secondArg) is 1
+PASS array[8](142, 143, 144, 145, 146, 147, 148, 149); foo(firstArg, secondArg) is 1
+PASS array[8](143, 144, 145, 146, 147, 148, 149, 150); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](146); foo(firstArg, secondArg) is 1
+PASS array[1](147); foo(firstArg, secondArg) is 1
+PASS array[2](148, 149); foo(firstArg, secondArg) is 1
+PASS array[2](149, 150); foo(firstArg, secondArg) is 1
+PASS array[3](150, 151, 152); foo(firstArg, secondArg) is 1
+PASS array[3](151, 152, 153); foo(firstArg, secondArg) is 1
+PASS array[4](152, 153, 154, 155); foo(firstArg, secondArg) is 1
+PASS array[4](153, 154, 155, 156); foo(firstArg, secondArg) is 1
+PASS array[5](154, 155, 156, 157, 158); foo(firstArg, secondArg) is 1
+PASS array[5](155, 156, 157, 158, 159); foo(firstArg, secondArg) is 1
+PASS array[6](156, 157, 158, 159, 160, 161); foo(firstArg, secondArg) is 1
+PASS array[6](157, 158, 159, 160, 161, 162); foo(firstArg, secondArg) is 1
+PASS array[7](158, 159, 160, 161, 162, 163, 164); foo(firstArg, secondArg) is 1
+PASS array[7](159, 160, 161, 162, 163, 164, 165); foo(firstArg, secondArg) is 1
+PASS array[8](160, 161, 162, 163, 164, 165, 166, 167); foo(firstArg, secondArg) is 1
+PASS array[8](161, 162, 163, 164, 165, 166, 167, 168); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](164); foo(firstArg, secondArg) is 1
+PASS array[1](165); foo(firstArg, secondArg) is 1
+PASS array[2](166, 167); foo(firstArg, secondArg) is 1
+PASS array[2](167, 168); foo(firstArg, secondArg) is 1
+PASS array[3](168, 169, 170); foo(firstArg, secondArg) is 1
+PASS array[3](169, 170, 171); foo(firstArg, secondArg) is 1
+PASS array[4](170, 171, 172, 173); foo(firstArg, secondArg) is 1
+PASS array[4](171, 172, 173, 174); foo(firstArg, secondArg) is 1
+PASS array[5](172, 173, 174, 175, 176); foo(firstArg, secondArg) is 1
+PASS array[5](173, 174, 175, 176, 177); foo(firstArg, secondArg) is 1
+PASS array[6](174, 175, 176, 177, 178, 179); foo(firstArg, secondArg) is 1
+PASS array[6](175, 176, 177, 178, 179, 180); foo(firstArg, secondArg) is 1
+PASS array[7](176, 177, 178, 179, 180, 181, 182); foo(firstArg, secondArg) is 1
+PASS array[7](177, 178, 179, 180, 181, 182, 183); foo(firstArg, secondArg) is 1
+PASS array[8](178, 179, 180, 181, 182, 183, 184, 185); foo(firstArg, secondArg) is 1
+PASS array[8](179, 180, 181, 182, 183, 184, 185, 186); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](182); foo(firstArg, secondArg) is 1
+PASS array[1](183); foo(firstArg, secondArg) is 1
+PASS array[2](184, 185); foo(firstArg, secondArg) is 1
+PASS array[2](185, 186); foo(firstArg, secondArg) is 1
+PASS array[3](186, 187, 188); foo(firstArg, secondArg) is 1
+PASS array[3](187, 188, 189); foo(firstArg, secondArg) is 1
+PASS array[4](188, 189, 190, 191); foo(firstArg, secondArg) is 1
+PASS array[4](189, 190, 191, 192); foo(firstArg, secondArg) is 1
+PASS array[5](190, 191, 192, 193, 194); foo(firstArg, secondArg) is 1
+PASS array[5](191, 192, 193, 194, 195); foo(firstArg, secondArg) is 1
+PASS array[6](192, 193, 194, 195, 196, 197); foo(firstArg, secondArg) is 1
+PASS array[6](193, 194, 195, 196, 197, 198); foo(firstArg, secondArg) is 1
+PASS array[7](194, 195, 196, 197, 198, 199, 200); foo(firstArg, secondArg) is 1
+PASS array[7](195, 196, 197, 198, 199, 200, 201); foo(firstArg, secondArg) is 1
+PASS array[8](196, 197, 198, 199, 200, 201, 202, 203); foo(firstArg, secondArg) is 1
+PASS array[8](197, 198, 199, 200, 201, 202, 203, 204); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](200); foo(firstArg, secondArg) is 1
+PASS array[1](201); foo(firstArg, secondArg) is 1
+PASS array[2](202, 203); foo(firstArg, secondArg) is 1
+PASS array[2](203, 204); foo(firstArg, secondArg) is 1
+PASS array[3](204, 205, 206); foo(firstArg, secondArg) is 1
+PASS array[3](205, 206, 207); foo(firstArg, secondArg) is 1
+PASS array[4](206, 207, 208, 209); foo(firstArg, secondArg) is 1
+PASS array[4](207, 208, 209, 210); foo(firstArg, secondArg) is 1
+PASS array[5](208, 209, 210, 211, 212); foo(firstArg, secondArg) is 1
+PASS array[5](209, 210, 211, 212, 213); foo(firstArg, secondArg) is 1
+PASS array[6](210, 211, 212, 213, 214, 215); foo(firstArg, secondArg) is 1
+PASS array[6](211, 212, 213, 214, 215, 216); foo(firstArg, secondArg) is 1
+PASS array[7](212, 213, 214, 215, 216, 217, 218); foo(firstArg, secondArg) is 1
+PASS array[7](213, 214, 215, 216, 217, 218, 219); foo(firstArg, secondArg) is 1
+PASS array[8](214, 215, 216, 217, 218, 219, 220, 221); foo(firstArg, secondArg) is 1
+PASS array[8](215, 216, 217, 218, 219, 220, 221, 222); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](218); foo(firstArg, secondArg) is 1
+PASS array[1](219); foo(firstArg, secondArg) is 1
+PASS array[2](220, 221); foo(firstArg, secondArg) is 1
+PASS array[2](221, 222); foo(firstArg, secondArg) is 1
+PASS array[3](222, 223, 224); foo(firstArg, secondArg) is 1
+PASS array[3](223, 224, 225); foo(firstArg, secondArg) is 1
+PASS array[4](224, 225, 226, 227); foo(firstArg, secondArg) is 1
+PASS array[4](225, 226, 227, 228); foo(firstArg, secondArg) is 1
+PASS array[5](226, 227, 228, 229, 230); foo(firstArg, secondArg) is 1
+PASS array[5](227, 228, 229, 230, 231); foo(firstArg, secondArg) is 1
+PASS array[6](228, 229, 230, 231, 232, 233); foo(firstArg, secondArg) is 1
+PASS array[6](229, 230, 231, 232, 233, 234); foo(firstArg, secondArg) is 1
+PASS array[7](230, 231, 232, 233, 234, 235, 236); foo(firstArg, secondArg) is 1
+PASS array[7](231, 232, 233, 234, 235, 236, 237); foo(firstArg, secondArg) is 1
+PASS array[8](232, 233, 234, 235, 236, 237, 238, 239); foo(firstArg, secondArg) is 1
+PASS array[8](233, 234, 235, 236, 237, 238, 239, 240); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](236); foo(firstArg, secondArg) is 1
+PASS array[1](237); foo(firstArg, secondArg) is 1
+PASS array[2](238, 239); foo(firstArg, secondArg) is 1
+PASS array[2](239, 240); foo(firstArg, secondArg) is 1
+PASS array[3](240, 241, 242); foo(firstArg, secondArg) is 1
+PASS array[3](241, 242, 243); foo(firstArg, secondArg) is 1
+PASS array[4](242, 243, 244, 245); foo(firstArg, secondArg) is 1
+PASS array[4](243, 244, 245, 246); foo(firstArg, secondArg) is 1
+PASS array[5](244, 245, 246, 247, 248); foo(firstArg, secondArg) is 1
+PASS array[5](245, 246, 247, 248, 249); foo(firstArg, secondArg) is 1
+PASS array[6](246, 247, 248, 249, 250, 251); foo(firstArg, secondArg) is 1
+PASS array[6](247, 248, 249, 250, 251, 252); foo(firstArg, secondArg) is 1
+PASS array[7](248, 249, 250, 251, 252, 253, 254); foo(firstArg, secondArg) is 1
+PASS array[7](249, 250, 251, 252, 253, 254, 255); foo(firstArg, secondArg) is 1
+PASS array[8](250, 251, 252, 253, 254, 255, 256, 257); foo(firstArg, secondArg) is 1
+PASS array[8](251, 252, 253, 254, 255, 256, 257, 258); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](254); foo(firstArg, secondArg) is 1
+PASS array[1](255); foo(firstArg, secondArg) is 1
+PASS array[2](256, 257); foo(firstArg, secondArg) is 1
+PASS array[2](257, 258); foo(firstArg, secondArg) is 1
+PASS array[3](258, 259, 260); foo(firstArg, secondArg) is 1
+PASS array[3](259, 260, 261); foo(firstArg, secondArg) is 1
+PASS array[4](260, 261, 262, 263); foo(firstArg, secondArg) is 1
+PASS array[4](261, 262, 263, 264); foo(firstArg, secondArg) is 1
+PASS array[5](262, 263, 264, 265, 266); foo(firstArg, secondArg) is 1
+PASS array[5](263, 264, 265, 266, 267); foo(firstArg, secondArg) is 1
+PASS array[6](264, 265, 266, 267, 268, 269); foo(firstArg, secondArg) is 1
+PASS array[6](265, 266, 267, 268, 269, 270); foo(firstArg, secondArg) is 1
+PASS array[7](266, 267, 268, 269, 270, 271, 272); foo(firstArg, secondArg) is 1
+PASS array[7](267, 268, 269, 270, 271, 272, 273); foo(firstArg, secondArg) is 1
+PASS array[8](268, 269, 270, 271, 272, 273, 274, 275); foo(firstArg, secondArg) is 1
+PASS array[8](269, 270, 271, 272, 273, 274, 275, 276); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](272); foo(firstArg, secondArg) is 1
+PASS array[1](273); foo(firstArg, secondArg) is 1
+PASS array[2](274, 275); foo(firstArg, secondArg) is 1
+PASS array[2](275, 276); foo(firstArg, secondArg) is 1
+PASS array[3](276, 277, 278); foo(firstArg, secondArg) is 1
+PASS array[3](277, 278, 279); foo(firstArg, secondArg) is 1
+PASS array[4](278, 279, 280, 281); foo(firstArg, secondArg) is 1
+PASS array[4](279, 280, 281, 282); foo(firstArg, secondArg) is 1
+PASS array[5](280, 281, 282, 283, 284); foo(firstArg, secondArg) is 1
+PASS array[5](281, 282, 283, 284, 285); foo(firstArg, secondArg) is 1
+PASS array[6](282, 283, 284, 285, 286, 287); foo(firstArg, secondArg) is 1
+PASS array[6](283, 284, 285, 286, 287, 288); foo(firstArg, secondArg) is 1
+PASS array[7](284, 285, 286, 287, 288, 289, 290); foo(firstArg, secondArg) is 1
+PASS array[7](285, 286, 287, 288, 289, 290, 291); foo(firstArg, secondArg) is 1
+PASS array[8](286, 287, 288, 289, 290, 291, 292, 293); foo(firstArg, secondArg) is 1
+PASS array[8](287, 288, 289, 290, 291, 292, 293, 294); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[0](); foo(firstArg, secondArg) is 1
+PASS array[1](290); foo(firstArg, secondArg) is 1
+PASS array[1](291); foo(firstArg, secondArg) is 1
+PASS array[2](292, 293); foo(firstArg, secondArg) is 1
+PASS array[2](293, 294); foo(firstArg, secondArg) is 1
+PASS array[3](294, 295, 296); foo(firstArg, secondArg) is 1
+PASS array[3](295, 296, 297); foo(firstArg, secondArg) is 1
+PASS array[4](296, 297, 298, 299); foo(firstArg, secondArg) is 1
+PASS array[4](297, 298, 299, 300); foo(firstArg, secondArg) is 1
+PASS array[5](298, 299, 300, 301, 302); foo(firstArg, secondArg) is 1
+PASS array[5](299, 300, 301, 302, 303); foo(firstArg, secondArg) is 1
+PASS successfullyParsed is true
+
+TEST COMPLETE
+

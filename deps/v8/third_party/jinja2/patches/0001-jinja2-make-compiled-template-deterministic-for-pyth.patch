@@ -1,0 +1,30 @@
+From: Takuto Ikuta <tikuta@chromium.org>
+Date: Mon, 24 May 2021 17:09:21 +0900
+Subject: [PATCH] jinja2: make compiled template deterministic for python3
+
+set() doesn't have deterministic iteration order, so need this to
+have deterministic output from jinja2.
+
+Bug: 1194274
+
+diff -Naur a/compiler.py b/compiler.py
+--- a/compiler.py	2021-10-05 23:41:45.774333282 +0900
++++ b/compiler.py	2021-10-06 16:46:08.082078686 +0900
+@@ -468,7 +468,7 @@
+             visitor.visit(node)
+         for dependency in "filters", "tests":
+             mapping = getattr(self, dependency)
+-            for name in getattr(visitor, dependency):
++            for name in sorted(getattr(visitor, dependency)):
+                 if name not in mapping:
+                     mapping[name] = self.temporary_identifier()
+                 self.writeline(
+@@ -612,7 +612,7 @@
+     def dump_local_context(self, frame):
+         return "{%s}" % ", ".join(
+             "%r: %s" % (name, target)
+-            for name, target in iteritems(frame.symbols.dump_stores())
++            for name, target in sorted(iteritems(frame.symbols.dump_stores()))
+         )
+ 
+     def write_commons(self):

@@ -1,0 +1,59 @@
+{
+  "name": "bin-links",
+  "version": "4.0.3",
+  "description": "JavaScript package binary linker",
+  "main": "./lib/index.js",
+  "scripts": {
+    "snap": "tap",
+    "test": "tap",
+    "lint": "eslint \"**/*.js\"",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "posttest": "npm run lint",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/bin-links.git"
+  },
+  "keywords": [
+    "npm",
+    "link",
+    "bins"
+  ],
+  "license": "ISC",
+  "dependencies": {
+    "cmd-shim": "^6.0.0",
+    "npm-normalize-package-bin": "^3.0.0",
+    "read-cmd-shim": "^4.0.0",
+    "write-file-atomic": "^5.0.0"
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/template-oss": "4.19.0",
+    "require-inject": "^1.4.4",
+    "tap": "^16.0.1"
+  },
+  "tap": {
+    "check-coverage": true,
+    "coverage-map": "map.js",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "engines": {
+    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+  },
+  "author": "GitHub Inc.",
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "windowsCI": false,
+    "version": "4.19.0",
+    "publish": true
+  }
+}

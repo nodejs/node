@@ -1,0 +1,97 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (https://blog.izs.me/)",
+  "name": "glob",
+  "description": "the most correct and second fastest glob implementation in JavaScript",
+  "version": "10.3.10",
+  "type": "module",
+  "tshy": {
+    "main": true,
+    "exports": {
+      "./package.json": "./package.json",
+      ".": "./src/index.ts"
+    }
+  },
+  "bin": "./dist/esm/bin.mjs",
+  "main": "./dist/commonjs/index.js",
+  "types": "./dist/commonjs/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/esm/index.d.ts",
+        "default": "./dist/esm/index.js"
+      },
+      "require": {
+        "types": "./dist/commonjs/index.d.ts",
+        "default": "./dist/commonjs/index.js"
+      }
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/node-glob.git"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "preversion": "npm test",
+    "postversion": "npm publish",
+    "prepublishOnly": "git push origin --follow-tags",
+    "prepare": "tshy",
+    "pretest": "npm run prepare",
+    "presnap": "npm run prepare",
+    "test": "tap",
+    "snap": "tap",
+    "format": "prettier --write . --loglevel warn",
+    "typedoc": "typedoc --tsconfig .tshy/esm.json ./src/*.ts",
+    "prepublish": "npm run benchclean",
+    "profclean": "rm -f v8.log profile.txt",
+    "test-regen": "npm run profclean && TEST_REGEN=1 node --no-warnings --loader ts-node/esm test/00-setup.ts",
+    "prebench": "npm run prepare",
+    "bench": "bash benchmark.sh",
+    "preprof": "npm run prepare",
+    "prof": "bash prof.sh",
+    "benchclean": "node benchclean.cjs"
+  },
+  "prettier": {
+    "semi": false,
+    "printWidth": 75,
+    "tabWidth": 2,
+    "useTabs": false,
+    "singleQuote": true,
+    "jsxSingleQuote": false,
+    "bracketSameLine": true,
+    "arrowParens": "avoid",
+    "endOfLine": "lf"
+  },
+  "dependencies": {
+    "foreground-child": "^3.1.0",
+    "jackspeak": "^2.3.5",
+    "minimatch": "^9.0.1",
+    "minipass": "^5.0.0 || ^6.0.2 || ^7.0.0",
+    "path-scurry": "^1.10.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.3.2",
+    "memfs": "^3.4.13",
+    "mkdirp": "^3.0.1",
+    "prettier": "^2.8.3",
+    "rimraf": "^5.0.1",
+    "sync-content": "^1.0.2",
+    "tap": "^18.1.4",
+    "tshy": "^1.2.2",
+    "typedoc": "^0.25.1",
+    "typescript": "^5.2.2"
+  },
+  "tap": {
+    "before": "test/00-setup.ts"
+  },
+  "license": "ISC",
+  "funding": {
+    "url": "https://github.com/sponsors/isaacs"
+  },
+  "engines": {
+    "node": ">=16 || 14 >=14.17"
+  }
+}

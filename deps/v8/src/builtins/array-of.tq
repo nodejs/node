@@ -1,0 +1,55 @@
+// Copyright 2018 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+namespace array {
+// https://tc39.github.io/ecma262/#sec-array.of
+transitioning javascript builtin
+ArrayOf(
+    js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
+  // 1. Let len be the actual number of arguments passed to this function.
+  const len: Smi = Convert<Smi>(arguments.length);
+
+  // 2. Let items be the List of arguments passed to this function.
+  const items: Arguments = arguments;
+
+  // 3. Let C be the this value.
+  const c: JSAny = HasBuiltinSubclassingFlag() ? receiver : GetArrayFunction();
+
+  let a: JSReceiver;
+
+  // 4. If IsConstructor(C) is true, then
+  typeswitch (c) {
+    case (c: Constructor): {
+      // a. Let A be ? Construct(C, « len »).
+      a = Construct(c, len);
+    }
+    case (JSAny): {
+      // a. Let A be ? ArrayCreate(len).
+      a = ArrayCreate(len);
+    }
+  }
+
+  // 6. Let k be 0.
+  let k: Smi = 0;
+
+  // 7. Repeat, while k < len
+  while (k < len) {
+    // a. Let kValue be items[k].
+    const kValue: JSAny = items[Convert<intptr>(k)];
+
+    // b. Let Pk be ! ToString(k).
+    // c. Perform ? CreateDataPropertyOrThrow(A, Pk, kValue).
+    FastCreateDataProperty(a, k, kValue);
+
+    // d. Increase k by 1.
+    k++;
+  }
+
+  // 8. Perform ? Set(A, "length", len, true).
+  array::SetPropertyLength(a, len);
+
+  // 9. Return A.
+  return a;
+}
+}

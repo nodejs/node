@@ -1,0 +1,390 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>package-lock.json</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="package-lockjson">package-lock.json</h1>
+<span class="description">A manifestation of the manifest</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#package-lockjson-vs-npm-shrinkwrapjson"><code>package-lock.json</code> vs <code>npm-shrinkwrap.json</code></a></li><li><a href="#hidden-lockfiles">Hidden Lockfiles</a></li><li><a href="#handling-old-lockfiles">Handling Old Lockfiles</a></li><li><a href="#file-format">File Format</a></li><ul><li><a href="#name"><code>name</code></a></li><li><a href="#version"><code>version</code></a></li><li><a href="#lockfileversion"><code>lockfileVersion</code></a></li><li><a href="#packages"><code>packages</code></a></li><li><a href="#dependencies">dependencies</a></li></ul><li><a href="#see-also">See also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p><code>package-lock.json</code> is automatically generated for any operations where npm
+modifies either the <code>node_modules</code> tree, or <code>package.json</code>. It describes the
+exact tree that was generated, such that subsequent installs are able to
+generate identical trees, regardless of intermediate dependency updates.</p>
+<p>This file is intended to be committed into source repositories, and serves
+various purposes:</p>
+<ul>
+<li>
+<p>Describe a single representation of a dependency tree such that
+teammates, deployments, and continuous integration are guaranteed to
+install exactly the same dependencies.</p>
+</li>
+<li>
+<p>Provide a facility for users to "time-travel" to previous states of
+<code>node_modules</code> without having to commit the directory itself.</p>
+</li>
+<li>
+<p>Facilitate greater visibility of tree changes through readable source
+control diffs.</p>
+</li>
+<li>
+<p>Optimize the installation process by allowing npm to skip repeated
+metadata resolutions for previously-installed packages.</p>
+</li>
+<li>
+<p>As of npm v7, lockfiles include enough information to gain a complete
+picture of the package tree, reducing the need to read <code>package.json</code>
+files, and allowing for significant performance improvements.</p>
+</li>
+</ul>
+<h3 id="package-lockjson-vs-npm-shrinkwrapjson"><code>package-lock.json</code> vs <code>npm-shrinkwrap.json</code></h3>
+<p>Both of these files have the same format, and perform similar functions in
+the root of a project.</p>
+<p>The difference is that <code>package-lock.json</code> cannot be published, and it will
+be ignored if found in any place other than the root project.</p>
+<p>In contrast, <a href="../configuring-npm/npm-shrinkwrap-json.html">npm-shrinkwrap.json</a> allows
+publication, and defines the dependency tree from the point encountered.
+This is not recommended unless deploying a CLI tool or otherwise using the
+publication process for producing production packages.</p>
+<p>If both <code>package-lock.json</code> and <code>npm-shrinkwrap.json</code> are present in the
+root of a project, <code>npm-shrinkwrap.json</code> will take precedence and
+<code>package-lock.json</code> will be ignored.</p>
+<h3 id="hidden-lockfiles">Hidden Lockfiles</h3>
+<p>In order to avoid processing the <code>node_modules</code> folder repeatedly, npm as
+of v7 uses a "hidden" lockfile present in
+<code>node_modules/.package-lock.json</code>.  This contains information about the
+tree, and is used in lieu of reading the entire <code>node_modules</code> hierarchy
+provided that the following conditions are met:</p>
+<ul>
+<li>All package folders it references exist in the <code>node_modules</code> hierarchy.</li>
+<li>No package folders exist in the <code>node_modules</code> hierarchy that are not
+listed in the lockfile.</li>
+<li>The modified time of the file is at least as recent as all of the package
+folders it references.</li>
+</ul>
+<p>That is, the hidden lockfile will only be relevant if it was created as
+part of the most recent update to the package tree.  If another CLI mutates
+the tree in any way, this will be detected, and the hidden lockfile will be
+ignored.</p>
+<p>Note that it <em>is</em> possible to manually change the <em>contents</em> of a package
+in such a way that the modified time of the package folder is unaffected.
+For example, if you add a file to <code>node_modules/foo/lib/bar.js</code>, then the
+modified time on <code>node_modules/foo</code> will not reflect this change.  If you
+are manually editing files in <code>node_modules</code>, it is generally best to
+delete the file at <code>node_modules/.package-lock.json</code>.</p>
+<p>As the hidden lockfile is ignored by older npm versions, it does not
+contain the backwards compatibility affordances present in "normal"
+lockfiles.  That is, it is <code>lockfileVersion: 3</code>, rather than
+<code>lockfileVersion: 2</code>.</p>
+<h3 id="handling-old-lockfiles">Handling Old Lockfiles</h3>
+<p>When npm detects a lockfile from npm v6 or before during the package
+installation process, it is automatically updated to fetch missing
+information from either the <code>node_modules</code> tree or (in the case of empty
+<code>node_modules</code> trees or very old lockfile formats) the npm registry.</p>
+<h3 id="file-format">File Format</h3>
+<h4 id="name"><code>name</code></h4>
+<p>The name of the package this is a package-lock for. This will match what's
+in <code>package.json</code>.</p>
+<h4 id="version"><code>version</code></h4>
+<p>The version of the package this is a package-lock for. This will match
+what's in <code>package.json</code>.</p>
+<h4 id="lockfileversion"><code>lockfileVersion</code></h4>
+<p>An integer version, starting at <code>1</code> with the version number of this
+document whose semantics were used when generating this
+<code>package-lock.json</code>.</p>
+<p>Note that the file format changed significantly in npm v7 to track
+information that would have otherwise required looking in <code>node_modules</code> or
+the npm registry.  Lockfiles generated by npm v7 will contain
+<code>lockfileVersion: 2</code>.</p>
+<ul>
+<li>No version provided: an "ancient" shrinkwrap file from a version of npm
+prior to npm v5.</li>
+<li><code>1</code>: The lockfile version used by npm v5 and v6.</li>
+<li><code>2</code>: The lockfile version used by npm v7 and v8. Backwards compatible to v1
+lockfiles.</li>
+<li><code>3</code>: The lockfile version used by npm v9 and above. Backwards compatible to npm v7.</li>
+</ul>
+<p>npm will always attempt to get whatever data it can out of a lockfile, even
+if it is not a version that it was designed to support.</p>
+<h4 id="packages"><code>packages</code></h4>
+<p>This is an object that maps package locations to an object containing the
+information about that package.</p>
+<p>The root project is typically listed with a key of <code>""</code>, and all other
+packages are listed with their relative paths from the root project folder.</p>
+<p>Package descriptors have the following fields:</p>
+<ul>
+<li>
+<p>version: The version found in <code>package.json</code></p>
+</li>
+<li>
+<p>resolved: The place where the package was actually resolved from.  In
+the case of packages fetched from the registry, this will be a url to a
+tarball.  In the case of git dependencies, this will be the full git url
+with commit sha.  In the case of link dependencies, this will be the
+location of the link target. <code>registry.npmjs.org</code> is a magic value meaning
+"the currently configured registry".</p>
+</li>
+<li>
+<p>integrity: A <code>sha512</code> or <code>sha1</code> <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Standard Subresource
+Integrity</a>
+string for the artifact that was unpacked in this location.</p>
+</li>
+<li>
+<p>link: A flag to indicate that this is a symbolic link.  If this is
+present, no other fields are specified, since the link target will also
+be included in the lockfile.</p>
+</li>
+<li>
+<p>dev, optional, devOptional: If the package is strictly part of the
+<code>devDependencies</code> tree, then <code>dev</code> will be true.  If it is strictly part
+of the <code>optionalDependencies</code> tree, then <code>optional</code> will be set.  If it
+is both a <code>dev</code> dependency <em>and</em> an <code>optional</code> dependency of a non-dev
+dependency, then <code>devOptional</code> will be set.  (An <code>optional</code> dependency of
+a <code>dev</code> dependency will have both <code>dev</code> and <code>optional</code> set.)</p>
+</li>
+<li>
+<p>inBundle: A flag to indicate that the package is a bundled dependency.</p>
+</li>
+<li>
+<p>hasInstallScript: A flag to indicate that the package has a <code>preinstall</code>,
+<code>install</code>, or <code>postinstall</code> script.</p>
+</li>
+<li>
+<p>hasShrinkwrap: A flag to indicate that the package has an
+<code>npm-shrinkwrap.json</code> file.</p>
+</li>
+<li>
+<p>bin, license, engines, dependencies, optionalDependencies: fields from
+<code>package.json</code></p>
+</li>
+</ul>
+<h4 id="dependencies">dependencies</h4>
+<p>Legacy data for supporting versions of npm that use <code>lockfileVersion: 1</code>.
+This is a mapping of package names to dependency objects.  Because the
+object structure is strictly hierarchical, symbolic link dependencies are
+somewhat challenging to represent in some cases.</p>
+<p>npm v7 ignores this section entirely if a <code>packages</code> section is present,
+but does keep it up to date in order to support switching between npm v6
+and npm v7.</p>
+<p>Dependency objects have the following fields:</p>
+<ul>
+<li>
+<p>version: a specifier that varies depending on the nature of the package,
+and is usable in fetching a new copy of it.</p>
+<ul>
+<li>bundled dependencies: Regardless of source, this is a version number
+that is purely for informational purposes.</li>
+<li>registry sources: This is a version number. (eg, <code>1.2.3</code>)</li>
+<li>git sources: This is a git specifier with resolved committish. (eg,
+<code>git+https://example.com/foo/bar#115311855adb0789a0466714ed48a1499ffea97e</code>)</li>
+<li>http tarball sources: This is the URL of the tarball. (eg,
+<code>https://example.com/example-1.3.0.tgz</code>)</li>
+<li>local tarball sources: This is the file URL of the tarball. (eg
+<code>file:///opt/storage/example-1.3.0.tgz</code>)</li>
+<li>local link sources: This is the file URL of the link. (eg
+<code>file:libs/our-module</code>)</li>
+</ul>
+</li>
+<li>
+<p>integrity: A <code>sha512</code> or <code>sha1</code> <a href="https://w3c.github.io/webappsec/specs/subresourceintegrity/">Standard Subresource
+Integrity</a>
+string for the artifact that was unpacked in this location.  For git
+dependencies, this is the commit sha.</p>
+</li>
+<li>
+<p>resolved: For registry sources this is path of the tarball relative to
+the registry URL.  If the tarball URL isn't on the same server as the
+registry URL then this is a complete URL. <code>registry.npmjs.org</code> is a magic
+value meaning "the currently configured registry".</p>
+</li>
+<li>
+<p>bundled:  If true, this is the bundled dependency and will be installed
+by the parent module.  When installing, this module will be extracted
+from the parent module during the extract phase, not installed as a
+separate dependency.</p>
+</li>
+<li>
+<p>dev: If true then this dependency is either a development dependency ONLY
+of the top level module or a transitive dependency of one.  This is false
+for dependencies that are both a development dependency of the top level
+and a transitive dependency of a non-development dependency of the top
+level.</p>
+</li>
+<li>
+<p>optional: If true then this dependency is either an optional dependency
+ONLY of the top level module or a transitive dependency of one.  This is
+false for dependencies that are both an optional dependency of the top
+level and a transitive dependency of a non-optional dependency of the top
+level.</p>
+</li>
+<li>
+<p>requires: This is a mapping of module name to version.  This is a list of
+everything this module requires, regardless of where it will be
+installed.  The version should match via normal matching rules a
+dependency either in our <code>dependencies</code> or in a level higher than us.</p>
+</li>
+<li>
+<p>dependencies: The dependencies of this dependency, exactly as at the top
+level.</p>
+</li>
+</ul>
+<h3 id="see-also">See also</h3>
+<ul>
+<li><a href="../commands/npm-shrinkwrap.html">npm shrinkwrap</a></li>
+<li><a href="../configuring-npm/npm-shrinkwrap-json.html">npm-shrinkwrap.json</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/configuring-npm/package-lock-json.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

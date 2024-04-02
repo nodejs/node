@@ -1,0 +1,67 @@
+.\"
+.\" Copyright (C) the Massachusetts Institute of Technology.
+.\" Copyright (C) Daniel Stenberg
+.\" SPDX-License-Identifier: MIT
+.\"
+.TH ADIG "1" "April 2011" "c-ares utilities"
+.SH NAME
+adig \- print information collected from Domain Name System (DNS) servers
+.SH SYNOPSIS
+.B adig
+[\fIOPTION\fR]... \fINAME\fR...
+.SH DESCRIPTION
+.PP
+.\" Add any additional description here
+.PP
+Send queries to DNS servers about \fINAME\fR and print received
+information, where \fINAME\fR is a valid DNS name (e.g. www.example.com,
+1.2.3.10.in-addr.arpa).
+.PP
+This utility comes with the \fBc\-ares\fR asynchronous resolver library.
+.SH OPTIONS
+.TP
+\fB\-c\fR class
+Set the query class.
+Possible values for class are
+ANY, CHAOS, HS and IN (default).
+.TP
+\fB\-d\fR
+Print some extra debugging output.
+.TP
+\fB\-f\fR flag
+Add a behavior control flag.
+Possible values for flag are
+ igntc     - ignore query truncation, return answer as-is instead of retrying
+             via tcp.
+ noaliases - don't honor the HOSTALIASES environment variable,
+ norecurse - don't query upstream servers recursively,
+ primary   - use the first server,
+ stayopen  - don't close the communication sockets, and
+ usevc     - always use TCP.
+.TP
+\fB\-h\fR, \fB\-?\fR
+Display this help and exit.
+.TP
+\fB\-s\fR server
+Connect to specified DNS server, instead of the system's default one(s).
+Servers are tried in round-robin, if the previous one failed.
+.TP
+\fB\-t\fR type
+Query records of specified type.
+Possible values for type are
+A (default), AAAA, ANY, AXFR, CNAME, HINFO, MX, NAPTR, NS, PTR, SOA, SRV, TXT,
+URI, CAA, SVCB, and HTTPS.
+.TP
+\fB\-T\fR port
+Connect to the specified TCP port of DNS server.
+.TP
+\fB\-U\fR port
+Connect to the specified UDP port of DNS server.
+
+.SH "REPORTING BUGS"
+Report bugs to the c-ares mailing list:
+.br
+\fBhttps://lists.haxx.se/listinfo/c-ares\fR
+.SH "SEE ALSO"
+.PP
+acountry(1), ahost(1).

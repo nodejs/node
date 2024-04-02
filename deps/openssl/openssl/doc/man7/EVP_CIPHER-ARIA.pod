@@ -1,0 +1,55 @@
+=pod
+
+=head1 NAME
+
+EVP_CIPHER-ARIA - The ARIA EVP_CIPHER implementations
+
+=head1 DESCRIPTION
+
+Support for ARIA symmetric encryption using the B<EVP_CIPHER> API.
+
+=head2 Algorithm Names
+
+The following algorithms are available in the default provider:
+
+=over 4
+
+=item "ARIA-128-CBC", "ARIA-192-CBC" and  "ARIA-256-CBC"
+
+=item "ARIA-128-CFB", "ARIA-192-CFB", "ARIA-256-CFB",
+"ARIA-128-CFB1", "ARIA-192-CFB1", "ARIA-256-CFB1",
+"ARIA-128-CFB8", "ARIA-192-CFB8" and "ARIA-256-CFB8"
+
+=item "ARIA-128-CTR", "ARIA-192-CTR" and "ARIA-256-CTR"
+
+=item "ARIA-128-ECB", "ARIA-192-ECB" and "ARIA-256-ECB"
+
+=item "AES-192-OCB", "AES-128-OCB" and "AES-256-OCB"
+
+=item "ARIA-128-OFB", "ARIA-192-OFB" and "ARIA-256-OFB"
+
+=item "ARIA-128-CCM", "ARIA-192-CCM" and "ARIA-256-CCM"
+
+=item "ARIA-128-GCM", "ARIA-192-GCM" and "ARIA-256-GCM"
+
+=back
+
+=head2 Parameters
+
+This implementation supports the parameters described in
+L<EVP_EncryptInit(3)/PARAMETERS>.
+
+=head1 SEE ALSO
+
+L<provider-cipher(7)>, L<OSSL_PROVIDER-default(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

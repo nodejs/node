@@ -1,0 +1,17 @@
+{
+  "case-sensitivity.any.js": {
+    "fail": {
+      "note": "resource entry type not supported",
+      "expected": [
+        "getEntriesByType values are case sensitive",
+        "getEntriesByName values are case sensitive"
+      ]
+    }
+  },
+  "idlharness.any.js": {
+    "skip": "idlharness cannot recognize Node.js environment"
+  },
+  "webtiming-resolution.any.js": {
+    "skip": "flaky"
+  }
+}

@@ -1,0 +1,125 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\" SPDX-License-Identifier: MIT
+.\"
+.TH ARES_SEND 3 "25 July 1998"
+.SH NAME
+ares_send \- Initiate a DNS query
+.SH SYNOPSIS
+.nf
+#include <ares.h>
+
+typedef void (*ares_callback)(void *\fIarg\fP, int \fIstatus\fP,
+                              int \fItimeouts\fP, unsigned char *\fIabuf\fP,
+                              int \fIalen\fP)
+
+void ares_send(ares_channel_t *\fIchannel\fP, const unsigned char *\fIqbuf\fP,
+               int \fIqlen\fP, ares_callback \fIcallback\fP, void *\fIarg\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_send
+function initiates a DNS query on the name service channel identified
+by
+.IR channel .
+The parameters
+.I qbuf
+and
+.I qlen
+give the DNS query, which should already have been formatted according
+to the DNS protocol.  When the query is complete or has failed, the
+ares library will invoke
+.IR callback .
+Completion or failure of the query may happen immediately, or may
+happen later as network events are processed.
+.PP
+When the associated callback is called, it is called with a channel lock so care
+must be taken to ensure any processing is minimal to prevent DNS channel stalls.
+
+The callback may be triggered from a different thread than the one which
+called \fIares_send(3)\fP.
+
+For integrators running their own event loops and not using \fBARES_OPT_EVENT_THREAD\fP,
+care needs to be taken to ensure any file descriptor lists are updated immediately
+within the eventloop when notified.
+.PP
+The callback argument
+.I arg
+is copied from the
+.B ares_send
+argument
+.IR arg .
+The callback argument
+.I status
+indicates whether the query succeeded and, if not, how it failed.  It
+may have any of the following values:
+.TP 19
+.B ARES_SUCCESS
+The query completed.
+.TP 19
+.B ARES_EBADQUERY
+The query buffer was poorly formed (was not long enough for a DNS
+header or was too long for TCP transmission).
+.TP 19
+.B ARES_ETIMEOUT
+No name servers responded within the timeout period.
+.TP 19
+.B ARES_ECONNREFUSED
+No name servers could be contacted.
+.TP 19
+.B ARES_ENOMEM
+Memory was exhausted.
+.TP 19
+.B ARES_ECANCELLED
+The query was cancelled.
+.TP 19
+.B ARES_EDESTRUCTION
+The name service channel
+.I channel
+is being destroyed; the query will not be completed.
+.TP 19
+.B ARES_ENOSERVER
+The query will not be completed because no DNS servers were configured on the
+channel.
+.PP
+The callback argument
+.I timeouts
+reports how many times a query timed out during the execution of the
+given request.
+.PP
+If the query completed, the callback argument
+.I abuf
+points to a result buffer of length
+.IR alen .
+If the query did not complete,
+.I abuf
+will be NULL and
+.I alen
+will be 0.
+.PP
+Unless the flag
+.B ARES_FLAG_NOCHECKRESP
+was set at channel initialization time,
+.B ares_send
+will normally ignore responses whose questions do not match the
+questions in
+.IR qbuf ,
+as well as responses with reply codes of
+.BR SERVFAIL ,
+.BR NOTIMP ,
+and
+.BR REFUSED .
+Unlike other query functions in the ares library, however,
+.B ares_send
+does not inspect the header of the reply packet to determine the error
+status, so a callback status of
+.B ARES_SUCCESS
+does not reflect as much about the response as for other query
+functions.
+.SH SEE ALSO
+.BR ares_process (3),
+.BR ares_dns_record (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

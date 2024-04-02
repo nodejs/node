@@ -1,0 +1,43 @@
+{
+  "name": "@sigstore/sign",
+  "version": "2.2.3",
+  "description": "Sigstore signing library",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "shx rm -rf dist *.tsbuildinfo",
+    "build": "tsc --build",
+    "test": "jest"
+  },
+  "files": [
+    "dist"
+  ],
+  "author": "bdehamer@github.com",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sigstore/sigstore-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sigstore/sigstore-js/issues"
+  },
+  "homepage": "https://github.com/sigstore/sigstore-js/tree/main/packages/sign#readme",
+  "publishConfig": {
+    "provenance": true
+  },
+  "devDependencies": {
+    "@sigstore/jest": "^0.0.0",
+    "@sigstore/mock": "^0.6.5",
+    "@sigstore/rekor-types": "^2.0.0",
+    "@types/make-fetch-happen": "^10.0.4"
+  },
+  "dependencies": {
+    "@sigstore/bundle": "^2.2.0",
+    "@sigstore/core": "^1.0.0",
+    "@sigstore/protobuf-specs": "^0.3.0",
+    "make-fetch-happen": "^13.0.0"
+  },
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  }
+}

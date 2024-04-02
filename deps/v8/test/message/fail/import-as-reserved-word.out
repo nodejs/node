@@ -1,0 +1,4 @@
+*%(basename)s:5: SyntaxError: Unexpected reserved word
+import { foo as import } from "mod";
+                ^^^^^^
+SyntaxError: Unexpected reserved word

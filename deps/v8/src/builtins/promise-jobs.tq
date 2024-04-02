@@ -1,0 +1,74 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include 'src/builtins/builtins-promise.h'
+
+// https://tc39.es/ecma262/#sec-promise-jobs
+namespace promise {
+extern macro IsJSPromiseMap(Map): bool;
+extern macro NeedsAnyPromiseHooks(): bool;
+
+// https://tc39.es/ecma262/#sec-promiseresolvethenablejob
+transitioning builtin
+PromiseResolveThenableJob(implicit context: Context)(
+    promiseToResolve: JSPromise, thenable: JSReceiver, then: JSAny): JSAny {
+  // We can use a simple optimization here if we know that {then} is the
+  // initial Promise.prototype.then method, and {thenable} is a JSPromise
+  // whose
+  // @@species lookup chain is intact: We can connect {thenable} and
+  // {promise_to_resolve} directly in that case and avoid the allocation of a
+  // temporary JSPromise and the closures plus context.
+  //
+  // We take the generic (slow-)path if a PromiseHook is enabled or the
+  // debugger is active, to make sure we expose spec compliant behavior.
+  const nativeContext = LoadNativeContext(context);
+  const promiseThen = *NativeContextSlot(ContextSlot::PROMISE_THEN_INDEX);
+  const thenableMap = thenable.map;
+  if (TaggedEqual(then, promiseThen) && IsJSPromiseMap(thenableMap) &&
+      !NeedsAnyPromiseHooks() &&
+      IsPromiseSpeciesLookupChainIntact(nativeContext, thenableMap)) {
+    // We know that the {thenable} is a JSPromise, which doesn't require
+    // any special treatment and that {then} corresponds to the initial
+    // Promise.prototype.then method. So instead of allocating a temporary
+    // JSPromise to connect the {thenable} with the {promise_to_resolve},
+    // we can directly schedule the {promise_to_resolve} with default
+    // handlers onto the {thenable} promise. This does not only save the
+    // JSPromise allocation, but also avoids the allocation of the two
+    // resolving closures and the shared context.
+    //
+    // What happens normally in this case is
+    //
+    //   resolve, reject = CreateResolvingFunctions(promise_to_resolve)
+    //   result_capability = NewPromiseCapability(%Promise%)
+    //   PerformPromiseThen(thenable, resolve, reject, result_capability)
+    //
+    // which means that PerformPromiseThen will either schedule a new
+    // PromiseReaction with resolve and reject or a PromiseReactionJob
+    // with resolve or reject based on the state of {thenable}. And
+    // resolve or reject will just invoke the default [[Resolve]] or
+    // [[Reject]] functions on the {promise_to_resolve}.
+    //
+    // This is the same as just doing
+    //
+    //   PerformPromiseThen(thenable, undefined, undefined,
+    //   promise_to_resolve)
+    //
+    // which performs exactly the same (observable) steps.
+    return PerformPromiseThen(
+        UnsafeCast<JSPromise>(thenable), UndefinedConstant(),
+        UndefinedConstant(), promiseToResolve);
+  } else {
+    const funcs =
+        CreatePromiseResolvingFunctions(promiseToResolve, False, nativeContext);
+    const resolve = funcs.resolve;
+    const reject = funcs.reject;
+    try {
+      return Call(
+          context, UnsafeCast<Callable>(then), thenable, resolve, reject);
+    } catch (e, _message) {
+      return Call(context, UnsafeCast<Callable>(reject), Undefined, e);
+    }
+  }
+}
+}

@@ -1,0 +1,37 @@
+prefix pummel
+
+# To mark a test as flaky, list the test name in the appropriate section
+# below, without ".js", followed by ": PASS,FLAKY". Example:
+# sample-test                        : PASS,FLAKY
+
+[true] # This section applies to all platforms
+
+[$system==win32]
+# https://github.com/nodejs/node/issues/40728
+test-fs-watch-non-recursive: PASS,FLAKY
+# https://github.com/nodejs/node/issues/50260
+test-structuredclone-jstransferable: PASS,FLAKY
+
+[$system==linux]
+# https://github.com/nodejs/node/issues/38226
+test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
+
+[$system==macos]
+
+[$arch==arm || $arch==arm64]
+
+[$system==solaris] # Also applies to SmartOS
+# https://github.com/nodejs/node/issues/43457
+test-heapsnapshot-near-heap-limit: PASS,FLAKY
+
+[$system==freebsd]
+
+[$system==aix]
+
+[$system==ibmi]
+# https://github.com/nodejs/node/issues/39683
+test-regress-GH-892: PASS, FLAKY
+
+[$arch==s390x]
+# https://github.com/nodejs/node/issues/38226
+test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY

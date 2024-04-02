@@ -1,0 +1,331 @@
+.TH "QUERYING" "7" "February 2024" "" ""
+.SH "NAME"
+\fBQuerying\fR - Dependency Selector Syntax & Querying
+.SS "Description"
+.P
+The npm help query command exposes a new dependency selector syntax (informed by & respecting many aspects of the \fBCSS Selectors 4 Spec\fR \fI\(lahttps://dev.w3.org/csswg/selectors4/#relational\(ra\fR) which:
+.RS 0
+.IP \(bu 4
+Standardizes the shape of, & querying of, dependency graphs with a robust object model, metadata & selector syntax
+.IP \(bu 4
+Leverages existing, known language syntax & operators from CSS to make disparate package information broadly accessible
+.IP \(bu 4
+Unlocks the ability to answer complex, multi-faceted questions about dependencies, their relationships & associative metadata
+.IP \(bu 4
+Consolidates redundant logic of similar query commands in \fBnpm\fR (ex. \fBnpm fund\fR, \fBnpm ls\fR, \fBnpm outdated\fR, \fBnpm audit\fR ...)
+.RE 0
+
+.SS "Dependency Selector Syntax"
+.SS "Overview:"
+.RS 0
+.IP \(bu 4
+there is no "type" or "tag" selectors (ex. \fBdiv, h1, a\fR) as a dependency/target is the only type of \fBNode\fR that can be queried
+.IP \(bu 4
+the term "dependencies" is in reference to any \fBNode\fR found in a \fBtree\fR returned by \fBArborist\fR
+.RE 0
+
+.SS "Combinators"
+.RS 0
+.IP \(bu 4
+\fB>\fR direct descendant/child
+.IP \(bu 4
+\fB \fR any descendant/child
+.IP \(bu 4
+\fB~\fR sibling
+.RE 0
+
+.SS "Selectors"
+.RS 0
+.IP \(bu 4
+\fB*\fR universal selector
+.IP \(bu 4
+\fB#<name>\fR dependency selector (equivalent to \fB\[lB]name="..."\[rB]\fR)
+.IP \(bu 4
+\fB#<name>@<version>\fR (equivalent to \fB\[lB]name=<name>\[rB]:semver(<version>)\fR)
+.IP \(bu 4
+\fB,\fR selector list delimiter
+.IP \(bu 4
+\fB.\fR dependency type selector
+.IP \(bu 4
+\fB:\fR pseudo selector
+.RE 0
+
+.SS "Dependency Type Selectors"
+.RS 0
+.IP \(bu 4
+\fB.prod\fR dependency found in the \fBdependencies\fR section of \fBpackage.json\fR, or is a child of said dependency
+.IP \(bu 4
+\fB.dev\fR dependency found in the \fBdevDependencies\fR section of \fBpackage.json\fR, or is a child of said dependency
+.IP \(bu 4
+\fB.optional\fR dependency found in the \fBoptionalDependencies\fR section of \fBpackage.json\fR, or has \fB"optional": true\fR set in its entry in the \fBpeerDependenciesMeta\fR section of \fBpackage.json\fR, or a child of said dependency
+.IP \(bu 4
+\fB.peer\fR dependency found in the \fBpeerDependencies\fR section of \fBpackage.json\fR
+.IP \(bu 4
+\fB.workspace\fR dependency found in the \fB\fBworkspaces\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/using-npm/workspaces\(ra\fR section of \fBpackage.json\fR
+.IP \(bu 4
+\fB.bundled\fR dependency found in the \fBbundleDependencies\fR section of \fBpackage.json\fR, or is a child of said dependency
+.RE 0
+
+.SS "Pseudo Selectors"
+.RS 0
+.IP \(bu 4
+\fB\fB:not(<selector>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:not\(ra\fR
+.IP \(bu 4
+\fB\fB:has(<selector>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:has\(ra\fR
+.IP \(bu 4
+\fB\fB:is(<selector list>)\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:is\(ra\fR
+.IP \(bu 4
+\fB\fB:root\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:root\(ra\fR matches the root node/dependency
+.IP \(bu 4
+\fB\fB:scope\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:scope\(ra\fR matches node/dependency it was queried against
+.IP \(bu 4
+\fB\fB:empty\fR\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/:empty\(ra\fR when a dependency has no dependencies
+.IP \(bu 4
+\fB\fB:private\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/configuring-npm/package-json#private\(ra\fR when a dependency is private
+.IP \(bu 4
+\fB:link\fR when a dependency is linked (for instance, workspaces or packages manually \fB\fBlinked\fR\fR \fI\(lahttps://docs.npmjs.com/cli/v8/commands/npm-link\(ra\fR
+.IP \(bu 4
+\fB:deduped\fR when a dependency has been deduped (note that this does \fInot\fR always mean the dependency has been hoisted to the root of node_modules)
+.IP \(bu 4
+\fB:overridden\fR when a dependency has been overridden
+.IP \(bu 4
+\fB:extraneous\fR when a dependency exists but is not defined as a dependency of any node
+.IP \(bu 4
+\fB:invalid\fR when a dependency version is out of its ancestors specified range
+.IP \(bu 4
+\fB:missing\fR when a dependency is not found on disk
+.IP \(bu 4
+\fB:semver(<spec>, \[lB]selector\[rB], \[lB]function\[rB])\fR match a valid \fB\fBnode-semver\fR\fR \fI\(lahttps://github.com/npm/node-semver\(ra\fR version or range to a selector
+.IP \(bu 4
+\fB:path(<path>)\fR \fBglob\fR \fI\(lahttps://www.npmjs.com/package/glob\(ra\fR matching based on dependencies path relative to the project
+.IP \(bu 4
+\fB:type(<type>)\fR \fBbased on currently recognized types\fR \fI\(lahttps://github.com/npm/npm-package-arg#result-object\(ra\fR
+.IP \(bu 4
+\fB:outdated(<type>)\fR when a dependency is outdated
+.IP \(bu 4
+\fB:vuln(<selector>)\fR when a dependency has a known vulnerability
+.RE 0
+
+.SS "\fB:semver(<spec>, \[lB]selector\[rB], \[lB]function\[rB])\fR"
+.P
+The \fB:semver()\fR pseudo selector allows comparing fields from each node's \fBpackage.json\fR using \fBsemver\fR \fI\(lahttps://github.com/npm/node-semver#readme\(ra\fR methods. It accepts up to 3 parameters, all but the first of which are optional.
+.RS 0
+.IP \(bu 4
+\fBspec\fR a semver version or range
+.IP \(bu 4
+\fBselector\fR an attribute selector for each node (default \fB\[lB]version\[rB]\fR)
+.IP \(bu 4
+\fBfunction\fR a semver method to apply, one of: \fBsatisfies\fR, \fBintersects\fR, \fBsubset\fR, \fBgt\fR, \fBgte\fR, \fBgtr\fR, \fBlt\fR, \fBlte\fR, \fBltr\fR, \fBeq\fR, \fBneq\fR or the special function \fBinfer\fR (default \fBinfer\fR)
+.RE 0
+
+.P
+When the special \fBinfer\fR function is used the \fBspec\fR and the actual value from the node are compared. If both are versions, according to \fBsemver.valid()\fR, \fBeq\fR is used. If both values are ranges, according to \fB!semver.valid()\fR, \fBintersects\fR is used. If the values are mixed types \fBsatisfies\fR is used.
+.P
+Some examples:
+.RS 0
+.IP \(bu 4
+\fB:semver(^1.0.0)\fR returns every node that has a \fBversion\fR satisfied by the provided range \fB^1.0.0\fR
+.IP \(bu 4
+\fB:semver(16.0.0, :attr(engines, \[lB]node\[rB]))\fR returns every node which has an \fBengines.node\fR property satisfying the version \fB16.0.0\fR
+.IP \(bu 4
+\fB:semver(1.0.0, \[lB]version\[rB], lt)\fR every node with a \fBversion\fR less than \fB1.0.0\fR
+.RE 0
+
+.SS "\fB:outdated(<type>)\fR"
+.P
+The \fB:outdated\fR pseudo selector retrieves data from the registry and returns information about which of your dependencies are outdated. The type parameter may be one of the following:
+.RS 0
+.IP \(bu 4
+\fBany\fR (default) a version exists that is greater than the current one
+.IP \(bu 4
+\fBin-range\fR a version exists that is greater than the current one, and satisfies at least one if its parent's dependencies
+.IP \(bu 4
+\fBout-of-range\fR a version exists that is greater than the current one, does not satisfy at least one of its parent's dependencies
+.IP \(bu 4
+\fBmajor\fR a version exists that is a semver major greater than the current one
+.IP \(bu 4
+\fBminor\fR a version exists that is a semver minor greater than the current one
+.IP \(bu 4
+\fBpatch\fR a version exists that is a semver patch greater than the current one
+.RE 0
+
+.P
+In addition to the filtering performed by the pseudo selector, some extra data is added to the resulting objects. The following data can be found under the \fBqueryContext\fR property of each node.
+.RS 0
+.IP \(bu 4
+\fBversions\fR an array of every available version of the given node
+.IP \(bu 4
+\fBoutdated.inRange\fR an array of objects, each with a \fBfrom\fR and \fBversions\fR, where \fBfrom\fR is the on-disk location of the node that depends on the current node and \fBversions\fR is an array of all available versions that satisfies that dependency. This is only populated if \fB:outdated(in-range)\fR is used.
+.IP \(bu 4
+\fBoutdated.outOfRange\fR an array of objects, identical in shape to \fBinRange\fR, but where the \fBversions\fR array is every available version that does not satisfy the dependency. This is only populated if \fB:outdated(out-of-range)\fR is used.
+.RE 0
+
+.P
+Some examples:
+.RS 0
+.IP \(bu 4
+\fB:root > :outdated(major)\fR returns every direct dependency that has a new semver major release
+.IP \(bu 4
+\fB.prod:outdated(in-range)\fR returns production dependencies that have a new release that satisfies at least one of its parent's dependencies
+.RE 0
+
+.SS "\fB:vuln\fR"
+.P
+The \fB:vuln\fR pseudo selector retrieves data from the registry and returns information about which if your dependencies has a known vulnerability. Only dependencies whose current version matches a vulnerability will be returned. For example if you have \fBsemver@7.6.0\fR in your tree, a vulnerability for \fBsemver\fR which affects versions \fB<=6.3.1\fR will not match.
+.P
+You can also filter results by certain attributes in advisories. Currently that includes \fBseverity\fR and \fBcwe\fR. Note that severity filtering is done per severity, it does not include severities "higher" or "lower" than the one specified.
+.P
+In addition to the filtering performed by the pseudo selector, info about each relevant advisory will be added to the \fBqueryContext\fR attribute of each node under the \fBadvisories\fR attribute.
+.P
+Some examples:
+.RS 0
+.IP \(bu 4
+\fB:root > .prod:vuln\fR returns direct production dependencies with any known vulnerability
+.IP \(bu 4
+\fB:vuln(\[lB]severity=high\[rB])\fR returns only dependencies with a vulnerability with a \fBhigh\fR severity.
+.IP \(bu 4
+\fB:vuln(\[lB]severity=high\[rB],\[lB]severity=moderate\[rB])\fR returns only dependencies with a vulnerability with a \fBhigh\fR or \fBmoderate\fR severity.
+.IP \(bu 4
+\fB:vuln(\[lB]cwe=1333\[rB])\fR returns only dependencies with a vulnerability that includes CWE-1333 (ReDoS)
+.RE 0
+
+.SS "\fBAttribute Selectors\fR \fI\(lahttps://developer.mozilla.org/en-US/docs/Web/CSS/Attribute_selectors\(ra\fR"
+.P
+The attribute selector evaluates the key/value pairs in \fBpackage.json\fR if they are \fBString\fRs.
+.RS 0
+.IP \(bu 4
+\fB\[lB]\[rB]\fR attribute selector (ie. existence of attribute)
+.IP \(bu 4
+\fB\[lB]attribute=value\[rB]\fR attribute value is equivalent...
+.IP \(bu 4
+\fB\[lB]attribute~=value\[rB]\fR attribute value contains word...
+.IP \(bu 4
+\fB\[lB]attribute*=value\[rB]\fR attribute value contains string...
+.IP \(bu 4
+\fB\[lB]attribute|=value\[rB]\fR attribute value is equal to or starts with...
+.IP \(bu 4
+\fB\[lB]attribute^=value\[rB]\fR attribute value starts with...
+.IP \(bu 4
+\fB\[lB]attribute$=value\[rB]\fR attribute value ends with...
+.RE 0
+
+.SS "\fBArray\fR & \fBObject\fR Attribute Selectors"
+.P
+The generic \fB:attr()\fR pseudo selector standardizes a pattern which can be used for attribute selection of \fBObject\fRs, \fBArray\fRs or \fBArrays\fR of \fBObject\fRs accessible via \fBArborist\fR's \fBNode.package\fR metadata. This allows for iterative attribute selection beyond top-level \fBString\fR evaluation. The last argument passed to \fB:attr()\fR must be an \fBattribute\fR selector or a nested \fB:attr()\fR. See examples below:
+.SS "\fBObjects\fR"
+.P
+.RS 2
+.nf
+/* return dependencies that have a `scripts.test` containing `"tap"` */
+*:attr(scripts, \[lB]test~=tap\[rB])
+.fi
+.RE
+.SS "Nested \fBObjects\fR"
+.P
+Nested objects are expressed as sequential arguments to \fB:attr()\fR.
+.P
+.RS 2
+.nf
+/* return dependencies that have a testling config for opera browsers */
+*:attr(testling, browsers, \[lB]~=opera\[rB])
+.fi
+.RE
+.SS "\fBArrays\fR"
+.P
+\fBArray\fRs specifically uses a special/reserved \fB.\fR character in place of a typical attribute name. \fBArrays\fR also support exact \fBvalue\fR matching when a \fBString\fR is passed to the selector.
+.SS "Example of an \fBArray\fR Attribute Selection:"
+.P
+.RS 2
+.nf
+/* removes the distinction between properties & arrays */
+/* ie. we'd have to check the property & iterate to match selection */
+*:attr(\[lB]keywords^=react\[rB])
+*:attr(contributors, :attr(\[lB]name~=Jordan\[rB]))
+.fi
+.RE
+.SS "Example of an \fBArray\fR matching directly to a value:"
+.P
+.RS 2
+.nf
+/* return dependencies that have the exact keyword "react" */
+/* this is equivalent to `*:keywords(\[lB]value="react"\[rB])` */
+*:attr(\[lB]keywords=react\[rB])
+.fi
+.RE
+.SS "Example of an \fBArray\fR of \fBObject\fRs:"
+.P
+.RS 2
+.nf
+/* returns */
+*:attr(contributors, \[lB]email=ruyadorno@github.com\[rB])
+.fi
+.RE
+.SS "Groups"
+.P
+Dependency groups are defined by the package relationships to their ancestors (ie. the dependency types that are defined in \fBpackage.json\fR). This approach is user-centric as the ecosystem has been taught to think about dependencies in these groups first-and-foremost. Dependencies are allowed to be included in multiple groups (ex. a \fBprod\fR dependency may also be a \fBdev\fR dependency (in that it's also required by another \fBdev\fR dependency) & may also be \fBbundled\fR - a selector for that type of dependency would look like: \fB*.prod.dev.bundled\fR).
+.RS 0
+.IP \(bu 4
+\fB.prod\fR
+.IP \(bu 4
+\fB.dev\fR
+.IP \(bu 4
+\fB.optional\fR
+.IP \(bu 4
+\fB.peer\fR
+.IP \(bu 4
+\fB.bundled\fR
+.IP \(bu 4
+\fB.workspace\fR
+.RE 0
+
+.P
+Please note that currently \fBworkspace\fR deps are always \fBprod\fR dependencies. Additionally the \fB.root\fR dependency is also considered a \fBprod\fR dependency.
+.SS "Programmatic Usage"
+.RS 0
+.IP \(bu 4
+\fBArborist\fR's \fBNode\fR Class has a \fB.querySelectorAll()\fR method
+.RS 4
+.IP \(bu 4
+this method will return a filtered, flattened dependency Arborist \fBNode\fR list based on a valid query selector
+.RE 0
+
+.RE 0
+
+.P
+.RS 2
+.nf
+const Arborist = require('@npmcli/arborist')
+const arb = new Arborist({})
+.fi
+.RE
+.P
+.RS 2
+.nf
+// root-level
+arb.loadActual().then(async (tree) => {
+  // query all production dependencies
+  const results = await tree.querySelectorAll('.prod')
+  console.log(results)
+})
+.fi
+.RE
+.P
+.RS 2
+.nf
+// iterative
+arb.loadActual().then(async (tree) => {
+  // query for the deduped version of react
+  const results = await tree.querySelectorAll('#react:not(:deduped)')
+  // query the deduped react for git deps
+  const deps = await results\[lB]0\[rB].querySelectorAll(':type(git)')
+  console.log(deps)
+})
+.fi
+.RE
+.SH "SEE ALSO"
+.RS 0
+.IP \(bu 4
+npm help query
+.IP \(bu 4
+\fB@npmcli/arborist\fR \fI\(lahttps://npm.im/@npmcli/arborist\(ra\fR
+.RE 0

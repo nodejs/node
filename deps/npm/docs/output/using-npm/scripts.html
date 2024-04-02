@@ -1,0 +1,477 @@
+<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<title>scripts</title>
+<style>
+body {
+    background-color: #ffffff;
+    color: #24292e;
+
+    margin: 0;
+
+    line-height: 1.5;
+
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+}
+#rainbar {
+    height: 10px;
+    background-image: linear-gradient(139deg, #fb8817, #ff4b01, #c12127, #e02aff);
+}
+
+a {
+    text-decoration: none;
+    color: #0366d6;
+}
+a:hover {
+    text-decoration: underline;
+}
+
+pre {
+    margin: 1em 0px;
+    padding: 1em;
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+
+    display: block;
+    overflow: auto;
+
+    white-space: pre;
+
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+code {
+    font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 85%;
+    padding: 0.2em 0.4em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+pre > code {
+    padding: 0;
+    background-color: inherit;
+    color: inherit;
+}
+h1, h2, h3 {
+    font-weight: 600;
+}
+
+#logobar {
+    background-color: #333333;
+    margin: 0 auto;
+    padding: 1em 4em;
+}
+#logobar .logo {
+    float: left;
+}
+#logobar .title {
+    font-weight: 600;
+    color: #dddddd;
+    float: left;
+    margin: 5px 0 0 1em;
+}
+#logobar:after {
+    content: "";
+    display: block;
+    clear: both;
+}
+
+#content {
+    margin: 0 auto;
+    padding: 0 4em;
+}
+
+#table_of_contents > h2 {
+    font-size: 1.17em;
+}
+#table_of_contents ul:first-child {
+    border: solid 1px #e1e4e8;
+    border-radius: 6px;
+    padding: 1em;
+    background-color: #f6f8fa;
+    color: #393a34;
+}
+#table_of_contents ul {
+    list-style-type: none;
+    padding-left: 1.5em;
+}
+#table_of_contents li {
+    font-size: 0.9em;
+}
+#table_of_contents li a {
+    color: #000000;
+}
+
+header.title {
+    border-bottom: solid 1px #e1e4e8;
+}
+header.title > h1 {
+    margin-bottom: 0.25em;
+}
+header.title > .description {
+    display: block;
+    margin-bottom: 0.5em;
+    line-height: 1;
+}
+
+footer#edit {
+    border-top: solid 1px #e1e4e8;
+    margin: 3em 0 4em 0;
+    padding-top: 2em;
+}
+</style>
+</head>
+<body>
+<div id="banner">
+<div id="rainbar"></div>
+<div id="logobar">
+<svg class="logo" role="img" height="32" width="32" viewBox="0 0 700 700">
+<polygon fill="#cb0000" points="0,700 700,700 700,0 0,0"></polygon>
+<polygon fill="#ffffff" points="150,550 350,550 350,250 450,250 450,550 550,550 550,150 150,150"></polygon>
+</svg>
+<div class="title">
+npm command-line interface
+</div>
+</div>
+</div>
+
+<section id="content">
+<header class="title">
+<h1 id="scripts">scripts</h1>
+<span class="description">How npm handles the "scripts" field</span>
+</header>
+
+<section id="table_of_contents">
+<h2 id="table-of-contents">Table of contents</h2>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li><li><a href="#dependencies">Dependencies</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li><li><a href="#npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></a></li><li><a href="#a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+</section>
+
+<div id="_content"><h3 id="description">Description</h3>
+<p>The <code>"scripts"</code> property of your <code>package.json</code> file supports a number
+of built-in scripts and their preset life cycle events as well as
+arbitrary scripts. These all can be executed by running
+<code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em>
+commands with matching names will be run for those as well (e.g. <code>premyscript</code>,
+<code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with
+<code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
+<h3 id="pre--post-scripts">Pre &amp; Post Scripts</h3>
+<p>To create "pre" or "post" scripts for any scripts defined in the
+<code>"scripts"</code> section of the <code>package.json</code>, simply create another script
+<em>with a matching name</em> and add "pre" or "post" to the beginning of them.</p>
+<pre><code class="language-json">{
+  "scripts": {
+    "precompress": "{{ executes BEFORE the `compress` script }}",
+    "compress": "{{ run command to compress files }}",
+    "postcompress": "{{ executes AFTER `compress` script }}"
+  }
+}
+</code></pre>
+<p>In this example <code>npm run compress</code> would execute these scripts as
+described.</p>
+<h3 id="life-cycle-scripts">Life Cycle Scripts</h3>
+<p>There are some special life cycle scripts that happen only in certain
+situations. These scripts happen in addition to the <code>pre&lt;event&gt;</code>, <code>post&lt;event&gt;</code>, and
+<code>&lt;event&gt;</code> scripts.</p>
+<ul>
+<li><code>prepare</code>, <code>prepublish</code>, <code>prepublishOnly</code>, <code>prepack</code>, <code>postpack</code>, <code>dependencies</code></li>
+</ul>
+<p><strong>prepare</strong> (since <code>npm@4.0.0</code>)</p>
+<ul>
+<li>
+<p>Runs BEFORE the package is packed, i.e. during <code>npm publish</code>
+and <code>npm pack</code></p>
+</li>
+<li>
+<p>Runs on local <code>npm install</code> without any arguments</p>
+</li>
+<li>
+<p>Runs AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+</li>
+<li>
+<p>NOTE: If a package being installed through git contains a <code>prepare</code>
+script, its <code>dependencies</code> and <code>devDependencies</code> will be installed, and
+the prepare script will be run, before the package is packaged and
+installed.</p>
+</li>
+<li>
+<p>As of <code>npm@7</code> these scripts run in the background.
+To see the output, run with: <code>--foreground-scripts</code>.</p>
+</li>
+</ul>
+<p><strong>prepublish</strong> (DEPRECATED)</p>
+<ul>
+<li>Does not run during <code>npm publish</code>, but does run during <code>npm ci</code>
+and <code>npm install</code>. See below for more info.</li>
+</ul>
+<p><strong>prepublishOnly</strong></p>
+<ul>
+<li>Runs BEFORE the package is prepared and packed, ONLY on <code>npm publish</code>.</li>
+</ul>
+<p><strong>prepack</strong></p>
+<ul>
+<li>Runs BEFORE a tarball is packed (on "<code>npm pack</code>", "<code>npm publish</code>", and when installing a git dependency).</li>
+<li>NOTE: "<code>npm run pack</code>" is NOT the same as "<code>npm pack</code>". "<code>npm run pack</code>" is an arbitrary user defined script name, where as, "<code>npm pack</code>" is a CLI defined command.</li>
+</ul>
+<p><strong>postpack</strong></p>
+<ul>
+<li>Runs AFTER the tarball has been generated but before it is moved to its final destination (if at all, publish does not save the tarball locally)</li>
+</ul>
+<p><strong>dependencies</strong></p>
+<ul>
+<li>Runs AFTER any operations that modify the <code>node_modules</code> directory IF changes occurred.</li>
+<li>Does NOT run in global mode</li>
+</ul>
+<h4 id="prepare-and-prepublish">Prepare and Prepublish</h4>
+<p><strong>Deprecation Note: prepublish</strong></p>
+<p>Since <code>npm@1.1.71</code>, the npm CLI has run the <code>prepublish</code> script for both <code>npm publish</code> and <code>npm install</code>, because it's a convenient way to prepare a package for use (some common use cases are described in the section below).  It has also turned out to be, in practice, <a href="https://github.com/npm/npm/issues/10074">very confusing</a>.  As of <code>npm@4.0.0</code>, a new event has been introduced, <code>prepare</code>, that preserves this existing behavior. A <em>new</em> event, <code>prepublishOnly</code> has been added as a transitional strategy to allow users to avoid the confusing behavior of existing npm versions and only run on <code>npm publish</code> (for instance, running the tests one last time to ensure they're in good shape).</p>
+<p>See <a href="https://github.com/npm/npm/issues/10074">https://github.com/npm/npm/issues/10074</a> for a much lengthier justification, with further reading, for this change.</p>
+<p><strong>Use Cases</strong></p>
+<p>If you need to perform operations on your package before it is used, in a way that is not dependent on the operating system or architecture of the target system, use a <code>prepublish</code> script. This includes tasks such as:</p>
+<ul>
+<li>Compiling CoffeeScript source code into JavaScript.</li>
+<li>Creating minified versions of JavaScript source code.</li>
+<li>Fetching remote resources that your package will use.</li>
+</ul>
+<p>The advantage of doing these things at <code>prepublish</code> time is that they can be done once, in a single place, thus reducing complexity and variability. Additionally, this means that:</p>
+<ul>
+<li>You can depend on <code>coffee-script</code> as a <code>devDependency</code>, and thus
+your users don't need to have it installed.</li>
+<li>You don't need to include minifiers in your package, reducing
+the size for your users.</li>
+<li>You don't need to rely on your users having <code>curl</code> or <code>wget</code> or
+other system tools on the target machines.</li>
+</ul>
+<h4 id="dependencies">Dependencies</h4>
+<p>The <code>dependencies</code> script is run any time an <code>npm</code> command causes changes to the <code>node_modules</code> directory. It is run AFTER the changes have been applied and the <code>package.json</code> and <code>package-lock.json</code> files have been updated.</p>
+<h3 id="life-cycle-operation-order">Life Cycle Operation Order</h3>
+<h4 id="npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></h4>
+<ul>
+<li><code>prepare</code></li>
+</ul>
+<h4 id="npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></h4>
+<ul>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+<li><code>prepublish</code></li>
+<li><code>preprepare</code></li>
+<li><code>prepare</code></li>
+<li><code>postprepare</code></li>
+</ul>
+<p>These all run after the actual installation of modules into
+<code>node_modules</code>, in order, with no internal actions happening in between</p>
+<h4 id="npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></h4>
+<ul>
+<li><code>prepare</code></li>
+</ul>
+<h4 id="npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></h4>
+<p>These also run when you run <code>npm install -g &lt;pkg-name&gt;</code></p>
+<ul>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+<li><code>prepublish</code></li>
+<li><code>preprepare</code></li>
+<li><code>prepare</code></li>
+<li><code>postprepare</code></li>
+</ul>
+<p>If there is a <code>binding.gyp</code> file in the root of your package and you
+haven't defined your own <code>install</code> or <code>preinstall</code> scripts, npm will
+default the <code>install</code> command to compile using node-gyp via <code>node-gyp rebuild</code></p>
+<p>These are run from the scripts of <code>&lt;pkg-name&gt;</code></p>
+<h4 id="npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></h4>
+<ul>
+<li><code>prepack</code></li>
+<li><code>prepare</code></li>
+<li><code>postpack</code></li>
+</ul>
+<h4 id="npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></h4>
+<ul>
+<li><code>prepublishOnly</code></li>
+<li><code>prepack</code></li>
+<li><code>prepare</code></li>
+<li><code>postpack</code></li>
+<li><code>publish</code></li>
+<li><code>postpublish</code></li>
+</ul>
+<h4 id="npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></h4>
+<ul>
+<li><code>preinstall</code></li>
+<li><code>install</code></li>
+<li><code>postinstall</code></li>
+<li><code>prepare</code></li>
+</ul>
+<p><code>prepare</code> is only run if the current directory is a symlink (e.g. with
+linked packages)</p>
+<h4 id="npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></h4>
+<p>If there is a <code>restart</code> script defined, these events are run, otherwise
+<code>stop</code> and <code>start</code> are both run if present, including their <code>pre</code> and
+<code>post</code> iterations)</p>
+<ul>
+<li><code>prerestart</code></li>
+<li><code>restart</code></li>
+<li><code>postrestart</code></li>
+</ul>
+<h4 id="npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></h4>
+<ul>
+<li><code>pre&lt;user-defined&gt;</code></li>
+<li><code>&lt;user-defined&gt;</code></li>
+<li><code>post&lt;user-defined&gt;</code></li>
+</ul>
+<h4 id="npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></h4>
+<ul>
+<li><code>prestart</code></li>
+<li><code>start</code></li>
+<li><code>poststart</code></li>
+</ul>
+<p>If there is a <code>server.js</code> file in the root of your package, then npm
+will default the <code>start</code> command to <code>node server.js</code>.  <code>prestart</code> and
+<code>poststart</code> will still run in this case.</p>
+<h4 id="npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></h4>
+<ul>
+<li><code>prestop</code></li>
+<li><code>stop</code></li>
+<li><code>poststop</code></li>
+</ul>
+<h4 id="npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></h4>
+<ul>
+<li><code>pretest</code></li>
+<li><code>test</code></li>
+<li><code>posttest</code></li>
+</ul>
+<h4 id="npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></h4>
+<ul>
+<li><code>preversion</code></li>
+<li><code>version</code></li>
+<li><code>postversion</code></li>
+</ul>
+<h4 id="a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</h4>
+<p>While npm v6 had <code>uninstall</code> lifecycle scripts, npm v7 does not. Removal of a package can happen for a wide variety of reasons, and there's no clear way to currently give the script enough context to be useful.</p>
+<p>Reasons for a package removal include:</p>
+<ul>
+<li>a user directly uninstalled this package</li>
+<li>a user uninstalled a dependant package and so this dependency is being uninstalled</li>
+<li>a user uninstalled a dependant package but another package also depends on this version</li>
+<li>this version has been merged as a duplicate with another version</li>
+<li>etc.</li>
+</ul>
+<p>Due to the lack of necessary context, <code>uninstall</code> lifecycle scripts are not implemented and will not function.</p>
+<h3 id="user">User</h3>
+<p>When npm is run as root, scripts are always run with the effective uid
+and gid of the working directory owner.</p>
+<h3 id="environment">Environment</h3>
+<p>Package scripts run in an environment where many pieces of information
+are made available regarding the setup of npm and the current state of
+the process.</p>
+<h4 id="path">path</h4>
+<p>If you depend on modules that define executable scripts, like test
+suites, then those executables will be added to the <code>PATH</code> for
+executing the scripts.  So, if your package.json has this:</p>
+<pre><code class="language-json">{
+  "name" : "foo",
+  "dependencies" : {
+    "bar" : "0.1.x"
+  },
+  "scripts": {
+    "start" : "bar ./test"
+  }
+}
+</code></pre>
+<p>then you could run <code>npm start</code> to execute the <code>bar</code> script, which is
+exported into the <code>node_modules/.bin</code> directory on <code>npm install</code>.</p>
+<h4 id="packagejson-vars">package.json vars</h4>
+<p>The package.json fields are tacked onto the <code>npm_package_</code> prefix. So,
+for instance, if you had <code>{"name":"foo", "version":"1.2.5"}</code> in your
+package.json file, then your package scripts would have the
+<code>npm_package_name</code> environment variable set to "foo", and the
+<code>npm_package_version</code> set to "1.2.5".  You can access these variables
+in your code with <code>process.env.npm_package_name</code> and
+<code>process.env.npm_package_version</code>, and so on for other fields.</p>
+<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more on package configs.</p>
+<h4 id="current-lifecycle-event">current lifecycle event</h4>
+<p>Lastly, the <code>npm_lifecycle_event</code> environment variable is set to
+whichever stage of the cycle is being executed. So, you could have a
+single script used for different parts of the process which switches
+based on what's currently happening.</p>
+<p>Objects are flattened following this format, so if you had
+<code>{"scripts":{"install":"foo.js"}}</code> in your package.json, then you'd
+see this in the script:</p>
+<pre><code class="language-bash">process.env.npm_package_scripts_install === "foo.js"
+</code></pre>
+<h3 id="examples">Examples</h3>
+<p>For example, if your package.json contains this:</p>
+<pre><code class="language-json">{
+  "scripts" : {
+    "install" : "scripts/install.js",
+    "postinstall" : "scripts/install.js"
+  }
+}
+</code></pre>
+<p>then <code>scripts/install.js</code> will be called for the install and post-install
+stages of the lifecycle.  Since <code>scripts/install.js</code> is running for two
+different phases, it would be wise in this case to look at the
+<code>npm_lifecycle_event</code> environment variable.</p>
+<p>If you want to run a make command, you can do so.  This works just
+fine:</p>
+<pre><code class="language-json">{
+  "scripts" : {
+    "preinstall" : "./configure",
+    "install" : "make &amp;&amp; make install",
+    "test" : "make test"
+  }
+}
+</code></pre>
+<h3 id="exiting">Exiting</h3>
+<p>Scripts are run by passing the line as a script argument to <code>sh</code>.</p>
+<p>If the script exits with a code other than 0, then this will abort the
+process.</p>
+<p>Note that these script files don't have to be Node.js or even
+JavaScript programs. They just have to be some kind of executable
+file.</p>
+<h3 id="best-practices">Best Practices</h3>
+<ul>
+<li>Don't exit with a non-zero error code unless you <em>really</em> mean it.
+If the failure is minor or only will prevent some optional features, then
+it's better to just print a warning and exit successfully.</li>
+<li>Try not to use scripts to do what npm can do for you.  Read through
+<a href="../configuring-npm/package-json.html"><code>package.json</code></a> to see all the things that you can specify and enable
+by simply describing your package appropriately.  In general, this
+will lead to a more robust and consistent state.</li>
+<li>Inspect the env to determine where to put things.  For instance, if
+the <code>npm_config_binroot</code> environment variable is set to <code>/home/user/bin</code>, then
+don't try to install executables into <code>/usr/local/bin</code>.  The user
+probably set it up that way for a reason.</li>
+<li>Don't prefix your script commands with "sudo".  If root permissions
+are required for some reason, then it'll fail with that error, and
+the user will sudo the npm command in question.</li>
+<li>Don't use <code>install</code>. Use a <code>.gyp</code> file for compilation, and <code>prepare</code>
+for anything else. You should almost never have to explicitly set a
+preinstall or install script. If you are doing this, please consider if
+there is another option. The only valid use of <code>install</code> or <code>preinstall</code>
+scripts is for compilation which must be done on the target architecture.</li>
+<li>Scripts are run from the root of the package folder, regardless of what the
+current working directory is when <code>npm</code> is invoked. If you want your
+script to use different behavior based on what subdirectory you're in, you
+can use the <code>INIT_CWD</code> environment variable, which holds the full path you
+were in when you ran <code>npm run</code>.</li>
+</ul>
+<h3 id="see-also">See Also</h3>
+<ul>
+<li><a href="../commands/npm-run-script.html">npm run-script</a></li>
+<li><a href="../configuring-npm/package-json.html">package.json</a></li>
+<li><a href="../using-npm/developers.html">npm developers</a></li>
+<li><a href="../commands/npm-install.html">npm install</a></li>
+</ul></div>
+
+<footer id="edit">
+<a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/scripts.md">
+<svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
+<path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
+</svg>
+Edit this page on GitHub
+</a>
+</footer>
+</section>
+
+
+
+</body></html>

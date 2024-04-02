@@ -1,0 +1,79 @@
+{
+  "name": "libnpmexec",
+  "version": "7.0.8",
+  "files": [
+    "bin/",
+    "lib/"
+  ],
+  "main": "lib/index.js",
+  "engines": {
+    "node": "^16.14.0 || >=18.0.0"
+  },
+  "description": "npm exec (npx) programmatic API",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/npm/cli.git",
+    "directory": "workspaces/libnpmexec"
+  },
+  "keywords": [
+    "npm",
+    "npmcli",
+    "libnpm",
+    "cli",
+    "workspaces",
+    "libnpmexec"
+  ],
+  "author": "GitHub Inc.",
+  "contributors": [
+    {
+      "name": "Ruy Adorno",
+      "url": "https://ruyadorno.com",
+      "twitter": "ruyadorno"
+    }
+  ],
+  "license": "ISC",
+  "scripts": {
+    "lint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\"",
+    "posttest": "npm run lint",
+    "test": "tap",
+    "snap": "tap",
+    "postlint": "template-oss-check",
+    "lintfix": "npm run lint -- --fix",
+    "template-oss-apply": "template-oss-apply --force"
+  },
+  "tap": {
+    "files": "test/*.js",
+    "nyc-arg": [
+      "--exclude",
+      "tap-snapshots/**"
+    ]
+  },
+  "devDependencies": {
+    "@npmcli/eslint-config": "^4.0.0",
+    "@npmcli/mock-registry": "^1.0.0",
+    "@npmcli/template-oss": "4.21.3",
+    "bin-links": "^4.0.1",
+    "chalk": "^5.2.0",
+    "just-extend": "^6.2.0",
+    "just-safe-set": "^4.2.1",
+    "tap": "^16.3.8"
+  },
+  "dependencies": {
+    "@npmcli/arborist": "^7.2.1",
+    "@npmcli/run-script": "^7.0.2",
+    "ci-info": "^4.0.0",
+    "npm-package-arg": "^11.0.1",
+    "npmlog": "^7.0.1",
+    "pacote": "^17.0.4",
+    "proc-log": "^3.0.0",
+    "read": "^2.0.0",
+    "read-package-json-fast": "^3.0.2",
+    "semver": "^7.3.7",
+    "walk-up-path": "^3.0.1"
+  },
+  "templateOSS": {
+    "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
+    "version": "4.21.3",
+    "content": "../../scripts/template-oss/index.js"
+  }
+}

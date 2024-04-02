@@ -1,0 +1,45 @@
+{
+  "defaultSeverity": "error",
+  "extends": "tslint:recommended",
+  "jsRules": {},
+  "rules": {
+    "curly": [true, "ignore-same-line"],
+    "quotemark": [false, "double", "avoid-escape", "avoid-template"],
+    "only-arrow-functions": [false],
+    "no-var-keyword": true,
+    "prefer-const": [true],
+    "max-line-length": [false, {
+      "limit": 80
+    }],
+    "ordered-imports": false,
+    "array-type": [true, "generic"],
+    "semicolon": true,
+    "member-access": false,
+    "object-literal-shorthand": false,
+    "object-literal-key-quotes": [true, "as-needed"],
+    "object-literal-sort-keys": false,
+    "space-before-function-paren": [true, {
+      "anonymous": "always"
+    }],
+    "triple-equals": false,
+    "no-string-throw": false,
+    "no-empty": [true, "allow-empty-catch", "allow-empty-functions"],
+    "trailing-comma": false,
+    "member-ordering": false,
+    "no-string-literal": false,
+    "arrow-parens": [true, "ban-single-arg-parens"],
+    "no-console": false,
+    "interface-name": false,
+    "no-bitwise": false,
+    "no-shadowed-variable": false,
+    "prefer-for-of": true,
+    "align": true,
+    "arrow-return-shorthand": true,
+    "max-classes-per-file": false,
+    "variable-name": true,
+    "forin": false,
+    "one-variable-per-declaration": true,
+    "no-consecutive-blank-lines": true
+  },
+  "rulesDirectory": []
+}

@@ -1,0 +1,8 @@
+*.in
+*.am
+*.txt
+*.pc
+Makefile
+*gnutls*
+ngtcp2/**/.gitignore
+ngtcp2/**/.deps

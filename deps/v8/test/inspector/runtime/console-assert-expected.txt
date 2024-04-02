@@ -1,0 +1,147 @@
+Checks that console.assert works and points to correct call frame.
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.assert
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 4
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : evaluate.js
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : assert
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 1
+                type : number
+                value : 1
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 5
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : evaluate.js
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : assert
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                description : 1
+                type : number
+                value : 1
+            }
+            [1] : {
+                description : 2
+                type : number
+                value : 2
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 6
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : evaluate.js
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : assert
+    }
+}
+{
+    method : Runtime.consoleAPICalled
+    params : {
+        args : [
+            [0] : {
+                type : string
+                value : console.assert
+            }
+        ]
+        executionContextId : <executionContextId>
+        stackTrace : {
+            callFrames : [
+                [0] : {
+                    columnNumber : 10
+                    functionName : testFunction
+                    lineNumber : 7
+                    scriptId : <scriptId>
+                    url : test.js
+                }
+                [1] : {
+                    columnNumber : 0
+                    functionName : 
+                    lineNumber : 0
+                    scriptId : <scriptId>
+                    url : evaluate.js
+                }
+            ]
+        }
+        timestamp : <timestamp>
+        type : assert
+    }
+}
+{
+    id : <messageId>
+    result : {
+        result : {
+            className : Function
+            description : function assert() { [native code] }
+            objectId : <objectId>
+            type : function
+        }
+    }
+}

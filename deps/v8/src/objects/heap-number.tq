@@ -1,0 +1,12 @@
+// Copyright 2019 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+extern class HeapNumber extends PrimitiveHeapObject {
+  // Marked as a relaxed store because of a race with reading on the
+  // compiler thread.
+  @cppRelaxedStore value: float64;
+}
+
+// The HeapNumber value NaN
+type NaN extends HeapNumber;
