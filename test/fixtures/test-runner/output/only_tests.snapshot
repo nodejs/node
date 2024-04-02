@@ -112,10 +112,53 @@ ok 6 - describe only = true, with subtests
   duration_ms: *
   type: 'suite'
   ...
-1..6
-# tests 18
-# suites 3
-# pass 15
+# Subtest: describe only = undefined, with nested only subtest
+    # Subtest: nested describe
+        # Subtest: nested test should run
+        ok 1 - nested test should run
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 1 - nested describe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..1
+ok 7 - describe only = undefined, with nested only subtest
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+# Subtest: describe only = true, with nested subtests
+    # Subtest: async subtest should run
+    ok 1 - async subtest should run
+      ---
+      duration_ms: *
+      ...
+    # Subtest: nested describe
+        # Subtest: nested test should run
+        ok 1 - nested test should run
+          ---
+          duration_ms: *
+          ...
+        1..1
+    ok 2 - nested describe
+      ---
+      duration_ms: *
+      type: 'suite'
+      ...
+    1..2
+ok 8 - describe only = true, with nested subtests
+  ---
+  duration_ms: *
+  type: 'suite'
+  ...
+1..8
+# tests 21
+# suites 7
+# pass 18
 # fail 0
 # cancelled 0
 # skipped 3
