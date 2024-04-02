@@ -474,7 +474,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   int trap_handler_index_ = -1;
 
   // Bits encoded in {flags_}:
-  using KindField = base::BitField8<Kind, 0, 3>;
+  using KindField = base::BitField8<Kind, 0, 2>;
   using ExecutionTierField = KindField::Next<ExecutionTier, 2>;
   using ForDebuggingField = ExecutionTierField::Next<ForDebugging, 2>;
 
