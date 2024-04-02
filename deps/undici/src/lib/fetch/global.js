@@ -9,14 +9,6 @@ function getGlobalOrigin () {
 }
 
 function setGlobalOrigin (newOrigin) {
-  if (
-    newOrigin !== undefined &&
-    typeof newOrigin !== 'string' &&
-    !(newOrigin instanceof URL)
-  ) {
-    throw new Error('Invalid base url')
-  }
-
   if (newOrigin === undefined) {
     Object.defineProperty(globalThis, globalOrigin, {
       value: undefined,

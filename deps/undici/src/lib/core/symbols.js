@@ -51,5 +51,13 @@ module.exports = {
   kProxy: Symbol('proxy agent options'),
   kCounter: Symbol('socket request counter'),
   kInterceptors: Symbol('dispatch interceptors'),
-  kMaxResponseSize: Symbol('max response size')
+  kMaxResponseSize: Symbol('max response size'),
+  kHTTP2Session: Symbol('http2Session'),
+  kHTTP2SessionState: Symbol('http2Session state'),
+  kHTTP2BuildRequest: Symbol('http2 build request'),
+  kHTTP1BuildRequest: Symbol('http1 build request'),
+  kHTTP2CopyHeaders: Symbol('http2 copy headers'),
+  kHTTPConnVersion: Symbol('http connection version'),
+  kRetryHandlerDefaultRetry: Symbol('retry agent default retry'),
+  kConstruct: Symbol('constructable')
 }

@@ -14,7 +14,7 @@ const {
   isomorphicEncode
 } = require('./util')
 const {
-  redirectStatus,
+  redirectStatusSet,
   nullBodyStatus,
   DOMException
 } = require('./constants')
@@ -23,11 +23,12 @@ const { webidl } = require('./webidl')
 const { FormData } = require('./formdata')
 const { getGlobalOrigin } = require('./global')
 const { URLSerializer } = require('./dataURL')
-const { kHeadersList } = require('../core/symbols')
+const { kHeadersList, kConstruct } = require('../core/symbols')
 const assert = require('assert')
 const { types } = require('util')
 
 const ReadableStream = globalThis.ReadableStream || require('stream/web').ReadableStream
+const textEncoder = new TextEncoder('utf-8')
 
 // https://fetch.spec.whatwg.org/#response-class
 class Response {
@@ -49,7 +50,7 @@ class Response {
   }
 
   // https://fetch.spec.whatwg.org/#dom-response-json
-  static json (data = undefined, init = {}) {
+  static json (data, init = {}) {
     webidl.argumentLengthCheck(arguments, 1, { header: 'Response.json' })
 
     if (init !== null) {
@@ -57,7 +58,7 @@ class Response {
     }
 
     // 1. Let bytes the result of running serialize a JavaScript value to JSON bytes on data.
-    const bytes = new TextEncoder('utf-8').encode(
+    const bytes = textEncoder.encode(
       serializeJavascriptValueToJSONString(data)
     )
 
@@ -102,7 +103,7 @@ class Response {
     }
 
     // 3. If status is not a redirect status, then throw a RangeError.
-    if (!redirectStatus.includes(status)) {
+    if (!redirectStatusSet.has(status)) {
       throw new RangeError('Invalid status code ' + status)
     }
 
@@ -143,7 +144,7 @@ class Response {
     // 2. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is this’s response’s header list and guard
     // is "response".
-    this[kHeaders] = new Headers()
+    this[kHeaders] = new Headers(kConstruct)
     this[kHeaders][kGuard] = 'response'
     this[kHeaders][kHeadersList] = this[kState].headersList
     this[kHeaders][kRealm] = this[kRealm]
@@ -426,15 +427,15 @@ function filterResponse (response, type) {
 }
 
 // https://fetch.spec.whatwg.org/#appropriate-network-error
-function makeAppropriateNetworkError (fetchParams) {
+function makeAppropriateNetworkError (fetchParams, err = null) {
   // 1. Assert: fetchParams is canceled.
   assert(isCancelled(fetchParams))
 
   // 2. Return an aborted network error if fetchParams is aborted;
   // otherwise return a network error.
   return isAborted(fetchParams)
-    ? makeNetworkError(new DOMException('The operation was aborted.', 'AbortError'))
-    : makeNetworkError('Request was cancelled.')
+    ? makeNetworkError(Object.assign(new DOMException('The operation was aborted.', 'AbortError'), { cause: err }))
+    : makeNetworkError(Object.assign(new DOMException('Request was cancelled.'), { cause: err }))
 }
 
 // https://whatpr.org/fetch/1392.html#initialize-a-response
@@ -513,11 +514,7 @@ webidl.converters.XMLHttpRequestBodyInit = function (V) {
     return webidl.converters.Blob(V, { strict: false })
   }
 
-  if (
-    types.isAnyArrayBuffer(V) ||
-    types.isTypedArray(V) ||
-    types.isDataView(V)
-  ) {
+  if (types.isArrayBuffer(V) || types.isTypedArray(V) || types.isDataView(V)) {
     return webidl.converters.BufferSource(V)
   }
 

@@ -35,7 +35,7 @@ const mockPool = mockAgent.get('http://localhost:3000')
 
 ### `MockPool.intercept(options)`
 
-This method defines the interception rules for matching against requests for a MockPool or MockPool. We can intercept multiple times on a single instance.
+This method defines the interception rules for matching against requests for a MockPool or MockPool. We can intercept multiple times on a single instance, but each intercept is only used once. For example if you expect to make 2 requests inside a test, you need to call `intercept()` twice. Assuming you use `disableNetConnect()` you will get `MockNotMatchedError` on the second request when you only call `intercept()` once.
 
 When defining interception rules, all the rules must pass for a request to be intercepted. If a request is not intercepted, a real request will be attempted.
 
@@ -53,11 +53,11 @@ Returns: `MockInterceptor` corresponding to the input options.
 
 ### Parameter: `MockPoolInterceptOptions`
 
-* **path** `string | RegExp | (path: string) => boolean` - a matcher for the HTTP request path.
+* **path** `string | RegExp | (path: string) => boolean` - a matcher for the HTTP request path. When a `RegExp` or callback is used, it will match against the request path including all query parameters in alphabetical order. When a `string` is provided, the query parameters can be conveniently specified through the `MockPoolInterceptOptions.query` setting.
 * **method** `string | RegExp | (method: string) => boolean` - (optional) - a matcher for the HTTP request method. Defaults to `GET`.
 * **body** `string | RegExp | (body: string) => boolean` - (optional) - a matcher for the HTTP request body.
 * **headers** `Record<string, string | RegExp | (body: string) => boolean`> - (optional) - a matcher for the HTTP request headers. To be intercepted, a request must match all defined headers. Extra headers not defined here may (or may not) be included in the request and do not affect the interception in any way.
-* **query** `Record<string, any> | null` - (optional) - a matcher for the HTTP request query string params.
+* **query** `Record<string, any> | null` - (optional) - a matcher for the HTTP request query string params. Only applies when a `string` was provided for `MockPoolInterceptOptions.path`.
 
 ### Return: `MockInterceptor`
 
@@ -455,6 +455,41 @@ const result2 = await request('http://localhost:3000/foo')
 
 const result3 = await request('http://localhost:3000/foo')
 // Will not match and make attempt a real request
+```
+
+#### Example - Mocked request with path callback
+
+```js
+import { MockAgent, setGlobalDispatcher, request } from 'undici'
+import querystring from 'querystring'
+
+const mockAgent = new MockAgent()
+setGlobalDispatcher(mockAgent)
+
+const mockPool = mockAgent.get('http://localhost:3000')
+
+const matchPath = requestPath => {
+  const [pathname, search] = requestPath.split('?')
+  const requestQuery = querystring.parse(search)
+
+  if (!pathname.startsWith('/foo')) {
+    return false
+  }
+
+  if (!Object.keys(requestQuery).includes('foo') || requestQuery.foo !== 'bar') {
+    return false
+  }
+
+  return true
+}
+
+mockPool.intercept({
+  path: matchPath,
+  method: 'GET'
+}).reply(200, 'foo')
+
+const result = await request('http://localhost:3000/foo?foo=bar')
+// Will match and return mocked data
 ```
 
 ### `MockPool.close()`

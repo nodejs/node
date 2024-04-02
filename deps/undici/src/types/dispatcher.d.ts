@@ -109,7 +109,7 @@ declare namespace Dispatcher {
     blocking?: boolean;
     /** Upgrade the request. Should be used to specify the kind of upgrade i.e. `'Websocket'`. Default: `method === 'CONNECT' || null`. */
     upgrade?: boolean | string | null;
-    /** The amount of time the parser will wait to receive the complete HTTP headers. Defaults to 300 seconds. */
+    /** The amount of time, in milliseconds, the parser will wait to receive the complete HTTP headers. Defaults to 300 seconds. */
     headersTimeout?: number | null;
     /** The timeout after which a request will time out, in milliseconds. Monitors time between receiving body data. Use 0 to disable it entirely. Defaults to 300 seconds. */
     bodyTimeout?: number | null;
@@ -117,6 +117,8 @@ declare namespace Dispatcher {
     reset?: boolean;
     /** Whether Undici should throw an error upon receiving a 4xx or 5xx response from the server. Defaults to false */
     throwOnError?: boolean;
+    /** For H2, it appends the expect: 100-continue header, and halts the request body until a 100-continue is received from the remote server*/
+    expectContinue?: boolean;
   }
   export interface ConnectOptions {
     path: string;
@@ -209,7 +211,7 @@ declare namespace Dispatcher {
     /** Invoked when request is upgraded either due to a `Upgrade` header or `CONNECT` method. */
     onUpgrade?(statusCode: number, headers: Buffer[] | string[] | null, socket: Duplex): void;
     /** Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. */
-    onHeaders?(statusCode: number, headers: Buffer[] | string[] | null, resume: () => void): boolean;
+    onHeaders?(statusCode: number, headers: Buffer[] | string[] | null, resume: () => void, statusText: string): boolean;
     /** Invoked when response payload data is received. */
     onData?(chunk: Buffer): boolean;
     /** Invoked when response payload and trailers have been received and the request has completed. */
@@ -229,7 +231,7 @@ declare namespace Dispatcher {
     arrayBuffer(): Promise<ArrayBuffer>;
     blob(): Promise<Blob>;
     formData(): Promise<never>;
-    json(): Promise<any>;
+    json(): Promise<unknown>;
     text(): Promise<string>;
   }
 
