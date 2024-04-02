@@ -548,6 +548,19 @@ describe('Mock Timers Test Suite', () => {
           t.mock.timers.runAll();
           assert.strictEqual(f.mock.callCount(), 3);
         });
+
+        it('should allow clearing timeout inside own callback', (t) => {
+          t.mock.timers.enable({ apis: ['setTimeout'] });
+          const f = t.mock.fn();
+
+          const timer = nodeTimers.setTimeout(() => {
+            f();
+            nodeTimers.clearTimeout(timer);
+          }, 50);
+
+          t.mock.timers.runAll();
+          assert.strictEqual(f.mock.callCount(), 1);
+        });
       });
 
       describe('setInterval Suite', () => {
