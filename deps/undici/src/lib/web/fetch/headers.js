@@ -12,7 +12,7 @@ const {
 } = require('./util')
 const { webidl } = require('./webidl')
 const assert = require('node:assert')
-const util = require('util')
+const util = require('node:util')
 
 const kHeadersMap = Symbol('headers map')
 const kHeadersSortedMap = Symbol('headers map sorted')

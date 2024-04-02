@@ -2141,29 +2141,6 @@ async function httpNetworkFetch (
               codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim())
             }
             location = headersList.get('location', true)
-          } else {
-            const keys = Object.keys(rawHeaders)
-            for (let i = 0; i < keys.length; ++i) {
-              // The header names are already in lowercase.
-              const key = keys[i]
-              const value = rawHeaders[key]
-              if (key === 'set-cookie') {
-                for (let j = 0; j < value.length; ++j) {
-                  headersList.append(key, value[j], true)
-                }
-              } else {
-                headersList.append(key, value, true)
-              }
-            }
-            // For H2, The header names are already in lowercase,
-            // so we can avoid the `HeadersList#get` call here.
-            const contentEncoding = rawHeaders['content-encoding']
-            if (contentEncoding) {
-              // https://www.rfc-editor.org/rfc/rfc7231#section-3.1.2.1
-              // "All content-coding values are case-insensitive..."
-              codings = contentEncoding.toLowerCase().split(',').map((x) => x.trim()).reverse()
-            }
-            location = rawHeaders.location
           }
 
           this.body = new Readable({ read: resume })

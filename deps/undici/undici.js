@@ -816,8 +816,6 @@ var require_util = __commonJS({
     }
     __name(bufferToLowerCasedHeaderName, "bufferToLowerCasedHeaderName");
     function parseHeaders(headers, obj) {
-      if (!Array.isArray(headers))
-        return headers;
       if (obj === void 0)
         obj = {};
       for (let i = 0; i < headers.length; i += 2) {
@@ -1302,9 +1300,9 @@ var require_data_url = __commonJS({
     var assert = require("node:assert");
     var encoder = new TextEncoder();
     var HTTP_TOKEN_CODEPOINTS = /^[!#$%&'*+-.^_|~A-Za-z0-9]+$/;
-    var HTTP_WHITESPACE_REGEX = /[\u000A|\u000D|\u0009|\u0020]/;
+    var HTTP_WHITESPACE_REGEX = /[\u000A\u000D\u0009\u0020]/;
     var ASCII_WHITESPACE_REPLACE_REGEX = /[\u0009\u000A\u000C\u000D\u0020]/g;
-    var HTTP_QUOTED_STRING_TOKENS = /[\u0009|\u0020-\u007E|\u0080-\u00FF]/;
+    var HTTP_QUOTED_STRING_TOKENS = /[\u0009\u0020-\u007E\u0080-\u00FF]/;
     function dataURLProcessor(dataURL) {
       assert(dataURL.protocol === "data:");
       let input = URLSerializer(dataURL, true);
@@ -2085,9 +2083,12 @@ var require_util2 = __commonJS({
     var assert = require("node:assert");
     var { isUint8Array } = require("node:util/types");
     var { webidl } = require_webidl();
+    var supportedHashes = [];
     var crypto;
     try {
       crypto = require("node:crypto");
+      const possibleRelevantHashes = ["sha256", "sha384", "sha512"];
+      supportedHashes = crypto.getHashes().filter((hash) => possibleRelevantHashes.includes(hash));
     } catch {
     }
     function responseURL(response) {
@@ -2413,7 +2414,7 @@ var require_util2 = __commonJS({
       return false;
     }
     __name(bytesMatch, "bytesMatch");
-    var parseHashWithOptions = /(?<algo>sha256|sha384|sha512)-(?<hash>[A-Za-z0-9+/]+={0,2}(?=\s|$))( +[!-~]*)?/i;
+    var parseHashWithOptions = /(?<algo>sha256|sha384|sha512)-((?<hash>[A-Za-z0-9+/]+|[A-Za-z0-9_-]+)={0,2}(?:\s|$)( +[!-~]*)?)?/i;
     function parseMetadata(metadata) {
       const result = [];
       let empty = true;
@@ -3016,7 +3017,7 @@ var require_headers = __commonJS({
     } = require_util2();
     var { webidl } = require_webidl();
     var assert = require("node:assert");
-    var util = require("util");
+    var util = require("node:util");
     var kHeadersMap = Symbol("headers map");
     var kHeadersSortedMap = Symbol("headers map sorted");
     function isHTTPWhiteSpaceCharCode(code) {
@@ -8159,6 +8160,15 @@ var require_client_h2 = __commonJS({
         HTTP2_HEADER_STATUS
       }
     } = http2;
+    function parseH2Headers(headers) {
+      headers = Object.entries(headers).flat(2);
+      const result = [];
+      for (const header of headers) {
+        result.push(Buffer.from(header));
+      }
+      return result;
+    }
+    __name(parseH2Headers, "parseH2Headers");
     async function connectH2(client, socket) {
       client[kSocket] = socket;
       if (!h2ExperimentalWarned) {
@@ -8401,7 +8411,13 @@ var require_client_h2 = __commonJS({
       stream.once("response", (headers2) => {
         const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers2;
         request.onResponseStarted();
-        if (request.onHeaders(Number(statusCode), realHeaders, stream.resume.bind(stream), "") === false) {
+        if (request.aborted || request.completed) {
+          const err = new RequestAbortedError();
+          errorRequest(client, request, err);
+          util.destroy(stream, err);
+          return;
+        }
+        if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream.resume.bind(stream), "") === false) {
           stream.pause();
         }
         stream.on("data", (chunk) => {
@@ -8735,9 +8751,9 @@ var require_redirect_handler = __commonJS({
       if (removeContent && util.headerNameToString(header).startsWith("content-")) {
         return true;
       }
-      if (unknownOrigin && (header.length === 13 || header.length === 6)) {
+      if (unknownOrigin && (header.length === 13 || header.length === 6 || header.length === 19)) {
         const name = util.headerNameToString(header);
-        return name === "authorization" || name === "cookie";
+        return name === "authorization" || name === "cookie" || name === "proxy-authorization";
       }
       return false;
     }
@@ -10522,24 +10538,6 @@ var require_fetch = __commonJS({
                   codings = contentEncoding.toLowerCase().split(",").map((x) => x.trim());
                 }
                 location = headersList.get("location", true);
-              } else {
-                const keys = Object.keys(rawHeaders);
-                for (let i = 0; i < keys.length; ++i) {
-                  const key = keys[i];
-                  const value = rawHeaders[key];
-                  if (key === "set-cookie") {
-                    for (let j = 0; j < value.length; ++j) {
-                      headersList.append(key, value[j], true);
-                    }
-                  } else {
-                    headersList.append(key, value, true);
-                  }
-                }
-                const contentEncoding = rawHeaders["content-encoding"];
-                if (contentEncoding) {
-                  codings = contentEncoding.toLowerCase().split(",").map((x) => x.trim()).reverse();
-                }
-                location = rawHeaders.location;
               }
               this.body = new Readable({ read: resume });
               const decoders = [];
