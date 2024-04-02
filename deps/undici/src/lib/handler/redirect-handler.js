@@ -201,9 +201,9 @@ function shouldRemoveHeader (header, removeContent, unknownOrigin) {
   if (removeContent && util.headerNameToString(header).startsWith('content-')) {
     return true
   }
-  if (unknownOrigin && (header.length === 13 || header.length === 6)) {
+  if (unknownOrigin && (header.length === 13 || header.length === 6 || header.length === 19)) {
     const name = util.headerNameToString(header)
-    return name === 'authorization' || name === 'cookie'
+    return name === 'authorization' || name === 'cookie' || name === 'proxy-authorization'
   }
   return false
 }

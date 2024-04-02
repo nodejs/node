@@ -246,9 +246,6 @@ function bufferToLowerCasedHeaderName (value) {
  * @returns {Record<string, string | string[]>}
  */
 function parseHeaders (headers, obj) {
-  // For H2 support
-  if (!Array.isArray(headers)) return headers
-
   if (obj === undefined) obj = {}
   for (let i = 0; i < headers.length; i += 2) {
     const key = headerNameToString(headers[i])
