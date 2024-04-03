@@ -102,8 +102,10 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
   return nullptr;
 }
 
-// new ModuleWrap(url, context, source, lineOffset, columnOffset)
-// new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
+// new ModuleWrap(url, context, source, lineOffset, columnOffset, cachedData)
+// new ModuleWrap(url, context, source, lineOffset, columOffset,
+// hostDefinedOption) new ModuleWrap(url, context, exportNames,
+// syntheticExecutionFunction)
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   CHECK_GE(args.Length(), 3);
@@ -132,22 +134,36 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   int column_offset = 0;
 
   bool synthetic = args[2]->IsArray();
+
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
+  Local<Symbol> id_symbol;
   if (synthetic) {
     // new ModuleWrap(url, context, exportNames, syntheticExecutionFunction)
     CHECK(args[3]->IsFunction());
   } else {
     // new ModuleWrap(url, context, source, lineOffset, columOffset, cachedData)
+    // new ModuleWrap(url, context, source, lineOffset, columOffset,
+    // hostDefinedOption)
     CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
     line_offset = args[3].As<Int32>()->Value();
     CHECK(args[4]->IsNumber());
     column_offset = args[4].As<Int32>()->Value();
-  }
+    if (args[5]->IsSymbol()) {
+      id_symbol = args[5].As<Symbol>();
+    } else {
+      id_symbol = Symbol::New(isolate, url);
+    }
+    host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
 
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
-  Local<Symbol> id_symbol = Symbol::New(isolate, url);
-  host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
+    if (that->SetPrivate(context,
+                         realm->isolate_data()->host_defined_option_symbol(),
+                         id_symbol)
+            .IsNothing()) {
+      return;
+    }
+  }
 
   ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
   TryCatchScope try_catch(realm->env());
@@ -173,8 +189,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         SyntheticModuleEvaluationStepsCallback);
     } else {
       ScriptCompiler::CachedData* cached_data = nullptr;
-      if (!args[5]->IsUndefined()) {
-        CHECK(args[5]->IsArrayBufferView());
+      if (args[5]->IsArrayBufferView()) {
         Local<ArrayBufferView> cached_data_buf = args[5].As<ArrayBufferView>();
         uint8_t* data =
             static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
@@ -234,13 +249,6 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   if (!that->Set(context, realm->isolate_data()->url_string(), url)
            .FromMaybe(false)) {
-    return;
-  }
-
-  if (that->SetPrivate(context,
-                       realm->isolate_data()->host_defined_option_symbol(),
-                       id_symbol)
-          .IsNothing()) {
     return;
   }
 
@@ -837,7 +845,7 @@ void ModuleWrap::HostInitializeImportMetaObjectCallback(
     return;
   }
   DCHECK(id->IsSymbol());
-  Local<Value> args[] = {id, meta};
+  Local<Value> args[] = {id, meta, wrap};
   TryCatchScope try_catch(env);
   USE(callback->Call(
       context, Undefined(realm->isolate()), arraysize(args), args));
