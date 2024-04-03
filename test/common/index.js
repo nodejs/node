@@ -659,12 +659,12 @@ function _expectWarning(name, expected, code) {
     expected = [[expected, code]];
   } else if (!Array.isArray(expected)) {
     expected = Object.entries(expected).map(([a, b]) => [b, a]);
-  } else if (!(Array.isArray(expected[0]))) {
+  } else if (expected.length !== 0 && !Array.isArray(expected[0])) {
     expected = [[expected[0], expected[1]]];
   }
   // Deprecation codes are mandatory, everything else is not.
   if (name === 'DeprecationWarning') {
-    expected.forEach(([_, code]) => assert(code, expected));
+    expected.forEach(([_, code]) => assert(code, `Missing deprecation code: ${expected}`));
   }
   return mustCall((warning) => {
     const expectedProperties = expected.shift();

@@ -697,6 +697,19 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
       env, "Invalid authentication tag length: %u", tag_len);
   }
 
+  if (mode == EVP_CIPH_GCM_MODE && cipher->auth_tag_len_ == kNoAuthTagLength &&
+      tag_len != 16 && env->options()->pending_deprecation &&
+      env->EmitProcessEnvWarning()) {
+    if (ProcessEmitDeprecationWarning(
+            env,
+            "Using AES-GCM authentication tags of less than 128 bits without "
+            "specifying the authTagLength option when initializing decryption "
+            "is deprecated.",
+            "DEP0182")
+            .IsNothing())
+      return;
+  }
+
   cipher->auth_tag_len_ = tag_len;
   cipher->auth_tag_state_ = kAuthTagKnown;
   CHECK_LE(cipher->auth_tag_len_, sizeof(cipher->auth_tag_));
