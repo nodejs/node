@@ -28,7 +28,14 @@ that doing so is not a breaking change.
 
 ## Placeholder executables
 
-A placeholder executable is a binary, symlink or script that has a name that refers to software that is not distributed with Node.js, but instead would be downloaded when the executable is run.
+A placeholder executable is a binary, symlink or script that has a name that
+refers to software that is not distributed with Node.js, but instead would be
+downloaded when the executable is run.
 
-Adding placeholder executables has a high boundary to be included in Node.js as it has a strong impact on the security side as well as the problem that it provides a strong support for a specific project outside of Node.js, which Node.js tries to avoid. Node.js is not going to support any outside project without a very strong reason to do so.
-It therefore requires an affirmative vote of the Node.js Technical Steering Committee to include any such placeholder executables.
+Adding placeholder executables has a high boundary to be included in Node.js as
+it has a strong impact on the security side as well as the problem that it
+provides a strong support for a specific project outside of Node.js, which
+Node.js tries to avoid. Node.js is not going to support any outside project
+without a very strong reason to do so. It therefore requires an affirmative vote
+of the Node.js Technical Steering Committee to include any such placeholder
+executables.
