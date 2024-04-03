@@ -18,7 +18,7 @@ on:
     - cron: 30 0 * * *
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
 
 permissions:
   contents: read
