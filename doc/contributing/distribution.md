@@ -28,15 +28,7 @@ that doing so is not a breaking change.
 
 ## Placeholder executables
 
-Installing Node.js will not create "placeholder" executables for package
-managers. A placeholder executable is a binary, symlink or script that has a
-name that refers to software that is not distributed with Node.js, but instead
-would be downloaded when the executable is run. For example, Node.js will not
-create `yarn` or `download_yarn` placeholder executables that will download Yarn
-when run. Node.js includes `npm` and `npx` executables, but these are not
-placeholders because the name of the executable refers to software that is
-contained within the Node.js distribution.
+A placeholder executable is a binary, symlink or script that has a name that refers to software that is not distributed with Node.js, but instead would be downloaded when the executable is run.
 
-Adding placeholder executables that refer to other types of software besides
-package managers will first require an affirmative vote of the Node.js Technical
-Steering Committee.
+Adding placeholder executables has a high boundary to be included in Node.js as it has a strong impact on the security side as well as the problem that it provides a strong support for a specific project outside of Node.js, which Node.js tries to avoid. Node.js is not going to support any outside project without a very strong reason to do so.
+It therefore requires an affirmative vote of the Node.js Technical Steering Committee to include any such placeholder executables.
