@@ -3587,8 +3587,8 @@ added: REPLACEME
     files are filtered. **Default:** filters all dot files.
   * `log` {Function|null} called when sending a response to the client.
     **Default:** `console.log`.
-      * `statusCode` {integer} The status code that is sent to the client.
-      * `url` {string} the (origin-relative) URL that was requested.
+    * `statusCode` {integer} The status code that is sent to the client.
+    * `url` {string} the (origin-relative) URL that was requested.
   * `onStart` {Function} called the server starts listening to requests.
     **Default:** logs the URL to the console.
 
