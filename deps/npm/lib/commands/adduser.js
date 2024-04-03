@@ -1,5 +1,5 @@
 const log = require('../utils/log-shim.js')
-const replaceInfo = require('../utils/replace-info.js')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 const auth = require('../utils/auth.js')
 
 const BaseCommand = require('../base-command.js')

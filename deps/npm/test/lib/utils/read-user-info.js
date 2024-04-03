@@ -3,10 +3,10 @@ const tmock = require('../../fixtures/tmock')
 
 let readOpts = null
 let readResult = null
-const read = async (opts) => {
+const read = { read: async (opts) => {
   readOpts = opts
   return readResult
-}
+} }
 
 const npmUserValidate = {
   username: (username) => {

@@ -4069,8 +4069,9 @@ npm search [search terms ...]
 
 Options:
 [-l|--long] [--json] [--color|--no-color|--color always] [-p|--parseable]
-[--no-description] [--searchopts <searchopts>] [--searchexclude <searchexclude>]
-[--registry <registry>] [--prefer-online] [--prefer-offline] [--offline]
+[--no-description] [--searchlimit <number>] [--searchopts <searchopts>]
+[--searchexclude <searchexclude>] [--registry <registry>] [--prefer-online]
+[--prefer-offline] [--offline]
 
 aliases: find, s, se
 
@@ -4089,6 +4090,7 @@ Note: This command is unaware of workspaces.
 #### \`color\`
 #### \`parseable\`
 #### \`description\`
+#### \`searchlimit\`
 #### \`searchopts\`
 #### \`searchexclude\`
 #### \`registry\`

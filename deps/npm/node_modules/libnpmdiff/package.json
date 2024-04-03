@@ -1,6 +1,6 @@
 {
   "name": "libnpmdiff",
-  "version": "6.0.7",
+  "version": "6.0.8",
   "description": "The registry diff",
   "repository": {
     "type": "git",
@@ -49,12 +49,12 @@
     "@npmcli/arborist": "^7.2.1",
     "@npmcli/disparity-colors": "^3.0.0",
     "@npmcli/installed-package-contents": "^2.0.2",
-    "binary-extensions": "^2.2.0",
+    "binary-extensions": "^2.3.0",
     "diff": "^5.1.0",
-    "minimatch": "^9.0.0",
+    "minimatch": "^9.0.4",
     "npm-package-arg": "^11.0.1",
     "pacote": "^17.0.4",
-    "tar": "^6.2.0"
+    "tar": "^6.2.1"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",

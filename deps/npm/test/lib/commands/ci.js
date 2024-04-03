@@ -56,6 +56,26 @@ const abbrev = {
   test: 'test file',
 }
 
+t.test('reifies, but doesn\'t remove node_modules because --dry-run', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    config: {
+      'dry-run': true,
+    },
+    prefixDir: {
+      abbrev: abbrev,
+      'package.json': JSON.stringify(packageJson),
+      'package-lock.json': JSON.stringify(packageLock),
+      node_modules: { test: 'test file that will not be removed' },
+    },
+  })
+  await npm.exec('ci', [])
+  t.match(joinedOutput(), 'added 1 package, and removed 1 package in')
+  const nmTest = path.join(npm.prefix, 'node_modules', 'test')
+  t.equal(fs.existsSync(nmTest), true, 'existing node_modules is not removed')
+  const nmAbbrev = path.join(npm.prefix, 'node_modules', 'abbrev')
+  t.equal(fs.existsSync(nmAbbrev), false, 'does not install abbrev')
+})
+
 t.test('reifies, audits, removes node_modules', async t => {
   const { npm, joinedOutput, registry } = await loadMockNpm(t, {
     prefixDir: {

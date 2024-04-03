@@ -6,7 +6,7 @@ const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const npa = require('npm-package-arg')
 const npmFetch = require('npm-registry-fetch')
-const replaceInfo = require('../utils/replace-info.js')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 
 const otplease = require('../utils/otplease.js')
 const { getContents, logTar } = require('../utils/tar.js')

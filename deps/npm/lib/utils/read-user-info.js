@@ -1,4 +1,4 @@
-const read = require('read')
+const { read } = require('read')
 const userValidate = require('npm-user-validate')
 const log = require('./log-shim.js')
 

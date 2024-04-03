@@ -44,23 +44,21 @@ t.test('shim contents', t => {
 
   t.test('bash', t => {
     const { diff, letters } = diffFiles(SHIMS.npm, SHIMS.npx)
-    t.match(diff[0].split('\n').reverse().join(''), /^NPX_CLI_JS=/, 'has NPX_CLI')
-    t.equal(diff.length, 1)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
 
   t.test('cmd', t => {
     const { diff, letters } = diffFiles(SHIMS['npm.cmd'], SHIMS['npx.cmd'])
-    t.match(diff[0], /^SET "NPX_CLI_JS=/, 'has NPX_CLI')
-    t.equal(diff.length, 1)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
 
   t.test('pwsh', t => {
     const { diff, letters } = diffFiles(SHIMS['npm.ps1'], SHIMS['npx.ps1'])
-    t.equal(diff.length, 0)
+    t.strictSame(diff, [])
     t.strictSame([...letters], ['M', 'X'], 'all other changes are m->x')
     t.end()
   })
@@ -96,13 +94,12 @@ t.test('run shims', t => {
     node_modules: {
       npm: {
         bin: {
-          'npx-cli.js': `throw new Error('this should not be called')`,
-          'npm-cli.js': `
-            const assert = require('assert')
+          'npm-prefix.js': `
             const { resolve } = require('path')
-            assert.equal(process.argv.slice(2).join(' '), 'prefix -g')
             console.log(resolve(__dirname, '../../../global-prefix'))
           `,
+          'npx-cli.js': `throw new Error('local npx should not be called')`,
+          'npm-cli.js': `throw new Error('local npm should not be called')`,
         },
       },
     },

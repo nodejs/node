@@ -257,7 +257,12 @@ class Results {
       for (const edge of node.edgesOut.values()) {
         if (edge.missing) {
           const pkg = { name: edge.name, version: edge.spec }
-          res.push(new this.#targetNode.constructor({ pkg }))
+          const item = new this.#targetNode.constructor({ pkg })
+          item.queryContext = {
+            missing: true,
+          }
+          item.edgesIn = new Set([edge])
+          res.push(item)
         }
       }
       return res
