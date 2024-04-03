@@ -45,6 +45,7 @@
   V(onpskexchange_symbol, "onpskexchange")                                     \
   V(resource_symbol, "resource_symbol")                                        \
   V(trigger_async_id_symbol, "trigger_async_id_symbol")                        \
+  V(source_text_module_default_hdo, "source_text_module_default_hdo")          \
   V(vm_dynamic_import_default_internal, "vm_dynamic_import_default_internal")  \
   V(vm_dynamic_import_main_context_default,                                    \
     "vm_dynamic_import_main_context_default")                                  \
