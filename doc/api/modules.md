@@ -42,7 +42,8 @@ In this example, the variable `PI` is private to `circle.js`.
 The `module.exports` property can be assigned a new value (such as a function
 or object).
 
-Below, `bar.js` makes use of the `square` module, which exports a Square class:
+In the following code, `bar.js` makes use of the `square` module, which exports
+a Square class:
 
 ```js
 const Square = require('./square.js');
@@ -123,7 +124,7 @@ enough to support reasonable directory structures. Package manager programs
 such as `dpkg`, `rpm`, and `npm` will hopefully find it possible to build
 native packages from Node.js modules without modification.
 
-Below we give a suggested directory structure that could work:
+In the following, we give a suggested directory structure that could work:
 
 Let's say that we wanted to have the folder at
 `/usr/lib/node/<some-package>/<some-version>` hold the contents of a
