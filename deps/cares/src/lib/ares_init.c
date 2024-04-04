@@ -152,10 +152,6 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
     channel->tries = DEFAULT_TRIES;
   }
 
-  if (channel->ndots == 0) {
-    channel->ndots = 1;
-  }
-
   if (ares__slist_len(channel->servers) == 0) {
     /* Add a default local named server to the channel unless configured not
      * to (in which case return an error).
@@ -261,31 +257,6 @@ static ares_status_t init_by_defaults(ares_channel_t *channel)
   }
 
 error:
-  if (rc) {
-    if (channel->domains && channel->domains[0]) {
-      ares_free(channel->domains[0]);
-    }
-    if (channel->domains) {
-      ares_free(channel->domains);
-      channel->domains = NULL;
-    }
-
-    if (channel->lookups) {
-      ares_free(channel->lookups);
-      channel->lookups = NULL;
-    }
-
-    if (channel->resolvconf_path) {
-      ares_free(channel->resolvconf_path);
-      channel->resolvconf_path = NULL;
-    }
-
-    if (channel->hosts_path) {
-      ares_free(channel->hosts_path);
-      channel->hosts_path = NULL;
-    }
-  }
-
   if (hostname) {
     ares_free(hostname);
   }
@@ -308,6 +279,9 @@ int ares_init_options(ares_channel_t           **channelptr,
     *channelptr = NULL;
     return ARES_ENOMEM;
   }
+
+  /* One option where zero is valid, so set default value here */
+  channel->ndots = 1;
 
   status = ares__channel_threading_init(channel);
   if (status != ARES_SUCCESS) {

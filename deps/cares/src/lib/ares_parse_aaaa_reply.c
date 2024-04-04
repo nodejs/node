@@ -61,6 +61,7 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
   char                *question_hostname = NULL;
   ares_status_t        status;
   size_t               req_naddrttls = 0;
+  ares_dns_record_t   *dnsrec        = NULL;
 
   if (alen < 0) {
     return ARES_EBADRESP;
@@ -73,7 +74,12 @@ int ares_parse_aaaa_reply(const unsigned char *abuf, int alen,
 
   memset(&ai, 0, sizeof(ai));
 
-  status = ares__parse_into_addrinfo(abuf, (size_t)alen, 0, 0, &ai);
+  status = ares_dns_parse(abuf, (size_t)alen, 0, &dnsrec);
+  if (status != ARES_SUCCESS) {
+    goto fail;
+  }
+
+  status = ares__parse_into_addrinfo(dnsrec, 0, 0, &ai);
   if (status != ARES_SUCCESS && status != ARES_ENODATA) {
     goto fail;
   }
@@ -97,6 +103,11 @@ fail:
   ares__freeaddrinfo_nodes(ai.nodes);
   ares_free(question_hostname);
   ares_free(ai.name);
+  ares_dns_record_destroy(dnsrec);
+
+  if (status == ARES_EBADNAME) {
+    status = ARES_EBADRESP;
+  }
 
   return (int)status;
 }

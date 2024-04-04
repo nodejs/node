@@ -94,7 +94,7 @@ char **ares__strsplit(const char *in, const char *delms, size_t *num_elm)
 
   status = ares__buf_split(
     buf, (const unsigned char *)delms, ares_strlen(delms),
-    ARES_BUF_SPLIT_NO_DUPLICATES | ARES_BUF_SPLIT_CASE_INSENSITIVE, &llist);
+    ARES_BUF_SPLIT_NO_DUPLICATES | ARES_BUF_SPLIT_CASE_INSENSITIVE, 0, &llist);
   if (status != ARES_SUCCESS) {
     goto done;
   }

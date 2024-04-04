@@ -36,32 +36,19 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_parse_ptr_reply(const unsigned char *abuf, int alen_int,
-                         const void *addr, int addrlen, int family,
-                         struct hostent **host)
+ares_status_t ares_parse_ptr_reply_dnsrec(const ares_dns_record_t *dnsrec,
+                                          const void *addr, int addrlen,
+                                          int family, struct hostent **host)
 {
-  ares_status_t      status;
-  size_t             alen;
-  size_t             ptrcount = 0;
-  struct hostent    *hostent  = NULL;
-  const char        *hostname = NULL;
-  const char        *ptrname  = NULL;
-  ares_dns_record_t *dnsrec   = NULL;
-  size_t             i;
-  size_t             ancount;
+  ares_status_t   status;
+  size_t          ptrcount = 0;
+  struct hostent *hostent  = NULL;
+  const char     *hostname = NULL;
+  const char     *ptrname  = NULL;
+  size_t          i;
+  size_t          ancount;
 
   *host = NULL;
-
-  if (alen_int < 0) {
-    return ARES_EBADRESP;
-  }
-
-  alen = (size_t)alen_int;
-
-  status = ares_dns_parse(abuf, alen, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
 
   /* Fetch name from query as we will use it to compare later on.  Old code
    * did this check, so we'll retain it. */
@@ -114,7 +101,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen_int,
   /* Cycle through answers */
   for (i = 0; i < ancount; i++) {
     const ares_dns_rr_t *rr =
-      ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+      ares_dns_record_rr_get_const(dnsrec, ARES_SECTION_ANSWER, i);
 
     if (rr == NULL) {
       /* Shouldn't be possible */
@@ -195,6 +182,34 @@ done:
   } else {
     *host = hostent;
   }
+  return status;
+}
+
+int ares_parse_ptr_reply(const unsigned char *abuf, int alen_int,
+                         const void *addr, int addrlen, int family,
+                         struct hostent **host)
+{
+  size_t             alen;
+  ares_dns_record_t *dnsrec = NULL;
+  ares_status_t      status;
+
+  if (alen_int < 0) {
+    return ARES_EBADRESP;
+  }
+
+  alen = (size_t)alen_int;
+
+  status = ares_dns_parse(abuf, alen, 0, &dnsrec);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_parse_ptr_reply_dnsrec(dnsrec, addr, addrlen, family, host);
+
+done:
   ares_dns_record_destroy(dnsrec);
+  if (status == ARES_EBADNAME) {
+    status = ARES_EBADRESP;
+  }
   return (int)status;
 }

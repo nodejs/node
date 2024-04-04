@@ -316,7 +316,7 @@ ares_status_t ares__init_by_options(ares_channel_t            *channel,
   }
 
   if (optmask & ARES_OPT_NDOTS) {
-    if (options->ndots <= 0) {
+    if (options->ndots < 0) {
       optmask &= ~(ARES_OPT_NDOTS);
     } else {
       channel->ndots = (size_t)options->ndots;
