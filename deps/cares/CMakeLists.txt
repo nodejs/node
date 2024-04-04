@@ -12,10 +12,10 @@ INCLUDE (CheckCSourceCompiles)
 INCLUDE (CheckStructHasMember)
 INCLUDE (CheckLibraryExists)
 
-PROJECT (c-ares LANGUAGES C VERSION "1.27.0" )
+PROJECT (c-ares LANGUAGES C VERSION "1.28.1" )
 
 # Set this version before release
-SET (CARES_VERSION "1.27.0")
+SET (CARES_VERSION "1.28.1")
 
 INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are wrong.
 
@@ -30,7 +30,7 @@ INCLUDE (GNUInstallDirs) # include this *AFTER* PROJECT(), otherwise paths are w
 # For example, a version of 4:0:2 would generate output such as:
 #    libname.so   -> libname.so.2
 #    libname.so.2 -> libname.so.2.2.0
-SET (CARES_LIB_VERSIONINFO "14:0:12")
+SET (CARES_LIB_VERSIONINFO "15:1:13")
 
 
 OPTION (CARES_STATIC        "Build as a static library"                                             OFF)
@@ -98,7 +98,7 @@ IF (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 	SET (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_BINDIR}")
 	SET (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
 	SET (CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/${CMAKE_INSTALL_LIBDIR}")
-	SET (PACKAGE_DIRECTORY ${PROJECT_BINARY_DIR}/package)
+	SET (CMAKE_COMPILE_PDB_OUTPUT_DIRECTORY "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}")
 ENDIF ()
 
 # Destinations for installing different kinds of targets (pass to install command).
@@ -113,11 +113,10 @@ SET (TARGETS_INST_DEST
 # CHECK_LIBRARY_EXISTS can't be used as it will return true if the function
 # is found in a different required/dependent library.
 MACRO (CARES_FUNCTION_IN_LIBRARY func lib var)
-
-	SET (_ORIG_CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
+	SET (_ORIG_FIL_CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES}")
 	SET (CMAKE_REQUIRED_LIBRARIES )
 	CHECK_FUNCTION_EXISTS ("${func}" "_CARES_FUNC_IN_LIB_GLOBAL_${func}")
-	SET (CMAKE_REQUIRED_LIBRARIES "${_ORIG_CMAKE_REQUIRED_LIBRARIES}")
+	SET (CMAKE_REQUIRED_LIBRARIES "${_ORIG_FIL_CMAKE_REQUIRED_LIBRARIES}")
 
 	IF ("${_CARES_FUNC_IN_LIB_GLOBAL_${func}}")
 		SET (${var} FALSE)
@@ -207,6 +206,7 @@ CHECK_INCLUDE_FILES (malloc.h              HAVE_MALLOC_H)
 CHECK_INCLUDE_FILES (memory.h              HAVE_MEMORY_H)
 CHECK_INCLUDE_FILES (netdb.h               HAVE_NETDB_H)
 CHECK_INCLUDE_FILES (netinet/in.h          HAVE_NETINET_IN_H)
+CHECK_INCLUDE_FILES (netinet6/in6.h        HAVE_NETINET6_IN6_H)
 # On old MacOS SDK versions, you must include sys/socket.h before net/if.h
 IF (HAVE_SYS_SOCKET_H)
   CHECK_INCLUDE_FILES ("sys/socket.h;net/if.h"  HAVE_NET_IF_H)
@@ -303,7 +303,11 @@ ENDIF ()
 # headers, libraries, and definitions for the detection to work properly
 # CMAKE_REQUIRED_DEFINITIONS, CMAKE_REQUIRED_LIBRARIES, and
 # CMAKE_EXTRA_INCLUDE_FILES.  When we're done with the detection, we'll
-# unset them.
+# restore them to their original values (otherwise a parent project
+# that tries to set these won't be maintained, see Issue #729)
+SET (ORIG_CMAKE_REQUIRED_DEFINITIONS ${CMAKE_REQUIRED_DEEFINITIONS})
+SET (ORIG_CMAKE_REQUIRED_LIBRARIES ${CMAKE_REQUIRED_LIBRARIES})
+SET (ORIG_CMAKE_EXTRA_INCLUDE_FILES ${CMAKE_EXTRA_INCLUDE_FILES})
 
 SET (CMAKE_REQUIRED_DEFINITIONS ${SYSFLAGS})
 LIST (APPEND CMAKE_REQUIRED_LIBRARIES ${CARES_DEPENDENT_LIBS})
@@ -323,6 +327,7 @@ CARES_EXTRAINCLUDE_IFSET (HAVE_NETDB_H        netdb.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NET_IF_H       net/if.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_IFADDRS_H      ifaddrs.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NETINET_IN_H   netinet/in.h)
+CARES_EXTRAINCLUDE_IFSET (HAVE_NETINET6_IN6_H netinet6/in6.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_NETINET_TCP_H  netinet/tcp.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_SIGNAL_H       signal.h)
 CARES_EXTRAINCLUDE_IFSET (HAVE_STDLIB_H       stdlib.h)
@@ -458,10 +463,10 @@ CHECK_SYMBOL_EXISTS (epoll_create1   "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_EPOLL)
 # from libc.  We need to perform a link test instead of a header/symbol test.
 CHECK_FUNCTION_EXISTS (__system_property_get HAVE___SYSTEM_PROPERTY_GET)
 
-# Unset temporary data
-SET (CMAKE_EXTRA_INCLUDE_FILES)
-SET (CMAKE_REQUIRED_DEFINITIONS)
-SET (CMAKE_REQUIRED_LIBRARIES)
+# Restore original values (as per Issue #729)
+SET (CMAKE_REQUIRED_DEFINITIONS ${ORIG_CMAKE_REQUIRED_DEEFINITIONS})
+SET (CMAKE_REQUIRED_LIBRARIES ${ORIG_CMAKE_REQUIRED_LIBRARIES})
+SET (CMAKE_EXTRA_INCLUDE_FILES ${ORIG_CMAKE_EXTRA_INCLUDE_FILES})
 
 
 ################################################################################

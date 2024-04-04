@@ -954,7 +954,7 @@ static ares_status_t ares__init_sysconfig_libresolv(ares_sysconfig_t *sysconfig)
     }
   }
 
-  if (res.ndots > 0) {
+  if (res.ndots >= 0) {
     sysconfig->ndots = (size_t)res.ndots;
   }
   if (res.retry > 0) {
@@ -1057,6 +1057,10 @@ static ares_status_t ares_sysconfig_apply(ares_channel_t         *channel,
 
   if (!(channel->optmask & (ARES_OPT_ROTATE | ARES_OPT_NOROTATE))) {
     channel->rotate = sysconfig->rotate;
+  }
+
+  if (sysconfig->usevc) {
+    channel->flags |= ARES_FLAG_USEVC;
   }
 
   return ARES_SUCCESS;

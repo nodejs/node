@@ -47,13 +47,12 @@
 #include "ares.h"
 #include "ares_private.h"
 
-ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
+ares_status_t ares__parse_into_addrinfo(const ares_dns_record_t *dnsrec,
                                         ares_bool_t    cname_only_is_enodata,
                                         unsigned short port,
                                         struct ares_addrinfo *ai)
 {
   ares_status_t               status;
-  ares_dns_record_t          *dnsrec = NULL;
   size_t                      i;
   size_t                      ancount;
   const char                 *hostname  = NULL;
@@ -62,11 +61,6 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
   ares_bool_t                 got_cname = ARES_FALSE;
   struct ares_addrinfo_cname *cnames    = NULL;
   struct ares_addrinfo_node  *nodes     = NULL;
-
-  status = ares_dns_parse(abuf, alen, 0, &dnsrec);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
 
   /* Save question hostname */
   status = ares_dns_record_query_get(dnsrec, 0, &hostname, NULL, NULL);
@@ -83,7 +77,7 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
   for (i = 0; i < ancount; i++) {
     ares_dns_rec_type_t  rtype;
     const ares_dns_rr_t *rr =
-      ares_dns_record_rr_get(dnsrec, ARES_SECTION_ANSWER, i);
+      ares_dns_record_rr_get_const(dnsrec, ARES_SECTION_ANSWER, i);
 
     if (ares_dns_rr_get_class(rr) != ARES_CLASS_IN) {
       continue;
@@ -177,7 +171,6 @@ ares_status_t ares__parse_into_addrinfo(const unsigned char *abuf, size_t alen,
 done:
   ares__freeaddrinfo_cnames(cnames);
   ares__freeaddrinfo_nodes(nodes);
-  ares_dns_record_destroy(dnsrec);
 
   /* compatibility */
   if (status == ARES_EBADNAME) {

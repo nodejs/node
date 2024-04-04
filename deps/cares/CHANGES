@@ -1,5 +1,250 @@
    Changelog for the c-ares project. Generated with git2changes.pl
 
+Version 1.28.1 (30 Mar 2024)
+
+GitHub (30 Mar 2024)
+- [Brad House brought this change]
+
+  release prep for 1.28.1 (#739)
+
+Brad House (30 Mar 2024)
+- ares_search() and ares_getaddrinfo() resolution fails if no search domains
+  
+  Due to an error in creating the list of domains to search, if no search
+  domains were configured, resolution would fail.
+  
+  Fixes Issue: #737
+  Fix By: Brad House (@bradh352)
+
+- typo
+
+Version 1.28.0 (28 Mar 2024)
+
+GitHub (28 Mar 2024)
+- [Brad House brought this change]
+
+  Allow configuration value for NDots to be zero (#735)
+  
+  As per Issue #734 some people use `ndots:0` in their configuration which
+  is allowed by the system resolver but not by c-ares. Add support for
+  `ndots:0` and add a test case to validate this behavior.
+  
+  Fixes Issue: #734
+  Fix By: Brad House (@bradh352)
+
+Brad House (27 Mar 2024)
+- typo
+
+GitHub (27 Mar 2024)
+- [Brad House brought this change]
+
+  1.28.0 release prep (#733)
+
+Brad House (27 Mar 2024)
+- CMake: don't overwrite global required libraries/definitions/includes
+  
+  When chain building c-ares, global settings were being unset which
+  could lead to build problems.
+  
+  Fixes Issue: #729
+  Fix By: Brad House (@bradh352)
+
+- remove tests that have been disabled forever
+
+- clang-format
+
+- ares_search_dnsrec() takes a const
+
+- sonarcloud: clean up some minor codesmells
+
+GitHub (26 Mar 2024)
+- [Brad House brought this change]
+
+  mark deprecated functions as such (#732)
+  
+  Multiple functions have been deprecated over the years, annotate them
+  with attribute deprecated.
+  
+  When possible show a message about their replacements.
+  
+  This is a continuation/completion of PR #706
+  
+  Fix By: Cristian Rodríguez (@crrodriguez)
+
+Brad House (26 Mar 2024)
+- silence clang static analyzer
+
+- silence coverity
+
+- coverity: fix mostly bogus warnings
+
+- fix missing doc
+
+GitHub (25 Mar 2024)
+- [Brad House brought this change]
+
+  Rework internals to pass around `ares_dns_record_t` instead of binary data (#730)
+  
+  c-ares has historically passed around raw dns packets in binary form.
+  Now that we have a new parser, and messages are already parsed
+  internally, lets pass around that parsed message rather than requiring
+  multiple parse attempts on the same message. Also add a new
+  `ares_send_dnsrec()` and `ares_query_dnsrec()` similar to
+  `ares_search_dnsrec()` added with PR #719 that can return the pointer to
+  the `ares_dns_record_t` to the caller enqueuing queries and rework
+  `ares_search_dnsrec()` to use `ares_send_dnsrec()` internally.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (23 Mar 2024)
+- tests: mockserver is local, shorten timeouts to make test cases run faster to use less CI resources
+
+- appveyor: disable UWP builds until MSVC version is updated in base image
+
+GitHub (21 Mar 2024)
+- [Faraz brought this change]
+
+  Include netinet6/in6.h (#728)
+  
+  On some platforms, "netinet6/in6.h" is not included by "netinet/in.h"
+  and needs to be included separately.
+  
+  Fix By: Faraz (@farazrbx)
+
+- [Oliver Welsh brought this change]
+
+  Add function ares_search_dnrec() to search for records using the new DNS record parser (#719)
+  
+  This PR adds a new function `ares_search_dnsrec()` to search for records
+  using the new DNS record parser.
+  
+  The function takes an arbitrary DNS record object to search (that must
+  represent a query for a single name). The function takes a new callback
+  type, `ares_callback_dnsrec`, that is invoked with a parsed DNS record
+  object rather than the raw buffer(+length).
+  
+  The original motivation for this change is to provide support for
+  [draft-kaplan-enum-sip-routing-04](https://datatracker.ietf.org/doc/html/draft-kaplan-enum-sip-routing-04);
+  when routing phone calls using an ENUM server, it can be useful to
+  include identifying source information in an OPT RR options value, to
+  help select the appropriate route for the call. The new function allows
+  for more customisable searches like this.
+  
+  **Summary of code changes**
+  
+  A new function `ares_search_dnsrec()` has been added and exposed.
+  Moreover, the entire `ares_search_int()` internal code flow has been
+  refactored to use parsed DNS record objects and the new DNS record
+  parser. The DNS record object is passed through the `search_query`
+  structure by encoding/decoding to/from a buffer (if multiple search
+  domains are used). A helper function `ares_dns_write_query_altname()` is
+  used to re-write the DNS record object with a new query name (used to
+  append search domains).
+  
+  `ares_search()` is now a wrapper around the new internal code, where the
+  DNS record object is created based on the name, class and type
+  parameters.
+  
+  The new function uses a new callback type, `ares_callback_dnsrec`. This
+  is invoked with a parsed DNS record object. For now, we convert from
+  `ares_callback` to this new type using `ares__dnsrec_convert_cb()`.
+  
+  Some functions that are common to both `ares_query()` and
+  `ares_search()` have been refactored using the new DNS record parser.
+  See `ares_dns_record_create_query()` and
+  `ares_dns_query_reply_tostatus()`.
+  
+  **Testing**
+  
+  A new FV has been added to test the new function, which searches for a
+  DNS record containing an OPT RR with custom options value.
+  
+  As part of this, I needed to enhance the mock DNS server to expect
+  request text (and assert that it matches actual request text). This is
+  because the FV needs to check that the request contains the correct OPT
+  RR.
+  
+  **Documentation**
+  
+  The man page docs have been updated to describe the new feature.
+  
+  **Futures**
+  
+  In the future, a new variant of `ares_send()` could be introduced in the
+  same vein (`ares_send_dnsrec()`). This could be used by
+  `ares_search_dnsrec()`. Moreover, we could migrate internal code to use
+  `ares_callback_dnsrec` as the default callback.
+  
+  This will help to make the new DNS record parser the norm in C-Ares.
+  
+  ---------
+  
+  Co-authored-by: Oliver Welsh (@oliverwelsh)
+
+- [Brad House brought this change]
+
+  Replace configuration file parsers with memory-safe parser (#725)
+  
+  Rewrite configuration parsers using new memory safe parsing functions.
+  After CVE-2024-25629 its obvious that we need to prioritize again on
+  getting all the hand written parsers with direct pointer manipulation
+  replaced. They're just not safe and hard to audit. It was yet another
+  example of 20+yr old code having a memory safety issue just now coming
+  to light.
+  
+  Though these parsers are definitely less efficient, they're written with
+  memory safety in mind, and any performance difference is going to be
+  meaningless for something that only happens once a while.
+  
+  Fix By: Brad House (@bradh352)
+
+Brad House (12 Mar 2024)
+- skip ubsan/asan on debian arm64 due to the compiler getting killed
+
+- ares_init potential memory leak
+  
+  If initializing using default settings fails, there may be a memory leak of
+  search domains that were set by system configuration.
+  
+  Fixes Issue: #724
+  Fix By: Brad House (@bradh352)
+
+GitHub (12 Mar 2024)
+- [Faraz Fallahi brought this change]
+
+  simple implementation for isascii where stdlib isascii is not available (#721)
+  
+  Some platforms don't have the isascii() function.  Implement as a macro.
+  
+  Fix By: Faraz Fallahi (@fffaraz)
+
+Brad House (11 Mar 2024)
+- Doxygen: fix typos
+  
+  Fix reported typos in doxygen-style comments.
+  
+  Fixes Issue: #722
+  Credit: @dzalyalov88
+
+- CI: update freebsd image
+
+- CMake: Fix Chain building if CMAKE runtime paths not set
+  
+  This fixes issues created by #708
+  
+  Fix By: Brad House (@bradh352)
+
+- silence benign warnings
+
+- Remove acountry completely from code, including manpage
+  
+  Since acountry cannot be restored due to nerd.dk being decommissioned,
+  we should completely remove the manpage and source.  This also
+  will resolve issue #718.
+  
+  Fixes Issue: #718
+  Fix By: Brad House (@bradh352)
+
 Version 1.27.0 (22 Feb 2024)
 
 GitHub (22 Feb 2024)
@@ -6100,127 +6345,3 @@ Yang Tse (10 Mar 2013)
 
 Daniel Stenberg (9 Mar 2013)
 - ares.h: there is no ares_free_soa function
-
-Yang Tse (9 Mar 2013)
-- Makefile.am: empty AM_LDFLAGS definition for automake 1.7 compatibility
-
-- ares_inet_ntop.3: s/socklen_t/ares_socklen_t
-
-- configure: use XC_LIBTOOL for portability across libtool versions
-
-- xc-lt-iface.m4: provide XC_LIBTOOL macro
-
-- Makefile.am: use AM_CPPFLAGS instead of INCLUDES
-
-- inet_ntop.c: s/socklen_t/ares_socklen_t
-
-- inet_ntop.c: s/socklen_t/ares_socklen_t for portability
-
-Daniel Stenberg (19 Feb 2013)
-- ares.h: s/socklen_t/ares_socklen_t for portability
-
-- ares_inet_ntop.3: 4th argument is socklen_t!
-
-- spell inet correctly!
-
-- ares_inet_pton/ntop: cleanup
-  
-  Make sure that the symbols are always exported and present in c-ares.
-  
-  Make the headers prefixed with 'ares'.
-  
-  Removed the inet_ntop.h version as it no longer features any content.
-
-- ares_inet_ntop/ares_inet_pton: added man pages
-
-Yang Tse (15 Feb 2013)
-- [Gisle Vanem brought this change]
-
-  curl_setup_once.h: definition of HAVE_CLOSE_S defines sclose() to close_s()
-
-- [Gisle Vanem brought this change]
-
-  config-dos.h: define HAVE_CLOSE_S for MSDOS/Watt-32
-
-- [Gisle Vanem brought this change]
-
-  config-dos.h: define strerror() to strerror_s_() for High-C
-
-Daniel Stenberg (13 Feb 2013)
-- ares_get_datatype: removed unused function
-  
-  it was also wrongly named as internal functions require two underscores
-
-- ares__bitncmp: use two underscores for private functions
-  
-  It used a single one previously making it look like a public one
-
-- ares__generate_new_id: moved to ares_query.c
-  
-  ... and ares__rc4 is turned into a local static function.
-
-- ares__swap_lists: make private and static
-  
-  ... since there's only one user, make it static within ares_process.c
-
-Yang Tse (13 Feb 2013)
-- Makefile.msvc: add four VS version strings
-
-Daniel Stenberg (13 Feb 2013)
-- ares_expand_name.3: clarify how to free the data
-
-Yang Tse (30 Jan 2013)
-- zz40-xc-ovr.m4: fix 'wc' detection - follow-up 2
-  
-  - Fix a pair of single quotes to double quotes.
-  
-  URL: http://curl.haxx.se/mail/lib-2013-01/0355.html
-  Reported by: Tor Arntsen
-
-- zz40-xc-ovr.m4: fix 'wc' detection - follow-up
-  
-  - Take into account that 'wc' may return leading spaces and/or tabs.
-  
-  - Set initial IFS to space, tab and newline.
-
-- zz40-xc-ovr.m4: fix 'wc' detection
-  
-  - Take into account that 'wc' may return leading spaces.
-  
-  - Set internationalization behavior variables.
-  
-  Tor Arntsen analyzed and reported the issue.
-  
-  URL: http://curl.haxx.se/mail/lib-2013-01/0351.html
-
-- zz40-xc-ovr.m4: check another three basic utilities
-
-- zz40-xc-ovr.m4: 1.0 interface stabilization
-  
-  - Stabilization results in 4 public interface m4 macros:
-    XC_CONFIGURE_PREAMBLE
-    XC_CONFIGURE_PREAMBLE_VER_MAJOR
-    XC_CONFIGURE_PREAMBLE_VER_MINOR
-    XC_CHECK_PATH_SEPARATOR
-  - Avoid one level of internal indirection
-  - Update comments
-  - Drop XC_OVR_ZZ40 macro
-
-- zz40-xc-ovr.m4: emit witness message in configure BODY
-  
-  This avoids witness message in output when running configure --help,
-  while sending the message to config.log for other configure runs.
-
-- zz40-xc-ovr.m4: truly do version conditional overriding
-  
-  - version conditional overriding
-  - catch unexpanded XC macros
-  - fix double words in comments
-
-- zz40-xc-ovr.m4: fix variable assignment of subshell output bashism
-  
-  Tor Arntsen analyzed and reported the issue.
-  
-  URL: http://curl.haxx.se/mail/lib-2013-01/0306.html
-
-- zz40-xc-ovr.m4: reinstate strict AC_REQUIRE macro dependencies

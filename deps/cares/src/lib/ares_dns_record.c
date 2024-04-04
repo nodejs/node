@@ -276,6 +276,39 @@ ares_status_t ares_dns_record_query_add(ares_dns_record_t  *dnsrec,
   return ARES_SUCCESS;
 }
 
+ares_status_t ares_dns_record_query_set_name(ares_dns_record_t *dnsrec,
+                                             size_t idx, const char *name)
+{
+  char *orig_name = NULL;
+
+  if (dnsrec == NULL || idx >= dnsrec->qdcount || name == NULL) {
+    return ARES_EFORMERR;
+  }
+  orig_name            = dnsrec->qd[idx].name;
+  dnsrec->qd[idx].name = ares_strdup(name);
+  if (dnsrec->qd[idx].name == NULL) {
+    dnsrec->qd[idx].name = orig_name;
+    return ARES_ENOMEM;
+  }
+
+  ares_free(orig_name);
+  return ARES_SUCCESS;
+}
+
+ares_status_t ares_dns_record_query_set_type(ares_dns_record_t  *dnsrec,
+                                             size_t              idx,
+                                             ares_dns_rec_type_t qtype)
+{
+  if (dnsrec == NULL || idx >= dnsrec->qdcount ||
+      !ares_dns_rec_type_isvalid(qtype, ARES_TRUE)) {
+    return ARES_EFORMERR;
+  }
+
+  dnsrec->qd[idx].qtype = qtype;
+
+  return ARES_SUCCESS;
+}
+
 ares_status_t ares_dns_record_query_get(const ares_dns_record_t *dnsrec,
                                         size_t idx, const char **name,
                                         ares_dns_rec_type_t *qtype,
@@ -499,7 +532,7 @@ ares_dns_rr_t *ares_dns_record_rr_get(ares_dns_record_t *dnsrec,
   return &rr_ptr[idx];
 }
 
-static const ares_dns_rr_t *
+const ares_dns_rr_t *
   ares_dns_record_rr_get_const(const ares_dns_record_t *dnsrec,
                                ares_dns_section_t sect, size_t idx)
 {
@@ -1313,4 +1346,104 @@ ares_bool_t ares_dns_has_opt_rr(const ares_dns_record_t *rec)
     }
   }
   return ARES_FALSE;
+}
+
+/* Construct a DNS record for a name with given class and type. Used internally
+ * by ares_search() and ares_create_query().
+ */
+ares_status_t
+  ares_dns_record_create_query(ares_dns_record_t **dnsrec, const char *name,
+                               ares_dns_class_t    dnsclass,
+                               ares_dns_rec_type_t type, unsigned short id,
+                               ares_dns_flags_t flags, size_t max_udp_size)
+{
+  ares_status_t  status;
+  ares_dns_rr_t *rr = NULL;
+
+  if (dnsrec == NULL) {
+    return ARES_EFORMERR;
+  }
+
+  *dnsrec = NULL;
+
+  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN */
+  if (ares__is_onion_domain(name)) {
+    status = ARES_ENOTFOUND;
+    goto done;
+  }
+
+  status = ares_dns_record_create(dnsrec, id, (unsigned short)flags,
+                                  ARES_OPCODE_QUERY, ARES_RCODE_NOERROR);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  status = ares_dns_record_query_add(*dnsrec, name, type, dnsclass);
+  if (status != ARES_SUCCESS) {
+    goto done;
+  }
+
+  /* max_udp_size > 0 indicates EDNS, so send OPT RR as an additional record */
+  if (max_udp_size > 0) {
+    /* max_udp_size must fit into a 16 bit unsigned integer field on the OPT
+     * RR, so check here that it fits
+     */
+    if (max_udp_size > 65535) {
+      status = ARES_EFORMERR;
+      goto done;
+    }
+
+    status = ares_dns_record_rr_add(&rr, *dnsrec, ARES_SECTION_ADDITIONAL, "",
+                                    ARES_REC_TYPE_OPT, ARES_CLASS_IN, 0);
+    if (status != ARES_SUCCESS) {
+      goto done;
+    }
+
+    status = ares_dns_rr_set_u16(rr, ARES_RR_OPT_UDP_SIZE,
+                                 (unsigned short)max_udp_size);
+    if (status != ARES_SUCCESS) {
+      goto done;
+    }
+
+    status = ares_dns_rr_set_u8(rr, ARES_RR_OPT_VERSION, 0);
+    if (status != ARES_SUCCESS) {
+      goto done;
+    }
+
+    status = ares_dns_rr_set_u16(rr, ARES_RR_OPT_FLAGS, 0);
+    if (status != ARES_SUCCESS) {
+      goto done;
+    }
+  }
+
+done:
+  if (status != ARES_SUCCESS) {
+    ares_dns_record_destroy(*dnsrec);
+    *dnsrec = NULL;
+  }
+  return status;
+}
+
+ares_dns_record_t *ares_dns_record_duplicate(const ares_dns_record_t *dnsrec)
+{
+  unsigned char     *data     = NULL;
+  size_t             data_len = 0;
+  ares_dns_record_t *out      = NULL;
+  ares_status_t      status;
+
+  if (dnsrec == NULL) {
+    return NULL;
+  }
+
+  status = ares_dns_write(dnsrec, &data, &data_len);
+  if (status != ARES_SUCCESS) {
+    return NULL;
+  }
+
+  status = ares_dns_parse(data, data_len, 0, &out);
+  ares_free(data);
+  if (status != ARES_SUCCESS) {
+    return NULL;
+  }
+  return out;
 }

@@ -26,7 +26,6 @@
       'src/lib/ares__llist.c',
       'src/lib/ares__llist.h',
       'src/lib/ares__parse_into_addrinfo.c',
-      'src/lib/ares__read_line.c',
       'src/lib/ares__slist.c',
       'src/lib/ares__slist.h',
       'src/lib/ares__socket.c',
@@ -74,7 +73,6 @@
       'src/lib/ares_library_init.c',
       'src/lib/ares_ipv6.h',
       'src/lib/ares_math.c',
-      'src/lib/ares_mkquery.c',
       'src/lib/ares_options.c',
       'src/lib/ares_parse_a_reply.c',
       'src/lib/ares_parse_aaaa_reply.c',
@@ -154,7 +152,15 @@
       'type': '<(library)',
       'include_dirs': [ 'include' ],
       'direct_dependent_settings': {
-        'include_dirs': [ 'include' ]
+        'include_dirs': [ 'include' ],
+        'cflags': [ '-Wno-error=deprecated-declarations' ],
+        'conditions': [
+          [ 'OS=="mac"', {
+            'xcode_settings': {
+              'OTHER_CFLAGS': [ '-Wno-error=deprecated-declarations' ]
+            }
+          }]
+        ]
       },
       'sources': [
         '<@(cares_sources_common)',
