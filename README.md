@@ -106,7 +106,7 @@ To check that a downloaded file matches the checksum, run
 it through `sha256sum` with a command such as:
 
 ```bash
-grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c -
+grep node-vx.y.z.tar.gz SHASUMS256.txt | sha256sum -c 
 ```
 
 For Current and LTS, the GPG detached signature of `SHASUMS256.txt` is in
