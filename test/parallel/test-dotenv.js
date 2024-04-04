@@ -84,3 +84,7 @@ assert.strictEqual(process.env.DONT_EXPAND_UNQUOTED, 'dontexpand\\nnewlines');
 assert.strictEqual(process.env.DONT_EXPAND_SQUOTED, 'dontexpand\\nnewlines');
 // Ignore export before key
 assert.strictEqual(process.env.EXAMPLE, 'ignore export');
+// Commented environment should be undefined
+assert.strictEqual(process.env.COMMENTED_ENV, undefined);
+assert.strictEqual(process.env.COMMENTED_ENV_FOLLOW_COMMENTED_ENV, undefined);
+assert.strictEqual(process.env.COMMENTED_ENV_FOLLOW_COMMENTED_ENV_2, undefined);
