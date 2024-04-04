@@ -106,7 +106,7 @@ a Graph that supports easy modification and update of its nodes.
 
 In addition to `unified` we also use
 [Remark](https://github.com/remarkjs/remark) for manipulating the Markdown part,
-and [Rehype](https://github.com/rehypejs/rehype)to help convert to and from
+and [Rehype](https://github.com/rehypejs/rehype) to help convert to and from
 Markdown.
 
 ### What are the steps of the internal tooling?
