@@ -513,4 +513,117 @@ console.log(values.random);
       `Completed running ${inspect(file)}`,
     ]);
   });
+
+  it('when --watch-path and --require does not have an equals and --require is after the --watch-path and require is' +
+    'requiring from node modules package exports, required path should run', {
+    skip: !supportsRecursive,
+  }, async () => {
+    const projectDir = tmpdir.resolve('project4');
+    mkdirSync(projectDir);
+
+    const dir = path.join(projectDir, 'watched-dir');
+    mkdirSync(dir);
+
+    // Create a package example
+    const demoPackageDir = path.join(projectDir, 'node_modules/demo');
+    mkdirSync(demoPackageDir, { recursive: true });
+
+    writeFileSync(path.join(demoPackageDir, 'package.json'), JSON.stringify({
+      'name': 'demo',
+      'version': '1.0.0',
+      'main': 'some.js',
+      'exports': {
+        './some': './some.js'
+      }
+    }
+    ));
+
+    writeFileSync(path.join(demoPackageDir, 'some.js'), 'console.log("hello")');
+
+    const file = createTmpFile(undefined, undefined, projectDir);
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = ['--watch-path', `${dir}`, '--require', 'demo/some', file];
+    const { stdout, stderr } = await runWriteSucceed({
+      file, watchedFile, args, options: {
+        cwd: projectDir
+      }
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('when --watch-path and --require does not have an equals and --require is after the --watch-path,' +
+    'the required file and the main module file should ran', {
+    skip: !supportsRecursive,
+  }, async () => {
+    const projectDir = tmpdir.resolve('project5');
+    mkdirSync(projectDir);
+
+    const dir = path.join(projectDir, 'watched-dir');
+    mkdirSync(dir);
+
+    writeFileSync(path.join(projectDir, 'some.js'), 'console.log(\'hello\')');
+
+    const file = createTmpFile('console.log(\'running\');', '.js', projectDir);
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = ['--watch-path', `${dir}`, '--require', './some.js', file];
+    const { stdout, stderr } = await runWriteSucceed({
+      file, watchedFile, args, options: {
+        cwd: projectDir
+      }
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
+
+  it('when --watch-path does not have an equal and --require does and --require is after the --watch-path,' +
+    'the required file and the main module file should ran', {
+    skip: !supportsRecursive,
+  }, async () => {
+    const projectDir = tmpdir.resolve('project6');
+    mkdirSync(projectDir);
+
+    const dir = path.join(projectDir, 'watched-dir');
+    mkdirSync(dir);
+
+    writeFileSync(path.join(projectDir, 'some.js'), "console.log('hello')");
+
+    const file = createTmpFile("console.log('running');", '.js', projectDir);
+    const watchedFile = createTmpFile('', '.js', dir);
+    const args = ['--watch-path', `${dir}`, '--require=./some.js', file];
+    const { stdout, stderr } = await runWriteSucceed({
+      file, watchedFile, args, options: {
+        cwd: projectDir
+      }
+    });
+
+    assert.strictEqual(stderr, '');
+    assert.deepStrictEqual(stdout, [
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+      `Restarting ${inspect(file)}`,
+      'hello',
+      'running',
+      `Completed running ${inspect(file)}`,
+    ]);
+  });
 });
