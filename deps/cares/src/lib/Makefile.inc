@@ -13,7 +13,6 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares__iface_ips.c			\
   ares__llist.c				\
   ares__parse_into_addrinfo.c		\
-  ares__read_line.c			\
   ares__slist.c				\
   ares__socket.c			\
   ares__sortaddrinfo.c			\
@@ -50,7 +49,6 @@ CSOURCES = ares__addrinfo2hostent.c	\
   ares_init.c				\
   ares_library_init.c			\
   ares_math.c			\
-  ares_mkquery.c			\
   ares_create_query.c			\
   ares_options.c			\
   ares_parse_a_reply.c			\

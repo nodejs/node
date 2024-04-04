@@ -1,40 +1,49 @@
-## c-ares version 1.27.0 - Feb 23 2024
+## c-ares version 1.28.1 - Mar 30 2024
 
-This is a security, feature, and bugfix release.
+This release contains a fix for a single significant regression introduced
+in c-ares 1.28.0.
 
-Security:
+* `ares_search()` and `ares_getaddrinfo()` resolution fails if no search domains
+  are specified. [Issue #737](https://github.com/c-ares/c-ares/issues/737)
 
-* Moderate. CVE-2024-25629. Reading malformatted `/etc/resolv.conf`,
-  `/etc/nsswitch.conf` or the `HOSTALIASES` file could result in a crash.
-  [GHSA-mg26-v6qh-x48q](https://github.com/c-ares/c-ares/security/advisories/GHSA-mg26-v6qh-x48q)
+
+## c-ares version 1.28.0 - Mar 29 2024
+
+This is a feature and bugfix release.
 
 Features:
 
-* New function `ares_queue_active_queries()` to retrieve number of in-flight
-  queries. [PR #712](https://github.com/c-ares/c-ares/pull/712)
-* New function `ares_queue_wait_empty()` to wait for the number of in-flight
-  queries to reach zero. [PR #710](https://github.com/c-ares/c-ares/pull/710)
-* New `ARES_FLAG_NO_DEFLT_SVR` for `ares_init_options()` to return a failure if
-  no DNS servers can be found rather than attempting to use `127.0.0.1`. This
-  also introduces a new ares status code of `ARES_ENOSERVER`. [PR #713](https://github.com/c-ares/c-ares/pull/713)
+* Emit warnings when deprecated c-ares functions are used.  This can be
+  disabled by passing a compiler definition of `CARES_NO_DEPRECATED`. [PR #732](https://github.com/c-ares/c-ares/pull/732)
+* Add function `ares_search_dnsrec()` to search for records using the new DNS
+  record data structures. [PR #719](https://github.com/c-ares/c-ares/pull/719)
+* Rework internals to pass around `ares_dns_record_t` instead of binary data,
+  this introduces new public functions of `ares_query_dnsrec()` and
+  `ares_send_dnsrec()`. [PR #730](https://github.com/c-ares/c-ares/pull/730)
 
 Changes:
 
-* EDNS Packet size should be 1232 as per DNS Flag Day. [PR #705](https://github.com/c-ares/c-ares/pull/705)
+* tests: when performing simulated queries, reduce timeouts to make tests run
+  faster
+* Replace configuration file parsers with memory-safe parser. [PR #725](https://github.com/c-ares/c-ares/pull/725)
+* Remove `acountry` completely, the manpage might still get installed otherwise. [Issue #718](https://github.com/c-ares/c-ares/pull/718)
 
 Bugfixes:
 
-* Windows DNS suffix search list memory leak. [PR #711](https://github.com/c-ares/c-ares/pull/711)
-* Fix warning due to ignoring return code of `write()`. [PR #709](https://github.com/c-ares/c-ares/pull/709)
-* CMake: don't override target output locations if not top-level. [Issue #708](https://github.com/c-ares/c-ares/issues/708)
-* Fix building c-ares without thread support. [PR #700](https://github.com/c-ares/c-ares/pull/700)
+* CMake: don't overwrite global required libraries/definitions/includes which
+  could cause build errors for projects chain building c-ares. [Issue #729](https://github.com/c-ares/c-ares/issues/729)
+* On some platforms, `netinet6/in6.h` is not included by `netinet/in.h`
+  and needs to be included separately. [PR #728](https://github.com/c-ares/c-ares/pull/728)
+* Fix a potential memory leak in `ares_init()`. [Issue #724](https://github.com/c-ares/c-ares/issues/724)
+* Some platforms don't have the `isascii()` function.  Implement as a macro. [PR #721](https://github.com/c-ares/c-ares/pull/721)
+* CMake: Fix Chain building if CMAKE runtime paths not set
+* NDots configuration should allow a value of zero. [PR #735](https://github.com/c-ares/c-ares/pull/735)
 
 Thanks go to these friendly people for their efforts and contributions for this release:
 
-* Anthony Alayo (@anthonyalayo)
 * Brad House (@bradh352)
-* Cheng Zhao (@zcbenz)
 * Cristian Rodríguez (@crrodriguez)
 * Daniel Stenberg (@bagder)
+* Faraz (@farazrbx)
+* Faraz Fallahi (@fffaraz)
 * Oliver Welsh (@oliverwelsh)
-* Vojtěch Vobr (@vojtechvobr)

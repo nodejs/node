@@ -28,13 +28,15 @@
 #include "ares.h"
 #include "ares_private.h"
 
-int ares_create_query(const char *name, int dnsclass, int type,
-                      unsigned short id, int rd, unsigned char **bufp,
-                      int *buflenp, int max_udp_size)
+static int ares_create_query_int(const char *name, int dnsclass, int type,
+                                 unsigned short id, int rd,
+                                 unsigned char **bufp, int *buflenp,
+                                 int max_udp_size)
 {
   ares_status_t      status;
   ares_dns_record_t *dnsrec = NULL;
   size_t             len;
+  ares_dns_flags_t   rd_flag = rd ? ARES_FLAG_RD : 0;
 
   if (name == NULL || bufp == NULL || buflenp == NULL) {
     status = ARES_EFORMERR;
@@ -44,54 +46,11 @@ int ares_create_query(const char *name, int dnsclass, int type,
   *bufp    = NULL;
   *buflenp = 0;
 
-  /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
-  if (ares__is_onion_domain(name)) {
-    status = ARES_ENOTFOUND;
-    goto done;
-  }
-
-  status = ares_dns_record_create(&dnsrec, id, rd ? ARES_FLAG_RD : 0,
-                                  ARES_OPCODE_QUERY, ARES_RCODE_NOERROR);
+  status = ares_dns_record_create_query(
+    &dnsrec, name, (ares_dns_class_t)dnsclass, (ares_dns_rec_type_t)type, id,
+    rd_flag, (size_t)max_udp_size);
   if (status != ARES_SUCCESS) {
     goto done;
-  }
-
-  status = ares_dns_record_query_add(dnsrec, name, (ares_dns_rec_type_t)type,
-                                     (ares_dns_class_t)dnsclass);
-  if (status != ARES_SUCCESS) {
-    goto done;
-  }
-
-  /* max_udp_size > 0 indicates EDNS, so send OPT RR as an additional record */
-  if (max_udp_size > 0) {
-    ares_dns_rr_t *rr = NULL;
-
-    status = ares_dns_record_rr_add(&rr, dnsrec, ARES_SECTION_ADDITIONAL, "",
-                                    ARES_REC_TYPE_OPT, ARES_CLASS_IN, 0);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    if (max_udp_size > 65535) {
-      status = ARES_EFORMERR;
-      goto done;
-    }
-
-    status = ares_dns_rr_set_u16(rr, ARES_RR_OPT_UDP_SIZE,
-                                 (unsigned short)max_udp_size);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    status = ares_dns_rr_set_u8(rr, ARES_RR_OPT_VERSION, 0);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
-
-    status = ares_dns_rr_set_u16(rr, ARES_RR_OPT_FLAGS, 0);
-    if (status != ARES_SUCCESS) {
-      goto done;
-    }
   }
 
   status = ares_dns_write(dnsrec, bufp, &len);
@@ -104,4 +63,18 @@ int ares_create_query(const char *name, int dnsclass, int type,
 done:
   ares_dns_record_destroy(dnsrec);
   return (int)status;
+}
+
+int ares_create_query(const char *name, int dnsclass, int type,
+                      unsigned short id, int rd, unsigned char **bufp,
+                      int *buflenp, int max_udp_size)
+{
+  return ares_create_query_int(name, dnsclass, type, id, rd, bufp, buflenp,
+                               max_udp_size);
+}
+
+int ares_mkquery(const char *name, int dnsclass, int type, unsigned short id,
+                 int rd, unsigned char **buf, int *buflen)
+{
+  return ares_create_query_int(name, dnsclass, type, id, rd, buf, buflen, 0);
 }

@@ -98,95 +98,6 @@ struct ares_hosts_entry {
   ares__llist_t *hosts;
 };
 
-static ares_status_t ares__read_file_into_buf(const char  *filename,
-                                              ares__buf_t *buf)
-{
-  FILE          *fp        = NULL;
-  unsigned char *ptr       = NULL;
-  size_t         len       = 0;
-  size_t         ptr_len   = 0;
-  long           ftell_len = 0;
-  ares_status_t  status;
-
-  if (filename == NULL || buf == NULL) {
-    return ARES_EFORMERR;
-  }
-
-  fp = fopen(filename, "rb");
-  if (fp == NULL) {
-    int error = ERRNO;
-    switch (error) {
-      case ENOENT:
-      case ESRCH:
-        status = ARES_ENOTFOUND;
-        goto done;
-      default:
-        DEBUGF(fprintf(stderr, "fopen() failed with error: %d %s\n", error,
-                       strerror(error)));
-        DEBUGF(fprintf(stderr, "Error opening file: %s\n", filename));
-        status = ARES_EFILE;
-        goto done;
-    }
-  }
-
-  /* Get length portably, fstat() is POSIX, not C */
-  if (fseek(fp, 0, SEEK_END) != 0) {
-    status = ARES_EFILE;
-    goto done;
-  }
-
-  ftell_len = ftell(fp);
-  if (ftell_len < 0) {
-    status = ARES_EFILE;
-    goto done;
-  }
-  len = (size_t)ftell_len;
-
-  if (fseek(fp, 0, SEEK_SET) != 0) {
-    status = ARES_EFILE;
-    goto done;
-  }
-
-  if (len == 0) {
-    status = ARES_SUCCESS;
-    goto done;
-  }
-
-  /* Read entire data into buffer */
-  ptr_len = len;
-  ptr     = ares__buf_append_start(buf, &ptr_len);
-  if (ptr == NULL) {
-    status = ARES_ENOMEM;
-    goto done;
-  }
-
-  ptr_len = fread(ptr, 1, len, fp);
-  if (ptr_len != len) {
-    status = ARES_EFILE;
-    goto done;
-  }
-
-  ares__buf_append_finish(buf, len);
-  status = ARES_SUCCESS;
-
-done:
-  if (fp != NULL) {
-    fclose(fp);
-  }
-  return status;
-}
-
-static ares_bool_t ares__is_hostname(const char *str)
-{
-  size_t i;
-  for (i = 0; str[i] != 0; i++) {
-    if (!ares__is_hostnamech(str[i])) {
-      return ARES_FALSE;
-    }
-  }
-  return ARES_TRUE;
-}
-
 const void *ares_dns_pton(const char *ipaddr, struct ares_addr *addr,
                           size_t *out_len)
 {
@@ -605,7 +516,7 @@ static ares_status_t ares__parse_hosts(const char         *filename,
     goto done;
   }
 
-  status = ares__read_file_into_buf(filename, buf);
+  status = ares__buf_load_file(filename, buf);
   if (status != ARES_SUCCESS) {
     goto done;
   }

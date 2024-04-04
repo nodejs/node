@@ -63,7 +63,7 @@ typedef struct ares__slist_node ares__slist_node_t;
  *
  *  \param[in] data  User-defined data to destroy
  */
-typedef void                    (*ares__slist_destructor_t)(void *data);
+typedef void (*ares__slist_destructor_t)(void *data);
 
 /*! SkipList comparison function
  *
@@ -71,7 +71,7 @@ typedef void                    (*ares__slist_destructor_t)(void *data);
  *  \param[in] data2 Second user-defined data object
  *  \return < 0 if data1 < data1, > 0 if data1 > data2, 0 if data1 == data2
  */
-typedef int         (*ares__slist_cmp_t)(const void *data1, const void *data2);
+typedef int (*ares__slist_cmp_t)(const void *data1, const void *data2);
 
 /*! Create SkipList
  *
