@@ -11,12 +11,12 @@
  * a given LTS or Stable may be added to this list, and only with TSC
  * consensus.
  *
- * For *main* this list should always be empty!
- **/
+ * For *main* this list should always be empty, aside from a single test entry!
+ */
 namespace node {
 
 #define SECURITY_REVERSIONS(XX)                                                \
-  //  XX(CVE_2016_PEND, "CVE-2016-PEND", "Vulnerability Title")
+  XX(CVE_2009_TEST, "CVE-2009-TEST", "Non-existent vulnerability for testing")
 
 enum reversion {
 #define V(code, ...) SECURITY_REVERT_##code,
