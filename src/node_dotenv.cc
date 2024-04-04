@@ -19,7 +19,7 @@ using v8::String;
 const std::regex LINE(
     "(?:^|^)\\s*(?:export\\s+)?([\\w.-]+)(?:\\s*=\\s*?|:\\s+?)(\\s*'(?"
     ":\\\\'|[^'])*'|\\s*\"(?:\\\\\"|[^\"])*\"|\\s*`(?:\\\\`|[^`])*`|[^"
-    "#\\r\\n]+)?\\s*(?:#.*)?");  // NOLINT(whitespace/line_length)
+    "#\r\n]+)?\\s*(?:#.*)?", std::regex::multiline);  // NOLINT(whitespace/line_length)
 
 std::vector<std::string> Dotenv::GetPathFromArgs(
     const std::vector<std::string>& args) {
