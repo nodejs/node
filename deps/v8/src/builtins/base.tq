@@ -75,6 +75,13 @@ macro WeakToStrong<T: type>(x: Weak<T>): T labels ClearedWeakPointer {
   return %RawDownCast<T>(x);
 }
 
+macro MaybeObjectToStrong(maybeObject: MaybeObject):
+    HeapObject labels IfCleared {
+  dcheck(IsWeakOrCleared(maybeObject));
+  const weakObject = %RawDownCast<Weak<HeapObject>>(maybeObject);
+  return WeakToStrong(weakObject) otherwise IfCleared;
+}
+
 // Defined to coincide with https://tc39.es/ecma262/#sec-ispropertykey
 // Doesn't include PrivateSymbol.
 type PropertyKey = String|PublicSymbol;
@@ -237,15 +244,11 @@ type IndirectPointer
     constexpr 'IndirectPointerHandle';
 // TODO(saelo): implement accessors and type checkers for these fields.
 type IndirectPointer<To: type> extends IndirectPointer;
-extern class InstructionStream extends HeapObject;
+extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
 type Number = Smi|HeapNumber;
 type Numeric = Number|BigInt;
-
-extern class ObjectBoilerplateDescription extends FixedArray;
-extern class ClosureFeedbackCellArray extends FixedArray;
-extern class ScriptContextTable extends FixedArray;
 
 extern class TransitionArray extends WeakFixedArray;
 
@@ -472,6 +475,8 @@ extern enum MessageTemplate {
   kGeneratorRunning,
   kFirstArgumentAsyncIteratorSymbolNonCallable,
   kIteratorResultNotAnObject,
+  kFlattenPastSafeLength,
+  kStrictReadOnlyProperty,
   ...
 }
 
@@ -536,19 +541,23 @@ const kHeapObjectHeaderSize:
     constexpr int32 generates 'HeapObject::kHeaderSize';
 
 type TheHole extends Hole;
+type PromiseHole extends Hole;
 type Exception extends Oddball;
 type EmptyString extends String;
 
 type NumberOrUndefined = Number|Undefined;
 
+extern macro ConstructorStringConstant(): String;
 extern macro DefaultStringConstant(): String;
 extern macro EmptyStringConstant(): EmptyString;
+extern macro ErrorStringConstant(): String;
 extern macro ErrorsStringConstant(): String;
 extern macro FalseConstant(): False;
 extern macro GetStringConstant(): String;
 extern macro HasStringConstant(): String;
 extern macro Int32FalseConstant(): bool;
 extern macro Int32TrueConstant(): bool;
+extern macro IteratorStringConstant(): String;
 extern macro IteratorSymbolConstant(): PublicSymbol;
 extern macro KeysStringConstant(): String;
 extern macro AsyncIteratorSymbolConstant(): PublicSymbol;
@@ -560,19 +569,24 @@ extern macro NameStringConstant(): String;
 extern macro NextStringConstant(): String;
 extern macro NullConstant(): Null;
 extern macro NumberStringConstant(): String;
+extern macro objectStringConstant(): String;
 extern macro ReturnStringConstant(): String;
 extern macro SearchSymbolConstant(): Symbol;
 extern macro SizeStringConstant(): String;
 extern macro StringStringConstant(): String;
+extern macro SuppressedStringConstant(): String;
 extern macro TheHoleConstant(): TheHole;
+extern macro PromiseHoleConstant(): PromiseHole;
 extern macro ToPrimitiveSymbolConstant(): PublicSymbol;
 extern macro ToStringStringConstant(): String;
+extern macro ToStringTagSymbolConstant(): PublicSymbol;
 extern macro TrueConstant(): True;
 extern macro UndefinedConstant(): Undefined;
 extern macro ValueOfStringConstant(): String;
 extern macro WasmWrappedObjectSymbolConstant(): Symbol;
 
 const TheHole: TheHole = TheHoleConstant();
+const PromiseHole: PromiseHole = PromiseHoleConstant();
 const Null: Null = NullConstant();
 const Undefined: Undefined = UndefinedConstant();
 const True: True = TrueConstant();
@@ -1290,6 +1304,7 @@ extern macro ChangeUint32ToWord(uint32): uintptr;  // Doesn't sign-extend.
 extern macro ChangeInt32ToInt64(int32): int64;  // Sign-extends.
 extern macro ChangeUint32ToUint64(uint32): uint64;  // Doesn't sign-extend.
 extern macro LoadNativeContext(Context): NativeContext;
+extern macro GetContinuationPreservedEmbedderData(): Object;
 extern macro TruncateFloat64ToFloat32(float64): float32;
 extern macro TruncateHeapNumberValueToWord32(HeapNumber): int32;
 extern macro LoadJSArrayElementsMap(
@@ -1489,6 +1504,9 @@ macro GetWeakCellMap(implicit context: Context)(): Map {
 }
 macro GetPrototypeApplyFunction(implicit context: Context)(): JSFunction {
   return *NativeContextSlot(ContextSlot::FUNCTION_PROTOTYPE_APPLY_INDEX);
+}
+macro GetIteratorPrototype(implicit context: Context)(): JSObject {
+  return *NativeContextSlot(ContextSlot::INITIAL_ITERATOR_PROTOTYPE_INDEX);
 }
 
 // Call(Context, Target, Receiver, ...Args)

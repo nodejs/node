@@ -49,7 +49,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 // Note that the VariableAssembler does not do "old-OpIndex => Variable"
 // book-keeping: the users of the Variable should do that themselves (which
-// is what OptimizationPhase does for instance).
+// is what CopyingPhase does for instance).
 
 template <class Next>
 class VariableReducer : public Next {
@@ -115,6 +115,12 @@ class VariableReducer : public Next {
           // If any of the predecessors' value is Invalid, then we shouldn't
           // merge {var}.
           return OpIndex::Invalid();
+        } else if (__ output_graph()
+                       .Get(idx)
+                       .template Is<LoadRootRegisterOp>()) {
+          // Variables that once contain the root register never contain another
+          // value.
+          return __ LoadRootRegister();
         }
       }
       return MergeOpIndices(predecessors, var.data().rep);
@@ -148,13 +154,13 @@ class VariableReducer : public Next {
     is_temporary_ = false;
   }
 
-  OpIndex REDUCE(Goto)(Block* destination) {
-    OpIndex result = Next::ReduceGoto(destination);
+  OpIndex REDUCE(Goto)(Block* destination, bool is_backedge) {
+    OpIndex result = Next::ReduceGoto(destination, is_backedge);
     if (!destination->IsBound()) {
       return result;
     }
     DCHECK(destination->IsLoop());
-    DCHECK(destination->HasExactlyNPredecessors(2));
+    DCHECK(destination->PredecessorCount() == 2);
     Snapshot loop_header_snapshot =
         *block_to_snapshot_mapping_
             [destination->LastPredecessor()->NeighboringPredecessor()->index()];

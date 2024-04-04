@@ -34,12 +34,6 @@ class V8_EXPORT TypedArray : public ArrayBufferView {
       static_cast<size_t>((uint64_t{1} << 53) - 1);
 #endif
 
-  /*
-   * Deprecated: Use |kMaxByteLength| or the type-specific |kMaxLength| fields.
-   */
-  V8_DEPRECATE_SOON("Use kMaxByteLength")
-  static constexpr size_t kMaxLength = kMaxByteLength;
-
   /**
    * Number of elements in this typed array
    * (e.g. for Int16Array, |ByteLength|/2).

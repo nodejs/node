@@ -170,8 +170,8 @@ Handle<SwissNameDictionary> SwissNameDictionary::ShallowCopy(
   // where size of each entry depends on table capacity.
   int size_per_meta_table_entry = MetaTableSizePerEntryFor(capacity);
   int meta_table_used_bytes = (2 + used_capacity) * size_per_meta_table_entry;
-  new_table->meta_table()->copy_in(
-      0, table->meta_table()->GetDataStartAddress(), meta_table_used_bytes);
+  MemCopy(new_table->meta_table()->begin(), table->meta_table()->begin(),
+          meta_table_used_bytes);
 
   return new_table;
 }

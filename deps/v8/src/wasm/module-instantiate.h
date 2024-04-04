@@ -23,6 +23,7 @@ class FixedArray;
 class JSArrayBuffer;
 class WasmModuleObject;
 class WasmInstanceObject;
+class WasmTrustedInstanceData;
 class Zone;
 
 namespace wasm {
@@ -83,10 +84,10 @@ constexpr ImportCallKind kDefaultImportCallKind =
 // is why the ultimate target is provided as well.
 class WasmImportData {
  public:
-  V8_EXPORT_PRIVATE WasmImportData(Handle<WasmInstanceObject> instance,
-                                   int func_index, Handle<JSReceiver> callable,
-                                   const wasm::FunctionSig* sig,
-                                   uint32_t expected_canonical_type_index);
+  V8_EXPORT_PRIVATE WasmImportData(
+      Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+      Handle<JSReceiver> callable, const wasm::FunctionSig* sig,
+      uint32_t expected_canonical_type_index, WellKnownImport preknown_import);
 
   ImportCallKind kind() const { return kind_; }
   WellKnownImport well_known_status() const { return well_known_status_; }
@@ -94,10 +95,10 @@ class WasmImportData {
   Handle<JSReceiver> callable() const { return callable_; }
 
  private:
-  ImportCallKind ComputeKind(Handle<WasmInstanceObject> instance,
-                             int func_index,
-                             const wasm::FunctionSig* expected_sig,
-                             uint32_t expected_canonical_type_index);
+  ImportCallKind ComputeKind(
+      Handle<WasmTrustedInstanceData> trusted_instance_data, int func_index,
+      const wasm::FunctionSig* expected_sig,
+      uint32_t expected_canonical_type_index, WellKnownImport preknown_import);
 
   ImportCallKind kind_;
   WellKnownImport well_known_status_{WellKnownImport::kGeneric};
@@ -115,14 +116,13 @@ MaybeHandle<WasmInstanceObject> InstantiateToInstanceObject(
 // {Optional} that contains the error message. Exits early if the segment is
 // already initialized.
 base::Optional<MessageTemplate> InitializeElementSegment(
-    Zone* zone, Isolate* isolate, Handle<WasmInstanceObject> instance,
+    Zone* zone, Isolate* isolate,
+    Handle<WasmTrustedInstanceData> trusted_instance_data,
     uint32_t segment_index);
 
-V8_EXPORT_PRIVATE void CreateMapForType(Isolate* isolate,
-                                        const WasmModule* module,
-                                        int type_index,
-                                        Handle<WasmInstanceObject> instance,
-                                        Handle<FixedArray> maps);
+V8_EXPORT_PRIVATE void CreateMapForType(
+    Isolate* isolate, const WasmModule* module, int type_index,
+    Handle<WasmInstanceObject> instance_object, Handle<FixedArray> maps);
 
 }  // namespace wasm
 }  // namespace internal

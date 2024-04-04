@@ -473,53 +473,48 @@ class CppGraphBuilderImpl final {
     DCHECK(parent.IsVisibleNotDependent());
     v8::Local<v8::Value> v8_value =
         ref.Get(reinterpret_cast<v8::Isolate*>(cpp_heap_.isolate()));
-    if (!v8_value.IsEmpty()) {
-      if (!parent.get_node()) {
-        parent.set_node(AddNode(*parent.header()));
-      }
-      auto* v8_node = graph_.V8Node(v8_value);
-      if (!edge_name.empty()) {
-        graph_.AddEdge(parent.get_node(), v8_node,
-                       parent.get_node()->InternalizeEdgeName(edge_name));
-      } else {
-        graph_.AddEdge(parent.get_node(), v8_node);
-      }
+    if (v8_value.IsEmpty()) return;
 
-      // References that have a class id set may have their internal fields
-      // pointing back to the object. Set up a wrapper node for the graph so
-      // that the snapshot generator  can merge the nodes appropriately.
-      // Even with a set class id, do not set up a wrapper node when the edge
-      // has a specific name.
-      if (!ref.WrapperClassId() || !edge_name.empty()) return;
+    if (!parent.get_node()) {
+      parent.set_node(AddNode(*parent.header()));
+    }
+    auto* v8_node = graph_.V8Node(v8_value);
+    if (!edge_name.empty()) {
+      graph_.AddEdge(parent.get_node(), v8_node,
+                     parent.get_node()->InternalizeEdgeName(edge_name));
+    } else {
+      graph_.AddEdge(parent.get_node(), v8_node);
+    }
 
-      void* back_reference_object = ExtractEmbedderDataBackref(
-          reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
-          cpp_heap_, v8_value);
-      if (back_reference_object) {
-        auto& back_header = HeapObjectHeader::FromObject(back_reference_object);
-        auto& back_state = states_.GetExistingState(back_header);
+    // Don't merge nodes if edges have a name.
+    if (!edge_name.empty()) return;
 
-        // Generally the back reference will point to `parent.header()`. In the
-        // case of global proxy set up the backreference will point to a
-        // different object, which may not have a node at t his point. Merge the
-        // nodes nevertheless as Window objects need to be able to query their
-        // detachedness state.
-        //
-        // TODO(chromium:1218404): See bug description on how to fix this
-        // inconsistency and only merge states when the backref points back
-        // to the same object.
-        if (!back_state.get_node()) {
-          back_state.set_node(AddNode(back_header));
-        }
-        back_state.get_node()->SetWrapperNode(v8_node);
+    // Try to extract the back reference. If the back reference matches
+    // `parent`, then the nodes are merged.
+    void* back_reference_object = ExtractEmbedderDataBackref(
+        reinterpret_cast<v8::internal::Isolate*>(cpp_heap_.isolate()),
+        cpp_heap_, v8_value);
+    if (!back_reference_object) return;
 
-        auto* profiler =
-            reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
-        if (profiler->HasGetDetachednessCallback()) {
-          back_state.get_node()->SetDetachedness(
-              profiler->GetDetachedness(v8_value, ref.WrapperClassId()));
-        }
-      }
+    auto& back_header = HeapObjectHeader::FromObject(back_reference_object);
+    auto& back_state = states_.GetExistingState(back_header);
+
+    // If the back reference doesn't point to the same header, just return. In
+    // such a case we have stand-alone references to a wrapper.
+    if (parent.header() != back_state.header()) return;
+
+    // Back reference points to parents header. In this case, the nodes should
+    // be merged and query the detachedness state of the embedder.
+    if (!back_state.get_node()) {
+      back_state.set_node(AddNode(back_header));
+    }
+    back_state.get_node()->SetWrapperNode(v8_node);
+
+    auto* profiler =
+        reinterpret_cast<Isolate*>(cpp_heap_.isolate())->heap_profiler();
+    if (profiler->HasGetDetachednessCallback()) {
+      back_state.get_node()->SetDetachedness(
+          profiler->GetDetachedness(v8_value, 0));
     }
   }
 

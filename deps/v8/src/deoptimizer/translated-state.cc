@@ -541,7 +541,7 @@ Tagged<Object> TranslatedValue::GetRawValue() const {
           // Overwriting {string} with a filler, so that we don't leave around a
           // potentially-too-small SlicedString.
           isolate()->heap()->CreateFillerObjectAt(string.address(),
-                                                  SlicedString::kSize);
+                                                  sizeof(SlicedString));
 
           return backing_store;
         }
@@ -2195,8 +2195,9 @@ void TranslatedState::InitializeJSObjectAt(
 #endif  // DEBUG
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
-                                              InvalidateRecordedSlots::kNo);
+  isolate()->heap()->NotifyObjectLayoutChange(
+      *object_storage, no_gc, InvalidateRecordedSlots::kNo,
+      InvalidateExternalPointerSlots::kNo);
 
   // Finish any sweeping so that it becomes safe to overwrite the ByteArray
   // headers. See chromium:1228036.
@@ -2278,8 +2279,9 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
 #endif  // DEBUG
 
   // Notify the concurrent marker about the layout change.
-  isolate()->heap()->NotifyObjectLayoutChange(*object_storage, no_gc,
-                                              InvalidateRecordedSlots::kNo);
+  isolate()->heap()->NotifyObjectLayoutChange(
+      *object_storage, no_gc, InvalidateRecordedSlots::kNo,
+      InvalidateExternalPointerSlots::kNo);
 
   // Finish any sweeping so that it becomes safe to overwrite the ByteArray
   // headers. See chromium:1228036.

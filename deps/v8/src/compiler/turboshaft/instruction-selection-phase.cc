@@ -8,11 +8,43 @@
 #include "src/compiler/backend/instruction-selector-impl.h"
 #include "src/compiler/backend/instruction-selector.h"
 #include "src/compiler/graph-visualizer.h"
+#include "src/compiler/js-heap-broker.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
+#include "src/diagnostics/code-tracer.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+namespace {
+
+void TraceSequence(OptimizedCompilationInfo* info,
+                   InstructionSequence* sequence, JSHeapBroker* broker,
+                   CodeTracer* code_tracer, const char* phase_name) {
+  if (info->trace_turbo_json()) {
+    UnparkedScopeIfNeeded scope(broker);
+    AllowHandleDereference allow_deref;
+    TurboJsonFile json_of(info, std::ios_base::app);
+    json_of << "{\"name\":\"" << phase_name << "\",\"type\":\"sequence\""
+            << ",\"blocks\":" << InstructionSequenceAsJSON{sequence}
+            << ",\"register_allocation\":{"
+            << "\"fixed_double_live_ranges\": {}"
+            << ",\"fixed_live_ranges\": {}"
+            << ",\"live_ranges\": {}"
+            << "}},\n";
+  }
+  if (info->trace_turbo_graph()) {
+    UnparkedScopeIfNeeded scope(broker);
+    AllowHandleDereference allow_deref;
+    CodeTracer::StreamScope tracing_scope(code_tracer);
+    tracing_scope.stream() << "----- Instruction sequence " << phase_name
+                           << " -----\n"
+                           << *sequence;
+  }
+}
+
+}  // namespace
 
 // Compute the special reverse-post-order block ordering, which is essentially
 // a RPO of the graph where loop bodies are contiguous. Properties:
@@ -48,7 +80,7 @@ class TurboshaftSpecialRPONumberer {
 
   struct LoopInfo {
     const Block* header;
-    base::SmallVector<Block const*, 2> outgoing;
+    base::SmallVector<Block const*, 4> outgoing;
     BitVector* members;
     LoopInfo* prev;
     const Block* end;
@@ -67,16 +99,20 @@ class TurboshaftSpecialRPONumberer {
   };
 
   TurboshaftSpecialRPONumberer(const Graph& graph, Zone* zone)
-      : graph_(&graph), block_data_(graph.block_count(), zone), zone_(zone) {}
+      : graph_(&graph), block_data_(graph.block_count(), zone), loops_(zone) {}
 
   ZoneVector<uint32_t> ComputeSpecialRPO() {
-    std::stack<SpecialRPOStackFrame> stack;
-    std::vector<Backedge> backedges;
+    ZoneVector<SpecialRPOStackFrame> stack(zone());
+    ZoneVector<Backedge> backedges(zone());
+    // Determined empirically on a large Wasm module. Since they are allocated
+    // only once per function compilation, the memory usage is not critical.
+    stack.reserve(64);
+    backedges.reserve(32);
     size_t num_loops = 0;
 
     auto Push = [&](const Block* block) {
       auto succs = SuccessorBlocks(*block, *graph_);
-      stack.emplace(block, 0, succs);
+      stack.emplace_back(block, 0, std::move(succs));
       set_rpo_number(block, kBlockOnStack);
     };
 
@@ -88,7 +124,7 @@ class TurboshaftSpecialRPONumberer {
     Push(&graph_->StartBlock());
 
     while (!stack.empty()) {
-      SpecialRPOStackFrame& frame = stack.top();
+      SpecialRPOStackFrame& frame = stack.back();
 
       if (frame.index < frame.successors.size()) {
         // Process the next successor.
@@ -110,7 +146,7 @@ class TurboshaftSpecialRPONumberer {
         // Finished with all successors; pop the stack and add the block.
         order = PushFront(order, frame.block);
         set_rpo_number(frame.block, kBlockVisited1);
-        stack.pop();
+        stack.pop_back();
       }
     }
 
@@ -134,7 +170,7 @@ class TurboshaftSpecialRPONumberer {
     DCHECK(stack.empty());
     Push(&graph_->StartBlock());
     while (!stack.empty()) {
-      SpecialRPOStackFrame& frame = stack.top();
+      SpecialRPOStackFrame& frame = stack.back();
       const Block* block = frame.block;
       const Block* succ = nullptr;
 
@@ -176,7 +212,7 @@ class TurboshaftSpecialRPONumberer {
         if (loop != nullptr && !loop->members->Contains(succ->index().id())) {
           // The successor is not in the current loop or any nested loop.
           // Add it to the outgoing edges of this loop and visit it later.
-          loop->AddOutgoing(zone_, succ);
+          loop->AddOutgoing(zone(), succ);
         } else {
           // Push the successor onto the stack.
           Push(succ);
@@ -208,7 +244,7 @@ class TurboshaftSpecialRPONumberer {
           order = PushFront(order, block);
           set_rpo_number(block, kBlockVisited2);
         }
-        stack.pop();
+        stack.pop_back();
       }
     }
 
@@ -217,8 +253,8 @@ class TurboshaftSpecialRPONumberer {
 
  private:
   // Computes loop membership from the backedges of the control flow graph.
-  void ComputeLoopInfo(size_t num_loops, std::vector<Backedge>& backedges) {
-    std::stack<const Block*> stack;
+  void ComputeLoopInfo(size_t num_loops, ZoneVector<Backedge>& backedges) {
+    ZoneVector<const Block*> stack(zone());
 
     // Extend loop information vector.
     loops_.resize(num_loops, LoopInfo{});
@@ -232,26 +268,26 @@ class TurboshaftSpecialRPONumberer {
       DCHECK_NULL(loops_[loop_num].header);
       loops_[loop_num].header = header;
       loops_[loop_num].members =
-          zone_->New<BitVector>(graph_->block_count(), zone_);
+          zone()->New<BitVector>(graph_->block_count(), zone());
 
       if (backedge != header) {
         // As long as the header doesn't have a backedge to itself,
         // Push the member onto the queue and process its predecessors.
         DCHECK(!loops_[loop_num].members->Contains(backedge->index().id()));
         loops_[loop_num].members->Add(backedge->index().id());
-        stack.push(backedge);
+        stack.push_back(backedge);
       }
 
       // Propagate loop membership backwards. All predecessors of M up to the
       // loop header H are members of the loop too. O(|blocks between M and H|).
       while (!stack.empty()) {
-        const Block* block = stack.top();
-        stack.pop();
+        const Block* block = stack.back();
+        stack.pop_back();
         for (const Block* pred : block->PredecessorsIterable()) {
           if (pred != header) {
             if (!loops_[loop_num].members->Contains(pred->index().id())) {
               loops_[loop_num].members->Add(pred->index().id());
-              stack.push(pred);
+              stack.push_back(pred);
             }
           }
         }
@@ -260,7 +296,7 @@ class TurboshaftSpecialRPONumberer {
   }
 
   ZoneVector<uint32_t> ComputeBlockPermutation(const Block* entry) {
-    ZoneVector<uint32_t> result(graph_->block_count(), zone_);
+    ZoneVector<uint32_t> result(graph_->block_count(), zone());
     size_t i = 0;
     for (const Block* b = entry; b; b = block_data_[b->index()].rpo_next) {
       result[i++] = b->index().id();
@@ -295,10 +331,11 @@ class TurboshaftSpecialRPONumberer {
     return block;
   }
 
+  Zone* zone() const { return loops_.zone(); }
+
   const Graph* graph_;
   FixedBlockSidetable<BlockData> block_data_;
-  std::vector<LoopInfo> loops_;
-  Zone* zone_;
+  ZoneVector<LoopInfo> loops_;
 };
 
 base::Optional<BailoutReason> InstructionSelectionPhase::Run(
@@ -385,13 +422,8 @@ base::Optional<BailoutReason> InstructionSelectionPhase::Run(
   if (base::Optional<BailoutReason> bailout = selector.SelectInstructions()) {
     return bailout;
   }
-  if (data->info()->trace_turbo_json()) {
-    TurboJsonFile json_of(data->info(), std::ios_base::app);
-    json_of << "{\"name\":\"" << phase_name() << "\",\"type\":\"instructions\""
-            << InstructionRangesAsJSON{data->sequence(),
-                                       &selector.instr_origins()}
-            << "},\n";
-  }
+  TraceSequence(data->info(), data->sequence(), data->broker(), code_tracer,
+                "after instruction selection");
   return base::nullopt;
 }
 

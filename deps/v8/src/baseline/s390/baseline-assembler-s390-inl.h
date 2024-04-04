@@ -473,6 +473,12 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     ScratchRegisterScope temps(this);
+
+    // The entry references a CodeWrapper object. Unwrap it now.
+    __ LoadTaggedField(
+        scratch_and_result,
+        FieldMemOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+
     Register scratch = temps.AcquireScratch();
     __ TestCodeIsMarkedForDeoptimization(scratch_and_result, scratch);
     __ beq(on_result);

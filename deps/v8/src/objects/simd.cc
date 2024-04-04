@@ -397,8 +397,8 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   if constexpr (kind == ArrayIndexOfIncludesKind::OBJECTORSMI) {
     Tagged<FixedArray> fixed_array =
         FixedArray::cast(Tagged<Object>(array_start));
-    Tagged_t* array =
-        static_cast<Tagged_t*>(fixed_array->data_start().ToVoidPtr());
+    Tagged_t* array = static_cast<Tagged_t*>(
+        fixed_array->RawFieldOfFirstElement().ToVoidPtr());
 
     DCHECK(!IsHeapNumber(Tagged<Object>(search_element)));
     DCHECK(!IsBigInt(Tagged<Object>(search_element)));

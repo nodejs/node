@@ -5,6 +5,12 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
+# https://github.com/nodejs/node/issues/52273
+test-net-write-fully-async-hex-string: PASS, FLAKY
+test-shadow-realm-gc: PASS, FLAKY
+test-shadow-realm-gc-module: PASS, FLAKY
+# https://github.com/nodejs/node/issues/52274
+test-worker-arraybuffer-zerofill: PASS, FLAKY
 
 [$system==win32]
 

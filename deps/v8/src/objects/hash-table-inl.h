@@ -239,7 +239,7 @@ Tagged<Object> HashTable<Derived, Shape>::KeyAt(InternalIndex entry) {
 template <typename Derived, typename Shape>
 Tagged<Object> HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                                 InternalIndex entry) {
-  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex);
+  return get(EntryToIndex(entry) + kEntryKeyIndex);
 }
 
 template <typename Derived, typename Shape>
@@ -253,7 +253,7 @@ template <typename Derived, typename Shape>
 Tagged<Object> HashTable<Derived, Shape>::KeyAt(PtrComprCageBase cage_base,
                                                 InternalIndex entry,
                                                 RelaxedLoadTag tag) {
-  return get(cage_base, EntryToIndex(entry) + kEntryKeyIndex, tag);
+  return get(EntryToIndex(entry) + kEntryKeyIndex, tag);
 }
 
 template <typename Derived, typename Shape>

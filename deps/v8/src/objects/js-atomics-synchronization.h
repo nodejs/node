@@ -73,35 +73,17 @@ class JSAtomicsMutex
                                            JSSynchronizationPrimitive> {
  public:
   // A non-copyable wrapper class that provides an RAII-style mechanism for
-  // owning the JSAtomicsMutex.
-  //
-  // The mutex is locked when a LockGuard object is created, and unlocked when
-  // the LockGuard object is destructed.
-  class V8_NODISCARD LockGuard final {
+  // owning the `JSAtomicsMutex`.
+  class V8_NODISCARD LockGuardBase {
    public:
-    inline LockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
-    LockGuard(const LockGuard&) = delete;
-    LockGuard& operator=(const LockGuard&) = delete;
-    inline ~LockGuard();
-
-   private:
-    Isolate* isolate_;
-    Handle<JSAtomicsMutex> mutex_;
-  };
-
-  // A non-copyable wrapper class that provides an RAII-style mechanism for
-  // attempting to take ownership of a JSAtomicsMutex via its TryLock method.
-  //
-  // The mutex is attempted to be locked via TryLock when a TryLockGuard object
-  // is created. If the mutex was acquired, then it is released when the
-  // TryLockGuard object is destructed.
-  class V8_NODISCARD TryLockGuard final {
-   public:
-    inline TryLockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
-    TryLockGuard(const TryLockGuard&) = delete;
-    TryLockGuard& operator=(const TryLockGuard&) = delete;
-    inline ~TryLockGuard();
+    LockGuardBase(const LockGuardBase&) = delete;
+    LockGuardBase& operator=(const LockGuardBase&) = delete;
+    inline ~LockGuardBase();
     bool locked() const { return locked_; }
+
+   protected:
+    inline LockGuardBase(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+                         bool locked);
 
    private:
     Isolate* isolate_;
@@ -109,12 +91,33 @@ class JSAtomicsMutex
     bool locked_;
   };
 
+  // The mutex is attempted to be locked via `Lock` when a `LockGuard`
+  // object is created, the lock will be acquired unless the timeout is reached.
+  // If the mutex was acquired, then it is released when the `LockGuard` object
+  // is destructed.
+  class V8_NODISCARD LockGuard final : public LockGuardBase {
+   public:
+    inline LockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex,
+                     base::Optional<base::TimeDelta> timeout = base::nullopt);
+  };
+
+  // The mutex is attempted to be locked via `TryLock` when a `TryLockGuard`
+  // object is created. If the mutex was acquired, then it is released when the
+  // `TryLockGuard` object is destructed.
+  class V8_NODISCARD TryLockGuard final : public LockGuardBase {
+   public:
+    inline TryLockGuard(Isolate* isolate, Handle<JSAtomicsMutex> mutex);
+  };
+
   DECL_CAST(JSAtomicsMutex)
   DECL_PRINTER(JSAtomicsMutex)
   EXPORT_DECL_VERIFIER(JSAtomicsMutex)
 
   // Lock the mutex, blocking if it's currently owned by another thread.
-  static inline void Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex);
+  // Returns false if the lock times out, true otherwise.
+  static inline bool Lock(
+      Isolate* requester, Handle<JSAtomicsMutex> mutex,
+      base::Optional<base::TimeDelta> timeout = base::nullopt);
 
   V8_WARN_UNUSED_RESULT inline bool TryLock();
 
@@ -138,6 +141,7 @@ class JSAtomicsMutex
   static constexpr StateT kUnlocked = 0;
   static constexpr StateT kLockedUncontended = 1;
 
+  static constexpr StateT kQueueMask = ~kLockedUncontended;
   static constexpr StateT kLockBitsMask = (1 << kLockBitsSize) - 1;
   static constexpr StateT kWaiterQueueHeadMask = ~kLockBitsMask;
 
@@ -149,12 +153,19 @@ class JSAtomicsMutex
   static bool TryLockExplicit(std::atomic<StateT>* state, StateT& expected);
   static bool TryLockWaiterQueueExplicit(std::atomic<StateT>* state,
                                          StateT& expected);
+  static void UnlockWaiterQueueWithNewState(std::atomic<StateT>* state,
+                                            StateT new_state);
 
-  V8_EXPORT_PRIVATE static void LockSlowPath(Isolate* requester,
-                                             Handle<JSAtomicsMutex> mutex,
-                                             std::atomic<StateT>* state);
+  V8_EXPORT_PRIVATE static bool LockSlowPath(
+      Isolate* requester, Handle<JSAtomicsMutex> mutex,
+      std::atomic<StateT>* state, base::Optional<base::TimeDelta> timeout);
   V8_EXPORT_PRIVATE void UnlockSlowPath(Isolate* requester,
                                         std::atomic<StateT>* state);
+
+  // Returns true if the JS mutex was taken and false otherwise.
+  static bool LockJSMutexOrDequeueTimedOutWaiter(
+      Isolate* requester, std::atomic<StateT>* state,
+      detail::WaiterQueueNode* timed_out_waiter);
 
   using TorqueGeneratedJSAtomicsMutex<
       JSAtomicsMutex, JSSynchronizationPrimitive>::owner_thread_id;

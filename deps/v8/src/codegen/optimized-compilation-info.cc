@@ -80,6 +80,7 @@ void OptimizedCompilationInfo::ConfigureFlags() {
     case CodeKind::BYTECODE_HANDLER:
       set_called_with_code_start_register();
       if (v8_flags.turbo_splitting) set_splitting();
+      if (v8_flags.enable_allocation_folding) set_allocation_folding();
       break;
     case CodeKind::BUILTIN:
 #ifdef V8_ENABLE_BUILTIN_JUMP_TABLE_SWITCH

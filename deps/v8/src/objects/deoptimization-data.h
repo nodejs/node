@@ -25,6 +25,10 @@ class DeoptimizationLiteralArray : public WeakFixedArray {
   inline Tagged<Object> get(int index) const;
   inline Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
 
+  // TODO(jgruber): Swap these names around. It's confusing that this
+  // WeakFixedArray subclass redefines `get` with different semantics.
+  inline MaybeObject get_raw(int index) const;
+
   // Setter for literals. This will set the object as strong or weak depending
   // on InstructionStream::IsWeakObjectInOptimizedCode.
   inline void set(int index, Tagged<Object> value);

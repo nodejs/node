@@ -188,7 +188,7 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
 }
 
 void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
-                                  ICacheFlushMode icache_flush_mode) {
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsEmbeddedObjectMode(rmode_));
   if (IsCompressedEmbeddedObject(rmode_)) {
     Assembler::set_target_compressed_address_at(
@@ -260,8 +260,6 @@ Address RelocInfo::target_off_heap_target() {
   DCHECK(IsOffHeapTarget(rmode_));
   return Assembler::target_address_at(pc_, constant_pool_);
 }
-
-
 
 EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 

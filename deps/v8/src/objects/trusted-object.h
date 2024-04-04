@@ -35,6 +35,13 @@ class TrustedObject : public HeapObject {
   DECL_CAST(TrustedObject)
   DECL_VERIFIER(TrustedObject)
 
+  // Protected pointers, i.e. pointers between objects in trusted space, must
+  // only be used to reference a trusted object from another trusted object.
+  // Using them from inside the sandbox would not be safe (they would not be
+  // "protected"). As such, the slot accessor for these slots only exists on
+  // TrustedObjects but not on any other HeapObjects.
+  inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
+
   static constexpr int kHeaderSize = HeapObject::kHeaderSize;
   static constexpr int kize = kHeaderSize;
 
@@ -75,6 +82,15 @@ class TrustedObject : public HeapObject {
 // document the potential pitfalls when doing so.
 class ExposedTrustedObject : public TrustedObject {
  public:
+  // Initializes this object by creating its pointer table entry.
+  inline void init_self_indirect_pointer(IsolateForSandbox isolate);
+
+  // Returns the 'self' indirect pointer of this object.
+  // This indirect pointer references a pointer table entry (either in the
+  // trusted pointer table or the code pointer table for Code objects) through
+  // which this object can be referenced from inside the sandbox.
+  inline IndirectPointerHandle self_indirect_pointer_handle() const;
+
   DECL_CAST(ExposedTrustedObject)
   DECL_VERIFIER(ExposedTrustedObject)
 
@@ -82,7 +98,7 @@ class ExposedTrustedObject : public TrustedObject {
   // The 'self' indirect pointer is only available when the sandbox is enabled.
   // Otherwise, these objects are referenced through direct pointers.
 #define FIELD_LIST(V)                                                   \
-  V(kSelfIndirectPointerOffset, kIndirectPointerSlotSize)               \
+  V(kSelfIndirectPointerOffset, kIndirectPointerSize)                   \
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)                                                     \
   V(kSize, 0)

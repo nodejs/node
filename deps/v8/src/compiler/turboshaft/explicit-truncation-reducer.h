@@ -29,10 +29,7 @@ class ExplicitTruncationReducer
     // Construct a temporary operation. The operation is needed for generic
     // access to the inputs and the inputs representation.
     using Op = typename opcode_to_operation_map<opcode>::Op;
-    size_t size =
-        Operation::StorageSlotCount(opcode, (0 + ... + input_count(args)));
-    storage_.resize_no_init(size);
-    Op* operation = new (storage_.data()) Op(args...);
+    Op* operation = CreateOperation<Op>(storage_, args...);
 
     base::Vector<const MaybeRegisterRepresentation> reps =
         operation->inputs_rep(inputs_rep_storage_);
@@ -68,19 +65,6 @@ class ExplicitTruncationReducer
   }
 
  private:
-  // Computes the number of inputs of an operation, ignoring non-OpIndex inputs
-  // (which are always inlined in the operation) and `base::Vector<OpIndex>`
-  // inputs.
-  template <typename T>
-  constexpr size_t input_count(T) {
-    return 0;
-  }
-  constexpr size_t input_count() { return 0; }
-  constexpr size_t input_count(OpIndex) { return 1; }
-  constexpr size_t input_count(base::Vector<const OpIndex> inputs) {
-    return inputs.size();
-  }
-
   ZoneVector<MaybeRegisterRepresentation> inputs_rep_storage_{
       Asm().phase_zone()};
   base::SmallVector<OperationStorageSlot, 32> storage_;

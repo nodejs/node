@@ -75,7 +75,7 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
   Node* PointerConstant(intptr_t value);
   template <typename T>
   Node* PointerConstant(T* value) {
-    return PointerConstant(base::bit_cast<intptr_t>(value));
+    return PointerConstant(reinterpret_cast<intptr_t>(value));
   }
 
   // Creates an ExternalConstant node, usually canonicalized.

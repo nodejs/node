@@ -35,7 +35,7 @@ class V8_NODISCARD SaveAndClearThreadInWasmFlag {
     }
   }
   ~SaveAndClearThreadInWasmFlag() {
-    if (thread_was_in_wasm_ && !isolate_->has_pending_exception()) {
+    if (thread_was_in_wasm_ && !isolate_->has_exception()) {
       trap_handler::SetThreadInWasm();
     }
   }
@@ -159,17 +159,15 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
   }
-  if (isolate->has_pending_exception())
-    return ReadOnlyRoots(isolate).exception();
+  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
 
   subject = String::Flatten(isolate, subject);
   if (StringReplaceOneCharWithString(isolate, subject, search, replace, &found,
                                      kRecursionLimit).ToHandle(&result)) {
     return *result;
   }
-  if (isolate->has_pending_exception())
-    return ReadOnlyRoots(isolate).exception();
-  // In case of empty handle and no pending exception we have stack overflow.
+  if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
+  // In case of empty handle and no exception we have stack overflow.
   return isolate->StackOverflow();
 }
 

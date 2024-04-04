@@ -4,9 +4,9 @@
 
 #include "src/api/api.h"
 #include "src/baseline/baseline.h"
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/common/globals.h"
@@ -1281,18 +1281,18 @@ TF_BUILTIN(AdaptorWithBuiltinExitFrame, CodeStubAssembler) {
       Int32Constant(BuiltinExitFrameConstants::kNumExtraArgsWithoutReceiver));
 
   const bool builtin_exit_frame = true;
-  TNode<Code> code = HeapConstant(
-      CodeFactory::CEntry(isolate(), 1, ArgvMode::kStack, builtin_exit_frame));
+  const bool switch_to_central_stack = false;
+  Builtin centry = Builtins::CEntry(1, ArgvMode::kStack, builtin_exit_frame,
+                                    switch_to_central_stack);
 
   // Unconditionally push argc, target and new target as extra stack arguments.
   // They will be used by stack frame iterators when constructing stack trace.
-  TailCallStub(CEntry1ArgvOnStackDescriptor{},  // descriptor
-               code, context,       // standard arguments for TailCallStub
-               argc, c_function,    // register arguments
-               TheHoleConstant(),   // additional stack argument 1 (padding)
-               SmiFromInt32(argc),  // additional stack argument 2
-               target,              // additional stack argument 3
-               new_target);         // additional stack argument 4
+  TailCallBuiltin(centry, context,     // standard arguments for TailCallBuiltin
+                  argc, c_function,    // register arguments
+                  TheHoleConstant(),   // additional stack argument 1 (padding)
+                  SmiFromInt32(argc),  // additional stack argument 2
+                  target,              // additional stack argument 3
+                  new_target);         // additional stack argument 4
 }
 
 TF_BUILTIN(NewHeapNumber, CodeStubAssembler) {
@@ -1319,6 +1319,28 @@ TF_BUILTIN(AllocateInOldGeneration, CodeStubAssembler) {
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
+
+#if V8_ENABLE_WEBASSEMBLY
+TF_BUILTIN(WasmAllocateInYoungGeneration, CodeStubAssembler) {
+  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
+
+  TNode<Smi> allocation_flags =
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TailCallRuntime(Runtime::kAllocateInYoungGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), allocation_flags);
+}
+
+TF_BUILTIN(WasmAllocateInOldGeneration, CodeStubAssembler) {
+  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
+
+  TNode<Smi> runtime_flags =
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), runtime_flags);
+}
+#endif
 
 TF_BUILTIN(Abort, CodeStubAssembler) {
   auto message_id = Parameter<Smi>(Descriptor::kMessageOrMessageId);
@@ -1366,34 +1388,23 @@ void Builtins::Generate_WasmCEntry(MacroAssembler* masm) {
 
 #if !defined(V8_TARGET_ARCH_ARM)
 void Builtins::Generate_MemCopyUint8Uint8(MacroAssembler* masm) {
-  masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
+  masm->CallBuiltin(Builtin::kIllegal);
 }
 #endif  // !defined(V8_TARGET_ARCH_ARM)
 
 #ifndef V8_TARGET_ARCH_IA32
 void Builtins::Generate_MemMove(MacroAssembler* masm) {
-  masm->Call(BUILTIN_CODE(masm->isolate(), Illegal), RelocInfo::CODE_TARGET);
+  masm->CallBuiltin(Builtin::kIllegal);
 }
 #endif  // V8_TARGET_ARCH_IA32
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#if ENABLE_SPARKPLUG
 void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
+#ifdef V8_ENABLE_SPARKPLUG
   EmitReturnBaseline(masm);
-}
 #else
-// Stub out implementations of arch-specific baseline builtins.
-void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   masm->Trap();
+#endif  // V8_ENABLE_SPARKPLUG
 }
-void Builtins::Generate_BaselineLeaveFrame(MacroAssembler* masm) {
-  masm->Trap();
-}
-void Builtins::Generate_BaselineOnStackReplacement(MacroAssembler* masm) {
-  masm->Trap();
-}
-#endif
 
 // TODO(v8:11421): Remove #if once the Maglev compiler is ported to other
 // architectures.

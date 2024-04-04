@@ -90,10 +90,11 @@ responsible for that release. In order to be able to verify downloaded binaries,
 the public should be able to check that the `SHASUMS256.txt` file has been
 signed by someone who has been authorized to create a release.
 
-The GPG keys should be fetchable from a known third-party keyserver. The SKS
-Keyservers at <https://sks-keyservers.net> are recommended. Use the
-[submission](https://pgp.mit.edu/) form to submit a new GPG key. You'll need to
-do an ASCII-armored export of your key first:
+The public keys should be fetchable from a known third-party keyserver.
+The OpenPGP keyserver at <https://keys.openpgp.org/> is recommended.
+Use the [submission](https://keys.openpgp.org/upload) form to submit
+a new public key, and make sure to verify the associated email.
+You'll need to do an ASCII-armored export of your key first:
 
 ```bash
 gpg --armor --export email@server.com > ~/nodekey.asc
@@ -102,7 +103,7 @@ gpg --armor --export email@server.com > ~/nodekey.asc
 Keys should be fetchable via:
 
 ```bash
-gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
+gpg --keyserver hkps://keys.openpgp.org --recv-keys <FINGERPRINT>
 ```
 
 The key you use may be a child/subkey of an existing key.

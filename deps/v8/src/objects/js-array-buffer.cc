@@ -79,15 +79,19 @@ void JSArrayBuffer::Attach(std::shared_ptr<BackingStore> backing_store) {
   DCHECK(!was_detached());
   Isolate* isolate = GetIsolate();
 
-  if (backing_store->IsEmpty()) {
-    // Wasm memory always needs a backing store; this is guaranteed by reserving
-    // at least one page for the BackingStore (so {IsEmpty()} is always false).
-    CHECK(!backing_store->is_wasm_memory());
-    set_backing_store(isolate, EmptyBackingStoreBuffer());
-  } else {
-    DCHECK_NE(nullptr, backing_store->buffer_start());
-    set_backing_store(isolate, backing_store->buffer_start());
+  void* backing_store_buffer = backing_store->buffer_start();
+  // Wasm memory always needs a backing store; this is guaranteed by reserving
+  // at least one page for the BackingStore (so {IsEmpty()} is always false).
+  CHECK_IMPLIES(backing_store->is_wasm_memory(), !backing_store->IsEmpty());
+  // Non-empty backing stores must start at a non-null pointer.
+  DCHECK_IMPLIES(backing_store_buffer == nullptr, backing_store->IsEmpty());
+  // Empty backing stores can be backed by a null pointer or an externally
+  // provided pointer: Either is acceptable. If pointers are sandboxed then
+  // null pointers must be replaced by a special null entry.
+  if (V8_ENABLE_SANDBOX_BOOL && !backing_store_buffer) {
+    backing_store_buffer = EmptyBackingStoreBuffer();
   }
+  set_backing_store(isolate, backing_store_buffer);
 
   // GSABs need to read their byte_length from the BackingStore. Maintain the
   // invariant that their byte_length field is always 0.

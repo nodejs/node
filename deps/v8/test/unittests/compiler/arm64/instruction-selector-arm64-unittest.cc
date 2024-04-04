@@ -6,11 +6,7 @@
 #include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/backend/instruction-selector-unittest.h"
 
-namespace v8 {
-namespace internal {
-namespace compiler {
-
-namespace {
+namespace v8::internal::compiler {
 
 template <typename T>
 struct MachInst {
@@ -945,6 +941,7 @@ TEST_F(InstructionSelectorTest, AddSignedExtendHalfwordOnLeft) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 enum PairwiseAddSide { LEFT, RIGHT };
 
 std::ostream& operator<<(std::ostream& os, const PairwiseAddSide& side) {
@@ -1011,6 +1008,7 @@ const AddWithPairwiseAddSideAndWidth kAddWithPairAddTestCases[] = {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorAddWithPairwiseAddTest,
                          ::testing::ValuesIn(kAddWithPairAddTestCases));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 // -----------------------------------------------------------------------------
 // Data processing controlled branches.
@@ -2171,6 +2169,7 @@ INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorIntDPWithIntMulTest,
                          ::testing::ValuesIn(kMulDPInstructions));
 
+#if V8_ENABLE_WEBASSEMBLY
 namespace {
 
 struct SIMDMulDPInst {
@@ -2626,6 +2625,7 @@ TEST_F(InstructionSelectorTest, SimdF64x2MulWithDupNegativeTest) {
     EXPECT_EQ(1U, s[1]->OutputCount());
   }
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 TEST_F(InstructionSelectorTest, Int32MulWithImmediate) {
   // x * (2^k + 1) -> x + (x << k)
@@ -5509,6 +5509,7 @@ TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsIntFloatMixed) {
   }
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 TEST_F(InstructionSelectorTest, PokePairPrepareArgumentsSimd128) {
   MachineSignature::Builder builder(zone(), 0, 2);
   builder.AddParam(MachineType::Simd128());
@@ -5846,8 +5847,6 @@ TEST_P(InstructionSelectorSIMDConstAndTest, ConstAnd) {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorSIMDConstAndTest,
                          ::testing::ValuesIn(SIMDConstAndTests));
+#endif  // V8_ENABLE_WEBASSEMBLY
 
-}  // namespace
-}  // namespace compiler
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::compiler

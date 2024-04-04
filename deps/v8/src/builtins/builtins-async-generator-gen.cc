@@ -5,8 +5,7 @@
 #include "src/builtins/builtins-async-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-promise.h"
@@ -246,8 +245,8 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
   }
   BIND(&if_instrumentation_done);
 
-  CallStub(CodeFactory::ResumeGenerator(isolate()), context, value,
-           async_generator_object);
+  CallBuiltin(Builtin::kResumeGeneratorTrampoline, context, value,
+              async_generator_object);
 
   TailCallBuiltin(Builtin::kAsyncGeneratorResumeNext, context,
                   async_generator_object);
@@ -523,8 +522,8 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
     }
     BIND(&if_instrumentation_done);
 
-    CallStub(CodeFactory::ResumeGenerator(isolate()), context,
-             LoadValueFromAsyncGeneratorRequest(next), generator);
+    CallBuiltin(Builtin::kResumeGeneratorTrampoline, context,
+                LoadValueFromAsyncGeneratorRequest(next), generator);
     var_state = LoadGeneratorState(generator);
     var_next = LoadFirstAsyncGeneratorRequestFromQueue(generator);
     Goto(&start);

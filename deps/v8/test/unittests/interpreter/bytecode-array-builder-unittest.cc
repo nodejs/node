@@ -256,7 +256,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Delete(reg, LanguageMode::kSloppy).Delete(reg, LanguageMode::kStrict);
 
   // Emit construct.
-  builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
+  builder.Construct(reg, reg_list, 1)
+      .ConstructWithSpread(reg, reg_list, 1)
+      .ConstructForwardAllArgs(reg, 1);
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)

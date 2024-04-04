@@ -215,15 +215,15 @@ Token::Value Scanner::SkipSingleLineComment() {
   return Token::WHITESPACE;
 }
 
-Token::Value Scanner::SkipMagicComment() {
-  TryToParseMagicComment();
+Token::Value Scanner::SkipMagicComment(base::uc32 hash_or_at_sign) {
+  TryToParseMagicComment(hash_or_at_sign);
   if (unibrow::IsLineTerminator(c0_) || c0_ == kEndOfInput) {
     return Token::WHITESPACE;
   }
   return SkipSingleLineComment();
 }
 
-void Scanner::TryToParseMagicComment() {
+void Scanner::TryToParseMagicComment(base::uc32 hash_or_at_sign) {
   // Magic comments are of the form: //[#@]\s<name>=\s*<value>\s*.* and this
   // function will just return if it cannot parse a magic comment.
   DCHECK(!IsWhiteSpaceOrLineTerminator(kEndOfInput));
@@ -245,6 +245,8 @@ void Scanner::TryToParseMagicComment() {
     value = &source_url_;
   } else if (name_literal == base::StaticOneByteVector("sourceMappingURL")) {
     value = &source_mapping_url_;
+    DCHECK(hash_or_at_sign == '#' || hash_or_at_sign == '@');
+    saw_source_mapping_url_magic_comment_at_sign_ = hash_or_at_sign == '@';
   } else if (name_literal ==
              base::StaticOneByteVector("experimentalChromiumCompileHints")) {
     value = &compile_hints_value;

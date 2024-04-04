@@ -16,6 +16,7 @@
 #include "src/wasm/turboshaft-graph-interface.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-debug.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::wasm {
 
@@ -91,8 +92,9 @@ WasmCompilationResult WasmCompilationUnit::ExecuteFunctionCompilation(
     DCHECK(!v8_flags.wasm_lazy_compilation || v8_flags.wasm_lazy_validation ||
            v8_flags.experimental_wasm_pgo_from_file ||
            v8_flags.experimental_wasm_compilation_hints);
-    if (ValidateFunctionBody(env->enabled_features, env->module, detected,
-                             func_body)
+    Zone validation_zone{GetWasmEngine()->allocator(), ZONE_NAME};
+    if (ValidateFunctionBody(&validation_zone, env->enabled_features,
+                             env->module, detected, func_body)
             .failed()) {
       return {};
     }
@@ -202,51 +204,26 @@ void WasmCompilationUnit::CompileWasmFunction(Counters* counters,
   }
 }
 
-namespace {
-bool UseGenericWrapper(const WasmModule* module, const FunctionSig* sig) {
-#if (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
-     V8_TARGET_ARCH_ARM)
-  // We don't use the generic wrapper for asm.js, because it creates invalid
-  // stack traces.
-  return !is_asmjs_module(module) && v8_flags.wasm_generic_wrapper &&
-         IsJSCompatibleSignature(sig);
-#else
-  return false;
-#endif
-}
-}  // namespace
-
 JSToWasmWrapperCompilationUnit::JSToWasmWrapperCompilationUnit(
     Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
-    const WasmModule* module, bool is_import, WasmFeatures enabled_features,
-    AllowGeneric allow_generic)
+    const WasmModule* module, bool is_import, WasmFeatures enabled_features)
     : isolate_(isolate),
       is_import_(is_import),
       sig_(sig),
       canonical_sig_index_(canonical_sig_index),
-      use_generic_wrapper_(allow_generic && UseGenericWrapper(module, sig) &&
-                           !is_import),
-      job_(use_generic_wrapper_
-               ? nullptr
-               : compiler::NewJSToWasmCompilationJob(
-                     isolate, sig, module, is_import, enabled_features)) {}
+      job_(compiler::NewJSToWasmCompilationJob(isolate, sig, module, is_import,
+                                               enabled_features)) {}
 
 JSToWasmWrapperCompilationUnit::~JSToWasmWrapperCompilationUnit() = default;
 
 void JSToWasmWrapperCompilationUnit::Execute() {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.wasm.detailed"),
                "wasm.CompileJSToWasmWrapper");
-  if (!use_generic_wrapper_) {
-    CompilationJob::Status status = job_->ExecuteJob(nullptr);
-    CHECK_EQ(status, CompilationJob::SUCCEEDED);
-  }
+  CompilationJob::Status status = job_->ExecuteJob(nullptr);
+  CHECK_EQ(status, CompilationJob::SUCCEEDED);
 }
 
 Handle<Code> JSToWasmWrapperCompilationUnit::Finalize() {
-  if (use_generic_wrapper_) {
-    return isolate_->builtins()->code_handle(Builtin::kJSToWasmWrapper);
-  }
-
   CompilationJob::Status status = job_->FinalizeJob(isolate_);
   CHECK_EQ(status, CompilationJob::SUCCEEDED);
   Handle<Code> code = job_->compilation_info()->code();
@@ -266,22 +243,7 @@ Handle<Code> JSToWasmWrapperCompilationUnit::CompileJSToWasmWrapper(
   // Run the compilation unit synchronously.
   WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
   JSToWasmWrapperCompilationUnit unit(isolate, sig, canonical_sig_index, module,
-                                      is_import, enabled_features,
-                                      kAllowGeneric);
-  unit.Execute();
-  return unit.Finalize();
-}
-
-// static
-Handle<Code> JSToWasmWrapperCompilationUnit::CompileSpecificJSToWasmWrapper(
-    Isolate* isolate, const FunctionSig* sig, uint32_t canonical_sig_index,
-    const WasmModule* module) {
-  // Run the compilation unit synchronously.
-  const bool is_import = false;
-  WasmFeatures enabled_features = WasmFeatures::FromIsolate(isolate);
-  JSToWasmWrapperCompilationUnit unit(isolate, sig, canonical_sig_index, module,
-                                      is_import, enabled_features,
-                                      kDontAllowGeneric);
+                                      is_import, enabled_features);
   unit.Execute();
   return unit.Finalize();
 }

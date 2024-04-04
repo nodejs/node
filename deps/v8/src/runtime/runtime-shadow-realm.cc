@@ -33,9 +33,8 @@ RUNTIME_FUNCTION(Runtime_ShadowRealmImportValue) {
       isolate->RunHostImportModuleDynamicallyCallback(referrer, specifier,
                                                       import_assertions));
   // Check that the promise is created in the eval_context.
-  DCHECK(
-      inner_capability->GetCreationContext().ToHandleChecked().is_identical_to(
-          isolate->native_context()));
+  DCHECK_EQ(inner_capability->GetCreationContext().value(),
+            isolate->raw_native_context());
 
   return *inner_capability;
 }

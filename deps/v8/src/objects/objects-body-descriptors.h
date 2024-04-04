@@ -54,13 +54,23 @@ class BodyDescriptorBase {
   static inline void IterateMaybeWeakPointer(Tagged<HeapObject> obj, int offset,
                                              ObjectVisitor* v);
 
-  // Visits a field that contains either an indirect pointer (if the sandbox is
-  // enabled) or a regular/tagged pointer (otherwise).
   template <typename ObjectVisitor>
-  static void IterateMaybeIndirectPointer(Tagged<HeapObject> obj, int offset,
-                                          ObjectVisitor* visitor,
-                                          IndirectPointerMode mode,
-                                          IndirectPointerTag tag);
+  static inline void IterateTrustedPointer(Tagged<HeapObject> obj, int offset,
+                                           ObjectVisitor* visitor,
+                                           IndirectPointerMode mode,
+                                           IndirectPointerTag tag);
+  template <typename ObjectVisitor>
+  static inline void IterateCodePointer(Tagged<HeapObject> obj, int offset,
+                                        ObjectVisitor* visitor,
+                                        IndirectPointerMode mode);
+  template <typename ObjectVisitor>
+  static inline void IterateSelfIndirectPointer(Tagged<HeapObject> obj,
+                                                IndirectPointerTag tag,
+                                                ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
+  static inline void IterateProtectedPointer(Tagged<HeapObject> obj, int offset,
+                                             ObjectVisitor* v);
 
  protected:
   // Returns true for all header and embedder fields.

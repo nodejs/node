@@ -1021,6 +1021,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency const& frequency = CallFrequency(),
       FeedbackSource const& feedback = FeedbackSource());
+  const Operator* ConstructForwardAllArgs(
+      CallFrequency const& frequency = CallFrequency(),
+      FeedbackSource const& feedback = FeedbackSource());
 
   const Operator* LoadProperty(FeedbackSource const& feedback);
   const Operator* LoadNamed(NameRef name, FeedbackSource const& feedback);
@@ -1435,7 +1438,8 @@ class JSCallOrConstructNode : public JSNodeWrapperBase {
            node->opcode() == IrOpcode::kJSCallWithSpread ||
            node->opcode() == IrOpcode::kJSConstruct ||
            node->opcode() == IrOpcode::kJSConstructWithArrayLike ||
-           node->opcode() == IrOpcode::kJSConstructWithSpread
+           node->opcode() == IrOpcode::kJSConstructWithSpread ||
+           node->opcode() == IrOpcode::kJSConstructForwardAllArgs
 #if V8_ENABLE_WEBASSEMBLY
            || node->opcode() == IrOpcode::kJSWasmCall
 #endif     // V8_ENABLE_WEBASSEMBLY
@@ -1552,6 +1556,8 @@ using JSConstructWithSpreadNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithSpread>;
 using JSConstructWithArrayLikeNode =
     JSConstructNodeBase<IrOpcode::kJSConstructWithArrayLike>;
+using JSConstructForwardAllArgsNode =
+    JSConstructNodeBase<IrOpcode::kJSConstructForwardAllArgs>;
 
 class JSLoadNamedNode final : public JSNodeWrapperBase {
  public:

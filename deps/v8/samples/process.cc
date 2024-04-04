@@ -651,7 +651,7 @@ MaybeLocal<String> ReadFile(Isolate* isolate, const string& name) {
   size_t size = ftell(file);
   rewind(file);
 
-  std::unique_ptr<char> chars(new char[size + 1]);
+  std::unique_ptr<char[]> chars(new char[size + 1]);
   chars.get()[size] = '\0';
   for (size_t i = 0; i < size;) {
     i += fread(&chars.get()[i], 1, size - i, file);

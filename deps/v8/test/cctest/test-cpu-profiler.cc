@@ -1312,8 +1312,8 @@ static void TickLines(bool optimize) {
       v8::Utils::OpenHandle(*GetFunction(env.local(), func_name)));
   CHECK(!func->shared().is_null());
   CHECK(!func->shared()->abstract_code(isolate).is_null());
-  CHECK(!optimize || func->HasAttachedOptimizedCode() ||
-        !CcTest::i_isolate()->use_optimizer());
+  CHECK(!optimize || func->HasAttachedOptimizedCode(isolate) ||
+        !isolate->use_optimizer());
   i::Handle<i::AbstractCode> code(func->abstract_code(isolate), isolate);
   CHECK(!(*code).is_null());
   i::Address code_address = code->InstructionStart(isolate);
@@ -4323,8 +4323,8 @@ int GetSourcePositionEntryCount(i::Isolate* isolate, const char* source,
   std::unordered_set<int64_t> raw_position_set;
   i::Handle<i::JSFunction> function = i::Handle<i::JSFunction>::cast(
       v8::Utils::OpenHandle(*CompileRun(source)));
-  if (function->ActiveTierIsIgnition()) return -1;
-  i::Handle<i::Code> code(function->code(), isolate);
+  if (function->ActiveTierIsIgnition(isolate)) return -1;
+  i::Handle<i::Code> code(function->code(isolate), isolate);
   i::SourcePositionTableIterator iterator(
       ByteArray::cast(code->source_position_table()));
 
@@ -4573,10 +4573,10 @@ TEST(NoProfilingProtectorCPUProfiler) {
   Handle<JSFunction> i_function =
       Handle<JSFunction>::cast(v8::Utils::OpenHandle(*function));
 
-  CHECK(!i_function->code()->is_optimized_code());
+  CHECK(!i_function->code(i_isolate)->is_optimized_code());
   CompileRun("foo(42);");
 
-  Handle<Code> code(i_function->code(), i_isolate);
+  Handle<Code> code(i_function->code(i_isolate), i_isolate);
   CHECK(code->is_optimized_code());
   CHECK(!code->marked_for_deoptimization());
   CHECK(Protectors::IsNoProfilingIntact(i_isolate));
@@ -4748,9 +4748,9 @@ TEST(BytecodeFlushEventsEagerLogging) {
   v8_flags.always_turbofan = false;
   v8_flags.optimize_for_size = false;
 #endif  // !defined(V8_LITE_MODE) && defined(V8_ENABLE_TURBOFAN)
-#if ENABLE_SPARKPLUG
+#ifdef V8_ENABLE_SPARKPLUG
   v8_flags.always_sparkplug = false;
-#endif  // ENABLE_SPARKPLUG
+#endif  // V8_ENABLE_SPARKPLUG
   v8_flags.flush_bytecode = true;
   v8_flags.allow_natives_syntax = true;
 
@@ -4809,7 +4809,7 @@ TEST(BytecodeFlushEventsEagerLogging) {
 
     // foo should no longer be in the compilation cache
     CHECK(!function->shared()->is_compiled());
-    CHECK(!function->is_compiled());
+    CHECK(!function->is_compiled(i_isolate));
 
     CHECK(!instruction_stream_map->FindEntry(bytecode_start));
   }

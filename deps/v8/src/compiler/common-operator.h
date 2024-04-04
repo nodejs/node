@@ -101,6 +101,34 @@ V8_EXPORT_PRIVATE const BranchParameters& BranchParametersOf(
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
 
+class AssertParameters final {
+ public:
+  AssertParameters(BranchSemantics semantics, const char* condition_string,
+                   const char* file, int line)
+      : semantics_(semantics),
+        condition_string_(condition_string),
+        file_(file),
+        line_(line) {}
+
+  BranchSemantics semantics() const { return semantics_; }
+  const char* condition_string() const { return condition_string_; }
+  const char* file() const { return file_; }
+  int line() const { return line_; }
+
+ private:
+  const BranchSemantics semantics_;
+  const char* condition_string_;
+  const char* file_;
+  const int line_;
+};
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs);
+size_t hash_value(const AssertParameters& p);
+std::ostream& operator<<(std::ostream&, const AssertParameters& p);
+
+V8_EXPORT_PRIVATE const AssertParameters& AssertParametersOf(
+    const Operator* const) V8_WARN_UNUSED_RESULT;
+
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
 
@@ -556,6 +584,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
+  const Operator* Assert(BranchSemantics semantics,
+                         const char* condition_string, const char* file,
+                         int line);
 
 #if V8_ENABLE_WEBASSEMBLY
   const Operator* TrapIf(TrapId trap_id, bool has_frame_state);

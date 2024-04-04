@@ -180,7 +180,8 @@ class MaybeRedundantStoresTable
     // aliasing. We might improve this to eliminate more precisely, if we have
     // some sort of aliasing information.
     for (Key key : active_keys_) {
-      Set(key, StoreObservability::kObservable);
+      if (key.data().offset == offset)
+        Set(key, StoreObservability::kObservable);
     }
   }
 
@@ -253,7 +254,7 @@ class MaybeRedundantStoresTable
 
   const Graph& graph_;
   GrowingBlockSidetable<base::Optional<Snapshot>> block_to_snapshot_mapping_;
-  ZoneUnorderedMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
+  ZoneAbslFlatHashMap<std::pair<OpIndex, int32_t>, Key> key_mapping_;
   // In `active_keys_`, we track the keys of all stores that arge gc-observable
   // or unobservable. Keys that are mapped to the default value (observable) are
   // removed from the `active_keys_`.

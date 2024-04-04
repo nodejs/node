@@ -86,7 +86,8 @@
 #endif  // V8_OS_POSIX
 
 #ifdef V8_FUZZILLI
-#include "src/d8/cov.h"
+#include "src/fuzzilli/cov.h"
+#include "src/fuzzilli/fuzzilli.h"
 #endif  // V8_FUZZILLI
 
 #ifdef V8_USE_PERFETTO
@@ -102,11 +103,11 @@
 #include <sys/mman.h>  // For MultiMappedAllocator.
 #endif
 
-#if !defined(_WIN32) && !defined(_WIN64)
-#include <unistd.h>
-#else
+#if defined(V8_OS_WIN)
 #include <windows.h>
-#endif                // !defined(_WIN32) && !defined(_WIN64)
+#else
+#include <unistd.h>
+#endif  // defined(V8_OS_WIN)
 
 #if V8_ENABLE_WEBASSEMBLY
 #include "src/trap-handler/trap-handler.h"
@@ -128,13 +129,6 @@ namespace {
 thread_local Worker* current_worker_ = nullptr;
 
 #ifdef V8_FUZZILLI
-// REPRL = read-eval-print-reset-loop
-// These file descriptors are being opened when Fuzzilli uses fork & execve to
-// run V8.
-#define REPRL_CRFD 100  // Control read file decriptor
-#define REPRL_CWFD 101  // Control write file decriptor
-#define REPRL_DRFD 102  // Data read file decriptor
-#define REPRL_DWFD 103  // Data write file decriptor
 bool fuzzilli_reprl = true;
 #else
 bool fuzzilli_reprl = false;
@@ -257,7 +251,7 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
   std::atomic<size_t> space_left_;
 };
 
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
 
 // This is a mock allocator variant that provides a huge virtual allocation
 // backed by a small real allocation that is repeatedly mapped. If you create an
@@ -295,8 +289,25 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
       // Other errors may be bugs which we want to learn about.
       FATAL("mmap (real) failed with error %d: %s", errno, strerror(errno));
     }
+#ifdef V8_ENABLE_SANDBOX
+    // The backing memory must be allocated inside the sandbox as it will be
+    // used for array buffer contents.
+    // Here we go into somewhat less-well-defined territory by using the
+    // sandbox's virtual address space to essentially just reserve a number of
+    // OS pages inside the sandbox, but then using mremap to replace these
+    // pages directly afterwards. In practice, this works fine however.
+    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    i::Address in_sandbox_page_reservation = vas->AllocatePages(
+        VirtualAddressSpace::kNoHint, rounded_length,
+        vas->allocation_granularity(), PagePermissions::kNoAccess);
+    void* virtual_alloc =
+        in_sandbox_page_reservation != 0
+            ? reinterpret_cast<void*>(in_sandbox_page_reservation)
+            : reinterpret_cast<void*>(-1);
+#else
     void* virtual_alloc =
         mmap(nullptr, rounded_length, prot, flags | MAP_NORESERVE, -1, 0);
+#endif
     if (reinterpret_cast<intptr_t>(virtual_alloc) == -1) {
       if (errno == ENOMEM) {
         // Undo earlier, successful mappings.
@@ -319,7 +330,11 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
         if (errno == ENOMEM) {
           // Undo earlier, successful mappings.
           munmap(real_alloc, kChunkSize);
-          munmap(virtual_alloc, (to_map - virtual_base));
+#ifdef V8_ENABLE_SANDBOX
+          vas->FreePages(in_sandbox_page_reservation, rounded_length);
+#else
+          munmap(virtual_alloc, rounded_length);
+#endif
           return nullptr;
         }
         FATAL("mremap failed with error %d: %s", errno, strerror(errno));
@@ -338,7 +353,12 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     void* real_alloc = regions_[data];
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
+#ifdef V8_ENABLE_SANDBOX
+    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    vas->FreePages(reinterpret_cast<i::Address>(data), rounded_length);
+#else
     munmap(data, rounded_length);
+#endif
     regions_.erase(data);
   }
 
@@ -350,7 +370,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
   base::Mutex regions_mutex_;
 };
 
-#endif  // MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#endif  // V8_OS_LINUX
 
 v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
@@ -794,8 +814,8 @@ ScriptOrigin CreateScriptOrigin(Isolate* isolate, Local<String> resource_name,
   options->Set(isolate, 0,
                v8::Uint32::New(isolate, kHostDefinedOptionsMagicConstant));
   options->Set(isolate, 1, resource_name);
-  return ScriptOrigin(isolate, resource_name, 0, 0, false, -1, Local<Value>(),
-                      false, false, type == v8::ScriptType::kModule, options);
+  return ScriptOrigin(resource_name, 0, 0, false, -1, Local<Value>(), false,
+                      false, type == v8::ScriptType::kModule, options);
 }
 
 bool IsValidHostDefinedOptions(Local<Context> context, Local<Data> options,
@@ -910,7 +930,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   // frames, the stack check in the called frame might be too late.
   if (i::StackLimitCheck{i_isolate}.HasOverflowed()) {
     i_isolate->StackOverflow();
-    i_isolate->OptionalRescheduleException(false);
     return false;
   }
 
@@ -1001,7 +1020,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 namespace {
 
 bool IsAbsolutePath(const std::string& path) {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(V8_OS_WIN)
   // This is an incorrect approximation, but should
   // work for all our test-running cases.
   return path.find(':') != std::string::npos;
@@ -1011,7 +1030,7 @@ bool IsAbsolutePath(const std::string& path) {
 }
 
 std::string GetWorkingDirectory() {
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(V8_OS_WIN)
   char system_buffer[MAX_PATH];
   // Unicode paths are unsupported, which is fine as long as
   // the test directory doesn't include any such paths.
@@ -1422,7 +1441,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
                   .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
     if (isolate->IsExecutionTerminating()) {
-      Shell::ReportException(isolate, &try_catch);
+      Shell::ReportException(isolate, try_catch);
     } else {
       resolver->Reject(realm, try_catch.Exception()).ToChecked();
     }
@@ -1488,7 +1507,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
                               ModuleType::kJavaScript)
                   .ToLocal(&root_module)) {
     CHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
@@ -1504,7 +1523,7 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
     DCHECK(try_catch.HasCaught());
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
@@ -1528,14 +1547,15 @@ bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
     } else {
       DCHECK_EQ(try_catch.Exception(), result_promise->Result());
     }
-    ReportException(isolate, &try_catch);
+    ReportException(isolate, try_catch);
     return false;
   }
 
-  std::vector<std::tuple<Local<Module>, Local<Message>>> stalled =
-      root_module->GetStalledTopLevelAwaitMessage(isolate);
-  if (stalled.size() > 0) {
-    Local<Message> message = std::get<1>(stalled[0]);
+  auto [stalled_modules, stalled_messages] =
+      root_module->GetStalledTopLevelAwaitMessages(isolate);
+  DCHECK_EQ(stalled_modules.size(), stalled_messages.size());
+  if (stalled_messages.size() > 0) {
+    Local<Message> message = stalled_messages[0];
     ReportException(isolate, message, v8::Exception::Error(message->Get()));
     return false;
   }
@@ -1571,7 +1591,7 @@ bool Shell::LoadJSON(Isolate* isolate, const char* file_name) {
       Local<Value> value;
       if (!maybe_value.ToLocal(&value)) {
         DCHECK(try_catch.HasCaught());
-        ReportException(isolate, &try_catch);
+        ReportException(isolate, try_catch);
         return false;
       }
     }
@@ -3023,96 +3043,8 @@ void Shell::Version(const v8::FunctionCallbackInfo<v8::Value>& info) {
           .ToLocalChecked());
 }
 
-#ifdef V8_FUZZILLI
-
-// We have to assume that the fuzzer will be able to call this function e.g. by
-// enumerating the properties of the global object and eval'ing them. As such
-// this function is implemented in a way that requires passing some magic value
-// as first argument (with the idea being that the fuzzer won't be able to
-// generate this value) which then also acts as a selector for the operation
-// to perform.
-void Shell::Fuzzilli(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
-  HandleScope handle_scope(info.GetIsolate());
-
-  String::Utf8Value operation(info.GetIsolate(), info[0]);
-  if (*operation == nullptr) {
-    return;
-  }
-  if (strcmp(*operation, "FUZZILLI_CRASH") == 0) {
-    auto arg = info[1]
-                   ->Int32Value(info.GetIsolate()->GetCurrentContext())
-                   .FromMaybe(0);
-    switch (arg) {
-      case 0:
-        IMMEDIATE_CRASH();
-        break;
-      case 1:
-        CHECK(false);
-        break;
-      case 2:
-        DCHECK(false);
-        break;
-      case 3: {
-        // Access an invalid address.
-        // We want to use an "interesting" address for the access (instead of
-        // e.g. nullptr). In the (unlikely) case that the address is actually
-        // mapped, simply increment the pointer until it crashes.
-        char* ptr = reinterpret_cast<char*>(0x414141414141ull);
-        for (int i = 0; i < 1024; i++) {
-          *ptr = 'A';
-          ptr += 1 * i::GB;
-        }
-        break;
-      }
-      case 4: {
-        // Use-after-free, likely only crashes in ASan builds.
-        auto* vec = new std::vector<int>(4);
-        delete vec;
-        USE(vec->at(0));
-        break;
-      }
-      case 5: {
-        // Out-of-bounds access (1), likely only crashes in ASan or
-        // "hardened"/"safe" libc++ builds.
-        std::vector<int> vec(5);
-        USE(vec[5]);
-        break;
-      }
-      case 6: {
-        // Out-of-bounds access (2), likely only crashes in ASan builds.
-        std::vector<int> vec(6);
-        memset(vec.data(), 42, 0x100);
-        break;
-      }
-      default:
-        break;
-    }
-  } else if (strcmp(*operation, "FUZZILLI_PRINT") == 0) {
-    static FILE* fzliout = fdopen(REPRL_DWFD, "w");
-    if (!fzliout) {
-      fprintf(
-          stderr,
-          "Fuzzer output channel not available, printing to stdout instead\n");
-      fzliout = stdout;
-    }
-
-    String::Utf8Value string(info.GetIsolate(), info[1]);
-    if (*string == nullptr) {
-      return;
-    }
-    fprintf(fzliout, "%s\n", *string);
-    fflush(fzliout);
-  }
-}
-
-#endif  // V8_FUZZILLI
-
 void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
                             Local<v8::Value> exception_obj) {
-  // Using ErrorPrototypeToString for converting the error to string will fail
-  // if there's a pending exception.
-  CHECK(!reinterpret_cast<i::Isolate*>(isolate)->has_pending_exception());
   HandleScope handle_scope(isolate);
   Local<Context> context = isolate->GetCurrentContext();
   bool enter_context = context.IsEmpty();
@@ -3173,11 +3105,12 @@ void Shell::ReportException(Isolate* isolate, Local<v8::Message> message,
   if (enter_context) context->Exit();
 }
 
-void Shell::ReportException(v8::Isolate* isolate, v8::TryCatch* try_catch) {
+void Shell::ReportException(v8::Isolate* isolate,
+                            const v8::TryCatch& try_catch) {
   if (isolate->IsExecutionTerminating()) {
     printf("Got Execution Termination Exception\n");
   } else {
-    ReportException(isolate, try_catch->Message(), try_catch->Exception());
+    ReportException(isolate, try_catch.Message(), try_catch.Exception());
   }
 }
 
@@ -3273,7 +3206,7 @@ Local<String> Shell::Stringify(Isolate* isolate, Local<Value> value) {
     Local<String> source =
         String::NewFromUtf8(isolate, stringify_source_).ToLocalChecked();
     Local<String> name = String::NewFromUtf8Literal(isolate, "d8-stringify");
-    ScriptOrigin origin(isolate, name);
+    ScriptOrigin origin(name);
     Local<Script> script =
         Script::Compile(context, source, &origin).ToLocalChecked();
     stringify_function_.Reset(
@@ -3388,13 +3321,6 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
     global_template->Set(isolate, "os", Shell::CreateOSTemplate(isolate));
   }
   global_template->Set(isolate, "d8", Shell::CreateD8Template(isolate));
-
-#ifdef V8_FUZZILLI
-  global_template->Set(
-      String::NewFromUtf8(isolate, "fuzzilli", NewStringType::kNormal)
-          .ToLocalChecked(),
-      FunctionTemplate::New(isolate, Fuzzilli), PropertyAttribute::DontEnum);
-#endif  // V8_FUZZILLI
 
   if (i::v8_flags.expose_async_hooks) {
     global_template->Set(isolate, "async_hooks",
@@ -3877,6 +3803,13 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
     // main thread tries to terminate all workers at the end, which can happen
     // concurrently to Isolate::Dispose.
     worker->EnterTerminatedState();
+  }
+
+  if (!dispose) {
+    // If the `dispose` flag is false, then that means script called quit(), so
+    // there may be stack-allocated things that need cleaning up before we can
+    // dispose the Isolate.
+    reinterpret_cast<i::Isolate*>(isolate)->PrepareForSuddenShutdown();
   }
 
   isolate->Dispose();
@@ -5092,6 +5025,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #if V8_ENABLE_SANDBOX
     } else if (strcmp(argv[i], "--enable-sandbox-crash-filter") == 0) {
       options.enable_sandbox_crash_filter = true;
+      // Enable the "soft" abort mode in addition to the crash filter. This is
+      // mostly so that we get better error output for (safe) fatal errors.
+      // TODO(saelo): consider renaming --enable-sandbox-crash-filter to
+      // --sandbox-fuzzing and make it a V8 flag that implies --soft-abort.
+      i::v8_flags.soft_abort = true;
       argv[i] = nullptr;
 #endif  // V8_ENABLE_SANDBOX
     } else {
@@ -5116,9 +5054,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
   options.mock_arraybuffer_allocator = i::v8_flags.mock_arraybuffer_allocator;
   options.mock_arraybuffer_allocator_limit =
       i::v8_flags.mock_arraybuffer_allocator_limit;
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
   options.multi_mapped_mock_allocator = i::v8_flags.multi_mapped_mock_allocator;
-#endif
+#endif  // V8_OS_LINUX
 
   if (i::v8_flags.stress_snapshot && options.expose_fast_api &&
       check_d8_flag_contradictions) {
@@ -5858,19 +5796,19 @@ int Shell::Main(int argc, char* argv[]) {
       memory_limit >= options.mock_arraybuffer_allocator_limit
           ? memory_limit
           : std::numeric_limits<size_t>::max());
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
   MultiMappedAllocator multi_mapped_mock_allocator;
-#endif
+#endif  // V8_OS_LINUX
   if (options.mock_arraybuffer_allocator) {
     if (memory_limit) {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator_with_limit;
     } else {
       Shell::array_buffer_allocator = &mock_arraybuffer_allocator;
     }
-#if MULTI_MAPPED_ALLOCATOR_AVAILABLE
+#ifdef V8_OS_LINUX
   } else if (options.multi_mapped_mock_allocator) {
     Shell::array_buffer_allocator = &multi_mapped_mock_allocator;
-#endif
+#endif  // V8_OS_LINUX
   } else {
     Shell::array_buffer_allocator = &shell_array_buffer_allocator;
   }
@@ -5879,7 +5817,7 @@ int Shell::Main(int argc, char* argv[]) {
   if (i::v8_flags.enable_vtunejit) {
     create_params.code_event_handler = vTune::GetVtuneCodeEventHandler();
   }
-#endif
+#endif  // ENABLE_VTUNE_JIT_INTERFACE
   create_params.constraints.ConfigureDefaults(
       base::SysInfo::AmountOfPhysicalMemory(),
       base::SysInfo::AmountOfVirtualMemory());
@@ -6016,6 +5954,11 @@ int Shell::Main(int argc, char* argv[]) {
                 result = RunMain(isolate2, false);
                 ResetOnProfileEndListener(isolate2);
               }
+              // D8WasmAsyncResolvePromiseTask may be still in the runner at
+              // this point. We need to terminate the task runners before the
+              // Isolate to avoid retaining stray tasks with v8::Global pointing
+              // into a reclaimed Isolate.
+              platform::NotifyIsolateShutdown(g_default_platform, isolate2);
               isolate2->Dispose();
             });
 

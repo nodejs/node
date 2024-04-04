@@ -464,6 +464,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(DeoptimizeUnless)
       CASE(TrapIf)
       CASE(TrapUnless)
+      CASE(Assert)
       CASE(TailCall)
       CASE(Terminate)
       CASE(Throw)
@@ -672,8 +673,8 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(Float64Select)
       CASE(LoadStackCheckOffset)
       CASE(LoadFramePointer)
-      CASE(LoadStackPointer)
-      CASE(SetStackPointer)
+      IF_WASM(CASE, LoadStackPointer)
+      IF_WASM(CASE, SetStackPointer)
       CASE(LoadParentFramePointer)
       CASE(LoadRootRegister)
       CASE(UnalignedLoad)
@@ -731,7 +732,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
         break;
       }
       MACHINE_SIMD128_OP_LIST(CASE)
-      MACHINE_SIMD256_OP_LIST(CASE)
+      IF_WASM(MACHINE_SIMD256_OP_LIST, CASE)
       IF_WASM(SIMPLIFIED_WASM_OP_LIST, CASE) {
         // SIMD operators should not be in the graph, yet.
         UNREACHABLE();

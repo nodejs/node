@@ -12,7 +12,9 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-compilation-unit.h"
 #include "src/maglev/maglev-ir.h"
+#ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-regalloc-data.h"
+#endif
 #include "src/maglev/maglev-register-frame-array.h"
 #include "src/zone/zone.h"
 
@@ -252,7 +254,9 @@ struct KnownNodeAspects {
         loaded_properties(zone),
         loaded_context_constants(zone),
         loaded_context_slots(zone),
-        node_infos(zone) {}
+        available_expressions(zone),
+        node_infos(zone),
+        effect_epoch_(0) {}
 
   // Copy constructor is defaulted but private so that we explicitly call the
   // Clone method.
@@ -285,6 +289,11 @@ struct KnownNodeAspects {
     }
     clone->loaded_constant_properties = loaded_constant_properties;
     clone->loaded_context_constants = loaded_context_constants;
+
+    // To account for the back-jump we must not allow effects to be reshuffled
+    // across loop headers.
+    // TODO(olivf): Only do this if the loop contains write effects.
+    clone->effect_epoch_++;
     return clone;
   }
 
@@ -344,10 +353,57 @@ struct KnownNodeAspects {
 
   // Cached property loads.
 
-  // Maps name->object->value, so that stores to a name can invalidate all loads
-  // of that name (in case the objects are aliasing).
+  // Represents a key into the cache. This is either a NameRef, or an enum
+  // value.
+  class LoadedPropertyMapKey {
+   public:
+    enum Type {
+      // kName must be zero so that pointers are unaffected.
+      kName = 0,
+      kTypedArrayLength
+    };
+    static constexpr int kTypeMask = 0x3;
+    static_assert((kName & ~kTypeMask) == 0);
+    static_assert((kTypedArrayLength & ~kTypeMask) == 0);
+
+    static LoadedPropertyMapKey TypedArrayLength() {
+      return LoadedPropertyMapKey(kTypedArrayLength);
+    }
+
+    // Allow implicit conversion from NameRef to key, so that callers in the
+    // common path can use a NameRef directly.
+    // NOLINTNEXTLINE
+    LoadedPropertyMapKey(compiler::NameRef ref)
+        : data_(reinterpret_cast<Address>(ref.data())) {
+      DCHECK_EQ(data_ & kTypeMask, kName);
+    }
+
+    bool operator==(const LoadedPropertyMapKey& other) const {
+      return data_ == other.data_;
+    }
+    bool operator<(const LoadedPropertyMapKey& other) const {
+      return data_ < other.data_;
+    }
+
+    compiler::NameRef name() {
+      DCHECK_EQ(type(), kName);
+      return compiler::NameRef(reinterpret_cast<compiler::ObjectData*>(data_),
+                               false);
+    }
+
+    Type type() { return static_cast<Type>(data_ & kTypeMask); }
+
+   private:
+    explicit LoadedPropertyMapKey(Type type) : data_(type) {
+      DCHECK_NE(type, kName);
+    }
+
+    Address data_;
+  };
+  // Maps key->object->value, so that stores to a key can invalidate all loads
+  // of that key (in case the objects are aliasing).
   using LoadedPropertyMap =
-      ZoneMap<compiler::NameRef, ZoneMap<ValueNode*, ValueNode*>>;
+      ZoneMap<LoadedPropertyMapKey, ZoneMap<ValueNode*, ValueNode*>>;
 
   // Valid across side-effecting calls, as long as we install a dependency.
   LoadedPropertyMap loaded_constant_properties;
@@ -359,8 +415,17 @@ struct KnownNodeAspects {
   // Flushed after side-effecting calls.
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 
+  struct AvailableExpression {
+    ValueNode* node;
+    uint32_t effect_epoch;
+  };
+  ZoneMap<uint32_t, AvailableExpression> available_expressions;
+  uint32_t effect_epoch() const { return effect_epoch_; }
+  void increment_effect_epoch() { effect_epoch_++; }
+
  private:
   NodeInfos node_infos;
+  uint32_t effect_epoch_;
 
   friend KnownNodeAspects* Zone::New<KnownNodeAspects, const KnownNodeAspects&>(
       const KnownNodeAspects&);
@@ -583,6 +648,7 @@ class CompactInterpreterFrameState {
 };
 
 class MergePointRegisterState {
+#ifdef V8_ENABLE_MAGLEV
  public:
   bool is_initialized() const { return values_[0].GetPayload().is_initialized; }
 
@@ -608,6 +674,7 @@ class MergePointRegisterState {
  private:
   RegisterState values_[kAllocatableGeneralRegisterCount] = {{}};
   RegisterState double_values_[kAllocatableDoubleRegisterCount] = {{}};
+#endif  // V8_ENABLE_MAGLEV
 };
 
 class MergePointInterpreterFrameState {
@@ -660,15 +727,16 @@ class MergePointInterpreterFrameState {
 
   // Merges a dead framestate (e.g. one which has been early terminated with a
   // deopt).
-  void MergeDead(const MaglevCompilationUnit& compilation_unit) {
-    DCHECK_GE(predecessor_count_, 1);
+  void MergeDead(const MaglevCompilationUnit& compilation_unit,
+                 unsigned num = 1) {
+    DCHECK_GE(predecessor_count_, num);
     DCHECK_LT(predecessors_so_far_, predecessor_count_);
-    predecessor_count_--;
+    predecessor_count_ -= num;
     DCHECK_LE(predecessors_so_far_, predecessor_count_);
 
     frame_state_.ForEachValue(compilation_unit,
                               [&](ValueNode* value, interpreter::Register reg) {
-                                ReducePhiPredecessorCount(reg, value);
+                                ReducePhiPredecessorCount(reg, value, num);
                               });
   }
 
@@ -805,8 +873,8 @@ class MergePointInterpreterFrameState {
                         ValueNode* merged, ValueNode* unmerged,
                         Alternatives::List* per_predecessor_alternatives);
 
-  void ReducePhiPredecessorCount(interpreter::Register owner,
-                                 ValueNode* merged);
+  void ReducePhiPredecessorCount(interpreter::Register owner, ValueNode* merged,
+                                 unsigned num = 1);
 
   void MergeLoopValue(MaglevGraphBuilder* graph_builder,
                       interpreter::Register owner,

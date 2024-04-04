@@ -18,6 +18,9 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
   DCHECK(!v8_flags.enable_third_party_heap);
   size_in_bytes = ALIGN_TO_ALLOCATION_ALIGNMENT(size_in_bytes);
 
+  DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);
+  DCHECK_EQ(in_gc(), isolate_heap()->IsInGC());
+
   AllocationResult result;
 
   if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {
@@ -60,7 +63,7 @@ AllocationResult MainAllocator::AllocateFastAligned(
     *result_aligned_size_in_bytes = aligned_size_in_bytes;
 
   if (filler_size > 0) {
-    obj = heap()->PrecedeWithFiller(obj, filler_size);
+    obj = space_heap()->PrecedeWithFiller(obj, filler_size);
   }
 
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(obj.address(), size_in_bytes);

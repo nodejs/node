@@ -345,12 +345,12 @@ bool TransitionArray::CompactPrototypeTransitionArray(
   }
   int new_number_of_transitions = 0;
   for (int i = 0; i < number_of_transitions; i++) {
-    MaybeObject target = array->Get(header + i);
+    MaybeObject target = array->get(header + i);
     DCHECK(target->IsCleared() ||
            (target->IsWeak() && IsMap(target.GetHeapObject())));
     if (!target->IsCleared()) {
       if (new_number_of_transitions != i) {
-        array->Set(header + new_number_of_transitions, target);
+        array->set(header + new_number_of_transitions, target);
       }
       new_number_of_transitions++;
     }
@@ -359,7 +359,7 @@ bool TransitionArray::CompactPrototypeTransitionArray(
   MaybeObject undefined =
       MaybeObject::FromObject(*isolate->factory()->undefined_value());
   for (int i = new_number_of_transitions; i < number_of_transitions; i++) {
-    array->Set(header + i, undefined);
+    array->set(header + i, undefined);
   }
   if (number_of_transitions != new_number_of_transitions) {
     SetNumberOfPrototypeTransitions(array, new_number_of_transitions);
@@ -437,7 +437,7 @@ void TransitionsAccessor::PutPrototypeTransition(Isolate* isolate,
   int last = TransitionArray::NumberOfPrototypeTransitions(*cache);
   int entry = header + last;
 
-  cache->Set(entry, HeapObjectReference::Weak(*target_map));
+  cache->set(entry, HeapObjectReference::Weak(*target_map));
   TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
 
   transition_array_mutex->UnlockExclusive();
@@ -452,7 +452,7 @@ Handle<Map> TransitionsAccessor::GetPrototypeTransition(
   int length = TransitionArray::NumberOfPrototypeTransitions(cache);
   for (int i = 0; i < length; i++) {
     MaybeObject target =
-        cache->Get(TransitionArray::kProtoTransitionHeaderSize + i);
+        cache->get(TransitionArray::kProtoTransitionHeaderSize + i);
     DCHECK(target->IsWeakOrCleared());
     Tagged<HeapObject> heap_object;
     if (target.GetHeapObjectIfWeak(&heap_object)) {
@@ -484,7 +484,7 @@ Tagged<WeakFixedArray> TransitionsAccessor::GetPrototypeTransitions(
 void TransitionArray::SetNumberOfPrototypeTransitions(
     Tagged<WeakFixedArray> proto_transitions, int value) {
   DCHECK_NE(proto_transitions->length(), 0);
-  proto_transitions->Set(kProtoTransitionNumberOfEntriesOffset,
+  proto_transitions->set(kProtoTransitionNumberOfEntriesOffset,
                          MaybeObject::FromSmi(Smi::FromInt(value)));
 }
 
@@ -615,7 +615,7 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
               TransitionArray::NumberOfPrototypeTransitions(proto_trans);
           for (int i = 0; i < length; ++i) {
             int index = TransitionArray::kProtoTransitionHeaderSize + i;
-            MaybeObject target = proto_trans->Get(index);
+            MaybeObject target = proto_trans->get(index);
             Tagged<HeapObject> heap_object;
             if (target.GetHeapObjectIfWeak(&heap_object)) {
               stack.emplace_back(Map::cast(heap_object));

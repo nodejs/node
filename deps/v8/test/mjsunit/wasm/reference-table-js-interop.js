@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --experimental-wasm-stringref
+// Flags: --experimental-wasm-stringref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -67,7 +67,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
   builder.addFunction("tableGet", makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -93,7 +93,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0,
       kExprCallRef, creatorSig,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
   builder.addFunction("exportedAny",
@@ -101,7 +101,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0,
       kExprCallRef, creatorAnySig,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -133,7 +133,7 @@ for (let [typeName, type] of Object.entries(tableTypes)) {
     .addBody([
       kExprLocalGet, 0,
       kExprLocalGet, 1,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kExprTableSet, 0,
     ])
     .exportFunc();

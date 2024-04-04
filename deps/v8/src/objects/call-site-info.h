@@ -45,7 +45,8 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   bool IsPromiseAny() const;
   bool IsNative() const;
 
-  DECL_ACCESSORS(code_object, Tagged<HeapObject>)
+  inline Tagged<HeapObject> code_object(IsolateForSandbox isolate) const;
+  inline void set_code_object(Tagged<HeapObject> code, WriteBarrierMode mode);
 
   // Dispatched behavior.
   DECL_VERIFIER(CallSiteInfo)
@@ -95,7 +96,7 @@ class CallSiteInfo : public TorqueGeneratedCallSiteInfo<CallSiteInfo, Struct> {
   static bool ComputeLocation(Handle<CallSiteInfo> info,
                               MessageLocation* location);
 
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
 
  private:
   static int ComputeSourcePosition(Handle<CallSiteInfo> info, int offset);

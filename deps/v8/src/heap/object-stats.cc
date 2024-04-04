@@ -593,7 +593,8 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(
   if (IsJSGlobalObject(object)) return;
 
   // Uncompiled JSFunction has a separate type.
-  if (IsJSFunction(object) && !JSFunction::cast(object)->is_compiled()) {
+  if (IsJSFunction(object) &&
+      !JSFunction::cast(object)->is_compiled(isolate())) {
     RecordSimpleVirtualObjectStats(HeapObject(), object,
                                    ObjectStats::JS_UNCOMPILED_FUNCTION_TYPE);
   }
@@ -861,9 +862,9 @@ bool ObjectStatsCollectorImpl::SameLiveness(Tagged<HeapObject> obj1,
                                             Tagged<HeapObject> obj2) {
   if (obj1.is_null() || obj2.is_null()) return true;
   const auto obj1_marked =
-      obj1.InReadOnlySpace() || marking_state_->IsMarked(obj1);
+      InReadOnlySpace(obj1) || marking_state_->IsMarked(obj1);
   const auto obj2_marked =
-      obj2.InReadOnlySpace() || marking_state_->IsMarked(obj2);
+      InReadOnlySpace(obj2) || marking_state_->IsMarked(obj2);
   return obj1_marked == obj2_marked;
 }
 
@@ -971,7 +972,7 @@ void ObjectStatsCollectorImpl::RecordVirtualExternalStringDetails(
   size_t off_heap_size = string->ExternalPayloadSize();
   RecordExternalResourceStats(
       resource,
-      string->IsOneByteRepresentation(cage_base())
+      string->IsOneByteRepresentation()
           ? ObjectStats::STRING_EXTERNAL_RESOURCE_ONE_BYTE_TYPE
           : ObjectStats::STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE,
       off_heap_size);
@@ -1114,7 +1115,7 @@ class ObjectStatsVisitor {
         phase_(phase) {}
 
   void Visit(Tagged<HeapObject> obj) {
-    if (obj.InReadOnlySpace() || marking_state_->IsMarked(obj)) {
+    if (InReadOnlySpace(obj) || marking_state_->IsMarked(obj)) {
       live_collector_->CollectStatistics(
           obj, phase_, ObjectStatsCollectorImpl::CollectFieldStats::kYes);
     } else {

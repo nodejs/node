@@ -284,7 +284,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
   }
   bool another_ephemeron_iteration = false;
   MainAllocator* const new_space_allocator =
-      heap_->new_space() ? heap_->new_space()->main_allocator() : nullptr;
+      heap_->new_space() ? heap_->allocator()->new_space_allocator() : nullptr;
 
   {
     TimedScope scope(&time_ms);
@@ -313,7 +313,7 @@ void ConcurrentMarking::RunMajor(JobDelegate* delegate,
           done = true;
           break;
         }
-        DCHECK(!object.InReadOnlySpace());
+        DCHECK(!InReadOnlySpace(object));
         DCHECK_EQ(GetIsolateFromWritableObject(object), isolate);
         objects_processed++;
 
@@ -446,7 +446,7 @@ V8_INLINE size_t ConcurrentMarking::RunMinorImpl(JobDelegate* delegate,
   Isolate* isolate = heap_->isolate();
   minor_marking_state_->MarkerStarted();
   MainAllocator* const new_space_allocator =
-      heap_->new_space()->main_allocator();
+      heap_->allocator()->new_space_allocator();
   NewLargeObjectSpace* const new_lo_space = heap_->new_lo_space();
 
   do {
@@ -533,24 +533,33 @@ void ConcurrentMarking::RunMinor(JobDelegate* delegate) {
 size_t ConcurrentMarking::GetMajorMaxConcurrency(size_t worker_count) {
   size_t marking_items = marking_worklists_->shared()->Size();
   marking_items += marking_worklists_->other()->Size();
-  for (auto& worklist : marking_worklists_->context_worklists())
+  for (auto& worklist : marking_worklists_->context_worklists()) {
     marking_items += worklist.worklist->Size();
-  return std::min<size_t>(
-      task_state_.size() - 1,
-      worker_count +
-          std::max<size_t>({marking_items,
-                            weak_objects_->discovered_ephemerons.Size(),
-                            weak_objects_->current_ephemerons.Size()}));
+  }
+  const size_t work = std::max<size_t>(
+      {marking_items, weak_objects_->discovered_ephemerons.Size(),
+       weak_objects_->current_ephemerons.Size()});
+  size_t jobs = worker_count + work;
+  jobs = std::min<size_t>(task_state_.size() - 1, jobs);
+  if (heap_->ShouldOptimizeForBattery()) {
+    return std::min<size_t>(jobs, 1);
+  }
+  return jobs;
 }
 
 size_t ConcurrentMarking::GetMinorMaxConcurrency(size_t worker_count) {
-  size_t marking_items = marking_worklists_->shared()->Size() +
-                         heap_->minor_mark_sweep_collector()
-                             ->remembered_sets_marking_handler()
-                             ->RemainingRememberedSetsMarkingIteams();
+  const size_t marking_items = marking_worklists_->shared()->Size() +
+                               heap_->minor_mark_sweep_collector()
+                                   ->remembered_sets_marking_handler()
+                                   ->RemainingRememberedSetsMarkingIteams();
   DCHECK(marking_worklists_->other()->IsEmpty());
   DCHECK(!marking_worklists_->IsUsingContextWorklists());
-  return std::min<size_t>(task_state_.size() - 1, worker_count + marking_items);
+  size_t jobs = worker_count + marking_items;
+  jobs = std::min<size_t>(task_state_.size() - 1, jobs);
+  if (heap_->ShouldOptimizeForBattery()) {
+    return std::min<size_t>(jobs, 1);
+  }
+  return jobs;
 }
 
 void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
@@ -568,8 +577,16 @@ void ConcurrentMarking::TryScheduleJob(GarbageCollector garbage_collector,
     priority = TaskPriority::kUserBlocking;
   }
 
-  DCHECK_NULL(minor_marking_state_);
-  DCHECK(
+  // Marking state can only be alive if the concurrent marker was previously
+  // stopped.
+  DCHECK_IMPLIES(
+      minor_marking_state_,
+      garbage_collector_.has_value() &&
+          (*garbage_collector_ == garbage_collector) &&
+          (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER));
+  DCHECK_IMPLIES(
+      !garbage_collector_.has_value() ||
+          *garbage_collector_ == GarbageCollector::MARK_COMPACTOR,
       std::all_of(task_state_.begin(), task_state_.end(), [](auto& task_state) {
         return task_state->local_pretenuring_feedback.empty();
       }));
@@ -618,6 +635,11 @@ void ConcurrentMarking::RescheduleJobIfNeeded(
 
   if (garbage_collector == GarbageCollector::MARK_COMPACTOR &&
       !heap_->mark_compact_collector()->UseBackgroundThreadsInCycle()) {
+    return;
+  }
+
+  if (garbage_collector == GarbageCollector::MINOR_MARK_SWEEPER &&
+      !heap_->minor_mark_sweep_collector()->UseBackgroundThreadsInCycle()) {
     return;
   }
 

@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.12.1">20.12.1</a><br/>
 <a href="#20.12.0">20.12.0</a><br/>
 <a href="#20.11.1">20.11.1</a><br/>
 <a href="#20.11.0">20.11.0</a><br/>
@@ -55,6 +56,25 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.12.1"></a>
+
+## 2024-04-03, Version 20.12.1 'Iron' (LTS), @RafaelGSS
+
+This is a security release
+
+### Notable Changes
+
+* CVE-2024-27983 - Assertion failed in node::http2::Http2Session::\~Http2Session() leads to HTTP/2 server crash- (High)
+* CVE-2024-27982 - HTTP Request Smuggling via Content Length Obfuscation - (Medium)
+* llhttp version 9.2.1
+* undici version 5.28.4
+
+### Commits
+
+* \[[`bd8f10a257`](https://github.com/nodejs/node/commit/bd8f10a257)] - **deps**: update undici to v5.28.4 (Matteo Collina) [nodejs-private/node-private#576](https://github.com/nodejs-private/node-private/pull/576)
+* \[[`5e34540a96`](https://github.com/nodejs/node/commit/5e34540a96)] - **http**: do not allow OBS fold in headers by default (Paolo Insogna) [nodejs-private/node-private#557](https://github.com/nodejs-private/node-private/pull/557)
+* \[[`ba1ae6d188`](https://github.com/nodejs/node/commit/ba1ae6d188)] - **src**: ensure to close stream when destroying session (Anna Henningsen) [nodejs-private/node-private#561](https://github.com/nodejs-private/node-private/pull/561)
 
 <a id="20.12.0"></a>
 

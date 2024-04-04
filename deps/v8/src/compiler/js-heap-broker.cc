@@ -569,10 +569,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     ContextRef context = MakeRefAssumeMemoryFence(
-        this, target_native_context()
-                  .script_context_table(broker)
-                  .object()
-                  ->get_context(script_context_index, kAcquireLoad));
+        this,
+        target_native_context().script_context_table(broker).object()->get(
+            script_context_index, kAcquireLoad));
 
     OptionalObjectRef contents = context.get(broker, context_slot_index);
     if (contents.has_value()) CHECK(!contents->IsTheHole());

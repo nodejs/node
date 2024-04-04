@@ -33,24 +33,28 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSAtomicsMutex)
 
 CAST_ACCESSOR(JSAtomicsMutex)
 
-JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
-                                     Handle<JSAtomicsMutex> mutex)
-    : isolate_(isolate), mutex_(mutex) {
-  JSAtomicsMutex::Lock(isolate, mutex);
-}
+JSAtomicsMutex::LockGuardBase::LockGuardBase(Isolate* isolate,
+                                             Handle<JSAtomicsMutex> mutex,
+                                             bool locked)
+    : isolate_(isolate), mutex_(mutex), locked_(locked) {}
 
-JSAtomicsMutex::LockGuard::~LockGuard() { mutex_->Unlock(isolate_); }
-
-JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
-                                           Handle<JSAtomicsMutex> mutex)
-    : isolate_(isolate), mutex_(mutex), locked_(mutex->TryLock()) {}
-
-JSAtomicsMutex::TryLockGuard::~TryLockGuard() {
+JSAtomicsMutex::LockGuardBase::~LockGuardBase() {
   if (locked_) mutex_->Unlock(isolate_);
 }
 
+JSAtomicsMutex::LockGuard::LockGuard(Isolate* isolate,
+                                     Handle<JSAtomicsMutex> mutex,
+                                     base::Optional<base::TimeDelta> timeout)
+    : LockGuardBase(isolate, mutex,
+                    JSAtomicsMutex::Lock(isolate, mutex, timeout)) {}
+
+JSAtomicsMutex::TryLockGuard::TryLockGuard(Isolate* isolate,
+                                           Handle<JSAtomicsMutex> mutex)
+    : LockGuardBase(isolate, mutex, mutex->TryLock()) {}
+
 // static
-void JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex) {
+bool JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex,
+                          base::Optional<base::TimeDelta> timeout) {
   DisallowGarbageCollection no_gc;
   // First try to lock an uncontended mutex, which should be the common case. If
   // this fails, then go to the slow path to possibly put the current thread to
@@ -60,12 +64,18 @@ void JSAtomicsMutex::Lock(Isolate* requester, Handle<JSAtomicsMutex> mutex) {
   // architectures with load-link/store-conditional instructions.
   std::atomic<StateT>* state = mutex->AtomicStatePtr();
   StateT expected = kUnlocked;
-  if (V8_UNLIKELY(!state->compare_exchange_weak(expected, kLockedUncontended,
-                                                std::memory_order_acquire,
-                                                std::memory_order_relaxed))) {
-    LockSlowPath(requester, mutex, state);
+  bool locked;
+  if (V8_LIKELY(state->compare_exchange_weak(expected, kLockedUncontended,
+                                             std::memory_order_acquire,
+                                             std::memory_order_relaxed))) {
+    locked = true;
+  } else {
+    locked = LockSlowPath(requester, mutex, state, timeout);
   }
-  mutex->SetCurrentThreadAsOwner();
+  if (V8_LIKELY(locked)) {
+    mutex->SetCurrentThreadAsOwner();
+  }
+  return locked;
 }
 
 bool JSAtomicsMutex::TryLock() {

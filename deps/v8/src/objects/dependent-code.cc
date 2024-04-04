@@ -77,16 +77,20 @@ Handle<DependentCode> DependentCode::InsertWeakCode(
   if (entries->length() == entries->capacity()) {
     // We'd have to grow - try to compact first.
     entries->IterateAndCompact(
-        [](Tagged<Code>, DependencyGroups) { return false; });
+        isolate, [](Tagged<Code>, DependencyGroups) { return false; });
   }
 
-  MaybeObjectHandle code_slot(HeapObjectReference::Weak(*code), isolate);
+  // As the Code object lives outside of the sandbox in trusted space, we need
+  // to use its in-sandbox wrapper object here.
+  MaybeObjectHandle code_slot(HeapObjectReference::Weak(code->wrapper()),
+                              isolate);
   entries = Handle<DependentCode>::cast(WeakArrayList::AddToEnd(
       isolate, entries, code_slot, Smi::FromInt(groups)));
   return entries;
 }
 
-void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
+void DependentCode::IterateAndCompact(IsolateForSandbox isolate,
+                                      const IterateAndCompactFn& fn) {
   DisallowGarbageCollection no_gc;
 
   int len = length();
@@ -106,7 +110,7 @@ void DependentCode::IterateAndCompact(const IterateAndCompactFn& fn) {
       continue;
     }
 
-    if (fn(Code::cast(obj.GetHeapObjectAssumeWeak()),
+    if (fn(CodeWrapper::cast(obj.GetHeapObjectAssumeWeak())->code(isolate),
            static_cast<DependencyGroups>(
                Get(i + kGroupsSlotOffset).ToSmi().value()))) {
       len = FillEntryFromBack(i, len);
@@ -123,7 +127,7 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowGarbageCollection no_gc;
 
   bool marked_something = false;
-  IterateAndCompact([&](Tagged<Code> code, DependencyGroups groups) {
+  IterateAndCompact(isolate, [&](Tagged<Code> code, DependencyGroups groups) {
     if ((groups & deopt_groups) == 0) return false;
 
     if (!code->marked_for_deoptimization()) {

@@ -7,6 +7,7 @@
 
 #include "src/codegen/maglev-safepoint-table.h"
 #include "src/objects/code-kind.h"
+#include "src/objects/struct.h"
 #include "src/objects/trusted-object.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -17,10 +18,13 @@ namespace internal {
 
 class BytecodeArray;
 class CodeDesc;
+class CodeWrapper;
 class Factory;
 template <typename Impl>
 class FactoryBase;
 class LocalFactory;
+class SafepointEntry;
+class RootVisitor;
 
 enum class Builtin;
 
@@ -86,14 +90,15 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(instruction_size, int)
   inline Address instruction_end() const;
 
-  inline void init_instruction_start(Isolate* isolate, Address initial_value);
+  inline CodeEntrypointTag entrypoint_tag() const;
+
   inline void SetInstructionStreamAndInstructionStart(
-      Isolate* isolate_for_sandbox, Tagged<InstructionStream> code,
+      IsolateForSandbox isolate, Tagged<InstructionStream> code,
       WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  inline void SetInstructionStartForOffHeapBuiltin(Isolate* isolate_for_sandbox,
+  inline void SetInstructionStartForOffHeapBuiltin(IsolateForSandbox isolate,
                                                    Address entry);
-  inline void ClearInstructionStartForSerialization(Isolate* isolate);
-  inline void UpdateInstructionStart(Isolate* isolate_for_sandbox,
+  inline void ClearInstructionStartForSerialization(IsolateForSandbox isolate);
+  inline void UpdateInstructionStart(IsolateForSandbox isolate,
                                      Tagged<InstructionStream> istream);
 
   inline void initialize_flags(CodeKind kind, bool is_turbofanned,
@@ -121,7 +126,15 @@ class Code : public ExposedTrustedObject {
   DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  DECL_ACCESSORS(bytecode_or_interpreter_data, Tagged<HeapObject>)
+  // As BytecodeArrays are located in trusted space, but InterpreterData
+  // objects are not yet, they are both currently referenced via their
+  // in-sandbox wrapper object. This is transparent for the caller. Once all
+  // objects are in trusted space, we should use a protected pointer here.
+  static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
+  inline Tagged<HeapObject> bytecode_or_interpreter_data(
+      IsolateForSandbox isolate) const;
+  inline void set_bytecode_or_interpreter_data(
+      Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
@@ -134,6 +147,13 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(code_comments_offset, int)
   // [constant_pool offset]: Offset of the constant pool.
   DECL_PRIMITIVE_ACCESSORS(constant_pool_offset, int)
+  // [wrapper] The CodeWrapper for this Code. When the sandbox is enabled, the
+  // Code object lives in trusted space outside of the sandbox, but the wrapper
+  // object lives inside the main heap and therefore inside the sandbox. As
+  // such, the wrapper object can be used in cases where a Code object needs to
+  // be referenced alongside other tagged pointer references (so for example
+  // inside a FixedArray).
+  DECL_ACCESSORS(wrapper, Tagged<CodeWrapper>)
 
   // Unchecked accessors to be used during GC.
   inline Tagged<FixedArray> unchecked_deoptimization_data() const;
@@ -189,10 +209,6 @@ class Code : public ExposedTrustedObject {
   inline bool has_handler_table() const;
 
   inline Address constant_pool() const;
-  // An accessor to be used during GC if the instruction_stream moved and the
-  // field was not updated yet.
-  inline Address constant_pool(
-      Tagged<InstructionStream> instruction_stream) const;
   inline int constant_pool_size() const;
   inline bool has_constant_pool() const;
 
@@ -316,6 +332,7 @@ class Code : public ExposedTrustedObject {
   V(kStartOfStrongFieldsOffset, 0)                                            \
   V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
+  V(kWrapperOffset, kTaggedSize)                                              \
   V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
   /* The InstructionStream field is special: it uses code_cage_base. */       \
   V(kInstructionStreamOffset, kTaggedSize)                                    \
@@ -386,11 +403,12 @@ class Code : public ExposedTrustedObject {
   static const int kMaxArguments = (1 << kArgumentsBits) - 2;
 
  private:
-  inline void set_instruction_start(Isolate* isolate, Address value);
+  inline void set_instruction_start(IsolateForSandbox isolate, Address value);
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data() const;
+  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data(
+      IsolateForSandbox isolate) const;
   Tagged<ByteArray> raw_position_table() const;
 
   enum BytecodeToPCPosition {
@@ -455,7 +473,6 @@ class GcSafeCode : public HeapObject {
   inline bool marked_for_deoptimization() const;
   inline Tagged<Object> raw_instruction_stream() const;
   inline Address constant_pool() const;
-  inline Address constant_pool(Tagged<InstructionStream> istream) const;
   inline Address safepoint_table_address() const;
   inline int stack_slots() const;
 
@@ -468,6 +485,30 @@ class GcSafeCode : public HeapObject {
 
  private:
   OBJECT_CONSTRUCTORS(GcSafeCode, HeapObject);
+};
+
+// A CodeWrapper wraps a Code but lives inside the sandbox. This can be useful
+// for example when a reference to a Code needs to be stored along other tagged
+// pointers inside an array or similar container datastructure.
+class CodeWrapper : public Struct {
+ public:
+  DECL_CODE_POINTER_ACCESSORS(code)
+
+  DECL_CAST(CodeWrapper)
+  DECL_PRINTER(CodeWrapper)
+  DECL_VERIFIER(CodeWrapper)
+
+#define FIELD_LIST(V)              \
+  V(kCodeOffset, kCodePointerSize) \
+  V(kHeaderSize, 0)                \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(Struct::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+
+  class BodyDescriptor;
+
+  OBJECT_CONSTRUCTORS(CodeWrapper, Struct);
 };
 
 }  // namespace internal
