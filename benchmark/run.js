@@ -54,12 +54,11 @@ if (format === 'csv') {
   let child;
   if (cpuCore !== null) {
     child = spawn('taskset', ['-c', cpuCore, 'node', scriptPath, ...args], {
-      stdio: ['inherit', 'pipe', 'ipc'],
+      stdio: ['inherit', 'pipe', 'pipe'],
     });
 
-    child.stdout.on('data', (data) => {
-      process.stdout.write(data);
-    });
+    child.stdout.pipe(process.stdout);
+    child.stderr.pipe(process.stderr);
   } else {
     child = fork(
       scriptPath,
