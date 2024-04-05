@@ -194,8 +194,6 @@ napi_status NAPI_CDECL napi_destroy_environment(napi_env env, int* exit_code) {
   // and the v8::locker
   delete emb_env;
 
-  cppgc::ShutdownProcess();
-
   return napi_ok;
 }
 
