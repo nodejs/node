@@ -39,7 +39,7 @@ permissions:
 jobs:
   test-asan:
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     env:
       CC: sccache clang
       CXX: sccache clang++
