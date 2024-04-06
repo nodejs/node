@@ -1216,7 +1216,7 @@ When enabled, the parser will accept the following:
 * Allow message containing both `Transfer-Encoding`
   and `Content-Length` headers.
 * Allow extra data after message when `Connection: close` is present.
-* Allow extra trasfer encodings after `chunked` has been provided.
+* Allow extra transfer encodings after `chunked` has been provided.
 * Allow `\n` to be used as token separator instead of `\r\n`.
 * Allow `\r\n` not to be provided after a chunk.
 * Allow spaces to be present after a chunk size and before `\r\n`.
