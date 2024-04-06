@@ -15,24 +15,27 @@ const netServerConfig = {
 if (process.argv[2] !== 'child') {
   const childProcess = child_process.fork(__filename, ['child']);
   const server = net.createServer(netServerConfig);
-  server.listen(9999,
-                mustCall(() => {
-                  childProcess.send(null, server);
-                }),
+  server.listen(0, mustCall(() => {
+    childProcess.send(null, server);
+  }),
   );
+  childProcess.on('exit', mustCall(() => {
+    process.exit();
+  }));
 } else {
   process.on(
     'message',
     mustCall((msg, handle) => {
       // Pass through all of net.Server config from parent process
-      assert.ok(handle.allowHalfOpen, netServerConfig.allowHalfOpen);
-      assert.ok(handle.pauseOnConnect, netServerConfig.pauseOnConnect);
-      assert.ok(handle.noDelay, netServerConfig.noDelay);
-      assert.ok(
+      assert.strictEqual(handle.allowHalfOpen, netServerConfig.allowHalfOpen);
+      assert.strictEqual(handle.pauseOnConnect, netServerConfig.pauseOnConnect);
+      assert.strictEqual(handle.noDelay, netServerConfig.noDelay);
+      assert.strictEqual(
         handle.keepAliveInitialDelay,
-        netServerConfig.keepAliveInitialDelay,
+        ~~(netServerConfig.keepAliveInitialDelay / 1000),
       );
-      assert.ok(handle.keepAlive, netServerConfig.keepAlive);
+      assert.strictEqual(handle.keepAlive, netServerConfig.keepAlive);
+      process.exit();
     }),
   );
 }
