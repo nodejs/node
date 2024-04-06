@@ -948,6 +948,26 @@ const parseTests = {
     href: 'wss://www.example.com/'
   },
 
+  'gopher://domain-name.com': {
+    protocol: 'gopher:',
+    slashes: true,
+    hostname: 'domain-name.com',
+    host: 'domain-name.com',
+    pathname: '/',
+    path: '/',
+    href: 'gopher://domain-name.com/'
+  },
+
+  'ftp://domain-name.com': {
+    protocol: 'ftp:',
+    slashes: true,
+    hostname: 'domain-name.com',
+    host: 'domain-name.com',
+    pathname: '/',
+    path: '/',
+    href: 'ftp://domain-name.com/'
+  },
+
   '//fhqwhgads@example.com/everybody-to-the-limit': {
     protocol: null,
     slashes: true,
