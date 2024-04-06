@@ -15,7 +15,7 @@ that discourage, exhaust, or otherwise negatively affect other participants.
 
 **This project has a [Code of Conduct][].**
 
-## Table of contents
+## Table of contents 📖
 
 * [Support](#support)
 * [Release types](#release-types)
@@ -34,7 +34,7 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [Release keys](#release-keys)
 * [License](#license)
 
-## Support
+## Support ❤️
 
 Looking for help? Check out the
 [instructions for getting support](.github/SUPPORT.md).
@@ -135,7 +135,7 @@ the file's signature.
 See [BUILDING.md](BUILDING.md) for instructions on how to build Node.js from
 source and a list of supported platforms.
 
-## Security
+## Security 🛡️
 
 For information on reporting security vulnerabilities in Node.js, see
 [SECURITY.md](./SECURITY.md).
