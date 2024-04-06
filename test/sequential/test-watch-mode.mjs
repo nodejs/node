@@ -298,9 +298,9 @@ console.log(values.random);
     const args = ['--import', imported, file];
     const { stdout, pid, stderr } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    const importPid = parseInt(stderr.split('\n')[0].split(' ')[1], 10);
+    const importPid = parseInt(stderr.split('\n', 1)[0].split(' ', 2)[1], 10);
 
-    assert.strictEqual(Number.isNaN(importPid), false);
+    assert.notStrictEqual(importPid, NaN);
     assert.notStrictEqual(pid, importPid);
 
     assert.deepStrictEqual(stdout, [
