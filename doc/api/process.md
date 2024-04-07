@@ -1711,7 +1711,7 @@ the script name. These options are useful in order to spawn child processes with
 the same execution environment as the parent.
 
 ```bash
-node --harmony script.js --version
+node --input-type=module --eval 'console.log("foo")' script.js --version
 ```
 
 Results in `process.execArgv`:
@@ -1719,7 +1719,7 @@ Results in `process.execArgv`:
 <!-- eslint-disable semi -->
 
 ```js
-['--harmony']
+['--input-type=module', '--eval', 'console.log("foo")']
 ```
 
 And `process.argv`:
