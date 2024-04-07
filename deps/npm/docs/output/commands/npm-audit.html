@@ -174,6 +174,12 @@ re-build the dependency tree each time.</p>
 <p>Registry signatures can be verified using the following <code>audit</code> command:</p>
 <pre><code class="language-bash">$ npm audit signatures
 </code></pre>
+<p>The <code>audit signatures</code> command will also verify the provenance attestations of
+downloaded packages. Because provenance attestations are such a new feature,
+security features may be added to (or changed in) the attestation format over
+time. To ensure that you're always able to verify attestation signatures check
+that you're running the latest version of the npm CLI. Please note this often
+means updating npm beyond the version that ships with Node.js.</p>
 <p>The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:</p>
 <ol>
 <li>Signatures are provided in the package's <code>packument</code> in each published version within the <code>dist</code> object:</li>
@@ -209,7 +215,7 @@ re-build the dependency tree each time.</p>
 <li><code>scheme</code>: only <code>ecdsa-sha2-nistp256</code> is currently supported by the npm CLI</li>
 <li><code>key</code>: base64 encoded public key</li>
 </ul>
-<p>See this <a href="https://registry.npmjs.org/-/npm/v1/keys%22">example key's response from the public npm registry</a>.</p>
+<p>See this <a href="https://registry.npmjs.org/-/npm/v1/keys">example key's response from the public npm registry</a>.</p>
 <h3 id="audit-endpoints">Audit Endpoints</h3>
 <p>There are two audit endpoints that npm may use to fetch vulnerability
 information: the <code>Bulk Advisory</code> endpoint and the <code>Quick Audit</code> endpoint.</p>

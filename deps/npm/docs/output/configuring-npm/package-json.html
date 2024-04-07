@@ -175,7 +175,7 @@ characters.</li>
 <li>Don't use the same name as a core Node module.</li>
 <li>Don't put "js" or "node" in the name.  It's assumed that it's js, since
 you're writing a package.json file, and you can specify the engine using
-the "engines" field.  (See below.)</li>
+the "<a href="#engines">engines</a>" field.  (See below.)</li>
 <li>The name will probably be passed as an argument to require(), so it
 should be something short, but also reasonably descriptive.</li>
 <li>You may want to check the npm registry to see if there's something by
@@ -201,12 +201,12 @@ package, as it's listed in <code>npm search</code>.</p>
 <p>Put keywords in it.  It's an array of strings.  This helps people discover
 your package as it's listed in <code>npm search</code>.</p>
 <h3 id="homepage">homepage</h3>
-<p>The url to the project homepage.</p>
+<p>The URL to the project homepage.</p>
 <p>Example:</p>
 <pre><code class="language-json">"homepage": "https://github.com/owner/project#readme"
 </code></pre>
 <h3 id="bugs">bugs</h3>
-<p>The url to your project's issue tracker and / or the email address to which
+<p>The URL to your project's issue tracker and / or the email address to which
 issues should be reported. These are helpful for people who encounter
 issues with your package.</p>
 <p>It should look like this:</p>
@@ -218,9 +218,9 @@ issues with your package.</p>
 }
 </code></pre>
 <p>You can specify either one or both values. If you want to provide only a
-url, you can specify the value for "bugs" as a simple string instead of an
+URL, you can specify the value for "bugs" as a simple string instead of an
 object.</p>
-<p>If a url is provided, it will be used by the <code>npm bugs</code> command.</p>
+<p>If a URL is provided, it will be used by the <code>npm bugs</code> command.</p>
 <h3 id="license">license</h3>
 <p>You should specify a license for your package so that people know how they
 are permitted to use it, and any restrictions you're placing on it.</p>
@@ -531,9 +531,9 @@ command will be able to find you.</p>
   }
 }
 </code></pre>
-<p>The URL should be a publicly available (perhaps read-only) url that can be
+<p>The URL should be a publicly available (perhaps read-only) URL that can be
 handed directly to a VCS program without any modification.  It should not
-be a url to an html project page that you put in your browser.  It's for
+be a URL to an html project page that you put in your browser.  It's for
 computers.</p>
 <p>For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the
 same shortcut syntax you use for <code>npm install</code>:</p>
@@ -630,7 +630,7 @@ time tools in your <code>dependencies</code> object.</strong>  See <code>devDepe
 <p>This tarball will be downloaded and installed locally to your package at
 install time.</p>
 <h4 id="git-urls-as-dependencies">Git URLs as Dependencies</h4>
-<p>Git urls are of the form:</p>
+<p>Git URLs are of the form:</p>
 <pre><code class="language-bash">&lt;protocol&gt;://[&lt;user&gt;[:&lt;password&gt;]@]&lt;hostname&gt;[:&lt;port&gt;][:][/]&lt;path&gt;[#&lt;commit-ish&gt; | #semver:&lt;semver&gt;]
 </code></pre>
 <p><code>&lt;protocol&gt;</code> is one of <code>git</code>, <code>git+ssh</code>, <code>git+http</code>, <code>git+https</code>, or
@@ -666,7 +666,7 @@ following scripts are present:</p>
 make sure that none of the above scripts are defined, or your dependency
 will be rebuilt for every installation.</p>
 <h4 id="github-urls">GitHub URLs</h4>
-<p>As of version 1.1.65, you can refer to GitHub urls as just "foo":
+<p>As of version 1.1.65, you can refer to GitHub URLs as just "foo":
 "user/foo-project".  Just as with git URLs, a <code>commit-ish</code> suffix can be
 included.  For example:</p>
 <pre><code class="language-json">{
@@ -820,7 +820,7 @@ none.</p>
 <p>If a dependency can be used, but you would like npm to proceed if it cannot
 be found or fails to install, then you may put it in the
 <code>optionalDependencies</code> object.  This is a map of package name to version or
-url, just like the <code>dependencies</code> object.  The difference is that build
+URL, just like the <code>dependencies</code> object.  The difference is that build
 failures do not cause installation to fail.  Running <code>npm install --omit=optional</code> will prevent these dependencies from being installed.</p>
 <p>It is still your program's responsibility to handle the lack of the
 dependency.  For example, something like this:</p>

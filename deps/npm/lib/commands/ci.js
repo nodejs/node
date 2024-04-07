@@ -75,14 +75,18 @@ class CI extends ArboristWorkspaceCmd {
       )
     }
 
-    // Only remove node_modules after we've successfully loaded the virtual
-    // tree and validated the lockfile
-    await this.npm.time('npm-ci:rm', async () => {
-      const path = `${where}/node_modules`
-      // get the list of entries so we can skip the glob for performance
-      const entries = await fs.readdir(path, null).catch(er => [])
-      return Promise.all(entries.map(f => fs.rm(`${path}/${f}`, { force: true, recursive: true })))
-    })
+    const dryRun = this.npm.config.get('dry-run')
+    if (!dryRun) {
+      // Only remove node_modules after we've successfully loaded the virtual
+      // tree and validated the lockfile
+      await this.npm.time('npm-ci:rm', async () => {
+        const path = `${where}/node_modules`
+        // get the list of entries so we can skip the glob for performance
+        const entries = await fs.readdir(path, null).catch(er => [])
+        return Promise.all(entries.map(f => fs.rm(`${path}/${f}`,
+          { force: true, recursive: true })))
+      })
+    }
 
     await arb.reify(opts)
 

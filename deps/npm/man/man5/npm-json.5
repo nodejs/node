@@ -1,4 +1,4 @@
-.TH "PACKAGE.JSON" "5" "February 2024" "" ""
+.TH "PACKAGE.JSON" "5" "April 2024" "" ""
 .SH "NAME"
 \fBpackage.json\fR - Specifics of npm's package.json handling
 .SS "Description"
@@ -30,7 +30,7 @@ Some tips:
 .IP \(bu 4
 Don't use the same name as a core Node module.
 .IP \(bu 4
-Don't put "js" or "node" in the name. It's assumed that it's js, since you're writing a package.json file, and you can specify the engine using the "engines" field. (See below.)
+Don't put "js" or "node" in the name. It's assumed that it's js, since you're writing a package.json file, and you can specify the engine using the "\fBengines\fR \fI(engines)\fR" field. (See below.)
 .IP \(bu 4
 The name will probably be passed as an argument to require(), so it should be something short, but also reasonably descriptive.
 .IP \(bu 4
@@ -52,7 +52,7 @@ Put a description in it. It's a string. This helps people discover your package,
 Put keywords in it. It's an array of strings. This helps people discover your package as it's listed in \fBnpm search\fR.
 .SS "homepage"
 .P
-The url to the project homepage.
+The URL to the project homepage.
 .P
 Example:
 .P
@@ -63,7 +63,7 @@ Example:
 .RE
 .SS "bugs"
 .P
-The url to your project's issue tracker and / or the email address to which issues should be reported. These are helpful for people who encounter issues with your package.
+The URL to your project's issue tracker and / or the email address to which issues should be reported. These are helpful for people who encounter issues with your package.
 .P
 It should look like this:
 .P
@@ -78,9 +78,9 @@ It should look like this:
 .fi
 .RE
 .P
-You can specify either one or both values. If you want to provide only a url, you can specify the value for "bugs" as a simple string instead of an object.
+You can specify either one or both values. If you want to provide only a URL, you can specify the value for "bugs" as a simple string instead of an object.
 .P
-If a url is provided, it will be used by the \fBnpm bugs\fR command.
+If a URL is provided, it will be used by the \fBnpm bugs\fR command.
 .SS "license"
 .P
 You should specify a license for your package so that people know how they are permitted to use it, and any restrictions you're placing on it.
@@ -471,7 +471,7 @@ Do it like this:
 .fi
 .RE
 .P
-The URL should be a publicly available (perhaps read-only) url that can be handed directly to a VCS program without any modification. It should not be a url to an html project page that you put in your browser. It's for computers.
+The URL should be a publicly available (perhaps read-only) URL that can be handed directly to a VCS program without any modification. It should not be a URL to an html project page that you put in your browser. It's for computers.
 .P
 For GitHub, GitHub gist, Bitbucket, or GitLab repositories you can use the same shortcut syntax you use for \fBnpm install\fR:
 .P
@@ -599,7 +599,7 @@ You may specify a tarball URL in place of a version range.
 This tarball will be downloaded and installed locally to your package at install time.
 .SS "Git URLs as Dependencies"
 .P
-Git urls are of the form:
+Git URLs are of the form:
 .P
 .RS 2
 .nf
@@ -644,7 +644,7 @@ This flow will occur if your git dependency uses \fBworkspaces\fR, or if any of 
 If your git repository includes pre-built artifacts, you will likely want to make sure that none of the above scripts are defined, or your dependency will be rebuilt for every installation.
 .SS "GitHub URLs"
 .P
-As of version 1.1.65, you can refer to GitHub urls as just "foo": "user/foo-project". Just as with git URLs, a \fBcommit-ish\fR suffix can be included. For example:
+As of version 1.1.65, you can refer to GitHub URLs as just "foo": "user/foo-project". Just as with git URLs, a \fBcommit-ish\fR suffix can be included. For example:
 .P
 .RS 2
 .nf
@@ -808,7 +808,7 @@ If this is spelled \fB"bundledDependencies"\fR, then that is also honored.
 Alternatively, \fB"bundleDependencies"\fR can be defined as a boolean value. A value of \fBtrue\fR will bundle all dependencies, a value of \fBfalse\fR will bundle none.
 .SS "optionalDependencies"
 .P
-If a dependency can be used, but you would like npm to proceed if it cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR object. This is a map of package name to version or url, just like the \fBdependencies\fR object. The difference is that build failures do not cause installation to fail. Running \fBnpm install
+If a dependency can be used, but you would like npm to proceed if it cannot be found or fails to install, then you may put it in the \fBoptionalDependencies\fR object. This is a map of package name to version or URL, just like the \fBdependencies\fR object. The difference is that build failures do not cause installation to fail. Running \fBnpm install
 --omit=optional\fR will prevent these dependencies from being installed.
 .P
 It is still your program's responsibility to handle the lack of the dependency. For example, something like this:

@@ -3,7 +3,7 @@ const fs = require('fs')
 
 const log = require('./log-shim.js')
 const errorMessage = require('./error-message.js')
-const replaceInfo = require('./replace-info.js')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 
 let npm = null // set by the cli
 let exitHandlerCalled = false

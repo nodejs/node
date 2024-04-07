@@ -138,3 +138,81 @@ t.test('handle getWorkspaces raising an error', async t => {
     { message: 'oopsie' }
   )
 })
+
+t.test('location detection and audit', async (t) => {
+  await t.test('audit false without package.json', async t => {
+    const { npm } = await loadMockNpm(t, {
+      command: 'install',
+      prefixDir: {
+        // no package.json
+        'readme.txt': 'just a file',
+        'other-dir': { a: 'a' },
+      },
+    })
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), false)
+  })
+
+  await t.test('audit true with package.json', async t => {
+    const { npm } = await loadMockNpm(t, {
+      command: 'install',
+      prefixDir: {
+        'package.json': '{ "name": "testpkg", "version": "1.0.0" }',
+        'readme.txt': 'just a file',
+      },
+    })
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
+  })
+
+  await t.test('audit true without package.json when set', async t => {
+    const { npm } = await loadMockNpm(t, {
+      command: 'install',
+      prefixDir: {
+        // no package.json
+        'readme.txt': 'just a file',
+        'other-dir': { a: 'a' },
+      },
+      config: {
+        audit: true,
+      },
+    })
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
+  })
+
+  await t.test('audit true in root config without package.json', async t => {
+    const { npm } = await loadMockNpm(t, {
+      command: 'install',
+      prefixDir: {
+        // no package.json
+        'readme.txt': 'just a file',
+        'other-dir': { a: 'a' },
+      },
+      // change npmRoot to get it to use a builtin rc file
+      otherDirs: { npmrc: 'audit=true' },
+      npm: ({ other }) => ({ npmRoot: other }),
+    })
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
+  })
+
+  await t.test('test for warning when --global & --audit', async t => {
+    const { npm, logs } = await loadMockNpm(t, {
+      command: 'install',
+      prefixDir: {
+        // no package.json
+        'readme.txt': 'just a file',
+        'other-dir': { a: 'a' },
+      },
+      config: {
+        audit: true,
+        global: true,
+      },
+    })
+    t.equal(npm.config.get('location'), 'user')
+    t.equal(npm.config.get('audit'), true)
+    t.equal(logs.warn[0][0], 'config')
+    t.equal(logs.warn[0][1], 'includes both --global and --audit, which is currently unsupported.')
+  })
+})

@@ -113,10 +113,12 @@ class Query extends BaseCommand {
   // builds a normalized inventory
   buildResponse (items) {
     for (const node of items) {
-      if (!this.#seen.has(node.target.location)) {
+      if (!node.target.location || !this.#seen.has(node.target.location)) {
         const item = new QuerySelectorItem(node)
         this.#response.push(item)
-        this.#seen.add(item.location)
+        if (node.target.location) {
+          this.#seen.add(item.location)
+        }
       }
     }
   }
