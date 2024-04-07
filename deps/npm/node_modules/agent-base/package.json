@@ -1,6 +1,6 @@
 {
   "name": "agent-base",
-  "version": "7.1.0",
+  "version": "7.1.1",
   "description": "Turn a function into an `http.Agent` instance",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

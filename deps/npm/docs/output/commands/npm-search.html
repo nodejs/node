@@ -142,7 +142,7 @@ npm command-line interface
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#long"><code>long</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#offline"><code>offline</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#long"><code>long</code></a></li><li><a href="#json"><code>json</code></a></li><li><a href="#color"><code>color</code></a></li><li><a href="#parseable"><code>parseable</code></a></li><li><a href="#description2"><code>description</code></a></li><li><a href="#searchlimit"><code>searchlimit</code></a></li><li><a href="#searchopts"><code>searchopts</code></a></li><li><a href="#searchexclude"><code>searchexclude</code></a></li><li><a href="#registry"><code>registry</code></a></li><li><a href="#prefer-online"><code>prefer-online</code></a></li><li><a href="#prefer-offline"><code>prefer-offline</code></a></li><li><a href="#offline"><code>offline</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -207,6 +207,13 @@ true, then only prints color codes for tty file descriptors.</p>
 <li>Type: Boolean</li>
 </ul>
 <p>Show the description in <code>npm search</code></p>
+<h4 id="searchlimit"><code>searchlimit</code></h4>
+<ul>
+<li>Default: 20</li>
+<li>Type: Number</li>
+</ul>
+<p>Number of items to limit search results to. Will not apply at all to legacy
+searches.</p>
 <h4 id="searchopts"><code>searchopts</code></h4>
 <ul>
 <li>Default: ""</li>

@@ -1,6 +1,6 @@
 {
   "name": "libnpmhook",
-  "version": "10.0.1",
+  "version": "10.0.2",
   "description": "programmatic API for managing npm registry hooks",
   "main": "lib/index.js",
   "files": [
@@ -31,7 +31,7 @@
   "license": "ISC",
   "dependencies": {
     "aproba": "^2.0.0",
-    "npm-registry-fetch": "^16.0.0"
+    "npm-registry-fetch": "^16.2.0"
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^4.0.0",

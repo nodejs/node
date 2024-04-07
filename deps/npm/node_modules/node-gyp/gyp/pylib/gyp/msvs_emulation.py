@@ -830,17 +830,14 @@ class MsvsSettings:
                 ("VCLinkerTool", "UACUIAccess"), config, default="false"
             )
 
-            inner = """
+            inner = f"""
 <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
   <security>
     <requestedPrivileges>
-      <requestedExecutionLevel level='{}' uiAccess='{}' />
+      <requestedExecutionLevel level='{execution_level_map[execution_level]}' uiAccess='{ui_access}' />
     </requestedPrivileges>
   </security>
-</trustInfo>""".format(
-                execution_level_map[execution_level],
-                ui_access,
-            )
+</trustInfo>"""  # noqa: E501
         else:
             inner = ""
 

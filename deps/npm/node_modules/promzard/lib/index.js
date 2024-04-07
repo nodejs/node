@@ -4,7 +4,7 @@ const { promisify } = require('util')
 const { randomBytes } = require('crypto')
 const { Module } = require('module')
 const { dirname, basename } = require('path')
-const read = require('read')
+const { read } = require('read')
 
 const files = {}
 

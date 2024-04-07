@@ -1,5 +1,5 @@
 const log = require('./log-shim')
-const replaceInfo = require('./replace-info.js')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 
 // print an error or just nothing if the audit report has an error
 // this is called by the audit command, and by the reify-output util

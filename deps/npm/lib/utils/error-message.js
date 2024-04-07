@@ -1,7 +1,7 @@
 const { format } = require('util')
 const { resolve } = require('path')
 const nameValidator = require('validate-npm-package-name')
-const replaceInfo = require('./replace-info.js')
+const { redactLog: replaceInfo } = require('@npmcli/redact')
 const { report } = require('./explain-eresolve.js')
 const log = require('./log-shim')
 
