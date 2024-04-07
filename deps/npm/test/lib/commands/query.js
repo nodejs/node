@@ -320,3 +320,25 @@ t.test('expect entries', t => {
   })
   t.end()
 })
+
+t.test('missing', async t => {
+  const { npm, joinedOutput } = await loadMockNpm(t, {
+    prefixDir: {
+      node_modules: {
+        a: {
+          name: 'a',
+          version: '1.0.0',
+        },
+      },
+      'package.json': JSON.stringify({
+        name: 'project',
+        dependencies: {
+          a: '^1.0.0',
+          b: '^1.0.0',
+        },
+      }),
+    },
+  })
+  await npm.exec('query', [':missing'])
+  t.matchSnapshot(joinedOutput(), 'should return missing node')
+})

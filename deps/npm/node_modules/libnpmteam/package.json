@@ -1,7 +1,7 @@
 {
   "name": "libnpmteam",
   "description": "npm Team management APIs",
-  "version": "6.0.1",
+  "version": "6.0.2",
   "author": "GitHub Inc.",
   "license": "ISC",
   "main": "lib/index.js",
@@ -32,7 +32,7 @@
   "homepage": "https://npmjs.com/package/libnpmteam",
   "dependencies": {
     "aproba": "^2.0.0",
-    "npm-registry-fetch": "^16.0.0"
+    "npm-registry-fetch": "^16.2.0"
   },
   "engines": {
     "node": "^16.14.0 || >=18.0.0"

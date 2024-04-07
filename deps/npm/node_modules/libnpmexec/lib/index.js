@@ -8,7 +8,7 @@ const log = require('proc-log')
 const npa = require('npm-package-arg')
 const npmlog = require('npmlog')
 const pacote = require('pacote')
-const read = require('read')
+const { read } = require('read')
 const semver = require('semver')
 
 const { fileExists, localFileExists } = require('./file-exists.js')

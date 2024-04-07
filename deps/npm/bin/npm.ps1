@@ -17,8 +17,8 @@ if ($nodebin -eq $null) {
 }
 $nodedir = $(New-Object -ComObject Scripting.FileSystemObject).GetFile("$nodebin").ParentFolder.Path
 
-$npmclijs="$nodedir/node_modules/npm/bin/npm-cli.js"
-$npmprefix=(& $nodeexe $npmclijs prefix -g)
+$npmprefixjs="$nodedir/node_modules/npm/bin/npm-prefix.js"
+$npmprefix=(& $nodeexe $npmprefixjs)
 if ($LASTEXITCODE -ne 0) {
   Write-Host "Could not determine Node.js install directory"
   exit 1

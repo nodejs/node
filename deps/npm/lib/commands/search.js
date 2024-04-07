@@ -42,6 +42,7 @@ class Search extends BaseCommand {
     'color',
     'parseable',
     'description',
+    'searchlimit',
     'searchopts',
     'searchexclude',
     'registry',
