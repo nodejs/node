@@ -32,7 +32,7 @@ const fs = require('node:fs');
     EMPTY_DOUBLE_QUOTES: '',
     EMPTY_SINGLE_QUOTES: '',
     EQUAL_SIGNS: 'equals==',
-    EXAMPLE: 'ignore export',
+    EXPORT_EXAMPLE: 'ignore export',
     EXPAND_NEWLINES: 'expand\nnew\nlines',
     INLINE_COMMENTS: 'inline comments',
     INLINE_COMMENTS_BACKTICKS: 'inline comments outside of #backticks',
