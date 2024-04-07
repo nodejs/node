@@ -2224,7 +2224,7 @@ added: v1.1.0
 
 * Returns: {Iterator}
 
-Creates and returns an [iterator][] of `buf` keys (indices).
+Creates and returns an [iterator][] of `buf` keys (indexes).
 
 ```mjs
 import { Buffer } from 'node:buffer';
@@ -3343,7 +3343,7 @@ added: v3.0.0
 * Returns: {Buffer}
 
 Returns a new `Buffer` that references the same memory as the original, but
-offset and cropped by the `start` and `end` indices.
+offset and cropped by the `start` and `end` indexes.
 
 Specifying `end` greater than [`buf.length`][] will return the same result as
 that of `end` equal to [`buf.length`][].
@@ -3470,7 +3470,7 @@ changes:
 > Stability: 0 - Deprecated: Use [`buf.subarray`][] instead.
 
 Returns a new `Buffer` that references the same memory as the original, but
-offset and cropped by the `start` and `end` indices.
+offset and cropped by the `start` and `end` indexes.
 
 This method is not compatible with the `Uint8Array.prototype.slice()`,
 which is a superclass of `Buffer`. To copy the slice, use

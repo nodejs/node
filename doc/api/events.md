@@ -962,7 +962,7 @@ myEmitter.emit('event');
 ```
 
 Because listeners are managed using an internal array, calling this will
-change the position indices of any listener registered _after_ the listener
+change the position indexes of any listener registered _after_ the listener
 being removed. This will not impact the order in which listeners are called,
 but it means that any copies of the listener array as returned by
 the `emitter.listeners()` method will need to be recreated.

@@ -2218,9 +2218,9 @@ typedef enum {
 } napi_key_conversion;
 ```
 
-`napi_key_numbers_to_strings` will convert integer indices to
+`napi_key_numbers_to_strings` will convert integer indexes to
 strings. `napi_key_keep_numbers` will return numbers for integer
-indices.
+indexes.
 
 #### `napi_valuetype`
 
