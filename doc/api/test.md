@@ -99,6 +99,17 @@ test('callback failing test', (t, done) => {
     done(new Error('callback failure'));
   });
 });
+
+function failFunction() {
+  throw new Error('This error will be caught');
+}
+
+// It's the way to catch expected errors i your test
+test('test catch error', (t) => {
+  assert.throws(() => failFunction(), {
+    message: 'This error will be caught',
+  });
+});
 ```
 
 If any tests fail, the process exit code is set to `1`.
@@ -578,7 +589,14 @@ test('spies on an object method', (t) => {
     add(a) {
       return this.value + a;
     },
+    error() {
+      throw new Error('error');
+    },
   };
+
+  assert.throws(() => number.error(), {
+    message: 'error',
+  });
 
   t.mock.method(number, 'add');
   assert.strictEqual(number.add.mock.calls.length, 0);
