@@ -1717,7 +1717,7 @@ node --icu-data-dir=./foo --require ./bar.js script.js --version
 Results in `process.execArgv`:
 
 ```json
-['--icu-data-dir=./foo', '--require', './bar.js']
+["--icu-data-dir=./foo", "--require", "./bar.js"]
 ```
 
 And `process.argv`:
