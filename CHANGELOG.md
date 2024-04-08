@@ -32,7 +32,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.1">18.20.1</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.2">18.20.2</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.1">18.20.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.0">18.20.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.19.1">18.19.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.19.0">18.19.0</a><br/>
