@@ -423,6 +423,11 @@ void Sign::SignFinal(const FunctionCallbackInfo<Value>& args) {
   if (!key)
     return;
 
+  if (IsOneShot(key)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
+
   int padding = GetDefaultSignPadding(key);
   if (!args[offset]->IsUndefined()) {
     CHECK(args[offset]->IsInt32());
@@ -547,6 +552,11 @@ void Verify::VerifyFinal(const FunctionCallbackInfo<Value>& args) {
       ManagedEVPPKey::GetPublicOrPrivateKeyFromJs(args, &offset);
   if (!pkey)
     return;
+
+  if (IsOneShot(pkey)) {
+    THROW_ERR_CRYPTO_UNSUPPORTED_OPERATION(env);
+    return;
+  }
 
   ArrayBufferOrViewContents<char> hbuf(args[offset]);
   if (UNLIKELY(!hbuf.CheckSizeInt32()))
