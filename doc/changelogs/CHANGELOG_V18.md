@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.2">18.20.2</a><br/>
 <a href="#18.20.1">18.20.1</a><br/>
 <a href="#18.20.0">18.20.0</a><br/>
 <a href="#18.19.1">18.19.1</a><br/>
@@ -68,6 +69,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.2"></a>
+
+## 2024-04-10, Version 18.20.2 'Hydrogen' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-27980 - Command injection via args parameter of `child_process.spawn` without shell option enabled on Windows
+
+### Commits
+
+* \[[`6627222409`](https://github.com/nodejs/node/commit/6627222409)] - **src**: disallow direct .bat and .cmd file spawning (Ben Noordhuis) [nodejs-private/node-private#564](https://github.com/nodejs-private/node-private/pull/564)
 
 <a id="18.20.1"></a>
 
