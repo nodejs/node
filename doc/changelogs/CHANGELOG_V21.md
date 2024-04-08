@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#21.7.3">21.7.3</a><br/>
 <a href="#21.7.2">21.7.2</a><br/>
 <a href="#21.7.1">21.7.1</a><br/>
 <a href="#21.7.0">21.7.0</a><br/>
@@ -46,6 +47,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="21.7.3"></a>
+
+## 2024-04-10, Version 21.7.3 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-27980 - Command injection via args parameter of `child_process.spawn` without shell option enabled on Windows
+
+### Commits
+
+* \[[`9095c914ed`](https://github.com/nodejs/node/commit/9095c914ed)] - **src**: disallow direct .bat and .cmd file spawning (Ben Noordhuis) [nodejs-private/node-private#562](https://github.com/nodejs-private/node-private/pull/562)
 
 <a id="21.7.2"></a>
 
