@@ -1512,15 +1512,15 @@ cpplint: lint-cpp
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build:
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
-	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.0.272 || \
-		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.0.272
+	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.3.4 || \
+		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.3.4
 
 .PHONY: lint-py
 ifneq ("","$(wildcard tools/pip/site-packages/ruff)")
 # Lint the Python code with ruff.
 lint-py:
 	tools/pip/site-packages/bin/ruff --version
-	tools/pip/site-packages/bin/ruff .
+	tools/pip/site-packages/bin/ruff check .
 else
 lint-py:
 	$(warning Python linting with ruff is not available)
