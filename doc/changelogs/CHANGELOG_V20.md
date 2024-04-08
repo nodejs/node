@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.12.2">20.12.2</a><br/>
 <a href="#20.12.1">20.12.1</a><br/>
 <a href="#20.12.0">20.12.0</a><br/>
 <a href="#20.11.1">20.11.1</a><br/>
@@ -56,6 +57,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.12.2"></a>
+
+## 2024-04-10, Version 20.12.2 'Iron' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* CVE-2024-27980 - Command injection via args parameter of `child_process.spawn` without shell option enabled on Windows
+
+### Commits
+
+* \[[`69ffc6d50d`](https://github.com/nodejs/node/commit/69ffc6d50d)] - **src**: disallow direct .bat and .cmd file spawning (Ben Noordhuis) [nodejs-private/node-private#563](https://github.com/nodejs-private/node-private/pull/563)
 
 <a id="20.12.1"></a>
 
