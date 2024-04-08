@@ -161,6 +161,7 @@ class EnvironmentOptions : public Options {
   bool heap_prof = false;
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
+  std::string run;
   std::string diagnostic_dir;
   std::string env_file;
   bool has_env_file_string = false;
