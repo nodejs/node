@@ -13,3 +13,6 @@ doc/changelogs/CHANGELOG_v1*.md
 !doc/changelogs/CHANGELOG_v18.md
 !doc/api_assets/*.js
 !.eslintrc.js
+# These test --experimental-detect-module so contains ESM syntax in .js files.
+test/es-module/test-require-module-detect-entry-point.js
+test/es-module/test-require-module-detect-entry-point-aou.js
