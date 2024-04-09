@@ -362,12 +362,12 @@ size_t StringBytes::Write(Isolate* isolate,
       } else {
         String::Value value(isolate, str);
         size_t written_len = buflen;
-        auto result =
-            simdutf::base64_to_binary_safe(reinterpret_cast<const char16_t*>(*value),
-                                      value.length(),
-                                      buf,
-                                      written_len,
-                                      simdutf::base64_url);
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char16_t*>(*value),
+            value.length(),
+            buf,
+            written_len,
+            simdutf::base64_url);
         if (result.error == simdutf::error_code::SUCCESS) {
           nbytes = written_len;
         } else {
