@@ -359,9 +359,13 @@ size_t StringBytes::Write(Isolate* isolate,
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
           nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
         }
-      } else if(str->IsOneByte()) {
+      } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
-        str->WriteOneByte(isolate, stack_buf.out(), 0, str->Length(), String::NO_NULL_TERMINATION);
+        str->WriteOneByte(isolate,
+                          stack_buf.out(),
+                          0,
+                          str->Length(),
+                          String::NO_NULL_TERMINATION);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
             reinterpret_cast<const char*>(*stack_buf),
@@ -410,9 +414,13 @@ size_t StringBytes::Write(Isolate* isolate,
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
           nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
         }
-      } else if(str->IsOneByte()) {
+      } else if (str->IsOneByte()) {
         MaybeStackBuffer<uint8_t> stack_buf(str->Length());
-        str->WriteOneByte(isolate, stack_buf.out(), 0, str->Length(), String::NO_NULL_TERMINATION);
+        str->WriteOneByte(isolate,
+                          stack_buf.out(),
+                          0,
+                          str->Length(),
+                          String::NO_NULL_TERMINATION);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
             reinterpret_cast<const char*>(*stack_buf),
