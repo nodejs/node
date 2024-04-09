@@ -18,7 +18,7 @@ for (let i = 0; i < 1000000; i++) {
 async function main() {
   await common.gcUntil('RSS should go down', () => {
     const after = process.memoryUsage.rss();
-    if (common.isAsan) {
+    if (common.isASan) {
       console.log(`ASan: before=${before} after=${after}`);
       return after < before * 10;
     } else if (process.config.variables.node_builtin_modules_path) {

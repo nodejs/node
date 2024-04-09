@@ -7,7 +7,7 @@ if (!common.hasCrypto)
 if (common.isWindows)
   common.skip('Not supported on Windows');
 
-if (common.isAsan)
+if (common.isASan)
   common.skip('ASan does not play well with secure heap allocations');
 
 const assert = require('assert');

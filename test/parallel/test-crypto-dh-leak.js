@@ -4,7 +4,7 @@
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
-if (common.isAsan)
+if (common.isASan)
   common.skip('ASan messes with memory measurements');
 
 const assert = require('assert');

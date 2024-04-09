@@ -24,7 +24,7 @@
 
 const common = require('../common');
 
-if (common.isAsan) {
+if (common.isASan) {
   common.skip('ASan messes with memory measurements');
 }
 
