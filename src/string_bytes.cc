@@ -359,6 +359,24 @@ size_t StringBytes::Write(Isolate* isolate,
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
           nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
         }
+      } else if(str->IsOneByte()) {
+        MaybeStackBuffer<uint8_t> stack_buf(str->Length());
+        str->WriteOneByte(isolate, stack_buf.out(), 0, str->Length(), String::NO_NULL_TERMINATION);
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char*>(*stack_buf),
+            stack_buf.length(),
+            buf,
+            written_len,
+            simdutf::base64_url);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // (adapted for base64url with + and / replaced by - and _).
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
+        }
       } else {
         String::Value value(isolate, str);
         size_t written_len = buflen;
@@ -391,6 +409,23 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
           nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+        }
+      } else if(str->IsOneByte()) {
+        MaybeStackBuffer<uint8_t> stack_buf(str->Length());
+        str->WriteOneByte(isolate, stack_buf.out(), 0, str->Length(), String::NO_NULL_TERMINATION);
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char*>(*stack_buf),
+            stack_buf.length(),
+            buf,
+            written_len);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // (adapted for base64url with + and / replaced by - and _).
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
         }
       } else {
         String::Value value(isolate, str);
