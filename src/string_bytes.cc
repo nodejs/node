@@ -348,10 +348,11 @@ size_t StringBytes::Write(Isolate* isolate,
     case BASE64URL:
       if (str->IsExternalOneByte()) {  // 8-bit case
         auto ext = str->GetExternalOneByteStringResource();
+        size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            ext->data(), ext->length(), buf, buflen, simdutf::base64_url);
+            ext->data(), ext->length(), buf, written_len, simdutf::base64_url);
         if (result.error == simdutf::error_code::SUCCESS) {
-          nbytes = result.count;
+          nbytes = written_len;
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
           // adapted for base64url
@@ -360,13 +361,15 @@ size_t StringBytes::Write(Isolate* isolate,
         }
       } else {
         String::Value value(isolate, str);
+        size_t written_len = buflen;
         auto result =
-            simdutf::base64_to_binary(reinterpret_cast<const char16_t*>(*value),
+            simdutf::base64_to_binary_safe(reinterpret_cast<const char16_t*>(*value),
                                       value.length(),
                                       buf,
+                                      written_len,
                                       simdutf::base64_url);
         if (result.error == simdutf::error_code::SUCCESS) {
-          nbytes = result.count;
+          nbytes = written_len;
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
@@ -379,10 +382,11 @@ size_t StringBytes::Write(Isolate* isolate,
     case BASE64: {
       if (str->IsExternalOneByte()) {  // 8-bit case
         auto ext = str->GetExternalOneByteStringResource();
+        size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            ext->data(), ext->length(), buf, buflen);
+            ext->data(), ext->length(), buf, written_len);
         if (result.error == simdutf::error_code::SUCCESS) {
-          nbytes = buflen;
+          nbytes = written_len;
         } else {
           // The input does not follow the WHATWG forgiving-base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
@@ -390,13 +394,14 @@ size_t StringBytes::Write(Isolate* isolate,
         }
       } else {
         String::Value value(isolate, str);
+        size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
             reinterpret_cast<const char16_t*>(*value),
             value.length(),
             buf,
-            buflen);
+            written_len);
         if (result.error == simdutf::error_code::SUCCESS) {
-          nbytes = buflen;
+          nbytes = written_len;
         } else {
           // The input does not follow the WHATWG base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
