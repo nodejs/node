@@ -121,6 +121,8 @@ platforms. This is true regardless of entries in the table below.
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2                                          |                                      |
 | FreeBSD          | x64              | >= 12.4                           | Experimental                                    |                                      |
 
+<!--lint disable final-definition-->
+
 [^1]: Older kernel versions may work. However official Node.js release
     binaries are [built on RHEL 8 systems](#official-binary-platforms-and-toolchains)
     with kernel 4.18.
@@ -146,6 +148,8 @@ platforms. This is true regardless of entries in the table below.
 
 [^5]: Our macOS x64 Binaries are compiled with 10.15 as a target. Xcode11 is
     required to compile.
+
+<!--lint enable final-definition-->
 
 ### Supported toolchains
 
@@ -173,6 +177,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
 | linux-x64               | RHEL 8 with gcc-toolset-10[^6]                                                                              |
 | win-x64 and win-x86     | Windows 2012 R2 (x64) with Visual Studio 2019                                                               |
 
+<!--lint disable final-definition-->
+
 [^6]: Binaries produced on these systems are compatible with glibc >= 2.28
     and libstdc++ >= 6.0.25 (`GLIBCXX_3.4.25`). These are available on
     distributions natively supporting GCC 8.1 or higher, such as Debian 10,
@@ -182,6 +188,8 @@ Binaries at <https://nodejs.org/download/release/> are produced on:
     and libstdc++ >= 6.0.28 (`GLIBCXX_3.4.28`). These are available on
     distributions natively supporting GCC 9.3 or higher, such as Debian 11,
     Ubuntu 20.04.
+
+<!--lint enable final-definition-->
 
 #### OpenSSL asm support
 
