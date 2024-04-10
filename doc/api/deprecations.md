@@ -3619,6 +3619,25 @@ Calling `Hmac` class directly with `Hmac()` or `new Hmac()` is
 deprecated due to being internals, not intended for public use.
 Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
+### DEP0182: Short GCM authentication tags without explicit `authTagLength`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52345
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Applications that intend to use authentication tags that are shorter than the
+default authentication tag length should set the `authTagLength` option of the
+[`crypto.createDecipheriv()`][] function to the appropriate length.
+
+For ciphers in GCM mode, the [`decipher.setAuthTag()`][] function accepts
+authentication tags of any valid length (see [DEP0090](#DEP0090)). This behavior
+is deprecated to better align with recommendations per [NIST SP 800-38D][].
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
