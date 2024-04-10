@@ -15,7 +15,7 @@ const args = parseArgs({
 });
 
 const verbose = args.values.verbose;
-const SINCE = args.positionals[0] || '12 months ago';
+const SINCE = args.positionals[0] || '9 months ago';
 
 async function runGitCommand(cmd, mapFn) {
   const childProcess = cp.spawn('/bin/sh', ['-c', cmd], {
