@@ -83,7 +83,7 @@ if (showProgress) {
     const spawnArgs = ['-c', cpuCore, cli.optional[job.binary], resolvedPath, ...cli.optional.set];
     child = spawn('taskset', spawnArgs, {
       env: process.env,
-      stdio: ['inherit', 'pipe', 'pipe'],
+      stdio: ['inherit', 'pipe', 'pipe', 'ipc'],
     });
 
     child.stdout.pipe(process.stdout);
