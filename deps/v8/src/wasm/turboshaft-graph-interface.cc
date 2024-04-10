@@ -3010,9 +3010,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       BrOrRet(decoder, catch_case.br_imm.depth);
       return;
     }
+    V<NativeContext> native_context = instance_cache_.native_context();
     V<WasmTagObject> caught_tag = V<WasmTagObject>::Cast(
         CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmGetOwnProperty>(
-            decoder, instance_cache_.native_context(),
+            decoder, native_context,
             {block->exception, LOAD_ROOT(wasm_exception_tag_symbol)}));
     V<FixedArray> instance_tags =
         LOAD_IMMUTABLE_INSTANCE_FIELD(trusted_instance_data(), TagsTable,
@@ -3022,17 +3023,70 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     TSBlock* if_catch = __ NewBlock();
     TSBlock* if_no_catch = NewBlockWithPhis(decoder, nullptr);
     SetupControlFlowEdge(decoder, if_no_catch);
+
+    // If the tags don't match we continue with the next tag by setting the
+    // no-catch environment as the new {block->false_or_loop_or_catch_block}
+    // here.
     block->false_or_loop_or_catch_block = if_no_catch;
-    __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
-              if_catch, block->false_or_loop_or_catch_block);
-    __ Bind(if_catch);
-    if (catch_case.kind == kCatchRef) {
-      UnpackWasmException(decoder, block->exception,
-                          values.SubVector(0, values.size() - 1));
-      values.last().op = block->exception;
+
+    if (catch_case.maybe_tag.tag_imm.tag->sig->parameter_count() == 1 &&
+        catch_case.maybe_tag.tag_imm.tag->sig->GetParam(0) == kWasmExternRef) {
+      // Check for the special case where the tag is WebAssembly.JSTag and the
+      // exception is not a WebAssembly.Exception. In this case the exception is
+      // caught and pushed on the operand stack.
+      // Only perform this check if the tag signature is the same as
+      // the JSTag signature, i.e. a single externref, otherwise
+      // we know statically that it cannot be the JSTag.
+      V<Word32> caught_tag_undefined =
+          __ TaggedEqual(caught_tag, LOAD_ROOT(UndefinedValue));
+      Label<Object> if_catch(&asm_);
+      Label<> no_catch_merge(&asm_);
+
+      IF (UNLIKELY(caught_tag_undefined)) {
+        V<Object> tag_object = __ Load(
+            native_context, LoadOp::Kind::TaggedBase(),
+            MemoryRepresentation::TaggedPointer(),
+            NativeContext::OffsetOfElementAt(Context::WASM_JS_TAG_INDEX));
+        V<Object> js_tag = __ Load(tag_object, LoadOp::Kind::TaggedBase(),
+                                   MemoryRepresentation::TaggedPointer(),
+                                   WasmTagObject::kTagOffset);
+        GOTO_IF(__ TaggedEqual(expected_tag, js_tag), if_catch,
+                block->exception);
+        GOTO(no_catch_merge);
+      } ELSE {
+        IF (__ TaggedEqual(caught_tag, expected_tag)) {
+          if (catch_case.kind == kCatchRef) {
+            UnpackWasmException(decoder, block->exception,
+                                values.SubVector(0, values.size() - 1));
+            values.last().op = block->exception;
+          } else {
+            UnpackWasmException(decoder, block->exception, values);
+          }
+          GOTO(if_catch, values[0].op);
+        }
+        GOTO(no_catch_merge);
+      }
+
+      BIND(no_catch_merge);
+      __ Goto(if_no_catch);
+
+      BIND(if_catch, caught_exception);
+      // The first unpacked value is the exception itself in the case of a JS
+      // exception.
+      values[0].op = caught_exception;
     } else {
-      UnpackWasmException(decoder, block->exception, values);
+      __ Branch(ConditionWithHint(__ TaggedEqual(caught_tag, expected_tag)),
+                if_catch, if_no_catch);
+      __ Bind(if_catch);
+      if (catch_case.kind == kCatchRef) {
+        UnpackWasmException(decoder, block->exception,
+                            values.SubVector(0, values.size() - 1));
+        values.last().op = block->exception;
+      } else {
+        UnpackWasmException(decoder, block->exception, values);
+      }
     }
+
     BrOrRet(decoder, catch_case.br_imm.depth);
 
     bool is_last = &catch_case == &block->catch_cases.last();
