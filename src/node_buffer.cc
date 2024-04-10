@@ -1251,7 +1251,7 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
         value.length(),
         stack_buf.out());
     if (out_len == 0) {  // error
-      return args.GetReturnValue().SetEmptyString();
+      return args.GetReturnValue().Set(-1);
     }
     size_t expected_length = simdutf::base64_length_from_binary(out_len);
     buffer.AllocateSufficientStorage(expected_length + 1);
