@@ -9,7 +9,7 @@
 // Tests that are independent of the version of the proposal are not included
 // (e.g. tests that only use the `throw` instruction), and some exnref-specific
 // tests are added.
-// See also exnref-rethrow.js and exnref-global.js.
+// See also exnref-rethrow.js, exnref-global.js and exnref-api.js.
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
