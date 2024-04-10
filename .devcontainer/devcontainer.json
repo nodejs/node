@@ -15,5 +15,10 @@
         "args": ["-l"]
       }
     }
-  }
+  },
+  "runArgs": [
+    // Allow node process to bind to port numbers below 1024 without root permissions
+    "--cap-add=CAP_NET_BIND_SERVICE"
+  ]
 }
+
