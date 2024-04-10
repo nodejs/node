@@ -327,6 +327,8 @@ documentation tests.
 To run the linter without running tests, use
 `make lint`/`vcbuild lint`. It will lint JavaScript, C++, and Markdown files.
 
+To fix auto fixable JavaScript linting errors, use `make lint-js-fix`.
+
 If you are updating tests and want to run tests in a single test file
 (e.g. `test/parallel/test-stream2-transform.js`):
 
