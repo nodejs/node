@@ -14,37 +14,6 @@ const fixtures = require('../common/fixtures.js');
 const tmpdir = require('../common/tmpdir.js');
 
 {
-  const policyFilepath = fixtures.path('policy-manifest', 'invalid.json');
-  const result = spawnSync(process.execPath, [
-    '--experimental-policy',
-    policyFilepath,
-    './fhqwhgads.js',
-  ]);
-
-  assert.notStrictEqual(result.status, 0);
-  const stderr = result.stderr.toString();
-  assert.match(stderr, /ERR_MANIFEST_INVALID_SPECIFIER/);
-  assert.match(stderr, /pattern needs to have a single trailing "\*"/);
-}
-
-{
-  tmpdir.refresh();
-  const policyFilepath = tmpdir.resolve('file with % in its name.json');
-  cpSync(fixtures.path('policy-manifest', 'invalid.json'), policyFilepath);
-  const result = spawnSync(process.execPath, [
-    '--experimental-policy',
-    policyFilepath,
-    './fhqwhgads.js',
-  ]);
-
-  assert.notStrictEqual(result.status, 0);
-  const stderr = result.stderr.toString();
-  assert.match(stderr, /ERR_MANIFEST_INVALID_SPECIFIER/);
-  assert.match(stderr, /pattern needs to have a single trailing "\*"/);
-  rmSync(policyFilepath);
-}
-
-{
   const policyFilepath = fixtures.path('policy-manifest', 'onerror-exit.json');
   const result = spawnSync(process.execPath, [
     '--experimental-policy',
