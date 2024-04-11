@@ -1211,6 +1211,63 @@ void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void Btoa(const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
+
+  Local<String> input = args[0].As<String>();
+  MaybeStackBuffer<char> buffer;
+  size_t written;
+
+  if (input->IsExternalOneByte()) {  // 8-bit case
+    auto ext = input->GetExternalOneByteStringResource();
+    size_t expected_length = simdutf::base64_length_from_binary(ext->length());
+    buffer.AllocateSufficientStorage(expected_length + 1);
+    buffer.SetLengthAndZeroTerminate(expected_length);
+    written =
+        simdutf::binary_to_base64(ext->data(), ext->length(), buffer.out());
+  } else if (input->IsOneByte()) {
+    MaybeStackBuffer<uint8_t> stack_buf(input->Length());
+    input->WriteOneByte(env->isolate(),
+                        stack_buf.out(),
+                        0,
+                        input->Length(),
+                        String::NO_NULL_TERMINATION);
+
+    size_t expected_length =
+        simdutf::base64_length_from_binary(input->Length());
+    buffer.AllocateSufficientStorage(expected_length + 1);
+    buffer.SetLengthAndZeroTerminate(expected_length);
+    written =
+        simdutf::binary_to_base64(reinterpret_cast<const char*>(*stack_buf),
+                                  input->Length(),
+                                  buffer.out());
+  } else {
+    String::Value value(env->isolate(), input);
+    MaybeStackBuffer<char> stack_buf(value.length());
+    size_t out_len = simdutf::convert_utf16_to_latin1(
+        reinterpret_cast<const char16_t*>(*value),
+        value.length(),
+        stack_buf.out());
+    if (out_len == 0) {  // error
+      return args.GetReturnValue().Set(-1);
+    }
+    size_t expected_length = simdutf::base64_length_from_binary(out_len);
+    buffer.AllocateSufficientStorage(expected_length + 1);
+    buffer.SetLengthAndZeroTerminate(expected_length);
+    written = simdutf::binary_to_base64(*stack_buf, out_len, buffer.out());
+  }
+
+  auto value =
+      String::NewFromOneByte(env->isolate(),
+                             reinterpret_cast<const uint8_t*>(buffer.out()),
+                             NewStringType::kNormal,
+                             written)
+          .ToLocalChecked();
+  return args.GetReturnValue().Set(value);
+}
+
 // In case of success, the decoded string is returned.
 // In case of error, a negative value is returned:
 // * -1 indicates a single character remained,
@@ -1329,6 +1386,7 @@ void Initialize(Local<Object> target,
   Isolate* isolate = env->isolate();
 
   SetMethodNoSideEffect(context, target, "atob", Atob);
+  SetMethodNoSideEffect(context, target, "btoa", Btoa);
 
   SetMethod(context, target, "setBufferPrototype", SetBufferPrototype);
   SetMethodNoSideEffect(context, target, "createFromString", CreateFromString);
@@ -1433,6 +1491,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CopyArrayBuffer);
 
   registry->Register(Atob);
+  registry->Register(Btoa);
 }
 
 }  // namespace Buffer
