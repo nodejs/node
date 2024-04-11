@@ -128,7 +128,7 @@ const isFreeBSD = process.platform === 'freebsd';
 const isOpenBSD = process.platform === 'openbsd';
 const isLinux = process.platform === 'linux';
 const isOSX = process.platform === 'darwin';
-const isAsan = process.env.ASAN !== undefined;
+const isASan = process.config.variables.asan === 1;
 const isPi = (() => {
   try {
     // Normal Raspberry Pi detection is to find the `Raspberry Pi` string in
@@ -965,7 +965,7 @@ const common = {
   hasMultiLocalhost,
   invalidArgTypeHelper,
   isAlive,
-  isAsan,
+  isASan,
   isDumbTerminal,
   isFreeBSD,
   isLinux,
