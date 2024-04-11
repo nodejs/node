@@ -17,4 +17,5 @@ const watcher = fs.watch(tmpdir.resolve('./parent'), { recursive: true }, common
   watcher.close();
 }));
 
-fs.rmSync(tmpdir.resolve('./parent/child/test.tmp'));
+// We must use the asynchronous version of `fs.rm()` to let the watcher be set up properly
+fs.rm(tmpdir.resolve('./parent/child'), { recursive: true }, common.mustCall());
