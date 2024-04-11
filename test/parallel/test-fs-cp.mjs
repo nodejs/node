@@ -826,6 +826,22 @@ if (!isWindows) {
   cpSync(src, dest, opts);
 }
 
+// It will throw error for invalid return value from filter
+{
+  const src = nextdir();
+  const dest = nextdir();
+
+  const opts = {
+    filter: (path) => {
+      // Undefined is not a valid return value.
+    },
+  };
+  assert.throws(
+    () => cpSync(src, dest, opts),
+    { code: 'ERR_INVALID_RETURN_VALUE' }
+  );
+}
+
 // Copy should not throw exception if dest is invalid but filtered out.
 {
   // Create dest as a file.
