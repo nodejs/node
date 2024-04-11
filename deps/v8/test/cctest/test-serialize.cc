@@ -5195,6 +5195,215 @@ TEST(WeakArraySerializationInCodeCache) {
   delete cache;
 }
 
+v8::MaybeLocal<v8::Promise> TestHostDefinedOptionFromCachedScript(
+    Local<v8::Context> context, Local<v8::Data> host_defined_options,
+    Local<v8::Value> resource_name, Local<v8::String> specifier,
+    Local<v8::FixedArray> import_attributes) {
+  CHECK(host_defined_options->IsFixedArray());
+  auto arr = host_defined_options.As<v8::FixedArray>();
+  CHECK_EQ(arr->Length(), 1);
+  v8::Local<v8::Symbol> expected =
+      v8::Symbol::For(context->GetIsolate(), v8_str("hdo"));
+  CHECK_EQ(arr->Get(context, 0), expected);
+  CHECK(resource_name->Equals(context, v8_str("test_hdo")).FromJust());
+  CHECK(specifier->Equals(context, v8_str("foo")).FromJust());
+
+  Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context).ToLocalChecked();
+  resolver->Resolve(context, v8_str("hello")).ToChecked();
+  return resolver->GetPromise();
+}
+
+TEST(CachedFunctionHostDefinedOption) {
+  DisableAlwaysOpt();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->compilation_cache()
+      ->DisableScriptAndEval();  // Disable same-isolate code cache.
+  isolate->SetHostImportModuleDynamicallyCallback(
+      TestHostDefinedOptionFromCachedScript);
+
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::String> source = v8_str("return import(x)");
+  v8::Local<v8::String> arg_str = v8_str("x");
+
+  v8::Local<v8::PrimitiveArray> hdo = v8::PrimitiveArray::New(isolate, 1);
+  hdo->Set(isolate, 0, v8::Symbol::For(isolate, v8_str("hdo")));
+  v8::ScriptOrigin origin(v8_str("test_hdo"),  // resource_name
+                          0,                   // resource_line_offset
+                          0,                   // resource_column_offset
+                          false,  // resource_is_shared_cross_origin
+                          -1,     // script_id
+                          {},     // source_map_url
+                          false,  // resource_is_opaque
+                          false,  // is_wasm
+                          false,  // is_module
+                          hdo     // host_defined_options
+  );
+  ScriptCompiler::CachedData* cache;
+  {
+    v8::ScriptCompiler::Source script_source(source, origin);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunction(
+            env.local(), &script_source, 1, &arg_str, 0, nullptr,
+            v8::ScriptCompiler::kNoCompileOptions)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCacheForFunction(fun);
+  }
+
+  {
+    DisallowCompilation no_compile_expected(i_isolate);
+    v8::ScriptCompiler::Source script_source(source, origin, cache);
+    v8::Local<v8::Function> fun =
+        v8::ScriptCompiler::CompileFunction(
+            env.local(), &script_source, 1, &arg_str, 0, nullptr,
+            v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    v8::Local<v8::Value> arg = v8_str("foo");
+    v8::Local<v8::Value> result =
+        fun->Call(env.local(), v8::Undefined(isolate), 1, &arg)
+            .ToLocalChecked();
+    CHECK(result->IsPromise());
+    v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+    isolate->PerformMicrotaskCheckpoint();
+    v8::Local<v8::Value> resolved = promise->Result();
+    CHECK(resolved->IsString());
+    CHECK(resolved.As<v8::String>()
+              ->Equals(env.local(), v8_str("hello"))
+              .FromJust());
+  }
+}
+
+TEST(CachedUnboundScriptHostDefinedOption) {
+  DisableAlwaysOpt();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->compilation_cache()
+      ->DisableScriptAndEval();  // Disable same-isolate code cache.
+  isolate->SetHostImportModuleDynamicallyCallback(
+      TestHostDefinedOptionFromCachedScript);
+
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::String> source = v8_str("globalThis.foo =import('foo')");
+
+  v8::Local<v8::PrimitiveArray> hdo = v8::PrimitiveArray::New(isolate, 1);
+  hdo->Set(isolate, 0, v8::Symbol::For(isolate, v8_str("hdo")));
+  v8::ScriptOrigin origin(v8_str("test_hdo"),  // resource_name
+                          0,                   // resource_line_offset
+                          0,                   // resource_column_offset
+                          false,  // resource_is_shared_cross_origin
+                          -1,     // script_id
+                          {},     // source_map_url
+                          false,  // resource_is_opaque
+                          false,  // is_wasm
+                          false,  // is_module
+                          hdo     // host_defined_options
+  );
+  ScriptCompiler::CachedData* cache;
+  {
+    v8::ScriptCompiler::Source script_source(source, origin);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate, &script_source, v8::ScriptCompiler::kNoCompileOptions)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCache(script);
+  }
+
+  {
+    DisallowCompilation no_compile_expected(i_isolate);
+    v8::ScriptCompiler::Source script_source(source, origin, cache);
+    v8::Local<v8::UnboundScript> script =
+        v8::ScriptCompiler::CompileUnboundScript(
+            isolate, &script_source, v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    v8::Local<v8::Script> bound = script->BindToCurrentContext();
+    USE(bound->Run(env.local(), hdo).ToLocalChecked());
+    v8::Local<v8::Value> result =
+        env.local()->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked();
+    CHECK(result->IsPromise());
+    v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+    isolate->PerformMicrotaskCheckpoint();
+    v8::Local<v8::Value> resolved = promise->Result();
+    CHECK(resolved->IsString());
+    CHECK(resolved.As<v8::String>()
+              ->Equals(env.local(), v8_str("hello"))
+              .FromJust());
+  }
+}
+
+v8::MaybeLocal<v8::Module> UnexpectedModuleResolveCallback(
+    v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
+    v8::Local<v8::FixedArray> import_attributes,
+    v8::Local<v8::Module> referrer) {
+  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
+}
+
+TEST(CachedModuleScriptFunctionHostDefinedOption) {
+  DisableAlwaysOpt();
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->compilation_cache()
+      ->DisableScriptAndEval();  // Disable same-isolate code cache.
+  isolate->SetHostImportModuleDynamicallyCallback(
+      TestHostDefinedOptionFromCachedScript);
+
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::String> source = v8_str("globalThis.foo = import('foo')");
+
+  v8::Local<v8::PrimitiveArray> hdo = v8::PrimitiveArray::New(isolate, 1);
+  hdo->Set(isolate, 0, v8::Symbol::For(isolate, v8_str("hdo")));
+  v8::ScriptOrigin origin(v8_str("test_hdo"),  // resource_name
+                          0,                   // resource_line_offset
+                          0,                   // resource_column_offset
+                          false,  // resource_is_shared_cross_origin
+                          -1,     // script_id
+                          {},     // source_map_url
+                          false,  // resource_is_opaque
+                          false,  // is_wasm
+                          true,   // is_module
+                          hdo     // host_defined_options
+  );
+  ScriptCompiler::CachedData* cache;
+  {
+    v8::ScriptCompiler::Source script_source(source, origin);
+    v8::Local<v8::Module> mod =
+        v8::ScriptCompiler::CompileModule(isolate, &script_source,
+                                          v8::ScriptCompiler::kNoCompileOptions)
+            .ToLocalChecked();
+    cache = v8::ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
+  }
+
+  {
+    DisallowCompilation no_compile_expected(i_isolate);
+    v8::ScriptCompiler::Source script_source(source, origin, cache);
+    v8::Local<v8::Module> mod =
+        v8::ScriptCompiler::CompileModule(isolate, &script_source,
+                                          v8::ScriptCompiler::kConsumeCodeCache)
+            .ToLocalChecked();
+    mod->InstantiateModule(env.local(), UnexpectedModuleResolveCallback)
+        .Check();
+    v8::Local<v8::Value> evaluted = mod->Evaluate(env.local()).ToLocalChecked();
+    CHECK(evaluted->IsPromise());
+    CHECK_EQ(evaluted.As<v8::Promise>()->State(),
+             v8::Promise::PromiseState::kFulfilled);
+    v8::Local<v8::Value> result =
+        env.local()->Global()->Get(env.local(), v8_str("foo")).ToLocalChecked();
+    v8::Local<v8::Promise> promise = result.As<v8::Promise>();
+    isolate->PerformMicrotaskCheckpoint();
+    v8::Local<v8::Value> resolved = promise->Result();
+    CHECK(resolved->IsString());
+    CHECK(resolved.As<v8::String>()
+              ->Equals(env.local(), v8_str("hello"))
+              .FromJust());
+  }
+}
+
 TEST(CachedCompileFunction) {
   DisableAlwaysOpt();
   LocalContext env;
