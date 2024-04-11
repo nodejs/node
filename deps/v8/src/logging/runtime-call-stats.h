@@ -275,6 +275,7 @@ class RuntimeCallTimer final {
   V(SymbolObject_New)                                      \
   V(SymbolObject_SymbolValue)                              \
   V(SyntaxError_New)                                       \
+  V(MyCustomError_New)                                       \
   V(TracedGlobal_New)                                      \
   V(TryCatch_StackTrace)                                   \
   V(TypeError_New)                                         \

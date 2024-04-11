@@ -242,6 +242,7 @@ namespace internal {
   F(NewForeign, 0, 1)                                      \
   F(NewReferenceError, 2, 1)                               \
   F(NewSyntaxError, 2, 1)                                  \
+  F(NewMyCustomError, 2, 1)                                  \
   F(NewTypeError, -1 /* [1, 4] */, 1)                      \
   F(OrdinaryHasInstance, 2, 1)                             \
   F(PropagateException, 0, 1)                              \

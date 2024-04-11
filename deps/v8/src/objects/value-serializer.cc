@@ -246,6 +246,8 @@ enum class ErrorTag : uint8_t {
   kReferenceErrorPrototype = 'F',
   // The error is a SyntaxError. No accompanying data.
   kSyntaxErrorPrototype = 'S',
+  // The error is a MyCustomError. No accompanying data.
+  kMyCustomErrorPrototype = 'M',
   // The error is a TypeError. No accompanying data.
   kTypeErrorPrototype = 'T',
   // The error is a URIError. No accompanying data.
@@ -1047,6 +1049,8 @@ Maybe<bool> ValueSerializer::WriteJSError(Handle<JSObject> error) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kReferenceErrorPrototype));
   } else if (name->IsOneByteEqualTo(base::CStrVector("SyntaxError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kSyntaxErrorPrototype));
+  } else if (name->IsOneByteEqualTo(base::CStrVector("MyCustomError"))) {
+    WriteVarint(static_cast<uint8_t>(ErrorTag::kMyCustomErrorPrototype));
   } else if (name->IsOneByteEqualTo(base::CStrVector("TypeError"))) {
     WriteVarint(static_cast<uint8_t>(ErrorTag::kTypeErrorPrototype));
   } else if (name->IsOneByteEqualTo(base::CStrVector("URIError"))) {
@@ -2259,6 +2263,10 @@ MaybeHandle<Object> ValueDeserializer::ReadJSError() {
       break;
     case ErrorTag::kSyntaxErrorPrototype:
       constructor = isolate_->syntax_error_function();
+      READ_NEXT_ERROR_TAG();
+      break;
+    case ErrorTag::kMyCustomErrorPrototype:
+      constructor = isolate_->my_custom_error_function();
       READ_NEXT_ERROR_TAG();
       break;
     case ErrorTag::kTypeErrorPrototype:

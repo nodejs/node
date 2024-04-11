@@ -442,6 +442,7 @@
   V(_, Symbol_string, "Symbol")                                               \
   V(_, symbol_string, "symbol")                                               \
   V(_, SyntaxError_string, "SyntaxError")                                     \
+  V(_, MyCustomError_string, "MyCustomError")                                     \
   V(_, target_string, "target")                                               \
   V(_, this_function_string, ".this_function")                                \
   V(_, this_string, "this")                                                   \

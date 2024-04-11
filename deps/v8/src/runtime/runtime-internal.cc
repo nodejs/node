@@ -268,6 +268,15 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
+RUNTIME_FUNCTION(Runtime_NewMyCustomError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  int template_index = args.smi_value_at(0);
+  Handle<Object> arg0 = args.at(1);
+  MessageTemplate message_template = MessageTemplateFromInt(template_index);
+  return *isolate->factory()->NewMyCustomError(message_template, arg0);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());

@@ -871,6 +871,7 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   DECLARE_ERROR(RangeError)
   DECLARE_ERROR(ReferenceError)
   DECLARE_ERROR(SyntaxError)
+  DECLARE_ERROR(MyCustomError)
   DECLARE_ERROR(TypeError)
   DECLARE_ERROR(WasmCompileError)
   DECLARE_ERROR(WasmLinkError)

@@ -3491,6 +3491,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   InstallError(isolate_, global, factory->SyntaxError_string(),
                Context::SYNTAX_ERROR_FUNCTION_INDEX);
 
+  // -- M y C u s t o m E r r o r
+  InstallError(isolate_, global, factory->MyCustomError_string(),
+               Context::MY_CUSTOM_ERROR_FUNCTION_INDEX);
+
   // -- T y p e E r r o r
   InstallError(isolate_, global, factory->TypeError_string(),
                Context::TYPE_ERROR_FUNCTION_INDEX);

@@ -377,6 +377,7 @@ enum ContextLookupFlags {
     shadow_realm_import_value_rejected)                                        \
   V(SUPPRESSED_ERROR_FUNCTION_INDEX, JSFunction, suppressed_error_function)    \
   V(SYNTAX_ERROR_FUNCTION_INDEX, JSFunction, syntax_error_function)            \
+  V(MY_CUSTOM_ERROR_FUNCTION_INDEX, JSFunction, my_custom_error_function)      \
   V(TYPE_ERROR_FUNCTION_INDEX, JSFunction, type_error_function)                \
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                  \
   V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                             \

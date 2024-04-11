@@ -36,6 +36,8 @@ class V8_EXPORT Exception {
                                      Local<Value> options = {});
   static Local<Value> SyntaxError(Local<String> message,
                                   Local<Value> options = {});
+  static Local<Value> MyCustomError(Local<String> message,
+                                  Local<Value> options = {});
   static Local<Value> TypeError(Local<String> message,
                                 Local<Value> options = {});
   static Local<Value> WasmCompileError(Local<String> message,

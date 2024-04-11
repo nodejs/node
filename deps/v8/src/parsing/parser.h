@@ -706,6 +706,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return NewThrowError(Runtime::kNewSyntaxError, message, arg, pos);
   }
 
+  // Generate AST node that throws a SyntaxError with the given
+  // type. The first argument may be null (in the handle sense) in
+  // which case no arguments are passed to the constructor.
+  V8_INLINE Expression* NewThrowMyCustomError(MessageTemplate message,
+                                            const AstRawString* arg, int pos) {
+    return NewThrowError(Runtime::kNewMyCustomError, message, arg, pos);
+  }
+
   // Generate AST node that throws a TypeError with the given
   // type. Both arguments must be non-null (in the handle sense).
   V8_INLINE Expression* NewThrowTypeError(MessageTemplate message,

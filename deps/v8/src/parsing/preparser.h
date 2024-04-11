@@ -1446,6 +1446,11 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
+  V8_INLINE PreParserExpression NewThrowMyCustomError(
+      MessageTemplate message, const PreParserIdentifier& arg, int pos) {
+    return PreParserExpression::Default();
+  }
+
   V8_INLINE PreParserExpression NewThrowTypeError(
       MessageTemplate message, const PreParserIdentifier& arg, int pos) {
     return PreParserExpression::Default();
