@@ -307,9 +307,9 @@ console.log(values.random);
     const file = createTmpFile();
     const required = createTmpFile('process._rawDebug(\'pid\', process.pid);');
     const args = ['--require', required, file];
-    const { stdout, pid } = await runWriteSucceed({ file, watchedFile: file, args });
+    const { stdout, pid, stderr } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    const importPid = parseInt(stdout[0].split(' ')[1], 10);
+    const importPid = parseInt(stderr[0].split(' ')[1], 10);
     assert.notStrictEqual(pid, importPid);
     assert.deepStrictEqual(stdout, [
       'running',
@@ -324,10 +324,13 @@ console.log(values.random);
     const file = createTmpFile();
     const imported = "data:text/javascript,process._rawDebug('pid', process.pid);";
     const args = ['--import', imported, file];
-    const { stdout, pid } = await runWriteSucceed({ file, watchedFile: file, args });
+    const { stdout, pid, stderr } = await runWriteSucceed({ file, watchedFile: file, args });
 
-    const importPid = parseInt(stdout[0].split(' ')[1], 10);
+    const importPid = parseInt(stderr.split('\n', 1)[0].split(' ', 2)[1], 10);
+
+    assert.notStrictEqual(importPid, NaN);
     assert.notStrictEqual(pid, importPid);
+
     assert.deepStrictEqual(stdout, [
       'running',
       `Completed running ${inspect(file)}`,
