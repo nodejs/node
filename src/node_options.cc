@@ -383,6 +383,11 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::network_family_autoselection,
             kAllowedInEnvvar,
             true);
+  AddOption("--network-family-autoselection-attempt-timeout",
+            "Sets the default value for the network family autoselection "
+            "attempt timeout.",
+            &EnvironmentOptions::network_family_autoselection_attempt_timeout,
+            kAllowedInEnvvar);
   AddAlias("--enable-network-family-autoselection",
            "--network-family-autoselection");
   AddOption("--enable-source-maps",
