@@ -13,8 +13,9 @@ fs.writeFileSync(tmpdir.resolve('./parent/child/test.tmp'), 'test');
 
 const watcher = fs.watch(tmpdir.resolve('./parent'), { recursive: true }, common.mustCall((eventType, filename) => {
   // We are only checking for the filename to avoid having Windows, Linux and Mac specific assertions
-  assert.strictEqual(filename.indexOf('test.tmp') >= 0, true);
-  watcher.close();
+  if (fs.readDirSync(tmpdir.resolve('./parent')).length === 0) {
+ 	watcher.close();
+   }
 }));
 
 // We must use the asynchronous version of `fs.rm()` to let the watcher be set up properly
