@@ -235,7 +235,7 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
   // args[1] // base url
   // args[2] // raise Exception
 
-  const bool raise_exception = args[2]->BooleanValue(args.GetIsolate());
+  const bool raise_exception = args.Length() > 2 && args[2]->IsTrue();
 
   Realm* realm = Realm::GetCurrent(args);
   BindingData* binding_data = realm->GetBindingData<BindingData>();
@@ -251,19 +251,17 @@ void BindingData::Parse(const FunctionCallbackInfo<Value>& args) {
     if (!base && raise_exception) {
       return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
     } else if (!base) {
-      return args.GetReturnValue().SetNull();
+      return;
     }
     base_pointer = &base.value();
   }
   auto out =
       ada::parse<ada::url_aggregator>(input.ToStringView(), base_pointer);
 
-  if (!out) {
-    if (raise_exception) {
-      return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
-    } else {
-      return args.GetReturnValue().SetNull();
-    }
+  if (!out && raise_exception) {
+    return ThrowInvalidURL(realm->env(), input.ToStringView(), base_);
+  } else if (!out) {
+    return;
   }
 
   binding_data->UpdateComponents(out->get_components(), out->type);
