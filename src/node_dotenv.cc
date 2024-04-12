@@ -1,5 +1,4 @@
 #include "node_dotenv.h"
-#include <regex>  // NOLINT(build/c++11)
 #include <unordered_set>
 #include "env-inl.h"
 #include "node_file.h"
@@ -104,7 +103,12 @@ std::string_view trim_spaces(std::string_view input) {
 }
 
 void Dotenv::ParseContent(const std::string_view input) {
-  std::string_view content = input;
+  std::string lines(input);
+
+  // Handle windows newlines "\r\n": remove "\r" and keep only "\n"
+  lines.erase(std::remove(lines.begin(), lines.end(), '\r'), lines.end());
+
+  std::string_view content = lines;
   content = trim_spaces(content);
 
   std::string_view key;
@@ -142,6 +146,9 @@ void Dotenv::ParseContent(const std::string_view input) {
 
     // SAFETY: Content is guaranteed to have at least one character
     if (content.empty()) {
+      // In case the last line is a single key without value
+      // Example: KEY= (without a newline at the EOF)
+      store_.insert_or_assign(std::string(key), "");
       break;
     }
 

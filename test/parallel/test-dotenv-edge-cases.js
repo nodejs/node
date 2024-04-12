@@ -81,4 +81,21 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
   });
+
+  it('should handle empty value without a newline at the EOF', async () => {
+    // Ref: https://github.com/nodejs/node/issues/52466
+    const code = `
+      process.loadEnvFile('./eof-without-value.env');
+      require('assert').strictEqual(process.env.BASIC, 'value');
+      require('assert').strictEqual(process.env.EMPTY, '');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: fixtures.path('dotenv') },
+    );
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
 });
