@@ -64,19 +64,19 @@ class ProxyAgent extends DispatcherBase {
     this[kAgent] = new Agent({
       ...opts,
       connect: async (opts, callback) => {
-        let requestedHost = opts.host
+        let requestedPath = opts.host
         if (!opts.port) {
-          requestedHost += `:${defaultProtocolPort(opts.protocol)}`
+          requestedPath += `:${defaultProtocolPort(opts.protocol)}`
         }
         try {
           const { socket, statusCode } = await this[kClient].connect({
             origin,
             port,
-            path: requestedHost,
+            path: requestedPath,
             signal: opts.signal,
             headers: {
               ...this[kProxyHeaders],
-              host: requestedHost
+              host: opts.host
             },
             servername: this[kProxyTls]?.servername || proxyHostname
           })
@@ -108,16 +108,18 @@ class ProxyAgent extends DispatcherBase {
   }
 
   dispatch (opts, handler) {
-    const { host } = new URL(opts.origin)
     const headers = buildHeaders(opts.headers)
     throwIfProxyAuthIsSent(headers)
+
+    if (headers && !('host' in headers) && !('Host' in headers)) {
+      const { host } = new URL(opts.origin)
+      headers.host = host
+    }
+
     return this[kAgent].dispatch(
       {
         ...opts,
-        headers: {
-          ...headers,
-          host
-        }
+        headers
       },
       handler
     )

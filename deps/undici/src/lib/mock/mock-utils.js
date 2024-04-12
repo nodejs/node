@@ -8,7 +8,7 @@ const {
   kOrigin,
   kGetNetConnect
 } = require('./mock-symbols')
-const { buildURL, nop } = require('../core/util')
+const { buildURL } = require('../core/util')
 const { STATUS_CODES } = require('node:http')
 const {
   types: {
@@ -285,10 +285,10 @@ function mockDispatch (opts, handler) {
     const responseHeaders = generateKeyValues(headers)
     const responseTrailers = generateKeyValues(trailers)
 
-    handler.abort = nop
-    handler.onHeaders(statusCode, responseHeaders, resume, getStatusText(statusCode))
-    handler.onData(Buffer.from(responseData))
-    handler.onComplete(responseTrailers)
+    handler.onConnect?.(err => handler.onError(err), null)
+    handler.onHeaders?.(statusCode, responseHeaders, resume, getStatusText(statusCode))
+    handler.onData?.(Buffer.from(responseData))
+    handler.onComplete?.(responseTrailers)
     deleteMockDispatch(mockDispatches, key)
   }
 
