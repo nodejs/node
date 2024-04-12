@@ -2,6 +2,7 @@
 const common = require('../common');
 const assert = require('assert');
 const path = require('path');
+const url = require('url');
 
 assert.strictEqual(path.dirname(__filename).substr(-13),
                    common.isWindows ? 'test\\parallel' : 'test/parallel');
@@ -14,6 +15,9 @@ assert.strictEqual(path.posix.dirname('/'), '/');
 assert.strictEqual(path.posix.dirname('////'), '/');
 assert.strictEqual(path.posix.dirname('//a'), '//');
 assert.strictEqual(path.posix.dirname('foo'), '.');
+
+assert.strictEqual(path.posix.dirname(url.pathToFileURL('/a/b/')), '/a');
+assert.strictEqual(path.posix.dirname(url.pathToFileURL('/a/b')), '/a');
 
 assert.strictEqual(path.win32.dirname('c:\\'), 'c:\\');
 assert.strictEqual(path.win32.dirname('c:\\foo'), 'c:\\');
@@ -57,3 +61,6 @@ assert.strictEqual(path.win32.dirname(''), '.');
 assert.strictEqual(path.win32.dirname('/'), '/');
 assert.strictEqual(path.win32.dirname('////'), '/');
 assert.strictEqual(path.win32.dirname('foo'), '.');
+
+assert.strictEqual(path.win32.dirname(url.pathToFileURL('c:\\')), 'c:\\');
+assert.strictEqual(path.win32.dirname(url.pathToFileURL('c:\\foo')), 'c:\\');

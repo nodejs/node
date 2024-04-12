@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const path = require('path');
+const url = require('url');
 
 assert.strictEqual(path.win32.isAbsolute('/'), true);
 assert.strictEqual(path.win32.isAbsolute('//'), true);
@@ -26,3 +27,6 @@ assert.strictEqual(path.posix.isAbsolute('/home/foo'), true);
 assert.strictEqual(path.posix.isAbsolute('/home/foo/..'), true);
 assert.strictEqual(path.posix.isAbsolute('bar/'), false);
 assert.strictEqual(path.posix.isAbsolute('./baz'), false);
+
+assert.strictEqual(path.posix.isAbsolute(url.pathToFileURL('bar/')), true);
+assert.strictEqual(path.posix.isAbsolute(url.pathToFileURL('/home/foo')), true);

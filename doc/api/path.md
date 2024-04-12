@@ -72,7 +72,7 @@ changes:
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * `suffix` {string} An optional suffix to remove
 * Returns: {string}
 
@@ -85,6 +85,9 @@ path.basename('/foo/bar/baz/asdf/quux.html');
 // Returns: 'quux.html'
 
 path.basename('/foo/bar/baz/asdf/quux.html', '.html');
+// Returns: 'quux'
+
+path.basename(new URL('file:///foo/bar/baz/asdf/quux.html'), '.html');
 // Returns: 'quux'
 ```
 
@@ -101,8 +104,8 @@ path.win32.basename('C:\\foo.HTML', '.html');
 // Returns: 'foo.HTML'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string or if `suffix` is given
-and is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL or if `suffix` is
+given and is not a string.
 
 ## `path.delimiter`
 
@@ -147,7 +150,7 @@ changes:
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.dirname()` method returns the directory name of a `path`, similar to
@@ -157,9 +160,12 @@ the Unix `dirname` command. Trailing directory separators are ignored, see
 ```js
 path.dirname('/foo/bar/baz/asdf/quux');
 // Returns: '/foo/bar/baz/asdf'
+
+path.dirname(new URL('file:///foo/bar/baz/asdf/quux'));
+// Returns: '/foo/bar/baz/asdf'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 ## `path.extname(path)`
 
@@ -171,7 +177,7 @@ changes:
     description: Passing a non-string as the `path` argument will throw now.
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.extname()` method returns the extension of the `path`, from the last
@@ -187,6 +193,9 @@ path.extname('index.html');
 path.extname('index.coffee.md');
 // Returns: '.md'
 
+path.extname(new URL('file:///index.coffee.md'));
+// Returns: '.md'
+
 path.extname('index.');
 // Returns: '.'
 
@@ -200,7 +209,7 @@ path.extname('.index.md');
 // Returns: '.md'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 ## `path.format(pathObject)`
 
@@ -285,7 +294,7 @@ path.format({
 added: v0.11.2
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {boolean}
 
 The `path.isAbsolute()` method determines if `path` is an absolute path.
@@ -296,6 +305,7 @@ For example, on POSIX:
 
 ```js
 path.isAbsolute('/foo/bar'); // true
+path.isAbsolute(new URL('file:///foo/bar')); // true
 path.isAbsolute('/baz/..');  // true
 path.isAbsolute('qux/');     // false
 path.isAbsolute('.');        // false
@@ -304,6 +314,7 @@ path.isAbsolute('.');        // false
 On Windows:
 
 ```js
+path.isAbsolute(new URL('file:///foo/bar')); // true
 path.isAbsolute('//server');    // true
 path.isAbsolute('\\\\server');  // true
 path.isAbsolute('C:/foo/..');   // true
@@ -313,7 +324,7 @@ path.isAbsolute('bar/baz');     // false
 path.isAbsolute('.');           // false
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 ## `path.join([...paths])`
 
@@ -321,7 +332,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.1.16
 -->
 
-* `...paths` {string} A sequence of path segments
+* `...paths` {string|URL} A sequence of path segments
 * Returns: {string}
 
 The `path.join()` method joins all given `path` segments together using the
@@ -335,11 +346,14 @@ working directory.
 path.join('/foo', 'bar', 'baz/asdf', 'quux', '..');
 // Returns: '/foo/bar/baz/asdf'
 
+path.join(new URL('file:///foo'), 'bar', 'baz/asdf', 'quux', '..');
+// Returns: '/foo/bar/baz/asdf'
+
 path.join('foo', {}, 'bar');
 // Throws 'TypeError: Path must be a string. Received {}'
 ```
 
-A [`TypeError`][] is thrown if any of the path segments is not a string.
+A [`TypeError`][] is thrown if any of the path segments is not a string/URL.
 
 ## `path.normalize(path)`
 
@@ -347,7 +361,7 @@ A [`TypeError`][] is thrown if any of the path segments is not a string.
 added: v0.1.23
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 The `path.normalize()` method normalizes the given `path`, resolving `'..'` and
@@ -374,12 +388,18 @@ For example, on POSIX:
 ```js
 path.normalize('/foo/bar//baz/asdf/quux/..');
 // Returns: '/foo/bar/baz/asdf'
+
+path.normalize(new URL('file:///foo/bar//baz/asdf/quux/..'));
+// Returns: '/foo/bar/baz/asdf'
 ```
 
 On Windows:
 
 ```js
 path.normalize('C:\\temp\\\\foo\\bar\\..\\');
+// Returns: 'C:\\temp\\foo\\'
+
+path.normalize(new URL('file://C:\\temp\\\\foo\\bar\\..\\'));
 // Returns: 'C:\\temp\\foo\\'
 ```
 
@@ -391,7 +411,7 @@ path.win32.normalize('C:////temp\\\\/\\/\\/foo/bar');
 // Returns: 'C:\\temp\\foo\\bar'
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 ## `path.parse(path)`
 
@@ -399,7 +419,7 @@ A [`TypeError`][] is thrown if `path` is not a string.
 added: v0.11.15
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {Object}
 
 The `path.parse()` method returns an object whose properties represent
@@ -458,7 +478,7 @@ path.parse('C:\\path\\dir\\file.txt');
 (All spaces in the "" line should be ignored. They are purely for formatting.)
 ```
 
-A [`TypeError`][] is thrown if `path` is not a string.
+A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 ## `path.posix`
 
@@ -521,7 +541,7 @@ A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 added: v0.3.4
 -->
 
-* `...paths` {string} A sequence of paths or path segments
+* `...paths` {string|URL} A sequence of paths or path segments
 * Returns: {string}
 
 The `path.resolve()` method resolves a sequence of paths or path segments into
@@ -546,6 +566,9 @@ of the current working directory.
 
 ```js
 path.resolve('/foo/bar', './baz');
+// Returns: '/foo/bar/baz'
+
+path.resolve(new URL('file:///foo/bar'), './baz');
 // Returns: '/foo/bar/baz'
 
 path.resolve('/foo/bar', '/tmp/file/');
@@ -595,12 +618,12 @@ slashes (`\`).
 added: v9.0.0
 -->
 
-* `path` {string}
+* `path` {string|URL}
 * Returns: {string}
 
 On Windows systems only, returns an equivalent [namespace-prefixed path][] for
-the given `path`. If `path` is not a string, `path` will be returned without
-modifications.
+the given `path`. If `path` is not a string/URL, `path` will be returned
+without modifications.
 
 This method is meaningful only on Windows systems. On POSIX systems, the
 method is non-operational and always returns `path` without modifications.

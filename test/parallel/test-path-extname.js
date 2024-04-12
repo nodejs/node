@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const path = require('path');
+const url = require('url');
 
 const failures = [];
 const slashRE = /\//g;
@@ -50,6 +51,7 @@ const testPaths = [
   ['file//', ''],
   ['file./', '.'],
   ['file.//', '.'],
+  [url.pathToFileURL('/file.ext'), '.ext'],
 ];
 
 for (const testPath of testPaths) {

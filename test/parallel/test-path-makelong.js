@@ -24,6 +24,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
+const url = require('url')
 
 if (common.isWindows) {
   const file = fixtures.path('a.js');
@@ -58,6 +59,8 @@ assert.strictEqual(path.posix.toNamespacedPath(true), true);
 assert.strictEqual(path.posix.toNamespacedPath(1), 1);
 assert.strictEqual(path.posix.toNamespacedPath(), undefined);
 assert.strictEqual(path.posix.toNamespacedPath(emptyObj), emptyObj);
+assert.strictEqual(path.posix.toNamespacedPath(url.pathToFileURL('/foo/bar'), '/foo/bar'));
+
 if (common.isWindows) {
   // These tests cause resolve() to insert the cwd, so we cannot test them from
   // non-Windows platforms (easily)

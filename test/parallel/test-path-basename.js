@@ -2,6 +2,7 @@
 require('../common');
 const assert = require('assert');
 const path = require('path');
+const url = require('url');
 
 assert.strictEqual(path.basename(__filename), 'test-path-basename.js');
 assert.strictEqual(path.basename(__filename, '.js'), 'test-path-basename');
@@ -34,6 +35,10 @@ assert.strictEqual(path.basename('/aaa/b'), 'b');
 assert.strictEqual(path.basename('/a/b'), 'b');
 assert.strictEqual(path.basename('//a'), 'a');
 assert.strictEqual(path.basename('a', 'a'), '');
+
+// URL inputs
+assert.strictEqual(path.basename(url.pathToFileURL(__filename)), 'test-path-basename.js');
+assert.strictEqual(path.basename(url.pathToFileURL(__filename), '.js'), 'test-path-basename');
 
 // On Windows a backslash acts as a path separator.
 assert.strictEqual(path.win32.basename('\\dir\\basename.ext'), 'basename.ext');
