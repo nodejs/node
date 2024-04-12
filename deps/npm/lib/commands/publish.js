@@ -220,7 +220,12 @@ class Publish extends BaseCommand {
       })
     }
     if (manifest.publishConfig) {
-      flatten(manifest.publishConfig, opts)
+      const cliFlags = this.npm.config.data.get('cli').raw
+      // Filter out properties set in CLI flags to prioritize them over
+      // corresponding `publishConfig` settings
+      const filteredPublishConfig = Object.fromEntries(
+        Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
+      flatten(filteredPublishConfig, opts)
     }
     return manifest
   }

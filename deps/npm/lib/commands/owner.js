@@ -5,6 +5,7 @@ const log = require('../utils/log-shim')
 const otplease = require('../utils/otplease.js')
 const pkgJson = require('@npmcli/package-json')
 const BaseCommand = require('../base-command.js')
+const { redact } = require('@npmcli/redact')
 
 const readJson = async (path) => {
   try {
@@ -119,7 +120,7 @@ class Owner extends BaseCommand {
         this.npm.output(maintainers.map(m => `${m.name} <${m.email}>`).join('\n'))
       }
     } catch (err) {
-      log.error('owner ls', "Couldn't get owner data", npmFetch.cleanUrl(pkg))
+      log.error('owner ls', "Couldn't get owner data", redact(pkg))
       throw err
     }
   }

@@ -131,6 +131,58 @@ t.test('re-loads publishConfig.registry if added during script process', async t
   t.matchSnapshot(joinedOutput(), 'new package version')
 })
 
+t.test('prioritize CLI flags over publishConfig', async t => {
+  const publishConfig = { registry: 'http://publishconfig' }
+  const { joinedOutput, npm } = await loadMockNpm(t, {
+    config: {
+      [`${alternateRegistry.slice(6)}/:_authToken`]: 'test-other-token',
+    },
+    prefixDir: {
+      'package.json': JSON.stringify({
+        ...pkgJson,
+        scripts: {
+          prepare: 'cp new.json package.json',
+        },
+      }, null, 2),
+      'new.json': JSON.stringify({
+        ...pkgJson,
+        publishConfig,
+      }),
+    },
+    argv: ['--registry', alternateRegistry],
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: alternateRegistry,
+    authorization: 'test-other-token',
+  })
+  registry.nock.put(`/${pkg}`, body => {
+    return t.match(body, {
+      _id: pkg,
+      name: pkg,
+      'dist-tags': { latest: '1.0.0' },
+      access: null,
+      versions: {
+        '1.0.0': {
+          name: pkg,
+          version: '1.0.0',
+          _id: `${pkg}@1.0.0`,
+          dist: {
+            shasum: /\.*/,
+            tarball: `http:${alternateRegistry.slice(6)}/test-package/-/test-package-1.0.0.tgz`,
+          },
+          publishConfig,
+        },
+      },
+      _attachments: {
+        [`${pkg}-1.0.0.tgz`]: {},
+      },
+    })
+  }).reply(200, {})
+  await npm.exec('publish', [])
+  t.matchSnapshot(joinedOutput(), 'new package version')
+})
+
 t.test('json', async t => {
   const { joinedOutput, npm, logs } = await loadMockNpm(t, {
     config: {
