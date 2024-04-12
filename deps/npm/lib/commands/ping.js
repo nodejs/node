@@ -1,4 +1,4 @@
-const { cleanUrl } = require('npm-registry-fetch')
+const { redact } = require('@npmcli/redact')
 const log = require('../utils/log-shim')
 const pingUtil = require('../utils/ping.js')
 const BaseCommand = require('../base-command.js')
@@ -9,7 +9,7 @@ class Ping extends BaseCommand {
   static name = 'ping'
 
   async exec (args) {
-    const cleanRegistry = cleanUrl(this.npm.config.get('registry'))
+    const cleanRegistry = redact(this.npm.config.get('registry'))
     log.notice('PING', cleanRegistry)
     const start = Date.now()
     const details = await pingUtil({ ...this.npm.flatOptions })

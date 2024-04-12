@@ -12,7 +12,7 @@ const { readdirScoped } = require('@npmcli/fs')
 const { lstat, readlink } = require('fs/promises')
 const { depth } = require('treeverse')
 const log = require('proc-log')
-const { cleanUrl } = require('npm-registry-fetch')
+const { redact } = require('@npmcli/redact')
 
 const {
   OK,
@@ -1213,7 +1213,7 @@ This is a one-time fix-up, please be patient...
     if (this.#manifests.has(spec.raw)) {
       return this.#manifests.get(spec.raw)
     } else {
-      const cleanRawSpec = cleanUrl(spec.rawSpec)
+      const cleanRawSpec = redact(spec.rawSpec)
       log.silly('fetch manifest', spec.raw.replace(spec.rawSpec, cleanRawSpec))
       const o = {
         ...options,

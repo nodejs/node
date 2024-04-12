@@ -141,7 +141,12 @@ class Unpublish extends BaseCommand {
     // If localPrefix has a package.json with a name that matches the package
     // being unpublished, load up the publishConfig
     if (manifest?.name === spec.name && manifest.publishConfig) {
-      flatten(manifest.publishConfig, opts)
+      const cliFlags = this.npm.config.data.get('cli').raw
+      // Filter out properties set in CLI flags to prioritize them over
+      // corresponding `publishConfig` settings
+      const filteredPublishConfig = Object.fromEntries(
+        Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
+      flatten(filteredPublishConfig, opts)
     }
 
     const versions = await Unpublish.getKeysOfVersions(spec.name, opts)

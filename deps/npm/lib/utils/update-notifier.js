@@ -3,7 +3,9 @@
 // Check daily for betas, and weekly otherwise.
 
 const ciInfo = require('ci-info')
-const semver = require('semver')
+const gt = require('semver/functions/gt')
+const gte = require('semver/functions/gte')
+const parse = require('semver/functions/parse')
 const { stat, writeFile } = require('fs/promises')
 const { resolve } = require('path')
 
@@ -38,12 +40,12 @@ const updateCheck = async (npm, spec, version, current) => {
   // and should get the updates from that release train.
   // Note that this isn't another http request over the network, because
   // the packument will be cached by pacote from previous request.
-  if (semver.gt(version, latest) && spec === 'latest') {
+  if (gt(version, latest) && spec === 'latest') {
     return updateNotifier(npm, `^${version}`)
   }
 
   // if we already have something >= the desired spec, then we're done
-  if (semver.gte(version, latest)) {
+  if (gte(version, latest)) {
     return null
   }
 
@@ -53,7 +55,7 @@ const updateCheck = async (npm, spec, version, current) => {
   // ok!  notify the user about this update they should get.
   // The message is saved for printing at process exit so it will not get
   // lost in any other messages being printed as part of the command.
-  const update = semver.parse(mani.version)
+  const update = parse(mani.version)
   const type = update.major !== current.major ? 'major'
     : update.minor !== current.minor ? 'minor'
     : update.patch !== current.patch ? 'patch'
@@ -79,7 +81,7 @@ const updateNotifier = async (npm, spec = 'latest') => {
   // if we're on a prerelease train, then updates are coming fast
   // check for a new one daily.  otherwise, weekly.
   const { version } = npm
-  const current = semver.parse(version)
+  const current = parse(version)
 
   // if we're on a beta train, always get the next beta
   if (current.prerelease.length) {

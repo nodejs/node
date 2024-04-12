@@ -1,7 +1,6 @@
 const os = require('os')
 const { join, dirname, basename } = require('path')
 const { format } = require('util')
-const { glob } = require('glob')
 const { Minipass } = require('minipass')
 const fsMiniPass = require('fs-minipass')
 const fs = require('fs/promises')
@@ -9,7 +8,6 @@ const log = require('./log-shim')
 const Display = require('./display')
 
 const padZero = (n, length) => n.toString().padStart(length.toString().length, '0')
-const globify = pattern => pattern.split('\\').join('/')
 
 class LogFiles {
   // Default to a plain minipass stream so we can buffer
@@ -199,17 +197,41 @@ class LogFiles {
 
     try {
       const logPath = this.#getLogFilePath()
-      const logGlob = join(dirname(logPath), basename(logPath)
+      const patternFileName = basename(logPath)
         // tell glob to only match digits
-        .replace(/\d/g, '[0123456789]')
+        .replace(/\d/g, 'd')
         // Handle the old (prior to 8.2.0) log file names which did not have a
         // counter suffix
-        .replace(/-\.log$/, '*.log')
-      )
+        .replace('-.log', '')
 
-      // Always ignore the currently written files
-      const files = await glob(globify(logGlob), { ignore: this.#files.map(globify), silent: true })
-      const toDelete = files.length - this.#logsMax
+      let files = await fs.readdir(
+        dirname(logPath), {
+          withFileTypes: true,
+          encoding: 'utf-8',
+        })
+      files = files.sort((a, b) => basename(a.name).localeCompare(basename(b.name), 'en'))
+
+      const logFiles = []
+
+      for (const file of files) {
+        if (!file.isFile()) {
+          continue
+        }
+
+        const genericFileName = file.name.replace(/\d/g, 'd')
+        const filePath = join(dirname(logPath), basename(file.name))
+
+        // Always ignore the currently written files
+        if (
+          genericFileName.includes(patternFileName)
+          && genericFileName.endsWith('.log')
+          && !this.#files.includes(filePath)
+        ) {
+          logFiles.push(filePath)
+        }
+      }
+
+      const toDelete = logFiles.length - this.#logsMax
 
       if (toDelete <= 0) {
         return
@@ -217,7 +239,7 @@ class LogFiles {
 
       log.silly('logfile', `start cleaning logs, removing ${toDelete} files`)
 
-      for (const file of files.slice(0, toDelete)) {
+      for (const file of logFiles.slice(0, toDelete)) {
         try {
           await fs.rm(file, { force: true })
         } catch (e) {
