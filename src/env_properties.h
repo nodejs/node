@@ -22,6 +22,11 @@
   V(contextify_context_private_symbol, "node:contextify:context")              \
   V(decorated_private_symbol, "node:decorated")                                \
   V(host_defined_option_symbol, "node:host_defined_option_symbol")             \
+  V(module_source_private_symbol, "node:module_source")                        \
+  V(module_export_names_private_symbol, "node:module_export_names")            \
+  V(module_circular_visited_private_symbol, "node:module_circular_visited")    \
+  V(module_export_private_symbol, "node:module_export")                        \
+  V(module_parent_private_symbol, "node:module_parent")                        \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
