@@ -727,7 +727,7 @@ console.log(myStream.destroyed); // true
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v15.0.0
@@ -944,7 +944,7 @@ Getter for the property `objectMode` of a given `Writable` stream.
 <!-- YAML
 added: v0.9.4
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -1784,7 +1784,7 @@ setTimeout(() => {
 <!-- YAML
 added: v0.9.11
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0
@@ -3503,7 +3503,7 @@ method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -3883,7 +3883,7 @@ constructor and implement the [`readable._read()`][] method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52037
     description: bump default highWaterMark.
   - version: v15.5.0
@@ -4092,7 +4092,7 @@ It can be overridden by child classes but it **must not** be called directly.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51866
     description: The `chunk` argument can now be a `TypedArray` or `DataView` instance.
   - version: v8.0.0

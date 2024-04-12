@@ -1072,7 +1072,7 @@ behavior is similar to `cp dir1/ dir2/`.
 ### `fsPromises.glob(pattern[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -3108,7 +3108,7 @@ descriptor. See [`fs.utimes()`][].
 ### `fs.glob(pattern[, options], callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -5602,7 +5602,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 ### `fs.globSync(pattern[, options])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -7004,7 +7004,7 @@ i.e. before the `'ready'` event is emitted.
 <!-- YAML
 added: v0.1.21
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Public constructor is deprecated.
   - version: v8.1.0
