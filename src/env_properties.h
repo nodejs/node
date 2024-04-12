@@ -26,6 +26,11 @@
   V(js_transferable_wrapper_private_symbol, "node:js_transferable_wrapper")    \
   V(entry_point_module_private_symbol, "node:entry_point_module")              \
   V(entry_point_promise_private_symbol, "node:entry_point_promise")            \
+  V(module_source_private_symbol, "node:module_source")                        \
+  V(module_export_names_private_symbol, "node:module_export_names")            \
+  V(module_circular_visited_private_symbol, "node:module_circular_visited")    \
+  V(module_export_private_symbol, "node:module_export")                        \
+  V(module_parent_private_symbol, "node:module_parent")                        \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
