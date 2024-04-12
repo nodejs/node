@@ -1,6 +1,5 @@
 const { format } = require('util')
 const { resolve } = require('path')
-const nameValidator = require('validate-npm-package-name')
 const { redactLog: replaceInfo } = require('@npmcli/redact')
 const { report } = require('./explain-eresolve.js')
 const log = require('./log-shim')
@@ -215,6 +214,7 @@ const errorMessage = (er, npm) => {
         detail.push(['404', ''])
         detail.push(['404', '', `'${replaceInfo(er.pkgid)}' is not in this registry.`])
 
+        const nameValidator = require('validate-npm-package-name')
         const valResult = nameValidator(pkg)
 
         if (!valResult.validForNewPackages) {

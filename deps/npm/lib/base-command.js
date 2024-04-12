@@ -3,7 +3,6 @@
 const { relative } = require('path')
 
 const { definitions } = require('@npmcli/config/lib/definitions')
-const getWorkspaces = require('./workspaces/get-workspaces.js')
 const { aliases: cmdAliases } = require('./utils/cmd-list')
 const log = require('./utils/log-shim.js')
 
@@ -170,6 +169,7 @@ class BaseCommand {
     const relativeFrom = prefixInsideCwd ? this.npm.localPrefix : process.cwd()
 
     const filters = this.npm.config.get('workspace')
+    const getWorkspaces = require('./workspaces/get-workspaces.js')
     const ws = await getWorkspaces(filters, {
       path: this.npm.localPrefix,
       includeWorkspaceRoot,
