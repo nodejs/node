@@ -1,7 +1,7 @@
 'use strict'
 
 const assert = require('node:assert')
-const { kDestroyed, kBodyUsed } = require('./symbols')
+const { kDestroyed, kBodyUsed, kListeners } = require('./symbols')
 const { IncomingMessage } = require('node:http')
 const stream = require('node:stream')
 const net = require('node:net')
@@ -22,13 +22,20 @@ function isStream (obj) {
 
 // based on https://github.com/node-fetch/fetch-blob/blob/8ab587d34080de94140b54f07168451e7d0b655e/index.js#L229-L241 (MIT License)
 function isBlobLike (object) {
-  return (Blob && object instanceof Blob) || (
-    object &&
-    typeof object === 'object' &&
-    (typeof object.stream === 'function' ||
-      typeof object.arrayBuffer === 'function') &&
-    /^(Blob|File)$/.test(object[Symbol.toStringTag])
-  )
+  if (object === null) {
+    return false
+  } else if (object instanceof Blob) {
+    return true
+  } else if (typeof object !== 'object') {
+    return false
+  } else {
+    const sTag = object[Symbol.toStringTag]
+
+    return (sTag === 'Blob' || sTag === 'File') && (
+      ('stream' in object && typeof object.stream === 'function') ||
+      ('arrayBuffer' in object && typeof object.arrayBuffer === 'function')
+    )
+  }
 }
 
 function buildURL (url, queryParams) {
@@ -534,6 +541,29 @@ function parseRangeHeader (range) {
     : null
 }
 
+function addListener (obj, name, listener) {
+  const listeners = (obj[kListeners] ??= [])
+  listeners.push([name, listener])
+  obj.on(name, listener)
+  return obj
+}
+
+function removeAllListeners (obj) {
+  for (const [name, listener] of obj[kListeners] ?? []) {
+    obj.removeListener(name, listener)
+  }
+  obj[kListeners] = null
+}
+
+function errorRequest (client, request, err) {
+  try {
+    request.onError(err)
+    assert(request.aborted)
+  } catch (err) {
+    client.emit('error', err)
+  }
+}
+
 const kEnumerableProperty = Object.create(null)
 kEnumerableProperty.enumerable = true
 
@@ -556,6 +586,9 @@ module.exports = {
   isDestroyed,
   headerNameToString,
   bufferToLowerCasedHeaderName,
+  addListener,
+  removeAllListeners,
+  errorRequest,
   parseRawHeaders,
   parseHeaders,
   parseKeepAliveTimeout,

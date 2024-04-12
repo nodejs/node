@@ -47,7 +47,6 @@ const {
   kMaxRequests,
   kCounter,
   kMaxResponseSize,
-  kListeners,
   kOnError,
   kResume,
   kHTTPContext
@@ -56,22 +55,10 @@ const {
 const constants = require('../llhttp/constants.js')
 const EMPTY_BUF = Buffer.alloc(0)
 const FastBuffer = Buffer[Symbol.species]
+const addListener = util.addListener
+const removeAllListeners = util.removeAllListeners
 
 let extractBody
-
-function addListener (obj, name, listener) {
-  const listeners = (obj[kListeners] ??= [])
-  listeners.push([name, listener])
-  obj.on(name, listener)
-  return obj
-}
-
-function removeAllListeners (obj) {
-  for (const [name, listener] of obj[kListeners] ?? []) {
-    obj.removeListener(name, listener)
-  }
-  obj[kListeners] = null
-}
 
 async function lazyllhttp () {
   const llhttpWasmData = process.env.JEST_WORKER_ID ? require('../llhttp/llhttp-wasm.js') : undefined
@@ -719,14 +706,14 @@ async function connectH1 (client, socket) {
       const requests = client[kQueue].splice(client[kRunningIdx])
       for (let i = 0; i < requests.length; i++) {
         const request = requests[i]
-        errorRequest(client, request, err)
+        util.errorRequest(client, request, err)
       }
     } else if (client[kRunning] > 0 && err.code !== 'UND_ERR_INFO') {
       // Fail head of pipeline.
       const request = client[kQueue][client[kRunningIdx]]
       client[kQueue][client[kRunningIdx]++] = null
 
-      errorRequest(client, request, err)
+      util.errorRequest(client, request, err)
     }
 
     client[kPendingIdx] = client[kRunningIdx]
@@ -831,15 +818,6 @@ function resumeH1 (client) {
   }
 }
 
-function errorRequest (client, request, err) {
-  try {
-    request.onError(err)
-    assert(request.aborted)
-  } catch (err) {
-    client.emit('error', err)
-  }
-}
-
 // https://www.rfc-editor.org/rfc/rfc7230#section-3.3.2
 function shouldSendContentLength (method) {
   return method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && method !== 'TRACE' && method !== 'CONNECT'
@@ -906,7 +884,7 @@ function writeH1 (client, request) {
   // A user agent may send a Content-Length header with 0 value, this should be allowed.
   if (shouldSendContentLength(method) && contentLength > 0 && request.contentLength !== null && request.contentLength !== contentLength) {
     if (client[kStrictContentLength]) {
-      errorRequest(client, request, new RequestContentLengthMismatchError())
+      util.errorRequest(client, request, new RequestContentLengthMismatchError())
       return false
     }
 
@@ -915,22 +893,24 @@ function writeH1 (client, request) {
 
   const socket = client[kSocket]
 
+  const abort = (err) => {
+    if (request.aborted || request.completed) {
+      return
+    }
+
+    util.errorRequest(client, request, err || new RequestAbortedError())
+
+    util.destroy(body)
+    util.destroy(socket, new InformationalError('aborted'))
+  }
+
   try {
-    request.onConnect((err) => {
-      if (request.aborted || request.completed) {
-        return
-      }
-
-      errorRequest(client, request, err || new RequestAbortedError())
-
-      util.destroy(socket, new InformationalError('aborted'))
-    })
+    request.onConnect(abort)
   } catch (err) {
-    errorRequest(client, request, err)
+    util.errorRequest(client, request, err)
   }
 
   if (request.aborted) {
-    util.destroy(body)
     return false
   }
 
@@ -998,35 +978,19 @@ function writeH1 (client, request) {
 
   /* istanbul ignore else: assertion */
   if (!body || bodyLength === 0) {
-    if (contentLength === 0) {
-      socket.write(`${header}content-length: 0\r\n\r\n`, 'latin1')
-    } else {
-      assert(contentLength === null, 'no body must not have content length')
-      socket.write(`${header}\r\n`, 'latin1')
-    }
-    request.onRequestSent()
+    writeBuffer({ abort, body: null, client, request, socket, contentLength, header, expectsPayload })
   } else if (util.isBuffer(body)) {
-    assert(contentLength === body.byteLength, 'buffer body must have content length')
-
-    socket.cork()
-    socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
-    socket.write(body)
-    socket.uncork()
-    request.onBodySent(body)
-    request.onRequestSent()
-    if (!expectsPayload) {
-      socket[kReset] = true
-    }
+    writeBuffer({ abort, body, client, request, socket, contentLength, header, expectsPayload })
   } else if (util.isBlobLike(body)) {
     if (typeof body.stream === 'function') {
-      writeIterable({ body: body.stream(), client, request, socket, contentLength, header, expectsPayload })
+      writeIterable({ abort, body: body.stream(), client, request, socket, contentLength, header, expectsPayload })
     } else {
-      writeBlob({ body, client, request, socket, contentLength, header, expectsPayload })
+      writeBlob({ abort, body, client, request, socket, contentLength, header, expectsPayload })
     }
   } else if (util.isStream(body)) {
-    writeStream({ body, client, request, socket, contentLength, header, expectsPayload })
+    writeStream({ abort, body, client, request, socket, contentLength, header, expectsPayload })
   } else if (util.isIterable(body)) {
-    writeIterable({ body, client, request, socket, contentLength, header, expectsPayload })
+    writeIterable({ abort, body, client, request, socket, contentLength, header, expectsPayload })
   } else {
     assert(false)
   }
@@ -1034,12 +998,12 @@ function writeH1 (client, request) {
   return true
 }
 
-function writeStream ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
+function writeStream ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'stream body cannot be pipelined')
 
   let finished = false
 
-  const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header })
+  const writer = new AsyncWriter({ abort, socket, request, contentLength, client, expectsPayload, header })
 
   const onData = function (chunk) {
     if (finished) {
@@ -1137,7 +1101,37 @@ function writeStream ({ h2stream, body, client, request, socket, contentLength, 
   }
 }
 
-async function writeBlob ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeBuffer ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
+  try {
+    if (!body) {
+      if (contentLength === 0) {
+        socket.write(`${header}content-length: 0\r\n\r\n`, 'latin1')
+      } else {
+        assert(contentLength === null, 'no body must not have content length')
+        socket.write(`${header}\r\n`, 'latin1')
+      }
+    } else if (util.isBuffer(body)) {
+      assert(contentLength === body.byteLength, 'buffer body must have content length')
+
+      socket.cork()
+      socket.write(`${header}content-length: ${contentLength}\r\n\r\n`, 'latin1')
+      socket.write(body)
+      socket.uncork()
+      request.onBodySent(body)
+
+      if (!expectsPayload) {
+        socket[kReset] = true
+      }
+    }
+    request.onRequestSent()
+
+    client[kResume]()
+  } catch (err) {
+    abort(err)
+  }
+}
+
+async function writeBlob ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength === body.size, 'blob body must have content length')
 
   try {
@@ -1161,11 +1155,11 @@ async function writeBlob ({ h2stream, body, client, request, socket, contentLeng
 
     client[kResume]()
   } catch (err) {
-    util.destroy(socket, err)
+    abort(err)
   }
 }
 
-async function writeIterable ({ h2stream, body, client, request, socket, contentLength, header, expectsPayload }) {
+async function writeIterable ({ abort, body, client, request, socket, contentLength, header, expectsPayload }) {
   assert(contentLength !== 0 || client[kRunning] === 0, 'iterator body cannot be pipelined')
 
   let callback = null
@@ -1191,7 +1185,7 @@ async function writeIterable ({ h2stream, body, client, request, socket, content
     .on('close', onDrain)
     .on('drain', onDrain)
 
-  const writer = new AsyncWriter({ socket, request, contentLength, client, expectsPayload, header })
+  const writer = new AsyncWriter({ abort, socket, request, contentLength, client, expectsPayload, header })
   try {
     // It's up to the user to somehow abort the async iterable.
     for await (const chunk of body) {
@@ -1215,7 +1209,7 @@ async function writeIterable ({ h2stream, body, client, request, socket, content
 }
 
 class AsyncWriter {
-  constructor ({ socket, request, contentLength, client, expectsPayload, header }) {
+  constructor ({ abort, socket, request, contentLength, client, expectsPayload, header }) {
     this.socket = socket
     this.request = request
     this.contentLength = contentLength
@@ -1223,6 +1217,7 @@ class AsyncWriter {
     this.bytesWritten = 0
     this.expectsPayload = expectsPayload
     this.header = header
+    this.abort = abort
 
     socket[kWriting] = true
   }
@@ -1338,13 +1333,13 @@ class AsyncWriter {
   }
 
   destroy (err) {
-    const { socket, client } = this
+    const { socket, client, abort } = this
 
     socket[kWriting] = false
 
     if (err) {
       assert(client[kRunning] <= 1, 'pipeline should only contain this request')
-      util.destroy(socket, err)
+      abort(err)
     }
   }
 }
