@@ -40,12 +40,12 @@ const tests = [
   {
     useColors: true,
     command: 'x',
-    expected: 'Uncaught ReferenceError: x is not defined\n'
+    expected: '\x1B[31mUncaught ReferenceError: x is not defined\x1B[39m\n'
   },
   {
     useColors: true,
     command: 'throw { foo: "test" }',
-    expected: "Uncaught { foo: \x1B[32m'test'\x1B[39m }\n"
+    expected: "\x1B[31mUncaught { foo: \x1B[32m'test'\x1B[39m }\x1B[39m\n"
   },
   {
     command: 'process.on("uncaughtException", () => console.log("Foobar"));\n',
