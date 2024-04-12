@@ -24,7 +24,7 @@ const common = require('../common');
 const fixtures = require('../common/fixtures');
 const assert = require('assert');
 const path = require('path');
-const url = require('url')
+const url = require('url');
 
 if (common.isWindows) {
   const file = fixtures.path('a.js');
