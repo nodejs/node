@@ -346,17 +346,113 @@ size_t StringBytes::Write(Isolate* isolate,
     }
 
     case BASE64URL:
-      // Fall through
-    case BASE64:
-      if (str->IsExternalOneByte()) {
+      if (str->IsExternalOneByte()) {  // 8-bit case
         auto ext = str->GetExternalOneByteStringResource();
-        nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            ext->data(), ext->length(), buf, written_len, simdutf::base64_url);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // adapted for base64url
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+        }
+      } else if (str->IsOneByte()) {
+        MaybeStackBuffer<uint8_t> stack_buf(str->Length());
+        str->WriteOneByte(isolate,
+                          stack_buf.out(),
+                          0,
+                          str->Length(),
+                          String::NO_NULL_TERMINATION);
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char*>(*stack_buf),
+            stack_buf.length(),
+            buf,
+            written_len,
+            simdutf::base64_url);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // (adapted for base64url with + and / replaced by - and _).
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
+        }
       } else {
         String::Value value(isolate, str);
-        nbytes = base64_decode(buf, buflen, *value, value.length());
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char16_t*>(*value),
+            value.length(),
+            buf,
+            written_len,
+            simdutf::base64_url);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // (adapted for base64url with + and / replaced by - and _).
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *value, value.length());
+        }
       }
       break;
 
+    case BASE64: {
+      if (str->IsExternalOneByte()) {  // 8-bit case
+        auto ext = str->GetExternalOneByteStringResource();
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            ext->data(), ext->length(), buf, written_len);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, ext->data(), ext->length());
+        }
+      } else if (str->IsOneByte()) {
+        MaybeStackBuffer<uint8_t> stack_buf(str->Length());
+        str->WriteOneByte(isolate,
+                          stack_buf.out(),
+                          0,
+                          str->Length(),
+                          String::NO_NULL_TERMINATION);
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char*>(*stack_buf),
+            stack_buf.length(),
+            buf,
+            written_len);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG forgiving-base64 specification
+          // (adapted for base64url with + and / replaced by - and _).
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *stack_buf, stack_buf.length());
+        }
+      } else {
+        String::Value value(isolate, str);
+        size_t written_len = buflen;
+        auto result = simdutf::base64_to_binary_safe(
+            reinterpret_cast<const char16_t*>(*value),
+            value.length(),
+            buf,
+            written_len);
+        if (result.error == simdutf::error_code::SUCCESS) {
+          nbytes = written_len;
+        } else {
+          // The input does not follow the WHATWG base64 specification
+          // https://infra.spec.whatwg.org/#forgiving-base64-decode
+          nbytes = base64_decode(buf, buflen, *value, value.length());
+        }
+      }
+      break;
+    }
     case HEX:
       if (str->IsExternalOneByte()) {
         auto ext = str->GetExternalOneByteStringResource();
@@ -411,9 +507,12 @@ Maybe<size_t> StringBytes::StorageSize(Isolate* isolate,
       break;
 
     case BASE64URL:
-      // Fall through
+      data_size = simdutf::base64_length_from_binary(str->Length(),
+                                                     simdutf::base64_url);
+      break;
+
     case BASE64:
-      data_size = base64_decoded_size_fast(str->Length());
+      data_size = simdutf::base64_length_from_binary(str->Length());
       break;
 
     case HEX:
@@ -452,11 +551,15 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
     case UCS2:
       return Just(str->Length() * sizeof(uint16_t));
 
-    case BASE64URL:
-      // Fall through
+    case BASE64URL: {
+      String::Value value(isolate, str);
+      return Just(simdutf::base64_length_from_binary(value.length(),
+                                                     simdutf::base64_url));
+    }
+
     case BASE64: {
       String::Value value(isolate, str);
-      return Just(base64_decoded_size(*value, value.length()));
+      return Just(simdutf::base64_length_from_binary(value.length()));
     }
 
     case HEX:
@@ -609,28 +712,30 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
       return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
 
     case BASE64: {
-      size_t dlen = base64_encoded_size(buflen);
+      size_t dlen = simdutf::base64_length_from_binary(buflen);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         return MaybeLocal<Value>();
       }
 
-      size_t written = base64_encode(buf, buflen, dst, dlen);
+      size_t written = simdutf::binary_to_base64(buf, buflen, dst);
       CHECK_EQ(written, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);
     }
 
     case BASE64URL: {
-      size_t dlen = base64_encoded_size(buflen, Base64Mode::URL);
+      size_t dlen =
+          simdutf::base64_length_from_binary(buflen, simdutf::base64_url);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
         *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
         return MaybeLocal<Value>();
       }
 
-      size_t written = base64_encode(buf, buflen, dst, dlen, Base64Mode::URL);
+      size_t written =
+          simdutf::binary_to_base64(buf, buflen, dst, simdutf::base64_url);
       CHECK_EQ(written, dlen);
 
       return ExternOneByteString::New(isolate, dst, dlen, error);
