@@ -888,7 +888,7 @@ Use the specified file as a security policy.
 ### `--experimental-require-module`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 > Stability: 1.1 - Active Developement
@@ -1396,7 +1396,7 @@ Use this flag to disable top-level await in REPL.
 ### `--no-experimental-websocket`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 Use this flag to disable experimental [`WebSocket`][] support.
@@ -1607,7 +1607,7 @@ Identical to `-e` but prints the result.
 ### `--experimental-print-required-tla`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 This flag is only useful when `--experimental-require-module` is enabled.
@@ -1788,7 +1788,7 @@ native stack and other runtime environment data.
 ### `--report-exclude-network`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 Exclude `header.networkInterfaces` from the diagnostic report. By default
@@ -1812,7 +1812,7 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 ### `--run`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1951,7 +1951,7 @@ concurrently. The default value is `os.availableParallelism() - 1`.
 ### `--test-force-exit`
 
 <!-- YAML
-added: REPLACEME
+added: v22.0.0
 -->
 
 Configures the test runner to exit the process once all known tests have
@@ -2393,7 +2393,7 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52074
     description: Watch mode is now stable.
   - version:
@@ -2426,7 +2426,7 @@ added:
   - v18.11.0
   - v16.19.0
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52074
     description: Watch mode is now stable.
 -->

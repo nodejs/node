@@ -1662,7 +1662,7 @@ added:
  - v13.6.0
  - v12.16.0
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52080
     description: Support `highWaterMark` and `lowWaterMark` options,
                  For consistency. Old options are still supported.

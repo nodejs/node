@@ -10,7 +10,7 @@
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51645
     description: Added `--report-exclude-network` option for excluding networking operations that can slow down report generation in some cases.
 -->

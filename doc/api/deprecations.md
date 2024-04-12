@@ -972,7 +972,7 @@ The [`tls.SecurePair`][] class is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -996,7 +996,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1020,7 +1020,7 @@ The [`util.isBoolean()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1044,7 +1044,7 @@ The [`util.isBuffer()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1068,7 +1068,7 @@ The [`util.isDate()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1093,7 +1093,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1117,7 +1117,7 @@ The [`util.isFunction()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1141,7 +1141,7 @@ The [`util.isNull()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1165,7 +1165,7 @@ The [`util.isNullOrUndefined()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1189,7 +1189,7 @@ The [`util.isNumber()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1213,7 +1213,7 @@ The [`util.isObject()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1238,7 +1238,7 @@ instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1262,7 +1262,7 @@ The [`util.isRegExp()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1286,7 +1286,7 @@ The [`util.isString()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1310,7 +1310,7 @@ The [`util.isSymbol()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version:
@@ -1334,7 +1334,7 @@ The [`util.isUndefined()`][] API is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version: v6.12.0
@@ -1363,7 +1363,7 @@ requirements and complexity of your application.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50488
     description: Runtime deprecation.
   - version: v6.12.0
@@ -2197,7 +2197,7 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/50973
     description: End-of-Life.
   - version: v11.0.0
@@ -3313,7 +3313,7 @@ Values other than `undefined`, `null`, integer numbers, and integer strings
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51179
     description: Runtime deprecation.
   - version:
@@ -3568,7 +3568,7 @@ release lines. Please use [`dirent.parentPath`][] instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51880
     description: Runtime deprecation.
   - version:
@@ -3588,10 +3588,10 @@ Please use the [`crypto.createHash()`][] method to create Hash instances.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52067
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51879
     description: Documentation-only deprecation.
 -->
@@ -3605,10 +3605,10 @@ deprecated due to being internals, not intended for public use.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52071
     description: Runtime deprecation.
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/51881
     description: Documentation-only deprecation.
 -->
@@ -3623,7 +3623,7 @@ Please use the [`crypto.createHmac()`][] method to create Hmac instances.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.0.0
     pr-url: https://github.com/nodejs/node/pull/52345
     description: Documentation-only deprecation.
 -->
