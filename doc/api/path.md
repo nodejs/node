@@ -70,6 +70,9 @@ changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -148,6 +151,9 @@ changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -175,6 +181,9 @@ changes:
   - version: v6.0.0
     pr-url: https://github.com/nodejs/node/pull/5348
     description: Passing a non-string as the `path` argument will throw now.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -292,6 +301,10 @@ path.format({
 
 <!-- YAML
 added: v0.11.2
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -330,6 +343,10 @@ A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 <!-- YAML
 added: v0.1.16
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as one of the arguments will now be allowed.
 -->
 
 * `...paths` {string|URL} A sequence of path segments
@@ -359,6 +376,10 @@ A [`TypeError`][] is thrown if any of the path segments is not a string/URL.
 
 <!-- YAML
 added: v0.1.23
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -417,6 +438,10 @@ A [`TypeError`][] is thrown if `path` is not a string/URL.
 
 <!-- YAML
 added: v0.11.15
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
@@ -506,6 +531,9 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/8523
     description: On Windows, the leading slashes for UNC paths are now included
                  in the return value.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as one of the arguments will now be allowed.
 -->
 
 * `from` {string}
@@ -539,6 +567,10 @@ A [`TypeError`][] is thrown if either `from` or `to` is not a string.
 
 <!-- YAML
 added: v0.3.4
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as one of the arguments will now be allowed.
 -->
 
 * `...paths` {string|URL} A sequence of paths or path segments
@@ -616,6 +648,10 @@ slashes (`\`).
 
 <!-- YAML
 added: v9.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52497
+    description: Passing a URL as the `path` argument will now be allowed.
 -->
 
 * `path` {string|URL}
