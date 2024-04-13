@@ -343,10 +343,10 @@ For information about the governance of the Node.js project, see
   **Erick Wendel** <<erick.workspace@gmail.com>> (he/him)
 * [Ethan-Arrowood](https://github.com/Ethan-Arrowood) -
   **Ethan Arrowood** <<ethan@arrowood.dev>> (he/him)
-* [fhinkel](https://github.com/fhinkel) -
-  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [F3n67u](https://github.com/F3n67u) -
   **Feng Yu** <<F3n67u@outlook.com>> (he/him)
+* [fhinkel](https://github.com/fhinkel) -
+  **Franziska Hinkelmann** <<franziska.hinkelmann@gmail.com>> (she/her)
 * [Flarna](https://github.com/Flarna) -
   **Gerhard Stöbich** <<deb2001-github@yahoo.de>> (he/they)
 * [gabrielschulhof](https://github.com/gabrielschulhof) -
@@ -429,12 +429,12 @@ For information about the governance of the Node.js project, see
   **Stephen Belanger** <<admin@stephenbelanger.com>> (he/him)
 * [RafaelGSS](https://github.com/RafaelGSS) -
   **Rafael Gonzaga** <<rafael.nunu@hotmail.com>> (he/him)
-* [rluvaton](https://github.com/rluvaton) -
-  **Raz Luvaton** <<rluvaton@gmail.com>> (he/him)
 * [richardlau](https://github.com/richardlau) -
   **Richard Lau** <<rlau@redhat.com>>
 * [rickyes](https://github.com/rickyes) -
   **Ricky Zhou** <<0x19951125@gmail.com>> (he/him)
+* [rluvaton](https://github.com/rluvaton) -
+  **Raz Luvaton** <<rluvaton@gmail.com>> (he/him)
 * [ronag](https://github.com/ronag) -
   **Robert Nagy** <<ronagy@icloud.com>>
 * [ruyadorno](https://github.com/ruyadorno) -
@@ -477,10 +477,10 @@ For information about the governance of the Node.js project, see
   **Khaidi Chu** <<i@2333.moe>> (he/him)
 * [yashLadha](https://github.com/yashLadha) -
   **Yash Ladha** <<yash@yashladha.in>> (he/him)
-* [ZYSzys](https://github.com/ZYSzys) -
-  **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
 * [zcbenz](https://github.com/zcbenz) -
   **Cheng Zhao** <<zcbenz@gmail.com>> (he/him)
+* [ZYSzys](https://github.com/ZYSzys) -
+  **Yongsheng Zhang** <<zyszys98@gmail.com>> (he/him)
 
 <details>
 
@@ -495,10 +495,10 @@ For information about the governance of the Node.js project, see
   **Aleksei Koziatinskii** <<ak239spb@gmail.com>>
 * [andrasq](https://github.com/andrasq) -
   **Andras** <<andras@kinvey.com>>
-* [AnnaMag](https://github.com/AnnaMag) -
-  **Anna M. Kedzierska** <<anna.m.kedzierska@gmail.com>>
 * [AndreasMadsen](https://github.com/AndreasMadsen) -
   **Andreas Madsen** <<amwebdk@gmail.com>> (he/him)
+* [AnnaMag](https://github.com/AnnaMag) -
+  **Anna M. Kedzierska** <<anna.m.kedzierska@gmail.com>>
 * [aqrln](https://github.com/aqrln) -
   **Alexey Orlenko** <<eaglexrlnk@gmail.com>> (he/him)
 * [bcoe](https://github.com/bcoe) -
@@ -741,10 +741,10 @@ maintaining the Node.js project.
   **Mert Can Altin** <<mertgold60@gmail.com>>
 * [Mesteery](https://github.com/Mesteery) -
   **Mestery** <<mestery@protonmail.com>> (he/him)
-* [preveen-stack](https://github.com/preveen-stack) -
-  **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
+* [preveen-stack](https://github.com/preveen-stack) -
+  **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [VoltrexKeyva](https://github.com/VoltrexKeyva) -
   **Mohammed Keyvanzadeh** <<mohammadkeyvanzade94@gmail.com>> (he/him)
 
