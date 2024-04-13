@@ -2533,7 +2533,7 @@ This is not allowed because ES Modules cannot be evaluated while they are
 already being evaluated.
 
 To avoid the cycle, the `require()` call involved in a cycle should not happen
-at the top-level of either a ES Module (via `createRequire()`) or a CommonJS
+at the top-level of either an ES Module (via `createRequire()`) or a CommonJS
 module, and should be done lazily in an inner function.
 
 <a id="ERR_REQUIRE_ASYNC_MODULE"></a>
