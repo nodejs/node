@@ -1,4 +1,4 @@
-/* auto-generated on 2024-04-05 16:29:02 -0400. Do not edit! */
+/* auto-generated on 2024-04-11 09:56:55 -0400. Do not edit! */
 /* begin file src/simdutf.cpp */
 #include "simdutf.h"
 // We include base64_tables once.
@@ -13665,7 +13665,6 @@ inline size_t convert(const char *buf, size_t len, char32_t *utf32_output) {
 /* begin file src/scalar/utf8_to_latin1/utf8_to_latin1.h */
 #ifndef SIMDUTF_UTF8_TO_LATIN1_H
 #define SIMDUTF_UTF8_TO_LATIN1_H
-#include <iostream>
 
 namespace simdutf {
 namespace scalar {
@@ -16715,8 +16714,17 @@ size_t encode_base64(char *dst, const char *src, size_t srclen,
       'N', 'd', 't', '9', 'O', 'e', 'u', '-', 'P', 'f', 'v', '_',
   };
   const uint8x16_t v3f = vdupq_n_u8(0x3f);
+#ifdef SIMDUTF_REGULAR_VISUAL_STUDIO
+  // When trying to load a uint8_t array, Visual Studio might
+  // error with: error C2664: '__n128x4 neon_ld4m_q8(const char *)':
+  // cannot convert argument 1 from 'const uint8_t [64]' to 'const char *
+  const uint8x16x4_t table =
+      vld4q_u8((reinterpret_cast<const char *>(
+        options & base64_url) ? source_table_url : source_table));
+#else
   const uint8x16x4_t table =
       vld4q_u8((options & base64_url) ? source_table_url : source_table);
+#endif
   size_t i = 0;
   for (; i + 16 * 3 <= srclen; i += 16 * 3) {
     const uint8x16x3_t in = vld3q_u8((const uint8_t *)src + i);
