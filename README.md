@@ -737,10 +737,10 @@ maintaining the Node.js project.
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
-* [Mesteery](https://github.com/Mesteery) -
-  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [mertcanaltin](https://github.com/mertcanaltin) -
   **Mert Can Altin** <<mertgold60@gmail.com>>
+* [Mesteery](https://github.com/Mesteery) -
+  **Mestery** <<mestery@protonmail.com>> (he/him)
 * [PoojaDurgad](https://github.com/PoojaDurgad) -
   **Pooja Durgad** <<Pooja.D.P@ibm.com>>
 * [preveen-stack](https://github.com/preveen-stack) -
