@@ -807,12 +807,12 @@ class ValueArray {
 
   template <typename T>
   operator ParamGenerator<T>() const {  // NOLINT
-    return ValuesIn(MakeVector<T>(MakeIndexSequence<sizeof...(Ts)>()));
+    return ValuesIn(MakeVector<T>(std::make_index_sequence<sizeof...(Ts)>()));
   }
 
  private:
   template <typename T, size_t... I>
-  std::vector<T> MakeVector(IndexSequence<I...>) const {
+  std::vector<T> MakeVector(std::index_sequence<I...>) const {
     return std::vector<T>{static_cast<T>(v_.template Get<I>())...};
   }
 
@@ -842,7 +842,7 @@ class CartesianProductGenerator
   template <class I>
   class IteratorImpl;
   template <size_t... I>
-  class IteratorImpl<IndexSequence<I...>>
+  class IteratorImpl<std::index_sequence<I...>>
       : public ParamIteratorInterface<ParamType> {
    public:
     IteratorImpl(const ParamGeneratorInterface<ParamType>* base,
@@ -933,7 +933,7 @@ class CartesianProductGenerator
     std::shared_ptr<ParamType> current_value_;
   };
 
-  using Iterator = IteratorImpl<typename MakeIndexSequence<sizeof...(T)>::type>;
+  using Iterator = IteratorImpl<std::make_index_sequence<sizeof...(T)>>;
 
   std::tuple<ParamGenerator<T>...> generators_;
 };
