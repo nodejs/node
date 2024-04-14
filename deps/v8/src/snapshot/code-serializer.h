@@ -6,6 +6,7 @@
 #define V8_SNAPSHOT_CODE_SERIALIZER_H_
 
 #include "src/base/macros.h"
+#include "src/codegen/script-details.h"
 #include "src/snapshot/serializer.h"
 #include "src/snapshot/snapshot-data.h"
 
@@ -81,7 +82,7 @@ class CodeSerializer : public Serializer {
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<SharedFunctionInfo> Deserialize(
       Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options,
+      const ScriptDetails& script_details,
       MaybeHandle<Script> maybe_cached_script = {});
 
   V8_WARN_UNUSED_RESULT static OffThreadDeserializeData
@@ -92,7 +93,7 @@ class CodeSerializer : public Serializer {
   FinishOffThreadDeserialize(
       Isolate* isolate, OffThreadDeserializeData&& data,
       AlignedCachedData* cached_data, Handle<String> source,
-      ScriptOriginOptions origin_options,
+      const ScriptDetails& script_details,
       BackgroundMergeTask* background_merge_task = nullptr);
 
   uint32_t source_hash() const { return source_hash_; }
