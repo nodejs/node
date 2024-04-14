@@ -164,7 +164,7 @@ class LintResultCache {
      * @returns {void}
      */
     setCachedLintResults(filePath, config, result) {
-        if (result && Object.prototype.hasOwnProperty.call(result, "output")) {
+        if (result && Object.hasOwn(result, "output")) {
             return;
         }
 
@@ -181,7 +181,7 @@ class LintResultCache {
              * In `getCachedLintResults`, if source is explicitly null, we will
              * read the file from the filesystem to set the value again.
              */
-            if (Object.prototype.hasOwnProperty.call(resultToSerialize, "source")) {
+            if (Object.hasOwn(resultToSerialize, "source")) {
                 resultToSerialize.source = null;
             }
 

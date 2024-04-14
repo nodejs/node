@@ -16,6 +16,11 @@
 //------------------------------------------------------------------------------
 
 const escapeRegExp = require("escape-string-regexp");
+const {
+    Legacy: {
+        ConfigOps
+    }
+} = require("@eslint/eslintrc/universal");
 
 /**
  * Compares the locations of two objects in a source file
@@ -166,7 +171,7 @@ function createCommentRemoval(directives, commentToken) {
     return {
         description: ruleIds.length <= 2
             ? ruleIds.join(" or ")
-            : `${ruleIds.slice(0, ruleIds.length - 1).join(", ")}, or ${ruleIds[ruleIds.length - 1]}`,
+            : `${ruleIds.slice(0, ruleIds.length - 1).join(", ")}, or ${ruleIds.at(-1)}`,
         fix: {
             range,
             text: " "
@@ -337,7 +342,7 @@ function applyDirectives(options) {
                 problem.suppressions = problem.suppressions.concat(suppressions);
             } else {
                 problem.suppressions = suppressions;
-                usedDisableDirectives.add(disableDirectivesForProblem[disableDirectivesForProblem.length - 1]);
+                usedDisableDirectives.add(disableDirectivesForProblem.at(-1));
             }
         }
 
@@ -345,11 +350,11 @@ function applyDirectives(options) {
     }
 
     const unusedDisableDirectivesToReport = options.directives
-        .filter(directive => directive.type === "disable" && !usedDisableDirectives.has(directive));
+        .filter(directive => directive.type === "disable" && !usedDisableDirectives.has(directive) && !options.rulesToIgnore.has(directive.ruleId));
 
 
     const unusedEnableDirectivesToReport = new Set(
-        options.directives.filter(directive => directive.unprocessedDirective.type === "enable")
+        options.directives.filter(directive => directive.unprocessedDirective.type === "enable" && !options.rulesToIgnore.has(directive.ruleId))
     );
 
     /*
@@ -410,11 +415,13 @@ function applyDirectives(options) {
  * @param {{ruleId: (string|null), line: number, column: number}[]} options.problems
  * A list of problems reported by rules, sorted by increasing location in the file, with one-based columns.
  * @param {"off" | "warn" | "error"} options.reportUnusedDisableDirectives If `"warn"` or `"error"`, adds additional problems for unused directives
+ * @param {Object} options.configuredRules The rules configuration.
+ * @param {Function} options.ruleFilter A predicate function to filter which rules should be executed.
  * @param {boolean} options.disableFixes If true, it doesn't make `fix` properties.
  * @returns {{ruleId: (string|null), line: number, column: number, suppressions?: {kind: string, justification: string}}[]}
  * An object with a list of reported problems, the suppressed of which contain the suppression information.
  */
-module.exports = ({ directives, disableFixes, problems, reportUnusedDisableDirectives = "off" }) => {
+module.exports = ({ directives, disableFixes, problems, configuredRules, ruleFilter, reportUnusedDisableDirectives = "off" }) => {
     const blockDirectives = directives
         .filter(directive => directive.type === "disable" || directive.type === "enable")
         .map(directive => Object.assign({}, directive, { unprocessedDirective: directive }))
@@ -443,17 +450,38 @@ module.exports = ({ directives, disableFixes, problems, reportUnusedDisableDirec
         }
     }).sort(compareLocations);
 
+    // This determines a list of rules that are not being run by the given ruleFilter, if present.
+    const rulesToIgnore = configuredRules && ruleFilter
+        ? new Set(Object.keys(configuredRules).filter(ruleId => {
+            const severity = ConfigOps.getRuleSeverity(configuredRules[ruleId]);
+
+            // Ignore for disabled rules.
+            if (severity === 0) {
+                return false;
+            }
+
+            return !ruleFilter({ severity, ruleId });
+        }))
+        : new Set();
+
+    // If no ruleId is supplied that means this directive is applied to all rules, so we can't determine if it's unused if any rules are filtered out.
+    if (rulesToIgnore.size > 0) {
+        rulesToIgnore.add(null);
+    }
+
     const blockDirectivesResult = applyDirectives({
         problems,
         directives: blockDirectives,
         disableFixes,
-        reportUnusedDisableDirectives
+        reportUnusedDisableDirectives,
+        rulesToIgnore
     });
     const lineDirectivesResult = applyDirectives({
         problems: blockDirectivesResult.problems,
         directives: lineDirectives,
         disableFixes,
-        reportUnusedDisableDirectives
+        reportUnusedDisableDirectives,
+        rulesToIgnore
     });
 
     return reportUnusedDisableDirectives !== "off"

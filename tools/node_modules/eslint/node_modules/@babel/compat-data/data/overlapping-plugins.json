@@ -23,9 +23,11 @@
     "bugfix/transform-v8-spread-parameters-in-optional-chaining"
   ],
   "transform-class-properties": [
-    "bugfix/transform-v8-static-class-fields-redefine-readonly"
+    "bugfix/transform-v8-static-class-fields-redefine-readonly",
+    "bugfix/transform-firefox-class-in-computed-class-key"
   ],
   "proposal-class-properties": [
-    "bugfix/transform-v8-static-class-fields-redefine-readonly"
+    "bugfix/transform-v8-static-class-fields-redefine-readonly",
+    "bugfix/transform-firefox-class-in-computed-class-key"
   ]
 }

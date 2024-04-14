@@ -68,7 +68,7 @@ module.exports = {
             above = !options.position || options.position === "above";
             ignorePattern = options.ignorePattern;
 
-            if (Object.prototype.hasOwnProperty.call(options, "applyDefaultIgnorePatterns")) {
+            if (Object.hasOwn(options, "applyDefaultIgnorePatterns")) {
                 applyDefaultIgnorePatterns = options.applyDefaultIgnorePatterns;
             } else {
                 applyDefaultIgnorePatterns = options.applyDefaultPatterns !== false;

@@ -109,12 +109,12 @@ module.exports = {
             options.var = { uninitialized: mode.var, initialized: mode.var };
             options.let = { uninitialized: mode.let, initialized: mode.let };
             options.const = { uninitialized: mode.const, initialized: mode.const };
-            if (Object.prototype.hasOwnProperty.call(mode, "uninitialized")) {
+            if (Object.hasOwn(mode, "uninitialized")) {
                 options.var.uninitialized = mode.uninitialized;
                 options.let.uninitialized = mode.uninitialized;
                 options.const.uninitialized = mode.uninitialized;
             }
-            if (Object.prototype.hasOwnProperty.call(mode, "initialized")) {
+            if (Object.hasOwn(mode, "initialized")) {
                 options.var.initialized = mode.initialized;
                 options.let.initialized = mode.initialized;
                 options.const.initialized = mode.initialized;
@@ -216,11 +216,11 @@ module.exports = {
             let currentScope;
 
             if (statementType === "var") {
-                currentScope = functionStack[functionStack.length - 1];
+                currentScope = functionStack.at(-1);
             } else if (statementType === "let") {
-                currentScope = blockStack[blockStack.length - 1].let;
+                currentScope = blockStack.at(-1).let;
             } else if (statementType === "const") {
-                currentScope = blockStack[blockStack.length - 1].const;
+                currentScope = blockStack.at(-1).const;
             }
             return currentScope;
         }

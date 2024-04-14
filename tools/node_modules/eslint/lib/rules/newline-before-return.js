@@ -166,7 +166,7 @@ module.exports = {
          */
         function canFix(node) {
             const leadingComments = sourceCode.getCommentsBefore(node);
-            const lastLeadingComment = leadingComments[leadingComments.length - 1];
+            const lastLeadingComment = leadingComments.at(-1);
             const tokenBefore = sourceCode.getTokenBefore(node);
 
             if (leadingComments.length === 0) {

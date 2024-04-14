@@ -10,6 +10,13 @@ const inlineTags = new Set([
   'tutorial',
 ]);
 
+const jsdocTypePrattKeywords = new Set([
+  'typeof',
+  'readonly',
+  'import',
+  'is',
+]);
+
 const asExpression = /as\s+/u;
 
 const suppressTypes = new Set([
@@ -107,7 +114,10 @@ export default iterateJsdoc(({
      * @returns {boolean}
      */
     const validNamepathParsing = function (namepath, tagName) {
-      if (tryParsePathIgnoreError(namepath)) {
+      if (
+        tryParsePathIgnoreError(namepath) ||
+        jsdocTypePrattKeywords.has(namepath)
+      ) {
         return true;
       }
 

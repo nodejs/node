@@ -14,6 +14,6 @@ It's likely that the plugin isn't installed correctly. Try reinstalling by runni
 
 The plugin "${pluginName}" was referenced from the config file in "${importerName}".
 
-If you still can't figure out the problem, please stop by https://eslint.org/chat/help to chat with the team.
+If you still can't figure out the problem, please see https://eslint.org/docs/latest/use/troubleshooting.
 `.trimStart();
 };

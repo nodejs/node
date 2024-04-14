@@ -5,6 +5,8 @@
 
 "use strict";
 
+const { startTime, endTime } = require("../shared/stats");
+
 //------------------------------------------------------------------------------
 // Helpers
 //------------------------------------------------------------------------------
@@ -128,21 +130,27 @@ module.exports = (function() {
      * Time the run
      * @param {any} key key from the data object
      * @param {Function} fn function to be called
+     * @param {boolean} stats if 'stats' is true, return the result and the time difference
      * @returns {Function} function to be executed
      * @private
      */
-    function time(key, fn) {
-        if (typeof data[key] === "undefined") {
-            data[key] = 0;
-        }
+    function time(key, fn, stats) {
 
         return function(...args) {
-            let t = process.hrtime();
-            const result = fn(...args);
 
-            t = process.hrtime(t);
-            data[key] += t[0] * 1e3 + t[1] / 1e6;
-            return result;
+            const t = startTime();
+            const result = fn(...args);
+            const tdiff = endTime(t);
+
+            if (enabled) {
+                if (typeof data[key] === "undefined") {
+                    data[key] = 0;
+                }
+
+                data[key] += tdiff;
+            }
+
+            return stats ? { result, tdiff } : result;
         };
     }
 

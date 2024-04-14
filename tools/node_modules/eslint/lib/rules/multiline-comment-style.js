@@ -113,7 +113,7 @@ module.exports = {
 
             return /^\*\s*$/u.test(lines[0]) &&
                 lines.slice(1, -1).every(line => /^\s* /u.test(line)) &&
-                /^\s*$/u.test(lines[lines.length - 1]);
+                /^\s*$/u.test(lines.at(-1));
         }
 
         /**
@@ -272,11 +272,11 @@ module.exports = {
                     context.report({
                         loc: {
                             start: firstComment.loc.start,
-                            end: commentGroup[commentGroup.length - 1].loc.end
+                            end: commentGroup.at(-1).loc.end
                         },
                         messageId: "expectedBlock",
                         fix(fixer) {
-                            const range = [firstComment.range[0], commentGroup[commentGroup.length - 1].range[1]];
+                            const range = [firstComment.range[0], commentGroup.at(-1).range[1]];
 
                             return commentLines.some(value => value.startsWith("/"))
                                 ? null
@@ -301,7 +301,7 @@ module.exports = {
                         });
                     }
 
-                    if (!/^\s*$/u.test(lines[lines.length - 1])) {
+                    if (!/^\s*$/u.test(lines.at(-1))) {
                         context.report({
                             loc: {
                                 start: { line: firstComment.loc.end.line, column: firstComment.loc.end.column - 2 },
@@ -408,12 +408,12 @@ module.exports = {
                     context.report({
                         loc: {
                             start: firstComment.loc.start,
-                            end: commentGroup[commentGroup.length - 1].loc.end
+                            end: commentGroup.at(-1).loc.end
                         },
                         messageId: "expectedBlock",
                         fix(fixer) {
                             return fixer.replaceTextRange(
-                                [firstComment.range[0], commentGroup[commentGroup.length - 1].range[1]],
+                                [firstComment.range[0], commentGroup.at(-1).range[1]],
                                 convertToBlock(firstComment, commentLines)
                             );
                         }
@@ -459,7 +459,7 @@ module.exports = {
                             tokenBefore && tokenBefore.loc.end.line === comment.loc.start.line - 1 &&
                             tokenBefore === commentList[index - 1]
                         ) {
-                            commentGroups[commentGroups.length - 1].push(comment);
+                            commentGroups.at(-1).push(comment);
                         } else {
                             commentGroups.push([comment]);
                         }

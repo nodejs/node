@@ -37,8 +37,8 @@ function createIndexMap(tokens, comments) {
     const map = Object.create(null);
     let tokenIndex = 0;
     let commentIndex = 0;
-    let nextStart = 0;
-    let range = null;
+    let nextStart;
+    let range;
 
     while (tokenIndex < tokens.length || commentIndex < comments.length) {
         nextStart = (commentIndex < comments.length) ? comments[commentIndex].range[0] : Number.MAX_SAFE_INTEGER;

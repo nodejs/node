@@ -207,7 +207,7 @@ class ForkContext {
     get head() {
         const list = this.segmentsList;
 
-        return list.length === 0 ? [] : list[list.length - 1];
+        return list.length === 0 ? [] : list.at(-1);
     }
 
     /**

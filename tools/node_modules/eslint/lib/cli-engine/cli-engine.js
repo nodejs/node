@@ -41,6 +41,17 @@ const hash = require("./hash");
 const LintResultCache = require("./lint-result-cache");
 
 const debug = require("debug")("eslint:cli-engine");
+const removedFormatters = new Set([
+    "checkstyle",
+    "codeframe",
+    "compact",
+    "jslint-xml",
+    "junit",
+    "table",
+    "tap",
+    "unix",
+    "visualstudio"
+]);
 const validFixTypes = new Set(["directive", "problem", "suggestion", "layout"]);
 
 //------------------------------------------------------------------------------
@@ -639,7 +650,7 @@ class CLIEngine {
         });
         const lintResultCache =
             options.cache ? new LintResultCache(cacheFilePath, options.cacheStrategy) : null;
-        const linter = new Linter({ cwd: options.cwd });
+        const linter = new Linter({ cwd: options.cwd, configType: "eslintrc" });
 
         /** @type {ConfigArray[]} */
         const lastConfigArrays = [configArrayFactory.getConfigArrayForFile()];
@@ -721,7 +732,7 @@ class CLIEngine {
      * @returns {void}
      */
     static outputFixes(report) {
-        report.results.filter(result => Object.prototype.hasOwnProperty.call(result, "output")).forEach(result => {
+        report.results.filter(result => Object.hasOwn(result, "output")).forEach(result => {
             fs.writeFileSync(result.filePath, result.output);
         });
     }
@@ -1047,7 +1058,7 @@ class CLIEngine {
             try {
                 return require(formatterPath);
             } catch (ex) {
-                if (format === "table" || format === "codeframe") {
+                if (removedFormatters.has(format)) {
                     ex.message = `The ${format} formatter is no longer part of core ESLint. Install it manually with \`npm install -D eslint-formatter-${format}\``;
                 } else {
                     ex.message = `There was a problem loading formatter: ${formatterPath}\nError: ${ex.message}`;

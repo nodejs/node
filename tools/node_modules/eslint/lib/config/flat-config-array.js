@@ -13,7 +13,6 @@ const { ConfigArray, ConfigArraySymbol } = require("@humanwhocodes/config-array"
 const { flatConfigSchema } = require("./flat-config-schema");
 const { RuleValidator } = require("./rule-validator");
 const { defaultConfig } = require("./default-config");
-const jsPlugin = require("@eslint/js");
 
 //-----------------------------------------------------------------------------
 // Helpers
@@ -134,25 +133,6 @@ class FlatConfigArray extends ConfigArray {
      * @returns {Object} The preprocessed config.
      */
     [ConfigArraySymbol.preprocessConfig](config) {
-        if (config === "eslint:recommended") {
-
-            // if we are in a Node.js environment warn the user
-            if (typeof process !== "undefined" && process.emitWarning) {
-                process.emitWarning("The 'eslint:recommended' string configuration is deprecated and will be replaced by the @eslint/js package's 'recommended' config.");
-            }
-
-            return jsPlugin.configs.recommended;
-        }
-
-        if (config === "eslint:all") {
-
-            // if we are in a Node.js environment warn the user
-            if (typeof process !== "undefined" && process.emitWarning) {
-                process.emitWarning("The 'eslint:all' string configuration is deprecated and will be replaced by the @eslint/js package's 'all' config.");
-            }
-
-            return jsPlugin.configs.all;
-        }
 
         /*
          * If `shouldIgnore` is false, we remove any ignore patterns specified

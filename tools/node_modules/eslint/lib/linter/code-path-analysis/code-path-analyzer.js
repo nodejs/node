@@ -222,7 +222,6 @@ function forwardCurrentToHead(analyzer, node) {
                 : "onUnreachableCodePathSegmentStart";
 
             debug.dump(`${eventName} ${headSegment.id}`);
-
             CodePathSegment.markUsed(headSegment);
             analyzer.emitter.emit(
                 eventName,

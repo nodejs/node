@@ -162,6 +162,7 @@ function version() {
 //------------------------------------------------------------------------------
 
 module.exports = {
+    __esModule: true, // Indicate intent for imports, remove ambiguity for Knip (see: https://github.com/eslint/eslint/pull/18005#discussion_r1484422616)
     environment,
     version
 };

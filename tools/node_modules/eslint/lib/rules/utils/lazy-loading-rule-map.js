@@ -6,7 +6,7 @@
 
 const debug = require("debug")("eslint:rules");
 
-/** @typedef {import("./types").Rule} Rule */
+/** @typedef {import("../../shared/types").Rule} Rule */
 
 /**
  * The `Map` object that loads each rule when it's accessed.

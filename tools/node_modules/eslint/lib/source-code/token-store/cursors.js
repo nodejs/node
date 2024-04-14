@@ -86,5 +86,7 @@ class CursorFactory {
 // Exports
 //------------------------------------------------------------------------------
 
-exports.forward = new CursorFactory(ForwardTokenCursor, ForwardTokenCommentCursor);
-exports.backward = new CursorFactory(BackwardTokenCursor, BackwardTokenCommentCursor);
+module.exports = {
+    forward: new CursorFactory(ForwardTokenCursor, ForwardTokenCommentCursor),
+    backward: new CursorFactory(BackwardTokenCursor, BackwardTokenCommentCursor)
+};
