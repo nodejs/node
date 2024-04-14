@@ -1137,40 +1137,6 @@ class NativeArray {
   void (NativeArray::*clone_)(const Element*, size_t);
 };
 
-// Backport of std::index_sequence.
-template <size_t... Is>
-struct IndexSequence {
-  using type = IndexSequence;
-};
-
-// Double the IndexSequence, and one if plus_one is true.
-template <bool plus_one, typename T, size_t sizeofT>
-struct DoubleSequence;
-template <size_t... I, size_t sizeofT>
-struct DoubleSequence<true, IndexSequence<I...>, sizeofT> {
-  using type = IndexSequence<I..., (sizeofT + I)..., 2 * sizeofT>;
-};
-template <size_t... I, size_t sizeofT>
-struct DoubleSequence<false, IndexSequence<I...>, sizeofT> {
-  using type = IndexSequence<I..., (sizeofT + I)...>;
-};
-
-// Backport of std::make_index_sequence.
-// It uses O(ln(N)) instantiation depth.
-template <size_t N>
-struct MakeIndexSequenceImpl
-    : DoubleSequence<N % 2 == 1, typename MakeIndexSequenceImpl<N / 2>::type,
-                     N / 2>::type {};
-
-template <>
-struct MakeIndexSequenceImpl<0> : IndexSequence<> {};
-
-template <size_t N>
-using MakeIndexSequence = typename MakeIndexSequenceImpl<N>::type;
-
-template <typename... T>
-using IndexSequenceFor = typename MakeIndexSequence<sizeof...(T)>::type;
-
 template <size_t>
 struct Ignore {
   Ignore(...);  // NOLINT
@@ -1179,7 +1145,7 @@ struct Ignore {
 template <typename>
 struct ElemFromListImpl;
 template <size_t... I>
-struct ElemFromListImpl<IndexSequence<I...>> {
+struct ElemFromListImpl<std::index_sequence<I...>> {
   // We make Ignore a template to solve a problem with MSVC.
   // A non-template Ignore would work fine with `decltype(Ignore(I))...`, but
   // MSVC doesn't understand how to deal with that pack expansion.
@@ -1190,9 +1156,8 @@ struct ElemFromListImpl<IndexSequence<I...>> {
 
 template <size_t N, typename... T>
 struct ElemFromList {
-  using type =
-      decltype(ElemFromListImpl<typename MakeIndexSequence<N>::type>::Apply(
-          static_cast<T (*)()>(nullptr)...));
+  using type = decltype(ElemFromListImpl<std::make_index_sequence<N>>::Apply(
+      static_cast<T (*)()>(nullptr)...));
 };
 
 struct FlatTupleConstructTag {};
@@ -1217,9 +1182,9 @@ template <typename Derived, typename Idx>
 struct FlatTupleBase;
 
 template <size_t... Idx, typename... T>
-struct FlatTupleBase<FlatTuple<T...>, IndexSequence<Idx...>>
+struct FlatTupleBase<FlatTuple<T...>, std::index_sequence<Idx...>>
     : FlatTupleElemBase<FlatTuple<T...>, Idx>... {
-  using Indices = IndexSequence<Idx...>;
+  using Indices = std::index_sequence<Idx...>;
   FlatTupleBase() = default;
   template <typename... Args>
   explicit FlatTupleBase(FlatTupleConstructTag, Args&&... args)
@@ -1254,14 +1219,15 @@ struct FlatTupleBase<FlatTuple<T...>, IndexSequence<Idx...>>
 // implementations.
 // FlatTuple and ElemFromList are not recursive and have a fixed depth
 // regardless of T...
-// MakeIndexSequence, on the other hand, it is recursive but with an
+// std::make_index_sequence, on the other hand, it is recursive but with an
 // instantiation depth of O(ln(N)).
 template <typename... T>
 class FlatTuple
     : private FlatTupleBase<FlatTuple<T...>,
-                            typename MakeIndexSequence<sizeof...(T)>::type> {
-  using Indices = typename FlatTupleBase<
-      FlatTuple<T...>, typename MakeIndexSequence<sizeof...(T)>::type>::Indices;
+                            std::make_index_sequence<sizeof...(T)>> {
+  using Indices =
+      typename FlatTupleBase<FlatTuple<T...>,
+                             std::make_index_sequence<sizeof...(T)>>::Indices;
 
  public:
   FlatTuple() = default;
