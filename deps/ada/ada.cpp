@@ -1,4 +1,4 @@
-/* auto-generated on 2024-03-07 13:23:39 -0500. Do not edit! */
+/* auto-generated on 2024-04-11 16:39:11 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -11585,7 +11585,7 @@ ada_really_inline bool url::parse_scheme(const std::string_view input) {
       }
     }
   } else {  // slow path
-    std::string _buffer = std::string(input);
+    std::string _buffer(input);
     // Next function is only valid if the input is ASCII and returns false
     // otherwise, but it seems that we always have ascii content so we do not
     // need to check the return value.
@@ -13227,7 +13227,7 @@ template <bool has_state_override>
       }
     }
   } else {  // slow path
-    std::string _buffer = std::string(input);
+    std::string _buffer(input);
     // Next function is only valid if the input is ASCII and returns false
     // otherwise, but it seems that we always have ascii content so we do not
     // need to check the return value.
@@ -13683,7 +13683,7 @@ bool url_aggregator::set_host_or_hostname(const std::string_view input) {
     return false;
   }
 
-  std::string previous_host = std::string(get_hostname());
+  std::string previous_host(get_hostname());
   uint32_t previous_port = components.port;
 
   size_t host_end_pos = input.find('#');
@@ -14983,7 +14983,7 @@ bool ada_can_parse(const char* input, size_t length) noexcept {
 
 bool ada_can_parse_with_base(const char* input, size_t input_length,
                              const char* base, size_t base_length) noexcept {
-  auto base_view = std::string_view(base, base_length);
+  std::string_view base_view(base, base_length);
   return ada::can_parse(std::string_view(input, input_length), &base_view);
 }
 
@@ -15388,14 +15388,18 @@ ada_owned_string ada_search_params_to_string(ada_url_search_params result) {
 size_t ada_search_params_size(ada_url_search_params result) {
   ada::result<ada::url_search_params>& r =
       *(ada::result<ada::url_search_params>*)result;
-  if (!r) return 0;
+  if (!r) {
+    return 0;
+  }
   return r->size();
 }
 
 void ada_search_params_sort(ada_url_search_params result) {
   ada::result<ada::url_search_params>& r =
       *(ada::result<ada::url_search_params>*)result;
-  if (r) r->sort();
+  if (r) {
+    r->sort();
+  }
 }
 
 void ada_search_params_append(ada_url_search_params result, const char* key,
@@ -15444,7 +15448,9 @@ bool ada_search_params_has(ada_url_search_params result, const char* key,
                            size_t key_length) {
   ada::result<ada::url_search_params>& r =
       *(ada::result<ada::url_search_params>*)result;
-  if (!r) return false;
+  if (!r) {
+    return false;
+  }
   return r->has(std::string_view(key, key_length));
 }
 
@@ -15453,7 +15459,9 @@ bool ada_search_params_has_value(ada_url_search_params result, const char* key,
                                  size_t value_length) {
   ada::result<ada::url_search_params>& r =
       *(ada::result<ada::url_search_params>*)result;
-  if (!r) return false;
+  if (!r) {
+    return false;
+  }
   return r->has(std::string_view(key, key_length),
                 std::string_view(value, value_length));
 }
@@ -15462,9 +15470,13 @@ ada_string ada_search_params_get(ada_url_search_params result, const char* key,
                                  size_t key_length) {
   ada::result<ada::url_search_params>& r =
       *(ada::result<ada::url_search_params>*)result;
-  if (!r) return ada_string_create(NULL, 0);
+  if (!r) {
+    return ada_string_create(NULL, 0);
+  }
   auto found = r->get(std::string_view(key, key_length));
-  if (!found.has_value()) return ada_string_create(NULL, 0);
+  if (!found.has_value()) {
+    return ada_string_create(NULL, 0);
+  }
   return ada_string_create(found->data(), found->length());
 }
 
@@ -15522,14 +15534,18 @@ void ada_free_strings(ada_strings result) {
 size_t ada_strings_size(ada_strings result) {
   ada::result<std::vector<std::string>>* r =
       (ada::result<std::vector<std::string>>*)result;
-  if (!r) return 0;
+  if (!r) {
+    return 0;
+  }
   return (*r)->size();
 }
 
 ada_string ada_strings_get(ada_strings result, size_t index) {
   ada::result<std::vector<std::string>>* r =
       (ada::result<std::vector<std::string>>*)result;
-  if (!r) return ada_string_create(NULL, 0);
+  if (!r) {
+    return ada_string_create(NULL, 0);
+  }
   std::string_view view = (*r)->at(index);
   return ada_string_create(view.data(), view.length());
 }
@@ -15544,9 +15560,13 @@ ada_string ada_search_params_keys_iter_next(
     ada_url_search_params_keys_iter result) {
   ada::result<ada::url_search_params_keys_iter>* r =
       (ada::result<ada::url_search_params_keys_iter>*)result;
-  if (!r) return ada_string_create(NULL, 0);
+  if (!r) {
+    return ada_string_create(NULL, 0);
+  }
   auto next = (*r)->next();
-  if (!next.has_value()) return ada_string_create(NULL, 0);
+  if (!next.has_value()) {
+    return ada_string_create(NULL, 0);
+  }
   return ada_string_create(next->data(), next->length());
 }
 
@@ -15554,7 +15574,9 @@ bool ada_search_params_keys_iter_has_next(
     ada_url_search_params_keys_iter result) {
   ada::result<ada::url_search_params_keys_iter>* r =
       (ada::result<ada::url_search_params_keys_iter>*)result;
-  if (!r) return false;
+  if (!r) {
+    return false;
+  }
   return (*r)->has_next();
 }
 
@@ -15569,9 +15591,13 @@ ada_string ada_search_params_values_iter_next(
     ada_url_search_params_values_iter result) {
   ada::result<ada::url_search_params_values_iter>* r =
       (ada::result<ada::url_search_params_values_iter>*)result;
-  if (!r) return ada_string_create(NULL, 0);
+  if (!r) {
+    return ada_string_create(NULL, 0);
+  }
   auto next = (*r)->next();
-  if (!next.has_value()) return ada_string_create(NULL, 0);
+  if (!next.has_value()) {
+    return ada_string_create(NULL, 0);
+  }
   return ada_string_create(next->data(), next->length());
 }
 
@@ -15579,7 +15605,9 @@ bool ada_search_params_values_iter_has_next(
     ada_url_search_params_values_iter result) {
   ada::result<ada::url_search_params_values_iter>* r =
       (ada::result<ada::url_search_params_values_iter>*)result;
-  if (!r) return false;
+  if (!r) {
+    return false;
+  }
   return (*r)->has_next();
 }
 
@@ -15596,8 +15624,9 @@ ada_string_pair ada_search_params_entries_iter_next(
       (ada::result<ada::url_search_params_entries_iter>*)result;
   if (!r) return {ada_string_create(NULL, 0), ada_string_create(NULL, 0)};
   auto next = (*r)->next();
-  if (!next.has_value())
+  if (!next.has_value()) {
     return {ada_string_create(NULL, 0), ada_string_create(NULL, 0)};
+  }
   return ada_string_pair{
       ada_string_create(next->first.data(), next->first.length()),
       ada_string_create(next->second.data(), next->second.length())};
@@ -15607,7 +15636,9 @@ bool ada_search_params_entries_iter_has_next(
     ada_url_search_params_entries_iter result) {
   ada::result<ada::url_search_params_entries_iter>* r =
       (ada::result<ada::url_search_params_entries_iter>*)result;
-  if (!r) return false;
+  if (!r) {
+    return false;
+  }
   return (*r)->has_next();
 }
 
