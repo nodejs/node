@@ -95,6 +95,9 @@ class MainThreadInterface :
   // when we reenter the DispatchMessages function.
   MessageQueue dispatching_message_queue_;
   bool dispatching_messages_ = false;
+  // This flag indicates an internal request to exit the loop in
+  // WaitForFrontendEvent() It's set to true by calling
+  // StopWaitingForFrontendEvent().
   bool stop_waiting_for_frontend_event_requested_ = false;
   ConditionVariable incoming_message_cond_;
   // Used from any thread

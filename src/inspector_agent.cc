@@ -480,6 +480,9 @@ class NodeInspectorClient : public V8InspectorClient {
   inline bool waiting_for_frontend() { return waiting_for_frontend_; }
 
   void StopWaitingForFrontend() {
+    if (!waiting_for_frontend_) {
+      return;
+    }
     waiting_for_frontend_ = false;
     for (const auto& id_channel : channels_) {
       id_channel.second->unsetWaitingForDebugger();
