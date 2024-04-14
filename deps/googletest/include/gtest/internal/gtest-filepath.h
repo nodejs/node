@@ -71,7 +71,7 @@ class GTEST_API_ FilePath {
  public:
   FilePath() : pathname_("") {}
   FilePath(const FilePath& rhs) : pathname_(rhs.pathname_) {}
-  FilePath(FilePath&& rhs) : pathname_(std::move(rhs.pathname_)) {}
+  FilePath(FilePath&& rhs) noexcept : pathname_(std::move(rhs.pathname_)) {}
 
   explicit FilePath(std::string pathname) : pathname_(std::move(pathname)) {
     Normalize();
@@ -81,7 +81,7 @@ class GTEST_API_ FilePath {
     Set(rhs);
     return *this;
   }
-  FilePath& operator=(FilePath&& rhs) {
+  FilePath& operator=(FilePath&& rhs) noexcept {
     pathname_ = std::move(rhs.pathname_);
     return *this;
   }
