@@ -313,12 +313,12 @@ class StressOffThreadDeserializeThread final : public base::Thread {
         CodeSerializer::StartDeserializeOffThread(&local_isolate, cached_data_);
   }
 
-  MaybeHandle<SharedFunctionInfo> Finalize(Isolate* isolate,
-                                           Handle<String> source,
-                                           ScriptOriginOptions origin_options) {
+  MaybeHandle<SharedFunctionInfo> Finalize(
+      Isolate* isolate, Handle<String> source,
+      const ScriptDetails& script_details) {
     return CodeSerializer::FinishOffThreadDeserialize(
         isolate, std::move(off_thread_data_), cached_data_, source,
-        origin_options);
+        script_details);
   }
 
  private:
@@ -329,7 +329,8 @@ class StressOffThreadDeserializeThread final : public base::Thread {
 
 void FinalizeDeserialization(Isolate* isolate,
                              Handle<SharedFunctionInfo> result,
-                             const base::ElapsedTimer& timer) {
+                             const base::ElapsedTimer& timer,
+                             const ScriptDetails& script_details) {
   // Devtools can report time in this function as profiler overhead, since none
   // of the following tasks would need to happen normally.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
@@ -342,10 +343,16 @@ void FinalizeDeserialization(Isolate* isolate,
                                              log_code_creation);
   }
 
+  Handle<Script> script(Script::cast(result->script()), isolate);
+  // Reset the script details, including host-defined options.
+  {
+    DisallowGarbageCollection no_gc;
+    SetScriptFieldsFromDetails(isolate, *script, script_details, &no_gc);
+  }
+
   bool needs_source_positions = isolate->NeedsSourcePositions();
   if (!log_code_creation && !needs_source_positions) return;
 
-  Handle<Script> script(Script::cast(result->script()), isolate);
   if (needs_source_positions) {
     Script::InitLineEnds(isolate, script);
   }
@@ -429,13 +436,13 @@ const char* ToString(SerializedCodeSanityCheckResult result) {
 
 MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     Isolate* isolate, AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options,
+    const ScriptDetails& script_details,
     MaybeHandle<Script> maybe_cached_script) {
   if (v8_flags.stress_background_compile) {
     StressOffThreadDeserializeThread thread(isolate, cached_data);
     CHECK(thread.Start());
     thread.Join();
-    return thread.Finalize(isolate, source, origin_options);
+    return thread.Finalize(isolate, source, script_details);
     // TODO(leszeks): Compare off-thread deserialized data to on-thread.
   }
 
@@ -450,7 +457,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
       SerializedCodeSanityCheckResult::kSuccess;
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       isolate, cached_data,
-      SerializedCodeData::SourceHash(source, origin_options),
+      SerializedCodeData::SourceHash(source, script_details.origin_options),
       &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     if (v8_flags.profile_deserialization) {
@@ -497,7 +504,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
 
-  FinalizeDeserialization(isolate, result, timer);
+  FinalizeDeserialization(isolate, result, timer, script_details);
 
   return scope.CloseAndEscape(result);
 }
@@ -552,7 +559,7 @@ CodeSerializer::StartDeserializeOffThread(LocalIsolate* local_isolate,
 MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
     Isolate* isolate, OffThreadDeserializeData&& data,
     AlignedCachedData* cached_data, Handle<String> source,
-    ScriptOriginOptions origin_options,
+    const ScriptDetails& script_details,
     BackgroundMergeTask* background_merge_task) {
   base::ElapsedTimer timer;
   if (v8_flags.profile_deserialization || v8_flags.log_function_events) {
@@ -568,7 +575,8 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
       data.sanity_check_result;
   const SerializedCodeData scd =
       SerializedCodeData::FromPartiallySanityCheckedCachedData(
-          cached_data, SerializedCodeData::SourceHash(source, origin_options),
+          cached_data,
+          SerializedCodeData::SourceHash(source, script_details.origin_options),
           &sanity_check_result);
   if (sanity_check_result != SerializedCodeSanityCheckResult::kSuccess) {
     // The only case where the deserialization result could exist despite a
@@ -641,7 +649,7 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::FinishOffThreadDeserialize(
            length, ms);
   }
 
-  FinalizeDeserialization(isolate, result, timer);
+  FinalizeDeserialization(isolate, result, timer, script_details);
 
   DCHECK(!background_merge_task ||
          !background_merge_task->HasPendingForegroundWork());
