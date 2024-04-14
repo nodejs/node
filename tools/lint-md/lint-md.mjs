@@ -27763,9 +27763,9 @@ function createAncestorsLines(state, ancestors) {
       typeof value.tagName === 'string'
         ? value.tagName
         :
-        typeof value.name === 'string'
-        ? value.name
-        : undefined;
+          typeof value.name === 'string'
+          ? value.name
+          : undefined;
     const position = stringifyPosition$2(node.position);
     lines.push(
       '    at ' +
@@ -27813,12 +27813,26 @@ function createCauseLines(state, cause) {
       ('message' in cause ? String(cause.message) : undefined);
     if (typeof stackValue === 'string') {
       foundReasonableCause = true;
-      const stackLines = stackValue.split(eol);
-      stackLines[0] = '    ' + stackLines[0];
-      lines.push(...stackLines);
-      if ('cause' in cause && cause.cause) {
-        lines.push(...createCauseLines(state, cause.cause));
+      let causeLines;
+      if ('file' in cause && 'fatal' in cause) {
+        causeLines = createMessageLine(
+          state,
+           (cause)
+        );
       }
+      else {
+        causeLines = stackValue.split(eol);
+        if ('cause' in cause && cause.cause) {
+          causeLines.push(...createCauseLines(state, cause.cause));
+        }
+      }
+      const head = causeLines[0];
+      if (typeof head === 'string') {
+        causeLines[0] = '    ' + head;
+      } else {
+        head[0] = '    ' + head[0];
+      }
+      lines.push(...causeLines);
     }
   }
   if (!foundReasonableCause) {
