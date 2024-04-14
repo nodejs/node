@@ -1,16 +1,23 @@
-import expand from 'brace-expansion';
-import { assertValidPattern } from './assert-valid-pattern.js';
-import { AST } from './ast.js';
-import { escape } from './escape.js';
-import { unescape } from './unescape.js';
-export const minimatch = (p, pattern, options = {}) => {
-    assertValidPattern(pattern);
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.unescape = exports.escape = exports.AST = exports.Minimatch = exports.match = exports.makeRe = exports.braceExpand = exports.defaults = exports.filter = exports.GLOBSTAR = exports.sep = exports.minimatch = void 0;
+const brace_expansion_1 = __importDefault(require("brace-expansion"));
+const assert_valid_pattern_js_1 = require("./assert-valid-pattern.js");
+const ast_js_1 = require("./ast.js");
+const escape_js_1 = require("./escape.js");
+const unescape_js_1 = require("./unescape.js");
+const minimatch = (p, pattern, options = {}) => {
+    (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
     // shortcut: comments match nothing.
     if (!options.nocomment && pattern.charAt(0) === '#') {
         return false;
     }
     return new Minimatch(pattern, options).match(p);
 };
+exports.minimatch = minimatch;
 // Optimized checking for the most common glob patterns.
 const starDotExtRE = /^\*+([^+@!?\*\[\(]*)$/;
 const starDotExtTest = (ext) => (f) => !f.startsWith('.') && f.endsWith(ext);
@@ -74,10 +81,10 @@ const path = {
     posix: { sep: '/' },
 };
 /* c8 ignore stop */
-export const sep = defaultPlatform === 'win32' ? path.win32.sep : path.posix.sep;
-minimatch.sep = sep;
-export const GLOBSTAR = Symbol('globstar **');
-minimatch.GLOBSTAR = GLOBSTAR;
+exports.sep = defaultPlatform === 'win32' ? path.win32.sep : path.posix.sep;
+exports.minimatch.sep = exports.sep;
+exports.GLOBSTAR = Symbol('globstar **');
+exports.minimatch.GLOBSTAR = exports.GLOBSTAR;
 // any single thing other than /
 // don't need to escape / when using new RegExp()
 const qmark = '[^/]';
@@ -90,14 +97,15 @@ const twoStarDot = '(?:(?!(?:\\/|^)(?:\\.{1,2})($|\\/)).)*?';
 // not a ^ or / followed by a dot,
 // followed by anything, any number of times.
 const twoStarNoDot = '(?:(?!(?:\\/|^)\\.).)*?';
-export const filter = (pattern, options = {}) => (p) => minimatch(p, pattern, options);
-minimatch.filter = filter;
+const filter = (pattern, options = {}) => (p) => (0, exports.minimatch)(p, pattern, options);
+exports.filter = filter;
+exports.minimatch.filter = exports.filter;
 const ext = (a, b = {}) => Object.assign({}, a, b);
-export const defaults = (def) => {
+const defaults = (def) => {
     if (!def || typeof def !== 'object' || !Object.keys(def).length) {
-        return minimatch;
+        return exports.minimatch;
     }
-    const orig = minimatch;
+    const orig = exports.minimatch;
     const m = (p, pattern, options = {}) => orig(p, pattern, ext(def, options));
     return Object.assign(m, {
         Minimatch: class Minimatch extends orig.Minimatch {
@@ -126,10 +134,11 @@ export const defaults = (def) => {
         braceExpand: (pattern, options = {}) => orig.braceExpand(pattern, ext(def, options)),
         match: (list, pattern, options = {}) => orig.match(list, pattern, ext(def, options)),
         sep: orig.sep,
-        GLOBSTAR: GLOBSTAR,
+        GLOBSTAR: exports.GLOBSTAR,
     });
 };
-minimatch.defaults = defaults;
+exports.defaults = defaults;
+exports.minimatch.defaults = exports.defaults;
 // Brace expansion:
 // a{b,c}d -> abd acd
 // a{b,}c -> abc ac
@@ -140,17 +149,18 @@ minimatch.defaults = defaults;
 // Invalid sets are not expanded.
 // a{2..}b -> a{2..}b
 // a{b}c -> a{b}c
-export const braceExpand = (pattern, options = {}) => {
-    assertValidPattern(pattern);
+const braceExpand = (pattern, options = {}) => {
+    (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
     // Thanks to Yeting Li <https://github.com/yetingli> for
     // improving this regexp to avoid a ReDOS vulnerability.
     if (options.nobrace || !/\{(?:(?!\{).)*\}/.test(pattern)) {
         // shortcut. no need to expand.
         return [pattern];
     }
-    return expand(pattern);
+    return (0, brace_expansion_1.default)(pattern);
 };
-minimatch.braceExpand = braceExpand;
+exports.braceExpand = braceExpand;
+exports.minimatch.braceExpand = exports.braceExpand;
 // parse a component of the expanded set.
 // At this point, no pattern may contain "/" in it
 // so we're going to return a 2d array, where each entry is the full
@@ -162,9 +172,10 @@ minimatch.braceExpand = braceExpand;
 // when it is the *only* thing in a path portion.  Otherwise, any series
 // of * is equivalent to a single *.  Globstar behavior is enabled by
 // default, and can be disabled by setting options.noglobstar.
-export const makeRe = (pattern, options = {}) => new Minimatch(pattern, options).makeRe();
-minimatch.makeRe = makeRe;
-export const match = (list, pattern, options = {}) => {
+const makeRe = (pattern, options = {}) => new Minimatch(pattern, options).makeRe();
+exports.makeRe = makeRe;
+exports.minimatch.makeRe = exports.makeRe;
+const match = (list, pattern, options = {}) => {
     const mm = new Minimatch(pattern, options);
     list = list.filter(f => mm.match(f));
     if (mm.options.nonull && !list.length) {
@@ -172,11 +183,12 @@ export const match = (list, pattern, options = {}) => {
     }
     return list;
 };
-minimatch.match = match;
+exports.match = match;
+exports.minimatch.match = exports.match;
 // replace stuff like \* with *
 const globMagic = /[?*]|[+@!]\(.*?\)|\[|\]/;
 const regExpEscape = (s) => s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-export class Minimatch {
+class Minimatch {
     options;
     set;
     pattern;
@@ -195,7 +207,7 @@ export class Minimatch {
     windowsNoMagicRoot;
     regexp;
     constructor(pattern, options = {}) {
-        assertValidPattern(pattern);
+        (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
         options = options || {};
         this.options = options;
         this.pattern = pattern;
@@ -332,6 +344,7 @@ export class Minimatch {
             globParts = this.levelOneOptimize(globParts);
         }
         else {
+            // just collapse multiple ** portions into one
             globParts = this.adjascentGlobstarOptimize(globParts);
         }
         return globParts;
@@ -648,7 +661,7 @@ export class Minimatch {
                 return false;
             }
             /* c8 ignore stop */
-            if (p === GLOBSTAR) {
+            if (p === exports.GLOBSTAR) {
                 this.debug('GLOBSTAR', [pattern, p, f]);
                 // "**"
                 // a/**/b/**/c would match the following:
@@ -779,14 +792,14 @@ export class Minimatch {
         /* c8 ignore stop */
     }
     braceExpand() {
-        return braceExpand(this.pattern, this.options);
+        return (0, exports.braceExpand)(this.pattern, this.options);
     }
     parse(pattern) {
-        assertValidPattern(pattern);
+        (0, assert_valid_pattern_js_1.assertValidPattern)(pattern);
         const options = this.options;
         // shortcuts
         if (pattern === '**')
-            return GLOBSTAR;
+            return exports.GLOBSTAR;
         if (pattern === '')
             return '';
         // far and away, the most common glob pattern parts are
@@ -820,8 +833,12 @@ export class Minimatch {
         else if ((m = pattern.match(dotStarRE))) {
             fastTest = dotStarTest;
         }
-        const re = AST.fromGlob(pattern, this.options).toMMPattern();
-        return fastTest ? Object.assign(re, { test: fastTest }) : re;
+        const re = ast_js_1.AST.fromGlob(pattern, this.options).toMMPattern();
+        if (fastTest && typeof re === 'object') {
+            // Avoids overriding in frozen environments
+            Reflect.defineProperty(re, 'test', { value: fastTest });
+        }
+        return re;
     }
     makeRe() {
         if (this.regexp || this.regexp === false)
@@ -859,18 +876,18 @@ export class Minimatch {
                 }
                 return typeof p === 'string'
                     ? regExpEscape(p)
-                    : p === GLOBSTAR
-                        ? GLOBSTAR
+                    : p === exports.GLOBSTAR
+                        ? exports.GLOBSTAR
                         : p._src;
             });
             pp.forEach((p, i) => {
                 const next = pp[i + 1];
                 const prev = pp[i - 1];
-                if (p !== GLOBSTAR || prev === GLOBSTAR) {
+                if (p !== exports.GLOBSTAR || prev === exports.GLOBSTAR) {
                     return;
                 }
                 if (prev === undefined) {
-                    if (next !== undefined && next !== GLOBSTAR) {
+                    if (next !== undefined && next !== exports.GLOBSTAR) {
                         pp[i + 1] = '(?:\\/|' + twoStar + '\\/)?' + next;
                     }
                     else {
@@ -880,12 +897,12 @@ export class Minimatch {
                 else if (next === undefined) {
                     pp[i - 1] = prev + '(?:\\/|' + twoStar + ')?';
                 }
-                else if (next !== GLOBSTAR) {
+                else if (next !== exports.GLOBSTAR) {
                     pp[i - 1] = prev + '(?:\\/|\\/' + twoStar + '\\/)' + next;
-                    pp[i + 1] = GLOBSTAR;
+                    pp[i + 1] = exports.GLOBSTAR;
                 }
             });
-            return pp.filter(p => p !== GLOBSTAR).join('/');
+            return pp.filter(p => p !== exports.GLOBSTAR).join('/');
         })
             .join('|');
         // need to wrap in parens if we had more than one thing with |,
@@ -980,16 +997,20 @@ export class Minimatch {
         return this.negate;
     }
     static defaults(def) {
-        return minimatch.defaults(def).Minimatch;
+        return exports.minimatch.defaults(def).Minimatch;
     }
 }
+exports.Minimatch = Minimatch;
 /* c8 ignore start */
-export { AST } from './ast.js';
-export { escape } from './escape.js';
-export { unescape } from './unescape.js';
+var ast_js_2 = require("./ast.js");
+Object.defineProperty(exports, "AST", { enumerable: true, get: function () { return ast_js_2.AST; } });
+var escape_js_2 = require("./escape.js");
+Object.defineProperty(exports, "escape", { enumerable: true, get: function () { return escape_js_2.escape; } });
+var unescape_js_2 = require("./unescape.js");
+Object.defineProperty(exports, "unescape", { enumerable: true, get: function () { return unescape_js_2.unescape; } });
 /* c8 ignore stop */
-minimatch.AST = AST;
-minimatch.Minimatch = Minimatch;
-minimatch.escape = escape;
-minimatch.unescape = unescape;
+exports.minimatch.AST = ast_js_1.AST;
+exports.minimatch.Minimatch = Minimatch;
+exports.minimatch.escape = escape_js_1.escape;
+exports.minimatch.unescape = unescape_js_1.unescape;
 //# sourceMappingURL=index.js.map
