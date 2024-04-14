@@ -54,7 +54,7 @@ cd package
 
 "$NODE" "$NPM" install esbuild --save-dev
 
-"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./dist/cjs/index.js --bundle --platform=node --outfile=index.js"
+"$NODE" "$NPM" pkg set scripts.node-build="esbuild ./dist/commonjs/index.js --bundle --platform=node --outfile=index.js"
 
 "$NODE" "$NPM" run node-build
 

@@ -58,6 +58,7 @@ rm -rf ../node_modules/eslint
         --no-save \
         --omit=dev \
         --omit=peer \
+        --legacy-peer-deps \
         eslint-plugin-jsdoc \
         eslint-plugin-markdown \
         @babel/core \
