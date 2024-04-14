@@ -477,6 +477,19 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
+  inline bool waiting_for_frontend() { return waiting_for_frontend_; }
+
+  void StopWaitingForFrontend() {
+    waiting_for_frontend_ = false;
+    for (const auto& id_channel : channels_) {
+      id_channel.second->unsetWaitingForDebugger();
+    }
+
+    if (interface_) {
+      interface_->StopWaitingForFrontendEvent();
+    }
+  }
+
   int connectFrontend(std::unique_ptr<InspectorSessionDelegate> delegate,
                       bool prevent_shutdown) {
     int session_id = next_session_id_++;
@@ -1015,6 +1028,15 @@ void Agent::WaitForConnect() {
 
   CHECK_NOT_NULL(client_);
   client_->waitForFrontend();
+}
+
+void Agent::StopWaitingForConnect() {
+  CHECK_NOT_NULL(client_);
+  client_->StopWaitingForFrontend();
+}
+
+bool Agent::IsWaitingForConnect() {
+  return (client_ != nullptr) ? client_->waiting_for_frontend() : false;
 }
 
 std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {

@@ -61,6 +61,9 @@ class Agent {
 
   // Blocks till frontend connects and sends "runIfWaitingForDebugger"
   void WaitForConnect();
+  void StopWaitingForConnect();
+  bool IsWaitingForConnect();
+
   // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
   void WaitForDisconnect();
   void ReportUncaughtException(v8::Local<v8::Value> error,

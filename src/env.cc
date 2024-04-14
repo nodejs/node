@@ -1092,6 +1092,13 @@ void Environment::InitializeLibuv() {
 void Environment::ExitEnv(StopFlags::Flags flags) {
   // Should not access non-thread-safe methods here.
   set_stopping(true);
+
+#if HAVE_INSPECTOR
+  if (inspector_agent_->IsWaitingForConnect()) {
+    inspector_agent_->StopWaitingForConnect();
+  }
+#endif
+
   if ((flags & StopFlags::kDoNotTerminateIsolate) == 0)
     isolate_->TerminateExecution();
   SetImmediateThreadsafe([](Environment* env) {
