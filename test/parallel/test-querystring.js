@@ -343,6 +343,9 @@ assert.strictEqual(qs.stringify([]), '');
 assert.strictEqual(qs.stringify(null), '');
 assert.strictEqual(qs.stringify(true), '');
 
+// maps
+assert.strictEqual(qs.stringify(new Map([['a', 'b'], ['c', 'd']])), 'a=b&c=d');
+
 check(qs.parse(), {});
 
 // empty sep
