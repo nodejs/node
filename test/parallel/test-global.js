@@ -59,6 +59,7 @@ for (const moduleName of builtinModules) {
     'fetch',
     'crypto',
     'navigator',
+    'CSS',
   ];
   assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
 }

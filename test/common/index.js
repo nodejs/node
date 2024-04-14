@@ -288,6 +288,7 @@ let knownGlobals = [
   clearImmediate,
   clearInterval,
   clearTimeout,
+  CSS,
   global,
   setImmediate,
   setInterval,

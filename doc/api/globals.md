@@ -409,6 +409,17 @@ A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
 `node:crypto` module.
 
+## `CSS`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 2 - Stable
+
+An implementation of the [`CSS` Web API][], without `registerProperty`, `supports`, or `highlights`
+
 ## `CustomEvent`
 
 <!-- YAML
@@ -1153,6 +1164,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`ByteLengthQueuingStrategy`]: webstreams.md#class-bytelengthqueuingstrategy
 [`CompressionStream`]: webstreams.md#class-compressionstream
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
+[`CSS` Web API]: https://drafts.csswg.org/cssom/#namespacedef-css
 [`CustomEvent` Web API]: https://dom.spec.whatwg.org/#customevent
 [`DOMException`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
