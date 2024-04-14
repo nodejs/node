@@ -771,6 +771,23 @@ Export keyword before a key is ignored:
 export USERNAME="nodejs" # will result in `nodejs` as the value.
 ```
 
+### `--env-file-override-local`
+
+> Stability: 1.1 - Active development
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Override existing environment variables on your machine with values specified in
+your environment files.
+
+```bash
+node --env-file=.env --env-file-override-local index.js
+```
+
+To override variables during runtime, use [`process.loadEnvFile({ override: true })`][]
+
 ### `-e`, `--eval "script"`
 
 <!-- YAML
@@ -3210,6 +3227,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`dnsPromises.lookup()`]: dns.md#dnspromiseslookuphostname-options
 [`import` specifier]: esm.md#import-specifiers
 [`net.getDefaultAutoSelectFamilyAttemptTimeout()`]: net.md#netgetdefaultautoselectfamilyattempttimeout
+[`process.loadEnvFile({ override: true })`]: process.md#processloadenvfilepath-options
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`process.setuid()`]: process.md#processsetuidid
 [`setuid(2)`]: https://man7.org/linux/man-pages/man2/setuid.2.html
