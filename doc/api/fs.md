@@ -3649,7 +3649,8 @@ changes:
 * `buffer` {Buffer|TypedArray|DataView} The buffer that the data will be
   written to.
 * `offset` {integer} The position in `buffer` to write the data to.
-* `length` {integer} The number of bytes to read.
+* `length` {integer} The number of bytes to read. This specifies the maximum number of bytes to read from the file. However, the actual number of bytes that are read (`bytesRead`) may be less than `length` for several reasons, such as reaching the end of the file (EOF), reading from a slow network filesystem, or other system-related constraints. If a specific minimum number of bytes is required, it may be necessary to call `fs.read()` multiple times until the desired amount of data is read.
+
 * `position` {integer|bigint|null} Specifies where to begin reading from in the
   file. If `position` is `null` or `-1 `, data will be read from the current
   file position, and the file position will be updated. If `position` is
@@ -3658,6 +3659,8 @@ changes:
   * `err` {Error}
   * `bytesRead` {integer}
   * `buffer` {Buffer}
+
+
 
 Read data from the file specified by `fd`.
 
