@@ -1969,6 +1969,9 @@ A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern. See the documentation on
 [filtering tests by name][] for more details.
 
+If both the `--test-name-pattern` and `--test-skip-pattern` arguments are
+supplied, only `--test-name-pattern` will be applied.
+
 ### `--test-only`
 
 <!-- YAML
@@ -2036,6 +2039,20 @@ node --test --test-shard=1/3
 node --test --test-shard=2/3
 node --test --test-shard=3/3
 ```
+
+### `--test-skip-pattern`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+A regular expression that configures the test runner to skip tests
+whose name matches the provided pattern. See the documentation on
+[filtering tests by name][] for more details.
+
+If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
+tests must satisfy **both** requirements in order to be executed.
 
 ### `--test-timeout`
 
