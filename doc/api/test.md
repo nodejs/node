@@ -504,12 +504,8 @@ node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-de
 
 ### Limitations
 
-The test runner's code coverage functionality has the following limitations,
-which will be addressed in a future Node.js release:
-
-* Source maps are not supported.
-* Excluding specific files or directories from the coverage report is not
-  supported.
+The test runner's code coverage functionality does not support excluding
+specific files or directories from the coverage report.
 
 ## Mocking
 
