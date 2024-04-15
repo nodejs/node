@@ -858,23 +858,24 @@ class ExternalWrapper {
   void* Data() { return data_; }
 
   bool TypeTag(const napi_type_tag* type_tag) {
-    if (type_tag_ != nullptr) {
+    if (has_tag_) {
       return false;
     }
-    type_tag_ = type_tag;
+    type_tag_ = *type_tag;
+    has_tag_ = true;
     return true;
   }
 
   bool CheckTypeTag(const napi_type_tag* type_tag) {
-    return type_tag == type_tag_ ||
-           (type_tag_ && type_tag->lower == type_tag_->lower &&
-            type_tag->upper == type_tag_->upper);
+    return has_tag_ && type_tag->lower == type_tag_.lower &&
+           type_tag->upper == type_tag_.upper;
   }
 
  private:
   v8impl::Persistent<v8::Value> persistent_;
   void* data_;
-  const napi_type_tag* type_tag_ = nullptr;
+  napi_type_tag type_tag_;
+  bool has_tag_ = false;
 };
 
 }  // end of namespace v8impl
