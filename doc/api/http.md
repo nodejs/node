@@ -488,7 +488,7 @@ const proxy = createServer((req, res) => {
 });
 proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
-  const { port, hostname } = new URL(`http://${req.headers.host}${req.url}`);
+  const { port, hostname } = new URL(`http://${req.url}`);
   const serverSocket = connect(port || 80, hostname, () => {
     clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
@@ -543,7 +543,7 @@ const proxy = http.createServer((req, res) => {
 });
 proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
-  const { port, hostname } = new URL(`http://${req.headers.host}${req.url}`);
+  const { port, hostname } = new URL(`http://${req.url}`);
   const serverSocket = net.connect(port || 80, hostname, () => {
     clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
