@@ -61,8 +61,7 @@ class Agent {
 
   // Blocks till frontend connects and sends "runIfWaitingForDebugger"
   void WaitForConnect();
-  void StopWaitingForConnect();
-  bool IsWaitingForConnect();
+  void StopIfWaitingForConnect();
 
   // Blocks till all the sessions with "WaitForDisconnectOnShutdown" disconnect
   void WaitForDisconnect();

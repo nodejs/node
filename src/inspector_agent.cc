@@ -477,9 +477,7 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
-  inline bool waiting_for_frontend() { return waiting_for_frontend_; }
-
-  void StopWaitingForFrontend() {
+  void StopIfWaitingForFrontendEvent() {
     if (!waiting_for_frontend_) {
       return;
     }
@@ -1033,13 +1031,11 @@ void Agent::WaitForConnect() {
   client_->waitForFrontend();
 }
 
-void Agent::StopWaitingForConnect() {
-  CHECK_NOT_NULL(client_);
-  client_->StopWaitingForFrontend();
-}
-
-bool Agent::IsWaitingForConnect() {
-  return (client_ != nullptr) ? client_->waiting_for_frontend() : false;
+void Agent::StopIfWaitingForConnect() {
+  if (client_ == nullptr) {
+    return;
+  }
+  client_->StopIfWaitingForFrontendEvent();
 }
 
 std::shared_ptr<WorkerManager> Agent::GetWorkerManager() {

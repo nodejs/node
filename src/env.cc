@@ -1094,8 +1094,8 @@ void Environment::ExitEnv(StopFlags::Flags flags) {
   set_stopping(true);
 
 #if HAVE_INSPECTOR
-  if (inspector_agent_ && inspector_agent_->IsWaitingForConnect()) {
-    inspector_agent_->StopWaitingForConnect();
+  if (inspector_agent_) {
+    inspector_agent_->StopIfWaitingForConnect();
   }
 #endif
 
