@@ -223,20 +223,24 @@ function test_rsa(padding, encryptOaepHash, decryptOaepHash) {
 
 
   if (padding === constants.RSA_PKCS1_PADDING) {
-    assert.throws(() => {
-      crypto.privateDecrypt({
-        key: rsaKeyPem,
-        padding: padding,
-        oaepHash: decryptOaepHash
-      }, encryptedBuffer);
-    }, { code: 'ERR_INVALID_ARG_VALUE' });
-    assert.throws(() => {
-      crypto.privateDecrypt({
-        key: rsaPkcs8KeyPem,
-        padding: padding,
-        oaepHash: decryptOaepHash
-      }, encryptedBuffer);
-    }, { code: 'ERR_INVALID_ARG_VALUE' });
+    // TODO(richardlau): see if it's possible to determine implicit rejection
+    // support when dynamically linked against OpenSSL.
+    if (!process.config.variables.node_shared_openssl) {
+      assert.throws(() => {
+        crypto.privateDecrypt({
+          key: rsaKeyPem,
+          padding: padding,
+          oaepHash: decryptOaepHash
+        }, encryptedBuffer);
+      }, { code: 'ERR_INVALID_ARG_VALUE' });
+      assert.throws(() => {
+        crypto.privateDecrypt({
+          key: rsaPkcs8KeyPem,
+          padding: padding,
+          oaepHash: decryptOaepHash
+        }, encryptedBuffer);
+      }, { code: 'ERR_INVALID_ARG_VALUE' });
+    }
   } else {
     let decryptedBuffer = crypto.privateDecrypt({
       key: rsaKeyPem,
