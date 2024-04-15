@@ -163,7 +163,7 @@ Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-<!-- eslint-disable semi-->
+<!-- eslint-disable @stylistic/js/semi-->
 
 ```js
 [
@@ -468,7 +468,7 @@ will be present on the object:
 
 Here is an example of the `ret` object passed to the callback:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
@@ -934,7 +934,7 @@ Returns an array of IP address strings, formatted according to [RFC 5952][],
 that are currently configured for DNS resolution. A string will include a port
 section if a custom port is used.
 
-<!-- eslint-disable semi-->
+<!-- eslint-disable @stylistic/js/semi-->
 
 ```js
 [
@@ -1135,7 +1135,7 @@ present on the object:
 
 Here is an example of the result object:
 
-<!-- eslint-disable semi -->
+<!-- eslint-disable @stylistic/js/semi -->
 
 ```js
 [ { type: 'A', address: '127.0.0.1', ttl: 299 },
