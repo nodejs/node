@@ -5,21 +5,16 @@ common.skipIfInspectorDisabled();
 import { isMainThread, Worker } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
 import inspector from 'node:inspector';
+import assert from 'node:assert';
 
 // Ref: https://github.com/nodejs/node/issues/52467
+// - process.exit() should kill the main thread's process.
 if (isMainThread) {
-  const worker = new Worker(fileURLToPath(import.meta.url));
-  await new Promise((r) => setTimeout(r, 1_000));
+  new Worker(fileURLToPath(import.meta.url));
+  await new Promise((r) => setTimeout(r, 2_000));
 
-  worker.on('exit', common.mustCall());
-
-  const timeout = setTimeout(() => {
-    process.exit();
-  }, 2_000).unref();
-
-  await worker.terminate();
-
-  clearTimeout(timeout);
+  process.on('exit', (status) => assert.strictEqual(status, 0));
+  process.exit();
 } else {
   inspector.open();
   inspector.waitForDebugger();
