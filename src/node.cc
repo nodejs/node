@@ -635,17 +635,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
     RegisterSignalHandler(SIGTERM, SignalExit, true);
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER
-#if defined(_WIN32)
-    {
-      constexpr ULONG first = TRUE;
-      per_process::old_vectored_exception_handler =
-          AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
-    }
-#else
-    // Tell V8 to disable emitting WebAssembly
-    // memory bounds checks. This means that we have
-    // to catch the SIGSEGV/SIGBUS in TrapWebAssemblyOrContinue
-    // and pass the signal context to V8.
     {
       struct sigaction sa;
       memset(&sa, 0, sizeof(sa));
@@ -657,7 +646,6 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
       CHECK_EQ(sigaction(SIGBUS, &sa, nullptr), 0);
 #endif
     }
-#endif  // defined(_WIN32)
     V8::EnableWebAssemblyTrapHandler(false);
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   }
@@ -686,6 +674,11 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   }
 #endif  // __POSIX__
 #ifdef _WIN32
+{
+  constexpr ULONG first = TRUE;
+  per_process::old_vectored_exception_handler =
+      AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
+}
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     for (int fd = 0; fd <= 2; ++fd) {
       auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
