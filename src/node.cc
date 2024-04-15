@@ -674,11 +674,11 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
   }
 #endif  // __POSIX__
 #ifdef _WIN32
-{
-  constexpr ULONG first = TRUE;
-  per_process::old_vectored_exception_handler =
-      AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
-}
+  {
+    constexpr ULONG first = TRUE;
+    per_process::old_vectored_exception_handler =
+        AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
+  }
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     for (int fd = 0; fd <= 2; ++fd) {
       auto handle = reinterpret_cast<HANDLE>(_get_osfhandle(fd));
