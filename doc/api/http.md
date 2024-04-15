@@ -488,7 +488,7 @@ const proxy = createServer((req, res) => {
 });
 proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
-  const { port, hostname } = new URL(`http://${req.url}`);
+  const { port, hostname } = new URL(`http://${req.headers.host}${req.url}`);
   const serverSocket = connect(port || 80, hostname, () => {
     clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
@@ -543,7 +543,7 @@ const proxy = http.createServer((req, res) => {
 });
 proxy.on('connect', (req, clientSocket, head) => {
   // Connect to an origin server
-  const { port, hostname } = new URL(`http://${req.url}`);
+  const { port, hostname } = new URL(`http://${req.headers.host}${req.url}`);
   const serverSocket = net.connect(port || 80, hostname, () => {
     clientSocket.write('HTTP/1.1 200 Connection Established\r\n' +
                     'Proxy-agent: Node.js-Proxy\r\n' +
@@ -2886,7 +2886,7 @@ Accept: text/plain
 To parse the URL into its parts:
 
 ```js
-new URL(request.url, `http://${request.headers.host}`);
+new URL(`http://${req.headers.host}${req.url}`);
 ```
 
 When `request.url` is `'/status?name=ryan'` and `request.headers.host` is
@@ -2894,7 +2894,7 @@ When `request.url` is `'/status?name=ryan'` and `request.headers.host` is
 
 ```console
 $ node
-> new URL(request.url, `http://${request.headers.host}`)
+> new URL(`http://${req.headers.host}${req.url}`)
 URL {
   href: 'http://localhost:3000/status?name=ryan',
   origin: 'http://localhost:3000',
