@@ -70,11 +70,13 @@ const specTransform = snapshot.transform(
   replaceSpecDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+  snapshot.replaceWindowsPaths,
 );
 const junitTransform = snapshot.transform(
   replaceJunitDuration,
   snapshot.replaceWindowsLineEndings,
   snapshot.replaceStackTrace,
+  snapshot.replaceWindowsPaths,
 );
 const lcovTransform = snapshot.transform(
   snapshot.replaceWindowsLineEndings,
