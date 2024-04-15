@@ -453,7 +453,15 @@ void Blob::Reader::PullAll(const FunctionCallbackInfo<Value>& args) {
     }
 
     if (status > 0) {
-      impl_ptr->enqueue_cb();
+      env->context()->GetMicrotaskQueue()->EnqueueMicrotask(
+          env->isolate(),
+          [](void* arg) {
+            auto impl_ptr = static_cast<Impl*>(arg);
+            if (impl_ptr->reader && impl_ptr->reader->inner_) {
+              impl_ptr->enqueue_cb();
+            }
+          },
+          impl_ptr.get());
     } else {
       std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(env->isolate(), impl_ptr->total_size);
       auto ptr = static_cast<uint8_t*>(store->Data());
