@@ -899,9 +899,14 @@ const accessibilityNodes = new Set([
  * @param {import('eslint').Rule.Node} node
  * @returns {boolean}
  */
-const hasAccessibility = (node) => {
-  return accessibilityNodes.has(node.type) && 'accessibility' in node &&
-    node.accessibility !== 'public' && node.accessibility !== undefined;
+const isPrivate = (node) => {
+  return accessibilityNodes.has(node.type) &&
+    (
+      'accessibility' in node &&
+      node.accessibility !== 'public' && node.accessibility !== undefined
+    ) ||
+  'key' in node &&
+    node.key.type === 'PrivateIdentifier';
 };
 
 /**
@@ -916,8 +921,8 @@ const isUncommentedExport = function (node, sourceCode, opt, settings) {
   // console.log({node});
   // Optimize with ancestor check for esm
   if (opt.esm) {
-    if (hasAccessibility(node) ||
-      node.parent && hasAccessibility(node.parent)) {
+    if (isPrivate(node) ||
+      node.parent && isPrivate(node.parent)) {
       return false;
     }
 

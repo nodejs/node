@@ -4,9 +4,6 @@ env:
 rules:
   prefer-object-spread: error
   no-buffer-constructor: error
-  no-mixed-operators:
-    - error
-    - groups: [['&&', '||']]
   no-restricted-syntax:
     # Config copied from .eslintrc.js
     - error
@@ -181,6 +178,12 @@ rules:
     - error
     - name: url
       message: Require `internal/url` instead of `url`.
+
+  # Stylistic rules
+  '@stylistic/js/no-mixed-operators':
+    - error
+    - groups: [['&&', '||']]
+
   # Custom rules in tools/eslint-rules
   node-core/avoid-prototype-pollution: error
   node-core/lowercase-name-for-primitive: error

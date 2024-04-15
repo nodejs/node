@@ -1,6 +1,6 @@
 {
   "name": "@jridgewell/set-array",
-  "version": "1.1.2",
+  "version": "1.2.1",
   "description": "Like a Set, but provides the index of the `key` in the backing array",
   "keywords": [],
   "author": "Justin Ridgewell <justin@ridgewell.name>",
@@ -22,8 +22,7 @@
     "./package.json": "./package.json"
   },
   "files": [
-    "dist",
-    "src"
+    "dist"
   ],
   "engines": {
     "node": ">=6.0.0"
@@ -36,7 +35,6 @@
     "lint": "run-s -n lint:*",
     "lint:prettier": "npm run test:lint:prettier -- --write",
     "lint:ts": "npm run test:lint:ts -- --fix",
-    "pretest": "run-s build:rollup",
     "test": "run-s -n test:lint test:only",
     "test:debug": "mocha --inspect-brk",
     "test:lint": "run-s -n test:lint:*",
@@ -61,6 +59,7 @@
     "npm-run-all": "4.1.5",
     "prettier": "2.5.1",
     "rollup": "2.66.0",
+    "tsx": "4.7.1",
     "typescript": "4.5.5"
   }
 }
