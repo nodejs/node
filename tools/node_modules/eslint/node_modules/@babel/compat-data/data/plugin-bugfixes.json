@@ -107,6 +107,18 @@
     "opera_mobile": "64",
     "electron": "13.0"
   },
+  "bugfix/transform-firefox-class-in-computed-class-key": {
+    "chrome": "74",
+    "opera": "62",
+    "edge": "79",
+    "safari": "14.1",
+    "node": "12",
+    "deno": "1",
+    "ios": "14.5",
+    "samsung": "11",
+    "opera_mobile": "53",
+    "electron": "6.0"
+  },
   "transform-optional-chaining": {
     "chrome": "80",
     "opera": "67",
