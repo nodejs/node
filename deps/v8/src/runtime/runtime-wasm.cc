@@ -354,12 +354,18 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
   ClearThreadInWasmScope clear_wasm_flag(isolate);
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
-  isolate->set_context(GetNativeContextFromWasmInstanceOnStackTop(isolate));
+  Tagged<Context> context = GetNativeContextFromWasmInstanceOnStackTop(isolate);
+  isolate->set_context(context);
   Handle<WasmExceptionTag> tag(WasmExceptionTag::cast(args[0]), isolate);
   Handle<FixedArray> values(FixedArray::cast(args[1]), isolate);
-  Handle<WasmExceptionPackage> exception =
-      WasmExceptionPackage::New(isolate, tag, values);
-  return isolate->Throw(*exception);
+  auto js_tag = WasmTagObject::cast(context->wasm_js_tag());
+  if (*tag == js_tag->tag()) {
+    return isolate->Throw(values->get(0));
+  } else {
+    Handle<WasmExceptionPackage> exception =
+        WasmExceptionPackage::New(isolate, tag, values);
+    return isolate->Throw(*exception);
+  }
 }
 
 RUNTIME_FUNCTION(Runtime_WasmReThrow) {
