@@ -497,6 +497,7 @@ static int session_new(nghttp2_session **session_ptr,
   (*session_ptr)->max_send_header_block_length = NGHTTP2_MAX_HEADERSLEN;
   (*session_ptr)->max_outbound_ack = NGHTTP2_DEFAULT_MAX_OBQ_FLOOD_ITEM;
   (*session_ptr)->max_settings = NGHTTP2_DEFAULT_MAX_SETTINGS;
+  (*session_ptr)->max_continuations = NGHTTP2_DEFAULT_MAX_CONTINUATIONS;
 
   if (option) {
     if ((option->opt_set_mask & NGHTTP2_OPT_NO_AUTO_WINDOW_UPDATE) &&
@@ -584,6 +585,10 @@ static int session_new(nghttp2_session **session_ptr,
       nghttp2_ratelim_init(&(*session_ptr)->stream_reset_ratelim,
                            option->stream_reset_burst,
                            option->stream_reset_rate);
+    }
+
+    if (option->opt_set_mask & NGHTTP2_OPT_MAX_CONTINUATIONS) {
+      (*session_ptr)->max_continuations = option->max_continuations;
     }
   }
 
@@ -979,7 +984,14 @@ static int session_attach_stream_item(nghttp2_session *session,
     return 0;
   }
 
-  return session_ob_data_push(session, stream);
+  rv = session_ob_data_push(session, stream);
+  if (rv != 0) {
+    nghttp2_stream_detach_item(stream);
+
+    return rv;
+  }
+
+  return 0;
 }
 
 static void session_detach_stream_item(nghttp2_session *session,
@@ -1309,9 +1321,11 @@ nghttp2_stream *nghttp2_session_open_stream(nghttp2_session *session,
     assert((stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES) ||
            nghttp2_stream_in_dep_tree(stream));
 
+    nghttp2_session_detach_idle_stream(session, stream);
+
     if (nghttp2_stream_in_dep_tree(stream)) {
       assert(!(stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES));
-      nghttp2_session_detach_idle_stream(session, stream);
+
       rv = nghttp2_stream_dep_remove(stream);
       if (rv != 0) {
         return NULL;
@@ -1471,6 +1485,21 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
 
   DEBUGF("stream: stream(%p)=%d close\n", stream, stream->stream_id);
 
+  /* We call on_stream_close_callback even if stream->state is
+     NGHTTP2_STREAM_INITIAL. This will happen while sending request
+     HEADERS, a local endpoint receives RST_STREAM for that stream. It
+     may be PROTOCOL_ERROR, but without notifying stream closure will
+     hang the stream in a local endpoint.
+  */
+
+  if (session->callbacks.on_stream_close_callback) {
+    if (session->callbacks.on_stream_close_callback(
+            session, stream_id, error_code, session->user_data) != 0) {
+
+      return NGHTTP2_ERR_CALLBACK_FAILURE;
+    }
+  }
+
   if (stream->item) {
     nghttp2_outbound_item *item;
 
@@ -1485,21 +1514,6 @@ int nghttp2_session_close_stream(nghttp2_session *session, int32_t stream_id,
     if (!item->queued && item != session->aob.item) {
       nghttp2_outbound_item_free(item, mem);
       nghttp2_mem_free(mem, item);
-    }
-  }
-
-  /* We call on_stream_close_callback even if stream->state is
-     NGHTTP2_STREAM_INITIAL. This will happen while sending request
-     HEADERS, a local endpoint receives RST_STREAM for that stream. It
-     may be PROTOCOL_ERROR, but without notifying stream closure will
-     hang the stream in a local endpoint.
-  */
-
-  if (session->callbacks.on_stream_close_callback) {
-    if (session->callbacks.on_stream_close_callback(
-            session, stream_id, error_code, session->user_data) != 0) {
-
-      return NGHTTP2_ERR_CALLBACK_FAILURE;
     }
   }
 
@@ -1557,6 +1571,11 @@ int nghttp2_session_destroy_stream(nghttp2_session *session,
     if (rv != 0) {
       return rv;
     }
+  }
+
+  if (stream->queued &&
+      (stream->flags & NGHTTP2_STREAM_FLAG_NO_RFC7540_PRIORITIES)) {
+    session_ob_data_remove(session, stream);
   }
 
   nghttp2_map_remove(&session->streams, stream->stream_id);
@@ -6812,6 +6831,8 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
           }
         }
         session_inbound_frame_reset(session);
+
+        session->num_continuations = 0;
       }
       break;
     }
@@ -6932,6 +6953,10 @@ nghttp2_ssize nghttp2_session_mem_recv2(nghttp2_session *session,
         fprintf(stderr, "recv: [IB_IGN_CONTINUATION]\n");
       }
 #endif /* DEBUGBUILD */
+
+      if (++session->num_continuations > session->max_continuations) {
+        return NGHTTP2_ERR_TOO_MANY_CONTINUATIONS;
+      }
 
       readlen = inbound_frame_buf_read(iframe, in, last);
       in += readlen;

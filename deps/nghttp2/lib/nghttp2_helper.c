@@ -336,6 +336,8 @@ const char *nghttp2_strerror(int error_code) {
            "closed";
   case NGHTTP2_ERR_TOO_MANY_SETTINGS:
     return "SETTINGS frame contained more than the maximum allowed entries";
+  case NGHTTP2_ERR_TOO_MANY_CONTINUATIONS:
+    return "Too many CONTINUATION frames following a HEADER frame";
   default:
     return "Unknown error code";
   }
