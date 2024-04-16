@@ -1,4 +1,3 @@
-// Flags: --inspect=0
 import * as common from '../common/index.mjs';
 common.skipIfInspectorDisabled();
 
@@ -26,7 +25,7 @@ if (isMainThread) {
     setImmediate(() => process.exit());
   }
 } else {
-  inspector.open();
+  inspector.open(0, undefined, false);
   parentPort.postMessage('open');
   inspector.waitForDebugger();
 }
