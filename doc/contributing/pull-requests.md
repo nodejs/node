@@ -119,7 +119,8 @@ one or more of a few places in the repository.
 
 If you are modifying code, please be sure to run `make lint` (or
 `vcbuild.bat lint` on Windows) to ensure that the changes follow the Node.js
-code style guide.
+code style guide. When changing code that may have an impact on the security
+of Node.js, make sure to use [primordials](primordials.md) when possible.
 
 Any documentation you write (including code comments and API documentation)
 should follow the [Style Guide](../../README.md). Code samples
