@@ -237,6 +237,12 @@ The `pipeline` API provides [callback version][stream-pipeline]:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version:
+    - v18.14.0
+    - v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/46205
+    description: Add support for ReadableStream and WritableStream
 -->
 
 * `stream` {Stream}
