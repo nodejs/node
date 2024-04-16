@@ -242,10 +242,11 @@ changes:
     - v18.14.0
     - v20.0.0
     pr-url: https://github.com/nodejs/node/pull/46205
-    description: Add support for ReadableStream and WritableStream
+    description: Added support for `ReadableStream` and `WritableStream`.
 -->
 
-* `stream` {Stream}
+* `stream` {Stream|ReadableStream|WritableStream} A readable and/or writable
+  stream/webstream.
 * `options` {Object}
   * `error` {boolean|undefined}
   * `readable` {boolean|undefined}
