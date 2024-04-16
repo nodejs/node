@@ -84,8 +84,10 @@ const symlinksRootPath = pathModule.join(readdirDir, 'symlinks');
 const symlinkTargetFile = pathModule.join(symlinksRootPath, 'symlink-target-file');
 const symlinkTargetDir = pathModule.join(symlinksRootPath, 'symlink-target-dir');
 fs.mkdirSync(symlinksRootPath);
+fs.symlinkSync(symlinksRootPath, pathModule.join(readdirDir, 'symlinks-src'));
 fs.writeFileSync(symlinkTargetFile, '');
 fs.mkdirSync(symlinkTargetDir);
+fs.writeFileSync(pathModule.join(symlinkTargetDir, 'symlink-target-dir-file'), '');
 fs.symlinkSync(symlinkTargetFile, pathModule.join(symlinksRootPath, 'symlink-src-file'));
 fs.symlinkSync(symlinkTargetDir, pathModule.join(symlinksRootPath, 'symlink-src-dir'));
 
@@ -110,8 +112,19 @@ const expected = [
   'q', 'q/bar', 'q/foo', 'qq', 'qq/bar', 'qq/foo',
   'r', 'r/bar', 'r/foo', 'rr', 'rr/bar', 'rr/foo',
   's', 's/bar', 's/foo', 'ss', 'ss/bar', 'ss/foo',
-  'symlinks', 'symlinks/symlink-src-dir', 'symlinks/symlink-src-file',
-  'symlinks/symlink-target-dir', 'symlinks/symlink-target-file',
+  'symlinks', 'symlinks-src',
+  'symlinks-src/symlink-src-dir',
+  'symlinks-src/symlink-src-dir/symlink-target-dir-file',
+  'symlinks-src/symlink-src-file',
+  'symlinks-src/symlink-target-dir',
+  'symlinks-src/symlink-target-dir/symlink-target-dir-file',
+  'symlinks-src/symlink-target-file',
+  'symlinks/symlink-src-dir',
+  'symlinks/symlink-src-dir/symlink-target-dir-file',
+  'symlinks/symlink-src-file',
+  'symlinks/symlink-target-dir',
+  'symlinks/symlink-target-dir/symlink-target-dir-file',
+  'symlinks/symlink-target-file',
   't', 't/bar', 't/foo', 'tt', 'tt/bar', 'tt/foo',
   'u', 'u/bar', 'u/foo', 'uu', 'uu/bar', 'uu/foo',
   'v', 'v/bar', 'v/foo', 'vv', 'vv/bar', 'vv/foo',
@@ -121,16 +134,30 @@ const expected = [
   'z', 'z/bar', 'z/foo', 'zz', 'zz/bar', 'zz/foo',
 ];
 
+const symlinkFiles = [
+  'symlinks-src/symlink-src-dir',
+  'symlinks-src/symlink-src-dir/symlink-target-dir-file',
+  'symlinks-src/symlink-src-file',
+  'symlinks-src/symlink-target-dir',
+  'symlinks-src/symlink-target-dir/symlink-target-dir-file',
+  'symlinks-src/symlink-target-file',
+  'symlinks/symlink-src-dir/symlink-target-dir-file',
+];
+const skipSymlinkExpected = expected.filter((file) => !symlinkFiles.includes(file));
+
 // Normalize paths once for non POSIX platforms
 for (let i = 0; i < expected.length; i++) {
   expected[i] = pathModule.normalize(expected[i]);
+}
+for (let i = 0; i < symlinkFiles.length; i++) {
+  symlinkFiles[i] = pathModule.normalize(symlinkFiles[i]);
 }
 
 function getDirentPath(dirent) {
   return pathModule.relative(readdirDir, pathModule.join(dirent.path, dirent.name));
 }
 
-function assertDirents(dirents) {
+function assertDirents(dirents, expected) {
   assert.strictEqual(dirents.length, expected.length);
   dirents.sort((a, b) => (getDirentPath(a) < getDirentPath(b) ? -1 : 1));
   assert.deepStrictEqual(
@@ -154,7 +181,13 @@ function assertDirents(dirents) {
 // readdirSync { recursive, withFileTypes }
 {
   const result = fs.readdirSync(readdirDir, { recursive: true, withFileTypes: true });
-  assertDirents(result);
+  assertDirents(result, expected);
+}
+
+// readdirSync { recursive, skipSymlinkDir }
+{
+  const result = fs.readdirSync(readdirDir, { recursive: true, skipSymlinkDir: true });
+  assert.deepStrictEqual(result.sort(), skipSymlinkExpected);
 }
 
 // readdir
@@ -171,7 +204,15 @@ function assertDirents(dirents) {
 {
   fs.readdir(readdirDir, { recursive: true, withFileTypes: true },
              common.mustSucceed((result) => {
-               assertDirents(result);
+               assertDirents(result, expected);
+             }));
+}
+
+// Readdir { recursive, skipSymlinkDir } callback
+{
+  fs.readdir(readdirDir, { recursive: true, skipSymlinkDir: true },
+             common.mustSucceed((result) => {
+               assert.deepStrictEqual(result.sort(), skipSymlinkExpected);
              }));
 }
 
@@ -191,7 +232,17 @@ function assertDirents(dirents) {
 {
   async function test() {
     const result = await fs.promises.readdir(readdirDir, { recursive: true, withFileTypes: true });
-    assertDirents(result);
+    assertDirents(result, expected);
+  }
+
+  test().then(common.mustCall());
+}
+
+// fs.promises.readdir { recursive, skipSymlinkDir }
+{
+  async function test() {
+    const result = await fs.promises.readdir(readdirDir, { recursive: true, skipSymlinkDir: true });
+    assert.deepStrictEqual(result.sort(), skipSymlinkExpected);
   }
 
   test().then(common.mustCall());

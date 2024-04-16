@@ -1368,6 +1368,9 @@ closed after the iterator exits.
 <!-- YAML
 added: v10.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52553
+    description: New option `skipSymlinkDir` was added.
   - version:
     - v20.1.0
     - v18.17.0
@@ -1385,6 +1388,9 @@ changes:
   * `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files, and
     directories. **Default:** `false`.
+  * `skipSymlinkDir` {boolean} This option is only effective when `recursive`
+    is set to `true`. If `true`, symbolic link directories are skipped. If
+    `false`, symbolic link directories are included. **Default:** `false`.
 * Returns: {Promise}  Fulfills with an array of the names of the files in
   the directory excluding `'.'` and `'..'`.
 
@@ -3728,6 +3734,9 @@ above values.
 <!-- YAML
 added: v0.1.8
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52553
+    description: New option `skipSymlinkDir` was added.
   - version:
     - v20.1.0
     - v18.17.0
@@ -3765,6 +3774,9 @@ changes:
   * `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files and
     directories. **Default:** `false`.
+  * `skipSymlinkDir` {boolean} This option is only effective when `recursive`
+    is set to `true`. If `true`, symbolic link directories are skipped. If
+    `false`, symbolic link directories are included. **Default:** `false`.
 * `callback` {Function}
   * `err` {Error}
   * `files` {string\[]|Buffer\[]|fs.Dirent\[]}
@@ -5857,6 +5869,9 @@ this API: [`fs.open()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52553
+    description: New option `skipSymlinkDir` was added.
   - version:
     - v20.1.0
     - v18.17.0
@@ -5878,6 +5893,9 @@ changes:
   * `recursive` {boolean} If `true`, reads the contents of a directory
     recursively. In recursive mode, it will list all files, sub files, and
     directories. **Default:** `false`.
+  * `skipSymlinkDir` {boolean} This option is only effective when `recursive`
+    is set to `true`. If `true`, symbolic link directories are skipped. If
+    `false`, symbolic link directories are included. **Default:** `false`.
 * Returns: {string\[]|Buffer\[]|fs.Dirent\[]}
 
 Reads the contents of the directory.
