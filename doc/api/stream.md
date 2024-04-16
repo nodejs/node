@@ -241,7 +241,7 @@ changes:
   - version:
     - v19.5.0
     - v18.14.0
-    pr-url: https://github.com/nodejs/node/pull/52551
+    pr-url: https://github.com/nodejs/node/pull/46205
     description: Added support for `ReadableStream` and `WritableStream`.
 -->
 
