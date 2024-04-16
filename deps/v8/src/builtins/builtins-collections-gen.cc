@@ -2782,10 +2782,9 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::ShouldShrink(
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
     TNode<IntPtrT> key_index) {
-  return IntPtrAdd(
-      key_index,
-      IntPtrConstant(EphemeronHashTable::TodoShape::kEntryValueIndex -
-                     EphemeronHashTable::kEntryKeyIndex));
+  return IntPtrAdd(key_index,
+                   IntPtrConstant(EphemeronHashTable::ShapeT::kEntryValueIndex -
+                                  EphemeronHashTable::kEntryKeyIndex));
 }
 
 TF_BUILTIN(WeakMapConstructor, WeakCollectionsBuiltinsAssembler) {

@@ -1121,8 +1121,7 @@ class TurboshaftAssemblerOpInterface
 
   template <typename... Args>
   explicit TurboshaftAssemblerOpInterface(Args... args)
-      : GenericAssemblerOpInterface<Next>(args...),
-        matcher_(Asm().output_graph()) {}
+      : matcher_(Asm().output_graph()) {}
 
   const OperationMatcher& matcher() const { return matcher_; }
 
@@ -2245,11 +2244,11 @@ class TurboshaftAssemblerOpInterface
 
   // Helpers to read the most common fields.
   // TODO(nicohartmann@): Strengthen this to `V<HeapObject>`.
-  V<Map> LoadMapField(V<Object> object) {
-    return LoadField<Map>(object, AccessBuilder::ForMap());
+  V<v8::internal::Map> LoadMapField(V<Object> object) {
+    return LoadField<v8::internal::Map>(object, AccessBuilder::ForMap());
   }
 
-  V<Word32> LoadInstanceTypeField(V<Map> map) {
+  V<Word32> LoadInstanceTypeField(V<v8::internal::Map> map) {
     return LoadField<Word32>(map, AccessBuilder::ForMapInstanceType());
   }
 
@@ -2849,7 +2848,7 @@ class TurboshaftAssemblerOpInterface
   V<Object> CallRuntime_TransitionElementsKind(Isolate* isolate,
                                                V<Context> context,
                                                V<HeapObject> object,
-                                               V<Map> target_map) {
+                                               V<v8::internal::Map> target_map) {
     return CallRuntime<typename RuntimeCallDescriptor::TransitionElementsKind>(
         isolate, context, {object, target_map});
   }
@@ -3267,8 +3266,8 @@ class TurboshaftAssemblerOpInterface
 
   void TransitionAndStoreArrayElement(
       V<Object> array, V<WordPtr> index, OpIndex value,
-      TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<Map> fast_map,
-      MaybeHandle<Map> double_map) {
+      TransitionAndStoreArrayElementOp::Kind kind, MaybeHandle<v8::internal::Map> fast_map,
+      MaybeHandle<v8::internal::Map> double_map) {
     ReduceIfReachableTransitionAndStoreArrayElement(array, index, value, kind,
                                                     fast_map, double_map);
   }
@@ -3281,17 +3280,17 @@ class TurboshaftAssemblerOpInterface
   }
 
   V<Word32> CompareMaps(V<HeapObject> heap_object,
-                        const ZoneRefSet<Map>& maps) {
+                        const ZoneRefSet<v8::internal::Map>& maps) {
     return ReduceIfReachableCompareMaps(heap_object, maps);
   }
 
   void CheckMaps(V<HeapObject> heap_object, OpIndex frame_state,
-                 const ZoneRefSet<Map>& maps, CheckMapsFlags flags,
+                 const ZoneRefSet<v8::internal::Map>& maps, CheckMapsFlags flags,
                  const FeedbackSource& feedback) {
     ReduceIfReachableCheckMaps(heap_object, frame_state, maps, flags, feedback);
   }
 
-  void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<Map>& maps) {
+  void AssumeMap(V<HeapObject> heap_object, const ZoneRefSet<v8::internal::Map>& maps) {
     ReduceIfReachableAssumeMap(heap_object, maps);
   }
 
@@ -3400,16 +3399,16 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableAssertNotNull(object, type, trap_id);
   }
 
-  V<Map> RttCanon(V<FixedArray> rtts, uint32_t type_index) {
+  V<v8::internal::Map> RttCanon(V<FixedArray> rtts, uint32_t type_index) {
     return ReduceIfReachableRttCanon(rtts, type_index);
   }
 
-  V<Word32> WasmTypeCheck(V<Tagged> object, OptionalV<Map> rtt,
+  V<Word32> WasmTypeCheck(V<Tagged> object, OptionalV<v8::internal::Map> rtt,
                           WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCheck(object, rtt, config);
   }
 
-  V<Tagged> WasmTypeCast(V<Tagged> object, OptionalV<Map> rtt,
+  V<Tagged> WasmTypeCast(V<Tagged> object, OptionalV<v8::internal::Map> rtt,
                          WasmTypeCheckConfig config) {
     return ReduceIfReachableWasmTypeCast(object, rtt, config);
   }
@@ -3454,12 +3453,12 @@ class TurboshaftAssemblerOpInterface
     return ReduceIfReachableArrayLength(array, null_check);
   }
 
-  V<HeapObject> WasmAllocateArray(V<Map> rtt, ConstOrV<Word32> length,
+  V<HeapObject> WasmAllocateArray(V<v8::internal::Map> rtt, ConstOrV<Word32> length,
                                   const wasm::ArrayType* array_type) {
     return ReduceIfReachableWasmAllocateArray(rtt, resolve(length), array_type);
   }
 
-  V<HeapObject> WasmAllocateStruct(V<Map> rtt,
+  V<HeapObject> WasmAllocateStruct(V<v8::internal::Map> rtt,
                                    const wasm::StructType* struct_type) {
     return ReduceIfReachableWasmAllocateStruct(rtt, struct_type);
   }
@@ -4044,8 +4043,14 @@ class TSAssembler
     : public Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
                                     TSReducerBase>> {
  public:
-  using Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
-                               TSReducerBase>>::Assembler;
+#ifdef _WIN32
+  explicit TSAssembler(Graph& input_graph, Graph& output_graph,
+                       Zone* phase_zone)
+      : Assembler(input_graph, output_graph, phase_zone) {}
+#else
+   using Assembler<reducer_list<TurboshaftAssemblerOpInterface, Reducers...,
+                                TSReducerBase>>::Assembler;
+#endif
 };
 
 #include "src/compiler/turboshaft/undef-assembler-macros.inc"

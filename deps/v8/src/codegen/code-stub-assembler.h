@@ -1547,7 +1547,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   template <typename Array>
   TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
+    return LoadObjectField<Smi>(array, Array::ShapeT::kCapacityOffset);
   }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);

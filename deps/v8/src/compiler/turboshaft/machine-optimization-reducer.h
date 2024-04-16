@@ -1349,26 +1349,11 @@ class MachineOptimizationReducer : public Next {
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                 left, &x, rep_w, &k1) &&
             matcher.MatchIntegralWordConstant(right, rep_w, &k2) &&
-            CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher.Get(left).saturated_use_count.IsZero()) {
-            return __ Comparison(
-                x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
-                rep_w);
-          } else if constexpr (reducer_list_contains<
-                                   ReducerList, ValueNumberingReducer>::value) {
-            // If the shift has uses, we only apply the transformation if the
-            // result would be GVNed away.
-            OpIndex rhs =
-                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w);
-            static_assert(ComparisonOp::input_count == 2);
-            static_assert(sizeof(ComparisonOp) == 8);
-            base::SmallVector<OperationStorageSlot, 32> storage;
-            ComparisonOp* cmp =
-                CreateOperation<ComparisonOp>(storage, x, rhs, kind, rep_w);
-            if (__ WillGVNOp(*cmp)) {
-              return __ Comparison(x, rhs, kind, rep_w);
-            }
-          }
+            CountLeadingSignBits(k2, rep_w) > k1 &&
+            matcher.Get(left).saturated_use_count.IsZero()) {
+          return __ Comparison(
+              x, __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), kind,
+              rep_w);
         }
         // k2 </<= (x >> k1)  =>  (k2 << k1) </<= x  if shifts reversible
         // Only perform the transformation if the shift is not used yet, to
@@ -1376,26 +1361,11 @@ class MachineOptimizationReducer : public Next {
         if (matcher.MatchConstantShiftRightArithmeticShiftOutZeros(
                 right, &x, rep_w, &k1) &&
             matcher.MatchIntegralWordConstant(left, rep_w, &k2) &&
-            CountLeadingSignBits(k2, rep_w) > k1) {
-          if (matcher.Get(right).saturated_use_count.IsZero()) {
-            return __ Comparison(
-                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
-                rep_w);
-          } else if constexpr (reducer_list_contains<
-                                   ReducerList, ValueNumberingReducer>::value) {
-            // If the shift has uses, we only apply the transformation if the
-            // result would be GVNed away.
-            OpIndex lhs =
-                __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w);
-            static_assert(ComparisonOp::input_count == 2);
-            static_assert(sizeof(ComparisonOp) == 8);
-            base::SmallVector<OperationStorageSlot, 32> storage;
-            ComparisonOp* cmp =
-                CreateOperation<ComparisonOp>(storage, lhs, x, kind, rep_w);
-            if (__ WillGVNOp(*cmp)) {
-              return __ Comparison(lhs, x, kind, rep_w);
-            }
-          }
+            CountLeadingSignBits(k2, rep_w) > k1 &&
+            matcher.Get(right).saturated_use_count.IsZero()) {
+          return __ Comparison(
+              __ WordConstant(base::bits::Unsigned(k2) << k1, rep_w), x, kind,
+              rep_w);
         }
       }
       // Map 64bit to 32bit comparisons.
