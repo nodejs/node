@@ -1601,7 +1601,10 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Uint32> order;
-  args[4]->ToUint32(env->context()).ToLocal(&order);
+  if (!args[4]->ToUint32(env->context()).ToLocal(&order)) {
+    THROW_ERR_INVALID_ARG_VALUE(env, "bad order");
+    return;
+  }
 
   auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
                                                        req_wrap_obj,
