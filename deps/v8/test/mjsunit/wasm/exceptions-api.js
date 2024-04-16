@@ -295,11 +295,11 @@ function TestGetArgHelper(types_str, types, values) {
   }});
 
   let obj = {};
+  // Creating a WA.Exception with the JSTag explicitly is not allowed.
+  assertThrows(() => new WebAssembly.Exception(WebAssembly.JSTag, [obj]), TypeError);
 
   // Catch with implicit wrapping.
   assertSame(obj, instance.exports.test(obj));
-  // Catch with explicit wrapping.
-  assertSame(obj, instance.exports.test(new WebAssembly.Exception(WebAssembly.JSTag, [obj])));
   // Don't catch with explicit wrapping.
   let not_js_tag = new WebAssembly.Tag({parameters:['externref']});
   let exn = new WebAssembly.Exception(not_js_tag, [obj]);
@@ -316,11 +316,6 @@ function TestGetArgHelper(types_str, types, values) {
 
   // Catch with explicit wrapping.
   assertSame(obj, instance.exports.test(new WebAssembly.Exception(not_js_tag, [obj])));
-  // Don't catch with explicit wrapping.
-  exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
-  // TODO(thibaudm): Should the exception get implicitly unwrapped when it
-  // bubbles up from wasm to JS, even though it was wrapped explicitly?
-  assertThrowsEquals(() => instance.exports.test(exn), exn);
   // Don't catch with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
 })();

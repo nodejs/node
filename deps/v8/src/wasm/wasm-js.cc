@@ -2001,6 +2001,11 @@ void WebAssemblyExceptionImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       i::Handle<i::WasmTagObject>::cast(arg0);
   i::Handle<i::WasmExceptionTag> tag(
       i::WasmExceptionTag::cast(tag_object->tag()), i_isolate);
+  auto js_tag = i::WasmTagObject::cast(i_isolate->context()->wasm_js_tag());
+  if (*tag == js_tag->tag()) {
+    thrower.TypeError("Argument 0 cannot be WebAssembly.JSTag");
+    return;
+  }
   uint32_t size = GetEncodedSize(tag_object);
   i::Handle<i::WasmExceptionPackage> runtime_exception =
       i::WasmExceptionPackage::New(i_isolate, tag, size);

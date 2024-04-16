@@ -41,11 +41,11 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   }});
 
   let obj = {};
+  // Creating a WA.Exception with the JSTag explicitly is not allowed.
+  assertThrows(() => new WebAssembly.Exception(WebAssembly.JSTag, [obj]), TypeError);
 
   // Catch with implicit wrapping.
   assertSame(obj, instance.exports.test(obj));
-  // Catch with explicit wrapping.
-  assertSame(obj, instance.exports.test(new WebAssembly.Exception(WebAssembly.JSTag, [obj])));
   // Don't catch with explicit wrapping.
   let not_js_tag = new WebAssembly.Tag({parameters:['externref']});
   let exn = new WebAssembly.Exception(not_js_tag, [obj]);
@@ -63,10 +63,6 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   // Catch with explicit wrapping.
   assertSame(obj, instance.exports.test(new WebAssembly.Exception(not_js_tag, [obj])));
   // Don't catch with explicit wrapping.
-  exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
-  // TODO(thibaudm): Should the exception get implicitly unwrapped when it
-  // bubbles up from wasm to JS, even though it was wrapped explicitly?
-  assertThrowsEquals(() => instance.exports.test(exn), exn);
   // Don't catch with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
 })();
@@ -107,8 +103,6 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   // Catch with implicit wrapping.
   assertSame(obj, instance.exports.test(obj));
-  // Catch with explicit wrapping.
-  assertSame(obj, instance.exports.test(new WebAssembly.Exception(WebAssembly.JSTag, [obj])));
   // Don't catch with explicit wrapping.
   let not_js_tag = new WebAssembly.Tag({parameters:['externref']});
   let exn = new WebAssembly.Exception(not_js_tag, [obj]);
@@ -125,11 +119,6 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   // Catch with explicit wrapping.
   assertSame(obj, instance.exports.test(new WebAssembly.Exception(not_js_tag, [obj])));
-  // Don't catch with explicit wrapping.
-  exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
-  // TODO(thibaudm): Should the exception get implicitly unwrapped when it
-  // bubbles up from wasm to JS, even though it was wrapped explicitly?
-  assertThrowsEquals(() => instance.exports.test(exn), exn);
   // Don't catch with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
 })();
@@ -171,11 +160,6 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
 
   // Catch and rethrown with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
-  // Catch and rethrown with explicit wrapping.
-  // TODO: Should the exception get implicitly unwrapped when it
-  // is rethrown from wasm to JS, even though it was wrapped explicitly?
-  let exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
-  assertThrowsEquals(() => instance.exports.test(exn), exn);
   // Don't catch with explicit wrapping.
   let not_js_tag = new WebAssembly.Tag({parameters:['externref']});
   exn = new WebAssembly.Exception(not_js_tag, [obj]);
@@ -193,11 +177,29 @@ d8.file.execute("test/mjsunit/wasm/exceptions-utils.js");
   // Catch and rethrow with explicit wrapping -> not unwrapped in this case.
   exn = new WebAssembly.Exception(not_js_tag, [obj]);
   assertThrowsEquals(() => instance.exports.test(exn), exn);
-  // Don't catch with explicit wrapping.
-  exn = new WebAssembly.Exception(WebAssembly.JSTag, [obj]);
-  // TODO(thibaudm): Should the exception get implicitly unwrapped when it
-  // bubbles up from wasm to JS, even though it was wrapped explicitly?
-  assertThrowsEquals(() => instance.exports.test(exn), exn);
   // Don't catch with implicit wrapping.
   assertThrowsEquals(() => instance.exports.test(obj), obj);
+})();
+
+(function TestThrowJSTag() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let js_tag = builder.addImportedTag("", "tag", kSig_v_r);
+
+  // Throw a JS object with WebAssembly.JSTag and check that we can catch
+  // it as-is from JavaScript.
+  builder.addFunction("test", kSig_v_r)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprThrow, js_tag,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({"": {
+      tag: WebAssembly.JSTag,
+  }});
+
+  let obj = {};
+  assertThrowsEquals(() => instance.exports.test(obj), obj);
+  assertThrowsEquals(() => instance.exports.test(5), 5);
 })();
