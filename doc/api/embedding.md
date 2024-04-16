@@ -166,8 +166,47 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 }
 ```
 
+## Node-API Embedding
+
+<!--introduced_in=REPLACEME-->
+
+As an alternative, an embedded Node.js can also be fully controlled through
+Node-API. This API supports both C and C++ through [node-addon-api][].
+
+An example can be found [in the Node.js source tree][napi_embedding.c].
+
+```c
+  napi_platform platform;
+  napi_env env;
+  const char *main_script = "console.log('hello world')";
+
+  if (napi_create_platform(0, NULL, NULL, &platform) != napi_ok) {
+    fprintf(stderr, "Failed creating the platform\n");
+    return -1;
+  }
+
+  if (napi_create_environment(platform, NULL, main_script,
+        (napi_stdio){NULL, NULL, NULL}, NAPI_VERSION, &env) != napi_ok) {
+    fprintf(stderr, "Failed running JS\n");
+    return -1;
+  }
+
+  // Here you can interact with the environment through Node-API env
+
+  if (napi_destroy_environment(env, NULL) != napi_ok) {
+    return -1;
+  }
+
+  if (napi_destroy_platform(platform) != napi_ok) {
+    fprintf(stderr, "Failed destroying the platform\n");
+    return -1;
+  }
+```
+
 [CLI options]: cli.md
 [`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
+[napi_embedding.c]: https://github.com/nodejs/node/blob/HEAD/test/embedding/napi_embedding.c
+[node-addon-api]: https://github.com/nodejs/node-addon-api
 [src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h
