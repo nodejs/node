@@ -1,9 +1,8 @@
 'use strict';
 
-require('../common');
+const { platformTimeout } = require('../common');
 
 const assert = require('assert');
 const { getDefaultAutoSelectFamilyAttemptTimeout } = require('net');
 
-// Note that in test/common/index the default value is multiplied by 10.
-assert.strictEqual(getDefaultAutoSelectFamilyAttemptTimeout(), 2500);
+assert.strictEqual(getDefaultAutoSelectFamilyAttemptTimeout(), platformTimeout(2500));
