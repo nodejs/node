@@ -374,6 +374,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--dns-result-order",
             "set default value of verbatim in dns.lookup. Options are "
             "'ipv4first' (IPv4 addresses are placed before IPv6 addresses) "
+            "'ipv6first' (IPv6 addresses are placed before IPv4 addresses) "
             "'verbatim' (addresses are in the order the DNS resolver "
             "returned)",
             &EnvironmentOptions::dns_result_order,

@@ -18,9 +18,7 @@ cares.getaddrinfo = common.mustCallAtLeast((...args) => {
 const dns = require('dns');
 const dnsPromises = dns.promises;
 
-let verbatim;
-
-// We want to test the parameter of verbatim only so that we
+// We want to test the parameter of order only so that we
 // ignore possible errors here.
 function allowFailed(fn) {
   return fn.catch((_err) => {
@@ -32,8 +30,8 @@ function allowFailed(fn) {
   let callsLength = 0;
   const checkParameter = (expected) => {
     assert.strictEqual(calls.length, callsLength + 1);
-    verbatim = calls[callsLength][4];
-    assert.strictEqual(verbatim, expected);
+    const order = calls[callsLength][4];
+    assert.strictEqual(order, expected);
     callsLength += 1;
   };
 
