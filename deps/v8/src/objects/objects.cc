@@ -5137,11 +5137,11 @@ void HashTable<Derived, Shape>::Rehash(PtrComprCageBase cage_base,
     uint32_t from_index = EntryToIndex(i);
     Tagged<Object> k = this->get(from_index);
     if (!IsKey(roots, k)) continue;
-    uint32_t hash = TodoShape::HashForObject(roots, k);
+    uint32_t hash = Shape::HashForObject(roots, k);
     uint32_t insertion_index =
         EntryToIndex(new_table->FindInsertionEntry(cage_base, roots, hash));
     new_table->set_key(insertion_index, get(from_index), mode);
-    for (int j = 1; j < TodoShape::kEntrySize; j++) {
+    for (int j = 1; j < Shape::kEntrySize; j++) {
       new_table->set(insertion_index + j, get(from_index + j), mode);
     }
   }
@@ -5154,7 +5154,7 @@ InternalIndex HashTable<Derived, Shape>::EntryForProbe(ReadOnlyRoots roots,
                                                        Tagged<Object> k,
                                                        int probe,
                                                        InternalIndex expected) {
-  uint32_t hash = TodoShape::HashForObject(roots, k);
+  uint32_t hash = Shape::HashForObject(roots, k);
   uint32_t capacity = this->Capacity();
   InternalIndex entry = FirstProbe(hash, capacity);
   for (int i = 1; i < probe; i++) {
@@ -5169,17 +5169,17 @@ void HashTable<Derived, Shape>::Swap(InternalIndex entry1, InternalIndex entry2,
                                      WriteBarrierMode mode) {
   int index1 = EntryToIndex(entry1);
   int index2 = EntryToIndex(entry2);
-  Tagged<Object> temp[TodoShape::kEntrySize];
+  Tagged<Object> temp[Shape::kEntrySize];
   Derived* self = static_cast<Derived*>(this);
-  for (int j = 0; j < TodoShape::kEntrySize; j++) {
+  for (int j = 0; j < Shape::kEntrySize; j++) {
     temp[j] = get(index1 + j);
   }
   self->set_key(index1, get(index2), mode);
-  for (int j = 1; j < TodoShape::kEntrySize; j++) {
+  for (int j = 1; j < Shape::kEntrySize; j++) {
     set(index1 + j, get(index2 + j), mode);
   }
   self->set_key(index2, temp[0], mode);
-  for (int j = 1; j < TodoShape::kEntrySize; j++) {
+  for (int j = 1; j < Shape::kEntrySize; j++) {
     set(index2 + j, temp[j], mode);
   }
 }
@@ -5341,7 +5341,7 @@ GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base{isolate};
   ReadOnlyRoots roots(isolate);
-  const int32_t hash = TodoShape::Hash(roots, name);
+  const int32_t hash = ShapeT::Hash(roots, name);
   const uint32_t capacity = Capacity();
   uint32_t count = 1;
   Tagged<Object> undefined = roots.undefined_value();
@@ -5352,8 +5352,8 @@ GlobalDictionary::TryFindPropertyCellForConcurrentLookupIterator(
     Tagged<Object> element = KeyAt(cage_base, entry, kRelaxedLoad);
     if (isolate->heap()->IsPendingAllocation(element)) return {};
     if (element == undefined) return {};
-    if (TodoShape::kMatchNeedsHoleCheck && element == the_hole) continue;
-    if (!TodoShape::IsMatch(name, element)) continue;
+    if (ShapeT::kMatchNeedsHoleCheck && element == the_hole) continue;
+    if (!ShapeT::IsMatch(name, element)) continue;
     CHECK(IsPropertyCell(element, cage_base));
     return PropertyCell::cast(element);
   }
@@ -5367,7 +5367,7 @@ Handle<StringSet> StringSet::Add(Isolate* isolate, Handle<StringSet> stringset,
                                  Handle<String> name) {
   if (!stringset->Has(isolate, name)) {
     stringset = EnsureCapacity(isolate, stringset);
-    uint32_t hash = TodoShape::Hash(ReadOnlyRoots(isolate), *name);
+    uint32_t hash = ShapeT::Hash(ReadOnlyRoots(isolate), *name);
     InternalIndex entry = stringset->FindInsertionEntry(isolate, hash);
     stringset->set(EntryToIndex(entry), *name);
     stringset->ElementAdded();
@@ -5386,7 +5386,7 @@ Handle<RegisteredSymbolTable> RegisteredSymbolTable::Add(
   SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
 
   table = EnsureCapacity(isolate, table);
-  uint32_t hash = TodoShape::Hash(ReadOnlyRoots(isolate), key);
+  uint32_t hash = ShapeT::Hash(ReadOnlyRoots(isolate), key);
   InternalIndex entry = table->FindInsertionEntry(isolate, hash);
   table->set(EntryToIndex(entry), *key);
   table->set(EntryToValueIndex(entry), *symbol);
@@ -5455,7 +5455,7 @@ int BaseNameDictionary<Derived, Shape>::NextEnumerationIndex(
 template <typename Derived, typename Shape>
 Handle<Derived> Dictionary<Derived, Shape>::DeleteEntry(
     Isolate* isolate, Handle<Derived> dictionary, InternalIndex entry) {
-  DCHECK(TodoShape::kEntrySize != 3 ||
+  DCHECK(Shape::kEntrySize != 3 ||
          dictionary->DetailsAt(entry).IsConfigurable());
   dictionary->ClearEntry(entry);
   dictionary->ElementRemoved();
@@ -5476,7 +5476,7 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Isolate* isolate,
 
   // We don't need to copy over the enumeration index.
   dictionary->ValueAtPut(entry, *value);
-  if (TodoShape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
+  if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
   return dictionary;
 }
 
@@ -5493,7 +5493,7 @@ void Dictionary<Derived, Shape>::UncheckedAtPut(Isolate* isolate,
   } else {
     // We don't need to copy over the enumeration index.
     dictionary->ValueAtPut(entry, *value);
-    if (TodoShape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
+    if (Shape::kEntrySize == 3) dictionary->DetailsAtPut(entry, details);
   }
 }
 
@@ -5534,19 +5534,19 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(IsolateT* isolate,
                                                 PropertyDetails details,
                                                 InternalIndex* entry_out) {
   ReadOnlyRoots roots(isolate);
-  uint32_t hash = TodoShape::Hash(roots, key);
+  uint32_t hash = Shape::Hash(roots, key);
   // Validate that the key is absent.
   SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
   // Check whether the dictionary should be extended.
   dictionary = Derived::EnsureCapacity(isolate, dictionary);
 
   // Compute the key object.
-  Handle<Object> k = TodoShape::template AsHandle<key_allocation>(isolate, key);
+  Handle<Object> k = Shape::template AsHandle<key_allocation>(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(IsNumber(dictionary->KeyAt(isolate, entry)) ||
-         IsUniqueName(TodoShape::Unwrap(dictionary->KeyAt(isolate, entry))));
+         IsUniqueName(Shape::Unwrap(dictionary->KeyAt(isolate, entry))));
   dictionary->ElementAdded();
   if (entry_out) *entry_out = entry;
   return dictionary;
@@ -5559,18 +5559,18 @@ void Dictionary<Derived, Shape>::UncheckedAdd(IsolateT* isolate,
                                               Key key, Handle<Object> value,
                                               PropertyDetails details) {
   ReadOnlyRoots roots(isolate);
-  uint32_t hash = TodoShape::Hash(roots, key);
+  uint32_t hash = Shape::Hash(roots, key);
   // Validate that the key is absent and we capacity is sufficient.
   SLOW_DCHECK(dictionary->FindEntry(isolate, key).is_not_found());
   DCHECK(dictionary->HasSufficientCapacityToAdd(1));
 
   // Compute the key object.
-  Handle<Object> k = TodoShape::template AsHandle<key_allocation>(isolate, key);
+  Handle<Object> k = Shape::template AsHandle<key_allocation>(isolate, key);
 
   InternalIndex entry = dictionary->FindInsertionEntry(isolate, roots, hash);
   dictionary->SetEntry(entry, *k, *value, details);
   DCHECK(IsNumber(dictionary->KeyAt(isolate, entry)) ||
-         IsUniqueName(TodoShape::Unwrap(dictionary->KeyAt(isolate, entry))));
+         IsUniqueName(Shape::Unwrap(dictionary->KeyAt(isolate, entry))));
 }
 
 template <typename Derived, typename Shape>

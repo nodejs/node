@@ -930,6 +930,13 @@
           ],
         }],
       ],
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'AdditionalOptions': [
+            '/bigobj'
+          ],
+        },
+      },
     },  # v8_turboshaft
     {
       'target_name': 'v8_compiler_for_mksnapshot',
