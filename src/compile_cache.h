@@ -36,7 +36,7 @@ struct CompileCacheEntry {
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
-  bool InitializeDirectory(const std::string& dir);
+  bool InitializeDirectory(Environment* env, const std::string& dir);
 
   void Persist();
 

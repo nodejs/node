@@ -4,6 +4,7 @@
 #include "node_file.h"
 #include "node_internals.h"
 #include "node_version.h"
+#include "path.h"
 #include "zlib.h"
 
 namespace node {
@@ -27,7 +28,7 @@ uint32_t GetHash(const char* data, size_t size) {
 }
 
 uint32_t GetCacheVersionTag() {
-  std::string node_version(NODE_VERSION);
+  std::string_view node_version(NODE_VERSION);
   uint32_t v8_tag = v8::ScriptCompiler::CachedDataVersionTag();
   uLong crc = crc32(0L, Z_NULL, 0);
   crc = crc32(crc, reinterpret_cast<const Bytef*>(&v8_tag), sizeof(uint32_t));
@@ -119,7 +120,7 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  // Read the cache, grow the buffer exponentially whenever it ills up.
+  // Read the cache, grow the buffer exponentially whenever it fills up.
   size_t offset = headers_buf.len;
   size_t capacity = 4096;  // Initial buffer capacity
   size_t total_read = 0;
@@ -340,10 +341,33 @@ CompileCacheHandler::CompileCacheHandler(Environment* env)
 //     - <cache_file_1>: a hash of filename + module type
 //     - <cache_file_2>
 //     - <cache_file_3>
-bool CompileCacheHandler::InitializeDirectory(const std::string& dir) {
+bool CompileCacheHandler::InitializeDirectory(Environment* env,
+                                              const std::string& dir) {
   compiler_cache_key_ = GetCacheVersionTag();
-  std::string cache_dir =
-      dir + kPathSeparator + Uint32ToHex(compiler_cache_key_);
+  std::string compiler_cache_key_string = Uint32ToHex(compiler_cache_key_);
+  std::vector<std::string_view> paths = {dir, compiler_cache_key_string};
+  std::string cache_dir = PathResolve(env, paths);
+
+  Debug("[compile cache] resolved path %s + %s -> %s\n",
+        dir,
+        compiler_cache_key_string,
+        cache_dir);
+
+  if (UNLIKELY(!env->permission()->is_granted(
+          permission::PermissionScope::kFileSystemWrite, cache_dir))) {
+    Debug("[compile cache] skipping cache because write permission for %s "
+          "is not granted\n",
+          cache_dir);
+    return false;
+  }
+
+  if (UNLIKELY(!env->permission()->is_granted(
+          permission::PermissionScope::kFileSystemRead, cache_dir))) {
+    Debug("[compile cache] skipping cache because read permission for %s "
+          "is not granted\n",
+          cache_dir);
+    return false;
+  }
 
   fs::FSReqWrapSync req_wrap;
   int err = fs::MKDirpSync(nullptr, &(req_wrap.req), cache_dir, 0777, nullptr);
@@ -356,22 +380,7 @@ bool CompileCacheHandler::InitializeDirectory(const std::string& dir) {
     return false;
   }
 
-  uv_fs_t req;
-  auto clean = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-  err = uv_fs_realpath(nullptr, &req, cache_dir.data(), nullptr);
-  if (is_debug_) {
-    Debug("[compile cache] resolving real path %s...%s\n",
-          cache_dir,
-          err < 0 ? uv_strerror(err) : "success");
-  }
-  if (err != 0 && err != UV_ENOENT) {
-    return false;
-  }
-
-  compile_cache_dir_ = std::string(static_cast<char*>(req.ptr));
-  Debug("[compile cache] resolved real path %s -> %s\n",
-        cache_dir,
-        compile_cache_dir_);
+  compile_cache_dir_ = cache_dir;
   return true;
 }
 

@@ -1097,7 +1097,7 @@ void Environment::InitializeCompileCache() {
     return;
   }
   auto handler = std::make_unique<CompileCacheHandler>(this);
-  if (handler->InitializeDirectory(dir_from_env)) {
+  if (handler->InitializeDirectory(this, dir_from_env)) {
     compile_cache_handler_ = std::move(handler);
     AtExit(
         [](void* env) {
