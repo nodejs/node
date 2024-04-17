@@ -45,13 +45,13 @@ describe('process.loadEnvFile()', () => {
   it('should throw when file does not exist', async () => {
     assert.throws(() => {
       process.loadEnvFile(missingEnvFile);
-    }, { code: 'ENOENT' });
+    }, { code: 'ENOENT', syscall: 'open', path: missingEnvFile });
   });
 
   it('should throw when `.env` does not exist', async () => {
     assert.throws(() => {
       process.loadEnvFile();
-    }, { code: 'ENOENT' });
+    }, { code: 'ENOENT', syscall: 'open', path: '.env' });
   });
 
   it('should check for permissions', async () => {

@@ -492,7 +492,7 @@ static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
       break;
     }
     case dotenv.ParseResult::FileError: {
-      env->ThrowUVException(UV_ENOENT, "Failed to load '%s'.", path.c_str());
+      env->ThrowUVException(UV_ENOENT, "open", nullptr, path.c_str());
       break;
     }
     default:
