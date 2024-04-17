@@ -1748,7 +1748,8 @@ added:
 -->
 
 Gets the current default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
-The initial default value is `250`.
+The initial default value is `250` or the value specified via the command line
+option `--network-family-autoselection-attempt-timeout`.
 
 * Returns: {number} The current default value of the `autoSelectFamilyAttemptTimeout` option.
 
@@ -1763,7 +1764,8 @@ added:
 Sets the default value of the `autoSelectFamilyAttemptTimeout` option of [`socket.connect(options)`][].
 
 * `value` {number} The new default value, which must be a positive number. If the number is less than `10`,
-  the value `10` is used instead. The initial default value is `250`.
+  the value `10` is used instead. The initial default value is `250` or the value specified via the command line
+  option `--network-family-autoselection-attempt-timeout`.
 
 ## `net.isIP(input)`
 
