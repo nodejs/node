@@ -26,6 +26,8 @@ option(ENABLE_SIMD_AVX512 "Enable SIMD AXV512 optimizations" OFF)
 option(USE_ZLIB_RABIN_KARP_HASH "Enable bitstream compatibility with canonical zlib" OFF)
 option(BUILD_UNITTESTS "Enable standalone unit tests build" OFF)
 option(BUILD_MINIZIP_BIN "Enable building minzip_bin tool" OFF)
+option(BUILD_ZPIPE "Enable building zpipe tool" OFF)
+option(BUILD_MINIGZIP "Enable building minigzip tool" OFF)
 
 if (USE_ZLIB_RABIN_KARP_HASH)
    add_definitions(-DUSE_ZLIB_RABIN_KARP_ROLLING_HASH)
@@ -79,9 +81,16 @@ if (ENABLE_SIMD_OPTIMIZATIONS)
     add_definitions(-DRISCV_RVV)
     add_definitions(-DDEFLATE_SLIDE_HASH_RVV)
     add_definitions(-DADLER32_SIMD_RVV)
-    #TODO(cavalcantii): add remaining flags as we port optimizations to RVV.
-    # Required by CPU features detection code.
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=riscv64-unknown-linux-gnu -march=rv64gcv")
+
+    # TODO(cavalcantii): add remaining flags as we port optimizations to RVV.
+    # chunk_copy is required for READ64 and unconditional decode of literals.
+    add_definitions(-DINFLATE_CHUNK_GENERIC)
+    add_definitions(-DINFLATE_CHUNK_READ_64LE)
+
+    # Tested with clang-17, unaligned loads are required by read64 & chunk_copy.
+    # TODO(cavalcantii): replace internal clang flags for -munaligned-access
+    # when we have a newer compiler available.
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --target=riscv64-unknown-linux-gnu -march=rv64gcv -Xclang -target-feature -Xclang +unaligned-scalar-mem")
   endif()
 
 endif()
@@ -192,9 +201,14 @@ set(ZLIB_SRCS
 if (ENABLE_SIMD_OPTIMIZATIONS)
   if (CMAKE_SYSTEM_PROCESSOR STREQUAL "riscv64")
     message("RISCVV: Add optimizations.")
+    list(REMOVE_ITEM ZLIB_SRCS inflate.c)
     list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.h)
+    list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/chunkcopy.h)
     list(APPEND ZLIB_PRIVATE_HDRS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.h)
+
     list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/adler32_simd.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inffast_chunk.c)
+    list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/contrib/optimizations/inflate.c)
     list(APPEND ZLIB_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/cpu_features.c)
   else()
     list(REMOVE_ITEM ZLIB_SRCS inflate.c)
@@ -339,7 +353,7 @@ if (BUILD_UNITTESTS)
 endif()
 
 #============================================================================
-# Minigzip tool
+# Minizip tool
 #============================================================================
 # TODO(cavalcantii): get it working on Windows.
 if (BUILD_MINIZIP_BIN)
@@ -348,4 +362,19 @@ if (BUILD_MINIZIP_BIN)
     contrib/minizip/unzip.h contrib/minizip/zip.c contrib/minizip/zip.h
     )
   target_link_libraries(minizip_bin zlib)
+endif()
+
+#============================================================================
+# zpipe tool
+#============================================================================
+if (BUILD_ZPIPE)
+  add_executable(zpipe examples/zpipe.c)
+  target_link_libraries(zpipe zlib)
+endif()
+#============================================================================
+# MiniGzip tool
+#============================================================================
+if (BUILD_MINIGZIP)
+  add_executable(minigzip_bin test/minigzip.c)
+  target_link_libraries(minigzip_bin zlib)
 endif()

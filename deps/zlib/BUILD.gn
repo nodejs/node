@@ -441,6 +441,36 @@ executable("zlib_bench") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
 
+executable("minigzip") {
+  include_dirs = [ "." ]
+
+  sources = [ "test/minigzip.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+executable("zpipe") {
+  include_dirs = [ "." ]
+
+  sources = [ "examples/zpipe.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 if (!is_win || target_os != "winuwp") {
   executable("minizip_bin") {
     include_dirs = [ "." ]
