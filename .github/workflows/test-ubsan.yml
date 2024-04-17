@@ -37,7 +37,7 @@ permissions:
 
 jobs:
   test-ubsan:
-    if: github.event.pull_request.draft == false
+    if: false  # Temporary disabled. Reference: https://github.com/nodejs/node/pull/52293#issuecomment-2059270585
     runs-on: ubuntu-latest
     env:
       CC: gcc
