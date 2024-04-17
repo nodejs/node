@@ -1,4 +1,4 @@
-// Flags: --expose-internals --dns-result-order=ipv4first
+// Flags: --expose-internals --dns-result-order=ipv6first
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -6,7 +6,7 @@ const { internalBinding } = require('internal/test/binding');
 const cares = internalBinding('cares_wrap');
 const { promisify } = require('util');
 
-// Test that --dns-result-order=ipv4first works as expected.
+// Test that --dns-result-order=verbatim works as expected.
 
 const originalGetaddrinfo = cares.getaddrinfo;
 const calls = [];
@@ -17,8 +17,6 @@ cares.getaddrinfo = common.mustCallAtLeast((...args) => {
 
 const dns = require('dns');
 const dnsPromises = dns.promises;
-
-let verbatim;
 
 // We want to test the parameter of verbatim only so that we
 // ignore possible errors here.
@@ -32,20 +30,20 @@ function allowFailed(fn) {
   let callsLength = 0;
   const checkParameter = (expected) => {
     assert.strictEqual(calls.length, callsLength + 1);
-    verbatim = calls[callsLength][4];
-    assert.strictEqual(verbatim, expected);
+    const order = calls[callsLength][4];
+    assert.strictEqual(order, expected);
     callsLength += 1;
   };
 
   await allowFailed(promisify(dns.lookup)('example.org'));
-  checkParameter(cares.DNS_ORDER_IPV4_FIRST);
+  checkParameter(cares.DNS_ORDER_IPV6_FIRST);
 
   await allowFailed(dnsPromises.lookup('example.org'));
-  checkParameter(cares.DNS_ORDER_IPV4_FIRST);
+  checkParameter(cares.DNS_ORDER_IPV6_FIRST);
 
   await allowFailed(promisify(dns.lookup)('example.org', {}));
-  checkParameter(cares.DNS_ORDER_IPV4_FIRST);
+  checkParameter(cares.DNS_ORDER_IPV6_FIRST);
 
   await allowFailed(dnsPromises.lookup('example.org', {}));
-  checkParameter(cares.DNS_ORDER_IPV4_FIRST);
+  checkParameter(cares.DNS_ORDER_IPV6_FIRST);
 })().then(common.mustCall());
