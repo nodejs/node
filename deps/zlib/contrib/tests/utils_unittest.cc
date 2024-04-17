@@ -20,7 +20,8 @@
 
 #include "zlib.h"
 
-void TestPayloads(size_t input_size, zlib_internal::WrapperType type) {
+void TestPayloads(size_t input_size, zlib_internal::WrapperType type,
+                  const int compression_level = Z_DEFAULT_COMPRESSION) {
   std::vector<unsigned char> input;
   input.reserve(input_size);
   for (size_t i = 1; i <= input_size; ++i)
@@ -36,7 +37,7 @@ void TestPayloads(size_t input_size, zlib_internal::WrapperType type) {
   unsigned long compressed_size = static_cast<unsigned long>(compressed.size());
   int result = zlib_internal::CompressHelper(
       type, compressed.data(), &compressed_size, input.data(), input.size(),
-      Z_DEFAULT_COMPRESSION, nullptr, nullptr);
+      compression_level, nullptr, nullptr);
   ASSERT_EQ(result, Z_OK);
 
   unsigned long decompressed_size =
@@ -65,6 +66,25 @@ TEST(ZlibTest, RawWrapper) {
   // should be payload_size + 2 for short payloads.
   for (size_t i = 1; i < 1024; ++i)
     TestPayloads(i, zlib_internal::WrapperType::ZRAW);
+}
+
+TEST(ZlibTest, LargePayloads) {
+  static const size_t lengths[] = { 6000, 8000, 10'000, 15'000, 20'000, 30'000,
+                                    50'000, 100'000, 150'000, 2'500'000,
+                                    5'000'000, 10'000'000, 20'000'000 };
+
+  for (size_t length: lengths) {
+    TestPayloads(length, zlib_internal::WrapperType::ZLIB);
+    TestPayloads(length, zlib_internal::WrapperType::GZIP);
+  }
+}
+
+TEST(ZlibTest, CompressionLevels) {
+  static const int levels[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+  for (int level: levels) {
+    TestPayloads(5'000'000, zlib_internal::WrapperType::ZLIB, level);
+    TestPayloads(5'000'000, zlib_internal::WrapperType::GZIP, level);
+  }
 }
 
 TEST(ZlibTest, InflateCover) {
