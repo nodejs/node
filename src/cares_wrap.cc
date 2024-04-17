@@ -1600,11 +1600,7 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
       UNREACHABLE("bad address family");
   }
 
-  Local<Uint32> order;
-  if (!args[4]->ToUint32(env->context()).ToLocal(&order)) {
-    THROW_ERR_INVALID_ARG_VALUE(env, "bad order");
-    return;
-  }
+  Local<Uint32> order = args[4].As<Uint32>();
 
   auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
                                                        req_wrap_obj,
