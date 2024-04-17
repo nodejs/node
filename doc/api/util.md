@@ -250,9 +250,10 @@ mark the function's deprecation
 const util = require('node:util');
 
 const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
+const fn2 = () => {};
 
 fn1[util.deprecate.isDeprecated]; // true
-(()=>{})[util.deprecate.isDeprecated]; // undefined
+fn2[util.deprecate.isDeprecated]; // undefined
 ```
 
 ## `util.format(format[, ...args])`
