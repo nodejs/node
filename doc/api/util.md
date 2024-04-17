@@ -239,6 +239,22 @@ The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
+## `util.deprecate.isDeprecated`
+<!-- YAML
+added: REPLACEME
+-->
+After a function is deprecated with `util.deprecate`, a symbol is attached to
+mark the function's deprecation
+
+```js
+const util = require('node:util');
+
+const fn1 = util.deprecate(someFunction, someMessage, 'DEP0001');
+
+fn1[util.deprecate.isDeprecated]; // true
+(()=>{})[util.deprecate.isDeprecated]; // undefined
+```
+
 ## `util.format(format[, ...args])`
 
 <!-- YAML
