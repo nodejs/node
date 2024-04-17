@@ -1388,14 +1388,6 @@ added: v21.2.0
 
 Disable exposition of [Navigator API][] on the global scope.
 
-### `--no-experimental-global-webcrypto`
-
-<!-- YAML
-added: v19.0.0
--->
-
-Disable exposition of [Web Crypto API][] on the global scope.
-
 ### `--no-experimental-repl-await`
 
 <!-- YAML
@@ -2682,7 +2674,6 @@ one is included in the list below.
 * `--no-experimental-fetch`
 * `--no-experimental-global-customevent`
 * `--no-experimental-global-navigator`
-* `--no-experimental-global-webcrypto`
 * `--no-experimental-repl-await`
 * `--no-experimental-websocket`
 * `--no-extra-info-on-fatal-exception`
@@ -3173,7 +3164,6 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [Subresource Integrity]: https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity
 [V8 JavaScript code coverage]: https://v8project.blogspot.com/2017/12/javascript-code-coverage.html
 [V8 code cache]: https://v8.dev/blog/code-caching-for-devs
-[Web Crypto API]: webcrypto.md
 [`"type"`]: packages.md#type
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
