@@ -666,10 +666,9 @@ void ChannelWrap::New(const FunctionCallbackInfo<Value>& args) {
   new ChannelWrap(env, args.This(), timeout, tries);
 }
 
-GetAddrInfoReqWrap::GetAddrInfoReqWrap(
-    Environment* env,
-    Local<Object> req_wrap_obj,
-    uint8_t order)
+GetAddrInfoReqWrap::GetAddrInfoReqWrap(Environment* env,
+                                       Local<Object> req_wrap_obj,
+                                       uint8_t order)
     : ReqWrap(env, req_wrap_obj, AsyncWrap::PROVIDER_GETADDRINFOREQWRAP),
       order_(order) {}
 
@@ -1480,22 +1479,17 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     switch (order) {
       case DNS_ORDER_IPV4_FIRST:
-        if (add(true, false).IsNothing())
-          return;
-        if (add(false, true).IsNothing())
-          return;
+        if (add(true, false).IsNothing()) return;
+        if (add(false, true).IsNothing()) return;
 
         break;
       case DNS_ORDER_IPV6_FIRST:
-        if (add(false, true).IsNothing())
-          return;
-        if (add(true, false).IsNothing())
-          return;
+        if (add(false, true).IsNothing()) return;
+        if (add(true, false).IsNothing()) return;
 
         break;
       default:
-        if (add(true, true).IsNothing())
-          return;
+        if (add(true, true).IsNothing()) return;
 
         break;
     }
@@ -1508,9 +1502,13 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     argv[1] = results;
   }
 
-  TRACE_EVENT_NESTABLE_ASYNC_END2(
-      TRACING_CATEGORY_NODE2(dns, native), "lookup", req_wrap.get(),
-      "count", n, "order", order);
+  TRACE_EVENT_NESTABLE_ASYNC_END2(TRACING_CATEGORY_NODE2(dns, native),
+                                  "lookup",
+                                  req_wrap.get(),
+                                  "count",
+                                  n,
+                                  "order",
+                                  order);
 
   // Make the callback into JavaScript
   req_wrap->MakeCallback(env->oncomplete_string(), arraysize(argv), argv);
@@ -1602,9 +1600,8 @@ void GetAddrInfo(const FunctionCallbackInfo<Value>& args) {
 
   Local<Uint32> order = args[4].As<Uint32>();
 
-  auto req_wrap = std::make_unique<GetAddrInfoReqWrap>(env,
-                                                       req_wrap_obj,
-                                                       order->Value());
+  auto req_wrap =
+      std::make_unique<GetAddrInfoReqWrap>(env, req_wrap_obj, order->Value());
 
   struct addrinfo hints;
   memset(&hints, 0, sizeof(hints));
@@ -1923,20 +1920,31 @@ void Initialize(Local<Object> target,
   target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
                                                     "AI_V4MAPPED"),
               Integer::New(env->isolate(), AI_V4MAPPED)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "DNS_ORDER_VERBATIM"),
-              Integer::New(env->isolate(), DNS_ORDER_VERBATIM)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "DNS_ORDER_IPV4_FIRST"),
-              Integer::New(env->isolate(), DNS_ORDER_IPV4_FIRST)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(),
-                                                    "DNS_ORDER_IPV6_FIRST"),
-              Integer::New(env->isolate(), DNS_ORDER_IPV6_FIRST)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(env->isolate(), AF_INET)).Check();
-  target->Set(env->context(), FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
-              Integer::New(env->isolate(), AF_INET)).Check();
-
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "DNS_ORDER_VERBATIM"),
+            Integer::New(env->isolate(), DNS_ORDER_VERBATIM))
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "DNS_ORDER_IPV4_FIRST"),
+            Integer::New(env->isolate(), DNS_ORDER_IPV4_FIRST))
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "DNS_ORDER_IPV6_FIRST"),
+            Integer::New(env->isolate(), DNS_ORDER_IPV6_FIRST))
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
+            Integer::New(env->isolate(), AF_INET))
+      .Check();
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(env->isolate(), "AF_INET"),
+            Integer::New(env->isolate(), AF_INET))
+      .Check();
 
   Local<FunctionTemplate> aiw =
       BaseObject::MakeLazilyInitializedJSTemplate(env);
