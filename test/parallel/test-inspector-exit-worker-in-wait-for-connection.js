@@ -3,11 +3,13 @@
 const common = require('../common');
 common.skipIfInspectorDisabled();
 
-const { parentPort, isMainThread, Worker } = require('node:worker_threads');
+const { parentPort, workerData, Worker } = require('node:worker_threads');
+if (!workerData) {
+  common.skipIfWorker();
+}
+
 const inspector = require('node:inspector');
 const assert = require('node:assert');
-
-// Refs: https://github.com/nodejs/node/issues/52467
 
 let TIMEOUT = common.platformTimeout(5000);
 if (common.isWindows) {
@@ -15,12 +17,14 @@ if (common.isWindows) {
   TIMEOUT = common.platformTimeout(15000);
 }
 
+// Refs: https://github.com/nodejs/node/issues/52467
+
 (async () => {
-  if (isMainThread) {
+  if (!workerData) {
     // worker.terminate() should terminate the worker and the pending
     // inspector.waitForDebugger().
     {
-      const worker = new Worker(__filename);
+      const worker = new Worker(__filename, { workerData: {} });
       await new Promise((r) => worker.on('message', r));
       await new Promise((r) => setTimeout(r, TIMEOUT));
       worker.on('exit', common.mustCall());
@@ -28,7 +32,7 @@ if (common.isWindows) {
     }
     // process.exit() should kill the process.
     {
-      const worker = new Worker(__filename);
+      const worker = new Worker(__filename, { workerData: {} });
       await new Promise((r) => worker.on('message', r));
       await new Promise((r) => setTimeout(r, TIMEOUT));
       process.on('exit', (status) => assert.strictEqual(status, 0));
