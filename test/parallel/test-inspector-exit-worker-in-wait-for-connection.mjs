@@ -6,7 +6,13 @@ import { fileURLToPath } from 'node:url';
 import inspector from 'node:inspector';
 import assert from 'node:assert';
 
-// Ref: https://github.com/nodejs/node/issues/52467
+// Refs: https://github.com/nodejs/node/issues/52467
+
+let TIMEOUT = common.platformTimeout(5000);
+if (common.isWindows) {
+  // Refs: https://github.com/nodejs/build/issues/3014
+  TIMEOUT = common.platformTimeout(15000);
+}
 
 if (isMainThread) {
   // worker.terminate() should terminate the worker and the pending
@@ -14,6 +20,7 @@ if (isMainThread) {
   {
     const worker = new Worker(fileURLToPath(import.meta.url));
     await new Promise((r) => worker.on('message', r));
+    await new Promise((r) => setTimeout(r, TIMEOUT));
     worker.on('exit', common.mustCall());
     await worker.terminate();
   }
@@ -21,6 +28,7 @@ if (isMainThread) {
   {
     const worker = new Worker(fileURLToPath(import.meta.url));
     await new Promise((r) => worker.on('message', r));
+    await new Promise((r) => setTimeout(r, TIMEOUT));
     process.on('exit', (status) => assert.strictEqual(status, 0));
     setImmediate(() => process.exit());
   }
