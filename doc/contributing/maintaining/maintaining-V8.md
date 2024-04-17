@@ -364,8 +364,7 @@ This would require some tooling to:
   promoted from `nodejs/v8` to `nodejs/node`.
 * Enabled the V8-CI build in Jenkins to build from the `nodejs/v8` fork.
 
-[^1]: On macOS, the V8 tests require a full Xcode install, not just the "command
-    line tools" for Xcode.
+[^1]: On macOS, the V8 tests require a full Xcode install, not just the "command line tools" for Xcode.
 
 [ChromiumReleaseCalendar]: https://www.chromium.org/developers/calendar
 [Node.js CI]: https://ci.nodejs.org/job/node-test-pull-request/
