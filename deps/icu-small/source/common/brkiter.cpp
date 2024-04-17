@@ -438,17 +438,14 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
             UTRACE_ENTRY(UTRACE_UBRK_CREATE_LINE);
             uprv_strcpy(lb_lw, "line");
             UErrorCode kvStatus = U_ZERO_ERROR;
-            CharString value;
-            CharStringByteSink valueSink(&value);
-            loc.getKeywordValue("lb", valueSink, kvStatus);
+            auto value = loc.getKeywordValue<CharString>("lb", kvStatus);
             if (U_SUCCESS(kvStatus) && (value == "strict" || value == "normal" || value == "loose")) {
                 uprv_strcat(lb_lw, "_");
                 uprv_strcat(lb_lw, value.data());
             }
             // lw=phrase is only supported in Japanese and Korean
             if (uprv_strcmp(loc.getLanguage(), "ja") == 0 || uprv_strcmp(loc.getLanguage(), "ko") == 0) {
-                value.clear();
-                loc.getKeywordValue("lw", valueSink, kvStatus);
+                value = loc.getKeywordValue<CharString>("lw", kvStatus);
                 if (U_SUCCESS(kvStatus) && value == "phrase") {
                     uprv_strcat(lb_lw, "_");
                     uprv_strcat(lb_lw, value.data());
@@ -500,7 +497,7 @@ BreakIterator::makeInstance(const Locale& loc, int32_t kind, UErrorCode& status)
 Locale
 BreakIterator::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
     if (type == ULOC_REQUESTED_LOCALE) {
-        return Locale(requestLocale);
+        return {requestLocale};
     }
     U_LOCALE_BASED(locBased, *this);
     return locBased.getLocale(type, status);

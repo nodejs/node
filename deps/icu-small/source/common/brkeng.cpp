@@ -114,13 +114,11 @@ UnhandledEngine::handleCharacter(UChar32 c) {
  */
 
 ICULanguageBreakFactory::ICULanguageBreakFactory(UErrorCode &/*status*/) {
-    fEngines = 0;
+    fEngines = nullptr;
 }
 
 ICULanguageBreakFactory::~ICULanguageBreakFactory() {
-    if (fEngines != 0) {
-        delete fEngines;
-    }
+    delete fEngines;
 }
 
 void ICULanguageBreakFactory::ensureEngines(UErrorCode& status) {
