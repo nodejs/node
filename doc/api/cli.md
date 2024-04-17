@@ -594,16 +594,20 @@ added:
   - v16.4.0
   - v14.18.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/52492
+    description: The `ipv6first` is supported now.
   - version: v17.0.0
     pr-url: https://github.com/nodejs/node/pull/39987
     description: Changed default value to `verbatim`.
 -->
 
-Set the default value of `verbatim` in [`dns.lookup()`][] and
+Set the default value of `order` in [`dns.lookup()`][] and
 [`dnsPromises.lookup()`][]. The value could be:
 
-* `ipv4first`: sets default `verbatim` `false`.
-* `verbatim`: sets default `verbatim` `true`.
+* `ipv4first`: sets default `order` to `ipv4first`.
+* `ipv6first`: sets default `order` to `ipv6first`.
+* `verbatim`: sets default `order` to `verbatim`.
 
 The default is `verbatim` and [`dns.setDefaultResultOrder()`][] have higher
 priority than `--dns-result-order`.
