@@ -442,7 +442,11 @@ option set.
 .
 .It Fl -test-shard
 Test suite shard to execute in a format of <index>/<total>.
-
+.
+.It Fl -test-skip-pattern
+A regular expression that configures the test runner to skip tests
+whose name matches the provided pattern.
+.
 .It Fl -test-timeout
 A number of milliseconds the test execution will fail after.
 .
