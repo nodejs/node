@@ -330,7 +330,7 @@ test('Test 4', async (t) => {
 
 Test name patterns can also be specified using regular expression literals. This
 allows regular expression flags to be used. In the previous example, starting
-Node.js with `--test-name-pattern="/test [4-5]/i"` (or `--test-skip-pattern`)
+Node.js with `--test-name-pattern="/test [4-5]/i"` (or `--test-skip-pattern="/test [4-5]/i"`)
 would match `Test 4` and `Test 5` because the pattern is case-insensitive.
 
 To match a single test with a pattern, you can prefix it with all its ancestor
