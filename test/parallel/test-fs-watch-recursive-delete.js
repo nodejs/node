@@ -5,7 +5,7 @@ const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 
 if (common.isSunOS)
-  common.skip('SunOS behaves differently')
+  common.skip('SunOS behaves differently');
 
 tmpdir.refresh();
 
