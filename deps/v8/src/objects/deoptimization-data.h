@@ -123,7 +123,7 @@ class DeoptimizationFrameTranslation::Iterator {
 // the literal array will contain these functions.
 //
 // It can be empty.
-class DeoptimizationData : public FixedArray {
+class DeoptimizationData : public TrustedFixedArray {
  public:
   // Layout description.  Indices in the array.
   static const int kFrameTranslationIndex = 0;
@@ -202,11 +202,10 @@ class DeoptimizationData : public FixedArray {
   Tagged<class SharedFunctionInfo> GetInlinedFunction(int index);
 
   // Allocates a DeoptimizationData.
-  static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
-                                        AllocationType allocation);
+  static Handle<DeoptimizationData> New(Isolate* isolate,
+                                        int deopt_entry_count);
   static Handle<DeoptimizationData> New(LocalIsolate* isolate,
-                                        int deopt_entry_count,
-                                        AllocationType allocation);
+                                        int deopt_entry_count);
 
   // Return an empty DeoptimizationData.
   V8_EXPORT_PRIVATE static Handle<DeoptimizationData> Empty(Isolate* isolate);
@@ -229,7 +228,7 @@ class DeoptimizationData : public FixedArray {
 
   static int LengthFor(int entry_count) { return IndexForEntry(entry_count); }
 
-  OBJECT_CONSTRUCTORS(DeoptimizationData, FixedArray);
+  OBJECT_CONSTRUCTORS(DeoptimizationData, TrustedFixedArray);
 };
 
 }  // namespace internal

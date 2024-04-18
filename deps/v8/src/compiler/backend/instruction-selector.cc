@@ -597,6 +597,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate,
     switch (constant->kind) {
       case Kind::kWord32:
       case Kind::kWord64:
+      case Kind::kSmi:
       case Kind::kFloat32:
       case Kind::kFloat64:
         return g->UseImmediate(input);
@@ -2040,6 +2041,27 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastWordToTagged(
        g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
 }
 
+template <>
+void InstructionSelectorT<TurboshaftAdapter>::VisitBitcastSmiToWord(
+    node_t node) {
+  // TODO(dmercadier): using EmitIdentity here is not ideal, because users of
+  // {node} will then use its input, which may not have the Word32
+  // representation. This might in turn lead to the register allocator wrongly
+  // tracking Tagged values that are in fact just Smis. However, using
+  // Emit(kArchNop) hurts performance because it inserts a gap move which cannot
+  // always be eliminated because the operands may have different sizes (and the
+  // move is then truncating or extending). As a temporary work-around until the
+  // register allocator is fixed, we use Emit(kArchNop) in DEBUG mode to silence
+  // the register allocator verifier.
+#ifdef DEBUG
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineSameAsFirst(node),
+       g.Use(this->Get(node).Cast<turboshaft::TaggedBitcastOp>().input()));
+#else
+  EmitIdentity(node);
+#endif
+}
+
 // 32 bit targets do not implement the following instructions.
 #if V8_TARGET_ARCH_32_BIT
 
@@ -2196,8 +2218,8 @@ IF_WASM(VISIT_UNSUPPORTED_OP, I64x2ReplaceLane)
 #endif  // !V8_TARGET_ARCH_ARM64
 #endif  // !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_S390X && !V8_TARGET_ARCH_PPC64
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitFinishRegion(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitFinishRegion(Node* node) {
   EmitIdentity(node);
 }
 
@@ -2392,6 +2414,11 @@ void InstructionSelectorT<Adapter>::VisitCall(node_t node, block_t handler) {
   EmitPrepareArguments(&buffer.pushed_nodes, call_descriptor, node);
   UpdateMaxPushedArgumentCount(buffer.pushed_nodes.size());
 
+  if (call_descriptor->RequiresEntrypointTagForCall()) {
+    buffer.instruction_args.push_back(
+        g.TempImmediate(call_descriptor->shifted_tag()));
+  }
+
   // Pass label of exception handler block.
   if (handler) {
     if constexpr (Adapter::IsTurbofan) {
@@ -2502,6 +2529,10 @@ void InstructionSelectorT<Adapter>::VisitTailCall(node_t node) {
   opcode = EncodeCallDescriptorFlags(opcode, callee->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
+
+  if (callee->RequiresEntrypointTagForCall()) {
+    buffer.instruction_args.push_back(g.TempImmediate(callee->shifted_tag()));
+  }
 
   // Add an immediate operand that represents the offset to the first slot
   // that is unused with respect to the stack pointer that has been updated
@@ -2794,18 +2825,29 @@ void InstructionSelectorT<Adapter>::VisitUnreachable(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitStaticAssert(Node* node) {
-  Node* asserted = node->InputAt(0);
+void InstructionSelectorT<Adapter>::VisitStaticAssert(node_t node) {
+  DCHECK_EQ(this->value_input_count(node), 1);
+  node_t asserted = this->input_at(node, 0);
   UnparkedScopeIfNeeded scope(broker_);
   AllowHandleDereference allow_handle_dereference;
-  asserted->Print(4);
-  FATAL(
-      "Expected Turbofan static assert to hold, but got non-true input:\n  %s",
-      StaticAssertSourceOf(node->op()));
+  if constexpr (Adapter::IsTurboshaft) {
+    StdoutStream os;
+    os << this->Get(asserted);
+    FATAL(
+        "Expected Turbofan static assert to hold, but got non-true input:\n  "
+        "%s",
+        this->Get(node).template Cast<turboshaft::StaticAssertOp>().source);
+  } else {
+    asserted->Print(4);
+    FATAL(
+        "Expected Turbofan static assert to hold, but got non-true input:\n  "
+        "%s",
+        StaticAssertSourceOf(node->op()));
+  }
 }
 
-template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitDeadValue(Node* node) {
+template <>
+void InstructionSelectorT<TurbofanAdapter>::VisitDeadValue(Node* node) {
   OperandGenerator g(this);
   MarkAsRepresentation(DeadValueRepresentationOf(node->op()), node);
   Emit(kArchDebugBreak, g.DefineAsConstant(node));
@@ -2911,6 +2953,8 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitControl(block_t block) {
     }
     case Opcode::kUnreachable:
       return VisitUnreachable(node);
+    case Opcode::kStaticAssert:
+      return VisitStaticAssert(node);
     default: {
       const std::string op_string = op.ToString();
       PrintF("\033[31mNo ISEL support for: %s\033[m\n", op_string.c_str());
@@ -4544,6 +4588,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
       switch (constant.kind) {
         case ConstantOp::Kind::kWord32:
         case ConstantOp::Kind::kWord64:
+        case ConstantOp::Kind::kSmi:
         case ConstantOp::Kind::kTaggedIndex:
         case ConstantOp::Kind::kExternal:
           break;
@@ -5030,7 +5075,7 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           if constexpr (Is64()) {
             DCHECK_EQ(cast.kind, TaggedBitcastOp::Kind::kSmi);
             DCHECK(SmiValuesAre31Bits());
-            return EmitIdentity(node);
+            return VisitBitcastSmiToWord(node);
           } else {
             return VisitBitcastTaggedToWord(node);
           }
@@ -5048,7 +5093,11 @@ void InstructionSelectorT<TurboshaftAdapter>::VisitNode(
           }
         case multi(Rep::Compressed(), Rep::Word32()):
           MarkAsWord32(node);
-          return VisitBitcastTaggedToWord(node);
+          if (cast.kind == TaggedBitcastOp::Kind::kSmi) {
+            return VisitBitcastSmiToWord(node);
+          } else {
+            return VisitBitcastTaggedToWord(node);
+          }
         default:
           UNIMPLEMENTED();
       }

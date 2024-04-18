@@ -959,14 +959,17 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     // seeing global objects here (which would need special handling).
 
     TVARIABLE(IntPtrT, var_name_index);
-    Label dictionary_found(this, &var_name_index), not_found(this);
+    Label dictionary_found(this, &var_name_index),
+        not_found_no_insertion_index(this),
+        not_found_with_insertion_index(this, &var_name_index);
     TNode<PropertyDictionary> properties = CAST(LoadSlowProperties(receiver));
 
     // When dealing with class fields defined with DefineKeyedOwnIC or
     // DefineNamedOwnIC, use the slow path to check the existing property.
     NameDictionaryLookup<PropertyDictionary>(
         properties, name, IsAnyDefineOwn() ? slow : &dictionary_found,
-        &var_name_index, &not_found);
+        &var_name_index, &not_found_no_insertion_index, kFindExisting,
+        &not_found_with_insertion_index);
 
     if (!IsAnyDefineOwn()) {
       BIND(&dictionary_found);
@@ -1015,7 +1018,12 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       }
     }
 
-    BIND(&not_found);
+    BIND(&not_found_no_insertion_index);
+    {
+      FindInsertionEntry<PropertyDictionary>(properties, name, &var_name_index);
+      Goto(&not_found_with_insertion_index);
+    }
+    BIND(&not_found_with_insertion_index);
     {
       // TODO(jkummerow): Also add support to correctly handle integer exotic
       // cases for typed arrays and remove this check here.
@@ -1046,7 +1054,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       InvalidateValidityCellIfPrototype(receiver_map, bitfield3);
       UpdateMayHaveInterestingProperty(properties, name);
       AddToDictionary<PropertyDictionary>(properties, name, p->value(),
-                                          &add_dictionary_property_slow);
+                                          &add_dictionary_property_slow,
+                                          var_name_index.value());
       exit_point->Return(p->value());
 
       BIND(&add_dictionary_property_slow);
@@ -1127,8 +1136,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     TVARIABLE(MaybeObject, var_handler);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
 
-    TryProbeStubCache(isolate()->store_stub_cache(), receiver, name,
-                      &found_handler, &var_handler, &stub_cache_miss);
+    TryProbeStubCache(p->stub_cache(isolate()), receiver, name, &found_handler,
+                      &var_handler, &stub_cache_miss);
 
     BIND(&found_handler);
     {

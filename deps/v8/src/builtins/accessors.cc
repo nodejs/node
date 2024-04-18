@@ -151,7 +151,8 @@ void Accessors::ArrayLengthGetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kArrayLengthGetter);
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
-  Tagged<JSArray> holder = JSArray::cast(*Utils::OpenHandle(*info.Holder()));
+  Tagged<JSArray> holder =
+      JSArray::cast(*Utils::OpenDirectHandle(*info.Holder()));
   Tagged<Object> result = holder->length();
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
@@ -163,7 +164,7 @@ void Accessors::ArrayLengthSetter(
   RCS_SCOPE(isolate, RuntimeCallCounterId::kArrayLengthSetter);
   HandleScope scope(isolate);
 
-  DCHECK(Object::SameValue(*Utils::OpenHandle(*name),
+  DCHECK(Object::SameValue(*Utils::OpenDirectHandle(*name),
                            ReadOnlyRoots(isolate).length_string()));
 
   Handle<JSReceiver> object = Utils::OpenHandle(*info.Holder());
@@ -233,7 +234,7 @@ void Accessors::ModuleNamespaceEntryGetter(
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
   Tagged<JSModuleNamespace> holder =
-      JSModuleNamespace::cast(*Utils::OpenHandle(*info.Holder()));
+      JSModuleNamespace::cast(*Utils::OpenDirectHandle(*info.Holder()));
   Handle<Object> result;
   if (holder->GetExport(isolate, Handle<String>::cast(Utils::OpenHandle(*name)))
           .ToHandle(&result)) {
@@ -281,12 +282,13 @@ void Accessors::StringLengthGetter(
   // v8::Object, but internally we have callbacks on entities which are higher
   // in the hierarchy, in this case for String values.
 
-  Tagged<Object> value = *Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
+  Tagged<Object> value =
+      *Utils::OpenDirectHandle(*v8::Local<v8::Value>(info.This()));
   if (!IsString(value)) {
     // Not a string value. That means that we either got a String wrapper or
     // a Value with a String wrapper in its prototype chain.
-    value =
-        JSPrimitiveWrapper::cast(*Utils::OpenHandle(*info.Holder()))->value();
+    value = JSPrimitiveWrapper::cast(*Utils::OpenDirectHandle(*info.Holder()))
+                ->value();
   }
   Tagged<Object> result = Smi::FromInt(String::cast(value)->length());
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));

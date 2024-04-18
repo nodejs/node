@@ -161,6 +161,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address instruction_start() const {
     return reinterpret_cast<Address>(instructions_);
   }
+  size_t instructions_size() const {
+    return static_cast<size_t>(instructions_size_);
+  }
   base::Vector<const uint8_t> reloc_info() const {
     return {protected_instructions_data().end(),
             static_cast<size_t>(reloc_info_size_)};
@@ -283,7 +286,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   SourcePosition GetSourcePositionBefore(int code_offset);
   int GetSourceOffsetBefore(int code_offset);
 
-  std::pair<int, SourcePosition> GetInliningPosition(int inlining_id) const;
+  std::tuple<int, bool, SourcePosition> GetInliningPosition(
+      int inlining_id) const;
 
   // Returns whether this code was generated for debugging. If this returns
   // {kForDebugging}, but {tier()} is not {kLiftoff}, then Liftoff compilation
@@ -603,11 +607,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   CompilationState* compilation_state() const {
     return compilation_state_.get();
   }
-
-  // Create a {CompilationEnv} object for compilation. The caller has to ensure
-  // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
-  // being used.
-  CompilationEnv CreateCompilationEnv() const;
 
   uint32_t num_functions() const {
     return module_->num_declared_functions + module_->num_imported_functions;

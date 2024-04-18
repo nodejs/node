@@ -18,11 +18,13 @@
 #include <cstdint>
 #include <numeric>
 #include <random>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include "absl/base/internal/raw_logging.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_function_defaults.h"
 #include "absl/container/internal/raw_hash_set.h"
 #include "absl/strings/str_format.h"
@@ -57,6 +59,11 @@ struct IntPolicy {
   template <class F>
   static auto apply(F&& f, int64_t x) -> decltype(std::forward<F>(f)(x, x)) {
     return std::forward<F>(f)(x, x);
+  }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
   }
 };
 
@@ -115,6 +122,11 @@ class StringPolicy {
                              PairArgs(std::forward<Args>(args)...))) {
     return apply_impl(std::forward<F>(f),
                       PairArgs(std::forward<Args>(args)...));
+  }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
   }
 };
 
@@ -294,7 +306,7 @@ void BM_CopyCtorSparseInt(benchmark::State& state) {
     benchmark::DoNotOptimize(t2);
   }
 }
-BENCHMARK(BM_CopyCtorSparseInt)->Range(128, 4096);
+BENCHMARK(BM_CopyCtorSparseInt)->Range(1, 4096);
 
 void BM_CopyCtorInt(benchmark::State& state) {
   std::random_device rd;
@@ -312,7 +324,7 @@ void BM_CopyCtorInt(benchmark::State& state) {
     benchmark::DoNotOptimize(t2);
   }
 }
-BENCHMARK(BM_CopyCtorInt)->Range(128, 4096);
+BENCHMARK(BM_CopyCtorInt)->Range(0, 4096);
 
 void BM_CopyCtorString(benchmark::State& state) {
   std::random_device rd;
@@ -330,7 +342,7 @@ void BM_CopyCtorString(benchmark::State& state) {
     benchmark::DoNotOptimize(t2);
   }
 }
-BENCHMARK(BM_CopyCtorString)->Range(128, 4096);
+BENCHMARK(BM_CopyCtorString)->Range(0, 4096);
 
 void BM_CopyAssign(benchmark::State& state) {
   std::random_device rd;

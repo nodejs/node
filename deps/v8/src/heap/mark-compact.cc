@@ -822,9 +822,7 @@ void MarkCompactCollector::Finish() {
   local_weak_objects_.reset();
   weak_objects_.next_ephemerons.Clear();
 
-  if (UseBackgroundThreadsInCycle()) {
-    sweeper_->StartMajorSweeperTasks();
-  }
+  sweeper_->StartMajorSweeperTasks();
 
   // Release empty pages now, when the pointer-update phase is done.
   heap_->memory_allocator()->ReleaseQueuedPages();
@@ -2065,8 +2063,10 @@ void MarkCompactCollector::MarkTransitiveClosureLinear() {
            GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERON_LINEAR);
   // This phase doesn't support parallel marking.
   DCHECK(heap_->concurrent_marking()->IsStopped());
+  // We must use the full pointer comparison here as this map will be queried
+  // with objects from different cages (e.g. code- or trusted cage).
   std::unordered_multimap<Tagged<HeapObject>, Tagged<HeapObject>,
-                          Object::Hasher>
+                          Object::Hasher, Object::KeyEqualSafe>
       key_to_values;
   Ephemeron ephemeron;
 

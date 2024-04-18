@@ -425,6 +425,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedField(dst, MemOperand(src_addr, offset_reg, offset_imm), r0);
 }
 
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  LoadTaggedPointer(dst, src_addr, no_reg, offset);
+}
+
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                        int32_t offset_imm) {
   LoadU64(dst, MemOperand(src_addr, offset_imm), r0);
@@ -1902,6 +1908,17 @@ void LiftoffAssembler::emit_f64_set_cond(Condition cond, Register dst,
   emit_f32_set_cond(to_condition(cond), dst, lhs, rhs);
 }
 
+void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i64_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+    return;
+  }
+  // TODO(miladfarca): Try to use mulli once simulator supports it.
+  mov(r0, Operand(imm));
+  MulS64(dst.gp(), lhs.gp(), r0);
+}
+
 bool LiftoffAssembler::emit_select(LiftoffRegister dst, Register condition,
                                    LiftoffRegister true_value,
                                    LiftoffRegister false_value,
@@ -2493,7 +2510,9 @@ void LiftoffAssembler::StoreLane(Register dst, Register offset,
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
+  // PPC uses bytewise selection for all lane widths.
   emit_s128_select(dst, src1, src2, mask);
 }
 

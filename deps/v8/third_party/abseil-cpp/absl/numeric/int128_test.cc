@@ -26,12 +26,6 @@
 #include "absl/hash/hash_testing.h"
 #include "absl/meta/type_traits.h"
 
-#if defined(_MSC_VER) && _MSC_VER == 1900
-// Disable "unary minus operator applied to unsigned type" warnings in Microsoft
-// Visual C++ 14 (2015).
-#pragma warning(disable:4146)
-#endif
-
 #define MAKE_INT128(HI, LO) absl::MakeInt128(static_cast<int64_t>(HI), LO)
 
 namespace {
@@ -237,8 +231,6 @@ TEST(Uint128, AllTests) {
   EXPECT_EQ(two, -((-one) - 1));
   EXPECT_EQ(absl::Uint128Max(), -one);
   EXPECT_EQ(zero, -zero);
-
-  EXPECT_EQ(absl::Uint128Max(), absl::kuint128max);
 }
 
 TEST(Int128, RightShiftOfNegativeNumbers) {

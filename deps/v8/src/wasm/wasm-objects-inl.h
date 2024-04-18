@@ -200,12 +200,6 @@ ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals,
           Tagged<FixedAddressArray>, kImportedMutableGlobalsOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_function_targets,
           Tagged<FixedAddressArray>, kImportedFunctionTargetsOffset)
-PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, indirect_function_table_size,
-                    uint32_t, kIndirectFunctionTableSizeOffset)
-ACCESSORS(WasmTrustedInstanceData, indirect_function_table_sig_ids,
-          Tagged<FixedUInt32Array>, kIndirectFunctionTableSigIdsOffset)
-ACCESSORS(WasmTrustedInstanceData, indirect_function_table_targets,
-          Tagged<ExternalPointerArray>, kIndirectFunctionTableTargetsOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, jump_table_start, Address,
                     kJumpTableStartOffset)
 PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, hook_on_function_call_address,
@@ -237,12 +231,12 @@ OPTIONAL_ACCESSORS(WasmTrustedInstanceData, imported_mutable_globals_buffers,
                    Tagged<FixedArray>, kImportedMutableGlobalsBuffersOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tables, Tagged<FixedArray>,
                    kTablesOffset)
-OPTIONAL_ACCESSORS(WasmTrustedInstanceData, indirect_function_tables,
-                   Tagged<FixedArray>, kIndirectFunctionTablesOffset)
 ACCESSORS(WasmTrustedInstanceData, imported_function_refs, Tagged<FixedArray>,
           kImportedFunctionRefsOffset)
-OPTIONAL_ACCESSORS(WasmTrustedInstanceData, indirect_function_table_refs,
-                   Tagged<FixedArray>, kIndirectFunctionTableRefsOffset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_table0,
+                            WasmDispatchTable, kDispatchTable0Offset)
+PROTECTED_POINTER_ACCESSORS(WasmTrustedInstanceData, dispatch_tables,
+                            ProtectedFixedArray, kDispatchTablesOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, tags_table, Tagged<FixedArray>,
                    kTagsTableOffset)
 ACCESSORS(WasmTrustedInstanceData, wasm_internal_functions, Tagged<FixedArray>,
@@ -255,10 +249,10 @@ ACCESSORS(WasmTrustedInstanceData, well_known_imports, Tagged<FixedArray>,
           kWellKnownImportsOffset)
 
 void WasmTrustedInstanceData::clear_padding() {
-  if constexpr (FIELD_SIZE(kOptionalPaddingOffset) != 0) {
-    DCHECK_EQ(4, FIELD_SIZE(kOptionalPaddingOffset));
-    memset(reinterpret_cast<void*>(address() + kOptionalPaddingOffset), 0,
-           FIELD_SIZE(kOptionalPaddingOffset));
+  constexpr int kPaddingBytes = FIELD_SIZE(kOptionalPaddingOffset);
+  static_assert(kPaddingBytes == 0 || kPaddingBytes == kIntSize);
+  if constexpr (kPaddingBytes != 0) {
+    WriteField<int>(kOptionalPaddingOffset, 0);
   }
 }
 
@@ -280,10 +274,17 @@ size_t WasmTrustedInstanceData::memory_size(int memory_index) const {
   return memory_bases_and_sizes()->get(2 * memory_index + 1);
 }
 
-Tagged<WasmIndirectFunctionTable>
-WasmTrustedInstanceData::indirect_function_table(uint32_t table_index) {
-  return WasmIndirectFunctionTable::cast(
-      indirect_function_tables()->get(table_index));
+Tagged<WasmDispatchTable> WasmTrustedInstanceData::dispatch_table(
+    uint32_t table_index) {
+  Tagged<Object> table = dispatch_tables()->get(table_index);
+  DCHECK(IsWasmDispatchTable(table));
+  return WasmDispatchTable::cast(table);
+}
+
+bool WasmTrustedInstanceData::has_dispatch_table(uint32_t table_index) {
+  Tagged<Object> maybe_table = dispatch_tables()->get(table_index);
+  DCHECK(maybe_table == Smi::zero() || IsWasmDispatchTable(maybe_table));
+  return maybe_table != Smi::zero();
 }
 
 Tagged<WasmModuleObject> WasmTrustedInstanceData::module_object() const {
@@ -314,6 +315,46 @@ ImportedFunctionEntry::ImportedFunctionEntry(
     Isolate* isolate, Handle<WasmTrustedInstanceData> instance_data, int index)
     : ImportedFunctionEntry(handle(instance_data->instance_object(), isolate),
                             index) {}
+
+// WasmDispatchTable
+CAST_ACCESSOR(WasmDispatchTable)
+OBJECT_CONSTRUCTORS_IMPL(WasmDispatchTable, TrustedObject)
+
+void WasmDispatchTable::clear_entry_padding(int index) {
+  static_assert(kEntryPaddingBytes == 0 || kEntryPaddingBytes == kIntSize);
+  if constexpr (kEntryPaddingBytes != 0) {
+    WriteField<int>(OffsetOf(index) + kEntryPaddingOffset, 0);
+  }
+}
+
+int WasmDispatchTable::length(AcquireLoadTag) const {
+  return ACQUIRE_READ_INT32_FIELD(*this, kLengthOffset);
+}
+
+int WasmDispatchTable::length() const { return ReadField<int>(kLengthOffset); }
+
+int WasmDispatchTable::capacity() const {
+  return ReadField<int>(kCapacityOffset);
+}
+
+inline Tagged<Object> WasmDispatchTable::ref(int index) const {
+  DCHECK_LT(index, length());
+  int offset = OffsetOf(index) + kRefBias;
+  Tagged<Object> ref = TaggedField<Object>::load(*this, offset);
+  DCHECK(IsWasmInstanceObject(ref) || IsWasmApiFunctionRef(ref) ||
+         ref == Smi::zero());
+  return HeapObject::cast(ref);
+}
+
+inline Address WasmDispatchTable::target(int index) const {
+  DCHECK_LT(index, length());
+  return ReadField<Address>(OffsetOf(index) + kTargetBias);
+}
+
+inline int WasmDispatchTable::sig(int index) const {
+  DCHECK_LT(index, length());
+  return ReadField<int>(OffsetOf(index) + kSigBias);
+}
 
 // WasmExceptionPackage
 OBJECT_CONSTRUCTORS_IMPL(WasmExceptionPackage, JSObject)
@@ -365,13 +406,6 @@ WasmExternalFunction::WasmExternalFunction(Address ptr) : JSFunction(ptr) {
   SLOW_DCHECK(IsWasmExternalFunction(*this));
 }
 CAST_ACCESSOR(WasmExternalFunction)
-
-// WasmIndirectFunctionTable
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmIndirectFunctionTable)
-ACCESSORS(WasmIndirectFunctionTable, sig_ids, Tagged<FixedUInt32Array>,
-          kSigIdsOffset)
-ACCESSORS(WasmIndirectFunctionTable, targets, Tagged<ExternalPointerArray>,
-          kTargetsOffset)
 
 // WasmTypeInfo
 EXTERNAL_POINTER_ACCESSORS(WasmTypeInfo, native_type, Address,

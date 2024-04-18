@@ -10,6 +10,8 @@
 #include "src/codegen/external-reference.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/operations.h"
+#include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/utils.h"
 #include "src/compiler/write-barrier-kind.h"
@@ -22,18 +24,63 @@ namespace v8::internal::compiler::turboshaft {
 const TSCallDescriptor* CreateAllocateBuiltinDescriptor(Zone* zone,
                                                         Isolate* isolate);
 
-// The main purpose of memory optimization is folding multiple allocations into
-// one. For this, the first allocation reserves additional space, that is
+inline bool ValueNeedsWriteBarrier(const Graph* graph, const Operation& value,
+                                   Isolate* isolate) {
+  if (value.Is<Opmask::kBitcastWordPtrToSmi>()) {
+    return false;
+  } else if (const ConstantOp* constant = value.TryCast<ConstantOp>()) {
+    if (constant->kind == ConstantOp::Kind::kHeapObject) {
+      RootIndex root_index;
+      if (isolate->roots_table().IsRootHandle(constant->handle(),
+                                              &root_index) &&
+          RootsTable::IsImmortalImmovable(root_index)) {
+        return false;
+      }
+    }
+  } else if (const PhiOp* phi = value.TryCast<PhiOp>()) {
+    if (phi->rep == RegisterRepresentation::Tagged()) {
+      return base::any_of(phi->inputs(), [graph, isolate](OpIndex input) {
+        const Operation& input_op = graph->Get(input);
+        // If we have a Phi as the Phi's input, we give up to avoid infinite
+        // recursion.
+        if (input_op.Is<PhiOp>()) return true;
+        return ValueNeedsWriteBarrier(graph, input_op, isolate);
+      });
+    }
+  }
+  return true;
+}
+
+inline const AllocateOp* UnwrapAllocate(const Graph* graph,
+                                        const Operation* op) {
+  while (true) {
+    if (const AllocateOp* allocate = op->TryCast<AllocateOp>()) {
+      return allocate;
+    } else if (const TaggedBitcastOp* bitcast =
+                   op->TryCast<TaggedBitcastOp>()) {
+      op = &graph->Get(bitcast->input());
+    } else if (const WordBinopOp* binop = op->TryCast<WordBinopOp>();
+               binop && binop->kind == any_of(WordBinopOp::Kind::kAdd,
+                                              WordBinopOp::Kind::kSub)) {
+      op = &graph->Get(binop->left());
+    } else {
+      return nullptr;
+    }
+  }
+}
+
+// The main purpose of memory optimization is folding multiple allocations
+// into one. For this, the first allocation reserves additional space, that is
 // consumed by subsequent allocations, which only move the allocation top
-// pointer and are therefore guaranteed to succeed. Another nice side-effect of
-// allocation folding is that more stores are performed on the most recent
+// pointer and are therefore guaranteed to succeed. Another nice side-effect
+// of allocation folding is that more stores are performed on the most recent
 // allocation, which allows us to eliminate the write barrier for the store.
 //
 // This analysis works by keeping track of the most recent non-folded
 // allocation, as well as the number of bytes this allocation needs to reserve
 // to satisfy all subsequent allocations.
-// We can do write barrier elimination across loops if the loop does not contain
-// any potentially allocating operations.
+// We can do write barrier elimination across loops if the loop does not
+// contain any potentially allocating operations.
 struct MemoryAnalyzer {
   enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
 
@@ -68,54 +115,38 @@ struct MemoryAnalyzer {
   BlockState state;
   TurboshaftPipelineKind pipeline_kind = PipelineData::Get().pipeline_kind();
 
+  bool IsPartOfLastAllocation(const Operation* op) {
+    const AllocateOp* allocation = UnwrapAllocate(&input_graph, op);
+    if (allocation == nullptr) return false;
+    if (state.last_allocation == nullptr) return false;
+    if (state.last_allocation->type != AllocationType::kYoung) return false;
+    if (state.last_allocation == allocation) return true;
+    auto it = folded_into.find(allocation);
+    if (it == folded_into.end()) return false;
+    return it->second == state.last_allocation;
+  }
+
   bool SkipWriteBarrier(const StoreOp& store) {
     const Operation& object = input_graph.Get(store.base());
     const Operation& value = input_graph.Get(store.value());
 
-    auto CannotEliminate = [&](WriteBarrierKind kind) {
-      if (kind == WriteBarrierKind::kAssertNoWriteBarrier) {
-        // TODO(nicohartmann@): We should reenable this once we have no false
-        // positives anymore in the CSA pipeline.
-        if (pipeline_kind == TurboshaftPipelineKind::kCSA) {
-          return true;
-        }
-        std::stringstream str;
-        str << "MemoryOptimizationReducer could not remove write barrier for "
-               "operation\n  #"
-            << input_graph.Index(store) << ": " << store.ToString() << "\n";
-        FATAL("%s", str.str().c_str());
-      }
-      return false;
-    };
-
-    if (v8_flags.disable_write_barriers) return true;
     WriteBarrierKind write_barrier_kind = store.write_barrier;
     if (write_barrier_kind != WriteBarrierKind::kAssertNoWriteBarrier) {
-      // If we have {kAssertNoWriteBarrier}, we cannot skip elimination checks.
+      // If we have {kAssertNoWriteBarrier}, we cannot skip elimination
+      // checks.
       if (ShouldSkipOptimizationStep()) return false;
     }
-    if (const ConstantOp* constant = value.TryCast<ConstantOp>()) {
-      if (constant->kind == ConstantOp::Kind::kHeapObject) {
-        RootIndex root_index;
-        if (isolate_->roots_table().IsRootHandle(constant->handle(),
-                                                 &root_index)) {
-          if (RootsTable::IsImmortalImmovable(root_index)) return true;
-        }
-      }
+    if (IsPartOfLastAllocation(&object)) return true;
+    if (!ValueNeedsWriteBarrier(&input_graph, value, isolate_)) return true;
+    if (v8_flags.disable_write_barriers) return true;
+    if (write_barrier_kind == WriteBarrierKind::kAssertNoWriteBarrier) {
+      std::stringstream str;
+      str << "MemoryOptimizationReducer could not remove write barrier for "
+             "operation\n  #"
+          << input_graph.Index(store) << ": " << store.ToString() << "\n";
+      FATAL("%s", str.str().c_str());
     }
-    if (state.last_allocation == nullptr ||
-        state.last_allocation->type != AllocationType::kYoung) {
-      return CannotEliminate(write_barrier_kind);
-    }
-    if (state.last_allocation == &object) {
-      return true;
-    }
-    if (!object.Is<AllocateOp>()) return CannotEliminate(write_barrier_kind);
-    auto it = folded_into.find(&object.Cast<AllocateOp>());
-    if (it != folded_into.end() && it->second == state.last_allocation) {
-      return true;
-    }
-    return CannotEliminate(write_barrier_kind);
+    return false;
   }
 
   bool IsFoldedAllocation(OpIndex op) {
@@ -144,10 +175,9 @@ struct MemoryAnalyzer {
 template <class Next>
 class MemoryOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
-#if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
-#endif
+  TURBOSHAFT_REDUCER_BOILERPLATE(MemoryOptimization)
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
 
   void Analyze() {
     auto* info = PipelineData::Get().info();
@@ -211,7 +241,7 @@ class MemoryOptimizationReducer : public Next {
               : WasmTrustedInstanceData::kOldAllocationTopAddressOffset;
       top_address =
           __ Load(instance_node, LoadOp::Kind::TaggedBase().Immutable(),
-                  MemoryRepresentation::PointerSized(), top_address_offset);
+                  MemoryRepresentation::UintPtr(), top_address_offset);
 #else
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -222,14 +252,13 @@ class MemoryOptimizationReducer : public Next {
       OpIndex obj_addr = __ GetVariable(top(type));
       __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
       __ StoreOffHeap(top_address, __ GetVariable(top(type)),
-                      MemoryRepresentation::PointerSized());
+                      MemoryRepresentation::UintPtr());
       return __ BitcastWordPtrToHeapObject(
           __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
     }
 
-    __ SetVariable(
-        top(type),
-        __ LoadOffHeap(top_address, MemoryRepresentation::PointerSized()));
+    __ SetVariable(top(type), __ LoadOffHeap(top_address,
+                                             MemoryRepresentation::UintPtr()));
 
     OpIndex allocate_builtin;
     if (!analyzer_->is_wasm) {
@@ -280,7 +309,7 @@ class MemoryOptimizationReducer : public Next {
     // normal-sized objects.
     uint64_t constant_size{};
     if (!__ matcher().MatchIntegralWordConstant(
-            size, WordRepresentation::PointerSized(), &constant_size) ||
+            size, WordRepresentation::WordPtr(), &constant_size) ||
         constant_size > kMaxRegularHeapObjectSize) {
       Variable result =
           __ NewLoopInvariantVariable(RegisterRepresentation::Tagged());
@@ -292,14 +321,13 @@ class MemoryOptimizationReducer : public Next {
                            top_value, __ IntPtrConstant(kHeapObjectTag))));
         OpIndex new_top = __ PointerAdd(top_value, size);
         OpIndex limit =
-            __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+            __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(new_top, limit)), call_runtime);
         __ GotoIfNot(LIKELY(__ UintPtrLessThan(
                          size, __ IntPtrConstant(kMaxRegularHeapObjectSize))),
                      call_runtime);
         __ SetVariable(top(type), new_top);
-        __ StoreOffHeap(top_address, new_top,
-                        MemoryRepresentation::PointerSized());
+        __ StoreOffHeap(top_address, new_top, MemoryRepresentation::UintPtr());
         __ Goto(done);
       }
       if (constant_size || __ Bind(call_runtime)) {
@@ -326,7 +354,7 @@ class MemoryOptimizationReducer : public Next {
         ConditionalGotoStatus::kGotoDestination;
     if (reachable) {
       OpIndex limit =
-          __ LoadOffHeap(limit_address, MemoryRepresentation::PointerSized());
+          __ LoadOffHeap(limit_address, MemoryRepresentation::UintPtr());
       __ Branch(__ UintPtrLessThan(
                     __ PointerAdd(__ GetVariable(top(type)), reservation_size),
                     limit),
@@ -348,7 +376,7 @@ class MemoryOptimizationReducer : public Next {
     OpIndex obj_addr = __ GetVariable(top(type));
     __ SetVariable(top(type), __ PointerAdd(__ GetVariable(top(type)), size));
     __ StoreOffHeap(top_address, __ GetVariable(top(type)),
-                    MemoryRepresentation::PointerSized());
+                    MemoryRepresentation::UintPtr());
     return __ BitcastWordPtrToHeapObject(
         __ PointerAdd(obj_addr, __ IntPtrConstant(kHeapObjectTag)));
   }
@@ -374,27 +402,27 @@ class MemoryOptimizationReducer : public Next {
                         ExternalReference::
                             shared_external_pointer_table_address_address(
                                 isolate_)),
-                    MemoryRepresentation::PointerSized())
+                    MemoryRepresentation::UintPtr())
               : __ ExternalConstant(
                     ExternalReference::external_pointer_table_address(
                         isolate_));
       table = __ LoadOffHeap(table_address,
                              Internals::kExternalPointerTableBasePointerOffset,
-                             MemoryRepresentation::PointerSized());
+                             MemoryRepresentation::UintPtr());
     } else {
 #if V8_ENABLE_WEBASSEMBLY
       V<WordPtr> isolate_root = __ LoadRootRegister();
       if (IsSharedExternalPointerType(tag)) {
         V<WordPtr> table_address =
             __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                    MemoryRepresentation::PointerSized(),
+                    MemoryRepresentation::UintPtr(),
                     IsolateData::shared_external_pointer_table_offset());
         table = __ Load(table_address, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::PointerSized(),
+                        MemoryRepresentation::UintPtr(),
                         Internals::kExternalPointerTableBasePointerOffset);
       } else {
         table = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
-                        MemoryRepresentation::PointerSized(),
+                        MemoryRepresentation::UintPtr(),
                         IsolateData::external_pointer_table_offset() +
                             Internals::kExternalPointerTableBasePointerOffset);
       }
@@ -406,7 +434,7 @@ class MemoryOptimizationReducer : public Next {
     OpIndex index = __ ShiftRightLogical(handle, kExternalPointerIndexShift,
                                          WordRepresentation::Word32());
     OpIndex pointer = __ LoadOffHeap(table, __ ChangeUint32ToUint64(index), 0,
-                                     MemoryRepresentation::PointerSized());
+                                     MemoryRepresentation::UintPtr());
     pointer = __ Word64BitwiseAnd(pointer, __ Word64Constant(~tag));
     return pointer;
 #else   // V8_ENABLE_SANDBOX
@@ -426,7 +454,7 @@ class MemoryOptimizationReducer : public Next {
     DCHECK(type == AllocationType::kYoung || type == AllocationType::kOld);
     if (V8_UNLIKELY(!top_[static_cast<int>(type)].has_value())) {
       top_[static_cast<int>(type)].emplace(
-          __ NewLoopInvariantVariable(RegisterRepresentation::PointerSized()));
+          __ NewLoopInvariantVariable(RegisterRepresentation::WordPtr()));
     }
     return top_[static_cast<int>(type)].value();
   }
@@ -458,7 +486,7 @@ class MemoryOptimizationReducer : public Next {
               : WasmTrustedInstanceData::kOldAllocationLimitAddressOffset;
       limit_address =
           __ Load(instance_node, LoadOp::Kind::TaggedBase(),
-                  MemoryRepresentation::PointerSized(), limit_address_offset);
+                  MemoryRepresentation::UintPtr(), limit_address_offset);
 #else
       UNREACHABLE();
 #endif  // V8_ENABLE_WEBASSEMBLY

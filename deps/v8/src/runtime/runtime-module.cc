@@ -29,16 +29,16 @@ RUNTIME_FUNCTION(Runtime_DynamicImportCall) {
   Handle<JSFunction> function = args.at<JSFunction>(0);
   Handle<Object> specifier = args.at(1);
 
-  MaybeHandle<Object> import_assertions;
+  MaybeHandle<Object> import_options;
   if (args.length() == 3) {
-    import_assertions = args.at<Object>(2);
+    import_options = args.at<Object>(2);
   }
 
   Handle<Script> referrer_script =
       GetEvalOrigin(isolate, Script::cast(function->shared()->script()));
   RETURN_RESULT_OR_FAILURE(isolate,
                            isolate->RunHostImportModuleDynamicallyCallback(
-                               referrer_script, specifier, import_assertions));
+                               referrer_script, specifier, import_options));
 }
 
 RUNTIME_FUNCTION(Runtime_GetModuleNamespace) {

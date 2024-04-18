@@ -1720,8 +1720,10 @@ BackgroundCompileTask::BackgroundCompileTask(
 
 BackgroundCompileTask::~BackgroundCompileTask() = default;
 
+namespace {
+
 void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
-                                const ScriptDetails& script_details,
+                                ScriptDetails script_details,
                                 DisallowGarbageCollection* no_gc) {
   Handle<Object> script_name;
   if (script_details.name_obj.ToHandle(&script_name)) {
@@ -1746,8 +1748,6 @@ void SetScriptFieldsFromDetails(Isolate* isolate, Tagged<Script> script,
     }
   }
 }
-
-namespace {
 
 #ifdef ENABLE_SLOW_DCHECKS
 
@@ -2032,31 +2032,41 @@ class ConstantPoolPointerForwarder {
     for (Handle<BytecodeArray> bytecode_array : bytecode_arrays_to_update_) {
       local_heap_->Safepoint();
       DisallowGarbageCollection no_gc;
-      Tagged<FixedArray> constant_pool = bytecode_array->constant_pool();
-      IterateConstantPool(constant_pool);
+      IterateConstantPool(bytecode_array->constant_pool());
     }
   }
 
   bool HasAnythingToForward() const { return !forwarding_table_.empty(); }
 
  private:
-  void IterateConstantPool(Tagged<FixedArray> constant_pool) {
-    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
-      Tagged<Object> obj = constant_pool->get(i);
-      if (IsSmi(obj)) continue;
-      Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
-      if (IsFixedArray(heap_obj, cage_base_)) {
-        // Constant pools can have nested fixed arrays, but such relationships
-        // are acyclic and never more than a few layers deep, so recursion is
-        // fine here.
-        IterateConstantPool(FixedArray::cast(heap_obj));
-      } else if (IsSharedFunctionInfo(heap_obj, cage_base_)) {
-        auto it = forwarding_table_.find(
-            SharedFunctionInfo::cast(heap_obj)->function_literal_id());
-        if (it != forwarding_table_.end()) {
-          constant_pool->set(i, *it->second);
-        }
+  template <typename TArray>
+  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
+    Tagged<Object> obj = constant_pool->get(i);
+    if (IsSmi(obj)) return;
+    Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
+    if (IsFixedArray(heap_obj, cage_base_)) {
+      // Constant pools can have nested fixed arrays, but such relationships
+      // are acyclic and never more than a few layers deep, so recursion is
+      // fine here.
+      IterateConstantPoolNestedArray(FixedArray::cast(heap_obj));
+    } else if (IsSharedFunctionInfo(heap_obj, cage_base_)) {
+      auto it = forwarding_table_.find(
+          SharedFunctionInfo::cast(heap_obj)->function_literal_id());
+      if (it != forwarding_table_.end()) {
+        constant_pool->set(i, *it->second);
       }
+    }
+  }
+
+  void IterateConstantPool(Tagged<TrustedFixedArray> constant_pool) {
+    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
+      IterateConstantPoolEntry(constant_pool, i);
+    }
+  }
+
+  void IterateConstantPoolNestedArray(Tagged<FixedArray> nested_array) {
+    for (int i = 0, length = nested_array->length(); i < length; ++i) {
+      IterateConstantPoolEntry(nested_array, i);
     }
   }
 
@@ -2450,10 +2460,10 @@ void BackgroundDeserializeTask::MergeWithExistingScript() {
 
 MaybeHandle<SharedFunctionInfo> BackgroundDeserializeTask::Finish(
     Isolate* isolate, Handle<String> source,
-    const ScriptDetails& script_details) {
+    ScriptOriginOptions origin_options) {
   return CodeSerializer::FinishOffThreadDeserialize(
       isolate, std::move(off_thread_data_), &cached_data_, source,
-      script_details, &background_merge_task_);
+      origin_options, &background_merge_task_);
 }
 
 // ----------------------------------------------------------------------------
@@ -3630,8 +3640,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
                    "V8.CompileDeserialize");
       if (deserialize_task) {
         // If there's a cache consume task, finish it.
-        maybe_result =
-            deserialize_task->Finish(isolate, source, script_details);
+        maybe_result = deserialize_task->Finish(isolate, source,
+                                                script_details.origin_options);
         // It is possible at this point that there is a Script object for this
         // script in the compilation cache (held in the variable maybe_script),
         // which does not match maybe_result->script(). This could happen any of
@@ -3652,7 +3662,8 @@ MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScriptImpl(
         // would be non-trivial.
       } else {
         maybe_result = CodeSerializer::Deserialize(
-            isolate, cached_data, source, script_details, maybe_script);
+            isolate, cached_data, source, script_details.origin_options,
+            maybe_script);
       }
 
       bool consuming_code_cache_succeeded = false;
@@ -3828,7 +3839,7 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                  "V8.CompileDeserialize");
     maybe_result = CodeSerializer::Deserialize(isolate, cached_data, source,
-                                               script_details);
+                                               script_details.origin_options);
     bool consuming_code_cache_succeeded = false;
     if (maybe_result.ToHandle(&result)) {
       is_compiled_scope = result->is_compiled_scope(isolate);

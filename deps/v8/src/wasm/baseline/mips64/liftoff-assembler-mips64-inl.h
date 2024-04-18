@@ -2280,7 +2280,8 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
   bailout(kRelaxedSimd, "emit_s128_relaxed_laneselect");
 }
 

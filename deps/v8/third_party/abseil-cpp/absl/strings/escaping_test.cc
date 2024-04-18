@@ -689,6 +689,35 @@ TEST(Base64, DISABLED_HugeData) {
   EXPECT_EQ(huge, unescaped);
 }
 
+TEST(Escaping, HexStringToBytesBackToHex) {
+  std::string bytes, hex;
+
+  constexpr absl::string_view kTestHexLower =  "1c2f0032f40123456789abcdef";
+  constexpr absl::string_view kTestHexUpper =  "1C2F0032F40123456789ABCDEF";
+  constexpr absl::string_view kTestBytes = absl::string_view(
+      "\x1c\x2f\x00\x32\xf4\x01\x23\x45\x67\x89\xab\xcd\xef", 13);
+
+  EXPECT_TRUE(absl::HexStringToBytes(kTestHexLower, &bytes));
+  EXPECT_EQ(bytes, kTestBytes);
+
+  EXPECT_TRUE(absl::HexStringToBytes(kTestHexUpper, &bytes));
+  EXPECT_EQ(bytes, kTestBytes);
+
+  hex = absl::BytesToHexString(kTestBytes);
+  EXPECT_EQ(hex, kTestHexLower);
+
+  // Length not a multiple of two.
+  EXPECT_FALSE(absl::HexStringToBytes("1c2f003", &bytes));
+
+  // Not hex.
+  EXPECT_FALSE(absl::HexStringToBytes("1c2f00ft", &bytes));
+
+  // Empty input.
+  bytes = "abc";
+  EXPECT_TRUE(absl::HexStringToBytes("", &bytes));
+  EXPECT_EQ("", bytes);  // Results in empty output.
+}
+
 TEST(HexAndBack, HexStringToBytes_and_BytesToHexString) {
   std::string hex_mixed = "0123456789abcdefABCDEF";
   std::string bytes_expected = "\x01\x23\x45\x67\x89\xab\xcd\xef\xAB\xCD\xEF";

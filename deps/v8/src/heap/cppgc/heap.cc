@@ -84,6 +84,9 @@ Heap::Heap(std::shared_ptr<cppgc::Platform> platform,
                 platform_->GetForegroundTaskRunner());
   CHECK_IMPLIES(options.sweeping_support != HeapBase::SweepingType::kAtomic,
                 platform_->GetForegroundTaskRunner());
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  object_allocator().UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 }
 
 Heap::~Heap() {
@@ -172,7 +175,7 @@ void Heap::FinalizeGarbageCollection(StackState stack_state) {
 void Heap::FinalizeGarbageCollectionImpl(StackState stack_state) {
   DCHECK(IsMarking());
   DCHECK(!in_no_gc_scope());
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   config_.stack_state = stack_state;
   in_atomic_pause_ = true;
 

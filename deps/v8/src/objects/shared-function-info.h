@@ -179,11 +179,8 @@ class InterpreterData
     : public TorqueGeneratedInterpreterData<InterpreterData,
                                             ExposedTrustedObject> {
  public:
-  // TODO(saelo): once InterpreterData objects are moved into TrustedSpace,
-  // these two references can become protected pointers.
-  static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-  DECL_TRUSTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
-  DECL_CODE_POINTER_ACCESSORS(interpreter_trampoline)
+  DECL_PROTECTED_POINTER_ACCESSORS(bytecode_array, BytecodeArray)
+  DECL_PROTECTED_POINTER_ACCESSORS(interpreter_trampoline, Code)
 
   class BodyDescriptor;
 

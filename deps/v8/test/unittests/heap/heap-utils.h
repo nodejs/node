@@ -150,7 +150,7 @@ bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   CHECK(!v8_flags.single_generation);
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
+  return Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
 bool IsNewObjectInCorrectGeneration(Tagged<HeapObject> object);
@@ -160,7 +160,7 @@ bool IsNewObjectInCorrectGeneration(v8::Isolate* isolate,
                                     const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return IsNewObjectInCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
+  return IsNewObjectInCorrectGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
 // ManualGCScope allows for disabling GC heuristics. This is useful for tests

@@ -20,8 +20,7 @@ void WasmLoweringPhase::Run(Zone* temp_zone) {
                               v8_flags.turboshaft_trace_reduction);
   // Also run the MachineOptimizationReducer as it can help the late load
   // elimination that follows this phase eliminate more loads.
-  CopyingPhase<WasmLoweringReducer, VariableReducer, MachineOptimizationReducer,
-               RequiredOptimizationReducer>::Run<true>(temp_zone);
+  CopyingPhase<WasmLoweringReducer, MachineOptimizationReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

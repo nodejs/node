@@ -868,6 +868,17 @@ ACCESSORS_CHECKED(Map, native_context_or_null, Tagged<Object>,
                   kConstructorOrBackPointerOrNativeContextOffset,
                   (IsNull(value) || IsNativeContext(value)) &&
                       (IsContextMap(*this) || IsMapMap(*this)))
+// Unlike native_context_or_null() this getter allows the value to be
+// equal to Smi::uninitialized_deserialization_value().
+DEF_GETTER(Map, raw_native_context_or_null, Tagged<Object>) {
+  Tagged<Object> value = TaggedField<
+      Tagged<Object>,
+      kConstructorOrBackPointerOrNativeContextOffset>::load(cage_base, *this);
+  DCHECK(IsNull(value) || IsNativeContext(value) ||
+         value == Smi::uninitialized_deserialization_value());
+  DCHECK(IsContextMap(*this) || IsMapMap(*this));
+  return value;
+}
 #if V8_ENABLE_WEBASSEMBLY
 ACCESSORS_CHECKED(Map, wasm_type_info, Tagged<WasmTypeInfo>,
                   kConstructorOrBackPointerOrNativeContextOffset,

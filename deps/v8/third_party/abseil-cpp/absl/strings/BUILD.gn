@@ -394,8 +394,8 @@ absl_source_set("cordz_handle") {
   public = [ "internal/cordz_handle.h" ]
   visibility = [ "//third_party/abseil-cpp/*" ]
   deps = [
-    "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:no_destructor",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/synchronization",
   ]
@@ -614,6 +614,7 @@ absl_source_set("cordz_test_helpers") {
 #     "//third_party/abseil-cpp/absl/container:fixed_array",
 #     "//third_party/abseil-cpp/absl/functional:function_ref",
 #     "//third_party/abseil-cpp/absl/hash",
+#     "//third_party/abseil-cpp/absl/hash:hash_testing",
 #     "//third_party/abseil-cpp/absl/log",
 #     "//third_party/abseil-cpp/absl/log:check",
 #     "//third_party/abseil-cpp/absl/random",

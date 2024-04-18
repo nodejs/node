@@ -153,7 +153,7 @@ void MeasureMemoryDelegate::MeasurementComplete(Result result) {
   DCHECK_EQ(result.contexts.size(), result.sizes_in_bytes.size());
   for (size_t i = 0; i < result.contexts.size(); ++i) {
     total_size += result.sizes_in_bytes[i];
-    if (*Utils::OpenHandle(*result.contexts[i]) == *context_) {
+    if (*Utils::OpenDirectHandle(*result.contexts[i]) == *context_) {
       current_size = result.sizes_in_bytes[i];
     }
   }
@@ -167,7 +167,7 @@ void MeasureMemoryDelegate::MeasurementComplete(Result result) {
     result_builder.AddCurrent(current_size, current_size,
                               current_size + shared_size);
     for (size_t i = 0; i < result.contexts.size(); ++i) {
-      if (*Utils::OpenHandle(*result.contexts[i]) != *context_) {
+      if (*Utils::OpenDirectHandle(*result.contexts[i]) != *context_) {
         size_t other_size = result.sizes_in_bytes[i];
         result_builder.AddOther(other_size, other_size,
                                 other_size + shared_size);

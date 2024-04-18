@@ -400,7 +400,7 @@ cc_library(
 
 cc_binary(
     name = "vlog_config_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["vlog_config_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

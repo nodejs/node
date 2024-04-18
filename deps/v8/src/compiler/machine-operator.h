@@ -266,15 +266,17 @@ V8_EXPORT_PRIVATE StoreLaneParameters const& StoreLaneParametersOf(
 
 class StackSlotRepresentation final {
  public:
-  StackSlotRepresentation(int size, int alignment)
-      : size_(size), alignment_(alignment) {}
+  StackSlotRepresentation(int size, int alignment, bool is_tagged)
+      : size_(size), alignment_(alignment), is_tagged_(is_tagged) {}
 
   int size() const { return size_; }
   int alignment() const { return alignment_; }
+  bool is_tagged() const { return is_tagged_; }
 
  private:
   int size_;
   int alignment_;
+  bool is_tagged_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(StackSlotRepresentation,
@@ -1199,7 +1201,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
 
-  const Operator* StackSlot(int size, int alignment = 0);
+  const Operator* StackSlot(int size, int alignment = 0,
+                            bool is_tagged = false);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
   // Note: Only use this operator to:

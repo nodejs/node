@@ -1117,10 +1117,17 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
 
 RegExpNode* RegExpBackReference::ToNode(RegExpCompiler* compiler,
                                         RegExpNode* on_success) {
-  return compiler->zone()->New<BackReferenceNode>(
-      RegExpCapture::StartRegister(index()),
-      RegExpCapture::EndRegister(index()), compiler->read_backward(),
-      on_success);
+  RegExpNode* backref_node = on_success;
+  // Only one of the captures in the list can actually match. Since
+  // back-references to unmatched captures are treated as empty, we can simply
+  // create back-references to all possible captures.
+  for (auto capture : *captures()) {
+    backref_node = compiler->zone()->New<BackReferenceNode>(
+        RegExpCapture::StartRegister(capture->index()),
+        RegExpCapture::EndRegister(capture->index()), compiler->read_backward(),
+        backref_node);
+  }
+  return backref_node;
 }
 
 RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,

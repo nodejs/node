@@ -323,7 +323,7 @@ class ReadOnlyHeapImageSerializer {
         static_cast<uint32_t>(page->HighWaterMark() - page->area_start()),
         "area size in bytes");
     if (V8_STATIC_ROOTS_BOOL) {
-      auto page_addr = reinterpret_cast<Address>(page);
+      auto page_addr = page->address();
       sink_->PutUint32(V8HeapCompressionScheme::CompressAny(page_addr),
                        "page start offset");
     }

@@ -122,7 +122,6 @@ class WasmExceptionPackage;
 class WasmExceptionTag;
 class WasmExportedFunctionData;
 class WasmGlobalObject;
-class WasmIndirectFunctionTable;
 class WasmJSFunctionData;
 class WasmMemoryObject;
 class WasmModuleObject;
@@ -158,6 +157,7 @@ OBJECT_TYPE_CASE(HeapObject)
 OBJECT_TYPE_CASE(HeapObjectReference)
 OBJECT_TYPE_LIST(OBJECT_TYPE_CASE)
 HEAP_OBJECT_ORDINARY_TYPE_LIST(OBJECT_TYPE_CASE)
+HEAP_OBJECT_TRUSTED_TYPE_LIST(OBJECT_TYPE_CASE)
 STRUCT_LIST(OBJECT_TYPE_STRUCT_CASE)
 HEAP_OBJECT_TEMPLATE_TYPE_LIST(OBJECT_TYPE_TEMPLATE_CASE)
 OBJECT_TYPE_ODDBALL_CASE(Null)

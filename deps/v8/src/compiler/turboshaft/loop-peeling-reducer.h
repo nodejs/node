@@ -28,7 +28,7 @@ class LoopUnrollingReducer;
 template <class Next>
 class LoopPeelingReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LoopPeeling)
 
 #if defined(__clang__)
   // LoopUnrolling and LoopPeeling shouldn't be performed in the same phase, see
@@ -44,7 +44,7 @@ class LoopPeelingReducer : public Next {
     // mandatory lowering when peeling is being performed.
     LABEL_BLOCK(no_change) { return Next::ReduceInputGraphGoto(ig_idx, gto); }
 
-    Block* dst = gto.destination;
+    const Block* dst = gto.destination;
     if (dst->IsLoop() && !gto.is_backedge && CanPeelLoop(dst)) {
       if (ShouldSkipOptimizationStep()) goto no_change;
       PeelFirstIteration(dst);
@@ -110,7 +110,7 @@ class LoopPeelingReducer : public Next {
     kEmittingUnpeeledBody
   };
 
-  void PeelFirstIteration(Block* header) {
+  void PeelFirstIteration(const Block* header) {
     DCHECK_EQ(peeling_, PeelingStatus::kNotPeeling);
     ScopedModification<PeelingStatus> scope(&peeling_,
                                             PeelingStatus::kEmittingPeeledLoop);
@@ -138,7 +138,7 @@ class LoopPeelingReducer : public Next {
                      /* is_loop_after_peeling */ true);
   }
 
-  bool CanPeelLoop(Block* header) {
+  bool CanPeelLoop(const Block* header) {
     if (IsPeeling()) return false;
     auto info = loop_finder_.GetLoopInfo(header);
     return !info.has_inner_loops && info.op_count <= kMaxSizeForPeeling;
@@ -152,9 +152,8 @@ class LoopPeelingReducer : public Next {
   }
 
   PeelingStatus peeling_ = PeelingStatus::kNotPeeling;
-  Block* current_loop_header_ = nullptr;
+  const Block* current_loop_header_ = nullptr;
 
-  ZoneUnorderedSet<Block*> loop_body_{__ phase_zone()};
   LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
   JSHeapBroker* broker_ = PipelineData::Get().broker();
 };

@@ -32,7 +32,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
     export_name = export_name.concat(export_name);
   }
   var builder = new WasmModuleBuilder();
-  var global = builder.addGlobal(kWasmI64, false);
+  var global = builder.addGlobal(kWasmI64, false, false);
   global.exportAs(export_name);
   global.exportAs(export_name);
   var error_msg =

@@ -363,7 +363,8 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cond) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   ldr(destination, FieldMemOperand(code_object, Code::kInstructionStartOffset));
 }
@@ -2006,10 +2007,8 @@ void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
     Assert(eq, AbortReason::kExpectedFeedbackCell);
   }
 }
-void MacroAssembler::AssertFeedbackVector(Register object) {
+void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
     CompareObjectType(object, scratch, scratch, FEEDBACK_VECTOR_TYPE);
     Assert(eq, AbortReason::kExpectedFeedbackVector);
   }
@@ -2729,20 +2728,22 @@ void MacroAssembler::MovToFloatParameters(DwVfpRegister src1,
   }
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function,
+                                  int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   Move(scratch, function);
-  CallCFunction(scratch, num_reg_arguments, num_double_arguments,
-                set_isolate_data_slots);
+  return CallCFunction(scratch, num_reg_arguments, num_double_arguments,
+                       set_isolate_data_slots, return_label);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
-                                   int num_double_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
+                                  int num_double_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_reg_arguments + num_double_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -2767,13 +2768,19 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   }
 #endif
 
+  Label get_pc;
+
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    Register pc_scratch = r5;
+    Push(pc_scratch);
+    GetLabelAddress(pc_scratch, &get_pc);
+
     // Save the frame pointer and PC so that the stack layout remains iterable,
     // even without an ExitFrame which normally exists between JS and C frames.
     // See x64 code for reasoning about how to address the isolate data fields.
     if (root_array_available()) {
-      str(pc, MemOperand(kRootRegister,
-                         IsolateData::fast_c_call_caller_pc_offset()));
+      str(pc_scratch, MemOperand(kRootRegister,
+                                 IsolateData::fast_c_call_caller_pc_offset()));
       str(fp, MemOperand(kRootRegister,
                          IsolateData::fast_c_call_caller_fp_offset()));
     } else {
@@ -2783,19 +2790,24 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
 
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_pc_address(isolate()));
-      str(pc, MemOperand(addr_scratch));
+      str(pc_scratch, MemOperand(addr_scratch));
       Move(addr_scratch,
            ExternalReference::fast_c_call_caller_fp_address(isolate()));
       str(fp, MemOperand(addr_scratch));
 
       Pop(addr_scratch);
     }
+
+    Pop(pc_scratch);
   }
 
   // Just call directly. The function called cannot cause a GC, or
   // allow preemption, so the return address in the link register
   // stays correct.
   Call(function);
+  int call_pc_offset = pc_offset();
+  bind(&get_pc);
+  if (return_label) bind(return_label);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -2827,17 +2839,22 @@ void MacroAssembler::CallCFunction(Register function, int num_reg_arguments,
   } else {
     add(sp, sp, Operand(stack_passed_arguments * kPointerSize));
   }
+
+  return call_pc_offset;
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_label);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
-  CallCFunction(function, num_arguments, 0, set_isolate_data_slots);
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_label) {
+  return CallCFunction(function, num_arguments, 0, set_isolate_data_slots,
+                       return_label);
 }
 
 void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
@@ -2848,7 +2865,7 @@ void MacroAssembler::CheckPageFlag(Register object, int mask, Condition cc,
   DCHECK(!AreAliased(object, scratch));
   DCHECK(cc == eq || cc == ne);
   Bfc(scratch, object, 0, kPageSizeBits);
-  ldr(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  ldr(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   tst(scratch, Operand(mask));
   b(cc, condition_met);
 }

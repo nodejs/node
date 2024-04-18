@@ -225,11 +225,13 @@ absl_cc_library(
   DEPS
     absl::config
     absl::inlined_vector
+    absl::nullability
     absl::random_internal_pool_urbg
     absl::random_internal_salted_seed_seq
     absl::random_internal_seed_material
     absl::random_seed_gen_exception
     absl::span
+    absl::string_view
 )
 
 absl_cc_test(

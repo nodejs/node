@@ -55,7 +55,7 @@ bool IsUnicodeScriptSubtag(const std::string& value) {
 }
 
 bool IsUnicodeRegionSubtag(const std::string& value) {
-  if (value.length() == 0) return false;
+  if (value.empty()) return false;
   UErrorCode status = U_ZERO_ERROR;
   icu::LocaleBuilder builder;
   builder.setRegion(value).build(status);

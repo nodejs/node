@@ -24,9 +24,8 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
                  std::vector<int>* function_body_offsets) {
   MultiLineStringBuilder out;
   AccountingAllocator allocator;
-  constexpr bool kCollectOffsets = true;
   ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
-                        kCollectOffsets, function_body_offsets);
+                        /* no offsets yet */ {}, function_body_offsets);
   md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
@@ -34,10 +33,11 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
 void Disassemble(base::Vector<const uint8_t> wire_bytes,
                  v8::debug::DisassemblyCollector* collector,
                  std::vector<int>* function_body_offsets) {
-  ModuleResult result = DecodeWasmModuleForDisassembler(wire_bytes);
+  std::unique_ptr<ITracer> offsets = AllocateOffsetsProvider();
+  ModuleResult result =
+      DecodeWasmModuleForDisassembler(wire_bytes, offsets.get());
   MultiLineStringBuilder out;
   AccountingAllocator allocator;
-  constexpr bool kCollectOffsets = true;
   if (result.failed()) {
     WasmError error = result.error();
     out << "Decoding error: " << error.message() << " at offset "
@@ -49,7 +49,7 @@ void Disassemble(base::Vector<const uint8_t> wire_bytes,
   NamesProvider names(module, wire_bytes);
   ModuleWireBytes module_bytes(wire_bytes);
   ModuleDisassembler md(out, module, &names, module_bytes, &allocator,
-                        kCollectOffsets, function_body_offsets);
+                        std::move(offsets), function_body_offsets);
   md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
@@ -665,8 +665,24 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
 
 class OffsetsProvider : public ITracer {
  public:
+  struct RecGroup {
+    uint32_t offset{kInvalid};
+    uint32_t start_type_index{kInvalid};
+    uint32_t end_type_index{kInvalid};  // Exclusive.
+
+    // For convenience: built-in support for "maybe" values, useful at the
+    // end of iteration.
+    static constexpr uint32_t kInvalid = ~0u;
+    static constexpr RecGroup Invalid() { return {}; }
+    bool valid() { return start_type_index != kInvalid; }
+  };
+
   OffsetsProvider() = default;
 
+  // All-in-one, expects to be called on a freshly constructed {OffsetsProvider}
+  // when the {WasmModule} already exists.
+  // The alternative is to pass an {OffsetsProvider} as a tracer to the initial
+  // decoding of the wire bytes, letting it record offsets on the fly.
   void CollectOffsets(const WasmModule* module,
                       base::Vector<const uint8_t> wire_bytes) {
     num_imported_tables_ = module->num_imported_tables;
@@ -679,13 +695,12 @@ class OffsetsProvider : public ITracer {
     global_offsets_.reserve(module->globals.size() - num_imported_globals_);
     element_offsets_.reserve(module->elem_segments.size());
     data_offsets_.reserve(module->data_segments.size());
+    recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
     ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
                               kDoNotPopulateExplicitRecGroups, this};
     constexpr bool kNoVerifyFunctions = false;
     decoder.DecodeModule(kNoVerifyFunctions);
-
-    enabled_ = true;
   }
 
   void TypeOffset(uint32_t offset) override { type_offsets_.push_back(offset); }
@@ -718,8 +733,18 @@ class OffsetsProvider : public ITracer {
     string_offsets_.push_back(offset);
   }
 
+  void RecGroupOffset(uint32_t offset, uint32_t group_size) override {
+    uint32_t start_index = static_cast<uint32_t>(type_offsets_.size());
+    recgroups_.push_back({offset, start_index, start_index + group_size});
+  }
+
+  void ImportsDone(const WasmModule* module) override {
+    num_imported_tables_ = module->num_imported_tables;
+    num_imported_globals_ = module->num_imported_globals;
+    num_imported_tags_ = module->num_imported_tags;
+  }
+
   // Unused by this tracer:
-  void ImportsDone() override {}
   void Bytes(const uint8_t* start, uint32_t count) override {}
   void Description(const char* desc) override {}
   void Description(const char* desc, size_t length) override {}
@@ -737,10 +762,10 @@ class OffsetsProvider : public ITracer {
   void NameSection(const uint8_t* start, const uint8_t* end,
                    uint32_t offset) override {}
 
-#define GETTER(name)                       \
-  uint32_t name##_offset(uint32_t index) { \
-    if (!enabled_) return 0;               \
-    return name##_offsets_[index];         \
+#define GETTER(name)                        \
+  uint32_t name##_offset(uint32_t index) {  \
+    DCHECK(index < name##_offsets_.size()); \
+    return name##_offsets_[index];          \
   }
   GETTER(type)
   GETTER(import)
@@ -751,7 +776,6 @@ class OffsetsProvider : public ITracer {
 
 #define IMPORT_ADJUSTED_GETTER(name)                                  \
   uint32_t name##_offset(uint32_t index) {                            \
-    if (!enabled_) return 0;                                          \
     DCHECK(index >= num_imported_##name##s_ &&                        \
            index - num_imported_##name##s_ < name##_offsets_.size()); \
     return name##_offsets_[index - num_imported_##name##s_];          \
@@ -765,8 +789,12 @@ class OffsetsProvider : public ITracer {
 
   uint32_t start_offset() { return start_offset_; }
 
+  RecGroup recgroup(uint32_t index) {
+    if (index >= recgroups_.size()) return RecGroup::Invalid();
+    return recgroups_[index];
+  }
+
  private:
-  bool enabled_{false};
   uint32_t num_imported_tables_{0};
   uint32_t num_imported_globals_{0};
   uint32_t num_imported_tags_{0};
@@ -780,7 +808,12 @@ class OffsetsProvider : public ITracer {
   std::vector<uint32_t> string_offsets_;
   uint32_t memory_offset_{0};
   uint32_t start_offset_{0};
+  std::vector<RecGroup> recgroups_;
 };
+
+std::unique_ptr<ITracer> AllocateOffsetsProvider() {
+  return std::make_unique<OffsetsProvider>();
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ModuleDisassembler.
@@ -788,16 +821,18 @@ class OffsetsProvider : public ITracer {
 ModuleDisassembler::ModuleDisassembler(
     MultiLineStringBuilder& out, const WasmModule* module, NamesProvider* names,
     const ModuleWireBytes wire_bytes, AccountingAllocator* allocator,
-    bool collect_offsets, std::vector<int>* function_body_offsets)
+    std::unique_ptr<ITracer> offsets_provider,
+    std::vector<int>* function_body_offsets)
     : out_(out),
       module_(module),
       names_(names),
       wire_bytes_(wire_bytes),
       start_(wire_bytes_.start()),
       zone_(allocator, "disassembler zone"),
-      offsets_(new OffsetsProvider()),
+      offsets_(static_cast<OffsetsProvider*>(offsets_provider.release())),
       function_body_offsets_(function_body_offsets) {
-  if (collect_offsets) {
+  if (!offsets_) {
+    offsets_ = std::make_unique<OffsetsProvider>();
     offsets_->CollectOffsets(module, wire_bytes_.module_bytes());
   }
 }
@@ -811,37 +846,37 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   out_.NextLine(offset);
   out_ << indentation << "(type ";
   names_->PrintTypeName(out_, type_index, index_as_comment);
-  bool has_super = module_->has_supertype(type_index);
-  if (module_->has_array(type_index)) {
-    const ArrayType* type = module_->array_type(type_index);
-    // TODO(jkummerow): "_subtype" is the naming convention used for nominal
-    // types; update this for isorecursive hybrid types.
-    out_ << (has_super ? " (array_subtype (field " : " (array (field ");
-    PrintMutableType(type->mutability(), type->element_type());
-    out_ << ")";  // Closes `(field ...`
-    if (has_super) {
-      out_ << " ";
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
-  } else if (module_->has_struct(type_index)) {
-    const StructType* type = module_->struct_type(type_index);
-    out_ << (has_super ? " (struct_subtype" : " (struct");
-    bool break_lines = type->field_count() > 2;
-    for (uint32_t i = 0; i < type->field_count(); i++) {
+  const TypeDefinition& type = module_->types[type_index];
+  bool has_super = type.supertype != kNoSuperType;
+  if (has_super) {
+    out_ << " (sub ";
+    if (type.is_final) out_ << "final ";
+    names_->PrintHeapType(out_, HeapType(type.supertype));
+  }
+  if (type.kind == TypeDefinition::kArray) {
+    const ArrayType* atype = type.array_type;
+    out_ << " (array";
+    if (type.is_shared) out_ << " shared";
+    out_ << " (field ";
+    PrintMutableType(atype->mutability(), atype->element_type());
+    out_ << ")";  // Closes "(field ...".
+  } else if (type.kind == TypeDefinition::kStruct) {
+    const StructType* stype = type.struct_type;
+    out_ << " (struct";
+    if (type.is_shared) out_ << " shared";
+    bool break_lines = stype->field_count() > 2;
+    for (uint32_t i = 0; i < stype->field_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
       out_ << "(field ";
       names_->PrintFieldName(out_, type_index, i);
       out_ << " ";
-      PrintMutableType(type->mutability(i), type->field(i));
+      PrintMutableType(stype->mutability(i), stype->field(i));
       out_ << ")";
     }
-    if (has_super) {
-      LineBreakOrSpace(break_lines, indentation, offset);
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
-  } else if (module_->has_signature(type_index)) {
-    const FunctionSig* sig = module_->signature(type_index);
-    out_ << (has_super ? " (func_subtype" : " (func");
+  } else if (type.kind == TypeDefinition::kFunction) {
+    const FunctionSig* sig = type.function_sig;
+    out_ << " (func";
+    if (type.is_shared) out_ << " shared";
     bool break_lines = sig->parameter_count() + sig->return_count() > 2;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
@@ -857,12 +892,9 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       names_->PrintValueType(out_, sig->GetReturn(i));
       out_ << ")";
     }
-    if (has_super) {
-      LineBreakOrSpace(break_lines, indentation, offset);
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
   }
-  out_ << "))";  // Closes "(type" and "(array" / "(struct" / "(func".
+  // Closes "(type", "(sub", and "(array" / "(struct" / "(func".
+  out_ << (has_super ? ")))" : "))");
 }
 
 void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
@@ -884,15 +916,50 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   indentation.increase();
 
   // II. Types
-  // TODO(jkummerow): If we want to support binary -> WAT -> binary round
-  // trips, then we need to print rec groups. The difficulty is that we
-  // don't store that information, so we'd either have to make {WasmModule}
-  // bigger, or re-decode the type section here.
+  uint32_t recgroup_index = 0;
+  OffsetsProvider::RecGroup recgroup = offsets_->recgroup(recgroup_index++);
+  bool in_explicit_recgroup = false;
   for (uint32_t i = 0; i < module_->types.size(); i++) {
-    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i)) {
+    // No need to check {recgroup.valid()}, as the comparison will simply
+    // never be true otherwise.
+    while (i == recgroup.start_type_index) {
+      out_.NextLine(recgroup.offset);
+      out_ << indentation << "(rec";
+      if V8_UNLIKELY (recgroup.end_type_index == i) {
+        // Empty recgroup.
+        out_ << ")";
+        DCHECK(!in_explicit_recgroup);
+        recgroup = offsets_->recgroup(recgroup_index++);
+        continue;
+      } else {
+        in_explicit_recgroup = true;
+        indentation.increase();
+        break;
+      }
+    }
+    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i) &&
+        !in_explicit_recgroup) {
       continue;
     }
     PrintTypeDefinition(i, indentation, kIndicesAsComments);
+    if (in_explicit_recgroup && i == recgroup.end_type_index - 1) {
+      in_explicit_recgroup = false;
+      indentation.decrease();
+      // The end of a recgroup is implicit in the wire bytes, so repeat the
+      // previous line's offset for it.
+      uint32_t offset = out_.current_line_bytecode_offset();
+      out_.NextLine(offset);
+      out_ << indentation << ")";
+      recgroup = offsets_->recgroup(recgroup_index++);
+    }
+  }
+  while (recgroup.valid()) {
+    // There could be empty recgroups at the end of the type section.
+    DCHECK_GE(recgroup.start_type_index, module_->types.size());
+    DCHECK_EQ(recgroup.start_type_index, recgroup.end_type_index);
+    out_.NextLine(recgroup.offset);
+    out_ << indentation << "(rec)";
+    recgroup = offsets_->recgroup(recgroup_index++);
   }
 
   // III. Imports
@@ -1162,6 +1229,7 @@ void ModuleDisassembler::PrintMemory(const WasmMemory& memory) {
 
 void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
   out_ << " ";
+  if (global.shared) out_ << "shared ";
   PrintMutableType(global.mutability, global.type);
 }
 

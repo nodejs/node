@@ -261,9 +261,8 @@ static_assert(sizeof(ExternalPointerTableEntry) == 8);
  *    becomes the evacuation area. In this way, it becomes very cheap to test
  *    if an entry or segment should be evacuated: only a single integer
  *    comparison against the threshold is required. It also establishes a
- *    simple compaction invariant that can be verified with a few DCHECKs:
- *    compaction always moves an entry at or above the threshold to a new
- *    position before the threshold.
+ *    simple compaction invariant: compaction always moves an entry at or above
+ *    the threshold to a new position before the threshold.
  *  - During marking, whenever a live entry inside the evacuation area is
  *    found, a new "evacuation entry" is allocated from the freelist (which is
  *    assumed to have enough free slots) and the address of the handle in the
@@ -445,21 +444,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   bool TryResolveEvacuationEntryDuringSweeping(
       uint32_t index, ExternalPointerHandle* handle_location,
       uint32_t start_of_evacuation_area);
-
-#ifdef DEBUG
-  // In debug builds during GC marking, this value is ORed into
-  // ExternalPointerHandles whose entries are marked for evacuation. During
-  // sweeping, the Handles for evacuated entries are checked to have this
-  // marker value. This allows detecting re-initialized entries, which are
-  // problematic for compaction. This is only possible for entries marked for
-  // evacuation as the location of the Handle is only known for those.
-  static constexpr uint32_t kVisitedHandleMarker = 0x1;
-  static_assert(kExternalPointerIndexShift >= 1);
-
-  inline bool HandleWasVisitedDuringMarking(ExternalPointerHandle handle) {
-    return (handle & kVisitedHandleMarker) == kVisitedHandleMarker;
-  }
-#endif  // DEBUG
 
   // Outcome of external pointer table compaction to use for the
   // ExternalPointerTableCompactionOutcome histogram.

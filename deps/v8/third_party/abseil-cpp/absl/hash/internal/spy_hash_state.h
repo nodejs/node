@@ -149,20 +149,20 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
                                              const unsigned char* begin,
                                              size_t size) {
     const size_t large_chunk_stride = PiecewiseChunkSize();
-    if (size > large_chunk_stride) {
-      // Combining a large contiguous buffer must have the same effect as
-      // doing it piecewise by the stride length, followed by the (possibly
-      // empty) remainder.
-      while (size >= large_chunk_stride) {
-        hash_state = SpyHashStateImpl::combine_contiguous(
-            std::move(hash_state), begin, large_chunk_stride);
-        begin += large_chunk_stride;
-        size -= large_chunk_stride;
-      }
+    // Combining a large contiguous buffer must have the same effect as
+    // doing it piecewise by the stride length, followed by the (possibly
+    // empty) remainder.
+    while (size > large_chunk_stride) {
+      hash_state = SpyHashStateImpl::combine_contiguous(
+          std::move(hash_state), begin, large_chunk_stride);
+      begin += large_chunk_stride;
+      size -= large_chunk_stride;
     }
 
-    hash_state.hash_representation_.emplace_back(
-        reinterpret_cast<const char*>(begin), size);
+    if (size > 0) {
+      hash_state.hash_representation_.emplace_back(
+          reinterpret_cast<const char*>(begin), size);
+    }
     return hash_state;
   }
 

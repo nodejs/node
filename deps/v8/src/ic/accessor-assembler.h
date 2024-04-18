@@ -41,7 +41,9 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadICBaseline();
   void GenerateKeyedLoadICTrampoline_Megamorphic();
   void GenerateStoreIC();
+  void GenerateStoreIC_Megamorphic();
   void GenerateStoreICTrampoline();
+  void GenerateStoreICTrampoline_Megamorphic();
   void GenerateStoreICBaseline();
   void GenerateDefineNamedOwnIC();
   void GenerateDefineNamedOwnICTrampoline();
@@ -253,6 +255,11 @@ class V8_EXPORT_PRIVATE AccessorAssembler : public CodeStubAssembler {
     }
     bool IsAnyDefineOwn() const {
       return IsDefineNamedOwn() || IsDefineKeyedOwn();
+    }
+
+    StubCache* stub_cache(Isolate* isolate) const {
+      return IsAnyDefineOwn() ? isolate->define_own_stub_cache()
+                              : isolate->store_stub_cache();
     }
 
    private:

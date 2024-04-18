@@ -291,7 +291,7 @@ cc_library(
 
 cc_library(
     name = "atomic_hook_test_helper",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/atomic_hook_test_helper.cc"],
     hdrs = ["internal/atomic_hook_test_helper.h"],
     copts = ABSL_DEFAULT_COPTS,
@@ -377,7 +377,7 @@ cc_test(
 
 cc_library(
     name = "exception_testing",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/exception_testing.h"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -401,7 +401,7 @@ cc_library(
 
 cc_library(
     name = "exception_safety_testing",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/exception_safety_testing.cc"],
     hdrs = ["internal/exception_safety_testing.h"],
     copts = ABSL_TEST_COPTS,
@@ -467,7 +467,7 @@ cc_test(
 # AbslInternalSpinLockDelay and AbslInternalSpinLockWake.
 cc_library(
     name = "spinlock_test_common",
-    testonly = 1,
+    testonly = True,
     srcs = ["spinlock_test_common.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -504,7 +504,7 @@ cc_test(
 
 cc_library(
     name = "spinlock_benchmark_common",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/spinlock_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -524,7 +524,7 @@ cc_library(
 
 cc_binary(
     name = "spinlock_benchmark",
-    testonly = 1,
+    testonly = True,
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     tags = ["benchmark"],
@@ -605,7 +605,7 @@ cc_test(
 
 cc_binary(
     name = "no_destructor_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["no_destructor_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -707,7 +707,7 @@ cc_test(
 
 cc_library(
     name = "scoped_set_env",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/scoped_set_env.cc"],
     hdrs = ["internal/scoped_set_env.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -781,7 +781,7 @@ cc_test(
 
 cc_binary(
     name = "strerror_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/strerror_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

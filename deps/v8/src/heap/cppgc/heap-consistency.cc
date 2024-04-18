@@ -15,7 +15,7 @@ namespace subtle {
 bool DisallowGarbageCollectionScope::IsGarbageCollectionAllowed(
     cppgc::HeapHandle& heap_handle) {
   auto& heap_base = internal::HeapBase::From(heap_handle);
-  return !heap_base.in_disallow_gc_scope();
+  return !heap_base.IsGCForbidden();
 }
 
 // static

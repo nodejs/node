@@ -169,7 +169,7 @@ void InspectorIsolateData::RegisterModule(v8::Local<v8::Context> context,
 // static
 v8::MaybeLocal<v8::Module> InspectorIsolateData::ModuleResolveCallback(
     v8::Local<v8::Context> context, v8::Local<v8::String> specifier,
-    v8::Local<v8::FixedArray> import_assertions,
+    v8::Local<v8::FixedArray> import_attributes,
     v8::Local<v8::Module> referrer) {
   // TODO(v8:11189) Consider JSON modules support in the InspectorClient
   InspectorIsolateData* data = InspectorIsolateData::FromContext(context);
@@ -406,6 +406,10 @@ void InspectorIsolateData::PromiseRejectHandler(v8::PromiseRejectMessage data) {
         context, id.As<v8::Int32>()->Value(),
         v8_inspector::StringView(reinterpret_cast<const uint8_t*>(reason_str),
                                  strlen(reason_str)));
+    return;
+  } else if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
+             data.GetEvent() == v8::kPromiseResolveAfterResolved) {
+    // Ignore reject/resolve after resolved, like the blink handler.
     return;
   }
 

@@ -1072,13 +1072,8 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     BIND(&null_proto);
     {
       map = LoadSlowObjectWithNullPrototypeMap(native_context);
-      if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        new_properties =
-            AllocateSwissNameDictionary(SwissNameDictionary::kInitialCapacity);
-      } else {
-        new_properties =
-            AllocateNameDictionary(NameDictionary::kInitialCapacity);
-      }
+      new_properties =
+          AllocatePropertyDictionary(PropertyDictionary::kInitialCapacity);
       Goto(&instantiate_map);
     }
 
@@ -1419,10 +1414,7 @@ TNode<JSObject> ObjectBuiltinsAssembler::FromPropertyDescriptor(
         native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP));
     // We want to preallocate the slots for value, writable, get, set,
     // enumerable and configurable - a total of 6
-    TNode<HeapObject> properties =
-        V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-            ? TNode<HeapObject>(AllocateSwissNameDictionary(6))
-            : AllocateNameDictionary(6);
+    TNode<HeapObject> properties = AllocatePropertyDictionary(6);
     TNode<JSObject> js_desc = AllocateJSObjectFromMap(map, properties);
 
     Label bailout(this, Label::kDeferred);

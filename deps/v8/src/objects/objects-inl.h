@@ -108,6 +108,7 @@ bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<Object> obj) {
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 IS_TYPE_FUNCTION_DEF(HashTableBase)
 IS_TYPE_FUNCTION_DEF(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DEF(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DEF
 
 bool IsAnyHole(Tagged<Object> obj, PtrComprCageBase cage_base) {
@@ -258,6 +259,14 @@ bool InReadOnlySpace(Tagged<HeapObject> obj) {
   return IsReadOnlyHeapObject(obj);
 }
 
+bool OutsideSandboxOrInReadonlySpace(Tagged<HeapObject> obj) {
+#ifdef V8_ENABLE_SANDBOX
+  return !InsideSandbox(obj.address()) || InReadOnlySpace(obj);
+#else
+  return true;
+#endif
+}
+
 bool IsJSObjectThatCanBeTrackedAsPrototype(Tagged<HeapObject> obj) {
   // Do not optimize objects in the shared heap because it is not
   // threadsafe. Objects in the shared heap have fixed layouts and their maps
@@ -365,13 +374,13 @@ DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsTemplateLiteralObject) {
 
 DEF_HEAP_OBJECT_PREDICATE(HeapObject, IsDeoptimizationData) {
   // Must be a fixed array.
-  if (!IsFixedArray(obj, cage_base)) return false;
+  if (!IsTrustedFixedArray(obj, cage_base)) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
   // check that the length is zero or else the fixed size plus a multiple of
   // the entry size.
-  int length = FixedArray::cast(obj)->length();
+  int length = TrustedFixedArray::cast(obj)->length();
   if (length == 0) return true;
 
   length -= DeoptimizationData::kFirstDeoptEntryIndex;
@@ -1579,8 +1588,7 @@ Relocatable::~Relocatable() {
 // Predictably converts HeapObject or Address to uint32 by calculating
 // offset of the address in respective MemoryChunk.
 static inline uint32_t ObjectAddressForHashing(Address object) {
-  uint32_t value = static_cast<uint32_t>(object);
-  return value & kPageAlignmentMask;
+  return MemoryChunkHeader::AddressToOffset(object);
 }
 
 static inline Handle<Object> MakeEntryPair(Isolate* isolate, size_t index,

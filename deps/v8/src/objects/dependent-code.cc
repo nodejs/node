@@ -20,6 +20,8 @@ Tagged<DependentCode> DependentCode::GetDependentCode(
     return PropertyCell::cast(object)->dependent_code();
   } else if (IsAllocationSite(object)) {
     return AllocationSite::cast(object)->dependent_code();
+  } else if (IsConstTrackingLetCell(object)) {
+    return ConstTrackingLetCell::cast(object)->dependent_code();
   }
   UNREACHABLE();
 }
@@ -32,6 +34,8 @@ void DependentCode::SetDependentCode(Handle<HeapObject> object,
     Handle<PropertyCell>::cast(object)->set_dependent_code(*dep);
   } else if (IsAllocationSite(*object)) {
     Handle<AllocationSite>::cast(object)->set_dependent_code(*dep);
+  } else if (IsConstTrackingLetCell(*object)) {
+    Handle<ConstTrackingLetCell>::cast(object)->set_dependent_code(*dep);
   } else {
     UNREACHABLE();
   }
@@ -192,6 +196,8 @@ const char* DependentCode::DependencyGroupName(DependencyGroup group) {
       return "allocation-site-tenuring-changed";
     case kAllocationSiteTransitionChangedGroup:
       return "allocation-site-transition-changed";
+    case kConstTrackingLetChangedGroup:
+      return "const-tracking-let-changed";
   }
   UNREACHABLE();
 }

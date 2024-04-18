@@ -113,21 +113,20 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // garbage collection, since that might move the code and invalidate the
   // return address (unless this is somehow accounted for by the called
   // function).
-  enum class SetIsolateDataSlots {
-    kNo,
-    kYes,
-  };
-  void CallCFunction(
+  int CallCFunction(
       ExternalReference function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
-  void CallCFunction(
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
+  int CallCFunction(
       Register function, int num_arguments,
-      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes);
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes,
+      Label* return_location = nullptr);
 
   // Calculate the number of stack slots to reserve for arguments when calling a
   // C function.
   static int ArgumentStackSlotsForCFunctionCall(int num_arguments);
 
+  void MemoryChunkHeaderFromObject(Register object, Register header);
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met,
                      Label::Distance condition_met_distance = Label::kFar);
@@ -474,9 +473,10 @@ class V8_EXPORT_PRIVATE MacroAssembler
   void TailCallBuiltin(Builtin builtin, Condition cc);
 
   // Load the code entry point from the Code object.
-  void LoadCodeInstructionStart(Register destination, Register code_object);
-  void CallCodeObject(Register code_object);
-  void JumpCodeObject(Register code_object,
+  void LoadCodeInstructionStart(Register destination, Register code_object,
+                                CodeEntrypointTag tag);
+  void CallCodeObject(Register code_object, CodeEntrypointTag tag);
+  void JumpCodeObject(Register code_object, CodeEntrypointTag tag,
                       JumpMode jump_mode = JumpMode::kJump);
 
   // Convenience functions to call/jmp to the code of a JSFunction object.
@@ -778,7 +778,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Only available when the sandbox is enabled as it requires the code pointer
   // table.
   void LoadCodeEntrypointViaCodePointer(Register destination,
-                                        Operand field_operand);
+                                        Operand field_operand,
+                                        CodeEntrypointTag tag);
 #endif  // V8_ENABLE_SANDBOX
 
   void LoadProtectedPointerField(Register destination, Operand field_operand);
@@ -957,7 +958,8 @@ class V8_EXPORT_PRIVATE MacroAssembler
   // Tiering support.
   void AssertFeedbackCell(Register object,
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void AssertFeedbackVector(Register object) NOOP_UNLESS_DEBUG_CODE;
+  void AssertFeedbackVector(Register object,
+                            Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
                                            Register closure, Register scratch1,
                                            Register slot_address);

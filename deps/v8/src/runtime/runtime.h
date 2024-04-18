@@ -238,6 +238,7 @@ namespace internal {
   F(BytecodeBudgetInterruptWithStackCheck_Sparkplug, 1, 1) \
   F(BytecodeBudgetInterrupt_Maglev, 1, 1)                  \
   F(BytecodeBudgetInterruptWithStackCheck_Maglev, 1, 1)    \
+  F(InvalidateDependentCodeForConstTrackingLet, 1, 1)      \
   F(NewError, 2, 1)                                        \
   F(NewForeign, 0, 1)                                      \
   F(NewReferenceError, 2, 1)                               \
@@ -677,6 +678,7 @@ namespace internal {
   F(WasmStringEncodeWtf8, 5, 1)               \
   F(WasmStringEncodeWtf16, 6, 1)              \
   F(WasmStringEncodeWtf8Array, 4, 1)          \
+  F(WasmStringToUtf8Array, 1, 1)              \
   F(WasmStringAsWtf8, 1, 1)                   \
   F(WasmStringViewWtf8Encode, 6, 1)           \
   F(WasmStringViewWtf8Slice, 3, 1)            \
@@ -707,7 +709,7 @@ namespace internal {
   F(SerializeWasmModule, 1, 1)              \
   F(SetWasmCompileControls, 2, 1)           \
   F(SetWasmInstantiateControls, 0, 1)       \
-  F(SetWasmGCEnabled, 1, 1)                 \
+  F(SetWasmImportedStringsEnabled, 1, 1)    \
   F(WasmCompiledExportWrappersCount, 0, 1)  \
   F(WasmGetNumberOfInstances, 1, 1)         \
   F(WasmNumCodeSpaces, 1, 1)                \

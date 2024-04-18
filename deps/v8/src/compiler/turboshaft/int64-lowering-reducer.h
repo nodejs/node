@@ -9,11 +9,13 @@
 #ifndef V8_COMPILER_TURBOSHAFT_INT64_LOWERING_REDUCER_H_
 #define V8_COMPILER_TURBOSHAFT_INT64_LOWERING_REDUCER_H_
 
+#include "src/codegen/machine-type.h"
 #include "src/compiler/turboshaft/assembler.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/compiler/wasm-graph-assembler.h"
+#include "src/wasm/wasm-engine.h"
 
 namespace v8::internal::compiler::turboshaft {
 
@@ -24,9 +26,16 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class Int64LoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(Int64Lowering)
 
-  Int64LoweringReducer() { InitializeIndexMaps(); }
+  Int64LoweringReducer() {
+    PipelineData& data = PipelineData::Get();
+    wasm::CallOrigin origin =
+        data.is_js_to_wasm() ? wasm::kCalledFromJS : wasm::kCalledFromWasm;
+    sig_ = CreateMachineSignature(zone_, data.wasm_sig(), origin);
+
+    InitializeIndexMaps();
+  }
 
   OpIndex REDUCE(WordBinop)(OpIndex left, OpIndex right, WordBinopOp::Kind kind,
                             WordRepresentation rep) {
@@ -117,7 +126,7 @@ class Int64LoweringReducer : public Next {
                             low_comparison));
   }
 
-  OpIndex REDUCE(Call)(OpIndex callee, OpIndex frame_state,
+  OpIndex REDUCE(Call)(OpIndex callee, OptionalOpIndex frame_state,
                        base::Vector<const OpIndex> arguments,
                        const TSCallDescriptor* descriptor, OpEffects effects) {
     const bool is_tail_call = false;
@@ -145,7 +154,19 @@ class Int64LoweringReducer : public Next {
 
   OpIndex REDUCE(Parameter)(int32_t parameter_index, RegisterRepresentation rep,
                             const char* debug_name = "") {
-    DCHECK_LE(parameter_index, sig_->parameter_count());
+    int32_t param_count = static_cast<int32_t>(sig_->parameter_count());
+    // Handle special indices (closure, context).
+    if (parameter_index < 0) {
+      return Next::ReduceParameter(parameter_index, rep, debug_name);
+    }
+    if (parameter_index > param_count) {
+      DCHECK_NE(rep, RegisterRepresentation::Word64());
+      int param_offset =
+          std::count(sig_->parameters().begin(), sig_->parameters().end(),
+                     MachineRepresentation::kWord64);
+      return Next::ReduceParameter(parameter_index + param_offset, rep,
+                                   debug_name);
+    }
     int32_t new_index = param_index_map_[parameter_index];
     if (rep == RegisterRepresentation::Word64()) {
       rep = RegisterRepresentation::Word32();
@@ -162,7 +183,7 @@ class Int64LoweringReducer : public Next {
     }
     base::SmallVector<OpIndex, 8> lowered_values;
     for (size_t i = 0; i < sig_->return_count(); ++i) {
-      if (sig_->GetReturn(i) == wasm::kWasmI64) {
+      if (sig_->GetReturn(i) == MachineRepresentation::kWord64) {
         auto [low, high] = Unpack(return_values[i]);
         lowered_values.push_back(low);
         lowered_values.push_back(high);
@@ -624,7 +645,7 @@ class Int64LoweringReducer : public Next {
     return __ Tuple(low_node, high_node);
   }
 
-  OpIndex LowerCall(OpIndex callee, OpIndex frame_state,
+  OpIndex LowerCall(OpIndex callee, OptionalOpIndex frame_state,
                     base::Vector<const OpIndex> arguments,
                     const TSCallDescriptor* descriptor, OpEffects effects,
                     bool is_tail_call) {
@@ -650,6 +671,13 @@ class Int64LoweringReducer : public Next {
                                              descriptor, effects);
     }
 
+    // Transform the BigIntToI64 call descriptor into BigIntToI32Pair (this is
+    // the only use case currently, it may be extended in the future).
+    // The correct target is already set during graph building.
+    CallDescriptor* maybe_special_replacement =
+        wasm::GetWasmEngine()->call_descriptors()->GetLoweredCallDescriptor(
+            call_descriptor);
+    if (maybe_special_replacement) call_descriptor = maybe_special_replacement;
     // Create descriptor with 2 i32s for every i64.
     const CallDescriptor* lowered_descriptor =
         GetI32WasmCallDescriptor(__ graph_zone(), call_descriptor);
@@ -732,20 +760,22 @@ class Int64LoweringReducer : public Next {
     int32_t new_index = 0;
     for (size_t i = 0; i < sig_->parameter_count(); ++i) {
       param_index_map_.push_back(++new_index);
-      if (sig_->GetParam(i) == wasm::kWasmI64) {
+      if (sig_->GetParam(i) == MachineRepresentation::kWord64) {
         // i64 becomes [i32 low, i32 high], so the next parameter index is
         // shifted by one.
         ++new_index;
       }
     }
 
-    // TODO(mliedtke): Use sig_.contains(wasm::kWasmI64), once it's merged.
-    returns_i64_ = std::any_of(
-        sig_->returns().begin(), sig_->returns().end(),
-        [](const wasm::ValueType& v) { return v == wasm::kWasmI64; });
+    // TODO(mliedtke): Use sig_.contains(MachineRepresentation::kWord64), once
+    // it's merged.
+    returns_i64_ = std::any_of(sig_->returns().begin(), sig_->returns().end(),
+                               [](const MachineRepresentation rep) {
+                                 return rep == MachineRepresentation::kWord64;
+                               });
   }
 
-  const wasm::FunctionSig* sig_ = PipelineData::Get().wasm_sig();
+  const Signature<MachineRepresentation>* sig_;
   Zone* zone_ = PipelineData::Get().graph_zone();
   ZoneVector<int32_t> param_index_map_{__ phase_zone()};
   bool returns_i64_ = false;  // Returns at least one i64.

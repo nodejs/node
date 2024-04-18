@@ -68,7 +68,6 @@ class TracedNode final {
   void set_next_free(IndexType next_free_index) {
     next_free_index_ = next_free_index;
   }
-  void set_class_id(uint16_t class_id) { class_id_ = class_id; }
 
   template <AccessMode access_mode = AccessMode::NON_ATOMIC>
   void set_markbit() {
@@ -129,12 +128,8 @@ class TracedNode final {
   using HasOldHost = Markbit::Next<bool, 1>;
 
   Address object_ = kNullAddress;
-  union {
-    // When a node is in use, the user can specify a class id.
-    uint16_t class_id_;
-    // When a node is not in use, this index is used to build the free list.
-    IndexType next_free_index_;
-  };
+  // When a node is not in use, this index is used to build the free list.
+  IndexType next_free_index_;
   IndexType index_;
   uint8_t flags_ = 0;
 };

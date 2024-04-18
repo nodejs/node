@@ -233,7 +233,7 @@ TEST_F(AccessRegressionTest,
       context2,
       "Object.getOwnPropertyDescriptor(object_from_context1, 'property').get");
 
-  ASSERT_EQ(getter->native_context(), *Utils::OpenHandle(*context1));
+  ASSERT_EQ(getter->native_context(), *Utils::OpenDirectHandle(*context1));
 }
 
 // Regression test for https://crbug.com/986063.
@@ -293,8 +293,8 @@ TEST_F(AccessRegressionTest,
   i::Handle<i::JSFunction> getter_c2 = RetrieveFunctionFrom(
       context2, "Object.getOwnPropertyDescriptor(object, 'property').get");
 
-  ASSERT_EQ(getter_c1->native_context(), *Utils::OpenHandle(*context1));
-  ASSERT_EQ(getter_c2->native_context(), *Utils::OpenHandle(*context2));
+  ASSERT_EQ(getter_c1->native_context(), *Utils::OpenDirectHandle(*context1));
+  ASSERT_EQ(getter_c2->native_context(), *Utils::OpenDirectHandle(*context2));
 }
 
 void NamedGetter(Local<Name> property,

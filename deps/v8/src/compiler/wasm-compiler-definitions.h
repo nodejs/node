@@ -80,7 +80,7 @@ enum class BoundsCheckResult {
 
 // Static knowledge about whether a wasm-gc operation, such as struct.get, needs
 // a null check.
-enum CheckForNull { kWithoutNullCheck, kWithNullCheck };
+enum CheckForNull : bool { kWithoutNullCheck, kWithNullCheck };
 std::ostream& operator<<(std::ostream& os, CheckForNull null_check);
 
 base::Vector<const char> GetDebugName(Zone* zone,

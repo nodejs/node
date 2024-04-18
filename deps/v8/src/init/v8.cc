@@ -26,6 +26,9 @@
 #include "src/profiler/heap-profiler.h"
 #include "src/sandbox/sandbox.h"
 #include "src/snapshot/snapshot.h"
+#if defined(V8_USE_PERFETTO)
+#include "src/tracing/code-data-source.h"
+#endif  // defined(V8_USE_PERFETTO)
 #include "src/tracing/tracing-category-observer.h"
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -269,7 +272,12 @@ void V8::Initialize() {
 #endif
 
 #if defined(V8_USE_PERFETTO)
-  if (perfetto::Tracing::IsInitialized()) TrackEvent::Register();
+  if (perfetto::Tracing::IsInitialized()) {
+    TrackEvent::Register();
+    if (v8_flags.perfetto_code_logger) {
+      v8::internal::CodeDataSource::Register();
+    }
+  }
 #endif
   IsolateAllocator::InitializeOncePerProcess();
   Isolate::InitializeOncePerProcess();

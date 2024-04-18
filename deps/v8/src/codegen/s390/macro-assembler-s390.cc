@@ -2631,10 +2631,10 @@ void MacroAssembler::CheckPageFlag(
     // Reverse the byte_offset if emulating on little endian platform
     byte_offset = kSystemPointerSize - byte_offset - 1;
 #endif
-    tm(MemOperand(scratch, BasicMemoryChunk::kFlagsOffset + byte_offset),
+    tm(MemOperand(scratch, MemoryChunkLayout::kFlagsOffset + byte_offset),
        Operand(shifted_mask));
   } else {
-    LoadU64(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+    LoadU64(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
     AndP(r0, scratch, Operand(mask));
   }
   // Should be okay to remove rc
@@ -5021,7 +5021,8 @@ MemOperand MacroAssembler::EntryFromBuiltinAsOperand(Builtin builtin) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
   LoadU64(destination,
           FieldMemOperand(code_object, Code::kInstructionStartOffset));

@@ -177,6 +177,7 @@ class ClosureFeedbackCellArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = FeedbackCell;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kClosureFeedbackCellArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;

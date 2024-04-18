@@ -349,16 +349,13 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
         static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
         __ Int32Constant(0));
 
-    Node* data_stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
-    __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                 kNoWriteBarrier),
-             data_stack_slot, 0, __ BitcastTaggedToWord(data_argument));
+    Node* data_argument_to_pass = AdaptLocalArgument(gasm(), data_argument);
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             data_stack_slot);
+             data_argument_to_pass);
 
     initialize_options_(stack_slot);
 

@@ -43,6 +43,7 @@ static const char* const UNINITIALIZED_HEAP_OBJECT_TYPE_STRING =
 static const char* const RAWPTR_TYPE_STRING = "RawPtr";
 static const char* const EXTERNALPTR_TYPE_STRING = "ExternalPointer";
 static const char* const INDIRECTPTR_TYPE_STRING = "IndirectPointer";
+static const char* const PROTECTEDPTR_TYPE_STRING = "ProtectedPointer";
 static const char* const CONST_STRING_TYPE_STRING = "constexpr string";
 static const char* const STRING_TYPE_STRING = "String";
 static const char* const NUMBER_TYPE_STRING = "Number";

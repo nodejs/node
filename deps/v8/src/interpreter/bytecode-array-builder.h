@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
 
   // Stores the object in the accumulator into |slot_index| at |depth| in the
   // context chain starting with |context|.
-  BytecodeArrayBuilder& StoreContextSlot(Register context, int slot_index,
+  BytecodeArrayBuilder& StoreContextSlot(Register context, Variable* variable,
                                          int depth);
 
   // Load from a module variable into the accumulator. |depth| is the depth of

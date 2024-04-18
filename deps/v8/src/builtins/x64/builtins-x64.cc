@@ -759,9 +759,8 @@ static void GetSharedFunctionInfoBytecodeOrBaseline(
                                               &done);
   }
 
-  __ LoadTrustedPointerField(
-      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset),
-      kBytecodeArrayIndirectPointerTag, scratch1);
+  __ LoadProtectedPointerField(
+      bytecode, FieldOperand(data, InterpreterData::kBytecodeArrayOffset));
 
   __ bind(&done);
   __ IsObjectType(bytecode, BYTECODE_ARRAY_TYPE, scratch1);
@@ -1298,7 +1297,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(
     __ ReplaceClosureCodeWithOptimizedCode(
         rcx, closure, kInterpreterBytecodeArrayRegister,
         WriteBarrierDescriptor::SlotAddressRegister());
-    __ JumpCodeObject(rcx);
+    __ JumpCodeObject(rcx, kJSEntrypointTag);
 
     __ bind(&install_baseline_code);
     __ GenerateTailCallToReturnedCode(Runtime::kInstallBaselineCode);
@@ -1707,11 +1706,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   GetSharedFunctionInfoData(masm, rbx, shared_function_info, kScratchRegister);
   __ IsObjectType(rbx, INTERPRETER_DATA_TYPE, kScratchRegister);
   __ j(not_equal, &builtin_trampoline, Label::kNear);
-
-  __ LoadCodePointerField(
-      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset),
-      kScratchRegister);
-  __ LoadCodeInstructionStart(rbx, rbx);
+  __ LoadProtectedPointerField(
+      rbx, FieldOperand(rbx, InterpreterData::kInterpreterTrampolineOffset));
+  __ LoadCodeInstructionStart(rbx, rbx, kJSEntrypointTag);
   __ jmp(&trampoline_loaded, Label::kNear);
 
   __ bind(&builtin_trampoline);
@@ -1841,7 +1838,7 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
                      FieldOperand(closure, JSFunction::kFeedbackCellOffset));
   __ LoadTaggedField(feedback_vector,
                      FieldOperand(feedback_cell, FeedbackCell::kValueOffset));
-  __ AssertFeedbackVector(feedback_vector);
+  __ AssertFeedbackVector(feedback_vector, kScratchRegister);
 
   // Check the tiering state.
   Label flags_need_processing;
@@ -2935,18 +2932,18 @@ void OnStackReplacement(MacroAssembler* masm, OsrSourceTier source,
   }
 
   // Load deoptimization data from the code object.
-  const TaggedRegister deopt_data(rbx);
-  __ LoadTaggedField(
+  const Register deopt_data(rbx);
+  __ LoadProtectedPointerField(
       deopt_data,
       FieldOperand(rax, Code::kDeoptimizationDataOrInterpreterDataOffset));
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ SmiUntagField(
       rbx,
-      FieldOperand(deopt_data, FixedArray::OffsetOfElementAt(
+      FieldOperand(deopt_data, TrustedFixedArray::OffsetOfElementAt(
                                    DeoptimizationData::kOsrPcOffsetIndex)));
 
-  __ LoadCodeInstructionStart(rax, rax);
+  __ LoadCodeInstructionStart(rax, rax, kJSEntrypointTag);
 
   // Compute the target address = code_entry + osr_offset
   __ addq(rax, rbx);
@@ -4990,7 +4987,7 @@ void Generate_BaselineOrInterpreterEntry(MacroAssembler* masm,
     __ movq(kCArgRegs[2], kInterpreterBytecodeArrayRegister);
     __ CallCFunction(get_baseline_pc, 3);
   }
-  __ LoadCodeInstructionStart(code_obj, code_obj);
+  __ LoadCodeInstructionStart(code_obj, code_obj, kJSEntrypointTag);
   __ addq(code_obj, kReturnRegister0);
   __ popq(kInterpreterAccumulatorRegister);
 

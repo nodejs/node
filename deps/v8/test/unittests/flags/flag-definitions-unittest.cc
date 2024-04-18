@@ -29,6 +29,7 @@
 
 #include "src/flags/flags.h"
 #include "src/init/v8.h"
+#include "test/unittests/fuzztest.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -278,5 +279,58 @@ auto GetFlagImplicationTestVariants() {
 INSTANTIATE_TEST_SUITE_P(ExperimentalFlagImplication,
                          ExperimentalFlagImplicationTest,
                          GetFlagImplicationTestVariants(), FlagNameToTestName);
+
+TEST(FlagContradictionsTest, ResolvesContradictions) {
+#ifdef V8_ENABLE_MAGLEV
+  int argc = 4;
+  const char* argv[] = {"Test", "--fuzzing", "--stress-maglev", "--jitless"};
+  FlagList::SetFlagsFromCommandLine(&argc, const_cast<char**>(argv), false);
+  CHECK(v8_flags.fuzzing);
+  CHECK(v8_flags.jitless);
+  CHECK(v8_flags.stress_maglev);
+  FlagList::ResolveContradictionsWhenFuzzing();
+  FlagList::EnforceFlagImplications();
+  CHECK(v8_flags.fuzzing);
+  CHECK(!v8_flags.jitless);
+  CHECK(v8_flags.stress_maglev);
+#endif
+}
+
+const char* smallerValues[] = {"", "--a", "--a-b-c", "--a_b_c"};
+const char* largerValues[] = {"--a-c-b", "--a_c_b",   "--a_b_d",
+                              "--a-b-d", "--a_b_c_d", "--a-b-c-d"};
+
+TEST(FlagHelpersTest, CompareDifferentFlags) {
+  TRACED_FOREACH(const char*, smaller, smallerValues) {
+    TRACED_FOREACH(const char*, larger, largerValues) {
+      CHECK_EQ(-1, FlagHelpers::FlagNamesCmp(smaller, larger));
+      CHECK_EQ(1, FlagHelpers::FlagNamesCmp(larger, smaller));
+    }
+  }
+}
+
+void CheckEqualFlags(const char* f1, const char* f2) {
+  CHECK(FlagHelpers::EqualNames(f1, f2));
+  CHECK(FlagHelpers::EqualNames(f2, f1));
+}
+
+TEST(FlagHelpersTest, CompareSameFlags) {
+  CheckEqualFlags("", "");
+  CheckEqualFlags("--a", "--a");
+  CheckEqualFlags("--a-b-c", "--a_b_c");
+  CheckEqualFlags("--a-b-c", "--a-b-c");
+}
+
+void CheckFlagInvariants(const std::string& s1, const std::string& s2) {
+  const char* f1 = s1.c_str();
+  const char* f2 = s2.c_str();
+  CHECK_EQ(-FlagHelpers::FlagNamesCmp(f1, f2),
+           FlagHelpers::FlagNamesCmp(f2, f1));
+  CHECK(FlagHelpers::EqualNames(f1, f1));
+  CHECK(FlagHelpers::EqualNames(f2, f2));
+}
+
+V8_FUZZ_TEST(FlagHelpersFuzzTest, CheckFlagInvariants)
+    .WithDomains(fuzztest::AsciiString(), fuzztest::AsciiString());
 
 }  // namespace v8::internal

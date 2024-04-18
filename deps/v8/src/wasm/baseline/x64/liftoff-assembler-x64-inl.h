@@ -442,6 +442,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
   LoadTaggedField(dst, src_op);
 }
 
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset_imm) {
+  DCHECK_LE(0, offset_imm);
+  LoadProtectedPointerField(dst, Operand{src_addr, offset_imm});
+}
+
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                        int32_t offset_imm) {
   Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
@@ -455,7 +461,8 @@ void LiftoffAssembler::LoadCodeEntrypointViaCodePointer(Register dst,
                                                         int offset_imm) {
   Operand src_op = liftoff::GetMemOp(this, src_addr, no_reg,
                                      static_cast<uint32_t>(offset_imm));
-  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op);
+  MacroAssembler::LoadCodeEntrypointViaCodePointer(dst, src_op,
+                                                   kWasmEntrypointTag);
 }
 #endif
 
@@ -1437,6 +1444,15 @@ void LiftoffAssembler::emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                                     LiftoffRegister rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imulq, &Assembler::movq>(
       this, dst.gp(), lhs.gp(), rhs.gp());
+}
+
+void LiftoffAssembler::emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
+                                     int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i64_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+  } else {
+    imulq(dst.gp(), lhs.gp(), Immediate{imm});
+  }
 }
 
 bool LiftoffAssembler::emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
@@ -2633,8 +2649,19 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
-  Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
+  // Passing {src2} first is not a typo: the x86 instructions copy from the
+  // second operand when the mask is 1, contrary to the Wasm instruction.
+  if (lane_width == 8) {
+    Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 32) {
+    Blendvps(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 64) {
+    Blendvpd(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else {
+    UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,

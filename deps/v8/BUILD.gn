@@ -1149,6 +1149,9 @@ config("features") {
   if (v8_fuzzilli) {
     defines += [ "V8_FUZZILLI" ]
   }
+  if (v8_enable_fuzztest) {
+    defines += [ "V8_ENABLE_FUZZTEST" ]
+  }
   if (v8_enable_short_builtin_calls) {
     defines += [ "V8_SHORT_BUILTIN_CALLS" ]
   }
@@ -1482,7 +1485,6 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
-      "-Wmissing-field-initializers",
       "-Wunreachable-code",
 
       # TODO(v8:12245): Fix shadowing instances and remove.
@@ -1495,11 +1497,6 @@ config("toolchain") {
       # earlier. See https://reviews.llvm.org/D56731 for details about this
       # warning.
       cflags += [ "-Wctad-maybe-unsupported" ]
-    }
-
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
-      cflags += [ "-Wshorten-64-to-32" ]
     }
   }
 
@@ -1700,26 +1697,23 @@ config("toolchain") {
       # Fix build with older versions of GCC
       # Ported from v8 bazel: https://crrev.com/c/3368869
       "-Wno-stringop-overflow",
-
-      # Fix a number of bogus errors with gcc12
-      # TODO(miladfarca): re-evaluate for future gcc upgrades
-      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=111499
-      "-Wno-stringop-overread",
-
-      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=104336
-      "-Wno-restrict",
-
-      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105523
-      "-Wno-array-bounds",
-
-      # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=108517
-      "-Wno-nonnull",
     ]
   }
 
   # Chromium uses a hand-picked subset of UBSan coverage. We want everything.
   if (is_ubsan) {
     cflags += [ "-fsanitize=undefined" ]
+  }
+}
+
+config("strict_warnings") {
+  cflags = []
+  if (is_clang) {
+    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+        v8_current_cpu == "mips64el" || v8_current_cpu == "riscv64") {
+      cflags += [ "-Wshorten-64-to-32" ]
+    }
+    cflags += [ "-Wmissing-field-initializers" ]
   }
 }
 
@@ -3304,6 +3298,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/common-operator.h",
     "src/compiler/compilation-dependencies.h",
     "src/compiler/compiler-source-position-table.h",
+    "src/compiler/const-tracking-let-helpers.h",
     "src/compiler/constant-folding-reducer.h",
     "src/compiler/control-equivalence.h",
     "src/compiler/control-flow-optimizer.h",
@@ -3401,7 +3396,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/code-elimination-and-simplification-phase.h",
     "src/compiler/turboshaft/copying-phase.h",
     "src/compiler/turboshaft/csa-optimize-phase.h",
-    "src/compiler/turboshaft/dataview-reducer.h",
+    "src/compiler/turboshaft/dataview-lowering-reducer.h",
     "src/compiler/turboshaft/dead-code-elimination-reducer.h",
     "src/compiler/turboshaft/debug-feature-lowering-phase.h",
     "src/compiler/turboshaft/debug-feature-lowering-reducer.h",
@@ -3411,7 +3406,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/deopt-data.h",
     "src/compiler/turboshaft/duplication-optimization-reducer.h",
     "src/compiler/turboshaft/explicit-truncation-reducer.h",
-    "src/compiler/turboshaft/fast-api-call-reducer.h",
+    "src/compiler/turboshaft/fast-api-call-lowering-reducer.h",
     "src/compiler/turboshaft/fast-hash.h",
     "src/compiler/turboshaft/graph-builder.h",
     "src/compiler/turboshaft/graph-visualizer.h",
@@ -3440,7 +3435,6 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/pretenuring-propagation-reducer.h",
     "src/compiler/turboshaft/recreate-schedule-phase.h",
     "src/compiler/turboshaft/recreate-schedule.h",
-    "src/compiler/turboshaft/reduce-args-helper.h",
     "src/compiler/turboshaft/reducer-traits.h",
     "src/compiler/turboshaft/representations.h",
     "src/compiler/turboshaft/required-optimization-reducer.h",
@@ -3452,7 +3446,7 @@ v8_header_set("v8_internal_headers") {
     "src/compiler/turboshaft/simplify-tf-loops.h",
     "src/compiler/turboshaft/snapshot-table-opindex.h",
     "src/compiler/turboshaft/snapshot-table.h",
-    "src/compiler/turboshaft/stack-check-reducer.h",
+    "src/compiler/turboshaft/stack-check-lowering-reducer.h",
     "src/compiler/turboshaft/store-store-elimination-phase.h",
     "src/compiler/turboshaft/store-store-elimination-reducer.h",
     "src/compiler/turboshaft/structural-optimization-reducer.h",
@@ -3640,6 +3634,7 @@ v8_header_set("v8_internal_headers") {
     "src/heap/marking.h",
     "src/heap/memory-allocator.h",
     "src/heap/memory-balancer.h",
+    "src/heap/memory-chunk-header.h",
     "src/heap/memory-chunk-inl.h",
     "src/heap/memory-chunk-layout.h",
     "src/heap/memory-chunk.h",
@@ -4136,6 +4131,12 @@ v8_header_set("v8_internal_headers") {
 
   if (v8_use_perfetto) {
     sources -= [ "//base/trace_event/common/trace_event_common.h" ]
+    sources += [
+      "src/tracing/code-data-source.h",
+      "src/tracing/code-trace-context.h",
+      "src/tracing/perfetto-logger.h",
+      "src/tracing/perfetto-utils.h",
+    ]
   }
 
   if (v8_enable_sparkplug) {
@@ -4195,7 +4196,7 @@ v8_header_set("v8_internal_headers") {
       "src/compiler/turboshaft/int64-lowering-reducer.h",
       "src/compiler/turboshaft/wasm-assembler-helpers.h",
       "src/compiler/turboshaft/wasm-gc-optimize-phase.h",
-      "src/compiler/turboshaft/wasm-gc-type-reducer.h",
+      "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.h",
       "src/compiler/turboshaft/wasm-js-lowering-reducer.h",
       "src/compiler/turboshaft/wasm-load-elimination-reducer.h",
       "src/compiler/turboshaft/wasm-lowering-phase.h",
@@ -4230,6 +4231,7 @@ v8_header_set("v8_internal_headers") {
       "src/wasm/baseline/parallel-move.h",
       "src/wasm/canonical-types.h",
       "src/wasm/code-space-access.h",
+      "src/wasm/compilation-environment-inl.h",
       "src/wasm/compilation-environment.h",
       "src/wasm/constant-expression-interface.h",
       "src/wasm/constant-expression.h",
@@ -4759,6 +4761,7 @@ v8_compiler_sources = [
   "src/compiler/common-operator.cc",
   "src/compiler/compilation-dependencies.cc",
   "src/compiler/compiler-source-position-table.cc",
+  "src/compiler/const-tracking-let-helpers.cc",
   "src/compiler/constant-folding-reducer.cc",
   "src/compiler/control-equivalence.cc",
   "src/compiler/control-flow-optimizer.cc",
@@ -4935,7 +4938,7 @@ if (v8_enable_webassembly) {
     "src/compiler/int64-lowering.cc",
     "src/compiler/turboshaft/int64-lowering-phase.cc",
     "src/compiler/turboshaft/wasm-gc-optimize-phase.cc",
-    "src/compiler/turboshaft/wasm-gc-type-reducer.cc",
+    "src/compiler/turboshaft/wasm-gc-typed-optimization-reducer.cc",
     "src/compiler/turboshaft/wasm-lowering-phase.cc",
     "src/compiler/turboshaft/wasm-optimize-phase.cc",
     "src/compiler/turboshaft/wasm-turboshaft-compiler.cc",
@@ -5330,6 +5333,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/heap/marking.cc",
     "src/heap/memory-allocator.cc",
     "src/heap/memory-balancer.cc",
+    "src/heap/memory-chunk-header.cc",
     "src/heap/memory-chunk-layout.cc",
     "src/heap/memory-chunk.cc",
     "src/heap/memory-measurement.cc",
@@ -5651,6 +5655,14 @@ v8_source_set("v8_base_without_compiler") {
     }
   }
 
+  if (v8_use_perfetto) {
+    sources += [
+      "src/tracing/code-data-source.cc",
+      "src/tracing/perfetto-logger.cc",
+      "src/tracing/perfetto-utils.cc",
+    ]
+  }
+
   if (v8_enable_webassembly) {
     sources += [
       ### gcmole(all) ###
@@ -5706,6 +5718,7 @@ v8_source_set("v8_base_without_compiler") {
       "src/wasm/wasm-serialization.cc",
       "src/wasm/wasm-subtyping.cc",
       "src/wasm/well-known-imports.cc",
+      "src/wasm/wrappers.cc",
     ]
   }
 
@@ -8131,7 +8144,6 @@ if (!build_with_chromium && v8_use_perfetto) {
       "//third_party/perfetto/src/tracing/core",
 
       # TODO(skyostil): Support non-POSIX platforms.
-      "//third_party/perfetto/protos/perfetto/config:cpp",
       "//third_party/perfetto/protos/perfetto/trace/track_event:zero",
       "//third_party/perfetto/src/tracing:in_process_backend",
       "//third_party/perfetto/src/tracing:platform_impl",
@@ -8139,6 +8151,8 @@ if (!build_with_chromium && v8_use_perfetto) {
 
     public_deps = [
       "//third_party/perfetto/include/perfetto/trace_processor",
+      "//third_party/perfetto/protos/perfetto/config:cpp",
+      "//third_party/perfetto/protos/perfetto/trace/chrome:zero",
       "//third_party/perfetto/src/trace_processor:export_json",
       "//third_party/perfetto/src/tracing:client_api",
     ]

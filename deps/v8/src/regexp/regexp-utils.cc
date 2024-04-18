@@ -14,17 +14,19 @@
 namespace v8 {
 namespace internal {
 
+// static
 Handle<String> RegExpUtils::GenericCaptureGetter(
     Isolate* isolate, Handle<RegExpMatchInfo> match_info, int capture,
     bool* ok) {
-  const int index = capture * 2;
-  if (index >= match_info->number_of_capture_registers()) {
+  const int capture_start_index = RegExpMatchInfo::capture_start_index(capture);
+  if (capture_start_index >= match_info->number_of_capture_registers()) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
   }
 
-  const int match_start = match_info->capture(index);
-  const int match_end = match_info->capture(index + 1);
+  const int capture_end_index = RegExpMatchInfo::capture_end_index(capture);
+  const int match_start = match_info->capture(capture_start_index);
+  const int match_end = match_info->capture(capture_end_index);
   if (match_start == -1 || match_end == -1) {
     if (ok != nullptr) *ok = false;
     return isolate->factory()->empty_string();
@@ -33,6 +35,23 @@ Handle<String> RegExpUtils::GenericCaptureGetter(
   if (ok != nullptr) *ok = true;
   Handle<String> last_subject(match_info->last_subject(), isolate);
   return isolate->factory()->NewSubString(last_subject, match_start, match_end);
+}
+
+// static
+bool RegExpUtils::IsMatchedCapture(Tagged<RegExpMatchInfo> match_info,
+                                   int capture) {
+  // Sentinel used as failure indicator in other functions.
+  if (capture == -1) return false;
+
+  const int capture_start_index = RegExpMatchInfo::capture_start_index(capture);
+  if (capture_start_index >= match_info->number_of_capture_registers()) {
+    return false;
+  }
+
+  const int capture_end_index = RegExpMatchInfo::capture_end_index(capture);
+  const int match_start = match_info->capture(capture_start_index);
+  const int match_end = match_info->capture(capture_end_index);
+  return match_start != -1 && match_end != -1;
 }
 
 namespace {

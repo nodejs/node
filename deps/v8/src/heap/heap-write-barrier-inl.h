@@ -8,17 +8,11 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 
-#include "src/common/globals.h"
-#include "src/heap/cppgc-js/cpp-heap.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/marking-barrier.h"
-#include "src/objects/code.h"
+#include "src/heap/memory-chunk-header.h"
 #include "src/objects/compressed-slots-inl.h"
-#include "src/objects/fixed-array.h"
-#include "src/objects/heap-object.h"
-#include "src/objects/instruction-stream.h"
 #include "src/objects/maybe-object-inl.h"
-#include "src/objects/slots-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -44,82 +38,15 @@ inline bool IsTrustedSpaceObject(Tagged<HeapObject> object);
 // internals are only intended to shortcut write barrier checks.
 namespace heap_internals {
 
-struct MemoryChunk {
-  static constexpr uintptr_t kFlagsOffset = kSizetSize;
-  static constexpr uintptr_t kHeapOffset = kSizetSize + kUIntptrSize;
-  static constexpr uintptr_t kInWritableSharedSpaceBit = uintptr_t{1} << 0;
-  static constexpr uintptr_t kFromPageBit = uintptr_t{1} << 3;
-  static constexpr uintptr_t kToPageBit = uintptr_t{1} << 4;
-  static constexpr uintptr_t kMarkingBit = uintptr_t{1} << 5;
-  static constexpr uintptr_t kReadOnlySpaceBit = uintptr_t{1} << 6;
-  static constexpr uintptr_t kIsExecutableBit = uintptr_t{1} << 18;
-  static constexpr uintptr_t kIsTrustedBit = uintptr_t{1} << 19;
-
-  V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
-      Tagged<HeapObject> object) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunk*>(object.ptr() & ~kPageAlignmentMask);
-  }
-
-  V8_INLINE static heap_internals::MemoryChunk* FromHeapObject(
-      const HeapObjectLayout* object) {
-    DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-    return reinterpret_cast<MemoryChunk*>(reinterpret_cast<Address>(object) &
-                                          ~kPageAlignmentMask);
-  }
-
-  V8_INLINE bool IsMarking() const { return GetFlags() & kMarkingBit; }
-
-  V8_INLINE bool InWritableSharedSpace() const {
-    return GetFlags() & kInWritableSharedSpaceBit;
-  }
-
-  V8_INLINE bool InYoungGeneration() const {
-    if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
-    constexpr uintptr_t kYoungGenerationMask = kFromPageBit | kToPageBit;
-    return GetFlags() & kYoungGenerationMask;
-  }
-
-  // Checks whether chunk is either in young gen or shared heap.
-  V8_INLINE bool IsYoungOrSharedChunk() const {
-    if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
-    constexpr uintptr_t kYoungOrSharedChunkMask =
-        kFromPageBit | kToPageBit | kInWritableSharedSpaceBit;
-    return GetFlags() & kYoungOrSharedChunkMask;
-  }
-
-  V8_INLINE uintptr_t GetFlags() const {
-    return *reinterpret_cast<const uintptr_t*>(reinterpret_cast<Address>(this) +
-                                               kFlagsOffset);
-  }
-
-  V8_INLINE Heap* GetHeap() {
-    Heap* heap = *reinterpret_cast<Heap**>(reinterpret_cast<Address>(this) +
-                                           kHeapOffset);
-    DCHECK_NOT_NULL(heap);
-    return heap;
-  }
-
-  V8_INLINE bool InReadOnlySpace() const {
-    return GetFlags() & kReadOnlySpaceBit;
-  }
-
-  V8_INLINE bool InCodeSpace() const { return GetFlags() & kIsExecutableBit; }
-
-  V8_INLINE bool InTrustedSpace() const { return GetFlags() & kIsTrustedBit; }
-};
-
 inline void CombinedWriteBarrierInternal(Tagged<HeapObject> host,
                                          HeapObjectSlot slot,
                                          Tagged<HeapObject> value,
                                          WriteBarrierMode mode) {
   DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
 
-  heap_internals::MemoryChunk* host_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(host);
+  MemoryChunkHeader* host_chunk = MemoryChunkHeader::FromHeapObject(host);
 
-  heap_internals::MemoryChunk* value_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(value);
+  MemoryChunkHeader* value_chunk = MemoryChunkHeader::FromHeapObject(value);
 
   const bool pointers_from_here_are_interesting =
       !host_chunk->IsYoungOrSharedChunk();
@@ -222,12 +149,11 @@ inline void CombinedEphemeronWriteBarrier(Tagged<EphemeronHashTable> host,
   DCHECK_EQ(mode, UPDATE_WRITE_BARRIER);
   if (!value.IsHeapObject()) return;
 
-  heap_internals::MemoryChunk* host_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(host);
+  MemoryChunkHeader* host_chunk = MemoryChunkHeader::FromHeapObject(host);
 
   Tagged<HeapObject> heap_object_value = HeapObject::cast(value);
-  heap_internals::MemoryChunk* value_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(heap_object_value);
+  MemoryChunkHeader* value_chunk =
+      MemoryChunkHeader::FromHeapObject(heap_object_value);
 
   const bool pointers_from_here_are_interesting =
       !host_chunk->IsYoungOrSharedChunk();
@@ -264,8 +190,7 @@ inline void IndirectPointerWriteBarrier(Tagged<HeapObject> host,
   // Objects referenced via indirect pointers are currently never allocated in
   // the young generation or the shared heap. If they ever are, then some of
   // these write barriers need to be adjusted.
-  DCHECK(!heap_internals::MemoryChunk::FromHeapObject(value)
-              ->IsYoungOrSharedChunk());
+  DCHECK(!MemoryChunkHeader::FromHeapObject(value)->IsYoungOrSharedChunk());
 
   WriteBarrier::Marking(host, slot);
 }
@@ -280,8 +205,7 @@ inline void ProtectedPointerWriteBarrier(Tagged<TrustedObject> host,
   }
 
   // Protected pointers are only used within trusted space.
-  DCHECK(!heap_internals::MemoryChunk::FromHeapObject(value)
-              ->IsYoungOrSharedChunk());
+  DCHECK(!MemoryChunk::FromHeapObject(value)->IsYoungOrSharedChunk());
 
   WriteBarrier::Marking(host, slot, value);
 }
@@ -290,8 +214,7 @@ inline void GenerationalBarrierForCode(Tagged<InstructionStream> host,
                                        RelocInfo* rinfo,
                                        Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
-  heap_internals::MemoryChunk* object_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* object_chunk = MemoryChunkHeader::FromHeapObject(object);
   if (!object_chunk->InYoungGeneration()) return;
   Heap_GenerationalBarrierForCodeSlow(host, rinfo, object);
 }
@@ -300,8 +223,7 @@ inline WriteBarrierMode GetWriteBarrierModeForObject(
     Tagged<HeapObject> object, const DisallowGarbageCollection* promise) {
   if (v8_flags.disable_write_barriers) return SKIP_WRITE_BARRIER;
   DCHECK(Heap_PageFlagsAreConsistent(object));
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
   if (chunk->IsMarking()) return UPDATE_WRITE_BARRIER;
   if (chunk->InYoungGeneration()) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
@@ -312,33 +234,29 @@ inline bool ObjectInYoungGeneration(Tagged<Object> object) {
   // v8_use_third_party_heap.
   if (v8_flags.single_generation) return false;
   if (object.IsSmi()) return false;
-  return heap_internals::MemoryChunk::FromHeapObject(HeapObject::cast(object))
+  return MemoryChunkHeader::FromHeapObject(HeapObject::cast(object))
       ->InYoungGeneration();
 }
 
 inline bool IsReadOnlyHeapObject(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return ReadOnlyHeap::Contains(object);
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
   return chunk->InReadOnlySpace();
 }
 
 inline bool IsCodeSpaceObject(Tagged<HeapObject> object) {
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
   return chunk->InCodeSpace();
 }
 
 inline bool IsTrustedSpaceObject(Tagged<HeapObject> object) {
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
   return chunk->InTrustedSpace();
 }
 
 bool WriteBarrier::IsMarking(Tagged<HeapObject> object) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return false;
-  heap_internals::MemoryChunk* chunk =
-      heap_internals::MemoryChunk::FromHeapObject(object);
+  MemoryChunkHeader* chunk = MemoryChunkHeader::FromHeapObject(object);
   return chunk->IsMarking();
 }
 
@@ -382,8 +300,7 @@ void WriteBarrier::Shared(Tagged<InstructionStream> host, RelocInfo* reloc_info,
                           Tagged<HeapObject> value) {
   if (V8_ENABLE_THIRD_PARTY_HEAP_BOOL) return;
 
-  heap_internals::MemoryChunk* value_chunk =
-      heap_internals::MemoryChunk::FromHeapObject(value);
+  MemoryChunkHeader* value_chunk = MemoryChunkHeader::FromHeapObject(value);
   if (!value_chunk->InWritableSharedSpace()) return;
 
   SharedSlow(host, reloc_info, value);

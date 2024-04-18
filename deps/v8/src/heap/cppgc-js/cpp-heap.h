@@ -16,6 +16,7 @@ static_assert(
 #include "src/base/flags.h"
 #include "src/base/macros.h"
 #include "src/base/optional.h"
+#include "src/base/utils/random-number-generator.h"
 #include "src/heap/cppgc-js/cross-heap-remembered-set.h"
 #include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/marker.h"
@@ -179,6 +180,9 @@ class V8_EXPORT_PRIVATE CppHeap final
   const cppgc::EmbedderStackState* override_stack_state() const override;
   void StartIncrementalGarbageCollection(cppgc::internal::GCConfig) override;
   size_t epoch() const override;
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() final;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   V8_INLINE void RememberCrossHeapReferenceIfNeeded(
       v8::internal::Tagged<v8::internal::JSObject> host_obj, void* value);
@@ -211,6 +215,7 @@ class V8_EXPORT_PRIVATE CppHeap final
 
   bool TracingInitialized() const { return collection_type_.has_value(); }
 
+  bool IsGCForbidden() const override;
   bool IsGCAllowed() const override;
   bool IsDetachedGCAllowed() const;
 
@@ -248,6 +253,11 @@ class V8_EXPORT_PRIVATE CppHeap final
   // Limit for |allocated_size| in bytes to avoid checking for starting a GC
   // on each increment.
   size_t allocated_size_limit_for_check_ = 0;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  // Use standalone RNG to avoid initialization order dependency.
+  base::Optional<v8::base::RandomNumberGenerator> allocation_timeout_rng_;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   friend class MetricRecorderAdapter;
 };

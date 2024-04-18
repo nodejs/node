@@ -42,6 +42,8 @@ macro ConvertToAndFromWasm(context: Context, wasmType: int32, value: JSAny):
   } else if (wasmType == kWasmF64Type) {
     return Convert<Number>(WasmTaggedToFloat64(value));
   } else {
+    const wasmKind = wasmType & kValueTypeKindBitsMask;
+    dcheck(wasmKind == ValueKind::kRef || wasmKind == ValueKind::kRefNull);
     if (value == Null) {
       // At the moment it is not possible to define non-nullable types for
       // WebAssembly.Functions.
@@ -59,6 +61,13 @@ macro ConvertToAndFromWasm(context: Context, wasmType: int32, value: JSAny):
 
     return value;
   }
+}
+
+extern runtime WasmThrowJSTypeError(Context): never;
+
+transitioning javascript builtin JSToJSWrapperInvalidSig(
+    js-implicit context: NativeContext)(): JSAny {
+  runtime::WasmThrowJSTypeError(context);
 }
 
 transitioning javascript builtin JSToJSWrapper(

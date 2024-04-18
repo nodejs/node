@@ -241,8 +241,8 @@ void ExternalizeStringExtension::IsOneByte(
         "isOneByteString() requires a single string argument.");
     return;
   }
-  bool is_one_byte =
-      Utils::OpenHandle(*info[0].As<v8::String>())->IsOneByteRepresentation();
+  bool is_one_byte = Utils::OpenDirectHandle(*info[0].As<v8::String>())
+                         ->IsOneByteRepresentation();
   info.GetReturnValue().Set(is_one_byte);
 }
 

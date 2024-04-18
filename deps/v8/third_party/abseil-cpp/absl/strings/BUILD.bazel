@@ -614,8 +614,8 @@ cc_library(
         "//absl:__subpackages__",
     ],
     deps = [
-        "//absl/base",
         "//absl/base:config",
+        "//absl/base:no_destructor",
         "//absl/base:raw_logging_internal",
         "//absl/synchronization",
     ],
@@ -829,7 +829,7 @@ cc_test(
 
 cc_library(
     name = "cord_test_helpers",
-    testonly = 1,
+    testonly = True,
     hdrs = [
         "cord_test_helpers.h",
     ],
@@ -845,7 +845,7 @@ cc_library(
 
 cc_library(
     name = "cord_rep_test_util",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/cord_rep_test_util.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -859,7 +859,7 @@ cc_library(
 
 cc_library(
     name = "cordz_test_helpers",
-    testonly = 1,
+    testonly = True,
     hdrs = ["cordz_test_helpers.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -918,6 +918,7 @@ cc_test(
         "//absl/container:fixed_array",
         "//absl/functional:function_ref",
         "//absl/hash",
+        "//absl/hash:hash_testing",
         "//absl/log",
         "//absl/log:check",
         "//absl/random",
@@ -1448,7 +1449,7 @@ cc_test(
 
 cc_binary(
     name = "atod_manual_test",
-    testonly = 1,
+    testonly = True,
     srcs = ["atod_manual_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

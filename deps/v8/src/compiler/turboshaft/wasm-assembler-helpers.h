@@ -23,6 +23,10 @@ struct RootTypes {
   __ Load(instance, LoadOp::Kind::TaggedBase(), representation, \
           WasmTrustedInstanceData::k##name##Offset)
 
+#define LOAD_PROTECTED_INSTANCE_FIELD(instance, name) \
+  __ LoadProtectedPointerField(instance,              \
+                               WasmTrustedInstanceData::k##name##Offset)
+
 #define LOAD_IMMUTABLE_INSTANCE_FIELD(instance, name, representation)       \
   __ Load(instance, LoadOp::Kind::TaggedBase().Immutable(), representation, \
           WasmTrustedInstanceData::k##name##Offset)
@@ -30,13 +34,19 @@ struct RootTypes {
 #define LOAD_ROOT(name)                                          \
   V<compiler::turboshaft::RootTypes::k##name##Type>::Cast(       \
       __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
-              MemoryRepresentation::PointerSized(),              \
+              MemoryRepresentation::UintPtr(),                   \
+              IsolateData::root_slot_offset(RootIndex::k##name)))
+
+#define LOAD_TAGGED_ROOT(name)                                   \
+  V<compiler::turboshaft::RootTypes::k##name##Type>::Cast(       \
+      __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned(), \
+              MemoryRepresentation::TaggedPointer(),             \
               IsolateData::root_slot_offset(RootIndex::k##name)))
 
 #define LOAD_IMMUTABLE_ROOT(name)                                            \
   V<compiler::turboshaft::RootTypes::k##name##Type>::Cast(                   \
       __ Load(__ LoadRootRegister(), LoadOp::Kind::RawAligned().Immutable(), \
-              MemoryRepresentation::PointerSized(),                          \
+              MemoryRepresentation::UintPtr(),                               \
               IsolateData::root_slot_offset(RootIndex::k##name)))
 
 }  // namespace v8::internal::compiler::turboshaft

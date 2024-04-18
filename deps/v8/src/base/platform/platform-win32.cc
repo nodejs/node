@@ -702,6 +702,7 @@ void OS::PrintError(const char* format, ...) {
   va_start(args, format);
   VPrintError(format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 

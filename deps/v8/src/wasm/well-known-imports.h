@@ -47,6 +47,7 @@ enum class WellKnownImport : uint8_t {
   kStringMeasureUtf8,
   kStringSubstring,
   kStringTest,
+  kStringToUtf8Array,
   kStringToWtf16Array,
 
   kLastCompileTimeImport = kStringToWtf16Array,

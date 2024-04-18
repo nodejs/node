@@ -9,6 +9,7 @@
 #include "src/builtins/builtins-definitions.h"
 #include "src/common/globals.h"
 #include "src/objects/type-hints.h"
+#include "src/sandbox/code-entrypoint-tag.h"
 
 namespace v8 {
 namespace internal {
@@ -192,6 +193,9 @@ class Builtins {
 
   static Kind KindOf(Builtin builtin);
   static const char* KindNameOf(Builtin builtin);
+
+  // The tag for the builtins entrypoint.
+  V8_EXPORT_PRIVATE static CodeEntrypointTag EntrypointTagFor(Builtin builtin);
 
   static bool IsCpp(Builtin builtin);
 

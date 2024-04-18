@@ -113,15 +113,7 @@ IsolateAllocator::IsolateAllocator() {
   page_allocator_ = GetPlatformPageAllocator();
 #endif  // V8_COMPRESS_POINTERS
 
-  // Allocate Isolate in C++ heap taking into account required alignment.
-  isolate_memory_ = base::AlignedAlloc(sizeof(Isolate), kMinimumOSPageSize);
-
   CHECK_NOT_NULL(page_allocator_);
-}
-
-IsolateAllocator::~IsolateAllocator() {
-  // The memory was allocated in C++ heap.
-  base::AlignedFree(isolate_memory_);
 }
 
 VirtualMemoryCage* IsolateAllocator::GetPtrComprCage() {

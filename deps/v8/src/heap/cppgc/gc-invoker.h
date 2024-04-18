@@ -38,6 +38,9 @@ class V8_EXPORT_PRIVATE GCInvoker final : public GarbageCollector {
   void StartIncrementalGarbageCollection(GCConfig) final;
   size_t epoch() const final;
   const EmbedderStackState* override_stack_state() const final;
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() final;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   class GCInvokerImpl;

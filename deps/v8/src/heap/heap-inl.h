@@ -271,7 +271,8 @@ Address Heap::NewSpaceTop() {
 }
 
 Address Heap::NewSpaceLimit() {
-  return new_space_ ? allocator()->new_space_allocator()->top() : kNullAddress;
+  return new_space_ ? allocator()->new_space_allocator()->limit()
+                    : kNullAddress;
 }
 
 bool Heap::InYoungGeneration(Tagged<Object> object) {

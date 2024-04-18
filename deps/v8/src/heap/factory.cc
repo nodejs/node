@@ -95,8 +95,7 @@ Factory::CodeBuilder::CodeBuilder(Isolate* isolate, const CodeDesc& desc,
       local_isolate_(isolate_->main_thread_local_isolate()),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()),
-      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
+      position_table_(isolate_->factory()->empty_byte_array()) {}
 
 Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
                                   const CodeDesc& desc, CodeKind kind)
@@ -104,8 +103,7 @@ Factory::CodeBuilder::CodeBuilder(LocalIsolate* local_isolate,
       local_isolate_(local_isolate),
       code_desc_(desc),
       kind_(kind),
-      position_table_(isolate_->factory()->empty_byte_array()),
-      deoptimization_data_(DeoptimizationData::Empty(isolate_)) {}
+      position_table_(isolate_->factory()->empty_byte_array()) {}
 
 Handle<ByteArray> Factory::CodeBuilder::NewByteArray(
     int length, AllocationType allocation) {
@@ -181,9 +179,8 @@ MaybeHandle<Code> Factory::CodeBuilder::BuildInternal(
         code_desc_.constant_pool_offset_relative(),
         code_desc_.code_comments_offset_relative(),
         code_desc_.unwinding_info_offset_relative(),
-        /*bytecode_or_deoptimization_data=*/kind_ == CodeKind::BASELINE
-            ? interpreter_data_
-            : deoptimization_data_,
+        interpreter_data_,
+        deoptimization_data_,
         /*bytecode_offsets_or_source_position_table=*/position_table_,
         istream,
         /*instruction_start=*/kNullAddress,
@@ -1304,6 +1301,13 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
                                           DirectHandle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
+
+  Handle<FixedArray> side_data;
+  if (v8_flags.const_tracking_let) {
+    side_data = NewFixedArray(scope_info->ContextLocalCount());
+  } else {
+    side_data = empty_fixed_array();
+  }
   Tagged<Context> context =
       NewContextInternal(handle(outer->script_context_map(), isolate()),
                          Context::SizeFor(variadic_part_length),
@@ -1311,6 +1315,7 @@ Handle<Context> Factory::NewScriptContext(DirectHandle<NativeContext> outer,
   DisallowGarbageCollection no_gc;
   context->set_scope_info(*scope_info);
   context->set_previous(*outer);
+  context->set(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX, *side_data);
   DCHECK(context->IsScriptContext());
   return handle(context, isolate());
 }
@@ -1323,6 +1328,7 @@ Handle<ScriptContextTable> Factory::NewScriptContextTable() {
 Handle<Context> Factory::NewModuleContext(DirectHandle<SourceTextModule> module,
                                           DirectHandle<NativeContext> outer,
                                           DirectHandle<ScopeInfo> scope_info) {
+  // TODO(v8:13567): Const tracking let in module contexts.
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
   int variadic_part_length = scope_info->ContextLength();
   Tagged<Context> context = NewContextInternal(
@@ -1784,18 +1790,18 @@ Tagged<WasmArray> Factory::NewWasmArrayUninitialized(uint32_t length,
   return result;
 }
 
-Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
+Handle<WasmArray> Factory::NewWasmArray(wasm::ValueType element_type,
                                         uint32_t length,
                                         wasm::WasmValue initial_value,
                                         DirectHandle<Map> map) {
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
   DisallowGarbageCollection no_gc;
-  if (type->element_type().is_numeric()) {
+  if (element_type.is_numeric()) {
     if (initial_value.zero_byte_representation()) {
       memset(reinterpret_cast<void*>(result->ElementAddress(0)), 0,
-             length * type->element_type().value_kind_size());
+             length * element_type.value_kind_size());
     } else {
-      wasm::WasmValue packed = initial_value.Packed(type->element_type());
+      wasm::WasmValue packed = initial_value.Packed(element_type);
       for (uint32_t i = 0; i < length; i++) {
         Address address = result->ElementAddress(i);
         packed.CopyTo(reinterpret_cast<uint8_t*>(address));
@@ -1810,7 +1816,7 @@ Handle<WasmArray> Factory::NewWasmArray(const wasm::ArrayType* type,
 }
 
 Handle<WasmArray> Factory::NewWasmArrayFromElements(
-    const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+    const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
     DirectHandle<Map> map) {
   uint32_t length = static_cast<uint32_t>(elements.size());
   Tagged<WasmArray> result = NewWasmArrayUninitialized(length, map);
@@ -2018,6 +2024,19 @@ Handle<PropertyCell> Factory::NewPropertyCell(DirectHandle<Name> name,
   cell->set_name(*name, mode);
   cell->set_value(*value, mode);
   cell->set_property_details_raw(details.AsSmi(), SKIP_WRITE_BARRIER);
+  return handle(cell, isolate());
+}
+
+Handle<ConstTrackingLetCell> Factory::NewConstTrackingLetCell(
+    AllocationType allocation) {
+  static_assert(ConstTrackingLetCell::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<ConstTrackingLetCell> cell = Tagged<ConstTrackingLetCell>::cast(
+      AllocateRawWithImmortalMap(ConstTrackingLetCell::kSize, allocation,
+                                 *global_const_tracking_let_cell_map()));
+  DisallowGarbageCollection no_gc;
+  cell->set_dependent_code(
+      DependentCode::empty_dependent_code(ReadOnlyRoots(isolate())),
+      SKIP_WRITE_BARRIER);
   return handle(cell, isolate());
 }
 
@@ -2640,7 +2659,7 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
   DCHECK_EQ(code->inlined_bytecode_size(), 0);
   DCHECK_EQ(code->osr_offset(), BytecodeOffset::None());
   DCHECK_EQ(code->raw_deoptimization_data_or_interpreter_data(isolate()),
-            read_only_roots().empty_fixed_array());
+            Smi::zero());
   // .. because we don't explicitly initialize these flags:
   DCHECK(!code->marked_for_deoptimization());
   DCHECK(!code->can_have_weak_objects());
@@ -2664,8 +2683,8 @@ Handle<Code> Factory::NewCodeObjectForEmbeddedBuiltin(DirectHandle<Code> code,
       code->constant_pool_offset(),
       code->code_comments_offset(),
       code->unwinding_info_offset(),
-      handle(code->raw_deoptimization_data_or_interpreter_data(isolate()),
-             isolate()),
+      MaybeHandle<HeapObject>{},
+      MaybeHandle<DeoptimizationData>{},
       /*bytecode_offsets_or_source_position_table=*/empty_byte_array(),
       /*instruction_stream=*/MaybeHandle<InstructionStream>{},
       off_heap_entry,
@@ -2871,18 +2890,13 @@ Handle<JSObject> Factory::NewSlowJSObjectFromMap(
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectFromMap(DirectHandle<Map> map) {
-  return NewSlowJSObjectFromMap(map, V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-                                         ? SwissNameDictionary::kInitialCapacity
-                                         : NameDictionary::kInitialCapacity);
+  return NewSlowJSObjectFromMap(map, PropertyDictionary::kInitialCapacity);
 }
 
 Handle<JSObject> Factory::NewSlowJSObjectWithPropertiesAndElements(
     Handle<HeapObject> prototype, DirectHandle<HeapObject> properties,
     DirectHandle<FixedArrayBase> elements) {
-  DCHECK_IMPLIES(V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 IsSwissNameDictionary(*properties));
-  DCHECK_IMPLIES(!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL,
-                 IsNameDictionary(*properties));
+  DCHECK(IsPropertyDictionary(*properties));
 
   Handle<Map> object_map = isolate()->slow_object_with_object_prototype_map();
   if (object_map->prototype() != *prototype) {
@@ -3568,9 +3582,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
 Handle<InterpreterData> Factory::NewInterpreterData(
     Handle<BytecodeArray> bytecode_array, Handle<Code> code) {
   Tagged<Map> map = *interpreter_data_map();
-  Tagged<InterpreterData> interpreter_data =
-      Tagged<InterpreterData>::cast(AllocateRawWithImmortalMap(
-          map->instance_size(), AllocationType::kOld, *interpreter_data_map()));
+  Tagged<InterpreterData> interpreter_data = Tagged<InterpreterData>::cast(
+      AllocateRawWithImmortalMap(map->instance_size(), AllocationType::kTrusted,
+                                 *interpreter_data_map()));
   DisallowGarbageCollection no_gc;
   interpreter_data->init_self_indirect_pointer(isolate());
   interpreter_data->set_bytecode_array(*bytecode_array);
@@ -4236,6 +4250,17 @@ Handle<JSAtomicsCondition> Factory::NewJSAtomicsCondition() {
       NewJSObjectFromMap(map, AllocationType::kSharedOld));
   cond->set_state(JSAtomicsCondition::kEmptyState);
   return cond;
+}
+
+Handle<DictionaryTemplateInfo> Factory::NewDictionaryTemplateInfo(
+    Handle<FixedArray> property_names) {
+  const int size = DictionaryTemplateInfo::SizeFor();
+  Handle<Map> map = read_only_roots().dictionary_template_info_map_handle();
+  Tagged<DictionaryTemplateInfo> obj = DictionaryTemplateInfo::cast(
+      AllocateRawWithImmortalMap(size, AllocationType::kOld, *map));
+  obj->set_property_names(*property_names);
+  obj->set_fully_populated_map(HeapObjectReference::ClearedValue(isolate()));
+  return handle(obj, isolate());
 }
 
 Factory::JSFunctionBuilder::JSFunctionBuilder(Isolate* isolate,

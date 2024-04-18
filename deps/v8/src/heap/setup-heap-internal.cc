@@ -27,6 +27,7 @@
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/instance-type-inl.h"
+#include "src/objects/instance-type.h"
 #include "src/objects/js-atomics-synchronization.h"
 #include "src/objects/js-generator.h"
 #include "src/objects/js-shared-array.h"
@@ -47,6 +48,7 @@
 #include "src/objects/string.h"
 #include "src/objects/synthetic-module.h"
 #include "src/objects/template-objects-inl.h"
+#include "src/objects/templates.h"
 #include "src/objects/torque-defined-classes-inl.h"
 #include "src/objects/turbofan-types.h"
 #include "src/objects/turboshaft-types.h"
@@ -464,6 +466,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
     ALLOCATE_PARTIAL_MAP(TRUSTED_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          trusted_fixed_array);
+    ALLOCATE_PARTIAL_MAP(PROTECTED_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
+                         protected_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(WEAK_ARRAY_LIST_TYPE, kVariableSizeSentinel,
@@ -554,6 +558,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
   FinalizePartialMap(roots.meta_map());
   FinalizePartialMap(roots.fixed_array_map());
   FinalizePartialMap(roots.trusted_fixed_array_map());
+  FinalizePartialMap(roots.protected_fixed_array_map());
   FinalizePartialMap(roots.weak_fixed_array_map());
   FinalizePartialMap(roots.weak_array_list_map());
   FinalizePartialMap(roots.fixed_cow_array_map());
@@ -730,6 +735,9 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
                  synthetic_module)
 
+    ALLOCATE_MAP(CONST_TRACKING_LET_CELL_TYPE, ConstTrackingLetCell::kSize,
+                 global_const_tracking_let_cell)
+
     IF_WASM(ALLOCATE_MAP, WASM_API_FUNCTION_REF_TYPE, WasmApiFunctionRef::kSize,
             wasm_api_function_ref)
     IF_WASM(ALLOCATE_MAP, WASM_CAPI_FUNCTION_DATA_TYPE,
@@ -749,11 +757,16 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
     IF_WASM(ALLOCATE_MAP, WASM_TRUSTED_INSTANCE_DATA_TYPE,
             WasmTrustedInstanceData::kSize, wasm_trusted_instance_data);
+    IF_WASM(ALLOCATE_VARSIZE_MAP, WASM_DISPATCH_TABLE_TYPE,
+            wasm_dispatch_table);
 
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
     ALLOCATE_VARSIZE_MAP(EXTERNAL_POINTER_ARRAY_TYPE, external_pointer_array)
     ALLOCATE_MAP(INTERPRETER_DATA_TYPE, InterpreterData::kSize,
                  interpreter_data)
+
+    ALLOCATE_MAP(DICTIONARY_TEMPLATE_INFO_TYPE, DictionaryTemplateInfo::kSize,
+                 dictionary_template_info)
   }
 
   return true;
@@ -1536,6 +1549,15 @@ void Heap::CreateInitialMutableObjects() {
     info = CreateSharedFunctionInfo(
         isolate_, Builtin::kArrayFromAsyncArrayLikeOnRejected, 0);
     set_array_from_async_array_like_on_rejected_shared_fun(*info);
+  }
+
+  // Trusted roots:
+  // TODO(saelo): these would ideally be read-only and shared, but we currently
+  // don't have a trusted RO space.
+  {
+    set_empty_trusted_byte_array(*factory->NewTrustedByteArray(0));
+    set_empty_trusted_fixed_array(*factory->NewTrustedFixedArray(0));
+    set_empty_protected_fixed_array(*factory->NewProtectedFixedArray(0));
   }
 }
 

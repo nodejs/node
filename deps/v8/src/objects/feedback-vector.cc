@@ -891,12 +891,26 @@ void FeedbackNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
               UninitializedSentinel(), SKIP_WRITE_BARRIER);
 }
 
+#if DEBUG
+namespace {
+bool shouldStressLexicalIC(int script_context_index, int context_slot_index) {
+  return (script_context_index + context_slot_index) % 100 == 0;
+}
+}  // namespace
+#endif
+
 bool FeedbackNexus::ConfigureLexicalVarMode(int script_context_index,
                                             int context_slot_index,
                                             bool immutable) {
   DCHECK(IsGlobalICKind(kind()));
   DCHECK_LE(0, script_context_index);
   DCHECK_LE(0, context_slot_index);
+#if DEBUG
+  if (v8_flags.stress_ic &&
+      shouldStressLexicalIC(script_context_index, context_slot_index)) {
+    return false;
+  }
+#endif
   if (!ContextIndexBits::is_valid(script_context_index) ||
       !SlotIndexBits::is_valid(context_slot_index) ||
       !ImmutabilityBit::is_valid(immutable)) {
@@ -1202,21 +1216,19 @@ Tagged<Name> FeedbackNexus::GetName() const {
 
 KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
   DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedHasICKind(kind()));
-
   // TODO(victorgomes): The KeyedAccessLoadMode::kInBounds is doing double duty
   // here. It shouldn't be used for property loads.
-  if (GetKeyType() == IcCheckType::kProperty)
+  if (GetKeyType() == IcCheckType::kProperty) {
     return KeyedAccessLoadMode::kInBounds;
-
+  }
   std::vector<MapAndHandler> maps_and_handlers;
   ExtractMapsAndHandlers(&maps_and_handlers);
+  KeyedAccessLoadMode mode = KeyedAccessLoadMode::kInBounds;
   for (MapAndHandler map_and_handler : maps_and_handlers) {
-    KeyedAccessLoadMode mode =
-        LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second);
-    if (LoadModeHandlesOOB(mode)) return mode;
+    mode = GeneralizeKeyedAccessLoadMode(
+        mode, LoadHandler::GetKeyedAccessLoadMode(*map_and_handler.second));
   }
-
-  return KeyedAccessLoadMode::kInBounds;
+  return mode;
 }
 
 namespace {

@@ -4588,6 +4588,43 @@ void MacroAssembler::Call(Register target, Condition cond, Register rs,
   }
 }
 
+void MacroAssembler::CompareTaggedRootAndBranch(const Register& obj,
+                                                RootIndex index, Condition cc,
+                                                Label* target) {
+  ASM_CODE_COMMENT(this);
+  // AssertSmiOrHeapObjectInMainCompressionCage(obj);
+  UseScratchRegisterScope temps(this);
+  if (V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index)) {
+    CompareTaggedAndBranch(target, cc, obj, Operand(ReadOnlyRootPtr(index)));
+    return;
+  }
+  // Some smi roots contain system pointer size values like stack limits.
+  DCHECK(base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                         RootIndex::kLastStrongOrReadOnlyRoot));
+  Register temp = temps.Acquire();
+  DCHECK(!AreAliased(obj, temp));
+  LoadRoot(temp, index);
+  CompareTaggedAndBranch(target, cc, obj, Operand(temp));
+}
+// Compare the object in a register to a value from the root list.
+void MacroAssembler::CompareRootAndBranch(const Register& obj, RootIndex index,
+                                          Condition cc, Label* target,
+                                          ComparisonMode mode) {
+  ASM_CODE_COMMENT(this);
+  if (mode == ComparisonMode::kFullPointer ||
+      !base::IsInRange(index, RootIndex::kFirstStrongOrReadOnlyRoot,
+                       RootIndex::kLastStrongOrReadOnlyRoot)) {
+    // Some smi roots contain system pointer size values like stack limits.
+    UseScratchRegisterScope temps(this);
+    Register temp = temps.Acquire();
+    DCHECK(!AreAliased(obj, temp));
+    LoadRoot(temp, index);
+    Branch(target, cc, obj, Operand(temp));
+    return;
+  }
+  CompareTaggedRootAndBranch(obj, index, cc, target);
+}
+
 void MacroAssembler::JumpIfIsInRange(Register value, unsigned lower_limit,
                                      unsigned higher_limit,
                                      Label* on_in_range) {
@@ -6479,8 +6516,13 @@ void MacroAssembler::CallCFunctionHelper(
 
     Call(function);
     if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
-      if (isolate() != nullptr) {
-        // We don't unset the PC; the FP is the source of truth.
+      // We don't unset the PC; the FP is the source of truth.
+      if (root_array_available()) {
+        StoreWord(zero_reg,
+                  MemOperand(kRootRegister,
+                             IsolateData::fast_c_call_caller_fp_offset()));
+      } else {
+        DCHECK_NOT_NULL(isolate());
         UseScratchRegisterScope temps(this);
         Register scratch = temps.Acquire();
         li(scratch,
@@ -6504,8 +6546,9 @@ void MacroAssembler::CallCFunctionHelper(
 
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met) {
-  And(scratch, object, Operand(~kPageAlignmentMask));
-  LoadWord(scratch, MemOperand(scratch, BasicMemoryChunk::kFlagsOffset));
+  And(scratch, object,
+      Operand(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+  LoadWord(scratch, MemOperand(scratch, MemoryChunkLayout::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
 }
@@ -6547,9 +6590,27 @@ void MacroAssembler::CallForDeoptimization(Builtin target, int, Label* exit,
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
-  LoadWord(destination, FieldMemOperand(code, Code::kInstructionStartOffset));
+  LoadWord(destination,
+           FieldMemOperand(code_object, Code::kInstructionStartOffset));
+}
+
+void MacroAssembler::LoadProtectedPointerField(Register destination,
+                                               MemOperand field_operand) {
+  DCHECK(root_array_available());
+#ifdef V8_ENABLE_SANDBOX
+  ASM_CODE_COMMENT(this);
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
+  Lwu(destination, field_operand);
+  Ld(scratch,
+     MemOperand(kRootRegister, IsolateData::trusted_cage_base_offset()));
+  Or(destination, destination, scratch);
+#else
+  LoadTaggedField(destination, field_operand);
+#endif
 }
 
 void MacroAssembler::CallCodeObject(Register code) {

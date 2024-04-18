@@ -156,7 +156,10 @@ void VerifyRememberedSetsAfterEvacuation(Heap* heap,
 
     // Old-to-old slot sets must be empty after evacuation.
     DCHECK_NULL((chunk->slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL((chunk->slot_set<TRUSTED_TO_TRUSTED, AccessMode::ATOMIC>()));
     DCHECK_NULL((chunk->typed_slot_set<OLD_TO_OLD, AccessMode::ATOMIC>()));
+    DCHECK_NULL(
+        (chunk->typed_slot_set<TRUSTED_TO_TRUSTED, AccessMode::ATOMIC>()));
 
     if (new_space_is_empty &&
         (garbage_collector == GarbageCollector::MARK_COMPACTOR)) {

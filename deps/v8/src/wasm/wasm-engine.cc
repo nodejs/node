@@ -52,12 +52,9 @@ namespace {
 // bound to the wasm engine.
 class LogCodesTask : public Task {
  public:
-  LogCodesTask(base::Mutex* mutex, LogCodesTask** task_slot, Isolate* isolate,
+  LogCodesTask(std::atomic<LogCodesTask*>* task_slot, Isolate* isolate,
                WasmEngine* engine)
-      : mutex_(mutex),
-        task_slot_(task_slot),
-        isolate_(isolate),
-        engine_(engine) {
+      : task_slot_(task_slot), isolate_(isolate), engine_(engine) {
     DCHECK_NOT_NULL(task_slot);
     DCHECK_NOT_NULL(isolate);
   }
@@ -89,18 +86,15 @@ class LogCodesTask : public Task {
     if (task_slot_ == nullptr) return;  // already deregistered.
     // Remove this task from the {IsolateInfo} in the engine. The next
     // logging request will allocate and schedule a new task.
-    base::MutexGuard guard(mutex_);
-    DCHECK_EQ(this, *task_slot_);
-    *task_slot_ = nullptr;
+    LogCodesTask* old_task = task_slot_->exchange(nullptr);
+    CHECK(old_task == nullptr || old_task == this);
     task_slot_ = nullptr;
   }
 
  private:
-  // The mutex of the WasmEngine.
-  base::Mutex* const mutex_;
   // The slot in the WasmEngine where this LogCodesTask is stored. This is
   // cleared by this task before execution or on task destruction.
-  LogCodesTask** task_slot_;
+  std::atomic<LogCodesTask*>* task_slot_;
   Isolate* isolate_;
   WasmEngine* const engine_;
 };
@@ -428,7 +422,7 @@ struct WasmEngine::IsolateInfo {
   bool log_codes;
 
   // The currently scheduled LogCodesTask.
-  LogCodesTask* log_codes_task = nullptr;
+  std::atomic<LogCodesTask*> log_codes_task = nullptr;
 
   // Maps script ID to vector of code objects that still need to be logged, and
   // the respective source URL.
@@ -1248,19 +1242,16 @@ void WasmEngine::RemoveIsolate(Isolate* isolate) {
   }
 
   // Cancel outstanding code logging and clear the {code_to_log} vector.
-  if (auto* task = isolate_info->log_codes_task) {
-    task->Cancel();
-    for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
-      for (WasmCode* code : code_to_log.code) {
-        // Keep a reference in the {code_ref_scope_for_dead_code} such that the
-        // code cannot become dead immediately.
-        WasmCodeRefScope::AddRef(code);
-        code->DecRefOnLiveCode();
-      }
+  if (auto* task = isolate_info->log_codes_task.load()) task->Cancel();
+  for (auto& [script_id, code_to_log] : isolate_info->code_to_log) {
+    for (WasmCode* code : code_to_log.code) {
+      // Keep a reference in the {code_ref_scope_for_dead_code} such that the
+      // code cannot become dead immediately.
+      WasmCodeRefScope::AddRef(code);
+      code->DecRefOnLiveCode();
     }
-    isolate_info->code_to_log.clear();
   }
-  DCHECK(isolate_info->code_to_log.empty());
+  isolate_info->code_to_log.clear();
 
   // Finally remove the {IsolateInfo} for this isolate.
   isolates_.erase(isolates_it);
@@ -1308,10 +1299,10 @@ void WasmEngine::LogCode(base::Vector<WasmCode*> code_vec) {
         code->IncRef();
       }
 
-      if (info->log_codes_task == nullptr) {
-        auto new_task = std::make_unique<LogCodesTask>(
-            &mutex_, &info->log_codes_task, isolate, this);
-        info->log_codes_task = new_task.get();
+      if (info->log_codes_task.load() == nullptr) {
+        std::unique_ptr<LogCodesTask> new_task = std::make_unique<LogCodesTask>(
+            &info->log_codes_task, isolate, this);
+        CHECK_NULL(info->log_codes_task.exchange(new_task.get()));
         // Store the LogCodeTasks to post them outside the WasmEngine::mutex_.
         // Posting the task in the mutex can cause the following deadlock (only
         // in d8): When d8 shuts down, it sets a terminate to the task runner.
@@ -1608,23 +1599,25 @@ void ReportLiveCodeFromFrameForGC(
 void WasmEngine::ReportLiveCodeFromStackForGC(Isolate* isolate) {
   wasm::WasmCodeRefScope code_ref_scope;
   std::unordered_set<wasm::WasmCode*> live_wasm_code;
-  if (v8_flags.experimental_wasm_stack_switching) {
-    wasm::StackMemory* current = isolate->wasm_stacks();
-    DCHECK_NOT_NULL(current);
-    do {
-      if (current->IsActive()) {
+
+  wasm::StackMemory* current = isolate->wasm_stacks();
+
+  if (current != nullptr) {
+      do {
+        if (current->IsActive()) {
         // The active stack's jump buffer does not match the current state, use
         // the thread info below instead.
         current = current->next();
         continue;
-      }
+        }
       for (StackFrameIterator it(isolate, current); !it.done(); it.Advance()) {
         StackFrame* const frame = it.frame();
         ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);
       }
       current = current->next();
-    } while (current != isolate->wasm_stacks());
+      } while (current != isolate->wasm_stacks());
   }
+
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* const frame = it.frame();
     ReportLiveCodeFromFrameForGC(isolate, frame, live_wasm_code);

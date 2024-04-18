@@ -18,28 +18,28 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         builder.addStruct([makeField(kWasmI32, false)], type_super);
     let type_other = builder.addStruct([makeField(kWasmI64, false)]);
 
-    builder.addGlobal(wasmRefType(type_super), false,
+    builder.addGlobal(wasmRefType(type_super), false, false,
                       [kExprI32Const, 42,
                        kGCPrefix, kExprStructNew, type_super])
            .exportAs("super");
-    builder.addGlobal(wasmRefType(type_sub), false,
+    builder.addGlobal(wasmRefType(type_sub), false, false,
                       [kExprI32Const, 42,
                        kGCPrefix, kExprStructNew, type_sub])
            .exportAs("sub");
-    builder.addGlobal(wasmRefType(type_other), false,
+    builder.addGlobal(wasmRefType(type_other), false, false,
             [kExprI64Const, 42,
              kGCPrefix, kExprStructNew, type_other])
            .exportAs("other");
     // null variants
-    builder.addGlobal(wasmRefNullType(type_super), false,
+    builder.addGlobal(wasmRefNullType(type_super), false, false,
                       [kExprI32Const, 42,
                        kGCPrefix, kExprStructNew, type_super])
            .exportAs("super_nullable");
-    builder.addGlobal(wasmRefNullType(type_sub), false,
+    builder.addGlobal(wasmRefNullType(type_sub), false, false,
                       [kExprI32Const, 42,
                        kGCPrefix, kExprStructNew, type_sub])
            .exportAs("sub_nullable");
-    builder.addGlobal(wasmRefNullType(type_other), false,
+    builder.addGlobal(wasmRefNullType(type_other), false, false,
             [kExprI64Const, 42,
              kGCPrefix, kExprStructNew, type_other])
            .exportAs("other_nullable");

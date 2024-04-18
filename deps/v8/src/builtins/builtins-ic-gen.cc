@@ -101,9 +101,19 @@ void Builtins::Generate_StoreIC(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateStoreIC();
 }
+void Builtins::Generate_StoreIC_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreIC_Megamorphic();
+}
 void Builtins::Generate_StoreICTrampoline(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateStoreICTrampoline();
+}
+void Builtins::Generate_StoreICTrampoline_Megamorphic(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateStoreICTrampoline_Megamorphic();
 }
 void Builtins::Generate_StoreICBaseline(compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);

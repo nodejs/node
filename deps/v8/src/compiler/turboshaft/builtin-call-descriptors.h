@@ -534,7 +534,8 @@ struct BuiltinCallDescriptor {
 
     static constexpr bool kNeedsFrameState = false;
     static constexpr bool kNeedsContext = false;
-    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoWrite;
     static constexpr OpEffects kEffects =
         base_effects.CanAllocateWithoutIdentity();
   };
@@ -602,6 +603,18 @@ struct BuiltinCallDescriptor {
         Operator::kNoDeopt | Operator::kNoThrow;
     static constexpr OpEffects kEffects =
         base_effects.CanReadMemory().CanWriteHeapMemory();
+  };
+
+  struct WasmStringToUtf8Array : public Descriptor<WasmStringToUtf8Array> {
+    static constexpr auto kFunction = Builtin::kWasmStringToUtf8Array;
+    using arguments_t = std::tuple<V<String>>;
+    using results_t = std::tuple<V<WasmArray>>;
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocate();
   };
 
   struct WasmStringEncodeWtf16Array

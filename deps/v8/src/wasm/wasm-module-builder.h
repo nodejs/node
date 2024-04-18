@@ -313,7 +313,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   // Building methods.
-  uint32_t AddImport(base::Vector<const char> name, FunctionSig* sig,
+  uint32_t AddImport(base::Vector<const char> name, const FunctionSig* sig,
                      base::Vector<const char> module = {});
   WasmFunctionBuilder* AddFunction(const FunctionSig* sig = nullptr);
   WasmFunctionBuilder* AddFunction(uint32_t sig_index);
@@ -424,7 +424,10 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
 
   int NumTables() { return static_cast<int>(tables_.size()); }
 
-  int NumFunctions() { return static_cast<int>(functions_.size()); }
+  int NumImportedFunctions() {
+    return static_cast<int>(function_imports_.size());
+  }
+  int NumDeclaredFunctions() { return static_cast<int>(functions_.size()); }
 
   int NumDataSegments() { return static_cast<int>(data_segments_.size()); }
 

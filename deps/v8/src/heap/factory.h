@@ -44,6 +44,7 @@ class CoverageInfo;
 class DebugInfo;
 class DeoptimizationData;
 class DeoptimizationLiteralArray;
+class DictionaryTemplateInfo;
 class EnumCache;
 class FreshlyAllocatedBigInt;
 class Isolate;
@@ -450,6 +451,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
       DirectHandle<Name> name, PropertyDetails details,
       DirectHandle<Object> value,
       AllocationType allocation = AllocationType::kOld);
+  Handle<ConstTrackingLetCell> NewConstTrackingLetCell(
+      AllocationType allocation = AllocationType::kOld);
   Handle<PropertyCell> NewProtector();
 
   Handle<FeedbackCell> NewNoClosuresCell(DirectHandle<HeapObject> value);
@@ -718,11 +721,11 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
   Handle<WasmStruct> NewWasmStruct(const wasm::StructType* type,
                                    wasm::WasmValue* args,
                                    DirectHandle<Map> map);
-  Handle<WasmArray> NewWasmArray(const wasm::ArrayType* type, uint32_t length,
+  Handle<WasmArray> NewWasmArray(wasm::ValueType element_type, uint32_t length,
                                  wasm::WasmValue initial_value,
                                  DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromElements(
-      const wasm::ArrayType* type, const std::vector<wasm::WasmValue>& elements,
+      const wasm::ArrayType* type, base::Vector<wasm::WasmValue> elements,
       DirectHandle<Map> map);
   Handle<WasmArray> NewWasmArrayFromMemory(uint32_t length,
                                            DirectHandle<Map> map,
@@ -988,6 +991,9 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
 
   Handle<JSAtomicsCondition> NewJSAtomicsCondition();
 
+  Handle<DictionaryTemplateInfo> NewDictionaryTemplateInfo(
+      Handle<FixedArray> property_names);
+
   // Helper class for creating JSFunction objects.
   class V8_EXPORT_PRIVATE JSFunctionBuilder final {
    public:
@@ -1134,8 +1140,8 @@ class V8_EXPORT_PRIVATE Factory : public FactoryBase<Factory> {
     // Either source_position_table for non-baseline code or
     // bytecode_offset_table for baseline code.
     Handle<ByteArray> position_table_;
-    Handle<DeoptimizationData> deoptimization_data_;
-    Handle<HeapObject> interpreter_data_;
+    MaybeHandle<DeoptimizationData> deoptimization_data_;
+    MaybeHandle<HeapObject> interpreter_data_;
     BasicBlockProfilerData* profiler_data_ = nullptr;
     bool is_turbofanned_ = false;
     int stack_slots_ = 0;

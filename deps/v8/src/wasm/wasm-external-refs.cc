@@ -655,15 +655,12 @@ double flat_string_to_f64(Address string_address) {
 }
 
 void sync_stack_limit(Isolate* isolate) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
   DisallowGarbageCollection no_gc;
 
   isolate->SyncStackLimit();
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
-
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
 
@@ -683,8 +680,6 @@ intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
 }
 
 void switch_from_the_central_stack(Isolate* isolate) {
-  CHECK(v8_flags.experimental_wasm_stack_switching);
-
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   CHECK_NE(thread_local_top->secondary_stack_sp_, 0);
   CHECK_NE(thread_local_top->secondary_stack_limit_, 0);

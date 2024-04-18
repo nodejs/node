@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_GARBAGE_COLLECTOR_H_
 
 #include "include/cppgc/common.h"
+#include "src/base/optional.h"
 #include "src/heap/cppgc/heap-config.h"
 
 namespace cppgc {
@@ -25,6 +26,10 @@ class GarbageCollector {
 
   // Returns a non-null state if the stack state if overriden.
   virtual const EmbedderStackState* override_stack_state() const = 0;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  virtual v8::base::Optional<int> UpdateAllocationTimeout() = 0;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 }  // namespace internal

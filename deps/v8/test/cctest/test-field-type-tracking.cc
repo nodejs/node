@@ -616,6 +616,7 @@ Handle<Code> CreateDummyOptimizedCode(Isolate* isolate) {
   desc.instr_size = arraysize(buffer);
   return Factory::CodeBuilder(isolate, desc, CodeKind::TURBOFAN)
       .set_is_turbofanned()
+      .set_deoptimization_data(DeoptimizationData::Empty(isolate))
       .Build();
 }
 

@@ -452,10 +452,6 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                      Condition cond, Label* target,
                                      Label::Distance distance = Label::kFar);
 
-  inline void CompareRootAndJumpIf(Register with, RootIndex index,
-                                   Condition cond, Label* target,
-                                   Label::Distance distance = Label::kFar);
-
   inline void CompareFloat64AndJumpIf(DoubleRegister src1, DoubleRegister src2,
                                       Condition cond, Label* target,
                                       Label* nan_failed,
@@ -497,6 +493,10 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
   inline void JumpIfNotHoleNan(DoubleRegister value, Register scratch,
                                Label* target,
                                Label::Distance distance = Label::kFar);
+  inline void JumpIfNan(DoubleRegister value, Label* target,
+                        Label::Distance distance = Label::kFar);
+  inline void JumpIfNotNan(DoubleRegister value, Label* target,
+                           Label::Distance distance = Label::kFar);
   inline void JumpIfNotHoleNan(MemOperand operand, Label* target,
                                Label::Distance distance = Label::kFar);
 
@@ -604,6 +604,9 @@ class V8_EXPORT_PRIVATE MaglevAssembler : public MacroAssembler {
                                   Label* eager_deopt_entry,
                                   size_t lazy_deopt_count,
                                   Label* lazy_deopt_entry);
+
+  void GenerateCheckConstTrackingLetCellFooter(Register context, Register data,
+                                               int index, Label* done);
 
   compiler::NativeContextRef native_context() const {
     return code_gen_state()->broker()->target_native_context();
@@ -835,19 +838,6 @@ struct is_iterator_range<base::iterator_range<T>> : std::true_type {};
 
 // General helpers.
 
-inline bool AnyMapIsHeapNumber(const compiler::ZoneRefSet<Map>& maps) {
-  return std::any_of(maps.begin(), maps.end(), [](compiler::MapRef map) {
-    return map.IsHeapNumberMap();
-  });
-}
-
-inline bool AnyMapIsHeapNumber(
-    const base::Vector<const compiler::MapRef>& maps) {
-  return std::any_of(maps.begin(), maps.end(), [](compiler::MapRef map) {
-    return map.IsHeapNumberMap();
-  });
-}
-
 inline Condition ToCondition(AssertCondition cond) {
   switch (cond) {
 #define CASE(Name)               \
@@ -871,6 +861,24 @@ constexpr Condition ConditionFor(Operation operation) {
       return kGreaterThan;
     case Operation::kGreaterThanOrEqual:
       return kGreaterThanEqual;
+    default:
+      UNREACHABLE();
+  }
+}
+
+constexpr Condition UnsignedConditionFor(Operation operation) {
+  switch (operation) {
+    case Operation::kEqual:
+    case Operation::kStrictEqual:
+      return kEqual;
+    case Operation::kLessThan:
+      return kUnsignedLessThan;
+    case Operation::kLessThanOrEqual:
+      return kUnsignedLessThanEqual;
+    case Operation::kGreaterThan:
+      return kUnsignedGreaterThan;
+    case Operation::kGreaterThanOrEqual:
+      return kUnsignedGreaterThanEqual;
     default:
       UNREACHABLE();
   }

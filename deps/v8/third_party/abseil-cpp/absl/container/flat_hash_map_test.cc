@@ -22,6 +22,7 @@
 
 #include "gtest/gtest.h"
 #include "absl/container/internal/hash_generator_testing.h"
+#include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/unordered_map_constructor_test.h"
 #include "absl/container/internal/unordered_map_lookup_test.h"
 #include "absl/container/internal/unordered_map_members_test.h"
@@ -349,6 +350,17 @@ TEST(FlatHashMap, RecursiveTypeCompiles) {
   };
   RecursiveType t;
   t.m[0] = RecursiveType{};
+}
+
+TEST(FlatHashMap, FlatHashMapPolicyDestroyReturnsTrue) {
+  EXPECT_TRUE(
+      (decltype(FlatHashMapPolicy<int, char>::destroy<std::allocator<char>>(
+          nullptr, nullptr))()));
+  EXPECT_FALSE(
+      (decltype(FlatHashMapPolicy<int, char>::destroy<CountingAllocator<char>>(
+          nullptr, nullptr))()));
+  EXPECT_FALSE((decltype(FlatHashMapPolicy<int, std::unique_ptr<int>>::destroy<
+                         std::allocator<char>>(nullptr, nullptr))()));
 }
 
 }  // namespace

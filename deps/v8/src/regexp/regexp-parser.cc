@@ -359,7 +359,12 @@ class RegExpParserState : public ZoneObject {
         group_type_(group_type),
         lookaround_type_(lookaround_type),
         disjunction_capture_index_(disjunction_capture_index),
-        capture_name_(capture_name) {}
+        capture_name_(capture_name) {
+    if (previous_state != nullptr) {
+      non_participating_capture_group_interval_ =
+          previous_state->non_participating_capture_group_interval();
+    }
+  }
   // Parser state of containing expression, if any.
   RegExpParserState* previous_state() const { return previous_state_; }
   bool IsSubexpression() { return previous_state_ != nullptr; }
@@ -376,6 +381,9 @@ class RegExpParserState : public ZoneObject {
   // The name of the current sub-expression, if group_type is CAPTURE. Only
   // used for named captures.
   const ZoneVector<base::uc16>* capture_name() const { return capture_name_; }
+  std::pair<int, int> non_participating_capture_group_interval() const {
+    return non_participating_capture_group_interval_;
+  }
 
   bool IsNamedCapture() const { return capture_name_ != nullptr; }
 
@@ -403,6 +411,18 @@ class RegExpParserState : public ZoneObject {
     return false;
   }
 
+  void NewAlternative(int captures_started) {
+    if (non_participating_capture_group_interval().second != 0) {
+      // Extend the non-participating interval.
+      non_participating_capture_group_interval_.second = captures_started;
+    } else {
+      // Create new non-participating interval from the start of the current
+      // enclosing group to all captures created within that group so far.
+      non_participating_capture_group_interval_ =
+          std::make_pair(capture_index(), captures_started);
+    }
+  }
+
  private:
   // Linked list implementation of stack of states.
   RegExpParserState* const previous_state_;
@@ -416,6 +436,11 @@ class RegExpParserState : public ZoneObject {
   const int disjunction_capture_index_;
   // Stored capture name (if any).
   const ZoneVector<base::uc16>* const capture_name_;
+  // Interval of (named) capture indices ]from, to] that are not participating
+  // in the current state (i.e. they cannot match).
+  // Capture indices are not participating if they were created in a different
+  // alternative.
+  std::pair<int, int> non_participating_capture_group_interval_;
 };
 
 template <class CharT>
@@ -537,7 +562,7 @@ class RegExpParserImpl final {
   // Creates a new named capture at the specified index. Must be called exactly
   // once for each named capture. Fails if a capture with the same name is
   // encountered.
-  bool CreateNamedCaptureAtIndex(const ZoneVector<base::uc16>* name, int index);
+  bool CreateNamedCaptureAtIndex(const RegExpParserState* state, int index);
 
   // Parses the name of a capture group (?<name>pattern). The name must adhere
   // to IdentifierName in the ECMAScript standard.
@@ -552,7 +577,7 @@ class RegExpParserImpl final {
   // to avoid complicating cases in which references comes before the capture.
   void PatchNamedBackReferences();
 
-  ZoneVector<RegExpCapture*>* GetNamedCaptures() const;
+  ZoneVector<RegExpCapture*>* GetNamedCaptures();
 
   // Returns true iff the pattern contains named captures. May call
   // ScanForCaptures to look ahead at the remaining pattern.
@@ -602,7 +627,9 @@ class RegExpParserImpl final {
   RegExpError error_ = RegExpError::kNone;
   int error_pos_ = 0;
   ZoneList<RegExpCapture*>* captures_;
-  ZoneSet<RegExpCapture*, RegExpCaptureNameLess>* named_captures_;
+  // Maps capture names to a list of capture indices with this name.
+  ZoneMap<RegExpCapture*, ZoneList<int>*, RegExpCaptureNameLess>*
+      named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;
   ZoneList<CharacterRange>* temp_ranges_;
   const CharT* const input_;
@@ -921,8 +948,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
         // Build result of subexpression.
         if (group_type == CAPTURE) {
           if (state->IsNamedCapture()) {
-            CreateNamedCaptureAtIndex(state->capture_name(),
-                                      capture_index CHECK_FAILED);
+            CreateNamedCaptureAtIndex(state, capture_index CHECK_FAILED);
           }
           RegExpCapture* capture = GetCapture(capture_index);
           capture->set_body(body);
@@ -950,6 +976,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
       }
       case '|': {
         Advance();
+        state->NewAlternative(captures_started());
         builder->NewAlternative();
         continue;
       }
@@ -1052,7 +1079,7 @@ RegExpTree* RegExpParserImpl<CharT>::ParseDisjunction() {
               } else {
                 RegExpCapture* capture = GetCapture(index);
                 RegExpTree* atom =
-                    zone()->template New<RegExpBackReference>(capture);
+                    zone()->template New<RegExpBackReference>(capture, zone());
                 builder->AddAtom(atom);
               }
               break;
@@ -1573,7 +1600,10 @@ const ZoneVector<base::uc16>* RegExpParserImpl<CharT>::ParseCaptureGroupName() {
 
 template <class CharT>
 bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
-    const ZoneVector<base::uc16>* name, int index) {
+    const RegExpParserState* state, int index) {
+  const ZoneVector<base::uc16>* name = state->capture_name();
+  const std::pair<int, int> non_participating_capture_group_interval =
+      state->non_participating_capture_group_interval();
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
@@ -1583,21 +1613,33 @@ bool RegExpParserImpl<CharT>::CreateNamedCaptureAtIndex(
   capture->set_name(name);
 
   if (named_captures_ == nullptr) {
-    named_captures_ =
-        zone_->template New<ZoneSet<RegExpCapture*, RegExpCaptureNameLess>>(
-            zone());
+    named_captures_ = zone_->template New<
+        ZoneMap<RegExpCapture*, ZoneList<int>*, RegExpCaptureNameLess>>(zone());
   } else {
     // Check for duplicates and bail if we find any.
-
     const auto& named_capture_it = named_captures_->find(capture);
     if (named_capture_it != named_captures_->end()) {
-      ReportError(RegExpError::kDuplicateCaptureGroupName);
-      return false;
+      if (v8_flags.js_regexp_duplicate_named_groups) {
+        ZoneList<int>* named_capture_indices = named_capture_it->second;
+        DCHECK_NOT_NULL(named_capture_indices);
+        DCHECK(!named_capture_indices->is_empty());
+        for (int named_index : *named_capture_indices) {
+          if (named_index < non_participating_capture_group_interval.first ||
+              named_index > non_participating_capture_group_interval.second) {
+            ReportError(RegExpError::kDuplicateCaptureGroupName);
+            return false;
+          }
+        }
+      } else {
+        ReportError(RegExpError::kDuplicateCaptureGroupName);
+        return false;
+      }
     }
   }
 
-  named_captures_->emplace(capture);
-
+  auto entry = named_captures_->try_emplace(
+      capture, zone()->template New<ZoneList<int>>(1, zone()));
+  entry.first->second->Add(index, zone());
   return true;
 }
 
@@ -1619,7 +1661,8 @@ bool RegExpParserImpl<CharT>::ParseNamedBackReference(
   if (state->IsInsideCaptureGroup(name)) {
     builder->AddEmpty();
   } else {
-    RegExpBackReference* atom = zone()->template New<RegExpBackReference>();
+    RegExpBackReference* atom =
+        zone()->template New<RegExpBackReference>(zone());
     atom->set_name(name);
 
     builder->AddAtom(atom);
@@ -1656,16 +1699,17 @@ void RegExpParserImpl<CharT>::PatchNamedBackReferences() {
     DCHECK_NULL(search_capture->name());
     search_capture->set_name(ref->name());
 
-    int index = -1;
     const auto& capture_it = named_captures_->find(search_capture);
-    if (capture_it != named_captures_->end()) {
-      index = (*capture_it)->index();
-    } else {
+    if (capture_it == named_captures_->end()) {
       ReportError(RegExpError::kInvalidNamedCaptureReference);
       return;
     }
 
-    ref->set_capture(GetCapture(index));
+    DCHECK_IMPLIES(!v8_flags.js_regexp_duplicate_named_groups,
+                   capture_it->second->length() == 1);
+    for (int index : *capture_it->second) {
+      ref->add_capture(GetCapture(index), zone());
+    }
   }
 }
 
@@ -1688,13 +1732,22 @@ RegExpCapture* RegExpParserImpl<CharT>::GetCapture(int index) {
 }
 
 template <class CharT>
-ZoneVector<RegExpCapture*>* RegExpParserImpl<CharT>::GetNamedCaptures() const {
-  if (named_captures_ == nullptr || named_captures_->empty()) {
+ZoneVector<RegExpCapture*>* RegExpParserImpl<CharT>::GetNamedCaptures() {
+  if (named_captures_ == nullptr) {
     return nullptr;
   }
+  DCHECK(!named_captures_->empty());
 
-  return zone()->template New<ZoneVector<RegExpCapture*>>(
-      named_captures_->begin(), named_captures_->end(), zone());
+  ZoneVector<RegExpCapture*>* flattened_named_captures =
+      zone()->template New<ZoneVector<RegExpCapture*>>(zone());
+  for (auto capture : *named_captures_) {
+    DCHECK_IMPLIES(!v8_flags.js_regexp_duplicate_named_groups,
+                   capture.second->length() == 1);
+    for (int index : *capture.second) {
+      flattened_named_captures->push_back(GetCapture(index));
+    }
+  }
+  return flattened_named_captures;
 }
 
 template <class CharT>

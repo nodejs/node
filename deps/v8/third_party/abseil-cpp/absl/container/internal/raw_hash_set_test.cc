@@ -15,6 +15,7 @@
 #include "absl/container/internal/raw_hash_set.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <cmath>
 #include <cstddef>
@@ -63,6 +64,10 @@ namespace container_internal {
 
 struct RawHashSetTestOnlyAccess {
   template <typename C>
+  static auto GetCommon(const C& c) -> decltype(c.common()) {
+    return c.common();
+  }
+  template <typename C>
   static auto GetSlots(const C& c) -> decltype(c.slot_array()) {
     return c.slot_array();
   }
@@ -75,6 +80,7 @@ struct RawHashSetTestOnlyAccess {
 namespace {
 
 using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
 using ::testing::Eq;
 using ::testing::Ge;
 using ::testing::Lt;
@@ -156,18 +162,64 @@ TEST(BitMask, Smoke) {
   EXPECT_THAT((BitMask<uint8_t, 8>(0xAA)), ElementsAre(1, 3, 5, 7));
 }
 
-TEST(BitMask, WithShift) {
+TEST(BitMask, WithShift_MatchPortable) {
   // See the non-SSE version of Group for details on what this math is for.
   uint64_t ctrl = 0x1716151413121110;
   uint64_t hash = 0x12;
-  constexpr uint64_t msbs = 0x8080808080808080ULL;
   constexpr uint64_t lsbs = 0x0101010101010101ULL;
   auto x = ctrl ^ (lsbs * hash);
-  uint64_t mask = (x - lsbs) & ~x & msbs;
+  uint64_t mask = (x - lsbs) & ~x & kMsbs8Bytes;
   EXPECT_EQ(0x0000000080800000, mask);
 
   BitMask<uint64_t, 8, 3> b(mask);
   EXPECT_EQ(*b, 2);
+}
+
+constexpr uint64_t kSome8BytesMask = /*  */ 0x8000808080008000ULL;
+constexpr uint64_t kSome8BytesMaskAllOnes = 0xff00ffffff00ff00ULL;
+constexpr auto kSome8BytesMaskBits = std::array<int, 5>{1, 3, 4, 5, 7};
+
+
+TEST(BitMask, WithShift_FullMask) {
+  EXPECT_THAT((BitMask<uint64_t, 8, 3>(kMsbs8Bytes)),
+              ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+  EXPECT_THAT(
+      (BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(kMsbs8Bytes)),
+      ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+  EXPECT_THAT(
+      (BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(~uint64_t{0})),
+      ElementsAre(0, 1, 2, 3, 4, 5, 6, 7));
+}
+
+TEST(BitMask, WithShift_EmptyMask) {
+  EXPECT_THAT((BitMask<uint64_t, 8, 3>(0)), ElementsAre());
+  EXPECT_THAT((BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(0)),
+              ElementsAre());
+}
+
+TEST(BitMask, WithShift_SomeMask) {
+  EXPECT_THAT((BitMask<uint64_t, 8, 3>(kSome8BytesMask)),
+              ElementsAreArray(kSome8BytesMaskBits));
+  EXPECT_THAT((BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(
+                  kSome8BytesMask)),
+              ElementsAreArray(kSome8BytesMaskBits));
+  EXPECT_THAT((BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(
+                  kSome8BytesMaskAllOnes)),
+              ElementsAreArray(kSome8BytesMaskBits));
+}
+
+TEST(BitMask, WithShift_SomeMaskExtraBitsForNullify) {
+  // Verify that adding extra bits into non zero bytes is fine.
+  uint64_t extra_bits = 77;
+  for (int i = 0; i < 100; ++i) {
+    // Add extra bits, but keep zero bytes untouched.
+    uint64_t extra_mask = extra_bits & kSome8BytesMaskAllOnes;
+    EXPECT_THAT((BitMask<uint64_t, 8, 3, /*NullifyBitsOnIteration=*/true>(
+                    kSome8BytesMask | extra_mask)),
+                ElementsAreArray(kSome8BytesMaskBits))
+        << i << " " << extra_mask;
+    extra_bits = (extra_bits + 1) * 3;
+  }
 }
 
 TEST(BitMask, LeadingTrailing) {
@@ -357,6 +409,11 @@ struct ValuePolicy {
     return absl::container_internal::DecomposeValue(
         std::forward<F>(f), std::forward<Args>(args)...);
   }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 using IntPolicy = ValuePolicy<int64_t>;
@@ -419,6 +476,11 @@ class StringPolicy {
                              PairArgs(std::forward<Args>(args)...))) {
     return apply_impl(std::forward<F>(f),
                       PairArgs(std::forward<Args>(args)...));
+  }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
   }
 };
 
@@ -875,6 +937,11 @@ struct DecomposePolicy {
   static auto apply(F&& f, const T& x) -> decltype(std::forward<F>(f)(x, x)) {
     return std::forward<F>(f)(x, x);
   }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 template <typename Hash, typename Eq>
@@ -1035,7 +1102,7 @@ size_t MaxDensitySize(size_t n) {
 }
 
 struct Modulo1000Hash {
-  size_t operator()(int x) const { return x % 1000; }
+  size_t operator()(int64_t x) const { return static_cast<size_t>(x) % 1000; }
 };
 
 struct Modulo1000HashTable
@@ -1695,6 +1762,40 @@ TEST(Table, CopyConstruct) {
     IntTable u = t;
     EXPECT_EQ(1, u.size());
     EXPECT_THAT(*u.find(0), 0);
+  }
+}
+
+TEST(Table, CopyDifferentSizes) {
+  IntTable t;
+
+  for (int i = 0; i < 100; ++i) {
+    t.emplace(i);
+    IntTable c = t;
+    for (int j = 0; j <= i; ++j) {
+      ASSERT_TRUE(c.find(j) != c.end()) << "i=" << i << " j=" << j;
+    }
+    // Testing find miss to verify that table is not full.
+    ASSERT_TRUE(c.find(-1) == c.end());
+  }
+}
+
+TEST(Table, CopyDifferentCapacities) {
+  for (int cap = 1; cap < 100; cap = cap * 2 + 1) {
+    IntTable t;
+    t.reserve(static_cast<size_t>(cap));
+    for (int i = 0; i <= cap; ++i) {
+      t.emplace(i);
+      if (i != cap && i % 5 != 0) {
+        continue;
+      }
+      IntTable c = t;
+      for (int j = 0; j <= i; ++j) {
+        ASSERT_TRUE(c.find(j) != c.end())
+            << "cap=" << cap << " i=" << i << " j=" << j;
+      }
+      // Testing find miss to verify that table is not full.
+      ASSERT_TRUE(c.find(-1) == c.end());
+    }
   }
 }
 
@@ -2616,7 +2717,7 @@ using RawHashSetAlloc = raw_hash_set<IntPolicy, hash_default_hash<int64_t>,
 TEST(Table, AllocatorPropagation) { TestAllocPropagation<RawHashSetAlloc>(); }
 
 struct CountedHash {
-  size_t operator()(int value) const {
+  size_t operator()(int64_t value) const {
     ++count;
     return static_cast<size_t>(value);
   }
@@ -2675,6 +2776,45 @@ TEST(Table, CountedHash) {
     Table dst;
     dst.merge(src);
     EXPECT_EQ(HashCount(dst), 1);
+  }
+}
+
+TEST(Table, IterateOverFullSlotsEmpty) {
+  IntTable t;
+  auto fail_if_any = [](const ctrl_t*, int64_t* i) {
+    FAIL() << "expected no slots " << i;
+  };
+  container_internal::IterateOverFullSlots(
+      RawHashSetTestOnlyAccess::GetCommon(t),
+      RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+  for (size_t i = 0; i < 256; ++i) {
+    t.reserve(i);
+    container_internal::IterateOverFullSlots(
+        RawHashSetTestOnlyAccess::GetCommon(t),
+        RawHashSetTestOnlyAccess::GetSlots(t), fail_if_any);
+  }
+}
+
+TEST(Table, IterateOverFullSlotsFull) {
+  IntTable t;
+
+  std::vector<int64_t> expected_slots;
+  for (int64_t i = 0; i < 128; ++i) {
+    t.insert(i);
+    expected_slots.push_back(i);
+
+    std::vector<int64_t> slots;
+    container_internal::IterateOverFullSlots(
+        RawHashSetTestOnlyAccess::GetCommon(t),
+        RawHashSetTestOnlyAccess::GetSlots(t),
+        [&t, &slots](const ctrl_t* ctrl, int64_t* i) {
+          ptrdiff_t ctrl_offset =
+              ctrl - RawHashSetTestOnlyAccess::GetCommon(t).control();
+          ptrdiff_t slot_offset = i - RawHashSetTestOnlyAccess::GetSlots(t);
+          ASSERT_EQ(ctrl_offset, slot_offset);
+          slots.push_back(*i);
+        });
+    EXPECT_THAT(slots, testing::UnorderedElementsAreArray(expected_slots));
   }
 }
 

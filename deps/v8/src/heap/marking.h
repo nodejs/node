@@ -110,9 +110,7 @@ class V8_EXPORT_PRIVATE MarkingBitmap final {
   // The size of the bitmap in bytes is CellsCount() * kBytesPerCell.
   static constexpr size_t kSize = kCellsCount * kBytesPerCell;
 
-  V8_INLINE static constexpr MarkBitIndex AddressToIndex(Address address) {
-    return (address & kPageAlignmentMask) >> kTaggedSizeLog2;
-  }
+  V8_INLINE static constexpr MarkBitIndex AddressToIndex(Address address);
 
   V8_INLINE static constexpr MarkBitIndex LimitAddressToIndex(Address address);
 

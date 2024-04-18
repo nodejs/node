@@ -179,7 +179,7 @@ class V8_NODISCARD CallDepthScope {
   CallDepthScope(i::Isolate* isolate, Local<Context> context)
       : isolate_(isolate), saved_context_(isolate->context(), isolate_) {
     isolate_->thread_local_top()->IncrementCallDepth<do_callback>(this);
-    i::Tagged<i::NativeContext> env = *Utils::OpenHandle(*context);
+    i::Tagged<i::NativeContext> env = *Utils::OpenDirectHandle(*context);
     isolate->set_context(env);
 
     if (do_callback) isolate_->FireBeforeCallEnteredCallback();
@@ -304,7 +304,7 @@ bool CopyAndConvertArrayToCppBuffer(Local<Array> src, T* dst,
   }
 
   i::DisallowGarbageCollection no_gc;
-  i::Tagged<i::JSArray> obj = *Utils::OpenHandle(*src);
+  i::Tagged<i::JSArray> obj = *Utils::OpenDirectHandle(*src);
   if (i::Object::IterationHasObservableEffects(obj)) {
     // The array has a custom iterator.
     return false;

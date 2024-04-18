@@ -259,6 +259,9 @@ class Genesis {
 #undef DECLARE_FEATURE_INITIALIZATION
   void InitializeGlobal_regexp_linear_flag();
   void InitializeGlobal_sharedarraybuffer();
+#if V8_ENABLE_WEBASSEMBLY
+  void InitializeWasmJSPI();
+#endif
 
   enum ArrayBufferKind { ARRAY_BUFFER, SHARED_ARRAY_BUFFER };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
@@ -1335,7 +1338,7 @@ void Genesis::InstallGlobalThisBinding() {
 
   // Go ahead and hook it up while we're at it.
   int slot = scope_info->ReceiverContextSlotIndex();
-  DCHECK_EQ(slot, Context::MIN_CONTEXT_SLOTS);
+  DCHECK_EQ(slot, Context::MIN_CONTEXT_EXTENDED_SLOTS);
   context->set(slot, native_context()->global_proxy());
 
   Handle<ScriptContextTable> script_contexts(
@@ -5299,6 +5302,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_assertions)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_attributes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_rab_gsab_transfer)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_modifiers)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(js_regexp_duplicate_named_groups)
 
 #ifdef V8_INTL_SUPPORT
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_intl_best_fit_matcher)
@@ -6558,7 +6562,10 @@ bool Genesis::ConfigureGlobalObject(
     // Configure the global proxy object.
     Handle<ObjectTemplateInfo> global_proxy_data =
         v8::Utils::OpenHandle(*global_proxy_template);
-    if (!ConfigureApiObject(global_proxy, global_proxy_data)) return false;
+    if (!ConfigureApiObject(global_proxy, global_proxy_data)) {
+      base::OS::PrintError("V8 Error: Failed to configure global_proxy_data\n");
+      return false;
+    }
 
     // Configure the global object.
     Handle<FunctionTemplateInfo> proxy_constructor(
@@ -6568,7 +6575,11 @@ bool Genesis::ConfigureGlobalObject(
       Handle<ObjectTemplateInfo> global_object_data(
           ObjectTemplateInfo::cast(proxy_constructor->GetPrototypeTemplate()),
           isolate());
-      if (!ConfigureApiObject(global_object, global_object_data)) return false;
+      if (!ConfigureApiObject(global_object, global_object_data)) {
+        base::OS::PrintError(
+            "V8 Error: Failed to configure global_object_data\n");
+        return false;
+      }
     }
   }
 
@@ -6591,6 +6602,14 @@ bool Genesis::ConfigureApiObject(Handle<JSObject> object,
   Handle<JSObject> instantiated_template;
   if (!maybe_obj.ToHandle(&instantiated_template)) {
     DCHECK(isolate()->has_exception());
+
+    Handle<String> message =
+        ErrorUtils::ToString(isolate_, handle(isolate_->exception(), isolate_))
+            .ToHandleChecked();
+    base::OS::PrintError(
+        "V8 Error: Exception in Genesis::ConfigureApiObject: %s\n",
+        message->ToCString().get());
+
     isolate()->clear_exception();
     return false;
   }

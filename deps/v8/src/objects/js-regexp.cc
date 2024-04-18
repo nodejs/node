@@ -33,9 +33,10 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   JSArray::SetContent(indices, indices_array);
 
   for (int i = 0; i < num_results; i++) {
-    int base_offset = i * 2;
-    int start_offset = match_info->capture(base_offset);
-    int end_offset = match_info->capture(base_offset + 1);
+    const int start_offset =
+        match_info->capture(RegExpMatchInfo::capture_start_index(i));
+    const int end_offset =
+        match_info->capture(RegExpMatchInfo::capture_end_index(i));
 
     // Any unmatched captures are set to undefined, otherwise we set them to a
     // subarray of the indices.
@@ -67,11 +68,13 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   Handle<FixedArray> names(Handle<FixedArray>::cast(maybe_names));
   int num_names = names->length() >> 1;
   Handle<HeapObject> group_names;
-  if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
     group_names = isolate->factory()->NewSwissNameDictionary(num_names);
   } else {
     group_names = isolate->factory()->NewNameDictionary(num_names);
   }
+  Handle<PropertyDictionary> group_names_dict =
+      Handle<PropertyDictionary>::cast(group_names);
   for (int i = 0; i < num_names; i++) {
     int base_offset = i * 2;
     int name_offset = base_offset;
@@ -83,14 +86,23 @@ Handle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
     if (!IsUndefined(*capture_indices, isolate)) {
       capture_indices = Handle<JSArray>::cast(capture_indices);
     }
-    if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      group_names = SwissNameDictionary::Add(
-          isolate, Handle<SwissNameDictionary>::cast(group_names), name,
-          capture_indices, PropertyDetails::Empty());
+    InternalIndex group_entry = group_names_dict->FindEntry(isolate, name);
+    // Duplicate group entries are possible if the capture groups are in
+    // different alternatives, i.e. only one of them can actually match.
+    // Therefore when we find a duplicate entry, either the current entry is
+    // undefined (didn't match anything) or the indices for the current capture
+    // are undefined. In the latter case we don't do anything, in the former
+    // case we update the entry.
+    if (group_entry.is_found()) {
+      DCHECK(v8_flags.js_regexp_duplicate_named_groups);
+      if (!IsUndefined(*capture_indices, isolate)) {
+        DCHECK(IsUndefined(group_names_dict->ValueAt(group_entry), isolate));
+        group_names_dict->ValueAtPut(group_entry, *capture_indices);
+      }
     } else {
-      group_names = NameDictionary::Add(
-          isolate, Handle<NameDictionary>::cast(group_names), name,
-          capture_indices, PropertyDetails::Empty());
+      group_names_dict =
+          PropertyDictionary::Add(isolate, group_names_dict, name,
+                                  capture_indices, PropertyDetails::Empty());
     }
   }
 

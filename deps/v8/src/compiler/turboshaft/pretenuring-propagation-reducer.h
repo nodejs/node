@@ -228,7 +228,7 @@ class PretenuringPropagationReducer : public Next {
 #endif
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(PretenuringPropagation)
 
   void Analyze() {
     PretenuringPropagationAnalyzer analyzer(Asm().phase_zone(),

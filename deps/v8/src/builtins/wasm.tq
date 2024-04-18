@@ -62,6 +62,7 @@ extern runtime WasmStringEncodeWtf8(
     Context, WasmTrustedInstanceData, Smi, Smi, String, Number): Number;
 extern runtime WasmStringEncodeWtf8Array(
     Context, Smi, String, WasmArray, Number): Number;
+extern runtime WasmStringToUtf8Array(Context, String): WasmArray;
 extern runtime WasmStringEncodeWtf16(
     Context, WasmTrustedInstanceData, Smi, String, Number, Smi, Smi): JSAny;
 extern runtime WasmStringAsWtf8(Context, String): ByteArray;
@@ -994,6 +995,9 @@ builtin WasmStringEncodeWtf8Array(
       LoadContextFromInstanceData(trustedData), utf8Variant, string, array,
       WasmUint32ToNumber(start));
   return ChangeNumberToUint32(result);
+}
+builtin WasmStringToUtf8Array(string: String): WasmArray {
+  return runtime::WasmStringToUtf8Array(LoadContextFromFrame(), string);
 }
 builtin WasmStringEncodeWtf16(string: String, offset: uint32, memory: Smi):
     uint32 {

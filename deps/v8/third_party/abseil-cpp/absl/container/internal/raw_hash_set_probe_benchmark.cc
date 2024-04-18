@@ -70,6 +70,11 @@ struct Policy {
       -> decltype(std::forward<F>(f)(arg, arg)) {
     return std::forward<F>(f)(arg, arg);
   }
+
+  template <class Hash>
+  static constexpr auto get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 absl::BitGen& GlobalBitGen() {

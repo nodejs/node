@@ -486,6 +486,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     switch (scope_type_) {
       case MODULE_SCOPE:
       case WITH_SCOPE:  // DebugEvaluateContext as well
+      case SCRIPT_SCOPE:  // Side data for const tracking let.
         return true;
       default:
         DCHECK_IMPLIES(sloppy_eval_can_extend_vars_,

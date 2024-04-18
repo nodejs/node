@@ -61,7 +61,7 @@ constexpr uint64_t kHashSalt[5] = {
 
 uint64_t MixingHashState::LowLevelHashImpl(const unsigned char* data,
                                            size_t len) {
-  return LowLevelHash(data, len, Seed(), kHashSalt);
+  return LowLevelHashLenGt16(data, len, Seed(), kHashSalt);
 }
 
 }  // namespace hash_internal

@@ -8,9 +8,7 @@
 #include "src/wasm/canonical-types.h"
 #include "src/wasm/wasm-module.h"
 
-namespace v8 {
-namespace internal {
-namespace wasm {
+namespace v8::internal::wasm {
 
 namespace {
 
@@ -149,6 +147,7 @@ bool ValidSubtypeDefinition(uint32_t subtype_index, uint32_t supertype_index,
   const TypeDefinition& supertype = super_module->types[supertype_index];
   if (subtype.kind != supertype.kind) return false;
   if (supertype.is_final) return false;
+  if (subtype.is_shared != supertype.is_shared) return false;
   switch (subtype.kind) {
     case TypeDefinition::kFunction:
       return ValidFunctionSubtypeDefinition(subtype_index, supertype_index,
@@ -159,6 +158,21 @@ bool ValidSubtypeDefinition(uint32_t subtype_index, uint32_t supertype_index,
     case TypeDefinition::kArray:
       return ValidArraySubtypeDefinition(subtype_index, supertype_index,
                                          sub_module, super_module);
+  }
+}
+
+V8_EXPORT_PRIVATE bool IsShared(ValueType type, const WasmModule* module) {
+  switch (type.kind()) {
+    case kRef:
+    case kRefNull:
+      if (type.has_index()) {
+        return module->types[type.ref_index()].is_shared;
+      } else {
+        // TODO(14616): Extend this once we have shared abstract types.
+        return false;
+      }
+    default:
+      return true;
   }
 }
 
@@ -267,14 +281,18 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsHeapSubtypeOfImpl(
 
   switch (super_heap.representation()) {
     case HeapType::kFunc:
-      return sub_module->has_signature(sub_index);
+      return sub_module->has_signature(sub_index) &&
+             !sub_module->types[sub_index].is_shared;
     case HeapType::kStruct:
-      return sub_module->has_struct(sub_index);
+      return sub_module->has_struct(sub_index) &&
+             !sub_module->types[sub_index].is_shared;
     case HeapType::kEq:
     case HeapType::kAny:
-      return !sub_module->has_signature(sub_index);
+      return !sub_module->has_signature(sub_index) &&
+             !sub_module->types[sub_index].is_shared;
     case HeapType::kArray:
-      return sub_module->has_array(sub_index);
+      return sub_module->has_array(sub_index) &&
+             !sub_module->types[sub_index].is_shared;
     case HeapType::kI31:
       return false;
     case HeapType::kExtern:
@@ -718,6 +736,4 @@ bool IsSameTypeHierarchy(HeapType type1, HeapType type2,
   return NullSentinelImpl(type1, module) == NullSentinelImpl(type2, module);
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal::wasm

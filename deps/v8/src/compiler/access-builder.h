@@ -376,6 +376,7 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
 #if V8_ENABLE_WEBASSEMBLY
   static FieldAccess ForWasmArrayLength();
+  static FieldAccess ForWasmDispatchTableLength();
 #endif
 
  private:

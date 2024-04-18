@@ -1247,23 +1247,27 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
-  S390OperandGeneratorT<Adapter> g(this);
-  NodeMatcher input(node->InputAt(0));
-  if (CanCover(node, input.node()) && input.IsLoad()) {
-    LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
-    if (load_rep.representation() == MachineRepresentation::kSimd128) {
-      Node* base = input.node()->InputAt(0);
-      Node* offset = input.node()->InputAt(1);
-      Emit(kS390_LoadReverseSimd128 | AddressingModeField::encode(kMode_MRR),
-           // TODO(miladfar): one of the base and offset can be imm.
-           g.DefineAsRegister(node), g.UseRegister(base),
-           g.UseRegister(offset));
-      return;
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
+  if constexpr (Adapter::IsTurboshaft) {
+    UNIMPLEMENTED();
+  } else {
+    S390OperandGeneratorT<Adapter> g(this);
+    NodeMatcher input(node->InputAt(0));
+    if (CanCover(node, input.node()) && input.IsLoad()) {
+      LoadRepresentation load_rep = LoadRepresentationOf(input.node()->op());
+      if (load_rep.representation() == MachineRepresentation::kSimd128) {
+        Node* base = input.node()->InputAt(0);
+        Node* offset = input.node()->InputAt(1);
+        Emit(kS390_LoadReverseSimd128 | AddressingModeField::encode(kMode_MRR),
+             // TODO(miladfar): one of the base and offset can be imm.
+             g.DefineAsRegister(node), g.UseRegister(base),
+             g.UseRegister(offset));
+        return;
+      }
     }
+    Emit(kS390_LoadReverseSimd128RR, g.DefineAsRegister(node),
+         g.UseRegister(node->InputAt(0)));
   }
-  Emit(kS390_LoadReverseSimd128RR, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
 }
 
 template <typename Adapter, class Matcher, ArchOpcode neg_opcode>

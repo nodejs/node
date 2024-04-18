@@ -125,7 +125,9 @@ class TestingModuleBuilder {
   // TODO(14034): Allow selecting type finality.
   uint8_t AddSignature(const FunctionSig* sig) {
     const bool is_final = true;
-    test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final);
+    const bool is_shared = false;
+    test_module_->AddSignatureForTesting(sig, kNoSuperType, is_final,
+                                         is_shared);
     GetTypeCanonicalizer()->AddRecursiveGroup(test_module_.get(), 1);
     trusted_instance_data_->set_isorecursive_canonical_types(
         test_module_->isorecursive_canonical_type_ids.data());
@@ -251,8 +253,6 @@ class TestingModuleBuilder {
     native_module_->RemoveCompiledCode(
         NativeModule::RemoveFilter::kRemoveNonDebugCode);
   }
-
-  CompilationEnv CreateCompilationEnv();
 
   TestExecutionTier test_execution_tier() const { return execution_tier_; }
 

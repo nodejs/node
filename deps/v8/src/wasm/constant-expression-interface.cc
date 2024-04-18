@@ -152,14 +152,14 @@ void ConstantExpressionInterface::StructNew(FullDecoder* decoder,
   Handle<Map> rtt{
       Map::cast(trusted_instance_data_->managed_object_maps()->get(imm.index)),
       isolate_};
-  std::vector<WasmValue> field_values(imm.struct_type->field_count());
-  for (size_t i = 0; i < field_values.size(); i++) {
+  WasmValue* field_values =
+      decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
+  for (size_t i = 0; i < imm.struct_type->field_count(); i++) {
     field_values[i] = args[i].runtime_value;
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmStruct(imm.struct_type,
-                                                   field_values.data(), rtt),
-                ValueType::Ref(HeapType(imm.index)));
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmStruct(imm.struct_type, field_values, rtt),
+      ValueType::Ref(HeapType(imm.index)));
 }
 
 void ConstantExpressionInterface::StringConst(FullDecoder* decoder,
@@ -221,14 +221,14 @@ void ConstantExpressionInterface::StructNewDefault(
   Handle<Map> rtt{
       Map::cast(trusted_instance_data_->managed_object_maps()->get(imm.index)),
       isolate_};
-  std::vector<WasmValue> field_values(imm.struct_type->field_count());
-  for (uint32_t i = 0; i < field_values.size(); i++) {
+  WasmValue* field_values =
+      decoder->zone_->AllocateArray<WasmValue>(imm.struct_type->field_count());
+  for (uint32_t i = 0; i < imm.struct_type->field_count(); i++) {
     field_values[i] = DefaultValueForType(imm.struct_type->field(i), isolate_);
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmStruct(imm.struct_type,
-                                                   field_values.data(), rtt),
-                ValueType::Ref(imm.index));
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmStruct(imm.struct_type, field_values, rtt),
+      ValueType::Ref(imm.index));
 }
 
 void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
@@ -245,11 +245,11 @@ void ConstantExpressionInterface::ArrayNew(FullDecoder* decoder,
     error_ = MessageTemplate::kWasmTrapArrayTooLarge;
     return;
   }
-  result->runtime_value =
-      WasmValue(isolate_->factory()->NewWasmArray(
-                    imm.array_type, length.runtime_value.to_u32(),
-                    initial_value.runtime_value, rtt),
-                ValueType::Ref(imm.index));
+  result->runtime_value = WasmValue(
+      isolate_->factory()->NewWasmArray(imm.array_type->element_type(),
+                                        length.runtime_value.to_u32(),
+                                        initial_value.runtime_value, rtt),
+      ValueType::Ref(imm.index));
 }
 
 void ConstantExpressionInterface::ArrayNewDefault(
@@ -270,9 +270,10 @@ void ConstantExpressionInterface::ArrayNewFixed(
       Map::cast(
           trusted_instance_data_->managed_object_maps()->get(array_imm.index)),
       isolate_);
-  std::vector<WasmValue> element_values;
-  for (Value elem : base::VectorOf(elements, length_imm.index)) {
-    element_values.push_back(elem.runtime_value);
+  base::Vector<WasmValue> element_values =
+      decoder->zone_->AllocateVector<WasmValue>(length_imm.index);
+  for (size_t i = 0; i < length_imm.index; i++) {
+    element_values[i] = elements[i].runtime_value;
   }
   result->runtime_value =
       WasmValue(isolate_->factory()->NewWasmArrayFromElements(

@@ -35,6 +35,7 @@ struct EphemeronMarking {
 // - AddWeakReferenceForReferenceSummarizer
 // - TryMark
 // - IsMarked
+// - MarkPointerTableEntry
 // - retaining_path_mode
 // - RecordSlot
 // - RecordRelocSlot
@@ -267,6 +268,8 @@ class FullMarkingVisitorBase : public MarkingVisitorBase<ConcreteVisitor> {
   bool IsMarked(Tagged<HeapObject> obj) const {
     return MarkBit::From(obj).Get<AccessMode::ATOMIC>();
   }
+
+  void MarkPointerTableEntry(Tagged<HeapObject> obj, IndirectPointerSlot slot);
 };
 
 }  // namespace internal

@@ -112,3 +112,11 @@ const tests = [
   jsFunc();
   jsFunc(1, 2, 3, 4);
 }) ();
+
+(function TestInvalidParam() {
+  print(arguments.callee.name);
+    const jsFunc = new WebAssembly.Function(
+        {parameters: ['v128'], results: []},
+        (param) => assertUnreachable());
+    assertThrows(jsFunc, TypeError);
+})();

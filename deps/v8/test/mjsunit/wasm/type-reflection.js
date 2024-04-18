@@ -196,8 +196,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestGlobalExports() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  builder.addGlobal(kWasmI32).exportAs("a");
-  builder.addGlobal(kWasmF64, true).exportAs("b");
+  builder.addGlobal(kWasmI32, false, false).exportAs("a");
+  builder.addGlobal(kWasmF64, true, false).exportAs("b");
   let module = new WebAssembly.Module(builder.toBuffer());
   let exports = WebAssembly.Module.exports(module);
 

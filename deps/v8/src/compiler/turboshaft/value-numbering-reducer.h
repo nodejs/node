@@ -111,7 +111,7 @@ class ValueNumberingReducer : public Next {
 #endif
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(ValueNumbering)
 
   template <typename Op>
   static constexpr bool CanBeGVNed() {

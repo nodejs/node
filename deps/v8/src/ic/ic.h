@@ -222,14 +222,6 @@ class LoadGlobalIC : public LoadIC {
 
 class KeyedLoadIC : public LoadIC {
  public:
-  struct HandlerInfo {
-    KeyedAccessLoadMode load_mode;
-    bool convert_hole;
-  };
-
-  static constexpr HandlerInfo kInBoundsNoHollyAccess =
-      HandlerInfo{KeyedAccessLoadMode::kInBounds, false};
-
   KeyedLoadIC(Isolate* isolate, Handle<FeedbackVector> vector,
               FeedbackSlot slot, FeedbackSlotKind kind)
       : LoadIC(isolate, vector, slot, kind) {}
@@ -247,26 +239,19 @@ class KeyedLoadIC : public LoadIC {
 
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(Handle<HeapObject> receiver,
-                         const HandlerInfo new_info);
+                         KeyedAccessLoadMode new_load_mode);
 
  private:
   friend class IC;
 
   Handle<Object> LoadElementHandler(Handle<Map> receiver_map,
-                                    const HandlerInfo new_info);
+                                    KeyedAccessLoadMode new_load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       MaybeObjectHandles* handlers,
-                                      const HandlerInfo new_info);
+                                      KeyedAccessLoadMode new_load_mode);
 
-  std::optional<HandlerInfo> GetHandlerInfoFor(Handle<Map> receiver_map);
-  HandlerInfo GeneralizeHandlerInfo(std::optional<HandlerInfo> old_info,
-                                    const HandlerInfo new_info);
-
-  // Returns whether the transitions in load mode and convert hole bit are
-  // allowed.
-  bool AllowedHandlerChange(std::optional<HandlerInfo> old_info,
-                            const HandlerInfo new_info);
+  KeyedAccessLoadMode GetKeyedAccessLoadModeFor(Handle<Map> receiver_map) const;
 };
 
 class StoreIC : public IC {

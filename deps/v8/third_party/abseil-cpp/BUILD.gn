@@ -205,6 +205,7 @@ if (build_with_chromium) {
         "absl/container:fixed_array_test",
         "absl/container:flat_hash_map_test",
         "absl/container:flat_hash_set_test",
+        "absl/container:hash_function_defaults_test",
         "absl/container:inlined_vector_test",
         "absl/container:node_slot_policy_test",
         "absl/container:raw_hash_set_allocator_test",

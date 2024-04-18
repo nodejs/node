@@ -48,14 +48,15 @@ size_t MemoryChunkLayout::AllocatableMemoryInCodePage() {
   return memory;
 }
 
-intptr_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
+size_t MemoryChunkLayout::ObjectStartOffsetInDataPage() {
   return RoundUp(MemoryChunk::kHeaderSize,
                  ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 
 intptr_t MemoryChunkLayout::ObjectStartOffsetInReadOnlyPage() {
-  return RoundUp(BasicMemoryChunk::kHeaderSize,
-                 ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
+  return RoundUp(
+      static_cast<size_t>(MemoryChunkLayout::kBasicMemoryChunkHeaderSize),
+      ALIGN_TO_ALLOCATION_ALIGNMENT(kDoubleSize));
 }
 
 size_t MemoryChunkLayout::ObjectStartOffsetInMemoryChunk(

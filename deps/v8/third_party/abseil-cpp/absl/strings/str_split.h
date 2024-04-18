@@ -456,7 +456,7 @@ using EnableSplitIfString =
 //   // Stores results in a std::set<std::string>, which also performs
 //   // de-duplication and orders the elements in ascending order.
 //   std::set<std::string> a = absl::StrSplit("b,a,c,a,b", ',');
-//   // v[0] == "a", v[1] == "b", v[2] = "c"
+//   // a[0] == "a", a[1] == "b", a[2] == "c"
 //
 //   // `StrSplit()` can be used within a range-based for loop, in which case
 //   // each element will be of type `absl::string_view`.

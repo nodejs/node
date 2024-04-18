@@ -670,7 +670,7 @@ class string_view {
   }
 
   static constexpr size_type StrlenInternal(absl::Nonnull<const char*> str) {
-#if defined(_MSC_VER) && _MSC_VER >= 1910 && !defined(__clang__)
+#if defined(_MSC_VER) && !defined(__clang__)
     // MSVC 2017+ can evaluate this at compile-time.
     const char* begin = str;
     while (*str != '\0') ++str;

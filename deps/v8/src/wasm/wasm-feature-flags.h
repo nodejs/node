@@ -45,10 +45,15 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
-  /* Imported Strings Proposal. */                                             \
-  /* https://github.com/WebAssembly/js-string-builtins */                      \
-  /* V8 side owner: jkummerow */                                               \
-  V(imported_strings, "imported strings", false)
+  /* JavaScript Promise Integration proposal. */                               \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
+  /* V8 side owner: thibaudm, fgm */                                           \
+  V(jspi, "javascript promise integration", false)                             \
+                                                                               \
+  /* Shared-Everything Threads proposal. */                                    \
+  /* https://github.com/WebAssembly/shared-everything-threads */               \
+  /* V8 side owner: manoskouk */                                               \
+  V(shared, "shared-everything threads", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -77,15 +82,17 @@
   /* V8 side owner: jkummerow */                                               \
   V(stringref, "reference-typed strings", false)                               \
                                                                                \
+  /* Imported Strings Proposal. */                                             \
+  /* https://github.com/WebAssembly/js-string-builtins */                      \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings, "imported strings", false)                               \
+                                                                               \
   /* Not user-visible, defined here so an Origin Trial can control it. */      \
   /* V8 side owner: manoskouk, clemensb */                                     \
   /* Staged in v11.3 */                                                        \
+  /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
   /* Launch bug: https://crbug.com/1424350 */                                  \
   V(inlining, "wasm-into-wasm inlining", false)                                \
-                                                                               \
-  /* Inlining of small wasm GC functions into JavaScript */                    \
-  /* V8 side owner: mliedtke */                                                \
-  V(js_inlining, "inline small wasm functions into JS", false)                 \
                                                                                \
   /* Exnref */                                                                 \
   /* This flag enables the new exception handling proposal */                  \
@@ -96,20 +103,6 @@
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Typed function references proposal. */                                    \
-  /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: manoskouk */                                               \
-  /* Staged in v11.7. */                                                       \
-  /* Shipped in v11.9. */                                                      \
-  V(typed_funcref, "typed function references", true)                          \
-                                                                               \
-  /* GC proposal. https://github.com/WebAssembly/gc */                         \
-  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
-  /* V8 side owner: jkummerow */                                               \
-  /* Staged in v11.7. */                                                       \
-  /* Shipped in v11.9. */                                                      \
-  V(gc, "garbage collection", true)                                            \
-                                                                               \
   /* Multi-memory Proposal. */                                                 \
   /* https://github.com/WebAssembly/multi-memory */                            \
   /* V8 side owner: clemensb */                                                \

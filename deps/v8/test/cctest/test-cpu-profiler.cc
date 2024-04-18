@@ -1753,17 +1753,21 @@ static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 
-TEST(CollectSampleAPI) {
-  v8::HandleScope scope(CcTest::isolate());
-  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
-  v8::Context::Scope context_scope(env);
-
+void InstallCollectSampleFunction(v8::Local<v8::Context> env) {
   v8::Local<v8::FunctionTemplate> func_template =
       v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
   v8::Local<v8::Function> func =
       func_template->GetFunction(env).ToLocalChecked();
   func->SetName(v8_str("CallCollectSample"));
   env->Global()->Set(env, v8_str("CallCollectSample"), func).FromJust();
+}
+
+TEST(CollectSampleAPI) {
+  v8::HandleScope scope(CcTest::isolate());
+  v8::Local<v8::Context> env = CcTest::NewContext({PROFILER_EXTENSION_ID});
+  v8::Context::Scope context_scope(env);
+
+  InstallCollectSampleFunction(env);
 
   CompileRun(js_force_collect_sample_source);
   ProfilerHelper helper(env);
@@ -2124,9 +2128,8 @@ static const char* cross_script_source_c = R"(
     }
     %NeverOptimizeFunction(action);
     function action(n) {
-      var s = 0;
-      for (var i = 0; i < n; ++i) s += i*i*i;
-      return s;
+      CallCollectSample();
+      return n;
     }
   )";
 
@@ -2172,6 +2175,9 @@ TEST(CrossScriptInliningCallerLineNumbers2) {
   v8::HandleScope scope(CcTest::isolate());
   ProfilerHelper helper(env.local());
 
+  // Install CollectSample callback for more deterministic sampling.
+  InstallCollectSampleFunction(env.local());
+
   v8::Local<v8::Script> script_c =
       CompileWithOrigin(cross_script_source_c, "script_c", false);
   v8::Local<v8::Script> script_d =
@@ -2189,7 +2195,7 @@ TEST(CrossScriptInliningCallerLineNumbers2) {
   v8::Local<v8::Function> function = GetFunction(env.local(), "start");
 
   v8::Local<v8::Value> args[] = {v8::Integer::New(env->GetIsolate(), 10)};
-  static const unsigned min_samples = 1000;
+  static const unsigned min_samples = 0;
   static const unsigned min_ext_samples = 0;
   v8::CpuProfile* profile =
       helper.Run(function, args, arraysize(args), min_samples, min_ext_samples,
@@ -3627,12 +3633,7 @@ TEST(StandardNaming) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kStandardNaming);
@@ -3658,12 +3659,7 @@ TEST(DebugNaming) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming);
@@ -3913,12 +3909,7 @@ TEST(Bug9151StaleCodeEntries) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(env->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  env->Global()->Set(env.local(), v8_str("CallCollectSample"), func).FromJust();
+  InstallCollectSampleFunction(env.local());
 
   v8::CpuProfiler* profiler =
       v8::CpuProfiler::New(env->GetIsolate(), kDebugNaming, kEagerLogging);
@@ -3959,14 +3950,7 @@ TEST(ContextIsolation) {
   i::HandleScope scope(CcTest::i_isolate());
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template = v8::FunctionTemplate::New(
-      execution_env.local()->GetIsolate(), CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   ProfilerHelper helper(execution_env.local());
   CompileRun(R"(
@@ -4054,14 +4038,7 @@ TEST(EmbedderContextIsolation) {
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   v8::Local<v8::Context> diff_context = v8::Context::New(isolate);
   {
@@ -4117,14 +4094,7 @@ TEST(EmbedderStatePropagate) {
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   {
     // prepare embedder state
@@ -4178,6 +4148,10 @@ TEST(EmbedderStatePropagateNativeContextMove) {
       i::v8_flags.enable_third_party_heap) {
     return;
   }
+  // If no compaction is performed when a GC with stack is invoked (which
+  // happens, e.g., with conservative stack scanning), this test will fail.
+  if (!i::v8_flags.compact_with_stack) return;
+
   i::v8_flags.allow_natives_syntax = true;
   ManualGCScope manual_gc_scope;
   heap::ManualEvacuationCandidatesSelectionScope
@@ -4188,14 +4162,7 @@ TEST(EmbedderStatePropagateNativeContextMove) {
   v8::Isolate* isolate = execution_env.local()->GetIsolate();
 
   // Install CollectSample callback for more deterministic sampling.
-  v8::Local<v8::FunctionTemplate> func_template =
-      v8::FunctionTemplate::New(isolate, CallCollectSample);
-  v8::Local<v8::Function> func =
-      func_template->GetFunction(execution_env.local()).ToLocalChecked();
-  func->SetName(v8_str("CallCollectSample"));
-  execution_env->Global()
-      ->Set(execution_env.local(), v8_str("CallCollectSample"), func)
-      .FromJust();
+  InstallCollectSampleFunction(execution_env.local());
 
   {
     // prepare embedder state
@@ -4213,10 +4180,6 @@ TEST(EmbedderStatePropagateNativeContextMove) {
             [](const v8::FunctionCallbackInfo<v8::Value>& info) {
               i::Isolate* isolate =
                   reinterpret_cast<i::Isolate*>(info.GetIsolate());
-              // We need to invoke GC without stack, otherwise no compaction is
-              // performed.
-              DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-                  isolate->heap());
               i::heap::ForceEvacuationCandidate(
                   i::Page::FromHeapObject(isolate->raw_native_context()));
               heap::InvokeMajorGC(isolate->heap());
@@ -4264,14 +4227,7 @@ TEST(ContextFilterMovedNativeContext) {
 
   {
     // Install CollectSample callback for more deterministic sampling.
-    v8::Local<v8::FunctionTemplate> sample_func_template =
-        v8::FunctionTemplate::New(env.local()->GetIsolate(), CallCollectSample);
-    v8::Local<v8::Function> sample_func =
-        sample_func_template->GetFunction(env.local()).ToLocalChecked();
-    sample_func->SetName(v8_str("CallCollectSample"));
-    env->Global()
-        ->Set(env.local(), v8_str("CallCollectSample"), sample_func)
-        .FromJust();
+    InstallCollectSampleFunction(env.local());
 
     // Install a function that triggers the native context to be moved.
     v8::Local<v8::FunctionTemplate> move_func_template =

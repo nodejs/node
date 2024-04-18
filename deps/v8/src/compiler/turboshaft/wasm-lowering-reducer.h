@@ -28,7 +28,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class WasmLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmLowering)
 
   OpIndex REDUCE(GlobalGet)(OpIndex instance, const wasm::WasmGlobal* global) {
     return LowerGlobalSetOrGet(instance, OpIndex::Invalid(), global,
@@ -90,18 +90,18 @@ class WasmLoweringReducer : public Next {
                    MemoryRepresentation::AnyTagged(), map_offset);
   }
 
-  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, V<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCheck)(V<Tagged> object, OptionalV<Tagged> rtt,
                                 WasmTypeCheckConfig config) {
-    if (rtt != OpIndex::Invalid()) {
+    if (rtt.has_value()) {
       return ReduceWasmTypeCheckRtt(object, rtt, config);
     } else {
       return ReduceWasmTypeCheckAbstract(object, config);
     }
   }
 
-  OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, V<Tagged> rtt,
+  OpIndex REDUCE(WasmTypeCast)(V<Tagged> object, OptionalV<Tagged> rtt,
                                WasmTypeCheckConfig config) {
-    if (rtt != OpIndex::Invalid()) {
+    if (rtt.has_value()) {
       return ReduceWasmTypeCastRtt(object, rtt, config);
     } else {
       return ReduceWasmTypeCastAbstract(object, config);
@@ -495,7 +495,7 @@ class WasmLoweringReducer : public Next {
 
   static constexpr MemoryRepresentation kMaybeSandboxedPointer =
       V8_ENABLE_SANDBOX_BOOL ? MemoryRepresentation::SandboxedPointer()
-                             : MemoryRepresentation::PointerSized();
+                             : MemoryRepresentation::UintPtr();
 
   MemoryRepresentation RepresentationFor(wasm::ValueType type, bool is_signed) {
     switch (type.kind()) {
@@ -536,7 +536,7 @@ class WasmLoweringReducer : public Next {
     return __ DecodeExternalPointer(handle, access.external_pointer_tag);
 #else
     return __ Load(object, LoadOp::Kind::TaggedBase(),
-                   MemoryRepresentation::PointerSized(), access.offset);
+                   MemoryRepresentation::UintPtr(), access.offset);
 #endif  // V8_ENABLE_SANDBOX
   }
 
@@ -580,8 +580,6 @@ class WasmLoweringReducer : public Next {
         if (object_can_be_i31) {
           GOTO_IF(UNLIKELY(__ IsSmi(object)), end_label, __ Word32Constant(1));
         }
-        // TODO(mliedtke): Ideally we'd be able to mark the map load as
-        // immutable.
         result = IsDataRefMap(__ LoadMapField(object));
         break;
       }
@@ -691,8 +689,9 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, V<Tagged> rtt,
+  OpIndex ReduceWasmTypeCastRtt(V<Tagged> object, OptionalV<Tagged> rtt,
                                 WasmTypeCheckConfig config) {
+    DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -717,17 +716,16 @@ class WasmLoweringReducer : public Next {
       __ TrapIf(__ IsSmi(object), OpIndex::Invalid(), TrapId::kTrapIllegalCast);
     }
 
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      __ TrapIfNot(__ TaggedEqual(map, rtt), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(map, rtt.value()), OpIndex::Invalid(),
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label);
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label);
 
       // Check if map instance type identifies a wasm object.
       if (is_cast_from_any) {
@@ -756,7 +754,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt), OpIndex::Invalid(),
+      __ TrapIfNot(__ TaggedEqual(maybe_match, rtt.value()), OpIndex::Invalid(),
                    TrapId::kTrapIllegalCast);
       GOTO(end_label);
     }
@@ -765,8 +763,9 @@ class WasmLoweringReducer : public Next {
     return object;
   }
 
-  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, V<Tagged> rtt,
+  OpIndex ReduceWasmTypeCheckRtt(V<Tagged> object, OptionalV<Tagged> rtt,
                                  WasmTypeCheckConfig config) {
+    DCHECK(rtt.has_value());
     int rtt_depth = wasm::GetSubtypingDepth(module_, config.to.ref_index());
     bool object_can_be_null = config.from.is_nullable();
     bool object_can_be_i31 =
@@ -788,15 +787,14 @@ class WasmLoweringReducer : public Next {
       GOTO_IF(__ IsSmi(object), end_label, __ Word32Constant(0));
     }
 
-    // TODO(mliedtke): Ideally we'd be able to mark this as immutable as well.
     V<Map> map = __ LoadMapField(object);
 
     if (module_->types[config.to.ref_index()].is_final) {
-      GOTO(end_label, __ TaggedEqual(map, rtt));
+      GOTO(end_label, __ TaggedEqual(map, rtt.value()));
     } else {
       // First, check if types happen to be equal. This has been shown to give
       // large speedups.
-      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt)), end_label,
+      GOTO_IF(LIKELY(__ TaggedEqual(map, rtt.value())), end_label,
               __ Word32Constant(1));
 
       // Check if map instance type identifies a wasm object.
@@ -828,7 +826,7 @@ class WasmLoweringReducer : public Next {
                   MemoryRepresentation::TaggedPointer(),
                   WasmTypeInfo::kSupertypesOffset + kTaggedSize * rtt_depth);
 
-      GOTO(end_label, __ TaggedEqual(maybe_match, rtt));
+      GOTO(end_label, __ TaggedEqual(maybe_match, rtt.value()));
     }
 
     BIND(end_label, result);
@@ -902,7 +900,7 @@ class WasmLoweringReducer : public Next {
       }
     } else {
       OpIndex base = LOAD_IMMUTABLE_INSTANCE_FIELD(
-          instance, GlobalsStart, MemoryRepresentation::PointerSized());
+          instance, GlobalsStart, MemoryRepresentation::UintPtr());
       if (mode == GlobalMode::kLoad) {
         LoadOp::Kind load_kind = is_mutable
                                      ? LoadOp::Kind::RawAligned()
@@ -926,7 +924,7 @@ class WasmLoweringReducer : public Next {
             ? RootIndex::kNullValue
             : RootIndex::kWasmNull;
     return __ Load(roots, LoadOp::Kind::RawAligned().Immutable(),
-                   MemoryRepresentation::PointerSized(),
+                   MemoryRepresentation::TaggedPointer(),
                    IsolateData::root_slot_offset(index));
   }
 
@@ -935,8 +933,6 @@ class WasmLoweringReducer : public Next {
   }
 
   V<Word32> IsDataRefMap(V<Map> map) {
-    // TODO(mliedtke): LoadInstanceTypeField should emit an immutable load for
-    // wasm.
     V<Word32> instance_type = __ LoadInstanceTypeField(map);
     // We're going to test a range of WasmObject instance types with a single
     // unsigned comparison.

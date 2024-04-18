@@ -271,24 +271,6 @@
   # http://crbug/v8/10905
   'language/identifier-resolution/assign-to-global-undefined': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=13173
-  'built-ins/RegExp/duplicate-named-capturing-groups-syntax': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-group-property-enumeration-order': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-match-indices': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-replace': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-exec': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-matchall': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-match': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-replaceall': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-search': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-split': [FAIL],
-  'built-ins/RegExp/named-groups/duplicate-names-test': [FAIL],
-  'built-ins/RegExp/prototype/exec/duplicate-named-groups-properties': [FAIL],
-  'built-ins/RegExp/prototype/exec/duplicate-named-indices-groups-properties': [FAIL],
-  'built-ins/String/prototype/match/duplicate-named-groups-properties': [FAIL],
-  'built-ins/String/prototype/match/duplicate-named-indices-groups-properties': [FAIL],
-  'annexB/built-ins/RegExp/prototype/compile/duplicate-named-capturing-groups-syntax': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=13174
   'built-ins/RegExp/prototype/Symbol.match/flags-tostring-error': [FAIL],
   'built-ins/RegExp/prototype/Symbol.match/get-flags-err': [FAIL],
@@ -2075,9 +2057,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=14303
   'built-ins/RegExp/unicodeSets/generated/rgi-emoji-15.1': [FAIL],
 
-  # https://github.com/tc39/proposal-iterator-helpers/pull/287
-  'built-ins/Iterator/prototype/Symbol.toStringTag/prop-desc': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=12763
   'language/expressions/class/decorator/syntax/class-valid/decorator-member-expr-private-identifier': [FAIL],
   'language/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference': [FAIL],
@@ -2504,6 +2483,36 @@
   'intl402/Temporal/PlainMonthDay/prototype/with/fields-missing-properties': [FAIL],
 }],
 # End import test262@873f2604
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  'language/module-code/import-attributes/allow-nlt-before-with': [SKIP],
+}],
+# End roll-watcher patch
+####
+
+####
+# Roll-watcher patch
+[ALWAYS, {
+  # https://crbug.com/v8/12594
+  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-iterator-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/for-await-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/iterator-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/next-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-iterator-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/next/yield-next-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/iterator-result-rejected-promise-close': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-null': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-result-poisoned-wrapper': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-get-return-undefined': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-poisoned-return': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-not-object': [SKIP],
+  'built-ins/AsyncFromSyncIteratorPrototype/throw/throw-undefined-return-object': [SKIP],
+}],
+# End roll-watcher patch
 ####
 
 ]

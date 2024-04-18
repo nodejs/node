@@ -305,6 +305,7 @@ macro CreatePromiseCapability(
 struct PromiseResolvingFunctions {
   resolve: JSFunction;
   reject: JSFunction;
+  context: Context;
 }
 
 @export
@@ -322,7 +323,11 @@ macro CreatePromiseResolvingFunctions(
   const rejectInfo = PromiseCapabilityDefaultRejectSharedFunConstant();
   const reject: JSFunction =
       AllocateFunctionWithMapAndContext(map, rejectInfo, promiseContext);
-  return PromiseResolvingFunctions{resolve: resolve, reject: reject};
+  return PromiseResolvingFunctions{
+    resolve: resolve,
+    reject: reject,
+    context: promiseContext
+  };
 }
 
 transitioning macro InnerNewPromiseCapability(

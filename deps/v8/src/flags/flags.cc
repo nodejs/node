@@ -4,6 +4,8 @@
 
 #include "src/flags/flags.h"
 
+#include <algorithm>
+#include <array>
 #include <cctype>
 #include <cerrno>
 #include <cinttypes>
@@ -14,6 +16,7 @@
 #include <sstream>
 
 #include "src/base/functional.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
 #include "src/codegen/cpu-features.h"
@@ -47,13 +50,32 @@ static_assert(sizeof(FlagValues) % kMinimumOSPageSize == 0);
 #include "src/flags/flag-definitions.h"  // NOLINT(build/include)
 #undef FLAG_MODE_DEFINE_DEFAULTS
 
-namespace {
+char FlagHelpers::NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
 
-char NormalizeChar(char ch) { return ch == '_' ? '-' : ch; }
+int FlagHelpers::FlagNamesCmp(const char* a, const char* b) {
+  int i = 0;
+  char ac, bc;
+  do {
+    ac = NormalizeChar(a[i]);
+    bc = NormalizeChar(b[i]);
+    if (ac < bc) return -1;
+    if (ac > bc) return 1;
+    i++;
+  } while (ac != '\0');
+  DCHECK(bc == '\0');
+  return 0;
+}
+
+bool FlagHelpers::EqualNames(const char* a, const char* b) {
+  return FlagNamesCmp(a, b) == 0;
+}
+
+namespace {
 
 struct Flag;
 Flag* FindFlagByPointer(const void* ptr);
 Flag* FindFlagByName(const char* name);
+Flag* FindImplicationFlagByName(const char* name);
 
 // Helper struct for printing normalized flag names.
 struct FlagName {
@@ -72,7 +94,9 @@ struct FlagName {
 
 std::ostream& operator<<(std::ostream& os, FlagName flag_name) {
   os << (flag_name.negated ? "--no-" : "--");
-  for (const char* p = flag_name.name; *p; ++p) os << NormalizeChar(*p);
+  for (const char* p = flag_name.name; *p; ++p) {
+    os << FlagHelpers::NormalizeChar(*p);
+  }
   return os;
 }
 
@@ -355,8 +379,8 @@ struct Flag {
       // can also be a condition e.g. flag_name > 3. Since this is only used for
       // checks in DEBUG mode, we will just ignore the more complex conditions
       // for now - that will just lead to a nullptr which won't be followed.
-      implied_by_ptr_ = static_cast<Flag*>(
-          FindFlagByName(implied_by[0] == '!' ? implied_by + 1 : implied_by));
+      implied_by_ptr_ = static_cast<Flag*>(FindImplicationFlagByName(
+          implied_by[0] == '!' ? implied_by + 1 : implied_by));
       DCHECK_NE(implied_by_ptr_, this);
 #endif
     }
@@ -460,19 +484,66 @@ Flag flags[] = {
 
 constexpr size_t kNumFlags = arraysize(flags);
 
-bool EqualNames(const char* a, const char* b) {
-  for (int i = 0; NormalizeChar(a[i]) == NormalizeChar(b[i]); i++) {
-    if (a[i] == '\0') {
-      return true;
-    }
+struct FlagLess {
+  bool operator()(const Flag* a, const Flag* b) const {
+    return FlagHelpers::FlagNamesCmp(a->name(), b->name()) < 0;
   }
-  return false;
+};
+
+struct FlagNameLess {
+  bool operator()(const Flag* a, const char* b) const {
+    return FlagHelpers::FlagNamesCmp(a->name(), b) < 0;
+  }
+};
+
+// Optimized look-up of flags by name using binary search. Works only for flags
+// that can be found. If the looked-up flag might not exit in the list, an
+// additional name check of the returned flag is required.
+class FlagMapByName {
+ public:
+  FlagMapByName() {
+    for (size_t i = 0; i < kNumFlags; ++i) {
+      flags_[i] = &flags[i];
+    }
+    std::sort(flags_.begin(), flags_.end(), FlagLess());
+  }
+
+  Flag* GetFlag(const char* name) {
+    auto it =
+        std::lower_bound(flags_.begin(), flags_.end(), name, FlagNameLess());
+    if (it == flags_.end()) return nullptr;
+    return *it;
+  }
+
+ private:
+  std::array<Flag*, kNumFlags> flags_;
+};
+
+DEFINE_LAZY_LEAKY_OBJECT_GETTER(FlagMapByName, GetFlagMap)
+
+// This should be used to look up flags that we know were defined.
+Flag* FindImplicationFlagByName(const char* name) {
+  Flag* flag = GetFlagMap()->GetFlag(name);
+  CHECK(flag != nullptr);
+  DCHECK(FlagHelpers::EqualNames(flag->name(), name));
+  return flag;
 }
 
+// This can be used to look up flags that might not exist (e.g. invalid command
+// line flags).
 Flag* FindFlagByName(const char* name) {
-  for (size_t i = 0; i < kNumFlags; ++i) {
-    if (EqualNames(name, flags[i].name())) return &flags[i];
+  Flag* flag = GetFlagMap()->GetFlag(name);
+  // GetFlag returns an invalid lower bound for flags not in the list. So
+  // we need to verify the name again.
+  if (flag != nullptr && FlagHelpers::EqualNames(flag->name(), name)) {
+    return flag;
   }
+#ifdef DEBUG
+  // Ensure the flag is not in the global list.
+  for (size_t i = 0; i < kNumFlags; ++i) {
+    DCHECK(!FlagHelpers::EqualNames(name, flags[i].name()));
+  }
+#endif
   return nullptr;
 }
 
@@ -664,7 +735,9 @@ static void SplitArgument(const char* arg, char* buffer, int buffer_size,
     }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;                                 // remove "no"
-      if (NormalizeChar(arg[0]) == '-') arg++;  // remove dash after "no".
+      if (FlagHelpers::NormalizeChar(arg[0]) == '-') {
+        arg++;  // remove dash after "no".
+      }
       *negated = true;
     }
     *name = arg;
@@ -980,7 +1053,7 @@ class ImplicationProcessor {
                           const char* conclusion_name, T value,
                           bool weak_implication) {
     if (!premise) return false;
-    Flag* conclusion_flag = FindFlagByName(conclusion_name);
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     if (!conclusion_flag->CheckFlagChange(
             weak_implication ? Flag::SetBy::kWeakImplication
                              : Flag::SetBy::kImplication,
@@ -1008,7 +1081,7 @@ class ImplicationProcessor {
                           const char* conclusion_name, T value,
                           bool weak_implication) {
     if (!premise) return false;
-    Flag* conclusion_flag = FindFlagByName(conclusion_name);
+    Flag* conclusion_flag = FindImplicationFlagByName(conclusion_name);
     // Because this is the `const FlagValue*` overload:
     DCHECK(conclusion_flag->IsReadOnly());
     if (!conclusion_flag->CheckFlagChange(
@@ -1056,6 +1129,50 @@ class ImplicationProcessor {
 };
 
 }  // namespace
+
+#define CONTRADICTION(flag1, flag2)                         \
+  (v8_flags.flag1 && v8_flags.flag2)                        \
+      ? std::make_tuple(FindFlagByPointer(&v8_flags.flag1), \
+                        FindFlagByPointer(&v8_flags.flag2)) \
+      : std::make_tuple(nullptr, nullptr)
+
+// static
+void FlagList::ResolveContradictionsWhenFuzzing() {
+  if (!i::v8_flags.fuzzing) return;
+
+  // List flags that lead to known contradictory cycles when both are passed
+  // on the command line. One of them will be reset with precedence left to
+  // right.
+  std::tuple<Flag*, Flag*> contradictions[] = {
+      CONTRADICTION(jitless, maglev_future),
+      CONTRADICTION(jitless, stress_maglev),
+      CONTRADICTION(jitless, stress_concurrent_inlining),
+      CONTRADICTION(jitless, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(predictable, stress_concurrent_inlining_attach_code),
+      CONTRADICTION(stress_concurrent_inlining, assert_types),
+      CONTRADICTION(stress_concurrent_inlining_attach_code, assert_types),
+  };
+  for (auto [flag1, flag2] : contradictions) {
+    if (!flag1 || !flag2) continue;
+    // Check values again, since a flag might have already been reset by
+    // another contradiction.
+    if (!flag1->bool_variable() || !flag2->bool_variable()) continue;
+
+    Flag* flag = flag1;
+    if (flag->IsDefault()) {
+      flag = flag2;
+    }
+    if (flag->IsDefault()) {
+      FATAL("Multiple flags with contradictory default values");
+    }
+
+    std::cerr << "Warning: resetting flag --" << flag->name()
+              << " due to conflicting flags" << std::endl;
+    flag->Reset();
+  }
+}
+
+#undef CONTRADICTION
 
 // static
 void FlagList::EnforceFlagImplications() {

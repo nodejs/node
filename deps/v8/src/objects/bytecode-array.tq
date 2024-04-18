@@ -7,10 +7,10 @@ type DependentCode extends WeakArrayList;
 @cppObjectDefinition
 extern class BytecodeArray extends ExposedTrustedObject {
   const length: Smi;
-  handler_table: ByteArray;
-  constant_pool: FixedArray;
   wrapper: BytecodeWrapper;
   source_position_table: Undefined|ByteArray|Exception;
+  handler_table: ProtectedPointer<TrustedByteArray>;
+  constant_pool: ProtectedPointer<TrustedFixedArray>;
   frame_size: int32;
   parameter_size: int32;
   incoming_new_target_or_generator_register: int32;

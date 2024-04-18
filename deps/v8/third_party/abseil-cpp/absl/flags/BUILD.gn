@@ -159,10 +159,10 @@ absl_source_set("flag") {
     "flag.h",
   ]
   deps = [
+    ":commandlineflag",
     ":config",
     ":flag_internal",
     ":reflection",
-    "//third_party/abseil-cpp/absl/base",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/strings:string_view",
@@ -242,9 +242,11 @@ absl_test("flag_test") {
     ":reflection",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:malloc_internal",
+    "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/numeric:int128",
     "//third_party/abseil-cpp/absl/strings",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
+    "//third_party/abseil-cpp/absl/types:optional",
   ]
 }

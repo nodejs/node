@@ -200,6 +200,7 @@
   V(JSHasContextExtension)    \
   V(JSLoadContext)            \
   V(JSStoreContext)           \
+  V(JSStoreScriptContext)     \
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
@@ -434,6 +435,7 @@
   V(ArgumentsLength)                    \
   V(AssertType)                         \
   V(BooleanNot)                         \
+  V(ChangeFloat64HoleToTagged)          \
   V(CheckBounds)                        \
   V(CheckClosure)                       \
   V(CheckEqualsInternalizedString)      \

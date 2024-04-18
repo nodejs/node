@@ -172,6 +172,8 @@ def get_v8_solution(solutions):
   return None
 
 
+# Note: this function is reused by update-compile-commands.py. When renaming
+# this, please update that file too!
 def detect_reclient():
   if not GCLIENT_FILE_PATH.exists():
     return Reclient.NONE
@@ -195,6 +197,8 @@ def detect_reclient():
   return Reclient.NONE
 
 
+# Note: this function is reused by update-compile-commands.py. When renaming
+# this, please update that file too!
 def detect_reclient_cert():
   now = int(time.time())
   # We cache the cert expiration time in a file, because that's much faster
@@ -216,8 +220,8 @@ def detect_reclient_cert():
     f.write(str(now + lifetime))
   return True
 
-# Note: this function is reused by update-compile-commands.py. When renaming
-# this, please update that file too!
+
+# Deprecated.
 def detect_goma():
   if os.environ.get("GOMA_DIR"):
     return Path(os.environ.get("GOMA_DIR"))
@@ -762,7 +766,7 @@ def main(argv):
   # If we have Reclient with the Google configuration, check for current
   # certificate.
   if (RECLIENT_MODE == Reclient.GOOGLE and not detect_reclient_cert()):
-    print("Found Reclient/Google setup without cert, running 'gcert' for you:")
+    print("# gcert")
     subprocess.check_call("gcert", shell=True)
   for c in configs:
     return_code += configs[c].build()
