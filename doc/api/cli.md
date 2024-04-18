@@ -1969,8 +1969,8 @@ A regular expression that configures the test runner to only execute tests
 whose name matches the provided pattern. See the documentation on
 [filtering tests by name][] for more details.
 
-If both the `--test-name-pattern` and `--test-skip-pattern` arguments are
-supplied, only `--test-name-pattern` will be applied.
+If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
+tests must satisfy **both** requirements in order to be executed.
 
 ### `--test-only`
 
