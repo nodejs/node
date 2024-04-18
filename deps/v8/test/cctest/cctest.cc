@@ -160,16 +160,7 @@ void CcTest::Run(const char* snapshot_directory) {
 #ifdef DEBUG
   const size_t active_isolates = i::Isolate::non_disposed_isolates();
 #endif  // DEBUG
-  {
-#ifdef V8_ENABLE_DIRECT_LOCAL
-    // TODO(v8:13270): This handle scope should not be needed. It will be
-    // removed when the implementation of direct handles is complete and they
-    // can never implicitly be converted to indirect handles.
-    v8::base::Optional<v8::HandleScope> scope;
-    if (initialize_) scope.emplace(isolate_);
-#endif
-    callback_();
-  }
+  callback_();
 #ifdef DEBUG
   // This DCHECK ensures that all Isolates are properly disposed after finishing
   // the test. Stray Isolates lead to stray tasks in the platform which can

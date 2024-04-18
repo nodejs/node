@@ -42,6 +42,7 @@
 #include "absl/container/fixed_array.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/hash.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/log/check.h"
 #include "absl/log/log.h"
 #include "absl/random/random.h"
@@ -1512,12 +1513,11 @@ TEST_P(CordTest, CompareAfterAssign) {
 // comparison methods from basic_string.
 static void TestCompare(const absl::Cord& c, const absl::Cord& d,
                         RandomEngine* rng) {
-  typedef std::basic_string<uint8_t> ustring;
-  ustring cs(reinterpret_cast<const uint8_t*>(std::string(c).data()), c.size());
-  ustring ds(reinterpret_cast<const uint8_t*>(std::string(d).data()), d.size());
-  // ustring comparison is ideal because we expect Cord comparisons to be
-  // based on unsigned byte comparisons regardless of whether char is signed.
-  int expected = sign(cs.compare(ds));
+  // char_traits<char>::lt is guaranteed to do an unsigned comparison:
+  // https://en.cppreference.com/w/cpp/string/char_traits/cmp. We also expect
+  // Cord comparisons to be based on unsigned byte comparisons regardless of
+  // whether char is signed.
+  int expected = sign(std::string(c).compare(std::string(d)));
   EXPECT_EQ(expected, sign(c.Compare(d))) << c << ", " << d;
 }
 
@@ -2011,6 +2011,26 @@ TEST(CordTest, CordMemoryUsageBTree) {
   EXPECT_EQ(cord.EstimatedMemoryUsage(kFairShare),
             sizeof(absl::Cord) + sizeof(CordRepBtree) + rep1_shared_size / 2 +
                 rep2_size);
+}
+
+TEST(CordTest, TestHashFragmentation) {
+  // Make sure we hit these boundary cases precisely.
+  EXPECT_EQ(1024, absl::hash_internal::PiecewiseChunkSize());
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      absl::Cord(),
+      absl::MakeFragmentedCord({std::string(600, 'a'), std::string(600, 'a')}),
+      absl::MakeFragmentedCord({std::string(1200, 'a')}),
+      absl::MakeFragmentedCord({std::string(900, 'b'), std::string(900, 'b')}),
+      absl::MakeFragmentedCord({std::string(1800, 'b')}),
+      absl::MakeFragmentedCord(
+          {std::string(2000, 'c'), std::string(2000, 'c')}),
+      absl::MakeFragmentedCord({std::string(4000, 'c')}),
+      absl::MakeFragmentedCord({std::string(1024, 'd')}),
+      absl::MakeFragmentedCord({std::string(1023, 'd'), "d"}),
+      absl::MakeFragmentedCord({std::string(1025, 'e')}),
+      absl::MakeFragmentedCord({std::string(1024, 'e'), "e"}),
+      absl::MakeFragmentedCord({std::string(1023, 'e'), "e", "e"}),
+  }));
 }
 
 // Regtest for a change that had to be rolled back because it expanded out

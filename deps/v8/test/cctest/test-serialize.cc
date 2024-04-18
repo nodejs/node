@@ -845,7 +845,8 @@ UNINITIALIZED_TEST(CustomSnapshotDataBlobStringNotInternalized) {
     v8::Context::Scope c_scope(context);
     v8::Local<v8::Value> result = CompileRun("f()").As<v8::Value>();
     CHECK(result->IsString());
-    i::Tagged<i::String> str = *v8::Utils::OpenHandle(*result.As<v8::String>());
+    i::Tagged<i::String> str =
+        *v8::Utils::OpenDirectHandle(*result.As<v8::String>());
     CHECK_EQ(std::string(str->ToCString().get()), "AB");
     CHECK(!IsInternalizedString(str));
     CHECK(!i::ReadOnlyHeap::Contains(str));
@@ -2615,16 +2616,16 @@ TEST(CodeSerializerThreeBigStrings) {
       CompileRun("a")
           ->ToString(CcTest::isolate()->GetCurrentContext())
           .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), LO_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenDirectHandle(*result_str), LO_SPACE));
   result_str = CompileRun("b")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenDirectHandle(*result_str), OLD_SPACE));
 
   result_str = CompileRun("c")
                    ->ToString(CcTest::isolate()->GetCurrentContext())
                    .ToLocalChecked();
-  CHECK(heap->InSpace(*v8::Utils::OpenHandle(*result_str), OLD_SPACE));
+  CHECK(heap->InSpace(*v8::Utils::OpenDirectHandle(*result_str), OLD_SPACE));
 
   delete cache;
   source_a.Dispose();
@@ -4108,7 +4109,7 @@ UNINITIALIZED_TEST(SnapshotCreatorTemplates) {
 
 MaybeLocal<v8::Module> ResolveCallback(Local<v8::Context> context,
                                        Local<v8::String> specifier,
-                                       Local<v8::FixedArray> import_assertions,
+                                       Local<v8::FixedArray> import_attributes,
                                        Local<v8::Module> referrer) {
   return {};
 }
@@ -4229,8 +4230,8 @@ UNINITIALIZED_TEST(SnapshotCreatorAddData) {
       v8::Local<v8::Context> serialized_context =
           context->GetDataFromSnapshotOnce<v8::Context>(4).ToLocalChecked();
       CHECK(context->GetDataFromSnapshotOnce<v8::Context>(4).IsEmpty());
-      CHECK_EQ(*v8::Utils::OpenHandle(*serialized_context),
-               *v8::Utils::OpenHandle(*context));
+      CHECK_EQ(*v8::Utils::OpenDirectHandle(*serialized_context),
+               *v8::Utils::OpenDirectHandle(*context));
 
       v8::Local<v8::Module> serialized_module =
           context->GetDataFromSnapshotOnce<v8::Module>(5).ToLocalChecked();

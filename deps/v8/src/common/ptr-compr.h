@@ -85,6 +85,21 @@ using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
 using TrustedSpaceCompressionScheme = V8HeapCompressionScheme;
 #endif  // V8_ENABLE_SANDBOX
 
+// A compression scheme which can be passed if the only objects we ever expect
+// to see are Smis (e.g. for {TaggedField<Smi, 0, SmiCompressionScheme>}).
+class SmiCompressionScheme : public AllStatic {
+ public:
+  static Address DecompressTaggedSigned(Tagged_t raw_value) {
+    // For runtime code the upper 32-bits of the Smi value do not matter.
+    return static_cast<Address>(raw_value);
+  }
+
+  static Tagged_t CompressObject(Address tagged) {
+    V8_ASSUME(HAS_SMI_TAG(tagged));
+    return static_cast<Tagged_t>(tagged);
+  }
+};
+
 #ifdef V8_EXTERNAL_CODE_SPACE
 // Compression scheme used for fields containing InstructionStream objects
 // (namely for the Code::code field). Same as

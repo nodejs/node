@@ -15,6 +15,7 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
 #include "src/torque/runtime-macro-shims.h"
@@ -89,28 +90,28 @@ typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index) const {
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
-  return TaggedField<ElementT>::Relaxed_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, RelaxedLoadTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::Relaxed_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, AcquireLoadTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::Acquire_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::Acquire_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
 typename TaggedArrayBase<D, S, P>::PtrType TaggedArrayBase<D, S, P>::get(
     int index, SeqCstAccessTag) const {
   DCHECK(IsInBounds(index));
-  return TaggedField<ElementT>::SeqCst_Load(*this, OffsetOfElementAt(index));
+  return ElementFieldT::SeqCst_Load(*this, OffsetOfElementAt(index));
 }
 
 template <class D, class S, class P>
@@ -131,7 +132,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(IsInBounds(index));
   // TODO(jgruber): This tag-less overload shouldn't be relaxed.
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Relaxed_Store(*this, offset, value);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -147,7 +148,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Relaxed_Store(*this, offset, value);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -164,7 +165,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::Release_Store(*this, offset, value);
+  ElementFieldT::Release_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -181,7 +182,7 @@ void TaggedArrayBase<D, S, P>::set(int index, PtrType value,
   DCHECK(!IsCowArray());
   DCHECK(IsInBounds(index));
   const int offset = OffsetOfElementAt(index);
-  TaggedField<ElementT>::SeqCst_Store(*this, offset, value);
+  ElementFieldT::SeqCst_Store(*this, offset, value);
   ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
@@ -315,15 +316,35 @@ template <class IsolateT>
 Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
                                                  int capacity) {
   if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
-                  FixedArrayBase::kMaxLength)) {
+                  TrustedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+  // TODO(saelo): once we have trusted read-only roots, we can return the
+  // empty_trusted_fixed_array here. Currently this isn't possible because the
+  // (mutable) empty_trusted_fixed_array will be created via this function.
+  // The same is true for the other trusted-space arrays below.
+
+  base::Optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
+  return result;
+}
+
+// static
+template <class IsolateT>
+Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
+                                                     int capacity) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  ProtectedFixedArray::kMaxLength)) {
     FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
           capacity);
   }
 
   base::Optional<DisallowGarbageCollection> no_gc;
-  Handle<TrustedFixedArray> result = Handle<TrustedFixedArray>::cast(
+  Handle<ProtectedFixedArray> result = Handle<ProtectedFixedArray>::cast(
       Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
-  result->init_self_indirect_pointer(isolate);
   MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
   return result;
 }
@@ -406,6 +427,9 @@ OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
 CAST_ACCESSOR(TrustedFixedArray)
 OBJECT_CONSTRUCTORS_IMPL(TrustedFixedArray, TrustedFixedArray::Super)
+
+CAST_ACCESSOR(ProtectedFixedArray)
+OBJECT_CONSTRUCTORS_IMPL(ProtectedFixedArray, ProtectedFixedArray::Super)
 
 CAST_ACCESSOR(FixedDoubleArray)
 OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)

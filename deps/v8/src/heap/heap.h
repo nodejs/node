@@ -1368,6 +1368,11 @@ class Heap final {
   // Excludes external memory held by those objects.
   V8_EXPORT_PRIVATE size_t OldGenerationSizeOfObjects() const;
 
+  // Returns the size of objects residing in new spaces.
+  // Excludes external memory held by those objects.
+  // Returns 0 when MinorMS is not used.
+  V8_EXPORT_PRIVATE size_t YoungGenerationSizeOfObjects() const;
+
   // Returns the size of objects held by the EmbedderHeapTracer.
   V8_EXPORT_PRIVATE size_t EmbedderSizeOfObjects() const;
 
@@ -1531,12 +1536,11 @@ class Heap final {
       SweepingForcedFinalizationMode mode);
   void EnsureYoungSweepingCompleted();
 
-  void DrainSweepingWorklistForSpace(AllocationSpace space);
-
   // =============================================================================
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   void V8_EXPORT_PRIVATE set_allocation_timeout(int allocation_timeout);
+  int V8_EXPORT_PRIVATE get_allocation_timeout_for_testing() const;
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 #ifdef DEBUG
@@ -1926,6 +1930,7 @@ class Heap final {
 
   bool ShouldExpandOldGenerationOnSlowAllocation(LocalHeap* local_heap,
                                                  AllocationOrigin origin);
+  bool ShouldExpandYoungGenerationOnSlowAllocation();
   bool IsRetryOfFailedAllocation(LocalHeap* local_heap);
   bool IsMainThreadParked(LocalHeap* local_heap);
   bool IsMajorMarkingComplete(LocalHeap* local_heap);
@@ -2405,6 +2410,7 @@ class Heap final {
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
+  friend class PagedNewSpaceAllocatorPolicy;
   friend class PagedSpaceAllocatorPolicy;
   friend class PagedSpaceBase;
   friend class PagedSpaceForNewSpace;

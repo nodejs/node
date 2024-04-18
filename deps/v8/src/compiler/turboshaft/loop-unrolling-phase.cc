@@ -19,10 +19,8 @@ void LoopUnrollingPhase::Run(Zone* temp_zone) {
   if (analyzer.CanUnrollAtLeastOneLoop()) {
     PipelineData::Get().set_loop_unrolling_analyzer(&analyzer);
     turboshaft::CopyingPhase<turboshaft::LoopUnrollingReducer,
-                             turboshaft::VariableReducer,
                              turboshaft::MachineOptimizationReducer,
-                             turboshaft::RequiredOptimizationReducer,
-                             turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
+                             turboshaft::ValueNumberingReducer>::Run(temp_zone);
     PipelineData::Get().clear_loop_unrolling_analyzer();
   }
 }

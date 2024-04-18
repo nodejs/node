@@ -15,6 +15,7 @@
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-collection-iterator.h"
 #include "src/objects/objects-inl.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/smi.h"
 #include "src/objects/swiss-name-dictionary.h"
 

@@ -834,6 +834,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)  \
+  V(ChangeFloat64HoleToTagged, Operator::kNoProperties, 1, 0)     \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)     \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)           \
   V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)           \

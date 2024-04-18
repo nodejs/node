@@ -102,11 +102,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithoutPreparseDataWithJob)
 TQ_OBJECT_CONSTRUCTORS_IMPL(UncompiledDataWithPreparseDataAndJob)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(InterpreterData)
-TRUSTED_POINTER_ACCESSORS(InterpreterData, bytecode_array, BytecodeArray,
-                          kBytecodeArrayOffset,
-                          kBytecodeArrayIndirectPointerTag)
-CODE_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline,
-                       kInterpreterTrampolineOffset)
+PROTECTED_POINTER_ACCESSORS(InterpreterData, bytecode_array, BytecodeArray,
+                            kBytecodeArrayOffset)
+PROTECTED_POINTER_ACCESSORS(InterpreterData, interpreter_trampoline, Code,
+                            kInterpreterTrampolineOffset)
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(SharedFunctionInfo)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(SharedFunctionInfo, Tagged<Object>)
@@ -755,7 +754,7 @@ Tagged<BytecodeArray> SharedFunctionInfo::GetActiveBytecodeArray(
     return BytecodeArray::cast(data);
   } else {
     DCHECK(IsInterpreterData(data));
-    return InterpreterData::cast(data)->bytecode_array(isolate);
+    return InterpreterData::cast(data)->bytecode_array();
   }
 }
 
@@ -788,7 +787,7 @@ void SharedFunctionInfo::overwrite_bytecode_array(
 Tagged<Code> SharedFunctionInfo::InterpreterTrampoline(
     IsolateForSandbox isolate) const {
   DCHECK(HasInterpreterData(isolate));
-  return interpreter_data(isolate)->interpreter_trampoline(isolate);
+  return interpreter_data(isolate)->interpreter_trampoline();
 }
 
 bool SharedFunctionInfo::HasInterpreterData(IsolateForSandbox isolate) const {

@@ -8,6 +8,7 @@
 #include "src/debug/debug.h"
 #include "src/execution/isolate-inl.h"
 #include "src/init/bootstrapper.h"
+#include "src/objects/dependent-code.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/string-set-inl.h"
 
@@ -468,6 +469,77 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
     PrintF("=> no property/slot found\n");
   }
   return Handle<Object>::null();
+}
+
+Tagged<ConstTrackingLetCell> Context::GetOrCreateConstTrackingLetCell(
+    Handle<Context> script_context, size_t index, Isolate* isolate) {
+  DCHECK(v8_flags.const_tracking_let);
+  DCHECK(script_context->IsScriptContext());
+  int side_data_index =
+      static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  Handle<FixedArray> side_data = handle(
+      FixedArray::cast(script_context->get(CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+      isolate);
+  Tagged<Object> object = side_data->get(side_data_index);
+  if (!IsConstTrackingLetCell(object)) {
+    // If these CHECKs fail, there's a code path which initializes or assigns a
+    // top-level `let` variable but doesn't update the side data.
+    CHECK_EQ(object, ConstTrackingLetCell::kConstMarker);
+    object = *isolate->factory()->NewConstTrackingLetCell();
+    side_data->set(side_data_index, object);
+  }
+  return ConstTrackingLetCell::cast(object);
+}
+
+bool Context::ConstTrackingLetSideDataIsConst(size_t index) const {
+  DCHECK(v8_flags.const_tracking_let);
+  DCHECK(IsScriptContext());
+  int side_data_index =
+      static_cast<int>(index - Context::MIN_CONTEXT_EXTENDED_SLOTS);
+  Tagged<FixedArray> side_data =
+      FixedArray::cast(get(CONST_TRACKING_LET_SIDE_DATA_INDEX));
+  Tagged<Object> object = side_data->get(side_data_index);
+  return !ConstTrackingLetCell::IsNotConst(object);
+}
+
+void Context::UpdateConstTrackingLetSideData(Handle<Context> script_context,
+                                             int index,
+                                             Handle<Object> new_value,
+                                             Isolate* isolate) {
+  DCHECK(v8_flags.const_tracking_let);
+  DCHECK(script_context->IsScriptContext());
+  Handle<Object> old_value = handle(script_context->get(index), isolate);
+  const int side_data_index = index - Context::MIN_CONTEXT_EXTENDED_SLOTS;
+  Handle<FixedArray> side_data = handle(
+      FixedArray::cast(
+          script_context->get(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX)),
+      isolate);
+  if (IsTheHole(*old_value)) {
+    // Setting the initial value. Here we cannot assert the corresponding side
+    // data is `undefined` - that won't hold w/ variable redefinitions in REPL.
+    side_data->set(side_data_index, ConstTrackingLetCell::kConstMarker);
+    return;
+  }
+  if (*old_value == *new_value) {
+    return;
+  }
+  // From now on, we know the value is no longer a constant. If there's a
+  // DependentCode, invalidate it.
+  Tagged<Object> data = side_data->get(side_data_index);
+  if (IsConstTrackingLetCell(data)) {
+    DependentCode::DeoptimizeDependencyGroups(
+        isolate, ConstTrackingLetCell::cast(data),
+        DependentCode::kConstTrackingLetChangedGroup);
+  } else {
+    // The value is not constant, but it also was not used as a constant
+    // (there's no code to invalidate). No action needed here; the data will
+    // be updated below.
+
+    // If the CHECK fails, there's a code path which initializes or assigns a
+    // top-level `let` variable but doesn't update the side data.
+    CHECK(IsSmi(data));
+  }
+  side_data->set(side_data_index, ConstTrackingLetCell::kNonConstMarker);
 }
 
 bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {

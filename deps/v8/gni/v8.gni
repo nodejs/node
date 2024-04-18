@@ -8,6 +8,7 @@ import("//build/config/gclient_args.gni")
 import("//build/config/ios/config.gni")
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
+import("//build_overrides/build.gni")
 import("release_branch_toggle.gni")
 import("split_static_library.gni")
 
@@ -95,6 +96,11 @@ declare_args() {
 
   # Add fuzzilli fuzzer support.
   v8_fuzzilli = false
+
+  # Enable FuzzTest
+  v8_enable_fuzztest = !build_with_v8_embedder &&
+                       !(defined(build_with_node) && build_with_node) &&
+                       !(is_win && is_component_build) && is_clang
 
   # Scan the call stack conservatively during garbage collection.
   v8_enable_conservative_stack_scanning = false
@@ -228,6 +234,7 @@ v8_remove_configs = []
 v8_add_configs = [
   v8_path_prefix + ":features",
   v8_path_prefix + ":toolchain",
+  v8_path_prefix + ":strict_warnings",
 ]
 
 if (is_debug && !v8_optimized_debug) {

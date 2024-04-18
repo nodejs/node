@@ -18,6 +18,7 @@
 #include "src/objects/arguments.h"
 #include "src/objects/bigint.h"
 #include "src/objects/cell.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
@@ -356,6 +357,14 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   }
 #else
 #define CSA_SLOW_DCHECK(csa, ...) ((void)0)
+#endif
+
+// Similar to SBXCHECK in C++, these become a CSA_CHECK in sandbox-enabled
+// builds, otherwise a CSA_DCHECK.
+#ifdef V8_ENABLE_SANDBOX
+#define CSA_SBXCHECK(csa, ...) CSA_CHECK(csa, __VA_ARGS__)
+#else
+#define CSA_SBXCHECK(csa, ...) CSA_DCHECK(csa, __VA_ARGS__)
 #endif
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
@@ -922,7 +931,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void FastCheck(TNode<BoolT> condition);
 
-  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code);
+  TNode<RawPtrT> LoadCodeInstructionStart(TNode<Code> code,
+                                          CodeEntrypointTag tag);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
   // The following Call wrappers call an object according to the semantics that
@@ -1193,9 +1203,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load a trusted pointer field.
   // When the sandbox is enabled, these are indirect pointers using the trusted
   // pointer table. Otherwise they are regular tagged fields.
-  TNode<HeapObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
-                                                 int offset,
-                                                 IndirectPointerTag tag);
+  TNode<TrustedObject> LoadTrustedPointerFromObject(TNode<HeapObject> object,
+                                                    int offset,
+                                                    IndirectPointerTag tag);
 
   // Load a code pointer field.
   // These are special versions of trusted pointers that, when the sandbox is
@@ -1204,9 +1214,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_SANDBOX
   // Load an indirect pointer field.
-  TNode<HeapObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
-                                                  int offset,
-                                                  IndirectPointerTag tag);
+  TNode<TrustedObject> LoadIndirectPointerFromObject(TNode<HeapObject> object,
+                                                     int offset,
+                                                     IndirectPointerTag tag);
 
   // Determines whether the given indirect pointer handle is a trusted pointer
   // handle or a code pointer handle.
@@ -1214,14 +1224,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Retrieve the heap object referenced by the given indirect pointer handle,
   // which can either be a trusted pointer handle or a code pointer handle.
-  TNode<HeapObject> ResolveIndirectPointerHandle(
+  TNode<TrustedObject> ResolveIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Retrieve the Code object referenced by the given trusted pointer handle.
   TNode<Code> ResolveCodePointerHandle(TNode<IndirectPointerHandleT> handle);
 
   // Retrieve the heap object referenced by the given trusted pointer handle.
-  TNode<HeapObject> ResolveTrustedPointerHandle(
+  TNode<TrustedObject> ResolveTrustedPointerHandle(
       TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag);
 
   // Helper function to compute the offset into the code pointer table from a
@@ -1233,13 +1243,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Only available when the sandbox is enabled as it requires the code pointer
   // table.
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
-                                                       int offset) {
-    return LoadCodeEntrypointViaCodePointerField(object,
-                                                 IntPtrConstant(offset));
+                                                       int offset,
+                                                       CodeEntrypointTag tag) {
+    return LoadCodeEntrypointViaCodePointerField(object, IntPtrConstant(offset),
+                                                 tag);
   }
   TNode<RawPtrT> LoadCodeEntrypointViaCodePointerField(TNode<HeapObject> object,
-                                                       TNode<IntPtrT> offset);
+                                                       TNode<IntPtrT> offset,
+                                                       CodeEntrypointTag tag);
 #endif
+
+  TNode<TrustedObject> LoadProtectedPointerFromObject(
+      TNode<TrustedObject> object, int offset);
 
   TNode<RawPtrT> LoadForeignForeignAddressPtr(TNode<Foreign> object) {
     return LoadExternalPointerFromObject(object, Foreign::kForeignAddressOffset,
@@ -1289,11 +1304,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<WasmInternalFunction> object) {
 #ifdef V8_ENABLE_SANDBOX
     return LoadCodeEntrypointViaCodePointerField(
-        object, WasmInternalFunction::kCodeOffset);
+        object, WasmInternalFunction::kCodeOffset, kWasmEntrypointTag);
 #else
     TNode<Code> code =
         LoadObjectField<Code>(object, WasmInternalFunction::kCodeOffset);
-    return LoadCodeInstructionStart(code);
+    return LoadCodeInstructionStart(code, kWasmEntrypointTag);
 #endif  // V8_ENABLE_SANDBOX
   }
 
@@ -2192,6 +2207,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       AllocationFlags = AllocationFlag::kNone);
   TNode<NameDictionary> AllocateNameDictionaryWithCapacity(
       TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
+
+  TNode<PropertyDictionary> AllocatePropertyDictionary(int at_least_space_for);
+  TNode<PropertyDictionary> AllocatePropertyDictionary(
+      TNode<IntPtrT> at_least_space_for,
+      AllocationFlags = AllocationFlag::kNone);
+  TNode<PropertyDictionary> AllocatePropertyDictionaryWithCapacity(
+      TNode<IntPtrT> capacity, AllocationFlags = AllocationFlag::kNone);
+
   TNode<NameDictionary> CopyNameDictionary(TNode<NameDictionary> dictionary,
                                            Label* large_object_fallback);
 
@@ -2865,7 +2888,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsConstructorMap(TNode<Map> map);
   TNode<BoolT> IsConstructor(TNode<HeapObject> object);
   TNode<BoolT> IsDeprecatedMap(TNode<Map> map);
-  TNode<BoolT> IsNameDictionary(TNode<HeapObject> object);
+  TNode<BoolT> IsPropertyDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsOrderedNameDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsGlobalDictionary(TNode<HeapObject> object);
   TNode<BoolT> IsExtensibleMap(TNode<Map> map);
@@ -2978,7 +3001,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsStringInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
-  TNode<BoolT> IsSwissNameDictionary(TNode<HeapObject> object);
 
   TNode<BoolT> IsSymbolInstanceType(TNode<Int32T> instance_type);
   TNode<BoolT> IsInternalizedStringInstanceType(TNode<Int32T> instance_type);
@@ -3511,24 +3533,40 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <class Dictionary>
   void SetNameDictionaryFlags(TNode<Dictionary>, TNode<Smi> flags);
 
-  // Looks up an entry in a NameDictionaryBase successor. If the entry is found
-  // control goes to {if_found} and {var_name_index} contains an index of the
-  // key field of the entry found. If the key is not found control goes to
-  // {if_not_found}.
   enum LookupMode { kFindExisting, kFindInsertionIndex };
 
   template <typename Dictionary>
   TNode<HeapObject> LoadName(TNode<HeapObject> key);
 
+  // Looks up an entry in a NameDictionaryBase successor.
+  // For {mode} == kFindExisting:
+  //   If the entry is found control goes to {if_found} and {var_name_index}
+  //   contains an index of the key field of the entry found.
+  //   If the key is not found and {if_not_found_with_insertion_index} is
+  //   provided, control goes to {if_not_found_with_insertion_index} and
+  //   {var_name_index} contains the index of the key field to insert the given
+  //   name at.
+  //   Otherwise control goes to {if_not_found_no_insertion_index}.
+  // For {mode} == kFindInsertionIndex:
+  //   {if_not_found_no_insertion_index} and {if_not_found_with_insertion_index}
+  //   are treated equally. If {if_not_found_with_insertion_index} is provided,
+  //   control goes to {if_not_found_with_insertion_index}, otherwise control
+  //   goes to {if_not_found_no_insertion_index}. In both cases {var_name_index}
+  //   contains the index of the key field to insert the given name at.
   template <typename Dictionary>
   void NameDictionaryLookup(TNode<Dictionary> dictionary,
                             TNode<Name> unique_name, Label* if_found,
                             TVariable<IntPtrT>* var_name_index,
-                            Label* if_not_found,
-                            LookupMode mode = kFindExisting);
+                            Label* if_not_found_no_insertion_index,
+                            LookupMode mode = kFindExisting,
+                            Label* if_not_found_with_insertion_index = nullptr);
 
   TNode<Word32T> ComputeSeededHash(TNode<IntPtrT> key);
 
+  // Looks up an entry in a NameDictionaryBase successor. If the entry is found
+  // control goes to {if_found} and {var_name_index} contains an index of the
+  // key field of the entry found. If the key is not found control goes to
+  // {if_not_found}.
   void NumberDictionaryLookup(TNode<NumberDictionary> dictionary,
                               TNode<IntPtrT> intptr_index, Label* if_found,
                               TVariable<IntPtrT>* var_entry,
@@ -3548,8 +3586,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                    TNode<Smi> enum_index);
 
   template <class Dictionary>
-  void AddToDictionary(TNode<Dictionary> dictionary, TNode<Name> key,
-                       TNode<Object> value, Label* bailout);
+  void AddToDictionary(
+      TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
+      Label* bailout,
+      base::Optional<TNode<IntPtrT>> insertion_index = base::nullopt);
 
   // Tries to check if {object} has own {unique_name} property.
   void TryHasOwnProperty(TNode<HeapObject> object, TNode<Map> map,
@@ -3875,6 +3915,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void TrapAllocationMemento(TNode<JSObject> object, Label* memento_found);
 
+  // Helpers to look up MemoryChunk/Page metadata for a given address.
+  // Equivalent to MemoryChunkHeader::FromAddress().
+  TNode<IntPtrT> PageHeaderFromAddress(TNode<IntPtrT> address);
+  // Equivalent to MemoryChunkHeader::MemoryChunk().
+  TNode<IntPtrT> PageFromPageHeader(TNode<IntPtrT> address);
+  // Equivalent to BasicMemoryChunk::FromAddress().
   TNode<IntPtrT> PageFromAddress(TNode<IntPtrT> address);
 
   // Store a weak in-place reference into the FeedbackVector.

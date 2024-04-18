@@ -81,6 +81,7 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
   const returnCount =
       Convert<intptr>(*torque_internal::unsafe::NewReference<int32>(
           serializedSig.object, serializedSig.offset));
+  dcheck(returnCount < serializedSig.length);
   const paramCount: intptr = serializedSig.length - returnCount - 1;
   const returnTypes = Subslice(serializedSig, Convert<intptr>(1), returnCount)
       otherwise unreachable;
@@ -261,6 +262,8 @@ transitioning macro WasmToJSWrapper(ref: WasmApiFunctionRef): WasmToJSResult {
         *toHighRef = Signed(pair.high);
       }
     } else {
+      const retKind = retType & kValueTypeKindBitsMask;
+      dcheck(retKind == ValueKind::kRef || retKind == ValueKind::kRefNull);
       dcheck(ref.instance == Undefined || Is<WasmInstanceObject>(ref.instance));
       const trustedData = ref.instance == Undefined ?
           Undefined :

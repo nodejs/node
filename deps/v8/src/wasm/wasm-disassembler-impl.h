@@ -69,6 +69,9 @@ V8_EXPORT_PRIVATE void PrintSignatureOneLine(
     IndexAsComment indices_as_comments = NamesProvider::kDontPrintIndex);
 
 class OffsetsProvider;
+// Typed weakly so we don't need to expose the {OffsetsProvider} class (which
+// is an implementation of the {ITracer} interface).
+V8_EXPORT_PRIVATE std::unique_ptr<ITracer> AllocateOffsetsProvider();
 
 ////////////////////////////////////////////////////////////////////////////////
 // FunctionBodyDisassembler.
@@ -85,8 +88,10 @@ class V8_EXPORT_PRIVATE FunctionBodyDisassembler
                            const uint8_t* end, uint32_t offset,
                            const ModuleWireBytes wire_bytes,
                            NamesProvider* names)
-      : WasmDecoder<ValidationTag>(zone, module, WasmFeatures::All(), detected,
-                                   sig, start, end, offset),
+      : WasmDecoder<ValidationTag>(
+            zone, module, WasmFeatures::All(), detected, sig,
+            module->types[module->functions[func_index].sig_index].is_shared,
+            start, end, offset),
         func_index_(func_index),
         wire_bytes_(wire_bytes),
         names_(names) {}
@@ -135,7 +140,8 @@ class ModuleDisassembler {
   V8_EXPORT_PRIVATE ModuleDisassembler(
       MultiLineStringBuilder& out, const WasmModule* module,
       NamesProvider* names, const ModuleWireBytes wire_bytes,
-      AccountingAllocator* allocator, bool collect_offsets,
+      AccountingAllocator* allocator,
+      std::unique_ptr<ITracer> offsets_provider = {},
       std::vector<int>* function_body_offsets = nullptr);
   V8_EXPORT_PRIVATE ~ModuleDisassembler();
 

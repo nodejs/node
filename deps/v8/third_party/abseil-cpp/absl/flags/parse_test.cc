@@ -25,6 +25,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/internal/scoped_set_env.h"
+#include "absl/flags/config.h"
 #include "absl/flags/flag.h"
 #include "absl/flags/internal/parse.h"
 #include "absl/flags/internal/usage.h"
@@ -242,6 +243,12 @@ using testing::HasSubstr;
 class ParseTest : public testing::Test {
  public:
   ~ParseTest() override { flags::SetFlagsHelpMode(flags::HelpMode::kNone); }
+
+  void SetUp() override {
+#if ABSL_FLAGS_STRIP_NAMES
+    GTEST_SKIP() << "This test requires flag names to be present";
+#endif
+  }
 
  private:
   absl::FlagSaver flag_saver_;

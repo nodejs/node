@@ -78,3 +78,9 @@ extern class ObjectTemplateInfo extends TemplateInfo {
   constructor: FunctionTemplateInfo|Undefined;
   data: SmiTagged<ObjectTemplateInfoFlags>;
 }
+
+@generateBodyDescriptor
+extern class DictionaryTemplateInfo extends HeapObject {
+  property_names: FixedArray;
+  fully_populated_map: Weak<Map>;
+}

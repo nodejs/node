@@ -18,22 +18,6 @@
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/use-map.h"
 
-// TODO(nicohartmann@):
-// During the transition period to a generic instruction selector, some
-// instantiations with TurboshaftAdapter will still call functions with
-// Node* arguments. Use `DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK` to define
-// a temporary fallback for these functions such that compilation is possible
-// while transitioning the instruction selector incrementally. Once all uses
-// of Node*, BasicBlock*, ... have been replaced, remove those fallbacks.
-#define DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(ret, name)                     \
-  template <typename... Args>                                                  \
-  std::enable_if_t<Adapter::IsTurboshaft &&                                    \
-                       v8::internal::compiler::detail::AnyTurbofanNodeOrBlock< \
-                           Args...>::value,                                    \
-                   ret>                                                        \
-  name(Args...) {                                                              \
-    UNREACHABLE();                                                             \
-  }
 
 namespace v8::internal::compiler {
 namespace detail {
@@ -292,6 +276,10 @@ struct TurbofanAdapter {
         default:
           UNREACHABLE();
       }
+    }
+    bool is_atomic() const {
+      return node_->opcode() == IrOpcode::kWord32AtomicStore ||
+             node_->opcode() == IrOpcode::kWord64AtomicStore;
     }
 
     node_t base() const { return node_->InputAt(0); }
@@ -667,24 +655,40 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       op_ = &graph->Get(node_).Cast<turboshaft::ConstantOp>();
     }
 
-    bool is_int32() const { return op_->kind == Kind::kWord32; }
+    bool is_int32() const {
+      return op_->kind == Kind::kWord32 || (op_->kind == Kind::kSmi && !Is64());
+    }
     bool is_relocatable_int32() const {
       // We don't have this in turboshaft currently.
       return false;
     }
     int32_t int32_value() const {
       DCHECK(is_int32() || is_relocatable_int32());
-      return op_->word32();
+      if (op_->kind == Kind::kWord32) {
+        return op_->word32();
+      } else {
+        DCHECK_EQ(op_->kind, Kind::kSmi);
+        DCHECK(!Is64());
+        return static_cast<int32_t>(op_->smi().ptr());
+      }
     }
-    bool is_int64() const { return op_->kind == Kind::kWord64; }
+    bool is_int64() const {
+      return op_->kind == Kind::kWord64 || (op_->kind == Kind::kSmi && Is64());
+    }
     bool is_relocatable_int64() const {
       return op_->kind == Kind::kRelocatableWasmCall ||
              op_->kind == Kind::kRelocatableWasmStubCall;
     }
     int64_t int64_value() const {
-      if (is_int64()) return op_->word64();
-      DCHECK(is_relocatable_int64());
-      return static_cast<int64_t>(op_->integral());
+      if (op_->kind == Kind::kWord64) {
+        return op_->word64();
+      } else if (op_->kind == Kind::kSmi) {
+        DCHECK(Is64());
+        return static_cast<int64_t>(op_->smi().ptr());
+      } else {
+        DCHECK(is_relocatable_int64());
+        return static_cast<int64_t>(op_->integral());
+      }
     }
     bool is_heap_object() const { return op_->kind == Kind::kHeapObject; }
     bool is_compressed_heap_object() const {
@@ -743,7 +747,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       UNREACHABLE();
     }
     node_t frame_state() const {
-      if (call_op_) return call_op_->frame_state();
+      if (call_op_) return call_op_->frame_state().value();
       UNREACHABLE();
     }
     base::Vector<const node_t> arguments() const {
@@ -930,6 +934,7 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
       return op_->kind.with_trap_handler ? MemoryAccessKind::kProtected
                                          : MemoryAccessKind::kNormal;
     }
+    bool is_atomic() const { return op_->kind.is_atomic; }
 
     node_t base() const { return op_->base(); }
     optional_node_t index() const { return op_->index(); }
@@ -1300,7 +1305,8 @@ struct TurboshaftAdapter : public turboshaft::OperationMatcher {
     DCHECK(is_stack_slot(node));
     const turboshaft::StackSlotOp& stack_slot =
         graph_->Get(node).Cast<turboshaft::StackSlotOp>();
-    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment);
+    return StackSlotRepresentation(stack_slot.size, stack_slot.alignment,
+                                   stack_slot.is_tagged);
   }
   bool is_integer_constant(node_t node) const {
     if (const auto constant =

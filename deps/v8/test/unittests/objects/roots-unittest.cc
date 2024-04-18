@@ -82,6 +82,12 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
 
   return false;
 }
+
+// Some mutable roots may initially point to undefined until they are properly
+// initialized.
+bool IsUninitialized(Handle<Object> object) {
+  return !IsTrustedObject(*object) && IsUndefined(*object);
+}
 }  // namespace
 
 // The CHECK_EQ line is there just to ensure that the root is publicly
@@ -91,7 +97,7 @@ bool CanBeInReadOnlySpace(Factory* factory, Handle<Object> object) {
   Handle<Object> name = factory->name();                             \
   CHECK_EQ(*name, heap->name());                                     \
   if (IsHeapObject(*name) && !CanBeInReadOnlySpace(factory, name) && \
-      !IsUndefined(*name, i_isolate())) {                            \
+      !IsUninitialized(name)) {                                      \
     CHECK_NE(RO_SPACE, GetSpaceFromObject(HeapObject::cast(*name))); \
   }
 

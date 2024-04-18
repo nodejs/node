@@ -79,10 +79,8 @@ Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map) {
-  return NewFastOrSlowJSObjectFromMap(
-      map, V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL
-               ? SwissNameDictionary::kInitialCapacity
-               : NameDictionary::kInitialCapacity);
+  return NewFastOrSlowJSObjectFromMap(map,
+                                      PropertyDictionary::kInitialCapacity);
 }
 
 Handle<Object> Factory::NewURIError() {

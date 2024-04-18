@@ -24,15 +24,10 @@ Tagged<ByteArray> Code::raw_position_table() const {
   return TaggedField<ByteArray, kPositionTableOffset>::load(*this);
 }
 
-Tagged<HeapObject> Code::raw_deoptimization_data_or_interpreter_data(
+Tagged<Object> Code::raw_deoptimization_data_or_interpreter_data(
     IsolateForSandbox isolate) const {
-  Tagged<HeapObject> value =
-      TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
-          *this);
-  if (IsBytecodeWrapper(value)) {
-    return BytecodeWrapper::cast(value)->bytecode(isolate);
-  }
-  return value;
+  return RawProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset)
+      .load();
 }
 
 void Code::ClearEmbeddedObjects(Heap* heap) {

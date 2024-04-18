@@ -828,6 +828,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kJSStoreContext:
+    case IrOpcode::kJSStoreScriptContext:
       CheckNotTyped(node);
       break;
     case IrOpcode::kJSCreateFunctionContext:
@@ -1585,6 +1586,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
     case IrOpcode::kCheckFloat64Hole:
+      CheckValueInputIs(node, 0, Type::NumberOrHole());
+      CheckTypeIs(node, Type::NumberOrUndefined());
+      break;
+    case IrOpcode::kChangeFloat64HoleToTagged:
       CheckValueInputIs(node, 0, Type::NumberOrHole());
       CheckTypeIs(node, Type::NumberOrUndefined());
       break;

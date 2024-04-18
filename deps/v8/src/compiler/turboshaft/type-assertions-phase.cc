@@ -21,10 +21,9 @@ void TypeAssertionsPhase::Run(Zone* temp_zone) {
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::
           kPreserveFromInputGraph};
 
-  turboshaft::CopyingPhase<turboshaft::VariableReducerHotfix,
-                           turboshaft::AssertTypesReducer,
+  turboshaft::CopyingPhase<turboshaft::AssertTypesReducer,
                            turboshaft::ValueNumberingReducer,
-                           turboshaft::TypeInferenceReducer>::Run<false>(temp_zone);
+                           turboshaft::TypeInferenceReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

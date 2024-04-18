@@ -427,7 +427,9 @@ ValueNode* FromFloat64ToTagged(MaglevGraphBuilder* builder, NodeType node_type,
   DCHECK(!value->properties().is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
-  ValueNode* tagged = Node::New<Float64ToTagged>(builder->zone(), {value});
+  ValueNode* tagged = Node::New<Float64ToTagged>(
+      builder->zone(), {value},
+      Float64ToTagged::ConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().Add(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);
@@ -442,7 +444,9 @@ ValueNode* FromHoleyFloat64ToTagged(MaglevGraphBuilder* builder,
   DCHECK(!value->properties().is_conversion());
 
   // Create a tagged version, and insert it at the end of the predecessor.
-  ValueNode* tagged = Node::New<HoleyFloat64ToTagged>(builder->zone(), {value});
+  ValueNode* tagged = Node::New<HoleyFloat64ToTagged>(
+      builder->zone(), {value},
+      HoleyFloat64ToTagged::ConversionMode::kCanonicalizeSmi);
 
   predecessor->nodes().Add(tagged);
   builder->compilation_unit()->RegisterNodeInGraphLabeller(tagged);

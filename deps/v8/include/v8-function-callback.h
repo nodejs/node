@@ -475,7 +475,8 @@ Local<Value> ReturnValue<T>::Get() const {
 #endif  // V8_STATIC_ROOTS_BOOL
     return Undefined(GetIsolate());
   }
-  return Local<Value>::New(GetIsolate(), reinterpret_cast<Value*>(value_));
+  return Local<Value>::New(GetIsolate(),
+                           internal::ValueHelper::SlotAsValue<Value>(value_));
 }
 
 template <typename T>

@@ -35,15 +35,28 @@ class TrustedObject : public HeapObject {
   DECL_CAST(TrustedObject)
   DECL_VERIFIER(TrustedObject)
 
-  // Protected pointers, i.e. pointers between objects in trusted space, must
-  // only be used to reference a trusted object from another trusted object.
-  // Using them from inside the sandbox would not be safe (they would not be
-  // "protected"). As such, the slot accessor for these slots only exists on
-  // TrustedObjects but not on any other HeapObjects.
+  // Protected pointers.
+  //
+  // These are pointers for which it is guaranteed that neither the pointer-to
+  // object nor the pointer itself can be modified by an attacker. In practice,
+  // this means that they must be pointers between objects in trusted space,
+  // outside of the sandbox, where they are protected from an attacker. As
+  // such, the slot accessors for these slots only exist on TrustedObjects but
+  // not on other HeapObjects.
+  inline Tagged<TrustedObject> ReadProtectedPointerField(int offset) const;
+  inline Tagged<TrustedObject> ReadProtectedPointerField(
+      int offset, AcquireLoadTag tag) const;
+  inline void WriteProtectedPointerField(int offset,
+                                         Tagged<TrustedObject> value);
+  inline void WriteProtectedPointerField(int offset,
+                                         Tagged<TrustedObject> value,
+                                         ReleaseStoreTag tag);
+  inline bool IsProtectedPointerFieldCleared(int offset) const;
+  inline void ClearProtectedPointerField(int offset);
+
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
 
   static constexpr int kHeaderSize = HeapObject::kHeaderSize;
-  static constexpr int kize = kHeaderSize;
 
   OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);
 };

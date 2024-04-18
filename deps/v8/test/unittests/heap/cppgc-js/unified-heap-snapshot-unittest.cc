@@ -533,7 +533,7 @@ TEST_F(UnifiedHeapSnapshotTest, MergedWrapperNode) {
       {kExpectedCppRootsName, GetExpectedName<GCedWithJSRef>(),
        // GCedWithJSRef is merged into MergedObject, replacing its name.
        "NextObject"}));
-  const size_t js_size = Utils::OpenHandle(*wrapper_object)->Size();
+  const size_t js_size = Utils::OpenDirectHandle(*wrapper_object)->Size();
 #if CPPGC_SUPPORTS_OBJECT_NAMES
   const size_t cpp_size =
       cppgc::internal::HeapObjectHeader::FromObject(gc_w_js_ref.Get())

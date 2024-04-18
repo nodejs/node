@@ -1298,6 +1298,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
       Label return_location;
       // Put the return address in a stack slot.
 #if V8_ENABLE_WEBASSEMBLY
@@ -1306,14 +1307,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ larl(r0, &return_location);
         __ StoreU64(r0,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       }
       __ bind(&return_location);
 #if V8_ENABLE_WEBASSEMBLY

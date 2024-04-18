@@ -44,7 +44,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(
     return result;
   }
   if (is_found) {
-    *is_found = it.state() != LookupIterator::INTEGER_INDEXED_EXOTIC &&
+    *is_found = it.state() != LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND &&
                 it.state() != LookupIterator::NOT_FOUND;
   }
 

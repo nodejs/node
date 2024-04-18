@@ -70,15 +70,15 @@ static void DumpKnownMap(FILE* out, i::Heap* heap, const char* space_name,
 
 static void DumpKnownObject(FILE* out, i::Heap* heap, const char* space_name,
                             i::Tagged<i::HeapObject> object) {
-#define RO_ROOT_LIST_CASE(type, name, CamelName)        \
-  if (root_name == nullptr && object == roots.name()) { \
-    root_name = #CamelName;                             \
-    root_index = i::RootIndex::k##CamelName;            \
+#define RO_ROOT_LIST_CASE(type, name, CamelName)                 \
+  if (root_name == nullptr && object.SafeEquals(roots.name())) { \
+    root_name = #CamelName;                                      \
+    root_index = i::RootIndex::k##CamelName;                     \
   }
-#define ROOT_LIST_CASE(type, name, CamelName)           \
-  if (root_name == nullptr && object == heap->name()) { \
-    root_name = #CamelName;                             \
-    root_index = i::RootIndex::k##CamelName;            \
+#define ROOT_LIST_CASE(type, name, CamelName)                    \
+  if (root_name == nullptr && object.SafeEquals(heap->name())) { \
+    root_name = #CamelName;                                      \
+    root_index = i::RootIndex::k##CamelName;                     \
   }
 
   i::ReadOnlyRoots roots(heap);

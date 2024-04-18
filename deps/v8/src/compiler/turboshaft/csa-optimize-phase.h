@@ -9,6 +9,12 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+struct CsaEarlyMachineOptimizationPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(CsaEarlyMachineOptimization)
+
+  void Run(Zone* temp_zone);
+};
+
 struct CsaLoadEliminationPhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(CsaLoadElimination)
 

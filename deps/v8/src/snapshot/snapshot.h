@@ -118,11 +118,17 @@ class Snapshot : public AllStatic {
 #endif  // DEBUG
 };
 
-// Convenience wrapper around snapshot data blob creation used e.g. by tests and
+// Convenience wrapper around snapshot data blob creation used e.g. by tests.
+V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source = nullptr,
+    Snapshot::SerializerFlags serializer_flags =
+        Snapshot::kDefaultSerializerFlags);
+// Convenience wrapper around snapshot data blob creation used e.g. by
 // mksnapshot.
 V8_EXPORT_PRIVATE v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source = nullptr, Isolate* isolate = nullptr,
+    const char* embedded_source, v8::SnapshotCreator& snapshot_creator,
     Snapshot::SerializerFlags serializer_flags =
         Snapshot::kDefaultSerializerFlags);
 // .. and for inspector-test.cc which needs an extern declaration due to
@@ -145,8 +151,7 @@ void SetSnapshotFromFile(StartupData* snapshot_blob);
 class SnapshotCreatorImpl final {
  public:
   // This ctor is used for internal usages:
-  // 1. mksnapshot: Could be refactored to use public APIs.
-  // 2. %ProfileCreateSnapshotDataBlob(): Needs to hook into an existing
+  // 1. %ProfileCreateSnapshotDataBlob(): Needs to hook into an existing
   //    Isolate.
   //
   // TODO(v8:14490): Refactor 1. to go through the public API and simplify this
@@ -174,6 +179,9 @@ class SnapshotCreatorImpl final {
       SnapshotCreator::FunctionCodeHandling function_code_handling,
       Snapshot::SerializerFlags serializer_flags =
           Snapshot::kDefaultSerializerFlags);
+
+  static SnapshotCreatorImpl* FromSnapshotCreator(
+      v8::SnapshotCreator* snapshot_creator);
 
   static constexpr size_t kDefaultContextIndex = 0;
   static constexpr size_t kFirstAddtlContextIndex = kDefaultContextIndex + 1;

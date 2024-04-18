@@ -2032,31 +2032,41 @@ class ConstantPoolPointerForwarder {
     for (Handle<BytecodeArray> bytecode_array : bytecode_arrays_to_update_) {
       local_heap_->Safepoint();
       DisallowGarbageCollection no_gc;
-      Tagged<FixedArray> constant_pool = bytecode_array->constant_pool();
-      IterateConstantPool(constant_pool);
+      IterateConstantPool(bytecode_array->constant_pool());
     }
   }
 
   bool HasAnythingToForward() const { return !forwarding_table_.empty(); }
 
  private:
-  void IterateConstantPool(Tagged<FixedArray> constant_pool) {
-    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
-      Tagged<Object> obj = constant_pool->get(i);
-      if (IsSmi(obj)) continue;
-      Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
-      if (IsFixedArray(heap_obj, cage_base_)) {
-        // Constant pools can have nested fixed arrays, but such relationships
-        // are acyclic and never more than a few layers deep, so recursion is
-        // fine here.
-        IterateConstantPool(FixedArray::cast(heap_obj));
-      } else if (IsSharedFunctionInfo(heap_obj, cage_base_)) {
-        auto it = forwarding_table_.find(
-            SharedFunctionInfo::cast(heap_obj)->function_literal_id());
-        if (it != forwarding_table_.end()) {
-          constant_pool->set(i, *it->second);
-        }
+  template <typename TArray>
+  void IterateConstantPoolEntry(Tagged<TArray> constant_pool, int i) {
+    Tagged<Object> obj = constant_pool->get(i);
+    if (IsSmi(obj)) return;
+    Tagged<HeapObject> heap_obj = HeapObject::cast(obj);
+    if (IsFixedArray(heap_obj, cage_base_)) {
+      // Constant pools can have nested fixed arrays, but such relationships
+      // are acyclic and never more than a few layers deep, so recursion is
+      // fine here.
+      IterateConstantPoolNestedArray(FixedArray::cast(heap_obj));
+    } else if (IsSharedFunctionInfo(heap_obj, cage_base_)) {
+      auto it = forwarding_table_.find(
+          SharedFunctionInfo::cast(heap_obj)->function_literal_id());
+      if (it != forwarding_table_.end()) {
+        constant_pool->set(i, *it->second);
       }
+    }
+  }
+
+  void IterateConstantPool(Tagged<TrustedFixedArray> constant_pool) {
+    for (int i = 0, length = constant_pool->length(); i < length; ++i) {
+      IterateConstantPoolEntry(constant_pool, i);
+    }
+  }
+
+  void IterateConstantPoolNestedArray(Tagged<FixedArray> nested_array) {
+    for (int i = 0, length = nested_array->length(); i < length; ++i) {
+      IterateConstantPoolEntry(nested_array, i);
     }
   }
 

@@ -67,6 +67,116 @@ function customRejectingThenableAfterDelay() {
   }
 }
 
+function exceptionInThen() {
+  return Promise.resolve().then(() => {throw new Error('fail');});
+}
+
+function exceptionInCatch() {
+  return Promise.reject(new Error('will catch')).catch(() => {
+    console.log('throwing again');
+    throw new Error('fail');
+  });
+}
+
+async function exceptionInAsyncGenerator() {
+  async function* gen() {
+    yield 1;
+    throw new Error('fail');
+  }
+  for await(const x of gen()) {}
+}
+
+async function rejectInGenerator() {
+  function* gen() {
+    yield promiseReject();
+  }
+  for await(const x of gen()) {}
+}
+
+async function rejectAfterDelayInGenerator() {
+  function* gen() {
+    yield rejectAfterDelayInPromiseConstructor();
+  }
+  for await(const x of gen()) {}
+}
+
+async function rejectInAsyncGenerator() {
+  async function* gen() {
+    yield promiseReject();
+  }
+  for await(const x of gen()) {}
+}
+
+async function rejectAfterDelayInAsyncGenerator() {
+  async function* gen() {
+    yield rejectAfterDelayInPromiseConstructor();
+  }
+  for await(const x of gen()) {}
+}
+
+async function asyncGeneratorThrowMethod() {
+  async function* gen() {
+    yield 1;
+  }
+  const g = gen();
+  await g.next();
+  await g.throw(new Error('fail'));
+}
+
+async function asyncCatchingGeneratorThrowMethod() {
+  async function* gen() {
+    try {
+      yield 1;
+    } catch (e) {
+      console.log('caught by generator');
+    }
+  }
+  const g = gen();
+  await g.next();
+  await g.throw(new Error('fail'));
+}
+
+async function throwInAsyncGenerator() {
+  async function* gen() {
+    yield 1;
+    throw new Error('fail');
+  }
+  for await(const x of gen()) {}
+}
+
+function promiseRejectInTry() {
+  // A synchronous try can't catch a promise rejection.
+  try {
+    return Promise.reject(new Error('fail'));
+  } catch (e) {
+    console.log('fake');  // Will not catch
+  }
+}
+
+function rejectAfterFulfillInPromiseConstructor() {
+  return new Promise((pass, reject) => {
+    pass('ok');
+    console.log('after pass');
+    reject(new Error('fail'));
+    console.log('after reject');
+  });
+}
+
+function rejectAfterDelayAfterFulfillInPromiseConstructor() {
+  return new Promise((pass, reject) => {
+    pass('ok');
+    setTimeout(() => reject(new Error('fail')), 0);
+  });
+}
+
+function throwAfterFulfillInPromiseConstructor() {
+  return new Promise((pass, reject) => {
+    pass('ok');
+    console.log('after pass');
+    throw new Error('fail');
+  });
+}
+
 async function dontHandleAsync(fn) {
   // Unhandled exception that is trivial to predict,
   // for comparison.
@@ -234,6 +344,76 @@ async function ignoredPromiseAnyInTry(fn) {
   }
 }
 
+async function ignoredPromiseAnyWithIndirection(fn) {
+  // Similar to other ignored cases but we have to walk the promise tree to
+  // find the already fulfilled promise.
+  async function indirectThrow() {
+    await fn();
+  }
+  async function indirectAny() {
+    await Promise.any([Promise.resolve(), indirectThrow()]);
+  }
+  await indirectAny();
+}
+
+async function ignoredPromiseAnyWithIndirectionInTry(fn) {
+  async function indirectThrow() {
+    await fn();
+  }
+
+  try {
+    // Similar to other ignored cases but we have to walk the promise tree to
+    // find the already fulfilled promise.
+    await Promise.any([Promise.resolve(), indirectThrow()]);
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function awaitAfterDelayInTry(fn) {
+  try {
+    // Predicts correctly if thrown immediately but if not no handler will
+    // be attached when it throws.
+    const promise = fn();
+    console.log('sleeping');
+    await delay();
+    await delay();
+    console.log('awaiting');
+    await promise;
+  } catch(e) {
+    console.log('caught');
+  }
+}
+
+async function catchInAsyncGenerator(fn) {
+  async function* gen() {
+    try {
+      yield fn();
+    } catch (e) {
+      console.log('caught');
+    }
+  }
+  for await(const x of gen()) {}
+}
+
+async function catchInGenerator(fn) {
+  function* gen() {
+    try {
+      yield fn();
+    } catch (e) {
+      console.log('fake');  // Will not catch
+    }
+  }
+  for await(const x of gen()) {}
+}
+
+async function catchAndAlsoDont(fn) {
+  const uncaughtPromise = fn();
+  const caughtPromise = uncaughtPromise.catch(() => console.log('caught'));
+  await uncaughtPromise;
+  console.log('never reached');
+}
+
 function delay() {
   return new Promise(resolve => setTimeout(resolve, 0));
 }
@@ -262,7 +442,30 @@ async function testWrapper(throwFunc, handleFunc) {
 
 // Order of functions should match above so that line numbers match
 const basicThrowFunctions = [rejectAfterDelayInPromiseConstructor, promiseReject];
-const advancedThrowFunctions = [throwInPromiseConstructor, rejectInPromiseConstructor, rejectAfterDelayInTryInPromiseConstructor, rejectBindAfterDelay, throwFromAsync, throwFromAsyncAfterDelay, customRejectingThenable, customRejectingThenableAfterDelay];
+const advancedThrowFunctions = [
+    throwInPromiseConstructor,
+    rejectInPromiseConstructor,
+    rejectAfterDelayInTryInPromiseConstructor,
+    rejectBindAfterDelay,
+    throwFromAsync,
+    throwFromAsyncAfterDelay,
+    customRejectingThenable,
+    customRejectingThenableAfterDelay,
+    exceptionInThen,
+    exceptionInCatch,
+    exceptionInAsyncGenerator,
+    rejectInGenerator,
+    rejectAfterDelayInGenerator,
+    rejectInAsyncGenerator,
+    rejectAfterDelayInAsyncGenerator,
+    asyncGeneratorThrowMethod,
+    asyncCatchingGeneratorThrowMethod,
+    throwInAsyncGenerator,
+    promiseRejectInTry,
+    rejectAfterFulfillInPromiseConstructor,
+    rejectAfterDelayAfterFulfillInPromiseConstructor,
+    throwAfterFulfillInPromiseConstructor,
+];
 const basicCatchFunctions = [dontHandleAsync, awaitAndCreateInTry];
 const advancedCatchFunctions = [
     catchMethod,
@@ -286,6 +489,12 @@ const advancedCatchFunctions = [
     uncaughtPromiseAny,
     ignoredPromiseAny,
     ignoredPromiseAnyInTry,
+    ignoredPromiseAnyWithIndirection,
+    ignoredPromiseAnyWithIndirectionInTry,
+    awaitAfterDelayInTry,
+    catchInAsyncGenerator,
+    catchInGenerator,
+    catchAndAlsoDont,
 ];
 const helpers = [delay, testWrapper];
 
@@ -294,39 +503,106 @@ const startLine = 9;  // Should match first line of first function
 contextGroup.addScript(file, startLine, 0, 'catch-prediction.js');
 session.setupScriptMap();
 
+let pauseCount = 0
+let uncaught = false;
+let predictedUncaught = null;
+let exceptionDetails = null;
+let exceptionStackTrace = null;
+let exceptionId = null;
+
+function lazyLogException() {
+  if (exceptionDetails || exceptionStackTrace) {
+    InspectorTest.log(`Uncaught exception: ${exceptionDetails}`);
+    session.logAsyncStackTrace(exceptionStackTrace);
+  }
+  exceptionDetails = null;
+  exceptionStackTrace = null;
+}
+
+function uncaughtString(uncaught) {
+  return ((uncaught && 'uncaught') ?? '(undefined)') || 'caught';
+}
+
 Protocol.Debugger.onPaused(message => {
-  InspectorTest.log('Paused');
+  lazyLogException();
+  predictedUncaught = message.params.data?.uncaught;
+  InspectorTest.log(`Paused on ${uncaughtString(predictedUncaught)} ${message.params.reason}`);
   session.logCallFrames(message.params.callFrames);
   session.logAsyncStackTrace(message.params.asyncStackTrace);
   InspectorTest.log('');
+  pauseCount++;
   Protocol.Debugger.resume();
 });
 
-Protocol.Console.onMessageAdded(event => InspectorTest.log('console: ' + event.params.message.text));
+Protocol.Console.onMessageAdded(event => {
+  lazyLogException();
+  InspectorTest.log('console: ' + event.params.message.text);
+});
 Protocol.Debugger.enable();
 Protocol.Debugger.setAsyncCallStackDepth({maxDepth: 6});
 Protocol.Console.enable();
-Protocol.Runtime.onExceptionRevoked(event => InspectorTest.log('Exception revoked for reason: ' + event.params.reason));
+Protocol.Runtime.onExceptionRevoked(event => {
+  if (!uncaught) {
+    InspectorTest.log('ERROR: Revoked exception when none thrown');
+  } else if (!exceptionId) {
+    InspectorTest.log('ERROR: No exception id');
+  } else if (exceptionId !== event.params.exceptionId) {
+    InspectorTest.log('ERROR: exception id does not match');
+  }
+  exceptionId = null;
+  uncaught = false;
+  let message = 'Previously printed uncaught exception revoked';
+  if (exceptionDetails || exceptionStackTrace) {
+    message = 'Uncaught message immediately revoked';
+    exceptionDetails = null;
+    exceptionStackTrace = null;
+  }
+  InspectorTest.log(message + ' for reason: ' + event.params.reason)
+});
 Protocol.Runtime.onExceptionThrown(event => {
-  InspectorTest.log(`Uncaught exception: ${event.params.exceptionDetails.text}`);
-  session.logAsyncStackTrace(event.params.exceptionDetails.stackTrace);
+  lazyLogException();
+  if (uncaught) {
+    InspectorTest.log('ERROR: Uncaught exception thrown twice');
+  }
+  uncaught = true;
+  // Save this info and lazily log it so we can not log it when it is
+  // immediately revoked.
+  exceptionDetails = event.params.exceptionDetails.text;
+  exceptionStackTrace = event.params.exceptionDetails.stackTrace;
+  exceptionId = event.params.exceptionDetails.exceptionId;
 });
 Protocol.Runtime.enable();
 
 const testFunctions = [];
 
 function addTestFunctionsFor(throwFunc, catchFunc) {
-  for (const state of ['caught', 'uncaught']) {
-    testFunctions.push(async function testCase(next) {
-      InspectorTest.log(`> Throwing from ${throwFunc.name}, handling with ${catchFunc.name}, breaking on ${state} exceptions:`);
-      await Protocol.Debugger.setPauseOnExceptions({state});
-      await Protocol.Runtime.evaluate({expression: `testWrapper(${throwFunc.name}, ${catchFunc.name})//# sourceURL=test_framework.js`, awaitPromise: true});
-    });
+  async function testCase(next) {
+    InspectorTest.log(`> Throwing from ${throwFunc.name}, handling with ${catchFunc.name}`);
+    await Protocol.Debugger.setPauseOnExceptions({state: 'all'});
+    uncaught = false;
+    pauseCount = 0;
+    predictedUncaught = null;
+    exceptionId = null;
+    await Protocol.Runtime.evaluate({expression: `testWrapper(${throwFunc.name}, ${catchFunc.name})//# sourceURL=test_framework.js`, awaitPromise: true});
+    lazyLogException();
+    InspectorTest.log('');
+    if (pauseCount !== 1) {
+      InspectorTest.log(`WARNING: Test paused ${pauseCount} times`);
+    }
+    if (pauseCount > 0) {
+      if (uncaught === predictedUncaught) {
+        InspectorTest.log('Correctly predicted as ' + uncaughtString(uncaught));
+      } else {
+        InspectorTest.log(`PREDICTION MISMATCH: Exception was ${uncaughtString(uncaught)} but was predicted to be ${uncaughtString(predictedUncaught)}`);
+      }
+    }
+    InspectorTest.log('------------------------------------------------------');
   }
+  testFunctions.push(testCase);
 }
 
-for (const catchFunc of basicCatchFunctions) {
-  for (const throwFunc of [...basicThrowFunctions, ...advancedThrowFunctions]) {
+for (const throwFunc of [...basicThrowFunctions, ...advancedThrowFunctions]) {
+  for (const catchFunc of basicCatchFunctions) {
     addTestFunctionsFor(throwFunc, catchFunc);
   }
 }

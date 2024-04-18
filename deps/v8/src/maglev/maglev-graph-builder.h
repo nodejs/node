@@ -169,6 +169,8 @@ struct FastField {
 
   enum { kUninitialized, kObject, kMutableDouble, kConstant } type;
 
+  bool IsInitialized();
+
   union {
     char uninitialized_marker;
     FastObject object;
@@ -540,6 +542,10 @@ class MaglevGraphBuilder {
 
     // Copy state.
     current_interpreter_frame_.CopyFrom(*compilation_unit_, merge_state);
+    // Expressions would have to be explicitly preserved across exceptions.
+    // However, at this point we do not know which ones might be used.
+    current_interpreter_frame_.known_node_aspects()
+        ->ClearAvailableExpressions();
 
     // Merges aren't simple fallthroughs, so we should reset the checkpoint
     // validity.
@@ -870,25 +876,33 @@ class MaglevGraphBuilder {
                                    Args&&... args) {
     static constexpr Opcode op = Node::opcode_of<NodeT>;
     static_assert(Node::participate_in_cse(op));
-    static_assert(IsValueNode(op));
     DCHECK(v8_flags.maglev_cse);
-    size_t tmp_value_number =
-        fast_hash_combine(NodeT::ValueNumberSeed(std::forward<Args>(args)...),
-                          base::hash_value(op));
 
-    static auto GetValueNumberOfInput = [](ValueNode* inp) -> size_t {
-      if (inp->value_number == 0) {
-        return base::hash_value(inp);
+    using options_result =
+        typename std::invoke_result<decltype(&NodeT::options),
+                                    const NodeT>::type;
+    static_assert(
+        std::is_assignable<options_result, std::tuple<Args...>>::value,
+        "Instruction participating in CSE needs options() returning "
+        "a tuple matching the constructor arguments");
+
+    uint32_t value_number;
+    {
+      size_t tmp_value_number = base::hash_value(op);
+      (
+          [&] {
+            tmp_value_number =
+                fast_hash_combine(tmp_value_number, gvn_hash_value(args));
+          }(),
+          ...);
+      for (const auto& inp : inputs) {
+        tmp_value_number =
+            fast_hash_combine(tmp_value_number, base::hash_value(inp));
       }
-      return inp->value_number;
-    };
-
-    for (const auto& inp : inputs) {
-      tmp_value_number =
-          fast_hash_combine(tmp_value_number, GetValueNumberOfInput(inp));
+      value_number = static_cast<uint32_t>(tmp_value_number);
     }
 
-    uint32_t value_number = static_cast<uint32_t>(tmp_value_number);
+    bool needs_epoch_check = StaticPropertiesForOpcode(op).can_read();
     auto exists = known_node_aspects().available_expressions.find(value_number);
     if (exists != known_node_aspects().available_expressions.end()) {
       auto candidate = exists->second.node;
@@ -899,20 +913,21 @@ class MaglevGraphBuilder {
                      (StaticPropertiesForOpcode(op) &
                       candidate->properties()) == candidate->properties());
       const bool epoch_check =
-          StaticPropertiesForOpcode(op).is_pure() ||
+          !needs_epoch_check ||
           known_node_aspects().effect_epoch() <= exists->second.effect_epoch;
       if (sanity_check && epoch_check) {
-        int i = 0;
-        for (const auto& inp : inputs) {
-          if (inp != candidate->input(i).node()) {
-            break;
+        if (static_cast<NodeT*>(candidate)->options() ==
+            std::tuple{std::forward<Args>(args)...}) {
+          int i = 0;
+          for (const auto& inp : inputs) {
+            if (inp != candidate->input(i).node()) {
+              break;
+            }
+            i++;
           }
-          i++;
-        }
-        if (static_cast<size_t>(i) == inputs.size()) {
-          // Currently, we maintain the invariant that ValueNumberSeed never
-          // has any collisions, thus we don't need to check anything else.
-          return static_cast<NodeT*>(candidate);
+          if (static_cast<size_t>(i) == inputs.size()) {
+            return static_cast<NodeT*>(candidate);
+          }
         }
       }
       if (!epoch_check) {
@@ -921,11 +936,10 @@ class MaglevGraphBuilder {
     }
     NodeT* node =
         NodeBase::New<NodeT>(zone(), inputs, std::forward<Args>(args)...);
-    node->value_number = value_number;
+    DCHECK_EQ(node->options(), std::tuple{std::forward<Args>(args)...});
     known_node_aspects().available_expressions[value_number] = {
-        node, !node->properties().is_pure()
-                  ? known_node_aspects().effect_epoch()
-                  : std::numeric_limits<uint32_t>::max()};
+        node, needs_epoch_check ? known_node_aspects().effect_epoch()
+                                : std::numeric_limits<uint32_t>::max()};
     return AttachExtraInfoAndAddToGraph(node);
   }
 
@@ -1053,8 +1067,13 @@ class MaglevGraphBuilder {
                                 ValueNode* value);
   void BuildLoadContextSlot(ValueNode* context, size_t depth, int slot_index,
                             ContextSlotMutability slot_mutability);
+  void BuildStoreContextSlotHelper(ValueNode* context, size_t depth,
+                                   int slot_index, ValueNode* value,
+                                   bool update_side_data);
   void BuildStoreContextSlot(ValueNode* context, size_t depth, int slot_index,
                              ValueNode* value);
+  void BuildStoreScriptContextSlot(ValueNode* context, size_t depth,
+                                   int slot_index, ValueNode* value);
 
   void BuildStoreReceiverMap(ValueNode* receiver, compiler::MapRef map);
 
@@ -1746,6 +1765,7 @@ class MaglevGraphBuilder {
 
 #define MAGLEV_REDUCED_BUILTIN(V)  \
   V(ArrayForEach)                  \
+  V(ArrayIsArray)                  \
   V(DataViewPrototypeGetInt8)      \
   V(DataViewPrototypeSetInt8)      \
   V(DataViewPrototypeGetInt16)     \
@@ -1920,6 +1940,11 @@ class MaglevGraphBuilder {
   ReduceResult BuildCheckValue(ValueNode* node, compiler::ObjectRef ref);
   ReduceResult BuildCheckValue(ValueNode* node, compiler::HeapObjectRef ref);
 
+  // Checks whether we're invalidating the constness of a const tracking let
+  // variable, and if yes, deopts.
+  void BuildCheckConstTrackingLetCell(ValueNode* context, ValueNode* value,
+                                      int index);
+
   bool CanElideWriteBarrier(ValueNode* object, ValueNode* value);
   void BuildStoreTaggedField(ValueNode* object, ValueNode* value, int offset);
   void BuildStoreTaggedFieldNoWriteBarrier(ValueNode* object, ValueNode* value,
@@ -1950,7 +1975,7 @@ class MaglevGraphBuilder {
   compiler::OptionalObjectRef TryFoldLoadConstantDataField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
-  base::Optional<double> TryFoldLoadConstantDoubleField(
+  base::Optional<Float64> TryFoldLoadConstantDoubleField(
       compiler::JSObjectRef holder,
       compiler::PropertyAccessInfo const& access_info);
 
@@ -1967,7 +1992,7 @@ class MaglevGraphBuilder {
       compiler::PropertyAccessInfo const& access_info, ValueNode* receiver,
       ValueNode* value);
 
-  ReduceResult BuildLoadJSArrayLength(ValueNode* js_array);
+  ValueNode* BuildLoadJSArrayLength(ValueNode* js_array);
 
   ReduceResult TryBuildPropertyLoad(
       ValueNode* receiver, ValueNode* lookup_start_object,
@@ -2152,6 +2177,12 @@ class MaglevGraphBuilder {
 
   void BuildToNumberOrToNumeric(Object::Conversion mode);
 
+  template <typename ControlNodeT, typename FTrue, typename FFalse,
+            typename... Args>
+  ValueNode* Select(FTrue if_true, FFalse if_false,
+                    std::initializer_list<ValueNode*> control_inputs,
+                    Args&&... args);
+
   void CalculatePredecessorCounts() {
     // Add 1 after the end of the bytecode so we can always write to the offset
     // after the last bytecode.
@@ -2308,7 +2339,7 @@ class MaglevGraphBuilder {
   struct ForInState {
     ValueNode* receiver = nullptr;
     ValueNode* cache_type = nullptr;
-    ValueNode* enum_cache = nullptr;
+    ValueNode* enum_cache_indices = nullptr;
     ValueNode* key = nullptr;
     ValueNode* index = nullptr;
     bool receiver_needs_map_check = false;
@@ -2359,9 +2390,54 @@ class MaglevGraphBuilder {
 #endif
 
  private:
-  size_t fast_hash_combine(size_t seed, size_t h) {
+  // Some helpers for CSE
+
+  static size_t fast_hash_combine(size_t seed, size_t h) {
     // Implementation from boost. Good enough for GVN.
     return h + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const T& in) {
+    return base::hash_value(in);
+  }
+
+  static size_t gvn_hash_value(const compiler::MapRef& map) {
+    return map.hash_value();
+  }
+
+  static size_t gvn_hash_value(const interpreter::Register& reg) {
+    return base::hash_value(reg.index());
+  }
+
+  static size_t gvn_hash_value(const Representation& rep) {
+    return base::hash_value(rep.kind());
+  }
+
+  static size_t gvn_hash_value(const ExternalReference& ref) {
+    return base::hash_value(ref.address());
+  }
+
+  static size_t gvn_hash_value(const PolymorphicAccessInfo& access_info) {
+    return access_info.hash_value();
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const v8::internal::ZoneCompactSet<T>& vector) {
+    size_t hash = base::hash_value(vector.size());
+    for (auto e : vector) {
+      hash = fast_hash_combine(hash, gvn_hash_value(e));
+    }
+    return hash;
+  }
+
+  template <typename T>
+  static size_t gvn_hash_value(const v8::internal::ZoneVector<T>& vector) {
+    size_t hash = base::hash_value(vector.size());
+    for (auto e : vector) {
+      hash = fast_hash_combine(hash, gvn_hash_value(e));
+    }
+    return hash;
   }
 };
 

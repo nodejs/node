@@ -93,6 +93,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <initializer_list>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -311,6 +312,10 @@ class AlphaNum {
  public:
   // No bool ctor -- bools convert to an integral type.
   // A bool ctor would also convert incoming pointers (bletch).
+
+  // Prevent brace initialization
+  template <typename T>
+  AlphaNum(std::initializer_list<T>) = delete;  // NOLINT(runtime/explicit)
 
   AlphaNum(int x)  // NOLINT(runtime/explicit)
       : piece_(digits_, static_cast<size_t>(

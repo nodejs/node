@@ -21,6 +21,9 @@ AllocationResult MainAllocator::AllocateRaw(int size_in_bytes,
   DCHECK_EQ(in_gc(), origin == AllocationOrigin::kGC);
   DCHECK_EQ(in_gc(), isolate_heap()->IsInGC());
 
+  // We are not supposed to allocate in fast c calls.
+  DCHECK_IMPLIES(is_main_thread(), !isolate_heap()->isolate()->InFastCCall());
+
   AllocationResult result;
 
   if (USE_ALLOCATION_ALIGNMENT_BOOL && alignment != kTaggedAligned) {

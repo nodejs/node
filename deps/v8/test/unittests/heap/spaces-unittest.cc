@@ -98,15 +98,13 @@ TEST_F(SpacesTest, WriteBarrierFromHeapObject) {
   Tagged<HeapObject> object1 =
       HeapObject::unchecked_cast(Tagged<Object>(address1));
   BasicMemoryChunk* chunk1 = BasicMemoryChunk::FromHeapObject(object1);
-  heap_internals::MemoryChunk* slim_chunk1 =
-      heap_internals::MemoryChunk::FromHeapObject(object1);
+  MemoryChunkHeader* slim_chunk1 = MemoryChunkHeader::FromHeapObject(object1);
   EXPECT_EQ(static_cast<void*>(chunk1), static_cast<void*>(slim_chunk1));
   constexpr Address address2 = 2 * Page::kPageSize - 1;
   Tagged<HeapObject> object2 =
       HeapObject::unchecked_cast(Tagged<Object>(address2));
   BasicMemoryChunk* chunk2 = BasicMemoryChunk::FromHeapObject(object2);
-  heap_internals::MemoryChunk* slim_chunk2 =
-      heap_internals::MemoryChunk::FromHeapObject(object2);
+  MemoryChunkHeader* slim_chunk2 = MemoryChunkHeader::FromHeapObject(object2);
   EXPECT_EQ(static_cast<void*>(chunk2), static_cast<void*>(slim_chunk2));
 }
 
@@ -115,8 +113,7 @@ TEST_F(SpacesTest, WriteBarrierIsMarking) {
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
   EXPECT_FALSE(chunk->IsFlagSet(MemoryChunk::INCREMENTAL_MARKING));
   EXPECT_FALSE(slim_chunk->IsMarking());
   chunk->SetFlag(MemoryChunk::INCREMENTAL_MARKING);
@@ -132,8 +129,7 @@ TEST_F(SpacesTest, WriteBarrierInYoungGenerationToSpace) {
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
   chunk->SetFlag(MemoryChunk::TO_PAGE);
@@ -149,8 +145,7 @@ TEST_F(SpacesTest, WriteBarrierInYoungGenerationFromSpace) {
   char memory[kSizeOfMemoryChunk];
   memset(&memory, 0, kSizeOfMemoryChunk);
   MemoryChunk* chunk = reinterpret_cast<MemoryChunk*>(&memory);
-  heap_internals::MemoryChunk* slim_chunk =
-      reinterpret_cast<heap_internals::MemoryChunk*>(&memory);
+  MemoryChunkHeader* slim_chunk = reinterpret_cast<MemoryChunkHeader*>(&memory);
   EXPECT_FALSE(chunk->InYoungGeneration());
   EXPECT_FALSE(slim_chunk->InYoungGeneration());
   chunk->SetFlag(MemoryChunk::FROM_PAGE);

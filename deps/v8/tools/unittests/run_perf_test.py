@@ -390,6 +390,65 @@ class PerfTest(unittest.TestCase):
         (os.path.join('out', 'x64.release',
                       'd7'), '--flag', '--variant-b-flag', 'run.js'))
 
+  def testOneRunVariantsWithDefault(self):
+    config = dict(V8_VARIANTS_JSON)
+
+    # Default value for DeltaBlue
+    config['tests'][1]['results_default'] = 42
+
+    self._WriteTestInput(config)
+    self._MockCommand(['.', '.', '.'], [
+        'x\nRichards: 3.3\nDeltaBlue: 3000\ny\n',
+        'x\nRichards: 2.2\nDeltaBlue: 2000\ny\n',
+        'x\nRichards: 1.1\ny\n',  # One variant lacks DeltaBlue.
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'Richards'],
+            'results': [1.1],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'DeltaBlue'],
+            'results': [42],  # Expected default value.
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'Richards'],
+            'results': [2.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'DeltaBlue'],
+            'results': [2000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'Richards'],
+            'results': [3.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'DeltaBlue'],
+            'results': [3000],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-a-flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-b-flag', 'run.js'))
+
   def testOneRunWithTestFlags(self):
     test_input = dict(V8_JSON)
     test_input['test_flags'] = ['2', 'test_name']

@@ -24,15 +24,18 @@ namespace internal {
 #include "torque-generated/src/objects/fixed-array-tq.inc"
 
 // Derived: must have a Smi slot at kCapacityOffset.
-template <class Derived, class Shape, class Super = HeapObject>
+template <class Derived, class ShapeT, class Super = HeapObject>
 class TaggedArrayBase : public Super {
   static_assert(std::is_base_of<HeapObject, Super>::value);
   OBJECT_CONSTRUCTORS(TaggedArrayBase, Super);
 
-  using ElementT = typename Shape::ElementT;
-  static_assert(Shape::kElementSize == kTaggedSize);
+  using ElementT = typename ShapeT::ElementT;
+  static_assert(ShapeT::kElementSize == kTaggedSize);
   static_assert(is_subtype_v<ElementT, Object> ||
                 is_subtype_v<ElementT, MaybeObject>);
+
+  using ElementFieldT =
+      TaggedField<ElementT, 0, typename ShapeT::CompressionScheme>;
 
   static constexpr bool kSupportsSmiElements =
       std::is_convertible_v<Smi, ElementT>;
@@ -53,7 +56,7 @@ class TaggedArrayBase : public Super {
       std::conditional_t<kElementsAreMaybeObject, MaybeObjectSlot, ObjectSlot>;
 
  public:
-  using ShapeT = Shape;
+  using Shape = ShapeT;
 
   inline int capacity() const;
   inline int capacity(AcquireLoadTag) const;
@@ -166,6 +169,7 @@ class TaggedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -183,7 +187,6 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
   OBJECT_CONSTRUCTORS(FixedArray, Super);
 
  public:
-  using HotfixShape = TaggedArrayShape;
   template <class IsolateT>
   static inline Handle<FixedArray> New(
       IsolateT* isolate, int capacity,
@@ -229,7 +232,7 @@ class FixedArray : public TaggedArrayBase<FixedArray, TaggedArrayShape> {
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = ShapeT::kCapacityOffset;
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
   static constexpr int kMaxLength = FixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength = FixedArray::kMaxRegularCapacity;
 
@@ -244,6 +247,7 @@ class TrustedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kTrustedFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -251,19 +255,21 @@ class TrustedArrayShape final : public AllStatic {
   V(kCapacityOffset, kTaggedSize)                                       \
   V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
   V(kHeaderSize, 0)
-  DEFINE_FIELD_OFFSET_CONSTANTS(ExposedTrustedObject::kHeaderSize, FIELD_LIST)
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
 #undef FIELD_LIST
 };
 
 // A FixedArray in trusted space and with a unique instance type.
-// TODO(saelo): we should probably not expose trusted fixed arrays directly to
-// objects inside the sandbox, so consider using TrustedObject as parent class
-// once we support direct trusted -> trusted references without an indirection.
+//
+// Note: while the array itself is trusted, it contains tagged pointers into
+// the main pointer compression heap and therefore to _untrusted_ objects.
+// If you are storing references to other trusted object (i.e. protected
+// pointers), use ProtectedFixedArray.
 class TrustedFixedArray
     : public TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                             ExposedTrustedObject> {
-  using Super = TaggedArrayBase<TrustedFixedArray, TrustedArrayShape,
-                                ExposedTrustedObject>;
+                             TrustedObject> {
+  using Super =
+      TaggedArrayBase<TrustedFixedArray, TrustedArrayShape, TrustedObject>;
   OBJECT_CONSTRUCTORS(TrustedFixedArray, Super);
 
  public:
@@ -277,10 +283,58 @@ class TrustedFixedArray
   class BodyDescriptor;
 
   static constexpr int kLengthOffset =
-      TrustedFixedArray::ShapeT::kCapacityOffset;
+      TrustedFixedArray::Shape::kCapacityOffset;
   static constexpr int kMaxLength = TrustedFixedArray::kMaxCapacity;
   static constexpr int kMaxRegularLength =
       TrustedFixedArray::kMaxRegularCapacity;
+};
+
+class ProtectedArrayShape final : public AllStatic {
+ public:
+  static constexpr int kElementSize = kTaggedSize;
+  // Elements are of type TrustedObject or Smi, so we must declare it as Object
+  // here.
+  using ElementT = Object;
+  using CompressionScheme = TrustedSpaceCompressionScheme;
+  static constexpr RootIndex kMapRootIndex = RootIndex::kProtectedFixedArrayMap;
+  static constexpr bool kLengthEqualsCapacity = true;
+
+#define FIELD_LIST(V)                                                   \
+  V(kCapacityOffset, kTaggedSize)                                       \
+  V(kUnalignedHeaderSize, OBJECT_POINTER_PADDING(kUnalignedHeaderSize)) \
+  V(kHeaderSize, 0)
+  DEFINE_FIELD_OFFSET_CONSTANTS(TrustedObject::kHeaderSize, FIELD_LIST)
+#undef FIELD_LIST
+};
+
+// A FixedArray in trusted space, holding protected pointers (to other trusted
+// objects). If you want to store JS-heap references, use TrustedFixedArray.
+// ProtectedFixedArray has a unique instance type.
+class ProtectedFixedArray
+    : public TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape,
+                             TrustedObject> {
+  using Super =
+      TaggedArrayBase<ProtectedFixedArray, ProtectedArrayShape, TrustedObject>;
+  OBJECT_CONSTRUCTORS(ProtectedFixedArray, Super);
+
+ public:
+  // Allocate a new ProtectedFixedArray of the given capacity, initialized with
+  // Smi::zero().
+  template <class IsolateT>
+  static inline Handle<ProtectedFixedArray> New(IsolateT* isolate,
+                                                int capacity);
+
+  DECL_CAST(ProtectedFixedArray)
+  DECL_PRINTER(ProtectedFixedArray)
+  DECL_VERIFIER(ProtectedFixedArray)
+
+  class BodyDescriptor;
+
+  static constexpr int kLengthOffset =
+      ProtectedFixedArray::Shape::kCapacityOffset;
+  static constexpr int kMaxLength = ProtectedFixedArray::kMaxCapacity;
+  static constexpr int kMaxRegularLength =
+      ProtectedFixedArray::kMaxRegularCapacity;
 };
 
 // FixedArray alias added only because of IsFixedArrayExact() predicate, which
@@ -334,7 +388,6 @@ class PrimitiveArrayBase : public Super {
 
  public:
   using Shape = ShapeT;
-  using HotfixShape = ShapeT;
   static constexpr bool kElementsAreMaybeObject = false;
 
   inline int length() const;
@@ -451,6 +504,7 @@ class WeakFixedArrayShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = MaybeObject;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kWeakFixedArrayMap;
   static constexpr bool kLengthEqualsCapacity = true;
 
@@ -469,8 +523,6 @@ class WeakFixedArray
   OBJECT_CONSTRUCTORS(WeakFixedArray, Super);
 
  public:
-  using Shape = WeakFixedArrayShape;
-  using HotfixShape = WeakFixedArrayShape;
   template <class IsolateT>
   static inline Handle<WeakFixedArray> New(
       IsolateT* isolate, int capacity,
@@ -482,7 +534,7 @@ class WeakFixedArray
 
   class BodyDescriptor;
 
-  static constexpr int kLengthOffset = ShapeT::kCapacityOffset;
+  static constexpr int kLengthOffset = Shape::kCapacityOffset;
 };
 
 // WeakArrayList is like a WeakFixedArray with static convenience methods for
@@ -599,6 +651,7 @@ class ArrayListShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex = RootIndex::kArrayListMap;
   static constexpr bool kLengthEqualsCapacity = false;
 
@@ -618,7 +671,6 @@ class ArrayList : public TaggedArrayBase<ArrayList, ArrayListShape> {
 
  public:
   using Shape = ArrayListShape;
-  using HotfixShape = ArrayListShape;
 
   template <class IsolateT>
   static inline Handle<ArrayList> New(
@@ -690,7 +742,6 @@ class ByteArray : public PrimitiveArrayBase<ByteArray, ByteArrayShape> {
 
  public:
   using Shape = ByteArrayShape;
-  using HotfixShape = ByteArrayShape;
 
   template <class IsolateT>
   static inline Handle<ByteArray> New(

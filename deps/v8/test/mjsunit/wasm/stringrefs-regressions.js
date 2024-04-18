@@ -101,7 +101,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
 
   builder.addMemory(1, undefined);
   const kMemIndex = 0;
-  builder.addDataSegment(0, [65, 0]);
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], [65, 0]);
 
   let a8 = builder.addArray(kWasmI8, true);
   let a16 = builder.addArray(kWasmI16, true);

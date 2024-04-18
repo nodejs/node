@@ -81,6 +81,7 @@ let kStringTest;
 let kStringFromWtf16Array;
 let kStringFromUtf8Array;
 let kStringIntoUtf8Array;
+let kStringToUtf8Array;
 let kStringToWtf16Array;
 let kStringMeasureUtf8;
 let kStringFromCharCode;
@@ -122,6 +123,9 @@ function MakeBuilder() {
   kStringIntoUtf8Array = builder.addImport(
       'wasm:text-encoder', 'encodeStringIntoUTF8Array',
       makeSig([kWasmExternRef, array8ref, kWasmI32], [kWasmI32]));
+  kStringToUtf8Array = builder.addImport(
+      'wasm:text-encoder', 'encodeStringToUTF8Array',
+      makeSig([kWasmExternRef], [wasmRefType(kArrayI8)]));
   kStringFromCharCode =
       builder.addImport('wasm:js-string', 'fromCharCode', kSig_e_i);
   kStringFromCodePoint =
@@ -290,7 +294,7 @@ let kBuiltins = { builtins: ["js-string", "text-decoder", "text-encoder"] };
       .addBody([kExprGlobalGet, i]);
   }
   for (let i = 0; i < interestingStrings.length; i++) {
-    builder.addGlobal(kRefExtern, false, [kExprGlobalGet, i])
+    builder.addGlobal(kRefExtern, false, false, [kExprGlobalGet, i])
       .exportAs("global" + i);
   }
   let instance = builder.instantiate(kImports, kBuiltins);
@@ -1093,4 +1097,46 @@ function makeWtf16TestDataSegment(strings) {
     assertThrows(() => instance.exports.encode_utf8(str, wtf8.length, 1),
                  WebAssembly.RuntimeError, message);
   }
+})();
+
+(function TestStringToUtf8Array() {
+  print(arguments.callee.name);
+  let builder = MakeBuilder();
+
+  // Convert the string to an array, then decode it back.
+  builder.addFunction("encode_utf8", kSig_e_r)
+    .exportFunc()
+    .addLocals(wasmRefNullType(kArrayI8), 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kExprCallFunction, kStringToUtf8Array,
+      kExprLocalTee, 1,
+
+      kExprI32Const, 0,  // start
+      kExprLocalGet, 1, kGCPrefix, kExprArrayLen,  // end
+      kExprCallFunction, kStringFromUtf8Array,
+    ]);
+
+  let sig_a8_v = makeSig([], [wasmRefType(kArrayI8)]);
+  builder.addFunction("encode_null_string", sig_a8_v)
+    .exportFunc()
+    .addBody([
+        kExprRefNull, kExternRefCode,
+        kExprCallFunction, kStringToUtf8Array,
+      ]);
+
+  let instance = builder.instantiate(kImports, kBuiltins);
+
+  for (let str of interestingStrings) {
+    let replaced = ReplaceIsolatedSurrogates(str);
+    if (!HasIsolatedSurrogate(str)) assertEquals(str, replaced);
+    let wtf8 = encodeWtf8(replaced);
+    assertEquals(replaced,
+                 instance.exports.encode_utf8(str, wtf8.length, 0));
+    assertEquals(replaced,
+                 instance.exports.encode_utf8(str, wtf8.length + 20, 10));
+  }
+
+  assertThrows(() => instance.exports.encode_null_string(),
+               WebAssembly.RuntimeError, "illegal cast");
 })();

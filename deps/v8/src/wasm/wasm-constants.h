@@ -54,6 +54,7 @@ enum ValueTypeCode : uint8_t {
 };
 
 // Binary encoding of type definitions.
+constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;

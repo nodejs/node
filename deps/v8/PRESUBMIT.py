@@ -443,10 +443,7 @@ def _CheckCommitMessageBugEntry(input_api, output_api):
       continue
     if ':' not in bug and not bug.startswith('b/'):
       try:
-        if int(bug) > 10000000:
-          results.append(
-            'Buganizer entry requires issue tracker prefix b/{}'.format(bug))
-        else:
+        if int(bug) < 10000000:
           if int(bug) > 200000:
             prefix_guess = 'chromium'
           else:

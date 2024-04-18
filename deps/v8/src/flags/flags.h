@@ -18,6 +18,15 @@
 
 namespace v8::internal {
 
+class V8_EXPORT_PRIVATE FlagHelpers {
+ public:
+  static char NormalizeChar(char ch);
+
+  static int FlagNamesCmp(const char* a, const char* b);
+
+  static bool EqualNames(const char* a, const char* b);
+};
+
 // The value of a single flag (this is the type of all v8_flags.* fields).
 template <typename T>
 class FlagValue {
@@ -132,6 +141,10 @@ class V8_EXPORT_PRIVATE FlagList {
   static void PrintHelp();
 
   static void PrintValues();
+
+  // Reset some contradictory flags provided on the command line during
+  // fuzzing.
+  static void ResolveContradictionsWhenFuzzing();
 
   // Set flags as consequence of being implied by another flag.
   static void EnforceFlagImplications();

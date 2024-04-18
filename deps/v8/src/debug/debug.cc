@@ -2383,10 +2383,12 @@ base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
   {
     base::Optional<Isolate::ExceptionScope> exception_scope;
     if (isolate_->has_exception()) exception_scope.emplace(isolate_);
-    Handle<Object> maybe_promise = isolate_->GetPromiseOnStackOnThrow();
-    OnException(exception, maybe_promise,
-                IsJSPromise(*maybe_promise) ? v8::debug::kPromiseRejection
-                                            : v8::debug::kException);
+    Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
+    OnException(exception, MaybeHandle<JSPromise>(),
+                catch_type == Isolate::CAUGHT_BY_ASYNC_AWAIT ||
+                        catch_type == Isolate::CAUGHT_BY_PROMISE
+                    ? v8::debug::kPromiseRejection
+                    : v8::debug::kException);
   }
   PrepareStepOnThrow();
   // If the OnException handler requested termination, then indicated this to
@@ -2402,15 +2404,15 @@ base::Optional<Tagged<Object>> Debug::OnThrow(Handle<Object> exception) {
 void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   if (in_debug_scope() || ignore_events()) return;
-  HandleScope scope(isolate_);
-  // Check whether the promise has been marked as having triggered a message.
-  Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-  if (!IsJSObject(*promise) ||
-      IsUndefined(*JSReceiver::GetDataProperty(
-                      isolate_, Handle<JSObject>::cast(promise), key),
-                  isolate_)) {
-    OnException(value, promise, v8::debug::kPromiseRejection);
+  MaybeHandle<JSPromise> maybe_promise;
+  if (IsJSPromise(*promise)) {
+    Handle<JSPromise> js_promise = Handle<JSPromise>::cast(promise);
+    if (js_promise->is_silent()) {
+      return;
+    }
+    maybe_promise = js_promise;
   }
+  OnException(value, maybe_promise, v8::debug::kPromiseRejection);
 }
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
@@ -2424,7 +2426,8 @@ bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   return true;
 }
 
-void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
+void Debug::OnException(Handle<Object> exception,
+                        MaybeHandle<JSPromise> promise,
                         v8::debug::ExceptionType exception_type) {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
   // Do not trigger exception event on stack overflow. We cannot perform
@@ -2438,27 +2441,27 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
   // Return if we are not interested in exception events.
   if (!break_on_caught_exception_ && !break_on_uncaught_exception_) return;
 
-  Isolate::CatchType catch_type = isolate_->PredictExceptionCatcher();
+  HandleScope scope(isolate_);
 
-  bool uncaught = catch_type == Isolate::NOT_CAUGHT;
-  if (IsJSObject(*promise)) {
-    Handle<JSObject> jsobject = Handle<JSObject>::cast(promise);
-    // Mark the promise as already having triggered a message.
-    Handle<Symbol> key = isolate_->factory()->promise_debug_marker_symbol();
-    Object::SetProperty(isolate_, jsobject, key, key, StoreOrigin::kMaybeKeyed,
-                        Just(ShouldThrow::kThrowOnError))
-        .Assert();
-    // Check whether the promise reject is considered an uncaught exception.
-    if (IsJSPromise(*jsobject)) {
-      Handle<JSPromise> jspromise = Handle<JSPromise>::cast(jsobject);
+  bool all_frames_ignored = true;
+  bool is_debuggable = false;
+  bool uncaught = !isolate_->WalkCallStackAndPromiseTree(
+      promise, [this, &all_frames_ignored,
+                &is_debuggable](Isolate::PromiseHandler handler) {
+        if (!handler.async) {
+          is_debuggable = true;
+        } else if (!is_debuggable) {
+          // Don't bother checking ignore listing if there are no debuggable
+          // frames on the callstack
+          return;
+        }
+        all_frames_ignored =
+            all_frames_ignored &&
+            IsBlackboxed(handle(handler.function_info, isolate_));
+      });
 
-      // Ignore the exception if the promise was marked as silent
-      if (jspromise->is_silent()) return;
-
-      uncaught = !isolate_->PromiseHasUserDefinedRejectHandler(jspromise);
-    } else {
-      uncaught = true;
-    }
+  if (all_frames_ignored || !is_debuggable) {
+    return;
   }
 
   if (!uncaught) {
@@ -2475,25 +2478,25 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise,
     JavaScriptStackFrameIterator it(isolate_);
     // Check whether the affected frames are blackboxed or the break location is
     // muted.
-    if (!it.done() &&
-        (IsMutedAtCurrentLocation(it.frame()) ||
-         AllFramesOnStackAreBlackboxed(
-             exception_type == debug::kPromiseRejection, !uncaught))) {
+    if (!it.done() && (IsMutedAtCurrentLocation(it.frame()))) {
       return;
     }
     if (it.done()) return;  // Do not trigger an event with an empty stack.
   }
 
   DebugScope debug_scope(this);
-  HandleScope scope(isolate_);
   DisableBreak no_recursive_break(this);
 
   {
+    Handle<Object> promise_object;
+    if (!promise.ToHandle(&promise_object)) {
+      promise_object = isolate_->factory()->undefined_value();
+    }
     RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebuggerCallback);
     debug_delegate_->ExceptionThrown(
         v8::Utils::ToLocal(isolate_->native_context()),
-        v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise), uncaught,
-        exception_type);
+        v8::Utils::ToLocal(exception), v8::Utils::ToLocal(promise_object),
+        uncaught, exception_type);
   }
 }
 
@@ -2605,61 +2608,14 @@ bool Debug::ShouldBeSkipped() {
   }
 }
 
-namespace {
-bool ReceiverIsBlackboxed(Isolate* isolate, Handle<JSReceiver> receiver) {
-  if (!IsJSFunction(*receiver)) return true;
-
-  Handle<SharedFunctionInfo> function_info(
-      Handle<JSFunction>::cast(receiver)->shared(), isolate);
-  return isolate->debug()->IsBlackboxed(function_info);
-}
-}  // namespace
-
-bool Debug::AllFramesOnStackAreBlackboxed(bool include_async,
-                                          bool stop_at_caught) {
+bool Debug::AllFramesOnStackAreBlackboxed() {
   RCS_SCOPE(isolate_, RuntimeCallCounterId::kDebugger);
-  HandleScope scope(isolate_);
-  Handle<Object> promise_stack(thread_local_.promise_stack_, isolate_);
 
   for (StackFrameIterator it(isolate_); !it.done(); it.Advance()) {
     StackFrame* frame = it.frame();
     if (frame->is_java_script() &&
         !IsFrameBlackboxed(JavaScriptFrame::cast(frame))) {
       return false;
-    }
-    if (!stop_at_caught && !include_async) continue;
-
-    Isolate::CatchType prediction =
-        isolate_->PredictExceptionCatchAtFrame(frame);
-    if (include_async && prediction == Isolate::CAUGHT_BY_ASYNC_AWAIT) {
-      // This logic is duplicated from Isolate::GetPromiseOnStackOnThrow.
-      // In the future a more advanced version of Isolate::WalkPromiseTree
-      // could further reduce duplicated logic by walking both frames and
-      // promises.
-      if (!IsPromiseOnStack(*promise_stack)) continue;
-      Handle<PromiseOnStack> promise_on_stack =
-          Handle<PromiseOnStack>::cast(promise_stack);
-      MaybeHandle<JSObject> maybe_promise =
-          PromiseOnStack::GetPromise(promise_on_stack);
-      Handle<JSObject> object_handle;
-      if (maybe_promise.ToHandle(&object_handle) &&
-          IsJSPromise(*object_handle)) {
-        bool is_caught = false;
-        bool is_blackboxed = true;
-        isolate_->WalkPromiseTree(
-            Handle<JSPromise>::cast(object_handle),
-            [this, &is_caught,
-             &is_blackboxed](Isolate::PromiseHandler handler) {
-              is_caught = handler.catches;
-              is_blackboxed = ReceiverIsBlackboxed(isolate_, handler.receiver);
-              return is_caught || !is_blackboxed;
-            });
-        if ((stop_at_caught && is_caught) || !is_blackboxed) {
-          return is_blackboxed;
-        }
-      }
-    } else if (stop_at_caught && prediction != Isolate::NOT_CAUGHT) {
-      break;
     }
   }
   return true;

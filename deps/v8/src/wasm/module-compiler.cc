@@ -23,6 +23,7 @@
 #include "src/logging/metrics.h"
 #include "src/tracing/trace-event.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/pgo.h"
 #include "src/wasm/std-object-sizes.h"
@@ -1146,7 +1147,9 @@ DecodeResult ValidateSingleFunction(Zone* zone, const WasmModule* module,
   // is the case, and exit early if so.
   if (module->function_was_validated(func_index)) return {};
   const WasmFunction* func = &module->functions[func_index];
-  FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end()};
+  bool is_shared = module->types[func->sig_index].is_shared;
+  FunctionBody body{func->sig, func->code.offset(), code.begin(), code.end(),
+                    is_shared};
   WasmFeatures detected_features;
   DecodeResult result = ValidateFunctionBody(zone, enabled_features, module,
                                              &detected_features, body);
@@ -1217,7 +1220,7 @@ bool CompileLazy(Isolate* isolate,
   WasmCompilationUnit baseline_unit{
       func_index, tiers.baseline_tier,
       is_in_debug_state ? kForDebugging : kNotForDebugging};
-  CompilationEnv env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmFeatures detected_features;
   WasmCompilationResult result = baseline_unit.ExecuteCompilation(
       &env, compilation_state->GetWireBytesStorage().get(), counters,
@@ -1531,8 +1534,10 @@ bool IsI16Array(wasm::ValueType type, const WasmModule* module) {
          TypeCanonicalizer::kPredefinedArrayI16Index;
 }
 
-bool IsI8Array(wasm::ValueType type, const WasmModule* module) {
+bool IsI8Array(wasm::ValueType type, const WasmModule* module,
+               bool allow_nullable) {
   if (!type.is_object_reference() || !type.has_index()) return false;
+  if (!allow_nullable && type.is_nullable()) return false;
   uint32_t reftype = type.ref_index();
   if (!module->has_array(reftype)) return false;
   return module->isorecursive_canonical_type_ids[reftype] ==
@@ -1648,21 +1653,28 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
       } else if (name ==
                  base::StaticOneByteVector("encodeStringIntoUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            sig->GetParam(0) != kExternRef ||        // --
-            !IsI8Array(sig->GetParam(1), module) ||  // --
-            sig->GetParam(2) != kI32 ||              // --
+            sig->GetParam(0) != kExternRef ||              // --
+            !IsI8Array(sig->GetParam(1), module, true) ||  // --
+            sig->GetParam(2) != kI32 ||                    // --
             sig->GetReturn() != kI32) {
           RETURN_ERROR("text-encoder", "encodeStringIntoUTF8Array");
         }
         status = WellKnownImport::kStringIntoUtf8Array;
+      } else if (name == base::StaticOneByteVector("encodeStringToUTF8Array")) {
+        if (sig->parameter_count() != 1 || sig->return_count() != 1 ||
+            sig->GetParam(0) != kExternRef ||
+            !IsI8Array(sig->GetReturn(), module, false)) {
+          RETURN_ERROR("text-encoder", "encodeStringToUTF8Array");
+        }
+        status = WellKnownImport::kStringToUtf8Array;
       }
     } else if (collection == base::StaticOneByteVector("text-decoder") &&
                imports.contains(CompileTimeImport::kTextDecoder)) {
       if (name == base::StaticOneByteVector("decodeStringFromUTF8Array")) {
         if (sig->parameter_count() != 3 || sig->return_count() != 1 ||
-            !IsI8Array(sig->GetParam(0), module) ||  // --
-            sig->GetParam(1) != kI32 ||              // --
-            sig->GetParam(2) != kI32 ||              // --
+            !IsI8Array(sig->GetParam(0), module, true) ||  // --
+            sig->GetParam(1) != kI32 ||                    // --
+            sig->GetParam(2) != kI32 ||                    // --
             sig->GetReturn() != kRefExtern) {
           RETURN_ERROR("text-decoder", "decodeStringFromUTF8Array");
         }
@@ -1675,7 +1687,12 @@ WasmError ValidateAndSetBuiltinImports(const WasmModule* module,
   // We're operating on a fresh WasmModule instance here, so we don't need to
   // check for incompatibilities with previously seen imports.
   DCHECK_EQ(module->num_imported_functions, statuses.size());
-  module->type_feedback.well_known_imports.Initialize(base::VectorOf(statuses));
+  // The "Initialize" call is currently only safe when the decoder has allocated
+  // storage, which it allocates when there is an imports section.
+  if (module->num_imported_functions != 0) {
+    module->type_feedback.well_known_imports.Initialize(
+        base::VectorOf(statuses));
+  }
   return {};
 }
 
@@ -1732,7 +1749,7 @@ CompilationExecutionResult ExecuteCompilationUnits(
   {
     BackgroundCompileScope compile_scope(native_module);
     if (compile_scope.cancelled()) return kYield;
-    env.emplace(compile_scope.native_module()->CreateCompilationEnv());
+    env.emplace(CompilationEnv::ForModule(compile_scope.native_module()));
     wire_bytes = compile_scope.compilation_state()->GetWireBytesStorage();
     module = compile_scope.native_module()->shared_module();
     queue = compile_scope.compilation_state()->GetQueueForCompileTask(task_id);
@@ -2035,6 +2052,11 @@ void CompileNativeModule(Isolate* isolate,
       InitializeCompilation(isolate, native_module.get(), pgo_info);
   compilation_state->InitializeCompilationUnits(std::move(builder));
 
+  // Wrapper compilation jobs keep a pointer to the function signatures, so
+  // finish them before we validate and potentially free the module.
+  compilation_state->WaitForCompilationEvent(
+      CompilationEvent::kFinishedExportWrappers);
+
   // Validate wasm modules for lazy compilation if requested. Never validate
   // asm.js modules as these are valid by construction (additionally a CHECK
   // will catch this during lazy compilation).
@@ -2047,12 +2069,8 @@ void CompileNativeModule(Isolate* isolate,
     }
   }
 
-  compilation_state->WaitForCompilationEvent(
-      CompilationEvent::kFinishedExportWrappers);
-
   if (!compilation_state->failed()) {
     compilation_state->FinalizeJSToWasmWrappers(isolate, module);
-
     compilation_state->WaitForCompilationEvent(
         CompilationEvent::kFinishedBaselineCompilation);
 
@@ -2171,20 +2189,30 @@ class AsyncCompileJSToWasmWrapperJob final
     PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
     while (true) {
       DCHECK_EQ(isolate, wrapper_unit->isolate());
+      base::Optional<BackgroundCompileScope> compile_scope;
+      if (v8_flags.turboshaft_wasm_wrappers) {
+        compile_scope.emplace(native_module_);
+        if (compile_scope->cancelled()) return;
+        // The wrapper unit keeps a pointer to the signature, so execute the
+        // unit inside the compile scope to keep the WasmModule's signature_zone
+        // alive.
+      }
       wrapper_unit->Execute();
       bool complete_last_unit = CompleteUnit();
       bool yield = delegate && delegate->ShouldYield();
       if (yield && !complete_last_unit) return;
 
-      BackgroundCompileScope compile_scope(native_module_);
-      if (compile_scope.cancelled()) return;
+      if (!v8_flags.turboshaft_wasm_wrappers) {
+        compile_scope.emplace(native_module_);
+        if (compile_scope->cancelled()) return;
+      }
       if (complete_last_unit) {
-        compile_scope.compilation_state()->OnFinishedJSToWasmWrapperUnits();
+        compile_scope->compilation_state()->OnFinishedJSToWasmWrapperUnits();
       }
       if (yield) return;
       if (!GetNextUnitIndex(&index)) return;
       wrapper_unit =
-          compile_scope.compilation_state()->GetJSToWasmWrapperCompilationUnit(
+          compile_scope->compilation_state()->GetJSToWasmWrapperCompilationUnit(
               index);
     }
   }
@@ -4424,7 +4452,7 @@ WasmCode* CompileImportWrapper(
   bool source_positions = is_asmjs_module(native_module->module());
   // Keep the {WasmCode} alive until we explicitly call {IncRef}.
   WasmCodeRefScope code_ref_scope;
-  CompilationEnv env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   WasmCompilationResult result = compiler::CompileWasmImportCallWrapper(
       &env, kind, sig, source_positions, expected_arity, suspend);
 

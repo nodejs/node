@@ -168,6 +168,15 @@ class JSCallReducerAssembler : public JSGraphAssembler {
     }
   }
 
+  TNode<Object> ConvertHoleToUndefined(TNode<Object> value, ElementsKind kind) {
+    DCHECK(IsHoleyElementsKind(kind));
+    if (kind == HOLEY_DOUBLE_ELEMENTS) {
+      return AddNode<Number>(
+          graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value));
+    }
+    return ConvertTaggedHoleToUndefined(value);
+  }
+
   class TryCatchBuilder0 {
    public:
     using TryFunction = VoidGenerator0;
@@ -520,26 +529,6 @@ class IteratingArrayBuiltinReducerAssembler : public JSCallReducerAssembler {
     return IsDoubleElementsKind(kind)
                ? NumberIsFloat64Hole(TNode<Number>::UncheckedCast(v))
                : IsTheHole(v);
-  }
-
-  TNode<Number> CheckFloat64Hole(TNode<Number> value,
-                                 CheckFloat64HoleMode mode) {
-    return AddNode<Number>(
-        graph()->NewNode(simplified()->CheckFloat64Hole(mode, feedback()),
-                         value, effect(), control()));
-  }
-
-  // May deopt for holey double elements.
-  TNode<Object> TryConvertHoleToUndefined(TNode<Object> value,
-                                          ElementsKind kind) {
-    DCHECK(IsHoleyElementsKind(kind));
-    if (kind == HOLEY_DOUBLE_ELEMENTS) {
-      // TODO(7409): avoid deopt if not all uses of value are truncated.
-      TNode<Number> number = TNode<Number>::UncheckedCast(value);
-      return CheckFloat64Hole(number, CheckFloat64HoleMode::kAllowReturnHole);
-    }
-
-    return ConvertTaggedHoleToUndefined(value);
   }
 };
 
@@ -1322,7 +1311,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeAt(
       // automatic converstion performed by
       // RepresentationChanger::GetTaggedRepresentationFor does not handle
       // holes, so we convert manually a potential hole here.
-      element = TryConvertHoleToUndefined(element, map.elements_kind());
+      element = ConvertHoleToUndefined(element, map.elements_kind());
     }
     Goto(&out, element);
 
@@ -2095,7 +2084,7 @@ TNode<Object> IteratingArrayBuiltinReducerAssembler::ReduceArrayPrototypeFind(
     std::tie(k, element) = SafeLoadElement(kind, receiver, k);
 
     if (IsHoleyElementsKind(kind)) {
-      element = TryConvertHoleToUndefined(element, kind);
+      element = ConvertHoleToUndefined(element, kind);
     }
 
     TNode<Object> if_found_value = is_find_variant ? element : k;
@@ -4136,6 +4125,14 @@ bool IsCallWithArrayLikeOrSpread(Node* node) {
 
 }  // namespace
 
+Node* JSCallReducer::ConvertHoleToUndefined(Node* value, ElementsKind kind) {
+  DCHECK(IsHoleyElementsKind(kind));
+  if (kind == HOLEY_DOUBLE_ELEMENTS) {
+    return graph()->NewNode(simplified()->ChangeFloat64HoleToTagged(), value);
+  }
+  return graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(), value);
+}
+
 void JSCallReducer::CheckIfConstructor(Node* construct) {
   JSConstructNode n(construct);
   Node* new_target = n.new_target();
@@ -4527,16 +4524,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     // In "holey" arrays some arguments might be missing and we pass
     // 'undefined' instead.
     if (IsHoleyElementsKind(elements_kind)) {
-      if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-        // May deopt for holey double elements.
-        load = effect = graph()->NewNode(
-            simplified()->CheckFloat64Hole(
-                CheckFloat64HoleMode::kAllowReturnHole, feedback_source),
-            load, effect, control);
-      } else {
-        load = graph()->NewNode(simplified()->ConvertTaggedHoleToUndefined(),
-                                load);
-      }
+      load = ConvertHoleToUndefined(load, elements_kind);
     }
 
     node->InsertInput(graph()->zone(), arraylike_or_spread_index + i, load);
@@ -6632,16 +6620,8 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
             elements, index, etrue, if_true);
 
         // Convert hole to undefined if needed.
-        if (elements_kind == HOLEY_ELEMENTS ||
-            elements_kind == HOLEY_SMI_ELEMENTS) {
-          value_true = graph()->NewNode(
-              simplified()->ConvertTaggedHoleToUndefined(), value_true);
-        } else if (elements_kind == HOLEY_DOUBLE_ELEMENTS) {
-          // TODO(6587): avoid deopt if not all uses of value are truncated.
-          CheckFloat64HoleMode mode = CheckFloat64HoleMode::kAllowReturnHole;
-          value_true = etrue = graph()->NewNode(
-              simplified()->CheckFloat64Hole(mode, p.feedback()), value_true,
-              etrue, if_true);
+        if (IsHoleyElementsKind(elements_kind)) {
+          value_true = ConvertHoleToUndefined(value_true, elements_kind);
         }
       }
 

@@ -24,6 +24,7 @@ class ObjectBoilerplateDescriptionShape final : public AllStatic {
  public:
   static constexpr int kElementSize = kTaggedSize;
   using ElementT = Object;
+  using CompressionScheme = V8HeapCompressionScheme;
   static constexpr RootIndex kMapRootIndex =
       RootIndex::kObjectBoilerplateDescriptionMap;
   static constexpr bool kLengthEqualsCapacity = true;

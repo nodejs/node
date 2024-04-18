@@ -19,8 +19,8 @@
 #include <string>
 
 #include "gtest/gtest.h"
+#include "absl/flags/config.h"
 #include "absl/flags/flag.h"
-#include "absl/flags/internal/commandlineflag.h"
 #include "absl/flags/internal/private_handle_accessor.h"
 #include "absl/flags/reflection.h"
 #include "absl/flags/usage_config.h"
@@ -51,7 +51,12 @@ class CommandLineFlagTest : public testing::Test {
     absl::SetFlagsUsageConfig(default_config);
   }
 
-  void SetUp() override { flag_saver_ = absl::make_unique<absl::FlagSaver>(); }
+  void SetUp() override {
+#if ABSL_FLAGS_STRIP_NAMES
+    GTEST_SKIP() << "This test requires flag names to be present";
+#endif
+    flag_saver_ = absl::make_unique<absl::FlagSaver>();
+  }
   void TearDown() override { flag_saver_.reset(); }
 
  private:

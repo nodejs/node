@@ -1689,6 +1689,8 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
 
 Type Typer::Visitor::TypeJSStoreContext(Node* node) { UNREACHABLE(); }
 
+Type Typer::Visitor::TypeJSStoreScriptContext(Node* node) { UNREACHABLE(); }
+
 Type Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
   return Type::OtherInternal();
 }
@@ -2369,6 +2371,10 @@ Type Typer::Visitor::TypeCheckSymbol(Node* node) {
 }
 
 Type Typer::Visitor::TypeCheckFloat64Hole(Node* node) {
+  return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
+}
+
+Type Typer::Visitor::TypeChangeFloat64HoleToTagged(Node* node) {
   return typer_->operation_typer_.CheckFloat64Hole(Operand(node, 0));
 }
 

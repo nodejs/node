@@ -372,7 +372,7 @@ class RedundantStoreAnalysis {
 template <class Next>
 class StoreStoreEliminationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(StoreStoreElimination)
 
   void Analyze() {
     analysis_.Run(eliminable_stores_);

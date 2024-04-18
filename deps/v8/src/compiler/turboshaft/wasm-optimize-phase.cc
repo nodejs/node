@@ -24,10 +24,9 @@ void WasmOptimizePhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
   CopyingPhase<LateEscapeAnalysisReducer, MachineOptimizationReducer,
-               MemoryOptimizationReducer, VariableReducer,
-               RequiredOptimizationReducer, BranchEliminationReducer,
+               MemoryOptimizationReducer, BranchEliminationReducer,
                LateLoadEliminationReducer,
-               ValueNumberingReducer>::Run<true>(temp_zone);
+               ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

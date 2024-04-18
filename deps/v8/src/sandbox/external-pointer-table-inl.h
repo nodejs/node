@@ -252,13 +252,6 @@ void ExternalPointerTable::MaybeCreateEvacuationEntry(Space* space,
       // this memory location. Without an atomic store here, TSan would then
       // complain about a data race.
       at(new_index).MakeEvacuationEntry(handle_location);
-#ifdef DEBUG
-      // Mark the handle as visited in debug builds to detect double
-      // initialization of external pointer fields.
-      auto handle_ptr = reinterpret_cast<base::Atomic32*>(handle_location);
-      auto marked_handle = IndexToHandle(index) | kVisitedHandleMarker;
-      base::Relaxed_Store(handle_ptr, marked_handle);
-#endif  // DEBUG
     } else {
       // In this case, the application has allocated a sufficiently large
       // number of entries from the freelist so that new entries would now be
@@ -275,9 +268,6 @@ void ExternalPointerTable::MaybeCreateEvacuationEntry(Space* space,
 
 // static
 bool ExternalPointerTable::IsValidHandle(ExternalPointerHandle handle) {
-#ifdef DEBUG
-  handle &= ~kVisitedHandleMarker;
-#endif  // DEBUG
   uint32_t index = handle >> kExternalPointerIndexShift;
   return handle == index << kExternalPointerIndexShift;
 }

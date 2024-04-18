@@ -91,6 +91,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, const wasm::FunctionSig* fsig,
                                     : CallDescriptor::kNoFlags;
   return zone->New<CallDescriptor>(       // --
       descriptor_kind,                    // kind
+      kWasmEntrypointTag,                 // tag
       target_type,                        // target MachineType
       target_loc,                         // target location
       location_sig,                       // location_sig

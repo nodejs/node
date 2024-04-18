@@ -215,39 +215,29 @@ void ExternalPointerTable::Space::StartCompactingIfNeeded() {
 bool ExternalPointerTable::TryResolveEvacuationEntryDuringSweeping(
     uint32_t new_index, ExternalPointerHandle* handle_location,
     uint32_t start_of_evacuation_area) {
-  ExternalPointerHandle old_handle = *handle_location;
   // We must have a valid handle here. If this fails, it might mean that an
   // object with external pointers was in-place converted to another type of
   // object without informing the external pointer table.
+  ExternalPointerHandle old_handle = *handle_location;
   CHECK(IsValidHandle(old_handle));
 
   uint32_t old_index = HandleToIndex(old_handle);
   ExternalPointerHandle new_handle = IndexToHandle(new_index);
 
-  // While external pointer slots should not be initialized twice (see below),
-  // it is ok for a slot to be "de-initialized", i.e. set to the null handle,
-  // as long as it is not re-initialized later. If a slot has been
-  // de-initialized in this way, no action is necessary here, but we need to
-  // inform our caller that the evacuation entry has not been resolved.
-  if (old_handle == kNullExternalPointerHandle) return false;
+  // It can happen that an external pointer field is cleared (set to the null
+  // handle) or even re-initialized between marking and sweeping. In both
+  // cases, compacting the entry is not necessary: if it has been cleared, the
+  // entry should remain cleared. If it has also been re-initialized, the new
+  // table entry must've been allocated at the front of the table, below the
+  // evacuation area (otherwise compaction would've been aborted).
+  if (old_index < start_of_evacuation_area) {
+    return false;
+  }
 
-  // For the compaction algorithm to work optimally, double initialization
-  // of entries is forbidden, see below. This DCHECK can detect double
-  // initialization of external pointer fields in debug builds by checking
-  // that the old_handle was visited during marking.
-  // There's no need to clear the bit from the handle as the handle will be
-  // replaced by a new, unmarked handle.
-  DCHECK(HandleWasVisitedDuringMarking(old_handle));
-
-  // The following DCHECKs assert that the compaction algorithm works
-  // correctly: it always moves an entry from the evacuation area to the
-  // front of the table. One reason this invariant can be broken is if an
-  // external pointer slot is re-initialized, in which case the old_handle
-  // may now also point before the evacuation area. For that reason,
-  // re-initialization of external pointer slots is forbidden.
+  // The compaction algorithm always moves an entry from the evacuation area to
+  // the front of the table. These DCHECKs verify this invariant.
   DCHECK_GE(old_index, start_of_evacuation_area);
   DCHECK_LT(new_index, start_of_evacuation_area);
-
   auto& new_entry = at(new_index);
   at(old_index).UnmarkAndMigrateInto(new_entry);
   *handle_location = new_handle;

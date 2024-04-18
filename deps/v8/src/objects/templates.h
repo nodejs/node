@@ -5,7 +5,11 @@
 #ifndef V8_OBJECTS_TEMPLATES_H_
 #define V8_OBJECTS_TEMPLATES_H_
 
+#include <string_view>
+
+#include "include/v8-memory-span.h"
 #include "src/handles/handles.h"
+#include "src/objects/contexts.h"
 #include "src/objects/struct.h"
 #include "torque-generated/bit-fields.h"
 
@@ -218,6 +222,25 @@ class ObjectTemplateInfo
   DEFINE_TORQUE_GENERATED_OBJECT_TEMPLATE_INFO_FLAGS()
 
   TQ_OBJECT_CONSTRUCTORS(ObjectTemplateInfo)
+};
+
+class DictionaryTemplateInfo
+    : public TorqueGeneratedDictionaryTemplateInfo<DictionaryTemplateInfo,
+                                                   HeapObject> {
+ public:
+  class BodyDescriptor;
+
+  static Handle<DictionaryTemplateInfo> Create(
+      Isolate* isolate, const v8::MemorySpan<const std::string_view>& names);
+
+  static Handle<JSObject> NewInstance(
+      DirectHandle<NativeContext> context,
+      DirectHandle<DictionaryTemplateInfo> self,
+      const MemorySpan<MaybeLocal<Value>>& property_values);
+
+  NEVER_READ_ONLY_SPACE
+
+  TQ_OBJECT_CONSTRUCTORS(DictionaryTemplateInfo)
 };
 
 }  // namespace internal

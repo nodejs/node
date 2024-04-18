@@ -140,7 +140,7 @@ static inline void* PrevSlot(void* slot, size_t slot_size) {
   return reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(slot) - slot_size);
 }
 
-void DropDeletesWithoutResize(CommonFields& common,
+void DropDeletesWithoutResize(CommonFields& common, const void* hash_fn,
                               const PolicyFunctions& policy, void* tmp_space) {
   void* set = &common;
   void* slot_array = common.slot_array();
@@ -175,7 +175,7 @@ void DropDeletesWithoutResize(CommonFields& common,
        ++i, slot_ptr = NextSlot(slot_ptr, slot_size)) {
     assert(slot_ptr == SlotAddress(slot_array, i, slot_size));
     if (!IsDeleted(ctrl[i])) continue;
-    const size_t hash = (*hasher)(set, slot_ptr);
+    const size_t hash = (*hasher)(hash_fn, slot_ptr);
     const FindInfo target = find_first_non_full(common, hash);
     const size_t new_i = target.offset;
     total_probe_length += target.probe_length;

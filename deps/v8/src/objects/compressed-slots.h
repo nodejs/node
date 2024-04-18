@@ -166,6 +166,7 @@ class OffHeapCompressedObjectSlot
   // variant with a PtrComprCageBase but instead adding one with an isolate
   // parameter that simply forwards the the parameterless variant.
   inline Tagged<Object> Relaxed_Load(PtrComprCageBase cage_base) const;
+  inline Tagged<Object> Acquire_Load() const;
   inline Tagged<Object> Acquire_Load(PtrComprCageBase cage_base) const;
   inline void Relaxed_Store(Tagged<Object> value) const;
   inline void Release_Store(Tagged<Object> value) const;

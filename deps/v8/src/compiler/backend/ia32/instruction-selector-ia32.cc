@@ -500,8 +500,6 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
                                        register_mode);
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
-                                          GetEffectiveAddressMemoryOperand)
   AddressingMode GetEffectiveAddressMemoryOperand(
       node_t node, InstructionOperand inputs[], size_t* input_count,
       RegisterMode register_mode = RegisterMode::kRegister) {
@@ -548,13 +546,11 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
         // modes for the scale.
         UNIMPLEMENTED();
       } else {
-        const turboshaft::Operation& op = this->turboshaft_graph()->Get(node);
-        DCHECK_GE(op.input_count, 2);
-
-        inputs[(*input_count)++] =
-            UseRegisterWithMode(op.input(0), register_mode);
-        inputs[(*input_count)++] =
-            UseRegisterWithMode(op.input(1), register_mode);
+        // TODO(nicohartmann@): Turn this into a `DCHECK` once we have some
+        // coverage.
+        CHECK_EQ(m->displacement, 0);
+        inputs[(*input_count)++] = UseRegisterWithMode(m->base, register_mode);
+        inputs[(*input_count)++] = UseRegisterWithMode(m->index, register_mode);
         return kMode_MR1;
       }
     } else {
@@ -609,7 +605,6 @@ class IA32OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
   bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }
@@ -882,7 +877,8 @@ void VisitI8x16Shift(InstructionSelectorT<Adapter>* selector,
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
   StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  int slot =
+      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -1943,7 +1939,7 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 

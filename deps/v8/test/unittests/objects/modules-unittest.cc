@@ -38,9 +38,9 @@ static v8::Global<Module> dep1_global;
 static v8::Global<Module> dep2_global;
 MaybeLocal<Module> ResolveCallback(Local<Context> context,
                                    Local<String> specifier,
-                                   Local<FixedArray> import_assertions,
+                                   Local<FixedArray> import_attributes,
                                    Local<Module> referrer) {
-  CHECK_EQ(0, import_assertions->Length());
+  CHECK_EQ(0, import_attributes->Length());
   Isolate* isolate = context->GetIsolate();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./dep1.js").ToLocalChecked())) {
@@ -79,7 +79,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     Location loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(0, loc.GetLineNumber());
     CHECK_EQ(7, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
     Local<ModuleRequest> module_request_1 =
         module_requests->Get(context(), 1).As<ModuleRequest>();
@@ -90,7 +90,7 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
     loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(1, loc.GetLineNumber());
     CHECK_EQ(15, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_1->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_1->GetImportAttributes()->Length());
   }
 
   // Instantiation should fail.
@@ -138,30 +138,30 @@ TEST_F(ModuleTest, ModuleInstantiationFailures1) {
 
 static v8::Global<Module> fooModule_global;
 static v8::Global<Module> barModule_global;
-MaybeLocal<Module> ResolveCallbackWithImportAssertions(
+MaybeLocal<Module> ResolveCallbackWithImportAttributes(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./foo.js").ToLocalChecked())) {
-    CHECK_EQ(0, import_assertions->Length());
+    CHECK_EQ(0, import_attributes->Length());
 
     return fooModule_global.Get(isolate);
   } else if (specifier->StrictEquals(
                  String::NewFromUtf8(isolate, "./bar.js").ToLocalChecked())) {
-    CHECK_EQ(3, import_assertions->Length());
+    CHECK_EQ(3, import_attributes->Length());
     Local<String> assertion_key =
-        import_assertions->Get(context, 0).As<Value>().As<String>();
+        import_attributes->Get(context, 0).As<Value>().As<String>();
     CHECK(String::NewFromUtf8(isolate, "a")
               .ToLocalChecked()
               ->StrictEquals(assertion_key));
     Local<String> assertion_value =
-        import_assertions->Get(context, 1).As<Value>().As<String>();
+        import_attributes->Get(context, 1).As<Value>().As<String>();
     CHECK(String::NewFromUtf8(isolate, "b")
               .ToLocalChecked()
               ->StrictEquals(assertion_value));
     Local<Data> assertion_source_offset_object =
-        import_assertions->Get(context, 2);
+        import_attributes->Get(context, 2);
     Local<Int32> assertion_source_offset_int32 =
         assertion_source_offset_object.As<Value>()
             ->ToInt32(context)
@@ -206,7 +206,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
     Location loc = module->SourceOffsetToLocation(offset);
     CHECK_EQ(0, loc.GetLineNumber());
     CHECK_EQ(7, loc.GetColumnNumber());
-    CHECK_EQ(0, module_request_0->GetImportAssertions()->Length());
+    CHECK_EQ(0, module_request_0->GetImportAttributes()->Length());
 
     Local<ModuleRequest> module_request_1 =
         module_requests->Get(context(), 1).As<ModuleRequest>();
@@ -218,17 +218,17 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
     CHECK_EQ(1, loc.GetLineNumber());
     CHECK_EQ(15, loc.GetColumnNumber());
 
-    Local<FixedArray> import_assertions_1 =
-        module_request_1->GetImportAssertions();
-    CHECK_EQ(3, import_assertions_1->Length());
+    Local<FixedArray> import_attributes_1 =
+        module_request_1->GetImportAttributes();
+    CHECK_EQ(3, import_attributes_1->Length());
     Local<String> assertion_key =
-        import_assertions_1->Get(context(), 0).As<String>();
+        import_attributes_1->Get(context(), 0).As<String>();
     CHECK(NewString("a")->StrictEquals(assertion_key));
     Local<String> assertion_value =
-        import_assertions_1->Get(context(), 1).As<String>();
+        import_attributes_1->Get(context(), 1).As<String>();
     CHECK(NewString("b")->StrictEquals(assertion_value));
     int32_t assertion_source_offset =
-        import_assertions_1->Get(context(), 2).As<Int32>()->Value();
+        import_attributes_1->Get(context(), 2).As<Int32>()->Value();
     CHECK_EQ(65, assertion_source_offset);
     loc = module->SourceOffsetToLocation(assertion_source_offset);
     CHECK_EQ(1, loc.GetLineNumber());
@@ -256,7 +256,7 @@ TEST_F(ModuleTest, ModuleInstantiationWithImportAssertions) {
   }
 
   CHECK(
-      module->InstantiateModule(context(), ResolveCallbackWithImportAssertions)
+      module->InstantiateModule(context(), ResolveCallbackWithImportAttributes)
           .FromJust());
   CHECK_EQ(Module::kInstantiated, module->GetStatus());
 
@@ -369,8 +369,8 @@ TEST_F(ModuleTest, ModuleInstantiationFailures2) {
 
 static MaybeLocal<Module> CompileSpecifierAsModuleResolveCallback(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
-  CHECK_EQ(0, import_assertions->Length());
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  CHECK_EQ(0, import_attributes->Length());
   Isolate* isolate = context->GetIsolate();
   ScriptOrigin origin = ModuleOrigin(
       String::NewFromUtf8(isolate, "module.js").ToLocalChecked(), isolate);
@@ -485,8 +485,8 @@ static v8::Global<Module> failure_module_global;
 static v8::Global<Module> dependent_module_global;
 MaybeLocal<Module> ResolveCallbackForModuleEvaluationError2(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
-  CHECK_EQ(0, import_assertions->Length());
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  CHECK_EQ(0, import_attributes->Length());
   Isolate* isolate = context->GetIsolate();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./failure.js").ToLocalChecked())) {
@@ -887,7 +887,7 @@ void DoHostImportModuleDynamically(void* import_data) {
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
-    Local<FixedArray> import_assertions) {
+    Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -900,7 +900,7 @@ v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackResolve(
 v8::MaybeLocal<v8::Promise> HostImportModuleDynamicallyCallbackReject(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
-    Local<FixedArray> import_assertions) {
+    Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
   Local<v8::Promise::Resolver> resolver =
       v8::Promise::Resolver::New(context).ToLocalChecked();
@@ -1076,8 +1076,8 @@ static v8::Global<Module> cycle_one_module_global;
 static v8::Global<Module> cycle_two_module_global;
 MaybeLocal<Module> ResolveCallbackForIsGraphAsyncTopLevelAwait(
     Local<Context> context, Local<String> specifier,
-    Local<FixedArray> import_assertions, Local<Module> referrer) {
-  CHECK_EQ(0, import_assertions->Length());
+    Local<FixedArray> import_attributes, Local<Module> referrer) {
+  CHECK_EQ(0, import_attributes->Length());
   Isolate* isolate = context->GetIsolate();
   if (specifier->StrictEquals(
           String::NewFromUtf8(isolate, "./async_leaf.js").ToLocalChecked())) {

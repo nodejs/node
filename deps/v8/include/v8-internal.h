@@ -616,8 +616,6 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
     kRuntimeGeneratedCodeObjectsLiveInTrustedSpace &&
     kBuiltinCodeObjectsLiveInTrustedSpace;
 
-constexpr bool kInterpreterDataObjectsLiveInTrustedSpace = false;
-
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
@@ -780,8 +778,6 @@ class Internals {
   static const int kNodeFlagsOffset = 1 * kApiSystemPointerSize + 3;
   static const int kNodeStateMask = 0x3;
   static const int kNodeStateIsWeakValue = 2;
-
-  static const int kTracedNodeClassIdOffset = kApiSystemPointerSize;
 
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;

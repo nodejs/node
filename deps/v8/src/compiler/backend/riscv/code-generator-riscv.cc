@@ -641,8 +641,8 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ LoadTaggedField(kScratchReg,
-                     MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ LoadProtectedPointerField(
+      kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Lw(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
   __ And(kScratchReg, kScratchReg,
          Operand(1 << Code::kMarkedForDeoptimizationBit));
@@ -789,6 +789,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
       Label after_call;
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
+#if V8_ENABLE_WEBASSEMBLY
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       if (isWasmCapiFunction) {
@@ -796,18 +798,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadAddress(kScratchReg, &after_call, RelocInfo::EXTERNAL_REFERENCE);
         __ StoreWord(kScratchReg,
                      MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       } else {
         Register func = i.InputOrZeroRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       }
       __ bind(&after_call);
+#if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {
         RecordSafepoint(instr->reference_map());
       }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
       frame_access_state()->SetFrameAccessToDefault();
       // Ideally, we should decrement SP delta to match the change of stack

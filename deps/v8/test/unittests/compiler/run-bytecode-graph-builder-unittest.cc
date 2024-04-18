@@ -33,9 +33,8 @@ namespace compiler {
 static const char kFunctionName[] = "f";
 
 static const Token::Value kCompareOperators[] = {
-    Token::Value::EQ,        Token::Value::NE, Token::Value::EQ_STRICT,
-    Token::Value::NE_STRICT, Token::Value::LT, Token::Value::LTE,
-    Token::Value::GT,        Token::Value::GTE};
+    Token::kEq, Token::kNe,  Token::kEqStrict, Token::kNeStrict,
+    Token::kLt, Token::kLte, Token::kGt,       Token::kGte};
 
 static const int SMI_MAX = (1 << 30) - 1;
 static const int SMI_MIN = -(1 << 30);
@@ -1292,21 +1291,21 @@ TEST_F(RunBytecodeGraphBuilderTest, BytecodeGraphBuilderEvalGlobal) {
 bool get_compare_result(Isolate* isolate, Token::Value opcode,
                         Handle<Object> lhs_value, Handle<Object> rhs_value) {
   switch (opcode) {
-    case Token::Value::EQ:
+    case Token::kEq:
       return Object::Equals(isolate, lhs_value, rhs_value).FromJust();
-    case Token::Value::NE:
+    case Token::kNe:
       return !Object::Equals(isolate, lhs_value, rhs_value).FromJust();
-    case Token::Value::EQ_STRICT:
+    case Token::kEqStrict:
       return Object::StrictEquals(*lhs_value, *rhs_value);
-    case Token::Value::NE_STRICT:
+    case Token::kNeStrict:
       return !Object::StrictEquals(*lhs_value, *rhs_value);
-    case Token::Value::LT:
+    case Token::kLt:
       return Object::LessThan(isolate, lhs_value, rhs_value).FromJust();
-    case Token::Value::LTE:
+    case Token::kLte:
       return Object::LessThanOrEqual(isolate, lhs_value, rhs_value).FromJust();
-    case Token::Value::GT:
+    case Token::kGt:
       return Object::GreaterThan(isolate, lhs_value, rhs_value).FromJust();
-    case Token::Value::GTE:
+    case Token::kGte:
       return Object::GreaterThanOrEqual(isolate, lhs_value, rhs_value)
           .FromJust();
     default:
@@ -1316,21 +1315,21 @@ bool get_compare_result(Isolate* isolate, Token::Value opcode,
 
 const char* get_code_snippet(Token::Value opcode) {
   switch (opcode) {
-    case Token::Value::EQ:
+    case Token::kEq:
       return "return p1 == p2;";
-    case Token::Value::NE:
+    case Token::kNe:
       return "return p1 != p2;";
-    case Token::Value::EQ_STRICT:
+    case Token::kEqStrict:
       return "return p1 === p2;";
-    case Token::Value::NE_STRICT:
+    case Token::kNeStrict:
       return "return p1 !== p2;";
-    case Token::Value::LT:
+    case Token::kLt:
       return "return p1 < p2;";
-    case Token::Value::LTE:
+    case Token::kLte:
       return "return p1 <= p2;";
-    case Token::Value::GT:
+    case Token::kGt:
       return "return p1 > p2;";
-    case Token::Value::GTE:
+    case Token::kGte:
       return "return p1 >= p2;";
     default:
       UNREACHABLE();

@@ -60,6 +60,9 @@ class DependentCode : public WeakArrayList {
     // Group of code objects that depends on element transition information in
     // AllocationSites not being changed.
     kAllocationSiteTransitionChangedGroup = 1 << 8,
+    // Group of code objects that depends on a const-tracked let variable in
+    // a ScriptContext not being changed.
+    kConstTrackingLetChangedGroup = 1 << 9,
     // IMPORTANT: The last bit must fit into a Smi, i.e. into 31 bits.
   };
   using DependencyGroups = base::Flags<DependencyGroup, uint32_t>;

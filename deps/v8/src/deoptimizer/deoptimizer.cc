@@ -690,13 +690,12 @@ void Deoptimizer::TraceDeoptEnd(double deopt_duration) {
 void Deoptimizer::TraceMarkForDeoptimization(Isolate* isolate,
                                              Tagged<Code> code,
                                              const char* reason) {
+  DCHECK(code->uses_deoptimization_data());
   if (!v8_flags.trace_deopt && !v8_flags.log_deopt) return;
 
   DisallowGarbageCollection no_gc;
-  Tagged<Object> maybe_data = code->deoptimization_data();
-  if (maybe_data == ReadOnlyRoots(isolate).empty_fixed_array()) return;
-
-  Tagged<DeoptimizationData> deopt_data = DeoptimizationData::cast(maybe_data);
+  Tagged<DeoptimizationData> deopt_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   CodeTracer::Scope scope(isolate->GetCodeTracer());
   if (v8_flags.trace_deopt) {
     PrintF(scope.file(), "[marking dependent code ");

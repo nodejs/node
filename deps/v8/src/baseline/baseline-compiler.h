@@ -91,6 +91,7 @@ class BaselineCompiler {
   Tagged<TaggedIndex> UintAsTagged(int operand_index);
   Tagged<Smi> IndexAsSmi(int operand_index);
   Tagged<Smi> IntAsSmi(int operand_index);
+  Tagged<Smi> UintAsSmi(int operand_index);
   Tagged<Smi> Flag8AsSmi(int operand_index);
   Tagged<Smi> Flag16AsSmi(int operand_index);
 

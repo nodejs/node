@@ -1051,8 +1051,7 @@ void MaglevAssembler::JumpIfHoleNan(DoubleRegister value, Register scratch,
 void MaglevAssembler::JumpIfNotHoleNan(DoubleRegister value, Register scratch,
                                        Label* target,
                                        Label::Distance distance) {
-  Fcmp(value, value);
-  JumpIf(NegateCondition(ConditionForNaN()), target, distance);
+  JumpIfNotNan(value, target, distance);
   Umov(scratch.W(), value.V2S(), 1);
   CompareInt32AndJumpIf(scratch.W(), kHoleNanUpper32, kNotEqual, target,
                         distance);
@@ -1068,6 +1067,18 @@ void MaglevAssembler::JumpIfNotHoleNan(MemOperand operand, Label* target,
                  operand.addrmode()));
   CompareInt32AndJumpIf(upper_bits.W(), kHoleNanUpper32, kNotEqual, target,
                         distance);
+}
+
+void MaglevAssembler::JumpIfNan(DoubleRegister value, Label* target,
+                                Label::Distance distance) {
+  Fcmp(value, value);
+  JumpIf(ConditionForNaN(), target, distance);
+}
+
+void MaglevAssembler::JumpIfNotNan(DoubleRegister value, Label* target,
+                                   Label::Distance distance) {
+  Fcmp(value, value);
+  JumpIf(NegateCondition(ConditionForNaN()), target, distance);
 }
 
 inline void MaglevAssembler::CompareInt32AndJumpIf(Register r1, Register r2,
@@ -1162,14 +1173,6 @@ inline void MaglevAssembler::CompareTaggedAndJumpIf(Register src1,
                                                     Label* target,
                                                     Label::Distance distance) {
   CmpTagged(src1, src2);
-  JumpIf(cond, target, distance);
-}
-
-inline void MaglevAssembler::CompareRootAndJumpIf(Register with,
-                                                  RootIndex index,
-                                                  Condition cond, Label* target,
-                                                  Label::Distance distance) {
-  CompareRoot(with, index);
   JumpIf(cond, target, distance);
 }
 

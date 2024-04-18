@@ -96,3 +96,9 @@ various design documents related to it.
   outside of the sandbox in the trusted heap space, then referencing them
   through another pointer table indirection to ensure memory safe access. This
   document discusses both of these mechanisms.
+* [Hardware Support](https://docs.google.com/document/d/12MsaG6BYRB-jQWNkZiuM3bY8X2B2cAsCMLLdgErvK4c/edit?usp=sharing):
+  Instead of the purely software-based sandbox described by the preceeding
+  documents, the sandbox could also be implemented (or augmented) with special
+  hardware support. This document discusses various options for how that may
+  work in practice, what the implications would be, and which requirements the
+  hardware would have to fulfill.

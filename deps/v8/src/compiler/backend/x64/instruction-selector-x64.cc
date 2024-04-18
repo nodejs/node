@@ -23,6 +23,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/opcodes.h"
+#include "src/compiler/turboshaft/load-store-simplification-reducer.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/representations.h"
@@ -487,7 +488,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return false;
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int32_t, GetImmediateIntegerValue)
   int32_t GetImmediateIntegerValue(node_t node) {
     DCHECK(CanBeImmediate(node));
     auto constant = this->constant_view(node);
@@ -499,7 +499,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     return static_cast<int32_t>(constant.number_value());
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeMemoryOperand)
   bool CanBeMemoryOperand(InstructionCode opcode, node_t node, node_t input,
                           int effect_level) {
     if (!this->IsLoadOrLoadImmutable(input)) return false;
@@ -558,8 +557,13 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
 
   bool ValueFitsIntoImmediate(int64_t value) const {
     // int32_t min will overflow if displacement mode is kNegativeDisplacement.
-    return std::numeric_limits<int32_t>::min() < value &&
-           value <= std::numeric_limits<int32_t>::max();
+    constexpr int64_t kImmediateMin = std::numeric_limits<int32_t>::min() + 1;
+    constexpr int64_t kImmediateMax = std::numeric_limits<int32_t>::max();
+    static_assert(kImmediateMin ==
+                  turboshaft::LoadStoreSimplificationConfiguration::kMinOffset);
+    static_assert(kImmediateMax ==
+                  turboshaft::LoadStoreSimplificationConfiguration::kMaxOffset);
+    return kImmediateMin <= value && value <= kImmediateMax;
   }
 
   bool IsZeroIntConstant(node_t node) const {
@@ -714,9 +718,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(AddressingMode,
-                                          GetEffectiveAddressMemoryOperand)
-
   AddressingMode GetEffectiveAddressMemoryOperand(
       node_t operand, InstructionOperand inputs[], size_t* input_count,
       RegisterUseKind reg_kind = RegisterUseKind::kUseRegister);
@@ -732,7 +733,6 @@ class X64OperandGeneratorT final : public OperandGeneratorT<Adapter> {
     }
   }
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanBeBetterLeftOperand)
   bool CanBeBetterLeftOperand(node_t node) const {
     return !selector()->IsLive(node);
   }
@@ -822,11 +822,11 @@ X64OperandGeneratorT<TurboshaftAdapter>::GetEffectiveAddressMemoryOperand(
     // modes for the scale.
     UNIMPLEMENTED();
   } else {
-    const turboshaft::Operation& op = this->turboshaft_graph()->Get(operand);
-    DCHECK_GE(op.input_count, 2);
-
-    inputs[(*input_count)++] = UseRegister(op.input(0), reg_kind);
-    inputs[(*input_count)++] = UseRegister(op.input(1), reg_kind);
+    // TODO(nicohartmann@): Turn this into a `DCHECK` once we have some
+    // coverage.
+    CHECK_EQ(m->displacement, 0);
+    inputs[(*input_count)++] = UseRegister(m->base, reg_kind);
+    inputs[(*input_count)++] = UseRegister(m->index, reg_kind);
     return kMode_MR1;
   }
 }
@@ -1036,7 +1036,8 @@ void InstructionSelectorT<Adapter>::VisitTraceInstruction(node_t node) {
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
   StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  int slot =
+      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -2251,7 +2252,7 @@ void InstructionSelectorT<Adapter>::VisitWord32ReverseBytes(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 
@@ -2284,13 +2285,13 @@ void InstructionSelectorT<Adapter>::VisitInt32Add(node_t node) {
     if (const turboshaft::ChangeOp* change =
             this->Get(left)
                 .template TryCast<
-                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
       left = change->input();
     }
     if (const turboshaft::ChangeOp* change =
             this->Get(right)
                 .template TryCast<
-                    turboshaft::Opmask::kTruncateInt64ToInt32>()) {
+                    turboshaft::Opmask::kTruncateWord64ToWord32>()) {
       right = change->input();
     }
 
@@ -2340,7 +2341,6 @@ void InstructionSelectorT<Adapter>::VisitInt64AddWithOverflow(node_t node) {
 
 template <>
 void InstructionSelectorT<TurboshaftAdapter>::VisitInt32Sub(node_t node) {
-  // TODO(mliedtke): Handle truncate consistently with Turbofan.
   X64OperandGeneratorT<TurboshaftAdapter> g(this);
   auto binop = this->word_binop_view(node);
   auto left = binop.left();

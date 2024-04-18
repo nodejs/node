@@ -178,7 +178,8 @@ TEST(MemoryChunk) {
     // With CodeRange.
     const size_t code_range_size = 32 * MB;
     VirtualMemory code_range_reservation(
-        page_allocator, code_range_size, nullptr, MemoryChunk::kAlignment,
+        page_allocator, code_range_size, nullptr,
+        MemoryChunkHeader::GetAlignmentForAllocation(),
         jitless ? JitPermission::kNoJit : JitPermission::kMapAsJittable);
 
     base::PageFreeingMode page_freeing_mode =
@@ -197,7 +198,8 @@ TEST(MemoryChunk) {
 
     base::BoundedPageAllocator code_page_allocator(
         page_allocator, code_range_reservation.address(),
-        code_range_reservation.size(), MemoryChunk::kAlignment,
+        code_range_reservation.size(),
+        MemoryChunkHeader::GetAlignmentForAllocation(),
         base::PageInitializationMode::kAllocatedPagesCanBeUninitialized,
         page_freeing_mode);
 

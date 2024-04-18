@@ -14,9 +14,7 @@ namespace v8::internal::compiler::turboshaft {
 
 void Int64LoweringPhase::Run(Zone* temp_zone) {
 #if V8_TARGET_ARCH_32_BIT
-  turboshaft::CopyingPhase<
-      turboshaft::Int64LoweringReducer, turboshaft::VariableReducer,
-      turboshaft::RequiredOptimizationReducer>::Run<true>(temp_zone);
+  turboshaft::CopyingPhase<turboshaft::Int64LoweringReducer>::Run(temp_zone);
 #else
   UNREACHABLE();
 #endif

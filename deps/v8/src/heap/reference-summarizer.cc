@@ -126,6 +126,9 @@ class ReferenceSummarizerMarkingVisitor
   bool TryMark(Tagged<HeapObject> obj) { return true; }
   bool IsMarked(Tagged<HeapObject> obj) const { return false; }
 
+  void MarkPointerTableEntry(Tagged<HeapObject> host,
+                             IndirectPointerSlot slot) {}
+
  private:
   ReferenceSummarizerMarkingState* marking_state_;
 };

@@ -12,6 +12,7 @@
 #include "include/v8-object.h"
 #include "src/flags/flags.h"
 #include "src/handles/handles-inl.h"
+#include "src/heap/gc-tracer-inl.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-chunk.h"
@@ -495,6 +496,41 @@ TEST_F(HeapTest, Regress978156) {
   // an out-of-bounds access of the marking bitmap in a bad case.
   heap->marking_state()->TryMarkAndAccountLiveBytes(filler);
 }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+namespace {
+struct RandomGCIntervalTestSetter {
+  RandomGCIntervalTestSetter() {
+    static constexpr int kInterval = 87;
+    v8_flags.random_gc_interval = kInterval;
+  }
+  ~RandomGCIntervalTestSetter() { v8_flags.random_gc_interval = 0; }
+};
+
+struct HeapTestWithRandomGCInterval : RandomGCIntervalTestSetter, HeapTest {};
+}  // namespace
+
+TEST_F(HeapTestWithRandomGCInterval, AllocationTimeout) {
+  auto* allocator = heap()->allocator();
+
+  // Invoke major GC to cause the timeout to be updated.
+  InvokeMajorGC();
+  const int initial_allocation_timeout =
+      heap()->get_allocation_timeout_for_testing();
+  ASSERT_GT(initial_allocation_timeout, 0);
+
+  for (int i = 0; i < initial_allocation_timeout - 1; ++i) {
+    AllocationResult allocation = allocator->AllocateRaw(
+        2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+    EXPECT_FALSE(allocation.IsFailure());
+  }
+
+  // The last allocation must fail.
+  AllocationResult allocation = allocator->AllocateRaw(
+      2 * kTaggedAligned, AllocationType::kYoung, AllocationOrigin::kRuntime);
+  EXPECT_TRUE(allocation.IsFailure());
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace internal
 }  // namespace v8

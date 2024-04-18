@@ -4,12 +4,17 @@
 
 #include "src/compiler/js-context-specialization.h"
 
+#include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/compilation-dependencies.h"
+#include "src/compiler/const-tracking-let-helpers.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-properties.h"
+#include "src/compiler/simplified-operator.h"
+#include "src/deoptimizer/deoptimize-reason.h"
 #include "src/objects/contexts-inl.h"
 
 namespace v8 {
@@ -24,6 +29,8 @@ Reduction JSContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSStoreContext:
       return ReduceJSStoreContext(node);
+    case IrOpcode::kJSStoreScriptContext:
+      return ReduceJSStoreScriptContext(node);
     case IrOpcode::kJSGetImportMeta:
       return ReduceJSGetImportMeta(node);
     default:
@@ -159,7 +166,9 @@ Reduction JSContextSpecialization::ReduceJSLoadContext(Node* node) {
         node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
   }
 
-  if (!access.immutable()) {
+  if (!access.immutable() &&
+      !broker()->dependencies()->DependOnConstTrackingLet(
+          concrete, access.index(), broker())) {
     // We found the requested context object but since the context slot is
     // mutable we can only partially reduce the load.
     return SimplifyJSLoadContext(
@@ -224,6 +233,54 @@ Reduction JSContextSpecialization::ReduceJSStoreContext(Node* node) {
 
   return SimplifyJSStoreContext(
       node, jsgraph()->ConstantNoHole(concrete, broker()), depth);
+}
+
+Reduction JSContextSpecialization::ReduceJSStoreScriptContext(Node* node) {
+  DCHECK(v8_flags.const_tracking_let);
+  DCHECK_EQ(IrOpcode::kJSStoreScriptContext, node->opcode());
+
+  const ContextAccess& access = ContextAccessOf(node->op());
+  size_t depth = access.depth();
+  int side_data_index = ConstTrackingLetSideDataIndexForAccess(access.index());
+
+  // First walk up the context chain in the graph until we reduce the depth to 0
+  // or hit a node that does not have a CreateXYZContext operator.
+  Node* context = NodeProperties::GetOuterContext(node, &depth);
+
+  OptionalContextRef maybe_context =
+      GetSpecializationContext(broker(), context, &depth, outer());
+  if (IsConstTrackingLetVariableSurelyNotConstant(maybe_context, depth,
+                                                  side_data_index, broker())) {
+    // The value is not a constant any more, so we don't need to generate
+    // code for invalidating the side data.
+    const Operator* op =
+        jsgraph_->javascript()->StoreContext(0, access.index());
+    NodeProperties::ChangeOp(node, op);
+    return Changed(node);
+  }
+
+  // The value might be a constant. Generate code which checks the side data and
+  // potentially invalidates the constness.
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Generate code to walk up the contexts the remaining depth.
+  for (size_t i = 0; i < depth; ++i) {
+    context = effect = jsgraph_->graph()->NewNode(
+        jsgraph_->simplified()->LoadField(
+            AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),
+        context, effect, control);
+  }
+
+  GenerateCheckConstTrackingLetSideData(context, &effect, &control,
+                                        side_data_index, jsgraph_);
+
+  // If we're still here (not deopted) the side data implied that the value was
+  // already not a constant, so we can just store into it.
+  const Operator* op = jsgraph_->javascript()->StoreContext(0, access.index());
+  Node* new_store = jsgraph_->graph()->NewNode(
+      op, NodeProperties::GetValueInput(node, 0), context, effect, control);
+  return Replace(new_store);
 }
 
 OptionalContextRef GetModuleContext(JSHeapBroker* broker, Node* node,

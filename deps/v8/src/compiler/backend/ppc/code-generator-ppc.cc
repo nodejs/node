@@ -981,6 +981,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       int const fp_param_field = FPParamField::decode(instr->opcode());
       int num_fp_parameters = fp_param_field;
       bool has_function_descriptor = false;
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if ABI_USES_FUNCTION_DESCRIPTORS
       // AIX/PPC64BE Linux uses a function descriptor
       int kNumFPParametersMask = kHasFunctionDescriptorBitMask - 1;
@@ -1006,18 +1007,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ StoreU64(kScratchReg,
                     MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
         __ mtlr(r0);
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
         __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
-                         MacroAssembler::SetIsolateDataSlots::kYes,
-                         has_function_descriptor);
+                         set_isolate_data_slots, has_function_descriptor);
       } else {
         Register func = i.InputRegister(0);
         __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
-                         MacroAssembler::SetIsolateDataSlots::kYes,
-                         has_function_descriptor);
+                         set_isolate_data_slots, has_function_descriptor);
       }
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {

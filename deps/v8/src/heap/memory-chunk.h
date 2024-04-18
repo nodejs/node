@@ -243,13 +243,13 @@ class MemoryChunk : public BasicMemoryChunk {
 
   void SetLiveBytes(size_t value) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(value, kObjectAlignment8GbHeap));
+                   ::IsAligned(value, kObjectAlignment8GbHeap));
     live_byte_count_.store(value, std::memory_order_relaxed);
   }
 
   void IncrementLiveBytesAtomically(intptr_t diff) {
     DCHECK_IMPLIES(V8_COMPRESS_POINTERS_8GB_BOOL,
-                   IsAligned(diff, kObjectAlignment8GbHeap));
+                   ::IsAligned(diff, kObjectAlignment8GbHeap));
     live_byte_count_.fetch_add(diff, std::memory_order_relaxed);
   }
 

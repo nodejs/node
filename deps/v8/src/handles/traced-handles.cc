@@ -25,8 +25,6 @@ class TracedNodeBlock;
 
 TracedNode::TracedNode(IndexType index, IndexType next_free_index)
     : next_free_index_(next_free_index), index_(index) {
-  static_assert(offsetof(TracedNode, class_id_) ==
-                Internals::kTracedNodeClassIdOffset);
   // TracedNode size should stay within 2 words.
   static_assert(sizeof(TracedNode) <= (2 * kSystemPointerSize));
   DCHECK(!is_in_use());

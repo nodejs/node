@@ -72,7 +72,7 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class DuplicationOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DuplucationOptimization)
 
   OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
     LABEL_BLOCK(no_change) {

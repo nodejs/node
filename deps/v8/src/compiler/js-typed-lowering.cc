@@ -1424,7 +1424,34 @@ Reduction JSTypedLowering::ReduceJSHasContextExtension(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* context = NodeProperties::GetContextInput(node);
   Node* control = graph()->start();
+
   for (size_t i = 0; i < depth; ++i) {
+#if DEBUG
+    // Const tracking let data is stored in the extension slot of a
+    // ScriptContext - however, it's unrelated to the sloppy eval variable
+    // extension. We should never iterate through a ScriptContext here.
+    Node* const scope_info = effect = graph()->NewNode(
+        simplified()->LoadField(
+            AccessBuilder::ForContextSlot(Context::SCOPE_INFO_INDEX)),
+        context, effect, control);
+    Node* scope_info_flags = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForScopeInfoFlags()), scope_info,
+        effect, control);
+    Node* scope_type = graph()->NewNode(
+        simplified()->NumberBitwiseAnd(), scope_info_flags,
+        jsgraph()->SmiConstant(ScopeInfo::ScopeTypeBits::kMask));
+    Node* is_script_scope =
+        graph()->NewNode(simplified()->NumberEqual(), scope_type,
+                         jsgraph()->SmiConstant(ScopeType::SCRIPT_SCOPE));
+    Node* is_not_script_scope =
+        graph()->NewNode(simplified()->BooleanNot(), is_script_scope);
+    JSGraphAssembler gasm(broker(), jsgraph_, jsgraph_->zone(),
+                          BranchSemantics::kJS);
+    gasm.InitializeEffectControl(effect, control);
+    gasm.Assert(is_not_script_scope, "we should no see a ScriptContext here",
+                __FILE__, __LINE__);
+#endif
+
     context = effect = graph()->NewNode(
         simplified()->LoadField(
             AccessBuilder::ForContextSlotKnownPointer(Context::PREVIOUS_INDEX)),

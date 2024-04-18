@@ -508,11 +508,11 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
   V(WasmAsyncResolvePromiseCallback, wasm_async_resolve_promise_callback,     \
     DefaultWasmAsyncResolvePromiseCallback)                                   \
   V(WasmLoadSourceMapCallback, wasm_load_source_map_callback, nullptr)        \
-  V(WasmGCEnabledCallback, wasm_gc_enabled_callback, nullptr)                 \
   V(WasmImportedStringsEnabledCallback,                                       \
     wasm_imported_strings_enabled_callback, nullptr)                          \
   V(JavaScriptCompileHintsMagicEnabledCallback,                               \
     compile_hints_magic_enabled_callback, nullptr)                            \
+  V(WasmJSPIEnabledCallback, wasm_jspi_enabled_callback, nullptr)             \
   /* State for Relocatable. */                                                \
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
@@ -595,7 +595,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
     FIELD_ACCESSOR(uintptr_t, stack_limit)
     FIELD_ACCESSOR(ThreadState*, thread_state)
-
 #if USE_SIMULATOR
     FIELD_ACCESSOR(Simulator*, simulator)
 #endif
@@ -621,8 +620,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Used for walking the promise tree for catch prediction.
   struct PromiseHandler {
-    Handle<JSReceiver> receiver;
-    bool catches;
+    Tagged<SharedFunctionInfo> function_info;
+    bool async;
   };
 
   static void InitializeOncePerProcess();
@@ -800,14 +799,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void InstallConditionalFeatures(Handle<NativeContext> context);
 
+#if V8_ENABLE_WEBASSEMBLY
+  void WasmInitJSPIFeature();
+#endif
+
   bool IsSharedArrayBufferConstructorEnabled(Handle<NativeContext> context);
 
-  bool IsWasmGCEnabled(Handle<NativeContext> context);
   bool IsWasmStringRefEnabled(Handle<NativeContext> context);
   bool IsWasmInliningEnabled(Handle<NativeContext> context);
-  bool IsWasmInliningIntoJSEnabled(Handle<NativeContext> context);
   bool IsWasmImportedStringsEnabled(Handle<NativeContext> context);
-
+  bool IsWasmJSPIEnabled(Handle<NativeContext> context);
   bool IsCompileHintsMagicEnabled(Handle<NativeContext> context);
 
   THREAD_LOCAL_TOP_ADDRESS(Tagged<Context>, pending_handler_context)
@@ -922,18 +923,12 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void PopPromise();
   bool IsPromiseStackEmpty() const;
 
-  // Return the relevant Promise that a throw/rejection pertains to, based
-  // on the contents of the Promise stack
-  Handle<Object> GetPromiseOnStackOnThrow();
-
-  // Heuristically guess whether a Promise is handled by user catch handler
-  bool PromiseHasUserDefinedRejectHandler(Handle<JSPromise> promise);
-
-  // Walks the promise tree and calls a callback on every handler an exception
-  // is likely to hit. Used in catch prediction. Will end the walk and return
-  // true if a callback returns true, otherwise returns false.
-  bool WalkPromiseTree(Handle<JSPromise> promise,
-                       std::function<bool(PromiseHandler)> callback);
+  // Walks the call stack and promise tree and calls a callback on every
+  // function an exception is likely to hit. Used in catch prediction.
+  // Returns true if the exception is expected to be caught.
+  bool WalkCallStackAndPromiseTree(
+      MaybeHandle<JSPromise> rejected_promise,
+      const std::function<void(PromiseHandler)>& callback);
 
   class V8_NODISCARD ExceptionScope {
    public:
@@ -1055,7 +1050,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
     CAUGHT_BY_JAVASCRIPT,
     CAUGHT_BY_EXTERNAL,
     CAUGHT_BY_PROMISE,
-    CAUGHT_BY_ASYNC_AWAIT
+    CAUGHT_BY_ASYNC_AWAIT,
   };
   CatchType PredictExceptionCatcher();
   CatchType PredictExceptionCatchAtFrame(v8::internal::StackFrame* frame);
@@ -1269,6 +1264,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   StubCache* load_stub_cache() const { return load_stub_cache_; }
   StubCache* store_stub_cache() const { return store_stub_cache_; }
+  StubCache* define_own_stub_cache() const { return define_own_stub_cache_; }
   Deoptimizer* GetAndClearCurrentDeoptimizer() {
     Deoptimizer* result = current_deoptimizer_;
     CHECK_NOT_NULL(result);
@@ -1478,6 +1474,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bool NeedsSourcePositions() const;
 
   bool IsLoggingCodeCreation() const;
+
+  inline bool InFastCCall() const;
 
   bool AllowsCodeCompaction() const;
 
@@ -1879,12 +1877,10 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void ClearKeptObjects();
 
   void SetHostImportModuleDynamicallyCallback(
-      HostImportModuleDynamicallyWithImportAssertionsCallback callback);
-  void SetHostImportModuleDynamicallyCallback(
       HostImportModuleDynamicallyCallback callback);
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
       MaybeHandle<Script> maybe_referrer, Handle<Object> specifier,
-      MaybeHandle<Object> maybe_import_assertions_argument);
+      MaybeHandle<Object> maybe_import_options_argument);
 
   void SetHostInitializeImportMetaObjectCallback(
       HostInitializeImportMetaObjectCallback callback);
@@ -2376,6 +2372,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   V8FileLogger* v8_file_logger_ = nullptr;
   StubCache* load_stub_cache_ = nullptr;
   StubCache* store_stub_cache_ = nullptr;
+  StubCache* define_own_stub_cache_ = nullptr;
   Deoptimizer* current_deoptimizer_ = nullptr;
   bool deoptimizer_lazy_throw_ = false;
   MaterializedObjectStore* materialized_object_store_ = nullptr;
@@ -2416,22 +2413,20 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   PromiseHook promise_hook_ = nullptr;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_ =
       nullptr;
-  HostImportModuleDynamicallyWithImportAssertionsCallback
-      host_import_module_dynamically_with_import_assertions_callback_ = nullptr;
   std::atomic<debug::CoverageMode> code_coverage_mode_{
       debug::CoverageMode::kBestEffort};
 
   std::atomic<bool> battery_saver_mode_enabled_ = false;
 
   // Helper function for RunHostImportModuleDynamicallyCallback.
-  // Unpacks import assertions, if present, from the second argument to dynamic
+  // Unpacks import attributes, if present, from the second argument to dynamic
   // import() and returns them in a FixedArray, sorted by code point order of
   // the keys, in the form [key1, value1, key2, value2, ...]. Returns an empty
   // MaybeHandle if an error was thrown.  In this case, the host callback should
   // not be called and instead the caller should use the exception to
   // reject the import() call's Promise.
-  MaybeHandle<FixedArray> GetImportAssertionsFromArgument(
-      MaybeHandle<Object> maybe_import_assertions_argument);
+  MaybeHandle<FixedArray> GetImportAttributesFromArgument(
+      MaybeHandle<Object> maybe_import_options_argument);
 
   HostInitializeImportMetaObjectCallback
       host_initialize_import_meta_object_callback_ = nullptr;
@@ -2637,7 +2632,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   // Cache for the JavaScriptCompileHintsMagic origin trial.
   // TODO(v8:13917): Remove when the origin trial is removed.
-  bool allow_compile_hints_magic_ = false;
+  std::atomic<bool> allow_compile_hints_magic_ = false;
 
   base::Mutex managed_ptr_destructors_mutex_;
   ManagedPtrDestructor* managed_ptr_destructors_head_ = nullptr;
@@ -2698,7 +2693,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
-  wasm::StackMemory* wasm_stacks_;
+  wasm::StackMemory* wasm_stacks_ = nullptr;
 #endif
 
   // Enables the host application to provide a mechanism for recording a

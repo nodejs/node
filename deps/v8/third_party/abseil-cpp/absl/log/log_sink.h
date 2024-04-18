@@ -32,15 +32,16 @@ ABSL_NAMESPACE_BEGIN
 // `absl::LogSink` is an interface which can be extended to intercept and
 // process particular messages (with `LOG.ToSinkOnly()` or
 // `LOG.ToSinkAlso()`) or all messages (if registered with
-// `absl::AddLogSink`).  Implementations must be thread-safe, and should take
-// care not to take any locks that might be held by the `LOG` caller.
+// `absl::AddLogSink`).  Implementations must not take any locks that might be
+// held by the `LOG` caller.
 class LogSink {
  public:
   virtual ~LogSink() = default;
 
   // LogSink::Send()
   //
-  // `Send` is called synchronously during the log statement.
+  // `Send` is called synchronously during the log statement.  `Send` must be
+  // thread-safe.
   //
   // It is safe to use `LOG` within an implementation of `Send`.  `ToSinkOnly`
   // and `ToSinkAlso` are safe in general but can be used to create an infinite
@@ -50,8 +51,14 @@ class LogSink {
   // LogSink::Flush()
   //
   // Sinks that buffer messages should override this method to flush the buffer
-  // and return.
+  // and return.  `Flush` must be thread-safe.
   virtual void Flush() {}
+
+ protected:
+  LogSink() = default;
+  // Implementations may be copyable and/or movable.
+  LogSink(const LogSink&) = default;
+  LogSink& operator=(const LogSink&) = default;
 
  private:
   // https://lld.llvm.org/missingkeyfunction.html#missing-key-function

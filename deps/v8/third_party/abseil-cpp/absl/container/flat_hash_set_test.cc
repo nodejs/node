@@ -16,6 +16,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -24,6 +25,7 @@
 #include "absl/base/config.h"
 #include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/hash_generator_testing.h"
+#include "absl/container/internal/test_allocator.h"
 #include "absl/container/internal/unordered_set_constructor_test.h"
 #include "absl/container/internal/unordered_set_lookup_test.h"
 #include "absl/container/internal/unordered_set_members_test.h"
@@ -235,6 +237,16 @@ TEST(FlatHashSet, PoisonInline) {
                                      std::allocator<PoisonInline>());
     EXPECT_THAT(set2, UnorderedElementsAre(a));
   }
+}
+
+TEST(FlatHashSet, FlatHashSetPolicyDestroyReturnsTrue) {
+  EXPECT_TRUE((decltype(FlatHashSetPolicy<int>::destroy<std::allocator<int>>(
+      nullptr, nullptr))()));
+  EXPECT_FALSE(
+      (decltype(FlatHashSetPolicy<int>::destroy<CountingAllocator<int>>(
+          nullptr, nullptr))()));
+  EXPECT_FALSE((decltype(FlatHashSetPolicy<std::unique_ptr<int>>::destroy<
+                         std::allocator<int>>(nullptr, nullptr))()));
 }
 
 }  // namespace

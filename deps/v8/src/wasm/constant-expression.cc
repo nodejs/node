@@ -58,22 +58,36 @@ ValueOrError EvaluateConstantExpression(
       const uint8_t* end = module_bytes.begin() + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
-      FunctionBody body(&sig, ref.offset(), start, end);
+      // We have already validated the expression, so we might as well
+      // revalidate it as non-shared, which is strictly more permissive.
+      // TODO(14616): Rethink this.
+      constexpr bool kIsShared = false;
+      FunctionBody body(&sig, ref.offset(), start, end, kIsShared);
       WasmFeatures detected;
-      // We use FullValidationTag so we do not have to create another template
-      // instance of WasmFullDecoder, which would cost us >50Kb binary code
-      // size.
       auto* module = trusted_instance_data->module();
-      WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
-                      kConstantExpression>
-          decoder(zone, module, WasmFeatures::All(), &detected, body, module,
-                  isolate, trusted_instance_data);
+      ValueOrError result;
+      {
+        // We need a scope for the decoder because its destructor resets some
+        // Zone elements, which has to be done before we reset the Zone
+        // afterwards.
+        // We use FullValidationTag so we do not have to create another template
+        // instance of WasmFullDecoder, which would cost us >50Kb binary code
+        // size.
+        WasmFullDecoder<Decoder::FullValidationTag, ConstantExpressionInterface,
+                        kConstantExpression>
+            decoder(zone, module, WasmFeatures::All(), &detected, body, module,
+                    isolate, trusted_instance_data);
 
-      decoder.DecodeFunctionBody();
+        decoder.DecodeFunctionBody();
 
-      return decoder.interface().has_error()
-                 ? ValueOrError(decoder.interface().error())
-                 : ValueOrError(decoder.interface().computed_value());
+        result = decoder.interface().has_error()
+                     ? ValueOrError(decoder.interface().error())
+                     : ValueOrError(decoder.interface().computed_value());
+      }
+
+      zone->Reset();
+
+      return result;
     }
   }
 }

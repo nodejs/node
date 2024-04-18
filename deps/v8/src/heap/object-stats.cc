@@ -1017,11 +1017,11 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
       ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
   // FixedArrays on constant pool are used for holding descriptor information.
   // They are shared with optimized code.
-  Tagged<FixedArray> constant_pool =
-      FixedArray::cast(bytecode->constant_pool());
+  Tagged<TrustedFixedArray> constant_pool =
+      TrustedFixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Tagged<Object> entry = constant_pool->get(i);
-    if (IsFixedArrayExact(entry, cage_base())) {
+    if (IsFixedArrayExact(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);

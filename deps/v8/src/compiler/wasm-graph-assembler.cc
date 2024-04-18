@@ -144,6 +144,20 @@ Node* WasmGraphAssembler::LoadFromObject(MachineType type, Node* base,
       offset, effect(), control()));
 }
 
+Node* WasmGraphAssembler::LoadProtectedPointerFromObject(Node* object,
+                                                         int offset) {
+#if V8_ENABLE_SANDBOX
+  static_assert(COMPRESS_POINTERS_BOOL);
+  Node* tagged =
+      LoadFromObject(MachineType::Int32(), object, IntPtrConstant(offset));
+  Node* trusted_cage_base = Load(MachineType::Pointer(), LoadRootRegister(),
+                                 IsolateData::trusted_cage_base_offset());
+  return WordOr(trusted_cage_base, BuildChangeUint32ToUintPtr(tagged));
+#else
+  return LoadFromObject(MachineType::AnyTagged(), object, offset);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 Node* WasmGraphAssembler::LoadImmutableFromObject(MachineType type, Node* base,
                                                   Node* offset) {
   return AddNode(graph()->NewNode(

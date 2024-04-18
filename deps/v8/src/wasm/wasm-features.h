@@ -21,7 +21,10 @@
   V(threads, "thread opcodes")                       \
   V(return_call, "return call opcodes")              \
   V(extended_const, "extended constant expressions") \
-  V(relaxed_simd, "relaxed simd")
+  V(relaxed_simd, "relaxed simd")                    \
+  V(gc, "garbage collection")                        \
+  V(typed_funcref, "typed function references")      \
+  V(js_inlining, "inline small wasm functions into JS")
 
 // All features, including features that do not have flags.
 #define FOREACH_WASM_FEATURE(V) \

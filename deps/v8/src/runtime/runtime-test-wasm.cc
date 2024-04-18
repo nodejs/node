@@ -144,11 +144,12 @@ int WasmStackSize(Isolate* isolate) {
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
-  HandleScope shs(isolate);
+  SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<WasmInstanceObject> instance_object = args.at<WasmInstanceObject>(0);
-  Handle<WasmTrustedInstanceData> trusted_data =
-      handle(instance_object->trusted_data(isolate), isolate);
+  Tagged<WasmInstanceObject> instance_object =
+      Tagged<WasmInstanceObject>::cast(args[0]);
+  Tagged<WasmTrustedInstanceData> trusted_data =
+      instance_object->trusted_data(isolate);
   Address wrapper_start = isolate->builtins()
                               ->code(Builtin::kWasmToJsWrapperAsm)
                               ->instruction_start();
@@ -159,22 +160,15 @@ RUNTIME_FUNCTION(Runtime_CountUnoptimizedWasmToJSWrapper) {
       ++result;
     }
   }
-  int table_count = trusted_data->tables()->length();
+  Tagged<ProtectedFixedArray> dispatch_tables = trusted_data->dispatch_tables();
+  int table_count = dispatch_tables->length();
   for (int table_index = 0; table_index < table_count; ++table_index) {
-    if (!IsWasmIndirectFunctionTable(
-            trusted_data->indirect_function_tables()->get(table_index))) {
-      continue;
-    }
-    Tagged<WasmIndirectFunctionTable> table = WasmIndirectFunctionTable::cast(
-        trusted_data->indirect_function_tables()->get(table_index));
-
-    for (int entry_index = 0; entry_index < static_cast<int>(table->size());
-         ++entry_index) {
-      Address entry =
-          table->targets()
-              ->get<ExternalPointerTag::kWasmIndirectFunctionTargetTag>(
-                  entry_index, isolate);
-      if (entry == wrapper_start) ++result;
+    if (dispatch_tables->get(table_index) == Smi::zero()) continue;
+    Tagged<WasmDispatchTable> table =
+        Tagged<WasmDispatchTable>::cast(dispatch_tables->get(table_index));
+    int table_size = table->length();
+    for (int entry_index = 0; entry_index < table_size; ++entry_index) {
+      if (table->target(entry_index) == wrapper_start) ++result;
     }
   }
   return Smi::FromInt(result);
@@ -649,15 +643,20 @@ RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
   return ReadOnlyRoots(isolate).undefined_value();
 }
 
-// This runtime function enables WebAssembly GC through an embedder
-// callback and thereby bypasses the value in v8_flags.
-RUNTIME_FUNCTION(Runtime_SetWasmGCEnabled) {
+// This runtime function enables WebAssembly imported strings through an
+// embedder callback and thereby bypasses the value in v8_flags.
+RUNTIME_FUNCTION(Runtime_SetWasmImportedStringsEnabled) {
   DCHECK_EQ(1, args.length());
   bool enable = Object::BooleanValue(*args.at(0), isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  WasmGCEnabledCallback enabled = [](v8::Local<v8::Context>) { return true; };
-  WasmGCEnabledCallback disabled = [](v8::Local<v8::Context>) { return false; };
-  v8_isolate->SetWasmGCEnabledCallback(enable ? enabled : disabled);
+  WasmImportedStringsEnabledCallback enabled = [](v8::Local<v8::Context>) {
+    return true;
+  };
+  WasmImportedStringsEnabledCallback disabled = [](v8::Local<v8::Context>) {
+    return false;
+  };
+  v8_isolate->SetWasmImportedStringsEnabledCallback(enable ? enabled
+                                                           : disabled);
   return ReadOnlyRoots(isolate).undefined_value();
 }
 

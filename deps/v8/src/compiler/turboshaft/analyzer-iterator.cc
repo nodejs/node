@@ -16,20 +16,20 @@ void AnalyzerIterator::PopOutdated() {
   }
 }
 
-Block* AnalyzerIterator::Next() {
+const Block* AnalyzerIterator::Next() {
   DCHECK(HasNext());
   DCHECK(!IsOutdated(stack_.back()));
   curr_ = stack_.back();
   stack_.pop_back();
 
-  Block* curr_header = curr_.block->IsLoop()
-                           ? curr_.block
-                           : loop_finder_.GetLoopHeader(curr_.block);
+  const Block* curr_header = curr_.block->IsLoop()
+                                 ? curr_.block
+                                 : loop_finder_.GetLoopHeader(curr_.block);
 
   // Pushing on the stack the children that are not in the same loop as Next
   // (remember that since we're doing a DFS with a Last-In-First-Out stack,
   // pushing them first on the stack means that they will be visited last).
-  for (Block* child = curr_.block->LastChild(); child != nullptr;
+  for (const Block* child = curr_.block->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
     if (loop_finder_.GetLoopHeader(child) != curr_header) {
       stack_.push_back({child, current_generation_});
@@ -38,7 +38,7 @@ Block* AnalyzerIterator::Next() {
 
   // Pushing on the stack the children that are in the same loop as Next (they
   // are pushed last, so that they will be visited first).
-  for (Block* child = curr_.block->LastChild(); child != nullptr;
+  for (const Block* child = curr_.block->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
     if (loop_finder_.GetLoopHeader(child) == curr_header) {
       stack_.push_back({child, current_generation_});
@@ -61,7 +61,8 @@ void AnalyzerIterator::MarkLoopForRevisit() {
   DCHECK_NOT_NULL(curr_.block);
   DCHECK_NE(curr_.generation, kNotVisitedGeneration);
   DCHECK(curr_.block->HasBackedge(graph_));
-  Block* header = curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
+  const Block* header =
+      curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
   stack_.push_back({header, ++current_generation_});
 }
 
@@ -69,8 +70,9 @@ void AnalyzerIterator::MarkLoopForRevisitSkipHeader() {
   DCHECK_NOT_NULL(curr_.block);
   DCHECK_NE(curr_.generation, kNotVisitedGeneration);
   DCHECK(curr_.block->HasBackedge(graph_));
-  Block* header = curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
-  for (Block* child = header->LastChild(); child != nullptr;
+  const Block* header =
+      curr_.block->LastOperation(graph_).Cast<GotoOp>().destination;
+  for (const Block* child = header->LastChild(); child != nullptr;
        child = child->NeighboringChild()) {
     stack_.push_back({child, ++current_generation_});
   }

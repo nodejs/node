@@ -1464,6 +1464,18 @@ FieldAccess AccessBuilder::ForWasmArrayLength() {
           compiler::kNoWriteBarrier,
           "WasmArrayLength"};
 }
+
+// static
+FieldAccess AccessBuilder::ForWasmDispatchTableLength() {
+  return {compiler::kTaggedBase,
+          WasmDispatchTable::kLengthOffset,
+          MaybeHandle<Name>{},
+          compiler::OptionalMapRef{},
+          compiler::Type::OtherInternal(),
+          MachineType::Uint32(),
+          compiler::kNoWriteBarrier,
+          "WasmDispatchTableLength"};
+}
 #endif  // V8_ENABLE_WEBASSEMBLY
 
 }  // namespace compiler

@@ -2263,6 +2263,7 @@ class ClientIsolateThreadForRetainingByRememberedSet : public v8::base::Thread {
     Heap* heap = i_client->heap();
 
     {
+      v8::Isolate::Scope isolate_scope(client_isolate_);
       HandleScope scope(i_client);
 
       Handle<FixedArray> young_object =

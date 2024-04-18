@@ -13,6 +13,7 @@
 
 #include "src/codegen/assembler.h"
 #include "src/codegen/code-desc.h"
+#include "src/codegen/compiler.h"
 #include "src/wasm/compilation-environment.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
@@ -157,7 +158,7 @@ class V8_EXPORT_PRIVATE JSToWasmWrapperCompilationUnit final {
   const bool is_import_;
   const FunctionSig* const sig_;
   uint32_t const canonical_sig_index_;
-  std::unique_ptr<TurbofanCompilationJob> const job_;
+  std::unique_ptr<OptimizedCompilationJob> const job_;
 };
 
 inline bool CanUseGenericJsToWasmWrapper(const WasmModule* module,

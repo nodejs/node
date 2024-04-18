@@ -506,7 +506,6 @@
   V(_, interpreter_trampoline_symbol)                     \
   V(_, native_context_index_symbol)                       \
   V(_, nonextensible_symbol)                              \
-  V(_, promise_debug_marker_symbol)                       \
   V(_, promise_debug_message_symbol)                      \
   V(_, promise_forwarding_handler_symbol)                 \
   V(_, promise_handled_by_symbol)                         \

@@ -419,8 +419,6 @@ class MergeDeserializedCodeTest : public DeserializeTest {
     std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
     IsolateAndContextScope scope(this);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-    i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-        i_isolate->heap());
     ScriptOrigin default_origin(NewString(""));
 
     i::Handle<i::WeakFixedArray> original_objects =
@@ -652,8 +650,6 @@ TEST_F(MergeDeserializedCodeTest, MergeWithNoFollowUpWork) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate->heap());
 
   ScriptOrigin default_origin(NewString(""));
 
@@ -731,8 +727,7 @@ TEST_F(MergeDeserializedCodeTest, MergeThatCompilesLazyFunction) {
   std::unique_ptr<v8::ScriptCompiler::CachedData> cached_data;
   IsolateAndContextScope scope(this);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate());
-  i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
-      i_isolate->heap());
+
   ScriptOrigin default_origin(NewString(""));
 
   constexpr char kSourceCode[] =

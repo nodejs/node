@@ -21,12 +21,35 @@ class TestInstance {
     OpIndex input;
     std::set<OpIndex> generated_output;
 
-    template <typename T>
+    bool IsEmpty() const { return generated_output.empty(); }
+
+    template <typename Op>
     bool Contains() const {
       for (OpIndex o : generated_output) {
-        if (instance->graph().Get(o).Is<T>()) return true;
+        if (instance->graph().Get(o).Is<Op>()) return true;
       }
       return false;
+    }
+
+    template <typename Op>
+    const underlying_operation_t<Op>* GetFirst() const {
+      for (OpIndex o : generated_output) {
+        if (auto result = instance->graph().Get(o).TryCast<Op>()) {
+          return result;
+        }
+      }
+      return nullptr;
+    }
+
+    template <typename Op>
+    const underlying_operation_t<Op>* GetAs() const {
+      DCHECK_EQ(generated_output.size(), 1);
+      return GetFirst<Op>();
+    }
+
+    const Operation* Get() const {
+      DCHECK_EQ(generated_output.size(), 1);
+      return &instance->graph().Get(*generated_output.begin());
     }
   };
 
@@ -54,7 +77,7 @@ class TestInstance {
   Assembler& operator()() { return Asm(); }
 
   template <template <typename> typename... Reducers>
-  void Run(bool trace_reductions = false) {
+  void Run(bool trace_reductions = v8_flags.turboshaft_trace_reduction) {
     TSAssembler<GraphVisitor, Reducers...> phase(
         graph(), graph().GetOrCreateCompanion(), zone_);
 #ifdef DEBUG
@@ -112,14 +135,37 @@ class TestInstance {
   V<T> Capture(V<T> input, const std::string& key) {
     return V<T>::Cast(Capture(static_cast<OpIndex>(input), key));
   }
-  const CapturedOperation& GetCapture(const std::string& key) {
+  const CapturedOperation& GetCapture(const std::string& key) const {
     auto it = captured_operations_.find(key);
     DCHECK_NE(it, captured_operations_.end());
     return it->second;
   }
+  const Operation* GetCaptured(const std::string& key) const {
+    return GetCapture(key).Get();
+  }
+  template <typename Op>
+  const underlying_operation_t<Op>* GetCapturedAs(
+      const std::string& key) const {
+    return GetCapture(key).GetAs<Op>();
+  }
 
-  void PrintGraphForTurbolizer(const char* phase_name,
-                               const char* suffix = "") {
+  size_t CountOp(Opcode opcode) {
+    auto operations = graph().AllOperations();
+    return std::count_if(
+        operations.begin(), operations.end(),
+        [opcode](const Operation& op) { return op.opcode == opcode; });
+  }
+
+  struct CaptureHelper {
+    TestInstance* instance;
+    std::string key;
+    OpIndex operator=(OpIndex value) { return instance->Capture(value, key); }
+  };
+  CaptureHelper CaptureHelperForMacro(const std::string& key) {
+    return CaptureHelper{this, std::move(key)};
+  }
+
+  void PrintGraphForTurbolizer(const char* phase_name) {
     if (!stream_) {
       const testing::TestInfo* test_info =
           testing::UnitTest::GetInstance()->current_test_info();
@@ -129,9 +175,9 @@ class TestInstance {
       stream_ = std::make_unique<std::ofstream>(file_name.str(),
                                                 std::ios_base::trunc);
       *stream_ << "{\"function\" : ";
-      auto name =
-          std::make_unique<char[]>(strlen("test_generated_function") + 1);
-      strcpy(name.get(), "test_generated_function");
+      size_t len = strlen("test_generated_function") + 1;
+      auto name = std::make_unique<char[]>(len);
+      snprintf(name.get(), len, "test_generated_function");
       JsonPrintFunctionSource(*stream_, -1, std::move(name), Handle<Script>{},
                               isolate_, Handle<SharedFunctionInfo>{});
       *stream_ << ",\n\"phases\":[";

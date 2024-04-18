@@ -72,13 +72,7 @@ class V8_EXPORT_PRIVATE TransitionsAccessor {
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(ReadOnlyRoots roots, Tagged<Name> name);
 
-  enum RequestedLocation { kAnyLocation, kFieldOnly };
-  MaybeHandle<Map> FindTransitionToDataProperty(
-      Handle<Name> name, RequestedLocation requested_location = kAnyLocation);
-
-  MaybeHandle<Map> FindTransitionToField(Handle<Name> name) {
-    return FindTransitionToDataProperty(name, kFieldOnly);
-  }
+  MaybeHandle<Map> FindTransitionToField(Handle<String> name);
 
   // Find all transitions with given name and calls the callback.
   // Neither GCs nor operations requiring Isolate::full_transition_array_access

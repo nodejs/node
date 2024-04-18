@@ -45,6 +45,11 @@ enum class ComparisonMode {
   kFullPointer,
 };
 
+enum class SetIsolateDataSlots {
+  kNo,
+  kYes,
+};
+
 // This is the only place allowed to include the platform-specific headers.
 #define INCLUDED_FROM_MACRO_ASSEMBLER_H
 #if V8_TARGET_ARCH_IA32

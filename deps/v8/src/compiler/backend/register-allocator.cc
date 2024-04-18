@@ -585,6 +585,12 @@ bool LiveRange::Covers(LifetimePosition position) {
     }
     ++interval;
   }
+  if (!covers && interval > intervals_.begin()) {
+    // To ensure that we advance {current_interval_} below, move back to the
+    // last interval starting before position.
+    interval--;
+    DCHECK_LE(interval->start(), position);
+  }
   AdvanceLastProcessedMarker(interval, position);
   return covers;
 }

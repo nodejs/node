@@ -775,12 +775,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallCFunction: {
       int const num_gp_parameters = ParamField::decode(instr->opcode());
       int const num_fp_parameters = FPParamField::decode(instr->opcode());
+      SetIsolateDataSlots set_isolate_data_slots = SetIsolateDataSlots::kYes;
 #if V8_ENABLE_WEBASSEMBLY
       Label start_call;
       bool isWasmCapiFunction =
           linkage()->GetIncomingDescriptor()->IsWasmCapiFunction();
       // from start_call to return address.
-      int offset = __ root_array_available() ? 36 : 80;  // 9 or 20 instrs
+      int offset = 0;
+      // TODO(loongarch): Use a more robust way to calculate offset of pc.
+      // See CallCFunction.
+      if (isWasmCapiFunction) {
+        offset = 16;  // SetIsolateDataSlots::kNo
+      } else if (__ root_array_available()) {
+        offset = 36;  // SetIsolateDataSlots::kYes and root_array_available
+      } else {
+        offset = 80;  // SetIsolateDataSlots::kYes but not root_array_available
+      }
 #endif  // V8_ENABLE_WEBASSEMBLY
 #if V8_HOST_ARCH_LOONG64
       if (v8_flags.debug_code) {
@@ -792,14 +802,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ bind(&start_call);
         __ pcaddi(t7, offset >> kInstrSizeLog2);
         __ St_d(t7, MemOperand(fp, WasmExitFrameConstants::kCallingPCOffset));
+        set_isolate_data_slots = SetIsolateDataSlots::kNo;
       }
 #endif  // V8_ENABLE_WEBASSEMBLY
       if (instr->InputAt(0)->IsImmediate()) {
         ExternalReference ref = i.InputExternalReference(0);
-        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(ref, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       } else {
         Register func = i.InputRegister(0);
-        __ CallCFunction(func, num_gp_parameters, num_fp_parameters);
+        __ CallCFunction(func, num_gp_parameters, num_fp_parameters,
+                         set_isolate_data_slots);
       }
 #if V8_ENABLE_WEBASSEMBLY
       if (isWasmCapiFunction) {

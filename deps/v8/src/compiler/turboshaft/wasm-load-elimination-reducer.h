@@ -496,7 +496,7 @@ class WasmLoadEliminationAnalyzer {
 template <class Next>
 class WasmLoadEliminationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmLoadElimination)
 
   void Analyze() {
     if (v8_flags.turboshaft_wasm_load_elimination) {

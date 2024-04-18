@@ -33,7 +33,7 @@
 // }
 //
 // Any program that raises a fatal signal (such as `SIGSEGV`, `SIGILL`,
-// `SIGFPE`, `SIGABRT`, `SIGTERM`, `SIGBUG`, and `SIGTRAP`) will call the
+// `SIGFPE`, `SIGABRT`, `SIGTERM`, `SIGBUS`, and `SIGTRAP`) will call the
 // installed failure signal handler and provide debugging information to stderr.
 //
 // Note that you should *not* install the Abseil failure signal handler more

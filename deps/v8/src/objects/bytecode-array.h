@@ -36,7 +36,7 @@ class BytecodeArray : public ExposedTrustedObject {
   // The handler table contains offsets of exception handlers.
   DECL_PROTECTED_POINTER_ACCESSORS(handler_table, TrustedByteArray)
 
-  DECL_ACCESSORS(constant_pool, Tagged<FixedArray>)
+  DECL_PROTECTED_POINTER_ACCESSORS(constant_pool, TrustedFixedArray)
 
   // The BytecodeWrapper for this BytecodeArray. When the sandbox is enabled,
   // the BytecodeArray lives in trusted space outside of the sandbox, but the
@@ -124,10 +124,10 @@ class BytecodeArray : public ExposedTrustedObject {
 
 #define FIELD_LIST(V)                                                   \
   V(kLengthOffset, kTaggedSize)                                         \
-  V(kHandlerTableOffset, kTaggedSize)                                   \
-  V(kConstantPoolOffset, kTaggedSize)                                   \
   V(kWrapperOffset, kTaggedSize)                                        \
   V(kSourcePositionTableOffset, kTaggedSize)                            \
+  V(kHandlerTableOffset, kTaggedSize)                                   \
+  V(kConstantPoolOffset, kTaggedSize)                                   \
   V(kFrameSizeOffset, kInt32Size)                                       \
   V(kParameterSizeOffset, kInt32Size)                                   \
   V(kIncomingNewTargetOrGeneratorRegisterOffset, kInt32Size)            \

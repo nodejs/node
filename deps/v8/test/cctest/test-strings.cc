@@ -1753,7 +1753,7 @@ TEST(Regress609831) {
         "String.fromCharCode(32, 32, 32, 32, 32, "
         "32, 32, 32, 32, 32, 32, 32, 32, 32, 32, "
         "32, 32, 32, 32, 32, 32, 32, 32, 32, 32)");
-    CHECK(IsSeqOneByteString(*v8::Utils::OpenHandle(*result)));
+    CHECK(IsSeqOneByteString(*v8::Utils::OpenDirectHandle(*result)));
   }
   {
     HandleScope scope(isolate);
@@ -1761,7 +1761,7 @@ TEST(Regress609831) {
         "String.fromCharCode(432, 432, 432, 432, 432, "
         "432, 432, 432, 432, 432, 432, 432, 432, 432, "
         "432, 432, 432, 432, 432, 432, 432, 432, 432)");
-    CHECK(IsSeqTwoByteString(*v8::Utils::OpenHandle(*result)));
+    CHECK(IsSeqTwoByteString(*v8::Utils::OpenDirectHandle(*result)));
   }
 }
 

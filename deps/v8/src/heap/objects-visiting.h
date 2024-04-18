@@ -20,84 +20,80 @@
 namespace v8 {
 namespace internal {
 
-#define TYPED_VISITOR_ID_LIST(V)        \
-  V(AccessorInfo)                       \
-  V(AllocationSite)                     \
-  V(BigInt)                             \
-  V(BytecodeArray)                      \
-  V(BytecodeWrapper)                    \
-  V(CallHandlerInfo)                    \
-  V(CallSiteInfo)                       \
-  V(Cell)                               \
-  V(Code)                               \
-  V(CodeWrapper)                        \
-  V(ConsString)                         \
-  V(CoverageInfo)                       \
-  V(DataHandler)                        \
-  V(DebugInfo)                          \
-  V(EmbedderDataArray)                  \
-  V(EphemeronHashTable)                 \
-  V(ExternalPointerArray)               \
-  V(ExternalString)                     \
-  V(FeedbackCell)                       \
-  V(FeedbackMetadata)                   \
-  V(Hole)                               \
-  V(InstructionStream)                  \
-  V(InterpreterData)                    \
-  V(JSArrayBuffer)                      \
-  V(JSDataViewOrRabGsabDataView)        \
-  V(JSExternalObject)                   \
-  V(JSFinalizationRegistry)             \
-  V(JSFunction)                         \
-  V(JSObject)                           \
-  V(JSSynchronizationPrimitive)         \
-  V(JSTypedArray)                       \
-  V(JSWeakCollection)                   \
-  V(JSWeakRef)                          \
-  V(Map)                                \
-  V(NativeContext)                      \
-  V(Oddball)                            \
-  V(PreparseData)                       \
-  V(PromiseOnStack)                     \
-  V(PropertyArray)                      \
-  V(PropertyCell)                       \
-  V(PrototypeInfo)                      \
-  V(SeqOneByteString)                   \
-  V(SeqTwoByteString)                   \
-  V(SharedFunctionInfo)                 \
-  V(SlicedString)                       \
-  V(SloppyArgumentsElements)            \
-  V(SmallOrderedHashMap)                \
-  V(SmallOrderedHashSet)                \
-  V(SmallOrderedNameDictionary)         \
-  V(SourceTextModule)                   \
-  V(SwissNameDictionary)                \
-  V(Symbol)                             \
-  V(SyntheticModule)                    \
-  V(ThinString)                         \
-  V(TransitionArray)                    \
-  V(WeakCell)                           \
-  IF_WASM(V, WasmApiFunctionRef)        \
-  IF_WASM(V, WasmArray)                 \
-  IF_WASM(V, WasmCapiFunctionData)      \
-  IF_WASM(V, WasmContinuationObject)    \
-  IF_WASM(V, WasmExportedFunctionData)  \
-  IF_WASM(V, WasmFunctionData)          \
-  IF_WASM(V, WasmIndirectFunctionTable) \
-  IF_WASM(V, WasmInstanceObject)        \
-  IF_WASM(V, WasmInternalFunction)      \
-  IF_WASM(V, WasmJSFunctionData)        \
-  IF_WASM(V, WasmNull)                  \
-  IF_WASM(V, WasmResumeData)            \
-  IF_WASM(V, WasmStruct)                \
-  IF_WASM(V, WasmSuspenderObject)       \
-  IF_WASM(V, WasmTrustedInstanceData)   \
-  IF_WASM(V, WasmTypeInfo)              \
+#define TYPED_VISITOR_ID_LIST(V)       \
+  V(AccessorInfo)                      \
+  V(AllocationSite)                    \
+  V(BigInt)                            \
+  V(BytecodeWrapper)                   \
+  V(CallHandlerInfo)                   \
+  V(CallSiteInfo)                      \
+  V(Cell)                              \
+  V(CodeWrapper)                       \
+  V(ConsString)                        \
+  V(ConstTrackingLetCell)              \
+  V(CoverageInfo)                      \
+  V(DataHandler)                       \
+  V(DebugInfo)                         \
+  V(EmbedderDataArray)                 \
+  V(EphemeronHashTable)                \
+  V(ExternalPointerArray)              \
+  V(ExternalString)                    \
+  V(FeedbackCell)                      \
+  V(FeedbackMetadata)                  \
+  V(Hole)                              \
+  V(JSArrayBuffer)                     \
+  V(JSDataViewOrRabGsabDataView)       \
+  V(JSExternalObject)                  \
+  V(JSFinalizationRegistry)            \
+  V(JSFunction)                        \
+  V(JSObject)                          \
+  V(JSSynchronizationPrimitive)        \
+  V(JSTypedArray)                      \
+  V(JSWeakCollection)                  \
+  V(JSWeakRef)                         \
+  V(Map)                               \
+  V(NativeContext)                     \
+  V(Oddball)                           \
+  V(PreparseData)                      \
+  V(PromiseOnStack)                    \
+  V(PropertyArray)                     \
+  V(PropertyCell)                      \
+  V(PrototypeInfo)                     \
+  V(SeqOneByteString)                  \
+  V(SeqTwoByteString)                  \
+  V(SharedFunctionInfo)                \
+  V(SlicedString)                      \
+  V(SloppyArgumentsElements)           \
+  V(SmallOrderedHashMap)               \
+  V(SmallOrderedHashSet)               \
+  V(SmallOrderedNameDictionary)        \
+  V(SourceTextModule)                  \
+  V(SwissNameDictionary)               \
+  V(Symbol)                            \
+  V(SyntheticModule)                   \
+  V(ThinString)                        \
+  V(TransitionArray)                   \
+  V(WeakCell)                          \
+  IF_WASM(V, WasmApiFunctionRef)       \
+  IF_WASM(V, WasmArray)                \
+  IF_WASM(V, WasmCapiFunctionData)     \
+  IF_WASM(V, WasmContinuationObject)   \
+  IF_WASM(V, WasmExportedFunctionData) \
+  IF_WASM(V, WasmFunctionData)         \
+  IF_WASM(V, WasmInstanceObject)       \
+  IF_WASM(V, WasmInternalFunction)     \
+  IF_WASM(V, WasmJSFunctionData)       \
+  IF_WASM(V, WasmNull)                 \
+  IF_WASM(V, WasmResumeData)           \
+  IF_WASM(V, WasmStruct)               \
+  IF_WASM(V, WasmSuspenderObject)      \
+  IF_WASM(V, WasmTypeInfo)             \
   SIMPLE_HEAP_OBJECT_LIST1(V)
 
 #define FORWARD_DECLARE(TypeName) class TypeName;
 TYPED_VISITOR_ID_LIST(FORWARD_DECLARE)
 TORQUE_VISITOR_ID_LIST(FORWARD_DECLARE)
+TRUSTED_VISITOR_ID_LIST(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
 // The base class for visitors that need to dispatch on object type. The default
@@ -149,6 +145,7 @@ class HeapVisitor : public ObjectVisitorWithCageBases {
                                        Tagged<TypeName> object);
   TYPED_VISITOR_ID_LIST(VISIT)
   TORQUE_VISITOR_ID_LIST(VISIT)
+  TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
   V8_INLINE ResultType VisitShortcutCandidate(Tagged<Map> map,
                                               Tagged<ConsString> object);

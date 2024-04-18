@@ -216,6 +216,14 @@ Tagged<Object> OffHeapCompressedObjectSlot<CompressionScheme>::Relaxed_Load(
 }
 
 template <typename CompressionScheme>
+Tagged<Object> OffHeapCompressedObjectSlot<CompressionScheme>::Acquire_Load()
+    const {
+  AtomicTagged_t value = AsAtomicTagged::Acquire_Load(TSlotBase::location());
+  return Tagged<Object>(
+      CompressionScheme::DecompressTagged(TSlotBase::address(), value));
+}
+
+template <typename CompressionScheme>
 Tagged<Object> OffHeapCompressedObjectSlot<CompressionScheme>::Acquire_Load(
     PtrComprCageBase cage_base) const {
   AtomicTagged_t value = AsAtomicTagged::Acquire_Load(TSlotBase::location());

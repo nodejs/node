@@ -25,6 +25,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/container/internal/container_memory.h"
 #include "absl/container/internal/raw_hash_set.h"
 #include "absl/container/internal/tracked.h"
 
@@ -133,7 +134,7 @@ class CheckedAlloc {
 };
 
 struct Identity {
-  int32_t operator()(int32_t v) const { return v; }
+  size_t operator()(int32_t v) const { return static_cast<size_t>(v); }
 };
 
 struct Policy {
@@ -178,6 +179,11 @@ struct Policy {
   }
 
   static slot_type& element(slot_type* slot) { return *slot; }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 template <int Spec>

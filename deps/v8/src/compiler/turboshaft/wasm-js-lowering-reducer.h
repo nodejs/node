@@ -26,10 +26,10 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class WasmJSLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(WasmJSLowering)
 
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
-                         TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+                         bool negated, TrapId trap_id) {
     // All TrapIf nodes in JS need to have a FrameState.
     DCHECK(frame_state.valid());
     Builtin trap = static_cast<Builtin>(trap_id);
@@ -43,7 +43,8 @@ class WasmJSLoweringReducer : public Next {
     const TSCallDescriptor* ts_descriptor = TSCallDescriptor::Create(
         tf_descriptor, CanThrow::kYes, Asm().graph_zone());
 
-    OpIndex new_frame_state = CreateFrameStateWithUpdatedBailoutId(frame_state);
+    OpIndex new_frame_state =
+        CreateFrameStateWithUpdatedBailoutId(frame_state.value());
     OpIndex should_trap = negated ? __ Word32Equal(condition, 0) : condition;
     IF (UNLIKELY(should_trap)) {
       OpIndex call_target = __ NumberConstant(static_cast<int>(trap));

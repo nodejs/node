@@ -903,8 +903,17 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalNoHoleCheckForReplLetOrConst) {
   VariableLookupResult lookup_result;
   bool found = script_contexts->Lookup(name, &lookup_result);
   CHECK(found);
-  Tagged<Context> script_context =
-      script_contexts->get(lookup_result.context_index);
+  Handle<Context> script_context =
+      handle(script_contexts->get(lookup_result.context_index), isolate);
+  // We need to initialize the side data also for variables declared with
+  // VariableMode::kConst. This is because such variables can be accessed
+  // by functions using the LdaContextSlot bytecode, and such accesses are not
+  // regarded as "immutable" when optimizing.
+  if (v8_flags.const_tracking_let) {
+    Context::UpdateConstTrackingLetSideData(
+        script_context, lookup_result.slot_index, value, isolate);
+  }
+
   script_context->set(lookup_result.slot_index, *value);
   return *value;
 }

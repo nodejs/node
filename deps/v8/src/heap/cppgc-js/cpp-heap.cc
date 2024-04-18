@@ -473,6 +473,9 @@ CppHeap::CppHeap(
   // garbage collections.
   no_gc_scope_++;
   stats_collector()->RegisterObserver(this);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  object_allocator().UpdateAllocationTimeout();
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 }
 
 CppHeap::~CppHeap() {
@@ -760,10 +763,8 @@ void CppHeap::StartMarking() {
     // Reuse the same local worklist for the mutator marking state which results
     // in directly processing the objects by the JS logic. Also avoids
     // publishing local objects.
-    marker_.get()
-        ->To<UnifiedHeapMarker>()
-        .GetMutatorUnifiedHeapMarkingState()
-        .Update(GetV8MarkingWorklists(isolate_, *collection_type_));
+    marker_->To<UnifiedHeapMarker>().GetMutatorUnifiedHeapMarkingState().Update(
+        GetV8MarkingWorklists(isolate_, *collection_type_));
   }
   marker_->StartMarking();
   marking_done_ = false;
@@ -802,12 +803,12 @@ bool CppHeap::ShouldFinalizeIncrementalMarking() const {
 }
 
 void CppHeap::EnterFinalPause(cppgc::EmbedderStackState stack_state) {
-  CHECK(!in_disallow_gc_scope());
+  CHECK(!IsGCForbidden());
   // Enter atomic pause even if tracing is not initialized. This is needed to
   // make sure that we always enable young generation from the atomic pause.
   in_atomic_pause_ = true;
   if (!TracingInitialized()) return;
-  auto& marker = marker_.get()->To<UnifiedHeapMarker>();
+  auto& marker = marker_->To<UnifiedHeapMarker>();
   // Scan global handles conservatively in case we are attached to an Isolate.
   // TODO(1029379): Support global handle marking visitors with minor GC.
   if (isolate_) {
@@ -979,8 +980,8 @@ void CppHeap::ReportBufferedAllocationSizeIfPossible() {
             heap->main_thread_local_heap(),
             heap->GCFlagsForIncrementalMarking(),
             kGCCallbackScheduleIdleGarbageCollection);
-        if (heap->AllocationLimitOvershotByLargeMargin() &&
-            heap->incremental_marking()->IsMajorMarking()) {
+        if (heap->incremental_marking()->IsMajorMarking() &&
+            heap->AllocationLimitOvershotByLargeMargin()) {
           heap->FinalizeIncrementalMarkingAtomically(
               i::GarbageCollectionReason::kExternalFinalize);
         }
@@ -1204,6 +1205,19 @@ void CppHeap::StartIncrementalGarbageCollection(cppgc::internal::GCConfig) {
 
 size_t CppHeap::epoch() const { UNIMPLEMENTED(); }
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+v8::base::Optional<int> CppHeap::UpdateAllocationTimeout() {
+  if (!v8_flags.cppgc_random_gc_interval) {
+    return v8::base::nullopt;
+  }
+  if (!allocation_timeout_rng_) {
+    allocation_timeout_rng_.emplace(v8_flags.fuzzer_random_seed);
+  }
+  return allocation_timeout_rng_->NextInt(v8_flags.cppgc_random_gc_interval) +
+         1;
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+
 void CppHeap::ResetCrossHeapRememberedSet() {
   if (!generational_gc_supported()) {
     DCHECK(cross_heap_remembered_set_.IsEmpty());
@@ -1223,6 +1237,10 @@ bool CppHeap::IsDetachedGCAllowed() const {
 
 bool CppHeap::IsGCAllowed() const {
   return isolate_ && HeapBase::IsGCAllowed();
+}
+
+bool CppHeap::IsGCForbidden() const {
+  return (isolate_ && isolate_->InFastCCall()) || HeapBase::IsGCForbidden();
 }
 
 }  // namespace internal

@@ -7,9 +7,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 let builder = new WasmModuleBuilder();
 
 // One global that's perfectly OK.
-builder.addGlobal(kWasmI32, true, [kExprI32Const, 0]);
+builder.addGlobal(kWasmI32, true, false, [kExprI32Const, 0]);
 // One global that's invalid.
-builder.addGlobal(kWasmI32, true, [kExprUnreachable]);
+builder.addGlobal(kWasmI32, true, false, [kExprUnreachable]);
 
 // The error is the second-to-last byte.
 let module_bytes = builder.toBuffer();

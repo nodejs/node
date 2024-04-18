@@ -18,6 +18,9 @@ void CodePointerTableEntry::MakeCodePointerEntry(Address code,
                                                  CodeEntrypointTag tag,
                                                  bool mark_as_alive) {
   DCHECK_EQ(code & kMarkingBit, 0);
+  DCHECK_EQ(entrypoint >> kCodeEntrypointTagShift, 0);
+  DCHECK_NE(tag, kFreeCodePointerTableEntryTag);
+
   if (mark_as_alive) code |= kMarkingBit;
   entrypoint_.store(entrypoint ^ tag, std::memory_order_relaxed);
   code_.store(code, std::memory_order_relaxed);
@@ -31,6 +34,9 @@ Address CodePointerTableEntry::GetEntrypoint(CodeEntrypointTag tag) const {
 void CodePointerTableEntry::SetEntrypoint(Address value,
                                           CodeEntrypointTag tag) {
   DCHECK(!IsFreelistEntry());
+  DCHECK_EQ(value >> kCodeEntrypointTagShift, 0);
+  DCHECK_NE(tag, kFreeCodePointerTableEntryTag);
+
   entrypoint_.store(value ^ tag, std::memory_order_relaxed);
 }
 

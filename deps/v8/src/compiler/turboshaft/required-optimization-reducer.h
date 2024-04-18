@@ -20,12 +20,12 @@ namespace v8::internal::compiler::turboshaft {
 //     target. So we have to run RequiredOptimizationReducer at least once after
 //     every occurence of VariableReducer.
 //   - Loop peeling/unrolling can introduce phi nodes for RttCanons, which have
-//     to be reduced to aid `WasmGCTypeReducer` resolve type indices
-//     corresponding to RttCanons.
+//     to be reduced to aid `WasmGCTypedOptimizationReducer` resolve type
+//     indices corresponding to RttCanons.
 template <class Next>
 class RequiredOptimizationReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(RequiredOptimization)
 
   OpIndex REDUCE(Phi)(base::Vector<const OpIndex> inputs,
                       RegisterRepresentation rep) {
@@ -73,8 +73,8 @@ class RequiredOptimizationReducer : public Next {
       }
       // If all of the predecessors are the same RttCanon, then we re-emit this
       // RttCanon rather than emitting a Phi. This helps the subsequent
-      // phases (in particular, `WasmGCTypeReducer`) to resolve the type index
-      // corresponding to an RttCanon.
+      // phases (in particular, `WasmGCTypedOptimizationReducer`) to resolve the
+      // type index corresponding to an RttCanon.
       // Note: this relies on all RttCanons having the same `rtts()` input,
       // which is the case due to instance field caching during graph
       // generation.

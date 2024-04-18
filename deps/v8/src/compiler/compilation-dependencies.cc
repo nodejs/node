@@ -39,7 +39,8 @@ namespace compiler {
   V(PrototypeProperty)                  \
   V(StableMap)                          \
   V(Transition)                         \
-  V(ObjectSlotValue)
+  V(ObjectSlotValue)                    \
+  V(ConstTrackingLet)
 
 CompilationDependencies::CompilationDependencies(JSHeapBroker* broker,
                                                  Zone* zone)
@@ -899,6 +900,44 @@ class GlobalPropertyDependency final : public CompilationDependency {
   const bool read_only_;
 };
 
+class ConstTrackingLetDependency final : public CompilationDependency {
+ public:
+  ConstTrackingLetDependency(ContextRef script_context, size_t index)
+      : CompilationDependency(kConstTrackingLet),
+        script_context_(script_context),
+        index_(index) {
+    DCHECK(v8_flags.const_tracking_let);
+  }
+
+  bool IsValid(JSHeapBroker* broker) const override {
+    return script_context_.object()->ConstTrackingLetSideDataIsConst(index_);
+  }
+
+  void Install(JSHeapBroker* broker, PendingDependencies* deps) const override {
+    SLOW_DCHECK(IsValid(broker));
+    Isolate* isolate = broker->isolate();
+    deps->Register(handle(Context::GetOrCreateConstTrackingLetCell(
+                              script_context_.object(), index_, isolate),
+                          isolate),
+                   DependentCode::kConstTrackingLetChangedGroup);
+  }
+
+ private:
+  size_t Hash() const override {
+    ObjectRef::Hash h;
+    return base::hash_combine(h(script_context_), index_);
+  }
+
+  bool Equals(const CompilationDependency* that) const override {
+    const ConstTrackingLetDependency* const zat = that->AsConstTrackingLet();
+    return script_context_.equals(zat->script_context_) &&
+           index_ == zat->index_;
+  }
+
+  const ContextRef script_context_;
+  size_t index_;
+};
+
 class ProtectorDependency final : public CompilationDependency {
  public:
   explicit ProtectorDependency(PropertyCellRef cell)
@@ -1193,6 +1232,35 @@ void CompilationDependencies::DependOnGlobalProperty(PropertyCellRef cell) {
   PropertyCellType type = cell.property_details().cell_type();
   bool read_only = cell.property_details().IsReadOnly();
   RecordDependency(zone_->New<GlobalPropertyDependency>(cell, type, read_only));
+}
+
+bool CompilationDependencies::DependOnConstTrackingLet(
+    ContextRef script_context, size_t index, JSHeapBroker* broker) {
+  if (v8_flags.const_tracking_let) {
+    OptionalObjectRef maybe_side_data =
+        script_context.TryGetSideData(broker, static_cast<int>(index));
+    // The side data element is either
+    // - kConstMarker (the value is a constant thus far but no code depends on
+    //   it yet)
+    // - a ConstTrackingLetCell pointing to a DependentCode (the value is a
+    //   constant thus far and some code depends on it)
+    // - kNonConstMarker (the value is no longer a constant)
+    // - undefined (we're reading an uninitialized value (this will throw but we
+    // might still optimize the code which does that))
+    // In the first 2 cases we can embed the value as a constant in the code.
+    if (maybe_side_data.has_value()) {
+      ObjectRef side_data = maybe_side_data.value();
+      if ((side_data.IsSmi() &&
+           side_data.AsSmi() ==
+               Smi::ToInt(ConstTrackingLetCell::kConstMarker)) ||
+          (!side_data.IsSmi() && !side_data.IsUndefined())) {
+        RecordDependency(
+            zone_->New<ConstTrackingLetDependency>(script_context, index));
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 bool CompilationDependencies::DependOnProtector(PropertyCellRef cell) {

@@ -30,5 +30,6 @@
   [0.2, "--turboshaft"],
   [0.0001, "--simulate-errors"],
   [0.25, "--minor-ms"],
-  [0.1, "--shared-string-table"]
+  [0.1, "--shared-string-table"],
+  [0.1, "--stress-wasm-memory-moving"]
 ]

@@ -9,6 +9,7 @@
 #include "src/base/overflowing-math.h"
 #include "src/utils/utils.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/wasm-opcodes-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/wasm/wasm-run-utils.h"
@@ -2127,9 +2128,7 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
                             &machine);
   const FunctionSig* sig = WasmOpcodes::Signature(opcode);
-  WasmModule module;
-  WasmFeatures enabled;
-  CompilationEnv env(&module, enabled, DynamicTiering::kDynamicTiering);
+  CompilationEnv env = CompilationEnv::NoModuleAllFeatures();
 
   if (sig->parameter_count() == 1) {
     uint8_t code[] = {WASM_NO_LOCALS, kExprLocalGet, 0,

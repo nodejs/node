@@ -501,11 +501,19 @@ using swap_internal::StdSwapIsUnconstrained;
 //
 // TODO(b/275003464): remove the opt-out once the bug is fixed.
 //
+// Starting with Xcode 15, the Apple compiler will falsely say a type
+// with a user-provided move constructor is trivially relocatable
+// (b/324278148). We will opt out without a version check, due to
+// the fluidity of Apple versions.
+//
+// TODO(b/324278148): If all versions we use have the bug fixed, then
+// remove the condition.
+//
 // According to https://github.com/abseil/abseil-cpp/issues/1479, this does not
 // work with NVCC either.
 #if ABSL_HAVE_BUILTIN(__is_trivially_relocatable) &&                 \
     !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
-    !defined(__NVCC__)
+    !(defined(__APPLE__)) && !defined(__NVCC__)
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};

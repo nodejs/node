@@ -108,13 +108,14 @@ Handle<Smi> LoadHandler::LoadNonExistent(Isolate* isolate) {
 
 Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
                                      ElementsKind elements_kind,
-                                     bool convert_hole_to_undefined,
                                      bool is_js_array,
                                      KeyedAccessLoadMode load_mode) {
+  DCHECK_IMPLIES(LoadModeHandlesHoles(load_mode),
+                 IsHoleyElementsKind(elements_kind));
   int config = KindBits::encode(Kind::kElement) |
                AllowOutOfBoundsBits::encode(LoadModeHandlesOOB(load_mode)) |
                ElementsKindBits::encode(elements_kind) |
-               ConvertHoleBits::encode(convert_hole_to_undefined) |
+               AllowHandlingHole::encode(LoadModeHandlesHoles(load_mode)) |
                IsJsArrayBits::encode(is_js_array);
   return handle(Smi::FromInt(config), isolate);
 }

@@ -1266,8 +1266,9 @@ TEST(HeapSnapshotObjectsStats) {
       CcTest::heap());
 
   LocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
   heap_profiler->StartTrackingHeapObjects();
   // We have to call GC 6 times. In other case the garbage will be
@@ -1294,7 +1295,7 @@ TEST(HeapSnapshotObjectsStats) {
 
   {
     v8::SnapshotObjectId additional_string_id;
-    v8::HandleScope inner_scope_1(env->GetIsolate());
+    v8::HandleScope inner_scope_1(isolate);
     v8_str("string1");
     {
       // Single chunk of data with one new entry expected in update.
@@ -1314,12 +1315,12 @@ TEST(HeapSnapshotObjectsStats) {
     CHECK_EQ(additional_string_id, last_id);
 
     {
-      v8::HandleScope inner_scope_2(env->GetIsolate());
+      v8::HandleScope inner_scope_2(isolate);
       v8_str("string2");
 
       uint32_t entries_size;
       {
-        v8::HandleScope inner_scope_3(env->GetIsolate());
+        v8::HandleScope inner_scope_3(isolate);
         v8_str("string3");
         v8_str("string4");
 
@@ -1368,10 +1369,12 @@ TEST(HeapSnapshotObjectsStats) {
     CHECK_EQ(2, stats_update.first_interval_index());
   }
 
-  v8::Local<v8::Array> array = v8::Array::New(env->GetIsolate());
-  CHECK_EQ(0u, array->Length());
+  // With conservative stack scanning disabled and with direct locals, a
+  // v8::Local<v8::Array> here would be reclaimed by GetHeapStatsUpdate.
+  v8::Persistent<v8::Array> array(isolate, v8::Array::New(isolate));
+  CHECK_EQ(0u, array.Get(isolate)->Length());
   // Force array's buffer allocation.
-  array->Set(env.local(), 2, v8_num(7)).FromJust();
+  array.Get(isolate)->Set(env.local(), 2, v8_num(7)).FromJust();
 
   uint32_t entries_size;
   {
@@ -1386,7 +1389,7 @@ TEST(HeapSnapshotObjectsStats) {
   }
 
   for (int i = 0; i < 100; ++i)
-    array->Set(env.local(), i, v8_num(i)).FromJust();
+    array.Get(isolate)->Set(env.local(), i, v8_num(i)).FromJust();
 
   {
     // Single chunk of data with 1 entry expected in update.

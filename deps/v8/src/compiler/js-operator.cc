@@ -181,7 +181,8 @@ std::ostream& operator<<(std::ostream& os, ContextAccess const& access) {
 
 ContextAccess const& ContextAccessOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kJSLoadContext ||
-         op->opcode() == IrOpcode::kJSStoreContext);
+         op->opcode() == IrOpcode::kJSStoreContext ||
+         op->opcode() == IrOpcode::kJSStoreScriptContext);
   return OpParameter<ContextAccess>(op);
 }
 
@@ -1242,6 +1243,17 @@ const Operator* JSOperatorBuilder::StoreContext(size_t depth, size_t index) {
       IrOpcode::kJSStoreContext,                 // opcode
       Operator::kNoRead | Operator::kNoThrow,    // flags
       "JSStoreContext",                          // name
+      1, 1, 1, 0, 1, 0,                          // counts
+      access);                                   // parameter
+}
+
+const Operator* JSOperatorBuilder::StoreScriptContext(size_t depth,
+                                                      size_t index) {
+  ContextAccess access(depth, index, false);
+  return zone()->New<Operator1<ContextAccess>>(  // --
+      IrOpcode::kJSStoreScriptContext,           // opcode
+      Operator::kNoRead | Operator::kNoThrow,    // flags
+      "JSStoreScriptContext",                    // name
       1, 1, 1, 0, 1, 0,                          // counts
       access);                                   // parameter
 }

@@ -11,6 +11,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
 #include "src/wasm/code-space-access.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/graph-builder-interface.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/module-compiler.h"
@@ -213,15 +214,13 @@ uint32_t TestingModuleBuilder::AddFunction(const FunctionSig* sig,
 void TestingModuleBuilder::InitializeWrapperCache() {
   isolate_->heap()->EnsureWasmCanonicalRttsSize(
       test_module_->MaxCanonicalTypeIndex() + 1);
-  if (enabled_features_.has_gc()) {
-    Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
-        static_cast<int>(test_module_->types.size()));
-    for (uint32_t index = 0; index < test_module_->types.size(); index++) {
-      CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
-                       maps);
-    }
-    trusted_instance_data_->set_managed_object_maps(*maps);
+  Handle<FixedArray> maps = isolate_->factory()->NewFixedArray(
+      static_cast<int>(test_module_->types.size()));
+  for (uint32_t index = 0; index < test_module_->types.size(); index++) {
+    CreateMapForType(isolate_, test_module_.get(), index, instance_object_,
+                     maps);
   }
+  trusted_instance_data_->set_managed_object_maps(*maps);
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
@@ -244,21 +243,25 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   table.type = table_type;
 
   {
-    // Allocate the indirect function table.
-    Handle<FixedArray> old_tables =
-        table_index == 0
-            ? isolate_->factory()->empty_fixed_array()
-            : handle(trusted_instance_data_->indirect_function_tables(),
-                     isolate_);
-    Handle<FixedArray> new_tables =
-        isolate_->factory()->CopyFixedArrayAndGrow(old_tables, 1);
-    Handle<WasmIndirectFunctionTable> table_obj =
-        WasmIndirectFunctionTable::New(isolate_, table.initial_size);
-    new_tables->set(table_index, *table_obj);
-    trusted_instance_data_->set_indirect_function_tables(*new_tables);
+    // Allocate the dispatch table.
+    Handle<ProtectedFixedArray> old_dispatch_tables{
+        trusted_instance_data_->dispatch_tables(), isolate_};
+    DCHECK_EQ(table_index, old_dispatch_tables->length());
+    Handle<ProtectedFixedArray> new_dispatch_tables =
+        isolate_->factory()->NewProtectedFixedArray(table_index + 1);
+    Handle<WasmDispatchTable> new_dispatch_table =
+        WasmDispatchTable::New(isolate_, table.initial_size);
+    for (int i = 0; i < old_dispatch_tables->length(); ++i) {
+      new_dispatch_tables->set(i, old_dispatch_tables->get(i));
+    }
+    new_dispatch_tables->set(table_index, *new_dispatch_table);
+    if (table_index == 0) {
+      trusted_instance_data_->set_dispatch_table0(*new_dispatch_table);
+    }
+    trusted_instance_data_->set_dispatch_tables(*new_dispatch_tables);
   }
 
-  WasmTrustedInstanceData::EnsureIndirectFunctionTableWithMinimumSize(
+  WasmTrustedInstanceData::EnsureMinimumDispatchTableSize(
       isolate_, trusted_instance_data_, table_index, table_size);
   Handle<WasmTableObject> table_obj = WasmTableObject::New(
       isolate_, instance_object_, table.type, table.initial_size,
@@ -267,8 +270,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
           ? Handle<Object>::cast(isolate_->factory()->null_value())
           : Handle<Object>::cast(isolate_->factory()->wasm_null()));
 
-  WasmTableObject::AddDispatchTable(isolate_, table_obj, trusted_instance_data_,
-                                    table_index);
+  WasmTableObject::AddUse(isolate_, table_obj, trusted_instance_data_,
+                          table_index);
 
   if (function_indexes) {
     for (uint32_t i = 0; i < table_size; ++i) {
@@ -276,8 +279,8 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
       int sig_id =
           test_module_->isorecursive_canonical_type_ids[function.sig_index];
       FunctionTargetAndRef entry(instance_object_, function.func_index);
-      trusted_instance_data_->indirect_function_table(table_index)
-          ->Set(i, sig_id, entry.call_target(), *entry.ref());
+      trusted_instance_data_->dispatch_table(table_index)
+          ->Set(i, *entry.ref(), entry.call_target(), sig_id);
       WasmTableObject::SetFunctionTablePlaceholder(
           isolate_, table_obj, i, trusted_instance_data_, function_indexes[i]);
     }
@@ -371,15 +374,11 @@ uint32_t TestingModuleBuilder::AddPassiveDataSegment(
   return index;
 }
 
-CompilationEnv TestingModuleBuilder::CreateCompilationEnv() {
-  return {test_module_.get(), enabled_features_, kNoDynamicTiering};
-}
-
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
   uint8_t size = type.value_kind_size();
   global_offset = (global_offset + size - 1) & ~(size - 1);  // align
   test_module_->globals.push_back(
-      {type, true, {}, {global_offset}, false, false});
+      {type, true, {}, {global_offset}, false, false, false});
   global_offset += size;
   // limit number of globals.
   CHECK_LT(global_offset, kMaxGlobalsSize);
@@ -387,6 +386,12 @@ const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
 }
 
 Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
+  // In this test setup, the NativeModule gets allocated before functions get
+  // added. The tiering budget array, which gets allocated in the NativeModule
+  // constructor, therefore does not have slots for functions that get added
+  // later. By disabling dynamic tiering, the tiering budget does not get
+  // accessed by generated code.
+  FlagScope<bool> no_dynamic_tiering(&v8_flags.wasm_dynamic_tiering, false);
   const bool kUsesLiftoff = true;
   // Compute the estimate based on {kMaxFunctions} because we might still add
   // functions later. Assume 1k of code per function.
@@ -431,12 +436,13 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
                                   Zone* zone, const FunctionSig* sig,
                                   const uint8_t* start, const uint8_t* end) {
   WasmFeatures unused_detected_features;
-  FunctionBody body(sig, 0, start, end);
+  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
+  FunctionBody body(sig, 0, start, end, kIsShared);
   std::vector<compiler::WasmLoopInfo> loops;
   BuildTFGraph(zone->allocator(), WasmFeatures::All(), nullptr, builder,
                &unused_detected_features, body, &loops, nullptr, nullptr, 0,
                nullptr, kRegularFunction);
-  builder->LowerInt64(compiler::WasmGraphBuilder::kCalledFromWasm);
+  builder->LowerInt64(kCalledFromWasm);
 }
 
 void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
@@ -470,20 +476,19 @@ void WasmFunctionCompiler::Build(base::Vector<const uint8_t> bytes) {
   function_->code = {builder_->AddBytes(bytes),
                      static_cast<uint32_t>(bytes.size())};
 
-  base::Vector<const uint8_t> wire_bytes = builder_->instance_object()
-                                               ->module_object()
-                                               ->native_module()
-                                               ->wire_bytes();
+  NativeModule* native_module =
+      builder_->instance_object()->module_object()->native_module();
+  base::Vector<const uint8_t> wire_bytes = native_module->wire_bytes();
 
-  CompilationEnv env = builder_->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
   base::ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
   memcpy(func_wire_bytes.begin(), wire_bytes.begin() + function_->code.offset(),
          func_wire_bytes.length());
+  constexpr bool kIsShared = false;  // TODO(14616): Extend this.
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
-                         func_wire_bytes.begin(), func_wire_bytes.end()};
-  NativeModule* native_module =
-      builder_->instance_object()->module_object()->native_module();
+                         func_wire_bytes.begin(), func_wire_bytes.end(),
+                         kIsShared};
   ForDebugging for_debugging =
       native_module->IsInDebugState() ? kForDebugging : kNotForDebugging;
 

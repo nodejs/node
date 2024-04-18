@@ -413,6 +413,17 @@ class OperationMatcher {
     return false;
   }
 
+  bool MatchPowerOfTwoWord32Constant(OpIndex matched, int32_t* divisor) const {
+    int32_t cst;
+    if (MatchIntegralWord32Constant(matched, &cst)) {
+      if (base::bits::IsPowerOfTwo(cst)) {
+        *divisor = cst;
+        return true;
+      }
+    }
+    return false;
+  }
+
  private:
   Graph& graph_;
 };

@@ -29,8 +29,8 @@ bool TaggedImpl<kRefType, StorageType>::ToSmi(Tagged<Smi>* value) const {
 
 template <HeapObjectReferenceType kRefType, typename StorageType>
 Tagged<Smi> TaggedImpl<kRefType, StorageType>::ToSmi() const {
-  DCHECK(HAS_SMI_TAG(ptr_));
-  if (kIsFull) {
+  V8_ASSUME(HAS_SMI_TAG(ptr_));
+  if constexpr (kIsFull) {
     return Tagged<Smi>(ptr_);
   }
   // Implementation for compressed pointers.
@@ -250,12 +250,9 @@ Tagged<Object> TaggedImpl<kRefType, StorageType>::GetHeapObjectOrSmi() const {
 template <HeapObjectReferenceType kRefType, typename StorageType>
 Tagged<Object> TaggedImpl<kRefType, StorageType>::GetHeapObjectOrSmi(
     Isolate* isolate) const {
-  if (kIsFull) return GetHeapObjectOrSmi();
+  if constexpr (kIsFull) return GetHeapObjectOrSmi();
   // Implementation for compressed pointers.
-  if (IsSmi()) {
-    return Tagged<Object>(
-        CompressionScheme::DecompressTaggedSigned(static_cast<Tagged_t>(ptr_)));
-  }
+  if (IsSmi()) return ToSmi();
   return GetHeapObject(isolate);
 }
 

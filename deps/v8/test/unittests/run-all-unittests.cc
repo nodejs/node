@@ -11,6 +11,10 @@
 #include "src/base/page-allocator.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
+#ifdef V8_ENABLE_FUZZTEST
+#include "test/unittests/fuzztest-init-adapter.h"
+#endif  // V8_ENABLE_FUZZTEST
+
 #ifdef V8_USE_PERFETTO
 #include "src/tracing/trace-event.h"
 #endif  // V8_USE_PERFETTO
@@ -52,5 +56,11 @@ int main(int argc, char** argv) {
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::InitializeICUDefaultLocation(argv[0]);
+
+#ifdef V8_ENABLE_FUZZTEST
+  absl::ParseCommandLine(argc, argv);
+  fuzztest::InitFuzzTest(&argc, &argv);
+#endif  // V8_ENABLE_FUZZTEST
+
   return RUN_ALL_TESTS();
 }

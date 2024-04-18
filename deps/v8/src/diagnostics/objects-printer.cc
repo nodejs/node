@@ -204,6 +204,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {
     case WASM_TRUSTED_INSTANCE_DATA_TYPE:
       WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataPrint(os);
       break;
+    case WASM_DISPATCH_TABLE_TYPE:
+      WasmDispatchTable::cast(*this)->WasmDispatchTablePrint(os);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this)->WasmValueObjectPrint(os);
       break;
@@ -876,6 +879,10 @@ void TrustedFixedArray::TrustedFixedArrayPrint(std::ostream& os) {
   PrintFixedArrayWithHeader(os, Tagged{*this}, "TrustedFixedArray");
 }
 
+void ProtectedFixedArray::ProtectedFixedArrayPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, Tagged{*this}, "ProtectedFixedArray");
+}
+
 void ArrayList::ArrayListPrint(std::ostream& os) {
   PrintHeader(os, "ArrayList");
   os << "\n - capacity: " << capacity();
@@ -1389,12 +1396,10 @@ void FeedbackNexus::Print(std::ostream& os) {
   switch (slot_kind) {
     case FeedbackSlotKind::kCall:
     case FeedbackSlotKind::kCloneObject:
-    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kHasKeyed:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
-    case FeedbackSlotKind::kStoreInArrayLiteral:
-    case FeedbackSlotKind::kDefineNamedOwn: {
+    case FeedbackSlotKind::kStoreInArrayLiteral: {
       os << InlineCacheState2String(ic_state());
       break;
     }
@@ -1454,6 +1459,8 @@ void FeedbackNexus::Print(std::ostream& os) {
       }
       break;
     }
+    case FeedbackSlotKind::kDefineNamedOwn:
+    case FeedbackSlotKind::kDefineKeyedOwn:
     case FeedbackSlotKind::kSetNamedSloppy:
     case FeedbackSlotKind::kSetNamedStrict:
     case FeedbackSlotKind::kSetKeyedSloppy:
@@ -2018,6 +2025,13 @@ void PropertyCell::PropertyCellPrint(std::ostream& os) {
   PropertyDetails details = property_details(kAcquireLoad);
   details.PrintAsSlowTo(os, true);
   os << "\n - cell_type: " << details.cell_type();
+  os << "\n - dependent code: " << dependent_code();
+  os << "\n";
+}
+
+void ConstTrackingLetCell::ConstTrackingLetCellPrint(std::ostream& os) {
+  PrintHeader(os, "ConstTrackingLetCell");
+  os << "\n - dependent code: " << dependent_code();
   os << "\n";
 }
 
@@ -2351,9 +2365,9 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tagged_globals_buffer, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(imported_mutable_globals_buffers, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tables, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_tables, Brief);
+  PRINT_WASM_INSTANCE_FIELD(dispatch_table0, Brief);
+  PRINT_WASM_INSTANCE_FIELD(dispatch_tables, Brief);
   PRINT_WASM_INSTANCE_FIELD(imported_function_refs, Brief);
-  PRINT_OPTIONAL_WASM_INSTANCE_FIELD(indirect_function_table_refs, Brief);
   PRINT_OPTIONAL_WASM_INSTANCE_FIELD(tags_table, Brief);
   PRINT_WASM_INSTANCE_FIELD(wasm_internal_functions, Brief);
   PRINT_WASM_INSTANCE_FIELD(managed_object_maps, Brief);
@@ -2368,9 +2382,6 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
   PRINT_WASM_INSTANCE_FIELD(imported_function_targets, Brief);
   PRINT_WASM_INSTANCE_FIELD(globals_start, to_void_ptr);
   PRINT_WASM_INSTANCE_FIELD(imported_mutable_globals, Brief);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_size, +);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_sig_ids, Brief);
-  PRINT_WASM_INSTANCE_FIELD(indirect_function_table_targets, Brief);
   PRINT_WASM_INSTANCE_FIELD(isorecursive_canonical_types,
                             reinterpret_cast<const uint32_t*>);
   PRINT_WASM_INSTANCE_FIELD(jump_table_start, to_void_ptr);
@@ -2387,12 +2398,29 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataPrint(std::ostream& os) {
 #undef PRINT_WASM_INSTANCE_FIELD
 }
 
+void WasmDispatchTable::WasmDispatchTablePrint(std::ostream& os) {
+  PrintHeader(os, "WasmDispatchTable");
+  int len = length();
+  os << "\n - length: " << len;
+  os << "\n - capacity: " << capacity();
+  // Only print up to 55 elements; otherwise print the first 50 and "[...]".
+  int printed = len > 55 ? 50 : len;
+  for (int i = 0; i < printed; ++i) {
+    os << "\n " << std::setw(8) << i << ": sig: " << sig(i)
+       << "; target: " << AsHex::Address(target(i))
+       << "; ref: " << Brief(ref(i));
+  }
+  if (printed != len) os << "\n  [...]";
+  os << "\n";
+}
+
 // Never called directly, as WasmFunctionData is an "abstract" class.
 void WasmFunctionData::WasmFunctionDataPrint(std::ostream& os) {
   Isolate* isolate = GetIsolateForSandbox(*this);
   os << "\n - internal: " << Brief(internal());
   os << "\n - wrapper_code: " << Brief(wrapper_code(isolate));
   os << "\n - js_promise_flags: " << js_promise_flags();
+  os << "\n";
 }
 
 void WasmExportedFunctionData::WasmExportedFunctionDataPrint(std::ostream& os) {
@@ -2473,16 +2501,6 @@ void WasmGlobalObject::WasmGlobalObjectPrint(std::ostream& os) {
   os << "\n - is_mutable: " << is_mutable();
   os << "\n - type: " << type();
   os << "\n - is_mutable: " << is_mutable();
-  os << "\n";
-}
-
-void WasmIndirectFunctionTable::WasmIndirectFunctionTablePrint(
-    std::ostream& os) {
-  PrintHeader(os, "WasmIndirectFunctionTable");
-  os << "\n - size: " << size();
-  os << "\n - sig_ids: " << Brief(sig_ids());
-  os << "\n - targets: " << Brief(targets());
-  os << "\n - refs: " << Brief(refs());
   os << "\n";
 }
 
@@ -3222,6 +3240,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       os << '>';
       break;
     }
+    case CONST_TRACKING_LET_CELL_TYPE: {
+      os << "<ConstTrackingLetCell>";
+      break;
+    }
     case ACCESSOR_INFO_TYPE: {
       Tagged<AccessorInfo> info = AccessorInfo::cast(*this);
       os << "<AccessorInfo ";
@@ -3247,6 +3269,12 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {
       }
       break;
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case WASM_DISPATCH_TABLE_TYPE:
+      os << "<WasmDispatchTable[" << WasmDispatchTable::cast(*this)->length()
+         << "]>";
+      break;
+#endif  // V8_ENABLE_WEBASSEMBLY
     default:
       os << "<Other heap object (" << map()->instance_type() << ")>";
       break;

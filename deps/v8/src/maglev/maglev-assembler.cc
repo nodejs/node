@@ -186,16 +186,13 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   JumpIf(kEqual, *is_true);
 #else
   // Check if {{value}} is false.
-  CompareRoot(value, RootIndex::kFalseValue);
-  JumpIf(kEqual, *is_false);
+  JumpIfRoot(value, RootIndex::kFalseValue, *is_false);
 
   // Check if {{value}} is true.
-  CompareRoot(value, RootIndex::kTrueValue);
-  JumpIf(kEqual, *is_true);
+  JumpIfRoot(value, RootIndex::kTrueValue, *is_true);
 
   // Check if {{value}} is empty string.
-  CompareRoot(value, RootIndex::kempty_string);
-  JumpIf(kEqual, *is_false);
+  JumpIfRoot(value, RootIndex::kempty_string, *is_false);
 
   // Only check null and undefined if we're not going to check the
   // undetectable bit.
@@ -204,12 +201,10 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
           ->dependencies()
           ->DependOnNoUndetectableObjectsProtector()) {
     // Check if {{value}} is undefined.
-    CompareRoot(value, RootIndex::kUndefinedValue);
-    JumpIf(kEqual, *is_false);
+    JumpIfRoot(value, RootIndex::kUndefinedValue, *is_false);
 
     // Check if {{value}} is null.
-    CompareRoot(value, RootIndex::kNullValue);
-    JumpIf(kEqual, *is_false);
+    JumpIfRoot(value, RootIndex::kNullValue, *is_false);
   }
 #endif
 
@@ -225,32 +220,32 @@ void MaglevAssembler::ToBoolean(Register value, CheckType check_type,
   }
 
   // Check if {{value}} is a HeapNumber.
-  CompareRoot(map, RootIndex::kHeapNumberMap);
-  JumpToDeferredIf(
-      kEqual,
-      [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
-         ZoneLabelRef is_false) {
-        __ CompareDoubleAndJumpIfZeroOrNaN(
-            FieldMemOperand(value, offsetof(HeapNumber, value_)), *is_false);
-        __ Jump(*is_true);
-      },
-      value, is_true, is_false);
+  JumpIfRoot(map, RootIndex::kHeapNumberMap,
+             MakeDeferredCode(
+                 [](MaglevAssembler* masm, Register value, ZoneLabelRef is_true,
+                    ZoneLabelRef is_false) {
+                   __ CompareDoubleAndJumpIfZeroOrNaN(
+                       FieldMemOperand(value, offsetof(HeapNumber, value_)),
+                       *is_false);
+                   __ Jump(*is_true);
+                 },
+                 value, is_true, is_false));
 
   // Check if {{value}} is a BigInt.
-  CompareRoot(map, RootIndex::kBigIntMap);
-  // {{map}} is not needed from this point on.
-  temps.Include(map);
-  JumpToDeferredIf(
-      kEqual,
-      [](MaglevAssembler* masm, Register value, Register map,
-         ZoneLabelRef is_true, ZoneLabelRef is_false) {
-        __ TestInt32AndJumpIfAllClear(
-            FieldMemOperand(value, offsetof(BigInt, bitfield_)),
-            BigInt::LengthBits::kMask, *is_false);
-        __ Jump(*is_true);
-      },
-      value, map, is_true, is_false);
-
+  // {{map}} is not needed after this check, we pass to the deferred code, so it
+  // can be added to the temporary registers.
+  JumpIfRoot(map, RootIndex::kBigIntMap,
+             MakeDeferredCode(
+                 [](MaglevAssembler* masm, Register value, Register map,
+                    ZoneLabelRef is_true, ZoneLabelRef is_false) {
+                   ScratchRegisterScope temps(masm);
+                   temps.Include(map);
+                   __ TestInt32AndJumpIfAllClear(
+                       FieldMemOperand(value, offsetof(BigInt, bitfield_)),
+                       BigInt::LengthBits::kMask, *is_false);
+                   __ Jump(*is_true);
+                 },
+                 value, map, is_true, is_false));
   // Otherwise true.
   if (!fallthrough_when_true) {
     Jump(*is_true);
@@ -544,6 +539,27 @@ void MaglevAssembler::StoreFixedArrayElementWithWriteBarrier(
   CheckAndEmitDeferredWriteBarrier<kElement>(
       array, index, value, register_snapshot, kValueIsDecompressed,
       kValueCanBeSmi);
+}
+
+void MaglevAssembler::GenerateCheckConstTrackingLetCellFooter(Register context,
+                                                              Register data,
+                                                              int index,
+                                                              Label* done) {
+  // Load the const tracking let side data.
+  LoadTaggedField(
+      data, context,
+      Context::OffsetOfElementAt(Context::CONST_TRACKING_LET_SIDE_DATA_INDEX));
+
+  LoadTaggedField(data, data,
+                  FixedArray::OffsetOfElementAt(
+                      index - Context::MIN_CONTEXT_EXTENDED_SLOTS));
+
+  // If the field is already marked as "not a constant", storing a
+  // different value is fine. But if it's anything else (including the hole,
+  // which means no value was stored yet), deopt this code. The lower tier code
+  // will update the side data and invalidate DependentCode if needed.
+  CompareTaggedAndJumpIf(data, ConstTrackingLetCell::kNonConstMarker, kEqual,
+                         done, Label::kNear);
 }
 
 }  // namespace maglev

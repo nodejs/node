@@ -154,6 +154,11 @@ constexpr Register MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::
     FeedbackVectorRegister() {
   return x9;
 }
+// static
+constexpr Register
+MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor::TemporaryRegister() {
+  return x4;
+}
 
 // static
 constexpr auto TypeofDescriptor::registers() { return RegisterArray(x0); }

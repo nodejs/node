@@ -101,6 +101,8 @@ const char* WellKnownImportName(WellKnownImport wki) {
       return "js-string:fromCharCodeArray";
     case WellKnownImport::kStringIntoUtf8Array:
       return "text-encoder:encodeStringIntoUTF8Array";
+    case WellKnownImport::kStringToUtf8Array:
+      return "text-encoder:encodeStringToUTF8Array";
     case WellKnownImport::kStringLength:
       return "js-string:length";
     case WellKnownImport::kStringMeasureUtf8:

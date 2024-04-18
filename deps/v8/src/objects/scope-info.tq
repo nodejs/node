@@ -31,6 +31,7 @@ extern enum VariableAllocationInfo extends uint32 {
 extern enum VariableMode extends uint32 {
   kLet,
   kConst,
+  kUsing,
   kVar,
   kTemporary,
   kDynamic,
