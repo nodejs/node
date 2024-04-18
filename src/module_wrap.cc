@@ -261,13 +261,15 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
                           host_defined_options);
 
       CompileCacheEntry* cache_entry = nullptr;
-      if (can_use_builtin_cache && realm->env()->use_compile_cache()) {
-        cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
-            source_text, url, CachedCodeType::kESM);
-      }
-      if (cache_entry != nullptr && cache_entry->cache != nullptr) {
-        // source will take ownership of cached_data.
-        cached_data = cache_entry->CopyCache();
+      if (!used_cache_from_user) {
+        if (can_use_builtin_cache && realm->env()->use_compile_cache()) {
+          cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
+              source_text, url, CachedCodeType::kESM);
+        }
+        if (cache_entry != nullptr && cache_entry->cache != nullptr) {
+          // source will take ownership of cached_data.
+          cached_data = cache_entry->CopyCache();
+        }
       }
 
       ScriptCompiler::Source source(source_text, origin, cached_data);
