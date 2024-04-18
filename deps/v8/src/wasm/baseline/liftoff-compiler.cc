@@ -24,6 +24,7 @@
 #include "src/utils/utils.h"
 #include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/liftoff-register.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-compiler.h"
 #include "src/wasm/memory-tracing.h"
@@ -60,7 +61,7 @@ namespace {
     if (v8_flags.trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
   } while (false)
 
-#define WASM_INSTANCE_OBJECT_FIELD_OFFSET(name) \
+#define WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name) \
   ObjectAccess::ToTagged(WasmTrustedInstanceData::k##name##Offset)
 
 template <int expected_size, int actual_size>
@@ -70,25 +71,38 @@ struct assert_field_size {
   static constexpr int size = actual_size;
 };
 
-#define WASM_INSTANCE_OBJECT_FIELD_SIZE(name) \
+#define WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name) \
   FIELD_SIZE(WasmTrustedInstanceData::k##name##Offset)
 
-#define LOAD_INSTANCE_FIELD(dst, name, load_size, pinned)                      \
-  __ LoadFromInstance(dst, LoadInstanceIntoRegister(pinned, dst),              \
-                      WASM_INSTANCE_OBJECT_FIELD_OFFSET(name),                 \
-                      assert_field_size<WASM_INSTANCE_OBJECT_FIELD_SIZE(name), \
-                                        load_size>::size);
+#define LOAD_INSTANCE_FIELD(dst, name, load_size, pinned)            \
+  __ LoadFromInstance(                                               \
+      dst, LoadInstanceIntoRegister(pinned, dst),                    \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name),                 \
+      assert_field_size<WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name), \
+                        load_size>::size);
 
-#define LOAD_TAGGED_PTR_INSTANCE_FIELD(dst, name, pinned)                      \
-  static_assert(WASM_INSTANCE_OBJECT_FIELD_SIZE(name) == kTaggedSize,          \
-                "field in WasmInstance does not have the expected size");      \
-  __ LoadTaggedPointerFromInstance(dst, LoadInstanceIntoRegister(pinned, dst), \
-                                   WASM_INSTANCE_OBJECT_FIELD_OFFSET(name));
+#define LOAD_TAGGED_PTR_INSTANCE_FIELD(dst, name, pinned)                  \
+  static_assert(                                                           \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name) == kTaggedSize,          \
+      "field in WasmTrustedInstanceData does not have the expected size"); \
+  __ LoadTaggedPointerFromInstance(                                        \
+      dst, LoadInstanceIntoRegister(pinned, dst),                          \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
 
+#define LOAD_PROTECTED_PTR_INSTANCE_FIELD(dst, name, pinned)               \
+  static_assert(                                                           \
+      WASM_TRUSTED_INSTANCE_DATA_FIELD_SIZE(name) == kTaggedSize,          \
+      "field in WasmTrustedInstanceData does not have the expected size"); \
+  __ LoadProtectedPointer(dst, LoadInstanceIntoRegister(pinned, dst),      \
+                          WASM_TRUSTED_INSTANCE_DATA_FIELD_OFFSET(name));
+
+// Liftoff's code comments are intentionally without source location to keep
+// readability up.
 #ifdef V8_CODE_COMMENTS
-#define CODE_COMMENT(str) __ RecordComment(str)
-#define SCOPED_CODE_COMMENT(str) \
-  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str)
+#define CODE_COMMENT(str) __ RecordComment(str, SourceLocation{})
+#define SCOPED_CODE_COMMENT(str)                                   \
+  AssemblerBase::CodeComment scoped_comment_##__LINE__(&asm_, str, \
+                                                       SourceLocation{})
 #else
 #define CODE_COMMENT(str) ((void)0)
 #define SCOPED_CODE_COMMENT(str) ((void)0)
@@ -3932,10 +3946,12 @@ class LiftoffCompiler {
   }
 
   template <ValueKind src_kind, ValueKind result_kind,
-            ValueKind result_lane_kind = kVoid, typename EmitFn>
+            ValueKind result_lane_kind = kVoid, typename EmitFn,
+            typename... ExtraArgs>
   void EmitTerOp(EmitFn fn, LiftoffRegister dst, LiftoffRegister src1,
-                 LiftoffRegister src2, LiftoffRegister src3) {
-    CallEmitFn(fn, dst, src1, src2, src3);
+                 LiftoffRegister src2, LiftoffRegister src3,
+                 ExtraArgs... extra_args) {
+    CallEmitFn(fn, dst, src1, src2, src3, extra_args...);
     if (V8_UNLIKELY(nondeterminism_)) {
       LiftoffRegList pinned{dst};
       if (result_kind == ValueKind::kF32 || result_kind == ValueKind::kF64) {
@@ -3967,7 +3983,8 @@ class LiftoffCompiler {
                                                                src2, src3);
   }
 
-  void EmitRelaxedLaneSelect() {
+  void EmitRelaxedLaneSelect(int lane_width) {
+    DCHECK(lane_width == 8 || lane_width == 32 || lane_width == 64);
 #if defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_X64)
     if (!CpuFeatures::IsSupported(AVX)) {
       LiftoffRegister mask(xmm0);
@@ -3975,7 +3992,7 @@ class LiftoffCompiler {
       LiftoffRegister src2 = __ PopToModifiableRegister(LiftoffRegList{mask});
       LiftoffRegister src1 = __ PopToRegister(LiftoffRegList{src2, mask});
       EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
-                              src2, src1, src2, mask);
+                              src2, src1, src2, mask, lane_width);
       return;
     }
 #endif
@@ -3986,7 +4003,7 @@ class LiftoffCompiler {
     LiftoffRegister dst =
         __ GetUnusedRegister(reg_class_for(kS128), {}, pinned);
     EmitTerOp<kS128, kS128>(&LiftoffAssembler::emit_s128_relaxed_laneselect,
-                            dst, src1, src2, mask);
+                            dst, src1, src2, mask, lane_width);
   }
 
   template <typename EmitFn, typename EmitFnImm>
@@ -4564,9 +4581,13 @@ class LiftoffCompiler {
         return EmitSimdFmaOp(&LiftoffAssembler::emit_f64x2_qfms);
       case wasm::kExprI16x8RelaxedLaneSelect:
       case wasm::kExprI8x16RelaxedLaneSelect:
+        // There is no special hardware instruction for 16-bit wide lanes on
+        // any of our platforms, so fall back to bytewise selection for i16x8.
+        return EmitRelaxedLaneSelect(8);
       case wasm::kExprI32x4RelaxedLaneSelect:
+        return EmitRelaxedLaneSelect(32);
       case wasm::kExprI64x2RelaxedLaneSelect:
-        return EmitRelaxedLaneSelect();
+        return EmitRelaxedLaneSelect(64);
       case wasm::kExprF32x4RelaxedMin:
         return EmitBinOp<kS128, kS128, false, kF32>(
             &LiftoffAssembler::emit_f32x4_relaxed_min);
@@ -7910,45 +7931,77 @@ class LiftoffCompiler {
     Register tmp1 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register tmp2 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     Register tmp3 = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-    Register indirect_function_table = no_reg;
-    if (imm.table_imm.index > 0) {
-      indirect_function_table =
-          pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
-      LOAD_TAGGED_PTR_INSTANCE_FIELD(indirect_function_table,
-                                     IndirectFunctionTables, pinned);
-      __ LoadTaggedPointer(
-          indirect_function_table, indirect_function_table, no_reg,
-          ObjectAccess::ElementOffsetInTaggedFixedArray(imm.table_imm.index));
+
+    Register dispatch_table = tmp1;
+    // tmp1: dispatch_table; tmp2: unused; tmp3: unused
+    if (imm.table_imm.index == 0) {
+      // Load the dispatch table directly.
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(dispatch_table, DispatchTable0, pinned);
+    } else {
+      // Load the dispatch table from the ProtectedFixedArray of all dispatch
+      // tables.
+      Register indir_func_tables = dispatch_table;
+      LOAD_PROTECTED_PTR_INSTANCE_FIELD(indir_func_tables, DispatchTables,
+                                        pinned);
+      __ LoadProtectedPointer(dispatch_table, indir_func_tables,
+                              ObjectAccess::ElementOffsetInProtectedFixedArray(
+                                  imm.table_imm.index));
     }
+
+    const WasmTable& table = decoder->module_->tables[imm.table_imm.index];
     {
       CODE_COMMENT("Check index is in-bounds");
-      Register table_size = tmp1;
-      if (imm.table_imm.index == 0) {
-        LOAD_INSTANCE_FIELD(table_size, IndirectFunctionTableSize, kUInt32Size,
-                            pinned);
-      } else {
-        __ Load(LiftoffRegister(table_size), indirect_function_table, no_reg,
-                wasm::ObjectAccess::ToTagged(
-                    WasmIndirectFunctionTable::kSizeOffset),
+      Register table_size = tmp2;
+      // tmp1: dispatch_table; tmp2: table_size; tmp3: unused
+      // Bounds check against the table size: Compare against the dispatch table
+      // size, or a constant if the size is statically known.
+      bool needs_dynamic_size =
+          !table.has_maximum_size || table.maximum_size != table.initial_size;
+      if (needs_dynamic_size) {
+        __ Load(LiftoffRegister(table_size), dispatch_table, no_reg,
+                wasm::ObjectAccess::ToTagged(WasmDispatchTable::kLengthOffset),
                 LoadType::kI32Load);
       }
 
-      // Bounds check against the table size: Compare against table size stored
-      // in {instance->indirect_function_table_size}.
       Label* out_of_bounds_label =
           AddOutOfLineTrap(decoder, Builtin::kThrowWasmTrapTableOutOfBounds);
       {
         FREEZE_STATE(trapping);
-        __ emit_cond_jump(kUnsignedGreaterThanEqual, out_of_bounds_label, kI32,
-                          index, table_size, trapping);
+        if (needs_dynamic_size) {
+          __ emit_cond_jump(kUnsignedGreaterThanEqual, out_of_bounds_label,
+                            kI32, index, table_size, trapping);
+        } else {
+          int static_table_size = table.initial_size;
+          __ emit_i32_cond_jumpi(kUnsignedGreaterThanEqual, out_of_bounds_label,
+                                 index, static_table_size, trapping);
+        }
       }
     }
 
-    ValueType table_type = decoder->module_->tables[imm.table_imm.index].type;
+    // Get a direct pointer to the dispatch table element.
+    // dispatch_table_entry = dispatch_table + kEntriesOffset +
+    //                        size_t{index} * kElementSize
+    // TODO(clemensb): Produce better code for this (via more specialized
+    // platform-specific methods?).
+    Register dispatch_table_entry = tmp3;
+    // tmp1: dispatch_table; tmp2: unused; tmp3: dispatch_table_entry
+    __ emit_u32_to_uintptr(dispatch_table_entry, index);
+    __ emit_ptrsize_muli(dispatch_table_entry, dispatch_table_entry,
+                         WasmDispatchTable::kEntrySize);
+    __ emit_ptrsize_add(dispatch_table_entry, dispatch_table_entry,
+                        dispatch_table);
+    __ emit_ptrsize_addi(
+        dispatch_table_entry, dispatch_table_entry,
+        ObjectAccess::ToTagged(WasmDispatchTable::kEntriesOffset));
+
+    // After this, we do not need the dispatch table any more.
+    dispatch_table = no_reg;
+    // tmp1: unused; tmp2: unused; tmp3: dispatch_table_entry
+
     bool needs_type_check = !EquivalentTypes(
-        table_type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
+        table.type.AsNonNull(), ValueType::Ref(imm.sig_imm.index),
         decoder->module_, decoder->module_);
-    bool needs_null_check = table_type.is_nullable();
+    bool needs_null_check = table.type.is_nullable();
 
     // We do both the type check and the null check by checking the signature,
     // so this shares most code. For the null check we then only check if the
@@ -7957,23 +8010,11 @@ class LiftoffCompiler {
       CODE_COMMENT(needs_type_check ? "Check signature"
                                     : "Check for null entry");
       Register real_sig_id = tmp1;
+      // tmp1: real_sig_id; tmp2: unused; tmp3: dispatch_table_entry
 
-      // Load the signature from {instance->ift_sig_ids[key]}
-      if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(real_sig_id, IndirectFunctionTableSigIds,
-                                       pinned);
-      } else {
-        __ LoadTaggedPointer(real_sig_id, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kSigIdsOffset));
-      }
-      // Here and below, the FixedUint32Array holding the sig ids is really
-      // just a ByteArray interpreted as uint32s, so the offset to the start of
-      // the elements is the ByteArray header size.
-      // TODO(saelo) maybe make the names of these arrays less confusing?
-      int buffer_offset = wasm::ObjectAccess::ToTagged(ByteArray::kHeaderSize);
-      __ Load(LiftoffRegister(real_sig_id), real_sig_id, index, buffer_offset,
-              LoadType::kI32Load, nullptr, false, false, true);
+      // Load the signature from the dispatch table.
+      __ Load(LiftoffRegister(real_sig_id), dispatch_table_entry, no_reg,
+              WasmDispatchTable::kSigBias, LoadType::kI32Load);
 
       // Compare against expected signature.
       // Since Liftoff code is never serialized (hence not reused across
@@ -7990,8 +8031,7 @@ class LiftoffCompiler {
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
                                frozen);
-      } else if (decoder->enabled_.has_gc() &&
-                 !decoder->module_->types[imm.sig_imm.index].is_final) {
+      } else if (!decoder->module_->types[imm.sig_imm.index].is_final) {
         Label success_label;
         FREEZE_STATE(frozen);
         __ emit_i32_cond_jumpi(kEqual, &success_label, real_sig_id,
@@ -8000,15 +8040,19 @@ class LiftoffCompiler {
           __ emit_i32_cond_jumpi(kEqual, sig_mismatch_label, real_sig_id, -1,
                                  frozen);
         }
-        Register real_rtt = tmp3;
+        Register real_rtt = tmp2;
+        // tmp1: real_sig_id; tmp2: real_rtt; tmp3: dispatch_table_entry
         __ LoadFullPointer(
             real_rtt, kRootRegister,
             IsolateData::root_slot_offset(RootIndex::kWasmCanonicalRtts));
         __ LoadTaggedPointer(real_rtt, real_rtt, real_sig_id,
                              ObjectAccess::ToTagged(WeakArrayList::kHeaderSize),
                              nullptr, true);
+        // real_sig_id is not used any more.
+        real_sig_id = no_reg;
+        // tmp1: unused; tmp2: real_rtt; tmp3: dispatch_table_entry
         // Remove the weak reference tag.
-        if (kSystemPointerSize == 4) {
+        if constexpr (kSystemPointerSize == 4) {
           __ emit_i32_andi(real_rtt, real_rtt,
                            static_cast<int32_t>(~kWeakHeapObjectMask));
         } else {
@@ -8021,12 +8065,14 @@ class LiftoffCompiler {
         constexpr int kTypeInfoOffset = wasm::ObjectAccess::ToTagged(
             Map::kConstructorOrBackPointerOrNativeContextOffset);
         Register type_info = real_rtt;
+        // tmp1: unused; tmp2: type_info; tmp3: dispatch_table_entry
         __ LoadTaggedPointer(type_info, real_rtt, no_reg, kTypeInfoOffset);
         // Step 2: check the list's length if needed.
         uint32_t rtt_depth =
             GetSubtypingDepth(decoder->module_, imm.sig_imm.index);
         if (rtt_depth >= kMinimumSupertypeArraySize) {
-          LiftoffRegister list_length(tmp2);
+          LiftoffRegister list_length(tmp1);
+          // tmp1: list_length; tmp2: type_info; tmp3: dispatch_table_entry
           int offset =
               ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesLengthOffset);
           __ LoadSmiAsInt32(list_length, type_info, offset);
@@ -8035,11 +8081,13 @@ class LiftoffCompiler {
         }
         // Step 3: load the candidate list slot, and compare it.
         Register maybe_match = type_info;
+        // tmp1: unused; tmp2: maybe_match; tmp3: dispatch_table_entry
         __ LoadTaggedPointer(
             maybe_match, type_info, no_reg,
             ObjectAccess::ToTagged(WasmTypeInfo::kSupertypesOffset +
                                    rtt_depth * kTaggedSize));
-        Register formal_rtt = tmp2;
+        Register formal_rtt = tmp1;
+        // tmp1: formal_rtt; tmp2: maybe_match; tmp3: dispatch_table_entry
         LOAD_TAGGED_PTR_INSTANCE_FIELD(formal_rtt, ManagedObjectMaps, pinned);
         __ LoadTaggedPointer(
             formal_rtt, formal_rtt, no_reg,
@@ -8064,54 +8112,32 @@ class LiftoffCompiler {
       // The first parameter will be either a WasmTrustedInstanceData or a
       // WasmApiFunctionRef.
       Register first_param = tmp1;
-      Register function_target = tmp2;
+      Register target = tmp2;
 
-      // Load the ref from {instance->ift_refs[key]}.
-      // Re-use the {first_param} register for intermediate pointers.
-      Register ift_refs = first_param;
-      if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(ift_refs, IndirectFunctionTableRefs,
-                                       pinned);
-      } else {
-        __ LoadTaggedPointer(ift_refs, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kRefsOffset));
-      }
-      Register ref = first_param;
-      __ LoadTaggedPointer(ref, ift_refs, index,
-                           ObjectAccess::ElementOffsetInTaggedFixedArray(0),
-                           nullptr, true);
+      // Load ref and target from the dispatch table.
+      Register ref = tmp1;
+      __ LoadTaggedPointer(ref, dispatch_table_entry, no_reg,
+                           WasmDispatchTable::kRefBias);
       LoadTrustedDataFromMaybeInstanceObject(first_param, ref,
                                              tmp2 /* scratch */);
-
-      // Load the target from {instance->ift_targets[key]}
-      if (imm.table_imm.index == 0) {
-        LOAD_TAGGED_PTR_INSTANCE_FIELD(function_target,
-                                       IndirectFunctionTableTargets, pinned);
-      } else {
-        __ LoadTaggedPointer(function_target, indirect_function_table, no_reg,
-                             wasm::ObjectAccess::ToTagged(
-                                 WasmIndirectFunctionTable::kTargetsOffset));
-      }
-      __ LoadExternalPointer(
-          function_target, function_target,
-          ObjectAccess::ElementOffsetInTaggedExternalPointerArray(0), index,
-          kWasmIndirectFunctionTargetTag, tmp3);
+      __ Load(LiftoffRegister(target), dispatch_table_entry, no_reg,
+              WasmDispatchTable::kTargetBias,
+              LoadType::ForValueKind(kIntPtrKind));
 
       auto call_descriptor = compiler::GetWasmCallDescriptor(zone_, imm.sig);
       call_descriptor = GetLoweredCallDescriptor(zone_, call_descriptor);
 
-      __ PrepareCall(&sig, call_descriptor, &function_target, first_param);
+      __ PrepareCall(&sig, call_descriptor, &target, first_param);
       if (tail_call) {
         __ PrepareTailCall(
             static_cast<int>(call_descriptor->ParameterSlotCount()),
             static_cast<int>(
                 call_descriptor->GetStackParameterDelta(descriptor_)));
-        __ TailCallIndirect(function_target);
+        __ TailCallIndirect(target);
       } else {
         source_position_table_builder_.AddPosition(
             __ pc_offset(), SourcePosition(decoder->position()), true);
-        __ CallIndirect(&sig, call_descriptor, function_target);
+        __ CallIndirect(&sig, call_descriptor, target);
 
         FinishCall(decoder, &sig, call_descriptor);
       }
@@ -8214,7 +8240,7 @@ class LiftoffCompiler {
       __ LoadTaggedPointer(
           target.gp(), internal_func.gp(), no_reg,
           wasm::ObjectAccess::ToTagged(WasmInternalFunction::kCodeOffset));
-      __ LoadCodeInstructionStart(target.gp(), target.gp());
+      __ LoadCodeInstructionStart(target.gp(), target.gp(), kWasmEntrypointTag);
 #endif
       // Fall through to {perform_call}.
 
@@ -8731,9 +8757,11 @@ std::unique_ptr<DebugSideTable> GenerateLiftoffDebugSideTable(
   ModuleWireBytes wire_bytes{native_module->wire_bytes()};
   base::Vector<const uint8_t> function_bytes =
       wire_bytes.GetFunctionBytes(function);
-  CompilationEnv env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module);
+  bool is_shared =
+      native_module->module()->types[function->sig_index].is_shared;
   FunctionBody func_body{function->sig, 0, function_bytes.begin(),
-                         function_bytes.end()};
+                         function_bytes.end(), is_shared};
 
   Zone zone(GetWasmEngine()->allocator(), "LiftoffDebugSideTableZone");
   auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, function->sig);

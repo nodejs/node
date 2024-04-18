@@ -272,6 +272,9 @@ void HeapObject::HeapObjectVerify(Isolate* isolate) {
       WasmTrustedInstanceData::cast(*this)->WasmTrustedInstanceDataVerify(
           isolate);
       break;
+    case WASM_DISPATCH_TABLE_TYPE:
+      WasmDispatchTable::cast(*this)->WasmDispatchTableVerify(isolate);
+      break;
     case WASM_VALUE_OBJECT_TYPE:
       WasmValueObject::cast(*this)->WasmValueObjectVerify(isolate);
       break;
@@ -383,7 +386,7 @@ void BytecodeArray::BytecodeArrayVerify(Isolate* isolate) {
   {
     auto o = constant_pool();
     Object::VerifyPointer(isolate, o);
-    CHECK(IsFixedArray(o));
+    CHECK(IsTrustedFixedArray(o));
   }
   {
     auto o = handler_table();
@@ -752,12 +755,23 @@ void FixedArray::FixedArrayVerify(Isolate* isolate) {
 }
 
 void TrustedFixedArray::TrustedFixedArrayVerify(Isolate* isolate) {
-  ExposedTrustedObjectVerify(isolate);
-
+  TrustedObjectVerify(isolate);
   CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
 
   for (int i = 0; i < length(); ++i) {
     Object::VerifyPointer(isolate, get(i));
+  }
+}
+
+void ProtectedFixedArray::ProtectedFixedArrayVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  CHECK(IsSmi(TaggedField<Object>::load(*this, kLengthOffset)));
+
+  for (int i = 0; i < length(); ++i) {
+    Tagged<Object> element = get(i);
+    CHECK(IsSmi(element) || IsTrustedObject(element));
+    Object::VerifyPointer(isolate, element);
   }
 }
 
@@ -862,6 +876,25 @@ void Context::ContextVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ContextVerify(*this, isolate);
   for (int i = 0; i < length(); i++) {
     VerifyObjectField(isolate, OffsetOfElementAt(i));
+  }
+  if (IsScriptContext()) {
+    Tagged<Object> side_data = get(CONST_TRACKING_LET_SIDE_DATA_INDEX);
+    CHECK(IsFixedArray(side_data));
+    Tagged<FixedArray> side_data_array = FixedArray::cast(side_data);
+    if (v8_flags.const_tracking_let) {
+      for (int i = 0; i < side_data_array->length(); i++) {
+        Tagged<Object> element = side_data_array->get(i);
+        if (IsSmi(element)) {
+          CHECK(element == ConstTrackingLetCell::kConstMarker ||
+                element == ConstTrackingLetCell::kNonConstMarker);
+        } else {
+          // The slot contains `undefined` before the variable is initialized.
+          CHECK(IsUndefined(element) || IsConstTrackingLetCell(element));
+        }
+      }
+    } else {
+      CHECK_EQ(0, side_data_array->length());
+    }
   }
 }
 
@@ -1325,12 +1358,15 @@ void PropertyCell::PropertyCellVerify(Isolate* isolate) {
   CheckDataIsCompatible(property_details(), value());
 }
 
+void ConstTrackingLetCell::ConstTrackingLetCellVerify(Isolate* isolate) {
+  TorqueGeneratedClassVerifiers::ConstTrackingLetCellVerify(*this, isolate);
+}
+
 void TrustedObject::TrustedObjectVerify(Isolate* isolate) {
 #if defined(V8_ENABLE_SANDBOX)
   // All trusted objects must live in trusted space.
   // TODO(saelo): Some objects are trusted but do not yet live in trusted space.
-  CHECK(IsTrustedSpaceObject(*this) || IsCode(*this) ||
-        IsInterpreterData(*this));
+  CHECK(IsTrustedSpaceObject(*this) || IsCode(*this));
 #endif
 }
 
@@ -2034,13 +2070,13 @@ void Module::ModuleVerify(Isolate* isolate) {
 void ModuleRequest::ModuleRequestVerify(Isolate* isolate) {
   TorqueGeneratedClassVerifiers::ModuleRequestVerify(*this, isolate);
   CHECK_EQ(0,
-           import_assertions()->length() % ModuleRequest::kAssertionEntrySize);
+           import_attributes()->length() % ModuleRequest::kAttributeEntrySize);
 
-  for (int i = 0; i < import_assertions()->length();
-       i += ModuleRequest::kAssertionEntrySize) {
-    CHECK(IsString(import_assertions()->get(i)));      // Assertion key
-    CHECK(IsString(import_assertions()->get(i + 1)));  // Assertion value
-    CHECK(IsSmi(import_assertions()->get(i + 2)));     // Assertion location
+  for (int i = 0; i < import_attributes()->length();
+       i += ModuleRequest::kAttributeEntrySize) {
+    CHECK(IsString(import_attributes()->get(i)));      // Attribute key
+    CHECK(IsString(import_attributes()->get(i + 1)));  // Attribute value
+    CHECK(IsSmi(import_attributes()->get(i + 2)));     // Attribute location
   }
 }
 
@@ -2164,6 +2200,29 @@ void WasmTrustedInstanceData::WasmTrustedInstanceDataVerify(Isolate* isolate) {
   // Check all tagged fields.
   for (uint16_t offset : kTaggedFieldOffsets) {
     VerifyObjectField(isolate, offset);
+  }
+
+  int num_dispatch_tables = dispatch_tables()->length();
+  for (int i = 0; i < num_dispatch_tables; ++i) {
+    Tagged<Object> table = dispatch_tables()->get(i);
+    if (table == Smi::zero()) continue;
+    CHECK(IsWasmDispatchTable(table));
+    if (i == 0) CHECK_EQ(table, dispatch_table0());
+  }
+  if (num_dispatch_tables == 0) CHECK_EQ(0, dispatch_table0()->length());
+}
+
+void WasmDispatchTable::WasmDispatchTableVerify(Isolate* isolate) {
+  TrustedObjectVerify(isolate);
+
+  int len = length();
+  CHECK_LE(len, capacity());
+  for (int i = 0; i < len; ++i) {
+    Tagged<Object> call_ref = ref(i);
+    Object::VerifyPointer(isolate, call_ref);
+    CHECK(IsWasmInstanceObject(call_ref) || IsWasmApiFunctionRef(call_ref) ||
+          call_ref == Smi::zero());
+    CHECK_EQ(ref(i) == Smi::zero(), target(i) == kNullAddress);
   }
 }
 

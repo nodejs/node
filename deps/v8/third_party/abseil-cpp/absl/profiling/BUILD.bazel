@@ -126,7 +126,7 @@ cc_test(
 
 cc_binary(
     name = "periodic_sampler_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/periodic_sampler_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

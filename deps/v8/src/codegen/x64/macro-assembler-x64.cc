@@ -616,15 +616,22 @@ void MacroAssembler::ResolveCodePointerHandle(Register destination,
 }
 
 void MacroAssembler::LoadCodeEntrypointViaCodePointer(Register destination,
-                                                      Operand field_operand) {
+                                                      Operand field_operand,
+                                                      CodeEntrypointTag tag) {
   DCHECK(!AreAliased(destination, kScratchRegister));
   DCHECK(!field_operand.AddressUsesRegister(kScratchRegister));
+  DCHECK_NE(tag, kInvalidEntrypointTag);
   LoadAddress(kScratchRegister,
               ExternalReference::code_pointer_table_address());
   movl(destination, field_operand);
   shrl(destination, Immediate(kCodePointerHandleShift));
   shll(destination, Immediate(kCodePointerTableEntrySizeLog2));
   movq(destination, Operand(kScratchRegister, destination, times_1, 0));
+  if (tag != 0) {
+    // Can this be improved?
+    movq(kScratchRegister, Immediate64(tag));
+    xorq(destination, kScratchRegister);
+  }
 }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -634,9 +641,8 @@ void MacroAssembler::LoadProtectedPointerField(Register destination,
 #ifdef V8_ENABLE_SANDBOX
   DCHECK(!AreAliased(destination, kScratchRegister));
   movl(destination, field_operand);
-  movq(kScratchRegister,
-       Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
-  orq(destination, kScratchRegister);
+  orq(destination,
+      Operand(kRootRegister, IsolateData::trusted_cage_base_offset()));
 #else
   LoadTaggedField(destination, field_operand);
 #endif
@@ -1052,7 +1058,7 @@ void TailCallOptimizedCodeSlot(MacroAssembler* masm,
                                          scratch1, scratch2);
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
   __ Move(rcx, optimized_code_entry);
-  __ JumpCodeObject(rcx, jump_mode);
+  __ JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 
   // Optimized code slot contains deoptimized code or code is cleared and
   // optimized code marker isn't updated. Evict the code, update the marker
@@ -1070,9 +1076,9 @@ void MacroAssembler::AssertFeedbackCell(Register object, Register scratch) {
     Assert(equal, AbortReason::kExpectedFeedbackCell);
   }
 }
-void MacroAssembler::AssertFeedbackVector(Register object) {
+void MacroAssembler::AssertFeedbackVector(Register object, Register scratch) {
   if (v8_flags.debug_code) {
-    IsObjectType(object, FEEDBACK_VECTOR_TYPE, kScratchRegister);
+    IsObjectType(object, FEEDBACK_VECTOR_TYPE, scratch);
     Assert(equal, AbortReason::kExpectedFeedbackVector);
   }
 }
@@ -1107,7 +1113,7 @@ void MacroAssembler::GenerateTailCallToReturnedCode(
     Pop(kJavaScriptCallTargetRegister);
   }
   static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
-  JumpCodeObject(rcx, jump_mode);
+  JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 }
 
 void MacroAssembler::ReplaceClosureCodeWithOptimizedCode(
@@ -2781,23 +2787,27 @@ void MacroAssembler::TailCallBuiltin(Builtin builtin, Condition cc) {
 }
 
 void MacroAssembler::LoadCodeInstructionStart(Register destination,
-                                              Register code_object) {
+                                              Register code_object,
+                                              CodeEntrypointTag tag) {
   ASM_CODE_COMMENT(this);
 #ifdef V8_ENABLE_SANDBOX
   LoadCodeEntrypointViaCodePointer(
-      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset));
+      destination, FieldOperand(code_object, Code::kSelfIndirectPointerOffset),
+      tag);
 #else
   movq(destination, FieldOperand(code_object, Code::kInstructionStartOffset));
 #endif
 }
 
-void MacroAssembler::CallCodeObject(Register code_object) {
-  LoadCodeInstructionStart(code_object, code_object);
+void MacroAssembler::CallCodeObject(Register code_object,
+                                    CodeEntrypointTag tag) {
+  LoadCodeInstructionStart(code_object, code_object, tag);
   call(code_object);
 }
 
-void MacroAssembler::JumpCodeObject(Register code_object, JumpMode jump_mode) {
-  LoadCodeInstructionStart(code_object, code_object);
+void MacroAssembler::JumpCodeObject(Register code_object, CodeEntrypointTag tag,
+                                    JumpMode jump_mode) {
+  LoadCodeInstructionStart(code_object, code_object, tag);
   switch (jump_mode) {
     case JumpMode::kJump:
       jmp(code_object);
@@ -2816,11 +2826,12 @@ void MacroAssembler::CallJSFunction(Register function_object) {
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
+      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   call(rcx);
 #else
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  CallCodeObject(rcx);
+  CallCodeObject(rcx, kJSEntrypointTag);
 #endif
 }
 
@@ -2832,12 +2843,13 @@ void MacroAssembler::JumpJSFunction(Register function_object,
   // from the code pointer table instead of going through the Code object. In
   // this way, we avoid one memory load on this code path.
   LoadCodeEntrypointViaCodePointer(
-      rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
+      rcx, FieldOperand(function_object, JSFunction::kCodeOffset),
+      kJSEntrypointTag);
   DCHECK_EQ(jump_mode, JumpMode::kJump);
   jmp(rcx);
 #else
   LoadTaggedField(rcx, FieldOperand(function_object, JSFunction::kCodeOffset));
-  JumpCodeObject(rcx, jump_mode);
+  JumpCodeObject(rcx, kJSEntrypointTag, jump_mode);
 #endif
 }
 
@@ -3898,17 +3910,19 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments) {
        kScratchRegister);
 }
 
-void MacroAssembler::CallCFunction(ExternalReference function,
-                                   int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(ExternalReference function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   // Note: The "CallCFunction" code comment will be generated by the other
   // CallCFunction method called below.
   LoadAddress(rax, function);
-  CallCFunction(rax, num_arguments, set_isolate_data_slots);
+  return CallCFunction(rax, num_arguments, set_isolate_data_slots,
+                       return_location);
 }
 
-void MacroAssembler::CallCFunction(Register function, int num_arguments,
-                                   SetIsolateDataSlots set_isolate_data_slots) {
+int MacroAssembler::CallCFunction(Register function, int num_arguments,
+                                  SetIsolateDataSlots set_isolate_data_slots,
+                                  Label* return_location) {
   ASM_CODE_COMMENT(this);
   DCHECK_LE(num_arguments, kMaxCParameters);
   DCHECK(has_frame());
@@ -3920,11 +3934,11 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments,
   // Save the frame pointer and PC so that the stack layout remains iterable,
   // even without an ExitFrame which normally exists between JS and C frames.
   Label get_pc;
-  DCHECK(!AreAliased(kScratchRegister, function));
-  leaq(kScratchRegister, Operand(&get_pc, 0));
-  bind(&get_pc);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
+    DCHECK(!AreAliased(kScratchRegister, function));
+    leaq(kScratchRegister, Operand(&get_pc, 0));
+
     // Addressing the following external references is tricky because we need
     // this to work in three situations:
     // 1. In wasm compilation, the isolate is nullptr and thus no
@@ -3966,6 +3980,9 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments,
   }
 
   call(function);
+  int call_pc_offset = pc_offset();
+  bind(&get_pc);
+  if (return_location) bind(return_location);
 
   if (set_isolate_data_slots == SetIsolateDataSlots::kYes) {
     // We don't unset the PC; the FP is the source of truth.
@@ -3985,6 +4002,20 @@ void MacroAssembler::CallCFunction(Register function, int num_arguments,
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   movq(rsp, Operand(rsp, argument_slots_on_stack * kSystemPointerSize));
+
+  return call_pc_offset;
+}
+
+void MacroAssembler::MemoryChunkHeaderFromObject(Register object,
+                                                 Register header) {
+  constexpr intptr_t alignment_mask =
+      MemoryChunkHeader::GetAlignmentMaskForAssembler();
+  if (header == object) {
+    andq(header, Immediate(~alignment_mask));
+  } else {
+    movq(header, Immediate(~alignment_mask));
+    andq(header, object);
+  }
 }
 
 void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
@@ -3992,17 +4023,12 @@ void MacroAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Label::Distance condition_met_distance) {
   ASM_CODE_COMMENT(this);
   DCHECK(cc == zero || cc == not_zero);
-  if (scratch == object) {
-    andq(scratch, Immediate(~kPageAlignmentMask));
-  } else {
-    movq(scratch, Immediate(~kPageAlignmentMask));
-    andq(scratch, object);
-  }
+  MemoryChunkHeaderFromObject(object, scratch);
   if (mask < (1 << kBitsPerByte)) {
-    testb(Operand(scratch, BasicMemoryChunk::kFlagsOffset),
+    testb(Operand(scratch, MemoryChunkLayout::kFlagsOffset),
           Immediate(static_cast<uint8_t>(mask)));
   } else {
-    testl(Operand(scratch, BasicMemoryChunk::kFlagsOffset), Immediate(mask));
+    testl(Operand(scratch, MemoryChunkLayout::kFlagsOffset), Immediate(mask));
   }
   j(cc, condition_met, condition_met_distance);
 }

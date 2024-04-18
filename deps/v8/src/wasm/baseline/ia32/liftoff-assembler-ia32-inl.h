@@ -466,6 +466,12 @@ void LiftoffAssembler::LoadTaggedPointer(Register dst, Register src_addr,
        false, false, needs_shift);
 }
 
+void LiftoffAssembler::LoadProtectedPointer(Register dst, Register src_addr,
+                                            int32_t offset) {
+  static_assert(!V8_ENABLE_SANDBOX_BOOL);
+  LoadTaggedPointer(dst, src_addr, no_reg, offset);
+}
+
 void LiftoffAssembler::LoadFullPointer(Register dst, Register src_addr,
                                        int32_t offset_imm) {
   mov(dst, Operand(src_addr, offset_imm));
@@ -1444,6 +1450,14 @@ void EmitCommutativeBinOpImm(LiftoffAssembler* assm, Register dst, Register lhs,
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
   liftoff::EmitCommutativeBinOp<&Assembler::imul>(this, dst, lhs, rhs);
+}
+
+void LiftoffAssembler::emit_i32_muli(Register dst, Register lhs, int32_t imm) {
+  if (base::bits::IsPowerOfTwo(imm)) {
+    emit_i32_shli(dst, lhs, base::bits::WhichPowerOfTwo(imm));
+  } else {
+    imul(dst, lhs, imm);
+  }
 }
 
 namespace liftoff {
@@ -3024,8 +3038,19 @@ void LiftoffAssembler::emit_i32x4_relaxed_trunc_f64x2_u_zero(
 void LiftoffAssembler::emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                                     LiftoffRegister src1,
                                                     LiftoffRegister src2,
-                                                    LiftoffRegister mask) {
-  Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+                                                    LiftoffRegister mask,
+                                                    int lane_width) {
+  // Passing {src2} first is not a typo: the x86 instructions copy from the
+  // second operand when the mask is 1, contrary to the Wasm instruction.
+  if (lane_width == 8) {
+    Pblendvb(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 32) {
+    Blendvps(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else if (lane_width == 64) {
+    Blendvpd(dst.fp(), src2.fp(), src1.fp(), mask.fp());
+  } else {
+    UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::emit_i8x16_popcnt(LiftoffRegister dst,

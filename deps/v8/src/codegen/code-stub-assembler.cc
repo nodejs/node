@@ -1842,12 +1842,12 @@ void CodeStubAssembler::StoreExternalPointerToObject(TNode<HeapObject> object,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-TNode<HeapObject> CodeStubAssembler::LoadTrustedPointerFromObject(
+TNode<TrustedObject> CodeStubAssembler::LoadTrustedPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   return LoadIndirectPointerFromObject(object, field_offset, tag);
 #else
-  return LoadObjectField<HeapObject>(object, field_offset);
+  return LoadObjectField<TrustedObject>(object, field_offset);
 #endif  // V8_ENABLE_SANDBOX
 }
 
@@ -1858,7 +1858,7 @@ TNode<Code> CodeStubAssembler::LoadCodePointerFromObject(
 }
 
 #ifdef V8_ENABLE_SANDBOX
-TNode<HeapObject> CodeStubAssembler::LoadIndirectPointerFromObject(
+TNode<TrustedObject> CodeStubAssembler::LoadIndirectPointerFromObject(
     TNode<HeapObject> object, int field_offset, IndirectPointerTag tag) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
@@ -1871,13 +1871,13 @@ TNode<BoolT> CodeStubAssembler::IsTrustedPointerHandle(
                      Int32Constant(0));
 }
 
-TNode<HeapObject> CodeStubAssembler::ResolveIndirectPointerHandle(
+TNode<TrustedObject> CodeStubAssembler::ResolveIndirectPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
   // The tag implies which pointer table to use.
   if (tag == kUnknownIndirectPointerTag) {
     // In this case we have to rely on the handle marking to determine which
     // pointer table to use.
-    return Select<HeapObject>(
+    return Select<TrustedObject>(
         IsTrustedPointerHandle(handle),
         [=] { return ResolveTrustedPointerHandle(handle, tag); },
         [=] { return ResolveCodePointerHandle(handle); });
@@ -1903,7 +1903,7 @@ TNode<Code> CodeStubAssembler::ResolveCodePointerHandle(
   return UncheckedCast<Code>(BitcastWordToTagged(value));
 }
 
-TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
+TNode<TrustedObject> CodeStubAssembler::ResolveTrustedPointerHandle(
     TNode<IndirectPointerHandleT> handle, IndirectPointerTag tag) {
   TNode<RawPtrT> table = ExternalConstant(
       ExternalReference::trusted_pointer_table_base_address(isolate()));
@@ -1919,7 +1919,7 @@ TNode<HeapObject> CodeStubAssembler::ResolveTrustedPointerHandle(
   // to set it using a bitwise OR as it may or may not be set.
   value =
       UncheckedCast<UintPtrT>(WordOr(value, UintPtrConstant(kHeapObjectTag)));
-  return UncheckedCast<HeapObject>(BitcastWordToTagged(value));
+  return UncheckedCast<TrustedObject>(BitcastWordToTagged(value));
 }
 
 TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
@@ -1935,15 +1935,35 @@ TNode<UintPtrT> CodeStubAssembler::ComputeCodePointerTableEntryOffset(
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadCodeEntrypointViaCodePointerField(
-    TNode<HeapObject> object, TNode<IntPtrT> field_offset) {
+    TNode<HeapObject> object, TNode<IntPtrT> field_offset,
+    CodeEntrypointTag tag) {
   TNode<IndirectPointerHandleT> handle =
       LoadObjectField<IndirectPointerHandleT>(object, field_offset);
   TNode<RawPtrT> table =
       ExternalConstant(ExternalReference::code_pointer_table_address());
   TNode<UintPtrT> offset = ComputeCodePointerTableEntryOffset(handle);
-  return Load<RawPtrT>(table, offset);
+  TNode<UintPtrT> entry = Load<UintPtrT>(table, offset);
+  if (tag != 0) {
+    entry = UncheckedCast<UintPtrT>(WordXor(entry, UintPtrConstant(tag)));
+  }
+  return UncheckedCast<RawPtrT>(UncheckedCast<WordT>(entry));
 }
 #endif  // V8_ENABLE_SANDBOX
+
+TNode<TrustedObject> CodeStubAssembler::LoadProtectedPointerFromObject(
+    TNode<TrustedObject> object, int offset) {
+#ifdef V8_ENABLE_SANDBOX
+  TNode<RawPtrT> trusted_cage_base = LoadPointerFromRootRegister(
+      IntPtrConstant(IsolateData::trusted_cage_base_offset()));
+  TNode<UintPtrT> offset_from_cage_base =
+      ChangeUint32ToWord(LoadObjectField<Uint32T>(object, offset));
+  TNode<UintPtrT> pointer =
+      UncheckedCast<UintPtrT>(WordOr(trusted_cage_base, offset_from_cage_base));
+  return UncheckedCast<TrustedObject>(BitcastWordToTagged(pointer));
+#else
+  return LoadObjectField<TrustedObject>(object, offset);
+#endif
+}
 
 TNode<Object> CodeStubAssembler::LoadFromParentFrame(int offset) {
   TNode<RawPtrT> frame_pointer = LoadParentFramePointer();
@@ -2099,13 +2119,8 @@ TNode<HeapObject> CodeStubAssembler::LoadSlowProperties(
   };
   NodeGenerator<HeapObject> cast_properties = [=] {
     TNode<HeapObject> dict = CAST(properties);
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(dict),
-                                IsGlobalDictionary(dict)));
-    } else {
-      CSA_DCHECK(this,
-                 Word32Or(IsNameDictionary(dict), IsGlobalDictionary(dict)));
-    }
+    CSA_DCHECK(this,
+               Word32Or(IsPropertyDictionary(dict), IsGlobalDictionary(dict)));
     return dict;
   };
   return Select<HeapObject>(TaggedIsSmi(properties), make_empty,
@@ -2640,6 +2655,12 @@ TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
   return LoadAndUntagWeakFixedArrayLength(array);
 }
 
+template <>
+TNode<IntPtrT> CodeStubAssembler::LoadArrayLength(
+    TNode<TrustedFixedArray> array) {
+  return SmiUntag(LoadArrayCapacity(array));
+}
+
 template <typename Array, typename TIndex, typename TValue>
 TNode<TValue> CodeStubAssembler::LoadArrayElement(TNode<Array> array,
                                                   int array_header_size,
@@ -2673,6 +2694,9 @@ template V8_EXPORT_PRIVATE TNode<Smi> CodeStubAssembler::LoadArrayElement<
 template V8_EXPORT_PRIVATE TNode<Context>
 CodeStubAssembler::LoadArrayElement<ScriptContextTable, IntPtrT>(
     TNode<ScriptContextTable>, int, TNode<IntPtrT>, int);
+template V8_EXPORT_PRIVATE TNode<MaybeObject>
+CodeStubAssembler::LoadArrayElement<TrustedFixedArray, IntPtrT>(
+    TNode<TrustedFixedArray>, int, TNode<IntPtrT>, int);
 
 template <typename TIndex>
 TNode<Object> CodeStubAssembler::LoadFixedArrayElement(
@@ -3468,27 +3492,17 @@ TNode<BytecodeArray> CodeStubAssembler::LoadSharedFunctionInfoBytecodeArray(
         this, Word32Equal(DecodeWord32<Code::KindField>(code_flags),
                           Int32Constant(static_cast<int>(CodeKind::BASELINE))));
 #endif  // DEBUG
-    TNode<HeapObject> baseline_data = LoadObjectField<HeapObject>(
+    TNode<HeapObject> baseline_data = LoadProtectedPointerFromObject(
         code, Code::kDeoptimizationDataOrInterpreterDataOffset);
     var_result = baseline_data;
-    // As long as InterpreterData objects still live inside the sandbox, Code
-    // references BytecodeArrays through their in-sandbox wrapper object.
-    static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-    GotoIfNot(HasInstanceType(var_result.value(), BYTECODE_WRAPPER_TYPE),
-              &check_for_interpreter_data);
-    TNode<HeapObject> bytecode = LoadTrustedPointerFromObject(
-        var_result.value(), BytecodeWrapper::kBytecodeOffset,
-        kBytecodeArrayIndirectPointerTag);
-    var_result = bytecode;
-    Goto(&done);
   }
+  Goto(&check_for_interpreter_data);
 
   BIND(&check_for_interpreter_data);
 
   GotoIfNot(HasInstanceType(var_result.value(), INTERPRETER_DATA_TYPE), &done);
-  TNode<BytecodeArray> bytecode_array = CAST(LoadTrustedPointerFromObject(
-      var_result.value(), InterpreterData::kBytecodeArrayOffset,
-      kBytecodeArrayIndirectPointerTag));
+  TNode<BytecodeArray> bytecode_array = CAST(LoadProtectedPointerFromObject(
+      CAST(var_result.value()), InterpreterData::kBytecodeArrayOffset));
   var_result = bytecode_array;
   Goto(&done);
 
@@ -4229,6 +4243,40 @@ TNode<NameDictionary> CodeStubAssembler::AllocateNameDictionaryWithCapacity(
   return result;
 }
 
+TNode<PropertyDictionary> CodeStubAssembler::AllocatePropertyDictionary(
+    int at_least_space_for) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionary(at_least_space_for);
+  } else {
+    dict = AllocateNameDictionary(at_least_space_for);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
+TNode<PropertyDictionary> CodeStubAssembler::AllocatePropertyDictionary(
+    TNode<IntPtrT> at_least_space_for, AllocationFlags flags) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionary(at_least_space_for);
+  } else {
+    dict = AllocateNameDictionary(at_least_space_for, flags);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
+TNode<PropertyDictionary>
+CodeStubAssembler::AllocatePropertyDictionaryWithCapacity(
+    TNode<IntPtrT> capacity, AllocationFlags flags) {
+  TNode<HeapObject> dict;
+  if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
+    dict = AllocateSwissNameDictionaryWithCapacity(capacity);
+  } else {
+    dict = AllocateNameDictionaryWithCapacity(capacity, flags);
+  }
+  return TNode<PropertyDictionary>::UncheckedCast(dict);
+}
+
 TNode<NameDictionary> CodeStubAssembler::CopyNameDictionary(
     TNode<NameDictionary> dictionary, Label* large_object_fallback) {
   Comment("Copy boilerplate property dict");
@@ -4423,9 +4471,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
     StoreObjectFieldRoot(object, JSObject::kPropertiesOrHashOffset,
                          RootIndex::kEmptyFixedArray);
   } else {
-    CSA_DCHECK(this, Word32Or(Word32Or(Word32Or(IsPropertyArray(*properties),
-                                                IsNameDictionary(*properties)),
-                                       IsSwissNameDictionary(*properties)),
+    CSA_DCHECK(this, Word32Or(Word32Or(IsPropertyArray(*properties),
+                                       IsPropertyDictionary(*properties)),
                               IsEmptyFixedArray(*properties)));
     StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOrHashOffset,
                                    *properties);
@@ -5013,9 +5060,9 @@ TNode<FixedArray> CodeStubAssembler::ExtractToFixedArray(
 #ifndef V8_ENABLE_SINGLE_GENERATION
 #ifdef DEBUG
     TNode<IntPtrT> object_word = BitcastTaggedToWord(to_elements);
-    TNode<IntPtrT> object_page = PageFromAddress(object_word);
-    TNode<IntPtrT> page_flags =
-        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
+    TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
+    TNode<IntPtrT> page_flags = Load<IntPtrT>(
+        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     CSA_DCHECK(
         this,
         WordNotEqual(
@@ -5414,9 +5461,10 @@ void CodeStubAssembler::JumpIfPointersFromHereAreInteresting(
     TNode<Object> object, Label* interesting) {
   Label finished(this);
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> object_page = PageFromAddress(object_word);
-  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(Load(
-      MachineType::IntPtr(), object_page, IntPtrConstant(Page::kFlagsOffset)));
+  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
+  TNode<IntPtrT> page_flags = UncheckedCast<IntPtrT>(
+      Load(MachineType::IntPtr(), object_page_header,
+           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
   Branch(
       WordEqual(WordAnd(page_flags,
                         IntPtrConstant(
@@ -7617,17 +7665,13 @@ TNode<BoolT> CodeStubAssembler::IsEphemeronHashTable(TNode<HeapObject> object) {
   return HasInstanceType(object, EPHEMERON_HASH_TABLE_TYPE);
 }
 
-TNode<BoolT> CodeStubAssembler::IsNameDictionary(TNode<HeapObject> object) {
-  return HasInstanceType(object, NAME_DICTIONARY_TYPE);
+TNode<BoolT> CodeStubAssembler::IsPropertyDictionary(TNode<HeapObject> object) {
+  return HasInstanceType(object, PROPERTY_DICTIONARY_TYPE);
 }
+
 TNode<BoolT> CodeStubAssembler::IsOrderedNameDictionary(
     TNode<HeapObject> object) {
   return HasInstanceType(object, ORDERED_NAME_DICTIONARY_TYPE);
-}
-
-TNode<BoolT> CodeStubAssembler::IsSwissNameDictionary(
-    TNode<HeapObject> object) {
-  return HasInstanceType(object, SWISS_NAME_DICTIONARY_TYPE);
 }
 
 TNode<BoolT> CodeStubAssembler::IsGlobalDictionary(TNode<HeapObject> object) {
@@ -7823,10 +7867,10 @@ TNode<BoolT> CodeStubAssembler::IsNumberArrayIndex(TNode<Number> number) {
 TNode<IntPtrT> CodeStubAssembler::LoadBasicMemoryChunkFlags(
     TNode<HeapObject> object) {
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
-  TNode<IntPtrT> page = PageFromAddress(object_word);
+  TNode<IntPtrT> page_header = PageHeaderFromAddress(object_word);
   return UncheckedCast<IntPtrT>(
-      Load(MachineType::Pointer(), page,
-           IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
+      Load(MachineType::Pointer(), page_header,
+           IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
 }
 
 template <typename TIndex>
@@ -9410,7 +9454,8 @@ TNode<IntPtrT> CodeStubAssembler::NameToIndexHashTableLookup(
 template <typename Dictionary>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<Dictionary> dictionary, TNode<Name> unique_name, Label* if_found,
-    TVariable<IntPtrT>* var_name_index, Label* if_not_found, LookupMode mode) {
+    TVariable<IntPtrT>* var_name_index, Label* if_not_found_no_insertion_index,
+    LookupMode mode, Label* if_not_found_with_insertion_index) {
   static_assert(std::is_same<Dictionary, NameDictionary>::value ||
                     std::is_same<Dictionary, GlobalDictionary>::value ||
                     std::is_same<Dictionary, NameToIndexHashTable>::value,
@@ -9418,8 +9463,13 @@ void CodeStubAssembler::NameDictionaryLookup(
   DCHECK_IMPLIES(var_name_index != nullptr,
                  MachineType::PointerRepresentation() == var_name_index->rep());
   DCHECK_IMPLIES(mode == kFindInsertionIndex, if_found == nullptr);
+  DCHECK_IMPLIES(if_not_found_with_insertion_index != nullptr,
+                 var_name_index != nullptr);
   Comment("NameDictionaryLookup");
   CSA_DCHECK(this, IsUniqueName(unique_name));
+  if (if_not_found_with_insertion_index == nullptr) {
+    if_not_found_with_insertion_index = if_not_found_no_insertion_index;
+  }
 
   Label if_not_computed(this, Label::kDeferred);
 
@@ -9453,16 +9503,17 @@ void CodeStubAssembler::NameDictionaryLookup(
 
     TNode<HeapObject> current =
         CAST(UnsafeLoadFixedArrayElement(dictionary, index));
-    GotoIf(TaggedEqual(current, undefined), if_not_found);
+    GotoIf(TaggedEqual(current, undefined), if_not_found_with_insertion_index);
     if (mode == kFindExisting) {
-      if (Dictionary::ShapeT::kMatchNeedsHoleCheck) {
+      if (Dictionary::TodoShape::kMatchNeedsHoleCheck) {
         GotoIf(TaggedEqual(current, TheHoleConstant()), &next_probe);
       }
       current = LoadName<Dictionary>(current);
       GotoIf(TaggedEqual(current, unique_name), if_found);
     } else {
       DCHECK_EQ(kFindInsertionIndex, mode);
-      GotoIf(TaggedEqual(current, TheHoleConstant()), if_not_found);
+      GotoIf(TaggedEqual(current, TheHoleConstant()),
+             if_not_found_with_insertion_index);
     }
     Goto(&next_probe);
 
@@ -9507,14 +9558,19 @@ void CodeStubAssembler::NameDictionaryLookup(
         std::make_pair(MachineType::Pointer(), isolate_ptr),
         std::make_pair(MachineType::TaggedPointer(), dictionary),
         std::make_pair(MachineType::TaggedPointer(), unique_name)));
+
     if (var_name_index) *var_name_index = EntryToIndex<Dictionary>(entry);
     if (mode == kFindExisting) {
       GotoIf(IntPtrEqual(entry,
                          IntPtrConstant(InternalIndex::NotFound().raw_value())),
-             if_not_found);
+             if_not_found_no_insertion_index);
       Goto(if_found);
     } else {
-      Goto(if_not_found);
+      CSA_DCHECK(
+          this,
+          WordNotEqual(entry,
+                       IntPtrConstant(InternalIndex::NotFound().raw_value())));
+      Goto(if_not_found_with_insertion_index);
     }
   }
 }
@@ -9524,10 +9580,11 @@ template V8_EXPORT_PRIVATE void
 CodeStubAssembler::NameDictionaryLookup<NameDictionary>(TNode<NameDictionary>,
                                                         TNode<Name>, Label*,
                                                         TVariable<IntPtrT>*,
-                                                        Label*, LookupMode);
+                                                        Label*, LookupMode,
+                                                        Label*);
 template V8_EXPORT_PRIVATE void CodeStubAssembler::NameDictionaryLookup<
     GlobalDictionary>(TNode<GlobalDictionary>, TNode<Name>, Label*,
-                      TVariable<IntPtrT>*, Label*, LookupMode);
+                      TVariable<IntPtrT>*, Label*, LookupMode, Label*);
 
 TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
   const TNode<ExternalReference> function_addr =
@@ -9547,10 +9604,13 @@ TNode<Word32T> CodeStubAssembler::ComputeSeededHash(TNode<IntPtrT> key) {
 template <>
 void CodeStubAssembler::NameDictionaryLookup(
     TNode<SwissNameDictionary> dictionary, TNode<Name> unique_name,
-    Label* if_found, TVariable<IntPtrT>* var_name_index, Label* if_not_found,
-    LookupMode mode) {
+    Label* if_found, TVariable<IntPtrT>* var_name_index,
+    Label* if_not_found_no_insertion_index, LookupMode mode,
+    Label* if_not_found_with_insertion_index) {
+  // TODO(pthier): Support path for not found with valid insertion index for
+  // SwissNameDictionary.
   SwissNameDictionaryFindEntry(dictionary, unique_name, if_found,
-                               var_name_index, if_not_found);
+                               var_name_index, if_not_found_no_insertion_index);
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(
@@ -9707,9 +9767,9 @@ void CodeStubAssembler::InsertEntry<GlobalDictionary>(
 }
 
 template <class Dictionary>
-void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<Dictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   CSA_DCHECK(this, Word32BinaryNot(IsEmptyPropertyDictionary(dictionary)));
   TNode<Smi> capacity = GetCapacity<Dictionary>(dictionary);
   TNode<Smi> nof = GetNumberOfElements<Dictionary>(dictionary);
@@ -9737,16 +9797,21 @@ void CodeStubAssembler::AddToDictionary(TNode<Dictionary> dictionary,
   SetNextEnumerationIndex<Dictionary>(dictionary, new_enum_index);
   SetNumberOfElements<Dictionary>(dictionary, new_nof);
 
-  TVARIABLE(IntPtrT, var_key_index);
-  FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
-  InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
-                          enum_index);
+  if (insertion_index.has_value()) {
+    InsertEntry<Dictionary>(dictionary, key, value, *insertion_index,
+                            enum_index);
+  } else {
+    TVARIABLE(IntPtrT, var_key_index);
+    FindInsertionEntry<Dictionary>(dictionary, key, &var_key_index);
+    InsertEntry<Dictionary>(dictionary, key, value, var_key_index.value(),
+                            enum_index);
+  }
 }
 
 template <>
-void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
-                                        TNode<Name> key, TNode<Object> value,
-                                        Label* bailout) {
+void CodeStubAssembler::AddToDictionary(
+    TNode<SwissNameDictionary> dictionary, TNode<Name> key, TNode<Object> value,
+    Label* bailout, base::Optional<TNode<IntPtrT>> insertion_index) {
   PropertyDetails d(PropertyKind::kData, NONE,
                     PropertyDetails::kConstIfDictConstnessTracking);
 
@@ -9765,11 +9830,13 @@ void CodeStubAssembler::AddToDictionary(TNode<SwissNameDictionary> dictionary,
   Goto(&not_private);
 
   BIND(&not_private);
+  // TODO(pthier): Use insertion_index if it was provided.
   SwissNameDictionaryAdd(dictionary, key, value, var_details.value(), bailout);
 }
 
 template void CodeStubAssembler::AddToDictionary<NameDictionary>(
-    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*);
+    TNode<NameDictionary>, TNode<Name>, TNode<Object>, Label*,
+    base::Optional<TNode<IntPtrT>>);
 
 template <class Dictionary>
 TNode<Smi> CodeStubAssembler::GetNumberOfElements(
@@ -11083,9 +11150,9 @@ TNode<Object> CodeStubAssembler::GetInterestingProperty(
       TNode<Object> properties =
           LoadObjectField(holder, JSObject::kPropertiesOrHashOffset);
       CSA_DCHECK(this, TaggedIsNotSmi(properties));
+      CSA_DCHECK(this, IsPropertyDictionary(CAST(properties)));
       // TODO(pthier): Support swiss dictionaries.
       if constexpr (!V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-        CSA_DCHECK(this, IsNameDictionary(CAST(properties)));
         TNode<Smi> flags =
             GetNameDictionaryFlags<NameDictionary>(CAST(properties));
         GotoIf(IsSetSmi(flags,
@@ -12748,10 +12815,10 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   TNode<IntPtrT> object_word = BitcastTaggedToWord(object);
   // TODO(v8:11641): Skip TrapAllocationMemento when allocation-site
   // tracking is disabled.
-  TNode<IntPtrT> object_page = PageFromAddress(object_word);
+  TNode<IntPtrT> object_page_header = PageHeaderFromAddress(object_word);
   {
-    TNode<IntPtrT> page_flags =
-        Load<IntPtrT>(object_page, IntPtrConstant(Page::kFlagsOffset));
+    TNode<IntPtrT> page_flags = Load<IntPtrT>(
+        object_page_header, IntPtrConstant(MemoryChunkLayout::kFlagsOffset));
     GotoIf(WordEqual(
                WordAnd(page_flags,
                        IntPtrConstant(MemoryChunk::kIsInYoungGenerationMask)),
@@ -12767,20 +12834,23 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
 
   TNode<IntPtrT> memento_last_word = IntPtrAdd(
       object_word, IntPtrConstant(kMementoLastWordOffset - kHeapObjectTag));
-  TNode<IntPtrT> memento_last_word_page = PageFromAddress(memento_last_word);
+  TNode<IntPtrT> memento_last_word_page_header =
+      PageHeaderFromAddress(memento_last_word);
 
   TNode<IntPtrT> new_space_top = Load<IntPtrT>(new_space_top_address);
-  TNode<IntPtrT> new_space_top_page = PageFromAddress(new_space_top);
+  TNode<IntPtrT> new_space_top_page_header =
+      PageHeaderFromAddress(new_space_top);
 
   // If the object is in new space, we need to check whether respective
   // potential memento object is on the same page as the current top.
-  GotoIf(WordEqual(memento_last_word_page, new_space_top_page), &top_check);
+  GotoIf(WordEqual(memento_last_word_page_header, new_space_top_page_header),
+         &top_check);
 
   // The object is on a different page than allocation top. Bail out if the
   // object sits on the page boundary as no memento can follow and we cannot
   // touch the memory following it.
-  Branch(WordEqual(object_page, memento_last_word_page), &map_check,
-         &no_memento_found);
+  Branch(WordEqual(object_page_header, memento_last_word_page_header),
+         &map_check, &no_memento_found);
 
   // If top is on the same page as the current object, we need to check whether
   // we are below top.
@@ -12804,9 +12874,22 @@ void CodeStubAssembler::TrapAllocationMemento(TNode<JSObject> object,
   Comment("] TrapAllocationMemento");
 }
 
+TNode<IntPtrT> CodeStubAssembler::PageHeaderFromAddress(
+    TNode<IntPtrT> address) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return WordAnd(
+      address,
+      IntPtrConstant(~MemoryChunkHeader::GetAlignmentMaskForAssembler()));
+}
+
+TNode<IntPtrT> CodeStubAssembler::PageFromPageHeader(TNode<IntPtrT> address) {
+  DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
+  return address;
+}
+
 TNode<IntPtrT> CodeStubAssembler::PageFromAddress(TNode<IntPtrT> address) {
   DCHECK(!V8_ENABLE_THIRD_PARTY_HEAP_BOOL);
-  return WordAnd(address, IntPtrConstant(~kPageAlignmentMask));
+  return PageFromPageHeader(PageHeaderFromAddress(address));
 }
 
 TNode<AllocationSite> CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
@@ -13230,6 +13313,18 @@ TNode<Context> CodeStubAssembler::GotoIfHasContextExtensionUpToDepth(
   Goto(&context_search);
   BIND(&context_search);
   {
+#if DEBUG
+    // Const tracking let data is stored in the extension slot of a
+    // ScriptContext - however, it's unrelated to the sloppy eval variable
+    // extension. We should never iterate through a ScriptContext here.
+    auto scope_info = LoadScopeInfo(cur_context.value());
+    TNode<Int32T> flags =
+        LoadAndUntagToWord32ObjectField(scope_info, ScopeInfo::kFlagsOffset);
+    auto scope_type = DecodeWord32<ScopeInfo::ScopeTypeBits>(flags);
+    CSA_DCHECK(this, Word32NotEqual(scope_type,
+                                    Int32Constant(ScopeType::SCRIPT_SCOPE)));
+#endif
+
     // Check if context has an extension slot.
     TNode<BoolT> has_extension =
         LoadScopeInfoHasExtensionField(LoadScopeInfo(cur_context.value()));
@@ -16301,8 +16396,8 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   CSA_DCHECK(this,
              Word32Equal(data_type, Int32Constant(INTERPRETER_DATA_TYPE)));
   {
-    TNode<Code> trampoline = LoadCodePointerFromObject(
-        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset);
+    TNode<Code> trampoline = CAST(LoadProtectedPointerFromObject(
+        CAST(sfi_data), InterpreterData::kInterpreterTrampolineOffset));
     sfi_code = trampoline;
   }
   Goto(&done);
@@ -16329,12 +16424,13 @@ TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
   return sfi_code.value();
 }
 
-TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(TNode<Code> code) {
+TNode<RawPtrT> CodeStubAssembler::LoadCodeInstructionStart(
+    TNode<Code> code, CodeEntrypointTag tag) {
 #ifdef V8_ENABLE_SANDBOX
   // In this case, the entrypoint is stored in the code pointer table entry
   // referenced via the Code object's 'self' indirect pointer.
   return LoadCodeEntrypointViaCodePointerField(
-      code, Code::kSelfIndirectPointerOffset);
+      code, Code::kSelfIndirectPointerOffset, tag);
 #else
   return LoadObjectField<RawPtrT>(code, Code::kInstructionStartOffset);
 #endif
@@ -16439,15 +16535,14 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85149
     // TODO(miladfarca): Use `if constexpr` once all compilers handle this
     // properly.
+    CSA_DCHECK(this, Word32Or(IsPropertyDictionary(properties),
+                              IsGlobalDictionary(properties)));
     if (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      CSA_DCHECK(this, Word32Or(IsSwissNameDictionary(properties),
-                                IsGlobalDictionary(properties)));
-
       length = Select<Smi>(
-          IsSwissNameDictionary(properties),
+          IsPropertyDictionary(properties),
           [=] {
             return GetNumberOfElements(
-                UncheckedCast<SwissNameDictionary>(properties));
+                UncheckedCast<PropertyDictionary>(properties));
           },
           [=] {
             return GetNumberOfElements(
@@ -16455,8 +16550,6 @@ TNode<Map> CodeStubAssembler::CheckEnumCache(TNode<JSReceiver> receiver,
           });
 
     } else {
-      CSA_DCHECK(this, Word32Or(IsNameDictionary(properties),
-                                IsGlobalDictionary(properties)));
       static_assert(static_cast<int>(NameDictionary::kNumberOfElementsIndex) ==
                     static_cast<int>(GlobalDictionary::kNumberOfElementsIndex));
       length = GetNumberOfElements(UncheckedCast<HashTableBase>(properties));

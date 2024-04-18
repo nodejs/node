@@ -106,6 +106,9 @@ void GeneratorBuiltinsAssembler::InnerResume(
       case JSGeneratorObject::kThrow:
         builtin_result = CallRuntime(Runtime::kThrow, context, value);
         break;
+      case JSGeneratorObject::kRethrow:
+        // Currently only async generators use this mode.
+        UNREACHABLE();
     }
     args->PopAndReturn(builtin_result);
   }

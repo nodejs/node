@@ -15,6 +15,7 @@
 // Clients of this interface shouldn't depend on lots of compiler internals.
 // Do not include anything else from src/compiler here!
 #include "src/base/small-vector.h"
+#include "src/codegen/compiler.h"
 #include "src/compiler/wasm-compiler-definitions.h"
 #include "src/runtime/runtime.h"
 #include "src/wasm/function-body-decoder.h"
@@ -61,6 +62,7 @@ class WasmCode;
 class WireBytesStorage;
 enum class LoadTransformationKind : uint8_t;
 enum Suspend : bool;
+enum CallOrigin { kCalledFromWasm, kCalledFromJS };
 }  // namespace wasm
 
 namespace compiler {
@@ -85,7 +87,7 @@ wasm::WasmCode* CompileWasmJSFastCallWrapper(wasm::NativeModule*,
                                              Handle<JSReceiver> callable);
 
 // Returns an TurbofanCompilationJob object for a JS to Wasm wrapper.
-std::unique_ptr<TurbofanCompilationJob> NewJSToWasmCompilationJob(
+std::unique_ptr<OptimizedCompilationJob> NewJSToWasmCompilationJob(
     Isolate* isolate, const wasm::FunctionSig* sig,
     const wasm::WasmModule* module, bool is_import,
     wasm::WasmFeatures enabled_features);
@@ -391,12 +393,10 @@ class WasmGraphBuilder {
 
   const wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
-  enum CallOrigin { kCalledFromWasm, kCalledFromJS };
-
   // Overload for when we want to provide a specific signature, rather than
   // build one using sig_, for example after scalar lowering.
   V8_EXPORT_PRIVATE void LowerInt64(Signature<MachineRepresentation>* sig);
-  V8_EXPORT_PRIVATE void LowerInt64(CallOrigin origin);
+  V8_EXPORT_PRIVATE void LowerInt64(wasm::CallOrigin origin);
 
   void SetSourcePosition(Node* node, wasm::WasmCodePosition position);
 
@@ -522,6 +522,8 @@ class WasmGraphBuilder {
                               CheckForNull string_null_check, Node* array,
                               CheckForNull array_null_check, Node* start,
                               wasm::WasmCodePosition position);
+  Node* StringToUtf8Array(Node* string, CheckForNull null_check,
+                          wasm::WasmCodePosition position);
   Node* StringEncodeWtf16(uint32_t memory, Node* string,
                           CheckForNull null_check, Node* offset,
                           wasm::WasmCodePosition position);
@@ -915,6 +917,9 @@ V8_EXPORT_PRIVATE const wasm::FunctionSig* GetI32Sig(
 
 AssemblerOptions WasmAssemblerOptions();
 AssemblerOptions WasmStubAssemblerOptions();
+
+Signature<MachineRepresentation>* CreateMachineSignature(
+    Zone* zone, const wasm::FunctionSig* sig, wasm::CallOrigin origin);
 
 }  // namespace compiler
 }  // namespace internal

@@ -192,6 +192,10 @@ bool Isolate::is_catchable_by_javascript(Tagged<Object> exception) {
   return exception != ReadOnlyRoots(heap()).termination_exception();
 }
 
+bool Isolate::InFastCCall() const {
+  return isolate_data()->fast_c_call_caller_fp() != kNullAddress;
+}
+
 bool Isolate::is_catchable_by_wasm(Tagged<Object> exception) {
   if (!is_catchable_by_javascript(exception)) return false;
   if (!IsJSObject(exception)) return true;

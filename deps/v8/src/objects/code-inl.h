@@ -66,6 +66,7 @@ Address GcSafeCode::InstructionEnd(Isolate* isolate, Address pc) const {
 }
 
 bool GcSafeCode::CanDeoptAt(Isolate* isolate, Address pc) const {
+  if (!UnsafeCastToCode()->uses_deoptimization_data()) return false;
   Tagged<DeoptimizationData> deopt_data = DeoptimizationData::unchecked_cast(
       UnsafeCastToCode()->unchecked_deoptimization_data());
   Address code_start_address = instruction_start();
@@ -90,34 +91,50 @@ INT_ACCESSORS(Code, metadata_size, kMetadataSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
 INT_ACCESSORS(Code, code_comments_offset, kCodeCommentsOffsetOffset)
 INT32_ACCESSORS(Code, unwinding_info_offset, kUnwindingInfoOffsetOffset)
-ACCESSORS_CHECKED2(Code, deoptimization_data, Tagged<FixedArray>,
-                   kDeoptimizationDataOrInterpreterDataOffset,
-                   kind() != CodeKind::BASELINE,
-                   kind() != CodeKind::BASELINE &&
-                       !ObjectInYoungGeneration(value))
 
-Tagged<HeapObject> Code::bytecode_or_interpreter_data(
+inline Tagged<TrustedFixedArray> Code::deoptimization_data() const {
+  DCHECK(uses_deoptimization_data());
+  return TrustedFixedArray::cast(
+      ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
+}
+
+inline void Code::set_deoptimization_data(Tagged<TrustedFixedArray> value,
+                                          WriteBarrierMode mode) {
+  DCHECK(uses_deoptimization_data());
+  DCHECK(!ObjectInYoungGeneration(value));
+
+  WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
+      *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
+}
+
+inline bool Code::uses_deoptimization_data() const {
+  return kind() == CodeKind::MAGLEV || kind() == CodeKind::TURBOFAN;
+}
+
+inline void Code::clear_deoptimization_data_and_interpreter_data() {
+  ClearProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
+}
+
+inline bool Code::has_deoptimization_data_or_interpreter_data() const {
+  return !IsProtectedPointerFieldCleared(
+      kDeoptimizationDataOrInterpreterDataOffset);
+}
+
+Tagged<TrustedObject> Code::bytecode_or_interpreter_data(
     IsolateForSandbox isolate) const {
   DCHECK_EQ(kind(), CodeKind::BASELINE);
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  Tagged<HeapObject> value =
-      TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
-          cage_base, *this);
-  if (IsBytecodeWrapper(value)) {
-    return BytecodeWrapper::cast(value)->bytecode(isolate);
-  }
-  return value;
+  return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
-void Code::set_bytecode_or_interpreter_data(Tagged<HeapObject> value,
+void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
                                             WriteBarrierMode mode) {
-  DCHECK(kind() == CodeKind::BASELINE && !ObjectInYoungGeneration(value));
-  if (IsBytecodeArray(value)) {
-    value = BytecodeArray::cast(value)->wrapper();
-  }
-  TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::store(
-      *this, value);
-  CONDITIONAL_WRITE_BARRIER(*this, kDeoptimizationDataOrInterpreterDataOffset,
-                            value, mode);
+  DCHECK(kind() == CodeKind::BASELINE);
+  DCHECK(!ObjectInYoungGeneration(value));
+  DCHECK(IsBytecodeArray(value) || IsInterpreterData(value));
+
+  WriteProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset, value);
+  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(
+      *this, kDeoptimizationDataOrInterpreterDataOffset, value, mode);
 }
 
 ACCESSORS_CHECKED2(Code, source_position_table, Tagged<ByteArray>,
@@ -222,10 +239,9 @@ int Code::constant_pool_size() const {
 
 bool Code::has_constant_pool() const { return constant_pool_size() > 0; }
 
-Tagged<FixedArray> Code::unchecked_deoptimization_data() const {
-  return FixedArray::unchecked_cast(
-      TaggedField<HeapObject, kDeoptimizationDataOrInterpreterDataOffset>::load(
-          *this));
+Tagged<TrustedFixedArray> Code::unchecked_deoptimization_data() const {
+  return TrustedFixedArray::unchecked_cast(
+      ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
 
 uint8_t* Code::relocation_start() const {
@@ -259,7 +275,7 @@ int Code::InstructionStreamObjectSize() const {
 int Code::SizeIncludingMetadata() const {
   int size = InstructionStreamObjectSize();
   size += relocation_size();
-  if (kind() != CodeKind::BASELINE) {
+  if (uses_deoptimization_data()) {
     size += deoptimization_data()->Size();
   }
   return size;
@@ -501,7 +517,11 @@ bool Code::IsWeakObjectInDeoptimizationLiteralArray(Tagged<Object> object) {
 }
 
 void Code::IterateDeoptimizationLiterals(RootVisitor* v) {
-  if (kind() == CodeKind::BASELINE) return;
+  if (!uses_deoptimization_data()) {
+    DCHECK(kind() == CodeKind::BASELINE ||
+           !has_deoptimization_data_or_interpreter_data());
+    return;
+  }
 
   auto deopt_data = DeoptimizationData::cast(deoptimization_data());
   if (deopt_data->length() == 0) return;
@@ -626,9 +646,13 @@ CodeEntrypointTag Code::entrypoint_tag() const {
   // and JavaScript Code.
   if (kind() == CodeKind::BYTECODE_HANDLER) {
     return kBytecodeHandlerEntrypointTag;
-  } else {
-    return kDefaultCodeEntrypointTag;
+  } else if (kind() == CodeKind::BUILTIN) {
+    return Builtins::EntrypointTagFor(builtin_id());
+  } else if (kind() == CodeKind::REGEXP) {
+    return kRegExpEntrypointTag;
   }
+  // TODO(saelo): eventually we'll want this to be UNREACHABLE().
+  return kDefaultCodeEntrypointTag;
 }
 
 void Code::SetInstructionStreamAndInstructionStart(

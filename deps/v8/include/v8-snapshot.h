@@ -14,6 +14,10 @@ namespace v8 {
 
 class Object;
 
+namespace internal {
+class SnapshotCreatorImpl;
+}  // namespace internal
+
 class V8_EXPORT StartupData {
  public:
   /**
@@ -206,7 +210,8 @@ class V8_EXPORT SnapshotCreator {
   size_t AddData(Local<Context> context, internal::Address object);
   size_t AddData(internal::Address object);
 
-  void* data_;
+  internal::SnapshotCreatorImpl* impl_;
+  friend class internal::SnapshotCreatorImpl;
 };
 
 template <class T>

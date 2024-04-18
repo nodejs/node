@@ -362,6 +362,14 @@ V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
   return IsFreeSpaceOrFiller(map_object->instance_type());
 }
 
+V8_INLINE constexpr bool IsPropertyDictionary(InstanceType instance_type) {
+  return instance_type == PROPERTY_DICTIONARY_TYPE;
+}
+
+V8_INLINE bool IsPropertyDictionary(Tagged<Map> map_object) {
+  return IsPropertyDictionary(map_object->instance_type());
+}
+
 // Returns true for those heap object types that must be tied to some native
 // context.
 V8_INLINE constexpr bool IsNativeContextSpecific(InstanceType instance_type) {

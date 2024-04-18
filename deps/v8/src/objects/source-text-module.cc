@@ -333,10 +333,10 @@ bool SourceTextModule::PrepareInstantiate(
     Handle<String> specifier(module_request->specifier(), isolate);
     v8::Local<v8::Module> api_requested_module;
     if (callback) {
-      Handle<FixedArray> import_assertions(module_request->import_assertions(),
+      Handle<FixedArray> import_attributes(module_request->import_attributes(),
                                            isolate);
       if (!callback(context, v8::Utils::ToLocal(specifier),
-                    v8::Utils::FixedArrayToLocal(import_assertions),
+                    v8::Utils::FixedArrayToLocal(import_attributes),
                     v8::Utils::ToLocal(Handle<Module>::cast(module)))
                .ToLocal(&api_requested_module)) {
         return false;

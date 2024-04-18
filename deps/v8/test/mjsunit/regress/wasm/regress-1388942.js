@@ -10,6 +10,6 @@ builder.addType(kSig_v_v);
 builder.addType(kSig_v_i);
 builder.addType(kSig_i_v);
 
-builder.addGlobal(wasmRefNullType(3), true, [kExprRefNull, 3]);
+builder.addGlobal(wasmRefNullType(3), true, false, [kExprRefNull, 3]);
 
 assertThrows(() => builder.instantiate(), WebAssembly.CompileError);

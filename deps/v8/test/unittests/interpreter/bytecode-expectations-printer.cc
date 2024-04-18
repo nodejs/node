@@ -341,7 +341,7 @@ void BytecodeExpectationsPrinter::PrintBytecodeSequence(
 }
 
 void BytecodeExpectationsPrinter::PrintConstantPool(
-    std::ostream* stream, i::Tagged<i::FixedArray> constant_pool) const {
+    std::ostream* stream, i::Tagged<i::TrustedFixedArray> constant_pool) const {
   *stream << "constant pool: [\n";
   int num_constants = constant_pool->length();
   if (num_constants > 0) {

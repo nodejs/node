@@ -46,7 +46,7 @@ class LateEscapeAnalysisAnalyzer {
 template <class Next>
 class LateEscapeAnalysisReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(LateEscapeAnalysis)
 
   void Analyze() {
     analyzer_.Run();

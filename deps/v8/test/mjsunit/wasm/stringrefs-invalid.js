@@ -27,7 +27,7 @@ for (let [name, code] of [['string', kStringRefCode],
   assertInvalid(b => b.addStruct([makeField(code, true)]), message);
   assertInvalid(b => b.addArray(code, true), message);
   assertInvalid(b => b.addType(makeSig([], [code])), message);
-  assertInvalid(b => b.addGlobal(code, true, default_init), message);
+  assertInvalid(b => b.addGlobal(code, true, false, default_init), message);
   assertInvalid(b => b.addTable(code, 0), message);
   assertInvalid(b => b.addPassiveElementSegment([default_init], code), message);
   assertInvalid(b => b.addTag(makeSig([code], [])), message);

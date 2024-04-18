@@ -102,15 +102,6 @@ extern class WasmResumeData extends HeapObject {
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmIndirectFunctionTable extends Struct {
-  sig_ids: ByteArray;
-  targets: ExternalPointerArray;
-  refs: FixedArray;
-  size: uint32;
-  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
-  @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
-}
-
 extern class WasmContinuationObject extends HeapObject {
   stack: Foreign;
   parent: WasmContinuationObject|Undefined;
@@ -146,6 +137,8 @@ extern class WasmModuleObject extends JSObject {
   script: Script;
 }
 
+extern class WasmDispatchTable extends TrustedObject;
+
 extern class WasmTableObject extends JSObject {
   // The instance in which this WasmTableObject is defined.
   // This field is undefined if the table is defined outside any Wasm module,
@@ -153,10 +146,18 @@ extern class WasmTableObject extends JSObject {
   instance: WasmInstanceObject|Undefined;
   // The entries array is at least as big as {current_length()}, but might be
   // bigger to make future growth more efficient.
+  // Each element is either
+  //   - a WasmInternalFunction (Wasm function added from Wasm),
+  //   - a WasmExportedFunction (exported Wasm function added from JS),
+  //   - a WasmJSFunction (WebAssembly.Function created from JS), or
+  //   - a Tuple2 (placeholder for lazy initialization), holding a
+  //     WasmInstanceObject and Smi for the function index.
   entries: FixedArray;
   current_length: Smi;
   maximum_length: Smi|HeapNumber|Undefined;
-  dispatch_tables: FixedArray;
+  // The uses field stores an array of <WasmInstanceObject, index> pairs so we
+  // can update the instance's dispatch table when the table grows.
+  uses: FixedArray;
   raw_type: Smi;
 }
 

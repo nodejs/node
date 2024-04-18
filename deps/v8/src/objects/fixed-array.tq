@@ -17,9 +17,15 @@ extern class FixedArray extends FixedArrayBase {
 type EmptyFixedArray extends FixedArray;
 
 @cppObjectDefinition
-extern class TrustedFixedArray extends ExposedTrustedObject {
+extern class TrustedFixedArray extends TrustedObject {
   const length: Smi;
   objects[length]: Object;
+}
+
+@cppObjectDefinition
+extern class ProtectedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: TrustedObject|Smi;
 }
 
 @cppObjectDefinition

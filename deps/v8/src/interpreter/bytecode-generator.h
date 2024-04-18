@@ -417,6 +417,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   int AllocateBlockCoverageSlotIfEnabled(AstNode* node, SourceRangeKind kind);
   int AllocateNaryBlockCoverageSlotIfEnabled(NaryOperation* node, size_t index);
+  int AllocateConditionalChainBlockCoverageSlotIfEnabled(ConditionalChain* node,
+                                                         SourceRangeKind kind,
+                                                         size_t index);
 
   void BuildIncrementBlockCoverageCounterIfEnabled(AstNode* node,
                                                    SourceRangeKind kind);

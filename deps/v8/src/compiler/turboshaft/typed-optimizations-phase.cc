@@ -23,8 +23,7 @@ void TypedOptimizationsPhase::Run(Zone* temp_zone) {
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::kNone};
 
   turboshaft::CopyingPhase<turboshaft::TypedOptimizationsReducer,
-                           turboshaft::VariableReducerHotfix,
-                           turboshaft::TypeInferenceReducer>::Run<false>(temp_zone);
+                           turboshaft::TypeInferenceReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

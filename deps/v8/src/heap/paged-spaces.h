@@ -435,11 +435,6 @@ class V8_EXPORT_PRIVATE OldSpace final : public PagedSpace {
       : PagedSpace(heap, OLD_SPACE, NOT_EXECUTABLE, FreeList::CreateFreeList(),
                    CompactionSpaceKind::kNone) {}
 
-  static bool IsAtPageStart(Address addr) {
-    return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
-           MemoryChunkLayout::ObjectStartOffsetInDataPage();
-  }
-
   void AddPromotedPage(Page* page);
 
   void ReleasePage(Page* page) override;
@@ -474,11 +469,6 @@ class SharedSpace final : public PagedSpace {
       : PagedSpace(heap, SHARED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
 
-  static bool IsAtPageStart(Address addr) {
-    return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
-           MemoryChunkLayout::ObjectStartOffsetInDataPage();
-  }
-
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer) return 0;
     DCHECK_EQ(type, ExternalBackingStoreType::kExternalString);
@@ -499,11 +489,6 @@ class TrustedSpace final : public PagedSpace {
   explicit TrustedSpace(Heap* heap)
       : PagedSpace(heap, TRUSTED_SPACE, NOT_EXECUTABLE,
                    FreeList::CreateFreeList(), CompactionSpaceKind::kNone) {}
-
-  static bool IsAtPageStart(Address addr) {
-    return static_cast<intptr_t>(addr & kPageAlignmentMask) ==
-           MemoryChunkLayout::ObjectStartOffsetInDataPage();
-  }
 
   size_t ExternalBackingStoreBytes(ExternalBackingStoreType type) const final {
     if (type == ExternalBackingStoreType::kArrayBuffer) return 0;

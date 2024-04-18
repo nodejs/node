@@ -53,8 +53,6 @@ class LargePage : public MemoryChunk {
   friend class MemoryAllocator;
 };
 
-static_assert(sizeof(LargePage) <= MemoryChunk::kHeaderSize);
-
 }  // namespace internal
 
 namespace base {

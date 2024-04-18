@@ -245,7 +245,6 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 //
 // TODO(v8:14214): Remove --harmony flags once transition is complete.
 #define HARMONY_INPROGRESS_BASE(V)                                             \
-  V(harmony_import_attributes, "harmony import attributes")                    \
   V(harmony_weak_refs_with_cleanup_some,                                       \
     "harmony weak references with FinalizationRegistry.prototype.cleanupSome") \
   V(harmony_temporal, "Temporal")                                              \
@@ -275,8 +274,9 @@ DEFINE_BOOL(js_shipping, true, "enable all shipped JavaScript features")
 // Features that are complete (but still behind the --harmony flag).
 #define HARMONY_STAGED_BASE(V)
 
-#define JAVASCRIPT_STAGED_FEATURES_BASE(V) \
-  V(js_regexp_modifiers, "RegExp modifiers")
+#define JAVASCRIPT_STAGED_FEATURES_BASE(V)   \
+  V(js_regexp_modifiers, "RegExp modifiers") \
+  V(js_regexp_duplicate_named_groups, "RegExp duplicate named groups")
 
 DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
 
@@ -299,7 +299,8 @@ DEFINE_WEAK_IMPLICATION(harmony_rab_gsab_transfer, harmony_rab_gsab)
   V(harmony_array_grouping, "harmony array grouping")                 \
   V(harmony_array_from_async, "harmony Array.fromAsync")              \
   V(harmony_iterator_helpers, "JavaScript iterator helpers")          \
-  V(harmony_set_methods, "harmony Set Methods")
+  V(harmony_set_methods, "harmony Set Methods")                       \
+  V(harmony_import_attributes, "harmony import attributes")
 
 #define JAVASCRIPT_SHIPPING_FEATURES_BASE(V) \
   V(js_promise_withresolvers, "Promise.withResolvers")
@@ -615,7 +616,7 @@ DEFINE_EXPERIMENTAL_FEATURE(
     maglev_speculative_hoist_phi_untagging,
     "enable phi untagging to hoist untagging of loop phi inputs (could "
     "still cause deopt loops)")
-DEFINE_BOOL(maglev_cse, false, "common subexpression elimination")
+DEFINE_BOOL(maglev_cse, true, "common subexpression elimination")
 
 DEFINE_STRING(maglev_filter, "*", "optimization filter for the maglev compiler")
 DEFINE_BOOL(maglev_assert, false, "insert extra assertion in maglev code")
@@ -665,6 +666,9 @@ DEFINE_WEAK_IMPLICATION(future, flush_baseline_code)
 DEFINE_BOOL_READONLY(dict_property_const_tracking,
                      V8_DICT_PROPERTY_CONST_TRACKING_BOOL,
                      "Use const tracking on dictionary properties")
+
+DEFINE_BOOL(const_tracking_let, false,
+            "Use const tracking on top-level `let` variables")
 
 DEFINE_UINT(max_opt, 999,
             "Set the maximal optimisation tier: "
@@ -868,6 +872,7 @@ DEFINE_VALUE_IMPLICATION(jit_fuzzing, minimum_invocations_after_ic_update, 5)
 // Flags for inline caching and feedback vectors.
 DEFINE_BOOL(use_ic, true, "use inline caching")
 DEFINE_BOOL(lazy_feedback_allocation, true, "Allocate feedback vectors lazily")
+DEFINE_BOOL(stress_ic, false, "exercise interesting paths in ICs more often")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -936,7 +941,7 @@ DEFINE_BOOL(baseline_batch_compilation, true, "batch compile Sparkplug code")
 DEFINE_BOOL_READONLY(concurrent_sparkplug, false,
                      "compile Sparkplug code in a background thread")
 #else
-DEFINE_BOOL(concurrent_sparkplug, false,
+DEFINE_BOOL(concurrent_sparkplug, ENABLE_SPARKPLUG_BY_DEFAULT,
             "compile Sparkplug code in a background thread")
 DEFINE_WEAK_IMPLICATION(future, concurrent_sparkplug)
 DEFINE_NEG_IMPLICATION(predictable, concurrent_sparkplug)
@@ -1269,12 +1274,16 @@ DEFINE_BOOL(turboshaft_wasm_load_elimination, false,
             "enable Turboshaft's WasmLoadElimination")
 DEFINE_WEAK_IMPLICATION(turboshaft_wasm, turboshaft_wasm_load_elimination)
 
+#ifdef V8_TARGET_ARCH_X64
+DEFINE_BOOL(turboshaft_instruction_selection, true,
+            "run instruction selection on Turboshaft IR directly")
+#else
 DEFINE_BOOL(turboshaft_instruction_selection, false,
             "run instruction selection on Turboshaft IR directly")
+#endif  // V8_TARGET_ARCH_X64
+
 DEFINE_BOOL(turboshaft_load_elimination, false,
             "enable Turboshaft's low-level load elimination for JS")
-DEFINE_BOOL(turboshaft_machine_lowering_opt, false,
-            "enable MachineOptimization during MachineLowering")
 DEFINE_BOOL(turboshaft_loop_peeling, false, "enable Turboshaft's loop peeling")
 DEFINE_BOOL(turboshaft_loop_unrolling, false,
             "enable Turboshaft's loop unrolling")
@@ -1292,8 +1301,7 @@ DEFINE_BOOL(turboshaft_wasm_instruction_selection_staged, false,
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_from_maglev,
                             "build the Turboshaft graph from Maglev")
 
-DEFINE_EXPERIMENTAL_FEATURE(turboshaft_csa,
-                            "run the CSA pipeline with turboshaft")
+DEFINE_BOOL(turboshaft_csa, false, "run the CSA pipeline with turboshaft")
 DEFINE_IMPLICATION(turboshaft_csa, turboshaft_load_elimination)
 DEFINE_EXPERIMENTAL_FEATURE(turboshaft_frontend,
                             "run (parts of) the frontend in Turboshaft")
@@ -1302,7 +1310,6 @@ DEFINE_EXPERIMENTAL_FEATURE(
     "enable Turboshaft features that we want to ship in the not-too-far future")
 DEFINE_IMPLICATION(turboshaft_future, turboshaft)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_load_elimination)
-DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_machine_lowering_opt)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_unrolling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_loop_peeling)
 DEFINE_WEAK_IMPLICATION(turboshaft_future, turboshaft_wasm)
@@ -1330,13 +1337,19 @@ DEFINE_BOOL(turboshaft_trace_typing, false,
             "print typing steps of turboshaft type inference")
 DEFINE_BOOL(turboshaft_trace_reduction, false,
             "trace individual Turboshaft reduction steps")
+DEFINE_BOOL(turboshaft_trace_intermediate_reductions, false,
+            "trace intermediate Turboshaft reduction steps")
 DEFINE_BOOL(turboshaft_trace_emitted, false,
             "trace emitted Turboshaft instructions")
+DEFINE_WEAK_IMPLICATION(turboshaft_trace_intermediate_reductions,
+                        turboshaft_trace_reduction)
 #else
 DEFINE_BOOL_READONLY(turboshaft_trace_reduction, false,
                      "trace individual Turboshaft reduction steps")
 DEFINE_BOOL_READONLY(turboshaft_trace_emitted, false,
                      "trace emitted Turboshaft instructions")
+DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
+                     "trace intermediate Turboshaft reduction steps")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, false, "profile guided optimization")
@@ -1357,16 +1370,12 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, size_t{1})
 DEFINE_BOOL(wasm_generic_wrapper, true,
             "allow use of the generic js-to-wasm wrapper instead of "
             "per-signature wrappers")
-DEFINE_BOOL(wasm_to_js_generic_wrapper, false,
+DEFINE_BOOL(wasm_to_js_generic_wrapper, true,
             "allow use of the generic wasm-to-js wrapper instead of "
             "per-signature wrappers")
 DEFINE_BOOL(wasm_js_js_generic_wrapper, true,
             "allow use of the generic js-to-js wrapper instead of "
             "per-signature wrappers")
-DEFINE_WEAK_IMPLICATION(future, wasm_to_js_generic_wrapper)
-DEFINE_BOOL(enable_wasm_arm64_generic_wrapper, true,
-            "allow use of the generic js-to-wasm wrapper instead of "
-            "per-signature wrappers on arm64")
 DEFINE_BOOL(expose_wasm, true, "expose wasm interface to JavaScript")
 DEFINE_INT(wasm_num_compilation_tasks, 128,
            "maximum number of parallel compilation tasks for wasm")
@@ -1385,6 +1394,8 @@ DEFINE_BOOL(wasm_test_streaming, false,
             "use streaming compilation instead of async compilation for tests")
 DEFINE_BOOL(wasm_native_module_cache_enabled, true,
             "enable the native module cache")
+DEFINE_BOOL(turboshaft_wasm_wrappers, false,
+            "compile the wasm wrappers with Turboshaft (instead of TurboFan)")
 // The actual value used at runtime is clamped to kV8MaxWasmMemory{32,64}Pages.
 DEFINE_UINT(wasm_max_mem_pages, kMaxUInt32,
             "maximum number of 64KiB memory pages per wasm memory")
@@ -1506,10 +1517,9 @@ FOREACH_WASM_SHIPPED_FEATURE_FLAG(DECL_WASM_FLAG)
 #undef DECL_WASM_FLAG
 #undef DECL_EXPERIMENTAL_WASM_FLAG
 
-DEFINE_IMPLICATION(experimental_wasm_gc, experimental_wasm_typed_funcref)
+DEFINE_IMPLICATION(experimental_wasm_stack_switching, experimental_wasm_jspi)
 
-DEFINE_IMPLICATION(experimental_wasm_stack_switching,
-                   experimental_wasm_type_reflection)
+DEFINE_IMPLICATION(experimental_wasm_jspi, experimental_wasm_type_reflection)
 
 DEFINE_BOOL(wasm_staging, false, "enable staged wasm features")
 
@@ -1545,8 +1555,6 @@ DEFINE_SIZE_T(wasm_inlining_min_budget, 50,
 DEFINE_BOOL(trace_wasm_inlining, false, "trace wasm inlining")
 DEFINE_BOOL(trace_wasm_typer, false, "trace wasm typer")
 
-DEFINE_WEAK_IMPLICATION(experimental_wasm_gc, experimental_wasm_js_inlining)
-
 DEFINE_BOOL(wasm_loop_unrolling, true,
             "enable loop unrolling for wasm functions")
 DEFINE_BOOL(wasm_loop_peeling, true, "enable loop peeling for wasm functions")
@@ -1577,6 +1585,8 @@ DEFINE_BOOL(stress_wasm_code_gc, false,
             "stress test garbage collection of wasm code")
 DEFINE_INT(wasm_max_initial_code_space_reservation, 0,
            "maximum size of the initial wasm code space reservation (in MB)")
+DEFINE_BOOL(stress_wasm_memory_moving, false,
+            "always move non-shared bounds-checked Wasm memory on grow")
 
 DEFINE_SIZE_T(wasm_max_module_size, wasm::kV8MaxWasmModuleSize,
               "maximum allowed size of wasm modules")
@@ -1651,14 +1661,16 @@ DEFINE_BOOL(separate_gc_phases, false,
             "young and full garbage collection phases are not overlapping")
 DEFINE_BOOL(gc_global, false, "always perform global GCs")
 
-// TODO(12950): The next two flags only have an effect if
+// TODO(12950): The next three flags only have an effect if
 // V8_ENABLE_ALLOCATION_TIMEOUT is set, so we should only define them in that
 // config. That currently breaks Node's parallel/test-domain-error-types test
 // though.
 DEFINE_INT(random_gc_interval, 0,
-           "Collect garbage after random(0, X) allocations. It overrides "
+           "Collect garbage after random(0, X) V8 allocations. It overrides "
            "gc_interval.")
 DEFINE_INT(gc_interval, -1, "garbage collect after <n> allocations")
+DEFINE_INT(cppgc_random_gc_interval, 0,
+           "Collect garbage after random(0, X) cppgc allocations.")
 
 DEFINE_INT(retain_maps_for_n_gc, 2,
            "keeps maps alive for <n> old space garbage collections")
@@ -1842,6 +1854,9 @@ DEFINE_BOOL(compact_with_stack, true,
 DEFINE_BOOL(
     compact_code_space_with_stack, true,
     "Perform code space compaction when finalizing a full GC with stack")
+// Disabling compaction with stack implies also disabling code space compaction
+// with stack.
+DEFINE_NEG_NEG_IMPLICATION(compact_with_stack, compact_code_space_with_stack)
 DEFINE_BOOL(shortcut_strings_with_stack, true,
             "Shortcut Strings during GC with stack")
 DEFINE_BOOL(stress_compaction, false,
@@ -1976,6 +1991,7 @@ DEFINE_STRING(sim_arm64_optional_features, "none",
               "all")
 DEFINE_BOOL(intel_jcc_erratum_mitigation, false,
             "enable mitigation for Intel JCC erratum on affected CPUs")
+DEFINE_WEAK_IMPLICATION(future, intel_jcc_erratum_mitigation)
 
 #if defined(V8_TARGET_ARCH_RISCV32) || defined(V8_TARGET_ARCH_RISCV64)
 DEFINE_BOOL(riscv_trap_to_simulator_debugger, false,
@@ -2158,9 +2174,6 @@ DEFINE_BOOL(soft_abort, false,
 // TODO(saelo): introduce a --sandbox-fuzzing mode as well here
 DEFINE_IMPLICATION(hole_fuzzing, soft_abort)
 
-DEFINE_BOOL(experimental_value_unavailable, true,
-            "enable experimental <value unavailable> in scopes")
-
 // disassembler
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")
@@ -2192,6 +2205,8 @@ DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
             "Use the new EmbedderGraph API to get embedder nodes")
 DEFINE_BOOL(heap_snapshot_on_oom, false,
             "Write a heap snapshot to disk on last-resort GCs")
+DEFINE_INT(heap_snapshot_on_gc, -1,
+           "Write a heap snapshot to disk on a certain GC invocation")
 DEFINE_INT(heap_snapshot_string_limit, 1024,
            "truncate strings to this length in the heap snapshot")
 DEFINE_BOOL(heap_profiler_show_hidden_objects, false,
@@ -2679,6 +2694,9 @@ DEFINE_BOOL(log_function_events, false,
 
 DEFINE_BOOL(detailed_line_info, false,
             "Always generate detailed line information for CPU profiling.")
+
+DEFINE_BOOL(perfetto_code_logger, false,
+            "Enable the Perfetto code data source.")
 
 #if defined(ANDROID)
 // Phones and tablets have processors that are much slower than desktop

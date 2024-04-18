@@ -262,20 +262,18 @@ bool TransitionsAccessor::IsSpecialTransition(ReadOnlyRoots roots,
          name == roots.strict_function_transition_symbol();
 }
 
-MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
-    Handle<Name> name, RequestedLocation requested_location) {
-  DCHECK(IsUniqueName(*name));
+MaybeHandle<Map> TransitionsAccessor::FindTransitionToField(
+    Handle<String> name) {
+  DCHECK(IsInternalizedString(*name));
   DisallowGarbageCollection no_gc;
-  PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
-  Tagged<Map> target = SearchTransition(*name, PropertyKind::kData, attributes);
+  Tagged<Map> target = SearchTransition(*name, PropertyKind::kData, NONE);
   if (target.is_null()) return MaybeHandle<Map>();
+#ifdef DEBUG
   PropertyDetails details = target->GetLastDescriptorDetails(isolate_);
-  DCHECK_EQ(attributes, details.attributes());
+  DCHECK_EQ(NONE, details.attributes());
   DCHECK_EQ(PropertyKind::kData, details.kind());
-  if (requested_location == kFieldOnly &&
-      details.location() != PropertyLocation::kField) {
-    return MaybeHandle<Map>();
-  }
+  DCHECK_EQ(PropertyLocation::kField, details.location());
+#endif
   return Handle<Map>(target, isolate_);
 }
 

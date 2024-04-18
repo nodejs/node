@@ -1681,33 +1681,17 @@ void V8HeapExplorer::ExtractCodeReferences(HeapEntry* entry,
                        Code::kInstructionStreamOffset);
 
   if (code->kind() == CodeKind::BASELINE) {
-    // TODO(saelo): Currently, the BytecodeArray (living in trusted space) is
-    // referenced from this field through its wrapper object, so we need to
-    // handle this here. Once InterpreterData objects move into trusted space
-    // as well, we can again directly reference the BytecodeArray, at which
-    // point this special handling can be removed.
-    static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-    Tagged<Object> bytecode_or_interpreter_data =
-        code->bytecode_or_interpreter_data(isolate());
-    if (IsBytecodeArray(bytecode_or_interpreter_data)) {
-      TagObject(BytecodeArray::cast(bytecode_or_interpreter_data)->wrapper(),
-                "(interpreter data)");
-      SetInternalReference(
-          entry, "interpreter_data",
-          BytecodeArray::cast(bytecode_or_interpreter_data)->wrapper(),
-          Code::kDeoptimizationDataOrInterpreterDataOffset);
-    } else {
-      TagObject(bytecode_or_interpreter_data, "(interpreter data)");
-      SetInternalReference(entry, "interpreter_data",
-                           bytecode_or_interpreter_data,
-                           Code::kDeoptimizationDataOrInterpreterDataOffset);
-    }
+    TagObject(code->bytecode_or_interpreter_data(isolate()),
+              "(interpreter data)");
+    SetInternalReference(entry, "interpreter_data",
+                         code->bytecode_or_interpreter_data(isolate()),
+                         Code::kDeoptimizationDataOrInterpreterDataOffset);
     TagObject(code->bytecode_offset_table(), "(bytecode offset table)",
               HeapEntry::kCode);
     SetInternalReference(entry, "bytecode_offset_table",
                          code->bytecode_offset_table(),
                          Code::kPositionTableOffset);
-  } else {
+  } else if (code->uses_deoptimization_data()) {
     Tagged<DeoptimizationData> deoptimization_data =
         DeoptimizationData::cast(code->deoptimization_data());
     TagObject(deoptimization_data, "(code deopt data)", HeapEntry::kCode);

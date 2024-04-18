@@ -784,22 +784,33 @@ bool RunExtraCode(v8::Isolate* isolate, v8::Local<v8::Context> context,
 
 v8::StartupData CreateSnapshotDataBlobInternal(
     v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
-    const char* embedded_source, Isolate* isolate,
+    const char* embedded_source, SnapshotCreator& snapshot_creator,
     Snapshot::SerializerFlags serializer_flags) {
-  bool owns_isolate = isolate == nullptr;
-  SnapshotCreatorImpl creator(isolate, nullptr, nullptr, owns_isolate);
-
+  SnapshotCreatorImpl* creator =
+      SnapshotCreatorImpl::FromSnapshotCreator(&snapshot_creator);
   {
-    auto v8_isolate = reinterpret_cast<v8::Isolate*>(creator.isolate());
+    auto v8_isolate = reinterpret_cast<v8::Isolate*>(creator->isolate());
     v8::HandleScope scope(v8_isolate);
     v8::Local<v8::Context> context = v8::Context::New(v8_isolate);
     if (embedded_source != nullptr &&
         !RunExtraCode(v8_isolate, context, embedded_source, "<embedded>")) {
       return {};
     }
-    creator.SetDefaultContext(Utils::OpenHandle(*context), nullptr);
+    creator->SetDefaultContext(Utils::OpenHandle(*context), nullptr);
   }
-  return creator.CreateBlob(function_code_handling, serializer_flags);
+  return creator->CreateBlob(function_code_handling, serializer_flags);
+}
+
+v8::StartupData CreateSnapshotDataBlobInternal(
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling,
+    const char* embedded_source, Snapshot::SerializerFlags serializer_flags) {
+  std::unique_ptr<v8::ArrayBuffer::Allocator> array_buffer_allocator(
+      v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = array_buffer_allocator.get();
+  v8::SnapshotCreator creator(create_params);
+  return CreateSnapshotDataBlobInternal(function_code_handling, embedded_source,
+                                        creator, serializer_flags);
 }
 
 v8::StartupData CreateSnapshotDataBlobInternalForInspectorTest(
@@ -1143,6 +1154,11 @@ StartupData SnapshotCreatorImpl::CreateBlob(
   return Snapshot::Create(isolate_, &raw_contexts, raw_callbacks,
                           safepoint_scope, no_gc_from_here_on,
                           serializer_flags);
+}
+
+SnapshotCreatorImpl* SnapshotCreatorImpl::FromSnapshotCreator(
+    v8::SnapshotCreator* snapshot_creator) {
+  return snapshot_creator->impl_;
 }
 
 }  // namespace internal

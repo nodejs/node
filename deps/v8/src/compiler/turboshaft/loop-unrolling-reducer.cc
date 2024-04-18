@@ -25,7 +25,7 @@ void LoopUnrollingAnalyzer::DetectUnrollableLoops() {
 
 bool LoopUnrollingAnalyzer::CanFullyUnrollLoop(const LoopFinder::LoopInfo& info,
                                                int* iter_count) const {
-  Block* start = info.start;
+  const Block* start = info.start;
   DCHECK(start->IsLoop());
 
   // Checking that the loop doesn't contain too many instructions.

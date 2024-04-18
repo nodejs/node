@@ -20,27 +20,25 @@ namespace v8 {
 namespace internal {
 
 Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
-                                                   int deopt_entry_count,
-                                                   AllocationType allocation) {
-  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
-      LengthFor(deopt_entry_count), allocation));
+                                                   int deopt_entry_count) {
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->NewTrustedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::New(LocalIsolate* isolate,
-                                                   int deopt_entry_count,
-                                                   AllocationType allocation) {
-  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
-      LengthFor(deopt_entry_count), allocation));
+                                                   int deopt_entry_count) {
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->NewTrustedFixedArray(LengthFor(deopt_entry_count)));
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
   return Handle<DeoptimizationData>::cast(
-      isolate->factory()->empty_fixed_array());
+      isolate->factory()->empty_trusted_fixed_array());
 }
 
 Handle<DeoptimizationData> DeoptimizationData::Empty(LocalIsolate* isolate) {
   return Handle<DeoptimizationData>::cast(
-      isolate->factory()->empty_fixed_array());
+      isolate->factory()->empty_trusted_fixed_array());
 }
 
 Tagged<SharedFunctionInfo> DeoptimizationData::GetInlinedFunction(int index) {

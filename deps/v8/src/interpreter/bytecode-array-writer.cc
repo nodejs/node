@@ -45,7 +45,7 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
 
   int bytecode_size = static_cast<int>(bytecodes()->size());
   int frame_size = register_count * kSystemPointerSize;
-  Handle<FixedArray> constant_pool =
+  Handle<TrustedFixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,

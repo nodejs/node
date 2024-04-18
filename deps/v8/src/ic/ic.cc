@@ -83,8 +83,16 @@ char IC::TransitionMarkFromState(IC::State state) {
 namespace {
 
 const char* GetModifier(KeyedAccessLoadMode mode) {
-  if (mode == KeyedAccessLoadMode::kHandleOOB) return ".IGNORE_OOB";
-  return "";
+  switch (mode) {
+    case KeyedAccessLoadMode::kHandleOOB:
+      return ".OOB";
+    case KeyedAccessLoadMode::kHandleHoles:
+      return ".HOLES";
+    case KeyedAccessLoadMode::kHandleOOBAndHoles:
+      return ".OOB+HOLES";
+    case KeyedAccessLoadMode::kInBounds:
+      return "";
+  }
 }
 
 const char* GetModifier(KeyedAccessStoreMode mode) {
@@ -200,9 +208,8 @@ IC::IC(Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot slot,
 }
 
 static void LookupForRead(LookupIterator* it, bool is_has_property) {
-  for (; it->IsFound(); it->Next()) {
+  for (;; it->Next()) {
     switch (it->state()) {
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
@@ -220,21 +227,23 @@ static void LookupForRead(LookupIterator* it, bool is_has_property) {
                          it->isolate())) {
           return;
         }
-        break;
+        continue;
       }
       case LookupIterator::ACCESS_CHECK:
         // ICs know how to perform access checks on global proxies.
         if (it->GetHolder<JSObject>().is_identical_to(
                 it->isolate()->global_proxy()) &&
             !it->isolate()->global_object()->IsDetached()) {
-          break;
+          continue;
         }
         return;
       case LookupIterator::ACCESSOR:
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::DATA:
+      case LookupIterator::NOT_FOUND:
         return;
     }
+    UNREACHABLE();
   }
 }
 
@@ -829,9 +838,10 @@ StubCache* IC::stub_cache() {
   // HasICs and each of the store own ICs require its own stub cache.
   // Until we create them, don't allow accessing the load/store stub caches.
   DCHECK(!IsAnyHas());
-  DCHECK(!IsAnyDefineOwn());
   if (IsAnyLoad()) {
     return isolate()->load_stub_cache();
+  } else if (IsAnyDefineOwn()) {
+    return isolate()->define_own_stub_cache();
   } else {
     DCHECK(IsAnyStore());
     return isolate()->store_stub_cache();
@@ -840,7 +850,7 @@ StubCache* IC::stub_cache() {
 
 void IC::UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
                                 const MaybeObjectHandle& handler) {
-  if (!IsAnyHas() && !IsAnyDefineOwn()) {
+  if (!IsAnyHas()) {
     stub_cache()->Set(*name, *map, *handler);
   }
 }
@@ -1112,7 +1122,7 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
       return MaybeObjectHandle(
           LoadHandler::LoadFromPrototype(isolate(), map, holder, *smi_handler));
     }
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadIntegerIndexedExoticDH);
       return MaybeObjectHandle(LoadHandler::LoadNonExistent(isolate()));
 
@@ -1140,38 +1150,26 @@ MaybeObjectHandle LoadIC::ComputeHandler(LookupIterator* lookup) {
   return MaybeObjectHandle(Handle<InstructionStream>::null());
 }
 
-std::optional<KeyedLoadIC::HandlerInfo> KeyedLoadIC::GetHandlerInfoFor(
-    Handle<Map> receiver_map) {
+KeyedAccessLoadMode KeyedLoadIC::GetKeyedAccessLoadModeFor(
+    Handle<Map> receiver_map) const {
   const MaybeObjectHandle& handler = nexus()->FindHandlerForMap(receiver_map);
-  if (handler.is_null()) return {};
-  KeyedAccessLoadMode load_mode = LoadHandler::GetKeyedAccessLoadMode(*handler);
-  bool convert_hole = LoadHandler::GetConvertHole(*handler);
-  return HandlerInfo{load_mode, convert_hole};
+  if (handler.is_null()) return KeyedAccessLoadMode::kInBounds;
+  return LoadHandler::GetKeyedAccessLoadMode(*handler);
 }
 
-KeyedLoadIC::HandlerInfo KeyedLoadIC::GeneralizeHandlerInfo(
-    std::optional<HandlerInfo> old_info, const HandlerInfo new_info) {
-  if (!old_info.has_value()) return new_info;
-  KeyedAccessLoadMode load_mode = (LoadModeIsInBounds(old_info->load_mode)
-                                       ? new_info.load_mode
-                                       : KeyedAccessLoadMode::kHandleOOB);
-  DCHECK_IMPLIES(
-      LoadModeHandlesOOB(old_info->load_mode) || old_info->convert_hole,
-      LoadModeHandlesOOB(new_info.load_mode) || new_info.convert_hole);
-  bool convert_hole = old_info->convert_hole || new_info.convert_hole;
-  return HandlerInfo{load_mode, convert_hole};
-}
-
-bool KeyedLoadIC::AllowedHandlerChange(std::optional<HandlerInfo> old_info,
-                                       const HandlerInfo new_info) {
-  if (!old_info.has_value()) return true;
-  // Only allow transitions to allow OOB or allow convert to a hole.
-  return old_info->load_mode < new_info.load_mode ||
-         old_info->convert_hole < new_info.convert_hole;
+// Returns whether the load mode transition is allowed.
+bool AllowedHandlerChange(KeyedAccessLoadMode old_mode,
+                          KeyedAccessLoadMode new_mode) {
+  // Only allow transitions to allow OOB or allow converting a hole to
+  // undefined.
+  using T = std::underlying_type<KeyedAccessLoadMode>::type;
+  return ((static_cast<T>(old_mode) ^
+           static_cast<T>(GeneralizeKeyedAccessLoadMode(old_mode, new_mode))) &
+          0b11) != 0;
 }
 
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
-                                    const HandlerInfo new_info) {
+                                    const KeyedAccessLoadMode new_load_mode) {
   Handle<Map> receiver_map(receiver->map(), isolate());
   DCHECK(receiver_map->instance_type() !=
          JS_PRIMITIVE_WRAPPER_TYPE);  // Checked by caller.
@@ -1179,7 +1177,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   TargetMaps(&target_receiver_maps);
 
   if (target_receiver_maps.empty()) {
-    Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
+    Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
     return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
   }
 
@@ -1208,7 +1206,7 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
              target_receiver_maps.at(0)->elements_kind(),
              Handle<JSObject>::cast(receiver)->GetElementsKind())) ||
         IsWasmObject(*receiver)) {
-      Handle<Object> handler = LoadElementHandler(receiver_map, new_info);
+      Handle<Object> handler = LoadElementHandler(receiver_map, new_load_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }
   }
@@ -1217,10 +1215,10 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
-  std::optional<KeyedLoadIC::HandlerInfo> old_info;
+  KeyedAccessLoadMode old_load_mode = KeyedAccessLoadMode::kInBounds;
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
-    old_info = GetHandlerInfoFor(receiver_map);
-    if (!AllowedHandlerChange(old_info, new_info)) {
+    old_load_mode = GetKeyedAccessLoadModeFor(receiver_map);
+    if (!AllowedHandlerChange(old_load_mode, new_load_mode)) {
       set_slow_stub_reason("same map added twice");
       return;
     }
@@ -1236,8 +1234,9 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
 
   MaybeObjectHandles handlers;
   handlers.reserve(target_receiver_maps.size());
-  HandlerInfo info = GeneralizeHandlerInfo(old_info, new_info);
-  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, info);
+  KeyedAccessLoadMode load_mode =
+      GeneralizeKeyedAccessLoadMode(old_load_mode, new_load_mode);
+  LoadElementPolymorphicHandlers(&target_receiver_maps, &handlers, load_mode);
   DCHECK_LE(1, target_receiver_maps.size());
   if (target_receiver_maps.size() == 1) {
     ConfigureVectorState(Handle<Name>(), target_receiver_maps[0], handlers[0]);
@@ -1279,14 +1278,6 @@ bool AllowConvertHoleElementToUndefined(Isolate* isolate,
   return false;
 }
 
-bool AllowConvertHoleElementToUndefined(Isolate* isolate,
-                                        Handle<Object> receiver) {
-  if (!IsHeapObject(*receiver)) return false;
-  DCHECK(IsHeapObject(*receiver));
-  Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
-  return AllowConvertHoleElementToUndefined(isolate, receiver_map);
-}
-
 bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
   size_t length;
   if (IsJSArray(*receiver)) {
@@ -1304,51 +1295,73 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, size_t index) {
 }
 
 bool AllowReadingHoleElement(ElementsKind elements_kind) {
-  // TODO(victorgomes): TF does not support reading holes in holey double
-  // arrays. Checking only for HOLEY_SMI_ELEMENTS and HOLEY_ELEMENTS avoid
-  // a deopt-loop.
-  return (elements_kind == HOLEY_SMI_ELEMENTS ||
-          elements_kind == HOLEY_ELEMENTS);
+  return IsHoleyElementsKind(elements_kind);
 }
 
-KeyedLoadIC::HandlerInfo GetHandlerInfo(Isolate* isolate,
-                                        Handle<Object> receiver, size_t index,
-                                        bool is_found) {
-  if (is_found || !AllowConvertHoleElementToUndefined(isolate, receiver)) {
-    return KeyedLoadIC::kInBoundsNoHollyAccess;
-  }
-  bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
-  KeyedAccessLoadMode load_mode = is_oob_access
-                                      ? KeyedAccessLoadMode::kHandleOOB
-                                      : KeyedAccessLoadMode::kInBounds;
-  DCHECK(IsHeapObject(*receiver));
+KeyedAccessLoadMode GetNewKeyedLoadMode(Isolate* isolate,
+                                        Handle<HeapObject> receiver,
+                                        size_t index, bool is_found) {
   Handle<Map> receiver_map(Handle<HeapObject>::cast(receiver)->map(), isolate);
-  bool is_hole = !is_found && !is_oob_access &&
-                 AllowReadingHoleElement(receiver_map->elements_kind());
-  return KeyedLoadIC::HandlerInfo{load_mode, is_hole};
+  if (!AllowConvertHoleElementToUndefined(isolate, receiver_map)) {
+    return KeyedAccessLoadMode::kInBounds;
+  }
+
+  // Always handle holes when the elements kind is HOLEY_ELEMENTS, since the
+  // optimizer compilers can not benefit from this information to narrow the
+  // type. That is, the load type will always just be a generic tagged value.
+  // This avoid an IC miss if we see a hole.
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  bool always_handle_holes = (elements_kind == HOLEY_ELEMENTS);
+
+  // In bound access and did not read a hole.
+  if (is_found) {
+    return always_handle_holes ? KeyedAccessLoadMode::kHandleHoles
+                               : KeyedAccessLoadMode::kInBounds;
+  }
+
+  // OOB access.
+  bool is_oob_access = IsOutOfBoundsAccess(receiver, index);
+  if (is_oob_access) {
+    return always_handle_holes ? KeyedAccessLoadMode::kHandleOOBAndHoles
+                               : KeyedAccessLoadMode::kHandleOOB;
+  }
+
+  // Read a hole.
+  DCHECK(!is_found && !is_oob_access);
+  bool handle_hole = AllowReadingHoleElement(elements_kind);
+  DCHECK_IMPLIES(always_handle_holes, handle_hole);
+  return handle_hole ? KeyedAccessLoadMode::kHandleHoles
+                     : KeyedAccessLoadMode::kInBounds;
 }
 
-KeyedLoadIC::HandlerInfo GetUpdatedHandlerInfoForMap(
-    Isolate* isolate, Handle<Map> map, KeyedLoadIC::HandlerInfo info) {
-  // Check if we can convert the result to undefined, either due to an OOB or
-  // reading a hole.
-  bool allow_convert_hole_to_undefined =
-      AllowConvertHoleElementToUndefined(isolate, map);
+KeyedAccessLoadMode GetUpdatedLoadModeForMap(Isolate* isolate, Handle<Map> map,
+                                             KeyedAccessLoadMode load_mode) {
+  // If we are not allowed to convert a hole to undefined, then we should not
+  // handle OOB nor reading holes.
+  if (!AllowConvertHoleElementToUndefined(isolate, map)) {
+    return KeyedAccessLoadMode::kInBounds;
+  }
   // Check if the elements kind allow reading a hole.
   bool allow_reading_hole_element =
       AllowReadingHoleElement(map->elements_kind());
-  KeyedAccessLoadMode load_mode = allow_convert_hole_to_undefined
-                                      ? info.load_mode
-                                      : KeyedAccessLoadMode::kInBounds;
-  bool convert_hole = allow_convert_hole_to_undefined &&
-                      allow_reading_hole_element && info.convert_hole;
-  return KeyedLoadIC::HandlerInfo{load_mode, convert_hole};
+  switch (load_mode) {
+    case KeyedAccessLoadMode::kInBounds:
+    case KeyedAccessLoadMode::kHandleOOB:
+      return load_mode;
+    case KeyedAccessLoadMode::kHandleHoles:
+      return allow_reading_hole_element ? KeyedAccessLoadMode::kHandleHoles
+                                        : KeyedAccessLoadMode::kInBounds;
+    case KeyedAccessLoadMode::kHandleOOBAndHoles:
+      return allow_reading_hole_element
+                 ? KeyedAccessLoadMode::kHandleOOBAndHoles
+                 : KeyedAccessLoadMode::kHandleOOB;
+  }
 }
 
 }  // namespace
 
-Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
-                                               const HandlerInfo info) {
+Handle<Object> KeyedLoadIC::LoadElementHandler(
+    Handle<Map> receiver_map, KeyedAccessLoadMode new_load_mode) {
   // Has a getter interceptor, or is any has and has a query interceptor.
   if (receiver_map->has_indexed_interceptor() &&
       (!IsUndefined(receiver_map->GetIndexedInterceptor()->getter(),
@@ -1367,7 +1380,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (instance_type < FIRST_NONSTRING_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
     if (IsAnyHas()) return LoadHandler::LoadSlow(isolate());
-    return LoadHandler::LoadIndexedString(isolate(), info.load_mode);
+    return LoadHandler::LoadIndexedString(isolate(), new_load_mode);
   }
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
@@ -1394,23 +1407,24 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   bool is_js_array = instance_type == JS_ARRAY_TYPE;
   if (elements_kind == DICTIONARY_ELEMENTS) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
-    return LoadHandler::LoadElement(isolate(), elements_kind, false,
-                                    is_js_array, info.load_mode);
+    return LoadHandler::LoadElement(isolate(), elements_kind, is_js_array,
+                                    new_load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsAnyNonextensibleElementsKind(elements_kind) ||
          IsTypedArrayOrRabGsabTypedArrayElementsKind(elements_kind));
-  DCHECK_IMPLIES(info.convert_hole, AllowReadingHoleElement(elements_kind) &&
-                                        AllowConvertHoleElementToUndefined(
-                                            isolate(), receiver_map));
+  DCHECK_IMPLIES(
+      LoadModeHandlesHoles(new_load_mode),
+      AllowReadingHoleElement(elements_kind) &&
+          AllowConvertHoleElementToUndefined(isolate(), receiver_map));
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
-  return LoadHandler::LoadElement(isolate(), elements_kind, info.convert_hole,
-                                  is_js_array, info.load_mode);
+  return LoadHandler::LoadElement(isolate(), elements_kind, is_js_array,
+                                  new_load_mode);
 }
 
-void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                                 MaybeObjectHandles* handlers,
-                                                 const HandlerInfo info) {
+void KeyedLoadIC::LoadElementPolymorphicHandlers(
+    MapHandles* receiver_maps, MaybeObjectHandles* handlers,
+    KeyedAccessLoadMode new_load_mode) {
   // Filter out deprecated maps to ensure their instances get migrated.
   receiver_maps->erase(
       std::remove_if(
@@ -1431,7 +1445,7 @@ void KeyedLoadIC::LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
     }
     handlers->push_back(MaybeObjectHandle(LoadElementHandler(
         receiver_map,
-        GetUpdatedHandlerInfoForMap(isolate(), receiver_map, info))));
+        GetUpdatedLoadModeForMap(isolate(), receiver_map, new_load_mode))));
   }
 }
 
@@ -1565,8 +1579,10 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
   size_t index;
   if (key_type == kIntPtr && CanCache(object, state()) &&
       IntPtrKeyToSize(maybe_index, Handle<HeapObject>::cast(object), &index)) {
-    UpdateLoadElement(Handle<HeapObject>::cast(object),
-                      GetHandlerInfo(isolate(), object, index, is_found));
+    Handle<HeapObject> receiver = Handle<HeapObject>::cast(object);
+    KeyedAccessLoadMode load_mode =
+        GetNewKeyedLoadMode(isolate(), receiver, index, is_found);
+    UpdateLoadElement(receiver, load_mode);
     if (is_vector_set()) {
       TraceIC("LoadIC", key);
     }
@@ -1589,88 +1605,93 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   DCHECK(!receiver->map()->is_deprecated());
 
-  if (it->state() != LookupIterator::TRANSITION) {
-    for (; it->IsFound(); it->Next()) {
-      switch (it->state()) {
-        case LookupIterator::WASM_OBJECT:
-          return false;
-        case LookupIterator::NOT_FOUND:
-        case LookupIterator::TRANSITION:
-          UNREACHABLE();
-        case LookupIterator::JSPROXY:
+  for (;; it->Next()) {
+    switch (it->state()) {
+      case LookupIterator::TRANSITION:
+        UNREACHABLE();
+      case LookupIterator::WASM_OBJECT:
+        return false;
+      case LookupIterator::JSPROXY:
+        return true;
+      case LookupIterator::INTERCEPTOR: {
+        Handle<JSObject> holder = it->GetHolder<JSObject>();
+        Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
+        if (it->HolderIsReceiverOrHiddenPrototype() ||
+            !IsUndefined(info->getter(), isolate()) ||
+            !IsUndefined(info->query(), isolate())) {
           return true;
-        case LookupIterator::INTERCEPTOR: {
-          Handle<JSObject> holder = it->GetHolder<JSObject>();
-          Tagged<InterceptorInfo> info = holder->GetNamedInterceptor();
-          if (it->HolderIsReceiverOrHiddenPrototype() ||
-              !IsUndefined(info->getter(), isolate()) ||
-              !IsUndefined(info->query(), isolate())) {
-            return true;
-          }
-          break;
         }
-        case LookupIterator::ACCESS_CHECK:
-          if (IsAccessCheckNeeded(*it->GetHolder<JSObject>())) return false;
-          break;
-        case LookupIterator::ACCESSOR:
-          return !it->IsReadOnly();
-        case LookupIterator::INTEGER_INDEXED_EXOTIC:
-          return false;
-        case LookupIterator::DATA: {
-          if (it->IsReadOnly()) return false;
-          Handle<JSObject> holder = it->GetHolder<JSObject>();
-          if (receiver.is_identical_to(holder)) {
-            it->PrepareForDataProperty(value);
-            // The previous receiver map might just have been deprecated,
-            // so reload it.
-            update_lookup_start_object_map(receiver);
-            return true;
-          }
-
-          // Receiver != holder.
-          if (IsJSGlobalProxy(*receiver)) {
-            PrototypeIterator iter(isolate(), receiver);
-            return it->GetHolder<Object>().is_identical_to(
-                PrototypeIterator::GetCurrent(iter));
-          }
-
-          if (it->HolderIsReceiverOrHiddenPrototype()) return false;
-
-          if (it->ExtendingNonExtensible(receiver)) return false;
-          it->PrepareTransitionToDataProperty(receiver, value, NONE,
-                                              store_origin);
-          return it->IsCacheableTransition();
-        }
+        continue;
       }
-    }
-  }
+      case LookupIterator::ACCESS_CHECK:
+        if (IsAccessCheckNeeded(*it->GetHolder<JSObject>())) return false;
+        continue;
+      case LookupIterator::ACCESSOR:
+        return !it->IsReadOnly();
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
+        return false;
+      case LookupIterator::DATA: {
+        if (it->IsReadOnly()) return false;
+        if (IsAnyDefineOwn() && it->property_attributes() != NONE) {
+          // IC doesn't support reconfiguration of property attributes,
+          // so just bail out to the slow handler.
+          return false;
+        }
+        Handle<JSObject> holder = it->GetHolder<JSObject>();
+        if (receiver.is_identical_to(holder)) {
+          it->PrepareForDataProperty(value);
+          // The previous receiver map might just have been deprecated,
+          // so reload it.
+          update_lookup_start_object_map(receiver);
+          return true;
+        }
 
-  // If we are in StoreGlobal then check if we should throw on non-existent
-  // properties.
-  if (IsStoreGlobalIC() &&
-      (GetShouldThrow(it->isolate(), Nothing<ShouldThrow>()) ==
-       ShouldThrow::kThrowOnError)) {
-    // ICs typically does the store in two steps: prepare receiver for the
-    // transition followed by the actual store. For global objects we create a
-    // property cell when preparing for transition and install this cell in the
-    // handler. In strict mode, we throw and never initialize this property
-    // cell. The IC handler assumes that the property cell it is holding is for
-    // a property that is existing. This case violates this assumption. If we
-    // happen to invalidate this property cell later, it leads to incorrect
-    // behaviour. For now just use a slow stub and don't install the property
-    // cell for these cases. Hopefully these cases are not frequent enough to
-    // impact performance.
-    //
-    // TODO(mythria): If we find this to be happening often, we could install a
-    // new kind of handler for non-existent properties. These handlers can then
-    // miss to runtime if the value is not hole (i.e. cell got invalidated) and
-    // handle these stores correctly.
-    return false;
+        // Receiver != holder.
+        if (IsJSGlobalProxy(*receiver)) {
+          PrototypeIterator iter(isolate(), receiver);
+          return it->GetHolder<Object>().is_identical_to(
+              PrototypeIterator::GetCurrent(iter));
+        }
+
+        if (it->HolderIsReceiverOrHiddenPrototype()) return false;
+
+        if (it->ExtendingNonExtensible(receiver)) return false;
+        it->PrepareTransitionToDataProperty(receiver, value, NONE,
+                                            store_origin);
+        return it->IsCacheableTransition();
+      }
+      case LookupIterator::NOT_FOUND:
+        // If we are in StoreGlobal then check if we should throw on
+        // non-existent properties.
+        if (IsStoreGlobalIC() &&
+            (GetShouldThrow(it->isolate(), Nothing<ShouldThrow>()) ==
+             ShouldThrow::kThrowOnError)) {
+          // ICs typically does the store in two steps: prepare receiver for the
+          // transition followed by the actual store. For global objects we
+          // create a property cell when preparing for transition and install
+          // this cell in the handler. In strict mode, we throw and never
+          // initialize this property cell. The IC handler assumes that the
+          // property cell it is holding is for a property that is existing.
+          // This case violates this assumption. If we happen to invalidate this
+          // property cell later, it leads to incorrect behaviour. For now just
+          // use a slow stub and don't install the property cell for these
+          // cases. Hopefully these cases are not frequent enough to impact
+          // performance.
+          //
+          // TODO(mythria): If we find this to be happening often, we could
+          // install a new kind of handler for non-existent properties. These
+          // handlers can then miss to runtime if the value is not hole (i.e.
+          // cell got invalidated) and handle these stores correctly.
+          return false;
+        }
+        receiver = it->GetStoreTarget<JSObject>();
+        if (it->ExtendingNonExtensible(receiver)) return false;
+        it->PrepareTransitionToDataProperty(receiver, value, NONE,
+                                            store_origin);
+        return it->IsCacheableTransition();
+    }
+    UNREACHABLE();
   }
-  receiver = it->GetStoreTarget<JSObject>();
-  if (it->ExtendingNonExtensible(receiver)) return false;
-  it->PrepareTransitionToDataProperty(receiver, value, NONE, store_origin);
-  return it->IsCacheableTransition();
 }
 
 MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
@@ -1692,6 +1713,12 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
     if (lookup_result.mode == VariableMode::kConst) {
       AllowGarbageCollection yes_gc;
       return TypeError(MessageTemplate::kConstAssign, global, name);
+    }
+    if (lookup_result.mode == VariableMode::kLet &&
+        v8_flags.const_tracking_let) {
+      Context::UpdateConstTrackingLetSideData(handle(script_context, isolate()),
+                                              lookup_result.slot_index, value,
+                                              isolate());
     }
 
     Tagged<Object> previous_value =
@@ -1768,7 +1795,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
         case LookupIterator::DATA:
         case LookupIterator::INTERCEPTOR:
         case LookupIterator::ACCESSOR:
-        case LookupIterator::INTEGER_INDEXED_EXOTIC:
+        case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
           UNREACHABLE();
         case LookupIterator::ACCESS_CHECK: {
           DCHECK(!IsAccessCheckNeeded(*it->GetHolder<JSObject>()));
@@ -1785,7 +1812,7 @@ Maybe<bool> DefineOwnDataProperty(LookupIterator* it,
     case LookupIterator::DATA:
     case LookupIterator::ACCESSOR:
     case LookupIterator::INTERCEPTOR:
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       break;
   }
 
@@ -2190,7 +2217,7 @@ MaybeObjectHandle StoreIC::ComputeHandler(LookupIterator* lookup) {
           isolate(), lookup_start_object_map(), holder, receiver));
     }
 
-    case LookupIterator::INTEGER_INDEXED_EXOTIC:
+    case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
     case LookupIterator::ACCESS_CHECK:
     case LookupIterator::NOT_FOUND:
     case LookupIterator::WASM_OBJECT:
@@ -3002,26 +3029,30 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(name, &lookup_result)) {
-    DisallowGarbageCollection no_gc;
-    DisableGCMole no_gcmole;
-    Tagged<Context> script_context =
-        script_contexts->get(lookup_result.context_index);
+    Handle<Context> script_context =
+        handle(script_contexts->get(lookup_result.context_index), isolate);
     if (lookup_result.mode == VariableMode::kConst) {
-      AllowGarbageCollection yes_gc;
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
-    Tagged<Object> previous_value =
-        script_context->get(lookup_result.slot_index);
+    {
+      DisallowGarbageCollection no_gc;
+      Tagged<Object> previous_value =
+          script_context->get(lookup_result.slot_index);
 
-    if (IsTheHole(previous_value, isolate)) {
-      AllowGarbageCollection yes_gc;
-      THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewReferenceError(
-                       MessageTemplate::kAccessedUninitializedVariable, name));
+      if (IsTheHole(previous_value, isolate)) {
+        AllowGarbageCollection yes_gc;
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate,
+            NewReferenceError(MessageTemplate::kAccessedUninitializedVariable,
+                              name));
+      }
     }
-
+    if (v8_flags.const_tracking_let) {
+      Context::UpdateConstTrackingLetSideData(
+          script_context, lookup_result.slot_index, value, isolate);
+    }
     script_context->set(lookup_result.slot_index, *value);
     return *value;
   }

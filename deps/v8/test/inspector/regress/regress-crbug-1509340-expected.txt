@@ -1,4 +1,4 @@
-Checks that accessing command line API functions are considered side-effecty
+Checks that accessing command line API functions are considered side-effecty (except $*)
 {
     exceptionDetails : {
         columnNumber : -1
@@ -20,5 +20,10 @@ Checks that accessing command line API functions are considered side-effecty
         objectId : <objectId>
         subtype : error
         type : object
+    }
+}
+{
+    result : {
+        type : undefined
     }
 }

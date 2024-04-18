@@ -3,14 +3,21 @@
 // found in the LICENSE file.
 
 const {session, contextGroup, Protocol} =
-    InspectorTest.start('Checks that accessing command line API functions are considered side-effecty');
+    InspectorTest.start('Checks that accessing command line API functions are considered side-effecty (except $*)');
 
 (async () => {
-  const { result } = await Protocol.Runtime.evaluate({
+  let { result } = await Protocol.Runtime.evaluate({
     expression: 'debug',
     includeCommandLineAPI: true,
     throwOnSideEffect: true,
   });
+  InspectorTest.logMessage(result);
+
+  ({ result } = await Protocol.Runtime.evaluate({
+    expression: '$0',
+    includeCommandLineAPI: true,
+    throwOnSideEffect: true,
+  }));
   InspectorTest.logMessage(result);
 
   InspectorTest.completeTest();

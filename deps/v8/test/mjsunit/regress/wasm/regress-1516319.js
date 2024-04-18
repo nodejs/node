@@ -7,7 +7,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 const builder = new WasmModuleBuilder();
 builder.addType(makeSig([], []));
 builder.addMemory(1, 1, true);
-builder.addGlobal(kWasmI32, 1, wasmI32Const(10));
+builder.addGlobal(kWasmI32, true, false, wasmI32Const(10));
 // Generate function 1 (out of 5).
 builder.addFunction(undefined, 0 /* sig */)
   .addLocals(kWasmI64, 1).addLocals(kWasmF32, 1).addLocals(kWasmF64, 1)

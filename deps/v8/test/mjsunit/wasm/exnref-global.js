@@ -12,7 +12,7 @@ let kSig_e_v = makeSig([], [kWasmExnRef]);
 (function TestGlobalExnRefSupported() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let g = builder.addGlobal(kWasmExnRef);
+  let g = builder.addGlobal(kWasmExnRef, false, false);
   builder.addFunction("push_and_drop_exnref", kSig_v_v)
       .addBody([
         kExprGlobalGet, g.index,
@@ -27,7 +27,7 @@ let kSig_e_v = makeSig([], [kWasmExnRef]);
 (function TestGlobalExnRefDefaultValue() {
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
-  let g = builder.addGlobal(kWasmExnRef);
+  let g = builder.addGlobal(kWasmExnRef, false, false);
   builder.addFunction('push_and_return_exnref', kSig_e_v)
       .addBody([kExprGlobalGet, g.index])
       .exportFunc();

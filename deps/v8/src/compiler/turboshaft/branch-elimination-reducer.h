@@ -194,10 +194,9 @@ class BranchEliminationReducer : public Next {
   // that's the case, then we copy the destination block, and the 1st
   // optimization will replace its final Branch by a Goto when reaching it.
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
-#if defined(__clang__)
-  static_assert(reducer_list_contains<ReducerList, VariableReducer>::value);
-#endif
+  TURBOSHAFT_REDUCER_BOILERPLATE(BranchElimination)
+  // TODO(dmercadier): Add static_assert that this is ran as part of a
+  // CopyingPhase.
 
   void Bind(Block* new_block) {
     Next::Bind(new_block);
@@ -304,15 +303,25 @@ class BranchEliminationReducer : public Next {
       goto no_change;
     }
 
-    if (destination_origin->PredecessorCount() == 1) {
-      // This block has a single successor and `destination_origin` has a single
-      // predecessor. We can merge these blocks (optimization 5).
-      __ CloneAndInlineBlock(destination_origin);
-      return OpIndex::Invalid();
-    }
+    // Maximum size up to which we allow cloning a block. Cloning too large
+    // blocks will lead to increasing the size of the graph too much, which will
+    // lead to slower compile time, and larger generated code.
+    // TODO(dmercadier): we might want to exclude Phis from this, since they are
+    // typically removed when we clone a block. However, computing the number of
+    // operations in a block excluding Phis is more costly (because we'd have to
+    // iterate all of the operations one by one).
+    // TODO(dmercadier): this "13" was selected fairly arbitrarily (= it sounded
+    // reasonable). It could be useful to run a few benchmarks to see if we can
+    // find a more optimal number.
+    static constexpr int kMaxOpCountForCloning = 13;
 
     const Operation& last_op =
         destination_origin->LastOperation(__ input_graph());
+
+    if (destination_origin->OpCountUpperBound() > kMaxOpCountForCloning) {
+      goto no_change;
+    }
+
     if (const BranchOp* branch = last_op.template TryCast<BranchOp>()) {
       OpIndex condition = __ template MapToNewGraph<true>(branch->condition());
       if (condition.valid()) {
@@ -327,7 +336,7 @@ class BranchEliminationReducer : public Next {
         // condition is already known. As per the 2nd optimization, we'll
         // process {new_dst} right away, and we'll end it with a Goto instead of
         // its current Branch.
-        __ CloneAndInlineBlock(destination_origin);
+        __ CloneBlockAndGoto(destination_origin);
         return OpIndex::Invalid();
       } else {
         // Optimization 2bis:
@@ -339,14 +348,14 @@ class BranchEliminationReducer : public Next {
           if (const PhiOp* cond = __ input_graph()
                                       .Get(branch->condition())
                                       .template TryCast<PhiOp>()) {
-            __ CloneAndInlineBlock(destination_origin);
+            __ CloneBlockAndGoto(destination_origin);
             return OpIndex::Invalid();
           } else if (CanBeConstantFolded(branch->condition(),
                                          destination_origin)) {
             // If the {cond} only uses constant Phis that come from the current
             // block, it's probably worth it to clone the block in order to
             // constant-fold away the Branch.
-            __ CloneAndInlineBlock(destination_origin);
+            __ CloneBlockAndGoto(destination_origin);
             return OpIndex::Invalid();
           } else {
             goto no_change;
@@ -358,9 +367,6 @@ class BranchEliminationReducer : public Next {
       // The destination block in the old graph ends with a Return
       // and the old destination is a merge block, so we can directly
       // inline the destination block in place of the Goto.
-      // TODO(nicohartmann@): Temporarily disable this "optimization" because
-      // it prevents dead code elimination in some cases. Reevaluate this and
-      // reenable if phases have been reordered properly.
       Asm().CloneAndInlineBlock(destination_origin);
       return OpIndex::Invalid();
     }
@@ -393,8 +399,8 @@ class BranchEliminationReducer : public Next {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  OpIndex REDUCE(TrapIf)(OpIndex condition, OpIndex frame_state, bool negated,
-                         const TrapId trap_id) {
+  OpIndex REDUCE(TrapIf)(OpIndex condition, OptionalOpIndex frame_state,
+                         bool negated, const TrapId trap_id) {
     LABEL_BLOCK(no_change) {
       return Next::ReduceTrapIf(condition, frame_state, negated, trap_id);
     }

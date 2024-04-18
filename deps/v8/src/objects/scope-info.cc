@@ -508,6 +508,7 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
                                  (type == BootstrappingType::kShadowRealm);
   const bool is_script = type == BootstrappingType::kScript;
   const bool is_shadow_realm = type == BootstrappingType::kShadowRealm;
+  const bool has_const_tracking_let_side_data = is_script;
   const int context_local_count =
       is_empty_function || is_native_context ? 0 : 1;
   const bool has_inferred_function_name = is_empty_function;
@@ -547,7 +548,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForBootstrapping(Isolate* isolate,
       IsDebugEvaluateScopeBit::encode(false) |
       ForceContextAllocationBit::encode(false) |
       PrivateNameLookupSkipsOuterClassBit::encode(false) |
-      HasContextExtensionSlotBit::encode(is_native_context) |
+      HasContextExtensionSlotBit::encode(is_native_context ||
+                                         has_const_tracking_let_side_data) |
       IsReplModeScopeBit::encode(false) | HasLocalsBlockListBit::encode(false);
   Tagged<ScopeInfo> raw_scope_info = *scope_info;
   raw_scope_info->set_flags(flags);
@@ -1155,24 +1157,24 @@ std::ostream& operator<<(std::ostream& os, VariableAllocationInfo var_info) {
 template <typename IsolateT>
 Handle<ModuleRequest> ModuleRequest::New(IsolateT* isolate,
                                          Handle<String> specifier,
-                                         Handle<FixedArray> import_assertions,
+                                         Handle<FixedArray> import_attributes,
                                          int position) {
   Handle<ModuleRequest> result = Handle<ModuleRequest>::cast(
       isolate->factory()->NewStruct(MODULE_REQUEST_TYPE, AllocationType::kOld));
   DisallowGarbageCollection no_gc;
   Tagged<ModuleRequest> raw = *result;
   raw->set_specifier(*specifier);
-  raw->set_import_assertions(*import_assertions);
+  raw->set_import_attributes(*import_attributes);
   raw->set_position(position);
   return result;
 }
 
 template Handle<ModuleRequest> ModuleRequest::New(
     Isolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 template Handle<ModuleRequest> ModuleRequest::New(
     LocalIsolate* isolate, Handle<String> specifier,
-    Handle<FixedArray> import_assertions, int position);
+    Handle<FixedArray> import_attributes, int position);
 
 template <typename IsolateT>
 Handle<SourceTextModuleInfoEntry> SourceTextModuleInfoEntry::New(

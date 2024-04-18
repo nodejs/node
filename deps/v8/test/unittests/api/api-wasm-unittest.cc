@@ -62,7 +62,7 @@ void WasmStreamingCallbackTestCallbackIsCalled(
   i::Handle<i::Object> global_handle =
       reinterpret_cast<i::Isolate*>(info.GetIsolate())
           ->global_handles()
-          ->Create(*Utils::OpenHandle(*info.Data()));
+          ->Create(*Utils::OpenDirectHandle(*info.Data()));
   i::GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                              WasmStreamingTestFinalizer,
                              WeakCallbackType::kParameter);
@@ -238,6 +238,26 @@ TEST_F(ApiWasmTest, WasmEnableDisableImportedStrings) {
   EXPECT_FALSE(i_isolate()->IsWasmImportedStringsEnabled(context));
   EXPECT_FALSE(
       i::wasm::WasmFeatures::FromIsolate(i_isolate()).has_imported_strings());
+}
+
+TEST_F(ApiWasmTest, WasmEnableDisableJSPI) {
+  Local<Context> context_local = Context::New(isolate());
+  Context::Scope context_scope(context_local);
+  i::Handle<i::NativeContext> context = v8::Utils::OpenHandle(*context_local);
+  // Test enabling/disabling via flag.
+  {
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, true);
+    EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
+  }
+  {
+    i::FlagScope<bool> flag_strings(&i::v8_flags.experimental_wasm_jspi, false);
+    EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
+  }
+  // Test enabling/disabling via callback.
+  isolate()->SetWasmJSPIEnabledCallback([](auto) { return true; });
+  EXPECT_TRUE(i_isolate()->IsWasmJSPIEnabled(context));
+  isolate()->SetWasmJSPIEnabledCallback([](auto) { return false; });
+  EXPECT_FALSE(i_isolate()->IsWasmJSPIEnabled(context));
 }
 
 }  // namespace v8

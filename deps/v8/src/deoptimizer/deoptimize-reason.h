@@ -13,6 +13,7 @@ namespace internal {
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
   V(ArrayBufferWasDetached, "array buffer was detached")                       \
   V(BigIntTooBig, "BigInt too big")                                            \
+  V(ConstTrackingLet, "const tracking let constness invalidated")              \
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \

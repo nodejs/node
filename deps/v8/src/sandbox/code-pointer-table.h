@@ -75,8 +75,8 @@ struct CodePointerTableEntry {
   friend class CodePointerTable;
 
   // Freelist entries contain the index of the next free entry in their lower 32
-  // bits and this tag in the upper 32 bits.
-  static constexpr Address kFreeEntryTag = 0xffffffffULL << 32;
+  // bits and are tagged with the kFreeCodePointerTableEntryTag.
+  static constexpr Address kFreeEntryTag = kFreeCodePointerTableEntryTag;
 
   // The marking bit is stored in the code_ field, see below.
   static constexpr Address kMarkingBit = 1;

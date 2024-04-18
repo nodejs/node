@@ -81,6 +81,8 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
 
   static void SetAllocationGcInterval(int allocation_gc_interval);
   static void InitializeOncePerProcess();
+
+  int get_allocation_timeout_for_testing() const { return allocation_timeout_; }
 #endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   // Give up all LABs. Used for e.g. full GCs.

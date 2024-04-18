@@ -824,8 +824,7 @@ DEF_GETTER(JSReceiver, HasFastProperties, bool) {
       raw_properties_or_hash(cage_base, kRelaxedLoad);
   DCHECK(IsSmi(raw_properties_or_hash_obj) ||
          ((IsGlobalDictionary(raw_properties_or_hash_obj, cage_base) ||
-           IsNameDictionary(raw_properties_or_hash_obj, cage_base) ||
-           IsSwissNameDictionary(raw_properties_or_hash_obj, cage_base)) ==
+           IsPropertyDictionary(raw_properties_or_hash_obj, cage_base)) ==
           map(cage_base)->is_dictionary_map()));
   USE(raw_properties_or_hash_obj);
   return !map(cage_base)->is_dictionary_map();

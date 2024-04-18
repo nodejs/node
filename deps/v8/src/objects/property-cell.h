@@ -96,6 +96,30 @@ class PropertyCell
 #endif  // DEBUG
 };
 
+class ConstTrackingLetCell
+    : public TorqueGeneratedConstTrackingLetCell<ConstTrackingLetCell,
+                                                 HeapObject> {
+ public:
+  static constexpr Tagged<Smi> kConstMarker = Smi::FromInt(1);
+  static constexpr Tagged<Smi> kNonConstMarker = Smi::FromInt(0);
+
+  static inline bool IsNotConst(Tagged<Object> object);
+
+  // [dependent_code]: code that depends on the constness of the value.
+  DECL_ACCESSORS(dependent_code, Tagged<DependentCode>)
+
+  DECL_PRINTER(ConstTrackingLetCell)
+  DECL_VERIFIER(ConstTrackingLetCell)
+
+  using BodyDescriptor =
+      FixedBodyDescriptor<kDependentCodeOffset, kSize, kSize>;
+
+  TQ_OBJECT_CONSTRUCTORS(ConstTrackingLetCell)
+
+ private:
+  friend class Factory;
+};
+
 }  // namespace internal
 }  // namespace v8
 

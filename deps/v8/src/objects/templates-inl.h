@@ -23,7 +23,9 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(ObjectTemplateInfo)
 TQ_OBJECT_CONSTRUCTORS_IMPL(FunctionTemplateRareData)
+TQ_OBJECT_CONSTRUCTORS_IMPL(DictionaryTemplateInfo)
 
+NEVER_READ_ONLY_SPACE_IMPL(DictionaryTemplateInfo)
 NEVER_READ_ONLY_SPACE_IMPL(ObjectTemplateInfo)
 
 BOOL_ACCESSORS(FunctionTemplateInfo, relaxed_flag, undetectable,

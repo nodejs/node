@@ -197,7 +197,6 @@ struct GraphBuilder {
         UNIMPLEMENTED();
     }
   }
-  V<Word32> BuildUint32Mod(V<Word32> lhs, V<Word32> rhs);
   OpIndex Process(Node* node, BasicBlock* block,
                   const base::SmallVector<int, 16>& predecessor_permutation,
                   OpIndex& dominating_frame_state,
@@ -314,27 +313,6 @@ base::Optional<BailoutReason> GraphBuilder::Run() {
   }
 
   return base::nullopt;
-}
-
-V<Word32> GraphBuilder::BuildUint32Mod(V<Word32> lhs, V<Word32> rhs) {
-  Label<Word32> done(this);
-
-  // Compute the mask for the {rhs}.
-  V<Word32> msk = __ Word32Sub(rhs, 1);
-
-  // Check if the {rhs} is a power of two.
-  IF(__ Word32Equal(__ Word32BitwiseAnd(rhs, msk), 0)) {
-    // The {rhs} is a power of two, just do a fast bit masking.
-    GOTO(done, __ Word32BitwiseAnd(lhs, msk));
-  }
-  ELSE {
-    // The {rhs} is not a power of two, do a generic Uint32Mod.
-    GOTO(done, __ Uint32Mod(lhs, rhs));
-  }
-  END_IF
-
-  BIND(done, result);
-  return result;
 }
 
 OpIndex GraphBuilder::Process(
@@ -862,6 +840,8 @@ OpIndex GraphBuilder::Process(
                                        CharCode)
       CONVERT_PRIMITIVE_TO_OBJECT_CASE(StringFromSingleCodePoint, String,
                                        Word32, CodePoint)
+      CONVERT_PRIMITIVE_TO_OBJECT_CASE(ChangeFloat64HoleToTagged,
+                                       HeapNumberOrUndefined, Float64, Signed)
 
     case IrOpcode::kChangeFloat64ToTagged:
       return __ ConvertUntaggedToJSPrimitive(
@@ -1185,10 +1165,10 @@ OpIndex GraphBuilder::Process(
     case IrOpcode::kLoadParentFramePointer:
       return __ ParentFramePointer();
 
-    case IrOpcode::kStackSlot:
-      return __ StackSlot(StackSlotRepresentationOf(op).size(),
-                          StackSlotRepresentationOf(op).alignment());
-
+    case IrOpcode::kStackSlot: {
+      StackSlotRepresentation rep = StackSlotRepresentationOf(op);
+      return __ StackSlot(rep.size(), rep.alignment(), rep.is_tagged());
+    }
     case IrOpcode::kBranch:
       DCHECK_EQ(block->SuccessorCount(), 2);
       __ Branch(Map(node->InputAt(0)), Map(block->SuccessorAt(0)),
@@ -1425,7 +1405,7 @@ OpIndex GraphBuilder::Process(
 #ifdef V8_ENABLE_SANDBOX
       if (access.is_bounded_size_access) {
         value = __ ShiftLeft(value, kBoundedSizeShift,
-                             WordRepresentation::PointerSized());
+                             WordRepresentation::WordPtr());
       }
 #endif  // V8_ENABLE_SANDBOX
 
@@ -1494,7 +1474,7 @@ OpIndex GraphBuilder::Process(
       if (access.is_bounded_size_access) {
         DCHECK(!is_sandboxed_external);
         value = __ ShiftRightLogical(value, kBoundedSizeShift,
-                                     WordRepresentation::PointerSized());
+                                     WordRepresentation::WordPtr());
       }
 #endif  // V8_ENABLE_SANDBOX
       return value;
@@ -1557,277 +1537,83 @@ OpIndex GraphBuilder::Process(
       return __ LoadFieldByIndex(Map(node->InputAt(0)), Map(node->InputAt(1)));
 
     case IrOpcode::kCheckedInt64Add:
+      DCHECK(Is64());
+      DCHECK(dominating_frame_state.valid());
+      return __ Word64SignedAddDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
+
     case IrOpcode::kCheckedInt64Sub:
       DCHECK(Is64());
-      [[fallthrough]];
-    case IrOpcode::kCheckedInt32Add:
-    case IrOpcode::kCheckedInt32Sub: {
       DCHECK(dominating_frame_state.valid());
-      auto kind = (opcode == IrOpcode::kCheckedInt32Add ||
-                   opcode == IrOpcode::kCheckedInt64Add)
-                      ? OverflowCheckedBinopOp::Kind::kSignedAdd
-                      : OverflowCheckedBinopOp::Kind::kSignedSub;
-      auto rep = (opcode == IrOpcode::kCheckedInt32Add ||
-                  opcode == IrOpcode::kCheckedInt32Sub)
-                     ? WordRepresentation::Word32()
-                     : WordRepresentation::Word64();
+      return __ Word64SignedSubDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      OpIndex result = __ OverflowCheckedBinop(
-          Map(node->InputAt(0)), Map(node->InputAt(1)), kind, rep);
+    case IrOpcode::kCheckedInt32Add:
+      DCHECK(dominating_frame_state.valid());
+      return __ Word32SignedAddDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      V<Word32> overflow =
-          __ Projection(result, 1, RegisterRepresentation::Word32());
-      __ DeoptimizeIf(overflow, dominating_frame_state,
-                      DeoptimizeReason::kOverflow, FeedbackSource{});
-      return __ Projection(result, 0, rep);
-    }
+    case IrOpcode::kCheckedInt32Sub:
+      DCHECK(dominating_frame_state.valid());
+      return __ Word32SignedSubDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
     case IrOpcode::kCheckedInt32Mul: {
       DCHECK(dominating_frame_state.valid());
-      V<Word32> lhs = Map(node->InputAt(0));
-      V<Word32> rhs = Map(node->InputAt(1));
-
       CheckForMinusZeroMode mode = CheckMinusZeroModeOf(node->op());
-      OpIndex result = __ Int32MulCheckOverflow(lhs, rhs);
-      V<Word32> overflow =
-          __ Projection(result, 1, RegisterRepresentation::Word32());
-      __ DeoptimizeIf(overflow, dominating_frame_state,
-                      DeoptimizeReason::kOverflow, FeedbackSource{});
-      V<Word32> value =
-          __ Projection(result, 0, RegisterRepresentation::Word32());
-
-      if (mode == CheckForMinusZeroMode::kCheckForMinusZero) {
-        IF(__ Word32Equal(value, 0)) {
-          __ DeoptimizeIf(__ Int32LessThan(__ Word32BitwiseOr(lhs, rhs), 0),
-                          dominating_frame_state, DeoptimizeReason::kMinusZero,
-                          FeedbackSource{});
-        }
-        END_IF
-      }
-
-      return value;
+      return __ Word32SignedMulDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{}, mode);
     }
 
-    case IrOpcode::kCheckedInt64Mul: {
+    case IrOpcode::kCheckedInt64Mul:
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      OpIndex result = __ Int64MulCheckOverflow(Map(node->InputAt(0)),
-                                                Map(node->InputAt(1)));
+      return __ Word64SignedMulDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      V<Word32> overflow =
-          __ Projection(result, 1, RegisterRepresentation::Word32());
-      __ DeoptimizeIf(overflow, dominating_frame_state,
-                      DeoptimizeReason::kOverflow, FeedbackSource{});
-      return __ Projection(result, 0, RegisterRepresentation::Word64());
-    }
-
-    case IrOpcode::kCheckedInt32Div: {
+    case IrOpcode::kCheckedInt32Div:
       DCHECK(dominating_frame_state.valid());
-      V<Word32> lhs = Map(node->InputAt(0));
-      V<Word32> rhs = Map(node->InputAt(1));
+      return __ Word32SignedDivDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      // Check if the {rhs} is a known power of two.
-      Int32Matcher m(node->InputAt(1));
-      if (m.IsPowerOf2()) {
-        // Since we know that {rhs} is a power of two, we can perform a fast
-        // check to see if the relevant least significant bits of the {lhs}
-        // are all zero, and if so we know that we can perform a division
-        // safely (and fast by doing an arithmetic - aka sign preserving -
-        // right shift on {lhs}).
-        int32_t divisor = m.ResolvedValue();
-        V<Word32> check =
-            __ Word32Equal(__ Word32BitwiseAnd(lhs, divisor - 1), 0);
-        __ DeoptimizeIfNot(check, dominating_frame_state,
-                           DeoptimizeReason::kLostPrecision, FeedbackSource{});
-        return __ Word32ShiftRightArithmeticShiftOutZeros(
-            lhs, base::bits::WhichPowerOfTwo(divisor));
-      } else {
-        Label<Word32> done(this);
-
-        // Check if {rhs} is positive (and not zero).
-        IF(__ Int32LessThan(0, rhs)) { GOTO(done, __ Int32Div(lhs, rhs)); }
-        ELSE {
-          // Check if {rhs} is zero.
-          __ DeoptimizeIf(__ Word32Equal(rhs, 0), dominating_frame_state,
-                          DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-
-          // Check if {lhs} is zero, as that would produce minus zero.
-          __ DeoptimizeIf(__ Word32Equal(lhs, 0), dominating_frame_state,
-                          DeoptimizeReason::kMinusZero, FeedbackSource{});
-
-          // Check if {lhs} is kMinInt and {rhs} is -1, in which case we'd have
-          // to return -kMinInt, which is not representable as Word32.
-          IF(UNLIKELY(__ Word32Equal(lhs, kMinInt))) {
-            __ DeoptimizeIf(__ Word32Equal(rhs, -1), dominating_frame_state,
-                            DeoptimizeReason::kOverflow, FeedbackSource{});
-          }
-          END_IF
-
-          GOTO(done, __ Int32Div(lhs, rhs));
-        }
-        END_IF
-
-        BIND(done, value);
-        V<Word32> lossless = __ Word32Equal(lhs, __ Word32Mul(value, rhs));
-        __ DeoptimizeIfNot(lossless, dominating_frame_state,
-                           DeoptimizeReason::kLostPrecision, FeedbackSource{});
-        return value;
-      }
-    }
-
-    case IrOpcode::kCheckedInt64Div: {
+    case IrOpcode::kCheckedInt64Div:
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      V<Word64> lhs = Map(node->InputAt(0));
-      V<Word64> rhs = Map(node->InputAt(1));
+      return __ Word64SignedDivDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      __ DeoptimizeIf(__ Word64Equal(rhs, 0), dominating_frame_state,
-                      DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-      // Check if {lhs} is kMinInt64 and {rhs} is -1, in which case we'd have
-      // to return -kMinInt64, which is not representable as Word64.
-      IF(UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min()))) {
-        __ DeoptimizeIf(__ Word64Equal(rhs, int64_t{-1}),
-                        dominating_frame_state, DeoptimizeReason::kOverflow,
-                        FeedbackSource{});
-      }
-      END_IF
-
-      return __ Int64Div(lhs, rhs);
-    }
-
-    case IrOpcode::kCheckedUint32Div: {
+    case IrOpcode::kCheckedUint32Div:
       DCHECK(dominating_frame_state.valid());
-      V<Word32> lhs = Map(node->InputAt(0));
-      V<Word32> rhs = Map(node->InputAt(1));
+      return __ Word32UnsignedDivDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      // Check if the {rhs} is a known power of two.
-      Uint32Matcher m(node->InputAt(1));
-      if (m.IsPowerOf2()) {
-        // Since we know that {rhs} is a power of two, we can perform a fast
-        // check to see if the relevant least significant bits of the {lhs}
-        // are all zero, and if so we know that we can perform a division
-        // safely (and fast by doing a logical - aka zero extending - right
-        // shift on {lhs}).
-        uint32_t divisor = m.ResolvedValue();
-        V<Word32> check =
-            __ Word32Equal(__ Word32BitwiseAnd(lhs, divisor - 1), 0);
-        __ DeoptimizeIfNot(check, dominating_frame_state,
-                           DeoptimizeReason::kLostPrecision, FeedbackSource{});
-        return __ Word32ShiftRightLogical(lhs,
-                                          base::bits::WhichPowerOfTwo(divisor));
-      } else {
-        // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-        __ DeoptimizeIf(__ Word32Equal(rhs, 0), dominating_frame_state,
-                        DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-
-        // Perform the actual unsigned integer division.
-        V<Word32> value = __ Uint32Div(lhs, rhs);
-
-        // Check if the remainder is non-zero.
-        V<Word32> lossless = __ Word32Equal(lhs, __ Word32Mul(rhs, value));
-        __ DeoptimizeIfNot(lossless, dominating_frame_state,
-                           DeoptimizeReason::kLostPrecision, FeedbackSource{});
-        return value;
-      }
-    }
-
-    case IrOpcode::kCheckedInt32Mod: {
+    case IrOpcode::kCheckedInt32Mod:
       DCHECK(dominating_frame_state.valid());
-      // General case for signed integer modulus, with optimization for
-      // (unknown) power of 2 right hand side.
-      //
-      //   if rhs <= 0 then
-      //     rhs = -rhs
-      //     deopt if rhs == 0
-      //   if lhs < 0 then
-      //     let lhs_abs = -lhs in
-      //     let res = lhs_abs % rhs in
-      //     deopt if res == 0
-      //     -res
-      //   else
-      //     let msk = rhs - 1 in
-      //     if rhs & msk == 0 then
-      //       lhs & msk
-      //     else
-      //       lhs % rhs
-      //
-      V<Word32> lhs = Map(node->InputAt(0));
-      V<Word32> rhs = Map(node->InputAt(1));
+      return __ Word32SignedModDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      Label<Word32> rhs_checked(this);
-      Label<Word32> done(this);
-
-      // Check if {rhs} is not strictly positive.
-      IF(__ Int32LessThanOrEqual(rhs, 0)) {
-        // Negate {rhs}, might still produce a negative result in case of
-        // -2^31, but that is handled safely below.
-        V<Word32> temp = __ Word32Sub(0, rhs);
-
-        // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-        __ DeoptimizeIfNot(temp, dominating_frame_state,
-                           DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-        GOTO(rhs_checked, temp);
-      }
-      ELSE { GOTO(rhs_checked, rhs); }
-      END_IF
-
-      BIND(rhs_checked, rhs_value);
-
-      IF(__ Int32LessThan(lhs, 0)) {
-        // The {lhs} is a negative integer. This is very unlikely and
-        // we intentionally don't use the BuildUint32Mod() here, which
-        // would try to figure out whether {rhs} is a power of two,
-        // since this is intended to be a slow-path.
-        V<Word32> temp = __ Uint32Mod(__ Word32Sub(0, lhs), rhs_value);
-
-        // Check if we would have to return -0.
-        __ DeoptimizeIf(__ Word32Equal(temp, 0), dominating_frame_state,
-                        DeoptimizeReason::kMinusZero, FeedbackSource{});
-        GOTO(done, __ Word32Sub(0, temp));
-      }
-      ELSE {
-        // The {lhs} is a non-negative integer.
-        GOTO(done, BuildUint32Mod(lhs, rhs_value));
-      }
-      END_IF
-
-      BIND(done, result);
-      return result;
-    }
-
-    case IrOpcode::kCheckedInt64Mod: {
+    case IrOpcode::kCheckedInt64Mod:
       DCHECK(Is64());
       DCHECK(dominating_frame_state.valid());
-      V<Word64> lhs = Map(node->InputAt(0));
-      V<Word64> rhs = Map(node->InputAt(1));
+      return __ Word64SignedModDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
-      __ DeoptimizeIf(__ Word64Equal(rhs, 0), dominating_frame_state,
-                      DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-
-      // While the mod-result cannot overflow, the underlying instruction is
-      // `idiv` and will trap when the accompanying div-result overflows.
-      IF(UNLIKELY(__ Word64Equal(lhs, std::numeric_limits<int64_t>::min()))) {
-        __ DeoptimizeIf(__ Word64Equal(rhs, int64_t{-1}),
-                        dominating_frame_state, DeoptimizeReason::kOverflow,
-                        FeedbackSource{});
-      }
-      END_IF
-
-      return __ Int64Mod(lhs, rhs);
-    }
-
-    case IrOpcode::kCheckedUint32Mod: {
+    case IrOpcode::kCheckedUint32Mod:
       DCHECK(dominating_frame_state.valid());
-      V<Word32> lhs = Map(node->InputAt(0));
-      V<Word32> rhs = Map(node->InputAt(1));
-
-      // Ensure that {rhs} is not zero, otherwise we'd have to return NaN.
-      __ DeoptimizeIf(__ Word32Equal(rhs, 0), dominating_frame_state,
-                      DeoptimizeReason::kDivisionByZero, FeedbackSource{});
-
-      // Perform the actual unsigned integer modulus.
-      return BuildUint32Mod(lhs, rhs);
-    }
+      return __ Word32UnsignedModDeoptOnOverflow(
+          Map(node->InputAt(0)), Map(node->InputAt(1)), dominating_frame_state,
+          FeedbackSource{});
 
 #define BIGINT_BINOP_CASE(op, kind)                                     \
   case IrOpcode::kBigInt##op:                                           \
@@ -2239,11 +2025,10 @@ OpIndex GraphBuilder::Process(
     }
 
     case IrOpcode::kBitcastTaggedToWordForTagAndSmiBits:
-      // TODO(nicohartmann@): We might want a dedicated operation/kind for that
-      // as well.
+      // Currently this is only used by the CSA pipeline.
       DCHECK_EQ(PipelineData::Get().pipeline_kind(),
                 TurboshaftPipelineKind::kCSA);
-      return __ BitcastTaggedToWordPtr(Map(node->InputAt(0)));
+      return __ BitcastTaggedToWordPtrForTagAndSmiBits(Map(node->InputAt(0)));
     case IrOpcode::kBitcastWordToTaggedSigned:
       return __ BitcastWordPtrToSmi(Map(node->InputAt(0)));
 
@@ -2253,7 +2038,7 @@ OpIndex GraphBuilder::Process(
       OpIndex offset = Map(node->InputAt(1));
       const AtomicLoadParameters& p = AtomicLoadParametersOf(node->op());
       DCHECK_EQ(__ output_graph().Get(base).outputs_rep()[0],
-                RegisterRepresentation::PointerSized());
+                RegisterRepresentation::WordPtr());
       LoadOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:
@@ -2280,7 +2065,7 @@ OpIndex GraphBuilder::Process(
       OpIndex value = Map(node->InputAt(2));
       const AtomicStoreParameters& p = AtomicStoreParametersOf(node->op());
       DCHECK_EQ(__ output_graph().Get(base).outputs_rep()[0],
-                RegisterRepresentation::PointerSized());
+                RegisterRepresentation::WordPtr());
       StoreOp::Kind kind;
       switch (p.kind()) {
         case MemoryAccessKind::kNormal:

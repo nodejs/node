@@ -229,7 +229,7 @@
     ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
 
   # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
-  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [ppc64, s390x, riscv32]', SKIP]],
+  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [s390x, riscv32]', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -596,6 +596,12 @@
 
   # Needs 64-bit number register support
   'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
+
+  # Temporary disabling Turboshaft's from-Maglev graph building on IA32 until
+  # functions calls are handled (required as fallback for some Float64
+  # instructions)
+  # TODO(dmercadier): re-enable.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################
@@ -911,6 +917,9 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-779407': [SKIP],
+
+  # Maglev is not supported on MIPS64 yet.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -920,6 +929,8 @@
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
 
+  # Maglev is not supported on loong64 yet.
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -964,6 +975,8 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
+  # Disabling Turboshaft's from-Maglev graph building until support maglev
+  'turboshaft/turboshaft-maglev-frontend': [SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
 
 ['variant == stress and (arch == riscv64 or arch == riscv32)', {
@@ -1648,9 +1661,11 @@
 ##############################################################################
 ['no_simd_hardware == True', {
   'wasm/exceptions-simd': [SKIP],
+  'wasm/js-to-js': [SKIP],
   'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
+  'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/simd-*': [SKIP],
   'wasm/turboshaft/array-new-unreachable': [SKIP],
   'regress/wasm/regress-9447': [SKIP],
@@ -1932,7 +1947,8 @@
   'compiler/regress-1125145': [SKIP],
   'compiler/regress-crbug-1399627': [SKIP],
   'json2': [SKIP],
-  'es6/typedarray-of': [PASS, SLOW],
+  'es6/typedarray-of': [SKIP],
+  'compiler/osr-block-scope': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],

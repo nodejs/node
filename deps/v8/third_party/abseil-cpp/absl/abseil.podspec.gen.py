@@ -30,6 +30,9 @@ Pod::Spec.new do |s|
     :git => 'https://github.com/abseil/abseil-cpp.git',
     :tag => '${tag}',
   }
+  s.resource_bundles = {
+    s.module_name => 'PrivacyInfo.xcprivacy',
+  }
   s.module_name = 'absl'
   s.header_mappings_dir = 'absl'
   s.header_dir = 'absl'

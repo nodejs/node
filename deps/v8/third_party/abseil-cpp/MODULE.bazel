@@ -20,6 +20,9 @@ module(
     compatibility_level = 1,
 )
 
+cc_configure = use_extension("@bazel_tools//tools/cpp:cc_configure.bzl", "cc_configure_extension")
+use_repo(cc_configure, "local_config_cc")
+
 # Only direct dependencies need to be listed below.
 # Please keep the versions in sync with the versions in the WORKSPACE file.
 

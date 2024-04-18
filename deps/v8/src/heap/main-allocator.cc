@@ -4,6 +4,7 @@
 
 #include "src/heap/main-allocator.h"
 
+#include "src/base/logging.h"
 #include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/execution/vm-state-inl.h"
@@ -577,14 +578,27 @@ bool PagedNewSpaceAllocatorPolicy::WaitForSweepingForAllocation(
       static_cast<size_t>(size_in_bytes), origin);
 }
 
+namespace {
+bool IsPagedNewSpaceAtFullCapacity(const PagedNewSpace* space) {
+  const auto* paged_space = space->paged_space();
+  if ((paged_space->UsableCapacity() < paged_space->TotalCapacity()) &&
+      (paged_space->TotalCapacity() - paged_space->UsableCapacity() >=
+       Page::kPageSize)) {
+    // Adding another page would exceed the target capacity of the space.
+    return false;
+  }
+  return true;
+}
+}  // namespace
+
 bool PagedNewSpaceAllocatorPolicy::TryAllocatePage(int size_in_bytes,
                                                    AllocationOrigin origin) {
-  if (space_->paged_space()->TryAllocatePage()) {
-    return paged_space_allocator_policy_->TryAllocationFromFreeList(
-        size_in_bytes, origin);
-  }
-
-  return false;
+  if (IsPagedNewSpaceAtFullCapacity(space_) &&
+      !space_->heap()->ShouldExpandYoungGenerationOnSlowAllocation())
+    return false;
+  if (!space_->paged_space()->AllocatePage()) return false;
+  return paged_space_allocator_policy_->TryAllocationFromFreeList(size_in_bytes,
+                                                                  origin);
 }
 
 void PagedNewSpaceAllocatorPolicy::FreeLinearAllocationArea() {
@@ -644,10 +658,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
     }
 
     static constexpr int kMaxPagesToSweep = 1;
-    ContributeToSweeping(kMaxPagesToSweep);
-
-    if (TryAllocationFromFreeList(size_in_bytes, origin)) {
-      return true;
+    if (ContributeToSweeping(kMaxPagesToSweep)) {
+      if (TryAllocationFromFreeList(size_in_bytes, origin)) {
+        return true;
+      }
     }
   }
 
@@ -675,9 +689,10 @@ bool PagedSpaceAllocatorPolicy::RefillLab(int size_in_bytes,
   }
 
   // Try sweeping all pages.
-  ContributeToSweeping(0);
-  if (TryAllocationFromFreeList(size_in_bytes, origin)) {
-    return true;
+  if (ContributeToSweeping()) {
+    if (TryAllocationFromFreeList(size_in_bytes, origin)) {
+      return true;
+    }
   }
 
   if (allocator_->identity() != NEW_SPACE && allocator_->in_gc() &&
@@ -703,11 +718,11 @@ bool PagedSpaceAllocatorPolicy::TryExpandAndAllocate(size_t size_in_bytes,
   return false;
 }
 
-void PagedSpaceAllocatorPolicy::ContributeToSweeping(int max_pages) {
+bool PagedSpaceAllocatorPolicy::ContributeToSweeping(uint32_t max_pages) {
   if (!space_heap()->sweeping_in_progress_for_space(allocator_->identity()))
-    return;
+    return false;
   if (space_heap()->sweeper()->IsSweepingDoneForSpace(allocator_->identity()))
-    return;
+    return false;
 
   const bool is_main_thread =
       allocator_->is_main_thread() ||
@@ -727,9 +742,12 @@ void PagedSpaceAllocatorPolicy::ContributeToSweeping(int max_pages) {
       allocator_->in_gc_for_space() ? Sweeper::SweepingMode::kEagerDuringGC
                                     : Sweeper::SweepingMode::kLazyOrConcurrent;
 
-  space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
-                                              sweeping_mode, max_pages);
+  if (!space_heap()->sweeper()->ParallelSweepSpace(allocator_->identity(),
+                                                   sweeping_mode, max_pages)) {
+    return false;
+  }
   space_->RefillFreeList();
+  return true;
 }
 
 void PagedSpaceAllocatorPolicy::SetLinearAllocationArea(Address top,
@@ -759,11 +777,6 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   DCHECK_LT(static_cast<size_t>(allocator_->limit() - allocator_->top()),
             size_in_bytes);
 
-  // Mark the old linear allocation area with a free space map so it can be
-  // skipped when scanning the heap.  This also puts it back in the free list
-  // if it is big enough.
-  FreeLinearAllocationAreaUnsynchronized();
-
   size_t new_node_size = 0;
   Tagged<FreeSpace> new_node =
       space_->free_list_->Allocate(size_in_bytes, &new_node_size, origin);
@@ -774,6 +787,11 @@ bool PagedSpaceAllocatorPolicy::TryAllocationFromFreeList(
   // Verify that it did not turn the page of the new node into an evacuation
   // candidate.
   DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
+
+  // Mark the old linear allocation area with a free space map so it can be
+  // skipped when scanning the heap.  This also puts it back in the free list
+  // if it is big enough.
+  FreeLinearAllocationAreaUnsynchronized();
 
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.

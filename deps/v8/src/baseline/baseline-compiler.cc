@@ -422,6 +422,9 @@ Tagged<Smi> BaselineCompiler::IndexAsSmi(int operand_index) {
 Tagged<Smi> BaselineCompiler::IntAsSmi(int operand_index) {
   return Smi::FromInt(Int(operand_index));
 }
+Tagged<Smi> BaselineCompiler::UintAsSmi(int operand_index) {
+  return Smi::FromInt(Uint(operand_index));
+}
 Tagged<Smi> BaselineCompiler::Flag8AsSmi(int operand_index) {
   return Smi::FromInt(Flag8(operand_index));
 }
@@ -647,6 +650,8 @@ constexpr static bool BuiltinMayDeopt(Builtin id) {
     case Builtin::kBaselineOutOfLinePrologue:
     case Builtin::kIncBlockCounter:
     case Builtin::kToObject:
+    case Builtin::kStoreScriptContextSlotBaseline:
+    case Builtin::kStoreCurrentScriptContextSlotBaseline:
     // This one explicitly skips the construct if the debugger is enabled.
     case Builtin::kFindNonDefaultConstructorOrConstruct:
       return false;
@@ -810,6 +815,30 @@ void BaselineCompiler::VisitStaCurrentContextSlot() {
   __ LoadContext(context);
   __ StoreTaggedFieldWithWriteBarrier(
       context, Context::OffsetOfElementAt(Index(0)), value);
+}
+
+void BaselineCompiler::VisitStaScriptContextSlot() {
+  Register value = WriteBarrierDescriptor::ValueRegister();
+  Register context = WriteBarrierDescriptor::ObjectRegister();
+  DCHECK(!AreAliased(value, context, kInterpreterAccumulatorRegister));
+  __ Move(value, kInterpreterAccumulatorRegister);
+  LoadRegister(context, 0);
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
+  CallBuiltin<Builtin::kStoreScriptContextSlotBaseline>(
+      context,           // context
+      value,             // value
+      IndexAsSmi(1),     // slot
+      UintAsTagged(2));  // depth
+}
+
+void BaselineCompiler::VisitStaCurrentScriptContextSlot() {
+  Register value = WriteBarrierDescriptor::ValueRegister();
+  DCHECK(!AreAliased(value, kInterpreterAccumulatorRegister));
+  SaveAccumulatorScope accumulator_scope(this, &basm_);
+  __ Move(value, kInterpreterAccumulatorRegister);
+  CallBuiltin<Builtin::kStoreCurrentScriptContextSlotBaseline>(
+      value,           // value
+      IndexAsSmi(0));  // slot
 }
 
 void BaselineCompiler::VisitLdaLookupSlot() {

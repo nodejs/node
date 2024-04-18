@@ -272,7 +272,7 @@ class RandomAccessStackDominatorNode
 // iteration order is reversed.
 class PredecessorIterator {
  public:
-  explicit PredecessorIterator(Block* block) : current_(block) {}
+  explicit PredecessorIterator(const Block* block) : current_(block) {}
 
   PredecessorIterator& operator++();
   constexpr bool operator==(const PredecessorIterator& other) const {
@@ -282,22 +282,22 @@ class PredecessorIterator {
     return !(*this == other);
   }
 
-  Block* operator*() const { return current_; }
+  const Block* operator*() const { return current_; }
 
  private:
-  Block* current_;
+  const Block* current_;
 };
 
 // An iterable wrapper for the predecessors of a block.
 class NeighboringPredecessorIterable {
  public:
-  explicit NeighboringPredecessorIterable(Block* begin) : begin_(begin) {}
+  explicit NeighboringPredecessorIterable(const Block* begin) : begin_(begin) {}
 
   PredecessorIterator begin() const { return PredecessorIterator(begin_); }
   PredecessorIterator end() const { return PredecessorIterator(nullptr); }
 
  private:
-  Block* begin_;
+  const Block* begin_;
 };
 
 // A basic block
@@ -415,6 +415,12 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     return end_;
   }
 
+  // Returns an approximation of the number of operations contained in this
+  // block, by counting how many slots it contains. Depending on the size of the
+  // operations it contains, this could be exactly how many operations it
+  // contains, or it could be less.
+  int OpCountUpperBound() const { return end().id() - begin().id(); }
+
   const Operation& FirstOperation(const Graph& graph) const;
   const Operation& LastOperation(const Graph& graph) const;
 
@@ -434,7 +440,7 @@ class Block : public RandomAccessStackDominatorNode<Block> {
 
   bool HasBackedge(const Graph& graph) const {
     if (const GotoOp* gto = LastOperation(graph).TryCast<GotoOp>()) {
-      return gto->destination->index().id() < index().id();
+      return gto->destination->index().id() <= index().id();
     }
     return false;
   }
@@ -502,9 +508,6 @@ class Block : public RandomAccessStackDominatorNode<Block> {
     predecessor_count_++;
   }
 
-  friend class Graph;
-  template <class Reducers>
-  friend class Assembler;
 
   Kind kind_;
   OpIndex begin_ = OpIndex::Invalid();
@@ -526,6 +529,9 @@ class Block : public RandomAccessStackDominatorNode<Block> {
   bool has_peeled_iteration_ = false;
 #endif
 
+  friend class Graph;
+  template <class Reducers>
+  friend class Assembler;
   template <class Assembler>
   friend class GraphVisitor;
 };
@@ -546,6 +552,7 @@ class Graph {
       : operations_(graph_zone, initial_capacity),
         bound_blocks_(graph_zone),
         all_blocks_(),
+        op_to_block_(graph_zone, this),
         block_permutation_(graph_zone),
         graph_zone_(graph_zone),
         source_positions_(graph_zone, this),
@@ -565,6 +572,7 @@ class Graph {
     // No need to explicitly reset `all_blocks_`, since we will placement-new
     // new blocks into it, reusing the already allocated backing storage.
     next_block_ = 0;
+    op_to_block_.Reset();
     block_permutation_.clear();
     source_positions_.Reset();
     operation_origins_.Reset();
@@ -637,6 +645,14 @@ class Graph {
     return (*it)->index();
   }
 
+  void SetBlockOf(BlockIndex block, OpIndex op) { op_to_block_[op] = block; }
+
+  BlockIndex BlockIndexOf(OpIndex op) const { return op_to_block_[op]; }
+
+  BlockIndex BlockIndexOf(const Operation& op) const {
+    return op_to_block_[Index(op)];
+  }
+
   OpIndex NextIndex(const OpIndex idx) const {
     OpIndex next = operations_.Next(idx);
 #ifdef DEBUG
@@ -650,6 +666,9 @@ class Graph {
     prev.set_generation_mod2(generation_mod2());
 #endif
     return prev;
+  }
+  OpIndex LastOperation() const {
+    return PreviousIndex(next_operation_index());
   }
 
   OperationStorageSlot* Allocate(size_t slot_count) {
@@ -760,6 +779,10 @@ class Graph {
   void Finalize(Block* block) {
     DCHECK(!block->end_.valid());
     block->end_ = next_operation_index();
+    // Upading mapping from Operations to Blocks for the Operations in {block}.
+    for (const Operation& op : operations(*block)) {
+      SetBlockOf(block->index(), Index(op));
+    }
   }
 
   void TurnLoopIntoMerge(Block* loop) {
@@ -779,6 +802,8 @@ class Graph {
   BlockIndex next_block_index() const {
     return BlockIndex(static_cast<uint32_t>(bound_blocks_.size()));
   }
+
+  Block* last_block() { return bound_blocks_.back(); }
 
   Zone* graph_zone() const { return graph_zone_; }
   uint32_t block_count() const {
@@ -1007,6 +1032,7 @@ class Graph {
     std::swap(next_block_, companion.next_block_);
     std::swap(block_permutation_, companion.block_permutation_);
     std::swap(graph_zone_, companion.graph_zone_);
+    op_to_block_.SwapData(companion.op_to_block_);
     source_positions_.SwapData(companion.source_positions_);
     operation_origins_.SwapData(companion.operation_origins_);
     operation_types_.SwapData(companion.operation_types_);
@@ -1088,6 +1114,7 @@ class Graph {
   // are only properly value-initialized up to index `next_block_`.
   base::Vector<Block*> all_blocks_;
   size_t next_block_ = 0;
+  GrowingOpIndexSidetable<BlockIndex> op_to_block_;
   // When `ReorderBlocks` is called, `block_permutation_` contains the original
   // order of blocks in order to provide a proper OpIndex->Block mapping for
   // `BlockOf`. In non-reordered graphs, this vector is empty.

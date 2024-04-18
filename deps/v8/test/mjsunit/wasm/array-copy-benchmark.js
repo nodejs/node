@@ -26,8 +26,8 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   // Also try wasmRefNullType(struct_index), other numeric types.
   let array_type = kWasmI32;
   var array_index = builder.addArray(array_type, true);
-  var from = builder.addGlobal(wasmRefNullType(array_index), true);
-  var to = builder.addGlobal(wasmRefNullType(array_index), true);
+  var from = builder.addGlobal(wasmRefNullType(array_index), true, false);
+  var to = builder.addGlobal(wasmRefNullType(array_index), true, false);
 
   builder.addFunction("init", kSig_v_v)
     .addBody([

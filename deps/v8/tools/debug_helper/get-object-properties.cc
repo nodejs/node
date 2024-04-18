@@ -374,7 +374,7 @@ class ReadStringVisitor : public TqObjectVisitor {
       Address memory_chunk =
           BasicMemoryChunk::BaseAddress(object->GetMapAddress());
       Address heap = GetOrFinish(
-          ReadValue<Address>(memory_chunk + BasicMemoryChunk::kHeapOffset));
+          ReadValue<Address>(memory_chunk + MemoryChunkLayout::kHeapOffset));
       Isolate* isolate = Isolate::FromHeap(reinterpret_cast<Heap*>(heap));
       Address external_pointer_table_address_address =
           isolate->shared_external_pointer_table_address_address();

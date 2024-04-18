@@ -39,6 +39,11 @@ class FakeGarbageCollector : public GarbageCollector {
   const EmbedderStackState* override_stack_state() const override {
     return nullptr;
   }
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() override {
+    return v8::base::nullopt;
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   StatsCollector* stats_collector_;
@@ -53,6 +58,9 @@ class MockGarbageCollector : public GarbageCollector {
   MOCK_METHOD(size_t, epoch, (), (const, override));
   MOCK_METHOD(const EmbedderStackState*, override_stack_state, (),
               (const, override));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  MOCK_METHOD(v8::base::Optional<int>, UpdateAllocationTimeout, (), (override));
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 void FakeAllocate(StatsCollector* stats_collector, size_t bytes) {

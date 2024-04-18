@@ -456,8 +456,9 @@ class Object : public AllStatic {
     }
   };
 
-  // For use with std::unordered_set/unordered_map when using both
-  // InstructionStream and non-InstructionStream objects as keys.
+  // For use with std::unordered_set/unordered_map when one of the objects may
+  // be located outside the main pointer compression cage, for example in
+  // trusted space. In this case, we must use full pointer comparison.
   struct KeyEqualSafe {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a.SafeEquals(b);
@@ -473,7 +474,7 @@ class Object : public AllStatic {
 
   // Same as above, but can be used when one of the objects may be located
   // outside of the main pointer compression cage, for example in trusted
-  // space. In this case, we must not compare just the lower 32 bits.
+  // space. In this case, we must use full pointer comparison.
   struct FullPtrComparer {
     bool operator()(const Tagged<Object> a, const Tagged<Object> b) const {
       return a.ptr() < b.ptr();
@@ -605,6 +606,7 @@ OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 IS_TYPE_FUNCTION_DECL(HashTableBase)
 IS_TYPE_FUNCTION_DECL(SmallOrderedHashTable)
+IS_TYPE_FUNCTION_DECL(PropertyDictionary)
 #undef IS_TYPE_FUNCTION_DECL
 V8_INLINE bool IsNumber(Tagged<Object> obj, ReadOnlyRoots roots);
 

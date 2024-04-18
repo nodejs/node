@@ -23,6 +23,9 @@ class MockGarbageCollector : public GarbageCollector {
   MOCK_METHOD(size_t, epoch, (), (const, override));
   MOCK_METHOD(const EmbedderStackState*, override_stack_state, (),
               (const, override));
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  MOCK_METHOD(v8::base::Optional<int>, UpdateAllocationTimeout, (), (override));
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 };
 
 class MockTaskRunner : public cppgc::TaskRunner {

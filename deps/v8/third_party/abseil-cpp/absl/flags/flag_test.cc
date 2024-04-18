@@ -19,14 +19,13 @@
 #include <stdint.h>
 
 #include <atomic>
-#include <cmath>
-#include <new>
 #include <string>
 #include <thread>  // NOLINT
 #include <vector>
 
 #include "gtest/gtest.h"
 #include "absl/base/attributes.h"
+#include "absl/base/internal/raw_logging.h"
 #include "absl/base/macros.h"
 #include "absl/flags/config.h"
 #include "absl/flags/declare.h"
@@ -40,7 +39,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "absl/types/optional.h"
 
 ABSL_DECLARE_FLAG(int64_t, mistyped_int_flag);
 ABSL_DECLARE_FLAG(std::vector<std::string>, mistyped_string_flag);
@@ -226,9 +227,10 @@ ABSL_DECLARE_FLAG(absl::uint128, test_flag_14);
 
 namespace {
 
-#if !ABSL_FLAGS_STRIP_NAMES
-
 TEST_F(FlagTest, TestFlagDeclaration) {
+#if ABSL_FLAGS_STRIP_NAMES
+  GTEST_SKIP() << "This test requires flag names to be present";
+#endif
   // test that we can access flag objects.
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_01).Name(),
             "test_flag_01");
@@ -259,11 +261,26 @@ TEST_F(FlagTest, TestFlagDeclaration) {
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_14).Name(),
             "test_flag_14");
 }
-#endif  // !ABSL_FLAGS_STRIP_NAMES
-
-// --------------------------------------------------------------------
 
 }  // namespace
+
+#if ABSL_FLAGS_STRIP_NAMES
+// The intent of this helper struct and an expression below is to make sure that
+// in the configuration where ABSL_FLAGS_STRIP_NAMES=1 registrar construction
+// (in cases of of no Tail calls like OnUpdate) is constexpr and thus can and
+// should be completely optimized away, thus avoiding the cost/overhead of
+// static initializers.
+struct VerifyConsteval {
+  friend consteval flags::FlagRegistrarEmpty operator+(
+      flags::FlagRegistrarEmpty, VerifyConsteval) {
+    return {};
+  }
+};
+
+ABSL_FLAG(int, test_registrar_const_init, 0, "") + VerifyConsteval();
+#endif
+
+// --------------------------------------------------------------------
 
 ABSL_FLAG(bool, test_flag_01, true, "test flag 01");
 ABSL_FLAG(int, test_flag_02, 1234, "test flag 02");
@@ -283,8 +300,10 @@ ABSL_FLAG(absl::uint128, test_flag_14, absl::MakeUint128(0, 0xFFFAAABBBCCCDDD),
 
 namespace {
 
-#if !ABSL_FLAGS_STRIP_NAMES
 TEST_F(FlagTest, TestFlagDefinition) {
+#if ABSL_FLAGS_STRIP_NAMES
+  GTEST_SKIP() << "This test requires flag names to be present";
+#endif
   absl::string_view expected_file_name = "absl/flags/flag_test.cc";
 
   EXPECT_EQ(absl::GetFlagReflectionHandle(FLAGS_test_flag_01).Name(),
@@ -413,7 +432,6 @@ TEST_F(FlagTest, TestFlagDefinition) {
       expected_file_name))
       << absl::GetFlagReflectionHandle(FLAGS_test_flag_14).Filename();
 }
-#endif  // !ABSL_FLAGS_STRIP_NAMES
 
 // --------------------------------------------------------------------
 
@@ -604,6 +622,9 @@ TEST_F(FlagTest, TestGetSet) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, TestGetViaReflection) {
+#if ABSL_FLAGS_STRIP_NAMES
+  GTEST_SKIP() << "This test requires flag names to be present";
+#endif
   auto* handle = absl::FindCommandLineFlag("test_flag_01");
   EXPECT_EQ(*handle->TryGet<bool>(), true);
   handle = absl::FindCommandLineFlag("test_flag_02");
@@ -638,6 +659,9 @@ TEST_F(FlagTest, TestGetViaReflection) {
 // --------------------------------------------------------------------
 
 TEST_F(FlagTest, ConcurrentSetAndGet) {
+#if ABSL_FLAGS_STRIP_NAMES
+  GTEST_SKIP() << "This test requires flag names to be present";
+#endif
   static constexpr int kNumThreads = 8;
   // Two arbitrary durations. One thread will concurrently flip the flag
   // between these two values, while the other threads read it and verify
@@ -785,10 +809,12 @@ TEST_F(FlagTest, TestCustomUDT) {
 // MSVC produces link error on the type mismatch.
 // Linux does not have build errors and validations work as expected.
 #if !defined(_WIN32) && GTEST_HAS_DEATH_TEST
-
 using FlagDeathTest = FlagTest;
 
 TEST_F(FlagDeathTest, TestTypeMismatchValidations) {
+#if ABSL_FLAGS_STRIP_NAMES
+  GTEST_SKIP() << "This test requires flag names to be present";
+#endif
 #if !defined(NDEBUG)
   EXPECT_DEATH_IF_SUPPORTED(
       static_cast<void>(absl::GetFlag(FLAGS_mistyped_int_flag)),
@@ -1044,13 +1070,7 @@ TEST_F(FlagTest, MacroWithinAbslFlag) {
 
 // --------------------------------------------------------------------
 
-#if defined(__GNUC__) && !defined(__clang__) && __GNUC__ <= 5
-#define ABSL_SKIP_OPTIONAL_BOOL_TEST_DUE_TO_GCC_BUG
-#endif
-
-#ifndef ABSL_SKIP_OPTIONAL_BOOL_TEST_DUE_TO_GCC_BUG
 ABSL_FLAG(absl::optional<bool>, optional_bool, absl::nullopt, "help");
-#endif
 ABSL_FLAG(absl::optional<int>, optional_int, {}, "help");
 ABSL_FLAG(absl::optional<double>, optional_double, 9.3, "help");
 ABSL_FLAG(absl::optional<std::string>, optional_string, absl::nullopt, "help");
@@ -1064,7 +1084,6 @@ ABSL_FLAG(std::optional<int64_t>, std_optional_int64, std::nullopt, "help");
 
 namespace {
 
-#ifndef ABSL_SKIP_OPTIONAL_BOOL_TEST_DUE_TO_GCC_BUG
 TEST_F(FlagTest, TestOptionalBool) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_bool).has_value());
   EXPECT_EQ(absl::GetFlag(FLAGS_optional_bool), absl::nullopt);
@@ -1083,7 +1102,6 @@ TEST_F(FlagTest, TestOptionalBool) {
 }
 
 // --------------------------------------------------------------------
-#endif
 
 TEST_F(FlagTest, TestOptionalInt) {
   EXPECT_FALSE(absl::GetFlag(FLAGS_optional_int).has_value());

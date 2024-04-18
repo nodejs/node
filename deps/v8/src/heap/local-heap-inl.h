@@ -19,6 +19,11 @@
 namespace v8 {
 namespace internal {
 
+#define ROOT_ACCESSOR(type, name, CamelName) \
+  inline Tagged<type> LocalHeap::name() { return heap()->name(); }
+MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {

@@ -12,7 +12,7 @@
 
 namespace v8::internal::compiler::turboshaft {
 
-class LoopFinder {
+class V8_EXPORT_PRIVATE LoopFinder {
   // This analyzer finds which loop each Block of a graph belongs to, and
   // computes a list of all of the loops headers.
   //
@@ -44,8 +44,8 @@ class LoopFinder {
   //    BlockIndex that is smaller than the one of an inner loop.
  public:
   struct LoopInfo {
-    Block* start = nullptr;
-    Block* end = nullptr;
+    const Block* start = nullptr;
+    const Block* end = nullptr;
     bool has_inner_loops = false;
     size_t block_count = 0;  // Number of blocks in this loop
                              // (excluding inner loops)
@@ -56,7 +56,7 @@ class LoopFinder {
                              // operations are large (like CallOp and
                              // FrameStateOp typically).
   };
-  LoopFinder(Zone* phase_zone, Graph* input_graph)
+  LoopFinder(Zone* phase_zone, const Graph* input_graph)
       : phase_zone_(phase_zone),
         input_graph_(input_graph),
         loop_headers_(input_graph->block_count(), nullptr, phase_zone),
@@ -65,13 +65,13 @@ class LoopFinder {
     Run();
   }
 
-  const ZoneUnorderedMap<Block*, LoopInfo>& LoopHeaders() const {
+  const ZoneUnorderedMap<const Block*, LoopInfo>& LoopHeaders() const {
     return loop_header_info_;
   }
-  Block* GetLoopHeader(Block* block) const {
+  const Block* GetLoopHeader(const Block* block) const {
     return loop_headers_[block->index()];
   }
-  LoopInfo GetLoopInfo(Block* block) const {
+  LoopInfo GetLoopInfo(const Block* block) const {
     DCHECK(block->IsLoop());
     auto it = loop_header_info_.find(block);
     DCHECK_NE(it, loop_header_info_.end());
@@ -79,24 +79,18 @@ class LoopFinder {
   }
 
   struct BlockCmp {
-    bool operator()(Block* a, Block* b) const {
+    bool operator()(const Block* a, const Block* b) const {
       return a->index().id() < b->index().id();
     }
   };
-  ZoneSet<Block*, BlockCmp> GetLoopBody(Block* loop_header);
+  ZoneSet<const Block*, BlockCmp> GetLoopBody(const Block* loop_header);
 
  private:
   void Run();
-  LoopInfo VisitLoop(Block* header);
-
-  // Returns an upper bound on the number of Operations in {block}, which is
-  // used to compute the `op_count` field of `LoopInfo`.
-  int OpCountUpperBound(const Block* block) const {
-    return block->end().id() - block->begin().id();
-  }
+  LoopInfo VisitLoop(const Block* header);
 
   Zone* phase_zone_;
-  Graph* input_graph_;
+  const Graph* input_graph_;
 
   // Map from block to the loop header of the closest enclosing loop. For loop
   // headers, this map contains the enclosing loop header, rather than the
@@ -106,11 +100,11 @@ class LoopFinder {
   //   B3 -> B2
   //   B2 -> B1
   //   B1 -> nullptr (if B1 is an outermost loop)
-  FixedBlockSidetable<Block*> loop_headers_;
+  FixedBlockSidetable<const Block*> loop_headers_;
 
   // Map from Loop headers to the LoopInfo for their loops. Only Loop blocks
   // have entries in this map.
-  ZoneUnorderedMap<Block*, LoopInfo> loop_header_info_;
+  ZoneUnorderedMap<const Block*, LoopInfo> loop_header_info_;
 
   // {queue_} is used in `VisitLoop`, but is declared as a class variable to
   // reuse memory.

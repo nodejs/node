@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/compiler-source-position-table.h"
 #include "src/compiler/js-context-specialization.h"
 #include "src/compiler/js-graph.h"
@@ -29,6 +30,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   explicit ContextSpecializationTester(Maybe<OuterContext> context)
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone()),
+        dependencies_(broker(), main_zone()),
         graph_(main_zone()->New<Graph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
@@ -43,6 +45,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
                               CanonicalHandles&& handles)
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone(), std::move(handles)),
+        dependencies_(broker(), main_zone()),
         graph_(main_zone()->New<Graph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
@@ -71,6 +74,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
                                         size_t expected_new_depth);
 
  private:
+  CompilationDependencies dependencies_;
   TickCounter tick_counter_;
   Graph* graph_;
   CommonOperatorBuilder common_;

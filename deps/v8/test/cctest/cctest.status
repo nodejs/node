@@ -122,7 +122,7 @@
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
-  'test-serialize/StaticRootsPredictableSnapshot': [PASS, HEAVY],
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, SLOW, HEAVY],
   'test-spaces/OldLargeObjectSpace': [PASS, HEAVY],
   'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
@@ -1203,5 +1203,7 @@
   'test-serialize/ContextSerializerCustomContext': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-api/Threading8': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
 }],  # 'clang_coverage and mode == debug'
 ]

@@ -7,6 +7,7 @@
 
 #include "src/handles/traced-handles.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/slots-inl.h"
 
 namespace v8::internal {
 
@@ -90,7 +91,6 @@ FullObjectSlot TracedNode::Publish(Tagged<Object> object,
   DCHECK(!is_weak());
   DCHECK(!markbit());
   DCHECK(!is_droppable());
-  set_class_id(0);
   if (needs_young_bit_update) {
     set_is_in_young_list(true);
   }

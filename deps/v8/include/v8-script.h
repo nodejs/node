@@ -136,19 +136,24 @@ class V8_EXPORT ModuleRequest : public Data {
   int GetSourceOffset() const;
 
   /**
-   * Contains the import assertions for this request in the form:
+   * Contains the import attributes for this request in the form:
    * [key1, value1, source_offset1, key2, value2, source_offset2, ...].
    * The keys and values are of type v8::String, and the source offsets are of
    * type Int32. Use Module::SourceOffsetToLocation to convert the source
    * offsets to Locations with line/column numbers.
    *
-   * All assertions present in the module request will be supplied in this
+   * All attributes present in the module request will be supplied in this
    * list, regardless of whether they are supported by the host. Per
    * https://tc39.es/proposal-import-attributes/#sec-hostgetsupportedimportattributes,
-   * hosts are expected to throw for assertions that they do not support (as
+   * hosts are expected to throw for attributes that they do not support (as
    * opposed to, for example, ignoring them).
    */
-  Local<FixedArray> GetImportAssertions() const;
+  Local<FixedArray> GetImportAttributes() const;
+
+  V8_DEPRECATE_SOON("Use GetImportAttributes instead")
+  Local<FixedArray> GetImportAssertions() const {
+    return GetImportAttributes();
+  }
 
   V8_INLINE static ModuleRequest* Cast(Data* data);
 

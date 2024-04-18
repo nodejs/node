@@ -182,8 +182,8 @@ cc_library(
     deps = [
         ":crc32c",
         "//absl/base:config",
+        "//absl/base:no_destructor",
         "//absl/numeric:bits",
-        "//absl/strings",
     ],
 )
 
@@ -203,7 +203,7 @@ cc_test(
 
 cc_binary(
     name = "crc32c_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["crc32c_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

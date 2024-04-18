@@ -15,9 +15,9 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     kExprLocalGet, 0, kExprI32Const, 1, kExprI32Add
   ]);
   let global0 =
-      builder.addGlobal(kWasmFuncRef, false, [kExprRefFunc, f0.index]);
+      builder.addGlobal(kWasmFuncRef, false, false, [kExprRefFunc, f0.index]);
   let global1 =
-      builder.addGlobal(kWasmFuncRef, false, [kExprRefFunc, f1.index]);
+      builder.addGlobal(kWasmFuncRef, false, false, [kExprRefFunc, f1.index]);
   // At instantiation, table[0] = global0, table[1] = global1.
   builder.addActiveElementSegment(
       table.index, wasmI32Const(0),

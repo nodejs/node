@@ -80,13 +80,13 @@ Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressObject(Address tagged) {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
 template <typename Cage>
 Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressAny(Address tagged) {
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
@@ -197,12 +197,12 @@ Tagged_t ExternalCodeCompressionScheme::CompressObject(Address tagged) {
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
 Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static

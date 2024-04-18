@@ -1145,7 +1145,8 @@ void InstructionSelectorT<Adapter>::VisitTraceInstruction(node_t node) {}
 template <typename Adapter>
 void InstructionSelectorT<Adapter>::VisitStackSlot(node_t node) {
   StackSlotRepresentation rep = this->stack_slot_representation_of(node);
-  int slot = frame_->AllocateSpillSlot(rep.size(), rep.alignment());
+  int slot =
+      frame_->AllocateSpillSlot(rep.size(), rep.alignment(), rep.is_tagged());
   OperandGenerator g(this);
 
   Emit(kArchStackSlot, g.DefineAsRegister(node),
@@ -1876,7 +1877,7 @@ void InstructionSelectorT<Adapter>::VisitProtectedStore(node_t node) {
 }
 
 template <typename Adapter>
-void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(Node* node) {
+void InstructionSelectorT<Adapter>::VisitSimd128ReverseBytes(node_t node) {
   UNREACHABLE();
 }
 
@@ -4418,7 +4419,7 @@ void VisitWord32Compare(InstructionSelectorT<TurboshaftAdapter>* selector,
                         FlagsContinuationT<TurboshaftAdapter>* cont) {
   using namespace turboshaft;  // NOLINT(build/namespaces)
   const Operation& compare = selector->Get(node);
-  DCHECK(compare.Is<ComparisonOp>());
+  DCHECK_GE(compare.input_count, 2);
   OpIndex lhs = compare.input(0);
   OpIndex rhs = compare.input(1);
   FlagsCondition cond = cont->condition();

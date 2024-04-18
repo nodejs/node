@@ -451,7 +451,7 @@ void ReadOnlySpace::Verify(Isolate* isolate,
 
     visitor->VerifyPage(page);
 
-    if (page == Page::FromAllocationAreaAddress(top_)) {
+    if (top_ && page == Page::FromAllocationAreaAddress(top_)) {
       allocation_pointer_found_in_space = true;
     }
     ReadOnlySpaceObjectIterator it(isolate->heap(), this, page);
@@ -751,7 +751,7 @@ size_t ReadOnlySpace::AllocateNextPageAt(Address pos) {
   ReadOnlyPage* page =
       heap_->memory_allocator()->AllocateReadOnlyPage(this, pos);
   // If this fails we probably allocated r/o space too late.
-  CHECK_EQ(reinterpret_cast<void*>(pos), page);
+  CHECK_EQ(pos, page->address());
   capacity_ += AreaSize();
   AccountCommitted(page->size());
   pages_.push_back(page);

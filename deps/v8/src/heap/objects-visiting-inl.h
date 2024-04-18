@@ -126,12 +126,34 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(
     Tagged<Map> map, Tagged<HeapObject> object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (map->visitor_id()) {
-#define CASE(TypeName)               \
-  case kVisit##TypeName:             \
-    return visitor->Visit##TypeName( \
+#define CASE(TypeName)                                                        \
+  case kVisit##TypeName:                                                      \
+    /* If this DCHECK fails, it means that the object type wasn't added       \
+     * to the TRUSTED_VISITOR_ID_LIST.                                        \
+     * Note: This would normally be just !IsTrustedObject(obj), however we    \
+     * might see trusted objects here before they've been migrated to trusted \
+     * space, hence the second condition. */                                  \
+    DCHECK(!IsTrustedObject(object) || !IsTrustedSpaceObject(object));        \
+    return visitor->Visit##TypeName(                                          \
         map, ConcreteVisitor::template Cast<TypeName>(object));
     TYPED_VISITOR_ID_LIST(CASE)
     TORQUE_VISITOR_ID_LIST(CASE)
+#undef CASE
+#define CASE(TypeName)                                                     \
+  case kVisit##TypeName:                                                   \
+    DCHECK(IsTrustedObject(object));                                       \
+    /* Trusted objects are protected from modifications by an attacker as  \
+     * they are located outside of the sandbox. However, an attacker can   \
+     * still craft their own fake trusted objects inside the sandbox. In   \
+     * this case, bad things might happen if these objects are then        \
+     * processed by e.g. an object visitor as they will typically assume   \
+     * that these objects are trustworthy. The following check defends     \
+     * against that by ensuring that the object is outside of the sandbox. \
+     * See also crbug.com/c/1505089. */                                    \
+    SBXCHECK(OutsideSandboxOrInReadonlySpace(object));                     \
+    return visitor->Visit##TypeName(                                       \
+        map, ConcreteVisitor::template Cast<TypeName>(object));
+    TRUSTED_VISITOR_ID_LIST(CASE)
 #undef CASE
     case kVisitShortcutCandidate:
       return visitor->VisitShortcutCandidate(
@@ -193,8 +215,10 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointerIfNeeded(
                                                         visitor);            \
     return static_cast<ResultType>(size);                                    \
   }
+
 TYPED_VISITOR_ID_LIST(VISIT)
 TORQUE_VISITOR_ID_LIST(VISIT)
+TRUSTED_VISITOR_ID_LIST(VISIT)
 #undef VISIT
 
 template <typename ResultType, typename ConcreteVisitor>

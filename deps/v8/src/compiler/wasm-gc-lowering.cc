@@ -100,7 +100,8 @@ Node* WasmGCLowering::Null(wasm::ValueType type) {
                             wasm::IsSubtypeOf(type, wasm::kWasmExnRef, module_)
                         ? RootIndex::kNullValue
                         : RootIndex::kWasmNull;
-  return gasm_.LoadImmutable(MachineType::Pointer(), gasm_.LoadRootRegister(),
+  return gasm_.LoadImmutable(MachineType::TaggedPointer(),
+                             gasm_.LoadRootRegister(),
                              IsolateData::root_slot_offset(index));
 }
 

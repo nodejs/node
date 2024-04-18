@@ -43,6 +43,10 @@ namespace hash_internal {
 uint64_t LowLevelHash(const void* data, size_t len, uint64_t seed,
                       const uint64_t salt[5]);
 
+// Same as above except the length must be greater than 16.
+uint64_t LowLevelHashLenGt16(const void* data, size_t len, uint64_t seed,
+                             const uint64_t salt[5]);
+
 }  // namespace hash_internal
 ABSL_NAMESPACE_END
 }  // namespace absl

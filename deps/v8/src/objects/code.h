@@ -123,18 +123,24 @@ class Code : public ExposedTrustedObject {
   DECL_PRIMITIVE_ACCESSORS(unwinding_info_offset, int32_t)
   // [deoptimization_data]: Array containing data for deopt for non-baseline
   // code.
-  DECL_ACCESSORS(deoptimization_data, Tagged<FixedArray>)
+  DECL_ACCESSORS(deoptimization_data, Tagged<TrustedFixedArray>)
+
+  // Whether this type of Code uses deoptimization data, in which case the
+  // deoptimization_data field will be populated.
+  inline bool uses_deoptimization_data() const;
+
+  // If neither deoptimization data nor bytecode/interpreter data are used
+  // (e.g. for builtin code), the respective field will contain Smi::zero().
+  inline void clear_deoptimization_data_and_interpreter_data();
+  inline bool has_deoptimization_data_or_interpreter_data() const;
+
   // [bytecode_or_interpreter_data]: BytecodeArray or InterpreterData for
   // baseline code.
-  // As BytecodeArrays are located in trusted space, but InterpreterData
-  // objects are not yet, they are both currently referenced via their
-  // in-sandbox wrapper object. This is transparent for the caller. Once all
-  // objects are in trusted space, we should use a protected pointer here.
-  static_assert(!kInterpreterDataObjectsLiveInTrustedSpace);
-  inline Tagged<HeapObject> bytecode_or_interpreter_data(
+  inline Tagged<TrustedObject> bytecode_or_interpreter_data(
       IsolateForSandbox isolate) const;
   inline void set_bytecode_or_interpreter_data(
-      Tagged<HeapObject> value, WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+      Tagged<TrustedObject> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   // [source_position_table]: ByteArray for the source positions table for
   // non-baseline code.
   DECL_ACCESSORS(source_position_table, Tagged<ByteArray>)
@@ -156,7 +162,7 @@ class Code : public ExposedTrustedObject {
   DECL_ACCESSORS(wrapper, Tagged<CodeWrapper>)
 
   // Unchecked accessors to be used during GC.
-  inline Tagged<FixedArray> unchecked_deoptimization_data() const;
+  inline Tagged<TrustedFixedArray> unchecked_deoptimization_data() const;
 
   DECL_RELAXED_UINT32_ACCESSORS(flags)
 
@@ -328,9 +334,13 @@ class Code : public ExposedTrustedObject {
 
 // Layout description.
 #define CODE_DATA_FIELDS(V)                                                   \
+  /* The deoptimization_data_or_interpreter_data field contains: */           \
+  /*  - A DeoptimizationData for optimized code (maglev or turbofan) */       \
+  /*  - A BytecodeArray or InterpreterData for baseline code */               \
+  /*  - Smi::zero() for all other types of code (e.g. builtin) */             \
+  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   /* Strong pointer fields. */                                                \
   V(kStartOfStrongFieldsOffset, 0)                                            \
-  V(kDeoptimizationDataOrInterpreterDataOffset, kTaggedSize)                  \
   V(kPositionTableOffset, kTaggedSize)                                        \
   V(kWrapperOffset, kTaggedSize)                                              \
   V(kEndOfStrongFieldsWithMainCageBaseOffset, 0)                              \
@@ -407,7 +417,7 @@ class Code : public ExposedTrustedObject {
 
   // TODO(jgruber): These field names are incomplete, we've squashed in more
   // overloaded contents in the meantime. Update the field names.
-  Tagged<HeapObject> raw_deoptimization_data_or_interpreter_data(
+  Tagged<Object> raw_deoptimization_data_or_interpreter_data(
       IsolateForSandbox isolate) const;
   Tagged<ByteArray> raw_position_table() const;
 

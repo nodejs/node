@@ -64,9 +64,11 @@ absl_source_set("seed_sequences") {
   deps = [
     ":seed_gen_exception",
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/base:nullability",
     "//third_party/abseil-cpp/absl/random/internal:pool_urbg",
     "//third_party/abseil-cpp/absl/random/internal:salted_seed_seq",
     "//third_party/abseil-cpp/absl/random/internal:seed_material",
+    "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:span",
   ]
 }

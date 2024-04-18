@@ -149,7 +149,7 @@ inline void MarkingBitmap::ClearRange(MarkBitIndex start_index,
 
 // static
 MarkingBitmap* MarkingBitmap::FromAddress(Address address) {
-  Address page_address = address & ~kPageAlignmentMask;
+  Address page_address = MemoryChunk::FromAddress(address)->address();
   return Cast(page_address + MemoryChunkLayout::kMarkingBitmapOffset);
 }
 
@@ -162,9 +162,15 @@ MarkBit MarkingBitmap::MarkBitFromAddress(Address address) {
 }
 
 // static
+constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::AddressToIndex(
+    Address address) {
+  return MemoryChunkHeader::AddressToOffset(address) >> kTaggedSizeLog2;
+}
+
+// static
 constexpr MarkingBitmap::MarkBitIndex MarkingBitmap::LimitAddressToIndex(
     Address address) {
-  if (IsAligned(address, BasicMemoryChunk::kAlignment)) return kLength;
+  if (MemoryChunkHeader::IsAligned(address)) return kLength;
   return AddressToIndex(address);
 }
 
@@ -303,7 +309,7 @@ bool LiveObjectRange::iterator::AdvanceToNextMarkedObject() {
     // well as other objects.
     Address next_object = current_object_.address() + current_size_;
     current_object_ = HeapObject();
-    if (IsAligned(next_object, BasicMemoryChunk::kAlignment)) {
+    if (MemoryChunkHeader::IsAligned(next_object)) {
       return false;
     }
     // Area end may not be exactly aligned to kAlignment. We don't need to bail

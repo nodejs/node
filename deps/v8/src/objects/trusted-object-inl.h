@@ -18,19 +18,44 @@ namespace internal {
 CAST_ACCESSOR(TrustedObject)
 OBJECT_CONSTRUCTORS_IMPL(TrustedObject, HeapObject)
 
+Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
+    int offset) const {
+  return TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::load(
+      *this, offset);
+}
+
+Tagged<TrustedObject> TrustedObject::ReadProtectedPointerField(
+    int offset, AcquireLoadTag tag) const {
+  return TaggedField<TrustedObject, 0,
+                     TrustedSpaceCompressionScheme>::Acquire_Load(*this,
+                                                                  offset);
+}
+
+void TrustedObject::WriteProtectedPointerField(int offset,
+                                               Tagged<TrustedObject> value) {
+  TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::store(
+      *this, offset, value);
+}
+
+void TrustedObject::WriteProtectedPointerField(int offset,
+                                               Tagged<TrustedObject> value,
+                                               ReleaseStoreTag tag) {
+  TaggedField<TrustedObject, 0, TrustedSpaceCompressionScheme>::Release_Store(
+      *this, offset, value);
+}
+
+bool TrustedObject::IsProtectedPointerFieldCleared(int offset) const {
+  return TaggedField<Object, 0, TrustedSpaceCompressionScheme>::load(
+             *this, offset) == Smi::zero();
+}
+
+void TrustedObject::ClearProtectedPointerField(int offset) {
+  TaggedField<Object, 0, TrustedSpaceCompressionScheme>::store(*this, offset,
+                                                               Smi::zero());
+}
+
 ProtectedPointerSlot TrustedObject::RawProtectedPointerField(
     int byte_offset) const {
-#ifdef V8_ENABLE_SANDBOX
-  // These slots must only occur on trusted objects, and those must live
-  // outside of the sandbox. However, it is currently possible for an attacker
-  // to craft a fake trusted object inside the sandbox (by crafting a fake Map
-  // with the right instance type). In that case, bad things might happen if
-  // these objects are e.g. processed by a Visitor as they can typically assume
-  // that these slots are trusted. The following check defends against that by
-  // ensuring that the host object is outside of the sandbox.
-  // See also crbug.com/1505089.
-  SBXCHECK(!InsideSandbox(address()));
-#endif
   return ProtectedPointerSlot(field_address(byte_offset));
 }
 

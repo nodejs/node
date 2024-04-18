@@ -572,9 +572,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     BIND(&if_hole);
     {
-      Comment("convert hole");
+      Comment("read hole and convert to undefined");
 
-      GotoIfNot(IsSetWord32<LoadHandler::ConvertHoleBits>(handler_word), miss);
+      GotoIfNot(IsSetWord32<LoadHandler::AllowHandlingHole>(handler_word),
+                miss);
       GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       exit_point->Return(access_mode == LoadAccessMode::kHas
                              ? TNode<Object>(FalseConstant())
@@ -1365,16 +1366,12 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     BIND(&if_proto_handler);
     {
-      if (p->IsAnyDefineOwn()) {
-        // Normally, proto handlers are not created for DefineOwnICs, however
-        // such a handler might be fetched from the StoreIC's megamorphic stub
-        // cache. Treat them as slow ones.
-        Goto(&if_slow);
-
-      } else {
-        HandleStoreICProtoHandler(p, CAST(strong_handler), &if_slow, miss,
-                                  ic_mode, support_elements);
-      }
+      // Note, although DefineOwnICs don't reqiure checking for prototype
+      // chain modifications the proto handlers shape is still used for
+      // StoreHandler::StoreElementTransition in order to store both Code
+      // handler and transition target map.
+      HandleStoreICProtoHandler(p, CAST(strong_handler), &if_slow, miss,
+                                ic_mode, support_elements);
     }
 
     // |handler| is a heap object. Must be code, call it.
@@ -1799,7 +1796,6 @@ void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, TNode<StoreHandler> handler, Label* slow,
     Label* miss, ICMode ic_mode, ElementSupport support_elements) {
-  DCHECK(!p->IsAnyDefineOwn());
   Comment("HandleStoreICProtoHandler");
 
   OnCodeHandler on_code_handler;
@@ -3395,8 +3391,9 @@ void AccessorAssembler::ScriptContextTableLookup(
     TNode<IntPtrT> context_local_index =
         IndexOfLocalName(scope_info, name, &loop);
 
-    TNode<IntPtrT> var_index = IntPtrAdd(
-        IntPtrConstant(Context::MIN_CONTEXT_SLOTS), context_local_index);
+    TNode<IntPtrT> var_index =
+        IntPtrAdd(IntPtrConstant(Context::MIN_CONTEXT_EXTENDED_SLOTS),
+                  context_local_index);
     TNode<Object> result = LoadContextElement(script_context, var_index);
     GotoIf(IsTheHole(result), found_hole);
     Return(result);
@@ -3720,9 +3717,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     // Check megamorphic case.
     GotoIfNot(TaggedEqual(strong_feedback, MegamorphicSymbolConstant()), &miss);
 
-    TryProbeStubCache(isolate()->store_stub_cache(), p->receiver(),
-                      receiver_map, CAST(p->name()), &if_handler, &var_handler,
-                      &miss);
+    TryProbeStubCache(p->stub_cache(isolate()), p->receiver(), receiver_map,
+                      CAST(p->name()), &if_handler, &var_handler, &miss);
   }
 
   BIND(&no_feedback);
@@ -3808,7 +3804,8 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
         Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(pp->context(), context_index);
-    StoreContextElement(script_context, slot_index, pp->value());
+    StoreContextElementAndUpdateSideData(script_context, slot_index,
+                                         pp->value());
     Return(pp->value());
   }
 
@@ -4609,6 +4606,42 @@ void AccessorAssembler::GenerateStoreIC() {
   StoreIC(&p);
 }
 
+void AccessorAssembler::GenerateStoreIC_Megamorphic() {
+  using Descriptor = StoreWithVectorDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto flags = base::nullopt;
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto vector = Parameter<HeapObject>(Descriptor::kVector);
+  auto context = Parameter<Context>(Descriptor::kContext);
+
+  ExitPoint direct_exit(this);
+  TVARIABLE(MaybeObject, var_handler);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  CSA_DCHECK(this, TaggedEqual(LoadFeedbackVectorSlot(CAST(vector), slot),
+                               MegamorphicSymbolConstant()));
+
+  TryProbeStubCache(isolate()->store_stub_cache(), receiver, CAST(name),
+                    &if_handler, &var_handler, &miss);
+
+  BIND(&if_handler);
+  {
+    StoreICParameters p(context, receiver, name, value, flags, slot, vector,
+                        StoreICMode::kDefault);
+    HandleStoreICHandlerCase(&p, var_handler.value(), &miss,
+                             ICMode::kNonGlobalIC);
+  }
+
+  BIND(&miss);
+  {
+    direct_exit.ReturnCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
+                                  vector, receiver, name);
+  }
+}
+
 void AccessorAssembler::GenerateStoreICTrampoline() {
   using Descriptor = StoreDescriptor;
 
@@ -4621,6 +4654,20 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
 
   TailCallBuiltin(Builtin::kStoreIC, context, receiver, name, value, slot,
                   vector);
+}
+
+void AccessorAssembler::GenerateStoreICTrampoline_Megamorphic() {
+  using Descriptor = StoreDescriptor;
+
+  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto name = Parameter<Object>(Descriptor::kName);
+  auto value = Parameter<Object>(Descriptor::kValue);
+  auto slot = Parameter<TaggedIndex>(Descriptor::kSlot);
+  auto context = Parameter<Context>(Descriptor::kContext);
+  TNode<FeedbackVector> vector = LoadFeedbackVectorForStub();
+
+  TailCallBuiltin(Builtin::kStoreIC_Megamorphic, context, receiver, name, value,
+                  slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreICBaseline() {

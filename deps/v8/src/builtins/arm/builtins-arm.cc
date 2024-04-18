@@ -930,7 +930,7 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
   UseScratchRegisterScope temps(masm);
   // Need a few extra registers
-  temps.Include({r4, r8, r9});
+  temps.Include({r4, r5, r8, r9});
 
   auto descriptor =
       Builtins::CallInterfaceDescriptorFor(Builtin::kBaselineOutOfLinePrologue);
@@ -943,7 +943,11 @@ void Builtins::Generate_BaselineOutOfLinePrologue(MacroAssembler* masm) {
          FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ ldr(feedback_vector,
          FieldMemOperand(feedback_cell, FeedbackCell::kValueOffset));
-  __ AssertFeedbackVector(feedback_vector);
+  {
+    UseScratchRegisterScope temps(masm);
+    Register temporary = temps.Acquire();
+    __ AssertFeedbackVector(feedback_vector, temporary);
+  }
 
   // Check the tiering state.
   Label flags_need_processing;

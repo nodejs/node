@@ -34,7 +34,7 @@ class AssertTypesReducer
 #endif
 
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(AssertTypes)
 
   using Adapter = UniformReducerAdapter<AssertTypesReducer, Next>;
 

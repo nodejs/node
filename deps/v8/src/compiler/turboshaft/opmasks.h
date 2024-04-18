@@ -177,6 +177,13 @@ using kWord64BitwiseAnd = WordBinopMask::For<WordBinopOp::Kind::kBitwiseAnd,
 using kBitwiseAnd = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseAnd>;
 using kBitwiseXor = WordBinopKindMask::For<WordBinopOp::Kind::kBitwiseXor>;
 
+using WordUnaryMask =
+    MaskBuilder<WordUnaryOp, FIELD(WordUnaryOp, kind), FIELD(WordUnaryOp, rep)>;
+using kWord32ReverseBytes = WordUnaryMask::For<WordUnaryOp::Kind::kReverseBytes,
+                                               WordRepresentation::Word32()>;
+using kWord64ReverseBytes = WordUnaryMask::For<WordUnaryOp::Kind::kReverseBytes,
+                                               WordRepresentation::Word64()>;
+
 using FloatUnaryMask = MaskBuilder<FloatUnaryOp, FIELD(FloatUnaryOp, kind),
                                    FIELD(FloatUnaryOp, rep)>;
 
@@ -216,6 +223,8 @@ using kWord32ShiftRightLogical =
                    WordRepresentation::Word32()>;
 using kWord32RotateRight =
     ShiftMask::For<ShiftOp::Kind::kRotateRight, WordRepresentation::Word32()>;
+using kWord64ShiftLeft =
+    ShiftMask::For<ShiftOp::Kind::kShiftLeft, WordRepresentation::Word64()>;
 using kWord64ShiftRightArithmetic =
     ShiftMask::For<ShiftOp::Kind::kShiftRightArithmetic,
                    WordRepresentation::Word64()>;
@@ -272,13 +281,9 @@ using kTruncateFloat32ToUint32OverflowToMin =
                       RegisterRepresentation::Float32(),
                       RegisterRepresentation::Word32()>;
 
-using kTruncateInt64ToInt32 = ChangeOpMask::For<
+using kTruncateWord64ToWord32 = ChangeOpMask::For<
     ChangeOp::Kind::kTruncate, ChangeOp::Assumption::kNoAssumption,
     RegisterRepresentation::Word64(), RegisterRepresentation::Word32()>;
-
-using TaggedBicastMask =
-    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, kind)>;
-using kTaggedBitcastSmi = TaggedBicastMask::For<TaggedBitcastOp::Kind::kSmi>;
 
 using OverflowCheckedBinopMask =
     MaskBuilder<OverflowCheckedBinopOp, FIELD(OverflowCheckedBinopOp, kind),
@@ -286,6 +291,23 @@ using OverflowCheckedBinopMask =
 using kOverflowCheckedWord32Add =
     OverflowCheckedBinopMask::For<OverflowCheckedBinopOp::Kind::kSignedAdd,
                                   WordRepresentation::Word32()>;
+
+using TaggedBitcastMask =
+    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, from),
+                FIELD(TaggedBitcastOp, to), FIELD(TaggedBitcastOp, kind)>;
+using kBitcastTaggedToWordPtrForTagAndSmiBits =
+    TaggedBitcastMask::For<RegisterRepresentation::Tagged(),
+                           RegisterRepresentation::WordPtr(),
+                           TaggedBitcastOp::Kind::kTagAndSmiBits>;
+using kBitcastWordPtrToSmi =
+    TaggedBitcastMask::For<RegisterRepresentation::WordPtr(),
+                           RegisterRepresentation::Tagged(),
+                           TaggedBitcastOp::Kind::kSmi>;
+
+using TaggedBitcastKindMask =
+    MaskBuilder<TaggedBitcastOp, FIELD(TaggedBitcastOp, kind)>;
+using kTaggedBitcastSmi =
+    TaggedBitcastKindMask::For<TaggedBitcastOp::Kind::kSmi>;
 
 #if V8_ENABLE_WEBASSEMBLY
 

@@ -1030,9 +1030,10 @@ Node* GraphAssembler::UnreachableWithoutConnectToEnd() {
       graph()->NewNode(common()->Unreachable(), effect(), control()));
 }
 
-TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment) {
+TNode<RawPtrT> GraphAssembler::StackSlot(int size, int alignment,
+                                         bool is_tagged) {
   return AddNode<RawPtrT>(
-      graph()->NewNode(machine()->StackSlot(size, alignment)));
+      graph()->NewNode(machine()->StackSlot(size, alignment, is_tagged)));
 }
 
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,

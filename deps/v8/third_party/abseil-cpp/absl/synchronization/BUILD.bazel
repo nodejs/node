@@ -69,7 +69,9 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:raw_logging_internal",
         "//absl/time",
-    ],
+    ] + select({
+        "//conditions:default": [],
+    }),
 )
 
 cc_test(
@@ -183,7 +185,7 @@ cc_test(
 
 cc_binary(
     name = "blocking_counter_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["blocking_counter_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -230,7 +232,7 @@ cc_test(
 
 cc_library(
     name = "thread_pool",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/thread_pool.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     visibility = [
@@ -281,7 +283,7 @@ cc_test(
 
 cc_library(
     name = "mutex_benchmark_common",
-    testonly = 1,
+    testonly = True,
     srcs = ["mutex_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -300,7 +302,7 @@ cc_library(
 
 cc_binary(
     name = "mutex_benchmark",
-    testonly = 1,
+    testonly = True,
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -326,7 +328,7 @@ cc_test(
 
 cc_library(
     name = "per_thread_sem_test_common",
-    testonly = 1,
+    testonly = True,
     srcs = ["internal/per_thread_sem_test.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

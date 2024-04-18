@@ -1725,6 +1725,26 @@ void BytecodeGraphBuilder::VisitStaCurrentContextSlot() {
   NewNode(op, value);
 }
 
+void BytecodeGraphBuilder::VisitStaScriptContextSlot() {
+  PrepareEagerCheckpoint();
+  const Operator* op = javascript()->StoreScriptContext(
+      bytecode_iterator().GetUnsignedImmediateOperand(2),
+      bytecode_iterator().GetIndexOperand(1));
+  Node* value = environment()->LookupAccumulator();
+  Node* node = NewNode(op, value);
+  Node* context =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  NodeProperties::ReplaceContextInput(node, context);
+}
+
+void BytecodeGraphBuilder::VisitStaCurrentScriptContextSlot() {
+  PrepareEagerCheckpoint();
+  const Operator* op = javascript()->StoreScriptContext(
+      0, bytecode_iterator().GetIndexOperand(0));
+  Node* value = environment()->LookupAccumulator();
+  NewNode(op, value);
+}
+
 void BytecodeGraphBuilder::BuildLdaLookupSlot(TypeofMode typeof_mode) {
   PrepareEagerCheckpoint();
   Node* name =
@@ -1807,6 +1827,11 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
   // in the same scope as the variable itself has no way of shadowing it.
   Environment* slow_environment = nullptr;
   for (uint32_t d = 0; d < depth; d++) {
+    // Const tracking let data is stored in the extension slot of a
+    // ScriptContext - however, it's unrelated to the sloppy eval variable
+    // extension. We should never iterate through a ScriptContext here.
+    DCHECK_NE(scope_info.scope_type(), ScopeType::SCRIPT_SCOPE);
+
     if (scope_info.HasContextExtensionSlot()) {
       slow_environment = CheckContextExtensionAtDepth(slow_environment, d);
     }

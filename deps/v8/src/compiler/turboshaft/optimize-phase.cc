@@ -24,13 +24,11 @@ void OptimizePhase::Run(Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(PipelineData::Get().broker(),
                               v8_flags.turboshaft_trace_reduction);
   turboshaft::CopyingPhase<turboshaft::StructuralOptimizationReducer,
-                           turboshaft::VariableReducer,
                            turboshaft::LateEscapeAnalysisReducer,
                            turboshaft::PretenuringPropagationReducer,
                            turboshaft::MemoryOptimizationReducer,
                            turboshaft::MachineOptimizationReducer,
-                           turboshaft::RequiredOptimizationReducer,
-                           turboshaft::ValueNumberingReducer>::Run<true>(temp_zone);
+                           turboshaft::ValueNumberingReducer>::Run(temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -46,7 +46,7 @@ cc_library(
 
 cc_binary(
     name = "bits_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["bits_benchmark.cc"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

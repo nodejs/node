@@ -27,7 +27,7 @@ class SlackTrackingPrediction {
 class CompilationDependency;
 
 // Collects and installs dependencies of the code that is being generated.
-class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
+class V8_EXPORT CompilationDependencies : public ZoneObject {
  public:
   CompilationDependencies(JSHeapBroker* broker, Zone* zone);
 
@@ -81,6 +81,11 @@ class V8_EXPORT_PRIVATE CompilationDependencies : public ZoneObject {
   // Record the assumption that neither {cell}'s {CellType} changes, nor the
   // {IsReadOnly()} flag of {cell}'s {PropertyDetails}.
   void DependOnGlobalProperty(PropertyCellRef cell);
+
+  // Record the assumption that a const-tracked let variable doesn't change, if
+  // true.
+  bool DependOnConstTrackingLet(ContextRef script_context, size_t index,
+                                JSHeapBroker* broker);
 
   // Return the validity of the given protector and, if true, record the
   // assumption that the protector remains valid.

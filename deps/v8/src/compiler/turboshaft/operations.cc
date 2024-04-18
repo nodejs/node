@@ -380,6 +380,8 @@ std::ostream& operator<<(std::ostream& os, TaggedBitcastOp::Kind kind) {
       return os << "Smi";
     case TaggedBitcastOp::Kind::kHeapObject:
       return os << "HeapObject";
+    case TaggedBitcastOp::Kind::kTagAndSmiBits:
+      return os << "TagAndSmiBits";
     case TaggedBitcastOp::Kind::kAny:
       return os << "Any";
   }
@@ -489,6 +491,9 @@ void ConstantOp::PrintOptions(std::ostream& os) const {
       break;
     case Kind::kWord64:
       os << "word64: " << static_cast<int64_t>(storage.integral);
+      break;
+    case Kind::kSmi:
+      os << "smi: " << smi();
       break;
     case Kind::kNumber:
       os << "number: " << number();
@@ -884,6 +889,35 @@ void Word32PairBinopOp::PrintOptions(std::ostream& os) const {
   os << "]";
 }
 
+void WordBinopDeoptOnOverflowOp::PrintOptions(std::ostream& os) const {
+  os << "[";
+  switch (kind) {
+    case Kind::kSignedAdd:
+      os << "signed add, ";
+      break;
+    case Kind::kSignedMul:
+      os << "signed mul, ";
+      break;
+    case Kind::kSignedSub:
+      os << "signed sub, ";
+      break;
+    case Kind::kSignedDiv:
+      os << "signed div, ";
+      break;
+    case Kind::kSignedMod:
+      os << "signed mod, ";
+      break;
+    case Kind::kUnsignedDiv:
+      os << "unsigned div, ";
+      break;
+    case Kind::kUnsignedMod:
+      os << "unsigned mod, ";
+      break;
+  }
+  os << rep;
+  os << "]";
+}
+
 void OverflowCheckedBinopOp::PrintOptions(std::ostream& os) const {
   os << "[";
   switch (kind) {
@@ -1055,6 +1089,9 @@ std::ostream& operator<<(std::ostream& os,
       return os << "Boolean";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kHeapNumber:
       return os << "HeapNumber";
+    case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::
+        kHeapNumberOrUndefined:
+      return os << "HeapNumberOrUndefined";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kNumber:
       return os << "Number";
     case ConvertUntaggedToJSPrimitiveOp::JSPrimitiveKind::kSmi:

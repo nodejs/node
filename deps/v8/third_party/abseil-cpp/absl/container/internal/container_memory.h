@@ -68,6 +68,18 @@ void* Allocate(Alloc* alloc, size_t n) {
   return p;
 }
 
+// Returns true if the destruction of the value with given Allocator will be
+// trivial.
+template <class Allocator, class ValueType>
+constexpr auto IsDestructionTrivial() {
+  constexpr bool result =
+      std::is_trivially_destructible<ValueType>::value &&
+      std::is_same<typename absl::allocator_traits<
+                       Allocator>::template rebind_alloc<char>,
+                   std::allocator<char>>::value;
+  return std::integral_constant<bool, result>();
+}
+
 // The pointer must have been previously obtained by calling
 // Allocate<Alignment>(alloc, n).
 template <size_t Alignment, class Alloc>
@@ -414,12 +426,13 @@ struct map_slot_policy {
   }
 
   template <class Allocator>
-  static void destroy(Allocator* alloc, slot_type* slot) {
+  static auto destroy(Allocator* alloc, slot_type* slot) {
     if (kMutableKeys::value) {
       absl::allocator_traits<Allocator>::destroy(*alloc, &slot->mutable_value);
     } else {
       absl::allocator_traits<Allocator>::destroy(*alloc, &slot->value);
     }
+    return IsDestructionTrivial<Allocator, value_type>();
   }
 
   template <class Allocator>
@@ -450,6 +463,26 @@ struct map_slot_policy {
     return is_relocatable;
   }
 };
+
+// Type erased function for computing hash of the slot.
+using HashSlotFn = size_t (*)(const void* hash_fn, void* slot);
+
+// Type erased function to apply `Fn` to data inside of the `slot`.
+// The data is expected to have type `T`.
+template <class Fn, class T>
+size_t TypeErasedApplyToSlotFn(const void* fn, void* slot) {
+  const auto* f = static_cast<const Fn*>(fn);
+  return (*f)(*static_cast<const T*>(slot));
+}
+
+// Type erased function to apply `Fn` to data inside of the `*slot_ptr`.
+// The data is expected to have type `T`.
+template <class Fn, class T>
+size_t TypeErasedDerefAndApplyToSlotFn(const void* fn, void* slot_ptr) {
+  const auto* f = static_cast<const Fn*>(fn);
+  const T* slot = *static_cast<const T**>(slot_ptr);
+  return (*f)(*slot);
+}
 
 }  // namespace container_internal
 ABSL_NAMESPACE_END

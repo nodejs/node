@@ -479,7 +479,6 @@ class InstructionSelectorT final : public Adapter {
       size_t input_count, InstructionOperand* inputs, size_t temp_count,
       InstructionOperand* temps, FlagsContinuation* cont);
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, EmitIdentity)
   void EmitIdentity(node_t node);
 
   // ===========================================================================
@@ -507,7 +506,6 @@ class InstructionSelectorT final : public Adapter {
   // For pure nodes, CanCover(a,b) is checked to avoid duplicated execution:
   // If this is not the case, code for b must still be generated for other
   // users, and fusing is unlikely to improve performance.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, CanCover)
   bool CanCover(node_t user, node_t node) const;
 
   // Used in pattern matching during code generation.
@@ -537,27 +535,22 @@ class InstructionSelectorT final : public Adapter {
 
   // Checks if {node} was already defined, and therefore code was already
   // generated for it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsDefined)
   bool IsDefined(node_t node) const;
 
   // Checks if {node} has any uses, and therefore code has to be generated for
   // it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsUsed)
   bool IsUsed(node_t node) const;
 
   // Checks if {node} is currently live.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, IsLive)
   bool IsLive(node_t node) const { return !IsDefined(node) && IsUsed(node); }
 
   // Gets the effect level of {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int, GetEffectLevel)
   int GetEffectLevel(node_t node) const;
 
   // Gets the effect level of {node}, appropriately adjusted based on
   // continuation flags if the node is a branch.
   int GetEffectLevel(node_t node, FlagsContinuation* cont) const;
 
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(int, GetVirtualRegister)
   int GetVirtualRegister(node_t node);
   const std::map<NodeId, int> GetVirtualRegistersForTesting() const;
 
@@ -597,61 +590,48 @@ class InstructionSelectorT final : public Adapter {
 
   void TryRename(InstructionOperand* op);
   int GetRename(int virtual_register);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, SetRename)
   void SetRename(node_t node, node_t rename);
   void UpdateRenames(Instruction* instruction);
   void UpdateRenamesInPhi(PhiInstruction* phi);
 
   // Inform the instruction selection that {node} was just defined.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsDefined)
   void MarkAsDefined(node_t node);
 
   // Inform the instruction selection that {node} has at least one use and we
   // will need to generate code for it.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsUsed)
   void MarkAsUsed(node_t node);
 
   // Sets the effect level of {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, SetEffectLevel)
   void SetEffectLevel(node_t node, int effect_level);
 
   // Inform the register allocation of the representation of the value produced
   // by {node}.
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsRepresentation)
   void MarkAsRepresentation(MachineRepresentation rep, node_t node);
   void MarkAsRepresentation(turboshaft::RegisterRepresentation rep,
                             node_t node) {
     MarkAsRepresentation(rep.machine_representation(), node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsWord32)
   void MarkAsWord32(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kWord32, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsWord64)
   void MarkAsWord64(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kWord64, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsFloat32)
   void MarkAsFloat32(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kFloat32, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsFloat64)
   void MarkAsFloat64(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kFloat64, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsSimd128)
   void MarkAsSimd128(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kSimd128, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsSimd256)
   void MarkAsSimd256(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kSimd256, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsTagged)
   void MarkAsTagged(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kTagged, node);
   }
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, MarkAsCompressed)
   void MarkAsCompressed(node_t node) {
     MarkAsRepresentation(MachineRepresentation::kCompressed, node);
   }
@@ -788,6 +768,7 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(ProtectedStore)
   DECLARE_GENERATOR_T(BitcastTaggedToWord)
   DECLARE_GENERATOR_T(BitcastWordToTagged)
+  DECLARE_GENERATOR_T(BitcastSmiToWord)
   DECLARE_GENERATOR_T(ChangeInt32ToInt64)
   DECLARE_GENERATOR_T(ChangeInt32ToFloat64)
   DECLARE_GENERATOR_T(ChangeFloat32ToFloat64)
@@ -937,19 +918,15 @@ class InstructionSelectorT final : public Adapter {
   DECLARE_GENERATOR_T(Word32AtomicPairXor)
   DECLARE_GENERATOR_T(Word32AtomicPairExchange)
   DECLARE_GENERATOR_T(Word32AtomicPairCompareExchange)
+  DECLARE_GENERATOR_T(Simd128ReverseBytes)
   MACHINE_SIMD128_OP_LIST(DECLARE_GENERATOR_T)
   MACHINE_SIMD256_OP_LIST(DECLARE_GENERATOR_T)
   IF_WASM(DECLARE_GENERATOR_T, LoadStackPointer)
   IF_WASM(DECLARE_GENERATOR_T, SetStackPointer)
 #undef DECLARE_GENERATOR_T
 
-#define DECLARE_GENERATOR(x) void Visit##x(Node* node);
-  DECLARE_GENERATOR(Simd128ReverseBytes)
-#undef DECLARE_GENERATOR
-
   // Visit the load node with a value and opcode to replace with.
   void VisitLoad(node_t node, node_t value, InstructionCode opcode);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void, VisitLoad)
   void VisitLoadTransform(Node* node, Node* value, InstructionCode opcode);
   void VisitFinishRegion(Node* node);
   void VisitParameter(node_t node);
@@ -975,7 +952,7 @@ class InstructionSelectorT final : public Adapter {
   void VisitThrow(Node* node);
   void VisitRetain(node_t node);
   void VisitUnreachable(node_t node);
-  void VisitStaticAssert(Node* node);
+  void VisitStaticAssert(node_t node);
   void VisitDeadValue(Node* node);
   void VisitBitcastWord32PairToFloat64(node_t node);
 
@@ -1071,15 +1048,11 @@ class InstructionSelectorT final : public Adapter {
 
   void MarkPairProjectionsAsWord32(node_t node);
   bool IsSourcePositionUsed(node_t node);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
-                                          VisitWord32AtomicBinaryOperation)
   void VisitWord32AtomicBinaryOperation(node_t node, ArchOpcode int8_op,
                                         ArchOpcode uint8_op,
                                         ArchOpcode int16_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode word32_op);
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(void,
-                                          VisitWord64AtomicBinaryOperation)
   void VisitWord64AtomicBinaryOperation(node_t node, ArchOpcode uint8_op,
                                         ArchOpcode uint16_op,
                                         ArchOpcode uint32_op,
@@ -1088,7 +1061,6 @@ class InstructionSelectorT final : public Adapter {
                                     ArchOpcode uint16_op, ArchOpcode uint32_op);
 
 #if V8_TARGET_ARCH_64_BIT
-  DECLARE_UNREACHABLE_TURBOSHAFT_FALLBACK(bool, ZeroExtendsWord32ToWord64)
   bool ZeroExtendsWord32ToWord64(node_t node, int recursion_depth = 0);
   bool ZeroExtendsWord32ToWord64NoPhis(node_t node);
 

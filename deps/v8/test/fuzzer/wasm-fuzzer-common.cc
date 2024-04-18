@@ -14,6 +14,7 @@
 #include "src/execution/isolate.h"
 #include "src/utils/ostreams.h"
 #include "src/wasm/baseline/liftoff-compiler.h"
+#include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/module-decoder-impl.h"
 #include "src/wasm/module-instantiate.h"
@@ -31,6 +32,12 @@
 
 namespace v8::internal::wasm::fuzzer {
 
+constexpr CompileTimeImports CompileTimeImportsForFuzzing() {
+  return CompileTimeImports({CompileTimeImport::kJsString,
+                             CompileTimeImport::kTextEncoder,
+                             CompileTimeImport::kTextDecoder});
+}
+
 // Compile a baseline module. We pass a pointer to a max step counter and a
 // nondeterminsm flag that are updated during execution by Liftoff.
 Handle<WasmModuleObject> CompileReferenceModule(
@@ -46,9 +53,8 @@ Handle<WasmModuleObject> CompileReferenceModule(
   CHECK(module_res.ok());
   std::shared_ptr<WasmModule> module = module_res.value();
   CHECK_NOT_NULL(module);
-  // TODO(14179): Add fuzzer support for compile-time imports.
   native_module = GetWasmEngine()->NewNativeModule(
-      isolate, enabled_features, CompileTimeImports{}, module, 0);
+      isolate, enabled_features, CompileTimeImportsForFuzzing(), module, 0);
   native_module->SetWireBytes(base::OwnedVector<uint8_t>::Of(wire_bytes));
   // The module is known to be valid as this point (it was compiled by the
   // caller before).
@@ -56,15 +62,16 @@ Handle<WasmModuleObject> CompileReferenceModule(
 
   // Compile all functions with Liftoff.
   WasmCodeRefScope code_ref_scope;
-  auto env = native_module->CreateCompilationEnv();
+  CompilationEnv env = CompilationEnv::ForModule(native_module.get());
   ModuleWireBytes wire_bytes_accessor{wire_bytes};
   for (size_t i = module->num_imported_functions; i < module->functions.size();
        ++i) {
     auto& func = module->functions[i];
     base::Vector<const uint8_t> func_code =
         wire_bytes_accessor.GetFunctionBytes(&func);
+    constexpr bool kIsShared = false;
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end());
+                           func_code.end(), kIsShared);
     auto result =
         ExecuteLiftoffCompilation(&env, func_body,
                                   LiftoffOptions{}
@@ -513,8 +520,9 @@ void DecodeAndAppendInitExpr(StdoutStream& os, Zone* zone,
     case ConstantExpression::kWireBytesRef: {
       WireBytesRef ref = init.wire_bytes_ref();
       auto sig = FixedSizeSignature<ValueType>::Returns(expected);
+      constexpr bool kIsShared = false;  // TODO(14616): Extend this.
       FunctionBody body(&sig, ref.offset(), module_bytes.start() + ref.offset(),
-                        module_bytes.start() + ref.end_offset());
+                        module_bytes.start() + ref.end_offset(), kIsShared);
       WasmFeatures detected;
       WasmFullDecoder<Decoder::FullValidationTag, InitExprInterface,
                       kConstantExpression>
@@ -581,20 +589,24 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
            << ")";
         if (index + 1 < field_count) os << ", ";
       }
-      os << "]";
+      os << "], ";
       if (module->types[i].supertype != kNoSuperType) {
-        os << ", " << module->types[i].supertype;
+        os << module->types[i].supertype;
+      } else {
+        os << "kNoSuperType";
       }
-      os << ");\n";
+      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
     } else if (module->has_array(i)) {
       const ArrayType* array_type = module->types[i].array_type;
       os << "builder.addArray("
          << ValueTypeToConstantName(array_type->element_type()) << ", "
-         << (array_type->mutability() ? "true" : "false");
+         << (array_type->mutability() ? "true" : "false") << ", ";
       if (module->types[i].supertype != kNoSuperType) {
-        os << ", " << module->types[i].supertype;
+        os << module->types[i].supertype;
+      } else {
+        os << "kNoSuperType";
       }
-      os << ");\n";
+      os << ", " << (module->types[i].is_final ? "true" : "false") << ");\n";
     } else {
       DCHECK(module->has_signature(i));
       const FunctionSig* sig = module->types[i].function_sig;
@@ -636,7 +648,8 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     if (segment.active) {
       // TODO(wasm): Add other expressions when needed.
       CHECK_EQ(ConstantExpression::kI32Const, segment.dest_addr.kind());
-      os << "builder.addDataSegment(" << segment.dest_addr.i32_value() << ", ";
+      os << "builder.addActiveDataSegment(0, [kExprI32Const, "
+         << segment.dest_addr.i32_value() << "], ";
     } else {
       os << "builder.addPassiveDataSegment(";
     }
@@ -650,7 +663,7 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
 
   for (WasmGlobal& global : module->globals) {
     os << "builder.addGlobal(" << ValueTypeToConstantName(global.type) << ", "
-       << global.mutability << ", ";
+       << global.mutability << ", " << global.shared << ", ";
     DecodeAndAppendInitExpr(os, &zone, module, wire_bytes, global.init,
                             global.type);
     os << ");\n";
@@ -746,8 +759,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     // Add body.
     os << "  .addBodyWithEnd([\n";
 
+    constexpr bool kIsShared = false;  // TODO(14616): Extend this.
     FunctionBody func_body(func.sig, func.code.offset(), func_code.begin(),
-                           func_code.end());
+                           func_code.end(), kIsShared);
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
     os << "]);\n";
   }
@@ -770,7 +784,9 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
   }
 
   if (compiles) {
-    os << "const instance = builder.instantiate();\n"
+    os << "let kBuiltins = { builtins: ['js-string', 'text-decoder', "
+          "'text-encoder'] };\n"
+          "const instance = builder.instantiate({}, kBuiltins);\n"
           "try {\n"
           "  print(instance.exports.main(1, 2, 3));\n"
           "} catch (e) {\n"
@@ -820,6 +836,11 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);
+
+  // Clear recursive groups: The fuzzer creates random types in every run. These
+  // are saved as recursive groups as part of the type canonicalizer, but types
+  // from previous runs just waste memory.
+  GetTypeCanonicalizer()->EmptyStorageForTesting();
 
   // Clear any exceptions from a prior run.
   if (i_isolate->has_exception()) {
@@ -874,8 +895,7 @@ void WasmExecutionFuzzer::FuzzWasmModule(base::Vector<const uint8_t> data,
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
 
   auto enabled_features = WasmFeatures::FromIsolate(i_isolate);
-  // TODO(14179): Add fuzzer support for compile-time imports.
-  CompileTimeImports compile_imports;
+  CompileTimeImports compile_imports = CompileTimeImportsForFuzzing();
 
   bool valid = GetWasmEngine()->SyncValidate(i_isolate, enabled_features,
                                              compile_imports, wire_bytes);

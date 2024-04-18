@@ -108,9 +108,11 @@ cc_library(
     deps = [
         ":seed_gen_exception",
         "//absl/base:config",
+        "//absl/base:nullability",
         "//absl/random/internal:pool_urbg",
         "//absl/random/internal:salted_seed_seq",
         "//absl/random/internal:seed_material",
+        "//absl/strings:string_view",
         "//absl/types:span",
     ],
 )
@@ -132,7 +134,7 @@ cc_library(
 
 cc_library(
     name = "mock_distributions",
-    testonly = 1,
+    testonly = True,
     hdrs = ["mock_distributions.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -146,7 +148,7 @@ cc_library(
 
 cc_library(
     name = "mocking_bit_gen",
-    testonly = 1,
+    testonly = True,
     hdrs = [
         "mocking_bit_gen.h",
     ],
@@ -521,7 +523,7 @@ cc_test(
 # Benchmarks for various methods / test utilities
 cc_binary(
     name = "benchmarks",
-    testonly = 1,
+    testonly = True,
     srcs = [
         "benchmarks.cc",
     ],

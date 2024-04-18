@@ -383,4 +383,10 @@
   # Bug: crbug.com/v8/14320
   'TimeTicks.NowResolution': [PASS,FAIL],
 }],  # system == windows
+
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'LogAllTest.LogAll': [SKIP],
+}],  # 'clang_coverage and mode == debug'
+
 ]

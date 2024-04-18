@@ -13,6 +13,10 @@
 #include "src/objects/code.h"
 #include "src/zone/zone-containers.h"
 
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/value-type.h"
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -28,7 +32,13 @@ struct CompilationEnv;
 struct FunctionBody;
 struct WasmCompilationResult;
 class WasmFeatures;
+struct WasmModule;
 }  // namespace wasm
+
+namespace compiler::turboshaft {
+class TurboshaftCompilationJob;
+class Graph;
+}  // namespace compiler::turboshaft
 
 namespace compiler {
 
@@ -78,11 +88,19 @@ class Pipeline : public AllStatic {
       WasmCompilationData& compilation_data, MachineGraph* mcgraph,
       wasm::WasmFeatures* detected, CallDescriptor* call_descriptor);
 
+#if V8_ENABLE_WEBASSEMBLY
   // Returns a new compilation job for a wasm heap stub.
   static std::unique_ptr<TurbofanCompilationJob> NewWasmHeapStubCompilationJob(
       Isolate* isolate, CallDescriptor* call_descriptor,
       std::unique_ptr<Zone> zone, Graph* graph, CodeKind kind,
       std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
+
+  static std::unique_ptr<compiler::turboshaft::TurboshaftCompilationJob>
+  NewWasmTurboshaftWrapperCompilationJob(
+      Isolate* isolate, const wasm::FunctionSig* sig, bool is_import,
+      const wasm::WasmModule* module, CodeKind kind,
+      std::unique_ptr<char[]> debug_name, const AssemblerOptions& options);
+#endif
 
   // Run the pipeline on a machine graph and generate code.
   static MaybeHandle<Code> GenerateCodeForCodeStub(

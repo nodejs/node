@@ -81,6 +81,7 @@ class EffectControlLinearizer {
   Node* LowerChangeUint64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTagged(Node* node);
   Node* LowerChangeFloat64ToTaggedPointer(Node* node);
+  Node* LowerChangeFloat64HoleToTagged(Node* node);
   Node* LowerChangeTaggedSignedToInt32(Node* node);
   Node* LowerChangeTaggedSignedToInt64(Node* node);
   Node* LowerChangeTaggedToBit(Node* node);
@@ -1063,6 +1064,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeFloat64ToTaggedPointer:
       if (v8_flags.turboshaft) return false;
       result = LowerChangeFloat64ToTaggedPointer(node);
+      break;
+    case IrOpcode::kChangeFloat64HoleToTagged:
+      result = LowerChangeFloat64HoleToTagged(node);
       break;
     case IrOpcode::kChangeTaggedSignedToInt32:
       if (v8_flags.turboshaft) return false;
@@ -6069,6 +6073,34 @@ Node* EffectControlLinearizer::LowerCheckFloat64Hole(Node* node,
   return value;
 }
 
+Node* EffectControlLinearizer::LowerChangeFloat64HoleToTagged(Node* node) {
+  DCHECK(!v8_flags.turboshaft);
+  Node* value = node->InputAt(0);
+
+  auto if_nan = __ MakeDeferredLabel();
+  auto allocate_heap_number = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  // First check whether {value} is a NaN at all...
+  __ Branch(__ Float64Equal(value, value), &allocate_heap_number, &if_nan);
+
+  __ Bind(&if_nan);
+  {
+    // ...and only if {value} is a NaN, perform the expensive bit
+    // check. See http://crbug.com/v8/8264 for details.
+    __ GotoIfNot(__ Word32Equal(__ Float64ExtractHighWord32(value),
+                                __ Int32Constant(kHoleNanUpper32)),
+                 &allocate_heap_number);
+    __ Goto(&done, __ UndefinedConstant());
+  }
+
+  __ Bind(&allocate_heap_number);
+  __ Goto(&done, AllocateHeapNumberWithValue(value));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
 Node* EffectControlLinearizer::LowerCheckNotTaggedHole(Node* node,
                                                        Node* frame_state) {
   DCHECK(!v8_flags.turboshaft);
@@ -6787,8 +6819,6 @@ Node* EffectControlLinearizer::ClampFastCallArgument(
 
 Node* EffectControlLinearizer::AdaptFastCallArgument(
     Node* node, CTypeInfo arg_type, GraphAssemblerLabel<0>* if_error) {
-  int kAlign = alignof(uintptr_t);
-  int kSize = sizeof(uintptr_t);
   switch (arg_type.GetSequenceType()) {
     case CTypeInfo::SequenceType::kScalar: {
       uint8_t flags = uint8_t(arg_type.GetFlags());
@@ -6821,12 +6851,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       } else {
         switch (arg_type.GetType()) {
           case CTypeInfo::Type::kV8Value: {
-            Node* stack_slot = __ StackSlot(kSize, kAlign);
-            __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                         kNoWriteBarrier),
-                     stack_slot, 0, __ BitcastTaggedToWord(node));
-
-            return stack_slot;
+            return fast_api_call::AdaptLocalArgument(gasm(), node);
           }
           case CTypeInfo::Type::kFloat32: {
             return __ TruncateFloat64ToFloat32(node);
@@ -6922,10 +6947,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
       Node* value_is_smi = ObjectIsSmi(node);
       __ GotoIf(value_is_smi, if_error);
 
-      Node* stack_slot = __ StackSlot(kSize, kAlign);
-      __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                   kNoWriteBarrier),
-               stack_slot, 0, __ BitcastTaggedToWord(node));
+      Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
 
       // Check that the value is a JSArray.
       Node* value_map = __ LoadField(AccessBuilder::ForMap(), node);
@@ -6935,7 +6957,7 @@ Node* EffectControlLinearizer::AdaptFastCallArgument(
           __ Word32Equal(value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
       __ GotoIfNot(value_is_js_array, if_error);
 
-      return stack_slot;
+      return node_to_pass;
     }
     case CTypeInfo::SequenceType::kIsTypedArray: {
       // Check that the value is a HeapObject.
@@ -6985,17 +7007,11 @@ EffectControlLinearizer::AdaptOverloadedFastCallArgument(
             value_instance_type, __ Int32Constant(JS_ARRAY_TYPE));
         __ GotoIfNot(value_is_js_array, &next);
 
-        int kAlign = alignof(uintptr_t);
-        int kSize = sizeof(uintptr_t);
-        Node* stack_slot = __ StackSlot(kSize, kAlign);
-
-        __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
-                                     kNoWriteBarrier),
-                 stack_slot, 0, __ BitcastTaggedToWord(node));
+        Node* node_to_pass = fast_api_call::AdaptLocalArgument(gasm(), node);
 
         Node* target_address = __ ExternalConstant(ExternalReference::Create(
             c_functions[func_index].address, ref_type));
-        __ Goto(&merge, target_address, stack_slot);
+        __ Goto(&merge, target_address, node_to_pass);
         break;
       }
 

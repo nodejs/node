@@ -519,19 +519,11 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_may_have_interesting_properties(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
-    if constexpr (V8_ENABLE_SWISS_NAME_DICTIONARY_BOOL) {
-      Handle<SwissNameDictionary> properties_dictionary_template =
-          Handle<SwissNameDictionary>::cast(properties_template);
-      return AddDescriptorsByTemplate(
-          isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, prototype, args);
-    } else {
-      Handle<NameDictionary> properties_dictionary_template =
-          Handle<NameDictionary>::cast(properties_template);
-      return AddDescriptorsByTemplate(
-          isolate, map, properties_dictionary_template,
-          elements_dictionary_template, computed_properties, prototype, args);
-    }
+    Handle<PropertyDictionary> properties_dictionary_template =
+        Handle<PropertyDictionary>::cast(properties_template);
+    return AddDescriptorsByTemplate(
+        isolate, map, properties_dictionary_template,
+        elements_dictionary_template, computed_properties, prototype, args);
   }
 }
 

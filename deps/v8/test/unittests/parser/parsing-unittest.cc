@@ -119,9 +119,9 @@ struct Input {
 
 bool TokenIsAutoSemicolon(Token::Value token) {
   switch (token) {
-    case Token::SEMICOLON:
-    case Token::EOS:
-    case Token::RBRACE:
+    case Token::kSemicolon:
+    case Token::kEos:
+    case Token::kRBrace:
       return true;
     default:
       return false;
@@ -149,7 +149,7 @@ class ParsingTest : public TestWithContextAndZone {
         scanner.SeekForward(skip_to);
       }
       i++;
-    } while (expected_tokens[i] != i::Token::ILLEGAL);
+    } while (expected_tokens[i] != i::Token::kIllegal);
   }
 
   void TestScanRegExp(const char* re_source, const char* expected) {
@@ -160,7 +160,7 @@ class ParsingTest : public TestWithContextAndZone {
     scanner.Initialize();
 
     i::Token::Value start = scanner.peek();
-    CHECK(start == i::Token::DIV || start == i::Token::ASSIGN_DIV);
+    CHECK(start == i::Token::kDiv || start == i::Token::kAssignDiv);
     CHECK(scanner.ScanRegExpPattern());
     scanner.Next();  // Current token is now the regexp literal.
     i::AstValueFactory ast_value_factory(
@@ -506,7 +506,7 @@ class ParsingTest : public TestWithContextAndZone {
 };
 
 TEST_F(ParsingTest, AutoSemicolonToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAutoSemicolon(token), Token::IsAutoSemicolon(token));
   }
@@ -514,17 +514,18 @@ TEST_F(ParsingTest, AutoSemicolonToken) {
 
 bool TokenIsAnyIdentifier(Token::Value token) {
   switch (token) {
-    case Token::IDENTIFIER:
-    case Token::GET:
-    case Token::SET:
-    case Token::OF:
-    case Token::ASYNC:
-    case Token::AWAIT:
-    case Token::YIELD:
-    case Token::LET:
-    case Token::STATIC:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::kIdentifier:
+    case Token::kGet:
+    case Token::kSet:
+    case Token::kUsing:
+    case Token::kOf:
+    case Token::kAsync:
+    case Token::kAwait:
+    case Token::kYield:
+    case Token::kLet:
+    case Token::kStatic:
+    case Token::kFutureStrictReservedWord:
+    case Token::kEscapedStrictReservedWord:
       return true;
     default:
       return false;
@@ -532,7 +533,7 @@ bool TokenIsAnyIdentifier(Token::Value token) {
 }
 
 TEST_F(ParsingTest, AnyIdentifierToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAnyIdentifier(token), Token::IsAnyIdentifier(token));
   }
@@ -540,18 +541,19 @@ TEST_F(ParsingTest, AnyIdentifierToken) {
 
 bool TokenIsCallable(Token::Value token) {
   switch (token) {
-    case Token::SUPER:
-    case Token::IDENTIFIER:
-    case Token::GET:
-    case Token::SET:
-    case Token::OF:
-    case Token::ASYNC:
-    case Token::AWAIT:
-    case Token::YIELD:
-    case Token::LET:
-    case Token::STATIC:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::kSuper:
+    case Token::kIdentifier:
+    case Token::kGet:
+    case Token::kSet:
+    case Token::kUsing:
+    case Token::kOf:
+    case Token::kAsync:
+    case Token::kAwait:
+    case Token::kYield:
+    case Token::kLet:
+    case Token::kStatic:
+    case Token::kFutureStrictReservedWord:
+    case Token::kEscapedStrictReservedWord:
       return true;
     default:
       return false;
@@ -559,7 +561,7 @@ bool TokenIsCallable(Token::Value token) {
 }
 
 TEST_F(ParsingTest, CallableToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsCallable(token), Token::IsCallable(token));
   }
@@ -568,20 +570,21 @@ TEST_F(ParsingTest, CallableToken) {
 bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
                             bool is_generator, bool disallow_await) {
   switch (token) {
-    case Token::IDENTIFIER:
-    case Token::GET:
-    case Token::SET:
-    case Token::OF:
-    case Token::ASYNC:
+    case Token::kIdentifier:
+    case Token::kGet:
+    case Token::kSet:
+    case Token::kUsing:
+    case Token::kOf:
+    case Token::kAsync:
       return true;
-    case Token::YIELD:
+    case Token::kYield:
       return !is_generator && is_sloppy(language_mode);
-    case Token::AWAIT:
+    case Token::kAwait:
       return !disallow_await;
-    case Token::LET:
-    case Token::STATIC:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::kLet:
+    case Token::kStatic:
+    case Token::kFutureStrictReservedWord:
+    case Token::kEscapedStrictReservedWord:
       return is_sloppy(language_mode);
     default:
       return false;
@@ -590,7 +593,7 @@ bool TokenIsValidIdentifier(Token::Value token, LanguageMode language_mode,
 }
 
 TEST_F(ParsingTest, IsValidIdentifierToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     for (size_t raw_language_mode = 0; raw_language_mode < LanguageModeSize;
          raw_language_mode++) {
@@ -609,11 +612,11 @@ TEST_F(ParsingTest, IsValidIdentifierToken) {
 
 bool TokenIsStrictReservedWord(Token::Value token) {
   switch (token) {
-    case Token::LET:
-    case Token::YIELD:
-    case Token::STATIC:
-    case Token::FUTURE_STRICT_RESERVED_WORD:
-    case Token::ESCAPED_STRICT_RESERVED_WORD:
+    case Token::kLet:
+    case Token::kYield:
+    case Token::kStatic:
+    case Token::kFutureStrictReservedWord:
+    case Token::kEscapedStrictReservedWord:
       return true;
     default:
       return false;
@@ -622,7 +625,7 @@ bool TokenIsStrictReservedWord(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsStrictReservedWord) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsStrictReservedWord(token),
              Token::IsStrictReservedWord(token));
@@ -631,13 +634,13 @@ TEST_F(ParsingTest, IsStrictReservedWord) {
 
 bool TokenIsLiteral(Token::Value token) {
   switch (token) {
-    case Token::NULL_LITERAL:
-    case Token::TRUE_LITERAL:
-    case Token::FALSE_LITERAL:
-    case Token::NUMBER:
-    case Token::SMI:
-    case Token::BIGINT:
-    case Token::STRING:
+    case Token::kNullLiteral:
+    case Token::kTrueLiteral:
+    case Token::kFalseLiteral:
+    case Token::kNumber:
+    case Token::kSmi:
+    case Token::kBigInt:
+    case Token::kString:
       return true;
     default:
       return false;
@@ -646,7 +649,7 @@ bool TokenIsLiteral(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsLiteralToken) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsLiteral(token), Token::IsLiteral(token));
   }
@@ -654,8 +657,8 @@ TEST_F(ParsingTest, IsLiteralToken) {
 
 bool TokenIsAssignmentOp(Token::Value token) {
   switch (token) {
-    case Token::INIT:
-    case Token::ASSIGN:
+    case Token::kInit:
+    case Token::kAssign:
 #define T(name, string, precedence) case Token::name:
       BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_ASSIGN_TOKEN)
 #undef T
@@ -666,18 +669,18 @@ bool TokenIsAssignmentOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, AssignmentOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsAssignmentOp(token), Token::IsAssignmentOp(token));
   }
 }
 
 bool TokenIsArrowOrAssignmentOp(Token::Value token) {
-  return token == Token::ARROW || TokenIsAssignmentOp(token);
+  return token == Token::kArrow || TokenIsAssignmentOp(token);
 }
 
 TEST_F(ParsingTest, ArrowOrAssignmentOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsArrowOrAssignmentOp(token),
              Token::IsArrowOrAssignmentOp(token));
@@ -686,7 +689,7 @@ TEST_F(ParsingTest, ArrowOrAssignmentOp) {
 
 bool TokenIsBinaryOp(Token::Value token) {
   switch (token) {
-    case Token::COMMA:
+    case Token::kComma:
 #define T(name, string, precedence) case Token::name:
       BINARY_OP_TOKEN_LIST(T, EXPAND_BINOP_TOKEN)
 #undef T
@@ -697,7 +700,7 @@ bool TokenIsBinaryOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, BinaryOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsBinaryOp(token), Token::IsBinaryOp(token));
   }
@@ -705,16 +708,16 @@ TEST_F(ParsingTest, BinaryOp) {
 
 bool TokenIsCompareOp(Token::Value token) {
   switch (token) {
-    case Token::EQ:
-    case Token::EQ_STRICT:
-    case Token::NE:
-    case Token::NE_STRICT:
-    case Token::LT:
-    case Token::GT:
-    case Token::LTE:
-    case Token::GTE:
-    case Token::INSTANCEOF:
-    case Token::IN:
+    case Token::kEq:
+    case Token::kEqStrict:
+    case Token::kNe:
+    case Token::kNeStrict:
+    case Token::kLt:
+    case Token::kGt:
+    case Token::kLte:
+    case Token::kGte:
+    case Token::kInstanceOf:
+    case Token::kIn:
       return true;
     default:
       return false;
@@ -722,7 +725,7 @@ bool TokenIsCompareOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, CompareOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsCompareOp(token), Token::IsCompareOp(token));
   }
@@ -730,10 +733,10 @@ TEST_F(ParsingTest, CompareOp) {
 
 bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
   switch (token) {
-    case Token::LT:
-    case Token::GT:
-    case Token::LTE:
-    case Token::GTE:
+    case Token::kLt:
+    case Token::kGt:
+    case Token::kLte:
+    case Token::kGte:
       return true;
     default:
       return false;
@@ -741,7 +744,7 @@ bool TokenIsOrderedRelationalCompareOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsOrderedRelationalCompareOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsOrderedRelationalCompareOp(token),
              Token::IsOrderedRelationalCompareOp(token));
@@ -750,8 +753,8 @@ TEST_F(ParsingTest, IsOrderedRelationalCompareOp) {
 
 bool TokenIsEqualityOp(Token::Value token) {
   switch (token) {
-    case Token::EQ:
-    case Token::EQ_STRICT:
+    case Token::kEq:
+    case Token::kEqStrict:
       return true;
     default:
       return false;
@@ -759,7 +762,7 @@ bool TokenIsEqualityOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsEqualityOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsEqualityOp(token), Token::IsEqualityOp(token));
   }
@@ -767,13 +770,13 @@ TEST_F(ParsingTest, IsEqualityOp) {
 
 bool TokenIsBitOp(Token::Value token) {
   switch (token) {
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-    case Token::BIT_NOT:
+    case Token::kBitOr:
+    case Token::kBitXor:
+    case Token::kBitAnd:
+    case Token::kShl:
+    case Token::kSar:
+    case Token::kShr:
+    case Token::kBitNot:
       return true;
     default:
       return false;
@@ -781,7 +784,7 @@ bool TokenIsBitOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsBitOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsBitOp(token), Token::IsBitOp(token));
   }
@@ -789,13 +792,13 @@ TEST_F(ParsingTest, IsBitOp) {
 
 bool TokenIsUnaryOp(Token::Value token) {
   switch (token) {
-    case Token::NOT:
-    case Token::BIT_NOT:
-    case Token::DELETE:
-    case Token::TYPEOF:
-    case Token::VOID:
-    case Token::ADD:
-    case Token::SUB:
+    case Token::kNot:
+    case Token::kBitNot:
+    case Token::kDelete:
+    case Token::kTypeOf:
+    case Token::kVoid:
+    case Token::kAdd:
+    case Token::kSub:
       return true;
     default:
       return false;
@@ -803,7 +806,7 @@ bool TokenIsUnaryOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsUnaryOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsUnaryOp(token), Token::IsUnaryOp(token));
   }
@@ -811,12 +814,12 @@ TEST_F(ParsingTest, IsUnaryOp) {
 
 bool TokenIsPropertyOrCall(Token::Value token) {
   switch (token) {
-    case Token::TEMPLATE_SPAN:
-    case Token::TEMPLATE_TAIL:
-    case Token::PERIOD:
-    case Token::QUESTION_PERIOD:
-    case Token::LBRACK:
-    case Token::LPAREN:
+    case Token::kTemplateSpan:
+    case Token::kTemplateTail:
+    case Token::kPeriod:
+    case Token::kQuestionPeriod:
+    case Token::kLBrack:
+    case Token::kLParen:
       return true;
     default:
       return false;
@@ -824,7 +827,7 @@ bool TokenIsPropertyOrCall(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsPropertyOrCall) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsPropertyOrCall(token), Token::IsPropertyOrCall(token));
   }
@@ -832,10 +835,10 @@ TEST_F(ParsingTest, IsPropertyOrCall) {
 
 bool TokenIsMember(Token::Value token) {
   switch (token) {
-    case Token::TEMPLATE_SPAN:
-    case Token::TEMPLATE_TAIL:
-    case Token::PERIOD:
-    case Token::LBRACK:
+    case Token::kTemplateSpan:
+    case Token::kTemplateTail:
+    case Token::kPeriod:
+    case Token::kLBrack:
       return true;
     default:
       return false;
@@ -844,8 +847,8 @@ bool TokenIsMember(Token::Value token) {
 
 bool TokenIsTemplate(Token::Value token) {
   switch (token) {
-    case Token::TEMPLATE_SPAN:
-    case Token::TEMPLATE_TAIL:
+    case Token::kTemplateSpan:
+    case Token::kTemplateTail:
       return true;
     default:
       return false;
@@ -854,8 +857,8 @@ bool TokenIsTemplate(Token::Value token) {
 
 bool TokenIsProperty(Token::Value token) {
   switch (token) {
-    case Token::PERIOD:
-    case Token::LBRACK:
+    case Token::kPeriod:
+    case Token::kLBrack:
       return true;
     default:
       return false;
@@ -863,21 +866,21 @@ bool TokenIsProperty(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsMember) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsMember(token), Token::IsMember(token));
   }
 }
 
 TEST_F(ParsingTest, IsTemplate) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsTemplate(token), Token::IsTemplate(token));
   }
 }
 
 TEST_F(ParsingTest, IsProperty) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsProperty(token), Token::IsProperty(token));
   }
@@ -885,8 +888,8 @@ TEST_F(ParsingTest, IsProperty) {
 
 bool TokenIsCountOp(Token::Value token) {
   switch (token) {
-    case Token::INC:
-    case Token::DEC:
+    case Token::kInc:
+    case Token::kDec:
       return true;
     default:
       return false;
@@ -894,14 +897,14 @@ bool TokenIsCountOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsCountOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsCountOp(token), Token::IsCountOp(token));
   }
 }
 
 TEST_F(ParsingTest, IsUnaryOrCountOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsUnaryOp(token) || TokenIsCountOp(token),
              Token::IsUnaryOrCountOp(token));
@@ -910,9 +913,9 @@ TEST_F(ParsingTest, IsUnaryOrCountOp) {
 
 bool TokenIsShiftOp(Token::Value token) {
   switch (token) {
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
+    case Token::kShl:
+    case Token::kSar:
+    case Token::kShr:
       return true;
     default:
       return false;
@@ -920,7 +923,7 @@ bool TokenIsShiftOp(Token::Value token) {
 }
 
 TEST_F(ParsingTest, IsShiftOp) {
-  for (int i = 0; i < Token::NUM_TOKENS; i++) {
+  for (int i = 0; i < Token::kNumTokens; i++) {
     Token::Value token = static_cast<Token::Value>(i);
     CHECK_EQ(TokenIsShiftOp(token), Token::IsShiftOp(token));
   }
@@ -936,7 +939,7 @@ TEST_F(ParsingTest, ScanKeywords) {
 #define KEYWORD(t, s, d) {s, i::Token::t},
       TOKEN_LIST(IGNORE_TOKEN, KEYWORD)
 #undef KEYWORD
-          {nullptr, i::Token::IDENTIFIER}};
+          {nullptr, i::Token::kIdentifier}};
 
   i::UnoptimizedCompileFlags flags =
       i::UnoptimizedCompileFlags::ForTest(i_isolate());
@@ -951,15 +954,15 @@ TEST_F(ParsingTest, ScanKeywords) {
       i::Scanner scanner(stream.get(), flags);
       scanner.Initialize();
       CHECK_EQ(key_token.token, scanner.Next());
-      CHECK_EQ(i::Token::EOS, scanner.Next());
+      CHECK_EQ(i::Token::kEos, scanner.Next());
     }
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
       i::Scanner scanner(stream.get(), flags);
       scanner.Initialize();
-      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
-      CHECK_EQ(i::Token::EOS, scanner.Next());
+      CHECK_EQ(i::Token::kIdentifier, scanner.Next());
+      CHECK_EQ(i::Token::kEos, scanner.Next());
     }
     // Adding characters will make keyword matching fail.
     static const char chars_to_append[] = {'z', '0', '_'};
@@ -969,8 +972,8 @@ TEST_F(ParsingTest, ScanKeywords) {
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
       i::Scanner scanner(stream.get(), flags);
       scanner.Initialize();
-      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
-      CHECK_EQ(i::Token::EOS, scanner.Next());
+      CHECK_EQ(i::Token::kIdentifier, scanner.Next());
+      CHECK_EQ(i::Token::kEos, scanner.Next());
     }
     // Replacing characters will make keyword matching fail.
     {
@@ -979,8 +982,8 @@ TEST_F(ParsingTest, ScanKeywords) {
       auto stream = i::ScannerStream::ForTesting(buffer, length);
       i::Scanner scanner(stream.get(), flags);
       scanner.Initialize();
-      CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
-      CHECK_EQ(i::Token::EOS, scanner.Next());
+      CHECK_EQ(i::Token::kIdentifier, scanner.Next());
+      CHECK_EQ(i::Token::kEos, scanner.Next());
     }
   }
 }
@@ -1088,8 +1091,8 @@ TEST_F(ParsingTest, ScanHtmlComments) {
     auto stream = i::ScannerStream::ForTesting(src);
     i::Scanner scanner(stream.get(), flags);
     scanner.Initialize();
-    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
-    CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
+    CHECK_EQ(i::Token::kIdentifier, scanner.Next());
+    CHECK_EQ(i::Token::kIllegal, scanner.Next());
   }
 
   // Skip HTML comments:
@@ -1098,8 +1101,8 @@ TEST_F(ParsingTest, ScanHtmlComments) {
     auto stream = i::ScannerStream::ForTesting(src);
     i::Scanner scanner(stream.get(), flags);
     scanner.Initialize();
-    CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
-    CHECK_EQ(i::Token::EOS, scanner.Next());
+    CHECK_EQ(i::Token::kIdentifier, scanner.Next());
+    CHECK_EQ(i::Token::kEos, scanner.Next());
   }
 }
 
@@ -1252,30 +1255,32 @@ TEST_F(ParsingTest, StreamScanner) {
   std::unique_ptr<i::Utf16CharacterStream> stream1(
       i::ScannerStream::ForTesting(str1));
   i::Token::Value expectations1[] = {
-      i::Token::LBRACE, i::Token::IDENTIFIER, i::Token::GET, i::Token::FOR,
-      i::Token::COLON,  i::Token::MUL,        i::Token::DIV, i::Token::LT,
-      i::Token::SUB,    i::Token::IDENTIFIER, i::Token::EOS, i::Token::ILLEGAL};
+      i::Token::kLBrace,     i::Token::kIdentifier, i::Token::kGet,
+      i::Token::kFor,        i::Token::kColon,      i::Token::kMul,
+      i::Token::kDiv,        i::Token::kLt,         i::Token::kSub,
+      i::Token::kIdentifier, i::Token::kEos,        i::Token::kIllegal};
   TestStreamScanner(stream1.get(), expectations1, 0, 0);
 
   const char* str2 = "case default const {THIS\nPART\nSKIPPED} do";
   std::unique_ptr<i::Utf16CharacterStream> stream2(
       i::ScannerStream::ForTesting(str2));
   i::Token::Value expectations2[] = {
-      i::Token::CASE, i::Token::DEFAULT, i::Token::CONST, i::Token::LBRACE,
+      i::Token::kCase, i::Token::kDefault, i::Token::kConst, i::Token::kLBrace,
       // Skipped part here
-      i::Token::RBRACE, i::Token::DO, i::Token::EOS, i::Token::ILLEGAL};
+      i::Token::kRBrace, i::Token::kDo, i::Token::kEos, i::Token::kIllegal};
   CHECK_EQ('{', str2[19]);
   CHECK_EQ('}', str2[37]);
   TestStreamScanner(stream2.get(), expectations2, 20, 37);
 
   const char* str3 = "{}}}}";
-  i::Token::Value expectations3[] = {
-      i::Token::LBRACE, i::Token::RBRACE, i::Token::RBRACE, i::Token::RBRACE,
-      i::Token::RBRACE, i::Token::EOS,    i::Token::ILLEGAL};
+  i::Token::Value expectations3[] = {i::Token::kLBrace, i::Token::kRBrace,
+                                     i::Token::kRBrace, i::Token::kRBrace,
+                                     i::Token::kRBrace, i::Token::kEos,
+                                     i::Token::kIllegal};
   // Skip zero-four RBRACEs.
   for (int i = 0; i <= 4; i++) {
-    expectations3[6 - i] = i::Token::ILLEGAL;
-    expectations3[5 - i] = i::Token::EOS;
+    expectations3[6 - i] = i::Token::kIllegal;
+    expectations3[5 - i] = i::Token::kEos;
     std::unique_ptr<i::Utf16CharacterStream> stream3(
         i::ScannerStream::ForTesting(str3));
     TestStreamScanner(stream3.get(), expectations3, 1, 1 + i);
@@ -4649,7 +4654,7 @@ TEST_F(ParsingTest, ImportExpressionSuccess) {
   RunModuleParserSyncTest(context_data, data, kSuccess);
 }
 
-TEST_F(ParsingTest, ImportExpressionWithImportAssertionSuccess) {
+TEST_F(ParsingTest, ImportExpressionWithOptionsSuccess) {
   i::v8_flags.harmony_import_assertions = true;
 
   // clang-format off
@@ -4778,7 +4783,7 @@ TEST_F(ParsingTest, ImportExpressionErrors) {
   }
 }
 
-TEST_F(ParsingTest, ImportExpressionWithImportAssertionErrors) {
+TEST_F(ParsingTest, ImportExpressionWithOptionsErrors) {
   {
     i::v8_flags.harmony_import_assertions = true;
 
@@ -4954,6 +4959,7 @@ TEST_F(ParsingTest, ImportAssertionParsingErrors) {
   // clang-format on
 
   i::v8_flags.harmony_import_assertions = true;
+  i::v8_flags.harmony_import_attributes = false;
   i::Isolate* isolate = i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -8209,52 +8215,52 @@ TEST_F(ParsingTest, ModuleParsingInternalsWithImportAssertions) {
   for (const auto& elem : descriptor->module_requests()) {
     if (elem->index() == 0) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(0, elem->import_assertions()->size());
+      CHECK_EQ(0, elem->import_attributes()->size());
       CHECK_EQ(23, elem->position());
     } else if (elem->index() == 1) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(54, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(70, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(70, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 2) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(106, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(122, elem->import_assertions()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(122, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 3) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(159, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar2"));
-      CHECK_EQ(175, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(175, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else if (elem->index() == 4) {
       CHECK(elem->specifier()->IsOneByteEqualTo("m.js"));
-      CHECK_EQ(2, elem->import_assertions()->size());
+      CHECK_EQ(2, elem->import_attributes()->size());
       CHECK_EQ(212, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(228, elem->import_assertions()->at(foo_string).second.beg_pos);
-      CHECK(elem->import_assertions()
+      CHECK_EQ(228, elem->import_attributes()->at(foo_string).second.beg_pos);
+      CHECK(elem->import_attributes()
                 ->at(foo2_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(240, elem->import_assertions()->at(foo2_string).second.beg_pos);
+      CHECK_EQ(240, elem->import_attributes()->at(foo2_string).second.beg_pos);
     } else if (elem->index() == 5) {
       CHECK(elem->specifier()->IsOneByteEqualTo("n.js"));
-      CHECK_EQ(1, elem->import_assertions()->size());
+      CHECK_EQ(1, elem->import_attributes()->size());
       CHECK_EQ(277, elem->position());
-      CHECK(elem->import_assertions()
+      CHECK(elem->import_attributes()
                 ->at(foo_string)
                 .first->IsOneByteEqualTo("bar"));
-      CHECK_EQ(293, elem->import_assertions()->at(foo_string).second.beg_pos);
+      CHECK_EQ(293, elem->import_attributes()->at(foo_string).second.beg_pos);
     } else {
       UNREACHABLE();
     }
@@ -8347,184 +8353,184 @@ TEST_F(ParsingTest, ModuleParsingModuleRequestOrdering) {
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(0, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("foo"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
-  CHECK_EQ(0, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(0, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("g"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("d"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("h"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("d"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("i"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("j"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("k"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(e_string)
             .first->IsOneByteEqualTo("f"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("l"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo("g"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(e_string)
             .first->IsOneByteEqualTo("f"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("m"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo("g"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("n"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo(""));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("b"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("o"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(d_string)
             .first->IsOneByteEqualTo(""));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(a_string)
             .first->IsOneByteEqualTo("c"));
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(b_string)
             .first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("p"));
-  CHECK_EQ(1, (*request_iterator)->import_assertions()->size());
+  CHECK_EQ(1, (*request_iterator)->import_attributes()->size());
   CHECK((*request_iterator)
-            ->import_assertions()
+            ->import_attributes()
             ->at(z_string)
             .first->IsOneByteEqualTo("c"));
 }
@@ -8567,59 +8573,59 @@ TEST_F(ParsingTest, ModuleParsingImportAssertionKeySorting) {
   auto request_iterator = descriptor->module_requests().cbegin();
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("a"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  auto assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("a"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  auto attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("a"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("b"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaaaaa"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aaaaaa"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("c"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo(""));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("b"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo(""));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("b"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("d"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aaabbb"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("z"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->first->IsOneByteEqualTo("aabbbb"));
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("c"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aaabbb"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("z"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->first->IsOneByteEqualTo("aabbbb"));
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("c"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("e"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("first"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("second"));
   ++request_iterator;
 
   CHECK((*request_iterator)->specifier()->IsOneByteEqualTo("f"));
-  CHECK_EQ(2, (*request_iterator)->import_assertions()->size());
-  assertion_iterator = (*request_iterator)->import_assertions()->cbegin();
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("first"));
-  ++assertion_iterator;
-  CHECK(assertion_iterator->second.first->IsOneByteEqualTo("second"));
+  CHECK_EQ(2, (*request_iterator)->import_attributes()->size());
+  attributes_iterator = (*request_iterator)->import_attributes()->cbegin();
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("first"));
+  ++attributes_iterator;
+  CHECK(attributes_iterator->second.first->IsOneByteEqualTo("second"));
 }
 
 TEST_F(ParsingTest, DuplicateProtoError) {

@@ -352,18 +352,19 @@ struct CordRepExternal : public CordRep {
   static void Delete(CordRep* rep);
 };
 
-struct Rank1 {};
-struct Rank0 : Rank1 {};
+// Use go/ranked-overloads for dispatching.
+struct Rank0 {};
+struct Rank1 : Rank0 {};
 
 template <typename Releaser, typename = ::absl::base_internal::invoke_result_t<
                                  Releaser, absl::string_view>>
-void InvokeReleaser(Rank0, Releaser&& releaser, absl::string_view data) {
+void InvokeReleaser(Rank1, Releaser&& releaser, absl::string_view data) {
   ::absl::base_internal::invoke(std::forward<Releaser>(releaser), data);
 }
 
 template <typename Releaser,
           typename = ::absl::base_internal::invoke_result_t<Releaser>>
-void InvokeReleaser(Rank1, Releaser&& releaser, absl::string_view) {
+void InvokeReleaser(Rank0, Releaser&& releaser, absl::string_view) {
   ::absl::base_internal::invoke(std::forward<Releaser>(releaser));
 }
 
@@ -381,7 +382,7 @@ struct CordRepExternalImpl
   }
 
   ~CordRepExternalImpl() {
-    InvokeReleaser(Rank0{}, std::move(this->template get<0>()),
+    InvokeReleaser(Rank1{}, std::move(this->template get<0>()),
                    absl::string_view(base, length));
   }
 
@@ -520,6 +521,7 @@ class InlineData {
 
   constexpr InlineData(const InlineData& rhs) noexcept;
   InlineData& operator=(const InlineData& rhs) noexcept;
+  friend void swap(InlineData& lhs, InlineData& rhs) noexcept;
 
   friend bool operator==(const InlineData& lhs, const InlineData& rhs) {
 #ifdef ABSL_INTERNAL_CORD_HAVE_SANITIZER
@@ -770,6 +772,12 @@ class InlineData {
       char data[kMaxInline + 1];
       AsTree as_tree;
     };
+
+    // TODO(b/145829486): see swap(InlineData, InlineData) for more info.
+    inline void SwapValue(Rep rhs, Rep& refrhs) {
+      memcpy(&refrhs, this, sizeof(*this));
+      memcpy(this, &rhs, sizeof(*this));
+    }
   };
 
   // Private implementation of `Compare()`
@@ -882,6 +890,19 @@ inline void CordRep::Unref(CordRep* rep) {
   if (ABSL_PREDICT_FALSE(!rep->refcount.DecrementExpectHighRefcount())) {
     Destroy(rep);
   }
+}
+
+inline void swap(InlineData& lhs, InlineData& rhs) noexcept {
+  lhs.unpoison();
+  rhs.unpoison();
+  // TODO(b/145829486): `std::swap(lhs.rep_, rhs.rep_)` results in bad codegen
+  // on clang, spilling the temporary swap value on the stack. Since `Rep` is
+  // trivial, we can make clang DTRT by calling a hand-rolled `SwapValue` where
+  // we pass `rhs` both by value (register allocated) and by reference. The IR
+  // then folds and inlines correctly into an optimized swap without spill.
+  lhs.rep_.SwapValue(rhs.rep_, rhs.rep_);
+  rhs.poison();
+  lhs.poison();
 }
 
 }  // namespace cord_internal

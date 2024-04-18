@@ -104,6 +104,11 @@ class V8_EXPORT_PRIVATE LocalHeap {
   Heap* heap() const { return heap_; }
   Heap* AsHeap() const { return heap(); }
 
+  // Heap root getters.
+#define ROOT_ACCESSOR(type, name, CamelName) inline Tagged<type> name();
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
 
   // Give up all LABs. Used for e.g. full GCs.

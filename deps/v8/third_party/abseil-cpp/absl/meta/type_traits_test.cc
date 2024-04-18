@@ -792,9 +792,12 @@ TEST(TriviallyRelocatable, UserProvidedDestructor) {
 
 // TODO(b/275003464): remove the opt-out for Clang on Windows once
 // __is_trivially_relocatable is used there again.
-#if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) &&      \
-    ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && \
-    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64)))
+// TODO(b/324278148): remove the opt-out for Apple once
+// __is_trivially_relocatable is fixed there.
+#if defined(ABSL_HAVE_ATTRIBUTE_TRIVIAL_ABI) &&                      \
+    ABSL_HAVE_BUILTIN(__is_trivially_relocatable) &&                 \
+    !(defined(__clang__) && (defined(_WIN32) || defined(_WIN64))) && \
+    !defined(__APPLE__)
 // A type marked with the "trivial ABI" attribute is trivially relocatable even
 // if it has user-provided move/copy constructors and a user-provided
 // destructor.

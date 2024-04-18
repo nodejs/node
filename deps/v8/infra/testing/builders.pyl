@@ -376,7 +376,6 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
-      {'name': 'v8testing', 'variant': 'future'},
     ],
   },
   'v8_linux64_coverage_rel': {
@@ -1435,7 +1434,6 @@
     },
     'tests': [
       {'name': 'v8testing', 'variant': 'default'},
-      {'name': 'v8testing', 'variant': 'future'},
     ],
   },
   'V8 Linux64 - custom snapshot - debug': {

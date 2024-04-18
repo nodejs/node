@@ -243,7 +243,10 @@ type IndirectPointer
     generates 'TNode<IndirectPointerHandleT>'
     constexpr 'IndirectPointerHandle';
 // TODO(saelo): implement accessors and type checkers for these fields.
-type IndirectPointer<To: type> extends IndirectPointer;
+type IndirectPointer<To : type extends ExposedTrustedObject> extends
+    IndirectPointer;
+type ProtectedPointer extends Tagged;
+type ProtectedPointer<To : type extends TrustedObject> extends ProtectedPointer;
 extern class InstructionStream extends TrustedObject;
 type BuiltinPtr extends Smi generates 'TNode<BuiltinPtr>';
 
@@ -419,6 +422,7 @@ extern enum MessageTemplate {
   kTypedArraySetOffsetOutOfBounds,
   kInvalidArgument,
   kInvalidRegExpExecResult,
+  kInvalidSizeValue,
   kRegExpNonRegExp,
   kRegExpNonObject,
   kPromiseNonCallable,
@@ -477,6 +481,7 @@ extern enum MessageTemplate {
   kIteratorResultNotAnObject,
   kFlattenPastSafeLength,
   kStrictReadOnlyProperty,
+  kInvalidUsingInForInLoop,
   ...
 }
 

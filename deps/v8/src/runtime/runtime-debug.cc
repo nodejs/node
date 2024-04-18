@@ -927,15 +927,13 @@ RUNTIME_FUNCTION(Runtime_ProfileCreateSnapshotDataBlob) {
   DisableEmbeddedBlobRefcounting();
 
   static constexpr char* kNoEmbeddedSource = nullptr;
-  // Have the SnapshotCreator create a new Isolate from scratch.
-  static constexpr Isolate* kNoIsolate = nullptr;
   // We use this flag to tell the serializer not to finalize/seal RO space -
   // this already happened after deserializing the main Isolate.
   static constexpr Snapshot::SerializerFlags kSerializerFlags =
       Snapshot::SerializerFlag::kAllowActiveIsolateForTesting;
   v8::StartupData blob = CreateSnapshotDataBlobInternal(
       v8::SnapshotCreator::FunctionCodeHandling::kClear, kNoEmbeddedSource,
-      kNoIsolate, kSerializerFlags);
+      kSerializerFlags);
   delete[] blob.data;
 
   // Track the embedded blob size as well.

@@ -163,6 +163,7 @@ class TargetArchitecture : public base::ContextualClass<TargetArchitecture> {
   static size_t RawPtrSize() { return Get().raw_ptr_size_; }
   static size_t ExternalPointerSize() { return Get().external_ptr_size_; }
   static size_t IndirectPointerSize() { return Get().indirect_ptr_size_; }
+  static size_t ProtectedPointerSize() { return TaggedSize(); }
   static size_t MaxHeapAlignment() { return TaggedSize(); }
   static bool ArePointersCompressed() { return TaggedSize() < RawPtrSize(); }
   static int SmiTagAndShiftSize() { return Get().smi_tag_and_shift_size_; }

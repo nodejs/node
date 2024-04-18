@@ -27,6 +27,11 @@ class GCInvoker::GCInvokerImpl final : public GarbageCollector {
   const EmbedderStackState* override_stack_state() const final {
     return collector_->override_stack_state();
   }
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  v8::base::Optional<int> UpdateAllocationTimeout() final {
+    return v8::base::nullopt;
+  }
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
  private:
   class GCTask final : public cppgc::Task {
@@ -143,6 +148,12 @@ size_t GCInvoker::epoch() const { return impl_->epoch(); }
 const EmbedderStackState* GCInvoker::override_stack_state() const {
   return impl_->override_stack_state();
 }
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+v8::base::Optional<int> GCInvoker::UpdateAllocationTimeout() {
+  return impl_->UpdateAllocationTimeout();
+}
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
 }  // namespace internal
 }  // namespace cppgc

@@ -137,10 +137,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   }
 
   TNode<BoolT> IsPageFlagSet(TNode<IntPtrT> object, int mask) {
-    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<IntPtrT> header = PageHeaderFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
-        Load(MachineType::Pointer(), page,
-             IntPtrConstant(BasicMemoryChunk::kFlagsOffset)));
+        Load(MachineType::Pointer(), header,
+             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -156,8 +156,8 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void GetMarkBit(TNode<IntPtrT> object, TNode<IntPtrT>* cell,
                   TNode<IntPtrT>* mask) {
     TNode<IntPtrT> page = PageFromAddress(object);
-    TNode<IntPtrT> bitmap =
-        IntPtrAdd(page, IntPtrConstant(MemoryChunk::kMarkingBitmapOffset));
+    TNode<IntPtrT> bitmap = IntPtrAdd(
+        page, IntPtrConstant(MemoryChunkLayout::kMarkingBitmapOffset));
 
     {
       // Temp variable to calculate cell offset in bitmap.
@@ -165,8 +165,10 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
       int shift = MarkingBitmap::kBitsPerCellLog2 + kTaggedSizeLog2 -
                   MarkingBitmap::kBytesPerCellLog2;
       r0 = WordShr(object, IntPtrConstant(shift));
-      r0 = WordAnd(r0, IntPtrConstant((kPageAlignmentMask >> shift) &
-                                      ~(MarkingBitmap::kBytesPerCell - 1)));
+      r0 = WordAnd(
+          r0, IntPtrConstant(
+                  (MemoryChunkHeader::GetAlignmentMaskForAssembler() >> shift) &
+                  ~(MarkingBitmap::kBytesPerCell - 1)));
       *cell = IntPtrAdd(bitmap, Signed(r0));
     }
     {
@@ -185,11 +187,12 @@ class WriteBarrierCodeStubAssembler : public CodeStubAssembler {
   void InsertIntoRememberedSet(TNode<IntPtrT> object, TNode<IntPtrT> slot,
                                SaveFPRegsMode fp_mode) {
     Label slow_path(this), next(this);
-    TNode<IntPtrT> page = PageFromAddress(object);
+    TNode<IntPtrT> page_header = PageHeaderFromAddress(object);
+    TNode<IntPtrT> page = PageFromPageHeader(page_header);
 
     // Load address of SlotSet
     TNode<IntPtrT> slot_set = LoadSlotSet(page, &slow_path);
-    TNode<IntPtrT> slot_offset = IntPtrSub(slot, page);
+    TNode<IntPtrT> slot_offset = IntPtrSub(slot, page_header);
 
     // Load bucket
     TNode<IntPtrT> bucket = LoadBucket(slot_set, slot_offset, &slow_path);
@@ -1423,7 +1426,8 @@ void Builtins::Generate_MaglevOptimizeCodeOrTailCallOptimizedCodeSlot(
   using D = MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor;
   Register flags = D::GetRegisterParameter(D::kFlags);
   Register feedback_vector = D::GetRegisterParameter(D::kFeedbackVector);
-  masm->AssertFeedbackVector(feedback_vector);
+  Register temporary = D::GetRegisterParameter(D::kTemporary);
+  masm->AssertFeedbackVector(feedback_vector, temporary);
   masm->OptimizeCodeOrTailCallOptimizedCodeSlot(flags, feedback_vector);
   masm->Trap();
 }

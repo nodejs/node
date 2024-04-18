@@ -116,6 +116,7 @@ namespace v8::internal::wasm {
   V(WasmStringNewWtf8Array)                                                    \
   V(WasmStringNewWtf16Array)                                                   \
   V(WasmStringEncodeWtf8Array)                                                 \
+  V(WasmStringToUtf8Array)                                                     \
   V(WasmStringEncodeWtf16Array)                                                \
   V(WasmStringAsWtf8)                                                          \
   V(WasmStringViewWtf8Advance)                                                 \

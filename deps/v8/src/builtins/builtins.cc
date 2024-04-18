@@ -463,6 +463,28 @@ bool Builtins::IsCpp(Builtin builtin) {
 }
 
 // static
+CodeEntrypointTag Builtins::EntrypointTagFor(Builtin builtin) {
+  if (builtin == Builtin::kNoBuiltinId) {
+    // Special case needed for example for tests.
+    return kDefaultCodeEntrypointTag;
+  }
+
+  Kind kind = Builtins::KindOf(builtin);
+  switch (kind) {
+    case BCH:
+      return kBytecodeHandlerEntrypointTag;
+    case TFH:
+      return kICHandlerEntrypointTag;
+    case ASM:
+      // TODO(saelo) consider using this approach for the other kinds as well.
+      return CallInterfaceDescriptorFor(builtin).tag();
+    default:
+      // TODO(saelo): use more fine-grained tags here.
+      return kDefaultCodeEntrypointTag;
+  }
+}
+
+// static
 bool Builtins::AllowDynamicFunction(Isolate* isolate, Handle<JSFunction> target,
                                     Handle<JSObject> target_global_proxy) {
   if (v8_flags.allow_unsafe_function_constructor) return true;

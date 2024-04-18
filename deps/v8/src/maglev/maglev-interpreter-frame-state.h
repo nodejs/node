@@ -311,6 +311,8 @@ struct KnownNodeAspects {
     any_map_for_any_node_is_unstable = false;
   }
 
+  void ClearAvailableExpressions() { available_expressions.clear(); }
+
   NodeInfos::iterator FindInfo(ValueNode* node) {
     return node_infos.find(node);
   }
@@ -416,7 +418,7 @@ struct KnownNodeAspects {
   ZoneMap<std::tuple<ValueNode*, int>, ValueNode*> loaded_context_slots;
 
   struct AvailableExpression {
-    ValueNode* node;
+    NodeBase* node;
     uint32_t effect_epoch;
   };
   ZoneMap<uint32_t, AvailableExpression> available_expressions;

@@ -108,7 +108,9 @@ class RootVisitor;
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, coverage_info_map, CoverageInfoMap)                                   \
+  V(Map, dictionary_template_info_map, DictionaryTemplateInfoMap)              \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
+  V(Map, global_const_tracking_let_cell_map, GlobalConstTrackingLetCellMap)    \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, mega_dom_handler_map, MegaDomHandlerMap)                              \
   V(Map, module_info_map, ModuleInfoMap)                                       \
@@ -137,15 +139,16 @@ class RootVisitor;
   V(Map, synthetic_module_map, SyntheticModuleMap)                             \
   IF_WASM(V, Map, wasm_api_function_ref_map, WasmApiFunctionRefMap)            \
   IF_WASM(V, Map, wasm_capi_function_data_map, WasmCapiFunctionDataMap)        \
+  IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
+  IF_WASM(V, Map, wasm_dispatch_table_map, WasmDispatchTableMap)               \
   IF_WASM(V, Map, wasm_exported_function_data_map,                             \
           WasmExportedFunctionDataMap)                                         \
   IF_WASM(V, Map, wasm_internal_function_map, WasmInternalFunctionMap)         \
   IF_WASM(V, Map, wasm_js_function_data_map, WasmJSFunctionDataMap)            \
-  IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
-  IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
-  IF_WASM(V, Map, wasm_continuation_object_map, WasmContinuationObjectMap)     \
   IF_WASM(V, Map, wasm_null_map, WasmNullMap)                                  \
+  IF_WASM(V, Map, wasm_resume_data_map, WasmResumeDataMap)                     \
   IF_WASM(V, Map, wasm_trusted_instance_data_map, WasmTrustedInstanceDataMap)  \
+  IF_WASM(V, Map, wasm_type_info_map, WasmTypeInfoMap)                         \
   V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_array_list_map, WeakArrayListMap)                                \
   V(Map, ephemeron_hash_table_map, EphemeronHashTableMap)                      \
@@ -154,6 +157,7 @@ class RootVisitor;
   V(Map, external_pointer_array_map, ExternalPointerArrayMap)                  \
   V(Map, trusted_fixed_array_map, TrustedFixedArrayMap)                        \
   V(Map, trusted_byte_array_map, TrustedByteArrayMap)                          \
+  V(Map, protected_fixed_array_map, ProtectedFixedArrayMap)                    \
   V(Map, interpreter_data_map, InterpreterDataMap)                             \
   /* String maps */                                                            \
   V(Map, seq_two_byte_string_map, SeqTwoByteStringMap)                         \
@@ -421,6 +425,14 @@ class RootVisitor;
 #define ACCESSOR_INFO_ROOT_LIST(V) \
   ACCESSOR_INFO_LIST_GENERATOR(ACCESSOR_INFO_ROOT_LIST_ADAPTER, V)
 
+// TODO(saelo): ideally, these would be read-only roots (and then become part
+// of the READ_ONLY_ROOT_LIST instead of the MUTABLE_ROOT_LIST). However,
+// currently we do not have a trusted RO space.
+#define TRUSTED_ROOT_LIST(V)                                              \
+  V(TrustedByteArray, empty_trusted_byte_array, EmptyTrustedByteArray)    \
+  V(TrustedFixedArray, empty_trusted_fixed_array, EmptyTrustedFixedArray) \
+  V(ProtectedFixedArray, empty_protected_fixed_array, EmptyProtectedFixedArray)
+
 #define READ_ONLY_ROOT_LIST(V)     \
   STRONG_READ_ONLY_ROOT_LIST(V)    \
   INTERNALIZED_STRING_ROOT_LIST(V) \
@@ -436,6 +448,7 @@ class RootVisitor;
 #define MUTABLE_ROOT_LIST(V)            \
   STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(V) \
   STRONG_MUTABLE_MOVABLE_ROOT_LIST(V)   \
+  TRUSTED_ROOT_LIST(V)                  \
   SMI_ROOT_LIST(V)
 
 #define ROOT_LIST(V)     \
@@ -479,7 +492,8 @@ enum class RootIndex : uint16_t {
   // roots).
   kMutableRootsCount = 0
       STRONG_MUTABLE_IMMOVABLE_ROOT_LIST(COUNT_ROOT)
-      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT),
+      STRONG_MUTABLE_MOVABLE_ROOT_LIST(COUNT_ROOT)
+      TRUSTED_ROOT_LIST(COUNT_ROOT),
   kFirstStrongRoot = kLastReadOnlyRoot + 1,
   kLastStrongRoot = kFirstStrongRoot + kMutableRootsCount - 1,
 

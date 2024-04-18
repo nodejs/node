@@ -53,6 +53,8 @@ namespace internal {
   V(CallWithSpread)                                  \
   V(CallWithSpread_Baseline)                         \
   V(CallWithSpread_WithFeedback)                     \
+  V(CCall)                                           \
+  V(CEntryDummy)                                     \
   V(CEntry1ArgvOnStack)                              \
   V(CloneObjectBaseline)                             \
   V(CloneObjectWithVector)                           \
@@ -117,6 +119,7 @@ namespace internal {
   V(NewHeapNumber)                                   \
   V(NoContext)                                       \
   V(OnStackReplacement)                              \
+  V(RegExpTrampoline)                                \
   V(RestartFrameTrampoline)                          \
   V(ResumeGenerator)                                 \
   V(ResumeGeneratorBaseline)                         \
@@ -141,6 +144,7 @@ namespace internal {
   V(UnaryOp_Baseline)                                \
   V(UnaryOp_WithFeedback)                            \
   V(Void)                                            \
+  V(WasmDummy)                                       \
   V(WasmFloat32ToNumber)                             \
   V(WasmFloat64ToTagged)                             \
   V(WasmJSToWasmWrapper)                             \
@@ -191,8 +195,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   // The passed registers are owned by the caller, and their lifetime is
   // expected to exceed that of this data. In practice, they are expected to
   // be in a static local.
-  void InitializeRegisters(Flags flags, int return_count, int parameter_count,
-                           StackArgumentOrder stack_order,
+  void InitializeRegisters(Flags flags, CodeEntrypointTag tag, int return_count,
+                           int parameter_count, StackArgumentOrder stack_order,
                            int register_parameter_count,
                            const Register* registers,
                            const DoubleRegister* double_registers,
@@ -217,6 +221,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   }
 
   Flags flags() const { return flags_; }
+  CodeEntrypointTag tag() const { return tag_; }
   int return_count() const { return return_count_; }
   int param_count() const { return param_count_; }
   int register_param_count() const { return register_param_count_; }
@@ -271,6 +276,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   int return_count_ = kUninitializedCount;
   int param_count_ = kUninitializedCount;
   Flags flags_ = kNoFlags;
+  CodeEntrypointTag tag_ = kDefaultCodeEntrypointTag;
   StackArgumentOrder stack_order_ = StackArgumentOrder::kDefault;
 
   // Specifying the set of registers that could be used by the register
@@ -353,6 +359,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
       : data_(CallDescriptors::call_descriptor_data(key)) {}
 
   Flags flags() const { return data()->flags(); }
+
+  CodeEntrypointTag tag() const { return data()->tag(); }
 
   bool HasContextParameter() const {
     return (flags() & CallInterfaceDescriptorData::kNoContext) == 0;
@@ -474,6 +482,9 @@ class StaticCallInterfaceDescriptor : public CallInterfaceDescriptor {
   static constexpr bool kNoContext = false;
   static constexpr bool kAllowVarArgs = false;
   static constexpr bool kNoStackScan = false;
+  // TODO(saelo): we should not have a default value here to force all interface
+  // descriptors to define a (unique) tag.
+  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
   static constexpr auto kStackArgumentOrder = StackArgumentOrder::kDefault;
 
   // The set of registers available to the parameters, as a
@@ -752,6 +763,7 @@ constexpr EmptyDoubleRegisterArray DoubleRegisterArray() { return {}; }
 class V8_EXPORT_PRIVATE VoidDescriptor
     : public StaticCallInterfaceDescriptor<VoidDescriptor> {
  public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kInvalidEntrypointTag;
   // The void descriptor could (and indeed probably should) also be NO_CONTEXT,
   // but this breaks some code assembler unittests.
   DEFINE_PARAMETERS()
@@ -760,10 +772,6 @@ class V8_EXPORT_PRIVATE VoidDescriptor
 
   static constexpr auto registers();
 };
-
-// Dummy descriptor that marks builtins with C calling convention.
-// TODO(jgruber): Define real descriptors for C calling conventions.
-using CCallDescriptor = VoidDescriptor;
 
 // Marks deoptimization entry builtins. Precise calling conventions currently
 // differ based on the platform.
@@ -777,15 +785,39 @@ using JSEntryDescriptor = VoidDescriptor;
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
-using CEntryDummyDescriptor = VoidDescriptor;
+using ContinueToBuiltinDescriptor = VoidDescriptor;
+
+// Dummy descriptor that marks builtins with C calling convention.
+// TODO(jgruber): Define real descriptors for C calling conventions.
+class CCallDescriptor : public StaticCallInterfaceDescriptor<CCallDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(CCallDescriptor)
+};
 
 // TODO(jgruber): Consider filling in the details here; however, this doesn't
 // make too much sense as long as the descriptor isn't used or verified.
-using ContinueToBuiltinDescriptor = VoidDescriptor;
+class CEntryDummyDescriptor
+    : public StaticCallInterfaceDescriptor<CEntryDummyDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kDefaultCodeEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(CEntryDummyDescriptor)
+};
 
 // TODO(wasm): Consider filling in details / defining real descriptors for all
 // builtins still using this placeholder descriptor.
-using WasmDummyDescriptor = VoidDescriptor;
+class WasmDummyDescriptor
+    : public StaticCallInterfaceDescriptor<WasmDummyDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kWasmEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(WasmDummyDescriptor)
+};
 
 class AllocateDescriptor
     : public StaticCallInterfaceDescriptor<AllocateDescriptor> {
@@ -817,6 +849,17 @@ class JSTrampolineDescriptor
   DEFINE_JS_PARAMETER_TYPES()
 
   DECLARE_JS_COMPATIBLE_DESCRIPTOR(JSTrampolineDescriptor)
+};
+
+// Descriptor used for code using the RegExp calling convention, in particular
+// the RegExp interpreter trampolines.
+class RegExpTrampolineDescriptor
+    : public StaticCallInterfaceDescriptor<RegExpTrampolineDescriptor> {
+ public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kRegExpEntrypointTag;
+  DEFINE_PARAMETERS()
+  DEFINE_PARAMETER_TYPES()
+  DECLARE_DESCRIPTOR(RegExpTrampolineDescriptor)
 };
 
 class ContextOnlyDescriptor
@@ -953,13 +996,16 @@ class MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor
     : public StaticCallInterfaceDescriptor<
           MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor> {
  public:
-  DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector)
+  DEFINE_PARAMETERS_NO_CONTEXT(kFlags, kFeedbackVector, kTemporary)
   DEFINE_PARAMETER_TYPES(MachineType::Int32(),          // kFlags
-                         MachineType::TaggedPointer())  // kFeedbackVector
+                         MachineType::TaggedPointer(),  // kFeedbackVector
+                         MachineType::AnyTagged())      // kTemporary
   DECLARE_DESCRIPTOR(MaglevOptimizeCodeOrTailCallOptimizedCodeSlotDescriptor)
 
   static constexpr inline Register FlagsRegister();
   static constexpr inline Register FeedbackVectorRegister();
+
+  static constexpr inline Register TemporaryRegister();
 
   static constexpr inline auto registers();
 };
@@ -1009,6 +1055,8 @@ class StoreBaselineDescriptor
 class StoreTransitionDescriptor
     : public StaticCallInterfaceDescriptor<StoreTransitionDescriptor> {
  public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kICHandlerEntrypointTag;
+
   DEFINE_PARAMETERS(kReceiver, kName, kMap, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1026,6 +1074,8 @@ class StoreTransitionDescriptor
 class StoreWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<StoreWithVectorDescriptor> {
  public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kICHandlerEntrypointTag;
+
   DEFINE_PARAMETERS(kReceiver, kName, kValue, kSlot, kVector)
   DEFINE_PARAMETER_TYPES(MachineType::AnyTagged(),     // kReceiver
                          MachineType::AnyTagged(),     // kName
@@ -1127,6 +1177,8 @@ class DefineKeyedOwnWithVectorDescriptor
 class LoadWithVectorDescriptor
     : public StaticCallInterfaceDescriptor<LoadWithVectorDescriptor> {
  public:
+  static constexpr CodeEntrypointTag kEntrypointTag = kICHandlerEntrypointTag;
+
   // TODO(v8:9497): Revert the Machine type for kSlot to the
   // TaggedSigned once Torque can emit better call descriptors
   DEFINE_PARAMETERS(kReceiver, kName, kSlot, kVector)

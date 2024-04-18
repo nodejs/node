@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "heap-constants.h"
+
 #include "src/common/globals.h"
+#include "src/heap/memory-chunk-header.h"
 
 namespace d = v8::debug_helper;
 
@@ -13,8 +15,9 @@ namespace debug_helper_internal {
 
 std::string FindKnownObject(uintptr_t address,
                             const d::HeapAddresses& heap_addresses) {
-  uintptr_t containing_page = address & ~i::kPageAlignmentMask;
-  uintptr_t offset_in_page = address & i::kPageAlignmentMask;
+  uintptr_t containing_page =
+      MemoryChunkHeader::FromAddress(address)->address();
+  uintptr_t offset_in_page = MemoryChunkHeader::AddressToOffset(address);
 
   // If there's a match with a known page, then search only that page.
   if (containing_page == heap_addresses.map_space_first_page) {
@@ -53,8 +56,9 @@ std::string FindKnownObject(uintptr_t address,
 
 KnownInstanceType FindKnownMapInstanceTypes(
     uintptr_t address, const d::HeapAddresses& heap_addresses) {
-  uintptr_t containing_page = address & ~i::kPageAlignmentMask;
-  uintptr_t offset_in_page = address & i::kPageAlignmentMask;
+  uintptr_t containing_page =
+      MemoryChunkHeader::FromAddress(address)->address();
+  uintptr_t offset_in_page = MemoryChunkHeader::AddressToOffset(address);
 
   // If there's a match with a known page, then search only that page.
   if (containing_page == heap_addresses.map_space_first_page) {

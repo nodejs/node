@@ -29,9 +29,6 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-ABSL_DLL const uint128 kuint128max = MakeUint128(
-    std::numeric_limits<uint64_t>::max(), std::numeric_limits<uint64_t>::max());
-
 namespace {
 
 // Returns the 0-based position of the last set bit (i.e., most significant bit)

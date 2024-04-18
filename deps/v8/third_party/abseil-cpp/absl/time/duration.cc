@@ -219,7 +219,7 @@ struct SafeMultiply {
                  ? static_cast<uint128>(Uint128Low64(a) * Uint128Low64(b))
                  : a * b;
     }
-    return b == 0 ? b : (a > kuint128max / b) ? kuint128max : a * b;
+    return b == 0 ? b : (a > Uint128Max() / b) ? Uint128Max() : a * b;
   }
 };
 

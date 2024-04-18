@@ -2053,7 +2053,7 @@ void EventHandler(const v8::JitCodeEvent* event) {
       // It's called UnboundScript in the API but it's a SharedFunctionInfo.
       Tagged<SharedFunctionInfo> shared =
           event->script.IsEmpty() ? Tagged<SharedFunctionInfo>()
-                                  : *Utils::OpenHandle(*event->script);
+                                  : *Utils::OpenDirectHandle(*event->script);
       Isolate* isolate = reinterpret_cast<Isolate*>(event->isolate);
       bool is_function = false;
       // TODO(zhin): See if we can use event->code_type to determine

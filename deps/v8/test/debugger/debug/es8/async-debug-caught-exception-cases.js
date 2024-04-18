@@ -144,10 +144,10 @@ let lateCatches = [dotCatch,
                    indirectAwaitDotCatch,
                    nestedDotCatch];
 
-let throws = [thrower, reject, argThrower, suppressThrow];
+let throws = [rejectConstructor, thrower, reject, argThrower, suppressThrow];
 let nonthrows = [awaitReturn, scalar, nothing];
 let lateThrows = [awaitThrow, constructorReject];
-let uncatchable = [rejectConstructor, constructorThrow];
+let uncatchable = [constructorThrow];
 
 let cases = [];
 

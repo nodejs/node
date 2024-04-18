@@ -61,7 +61,7 @@ cc_library(
 
 cc_library(
     name = "hash_testing",
-    testonly = 1,
+    testonly = True,
     hdrs = ["hash_testing.h"],
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
@@ -128,7 +128,7 @@ cc_test(
 
 cc_binary(
     name = "hash_benchmark",
-    testonly = 1,
+    testonly = True,
     srcs = ["hash_benchmark.cc"],
     copts = ABSL_TEST_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
@@ -148,7 +148,7 @@ cc_binary(
 
 cc_library(
     name = "spy_hash_state",
-    testonly = 1,
+    testonly = True,
     hdrs = ["internal/spy_hash_state.h"],
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,

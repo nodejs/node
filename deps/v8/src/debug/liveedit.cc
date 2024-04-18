@@ -946,7 +946,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
     }
 
     if (!sfi->HasBytecodeArray()) continue;
-    Tagged<FixedArray> constants =
+    Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
@@ -998,7 +998,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
   for (Tagged<SharedFunctionInfo> sfi = it.Next(); !sfi.is_null();
        sfi = it.Next()) {
     if (!sfi->HasBytecodeArray()) continue;
-    Tagged<FixedArray> constants =
+    Tagged<TrustedFixedArray> constants =
         sfi->GetBytecodeArray(isolate)->constant_pool();
     for (int i = 0; i < constants->length(); ++i) {
       if (!IsSharedFunctionInfo(constants->get(i))) continue;
@@ -1049,7 +1049,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       // Check that all the functions in this function's constant pool are also
       // on the new script, and that their id matches their index in the new
       // scripts function list.
-      Tagged<FixedArray> constants =
+      Tagged<TrustedFixedArray> constants =
           sfi->GetBytecodeArray(isolate)->constant_pool();
       for (int i = 0; i < constants->length(); ++i) {
         if (!IsSharedFunctionInfo(constants->get(i))) continue;

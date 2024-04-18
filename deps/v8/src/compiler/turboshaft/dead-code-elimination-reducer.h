@@ -259,7 +259,7 @@ class DeadCodeAnalysis {
       if (op.Is<CallOp>()) {
         // The function contains a call, so it's not a leaf function.
         is_leaf_function_ = false;
-      } else if (op.Is<BranchOp>()) {
+      } else if (op.Is<BranchOp>() || op.Is<GotoOp>()) {
         if (control_state != ControlState::NotEliminatable()) {
           // Branch is still dead.
           DCHECK_EQ(op_state, OperationState::kDead);
@@ -280,11 +280,6 @@ class DeadCodeAnalysis {
       } else if (op.saturated_use_count.IsZero()) {
         // Operation is already recognized as dead by a previous analysis.
         DCHECK_EQ(op_state, OperationState::kDead);
-      } else if (op.Is<GotoOp>()) {
-        // We mark Gotos as live, but they do not influence operation or control
-        // state, so we skip them here.
-        liveness_[index] = OperationState::kLive;
-        continue;
       } else if (op.IsRequiredWhenUnused()) {
         op_state = OperationState::kLive;
       } else if (op.Is<PhiOp>()) {
@@ -425,9 +420,16 @@ template <class Next>
 class DeadCodeEliminationReducer
     : public UniformReducerAdapter<DeadCodeEliminationReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DeadCodeElimination)
 
   using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
+
+  // DeadCodeElimination can change the control flow in somewhat unexpected ways
+  // (ie, a block with a single predecessor in the input graph can end up with
+  // multiple predecessors in the output graph), so we prevent the CopyingPhase
+  // from automatically inlining blocks with a single predecessor when we run
+  // the DeadCodeEliminationReducer.
+  bool CanAutoInlineBlocksWithSinglePredecessor() const { return false; }
 
   void Analyze() {
     // TODO(nicohartmann@): We might want to make this a flag.
@@ -438,13 +440,13 @@ class DeadCodeEliminationReducer
   }
 
   OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
-    auto it = branch_rewrite_targets_.find(ig_index.id());
-    if (it != branch_rewrite_targets_.end()) {
-      BlockIndex goto_target = it->second;
-      Asm().Goto(Asm().MapToNewGraph(&Asm().input_graph().Get(goto_target)));
-      return OpIndex::Invalid();
-    }
+    if (TryRewriteBranch(ig_index)) return OpIndex::Invalid();
     return Next::ReduceInputGraphBranch(ig_index, branch);
+  }
+
+  OpIndex REDUCE_INPUT_GRAPH(Goto)(OpIndex ig_index, const GotoOp& gto) {
+    if (TryRewriteBranch(ig_index)) return OpIndex::Invalid();
+    return Next::ReduceInputGraphGoto(ig_index, gto);
   }
 
   template <typename Op, typename Continuation>
@@ -458,6 +460,15 @@ class DeadCodeEliminationReducer
   bool IsLeafFunction() const { return analyzer_.is_leaf_function(); }
 
  private:
+  bool TryRewriteBranch(OpIndex index) {
+    auto it = branch_rewrite_targets_.find(index.id());
+    if (it != branch_rewrite_targets_.end()) {
+      BlockIndex goto_target = it->second;
+      Asm().Goto(Asm().MapToNewGraph(&Asm().input_graph().Get(goto_target)));
+      return true;
+    }
+    return false;
+  }
   base::Optional<FixedOpIndexSidetable<OperationState::Liveness>> liveness_;
   ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_{Asm().phase_zone()};
   DeadCodeAnalysis analyzer_{Asm().modifiable_input_graph(),

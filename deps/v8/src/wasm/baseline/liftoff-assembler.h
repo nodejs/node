@@ -768,6 +768,8 @@ class LiftoffAssembler : public MacroAssembler {
                                 Register offset_reg, int32_t offset_imm,
                                 uint32_t* protected_load_pc = nullptr,
                                 bool offset_reg_needs_shift = false);
+  inline void LoadProtectedPointer(Register dst, Register src_addr,
+                                   int32_t offset);
   inline void LoadFullPointer(Register dst, Register src_addr,
                               int32_t offset_imm);
 #ifdef V8_ENABLE_SANDBOX
@@ -868,6 +870,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
   inline void emit_i32_subi(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_muli(Register dst, Register lhs, int32_t imm);
   inline void emit_i32_divs(Register dst, Register lhs, Register rhs,
                             Label* trap_div_by_zero,
                             Label* trap_div_unrepresentable);
@@ -896,6 +899,10 @@ class LiftoffAssembler : public MacroAssembler {
   inline bool emit_i32_popcnt(Register dst, Register src);
 
   // i64 binops.
+  // Most variants taking an immediate as second input only need to support
+  // 32-bit immediates, because that't the only type of constant we track.
+  // Some (like addition) are also called in other situation where we can have
+  // bigger immediates. In that case we type the immediate as int64_t.
   inline void emit_i64_add(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
   inline void emit_i64_addi(LiftoffRegister dst, LiftoffRegister lhs,
@@ -904,6 +911,8 @@ class LiftoffAssembler : public MacroAssembler {
                            LiftoffRegister rhs);
   inline void emit_i64_mul(LiftoffRegister dst, LiftoffRegister lhs,
                            LiftoffRegister rhs);
+  inline void emit_i64_muli(LiftoffRegister dst, LiftoffRegister lhs,
+                            int32_t imm);
   inline bool emit_i64_divs(LiftoffRegister dst, LiftoffRegister lhs,
                             LiftoffRegister rhs, Label* trap_div_by_zero,
                             Label* trap_div_unrepresentable);
@@ -950,6 +959,7 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_ptrsize_and(Register dst, Register lhs, Register rhs);
   inline void emit_ptrsize_shri(Register dst, Register src, int amount);
   inline void emit_ptrsize_addi(Register dst, Register lhs, intptr_t imm);
+  inline void emit_ptrsize_muli(Register dst, Register lhs, int32_t imm);
   inline void emit_ptrsize_set_cond(Condition condition, Register dst,
                                     LiftoffRegister lhs, LiftoffRegister rhs);
 
@@ -1071,7 +1081,8 @@ class LiftoffAssembler : public MacroAssembler {
   inline void emit_s128_relaxed_laneselect(LiftoffRegister dst,
                                            LiftoffRegister src1,
                                            LiftoffRegister src2,
-                                           LiftoffRegister mask);
+                                           LiftoffRegister mask,
+                                           int lane_width);
   inline void emit_i8x16_popcnt(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i8x16_splat(LiftoffRegister dst, LiftoffRegister src);
   inline void emit_i16x8_splat(LiftoffRegister dst, LiftoffRegister src);

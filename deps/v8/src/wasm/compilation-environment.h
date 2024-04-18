@@ -59,6 +59,14 @@ struct CompilationEnv {
 
   const DynamicTiering dynamic_tiering;
 
+  // Create a {CompilationEnv} object for compilation. The caller has to ensure
+  // that the {WasmModule} pointer stays valid while the {CompilationEnv} is
+  // being used.
+  static inline CompilationEnv ForModule(const NativeModule* native_module);
+
+  static constexpr CompilationEnv NoModuleAllFeatures();
+
+ private:
   constexpr CompilationEnv(const WasmModule* module,
                            WasmFeatures enabled_features,
                            DynamicTiering dynamic_tiering)

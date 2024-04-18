@@ -564,7 +564,7 @@ class JSObjectRef : public JSReceiverRef {
   // is constant.
   // If a property was successfully read, then the function will take a
   // dependency to check the value of the property at code finalization time.
-  base::Optional<double> GetOwnFastConstantDoubleProperty(
+  base::Optional<Float64> GetOwnFastConstantDoubleProperty(
       JSHeapBroker* broker, FieldIndex index,
       CompilationDependencies* dependencies) const;
 
@@ -671,6 +671,9 @@ class ContextRef : public HeapObjectRef {
   OptionalObjectRef get(JSHeapBroker* broker, int index) const;
 
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
+
+  // Only returns a value if the index is valid for this ContextRef.
+  OptionalObjectRef TryGetSideData(JSHeapBroker* broker, int index) const;
 };
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
@@ -1036,6 +1039,7 @@ class ScopeInfoRef : public HeapObjectRef {
   bool HasOuterScopeInfo() const;
   bool HasContextExtensionSlot() const;
   bool ClassScopeHasPrivateBrand() const;
+  ScopeType scope_type() const;
 
   ScopeInfoRef OuterScopeInfo(JSHeapBroker* broker) const;
 };
@@ -1235,6 +1239,16 @@ namespace compiler {
 
 template <typename T>
 using ZoneRefSet = ZoneCompactSet<typename ref_traits<T>::ref_type>;
+
+inline bool AnyMapIsHeapNumber(const ZoneRefSet<Map>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](MapRef map) { return map.IsHeapNumberMap(); });
+}
+
+inline bool AnyMapIsHeapNumber(const base::Vector<const MapRef>& maps) {
+  return std::any_of(maps.begin(), maps.end(),
+                     [](MapRef map) { return map.IsHeapNumberMap(); });
+}
 
 }  // namespace compiler
 

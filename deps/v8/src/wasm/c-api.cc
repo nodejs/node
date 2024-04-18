@@ -30,6 +30,7 @@
 #include "src/api/api-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/compiler/wasm-compiler.h"
+#include "src/flags/flags.h"
 #include "src/objects/call-site-info-inl.h"
 #include "src/objects/js-collection-inl.h"
 #include "src/objects/managed-inl.h"
@@ -408,6 +409,13 @@ auto Engine::make(own<Config>&& config) -> own<Engine> {
   engine->platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(engine->platform.get());
   v8::V8::Initialize();
+
+  if (i::v8_flags.prof) {
+    i::PrintF(
+        "--prof is currently unreliable for V8's Wasm-C-API due to "
+        "fast-c-calls.\n");
+  }
+
   return make_own(seal<Engine>(engine));
 }
 
@@ -1764,7 +1772,7 @@ i::Address FuncData::v8_callback(i::Address host_data_foreign,
   v8::Isolate::Scope isolate_scope(store->isolate());
   i::HandleScope scope(isolate);
 
-  isolate->set_context(*v8::Utils::OpenHandle(*store->context()));
+  isolate->set_context(*v8::Utils::OpenDirectHandle(*store->context()));
 
   const ownvec<ValType>& param_types = self->type->params();
   const ownvec<ValType>& result_types = self->type->results();
@@ -2020,7 +2028,7 @@ auto Table::make(Store* store_abs, const TableType* type, const Ref* ref)
       // This doesn't call WasmTableObject::Set because the table has
       // just been created, so it can't be imported by any instances
       // yet that might require updating.
-      DCHECK_EQ(table_obj->dispatch_tables()->length(), 0);
+      DCHECK_EQ(table_obj->uses()->length(), 0);
       entries->set(i, *init);
     }
   }

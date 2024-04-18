@@ -14,12 +14,14 @@
 
 #include "absl/container/internal/hash_policy_traits.h"
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <new>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/container/internal/container_memory.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -42,6 +44,11 @@ struct PolicyWithoutOptionalOps {
   static int apply(int v) { return apply_impl(v); }
   static std::function<int(int)> apply_impl;
   static std::function<Slot&(Slot*)> value;
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
 };
 
 std::function<int(int)> PolicyWithoutOptionalOps::apply_impl;
@@ -72,6 +79,63 @@ TEST_F(Test, value) {
   int b = 0;
   EXPECT_CALL(value, Call(&a)).WillOnce(ReturnRef(b));
   EXPECT_EQ(&b, &hash_policy_traits<PolicyWithoutOptionalOps>::value(&a));
+}
+
+struct Hash {
+  size_t operator()(Slot a) const { return static_cast<size_t>(a) * 5; }
+};
+
+struct PolicyNoHashFn {
+  using slot_type = Slot;
+  using key_type = Slot;
+  using init_type = Slot;
+
+  static size_t* apply_called_count;
+
+  static Slot& element(Slot* slot) { return *slot; }
+  template <typename Fn>
+  static size_t apply(const Fn& fn, int v) {
+    ++(*apply_called_count);
+    return fn(v);
+  }
+
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return nullptr;
+  }
+};
+
+size_t* PolicyNoHashFn::apply_called_count;
+
+struct PolicyCustomHashFn : PolicyNoHashFn {
+  template <class Hash>
+  static constexpr HashSlotFn get_hash_slot_fn() {
+    return &TypeErasedApplyToSlotFn<Hash, int>;
+  }
+};
+
+TEST(HashTest, PolicyNoHashFn_get_hash_slot_fn) {
+  size_t apply_called_count = 0;
+  PolicyNoHashFn::apply_called_count = &apply_called_count;
+
+  Hash hasher;
+  Slot value = 7;
+  auto* fn = hash_policy_traits<PolicyNoHashFn>::get_hash_slot_fn<Hash>();
+  EXPECT_NE(fn, nullptr);
+  EXPECT_EQ(fn(&hasher, &value), hasher(value));
+  EXPECT_EQ(apply_called_count, 1);
+}
+
+TEST(HashTest, PolicyCustomHashFn_get_hash_slot_fn) {
+  size_t apply_called_count = 0;
+  PolicyNoHashFn::apply_called_count = &apply_called_count;
+
+  Hash hasher;
+  Slot value = 7;
+  auto* fn = hash_policy_traits<PolicyCustomHashFn>::get_hash_slot_fn<Hash>();
+  EXPECT_EQ(fn, PolicyCustomHashFn::get_hash_slot_fn<Hash>());
+  EXPECT_EQ(fn(&hasher, &value), hasher(value));
+  EXPECT_EQ(apply_called_count, 0);
 }
 
 }  // namespace

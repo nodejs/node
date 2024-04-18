@@ -180,7 +180,7 @@ class V8_EXPORT_PRIVATE HeapBase : public cppgc::HeapHandle {
   // destructors. Exceeding the loop bound results in a crash.
   void Terminate();
 
-  bool in_disallow_gc_scope() const { return disallow_gc_scope_ > 0; }
+  virtual bool IsGCForbidden() const;
   bool in_atomic_pause() const { return in_atomic_pause_; }
 
   HeapStatistics CollectStatistics(HeapStatistics::DetailLevel);

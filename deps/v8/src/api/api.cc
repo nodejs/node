@@ -24,6 +24,7 @@
 #include "include/v8-primitive-object.h"
 #include "include/v8-profiler.h"
 #include "include/v8-source-location.h"
+#include "include/v8-template.h"
 #include "include/v8-unwinder-state.h"
 #include "include/v8-util.h"
 #include "include/v8-wasm.h"
@@ -86,6 +87,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/js-weak-refs-inl.h"
@@ -101,6 +103,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/slots.h"
 #include "src/objects/smi.h"
+#include "src/objects/string.h"
 #include "src/objects/synthetic-module-inl.h"
 #include "src/objects/templates.h"
 #include "src/objects/value-serializer.h"
@@ -537,7 +540,7 @@ SnapshotCreator::SnapshotCreator(Isolate* v8_isolate,
                                  const intptr_t* external_references,
                                  const StartupData* existing_snapshot,
                                  bool owns_isolate)
-    : data_(new i::SnapshotCreatorImpl(
+    : impl_(new i::SnapshotCreatorImpl(
           reinterpret_cast<i::Isolate*>(v8_isolate), external_references,
           existing_snapshot, owns_isolate)) {}
 
@@ -546,50 +549,43 @@ SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
     : SnapshotCreator(nullptr, external_references, existing_snapshot) {}
 
 SnapshotCreator::SnapshotCreator(const v8::Isolate::CreateParams& params)
-    : data_(new i::SnapshotCreatorImpl(params)) {}
+    : impl_(new i::SnapshotCreatorImpl(params)) {}
 
 SnapshotCreator::SnapshotCreator(v8::Isolate* isolate,
                                  const v8::Isolate::CreateParams& params)
-    : data_(new i::SnapshotCreatorImpl(reinterpret_cast<i::Isolate*>(isolate),
+    : impl_(new i::SnapshotCreatorImpl(reinterpret_cast<i::Isolate*>(isolate),
                                        params)) {}
 
 SnapshotCreator::~SnapshotCreator() {
-  DCHECK_NOT_NULL(data_);
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  delete impl;
+  DCHECK_NOT_NULL(impl_);
+  delete impl_;
 }
 
 Isolate* SnapshotCreator::GetIsolate() {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return reinterpret_cast<v8::Isolate*>(impl->isolate());
+  return reinterpret_cast<v8::Isolate*>(impl_->isolate());
 }
 
 void SnapshotCreator::SetDefaultContext(
     Local<Context> context, SerializeInternalFieldsCallback callback) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  impl->SetDefaultContext(Utils::OpenHandle(*context), callback);
+  impl_->SetDefaultContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddContext(Local<Context> context,
                                    SerializeInternalFieldsCallback callback) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddContext(Utils::OpenHandle(*context), callback);
+  return impl_->AddContext(Utils::OpenHandle(*context), callback);
 }
 
 size_t SnapshotCreator::AddData(i::Address object) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddData(object);
+  return impl_->AddData(object);
 }
 
 size_t SnapshotCreator::AddData(Local<Context> context, i::Address object) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->AddData(Utils::OpenHandle(*context), object);
+  return impl_->AddData(Utils::OpenHandle(*context), object);
 }
 
 StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
-  auto impl = static_cast<i::SnapshotCreatorImpl*>(data_);
-  return impl->CreateBlob(function_code_handling);
+  return impl_->CreateBlob(function_code_handling);
 }
 
 bool StartupData::CanBeRehashed() const {
@@ -1949,6 +1945,24 @@ void ObjectTemplate::SetCodeLike() {
   self->set_code_like(true);
 }
 
+Local<DictionaryTemplate> DictionaryTemplate::New(
+    Isolate* isolate, MemorySpan<const std::string_view> names) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  API_RCS_SCOPE(i_isolate, DictionaryTemplate, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  return Utils::ToLocal(i::DictionaryTemplateInfo::Create(i_isolate, names));
+}
+
+Local<Object> DictionaryTemplate::NewInstance(
+    Local<Context> context, MemorySpan<MaybeLocal<Value>> property_values) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  API_RCS_SCOPE(i_isolate, DictionaryTemplate, NewInstance);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  auto self = Utils::OpenDirectHandle(this);
+  return ToApiHandle<Object>(i::DictionaryTemplateInfo::NewInstance(
+      Utils::OpenHandle(*context), self, property_values));
+}
+
 // --- S c r i p t s ---
 
 // Internally, UnboundScript and UnboundModuleScript are SharedFunctionInfos,
@@ -2294,11 +2308,11 @@ int ModuleRequest::GetSourceOffset() const {
   return Utils::OpenDirectHandle(this)->position();
 }
 
-Local<FixedArray> ModuleRequest::GetImportAssertions() const {
+Local<FixedArray> ModuleRequest::GetImportAttributes() const {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolate();
   return ToApiHandle<FixedArray>(
-      i::direct_handle(self->import_assertions(), i_isolate), i_isolate);
+      i::direct_handle(self->import_attributes(), i_isolate), i_isolate);
 }
 
 Module::Status Module::GetStatus() const {
@@ -3866,7 +3880,7 @@ bool Value::IsInt32() const {
 }
 
 bool Value::IsUint32() const {
-  auto obj = *Utils::OpenHandle(this);
+  auto obj = *Utils::OpenDirectHandle(this);
   if (i::IsSmi(obj)) return i::Smi::ToInt(obj) >= 0;
   if (i::IsNumber(obj)) {
     double value = i::Object::Number(obj);
@@ -4271,6 +4285,10 @@ void* v8::ArrayBuffer::Data() const {
   return Utils::OpenDirectHandle(this)->backing_store();
 }
 
+bool v8::ArrayBuffer::IsResizableByUserJavaScript() const {
+  return Utils::OpenDirectHandle(this)->is_resizable_by_js();
+}
+
 std::shared_ptr<v8::BackingStore> v8::SharedArrayBuffer::GetBackingStore() {
   auto self = Utils::OpenDirectHandle(this);
   std::shared_ptr<i::BackingStore> backing_store = self->GetBackingStore();
@@ -4306,7 +4324,7 @@ void v8::TypedArray::CheckCast(Value* that) {
 
 #define CHECK_TYPED_ARRAY_CAST(Type, typeName, TYPE, ctype)                  \
   void v8::Type##Array::CheckCast(Value* that) {                             \
-    auto obj = *Utils::OpenHandle(that);                                     \
+    auto obj = *Utils::OpenDirectHandle(that);                               \
     Utils::ApiCheck(                                                         \
         i::IsJSTypedArray(obj) &&                                            \
             i::JSTypedArray::cast(obj)->type() == i::kExternal##Type##Array, \
@@ -5359,6 +5377,30 @@ bool v8::Object::IsUndetectable() const {
   return i::IsUndetectable(*self);
 }
 
+namespace {
+#ifdef V8_ENABLE_DIRECT_LOCAL
+// A newly allocated vector is required to convert from an array of direct
+// locals to an array of indirect handles.
+std::vector<i::Handle<i::Object>> PrepareArguments(int argc,
+                                                   Local<Value> argv[]) {
+  std::vector<i::Handle<i::Object>> args(argc);
+  for (int i = 0; i < argc; ++i) {
+    args[i] = Utils::OpenHandle(*argv[i]);
+  }
+  return args;
+}
+#else   // !V8_ENABLE_DIRECT_LOCAL
+// A simple cast is used to convert from an array of indirect locals to an
+// array of indirect handles. A MemorySpan object is returned, as no
+// deallocation is necessary.
+v8::MemorySpan<i::Handle<i::Object>> PrepareArguments(int argc,
+                                                      Local<Value> argv[]) {
+  return {reinterpret_cast<i::Handle<i::Object>*>(argv),
+          static_cast<size_t>(argc)};
+}
+#endif  // V8_ENABLE_DIRECT_LOCAL
+}  // namespace
+
 MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
                                          Local<Value> recv, int argc,
                                          Local<Value> argv[]) {
@@ -5371,10 +5413,11 @@ MaybeLocal<Value> Object::CallAsFunction(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
+      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5390,10 +5433,10 @@ MaybeLocal<Value> Object::CallAsConstructor(Local<Context> context, int argc,
                                              i_isolate);
   auto self = Utils::OpenHandle(this);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::New(i_isolate, self, self, argc, args), &result);
+      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -5446,10 +5489,10 @@ MaybeLocal<Object> Function::NewInstanceWithSideEffectType(
       }
     }
   }
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
+  auto args = PrepareArguments(argc, argv);
   Local<Object> result;
   has_exception = !ToLocal<Object>(
-      i::Execution::New(i_isolate, self, self, argc, args), &result);
+      i::Execution::New(i_isolate, self, self, argc, args.data()), &result);
   RETURN_ON_FAILED_EXECUTION(Object);
   RETURN_ESCAPED(result);
 }
@@ -5468,19 +5511,11 @@ MaybeLocal<v8::Value> Function::Call(Local<Context> context,
                   "Function to be called is a null pointer");
   auto recv_obj = Utils::OpenHandle(*recv);
   static_assert(sizeof(v8::Local<v8::Value>) == sizeof(i::Handle<i::Object>));
-
-#ifdef V8_ENABLE_DIRECT_LOCAL
-  i::Handle<i::Object>* args = new i::Handle<i::Object>[argc];
-  for (int i = 0; i < argc; ++i) {
-    args[i] = Utils::OpenHandle(*argv[i]);
-  }
-#else   // !V8_ENABLE_DIRECT_LOCAL
-  i::Handle<i::Object>* args = reinterpret_cast<i::Handle<i::Object>*>(argv);
-#endif  // V8_ENABLE_DIRECT_LOCAL
-
+  auto args = PrepareArguments(argc, argv);
   Local<Value> result;
   has_exception = !ToLocal<Value>(
-      i::Execution::Call(i_isolate, self, recv_obj, argc, args), &result);
+      i::Execution::Call(i_isolate, self, recv_obj, argc, args.data()),
+      &result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
 }
@@ -7328,6 +7363,13 @@ void v8::ObjectTemplate::CheckCast(Data* that) {
                   "Value is not an ObjectTemplate");
 }
 
+void v8::DictionaryTemplate::CheckCast(Data* that) {
+  auto obj = Utils::OpenDirectHandle(that);
+  Utils::ApiCheck(i::IsDictionaryTemplateInfo(*obj),
+                  "v8::DictionaryTemplate::Cast",
+                  "Value is not an DictionaryTemplate");
+}
+
 void v8::FunctionTemplate::CheckCast(Data* that) {
   auto obj = Utils::OpenDirectHandle(that);
   Utils::ApiCheck(i::IsFunctionTemplateInfo(*obj), "v8::FunctionTemplate::Cast",
@@ -8087,7 +8129,7 @@ uint32_t GetLength(Tagged<JSArray> array) {
 }  // namespace internal
 
 uint32_t v8::Array::Length() const {
-  return i::GetLength(*Utils::OpenHandle(this));
+  return i::GetLength(*Utils::OpenDirectHandle(this));
 }
 
 namespace internal {
@@ -8259,13 +8301,27 @@ Maybe<void> v8::Array::Iterate(Local<Context> context,
 }
 
 v8::TypecheckWitness::TypecheckWitness(Isolate* isolate)
+#ifdef V8_ENABLE_DIRECT_LOCAL
+    // An empty local suffices.
+    : cached_map_()
+#else
     // We need to reserve a handle that we can patch later.
-    // TODO(13270): When we switch to CSS, we can use a direct pointer
-    // instead of a handle.
-    : cached_map_(v8::Number::New(isolate, 1)) {}
+    // We initialize it with something that cannot compare equal to any map.
+    : cached_map_(v8::Number::New(isolate, 1))
+#endif
+{
+}
 
 void v8::TypecheckWitness::Update(Local<Value> baseline) {
   i::Tagged<i::Object> obj = *Utils::OpenDirectHandle(*baseline);
+#ifdef V8_ENABLE_DIRECT_LOCAL
+  if (IsSmi(obj)) {
+    cached_map_ = Local<Data>();
+  } else {
+    i::Tagged<i::HeapObject> map = i::HeapObject::cast(obj)->map();
+    cached_map_ = Local<Data>::FromAddress(map->ptr());
+  }
+#else
   i::Tagged<i::Object> map = i::Smi::zero();
   if (!IsSmi(obj)) map = i::HeapObject::cast(obj)->map();
   // Design overview: in the {TypecheckWitness} constructor, we create
@@ -8274,12 +8330,12 @@ void v8::TypecheckWitness::Update(Local<Value> baseline) {
   // to allow having short-lived HandleScopes (e.g. in {FastIterateArray}
   // above) while a {TypecheckWitness} is alive: it therefore cannot hold
   // on to one of the short-lived handles.
-  // Calling {OpenHandle} on the {cached_map_} only serves to "reinterpret_cast"
-  // it to an {i::Handle} on which we can call {PatchValue}.
-  // TODO(13270): When we switch to CSS, this can become simpler: we can
-  // then simply overwrite the direct pointer.
+  // Calling {OpenIndirectHandle} on the {cached_map_} only serves to
+  // "reinterpret_cast" it to an {i::IndirectHandle} on which we can call
+  // {PatchValue}.
   auto cache = Utils::OpenIndirectHandle(*cached_map_);
   cache.PatchValue(map);
+#endif
 }
 
 Local<v8::Map> v8::Map::New(Isolate* v8_isolate) {
@@ -10384,12 +10440,12 @@ CALLBACK_SETTER(WasmAsyncResolvePromiseCallback,
 CALLBACK_SETTER(WasmLoadSourceMapCallback, WasmLoadSourceMapCallback,
                 wasm_load_source_map_callback)
 
-CALLBACK_SETTER(WasmGCEnabledCallback, WasmGCEnabledCallback,
-                wasm_gc_enabled_callback)
-
 CALLBACK_SETTER(WasmImportedStringsEnabledCallback,
                 WasmImportedStringsEnabledCallback,
                 wasm_imported_strings_enabled_callback)
+
+CALLBACK_SETTER(WasmJSPIEnabledCallback, WasmJSPIEnabledCallback,
+                wasm_jspi_enabled_callback)
 
 CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
@@ -10410,6 +10466,7 @@ void Isolate::InstallConditionalFeatures(Local<Context> context) {
     i::WasmJs::InstallConditionalFeatures(i_isolate,
                                           Utils::OpenHandle(*context));
   }
+
 #endif  // V8_ENABLE_WEBASSEMBLY
 }
 

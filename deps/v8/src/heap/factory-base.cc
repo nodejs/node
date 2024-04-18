@@ -96,13 +96,24 @@ Handle<Code> FactoryBase<Impl>::NewCode(const NewCodeOptions& options) {
   code->set_unwinding_info_offset(options.unwinding_info_offset);
 
   if (options.kind == CodeKind::BASELINE) {
-    code->set_bytecode_or_interpreter_data(
-        *options.bytecode_or_deoptimization_data);
+    DCHECK(options.deoptimization_data.is_null());
+    Tagged<HeapObject> data =
+        *options.bytecode_or_interpreter_data.ToHandleChecked();
+    DCHECK(IsBytecodeArray(data) || IsInterpreterData(data));
+    code->set_bytecode_or_interpreter_data(ExposedTrustedObject::cast(data));
     code->set_bytecode_offset_table(
         *options.bytecode_offsets_or_source_position_table);
-  } else {
+  } else if (options.kind == CodeKind::MAGLEV ||
+             options.kind == CodeKind::TURBOFAN) {
+    DCHECK(options.bytecode_or_interpreter_data.is_null());
     code->set_deoptimization_data(
-        FixedArray::cast(*options.bytecode_or_deoptimization_data));
+        *options.deoptimization_data.ToHandleChecked());
+    code->set_source_position_table(
+        *options.bytecode_offsets_or_source_position_table);
+  } else {
+    DCHECK(options.deoptimization_data.is_null() &&
+           options.bytecode_or_interpreter_data.is_null());
+    code->clear_deoptimization_data_and_interpreter_data();
     code->set_source_position_table(
         *options.bytecode_offsets_or_source_position_table);
   }
@@ -150,6 +161,12 @@ Handle<FixedArray> FactoryBase<Impl>::NewFixedArray(int length,
 template <typename Impl>
 Handle<TrustedFixedArray> FactoryBase<Impl>::NewTrustedFixedArray(int length) {
   return TrustedFixedArray::New(isolate(), length);
+}
+
+template <typename Impl>
+Handle<ProtectedFixedArray> FactoryBase<Impl>::NewProtectedFixedArray(
+    int length) {
+  return ProtectedFixedArray::New(isolate(), length);
 }
 
 template <typename Impl>
@@ -288,16 +305,12 @@ FactoryBase<Impl>::NewDeoptimizationFrameTranslation(int length) {
 template <typename Impl>
 Handle<BytecodeArray> FactoryBase<Impl>::NewBytecodeArray(
     int length, const uint8_t* raw_bytecodes, int frame_size,
-    int parameter_count, DirectHandle<FixedArray> constant_pool,
+    int parameter_count, DirectHandle<TrustedFixedArray> constant_pool,
     DirectHandle<TrustedByteArray> handler_table) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
     FATAL("Fatal JavaScript invalid size error %d", length);
     UNREACHABLE();
   }
-  // Bytecode array is AllocationType::kOld, so constant pool array should be
-  // too.
-  DCHECK(!Heap::InYoungGeneration(*constant_pool));
-
   Handle<BytecodeWrapper> wrapper = NewBytecodeWrapper();
   int size = BytecodeArray::SizeFor(length);
   Tagged<HeapObject> result = AllocateRawWithImmortalMap(
@@ -350,6 +363,22 @@ FactoryBase<Impl>::NewWasmTrustedInstanceData() {
   result->clear_padding();
   for (int offset : WasmTrustedInstanceData::kTaggedFieldOffsets) {
     result->RawField(offset).store(read_only_roots().undefined_value());
+  }
+  return handle(result, isolate());
+}
+
+template <typename Impl>
+Handle<WasmDispatchTable> FactoryBase<Impl>::NewWasmDispatchTable(int length) {
+  CHECK_LE(length, WasmDispatchTable::kMaxLength);
+  int bytes = WasmDispatchTable::SizeFor(length);
+  Tagged<WasmDispatchTable> result = WasmDispatchTable::unchecked_cast(
+      AllocateRawWithImmortalMap(bytes, AllocationType::kTrusted,
+                                 read_only_roots().wasm_dispatch_table_map()));
+  result->WriteField<int>(WasmDispatchTable::kLengthOffset, length);
+  result->WriteField<int>(WasmDispatchTable::kCapacityOffset, length);
+  for (int i = 0; i < length; ++i) {
+    result->Clear(i);
+    result->clear_entry_padding(i);
   }
   return handle(result, isolate());
 }

@@ -485,10 +485,10 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kBytecodeArrayIndirectPointerTag, v);
-    IterateProtectedPointer(obj, kHandlerTableOffset, v);
-    IteratePointer(obj, kConstantPoolOffset, v);
     IteratePointer(obj, kWrapperOffset, v);
     IteratePointer(obj, kSourcePositionTableOffset, v);
+    IterateProtectedPointer(obj, kHandlerTableOffset, v);
+    IterateProtectedPointer(obj, kConstantPoolOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> obj) {
@@ -583,11 +583,8 @@ class InterpreterData::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kInterpreterDataIndirectPointerTag, v);
-    IterateTrustedPointer(obj, kBytecodeArrayOffset, v,
-                          IndirectPointerMode::kStrong,
-                          kBytecodeArrayIndirectPointerTag);
-    IterateCodePointer(obj, kInterpreterTrampolineOffset, v,
-                       IndirectPointerMode::kStrong);
+    IterateProtectedPointer(obj, kBytecodeArrayOffset, v);
+    IterateProtectedPointer(obj, kInterpreterTrampolineOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
@@ -791,6 +788,7 @@ class WasmInternalFunction::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitExternalPointer(
         obj, obj->RawExternalPointerField(kCallTargetOffset,
                                           kWasmInternalFunctionCallTargetTag));
+    IterateCodePointer(obj, kCodeOffset, v, IndirectPointerMode::kStrong);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
@@ -828,10 +826,30 @@ class WasmTrustedInstanceData::BodyDescriptor final
     for (uint16_t offset : kTaggedFieldOffsets) {
       IteratePointer(obj, offset, v);
     }
+
+    IterateProtectedPointer(obj, kDispatchTable0Offset, v);
+    IterateProtectedPointer(obj, kDispatchTablesOffset, v);
   }
 
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
     return kSize;
+  }
+};
+
+class WasmDispatchTable::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    int length = WasmDispatchTable::cast(obj)->length(kAcquireLoad);
+    for (int i = 0; i < length; ++i) {
+      IteratePointer(obj, OffsetOf(i) + kRefBias, v);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> object) {
+    int capacity = WasmDispatchTable::cast(object)->capacity();
+    return SizeFor(capacity);
   }
 };
 
@@ -1027,6 +1045,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
                                  int object_size, ObjectVisitor* v) {
     IterateSelfIndirectPointer(obj, kCodeIndirectPointerTag, v);
+    IterateProtectedPointer(
+        obj, Code::kDeoptimizationDataOrInterpreterDataOffset, v);
     IteratePointers(obj, Code::kStartOfStrongFieldsOffset,
                     Code::kEndOfStrongFieldsWithMainCageBaseOffset, v);
 
@@ -1088,8 +1108,11 @@ class EmbedderDataArray::BodyDescriptor final : public BodyDescriptorBase {
 
 template <typename Op, typename... Args>
 auto BodyDescriptorApply(InstanceType type, Args&&... args) {
-#define CALL_APPLY(ClassName)                                  \
-  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor>( \
+#define CALL_APPLY(ClassName)                                         \
+  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor, false>( \
+      std::forward<Args>(args)...)
+#define CALL_APPLY_TRUSTED(ClassName)                                \
+  Op::template apply<ObjectTraits<ClassName>::BodyDescriptor, true>( \
       std::forward<Args>(args)...)
 
   if (type < FIRST_NONSTRING_TYPE) {
@@ -1285,8 +1308,6 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
 #if V8_ENABLE_WEBASSEMBLY
     case WASM_INSTANCE_OBJECT_TYPE:
       return CALL_APPLY(WasmInstanceObject);
-    case WASM_TRUSTED_INSTANCE_DATA_TYPE:
-      return CALL_APPLY(WasmTrustedInstanceData);
     case WASM_NULL_TYPE:
       return CALL_APPLY(WasmNull);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1316,16 +1337,14 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(Foreign);
     case MAP_TYPE:
       return CALL_APPLY(Map);
-    case INSTRUCTION_STREAM_TYPE:
-      return CALL_APPLY(InstructionStream);
     case CELL_TYPE:
       return CALL_APPLY(Cell);
     case PROPERTY_CELL_TYPE:
       return CALL_APPLY(PropertyCell);
+    case CONST_TRACKING_LET_CELL_TYPE:
+      return CALL_APPLY(ConstTrackingLetCell);
     case SYMBOL_TYPE:
       return CALL_APPLY(Symbol);
-    case BYTECODE_ARRAY_TYPE:
-      return CALL_APPLY(BytecodeArray);
     case SMALL_ORDERED_HASH_SET_TYPE:
       return CALL_APPLY(SmallOrderedHashTable<SmallOrderedHashSet>);
     case SMALL_ORDERED_HASH_MAP_TYPE:
@@ -1334,12 +1353,8 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
       return CALL_APPLY(SmallOrderedHashTable<SmallOrderedNameDictionary>);
     case SWISS_NAME_DICTIONARY_TYPE:
       return CALL_APPLY(SwissNameDictionary);
-    case CODE_TYPE:
-      return CALL_APPLY(Code);
     case PREPARSE_DATA_TYPE:
       return CALL_APPLY(PreparseData);
-    case INTERPRETER_DATA_TYPE:
-      return CALL_APPLY(InterpreterData);
     case SHARED_FUNCTION_INFO_TYPE:
       return CALL_APPLY(SharedFunctionInfo);
     case HEAP_NUMBER_TYPE:
@@ -1381,8 +1396,14 @@ auto BodyDescriptorApply(InstanceType type, Args&&... args) {
           MAKE_TORQUE_BODY_DESCRIPTOR_APPLY)
 #undef MAKE_TORQUE_BODY_DESCRIPTOR_APPLY
 
+#define MAKE_TRUSTED_OBJECT_CASE(TypeCamelCase, TYPE_UPPER_CASE) \
+  case TYPE_UPPER_CASE##_TYPE:                                   \
+    return CALL_APPLY_TRUSTED(TypeCamelCase);
+      CONCRETE_TRUSTED_OBJECT_TYPE_LIST2(MAKE_TRUSTED_OBJECT_CASE)
+#undef MAKE_TRUSTED_OBJECT_CASE
+
     case FILLER_TYPE:
-      return Op::template apply<FreeSpaceFillerBodyDescriptor>(
+      return Op::template apply<FreeSpaceFillerBodyDescriptor, false>(
           std::forward<Args>(args)...);
 
     case FREE_SPACE_TYPE:
@@ -1421,9 +1442,22 @@ void HeapObject::IterateBodyFast(PtrComprCageBase cage_base, ObjectVisitor* v) {
 }
 
 struct CallIterateBody {
-  template <typename BodyDescriptor, typename ObjectVisitor>
+  template <typename BodyDescriptor, bool kIsTrusted, typename ObjectVisitor>
   static void apply(Tagged<Map> map, Tagged<HeapObject> obj, int object_size,
                     ObjectVisitor* v) {
+    if constexpr (kIsTrusted) {
+      DCHECK(IsTrustedObject(obj));
+      // This CHECK defends against an attacker crafting fake trusted objects
+      // inside the sandbox. See also crbug.com/c/1505089 for more details.
+      SBXCHECK(OutsideSandboxOrInReadonlySpace(obj));
+    } else {
+      // If this DCHECK fails, it means that a trusted object was not added to
+      // the HEAP_OBJECT_TRUSTED_TYPE_LIST.
+      // Note: This would normally be just !IsTrustedObject(obj), however we
+      // might see trusted objects here before they've been migrated to trusted
+      // space, hence the second condition.
+      DCHECK(!IsTrustedObject(obj) || !IsTrustedSpaceObject(obj));
+    }
     BodyDescriptor::IterateBody(map, obj, object_size, v);
   }
 };
@@ -1515,10 +1549,26 @@ class FixedArray::BodyDescriptor final
 };
 
 class TrustedFixedArray::BodyDescriptor final
-    : public SuffixRangeBodyDescriptor<ExposedTrustedObject::kHeaderSize> {
+    : public SuffixRangeBodyDescriptor<TrustedObject::kHeaderSize> {
  public:
   static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
     return TrustedFixedArray::unchecked_cast(raw_object)->AllocatedSize();
+  }
+};
+
+class ProtectedFixedArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  template <typename ObjectVisitor>
+  static inline void IterateBody(Tagged<Map> map, Tagged<HeapObject> obj,
+                                 int object_size, ObjectVisitor* v) {
+    for (int offset = kHeaderSize; offset < object_size;
+         offset += kTaggedSize) {
+      IterateProtectedPointer(obj, offset, v);
+    }
+  }
+
+  static inline int SizeOf(Tagged<Map> map, Tagged<HeapObject> raw_object) {
+    return ProtectedFixedArray::unchecked_cast(raw_object)->AllocatedSize();
   }
 };
 

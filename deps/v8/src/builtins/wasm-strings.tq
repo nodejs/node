@@ -63,6 +63,16 @@ transitioning javascript builtin WebAssemblyStringIntoUtf8Array(
   }
 }
 
+transitioning javascript builtin WebAssemblyStringToUtf8Array(
+    js-implicit context: Context)(...arguments): JSAny {
+  try {
+    const string = Cast<String>(arguments[0]) otherwise goto IllegalCast;
+    return runtime::WasmStringToUtf8Array(context, string);
+  } label IllegalCast deferred {
+    Trap(context, MessageTemplate::kWasmTrapIllegalCast);
+  }
+}
+
 transitioning javascript builtin WebAssemblyStringToWtf16Array(
     js-implicit context: Context)(...arguments): JSAny {
   try {

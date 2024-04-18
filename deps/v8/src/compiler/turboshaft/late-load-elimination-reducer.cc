@@ -7,9 +7,134 @@
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/turboshaft/opmasks.h"
 #include "src/compiler/turboshaft/phase.h"
+#include "src/compiler/turboshaft/representations.h"
 #include "src/objects/code-inl.h"
 
 namespace v8::internal::compiler::turboshaft {
+
+void LateLoadEliminationAnalyzer::Run() {
+  LoopFinder loop_finder(phase_zone_, &graph_);
+  AnalyzerIterator iterator(phase_zone_, graph_, loop_finder);
+
+  bool compute_start_snapshot = true;
+  while (iterator.HasNext()) {
+    const Block* block = iterator.Next();
+
+    ProcessBlock(*block, compute_start_snapshot);
+    compute_start_snapshot = true;
+
+    // Consider re-processing for loops.
+    if (const GotoOp* last = block->LastOperation(graph_).TryCast<GotoOp>()) {
+      if (last->destination->IsLoop() &&
+          last->destination->LastPredecessor() == block) {
+        const Block* loop_header = last->destination;
+        // {block} is the backedge of a loop. We recompute the loop header's
+        // initial snapshots, and if they differ from its original snapshot,
+        // then we revisit the loop.
+        if (BeginBlock<true>(loop_header)) {
+          // We set the snapshot of the loop's 1st predecessor to the newly
+          // computed snapshot. It's not quite correct, but this predecessor
+          // is guaranteed to end with a Goto, and we are now visiting the
+          // loop, which means that we don't really care about this
+          // predecessor anymore.
+          // The reason for saving this snapshot is to prevent infinite
+          // looping, since the next time we reach this point, the backedge
+          // snapshot could still invalidate things from the forward edge
+          // snapshot. By restricting the forward edge snapshot, we prevent
+          // this.
+          const Block* loop_1st_pred =
+              loop_header->LastPredecessor()->NeighboringPredecessor();
+          FinishBlock(loop_1st_pred);
+          // And we start a new fresh snapshot from this predecessor.
+          auto pred_snapshots =
+              block_to_snapshot_mapping_[loop_1st_pred->index()];
+          non_aliasing_objects_.StartNewSnapshot(
+              pred_snapshots->alias_snapshot);
+          object_maps_.StartNewSnapshot(pred_snapshots->maps_snapshot);
+          memory_.StartNewSnapshot(pred_snapshots->memory_snapshot);
+
+          iterator.MarkLoopForRevisit();
+          compute_start_snapshot = false;
+        } else {
+          SealAndDiscard();
+        }
+      }
+    }
+  }
+
+  FixedOpIndexSidetable<SaturatedUint8> total_use_counts(graph_.op_id_count(),
+                                                         phase_zone_, &graph_);
+  // Incorpoare load elimination decisions into int32-truncation data.
+  for (auto it = int32_truncated_loads_.begin();
+       it != int32_truncated_loads_.end();) {
+    OpIndex load_idx = it->first;
+    auto& truncations = it->second;
+    Replacement replacement = GetReplacement(load_idx);
+    // We distinguish a few different cases.
+    if (!replacement.IsLoadElimination()) {
+      // Case 1: This load is not going to be eliminated.
+      total_use_counts[load_idx] += graph_.Get(load_idx).saturated_use_count;
+      // Check if all uses we know so far, are all truncating uses.
+      if (total_use_counts[load_idx].IsSaturated() ||
+          total_use_counts[load_idx].Get() > truncations.size()) {
+        // We do know that we cannot int32-truncate this load, so eliminate
+        // it from the candidates.
+        int32_truncated_loads_.erase(it++);
+        continue;
+      }
+      // Otherwise, keep this candidate.
+      ++it;
+      continue;
+    } else {
+      OpIndex replaced_by_idx = replacement.replacement();
+      const Operation& replaced_by = graph_.Get(replaced_by_idx);
+      if (!replaced_by.Is<LoadOp>()) {
+        // Case 2: This load is replaced by a non-load (e.g. by the value
+        // stored that the load would read). This load cannot be truncated
+        // (because we are not going to have a load anymore), so eliminate it
+        // from the candidates.
+        int32_truncated_loads_.erase(it++);
+        continue;
+      } else {
+        // Case 3: This load is replaced by another load, so the truncating
+        // and the total uses have to be merged into the replacing use.
+        auto it2 = int32_truncated_loads_.find(replaced_by_idx);
+        if (it2 == int32_truncated_loads_.end()) {
+          // Case 3a: The replacing load is not tracked, so we assume it has
+          // non-truncating uses, so we can also ignore this load.
+          int32_truncated_loads_.erase(it++);
+          continue;
+        } else {
+          // Case 3b: The replacing load might have be a candidate for int32
+          // truncation, we merge the information into that load.
+          total_use_counts[replaced_by_idx] +=
+              graph_.Get(load_idx).saturated_use_count;
+          it2->second.insert(truncations.begin(), truncations.end());
+          int32_truncated_loads_.erase(it++);
+          continue;
+        }
+      }
+    }
+  }
+
+  // We have prepared everything and now extract the necessary replacement
+  // information.
+  for (const auto& [load_idx, int32_truncations] : int32_truncated_loads_) {
+    if (int32_truncations.empty()) continue;
+    if (!total_use_counts[load_idx].IsSaturated() &&
+        total_use_counts[load_idx].Get() == int32_truncations.size()) {
+      // All uses of this load are int32-truncating loads, so we replace them.
+      DCHECK(GetReplacement(load_idx).IsNone() ||
+             GetReplacement(load_idx).IsTaggedLoadToInt32Load());
+      for (const auto [change_idx, bitcast_idx] : int32_truncations) {
+        replacements_[change_idx] =
+            Replacement::Int32TruncationElimination(load_idx);
+        replacements_[bitcast_idx] = Replacement::TaggedBitcastElimination();
+        replacements_[load_idx] = Replacement::TaggedLoadToInt32Load();
+      }
+    }
+  }
+}
 
 void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
                                                bool compute_start_snapshot) {
@@ -54,6 +179,10 @@ void LateLoadEliminationAnalyzer::ProcessBlock(const Block& block,
       case Opcode::kAssumeMap:
         // Update known maps
         ProcessAssumeMap(op_idx, op.Cast<AssumeMapOp>());
+        break;
+      case Opcode::kChange:
+        // Check for tagged -> word32 load replacement
+        ProcessChange(op_idx, op.Cast<ChangeOp>());
         break;
       case Opcode::kCatchBlockBegin:
       case Opcode::kRetain:
@@ -132,6 +261,10 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     return;
   }
 
+  // We need to insert the load into the truncation mapping as a key, because
+  // all loads need to be revisited during processing.
+  int32_truncated_loads_[op_idx];
+
   if (OpIndex existing = memory_.Find(load); existing.valid()) {
     const Operation& replacement = graph_.Get(existing);
     // We need to make sure that {load} and {replacement} have the same output
@@ -142,13 +275,13 @@ void LateLoadEliminationAnalyzer::ProcessLoad(OpIndex op_idx,
     DCHECK_EQ(load.outputs_rep().size(), 1);
     if (RepIsCompatible(replacement.outputs_rep()[0], load.outputs_rep()[0],
                         load.loaded_rep)) {
-      replacements_[op_idx] = existing;
+      replacements_[op_idx] = Replacement::LoadElimination(existing);
       return;
     }
   }
   // Reset the replacement of {op_idx} to Invalid, in case a previous visit of a
   // loop has set it to something else.
-  replacements_[op_idx] = OpIndex::Invalid();
+  replacements_[op_idx] = Replacement::None();
 
   // TODO(dmercadier): if we precisely track maps, then we could know from the
   // map what we are loading in some cases. For instance, if the elements_kind
@@ -202,6 +335,7 @@ void LateLoadEliminationAnalyzer::ProcessStore(OpIndex op_idx,
 void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
                                               const CallOp& op) {
   const Operation& callee = graph_.Get(op.callee());
+#ifdef DEBUG
   if (const ConstantOp* external_constant =
           callee.template TryCast<Opmask::kExternalConstant>()) {
     if (external_constant->external_reference() ==
@@ -209,6 +343,7 @@ void LateLoadEliminationAnalyzer::ProcessCall(OpIndex op_idx,
       return;
     }
   }
+#endif
 
   // Some builtins do not create aliases and do not invalidate existing
   // memory, and some even return fresh objects. For such cases, we don't
@@ -291,6 +426,45 @@ void LateLoadEliminationAnalyzer::ProcessAssumeMap(
   OpIndex object = assume_map.heap_object();
   object_maps_.Set(object, CombineMinMax(object_maps_.Get(object),
                                          ComputeMinMaxHash(assume_map.maps)));
+}
+
+bool IsInt32TruncatedLoadPattern(const Graph& graph, OpIndex change_idx,
+                                 const ChangeOp& change, OpIndex* bitcast_idx,
+                                 OpIndex* load_idx) {
+  DCHECK_EQ(change_idx, graph.Index(change));
+
+  if (!change.Is<Opmask::kTruncateWord64ToWord32>()) return false;
+  const TaggedBitcastOp* bitcast =
+      graph.Get(change.input())
+          .TryCast<Opmask::kBitcastTaggedToWordPtrForTagAndSmiBits>();
+  if (bitcast == nullptr) return false;
+  // We require that the bitcast has no other uses. This could be slightly
+  // generalized by allowing multiple int32-truncating uses, but that is more
+  // expensive to detect and it is very unlikely that we ever see such a case
+  // (e.g. because of GVN).
+  if (!bitcast->saturated_use_count.IsOne()) return false;
+  const LoadOp* load = graph.Get(bitcast->input()).TryCast<LoadOp>();
+  if (load == nullptr) return false;
+  if (load->loaded_rep.SizeInBytesLog2() !=
+      MemoryRepresentation::Int32().SizeInBytesLog2()) {
+    return false;
+  }
+  if (bitcast_idx) *bitcast_idx = change.input();
+  if (load_idx) *load_idx = bitcast->input();
+  return true;
+}
+
+void LateLoadEliminationAnalyzer::ProcessChange(OpIndex op_idx,
+                                                const ChangeOp& change) {
+  // We look for this special case:
+  // TruncateWord64ToWord32(BitcastTaggedToWordPtrForTagAndSmiBits(Load(x))) =>
+  // Load(x)
+  // where the new Load uses Int32 rather than the tagged representation.
+  OpIndex bitcast_idx, load_idx;
+  if (IsInt32TruncatedLoadPattern(graph_, op_idx, change, &bitcast_idx,
+                                  &load_idx)) {
+    int32_truncated_loads_[load_idx][op_idx] = bitcast_idx;
+  }
 }
 
 void LateLoadEliminationAnalyzer::FinishBlock(const Block* block) {

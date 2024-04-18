@@ -33,7 +33,8 @@ class Map;
   V(ExternalString)                      \
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
-  V(InternalizedString)
+  V(InternalizedString)                  \
+  V(PropertyDictionary)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \
   INSTANCE_TYPE_CHECKERS_SINGLE(V) \

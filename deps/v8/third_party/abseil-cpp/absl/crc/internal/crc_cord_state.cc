@@ -17,6 +17,7 @@
 #include <cassert>
 
 #include "absl/base/config.h"
+#include "absl/base/no_destructor.h"
 #include "absl/numeric/bits.h"
 
 namespace absl {
@@ -24,14 +25,14 @@ ABSL_NAMESPACE_BEGIN
 namespace crc_internal {
 
 CrcCordState::RefcountedRep* CrcCordState::RefSharedEmptyRep() {
-  static CrcCordState::RefcountedRep* empty = new CrcCordState::RefcountedRep;
+  static absl::NoDestructor<CrcCordState::RefcountedRep> empty;
 
   assert(empty->count.load(std::memory_order_relaxed) >= 1);
   assert(empty->rep.removed_prefix.length == 0);
   assert(empty->rep.prefix_crc.empty());
 
-  Ref(empty);
-  return empty;
+  Ref(empty.get());
+  return empty.get();
 }
 
 CrcCordState::CrcCordState() : refcounted_rep_(new RefcountedRep) {}
