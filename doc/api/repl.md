@@ -565,7 +565,7 @@ Initializes a history log file for the REPL instance. When executing the
 Node.js binary and using the command-line REPL, a history file is initialized
 by default. However, this is not the case when creating a REPL
 programmatically. Use this method to initialize a history log file when working
-with REPL instances programmatically.
+with REPL instances programmatically. It's essential to recognize this asynchronous nature when utilizing the method. For actions that depend on history setup completion, such as closing the REPL instance, it's advisable to perform them within the callback function. Alternatively, these actions can be executed elsewhere in your codebase after ensuring history setup completion.
 
 ## `repl.builtinModules`
 
