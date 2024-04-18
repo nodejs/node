@@ -2910,7 +2910,7 @@ URL {
 }
 ```
 
-Ensure that you set `process.env.HOST` to the server's hostname, or consider
+Ensure that you set `process.env.HOST` to the server's host name, or consider
 replacing this part entirely. If using `req.headers.host`, ensure proper
 validation is used, as clients may specify a custom `Host` header.
 
