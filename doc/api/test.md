@@ -298,12 +298,15 @@ describe.only('a suite', () => {
 
 ## Filtering tests by name
 
-The [`--test-name-pattern`][] command-line option can be used to only run tests
-whose name matches the provided pattern. Test name patterns are interpreted as
-JavaScript regular expressions. The `--test-name-pattern` option can be
-specified multiple times in order to run nested tests. For each test that is
-executed, any corresponding test hooks, such as `beforeEach()`, are also
-run. Tests that are not executed are omitted from the test runner output.
+The [`--test-name-pattern`][] command-line option can be used to only run
+tests whose name matches the provided pattern, and the
+[`--test-skip-pattern`][] option can be used to skip tests whose name
+matches the provided pattern. Test name patterns are interpreted as
+JavaScript regular expressions. The `--test-name-pattern` and
+`--test-skip-pattern` options can be specified multiple times in order to run
+nested tests. For each test that is executed, any corresponding test hooks,
+such as `beforeEach()`, are also run. Tests that are not executed are omitted
+from the test runner output.
 
 Given the following test file, starting Node.js with the
 `--test-name-pattern="test [1-3]"` option would cause the test runner to execute
@@ -327,8 +330,8 @@ test('Test 4', async (t) => {
 
 Test name patterns can also be specified using regular expression literals. This
 allows regular expression flags to be used. In the previous example, starting
-Node.js with `--test-name-pattern="/test [4-5]/i"` would match `Test 4` and
-`Test 5` because the pattern is case-insensitive.
+Node.js with `--test-name-pattern="/test [4-5]/i"` (or `--test-skip-pattern="/test [4-5]/i"`)
+would match `Test 4` and `Test 5` because the pattern is case-insensitive.
 
 To match a single test with a pattern, you can prefix it with all its ancestor
 test names separated by space, to ensure it is unique.
@@ -348,6 +351,9 @@ Starting Node.js with `--test-name-pattern="test 1 some test"` would match
 only `some test` in `test 1`.
 
 Test name patterns do not change the set of files that the test runner executes.
+
+If both `--test-name-pattern` and `--test-skip-pattern` are supplied,
+tests must satisfy **both** requirements in order to be executed.
 
 ## Extraneous asynchronous activity
 
@@ -3153,6 +3159,7 @@ Can be used to abort test subtasks when the test has been aborted.
 [`--test-only`]: cli.md#--test-only
 [`--test-reporter-destination`]: cli.md#--test-reporter-destination
 [`--test-reporter`]: cli.md#--test-reporter
+[`--test-skip-pattern`]: cli.md#--test-skip-pattern
 [`--test`]: cli.md#--test
 [`MockFunctionContext`]: #class-mockfunctioncontext
 [`MockTimers`]: #class-mocktimers
