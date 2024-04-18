@@ -4,6 +4,9 @@ const common = require('../common');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 
+if (common.isSunOS)
+  common.skip('SunOS behaves differently')
+
 tmpdir.refresh();
 
 fs.mkdirSync(tmpdir.resolve('./parent/child'), { recursive: true });
