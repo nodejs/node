@@ -1297,7 +1297,7 @@ changes:
 * Returns: {http.ClientRequest}
 
 Calls [`socket.setTimeout()`][] on the socket assigned to this request
-after that socket emits the `connect` event.
+after that socket emits the `'connect'` event.
 
 Unlike the `timeout` option of [`http.Agent`][] and `http.request()`, the
 `request.setTimeout()` method disregards the socket connection time
