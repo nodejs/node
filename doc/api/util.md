@@ -3060,6 +3060,20 @@ util.isDate({});
 // Returns: false
 ```
 
+### `util.isDeprecated(object)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 2 - Stable
+
+* `object` {any}
+* Returns: {boolean}
+
+Returns `true` if the given `object` was deprecated via `util.deprecate`
+otherwise, returns `false`.
+
 ### `util.isError(object)`
 
 <!-- YAML
