@@ -1299,7 +1299,7 @@ changes:
 Calls [`socket.setTimeout()`][] on the socket assigned to this request
 after that socket emits the `connect` event.
 
-Unlike the `timeout` option on `http.Agent` and `http.request()`, the
+Unlike the `timeout` option of [`http.Agent`][] and `http.request()`, the
 `request.setTimeout()` method disregards the socket connection time
 as the timeout starts _after_ the socket connection has been established.
 
