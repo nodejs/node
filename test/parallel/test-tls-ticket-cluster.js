@@ -46,7 +46,7 @@ if (cluster.isPrimary) {
       session: lastSession,
       rejectUnauthorized: false
     }, () => {
-      c.end();
+      c.on('end', c.end);
     }).on('close', () => {
       // Wait for close to shoot off another connection. We don't want to shoot
       // until a new session is allocated, if one will be. The new session is
