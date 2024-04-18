@@ -33,4 +33,3 @@ const fixtures = require('../common/fixtures');
     });
   assert(!fs.existsSync(dir));
 }
-
