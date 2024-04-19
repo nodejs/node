@@ -163,7 +163,7 @@ export declare class Request extends BodyMixin {
   readonly method: string
   readonly mode: RequestMode
   readonly redirect: RequestRedirect
-  readonly referrerPolicy: string
+  readonly referrerPolicy: ReferrerPolicy
   readonly url: string
 
   readonly keepalive: boolean

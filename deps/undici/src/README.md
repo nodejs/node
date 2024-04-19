@@ -248,6 +248,18 @@ const data = {
 await fetch('https://example.com', { body: data, method: 'POST', duplex: 'half' })
 ```
 
+[FormData](https://developer.mozilla.org/en-US/docs/Web/API/FormData) besides text data and buffers can also utilize streams via [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) objects:
+
+```js
+import { openAsBlob } from 'node:fs'
+
+const file = await openAsBlob('./big.csv')
+const body = new FormData()
+body.set('file', file, 'big.csv')
+
+await fetch('http://example.com', { method: 'POST', body })
+```
+
 #### `request.duplex`
 
 - half
