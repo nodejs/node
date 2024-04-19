@@ -3,10 +3,12 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-#include <unordered_map>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "base_object.h"
+#include "v8-script.h"
 
 namespace node {
 
@@ -67,6 +69,23 @@ class ModuleWrap : public BaseObject {
     // Do these objects ever get GC'd? Are we just okay with leaking them?
     return true;
   }
+
+  static v8::Local<v8::PrimitiveArray> GetHostDefinedOptions(
+      v8::Isolate* isolate, v8::Local<v8::Symbol> symbol);
+
+  // When user_cached_data is not std::nullopt, use the code cache if it's not
+  // nullptr, otherwise don't use code cache.
+  // TODO(joyeecheung): when it is std::nullopt, use on-disk cache
+  // See: https://github.com/nodejs/node/issues/47472
+  static v8::MaybeLocal<v8::Module> CompileSourceTextModule(
+      Realm* realm,
+      v8::Local<v8::String> source_text,
+      v8::Local<v8::String> url,
+      int line_offset,
+      int column_offset,
+      v8::Local<v8::PrimitiveArray> host_defined_options,
+      std::optional<v8::ScriptCompiler::CachedData*> user_cached_data,
+      bool* cache_rejected);
 
  private:
   ModuleWrap(Realm* realm,

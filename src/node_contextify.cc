@@ -363,16 +363,12 @@ void ContextifyContext::CreatePerIsolateProperties(
   Isolate* isolate = isolate_data->isolate();
   SetMethod(isolate, target, "makeContext", MakeContext);
   SetMethod(isolate, target, "compileFunction", CompileFunction);
-  SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
-  SetMethod(isolate, target, "shouldRetryAsESM", ShouldRetryAsESM);
 }
 
 void ContextifyContext::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(MakeContext);
   registry->Register(CompileFunction);
-  registry->Register(ContainsModuleSyntax);
-  registry->Register(ShouldRetryAsESM);
   registry->Register(PropertyGetterCallback);
   registry->Register(PropertySetterCallback);
   registry->Register(PropertyDescriptorCallback);
@@ -1202,15 +1198,6 @@ ContextifyScript::ContextifyScript(Environment* env, Local<Object> object)
 
 ContextifyScript::~ContextifyScript() {}
 
-static Local<PrimitiveArray> GetHostDefinedOptions(Isolate* isolate,
-                                                   Local<Symbol> id_symbol) {
-  Local<PrimitiveArray> host_defined_options =
-      PrimitiveArray::New(isolate, loader::HostDefinedOptions::kLength);
-  host_defined_options->Set(
-      isolate, loader::HostDefinedOptions::kID, id_symbol);
-  return host_defined_options;
-}
-
 void ContextifyContext::CompileFunction(
     const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -1284,16 +1271,27 @@ void ContextifyContext::CompileFunction(
   }
 
   Local<PrimitiveArray> host_defined_options =
-      GetHostDefinedOptions(isolate, id_symbol);
-  ScriptCompiler::Source source =
-      GetCommonJSSourceInstance(isolate,
-                                code,
-                                filename,
-                                line_offset,
-                                column_offset,
-                                host_defined_options,
-                                cached_data);
-  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
+      loader::ModuleWrap::GetHostDefinedOptions(isolate, id_symbol);
+
+  ScriptOrigin origin(isolate,
+                      filename,
+                      line_offset,     // line offset
+                      column_offset,   // column offset
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      false,           // is ES Module
+                      host_defined_options);
+  ScriptCompiler::Source source(code, origin, cached_data);
+
+  ScriptCompiler::CompileOptions options;
+  if (source.GetCachedData() != nullptr) {
+    options = ScriptCompiler::kConsumeCodeCache;
+  } else {
+    options = ScriptCompiler::kNoCompileOptions;
+  }
 
   Context::Scope scope(parsing_context);
 
@@ -1339,39 +1337,6 @@ void ContextifyContext::CompileFunction(
     return;
   }
   args.GetReturnValue().Set(result);
-}
-
-ScriptCompiler::Source ContextifyContext::GetCommonJSSourceInstance(
-    Isolate* isolate,
-    Local<String> code,
-    Local<String> filename,
-    int line_offset,
-    int column_offset,
-    Local<PrimitiveArray> host_defined_options,
-    ScriptCompiler::CachedData* cached_data) {
-  ScriptOrigin origin(isolate,
-                      filename,
-                      line_offset,     // line offset
-                      column_offset,   // column offset
-                      true,            // is cross origin
-                      -1,              // script id
-                      Local<Value>(),  // source map URL
-                      false,           // is opaque (?)
-                      false,           // is WASM
-                      false,           // is ES Module
-                      host_defined_options);
-  return ScriptCompiler::Source(code, origin, cached_data);
-}
-
-ScriptCompiler::CompileOptions ContextifyContext::GetCompileOptions(
-    const ScriptCompiler::Source& source) {
-  ScriptCompiler::CompileOptions options;
-  if (source.GetCachedData() != nullptr) {
-    options = ScriptCompiler::kConsumeCodeCache;
-  } else {
-    options = ScriptCompiler::kNoCompileOptions;
-  }
-  return options;
 }
 
 static std::vector<Local<String>> GetCJSParameters(IsolateData* data) {
@@ -1479,160 +1444,17 @@ static std::vector<std::string_view> throws_only_in_cjs_error_messages = {
     "await is only valid in async functions and "
     "the top level bodies of modules"};
 
-void ContextifyContext::ContainsModuleSyntax(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  Isolate* isolate = env->isolate();
-  Local<Context> context = env->context();
-
-  if (args.Length() == 0) {
-    return THROW_ERR_MISSING_ARGS(
-        env, "containsModuleSyntax needs at least 1 argument");
-  }
-
-  // Argument 1: source code
-  CHECK(args[0]->IsString());
-  auto code = args[0].As<String>();
-
-  // Argument 2: filename; if undefined, use empty string
-  Local<String> filename = String::Empty(isolate);
-  if (!args[1]->IsUndefined()) {
-    CHECK(args[1]->IsString());
-    filename = args[1].As<String>();
-  }
-
-  // TODO(geoffreybooth): Centralize this rather than matching the logic in
-  // cjs/loader.js and translators.js
-  Local<String> script_id = String::Concat(
-      isolate, String::NewFromUtf8(isolate, "cjs:").ToLocalChecked(), filename);
-  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
-
-  Local<PrimitiveArray> host_defined_options =
-      GetHostDefinedOptions(isolate, id_symbol);
-  ScriptCompiler::Source source = GetCommonJSSourceInstance(
-      isolate, code, filename, 0, 0, host_defined_options, nullptr);
-  ScriptCompiler::CompileOptions options = GetCompileOptions(source);
-
-  std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
-
-  TryCatchScope try_catch(env);
-  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-
-  ContextifyContext::CompileFunctionAndCacheResult(env,
-                                                   context,
-                                                   &source,
-                                                   params,
-                                                   std::vector<Local<Object>>(),
-                                                   options,
-                                                   true,
-                                                   id_symbol,
-                                                   try_catch);
-
-  bool should_retry_as_esm = false;
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-    should_retry_as_esm =
-        ContextifyContext::ShouldRetryAsESMInternal(env, code);
-  }
-  args.GetReturnValue().Set(should_retry_as_esm);
-}
-
-void ContextifyContext::ShouldRetryAsESM(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_EQ(args.Length(), 1);  // code
-
-  // Argument 1: source code
-  Local<String> code;
-  CHECK(args[0]->IsString());
-  code = args[0].As<String>();
-
-  bool should_retry_as_esm =
-      ContextifyContext::ShouldRetryAsESMInternal(env, code);
-
-  args.GetReturnValue().Set(should_retry_as_esm);
-}
-
-bool ContextifyContext::ShouldRetryAsESMInternal(Environment* env,
-                                                 Local<String> code) {
-  Isolate* isolate = env->isolate();
-
-  Local<String> script_id =
-      FIXED_ONE_BYTE_STRING(isolate, "[retry_as_esm_check]");
-  Local<Symbol> id_symbol = Symbol::New(isolate, script_id);
-
-  Local<PrimitiveArray> host_defined_options =
-      GetHostDefinedOptions(isolate, id_symbol);
-  ScriptCompiler::Source source =
-      GetCommonJSSourceInstance(isolate,
-                                code,
-                                script_id,  // filename
-                                0,          // line offset
-                                0,          // column offset
-                                host_defined_options,
-                                nullptr);  // cached_data
-
-  TryCatchScope try_catch(env);
-  ShouldNotAbortOnUncaughtScope no_abort_scope(env);
-
-  // Try parsing where instead of the CommonJS wrapper we use an async function
-  // wrapper. If the parse succeeds, then any CommonJS parse error for this
-  // module was caused by either a top-level declaration of one of the CommonJS
-  // module variables, or a top-level `await`.
-  code = String::Concat(
-      isolate, FIXED_ONE_BYTE_STRING(isolate, "(async function() {"), code);
-  code = String::Concat(isolate, code, FIXED_ONE_BYTE_STRING(isolate, "})();"));
-
-  ScriptCompiler::Source wrapped_source = GetCommonJSSourceInstance(
-      isolate, code, script_id, 0, 0, host_defined_options, nullptr);
-
-  Local<Context> context = env->context();
-  std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
-  USE(ScriptCompiler::CompileFunction(
-      context,
-      &wrapped_source,
-      params.size(),
-      params.data(),
-      0,
-      nullptr,
-      ScriptCompiler::kNoCompileOptions,
-      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason));
-
-  if (!try_catch.HasTerminated()) {
-    if (try_catch.HasCaught()) {
-      // If on the second parse an error is thrown by ESM syntax, then
-      // what happened was that the user had top-level `await` or a
-      // top-level declaration of one of the CommonJS module variables
-      // above the first `import` or `export`.
-      Utf8Value message_value(env->isolate(), try_catch.Message()->Get());
-      auto message_view = message_value.ToStringView();
-      for (const auto& error_message : esm_syntax_error_messages) {
-        if (message_view.find(error_message) != std::string_view::npos) {
-          return true;
-        }
-      }
-    } else {
-      // No errors thrown in the second parse, so most likely the error
-      // was caused by a top-level `await` or a top-level declaration of
-      // one of the CommonJS module variables.
-      return true;
-    }
-  }
-  return false;
-}
-
-static void CompileFunctionForCJSLoader(
-    const FunctionCallbackInfo<Value>& args) {
-  CHECK(args[0]->IsString());
-  CHECK(args[1]->IsString());
-  Local<String> code = args[0].As<String>();
-  Local<String> filename = args[1].As<String>();
-  Isolate* isolate = args.GetIsolate();
-  Local<Context> context = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(context);
+static MaybeLocal<Function> CompileFunctionForCJSLoader(Environment* env,
+                                                        Local<Context> context,
+                                                        Local<String> code,
+                                                        Local<String> filename,
+                                                        bool* cache_rejected) {
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
 
   Local<Symbol> symbol = env->vm_dynamic_import_default_internal();
-  Local<PrimitiveArray> hdo = GetHostDefinedOptions(isolate, symbol);
+  Local<PrimitiveArray> hdo =
+      loader::ModuleWrap::GetHostDefinedOptions(isolate, symbol);
   ScriptOrigin origin(isolate,
                       filename,
                       0,               // line offset
@@ -1679,10 +1501,7 @@ static void CompileFunctionForCJSLoader(
     options = ScriptCompiler::kConsumeCodeCache;
   }
 
-  TryCatchScope try_catch(env);
-
   std::vector<Local<String>> params = GetCJSParameters(env->isolate_data());
-
   MaybeLocal<Function> maybe_fn = ScriptCompiler::CompileFunction(
       context,
       &source,
@@ -1691,26 +1510,45 @@ static void CompileFunctionForCJSLoader(
       0,       /* context extensions size */
       nullptr, /* context extensions data */
       // TODO(joyeecheung): allow optional eager compilation.
-      options,
-      v8::ScriptCompiler::NoCacheReason::kNoCacheNoReason);
+      options);
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
-    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
-      errors::DecorateErrorStack(env, try_catch);
-      if (!try_catch.HasTerminated()) {
-        try_catch.ReThrow();
-      }
-      return;
-    }
+    return scope.EscapeMaybe(MaybeLocal<Function>());
   }
 
-  bool cache_rejected = false;
   if (options == ScriptCompiler::kConsumeCodeCache) {
-    cache_rejected = source.GetCachedData()->rejected;
+    *cache_rejected = source.GetCachedData()->rejected;
   }
   if (cache_entry != nullptr) {
-    env->compile_cache_handler()->MaybeSave(cache_entry, fn, cache_rejected);
+    env->compile_cache_handler()->MaybeSave(cache_entry, fn, *cache_rejected);
+  }
+  return scope.Escape(fn);
+}
+
+static void CompileFunctionForCJSLoader(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsString());
+  Local<String> code = args[0].As<String>();
+  Local<String> filename = args[1].As<String>();
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  bool cache_rejected = false;
+  Local<Function> fn;
+  {
+    TryCatchScope try_catch(env);
+    if (!CompileFunctionForCJSLoader(
+             env, context, code, filename, &cache_rejected)
+             .ToLocal(&fn)) {
+      CHECK(try_catch.HasCaught());
+      CHECK(!try_catch.HasTerminated());
+      errors::DecorateErrorStack(env, try_catch);
+      try_catch.ReThrow();
+      return;
+    }
   }
 
   std::vector<Local<Name>> names = {
@@ -1725,6 +1563,108 @@ static void CompileFunctionForCJSLoader(
   };
   Local<Object> result = Object::New(
       isolate, v8::Null(isolate), names.data(), values.data(), names.size());
+  args.GetReturnValue().Set(result);
+}
+
+static bool ShouldRetryAsESM(Realm* realm,
+                             Local<String> message,
+                             Local<String> code,
+                             Local<String> resource_name) {
+  Isolate* isolate = realm->isolate();
+
+  Utf8Value message_value(isolate, message);
+  auto message_view = message_value.ToStringView();
+
+  // These indicates that the file contains syntaxes that are only valid in
+  // ESM. So it must be true.
+  for (const auto& error_message : esm_syntax_error_messages) {
+    if (message_view.find(error_message) != std::string_view::npos) {
+      return true;
+    }
+  }
+
+  // Check if the error message is allowed in ESM but not in CommonJS. If it
+  // is the case, let's check if file can be compiled as ESM.
+  bool maybe_valid_in_esm = false;
+  for (const auto& error_message : throws_only_in_cjs_error_messages) {
+    if (message_view.find(error_message) != std::string_view::npos) {
+      maybe_valid_in_esm = true;
+      break;
+    }
+  }
+  if (!maybe_valid_in_esm) {
+    return false;
+  }
+
+  bool cache_rejected = false;
+  TryCatchScope try_catch(realm->env());
+  ShouldNotAbortOnUncaughtScope no_abort_scope(realm->env());
+  Local<v8::Module> module;
+  Local<PrimitiveArray> hdo = loader::ModuleWrap::GetHostDefinedOptions(
+      isolate, realm->isolate_data()->source_text_module_default_hdo());
+  if (loader::ModuleWrap::CompileSourceTextModule(
+          realm, code, resource_name, 0, 0, hdo, nullptr, &cache_rejected)
+          .ToLocal(&module)) {
+    return true;
+  }
+
+  return false;
+}
+
+static void ShouldRetryAsESM(const FunctionCallbackInfo<Value>& args) {
+  Realm* realm = Realm::GetCurrent(args);
+
+  CHECK_EQ(args.Length(), 3);  // message, code, resource_name
+  CHECK(args[0]->IsString());
+  Local<String> message = args[0].As<String>();
+  CHECK(args[1]->IsString());
+  Local<String> code = args[1].As<String>();
+  CHECK(args[2]->IsString());
+  Local<String> resource_name = args[2].As<String>();
+
+  args.GetReturnValue().Set(
+      ShouldRetryAsESM(realm, message, code, resource_name));
+}
+
+static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Realm* realm = Realm::GetCurrent(context);
+  Environment* env = realm->env();
+
+  CHECK_GE(args.Length(), 2);
+
+  // Argument 1: source code
+  CHECK(args[0]->IsString());
+  Local<String> code = args[0].As<String>();
+
+  // Argument 2: filename
+  CHECK(args[1]->IsString());
+  Local<String> filename = args[1].As<String>();
+
+  // Argument 2: resource name (URL for ES module).
+  Local<String> resource_name = filename;
+  if (args[2]->IsString()) {
+    resource_name = args[2].As<String>();
+  }
+
+  bool cache_rejected = false;
+  Local<String> message;
+  {
+    Local<Function> fn;
+    TryCatchScope try_catch(env);
+    ShouldNotAbortOnUncaughtScope no_abort_scope(env);
+    if (CompileFunctionForCJSLoader(
+            env, context, code, filename, &cache_rejected)
+            .ToLocal(&fn)) {
+      args.GetReturnValue().Set(false);
+      return;
+    }
+    CHECK(try_catch.HasCaught());
+    message = try_catch.Message()->Get();
+  }
+
+  bool result = ShouldRetryAsESM(realm, message, code, resource_name);
   args.GetReturnValue().Set(result);
 }
 
@@ -1784,6 +1724,9 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
             target,
             "compileFunctionForCJSLoader",
             CompileFunctionForCJSLoader);
+
+  SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
+  SetMethod(isolate, target, "shouldRetryAsESM", ShouldRetryAsESM);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -1796,7 +1739,6 @@ static void CreatePerContextProperties(Local<Object> target,
   Local<Object> constants = Object::New(env->isolate());
   Local<Object> measure_memory = Object::New(env->isolate());
   Local<Object> memory_execution = Object::New(env->isolate());
-  Local<Object> syntax_detection_errors = Object::New(env->isolate());
 
   {
     Local<Object> memory_mode = Object::New(env->isolate());
@@ -1817,25 +1759,6 @@ static void CreatePerContextProperties(Local<Object> target,
 
   READONLY_PROPERTY(constants, "measureMemory", measure_memory);
 
-  {
-    Local<Value> esm_syntax_error_messages_array =
-        ToV8Value(context, esm_syntax_error_messages).ToLocalChecked();
-    READONLY_PROPERTY(syntax_detection_errors,
-                      "esmSyntaxErrorMessages",
-                      esm_syntax_error_messages_array);
-  }
-
-  {
-    Local<Value> throws_only_in_cjs_error_messages_array =
-        ToV8Value(context, throws_only_in_cjs_error_messages).ToLocalChecked();
-    READONLY_PROPERTY(syntax_detection_errors,
-                      "throwsOnlyInCommonJSErrorMessages",
-                      throws_only_in_cjs_error_messages_array);
-  }
-
-  READONLY_PROPERTY(
-      constants, "syntaxDetectionErrors", syntax_detection_errors);
-
   target->Set(context, env->constants_string(), constants).Check();
 }
 
@@ -1848,6 +1771,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StopSigintWatchdog);
   registry->Register(WatchdogHasPendingSigint);
   registry->Register(MeasureMemory);
+  registry->Register(ContainsModuleSyntax);
+  registry->Register(ShouldRetryAsESM);
 }
 }  // namespace contextify
 }  // namespace node

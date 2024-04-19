@@ -102,9 +102,17 @@ ModuleWrap* ModuleWrap::GetFromModule(Environment* env,
   return nullptr;
 }
 
-// new ModuleWrap(url, context, source, lineOffset, columnOffset, cachedData)
+Local<PrimitiveArray> ModuleWrap::GetHostDefinedOptions(
+    Isolate* isolate, Local<Symbol> id_symbol) {
+  Local<PrimitiveArray> host_defined_options =
+      PrimitiveArray::New(isolate, HostDefinedOptions::kLength);
+  host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
+  return host_defined_options;
+}
+
+// new ModuleWrap(url, context, source, lineOffset, columnOffset[, cachedData]);
 // new ModuleWrap(url, context, source, lineOffset, columOffset,
-//                hostDefinedOption)
+//                idSymbol);
 // new ModuleWrap(url, context, exportNames, evaluationCallback[, cjsModule])
 void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
@@ -143,9 +151,10 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     // cjsModule])
     CHECK(args[3]->IsFunction());
   } else {
-    // new ModuleWrap(url, context, source, lineOffset, columOffset, cachedData)
+    // new ModuleWrap(url, context, source, lineOffset, columOffset[,
+    //                cachedData]);
     // new ModuleWrap(url, context, source, lineOffset, columOffset,
-    // hostDefinedOption)
+    //                idSymbol);
     CHECK(args[2]->IsString());
     CHECK(args[3]->IsNumber());
     line_offset = args[3].As<Int32>()->Value();
@@ -159,7 +168,7 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
     } else {
       id_symbol = Symbol::New(isolate, url);
     }
-    host_defined_options->Set(isolate, HostDefinedOptions::kID, id_symbol);
+    host_defined_options = GetHostDefinedOptions(isolate, id_symbol);
 
     if (that->SetPrivate(context,
                          realm->isolate_data()->host_defined_option_symbol(),
@@ -192,50 +201,34 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
       module = Module::CreateSyntheticModule(isolate, url, export_names,
         SyntheticModuleEvaluationStepsCallback);
     } else {
-      ScriptCompiler::CachedData* cached_data = nullptr;
-      bool used_cache_from_user = false;
+      // When we are compiling for the default loader, this will be
+      // std::nullopt, and CompileSourceTextModule() should use
+      // on-disk cache.
+      std::optional<v8::ScriptCompiler::CachedData*> user_cached_data;
+      if (id_symbol !=
+          realm->isolate_data()->source_text_module_default_hdo()) {
+        user_cached_data = nullptr;
+      }
       if (args[5]->IsArrayBufferView()) {
-        DCHECK(!can_use_builtin_cache);  // We don't use this option internally.
-        used_cache_from_user = true;
+        CHECK(!can_use_builtin_cache);  // We don't use this option internally.
         Local<ArrayBufferView> cached_data_buf = args[5].As<ArrayBufferView>();
         uint8_t* data =
             static_cast<uint8_t*>(cached_data_buf->Buffer()->Data());
-        cached_data =
+        user_cached_data =
             new ScriptCompiler::CachedData(data + cached_data_buf->ByteOffset(),
                                            cached_data_buf->ByteLength());
       }
-
       Local<String> source_text = args[2].As<String>();
-      ScriptOrigin origin(isolate,
-                          url,
-                          line_offset,
-                          column_offset,
-                          true,                             // is cross origin
-                          -1,                               // script id
-                          Local<Value>(),                   // source map URL
-                          false,                            // is opaque (?)
-                          false,                            // is WASM
-                          true,                             // is ES Module
-                          host_defined_options);
 
-      CompileCacheEntry* cache_entry = nullptr;
-      if (can_use_builtin_cache && realm->env()->use_compile_cache()) {
-        cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
-            source_text, url, CachedCodeType::kESM);
-      }
-      if (cache_entry != nullptr && cache_entry->cache != nullptr) {
-        // source will take ownership of cached_data.
-        cached_data = cache_entry->CopyCache();
-      }
-
-      ScriptCompiler::Source source(source_text, origin, cached_data);
-      ScriptCompiler::CompileOptions options;
-      if (source.GetCachedData() == nullptr) {
-        options = ScriptCompiler::kNoCompileOptions;
-      } else {
-        options = ScriptCompiler::kConsumeCodeCache;
-      }
-      if (!ScriptCompiler::CompileModule(isolate, &source, options)
+      bool cache_rejected = false;
+      if (!CompileSourceTextModule(realm,
+                                   source_text,
+                                   url,
+                                   line_offset,
+                                   column_offset,
+                                   host_defined_options,
+                                   user_cached_data,
+                                   &cache_rejected)
                .ToLocal(&module)) {
         if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
           CHECK(!try_catch.Message().IsEmpty());
@@ -249,18 +242,8 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      bool cache_rejected = false;
-      if (options == ScriptCompiler::kConsumeCodeCache) {
-        cache_rejected = source.GetCachedData()->rejected;
-      }
-
-      if (cache_entry != nullptr) {
-        realm->env()->compile_cache_handler()->MaybeSave(
-            cache_entry, module, cache_rejected);
-      }
-
-      // If the cache comes from builtin compile cache, fail silently.
-      if (cache_rejected && used_cache_from_user) {
+      if (user_cached_data.has_value() && user_cached_data.value() != nullptr &&
+          cache_rejected) {
         THROW_ERR_VM_MODULE_CACHED_DATA_REJECTED(
             realm, "cachedData buffer was rejected");
         try_catch.ReThrow();
@@ -301,6 +284,71 @@ void ModuleWrap::New(const FunctionCallbackInfo<Value>& args) {
 
   that->SetIntegrityLevel(context, IntegrityLevel::kFrozen);
   args.GetReturnValue().Set(that);
+}
+
+MaybeLocal<Module> ModuleWrap::CompileSourceTextModule(
+    Realm* realm,
+    Local<String> source_text,
+    Local<String> url,
+    int line_offset,
+    int column_offset,
+    Local<PrimitiveArray> host_defined_options,
+    std::optional<ScriptCompiler::CachedData*> user_cached_data,
+    bool* cache_rejected) {
+  Isolate* isolate = realm->isolate();
+  EscapableHandleScope scope(isolate);
+  ScriptOrigin origin(isolate,
+                      url,
+                      line_offset,
+                      column_offset,
+                      true,            // is cross origin
+                      -1,              // script id
+                      Local<Value>(),  // source map URL
+                      false,           // is opaque (?)
+                      false,           // is WASM
+                      true,            // is ES Module
+                      host_defined_options);
+  ScriptCompiler::CachedData* cached_data = nullptr;
+  CompileCacheEntry* cache_entry = nullptr;
+  // When compiling for the default loader, user_cached_data is std::nullptr.
+  // When compiling for vm.Module, it's either nullptr or a pointer to the
+  // cached data.
+  if (user_cached_data.has_value()) {
+    cached_data = user_cached_data.value();
+  } else if (realm->env()->use_compile_cache()) {
+    cache_entry = realm->env()->compile_cache_handler()->GetOrInsert(
+        source_text, url, CachedCodeType::kESM);
+  }
+
+  if (cache_entry != nullptr && cache_entry->cache != nullptr) {
+    // source will take ownership of cached_data.
+    cached_data = cache_entry->CopyCache();
+  }
+
+  ScriptCompiler::Source source(source_text, origin, cached_data);
+  ScriptCompiler::CompileOptions options;
+  if (cached_data == nullptr) {
+    options = ScriptCompiler::kNoCompileOptions;
+  } else {
+    options = ScriptCompiler::kConsumeCodeCache;
+  }
+
+  Local<Module> module;
+  if (!ScriptCompiler::CompileModule(isolate, &source, options)
+           .ToLocal(&module)) {
+    return scope.EscapeMaybe(MaybeLocal<Module>());
+  }
+
+  if (options == ScriptCompiler::kConsumeCodeCache) {
+    *cache_rejected = source.GetCachedData()->rejected;
+  }
+
+  if (cache_entry != nullptr) {
+    realm->env()->compile_cache_handler()->MaybeSave(
+        cache_entry, module, *cache_rejected);
+  }
+
+  return scope.Escape(module);
 }
 
 static Local<Object> createImportAttributesContainer(
