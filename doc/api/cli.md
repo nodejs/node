@@ -863,6 +863,8 @@ following permissions are restricted:
 added: v11.8.0
 -->
 
+> Stability: 0 - Deprecated: Will be removed shortly.
+
 Use the specified file as a security policy.
 
 ### `--experimental-sea-config`
@@ -1469,7 +1471,7 @@ developers may leverage to detect deprecated API usage.
 added: v12.7.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated: Will be removed shortly.
 
 Instructs Node.js to error prior to running any code if the policy does not have
 the specified integrity. It expects a [Subresource Integrity][] string as a
