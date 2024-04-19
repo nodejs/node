@@ -684,6 +684,7 @@ static void PlatformInit(ProcessInitializationFlags::Flags flags) {
     per_process::old_vectored_exception_handler =
         AddVectoredExceptionHandler(first, TrapWebAssemblyOrContinue);
   }
+  V8::EnableWebAssemblyTrapHandler(false);
 #endif  // NODE_USE_V8_WASM_TRAP_HANDLER
   if (!(flags & ProcessInitializationFlags::kNoStdioInitialization)) {
     for (int fd = 0; fd <= 2; ++fd) {
