@@ -889,6 +889,14 @@ added: v11.8.0
 
 Use the specified file as a security policy.
 
+### `--experimental-repl`
+
+<!--
+added: REPLACEME
+-->
+
+Use the experimental REPL instead of the default.
+
 ### `--experimental-require-module`
 
 <!-- YAML
@@ -2655,6 +2663,7 @@ one is included in the list below.
 * `--experimental-permission`
 * `--experimental-policy`
 * `--experimental-print-required-tla`
+* `--experimental-repl`
 * `--experimental-require-module`
 * `--experimental-shadow-realm`
 * `--experimental-specifier-resolution`

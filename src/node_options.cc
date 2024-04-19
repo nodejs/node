@@ -362,6 +362,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "top-level await in the graph",
             &EnvironmentOptions::print_required_tla,
             kAllowedInEnvvar);
+  AddOption("--experimental-repl",
+            "enable experimental REPL support",
+            &EnvironmentOptions::experimental_repl,
+            kAllowedInEnvvar);
   AddOption("--experimental-require-module",
             "Allow loading explicit ES Modules in require().",
             &EnvironmentOptions::require_module,
