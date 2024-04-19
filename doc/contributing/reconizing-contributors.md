@@ -43,4 +43,4 @@ by the OpenJS marketing staff.
 Before any work proceeds on an approved nomination the individual(s)
 or team will be contacted to confirm they want to participate. Social
 content and or spotlight blog post will only be published after the
-team or individual(s) have confirmed they are happy with the contenxt.
+team or individual(s) have confirmed they are happy with the content.
