@@ -225,7 +225,7 @@ declare namespace Dispatcher {
     /** Invoked when response is received, before headers have been read. **/
     onResponseStarted?(): void;
     /** Invoked when statusCode and headers have been received. May be invoked multiple times due to 1xx informational headers. */
-    onHeaders?(statusCode: number, headers: Buffer[] | string[] | null, resume: () => void, statusText: string): boolean;
+    onHeaders?(statusCode: number, headers: Buffer[], resume: () => void, statusText: string): boolean;
     /** Invoked when response payload data is received. */
     onData?(chunk: Buffer): boolean;
     /** Invoked when response payload and trailers have been received and the request has completed. */

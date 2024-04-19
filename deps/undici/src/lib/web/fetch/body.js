@@ -403,13 +403,13 @@ function mixinBody (prototype) {
 async function consumeBody (object, convertBytesToJSValue, instance) {
   webidl.brandCheck(object, instance)
 
-  throwIfAborted(object[kState])
-
   // 1. If object is unusable, then return a promise rejected
   //    with a TypeError.
   if (bodyUnusable(object[kState].body)) {
     throw new TypeError('Body is unusable')
   }
+
+  throwIfAborted(object[kState])
 
   // 2. Let promise be a new promise.
   const promise = createDeferredPromise()

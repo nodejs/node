@@ -969,6 +969,12 @@ Parameters:
 * **targets** `Array<Dispatcher>`
 * **error** `Error`
 
+Emitted when the dispatcher has been disconnected from the origin.
+
+> **Note**: For HTTP/2, this event is also emitted when the dispatcher has received the [GOAWAY Frame](https://webconcepts.info/concepts/http2-frame-type/0x7) with an Error with the message `HTTP/2: "GOAWAY" frame received` and the code `UND_ERR_INFO`.
+> Due to nature of the protocol of using binary frames, it is possible that requests gets hanging as a frame can be received between the `HEADER` and `DATA` frames.
+> It is recommended to handle this event and close the dispatcher to create a new HTTP/2 session.
+
 ### Event: `'connectionError'`
 
 Parameters:
